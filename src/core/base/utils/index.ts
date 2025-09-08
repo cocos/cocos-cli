@@ -1,4 +1,10 @@
 
-export * as File from './file';
-export * as UUID from './uuid';
-export * as Path from './path';
+import * as File from './file';
+import * as UUID from './uuid';
+import * as Path from './path';
+
+export default {
+    UUID,
+    File,
+    Path,
+};

@@ -92,6 +92,16 @@ export function normalize(path: string) {
     return path;
 }
 
+/**
+ * TODO 一期
+ * @param path 
+ * @returns 
+ */
+export function resolveToRaw(path: string) {
+
+    return '';
+}
+
 export const join = Path.join;
 export const resolve = Path.resolve;
 export const isAbsolute = Path.isAbsolute;

@@ -1,4 +1,6 @@
-import type { IAsset, IAssetInfo, VirtualAsset, Asset, IExportData } from './asset';
+import { type } from 'os';
+import { IAsset, IAssetInfo, VirtualAsset, Asset, IExportData } from './asset';
+import { Migrate } from '@editor/asset-db/libs/importer';
 
 export interface CustomOperator {
     label?: string; // 处理方法名，displayName 将会出现在一些文档定义上
@@ -302,37 +304,3 @@ export interface IAssetConfig {
         internal: boolean;
     }
 }
-import { Asset, VirtualAsset } from './asset-db';
-import { CCON } from 'cc/editor/serialization';
-import { Migrate } from './asset-db/libs/migrator';
-
-export interface IExportData {
-    import: {
-        type: 'buffer' | 'json';
-        path: string;
-    };
-    // 例如 { 'test.font': 'test.font' }
-    native?: Record<string, string>;
-}
-
-export class VirtualAsset extends VirtualAsset {
-    /**
-     * 获取资源的导出数据
-     */
-    getData: (name: 'output') => IExportData;
-    setData: (name: 'output', data: IExportData) => void;
-}
-
-export class Asset extends Asset, IVirtualAsset { };
-
-export type IAsset = VirtualAsset | Asset;
-
-export type QueryAssetType = 'asset' | 'script' | 'all';
-
-export interface ISerializedOptions {
-    debug: boolean;
-    _exporting?: boolean;
-    dontStripDefault?: boolean;
-}
-
-export type SerializedAsset = string | object | CCON;

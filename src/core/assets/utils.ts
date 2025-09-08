@@ -1,18 +1,13 @@
 'use strict';
 
-import {
-    IAsset,
-    IMoveOptions,
-    ISerializedOptions,
-    SerializedAsset,
-    IExportData,
-} from '../../@types/private';
-
 import { Asset, VirtualAsset, queryUUID, Utils as dbUtils, queryAsset as dbQueryAsset, queryPath } from '@editor/asset-db';
 import { isAbsolute, join, relative, resolve } from 'path';
 import { existsSync, move, readFile, readJSON, remove } from 'fs-extra';
 import type { Asset as CCAsset, Details } from 'cc';
 import type { CCON } from 'cc/editor/serialization';
+import I18n from '../base/i18n';
+import Utils from '../base/utils';
+import { IAsset, IExportData, ISerializedOptions, SerializedAsset } from './@types/private';
 
 const EditorExtends: any = require('@base/electron-module').require('EditorExtends');
 export function url2path(url: string) {
@@ -24,20 +19,16 @@ export function url2path(url: string) {
         return queryPath(url);
     }
 
-    if (url.startsWith('packages')) {
-        // 需要转换为插件地址
-        try {
-            const matchInfo = url.match(/packages:\/\/([^/]*)\/(.*)$/)!;
-            const pkgInfos = Editor.Package.getPackages({ name: matchInfo[1] });
-            return join(pkgInfos[0].path, matchInfo[2]);
-        } catch (error) {
-            console.warn(`Invalid package url ${url}`);
-        }
-    }
-
-    return Editor.UI.__protected__.File.resolveToRaw(url);
+    return Utils.Path.resolveToRaw(url);
 }
 
+/**
+* 将时间戳转为可阅读的时间信息
+*/
+export function getCurrentLocalTime() {
+    const time = new Date();
+    return time.toLocaleDateString().replace(/\//g, '-') + ' ' + time.toTimeString().slice(0, 5).replace(/:/g, '-');
+}
 /**
  * 获取当前内存占用
  */
@@ -160,7 +151,7 @@ export async function removeFile(file: string): Promise<boolean> {
     }
 
     try {
-        await Editor.Utils.File.trashItem(file);
+        await Utils.File.trashItem(file);
     } catch (error) {
         console.error(error);
         throw new Error(`asset db removeFile ${file} fail!`);
@@ -170,7 +161,7 @@ export async function removeFile(file: string): Promise<boolean> {
     try {
         const metaFile = file + '.meta';
         if (existsSync(metaFile)) {
-            await Editor.Utils.File.trashItem(metaFile);
+            await Utils.File.trashItem(metaFile);
         }
     } catch (error) {
         // do nothing
@@ -178,47 +169,6 @@ export async function removeFile(file: string): Promise<boolean> {
     return true;
 }
 
-/**
- * 移动文件
- * @param file
- */
-export async function moveFile(source: string, target: string, options?: IMoveOptions) {
-    if (!existsSync(source) || !existsSync(source + '.meta')) {
-        return;
-    }
-
-    if (!options) {
-        if (existsSync(target) || existsSync(target + '.meta')) {
-            return;
-        }
-
-        options = { overwrite: false }; // fs move 要求实参 options 要有值
-    }
-    const tempDir = join(Editor.Project.tmpDir, 'asset-db', 'move-temp');
-    const relativePath = relative(Editor.Project.path, target);
-    try {
-        if (!Editor.Utils.Path.contains(source, target)) {
-            await move(source + '.meta', target + '.meta', { overwrite: true }); // meta 先移动
-            await move(source, target, options);
-            return;
-        }
-        // assets/scripts/scripts -> assets/scripts 直接操作会报错，需要分次执行
-        // 清空临时目录
-        await remove(join(tempDir, relativePath));
-        await remove(join(tempDir, relativePath) + '.meta');
-
-        // 先移动到临时目录
-        await move(source + '.meta', join(tempDir, relativePath) + '.meta', { overwrite: true }); // meta 先移动
-        await move(source, join(tempDir, relativePath), { overwrite: true });
-
-        // 再移动到目标目录
-        await move(join(tempDir, relativePath) + '.meta', target + '.meta', { overwrite: true }); // meta 先移动
-        await move(join(tempDir, relativePath), target, options);
-    } catch (error) {
-        console.error(`asset db moveFile from ${source} -> ${target} fail!`);
-        console.error(error);
-    }
-}
 
 // 默认的序列化选项
 const defaultSerializeOptions = {
@@ -269,7 +219,7 @@ export async function getRawInstanceFromImportFile(path: string, assetInfo: { uu
     }) as CCAsset;
     if (!deserializedAsset) {
         console.error(
-            Editor.I18n.t('builder.error.deserialize_failed', {
+            I18n.t('builder.error.deserialize_failed', {
                 url: `{asset(${assetInfo.url})}`,
             }),
         );
@@ -313,7 +263,7 @@ export async function getRawInstanceFromImportFile(path: string, assetInfo: { uu
     // }
     // if (missingAssets.length > 0) {
     //     console.warn(
-    //         Editor.I18n.t('builder.error.required_asset_missing', {
+    //         I18n.t('builder.error.required_asset_missing', {
     //             url: `{asset(${asset.url})}`,
     //             uuid: missingAssets.join('\n '),
     //         }),
@@ -364,7 +314,7 @@ export function ensureOutputData(asset: IAsset) {
     let importPath: string;
     // 生成默认的 debug 版本导出数据
     const nativePath: Record<string, string> = {};
-    asset.meta.files.forEach((extName) => {
+    asset.meta.files.forEach((extName: string) => {
         if (['.json', '.cconb'].includes(extName)) {
             outputData.import.path = asset.library + extName;
             if (extName === '.cconb') {
@@ -372,14 +322,14 @@ export function ensureOutputData(asset: IAsset) {
             }
             return;
         }
-        
+
         // 旧规则，__ 开头的资源不在运行时使用
         if (extName.startsWith('.___')) {
             return;
         }
         nativePath[extName] = asset.library + extName;
     });
-        
+
     if (Object.keys(nativePath).length) {
         outputData.native = nativePath;
     }
@@ -396,10 +346,10 @@ export function transI18nName(name: string): string {
     }
     if (name.startsWith('i18n:')) {
         name = name.replace('i18n:', '');
-        if (!Editor.I18n.t(name)) {
+        if (!I18n.t(name)) {
             console.debug(`${name} is not defined in i18n`);
         }
-        return Editor.I18n.t(name) || name;
+        return I18n.t(name) || name;
     }
     return name;
 }

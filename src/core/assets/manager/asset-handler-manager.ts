@@ -1,16 +1,21 @@
-import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@editor/asset-db';
+import { Importer as AssetDBImporter, Asset, setDefaultUserData, get, Importer } from '@editor/asset-db';
 import { copy, copyFile, ensureDir, existsSync, outputFile, outputFileSync, outputJSON, outputJSONSync, readJSONSync } from 'fs-extra';
 import { basename, dirname, extname, isAbsolute, join } from 'path';
-import { AssetHandlerInfo, CreateAssetDialogOptions } from '../../../@types/private';
-import { IAsset, AssetHandler, CreateAssetOptions, CustomHandler, ICreateMenuInfo, ICONConfig, IAssetConfig, CustomAssetHandler, ImporterHook, ThumbnailInfo, ThumbnailSize } from '../../../@types/protected';
-import { transI18nName, url2path } from '../utils';
+import { url2path } from '../utils';
 import pluginManager from './plugin';
 import lodash from 'lodash';
 import fg from 'fast-glob';
 import Sharp from 'sharp';
-import { IExportData, IExportOptions, Importer } from '../../../@types/protected';
-import { handleAssetOption, metricCreateAsset, sortAssetCreateMenu } from '../../share/utils';
-
+import Utils from '../../base/utils';
+import I18n from '../../base/i18n';
+import Project from '../../project';
+import { IAsset, IExportData } from '../@types/protected/asset';
+import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
+export interface AssetHandlerInfo {
+    extnames: string[];
+    handler: string;
+    name: string;
+}
 const customHandlerKeys: string[] = [
     'thumbnail',
     'userDataConfig',
@@ -68,11 +73,11 @@ class AssetHandlerManager {
     name2importer: Record<string, CustomImporter> = {};
     // 缓存已经查找到的处理器
     // TODO 与 importer2custom 整合
-    importer2OperateRecord: {[importer: string]: { [operate: string]: AssetHandler | CustomHandler } } = {};
+    importer2OperateRecord: { [importer: string]: { [operate: string]: AssetHandler | CustomHandler } } = {};
     // [importer 懒加载] 1/3
     extname2registerInfo: Record<string, HandlerInfo[]> = {};
     name2registerInfo: Record<string, HandlerInfo> = {};
-    
+
     // 扩展资源处理
     name2custom: Record<string, CustomHandler> = {};
     importer2custom: Record<string, CustomHandler[]> = {};
@@ -84,7 +89,7 @@ class AssetHandlerManager {
     // 导入器里注册的默认 userData 值， 注册后不可修改
     _defaultUserData: Record<string, any> = {};
     // TODO 后续修改需要提供公共接口，全局搜索路径替换
-    _defaultMetaPath = join(Editor.Project.path, '.creator', 'default-meta.json');
+    _defaultMetaPath = join(Project.info.path, '.creator', 'default-meta.json');
 
     clear() {
         this.name2handler = {};
@@ -409,11 +414,12 @@ class AssetHandlerManager {
                     // 存在模板的情况下，添加资源模板管理的菜单入口
                     menuAddTarget.push({
                         label: 'i18n:asset-db.createAssetTemplate.manageTemplate',
-                        message: {
-                            target: 'asset-db',
-                            name: 'show-asset-template-dir',
-                            params: [templateDir],
-                        },
+                        // TODO 与 vs 桥接层
+                        // message: {
+                        //     target: 'asset-db',
+                        //     name: 'show-asset-template-dir',
+                        //     params: [templateDir],
+                        // },
                     });
                 }
 
@@ -429,21 +435,15 @@ class AssetHandlerManager {
      * 生成创建资源模板
      * @param importer 
      */
-    async createAssetTemplate(importer: string, templatePath: string): Promise<boolean> {
+    async createAssetTemplate(importer: string, templatePath: string, target: string): Promise<boolean> {
         templatePath = isAbsolute(templatePath) ? templatePath : url2path(templatePath);
         if (!templatePath || !existsSync(templatePath)) {
             return false;
         }
         const assetTemplateDir = getUserTemplateDir(importer);
         await ensureDir(assetTemplateDir);
-        const res = await Editor.Dialog.save({
-            path: join(assetTemplateDir, 'custom' + extname(templatePath)),
-        });
-        if (res.filePath) {
-            await copy(templatePath, res.filePath);
-            return true;
-        }
-        return false;
+        await copy(templatePath, target);
+        return true;
     }
 
     async queryIconConfigMap(): Promise<Record<string, ICONConfig>> {
@@ -456,7 +456,7 @@ class AssetHandlerManager {
             if (!handler.iconInfo) {
                 result[importer] = {
                     type: 'icon',
-                    value: Editor.UI.__protected__.Icon.Map.asset[importer] ? importer : 'file',
+                    value: importer,
                     thumbnail: false,
                 };
                 continue;
@@ -470,7 +470,7 @@ class AssetHandlerManager {
         // 手动补充 database 的资源处理器
         result['database'] = databaseIconConfig;
         this._iconConfigMap = result;
-        return result; 
+        return result;
     }
 
     async createAsset(options: CreateAssetOptions): Promise<null | string | string[]> {
@@ -479,15 +479,12 @@ class AssetHandlerManager {
             options.handler = registerInfos && registerInfos.length ? registerInfos[0].name : undefined;
         }
 
-        const newTarget = Editor.Utils.File.getName(options.target);
-        // 如果可以存放的 url 和传入的 url 不相符，说明原来的位置已经有文件
-        // 这时候需要判断是否需要提示、是否更换新文件名
+        const newTarget = Utils.File.getName(options.target);
         if (newTarget !== options.target) {
-            const type = await handleAssetOption(options.target, options);
-            if (type === 'rename') {
+            if (options.overwrite) {
                 options.target = newTarget;
-            } else if (type === 'cancel') {
-                return null;
+            } else {
+                throw new Error(`Target file already exists: ${options.target}`);
             }
         }
 
@@ -516,42 +513,14 @@ class AssetHandlerManager {
             // content 不存在，新建一个文件夹
             await ensureDir(options.target);
         } else {
+            if (typeof options.content === 'object') {
+                options.content = JSON.stringify(options.content, null, 4);
+            }
             // 部分自定义创建资源没有模板，内容为空，只需要一个空文件即可完成创建
             await outputFile(options.target, options.content);
         }
         await afterCreateAsset(options.target, options);
         return options.target;
-    }
-
-    async createAssetDialog(option: CreateAssetDialogOptions) {
-        let assetHandler: AssetHandler | undefined;
-        if (option.handler) {
-            assetHandler = this.name2handler[option.handler];
-        } else if (option.ccType && this.type2handler[option.ccType]) {
-            assetHandler = this.type2handler[option.ccType].find((handler) => !!handler.createInfo);
-        }
-        if (!assetHandler || !assetHandler.createInfo || !assetHandler.createInfo.generateMenuInfo) {
-            console.error(`Can not find asset handler for ${option.ccType || option.handler}.`);
-            return;
-        }
-        
-        const menuInfo = (await assetHandler.createInfo.generateMenuInfo())[0];
-        const target = option.url ? url2path(option.url) : join(Editor.Project.path, 'assets', menuInfo.fullFileName || '');
-        const extName = this.name2importer[assetHandler.name].extnames[0];
-        menuInfo.label = transI18nName(menuInfo.label);
-        const result = await Editor.Dialog.save({
-            title: Editor.I18n.t('asset-db.createAsset.title'),
-            path: Editor.Utils.File.getName(target),
-            filters: [{ name: menuInfo.label, extensions: [extName.slice(1)] }],
-        });
-        if (!result.filePath) {
-            return;
-        }
-        return this.createAsset({
-            target: result.filePath,
-            handler: assetHandler.name,
-            ...menuInfo,
-        });
     }
 
     async saveAsset(asset: IAsset, content: string | Buffer) {
@@ -716,9 +685,7 @@ class AssetHandlerManager {
         const assetHandler = this._findOperateHandler(asset.meta.importer, 'open');
         if (!assetHandler || !assetHandler.open) {
             // 没有找到资源配置的打开方法时，并且存在源文件时，尝试使用系统默认程序打开
-            if (existsSync(asset.source)) {
-                return await Editor.Message.request('program', 'open-url', asset.source);
-            }
+            // TODO 系统默认打开方法
             return false;
         }
 
@@ -904,7 +871,7 @@ function patchHandler(info: ICreateMenuInfo, handler: string, extnames: string[]
 async function queryUserTemplates(templateDir: string) {
     try {
         if (existsSync(templateDir)) {
-            return (await fg(['**/*', '!*.meta'], { 
+            return (await fg(['**/*', '!*.meta'], {
                 onlyFiles: true,
                 cwd: templateDir,
             }));
@@ -916,7 +883,7 @@ async function queryUserTemplates(templateDir: string) {
 }
 
 function getUserTemplateDir(importer: string) {
-    return join(Editor.Project.path, '.creator', 'asset-template', importer);
+    return join(Project.info.path, '.creator', 'asset-template', importer);
 }
 
 const SizeMap = {
@@ -951,13 +918,10 @@ async function afterCreateAsset(paths: string | string[], options: CreateAssetOp
     for (const file of paths) {
         // 文件不存在，nodejs 没有成功创建文件
         if (!existsSync(file)) {
-            throw new Error(`${Editor.I18n.t('asset-db.createAsset.fail.drop', {
+            throw new Error(`${I18n.t('asset-db.createAsset.fail.drop', {
                 target: file,
             })}`);
         }
-
-        // 统计
-        metricCreateAsset(file);
 
         // 根据选项配置 meta 模板文件
         if (options.userData || options.uuid) {

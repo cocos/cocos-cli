@@ -1,8 +1,8 @@
 /**
  * 整合项目的一些配置信息以及创建功能等
  */
-import { join } from "path";
-import { readJSON } from "fs-extra";
+import { join } from 'path';
+import { readJSON } from 'fs-extra';
 
 export interface ProjectInfo {
     name: string;
@@ -10,13 +10,11 @@ export interface ProjectInfo {
     version: string;
     uuid: string;
     tmpDir: string;
+    readonly lastVersion: string;
 }
 
-export interface ProjectConfig {
-    features: string[];
-}
 
-async function readProjectInfo(root: string) {
+async function readProjectInfo(root: string): Promise<ProjectInfo> {
     const packageJSONPath = join(root, 'package.json');
     const packageJSON = await readJSON(packageJSONPath);
     return {
@@ -25,33 +23,27 @@ async function readProjectInfo(root: string) {
         version: packageJSON.version,
         uuid: packageJSON.uuid,
         tmpDir: join(root, 'temp'),
+        lastVersion: packageJSON.lastVersion || '',
     };
 }
 
-
-async function readProjectConfig(root: string): Promise<ProjectConfig> {
-    // TODO read project config from cocos project
-
-    return {
-        features: [],
+class Project {
+    info: ProjectInfo = {
+        name: 'cocos-creator',
+        path: '',
+        version: '1.0.0',
+        uuid: '',
+        lastVersion: '',
+        tmpDir: '',
     }
+
+    /**
+     * TODO 初始化配置
+     */
+    init() {
+
+    }
+
 }
 
-export class Project {
-    config: ProjectConfig;
-    info: ProjectInfo;
-
-    readonly lastVersion?: string;
-
-    private constructor(info: ProjectInfo, config: ProjectConfig) {
-        this.info = info;
-        this.config = config;
-        this.lastVersion = info.version;
-    }
-
-    static async create(projectRoot: string) {
-        const info = await readProjectInfo(projectRoot);
-        const config = await readProjectConfig(projectRoot);
-        return new Project(info, config);
-    }
-}
+export default new Project;

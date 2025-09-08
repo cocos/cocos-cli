@@ -1,11 +1,17 @@
 import { existsSync } from 'fs';
 import { appendFile, outputFileSync, readdir, remove } from 'fs-extra';
-import { basename, join } from 'path';
+import { basename } from 'path';
+import { transI18nName } from './utils';
 export type IConsoleType = 'log' | 'warn' | 'error' | 'debug';
 
 interface IConsoleMessage {
     type: IConsoleType,
     value: any;
+}
+export interface trackTimeEndOptions {
+    output?: boolean;
+    label?: string;
+    value?: number;
 }
 
 let rawConsole: any;
@@ -16,14 +22,17 @@ let rawConsole: any;
 export class NewConsole {
     command = false;
     messages: IConsoleMessage[] = [];
-    static logDest: string = join(Editor.Project.path, 'temp', 'asset-db', 'log');
-    public logDest: string;
-
+    private logDest: string = '';
     private _start = false;
     private memoryTrackMap: Map<string, number> = new Map();
+    private trackTimeStartMap: Map<string, number> = new Map();
 
-    constructor() {
-        this.logDest = join(NewConsole.logDest, getCurrentLocalTime() + '.log');
+    _init = false;
+
+    public init(logDest: string) {
+        if (!this._init) {
+            return;
+        }
         // 兼容可能存在多个同样自定义 console 的处理
         // @ts-ignore
         if (console.__rawConsole) {
@@ -34,30 +43,17 @@ export class NewConsole {
         }
         // @ts-ignore 手动继承 console
         this.__proto__.__proto__ = rawConsole;
+        this.initLogFiles(logDest);
+        this._init = true;
     }
 
-    public initLogFiles() {
+    public initLogFiles(logDest: string) {
+        this.logDest = logDest;
         try {
             if (!existsSync(this.logDest)) {
                 // 每次设置 id 的时候，初始化任务的 log 信息，注意顺序
                 outputFileSync(this.logDest, '');
             }
-        } catch (error) {
-            console.debug(error);
-        }
-    }
-
-    async clearAuto() {
-        try {
-            const cacheList = await readdir(NewConsole.logDest);
-            if (!cacheList.length) {
-                return;
-            }
-            cacheList.sort((a, b) => transTimeToNumber(b) - transTimeToNumber(a));
-            const outDateList = cacheList.slice(4, cacheList.length - 1);
-            await Promise.all(outDateList.map((fileName) => {
-                remove(join(NewConsole.logDest, fileName));
-            }));
         } catch (error) {
             console.debug(error);
         }
@@ -155,7 +151,7 @@ export class NewConsole {
      * @param type 日志类型
      * @param info 日志内容
      */
-    private async saveLog(type: IConsoleType, info: any[]| string) {
+    private async saveLog(type: IConsoleType, info: any[] | string) {
         if (!info || !existsSync(this.logDest)) {
             return;
         }
@@ -188,6 +184,27 @@ export class NewConsole {
         }
         return res;
     }
+
+    trackTimeStart(message: string, time?: number) {
+        if (this.trackTimeStartMap.has(message)) {
+            this.trackTimeStartMap.delete(message);
+        }
+        this.trackTimeStartMap.set(message, time || Date.now());
+    }
+
+    trackTimeEnd(message: string, options: trackTimeEndOptions = {}, time?: number): number {
+        const recordTime = this.trackTimeStartMap.get(message);
+        if (!recordTime) {
+            this.debug(`trackTimeEnd failed! Can not find the track time ${message} start`);
+            return 0;
+        }
+        time = time || Date.now();
+        const durTime = time - recordTime;
+        const label = typeof options.label === 'string' ? transI18nName(options.label) : message;
+        this.debug(label + ` (${durTime}ms)`);
+        this.trackTimeStartMap.delete(message);
+        return durTime;
+    }
 }
 
 export function formateBytes(bytes: number) {
@@ -203,13 +220,6 @@ export function transTimeToNumber(time: string) {
         return new Date(timeStr.join('')).getTime();
     }
     return new Date().getTime();
-}
-/**
-* 将时间戳转为可阅读的时间信息
-*/
-export function getCurrentLocalTime() {
-    const time = new Date();
-    return time.toLocaleDateString().replace(/\//g, '-') + ' ' + time.toTimeString().slice(0, 5).replace(/:/g, '-');
 }
 
 function translate(msg: any): string {

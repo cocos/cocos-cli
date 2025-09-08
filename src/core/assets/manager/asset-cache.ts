@@ -1,6 +1,6 @@
 import { copy } from 'fs-extra';
-import { basename, extname, join } from 'path';
-import { IAsset, IExportOptions } from '../../../@types/protected';
+import { extname, join } from 'path';
+import { IAsset, IExportOptions } from '../@types/private';
 
 const HASH_LEN = 5;
 
@@ -23,10 +23,15 @@ export class AssetCache {
         path: string;
         md5Key: string;
     }> = {};
+    _tmpDir: string;
+
+    constructor(tmp: string) {
+        this._tmpDir = tmp;
+    }
 
     _getCacheFilePath(asset: IAsset, md5Key: string) {
         return join(
-            Editor.Project.tmpDir,
+            this._tmpDir,
             'asset-db',
             asset.uuid.slice(0, 2),
             asset.uuid,
@@ -60,5 +65,3 @@ export class AssetCache {
     }
 
 }
-
-export const assetOutputPathCache = new AssetCache();

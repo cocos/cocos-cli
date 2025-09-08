@@ -11,5 +11,6 @@ interface IConfig {
     },
     engine: {
         features: string[];
-    }
+    },
 }
+

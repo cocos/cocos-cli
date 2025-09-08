@@ -1,0 +1,13 @@
+dist
+node_modules
+.nuxt
+lib
+app/modules
+app/extension/
+docs
+packages
+templates
+resources
+static
+tools
+**/*.d.ts

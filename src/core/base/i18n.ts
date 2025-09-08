@@ -1,5 +1,6 @@
 'use strict';
-import { EventEmitter } from "events";
+
+import { EventEmitter } from 'events';
 import * as lodash from 'lodash';
 
 class I18n extends EventEmitter {
@@ -19,7 +20,7 @@ class I18n extends EventEmitter {
         language = language || this._lang;
         this._data[language] = data;
         this.emit(`register`, data, language);
-    };
+    }
 
     /**
      * 注销本地化数据
@@ -30,7 +31,7 @@ class I18n extends EventEmitter {
         language = language || this._lang;
         delete this._data[language];
         this.emit('unregister', language);
-    };
+    }
 
     /**
      * 附加数据到已经注册的数据里
@@ -42,17 +43,32 @@ class I18n extends EventEmitter {
         this._data[language] = this._data[language] || {};
         lodash.set(this._data[language], paths, data);
         this.emit(`append`, paths, data, language);
-    };
+    }
 
     /**
-     * 找到内部注册的翻译数据
-     * @param {string} key 索引 key
-     * @param {string} language 语言 id
+     * 翻译一个 key
+     * 允许翻译变量 {a}，传入的第二个参数 obj 内定义 a
+     * 
+     * @param str 翻译内容对应的 key
+     * @param obj 翻译参数
      */
-    t(key: string, language?: string) {
-        language = language || this._lang;
-        return lodash.get(this._data[language], key);
-    };
+    t(key: string, obj?: {
+        [key: string]: string | number;
+    }) {
+        let text = lodash.get(this._data[this._lang], key);
+        if (typeof text !== 'string') {
+            return key;
+        }
+        if (obj && typeof obj === 'object') {
+            const len = Object.keys(obj).length;
+            if (len) {
+                const reg = /\{([a-zA-Z_]+[a-zA-Z0-9_])\}/g;
+                text = text.replace(reg, function (params: string, key: string) {
+                    return '' + obj[key];
+                });
+            }
+        }
+    }
 }
 
-export const i18n = new I18n();
+export default new I18n();

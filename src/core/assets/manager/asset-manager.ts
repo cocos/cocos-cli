@@ -1,14 +1,19 @@
-import { queryUUID, AssetDB, queryAsset, refresh, reimport, queryUrl, Asset, forEach, Meta } from '../asset-db';
-import { basename, dirname, extname, isAbsolute, join } from 'path';
-import { AssetManager as IAssetManager, AssetOperationOption, CreateAssetDialogOptions, CreateAssetOptions, IAsset, IAssetInfo, IExportData, IExportOptions, QueryAssetsOption, QueryAssetType, VirtualAsset } from '../../../@types/protected';
-import { assetDBManager } from '../asset-db-manager';
-import { ensureOutputData, getExtendsFromCCType, libArr2Obj, moveFile, removeFile, serializeCompiled, url2path, url2uuid } from '../utils';
+import { queryUUID, AssetDB, queryAsset, refresh, reimport, queryUrl, Asset, forEach, VirtualAsset } from '@editor/asset-db';
+import { basename, dirname, extname, isAbsolute, join, relative } from 'path';
+import { assetDBManager } from './asset-db-manager';
+import { ensureOutputData, getExtendsFromCCType, libArr2Obj, removeFile, serializeCompiled, url2path, url2uuid } from '../utils';
 import { assetHandlerManager } from './asset-handler-manager';
-import minimatch from 'minimatch';
+import { minimatch } from 'minimatch';
 import EventEmitter from 'events';
-import { assetAdded, assetAdd, assetChanged, assetChange, assetDeleted } from '../mask-sync';
-import { copy, existsSync, outputFile, rename } from 'fs-extra';
-import { assetOutputPathCache } from './asset-cache';
+import { copy, existsSync, move, outputFile, remove, rename } from 'fs-extra';
+import Utils from '../../base/utils';
+import I18n from '../../base/i18n';
+import Project from '../../project';
+import Script from '../script';
+import { AssetOperationOption, AssetManager as IAssetManager, CreateAssetOptions, IAsset, IAssetInfo, IExportData, IExportOptions, IMoveOptions, QueryAssetsOption, QueryAssetType } from '../@types/private';
+import { Meta } from '@editor/asset-db/libs/meta';
+import { newConsole } from '../console';
+
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -37,8 +42,8 @@ export class AssetManager extends EventEmitter implements IAssetManager {
             const ccType = this.queryAssetProperty(asset, 'type');
             if (ccType === 'cc.Script') {
                 // 返回依赖脚本的 db URL
-                const pathList: string[] = await Editor.Message.request('programming', 'packer-driver/query-script-deps', asset.source);
-                uuids.push(...pathList.map(path => queryUUID(path)));
+                // const pathList: string[] = await Editor.Message.request('programming', 'packer-driver/query-script-deps', asset.source);
+                // uuids.push(...pathList.map(path => queryUUID(path)));
             } else {
                 uuids.push(...this.queryAssetProperty(asset, 'dependScripts'));
             }
@@ -72,7 +77,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
 
         if (['script', 'all'].includes(type)) {
             if (ccType === 'cc.Script') {
-                const pathList: string[] = await Editor.Message.request('programming', 'packer-driver/query-script-users', asset.source);
+                const pathList: string[] = await Script.queryScriptUser(asset.source);
                 pathList.forEach(path => usages.push(queryUUID(path)));
             } else {
                 // 查询依赖此资源的脚本，目前依赖信息都记录在场景上，所以实际上并没有脚本会依赖资源，代码写死是无法查询的
@@ -87,7 +92,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
      * @param uuidOrURLOrPath
      */
     queryAsset(uuidOrURLOrPath: string): IAsset | null {
-        const uuid = Editor.Utils.UUID.isUUID(uuidOrURLOrPath) ? uuidOrURLOrPath : this.queryAssetUUID(uuidOrURLOrPath);
+        const uuid = Utils.UUID.isUUID(uuidOrURLOrPath) ? uuidOrURLOrPath : this.queryAssetUUID(uuidOrURLOrPath);
         for (const name in assetDBManager.assetDBMap) {
             const database = assetDBManager.assetDBMap[name];
             if (!database) {
@@ -281,17 +286,17 @@ export class AssetManager extends EventEmitter implements IAssetManager {
     async saveAsset(uuidOrURLOrPath: string, content: string | Buffer) {
         const asset = this.queryAsset(uuidOrURLOrPath);
         if (!asset) {
-            throw new Error(`${Editor.I18n.t('asset-db.saveAsset.fail.asset')}`);
+            throw new Error(`${I18n.t('asset-db.saveAsset.fail.asset')}`);
         }
         if (asset._assetDB.options.readonly) {
-            throw new Error(`${Editor.I18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
+            throw new Error(`${I18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
         }
         if (content === undefined) {
-            throw new Error(`${Editor.I18n.t('asset-db.saveAsset.fail.content')}`);
+            throw new Error(`${I18n.t('asset-db.saveAsset.fail.content')}`);
         }
         if (!asset.source) {
             // 不存在源文件的资源无法保存
-            throw new Error(`${Editor.I18n.t('asset-db.saveAsset.fail.uuid')}`);
+            throw new Error(`${I18n.t('asset-db.saveAsset.fail.uuid')}`);
         }
 
         const res = await assetHandlerManager.saveAsset(asset, content);
@@ -699,7 +704,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         }
 
         // 根路径 /assets, /internal 对应的 url 模拟数据
-        const name = uuidOrPath.substr(Editor.Project.path.length + 1);
+        const name = uuidOrPath.substr(Project.info.path.length + 1);
         if (assetDBManager.assetDBMap[name]) {
             return `db://${name}`;
         }
@@ -710,7 +715,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         if (!urlOrPath.startsWith('db://')) {
             urlOrPath = this.queryUrl(urlOrPath);
             if (!urlOrPath) {
-                throw new Error(`${Editor.I18n.t('asset-db.operation.invalid_url')} \n  url: ${urlOrPath}`);
+                throw new Error(`${I18n.t('asset-db.operation.invalid_url')} \n  url: ${urlOrPath}`);
             }
         }
 
@@ -718,7 +723,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         const dbInfo = assetDBManager.assetDBInfo[dbName];
 
         if (dbInfo.readonly) {
-            throw new Error(`${Editor.I18n.t('asset-db.operation.readonly')} \n  url: ${urlOrPath}`);
+            throw new Error(`${I18n.t('asset-db.operation.readonly')} \n  url: ${urlOrPath}`);
         }
 
         return true;
@@ -735,25 +740,6 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         }
 
         const assetPath = await assetHandlerManager.createAsset(options);
-        if (!assetPath || !assetPath.length) {
-            return null;
-        }
-        let paths: string[] = [];
-        if (typeof assetPath === 'string') {
-            paths = [assetPath];
-        } else {
-            paths = assetPath;
-        }
-        const result = await Promise.all(paths.map(async (path) => {
-            await this.refreshAsset(path);
-            return this.queryAssetInfo(queryUUID(path));
-        }));
-        return result.length === 1 ? result[0] : result;
-    }
-
-    async createAssetDialog(options: CreateAssetDialogOptions) {
-        // 根据 ccType 找到符合条件的创建信息
-        const assetPath = await assetHandlerManager.createAssetDialog(options);
         if (!assetPath || !assetPath.length) {
             return null;
         }
@@ -801,17 +787,17 @@ export class AssetManager extends EventEmitter implements IAssetManager {
             return outputData;
         }
 
-        // 2.3 根据不同的 options 条件生成不同的序列化结果
-        const cachePath = assetOutputPathCache.query(asset.uuid, options);
-        if (!cachePath) {
-            const assetData = await serializeCompiled(asset, options);
-            await outputFile(outputData.import.path, assetData);
-            await assetOutputPathCache.add(asset, options, outputData.import.path);
-        } else {
-            outputData.import.path = cachePath;
-        }
+        // 2.3 TODO 根据不同的 options 条件生成不同的序列化结果
+        // const cachePath = assetOutputPathCache.query(asset.uuid, options);
+        // if (!cachePath) {
+        //     const assetData = await serializeCompiled(asset, options);
+        //     await outputFile(outputData.import.path, assetData);
+        //     await assetOutputPathCache.add(asset, options, outputData.import.path);
+        // } else {
+        //     outputData.import.path = cachePath;
+        // }
 
-        asset.setData('output', outputData);
+        // asset.setData('output', outputData);
         return outputData;
     }
 
@@ -827,8 +813,8 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         if (!res) {
             await copy(src.import.path, dest.import.path);
             if (src.native && dest.native) {
-                const nativeSrc = Object.values(src.native);
-                const nativeDest = Object.values(dest.native);
+                const nativeSrc: string[] = Object.values(src.native);
+                const nativeDest: string[] = Object.values(dest.native);
                 await Promise.all(nativeSrc.map((path, i) => copy(path, nativeDest[i])));
             }
         }
@@ -871,9 +857,9 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         if (pathOrUrlOrUUID.startsWith('db://')) {
             pathOrUrlOrUUID = url2uuid(pathOrUrlOrUUID);
         }
-        Editor.Metrics.trackTimeStart('asset-db:reimport-asset' + pathOrUrlOrUUID);
+        newConsole.trackTimeStart('asset-db:reimport-asset' + pathOrUrlOrUUID);
         await reimport(pathOrUrlOrUUID);
-        Editor.Metrics.trackTimeEnd('asset-db:reimport-asset' + pathOrUrlOrUUID, { output: true });
+        newConsole.trackTimeEnd('asset-db:reimport-asset' + pathOrUrlOrUUID, { output: true });
     }
 
     /**
@@ -950,10 +936,10 @@ export class AssetManager extends EventEmitter implements IAssetManager {
     async removeAsset(uuidOrURLOrPath: string): Promise<IAssetInfo | null> {
         const asset = this.queryAsset(uuidOrURLOrPath);
         if (!asset) {
-            throw new Error(`${Editor.I18n.t('asset-db.deleteAsset.fail.unexist')} \nsource: ${uuidOrURLOrPath}`);
+            throw new Error(`${I18n.t('asset-db.deleteAsset.fail.unexist')} \nsource: ${uuidOrURLOrPath}`);
         }
         if (asset._assetDB.options.readonly) {
-            throw new Error(`${Editor.I18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
+            throw new Error(`${I18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
         }
         const path = asset.source;
         const res = await assetDBManager.addTask(this._removeAsset.bind(this), [path]);
@@ -969,7 +955,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
             res = true;
             console.debug(`remove asset ${path} success`);
         } catch (error) {
-            console.warn(`${Editor.I18n.t('asset-db.deleteAsset.fail.unknown')}`);
+            console.warn(`${I18n.t('asset-db.deleteAsset.fail.unknown')}`);
             console.warn(error);
         }
         return res;
@@ -1199,7 +1185,7 @@ const FilterHandlerInfos: FilterHandlerInfo[] = [{
         if (!types) {
             return;
         }
-        console.warn(Editor.I18n.t('asset-db.deprecatedTip', {
+        console.warn(I18n.t('asset-db.deprecatedTip', {
             oldName: 'options.type',
             newName: 'options.ccType',
             version: '3.8.0',
@@ -1207,3 +1193,46 @@ const FilterHandlerInfos: FilterHandlerInfo[] = [{
         return types;
     },
 }];
+
+
+/**
+ * 移动文件
+ * @param file
+ */
+export async function moveFile(source: string, target: string, options?: IMoveOptions) {
+    if (!existsSync(source) || !existsSync(source + '.meta')) {
+        return;
+    }
+
+    if (!options) {
+        if (existsSync(target) || existsSync(target + '.meta')) {
+            return;
+        }
+
+        options = { overwrite: false }; // fs move 要求实参 options 要有值
+    }
+    const tempDir = join(Project.info.tmpDir, 'asset-db', 'move-temp');
+    const relativePath = relative(Project.info.path, target);
+    try {
+        if (!Utils.Path.contains(source, target)) {
+            await move(source + '.meta', target + '.meta', { overwrite: true }); // meta 先移动
+            await move(source, target, options);
+            return;
+        }
+        // assets/scripts/scripts -> assets/scripts 直接操作会报错，需要分次执行
+        // 清空临时目录
+        await remove(join(tempDir, relativePath));
+        await remove(join(tempDir, relativePath) + '.meta');
+
+        // 先移动到临时目录
+        await move(source + '.meta', join(tempDir, relativePath) + '.meta', { overwrite: true }); // meta 先移动
+        await move(source, join(tempDir, relativePath), { overwrite: true });
+
+        // 再移动到目标目录
+        await move(join(tempDir, relativePath) + '.meta', target + '.meta', { overwrite: true }); // meta 先移动
+        await move(join(tempDir, relativePath), target, options);
+    } catch (error) {
+        console.error(`asset db moveFile from ${source} -> ${target} fail!`);
+        console.error(error);
+    }
+}

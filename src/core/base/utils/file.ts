@@ -62,3 +62,14 @@ export function getName(file: string): string {
 
     return join(dir, newFileName);
 }
+
+export async function trashItem(file: string) {
+    // TODO
+    // const trash = await import('sudo-trash');
+    // return await trash.trash(file);
+}
+
+export function requireFile(file: string) {
+    // TODO
+    return require(file);
+}

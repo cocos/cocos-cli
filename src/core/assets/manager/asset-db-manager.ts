@@ -1,13 +1,48 @@
 'use strict';
-import * as assetdb from '../asset-db/index';
+
+import { AssetDBRegisterInfo, IAsset, IAssetDBInfo } from '../@types/private';
+
+import * as assetdb from '@editor/asset-db';
 import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import { extname, join, relative } from 'path';
-import { AssetDBRegisterInfo, IAsset, IAssetDBInfo, IAssetWorkerInfo, PackageRegisterInfo } from '../../@types/private';
 import { newConsole } from '../console';
 import { decidePromiseState, PROMISE_STATE } from '../utils';
 import pluginManager from './plugin';
 import { assetHandlerManager } from './asset-handler-manager';
+import I18n from '../../base/i18n';
+import Utils from '../../base/utils';
+import { AssetDBConfig } from './config';
+import Project from '../../project';
+import Engine from '../../engine';
+
+export interface IPhysicsConfig {
+    gravity: IVec3Like; // （0，-10， 0）
+    allowSleep: boolean; // true
+    sleepThreshold: number; // 0.1，最小 0
+    autoSimulation: boolean; // true
+    fixedTimeStep: number; // 1 / 60 ，最小 0
+    maxSubSteps: number; // 1，最小 0
+    defaultMaterial?: string; // 物理材质 uuid
+    useNodeChains: boolean; // true
+    collisionMatrix: ICollisionMatrix;
+    physicsEngine: string;
+    physX?: {
+        notPackPhysXLibs: boolean;
+        multiThread: boolean;
+        subThreadCount: number;
+        epsilon: number;
+    };
+}
+// 物理配置
+export interface ICollisionMatrix {
+    [x: string]: number;
+}
+export interface IVec3Like {
+    x: number;
+    y: number;
+    z: number;
+}
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -51,7 +86,6 @@ export class AssetDBManager extends EventEmitter {
     private waitPausePromiseTask?: Promise<boolean>;
     private state: RefreshState = 'free';
     public assetDBInfo: Record<string, IAssetDBInfo> = {};
-    static useCache = false;
     private waitingTaskQueue: IWaitingTaskInfo[] = [];
     private waitingRefreshAsset: string[] = [];
     private autoRefreshTimer?: NodeJS.Timeout;
@@ -63,7 +97,8 @@ export class AssetDBManager extends EventEmitter {
     private pluginManager = pluginManager;
     private assetHandlerManager = assetHandlerManager;
 
-    static libraryRoot = join(Editor.Project.path, 'library');
+    static useCache = false;
+    static libraryRoot: string;
 
     get free() {
         return this.ready && !this.isPause && this.state !== 'free' && !this.assetBusy;
@@ -71,100 +106,62 @@ export class AssetDBManager extends EventEmitter {
 
     /**
      * 初始化，需要优先调用
-     * @param info 
+     * @param 资源配置信息 
      */
-    async init(info: IAssetWorkerInfo) {
+    async init(config: AssetDBConfig) {
+        AssetDBManager.libraryRoot = join(Project.info.path, 'library');
+        AssetDBManager.useCache = config.restoreAssetDBFromCache;
+
         newConsole.trackMemoryStart('asset-db:worker-init: initEngine');
-        await initEngine(info);
         newConsole.trackMemoryEnd('asset-db:worker-init: initEngine');
 
-        AssetDBManager.useCache = await Editor.Profile.getConfig('asset-db', 'restoreAssetDBFromCache');
-        if (AssetDBManager.useCache && Editor.App.version !== await Editor.Project.__protected__.getLastEditorVersion()) {
+        if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
             AssetDBManager.useCache = false;
-            console.log(Editor.I18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
+            console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
         }
 
         if (AssetDBManager.useCache && !existsSync(AssetDBManager.libraryRoot)) {
             AssetDBManager.useCache = false;
-            console.log(Editor.I18n.t('asset-db.restoreAssetDBFromCacheInValid.noLibraryPath'));
+            console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.noLibraryPath'));
         }
-
-        Editor.Profile.__protected__.on('change', (protocol: string, file: string, key: string, value: any) => {
-            if (protocol === 'local' || protocol === 'global' || protocol === 'project') {
-                const name = this.pluginManager.assetDBProfileMap[`${file}(${key})`];
-                if (name && this.ready) {
-                    if (value) {
-                        const info = this.pluginManager.getAssetDBInfo(name);
-                        if (!info) {
-                            return;
-                        }
-                        this.assetDBInfo[info.name] = patchAssetDBInfo(info);
-                        this.startDB(this.assetDBInfo[name]);
-                    } else {
-                        this._removeDB(name);
-                    }
-                }
-            }
-        });
-        Editor.Task.__protected__.updateSyncTask(
-            'import-asset',
-            'init asset-db ...',
-        );
         await this.pluginManager.init();
-        await this.pluginManager.runHook('beforeInit', [info]);
         await this.assetHandlerManager.init();
 
-        this.reimportCheck = await Editor.Profile.getConfig('asset-db', 'flagReimportCheck');
+        this.reimportCheck = config.flagReimportCheck;
         const internalConfig: AssetDBRegisterInfo = {
             name: 'internal',
-            target: join(info.engine, './editor/assets'),
-            readonly: !Editor.App.dev,
+            target: join(Engine.info.path, './editor/assets'),
+            readonly: true,
             visible: true,
-            ignoreGlob: '',
         };
 
         // 开启全局 internal library 缓存后，修改 internal 默认的导入地址
-        this.globalInternalLibrary = await Editor.Profile.getConfig('asset-db', 'globalInternalLibrary');
+        this.globalInternalLibrary = config.globalInternalLibrary;
         if (this.globalInternalLibrary) {
-            internalConfig.library = join(Editor.App.temp, 'asset-db', 'library');
-            internalConfig.temp = join(Editor.App.temp, 'asset-db', 'temp');
+            internalConfig.library = join(Project.info.tmpDir, 'asset-db', 'library');
+            internalConfig.temp = join(Project.info.tmpDir, 'asset-db', 'temp');
         }
         // 初始化所有即将启动 db 的配置信息
         this.assetDBInfo.internal = patchAssetDBInfo(internalConfig);
-        const ignoreGlob = await Editor.Profile.getConfig('asset-db', 'ignoreGlob');
         this.assetDBInfo.assets = patchAssetDBInfo({
             name: 'assets',
-            target: join(Editor.Project.path, 'assets'),
+            target: join(Project.info.path, 'assets'),
             readonly: false,
             visible: true,
-            ignoreGlob,
+            globList: config.globList,
         });
         // 启动插件注册的数据库
-        const packageAssetDBInfo = await this.pluginManager.queryAssetDBInfos();
-        this.pluginManager.on('enable', async (name: string, registerInfo: PackageRegisterInfo) => {
-            registerInfo.assetHandlerInfos && this.assetHandlerManager.register(name, registerInfo.assetHandlerInfos, registerInfo.internal);
-            const info = await this.pluginManager.queryAssetDBInfo(name);
-            if (!info) {
-                return;
-            }
-            console.debug(`start custom db ${info.name}...`);
-            this.addDB(info);
-        });
-        this.pluginManager.on('disabled', async (name: string, registerInfo: PackageRegisterInfo) => {
-            registerInfo.assetHandlerInfos && this.assetHandlerManager.unregister(name, registerInfo.assetHandlerInfos);
-            await this._removeDB(name);
-        });
-        for (const info of packageAssetDBInfo) {
-            this.assetDBInfo[info.name] = patchAssetDBInfo(info);
-        }
-        await this.pluginManager.runHook('afterInit', [info]);
+        // const packageAssetDBInfo = await this.pluginManager.queryAssetDBInfos();
+        // for (const info of packageAssetDBInfo) {
+        //     this.assetDBInfo[info.name] = patchAssetDBInfo(info);
+        // }
     }
 
     /**
      * 启动数据库入口
      */
     async start() {
-        Editor.Metrics.trackTimeStart('asset-db:start-database');
+        newConsole.trackTimeStart('asset-db:start-database');
 
         if (AssetDBManager.useCache) {
             await this._startFromCache();
@@ -173,17 +170,16 @@ export class AssetDBManager extends EventEmitter {
         }
         await this.pluginManager.runHook('beforeReady');
         this.ready = true;
-        Editor.Metrics.trackTimeEnd('asset-db:start-database', { output: true });
+        newConsole.trackTimeEnd('asset-db:start-database', { output: true });
         // 性能测试: 资源冷导入
-        Editor.Metrics.trackTimeEnd('asset-db:ready', { output: true });
-        Editor.Message.broadcast('asset-db:ready');
+        newConsole.trackTimeEnd('asset-db:ready', { output: true });
+        this.emit('asset-db:ready');
         await this.pluginManager.runHook('afterReady');
         // 启动成功后，开始加载尚未注册的资源处理器
         this.assetHandlerManager.activateRegisterAll();
 
         this.step();
-        // 启动成功后开始再去做一些缓存清理
-        newConsole.clearAuto();
+        // TODO 启动成功后开始再去做一些日志缓存清理
     }
 
     /**
@@ -229,7 +225,7 @@ export class AssetDBManager extends EventEmitter {
                     this.assetDBInfo[assetDBName].state = 'startup';
                     this.emit('db-started', db);
                     console.debug(`start db ${assetDBName} with cache success`);
-                    Editor.Message.broadcast('asset-db:db-ready', assetDBName);
+                    this.emit('asset-db:db-ready', assetDBName);
                     continue;
                 } catch (error) {
                     console.error(error);
@@ -269,7 +265,7 @@ export class AssetDBManager extends EventEmitter {
         await this.pluginManager.runHook('beforeStartDB', [info]);
         await this._startDB(info.name);
         await this.pluginManager.runHook('afterStartDB', [info]);
-        Editor.Message.broadcast('asset-db:db-ready', info.name);
+        this.emit('asset-db:db-ready', info.name);
     }
 
     /**
@@ -284,7 +280,7 @@ export class AssetDBManager extends EventEmitter {
         }
         let database;
         if (!dbName) {
-            database = Object.values(assetDBManager.assetDBMap).find((db) => Editor.Utils.Path.contains(db.options.target, path));
+            database = Object.values(assetDBManager.assetDBMap).find((db) => Utils.Path.contains(db.options.target, path));
         } else {
             database = assetDBManager.assetDBMap[dbName];
         }
@@ -301,16 +297,6 @@ export class AssetDBManager extends EventEmitter {
     }
 
     private async _createDB(info: IAssetDBInfo) {
-        // 编辑器目录下的数据库地址，统一做转换处理，否则内置插件将无法使用此功能
-        if (info.target.includes('app.asar') && Editor.Utils.Path.contains(Editor.App.path, info.target)) {
-            const newTarget = info.target.replace('app.asar', 'app.asar.unpacked');
-            if (existsSync(newTarget)) {
-                info.target = newTarget;
-            } else {
-                // 包含 asar 的自定义数据库，可能会导致一些问题，需要提示移动到 unpack 目录
-                console.warn(`[asset-db] The current database address(${info.target}) is in the installation package and may cause problems, please move to the unpack directory`);
-            }
-        }
         ensureDirSync(info.library);
         ensureDirSync(info.temp);
         // TODO 目标数据库地址为空的时候，其实无需走后续完整的启动流程，可以考虑优化
@@ -386,19 +372,19 @@ export class AssetDBManager extends EventEmitter {
      */
     private async _startupDB(startupDatabase: IStartupDatabaseHandleInfo) {
         console.debug(`Start up the '${startupDatabase.name}' database...`);
-        Editor.Metrics.trackTimeStart(`asset-db: startup '${startupDatabase.name}' database...`);
+        newConsole.trackTimeStart(`asset-db: startup '${startupDatabase.name}' database...`);
         // 2/3 结束 afterPreImport 预留的等待状态，正常进入资源的导入流程,标记 finish 作为结束判断
         await new Promise(async (resolve) => {
             startupDatabase.finish = resolve;
             startupDatabase.afterPreImportResolve();
         });
-        Editor.Metrics.trackTimeEnd(`asset-db:worker-startup-database[${startupDatabase.name}]`, { output: true });
+        newConsole.trackTimeEnd(`asset-db:worker-startup-database[${startupDatabase.name}]`, { output: true });
         newConsole.trackMemoryEnd(`asset-db:worker-startup-database[${startupDatabase.name}]`);
 
         this.assetDBInfo[startupDatabase.name].state = 'startup';
         const db = this.assetDBMap[startupDatabase.name];
         this.emit('db-started', db);
-        Editor.Metrics.trackTimeEnd(`asset-db: startup '${startupDatabase.name}' database...`);
+        newConsole.trackTimeEnd(`asset-db: startup '${startupDatabase.name}' database...`);
     }
 
     /**
@@ -407,7 +393,7 @@ export class AssetDBManager extends EventEmitter {
      */
     public async _startDB(name: string) {
         const db = this.assetDBMap[name];
-        Editor.Metrics.trackTimeStart(`asset-db:worker-startup-database[${db.options.name}]`);
+        newConsole.trackTimeStart(`asset-db:worker-startup-database[${db.options.name}]`);
         newConsole.trackMemoryStart(`asset-db:worker-startup-database[${db.options.name}]`);
         this.assetDBInfo[name].state = 'start';
 
@@ -428,7 +414,7 @@ export class AssetDBManager extends EventEmitter {
         });
         this.assetDBInfo[name].state = 'startup';
         this.emit('db-started', db);
-        Editor.Metrics.trackTimeEnd(`asset-db:worker-startup-database[${db.options.name}]`, { output: true });
+        newConsole.trackTimeEnd(`asset-db:worker-startup-database[${db.options.name}]`, { output: true });
         newConsole.trackMemoryEnd(`asset-db:worker-startup-database[${db.options.name}]`);
         return;
     }
@@ -448,7 +434,7 @@ export class AssetDBManager extends EventEmitter {
      */
     async removeDB(name: string) {
         if (this.isPause) {
-            console.log(Editor.I18n.t('asset-db.assetDBPauseTips',
+            console.log(I18n.t('asset-db.assetDBPauseTips',
                 { operate: 'removeDB' }
             ));
             return new Promise((resolve) => {
@@ -491,7 +477,7 @@ export class AssetDBManager extends EventEmitter {
         this.emit('db-removed', db);
         delete this.assetDBMap[name];
         delete this.assetDBInfo[name];
-        Editor.Message.broadcast('asset-db:db-close', name);
+        this.emit('asset-db:db-close', name);
     }
 
     /**
@@ -504,7 +490,7 @@ export class AssetDBManager extends EventEmitter {
         }
         if (this.state !== 'free' || this.isPause || this.assetBusy) {
             if (this.isPause) {
-                console.log(Editor.I18n.t('asset-db.assetDBPauseTips',
+                console.log(I18n.t('asset-db.assetDBPauseTips',
                     { operate: 'refresh' }
                 ));
             }
@@ -522,7 +508,7 @@ export class AssetDBManager extends EventEmitter {
     private async _refresh() {
         this.state = 'busy';
         await this.pluginManager.runHook('beforeRefresh');
-        Editor.Metrics.trackTimeStart('asset-db:refresh-all-database');
+        newConsole.trackTimeStart('asset-db:refresh-all-database');
         for (const name in this.assetDBMap) {
             if (!this.assetDBMap[name]) {
                 console.debug(`Get assetDB ${name} form manager failed!`);
@@ -540,9 +526,9 @@ export class AssetDBManager extends EventEmitter {
             });
             console.debug(`refresh db ${name} success`);
         }
-        Editor.Metrics.trackTimeEnd('asset-db:refresh-all-database', { output: true });
+        newConsole.trackTimeEnd('asset-db:refresh-all-database', { output: true });
         await this.pluginManager.runHook('afterRefresh');
-        Editor.Message.broadcast('asset-db:refresh-finish');
+        this.emit('asset-db:refresh-finish');
         this.state = 'free';
         this.step();
     }
@@ -581,7 +567,7 @@ export class AssetDBManager extends EventEmitter {
         }
         this.hasPause = false;
         this.startPause = false;
-        Editor.Message.broadcast('asset-db:resume');
+        this.emit('asset-db:resume');
         newConsole.record();
         console.log('Asset DB is resume!');
         await this.step();
@@ -590,7 +576,7 @@ export class AssetDBManager extends EventEmitter {
 
     async addTask(func: Function, args: any[]): Promise<any> {
         if (this.isPause || this.state === 'busy') {
-            console.log(Editor.I18n.t('asset-db.assetDBPauseTips',
+            console.log(I18n.t('asset-db.assetDBPauseTips',
                 { operate: func.name }
             ));
             return new Promise((resolve) => {
@@ -691,7 +677,7 @@ export class AssetDBManager extends EventEmitter {
         // 只要当前底层没有正在处理的资源都视为资源进入可暂停状态
         if (!this.isBusy()) {
             this.hasPause = true;
-            Editor.Message.broadcast('asset-db:pause', source);
+            this.emit('asset-db:pause', source);
             console.log(`Asset DB is paused with ${source}!`);
             return true;
         }
@@ -701,7 +687,7 @@ export class AssetDBManager extends EventEmitter {
         this.waitPausePromiseTask = new Promise((resolve) => {
             this.waitPauseHandle = () => {
                 this.waitPausePromiseTask = undefined;
-                Editor.Message.broadcast('asset-db:pause', source);
+                this.emit('asset-db:pause', source);
                 console.log(`Asset DB is paused with ${source}!`);
                 newConsole.stopRecord();
                 this.hasPause = true;
@@ -714,7 +700,7 @@ export class AssetDBManager extends EventEmitter {
             this.waitPausePromiseTask && decidePromiseState(this.waitPausePromiseTask).then(state => {
                 if (state === PROMISE_STATE.PENDING) {
                     this.hasPause = true;
-                    Editor.Message.broadcast('asset-db:pause', source);
+                    this.emit('asset-db:pause', source);
                     this.waitPauseHandle!();
                     console.debug('Pause asset db time out');
                 }
@@ -729,14 +715,14 @@ export const assetDBManager = new AssetDBManager();
 function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {
     return {
         name: config.name,
-        target: Editor.Utils.Path.normalize(config.target),
+        target: Utils.Path.normalize(config.target),
         readonly: !!config.readonly,
 
-        temp: config.temp || Editor.Utils.Path.normalize(join(Editor.Project.path, 'temp/asset-db', config.name)),
+        temp: config.temp || Utils.Path.normalize(join(Project.info.tmpDir, 'asset-db', config.name)),
         library: config.library || AssetDBManager.libraryRoot,
 
         level: 4,
-        ignoreGlob: config.ignoreGlob,
+        globList: config.globList,
         ignoreFiles: ['.DS_Store', '.rename_temp'],
         visible: config.visible,
         state: 'none',
@@ -764,97 +750,6 @@ function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {
 const layerMask: number[] = [];
 for (let i = 0; i <= 19; i++) {
     layerMask[i] = 1 << i;
-}
-// let cc!: typeof import('cc');
-async function initEngine(info: IAssetWorkerInfo) {
-    // @ts-ignore
-    window.CC_PREVIEW = false;
-    Editor.Metrics.trackTimeStart('asset-db:require-engine-code');
-    Editor.Task.__protected__.updateSyncTask(
-        'import-asset',
-        'preload cc engine ...',
-    );
-    // 加载引擎
-    const { default: preload } = await import('cc/preload');
-    await preload({
-        requiredModules: [
-            'cc',
-            'cc/editor/populate-internal-constants',
-            'cc/editor/serialization',
-            'cc/editor/animation-clip-migration',
-            'cc/editor/exotic-animation',
-            'cc/editor/new-gen-anim',
-            'cc/editor/offline-mappings',
-            'cc/editor/embedded-player',
-            'cc/editor/color-utils',
-            'cc/editor/custom-pipeline',
-        ],
-    });
-
-    // @ts-ignore
-    // window.cc.debug._resetDebugSetting(cc.DebugMode.INFO);
-    Editor.Metrics.trackTimeEnd('asset-db:require-engine-code', { output: true });
-
-    const modules = (await Editor.Message.request('engine', 'query-engine-modules-profile'))?.includeModules || [];
-    let physicsEngine = '';
-    const engineList = ['physics-cannon', 'physics-ammo', 'physics-builtin', 'physics-physx'];
-    for (let i = 0; i < engineList.length; i++) {
-        if (modules.indexOf(engineList[i]) >= 0) {
-            physicsEngine = engineList[i];
-            break;
-        }
-    }
-    const physics = await Editor.Profile.getProject('project', 'physics');
-    const macroConfig = await Editor.Profile.getProject('engine', 'macroConfig');
-    const layers = await Editor.Profile.getProject('project', 'layer');
-    const sortingLayer = (await Editor.Profile.getProject('project', 'sorting-layer')) || {};
-    const customLayers = layers.map((layer: any) => {
-        const index = layerMask.findIndex((num) => { return layer.value === num; });
-        return {
-            name: layer.name,
-            bit: index,
-        };
-    });
-    const sortingLayers = sortingLayer.layers || [];
-    const highQuality = await Editor.Profile.getProject('project', 'general.highQuality');
-    const defaultConfig = {
-        debugMode: cc.debug.DebugMode.WARN,
-        overrideSettings: {
-            engine: {
-                builtinAssets: [],
-                macros: macroConfig,
-                sortingLayers,
-                customLayers,
-            },
-            profiling: {
-                showFPS: false,
-            },
-            screen: {
-                frameRate: 30,
-                exactFitScreen: true,
-            },
-            rendering: {
-                renderMode: 3,
-                highQualityMode: highQuality,
-            },
-            physics: {
-                ...physics,
-                physicsEngine,
-                enabled: false,
-            },
-            assets: {
-                importBase: AssetDBManager.libraryRoot,
-                nativeBase: AssetDBManager.libraryRoot,
-            },
-        },
-        exactFitScreen: true,
-    };
-    cc.physics.selector.runInEditor = true;
-    await cc.game.init(defaultConfig);
-    Editor.Task.__protected__.updateSyncTask(
-        'import-asset',
-        'init engine success',
-    );
 }
 
 function getPreImporterHandler(preImportExtList?: string[]) {

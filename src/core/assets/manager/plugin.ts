@@ -1,21 +1,12 @@
 'use strict';
 
-import {
-    AssetDBContribution,
-    AssetDBHookType,
-    AssetDBRegisterInfo,
-    EditorMethodModule,
-    ExecuteAssetDBScriptMethodOptions, IAsset, PackageRegisterInfo,
-} from '../../../@types/private';
-
 import { join } from 'path';
-import { AssetDB, get, Importer } from '@editor/asset-db';
+import { AssetDB, Importer } from '@editor/asset-db';
 import EventEmitter from 'events';
 import { newConsole } from './../console';
-
-const Profile = require('@base/electron-profile');
-const _profile = Profile.load('local://editor/packages.json');
-const _profileDefault = Profile.load('defaultPreferences://editor/packages.json');
+import I18n from '../../base/i18n';
+import { AssetDBHookType, AssetDBPluginInfo, AssetDBRegisterInfo, EditorMethodModule, ExecuteAssetDBScriptMethodOptions, PackageRegisterInfo } from '../@types/private';
+import Utils from '../../base/utils';
 type PackageEventType = 'register' | 'unregister' | 'enable' | 'disable';
 
 interface packageTask {
@@ -41,32 +32,13 @@ class PluginManager extends EventEmitter {
     private ready = false;
 
     async init() {
-        Editor.Metrics.trackTimeStart('asset-db:worker-init: initPlugin');
         newConsole.trackMemoryStart('asset-db:worker-init: initPlugin');
-        const pkgs = Editor.Package.getPackages({});
-        await Promise.all((pkgs).map(async (pkgInfo) => {
-            await this.onPackageRegister(pkgInfo);
-            if (pkgInfo.enable) {
-                await this.onPackageEnable(pkgInfo);
-            }
-        }));
-        Editor.Package.__protected__.on('register', registerAttach);
-        Editor.Package.__protected__.on('enable', enableAttach);
-        Editor.Package.__protected__.on('disable', disableDetach);
-        Editor.Package.__protected__.on('unregister', unRegisterDetach);
-        newConsole.trackMemoryEnd('asset-db:worker-init: initPlugin');
-        Editor.Metrics.trackTimeEnd('asset-db:worker-init: initPlugin', {
-            output: true,
-        });
         this.ready = true;
         this.emit('ready');
     }
 
     async destroyed() {
-        Editor.Package.__protected__.removeListener('register', registerAttach);
-        Editor.Package.__protected__.removeListener('enable', enableAttach);
-        Editor.Package.__protected__.removeListener('disable', disableDetach);
-        Editor.Package.__protected__.removeListener('unregister', unRegisterDetach);
+
     }
 
     /**
@@ -86,30 +58,13 @@ class PluginManager extends EventEmitter {
         this.step();
     }
 
-    public async onPackageRegister(data: Editor.Interface.PackageInfo) {
-        // TODO 如果启动失败，没有机制得知结果
-        const disableInfo = _profile.get(`disable-packages.${data.path}`);
-        if (disableInfo) {
-            return;
-        }
-        // 关联 issue https://github.com/cocos/3d-tasks/issues/15628
-        // HACK 由于 db 需要在其他插件启动之前注册数据库，而此时无法得知插件是否会被启动
-        // 这里直接读取了配置里的插件开关信息。如果后续不再支持同名插件的覆盖启动规则或者插件管理器可以获取则可以更改写法。
-        const defaultDisableInfo = _profileDefault.get(`disable-packages.${data.path}`);
-        if (defaultDisableInfo) {
-            return;
-        }
+    public async onPluginRegister(data: AssetDBPluginInfo) {
 
-        if (!data.info.contributions || !data.info.contributions['asset-db']) {
-            return;
-        }
-
-        const contribution = data.info.contributions['asset-db'] as AssetDBContribution;
+        const contribution = data.contribution;
         const registerInfo: PackageRegisterInfo = this.packageRegisterInfo[data.name] || {
             name: data.name,
             hooks: [],
             enable: false,
-            internal: Editor.Utils.Path.contains(Editor.App.path, data.path),
         };
 
         newConsole.trackMemoryStart(`asset-db-plugin-register: ${data.name}`);
@@ -117,7 +72,7 @@ class PluginManager extends EventEmitter {
         // 3.8.3 废弃此用法，目前暂时兼容
         if (contribution.importer && contribution.importer.script) {
             // TODO 补充警告日志以及升级指南链接
-            console.warn(`[Register ${data.name}]` + Editor.I18n.t('asset-db.deprecatedTip', {
+            console.warn(`[Register ${data.name}]` + I18n.t('asset-db.deprecatedTip', {
                 oldName: 'contribution.importer',
                 newName: 'contribution.asset-handler',
                 version: '3.8.3',
@@ -141,20 +96,17 @@ class PluginManager extends EventEmitter {
         this.packageRegisterInfo[data.name] = registerInfo;
     }
 
-    public async onPackageEnable(data: Editor.Interface.PackageInfo) {
-        if (data.invalid) {
-            return;
-        }
+    public async onPackageEnable(data: AssetDBPluginInfo) {
         const registerInfo = this.packageRegisterInfo[data.name];
         if (!registerInfo) {
             return;
         }
         registerInfo.enable = true;
-        const contribution = data.info.contributions!['asset-db'] as AssetDBContribution;
+        const contribution = data.contribution;
         if (contribution.script) {
             const registerScript = join(data.path, contribution.script);
             try {
-                const mod = Editor.Module.__protected__.requireFile(registerScript);
+                const mod = Utils.File.requireFile(registerScript);
                 if (typeof mod.load === 'function') {
                     await mod.load();
                 }
@@ -202,7 +154,7 @@ class PluginManager extends EventEmitter {
      * @param data 
      * @returns 
      */
-    public async onPackageDisable(data: Editor.Interface.PackageInfo) {
+    public async onPackageDisable(data: AssetDBPluginInfo) {
         const registerInfo = this.packageRegisterInfo[data.name];
         if (!registerInfo) {
             return;
@@ -210,7 +162,7 @@ class PluginManager extends EventEmitter {
         registerInfo.enable = false;
         if (registerInfo.script) {
             try {
-                const mod = Editor.Module.__protected__.requireFile(registerInfo.script);
+                const mod = require(registerInfo.script);
                 mod.unload && mod.unload();
             } catch (error) {
                 console.warn(error);
@@ -223,7 +175,7 @@ class PluginManager extends EventEmitter {
         // 3.8.3 已废弃，暂时兼容
         if (registerInfo.importerRegisterInfo) {
             try {
-                const mod = Editor.Module.__protected__.requireFile(registerInfo.importerRegisterInfo.script);
+                const mod = require(registerInfo.importerRegisterInfo.script);
                 mod.unload && mod.unload();
             } catch (error) {
                 console.warn(error);
@@ -235,10 +187,10 @@ class PluginManager extends EventEmitter {
             delete this.assetDBProfileMap[`packages/${data.name}.json(${registerInfo.mount.enable})`];
             delete registerInfo.mount;
         }
-        
+
         this.emit('disabled', data.name, registerInfo);
     }
-    public async unRegisterDetach(data: Editor.Interface.PackageInfo) {
+    public async unRegisterDetach(data: AssetDBPluginInfo) {
         const registerInfo = this.packageRegisterInfo[data.name];
         if (!registerInfo) {
             return;
@@ -270,32 +222,13 @@ class PluginManager extends EventEmitter {
         await this.step();
     }
 
-    public async queryAssetDBInfos(): Promise<AssetDBRegisterInfo[]> {
+    public getAssetDBInfos(): AssetDBRegisterInfo[] {
         const res: AssetDBRegisterInfo[] = [];
         for (const name of Object.keys(this.packageRegisterInfo)) {
-            const dbInfo = await this.queryAssetDBInfo(name);
+            const dbInfo = this.getAssetDBInfo(name);
             dbInfo && (res.push(dbInfo));
         }
         return res;
-    }
-
-    public async queryAssetDBInfo(name: string): Promise<AssetDBRegisterInfo | null> {
-        const info = this.packageRegisterInfo[name];
-        if (!info || !info.mount) {
-            return null;
-        }
-        if (info.mount!.enable) {
-            const enable = await Editor.Profile.getProject(info.name, info.mount!.enable) || await Editor.Profile.getConfig(info.name, info.mount!.enable);
-            if (!enable) {
-                return null;
-            }
-        }
-        return {
-            name,
-            readonly: !!info.mount.readonly,
-            visible: info.mount.visible === false ? false : true,
-            target: info.mount.path,
-        };
     }
 
     public getAssetDBInfo(name: string): AssetDBRegisterInfo | null {
@@ -311,37 +244,13 @@ class PluginManager extends EventEmitter {
         };
     }
 
-    /**
-     * 执行一个 db 脚本（直接承接对外接口）
-     * @param options 
-     */
-    public async executeScript(options: ExecuteAssetDBScriptMethodOptions) {
-        if (!this.packageRegisterInfo[options.name]) {
-            // TODO 此段逻辑不应该有机会进入
-            // 支持在插件脚本的 load 函数内执行 db 脚本
-            const pkgInfo = (await Editor.Package.getPackages({ name: options.name }))[0];
-            pkgInfo && (await enableAttach(pkgInfo));
-        }
-        const registerInfo = this.packageRegisterInfo[options.name];
-        // 初始化后，不支持执行未启动的插件脚本
-        if (!registerInfo || !registerInfo.script || !registerInfo.enable && this.ready) {
-            throw 'Asset database scripts do not exist: ' + options.name + '/' + options.method;
-        }
-        const mod = Editor.Module.__protected__.requireFile(registerInfo.script);
-        if (mod.methods && mod.methods[options.method]) {
-            return await mod.methods[options.method](...(options.args || []));
-        } else {
-            throw 'Asset database scripts do not exist: ' + options.name + '/' + options.method;
-        }
-    }
-
     public async executeScriptSafe(options: ExecuteAssetDBScriptMethodOptions) {
         try {
             const script = this.packageRegisterInfo[options.name].script!;
-            const mod = Editor.Module.__protected__.requireFile(script);
+            const mod = Utils.File.requireFile(script);
             if (mod.methods && mod.methods[options.method]) {
                 return await mod.methods[options.method](...(options.args || []));
-            } 
+            }
         } catch (error) {
             console.debug(error);
         }
@@ -358,7 +267,7 @@ class PluginManager extends EventEmitter {
             if (!enable && this.ready || !hooks.includes(hookName)) {
                 continue;
             }
-            Editor.Metrics.trackTimeStart(`asset-db-hook-${pkgName}-${hookName}`);
+            newConsole.trackTimeStart(`asset-db-hook-${pkgName}-${hookName}`);
             console.debug(`Run asset db hook ${pkgName}:${hookName} ...`);
             await this.executeScriptSafe({
                 name: pkgName,
@@ -366,7 +275,7 @@ class PluginManager extends EventEmitter {
                 args: params,
             });
             console.debug(`Run asset db hook ${pkgName}:${hookName} success!`);
-            Editor.Metrics.trackTimeEnd(`asset-db-hook-${pkgName}-${hookName}`, { output: true });
+            newConsole.trackTimeEnd(`asset-db-hook-${pkgName}-${hookName}`, { output: true });
             // try {
             // } catch (error) {
             //     console.error(error);
@@ -381,7 +290,7 @@ class PluginManager extends EventEmitter {
             const item = pluginManager.packageRegisterInfo[name];
 
             if (item.importerRegisterInfo) {
-                const mod = Editor.Module.__protected__.requireFile(item.importerRegisterInfo.script) as EditorMethodModule;
+                const mod = require(item.importerRegisterInfo.script) as EditorMethodModule;
                 for (const name of item.importerRegisterInfo.list) {
                     if (mod.methods && mod.methods[name]) {
                         try {
@@ -399,22 +308,6 @@ class PluginManager extends EventEmitter {
         }
     }
 }
-
-const registerAttach = async function(data: Editor.Interface.PackageInfo) {
-    pluginManager.addTask('register', data.name, pluginManager.onPackageRegister, data);
-};
-
-const enableAttach = async function(data: Editor.Interface.PackageInfo) {
-    pluginManager.addTask('enable', data.name, pluginManager.onPackageEnable, data);
-};
-
-const disableDetach = async function(data: Editor.Interface.PackageInfo) {
-    pluginManager.addTask('disable', data.name, pluginManager.onPackageDisable, data);
-};
-
-const unRegisterDetach = async function(data: Editor.Interface.PackageInfo) {
-    pluginManager.addTask('unregister', data.name, pluginManager.unRegisterDetach, data);
-};
 
 const pluginManager = new PluginManager();
 
