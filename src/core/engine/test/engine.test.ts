@@ -1,20 +1,20 @@
-import engine from '../index';
-const mockEnginePath = '/Users/wzm/Documents/wzm/creator/cocos-editor380/resources/3d/engine';
+import { EngineCompiler } from '../compiler';
+const mockEnginePath = 'F:\\code\\editor-3d-dev\\resources\\3d\\engine';
 // 测试不使用 mock 是否可以正常创建 Engine 实例
 
 /**
  * Engine 类的测试 - 验证是否需要 mock
  */
 describe('Engine', () => {
-    it('test engine init', async () => {
+    it('test engine create', async () => {
         // 测试直接创建 Engine 实例是否会因为缺少模块而失败
-        await engine.init(mockEnginePath);
+        const engine = EngineCompiler.create(mockEnginePath);
         expect(engine).toBeDefined();
     });
 
     it('test engine compile', async () => {
         try {
-            await engine.init(mockEnginePath);
+            const engine = EngineCompiler.create(mockEnginePath);
             await engine.compileEngine(mockEnginePath, true);
         } catch (error) {
             // 如果抛出错误，我们可以看到具体是什么错误
