@@ -13,7 +13,17 @@
         "experimentalDecorators": true,
         "moduleResolution": "node",
         "types": [
+            "jest",
             "node"
         ]
-    }
+    },
+    "include": [
+        "src/core/engine/**/*"
+    ],
+    "exclude": [
+        "src/core/assets/**/*",
+        "src/core/base/**/*",
+        "src/core/project/**/*",
+        "src/lancher.ts"
+    ]
 }
