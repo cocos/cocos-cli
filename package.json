@@ -29,7 +29,6 @@
     },
     "dependencies": {
         "@cocos/ccbuild": "^2.3.16",
-        "@cocos/creator-types": "^3.8.7",
         "@editor/lib-programming": "^3.8.1",
         "@editor/quick-compiler": "^4.2.19",
         "@types/lodash": "^4.17.20",
