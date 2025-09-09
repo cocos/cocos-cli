@@ -20,6 +20,7 @@ describe('Engine', () => {
     it('test engine compile', async () => {
         // 测试引擎编译功能
         try {
+            await engine.getCompiler().clear();
             await engine.getCompiler().compileEngine(MOCK_ENGINE_PATH, true);
             // 如果编译成功，测试通过
             expect(true).toBe(true);
