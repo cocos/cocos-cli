@@ -130,7 +130,7 @@ export class AssetDBManager extends EventEmitter {
         this.reimportCheck = config.flagReimportCheck;
         const internalConfig: AssetDBRegisterInfo = {
             name: 'internal',
-            target: join(Engine.info.path, './editor/assets'),
+            target: join(Engine.getInfo().path, './editor/assets'),
             readonly: true,
             visible: true,
         };
