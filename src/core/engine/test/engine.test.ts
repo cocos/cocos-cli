@@ -28,9 +28,7 @@ describe('Engine', () => {
             expect(error).toBeInstanceOf(Error);
             console.log('Compilation error:', error);
         }
-        expect(true).toBe(true);
-        console.log('引擎编译暂时先不处理');
-    });
+    }, 1000 * 60 * 5);
 
     it('test engine initEngine', async () => {
         await engine.initEngine({
