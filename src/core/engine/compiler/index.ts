@@ -3,7 +3,7 @@ import { QuickCompiler } from '@editor/quick-compiler';
 import { StatsQuery } from '@cocos/ccbuild';
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
 import { dirname, join } from 'path';
-import { emptyDir, ensureDir, outputFile, readFile, readJSONSync } from 'fs-extra';
+import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove } from 'fs-extra';
 import { IFeatureItem, IModuleItem, ModuleRenderConfig } from '../@types/modules';
 
 const VERSION = '3';
@@ -275,6 +275,12 @@ export class EngineCompiler {
             console.log('Quick Compile: ' + (Date.now() - time) + 'ms');
             this.busy = false;
         }
+    }
+
+    async clear() {
+        try {
+            await remove(this.outDir);
+        } catch (error) {}
     }
 
     async compileEngine(directory: string, force?: boolean, options?: IRebuildOptions) {
