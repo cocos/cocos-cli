@@ -112,9 +112,6 @@ export class AssetDBManager extends EventEmitter {
         AssetDBManager.libraryRoot = join(Project.info.path, 'library');
         AssetDBManager.useCache = config.restoreAssetDBFromCache;
 
-        newConsole.trackMemoryStart('asset-db:worker-init: initEngine');
-        newConsole.trackMemoryEnd('asset-db:worker-init: initEngine');
-
         if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
             AssetDBManager.useCache = false;
             console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
@@ -150,11 +147,6 @@ export class AssetDBManager extends EventEmitter {
             visible: true,
             globList: config.globList,
         });
-        // 启动插件注册的数据库
-        // const packageAssetDBInfo = await this.pluginManager.queryAssetDBInfos();
-        // for (const info of packageAssetDBInfo) {
-        //     this.assetDBInfo[info.name] = patchAssetDBInfo(info);
-        // }
     }
 
     /**
@@ -306,17 +298,9 @@ export class AssetDBManager extends EventEmitter {
         };
         const db = assetdb.create(info);
         this.assetDBMap[info.name] = db;
-        // 判断项目类型，加载对应的 importer
-        await this.pluginManager.registerImporterList(db);
-        const rawFind: Function = db.importerManager.find;
         db.importerManager.find = async (asset: IAsset) => {
             let importer = await this.assetHandlerManager.findImporter(asset, true);
             if (importer) {
-                return importer;
-            }
-            // HACK 为了兼容旧版本的导入器
-            importer = await rawFind.call(db.importerManager, asset);
-            if (importer && importer.name !== '*') {
                 return importer;
             }
             const newImporter = await this.assetHandlerManager.getDefaultImporter(asset);

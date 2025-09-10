@@ -4,6 +4,10 @@ export interface AssetDBConfig {
     globalInternalLibrary: boolean;
     flagReimportCheck: boolean;
     globList: string[];
+    /**
+     * 资源 userData 的默认值
+     */
+    userDataTemplate?: Record<string, any>;
 }
 
 export const assetConfig: AssetDBConfig = {

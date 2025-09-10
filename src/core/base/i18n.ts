@@ -53,7 +53,7 @@ class I18n extends EventEmitter {
      * @param obj 翻译参数
      */
     t(key: string, obj?: {
-        [key: string]: string | number;
+        [key: string]: string;
     }) {
         let text = lodash.get(this._data[this._lang], key);
         if (typeof text !== 'string') {
@@ -68,6 +68,7 @@ class I18n extends EventEmitter {
                 });
             }
         }
+        return '';
     }
 }
 

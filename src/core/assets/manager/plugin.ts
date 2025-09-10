@@ -58,44 +58,6 @@ class PluginManager extends EventEmitter {
         this.step();
     }
 
-    public async onPluginRegister(data: AssetDBPluginInfo) {
-
-        const contribution = data.contribution;
-        const registerInfo: PackageRegisterInfo = this.packageRegisterInfo[data.name] || {
-            name: data.name,
-            hooks: [],
-            enable: false,
-        };
-
-        newConsole.trackMemoryStart(`asset-db-plugin-register: ${data.name}`);
-
-        // 3.8.3 废弃此用法，目前暂时兼容
-        if (contribution.importer && contribution.importer.script) {
-            // TODO 补充警告日志以及升级指南链接
-            console.warn(`[Register ${data.name}]` + I18n.t('asset-db.deprecatedTip', {
-                oldName: 'contribution.importer',
-                newName: 'contribution.asset-handler',
-                version: '3.8.3',
-            }));
-            if (!contribution.importer.list) {
-                return;
-            }
-            const script = join(data.path, contribution.importer.script);
-            try {
-                registerInfo.importerRegisterInfo = {
-                    script,
-                    list: contribution.importer.list,
-                };
-            } catch (error) {
-                console.warn(`Failed to register the importer from ${data.name}: ${script}`);
-                console.warn(error);
-            }
-        }
-
-        newConsole.trackMemoryEnd(`asset-db-plugin-register: ${data.name}`);
-        this.packageRegisterInfo[data.name] = registerInfo;
-    }
-
     public async onPackageEnable(data: AssetDBPluginInfo) {
         const registerInfo = this.packageRegisterInfo[data.name];
         if (!registerInfo) {
@@ -172,16 +134,6 @@ class PluginManager extends EventEmitter {
         }
 
         this.hookOrder.splice(this.hookOrder.indexOf(data.name), 1);
-        // 3.8.3 已废弃，暂时兼容
-        if (registerInfo.importerRegisterInfo) {
-            try {
-                const mod = require(registerInfo.importerRegisterInfo.script);
-                mod.unload && mod.unload();
-            } catch (error) {
-                console.warn(error);
-            }
-            delete registerInfo.importerRegisterInfo;
-        }
 
         if (registerInfo.mount) {
             delete this.assetDBProfileMap[`packages/${data.name}.json(${registerInfo.mount.enable})`];
@@ -284,29 +236,6 @@ class PluginManager extends EventEmitter {
         }
     }
 
-    public async registerImporterList(database: AssetDB) {
-        // 兼容 3.9 之前版本使用旧的导入器注册方式的流程
-        for (const name in pluginManager.packageRegisterInfo) {
-            const item = pluginManager.packageRegisterInfo[name];
-
-            if (item.importerRegisterInfo) {
-                const mod = require(item.importerRegisterInfo.script) as EditorMethodModule;
-                for (const name of item.importerRegisterInfo.list) {
-                    if (mod.methods && mod.methods[name]) {
-                        try {
-                            const result: { importer: typeof Importer, extname: string[] } = await mod.methods[name]!();
-                            database.importerManager.add(result.importer, result.extname);
-                        } catch (error) {
-                            console.warn(`Failed to register importer. Data is not compliant: ${database.options.name} ${name}`);
-                            console.warn(error);
-                        }
-                    } else {
-                        console.warn(`Failed to register importer. Data is not compliant: ${database.options.name} ${name}`);
-                    }
-                }
-            }
-        }
-    }
 }
 
 const pluginManager = new PluginManager();

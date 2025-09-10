@@ -8,8 +8,8 @@ import type { CCON } from 'cc/editor/serialization';
 import I18n from '../base/i18n';
 import Utils from '../base/utils';
 import { IAsset, IExportData, ISerializedOptions, SerializedAsset } from './@types/private';
+import { MissingClass } from '../engine/editor-extends/missing-reporter/missing-class-reporter';
 
-const EditorExtends: any = require('@base/electron-module').require('EditorExtends');
 export function url2path(url: string) {
     if (isAbsolute(url)) {
         return url;
@@ -187,10 +187,11 @@ export function serializeCompiledWithInstance(instance: any, options: ISerialize
         return null;
     }
     // 重新反序列化并保存
-    return EditorExtends.serializeCompiled(
+    return serializeCompiled(
         instance,
         Object.assign(defaultSerializeOptions, {
             compressUuid: !options.debug,
+            debug: options.debug,
             useCCON: options.useCCONB,
             noNativeDep: !instance._native, // 表明该资源是否存在原生依赖，这个字段在运行时会影响 preload 相关接口的表现
         }),
@@ -210,7 +211,6 @@ export async function getRawInstanceFromImportFile(path: string, assetInfo: { uu
     const deserializeDetails = new deserialize.Details();
     // detail 里面的数组分别一一对应，并且指向 asset 依赖资源的对象，不可随意更改 / 排序
     deserializeDetails.reset();
-    const MissingClass = EditorExtends.MissingReporter.classInstance;
     MissingClass.hasMissingClass = false;
     const deserializedAsset = deserialize(data, deserializeDetails, {
         createAssetRefs: true,

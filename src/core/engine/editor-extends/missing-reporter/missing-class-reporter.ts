@@ -6,7 +6,7 @@ import * as ObjectWalker from './object-walker';
 import * as assetdb from '@editor/asset-db';
 
 import { MissingReporter } from './missing-reporter';
-import Utils from '../../base/utils';
+import Utils from '../../../base/utils';
 
 function report(parsingOwner: any, classId: any, asset: any, url: any) {
     const assetType = MissingReporter.getObjectType(asset);
@@ -136,7 +136,7 @@ export class MissingClassReporter extends MissingReporter {
 // 用这个模块来标记找不到脚本的对象
 export const MissingClass = {
     reporter: new MissingClassReporter(),
-    classFinder(id: any, data: any, owner: any, propName: any) {
+    classFinder(id: any, owner?: any, propName?: any) {
         const cls = cc.js.getClassById(id);
         if (cls) {
             return cls;

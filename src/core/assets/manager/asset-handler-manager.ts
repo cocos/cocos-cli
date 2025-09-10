@@ -11,25 +11,13 @@ import I18n from '../../base/i18n';
 import Project from '../../project';
 import { IAsset, IExportData } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
-export interface AssetHandlerInfo {
-    extnames: string[];
-    handler: string;
-    name: string;
-}
-const customHandlerKeys: string[] = [
-    'thumbnail',
-    'userDataConfig',
-    'open',
-    'export',
-    'create',
-    'customOperate',
-];
+import { AssetHandlerInfo } from '../asset-handler/config';
 
 interface HandlerInfo {
     name: string;
     handler: string;
     pkgName: string;
-    extnames: string[];
+    extensions: string[];
 
     internal: boolean;
 }
@@ -41,7 +29,7 @@ const databaseIconConfig: ICONConfig = {
 };
 
 export class CustomImporter extends AssetDBImporter {
-    constructor(extnames: string[], assetHandler: AssetHandler) {
+    constructor(extensions: string[], assetHandler: AssetHandler) {
         super();
         const { migrations, migrationHook, version, versionCode, force, import: ImportAsset } = assetHandler.importer as Importer;
 
@@ -56,7 +44,8 @@ export class CustomImporter extends AssetDBImporter {
         migrationHook && (this._migrationHook = migrationHook);
         validate && (this.validate = validate);
         force && (this.force = force);
-        this.extnames = extnames;
+        // TODO 调整命名
+        this.extnames = extensions;
 
         this.import = async (asset: IAsset) => {
             await assetHandlerManager.runImporterHook(asset, 'before');
@@ -88,8 +77,6 @@ class AssetHandlerManager {
     _userDataCache: Record<string, any> = {};
     // 导入器里注册的默认 userData 值， 注册后不可修改
     _defaultUserData: Record<string, any> = {};
-    // TODO 后续修改需要提供公共接口，全局搜索路径替换
-    _defaultMetaPath = join(Project.info.path, '.creator', 'default-meta.json');
 
     clear() {
         this.name2handler = {};
@@ -102,32 +89,8 @@ class AssetHandlerManager {
     }
 
     async init() {
-        // 手动注册 database 的 icon 信息
-        Object.values(pluginManager.packageRegisterInfo).forEach((info) => {
-            if (!info.assetHandlerInfos) {
-                return;
-            }
-            try {
-                this.register(info.name, info.assetHandlerInfos, info.internal);
-            } catch (error) {
-                if (info.internal) {
-                    throw error;
-                } else {
-                    console.error(error);
-                    console.error('register package asset-handler error:', info.name, info.assetHandlerInfos);
-                }
-            }
-        });
-
-        // 读取用户配置到内存内即可
-        try {
-            if (existsSync(this._defaultMetaPath)) {
-                const json = readJSONSync(this._defaultMetaPath);
-                this._userDataCache = json;
-            }
-        } catch (error) {
-            console.error(error);
-        }
+        const { assetHandlerInfos } = await import('../../assets/asset-handler/config');
+        this.register('cocos-cli', assetHandlerInfos, true)
     }
 
     /**
@@ -141,7 +104,7 @@ class AssetHandlerManager {
     }
 
     private async activateRegister(registerInfos: HandlerInfo) {
-        const { pkgName, handler, name, extnames, internal } = registerInfos;
+        const { pkgName, handler, name, extensions, internal } = registerInfos;
         if (this.name2importer[name]) {
             return this.name2importer[name];
         }
@@ -189,7 +152,7 @@ class AssetHandlerManager {
 
                     Object.keys(combineUserData).length && setDefaultUserData(name, combineUserData);
                 }
-                return this.name2importer[name] = new CustomImporter(extnames, this.name2handler[name]);
+                return this.name2importer[name] = new CustomImporter(extensions, this.name2handler[name]);
             }
         } catch (error) {
             delete this.name2registerInfo[name];
@@ -202,15 +165,15 @@ class AssetHandlerManager {
     register(pkgName: string, assetHandlerInfos: AssetHandlerInfo[], internal: boolean) {
         assetHandlerInfos.forEach((info) => {
             // 未传递 extname 的视为子资源导入器，extname = '-'
-            const extnames = info.extnames && info.extnames.length ? info.extnames : ['-'];
+            const extensions = info.extensions && info.extensions.length ? info.extensions : ['-'];
             this.name2registerInfo[info.name] = {
                 pkgName,
                 name: info.name,
-                handler: info.handler,
-                extnames,
+                handler: info.name,
+                extensions,
                 internal,
             };
-            extnames.forEach((extname) => {
+            extensions.forEach((extname) => {
                 this.extname2registerInfo[extname] = this.extname2registerInfo[extname] || [];
                 this.extname2registerInfo[extname].push(this.name2registerInfo[info.name]);
             });
@@ -220,7 +183,7 @@ class AssetHandlerManager {
     unregister(pkgName: string, assetHandlerInfos: AssetHandlerInfo[]) {
         assetHandlerInfos.forEach((info) => {
             delete this.name2registerInfo[info.name];
-            info.extnames.forEach((extname) => {
+            info.extensions.forEach((extname) => {
                 if (!this.extname2registerInfo[extname]) {
                     return;
                 }
@@ -298,7 +261,7 @@ class AssetHandlerManager {
         }
     }
 
-    add(assetHandler: AssetHandler, extnames: string[]) {
+    add(assetHandler: AssetHandler, extensions: string[]) {
         // 如果已经存在同名的导入器则跳过
         if (
             assetHandler.name !== '*' &&
@@ -311,42 +274,8 @@ class AssetHandlerManager {
 
         this.name2handler[assetHandler.name] = assetHandler;
 
-        const importer = new CustomImporter(extnames, assetHandler);
+        const importer = new CustomImporter(extensions, assetHandler);
         this.name2importer[assetHandler.name] = importer;
-    }
-
-    // TODO 是否支持反注册
-    remove(assetHandler: AssetHandler) {
-        delete this.name2handler[assetHandler.name];
-        // TODO remove importer2OperateRecord
-    }
-
-    addCustom(customHandler: CustomHandler) {
-        if (!customHandler.handlerList.length) {
-            console.warn(`Cannot register the custom asset handler [${customHandler.name}] because 'handlerList' is required.`);
-            return;
-        }
-
-        if (this.name2custom[customHandler.name]) {
-            console.warn(`The custom handler [${customHandler.name}] is already registered.`);
-            return;
-        }
-
-        customHandler.handlerList.forEach((importerName) => {
-            this.importer2custom[importerName] = this.importer2custom[importerName] || [];
-            this.importer2custom[importerName].push(customHandler);
-        });
-        this.name2custom[customHandler.name] = customHandler;
-    }
-
-    removeCustom(customHandler: CustomHandler) {
-        delete this.name2custom[customHandler.name];
-        customHandler.handlerList.forEach((importerName) => {
-            if (!this.importer2custom[importerName].length) {
-                return;
-            }
-            this.importer2custom[importerName].splice(this.importer2custom[importerName].findIndex((item) => item.name === customHandler.name), 1);
-        });
     }
 
     /**
@@ -364,14 +293,15 @@ class AssetHandlerManager {
                 const defaultMenuInfo = await generateMenuInfo();
                 const templateDir = getUserTemplateDir(importer);
                 let templates = preventDefaultTemplateMenu ? [] : await queryUserTemplates(templateDir);
-                const extnames = this.name2importer[importer].extnames;
+                // TODO 统一命名为 extensions
+                const extensions = this.name2importer[importer].extnames;
                 // 如果存在后缀则过滤不合法后缀的模板数据，无后缀作为正常模板处理（主要兼容旧版本无后缀的资源模板放置方式）
                 templates = templates.filter((file) => {
                     const extName = extname(file);
                     if (!extName) {
                         return true;
                     }
-                    return extnames.includes(extName);
+                    return extensions.includes(extName);
                 });
 
                 const importMenu: ICreateMenuInfo[] = [];
@@ -387,7 +317,7 @@ class AssetHandlerManager {
                             templates.splice(userTemplateIndex, 1);
                         }
                     }
-                    importMenu.push(patchHandler(info, importer, extnames));
+                    importMenu.push(patchHandler(info, importer, extensions));
                 });
 
                 // 与默认模板非同名的模板文件为用户自定义模板
@@ -409,7 +339,7 @@ class AssetHandlerManager {
                         menuAddTarget.push(patchHandler({
                             label: basename(templatePath, extname(templatePath)),
                             template: templatePath,
-                        }, importer, extnames));
+                        }, importer, extensions));
                     });
                     // 存在模板的情况下，添加资源模板管理的菜单入口
                     menuAddTarget.push({
@@ -676,32 +606,6 @@ class AssetHandlerManager {
         }
         return assetHandler.userDataConfig.default;
     }
-
-    async openAsset(asset: IAsset) {
-        if (!asset) {
-            return false;
-        }
-
-        const assetHandler = this._findOperateHandler(asset.meta.importer, 'open');
-        if (!assetHandler || !assetHandler.open) {
-            // 没有找到资源配置的打开方法时，并且存在源文件时，尝试使用系统默认程序打开
-            // TODO 系统默认打开方法
-            return false;
-        }
-
-        return await assetHandler.open(asset);
-    }
-
-    async executeCustomOperation(handlerName: string, operate: string, ...args: any[]) {
-        const assetHandler = this.name2handler[handlerName];
-        if (!assetHandler || !assetHandler.customOperationMap || !assetHandler.customOperationMap[operate]) {
-            return;
-        }
-
-        const handler = assetHandler.customOperationMap[operate].operator;
-        return await handler(...args);
-    }
-
     async runImporterHook(asset: IAsset, hookName: 'before' | 'after') {
         const assetHandler = this.name2handler[asset.meta.importer];
         // 1. 先执行资源处理器内的钩子
@@ -805,7 +709,6 @@ class AssetHandlerManager {
             ...this._userDataCache[handler],
         };
         setDefaultUserData(handler, combineUserData);
-        outputJSONSync(this._defaultMetaPath, this._userDataCache);
     }
 
     /**
@@ -822,47 +725,24 @@ class AssetHandlerManager {
         }
     }
 
-    /**
-     * 从文件内更新用户配置数据到导入系统以及渲染配置内
-     */
-    public refreshDefaultUserData() {
-        try {
-            if (existsSync(this._defaultMetaPath)) {
-                const json = readJSONSync(this._defaultMetaPath);
-                this._userDataCache = json;
-                for (const name in json) {
-                    for (const key in json[name]) {
-                        this._updateDefaultUserDataToHandler(name, key, json[name][key]);
-                    }
-                    // 更新导入器默认值
-                    setDefaultUserData(name, {
-                        ...(this._defaultUserData[name] || {}),
-                        ...json[name],
-                    });
-                }
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    }
 }
 
 export const assetHandlerManager = new AssetHandlerManager();
 
-function patchHandler(info: ICreateMenuInfo, handler: string, extnames: string[]) {
+function patchHandler(info: ICreateMenuInfo, handler: string, extensions: string[]) {
     // 避免污染原始 info 数据
     const res = {
         handler,
         ...info,
     };
     if (res.submenu) {
-        res.submenu = res.submenu.map((subInfo) => patchHandler(subInfo, handler, extnames));
+        res.submenu = res.submenu.map((subInfo) => patchHandler(subInfo, handler, extensions));
     }
     if (res.template && !res.fullFileName) {
         res.fullFileName = basename(res.template);
         if (!extname(res.fullFileName)) {
             // 支持无后缀的模板文件，主要兼容 3.8.2 版本之前的脚本模板
-            res.fullFileName += extnames[0];
+            res.fullFileName += extensions[0];
         }
     }
     return res;

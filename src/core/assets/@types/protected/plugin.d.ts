@@ -87,30 +87,3 @@ export interface ImporterRegisterInfo {
     list: string[];
     script: string;
 }
-
-export interface AssetHandlerInfo {
-    extnames: string[];
-    handler: string;
-    name: string;
-}
-
-/**
- * package.json 内定义的扩展信息
- */
-export interface AssetDBContribution {
-    script?: string; // db 脚本机制，db 扩展机制主入口
-    'asset-handler': Array<AssetHandlerInfo>,
-    'global-hook'?: string[];
-    'mount-hook'?: string[];
-
-    // 注册的资源数据库信息
-    mount?: AssetDBMountInfo;
-
-    // ----------------- 3.9 已废弃 --------------------------
-    // 注册的导入器
-    importer?: ImporterRegisterInfo;
-    // 之前的插件机制，注册资源的打开信息
-    openMessage?: {
-        [importerName: string]: string;
-    };
-}
