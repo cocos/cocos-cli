@@ -195,47 +195,6 @@ class PluginManager extends EventEmitter {
             target: info.mount.path,
         };
     }
-
-    public async executeScriptSafe(options: ExecuteAssetDBScriptMethodOptions) {
-        try {
-            const script = this.packageRegisterInfo[options.name].script!;
-            const mod = Utils.File.requireFile(script);
-            if (mod.methods && mod.methods[options.method]) {
-                return await mod.methods[options.method](...(options.args || []));
-            }
-        } catch (error) {
-            console.debug(error);
-        }
-    }
-
-    /**
-     * 执行某个生命周期钩子函数
-     * @param hookName 
-     */
-    public async runHook(hookName: AssetDBHookType, params: any[] = []) {
-        const pkgNameOrder = this.hookOrder;
-        for (const pkgName of pkgNameOrder) {
-            const { script, hooks, enable } = this.packageRegisterInfo[pkgName];
-            if (!enable && this.ready || !hooks.includes(hookName)) {
-                continue;
-            }
-            newConsole.trackTimeStart(`asset-db-hook-${pkgName}-${hookName}`);
-            console.debug(`Run asset db hook ${pkgName}:${hookName} ...`);
-            await this.executeScriptSafe({
-                name: pkgName,
-                method: hookName,
-                args: params,
-            });
-            console.debug(`Run asset db hook ${pkgName}:${hookName} success!`);
-            newConsole.trackTimeEnd(`asset-db-hook-${pkgName}-${hookName}`, { output: true });
-            // try {
-            // } catch (error) {
-            //     console.error(error);
-            //     console.error(`Run asset-db hook ${pkgName}:${hookName} failed!`);
-            // }
-        }
-    }
-
 }
 
 const pluginManager = new PluginManager();

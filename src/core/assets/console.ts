@@ -14,7 +14,7 @@ export interface trackTimeEndOptions {
     value?: number;
 }
 
-let rawConsole: any;
+let rawConsole: any = global.console;
 
 /**
  * 自定义的一个新 console 类型，用于收集日志
@@ -66,14 +66,14 @@ export class NewConsole {
         // HACK 合并进程后，日志会互相污染干扰，目前只能优先保障构建的日志记录。
         // TODO 3.8 可以考虑将编译、运行都拆到和脚本编译等类似的独立进程内
         // @ts-ignore
-        if (window.console.switchConsole) {
+        if (globalThis.console.switchConsole) {
             // @ts-ignore
-            window.console.switchConsole(this);
+            globalThis.console.switchConsole(this);
             return;
         }
         this._start = true;
         // @ts-ignore 将处理过的继承自 console 的新对象赋给 windows
-        window.console = this;
+        globalThis.console = this;
         rawConsole.debug(`Start record asset-db log in {file(${this.logDest})}`);
     }
 
@@ -83,7 +83,7 @@ export class NewConsole {
     public stopRecord() {
         rawConsole.debug(`Stop record asset-db log. {file(${this.logDest})}`);
         // @ts-ignore 将处理过的继承自 console 的新对象赋给 windows
-        window.console = rawConsole;
+        globalThis.console = rawConsole;
         this._start = false;
     }
 
@@ -170,19 +170,20 @@ export class NewConsole {
     }
 
     trackMemoryEnd(name: string, output = true) {
-        const start = this.memoryTrackMap.get(name);
-        if (!start) {
-            return 0;
-        }
-        const heapUsed = process.memoryUsage().heapUsed;
-        this.memoryTrackMap.delete(name);
-        const res = heapUsed - start;
-        if (output) {
-            // 数值过小时不输出，没有统计意义
-            res > 1024 * 1024 && console.debug(`[Assets Memory track]: ${name} start:${formateBytes(start)}, end ${formateBytes(heapUsed)}, increase: ${formateBytes(res)}`);
-            return output;
-        }
-        return res;
+        // TODO test
+        // const start = this.memoryTrackMap.get(name);
+        // if (!start) {
+        //     return 0;
+        // }
+        // const heapUsed = process.memoryUsage().heapUsed;
+        // this.memoryTrackMap.delete(name);
+        // const res = heapUsed - start;
+        // if (output) {
+        //     // 数值过小时不输出，没有统计意义
+        //     res > 1024 * 1024 && console.debug(`[Assets Memory track]: ${name} start:${formateBytes(start)}, end ${formateBytes(heapUsed)}, increase: ${formateBytes(res)}`);
+        //     return output;
+        // }
+        // return res;
     }
 
     trackTimeStart(message: string, time?: number) {

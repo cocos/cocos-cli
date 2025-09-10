@@ -1,24 +1,19 @@
-import { Importer as AssetDBImporter, Asset, setDefaultUserData, get, Importer } from '@editor/asset-db';
+import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@editor/asset-db';
 import { copy, copyFile, ensureDir, existsSync, outputFile, outputFileSync, outputJSON, outputJSONSync, readJSONSync } from 'fs-extra';
 import { basename, dirname, extname, isAbsolute, join } from 'path';
 import { url2path } from '../utils';
 import pluginManager from './plugin';
-import lodash from 'lodash';
+import lodash, { extend } from 'lodash';
 import fg from 'fast-glob';
 import Sharp from 'sharp';
 import Utils from '../../base/utils';
 import I18n from '../../base/i18n';
-import Project from '../../project';
 import { IAsset, IExportData } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import { AssetHandlerInfo } from '../asset-handler/config';
 
-interface HandlerInfo {
-    name: string;
-    handler: string;
+interface HandlerInfo extends AssetHandlerInfo {
     pkgName: string;
-    extensions: string[];
-
     internal: boolean;
 }
 
@@ -31,7 +26,7 @@ const databaseIconConfig: ICONConfig = {
 export class CustomImporter extends AssetDBImporter {
     constructor(extensions: string[], assetHandler: AssetHandler) {
         super();
-        const { migrations, migrationHook, version, versionCode, force, import: ImportAsset } = assetHandler.importer as Importer;
+        const { migrations, migrationHook, version, versionCode, force, import: ImportAsset } = assetHandler.importer as AssetDBImporter;
 
         if (!ImportAsset) {
             throw new Error(`Can not find import function in assetHandler(${assetHandler.name})`);
@@ -57,6 +52,7 @@ export class CustomImporter extends AssetDBImporter {
 }
 
 class AssetHandlerManager {
+    static createTemplateRoot: string;
     name2handler: Record<string, AssetHandler> = {};
     type2handler: Record<string, AssetHandler[]> = {};
     name2importer: Record<string, CustomImporter> = {};
@@ -104,12 +100,12 @@ class AssetHandlerManager {
     }
 
     private async activateRegister(registerInfos: HandlerInfo) {
-        const { pkgName, handler, name, extensions, internal } = registerInfos;
+        const { pkgName, name, extensions, internal } = registerInfos;
         if (this.name2importer[name]) {
             return this.name2importer[name];
         }
         try {
-            const assetHandler: AssetHandler = await pluginManager.executeScriptSafe({ name: pkgName, method: handler });
+            const assetHandler: AssetHandler = await registerInfos.load();
             if (assetHandler) {
                 this.name2handler[name] = Object.assign(assetHandler, {
                     from: {
@@ -167,9 +163,8 @@ class AssetHandlerManager {
             // 未传递 extname 的视为子资源导入器，extname = '-'
             const extensions = info.extensions && info.extensions.length ? info.extensions : ['-'];
             this.name2registerInfo[info.name] = {
+                ...info,
                 pkgName,
-                name: info.name,
-                handler: info.name,
                 extensions,
                 internal,
             };
@@ -763,7 +758,7 @@ async function queryUserTemplates(templateDir: string) {
 }
 
 function getUserTemplateDir(importer: string) {
-    return join(Project.info.path, '.creator', 'asset-template', importer);
+    return join(AssetHandlerManager.createTemplateRoot, importer);
 }
 
 const SizeMap = {

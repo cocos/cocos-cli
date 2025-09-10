@@ -12,9 +12,7 @@ import pluginManager from './plugin';
 import { assetHandlerManager } from './asset-handler-manager';
 import I18n from '../../base/i18n';
 import Utils from '../../base/utils';
-import { AssetDBConfig } from './config';
-import Project from '../../project';
-import Engine from '../../engine';
+import assetConfig from './config';
 
 export interface IPhysicsConfig {
     gravity: IVec3Like; // （0，-10， 0）
@@ -99,6 +97,7 @@ export class AssetDBManager extends EventEmitter {
 
     static useCache = false;
     static libraryRoot: string;
+    static tempRoot: string;
 
     get free() {
         return this.ready && !this.isPause && this.state !== 'free' && !this.assetBusy;
@@ -108,14 +107,22 @@ export class AssetDBManager extends EventEmitter {
      * 初始化，需要优先调用
      * @param 资源配置信息 
      */
-    async init(config: AssetDBConfig) {
-        AssetDBManager.libraryRoot = join(Project.info.path, 'library');
-        AssetDBManager.useCache = config.restoreAssetDBFromCache;
-
-        if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
-            AssetDBManager.useCache = false;
-            console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
+    async init() {
+        const { assetDBList, flagReimportCheck, libraryRoot, tempRoot, restoreAssetDBFromCache } = assetConfig.data;
+        if (!assetDBList.length) {
+            throw new Error(I18n.t('asset-db.init.noAssetDBList'));
         }
+        AssetDBManager.libraryRoot = libraryRoot;
+        AssetDBManager.tempRoot = tempRoot;
+        AssetDBManager.useCache = restoreAssetDBFromCache;
+        assetDBList.forEach((info) => {
+            this.assetDBInfo[info.name] = patchAssetDBInfo(info);
+        });
+        // TODO 版本升级资源应该只认自身记录的版本号
+        // if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
+        //     AssetDBManager.useCache = false;
+        //     console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
+        // }
 
         if (AssetDBManager.useCache && !existsSync(AssetDBManager.libraryRoot)) {
             AssetDBManager.useCache = false;
@@ -124,29 +131,7 @@ export class AssetDBManager extends EventEmitter {
         await this.pluginManager.init();
         await this.assetHandlerManager.init();
 
-        this.reimportCheck = config.flagReimportCheck;
-        const internalConfig: AssetDBRegisterInfo = {
-            name: 'internal',
-            target: join(Engine.getInfo().path, './editor/assets'),
-            readonly: true,
-            visible: true,
-        };
-
-        // 开启全局 internal library 缓存后，修改 internal 默认的导入地址
-        this.globalInternalLibrary = config.globalInternalLibrary;
-        if (this.globalInternalLibrary) {
-            internalConfig.library = join(Project.info.tmpDir, 'asset-db', 'library');
-            internalConfig.temp = join(Project.info.tmpDir, 'asset-db', 'temp');
-        }
-        // 初始化所有即将启动 db 的配置信息
-        this.assetDBInfo.internal = patchAssetDBInfo(internalConfig);
-        this.assetDBInfo.assets = patchAssetDBInfo({
-            name: 'assets',
-            target: join(Project.info.path, 'assets'),
-            readonly: false,
-            visible: true,
-            globList: config.globList,
-        });
+        this.reimportCheck = flagReimportCheck;
     }
 
     /**
@@ -160,13 +145,11 @@ export class AssetDBManager extends EventEmitter {
         } else {
             await this._start();
         }
-        await this.pluginManager.runHook('beforeReady');
         this.ready = true;
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
         // 性能测试: 资源冷导入
         newConsole.trackTimeEnd('asset-db:ready', { output: true });
         this.emit('asset-db:ready');
-        await this.pluginManager.runHook('afterReady');
         // 启动成功后，开始加载尚未注册的资源处理器
         this.assetHandlerManager.activateRegisterAll();
 
@@ -180,23 +163,19 @@ export class AssetDBManager extends EventEmitter {
     private async _start() {
         newConsole.trackMemoryStart('asset-db:worker-init: preStart');
         // 目前专为脚本系统设计的钩子函数：beforePreStart，afterPreStart ，不对外
-        await this.pluginManager.runHook('beforePreStart', [this.assetDBInfo]);
         const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
         const startupDatabaseQueue: IStartupDatabaseHandleInfo[] = [];
         for (const assetDBName of assetDBNames) {
             const db = await this._createDB(this.assetDBInfo[assetDBName]);
-            await this.pluginManager.runHook('beforeStartDB', [this.assetDBInfo[assetDBName]]);
             const waitingStartupDBInfo = await this._preStartDB(db);
             startupDatabaseQueue.push(waitingStartupDBInfo);
         }
-        await this.pluginManager.runHook('afterPreStart', [this.assetDBInfo]);
         newConsole.trackMemoryEnd('asset-db:worker-init: preStart');
 
         newConsole.trackMemoryStart('asset-db:worker-init: startup');
         for (let i = 0; i < startupDatabaseQueue.length; i++) {
             const startupDatabase = startupDatabaseQueue[i];
             await this._startupDB(startupDatabase);
-            await this.pluginManager.runHook('afterStartDB', [this.assetDBInfo[startupDatabase.name]]);
         }
         newConsole.trackMemoryEnd('asset-db:worker-init: startup');
     }
@@ -208,7 +187,6 @@ export class AssetDBManager extends EventEmitter {
         console.debug('try start all assetDB from cache...');
         const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
         // 目前专为脚本系统设计的钩子函数：beforePreStart，afterPreStart ，不对外
-        await this.pluginManager.runHook('beforePreStart', [this.assetDBInfo]);
         for (const assetDBName of assetDBNames) {
             const db = await this._createDB(this.assetDBInfo[assetDBName]);
             if (existsSync(db.cachePath)) {
@@ -229,7 +207,6 @@ export class AssetDBManager extends EventEmitter {
             const waitingStartupDBInfo = await this._preStartDB(db);
             await this._startupDB(waitingStartupDBInfo);
         }
-        await this.pluginManager.runHook('afterPreStart', [this.assetDBInfo]);
     }
 
     public isBusy() {
@@ -254,9 +231,7 @@ export class AssetDBManager extends EventEmitter {
             return;
         }
         await this._createDB(info);
-        await this.pluginManager.runHook('beforeStartDB', [info]);
         await this._startDB(info.name);
-        await this.pluginManager.runHook('afterStartDB', [info]);
         this.emit('asset-db:db-ready', info.name);
     }
 
@@ -332,7 +307,7 @@ export class AssetDBManager extends EventEmitter {
             // HACK 1/3 启动数据库时，不导入全部资源，先把预导入资源导入完成后进入等待状态
             hooks.afterPreImport = async () => {
                 await afterPreImport(db);
-                console.debug(`Preimport db ${name} success`);
+                console.debug(`PreImport db ${db.options.name} success`);
                 resolve(handleInfo);
                 return new Promise((resolve) => {
                     handleInfo.afterPreImportResolve = resolve;
@@ -454,10 +429,7 @@ export class AssetDBManager extends EventEmitter {
         if (!db) {
             return;
         }
-        const assetDBInfo = this.assetDBInfo[name];
-        this.ready && await this.pluginManager.runHook('beforeStopDB', [assetDBInfo]);
         await db.stop();
-        this.ready && await this.pluginManager.runHook('afterStopDB', [assetDBInfo]);
         this.emit('db-removed', db);
         delete this.assetDBMap[name];
         delete this.assetDBInfo[name];
@@ -491,7 +463,6 @@ export class AssetDBManager extends EventEmitter {
 
     private async _refresh() {
         this.state = 'busy';
-        await this.pluginManager.runHook('beforeRefresh');
         newConsole.trackTimeStart('asset-db:refresh-all-database');
         for (const name in this.assetDBMap) {
             if (!this.assetDBMap[name]) {
@@ -511,7 +482,6 @@ export class AssetDBManager extends EventEmitter {
             console.debug(`refresh db ${name} success`);
         }
         newConsole.trackTimeEnd('asset-db:refresh-all-database', { output: true });
-        await this.pluginManager.runHook('afterRefresh');
         this.emit('asset-db:refresh-finish');
         this.state = 'free';
         this.step();
@@ -702,11 +672,11 @@ function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {
         target: Utils.Path.normalize(config.target),
         readonly: !!config.readonly,
 
-        temp: config.temp || Utils.Path.normalize(join(Project.info.tmpDir, 'asset-db', config.name)),
+        temp: config.temp || Utils.Path.normalize(join(AssetDBManager.tempRoot, 'asset-db', config.name)),
         library: config.library || AssetDBManager.libraryRoot,
 
         level: 4,
-        globList: config.globList,
+        globList: assetConfig.data.globList,
         ignoreFiles: ['.DS_Store', '.rename_temp'],
         visible: config.visible,
         state: 'none',

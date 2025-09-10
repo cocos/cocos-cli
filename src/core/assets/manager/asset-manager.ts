@@ -1,6 +1,6 @@
 import { queryUUID, AssetDB, queryAsset, refresh, reimport, queryUrl, Asset, forEach, VirtualAsset } from '@editor/asset-db';
 import { basename, dirname, extname, isAbsolute, join, relative } from 'path';
-import { assetDBManager } from './asset-db-manager';
+import { assetDBManager, AssetDBManager } from './asset-db-manager';
 import { ensureOutputData, getExtendsFromCCType, libArr2Obj, removeFile, serializeCompiled, url2path, url2uuid } from '../utils';
 import { assetHandlerManager } from './asset-handler-manager';
 import { minimatch } from 'minimatch';
@@ -8,7 +8,7 @@ import EventEmitter from 'events';
 import { copy, existsSync, move, outputFile, remove, rename } from 'fs-extra';
 import Utils from '../../base/utils';
 import I18n from '../../base/i18n';
-import Project from '../../project';
+import assetConfig from './config';
 import Script from '../script';
 import { AssetOperationOption, AssetManager as IAssetManager, CreateAssetOptions, IAsset, IAssetInfo, IExportData, IExportOptions, IMoveOptions, QueryAssetsOption, QueryAssetType } from '../@types/private';
 import { Meta } from '@editor/asset-db/libs/meta';
@@ -704,7 +704,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         }
 
         // 根路径 /assets, /internal 对应的 url 模拟数据
-        const name = uuidOrPath.substr(Project.info.path.length + 1);
+        const name = uuidOrPath.substr(assetConfig.data.root.length + 1);
         if (assetDBManager.assetDBMap[name]) {
             return `db://${name}`;
         }
@@ -1211,8 +1211,8 @@ export async function moveFile(source: string, target: string, options?: IMoveOp
 
         options = { overwrite: false }; // fs move 要求实参 options 要有值
     }
-    const tempDir = join(Project.info.tmpDir, 'asset-db', 'move-temp');
-    const relativePath = relative(Project.info.path, target);
+    const tempDir = join(assetConfig.data.tempRoot, 'asset-db', 'move-temp');
+    const relativePath = relative(assetConfig.data.root, target);
     try {
         if (!Utils.Path.contains(source, target)) {
             await move(source + '.meta', target + '.meta', { overwrite: true }); // meta 先移动

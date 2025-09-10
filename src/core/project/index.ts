@@ -13,7 +13,6 @@ export interface ProjectInfo {
     readonly lastVersion: string;
 }
 
-
 async function readProjectInfo(root: string): Promise<ProjectInfo> {
     const packageJSONPath = join(root, 'package.json');
     const packageJSON = await readJSON(packageJSONPath);
@@ -27,7 +26,7 @@ async function readProjectInfo(root: string): Promise<ProjectInfo> {
     };
 }
 
-class Project {
+export class Project {
     info: ProjectInfo = {
         name: 'cocos-creator',
         path: '',
@@ -40,8 +39,8 @@ class Project {
     /**
      * TODO 初始化配置
      */
-    init() {
-
+    async init(path: string) {
+        this.info = await readProjectInfo(path);
     }
 
 }

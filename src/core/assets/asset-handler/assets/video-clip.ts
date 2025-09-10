@@ -1,5 +1,5 @@
 import { Asset } from '@editor/asset-db';
-import { VideoClip, js } from 'cc';
+// import { VideoClip, js } from 'cc';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
@@ -8,7 +8,8 @@ import { serialize } from '../../../engine/editor-extends/utils/serialize';
 export const VideoHandler: AssetHandler = {
     name: 'video-clip',
     extensions: ['.mp4'],
-    assetType: js.getClassName(VideoClip),
+    // assetType: js.getClassName(VideoClip),
+    assetType: 'cc.VideoClip',
     importer: {
         version: '1.0.0',
         /**
@@ -22,24 +23,26 @@ export const VideoHandler: AssetHandler = {
          */
         async import(asset: Asset) {
             await asset.copyToLibrary(asset.extname, asset.source);
-            const element = document.createElement('video');
+            // const element = document.createElement('video');
 
-            try {
-                await loadVideo(asset, element);
-            } catch (error) {
-                console.error(
-                    `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
-                );
-                console.debug(error);
-            }
+            // try {
+            //     await loadVideo(asset, element);
+            // } catch (error) {
+            //     console.error(
+            //         `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
+            //     );
+            //     console.debug(error);
+            // }
 
-            const video = createVideo(asset, element.duration);
+            // const video = createVideo(asset, element.duration);
             // TODO serialize 定义规范
-            const serializeJSON = serialize(video) as string;
-            await asset.saveToLibrary('.json', serializeJSON);
+            // const serializeJSON = serialize(video) as string;
+            await asset.saveToLibrary('.json', JSON.stringify({
+                test: 'video',
+            }));
 
-            const depends = getDependUUIDList(serializeJSON);
-            asset.setData('depends', depends);
+            // const depends = getDependUUIDList(serializeJSON);
+            // asset.setData('depends', depends);
             return true;
         },
     },
@@ -69,13 +72,13 @@ function loadVideo(asset: Asset, element: HTMLVideoElement) {
     });
 }
 
-function createVideo(asset: Asset, duration?: number) {
-    const video = new VideoClip();
-    // @ts-ignore
-    duration && (video._duration = duration);
+// function createVideo(asset: Asset, duration?: number) {
+//     const video = new VideoClip();
+//     // @ts-ignore
+//     duration && (video._duration = duration);
 
-    video.name = asset.basename;
-    video._setRawAsset(asset.extname);
+//     video.name = asset.basename;
+//     video._setRawAsset(asset.extname);
 
-    return video;
-}
+//     return video;
+// }
