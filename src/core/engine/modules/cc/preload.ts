@@ -24,7 +24,7 @@ let loader: EngineLoader | null = null;
  */
 async function preload(options: {
     /**
-     * 引擎根目录
+     * 引擎根目录。如果未指定则用 IPC 消息查询当前使用的。
      */
     root?: string;
 
@@ -32,6 +32,14 @@ async function preload(options: {
      * 引擎分发目录（引擎编译后的目录）。
      */
     dist?: string;
+
+    editorPath?: string;
+
+    /**
+     * 是否要注入全局变量 `EditorExtends`。主进程不可使用。
+     * @default true
+     */
+    editorExtensions?: boolean;
 
     /**
      * 需要预加载的模块。
@@ -48,34 +56,45 @@ async function preload(options: {
         }
         hasPreload = true;
 
-        const { requiredModules } = options;
-
+        const { requiredModules, editorExtensions = true, editorPath } = options;
+    
         const Engine: { readonly default: IEngine } = await import('../../../engine');
         const dist = options.dist ?? ps.join(Engine.default.getInfo().path, 'bin', '.cache', 'dev', 'editor');
-
+    
         // 设置 CC_EDITOR 标记，引擎加载的时候会使用标记进行部分判断
         // @ts-ignore
         globalThis.CC_EDITOR = true;
-
+    
+        // if (editorExtensions) {
+        //     const ipc = await import('@base/electron-base-ipc');
+        //
+        //     // 向 engine 插件查询信息
+        //     const info = ipc.sendSync('packages-engine:query-engine-info');
+        //
+        //     // 加载编辑器扩展
+        //     // @ts-ignore
+        //     globalThis.EditorExtends = require(ps.join(info.editor, './builtin/engine/dist/editor-extends'));
+        // }
+    
         const engineModules: Record<string, unknown> = {};
-
+    
         const loaderModule = require(ps.resolve(dist, 'loader')) as {
             default: EngineLoader;
         };
-
+    
         loader = loaderModule.default;
-
+    
         for (const requiredModule of requiredModules) {
             engineModules[requiredModule] = await loader.import(requiredModule);
         }
-
+    
         const ModuleInternal = Module as typeof Module & {
             _resolveFilename(this: Module, request: string): void;
             _load(this: Module, request: string): void;
         };
-
+    
         const vendorResolveFilename = ModuleInternal._resolveFilename;
-        ModuleInternal._resolveFilename = function (request: string) {
+        ModuleInternal._resolveFilename = function(request: string) {
             if (isEngineModule(request)) {
                 return request;
             } else {
@@ -84,9 +103,9 @@ async function preload(options: {
                 return vendorResolveFilename.apply(this, arguments);
             }
         };
-
+    
         const vendorLoad = ModuleInternal._load;
-        ModuleInternal._load = function (request: string) {
+        ModuleInternal._load = function(request: string) {
             if (isEngineModule(request)) {
                 const module = engineModules[request];
                 if (module) {
@@ -102,9 +121,9 @@ async function preload(options: {
                 return vendorLoad.apply(this, arguments);
             }
         };
-
+    
         if (requiredModules.includes('cc')) {
-            postProcess();
+            postProcess(editorPath);
         }
     } catch (error) {
         let msg = 'preload engine failed!';
@@ -131,7 +150,23 @@ export async function loadDynamic(id: string) {
     return await loader.import(id);
 }
 
-async function postProcess() {
+async function postProcess(editorPath?: string) {
+    let info;
+
+    if (!editorPath) {
+        editorPath = '/Users/cocos/editor-3d-develop/app/builtin/engine';
+    } else {
+        info = {
+            editor: editorPath,
+        };
+    }
+
+    const vStacks = require('v-stacks');
+    if ('__MAIN__' in window) {
+        const error = new Error('Try not to run the engine in the window process.');
+        error.stack = vStacks.ignoreStack(error.stack, 1);
+        console.warn(error);
+    }
 
     const timeLabel = 'Import engine';
     console.time(timeLabel);
@@ -144,6 +179,8 @@ async function postProcess() {
         if (error instanceof Error) {
             msg += '\n' + error.stack ? error.stack : error.toString();
         }
+        // @ts-ignore
+        Editor.Message.send('engine', 'import-engine-error', msg);
         throw error;
     }
 
@@ -155,4 +192,10 @@ async function postProcess() {
 
     // ---- hack creator 使用的一些 engine 参数
     require('./polyfill/engine');
+
+    // @ts-ignore
+    // globalThis.EditorExtends.init();
+
+    const handle = require('./overwrite');
+    handle(ccm, info);
 }
