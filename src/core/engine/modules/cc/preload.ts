@@ -59,7 +59,7 @@ async function preload(options: {
         const { requiredModules, editorExtensions = true, editorPath } = options;
     
         const Engine: { readonly default: IEngine } = await import('../../../engine');
-        const dist = options.dist ?? ps.join(Engine.default.getInfo().path, 'bin', '.cache', 'dev', 'editor');
+        const dist = options.dist ?? ps.join(Engine.default.getInfo().path, 'bin', '.cache', 'dev-cli', 'editor');
     
         // 设置 CC_EDITOR 标记，引擎加载的时候会使用标记进行部分判断
         // @ts-ignore
