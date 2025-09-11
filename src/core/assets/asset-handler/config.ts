@@ -1,4 +1,4 @@
-import { AssetHandler } from "../@types/protected";
+import { AssetHandler } from '../@types/protected';
 
 export interface AssetHandlerInfo {
     name: string;
@@ -11,5 +11,18 @@ export const assetHandlerInfos: AssetHandlerInfo[] = [{
     extensions: ['.mp4'],
     load: async () => {
         return (await import('./assets/video-clip')).default;
+    }
+}, {
+    name: 'audio-clip',
+    extensions: [
+        '.mp3',
+        '.wav',
+        '.ogg',
+        '.aac',
+        '.pcm',
+        '.m4a'
+    ],
+    load: async () => {
+        return (await import('./assets/audio-clip')).default;
     }
 }];

@@ -1,11 +1,9 @@
 import { Asset } from '@editor/asset-db';
-import { VideoClip, js } from 'cc';
+// import { VideoClip, js } from 'cc';
 import { AssetHandler } from '../../@types/protected';
-import { serialize } from '../../../engine/editor-extends/utils/serialize';
 
 export const VideoHandler: AssetHandler = {
     name: 'video-clip',
-    extensions: ['.mp4'],
     // assetType: js.getClassName(VideoClip),
     assetType: 'cc.VideoClip',
     importer: {
@@ -23,7 +21,7 @@ export const VideoHandler: AssetHandler = {
             await asset.copyToLibrary(asset.extname, asset.source);
             let duration = 0;
             try {
-                duration = await getVideoDurationInSeconds(asset);
+                duration = await getVideoDurationInSeconds(asset.source);
             } catch (error) {
                 console.error(
                     `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
@@ -31,10 +29,15 @@ export const VideoHandler: AssetHandler = {
                 console.debug(error);
             }
 
-            const video = createVideo(asset, duration);
-            const serializeJSON = serialize(video) as string;
+            // const video = createVideo(asset, duration);
+            // const serializeJSON = serialize(video) as string;
 
-            await asset.saveToLibrary('.json', serializeJSON);
+            // await asset.saveToLibrary('.json', serializeJSON);
+            // TODO temp
+            await asset.saveToLibrary('.json', JSON.stringify({
+                duration,
+                name: asset._name,
+            }));
             return true;
         },
     },
@@ -42,22 +45,22 @@ export const VideoHandler: AssetHandler = {
 
 export default VideoHandler;
 
-function getVideoDurationInSeconds(asset: Asset) {
+function getVideoDurationInSeconds(path: string) {
     return new Promise<number>((resolve, reject) => {
         const { getVideoDurationInSeconds } = require('get-video-duration')
-        getVideoDurationInSeconds(asset.source).then((duration: number) => {
+        getVideoDurationInSeconds(path).then((duration: number) => {
             resolve(duration);
         })
     });
 }
 
-function createVideo(asset: Asset, duration?: number) {
-    const video = new VideoClip();
-    // @ts-ignore
-    duration && (video._duration = duration);
+// function createVideo(asset: Asset, duration?: number) {
+//     const video = new VideoClip();
+//     // @ts-ignore
+//     duration && (video._duration = duration);
 
-    video.name = asset.basename;
-    video._setRawAsset(asset.extname);
+//     video.name = asset.basename;
+//     video._setRawAsset(asset.extname);
 
-    return video;
-}
+//     return video;
+// }

@@ -61,10 +61,6 @@ export interface CustomAssetHandler extends Partial<AssetHandlerBase> {
 
 export interface AssetHandlerBase extends CustomHandlerBase {
     /**
-     * 支持的资源文件后缀
-     */
-    extensions: string[];
-    /**
      * 资源的显示名称，支持 i18n:xxx
      */
     displayName?: string;

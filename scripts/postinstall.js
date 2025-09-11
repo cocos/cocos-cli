@@ -1,6 +1,6 @@
 // 拷贝模拟 cc 模块
 
-const { existsSync } = require('fs');
+const { existsSync, copy } = require('fs-extra');
 const { join } = require('path');
 
 const userConfig = join(__dirname, '../.user.json');
@@ -10,13 +10,12 @@ if (!existsSync(userConfig)) {
     process.exit(1);
 }
 
-async function addCCModule() {
-    const { cc, engine } = require('../.user.json');
-    const { copy } = require('fs-extra');
-
-    await copy(cc, join(__dirname, '../node_modules/cc'));
+async function mockNpmModules() {
+    const { node_modules } = require('../.user.json');
+    for (const name of Object.keys(node_modules)) {
+        await copy(node_modules[name], join(__dirname, `../node_modules/${name}`));
+        console.log(`模拟 ${name} 模块成功`);
+    }
 }
 
-addCCModule().then(() => {
-    console.log('模拟 cc 模块成功');
-});
+mockNpmModules();

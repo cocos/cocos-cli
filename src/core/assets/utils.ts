@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, VirtualAsset, queryUUID, Utils as dbUtils, queryAsset as dbQueryAsset, queryPath } from '@editor/asset-db';
+import { Asset, VirtualAsset, queryUUID, Utils as dbUtils, queryAsset as dbQueryAsset, queryPath } from '@editor/asset-db/index';
 import { isAbsolute, join, relative, resolve } from 'path';
 import { existsSync, move, readFile, readJSON, remove } from 'fs-extra';
 import type { Asset as CCAsset, Details } from 'cc';
