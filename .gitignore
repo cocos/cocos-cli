@@ -6,6 +6,7 @@
 !.husky/
 .vscode/extensions.json
 .vscode/launch.json
+.user.json
 .DS_Store
 
 # node 模块

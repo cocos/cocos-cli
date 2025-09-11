@@ -1,6 +1,5 @@
 import { AssetDBOptions } from '@editor/asset-db/libs/asset-db';
 import { IAssetWorkerInfo } from '../private';
-
 export interface IAssetDBInfo extends AssetDBOptions {
     // 当前数据库的启动状态
     state: 'none' | 'start' | 'startup' | 'refresh'; // 是否已启动
