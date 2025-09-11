@@ -1,20 +1,21 @@
 
-import project from './core/project';
+import Project from './core/project';
 import Engine from './core/engine';
 import { startupAssetDB } from './core/assets';
 
 class ProjectManager {
     create() {
-        // 创建项目
+
     }
 
     /**
      * 打开某个项目
-     * @param path 
+     * @param path
+     * @param enginePath
      */
     async open(path: string, enginePath: string) {
         // 初始化项目信息
-        await project.init(path);
+        await Project.open(path);
         // TODO 初始化引擎环境
         await Engine.init(enginePath);
 
@@ -30,7 +31,6 @@ class ProjectManager {
     async build(projectPath: string, options: any) {
 
     }
-
 }
 
 export const projectManager = new ProjectManager();
