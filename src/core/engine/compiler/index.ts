@@ -3,7 +3,7 @@ import { QuickCompiler } from '@editor/quick-compiler';
 import { StatsQuery } from '@cocos/ccbuild';
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
 import { dirname, join } from 'path';
-import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove } from 'fs-extra';
+import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove,existsSync,copyFileSync } from 'fs-extra';
 import { IFeatureItem, IModuleItem, ModuleRenderConfig } from '../@types/modules';
 
 const VERSION = '3';
@@ -100,7 +100,7 @@ export class EngineCompiler {
         } */
         // Spine Hack End
         const env: StatsQuery.ConstantManager.ConstantOptions = {
-            platform: 'HTML5',
+            platform: 'NODEJS',
             mode: 'EDITOR',
             flags: {
                 DEBUG: true,
@@ -262,6 +262,7 @@ export class EngineCompiler {
             //     await this.generateEngineAddon(options);
             //     await this.updateAdapter();
             // }
+            await this.updateAdapter();
             await this.compiler.build();
             await this.rebuildImportMaps();
             const versionFile = join(this.outDir, 'VERSION');
@@ -354,6 +355,40 @@ export class EngineCompiler {
 
         return envLimitModule;
     }
+
+    async updateAdapter() {
+        try {
+            let isSuccess = true;
+            const nativeOutDir = join(this.enginePath, 'bin/.editor');
+            const webAdapter = join(this.enginePath, 'bin/adapter/nodejs/web-adapter.js');
+            if (existsSync(webAdapter)) {
+                const output = join(nativeOutDir, 'web-adapter.js');
+                copyFileSync(webAdapter, output);
+            } else {
+                isSuccess = false;
+                console.error(`${webAdapter} not exist,please build engine first`);
+            }
+            const engineAdapter = join(this.enginePath, 'bin/adapter/nodejs/engine-adapter.js');
+            if (existsSync(engineAdapter)) {
+                copyFileSync(engineAdapter, join(nativeOutDir, 'engine-adapter.js'));
+            } else {
+                isSuccess = false;
+                console.error(`${engineAdapter} not exist,please build engine first`);
+            }
+            if (isSuccess) {
+                console.log('update adapter success');
+            } else {
+                console.error('update adapter failed');
+            }
+   
+            return Promise.resolve();
+        } catch (error) {
+            console.error(error);
+            return Promise.reject(error);
+        }
+    }
+    
+    
     async rebuildImportMaps() {
         if (!this.compiler) {
             return;
