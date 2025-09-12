@@ -66,10 +66,10 @@ async function preload(options: {
         globalThis.CC_EDITOR = false;
     
         // if (editorExtensions) {
-        //     //const ipc = await import('@base/electron-base-ipc');
+        //     const ipc = await import('@base/electron-base-ipc');
         
         //     // 向 engine 插件查询信息
-        //     //const info = ipc.sendSync('packages-engine:query-engine-info');
+        //     const info = ipc.sendSync('packages-engine:query-engine-info');
         
         //     // 加载编辑器扩展
         //     // @ts-ignore
