@@ -73,11 +73,11 @@ async function preload(options: {
         
             // 加载编辑器扩展
             // @ts-ignore
-            globalThis.EditorExtends = require(ps.join('D:\\Cocos\\cocos-editor\\app', './builtin/engine/dist/editor-extends'));
+            globalThis.EditorExtends = require(ps.join(info.editor, './builtin/engine/dist/editor-extends'));
         }
         // @ts-ignore
         globalThis.window = {};
-        require(ps.join('D:\\Cocos\\cocos-editor\\resources\\3d\\engine', 'bin/.editor/web-adapter.js'));
+        require(ps.join(info.enginePath, 'bin/.editor/web-adapter.js'));
         const engineModules: Record<string, unknown> = {};
     
         const loaderModule = require(ps.resolve(dist, 'loader')) as {
