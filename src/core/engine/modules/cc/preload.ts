@@ -65,16 +65,16 @@ async function preload(options: {
         // @ts-ignore
         globalThis.CC_EDITOR = false;
     
-        if (editorExtensions) {
-            //const ipc = await import('@base/electron-base-ipc');
+        // if (editorExtensions) {
+        //     //const ipc = await import('@base/electron-base-ipc');
         
-            // 向 engine 插件查询信息
-            //const info = ipc.sendSync('packages-engine:query-engine-info');
+        //     // 向 engine 插件查询信息
+        //     //const info = ipc.sendSync('packages-engine:query-engine-info');
         
-            // 加载编辑器扩展
-            // @ts-ignore
-            globalThis.EditorExtends = require(ps.join(info.editor, './builtin/engine/dist/editor-extends'));
-        }
+        //     // 加载编辑器扩展
+        //     // @ts-ignore
+        //     globalThis.EditorExtends = require(ps.join(info.editor, './builtin/engine/dist/editor-extends'));
+        // }
         // @ts-ignore
         globalThis.window = {};
         require(ps.join(info.enginePath, 'bin/.editor/web-adapter.js'));
