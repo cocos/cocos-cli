@@ -63,7 +63,7 @@ async function preload(options: {
     
         // 设置 CC_EDITOR 标记，引擎加载的时候会使用标记进行部分判断
         // @ts-ignore
-        globalThis.CC_EDITOR = true;
+        globalThis.CC_EDITOR = false;
     
         if (editorExtensions) {
             //const ipc = await import('@base/electron-base-ipc');
