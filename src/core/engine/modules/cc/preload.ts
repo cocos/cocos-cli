@@ -156,7 +156,7 @@ async function postProcess(editorPath?: string) {
     let info;
 
     if (!editorPath) {
-        editorPath = 'D:\\Cocos\\cocos-editor\\resources\\3d\\engine';
+        editorPath = '/Users/cocos/editor-3d-develop/app/builtin/engine';
     } else {
         info = {
             editor: editorPath,
