@@ -2,6 +2,7 @@
 import Project from './core/project';
 import Engine from './core/engine';
 import { startupAssetDB } from './core/assets';
+import { join, resolve } from 'path';
 
 class ProjectManager {
     create() {
@@ -33,4 +34,14 @@ class ProjectManager {
     }
 }
 
+
+
 export const projectManager = new ProjectManager();
+(async () => {
+    const { engine } = require('../.user.json');
+    const ccEngine = await Engine.init(engine);
+    await ccEngine.initEngine({
+        importBase: join(engine, 'library'),
+        nativeBase: join(engine, 'library'),
+    });
+})();

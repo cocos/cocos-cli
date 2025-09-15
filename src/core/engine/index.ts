@@ -154,7 +154,7 @@ class Engine implements IEngine {
 
         // @ts-ignore
         // window.cc.debug._resetDebugSetting(cc.DebugMode.INFO);
-        newConsole.trackTimeEnd('asset-db:require-engine-code', { output: true });
+        //newConsole.trackTimeEnd('asset-db:require-engine-code', { output: true });
 
         const modules = this.getConfig().includedModules || [];
         let physicsEngine = '';

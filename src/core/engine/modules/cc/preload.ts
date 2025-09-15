@@ -43,7 +43,7 @@ async function preload(options: {
         // @ts-ignore
         globalThis.CC_EDITOR = false;
         // @ts-ignore
-        globalThis.window = {};
+        globalThis.window = globalThis.global;
         await import(join(options.engineRoot, 'bin/adapter/nodejs/web-adapter.js'));
 
         const engineModules: Record<string, unknown> = {};
@@ -93,12 +93,6 @@ async function preload(options: {
         };
 
         if (options.requiredModules.includes('cc')) {
-            // ---- 加载引擎主体 ----
-            // @ts-ignore
-            globalThis.cc = require('cc');
-
-            // @ts-ignore
-            const ccm = window.ccm = globalThis.cc;
 
             // ---- hack creator 使用的一些 engine 参数
             require('./polyfill/engine');
@@ -107,7 +101,7 @@ async function preload(options: {
             globalThis.EditorExtends.init();
 
             const handle = require('./overwrite');
-            handle(ccm);
+            handle(cc);
         }
     } catch (error) {
         let msg = 'preload engine failed!';
