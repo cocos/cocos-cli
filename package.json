@@ -33,7 +33,7 @@
     },
     "dependencies": {
         "@babel/core": "7.22.20",
-        "@cocos/ccbuild": "2.3.16",
+        "@cocos/ccbuild": "2.3.17",
         "@cocos/creator-programming-rollup-plugin-mod-lo": "^1.4.2",
         "@cocos/module-system": "^0.0.21",
         "@editor/asset-db": "^3.0.0-alpha.1",
