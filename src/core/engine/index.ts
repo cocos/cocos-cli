@@ -4,7 +4,6 @@ import { EngineInfo } from './@types/public';
 import { EngineConfig, InitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
-import preload from './modules/cc/preload';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -117,10 +116,6 @@ class Engine implements IEngine {
         this._init = true;
 
         return this;
-    }
-
-    async importWebAdapter() {
-        await import(join(this._info.path, 'bin/adapter/nodejs/web-adapter.js'));
     }
 
     async importEditorExtensions() {
