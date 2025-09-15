@@ -62,6 +62,10 @@ class Engine implements IEngine {
     }
     private _compiler: EngineCompiler | null = null;
 
+    private get compilerOutDir() {
+        return join(this._info.path, 'bin', '.cache', 'dev-cli');
+    }
+    
     /**
      * TODO init data in register project modules
      */
