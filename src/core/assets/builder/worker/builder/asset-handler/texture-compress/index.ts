@@ -13,7 +13,6 @@ const numCPUs = cpus().length;
 import Sharp from 'sharp';
 import Lodash from 'lodash';
 import { formatMSTime, getConfig } from '../../../../share/utils';
-import { UUID } from 'crypto';
 import { newConsole } from '../../../../../../base/console';
 import { ICustomConfig, ITextureCompressFormatType, AllTextureCompressConfig, UserCompressConfig, ICompressConfig } from '../../../../@types';
 import { IBuildAssetHandlerInfo } from '../../../../@types/private';
