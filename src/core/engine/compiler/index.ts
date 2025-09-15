@@ -24,18 +24,17 @@ export class EngineCompiler {
     private editorFeaturesCache: string[] = [];
     private outDir: string = '';
     private statsQuery: StatsQuery | null = null;
-    private constructor(path: string) {
+    private constructor(path: string, outDir: string) {
+        this.outDir = outDir
         this.enginePath = path;
     }
 
-    static create(path: string) {
+    static create(path: string, outDir: string) {
         // TODO 根据 Engine 地址读取引擎配置文件，确认初始化信息
-        return new EngineCompiler(path);
+        return new EngineCompiler(path, outDir);
     }
 
     async compile(force: boolean = false): Promise<void> {
-        // TODO 编译引擎
-        this.outDir = join(this.enginePath, 'bin', '.cache', 'dev-cli');
         // 发布之后不需要编译内置引擎
         // 开始第一次编译引擎
         const versionFile = join(this.outDir, 'VERSION');
@@ -366,14 +365,14 @@ export class EngineCompiler {
                 copyFileSync(webAdapter, output);
             } else {
                 isSuccess = false;
-                console.error(`${webAdapter} not exist,please build engine first`);
+                console.error(`${webAdapter} not exist, please build engine first`);
             }
             const engineAdapter = join(this.enginePath, 'bin/adapter/nodejs/engine-adapter.js');
             if (existsSync(engineAdapter)) {
                 copyFileSync(engineAdapter, join(nativeOutDir, 'engine-adapter.js'));
             } else {
                 isSuccess = false;
-                console.error(`${engineAdapter} not exist,please build engine first`);
+                console.error(`${engineAdapter} not exist, please build engine first`);
             }
             if (isSuccess) {
                 console.log('update adapter success');

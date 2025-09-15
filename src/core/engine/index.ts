@@ -2,6 +2,8 @@
 import { EngineCompiler } from './compiler';
 import { EngineInfo } from './@types/public';
 import { EngineConfig, InitEngineInfo } from './@types/private';
+import { join } from 'path';
+import preload from './modules/cc/preload';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -53,6 +55,10 @@ class Engine implements IEngine {
     }
     private _compiler: EngineCompiler | null = null;
 
+    private get compilerOutDir() {
+        return join(this._info.path, 'bin', '.cache', 'dev-cli');
+    }
+
     getInfo() {
         if (!this._init) {
             throw new Error('Engine not init');
@@ -71,7 +77,7 @@ class Engine implements IEngine {
         if (!this._init) {
             throw new Error('Engine not init');
         }
-        this._compiler = this._compiler || EngineCompiler.create(this._info.path);
+        this._compiler = this._compiler || EngineCompiler.create(this._info.path, this.compilerOutDir);
         return this._compiler;
     }
 
@@ -85,19 +91,30 @@ class Engine implements IEngine {
             return this;
         }
         this._info.path = enginePath;
-        this._compiler = EngineCompiler.create(enginePath);
         this._init = true;
 
         return this;
+    }
+
+    async importWebAdapter() {
+        await import(join(this._info.path, 'bin/adapter/nodejs/web-adapter.js'));
+    }
+
+    async importEditorExtensions() {
+        // @ts-ignore
+        globalThis.EditorExtends = await import('./editor-extends');
     }
 
     /**
      * 加载以及初始化引擎环境
      */
     async initEngine(info: InitEngineInfo) {
-        // window.CC_PREVIEW = false;
+        await this.importEditorExtensions();
         const { default: preload } = await import('./modules/cc/preload');
         await preload({
+            engineRoot: this._info.path,
+            engineDev: this.compilerOutDir,
+
             requiredModules: [
                 'cc',
                 'cc/editor/populate-internal-constants',
@@ -109,7 +126,7 @@ class Engine implements IEngine {
                 'cc/editor/embedded-player',
                 'cc/editor/color-utils',
                 'cc/editor/custom-pipeline',
-            ],
+            ]
         });
 
         // @ts-ignore
