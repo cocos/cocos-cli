@@ -1,34 +1,31 @@
 {
     "$schema": "https://json.schemastore.org/tsconfig",
     "compilerOptions": {
-        "outDir": "./dist",
-        "rootDir": "./src",
+        "outDir": "../../../dist/core/engine",
+        "rootDir": "..",
         "target": "es2022",
         "module": "commonjs",
         "strict": true,
+        "composite": true,
         "inlineSourceMap": true,
         "inlineSources": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "experimentalDecorators": false,
-        "declaration": true,
+        "experimentalDecorators": true,
         "moduleResolution": "node",
         "allowJs": true,
-        "declaration": false,
-        "emitDeclarationOnly": false,
-        "declarationMap": false,
         "types": [
             "jest",
             "node"
         ]
     },
     "include": [
-        "src/**/*"
+        "../**/*"
     ],
     "exclude": [
-        "dist",
         "node_modules",
         "**/test/**",
-        "**/*.test.ts"
+        "**/*.test.ts",
+        "../../../dist"
     ]
 }
