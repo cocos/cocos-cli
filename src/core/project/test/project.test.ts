@@ -11,7 +11,7 @@ jest.mock('node-uuid');
 jest.mock('../utils');
 
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
-const mockReadJSON = readJSON as jest.MockedFunction<typeof readJSON>;
+const mockReadJSON = readJSON as unknown as jest.MockedFunction<(file: string) => Promise<any>>;
 const mockSafeOutputJSON = safeOutputJSON as jest.MockedFunction<typeof safeOutputJSON>;
 const mockV4 = v4 as jest.MockedFunction<typeof v4>;
 

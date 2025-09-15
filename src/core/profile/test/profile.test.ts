@@ -5,8 +5,12 @@ import { defaultConfigMap } from '../configs';
 
 jest.mock('fs-extra');
 
-const mockReadJSON = readJSON as jest.MockedFunction<typeof readJSON>;
-const mockWriteJSON = writeJSON as jest.MockedFunction<typeof writeJSON>;
+const mockReadJSON = readJSON as unknown as jest.MockedFunction<(file: string) => Promise<any>>;
+const mockWriteJSON = writeJSON as unknown as jest.MockedFunction<(
+    file: string,
+    data: any,
+    options?: any
+) => Promise<void>>;
 
 describe('Profile', () => {
     const projectPath = '/mock/project';
@@ -20,8 +24,8 @@ describe('Profile', () => {
     });
 
     test('init should set settings path', async () => {
-        mockReadJSON.mockResolvedValue({ a: 1 } as any);
-        mockWriteJSON.mockResolvedValue(undefined as any);
+        mockReadJSON.mockResolvedValue({ a: 1 });
+        mockWriteJSON.mockResolvedValue(undefined);
 
         const ok = await Profile.setProject(pkgName, 'b.c', 2);
         expect(ok).toBe(true);
@@ -31,7 +35,7 @@ describe('Profile', () => {
 
     test('getProject should return full json when no key', async () => {
         const data = { x: 1, y: { z: 2 } };
-        mockReadJSON.mockResolvedValue(data as any);
+        mockReadJSON.mockResolvedValue(data);
 
         const res = await Profile.getProject<typeof data>(pkgName);
         expect(res).toEqual(data);
@@ -39,23 +43,23 @@ describe('Profile', () => {
     });
 
     test('getProject should return nested value by dot key', async () => {
-        mockReadJSON.mockResolvedValue({ a: { b: { c: 3 } } } as any);
+        mockReadJSON.mockResolvedValue({ a: { b: { c: 3 } } });
 
         const res = await Profile.getProject<number>(pkgName, 'a.b.c');
         expect(res).toBe(3);
     });
 
     test('getProject should return null for non-existing path', async () => {
-        mockReadJSON.mockResolvedValue({ a: { } } as any);
+        mockReadJSON.mockResolvedValue({ a: { } });
 
         const res = await Profile.getProject(pkgName, 'a.b.c');
         expect(res).toBeNull();
     });
 
     test('setProject should create intermediate objects and persist full json', async () => {
-        const json = { exist: 1 } as any;
+        const json: any = { exist: 1 };
         mockReadJSON.mockResolvedValue(json);
-        mockWriteJSON.mockResolvedValue(undefined as any);
+        mockWriteJSON.mockResolvedValue(undefined);
 
         const ok = await Profile.setProject(pkgName, 'm.n.o', 9);
 
@@ -86,7 +90,7 @@ describe('Profile', () => {
         const projectConfig = { a: { b: 1 } };
         const defaultConfig = { a: { b: 2, c: 3 } };
         
-        mockReadJSON.mockResolvedValue(projectConfig as any);
+        mockReadJSON.mockResolvedValue(projectConfig);
         
         // Mock default configuration
         const originalDefault = defaultConfigMap[pkgName];
@@ -105,7 +109,7 @@ describe('Profile', () => {
         const projectConfig = { a: { b: 1 } };
         const defaultConfig = { a: { b: 2 } };
         
-        mockReadJSON.mockResolvedValue(projectConfig as any);
+        mockReadJSON.mockResolvedValue(projectConfig);
         
         // Mock default configuration
         const originalDefault = defaultConfigMap[pkgName];
@@ -134,7 +138,7 @@ describe('Profile', () => {
         const projectConfig = { a: { b: 1 } };
         const defaultConfig = { a: { b: 2 } };
         
-        mockReadJSON.mockResolvedValue(projectConfig as any);
+        mockReadJSON.mockResolvedValue(projectConfig);
         
         // Mock default configuration
         const originalDefault = defaultConfigMap[pkgName];

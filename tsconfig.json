@@ -11,12 +11,12 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "experimentalDecorators": false,
-        "declaration": true,
+        "declaration": false,
+        "declarationMap": false,
         "moduleResolution": "node",
         "allowJs": true,
-        "declaration": false,
         "emitDeclarationOnly": false,
-        "declarationMap": false,
+        "resolveJsonModule": true,
         "types": [
             "jest",
             "node"
