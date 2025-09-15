@@ -1,0 +1,19 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+      properties:
+        test: { sampler: { wrongFilter: linear } }
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  uniform sampler2D test;
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

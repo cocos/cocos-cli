@@ -1,0 +1,30 @@
+
+//@check effect.shaders[0].glsl1.frag === `precision mediump float;uniform sampler2D test1;uniform samplerCube test2;vec4 sample(sampler2D tex,vec2 uv){return texture2D(tex,uv);}vec4 sampleEnv(samplerCube tex,vec3 R){return textureCube(tex,R);}vec4 test(){vec4 c=sample(test1,vec2(0));return c+sampleEnv(test2,vec3(0));}void main(){gl_FragColor=test();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () { return vec4(0); }
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  uniform sampler2D test1;
+  uniform samplerCube test2;
+  vec4 sample (sampler2D tex, vec2 uv) {
+    return texture(tex, uv);
+  }
+  vec4 sampleEnv (samplerCube tex, vec3 R) {
+    return texture(tex, R);
+  }
+  vec4 test () {
+    vec4 c = sample(test1, vec2(0));
+    return c + sampleEnv(test2, vec3(0));
+  }
+}%

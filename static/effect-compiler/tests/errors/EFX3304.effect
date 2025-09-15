@@ -1,0 +1,21 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+      properties:
+        roughness: { target: test.wzyx }
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  uniform Test {
+    vec4 test;
+  };
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

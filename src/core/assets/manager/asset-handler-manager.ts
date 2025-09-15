@@ -7,7 +7,7 @@ import lodash, { extend } from 'lodash';
 import fg from 'fast-glob';
 import Sharp from 'sharp';
 import Utils from '../../base/utils';
-import I18n from '../../base/i18n';
+import i18n from '../../base/i18n';
 import { IAsset, IExportData } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import { AssetHandlerInfo } from '../asset-handler/config';
@@ -793,7 +793,7 @@ async function afterCreateAsset(paths: string | string[], options: CreateAssetOp
     for (const file of paths) {
         // 文件不存在，nodejs 没有成功创建文件
         if (!existsSync(file)) {
-            throw new Error(`${I18n.t('asset-db.createAsset.fail.drop', {
+            throw new Error(`${i18n.t('asset-db.createAsset.fail.drop', {
                 target: file,
             })}`);
         }

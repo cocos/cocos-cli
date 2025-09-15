@@ -1,0 +1,19 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+      depthStencilState:
+        stencilReadMaskFront: 1
+        stencilReadMaskBack: 2
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

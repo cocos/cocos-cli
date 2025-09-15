@@ -1,0 +1,19 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  out vec4 fragColor;
+  void main () {
+    fragColor = vec4(1);
+  }
+}%

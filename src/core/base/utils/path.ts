@@ -1,6 +1,7 @@
 'use strict';
 
 import * as Path from 'path';
+import { join } from 'path';
 
 /**
  * 返回一个不含扩展名的文件名
@@ -92,17 +93,90 @@ export function normalize(path: string) {
     return path;
 }
 
-/**
- * TODO 一期
- * @param path 
- * @returns 
- */
-export function resolveToRaw(path: string) {
 
-    return '';
+class FileUrlManager {
+    static urlMap: Record<string, RegisterProtocolInfo> = {};
+
+    /**
+     * 注册某个协议信息
+     * @param protocol
+     * @param protocolInfo
+     */
+    register(protocol: string, protocolInfo: RegisterProtocolInfo) {
+        if (!FileUrlManager.urlMap) {
+            FileUrlManager.urlMap = {};
+        }
+        if (FileUrlManager.urlMap[protocol] || protocol === 'file') {
+            console.warn(`[UI-File] Register protocol(${protocol}) failed! protocol(${protocol}) has exist!`);
+            return false;
+        }
+        FileUrlManager.urlMap[protocol] = protocolInfo;
+        return true;
+    }
+
+    /**
+     * 反注册某个协议信息
+     * @param protocol 协议头
+     */
+    unregister(protocol: string) {
+        delete FileUrlManager.urlMap[protocol];
+        return true;
+    }
+
+    getAllFileProtocol() {
+        return Object.keys(FileUrlManager.urlMap).map((protocol) => {
+            return {
+                protocol,
+                label: FileUrlManager.urlMap[protocol].label,
+                path: FileUrlManager.urlMap[protocol].path,
+            };
+        });
+    }
+
+    // 转成未处理过的（不带协议）
+    resolveToRaw(url: string) {
+        const matchInfo = url.match(/^([a-zA-z]*):\/\/(.*)$/);
+        if (matchInfo) {
+            const relPath = matchInfo[2].replace(/\\/g, '/');
+            const info = this.getProtocalInfo(matchInfo[1]);
+            if (info) {
+                return join(info.path, relPath);
+            }
+        }
+        return url;
+    }
+
+    // 转成带协议的地址格式
+    resolveToUrl(raw: string, protocol: string) {
+        if (!raw || !isAbsolute(raw) || !protocol) {
+            return '';
+        }
+        const info = this.getProtocalInfo(protocol);
+        if (!info) {
+            return '';
+        }
+        return info.protocol + '://' + relative(info.path, raw).replace(/\\/g, '/');
+    }
+
+    getProtocalInfo(protocol: string): ProtocolInfo | undefined {
+        if (!FileUrlManager.urlMap[protocol]) {
+            return undefined;
+        }
+        return {
+            protocol,
+            ...FileUrlManager.urlMap[protocol],
+        };
+    }
 }
 
-export const join = Path.join;
+const fileUrlManager = new FileUrlManager();
+
+export interface ProtocolInfo extends RegisterProtocolInfo {
+    protocol: string;
+}
+
+export const resolveToRaw = fileUrlManager.resolveToRaw;
+export const resolveToUrl = fileUrlManager.resolveToUrl;
 export const resolve = Path.resolve;
 export const isAbsolute = Path.isAbsolute;
 export const relative = Path.relative;
@@ -113,3 +187,16 @@ export const sep = Path.sep;
 export const delimiter = Path.delimiter;
 export const parse = Path.parse;
 export const format = Path.format;
+export interface RegisterProtocolInfo {
+    label: string;
+    description?: string;
+    path: string; // 与转换 handlers 二选一
+    invalidInfo?: string; // 不符合当前协议头时的文本提示
+    // 自定义协议转换
+    // handlers?: {
+    //     fileToUrl: (path: string) => string;
+    //     urlToFile: (path: string) => string;
+    // }
+}
+
+

@@ -1,0 +1,23 @@
+
+//@check effect.shaders[0].glsl4.frag === `precision mediump float;layout(location=0)in vec2 v_uv;void mainImage(out vec4 fragColor,in vec2 fragCoord){fragColor=vec4(fragCoord.xyxy);}vec4 frag(){vec4 c;mainImage(c,vec2(1));return c;}layout(location=0)out vec4 cc_FragColor;void main(){cc_FragColor=frag();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+  out vec2 v_uv;
+  vec4 vert () { gl_Position = vec4(1); }
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  in vec2 v_uv;
+  // shouldn't mark `fragCoord` as varying
+  void mainImage (out vec4 fragColor, in vec2 fragCoord) { fragColor = vec4(fragCoord.xyxy); }
+  vec4 frag () { vec4 c; mainImage(c, vec2(1)); return c; }
+}%

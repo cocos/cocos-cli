@@ -1,0 +1,41 @@
+
+//@check effect.shaders[0].defines[3].defines.length === 0  // cond
+//@check effect.shaders[0].defines[2].defines[0] === 'COND' // a
+//@check effect.shaders[0].defines[1].defines[0] === 'COND' // b
+//@check effect.shaders[0].defines[1].defines[1] === '!A'   // b
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () { return vec4(0); }
+}%
+
+CCProgram fs %{
+  precision mediump float;
+
+  // also test if this declaration messes up dependencies
+  #if XX
+    #pragma define-meta B editor(someTag: true)
+    #pragma define-meta A editor(someTag: true)
+  #endif
+
+  vec4 test () {
+    vec4 c = vec4(0);
+    #if COND
+      #if A
+        c = vec4(1);
+      #elif B
+        c = vec4(2);
+      #else
+        c = vec4(3);
+      #endif
+    #endif
+    return c;
+  }
+}%

@@ -6,8 +6,7 @@ const { join } = require('path');
 const userConfig = join(__dirname, '../.user.json');
 
 if (!existsSync(userConfig)) {
-    console.error('请在仓库下添加 .user.json 文件填写 cc 和 engine 地址');
-    process.exit(1);
+    console.warn('测试 assets 相关模块前，请在仓库下添加 .user.json 文件填写 cc 和 @editor/asset-db 地址');
 }
 
 async function mockNpmModules() {
@@ -16,6 +15,9 @@ async function mockNpmModules() {
         await copy(node_modules[name], join(__dirname, `../node_modules/${name}`));
         console.log(`模拟 ${name} 模块成功`);
     }
+
+    // 模拟 i18n 包
+
 }
 
 mockNpmModules();

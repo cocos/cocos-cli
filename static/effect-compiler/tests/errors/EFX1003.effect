@@ -1,0 +1,5 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - rasterizerState: 2
+}%

@@ -1,0 +1,36 @@
+
+//@check effect.shaders[0].glsl3.frag === `precision mediump float;vec4 test(){vec4 c=vec4(0);#if OUTER#if INNER c=vec4(3);#endif#endif return c;}layout(location=0)out vec4 cc_FragColor;void main(){cc_FragColor=test();}`
+//@check effect.shaders[0].glsl1.frag === `precision mediump float;vec4 test(){vec4 c=vec4(0);#if OUTER c=vec4(1);#endif return c;}void main(){gl_FragColor=test();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () { return vec4(0); }
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {
+    vec4 c = vec4(0);
+    #if OUTER
+      #if __VERSION__ > 100
+        #if __VERSION__ > 300
+          c = vec4(4);
+        #else
+          #if INNER
+          c = vec4(3);
+          #endif
+        #endif
+      #else
+        c = vec4(1);
+      #endif
+    #endif
+    return c;
+  }
+}%

@@ -1,0 +1,32 @@
+
+// DISABLED DUE TO FRAGILE MACRO DEPENDENCIE EXTRACTION
+// REMOVE THE WHITESPACE AFTER @ TO ENABLE AGAIN
+//@ check effect.shaders[0].glsl4.frag === `#if TEST2#ifdef GL_ext2#extension GL_ext2:enable#endif#endif precision mediump float;#if TEST1#endif#if TEST2#endif vec4 test(){return vec4(0);}layout(location=0)out vec4 cc_FragColor;void main(){cc_FragColor=test();}`
+//@ check effect.shaders[0].glsl3.frag === `precision mediump float;#if TEST1#endif#if TEST2#endif vec4 test(){return vec4(0);}layout(location=0)out vec4 cc_FragColor;void main(){cc_FragColor=test();}`
+//@ check effect.shaders[0].glsl1.frag === `#if TEST1#extension GL_ext1:require#endif precision mediump float;#if TEST1#endif#if TEST2#endif vec4 test(){return vec4(0);}void main(){gl_FragColor=test();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () { return vec4(0); }
+}%
+
+CCProgram fs %{
+  precision mediump float;
+
+  #if TEST1
+    #pragma extension([GL_ext1, __VERSION__ < 130, require])
+  #endif
+
+  #if TEST2
+    #pragma extension([GL_ext2, __VERSION__ > 310])
+  #endif
+
+  vec4 test () { return vec4(0); }
+}%

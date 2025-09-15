@@ -1,0 +1,26 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  uniform Correct {
+    vec4 a;
+    mat4 b;
+  };
+  uniform Test {
+    vec4 a;
+    #if XX
+      vec4 b;
+    #endif
+  };
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

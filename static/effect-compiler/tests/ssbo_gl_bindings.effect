@@ -1,0 +1,27 @@
+
+//@check effect.shaders[0].glsl4.vert === `precision mediump float;layout(set=1,binding=1)buffer T{vec4 t;};layout(set=1,binding=0)writeonly buffer T0{vec4 t0;};vec4 vert(){gl_Position=vec4(1);}void main(){gl_Position=vert();}`
+//@check effect.shaders[0].glsl3.vert === `precision mediump float;layout(std430,binding=0)buffer T{vec4 t;};layout(std430,binding=1)writeonly buffer T0{vec4 t0;};vec4 vert(){gl_Position=vec4(1);}void main(){gl_Position=vert();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+
+  #pragma glBinding(0)
+  buffer T { vec4 t; };
+
+  #pragma glBinding(1) // gl binding 1
+  layout(binding = 0) writeonly buffer T0 { vec4 t0; }; // ds binding 0
+
+  vec4 vert () { gl_Position = vec4(1); }
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  vec4 frag () { return vec4(1); }
+}%

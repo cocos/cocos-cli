@@ -1,0 +1,34 @@
+
+//@check effect.shaders[0].glsl3.vert === `precision mediump float;in vec2 a_texCoord;out vec2 uv;vec4 test(){uv=vec2(a_texCoord.x,1.0-a_texCoord.y);return vec4(0);}void main(){gl_Position=test();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  in vec2 a_texCoord;
+  out vec2 uv;
+
+  #pragma define TRANSFER_UV(outUV, uv)  \
+  outUV = vec2(uv.x, 1.0 - uv.y); \
+  #pragma
+
+  vec4 test () {
+    // note the tricky cross-referencing names here with the declared function parameter
+    TRANSFER_UV(uv, a_texCoord);
+    return vec4(0);
+  }
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  in vec2 uv;
+  uniform sampler2D tex;
+  vec4 test () {
+    return texture(tex, uv);
+  }
+}%

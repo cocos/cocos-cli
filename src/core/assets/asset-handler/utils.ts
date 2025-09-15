@@ -1,7 +1,7 @@
 'use strict';
 
 import { CCON } from 'cc/editor/serialization';
-import I18n from '../../base/i18n';
+import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
 import { serialize } from '../../engine/editor-extends/utils/serialize';
@@ -180,9 +180,9 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
                     nodeData._children.splice(i, 1);
                     hasNull = true;
                     console.warn(
-                        I18n.t('engine-extends.importers.invalidNodeData', {
+                        i18n.t('engine-extends.importers.invalidNodeData', {
                             assetUuid,
-                            type: I18n.t('engine-extends.importers.node'),
+                            type: i18n.t('engine-extends.importers.node'),
                             value: String(el),
                         }),
                     );
@@ -198,9 +198,9 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
                 if (!el) {
                     nodeData._components.splice(i, 1);
                     console.warn(
-                        I18n.t('engine-extends.importers.invalidNodeData', {
+                        i18n.t('engine-extends.importers.invalidNodeData', {
                             assetUuid,
-                            type: I18n.t('engine-extends.importers.component'),
+                            type: i18n.t('engine-extends.importers.component'),
                             value: String(el),
                         }),
                     );

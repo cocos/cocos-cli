@@ -1,0 +1,20 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  #pragma define MY_AWESOME_MACRO(a, b) a
+  vec4 test () {
+    float x = MY_AWESOME_MACRO(1);
+    float y = MY_AWESOME_MACRO(1,); // this should be okay
+  }
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

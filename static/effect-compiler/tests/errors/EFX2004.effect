@@ -1,0 +1,17 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  #pragma deprecate-identifier oldID use 'newID' instead!
+  precision mediump float;
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () { return oldID; }
+}%

@@ -69,7 +69,12 @@ export async function trashItem(file: string) {
     // return await trash.trash(file);
 }
 
-export function requireFile(file: string) {
+export function requireFile(file: string, options?: { root: string }) {
     // TODO
     return require(file);
+}
+
+export function removeCache(file: string) {
+    delete require.cache[file];
+    // TODD
 }

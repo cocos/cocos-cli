@@ -1,0 +1,58 @@
+
+//@check effect.shaders[0].glsl3.vert === `precision mediump float;vec4 vert(){#if COND==1 return vec4(1);#elif COND==2 return vec4(2);#else return vec4(4);#endif}void main(){gl_Position=vert();}`
+//@check objEquals(effect.shaders[0].defines[0], {"name":"COND", "type":"number", "range":[0, 4]})
+//@check effect.shaders[1].glsl3.vert === `precision mediump float;vec4 vert(){return vec4(1);}void main(){gl_Position=vert();}`
+//@check effect.shaders[2].glsl3.vert === `precision mediump float;vec4 vert(){return vec4(2);}void main(){gl_Position=vert();}`
+//@check effect.shaders[3].glsl3.vert === `precision mediump float;vec4 vert(){return vec4(4);}void main(){gl_Position=vert();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+    - vert: test-vs1:vert
+      frag: test-fs:frag
+    - vert: test-vs2:vert
+      frag: test-fs:frag
+    - vert: test-vs4:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+  #pragma define VALUE_0 0
+  #pragma define VALUE_1 1
+  #pragma define VALUE_2 2
+  #pragma define VALUE_3 3
+  #pragma define VALUE_4 4
+  #pragma define-meta COND range([0, 4])
+  vec4 vert () {
+    #if COND == VALUE_1
+      return vec4(1);
+    #elif COND == VALUE_2
+      return vec4(2);
+    #else
+      return vec4(4);
+    #endif
+  }
+}%
+
+CCProgram test-vs1 %{
+  #pragma define COND VALUE_1
+  #include <test-vs>
+}%
+
+CCProgram test-vs2 %{
+  #pragma define COND VALUE_2
+  #include <test-vs>
+}%
+
+CCProgram test-vs4 %{
+  #pragma define COND VALUE_4
+  #include <test-vs>
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  vec4 frag () { return vec4(1); }
+}%

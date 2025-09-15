@@ -5,7 +5,7 @@ import { isAbsolute, join, relative, resolve } from 'path';
 import { existsSync, move, readFile, readJSON, remove } from 'fs-extra';
 import type { Asset as CCAsset, Details } from 'cc';
 import type { CCON } from 'cc/editor/serialization';
-import I18n from '../base/i18n';
+import i18n from '../base/i18n';
 import Utils from '../base/utils';
 import { IAsset, IExportData, ISerializedOptions, SerializedAsset } from './@types/private';
 import { MissingClass } from '../engine/editor-extends/missing-reporter/missing-class-reporter';
@@ -219,7 +219,7 @@ export async function getRawInstanceFromImportFile(path: string, assetInfo: { uu
     }) as CCAsset;
     if (!deserializedAsset) {
         console.error(
-            I18n.t('builder.error.deserialize_failed', {
+            i18n.t('builder.error.deserialize_failed', {
                 url: `{asset(${assetInfo.url})}`,
             }),
         );
@@ -263,7 +263,7 @@ export async function getRawInstanceFromImportFile(path: string, assetInfo: { uu
     // }
     // if (missingAssets.length > 0) {
     //     console.warn(
-    //         I18n.t('builder.error.required_asset_missing', {
+    //         i18n.t('builder.error.required_asset_missing', {
     //             url: `{asset(${asset.url})}`,
     //             uuid: missingAssets.join('\n '),
     //         }),
@@ -346,10 +346,10 @@ export function transI18nName(name: string): string {
     }
     if (name.startsWith('i18n:')) {
         name = name.replace('i18n:', '');
-        if (!I18n.t(name)) {
+        if (!i18n.t(name)) {
             console.debug(`${name} is not defined in i18n`);
         }
-        return I18n.t(name) || name;
+        return i18n.t(name) || name;
     }
     return name;
 }

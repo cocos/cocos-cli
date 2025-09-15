@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { appendFile, outputFileSync, readdir, remove } from 'fs-extra';
 import { basename } from 'path';
-import { transI18nName } from './utils';
+import { transI18nName } from '../assets/utils';
 export type IConsoleType = 'log' | 'warn' | 'error' | 'debug';
 
 interface IConsoleMessage {
@@ -62,9 +62,8 @@ export class NewConsole {
     /**
      * 开始记录资源导入日志
      * */
-    public record() {
-        // HACK 合并进程后，日志会互相污染干扰，目前只能优先保障构建的日志记录。
-        // TODO 3.8 可以考虑将编译、运行都拆到和脚本编译等类似的独立进程内
+    public record(logDest?: string) {
+        logDest && (this.logDest = logDest);
         // @ts-ignore
         if (globalThis.console.switchConsole) {
             // @ts-ignore

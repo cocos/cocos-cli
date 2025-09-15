@@ -27,6 +27,8 @@ export interface AssetDBConfig {
 
     tempRoot: string;
     createTemplateRoot: string;
+
+    sortingPlugin: string[];
 }
 
 class AssetConfig {
@@ -52,6 +54,7 @@ class AssetConfig {
         libraryRoot: '',
         tempRoot: '',
         createTemplateRoot: '',
+        sortingPlugin: [],
     }
 
     private _init = false;

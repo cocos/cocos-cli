@@ -2,7 +2,7 @@
  * 资源导入、构建的对外调度，后续可能移除
  */
 import { join } from 'path';
-import { newConsole } from './console';
+import { newConsole } from '../base/console';
 import { assetDBManager } from './manager/asset-db-manager';
 import { assetManager } from './manager/asset-manager';
 import { getCurrentLocalTime } from './utils';

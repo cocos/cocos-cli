@@ -1,0 +1,15 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

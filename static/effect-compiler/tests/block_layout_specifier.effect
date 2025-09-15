@@ -1,0 +1,25 @@
+
+//@check effect.shaders[0].glsl4.vert === `precision mediump float;layout(location=0)in vec3 a_test;layout(set=1,binding=1)uniform Test1{vec4 t1;};layout(set=1,binding=0,offset=20)uniform Test2{vec4 t2;};vec4 vert(){gl_Position=vec4(1);}void main(){gl_Position=vert();}`
+//@check effect.shaders[0].glsl4.frag === `precision mediump float;layout(set=1,binding=3)uniform sampler2D t3;layout(set=1,binding=2)uniform sampler2D t4;vec4 frag(){return vec4(1);}layout(location=0)out vec4 cc_FragColor;void main(){cc_FragColor=frag();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+  layout (location = 0) in vec3 a_test; // no-op
+  uniform Test1 { vec4 t1; }; // generate declaration
+  layout(binding = 0, offset = 20) uniform Test2 { vec4 t2; }; // append set
+  vec4 vert () { gl_Position = vec4(1); }
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  layout(binding = 3) uniform sampler2D t3;
+  layout(binding = 2) uniform sampler2D t4;
+  vec4 frag () { return vec4(1); }
+}%

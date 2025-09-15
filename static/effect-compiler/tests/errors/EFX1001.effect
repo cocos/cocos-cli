@@ -1,0 +1,3 @@
+CCEffect %{
+    illegalYAML: @1
+}%

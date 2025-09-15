@@ -6,11 +6,11 @@ import * as assetdb from '@editor/asset-db';
 import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import { extname, join, relative } from 'path';
-import { newConsole } from '../console';
+import { newConsole } from '../../base/console';
 import { decidePromiseState, PROMISE_STATE } from '../utils';
 import pluginManager from './plugin';
 import { assetHandlerManager } from './asset-handler-manager';
-import I18n from '../../base/i18n';
+import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from './config';
 
@@ -110,7 +110,7 @@ export class AssetDBManager extends EventEmitter {
     async init() {
         const { assetDBList, flagReimportCheck, libraryRoot, tempRoot, restoreAssetDBFromCache } = assetConfig.data;
         if (!assetDBList.length) {
-            throw new Error(I18n.t('asset-db.init.noAssetDBList'));
+            throw new Error(i18n.t('asset-db.init.noAssetDBList'));
         }
         AssetDBManager.libraryRoot = libraryRoot;
         AssetDBManager.tempRoot = tempRoot;
@@ -121,12 +121,12 @@ export class AssetDBManager extends EventEmitter {
         // TODO 版本升级资源应该只认自身记录的版本号
         // if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
         //     AssetDBManager.useCache = false;
-        //     console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
+        //     console.log(i18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
         // }
 
         if (AssetDBManager.useCache && !existsSync(AssetDBManager.libraryRoot)) {
             AssetDBManager.useCache = false;
-            console.log(I18n.t('asset-db.restoreAssetDBFromCacheInValid.noLibraryPath'));
+            console.log(i18n.t('asset-db.restoreAssetDBFromCacheInValid.noLibraryPath'));
         }
         await this.pluginManager.init();
         await this.assetHandlerManager.init();
@@ -393,7 +393,7 @@ export class AssetDBManager extends EventEmitter {
      */
     async removeDB(name: string) {
         if (this.isPause) {
-            console.log(I18n.t('asset-db.assetDBPauseTips',
+            console.log(i18n.t('asset-db.assetDBPauseTips',
                 { operate: 'removeDB' }
             ));
             return new Promise((resolve) => {
@@ -446,7 +446,7 @@ export class AssetDBManager extends EventEmitter {
         }
         if (this.state !== 'free' || this.isPause || this.assetBusy) {
             if (this.isPause) {
-                console.log(I18n.t('asset-db.assetDBPauseTips',
+                console.log(i18n.t('asset-db.assetDBPauseTips',
                     { operate: 'refresh' }
                 ));
             }
@@ -530,7 +530,7 @@ export class AssetDBManager extends EventEmitter {
 
     async addTask(func: Function, args: any[]): Promise<any> {
         if (this.isPause || this.state === 'busy') {
-            console.log(I18n.t('asset-db.assetDBPauseTips',
+            console.log(i18n.t('asset-db.assetDBPauseTips',
                 { operate: func.name }
             ));
             return new Promise((resolve) => {

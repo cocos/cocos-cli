@@ -1,15 +1,16 @@
 
 import { EngineCompiler } from './compiler';
 import { EngineInfo } from './@types/public';
-import { EngineConfig, InitEngineInfo } from './@types/private';
+import { EngineConfig, InitEngineInfo } from './@types/config';
+import { IModuleConfig } from './@types/modules';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
  */
 
 export interface IEngine {
-    getInfo (): EngineInfo;
-    getConfig (): EngineConfig;
+    getInfo(): EngineInfo;
+    getConfig(): EngineConfig;
     getCompiler(): EngineCompiler;
     init(enginePath: string): Promise<this>;
     initEngine(info: InitEngineInfo): Promise<this>;
@@ -20,6 +21,11 @@ for (let i = 0; i <= 19; i++) {
     layerMask[i] = 1 << i;
 }
 
+// TODO issue 记录： https://github.com/cocos/3d-tasks/issues/18489 后续完善
+// 后处理管线模块的开关，在图像设置那边处理 (说是 3.9 会彻底删除)
+// 所以界面上的 勾选动作 和 状态判断 都要忽略这个列表的数据，从 3.8.6 开始我将这个 ignoreKeys 改成 ignoreModules 从 视图层移到主进程
+// 直接在数据源上过滤掉，减少 视图层的判断
+const ignoreModules = ['custom-pipeline-post-process'];
 class Engine implements IEngine {
     private _init: boolean = false;
     private _info: EngineInfo = {
@@ -50,8 +56,28 @@ class Engine implements IEngine {
         highQuality: false,
         layers: [],
         sortingLayers: [],
+        macroCustom: [],
+        customJointTextureLayouts: [],
     }
     private _compiler: EngineCompiler | null = null;
+
+    /**
+     * TODO init data in register project modules
+     */
+    private moduleConfigCache: IModuleConfig = {
+        moduleDependMap: {}, // 依赖关系
+        moduleDependedMap: {}, // 被依赖的关系
+        nativeCodeModules: [], // 原生模块(构建功能需要用到)
+        moduleCmakeConfig: {}, // 模块的 cmake 配置 3.8.6 从 moduleConfig 挪到这边
+        features: {}, // 引擎提供的所有选项(包括选项的 options)
+        // 用于界面渲染的数据
+        moduleTreeDump: {
+            default: {},
+            categories: {},
+        },
+        ignoreModules: ignoreModules,
+        envLimitModule: {}, // 记录有环境限制的模块数据
+    };
 
     getInfo() {
         if (!this._init) {
@@ -60,10 +86,11 @@ class Engine implements IEngine {
         return this._info;
     }
 
-    getConfig() {
+    getConfig(useDefault?: boolean) {
         if (!this._init) {
             throw new Error('Engine not init');
         }
+        // TODO useDefault
         return this._config;
     }
 
@@ -169,6 +196,14 @@ class Engine implements IEngine {
         await cc.game.init(defaultConfig);
 
         return this;
+    }
+
+    /**
+     * TODO
+     * @returns 
+     */
+    queryModuleConfig() {
+        return this.moduleConfigCache;
     }
 }
 

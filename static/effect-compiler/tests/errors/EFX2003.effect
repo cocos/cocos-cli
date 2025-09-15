@@ -1,0 +1,23 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram deprecated-header-list %{
+  #pragma deprecate-chunk old-header use 'new-header' instead!
+}%
+
+CCProgram new-header %{}%
+
+CCProgram vs %{
+  precision mediump float;
+  #include "old-header"
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

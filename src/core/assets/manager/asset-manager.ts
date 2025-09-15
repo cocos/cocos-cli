@@ -3,7 +3,7 @@ import { basename, dirname, extname, isAbsolute, join, relative } from 'path';
 import { assetDBManager, AssetDBManager } from './asset-db-manager';
 import { ensureOutputData, getExtendsFromCCType, libArr2Obj, removeFile, serializeCompiled, url2path, url2uuid } from '../utils';
 import { assetHandlerManager } from './asset-handler-manager';
-import { minimatch } from 'minimatch';
+import minimatch from 'minimatch';
 import EventEmitter from 'events';
 import { copy, existsSync, move, outputFile, remove, rename } from 'fs-extra';
 import Utils from '../../base/utils';
@@ -12,7 +12,8 @@ import assetConfig from './config';
 import Script from '../script';
 import { AssetOperationOption, AssetManager as IAssetManager, CreateAssetOptions, IAsset, IAssetInfo, IExportData, IExportOptions, IMoveOptions, QueryAssetsOption, QueryAssetType } from '../@types/private';
 import { Meta } from '@editor/asset-db/libs/meta';
-import { newConsole } from '../console';
+import { newConsole } from '../../base/console';
+import { FilterPluginOptions, IPluginScriptInfo } from '../script/interface';
 
 
 /**
@@ -269,6 +270,53 @@ export class AssetManager extends EventEmitter implements IAssetManager {
         }
         return assets;
     }
+
+    /**
+     * 查询符合某个筛选规则的排序后的插件脚本列表
+     * @param filterOptions 
+     * @returns
+     */
+    querySortedPlugins(filterOptions: FilterPluginOptions = {}): IPluginScriptInfo[] {
+        const plugins = this.queryAssetInfos({
+            ccType: 'cc.Script',
+            userData: {
+                ...filterOptions,
+                isPlugin: true,
+            },
+        }, ['name']);
+        if (!plugins.length) {
+            return [];
+        }
+
+        // 1. 先按照默认插件脚本的排序规则，取插件脚本名称排序
+        plugins.sort((a, b) => a.name.localeCompare(b.name));
+
+        // 2. 根据项目设置内配置好的脚本优先级顺序，调整原有的脚本排序
+        const sorted: string[] = assetConfig.data.sortingPlugin;
+        if (Array.isArray(sorted) && sorted.length) {
+            // 过滤掉用户配置排序中不符合当前环境或者说不存在的插件脚本
+            const filterSorted = sorted.filter((uuid) => plugins.find(info => info.uuid === uuid));
+            // 倒序处理主要是为了兼容 383 之前的处理规则，保持一致的结果行为。顺序排结果有差异。
+            filterSorted.reverse().reduce((preIndex, current) => {
+                const currentIndex = plugins.findIndex((info) => info.uuid === current);
+                if (currentIndex > preIndex) {
+                    const scripts = plugins.splice(currentIndex, 1);
+                    plugins.splice(preIndex, 0, scripts[0]);
+                    return preIndex;
+                }
+                return currentIndex;
+            }, plugins.length);
+        }
+
+        return plugins.map((asset) => {
+            return {
+                uuid: asset.uuid,
+                file: asset.library + '.js',
+                url: asset.url,
+            };
+        });
+    }
+
 
     async saveAssetMeta(uuid: string, meta: Meta, info?: IAsset) {
         // 不能为数组

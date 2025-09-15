@@ -1,0 +1,30 @@
+
+//@check effect.shaders[0].glsl4.vert === `precision mediump float;layout(location=1)in vec3 a_normal;layout(location=0)in vec3 a_position;layout(location=2)in vec4 a_tangent;layout(location=0)out vec3 v_position;layout(location=1)out vec3 v_normal;vec4 vert(){gl_Position=vec4(1);}void main(){gl_Position=vert();}`
+//@check effect.shaders[0].glsl4.frag === `precision mediump float;layout(location=1)in vec3 v_normal;layout(set=1,binding=1)uniform samplerCube tex;layout(set=1,binding=0)uniform Constant{vec4 albedo;};vec4 frag(){return vec4(1);}layout(location=0)out vec4 cc_FragColor;void main(){cc_FragColor=frag();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+  in vec3 a_normal; // overriden, 1
+  layout (location = 0) in vec3 a_position; // manual override, 0
+  in vec4 a_tangent; // auto-generate, 2
+  out vec3 v_position; // auto-generate, 0
+  out vec3 v_normal; // auto-generate, 1
+  vec4 vert () { gl_Position = vec4(1); }
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  in vec3 v_normal; // matching input, 1
+  uniform samplerCube tex; // auto-generate, after blocks, 1
+  uniform Constant { // auto-generate, 0
+    vec4 albedo;
+  };
+  vec4 frag () { return vec4(1); }
+}%

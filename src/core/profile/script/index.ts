@@ -56,7 +56,7 @@ export class Profile implements IProfile {
                 // File does not exist or read failed, use default configuration
                 json = defaultConfigMap[name];
             }
-            
+
             if (!json) return null;
 
             if (typeof key !== 'string') {

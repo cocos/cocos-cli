@@ -18,8 +18,8 @@ const mockV4 = v4 as jest.MockedFunction<typeof v4>;
 describe('Project', () => {
     const mockProjectPath = '/test/project';
     const mockPackageJsonPath = join(mockProjectPath, 'package.json');
-    
-    
+
+
     const mockProjectInfo: ProjectInfo = {
         name: 'test-project',
         type: '3d',
@@ -68,7 +68,7 @@ describe('Project', () => {
                 if (path === mockPackageJsonPath) return false;
                 return false;
             });
-            
+
             await expect(Project.open(mockProjectPath)).rejects.toThrow('Failed to open project: package.json not found.');
         });
 
@@ -79,9 +79,9 @@ describe('Project', () => {
 
             });
             mockReadJSON.mockResolvedValue(mockProjectInfo);
-            
+
             const result = await Project.open(mockProjectPath);
-            
+
             expect(result).toBe(true);
             expect(mockReadJSON).toHaveBeenCalledWith(mockPackageJsonPath);
             expect(Project.getInfo()).toEqual(mockProjectInfo);
@@ -94,7 +94,7 @@ describe('Project', () => {
 
             });
             mockReadJSON.mockResolvedValue({ invalid: 'data' });
-            
+
             await expect(Project.open(mockProjectPath)).rejects.toThrow('Failed to open project: package.json data error.');
         });
     });
@@ -110,16 +110,16 @@ describe('Project', () => {
 
         test('should save current project info when closing project', async () => {
             const result = await Project.close();
-            
+
             expect(result).toBe(true);
             expect(mockSafeOutputJSON).toHaveBeenCalledWith(mockPackageJsonPath, mockProjectInfo);
         });
 
         test('should return false when saving fails on close', async () => {
             mockSafeOutputJSON.mockResolvedValue(false);
-            
+
             const result = await Project.close();
-            
+
             expect(result).toBe(false);
         });
     });
@@ -137,13 +137,13 @@ describe('Project', () => {
 
         test('should return full project info when called without key', () => {
             const result = Project.getInfo();
-            
+
             expect(result).toEqual(mockProjectInfo);
         });
 
         test('should return value when called with valid key path', () => {
             const result = Project.getInfo('name');
-            
+
             expect(result).toBe('test-project');
         });
 
@@ -155,13 +155,13 @@ describe('Project', () => {
 
         test('should return null when called with non-existing key path', () => {
             const result = Project.getInfo('nonexistent.key');
-            
+
             expect(result).toBe(null);
         });
 
         test('should return undefined when called with empty key string', () => {
             const result = Project.getInfo('');
-            
+
             expect(result).toBe(undefined);
         });
     });
@@ -185,14 +185,14 @@ describe('Project', () => {
             };
 
             const result = await Project.updateInfo(newInfo);
-            
+
             expect(result).toBe(true);
             expect(mockSafeOutputJSON).toHaveBeenCalledWith(mockPackageJsonPath, newInfo);
         });
 
         test('should update successfully with key-value pair', async () => {
             const result = await Project.updateInfo('name', 'updated-name');
-            
+
             expect(result).toBe(true);
             expect(Project.getInfo('name')).toBe('updated-name');
             expect(mockSafeOutputJSON).toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe('Project', () => {
 
         test('should update successfully with nested key-value pair', async () => {
             const result = await Project.updateInfo('creator.version', '4.1.0');
-            
+
             expect(result).toBe(true);
             expect(Project.getInfo('creator.version')).toBe('4.1.0');
             expect(mockSafeOutputJSON).toHaveBeenCalled();
@@ -208,7 +208,7 @@ describe('Project', () => {
 
         test('should create intermediate objects for non-existing nested path', async () => {
             const result = await Project.updateInfo('new.nested.property', 'test-value');
-            
+
             expect(result).toBe(true);
             expect(Project.getInfo('new.nested.property')).toBe('test-value');
             expect(mockSafeOutputJSON).toHaveBeenCalled();
@@ -216,17 +216,17 @@ describe('Project', () => {
 
         test('should return false when saving fails', async () => {
             mockSafeOutputJSON.mockResolvedValue(false);
-            
+
             const result = await Project.updateInfo<string>('name.x.x.x', 'updated-name');
-            
+
             expect(result).toBe(false);
         });
 
         test('should return false when an exception occurs during update', async () => {
             mockSafeOutputJSON.mockRejectedValue(new Error('Write failed'));
-            
+
             const result = await Project.updateInfo<string>('name', 'updated-name');
-            
+
             expect(result).toBe(false);
         });
     });
@@ -235,7 +235,7 @@ describe('Project', () => {
         test('getInfo should return null if encountering null during key traversal', () => {
 
             const result = Project.getInfo('nested.property');
-            
+
             expect(result).toBe(null);
         });
 
@@ -249,7 +249,7 @@ describe('Project', () => {
         test('updateInfo should create intermediate objects for deep nested path', async () => {
 
             const result = await Project.updateInfo('a.b.c.d', 'deep-value');
-            
+
             expect(result).toBe(true);
             expect(Project.getInfo('a.b.c.d')).toBe('deep-value');
             expect(Project.getInfo('a')).toEqual({

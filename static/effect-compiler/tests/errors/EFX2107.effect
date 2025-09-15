@@ -1,0 +1,21 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram header-with-warning %{
+  #pragma warning something is wrong!
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  #include "header-with-warning"
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  vec4 test () {}
+}%

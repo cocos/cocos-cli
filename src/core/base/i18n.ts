@@ -11,6 +11,7 @@ class I18n extends EventEmitter {
         super();
         this._lang = 'en';
     }
+
     /**
          * 注册本地化的数据
          * @param {object} data 本地化 i18n 数据

@@ -1,0 +1,22 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  uniform UBO {
+    vec4 a;
+  };
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  uniform UBO {
+    vec4 b;
+  };
+  vec4 test () {}
+}%

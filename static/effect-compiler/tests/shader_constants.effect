@@ -1,0 +1,31 @@
+
+//@check effect.shaders[0].defines.length === 0
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+  #define USE_TEST 0
+
+  vec4 vert () {
+    #if USE_TEST
+    #endif
+    #ifdef VALUE_1
+      return vec4(1);
+    #elif defined(VALUE_2)
+      return vec4(2);
+    #else
+      return vec4(4);
+    #endif
+  }
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  vec4 frag () { return vec4(1); }
+}%

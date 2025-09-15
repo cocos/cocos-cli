@@ -1,0 +1,26 @@
+
+//@check effect.shaders[0].glsl1.frag === `#ifdef GL_EXT_draw_buffers#extension GL_EXT_draw_buffers:enable#endif precision highp float;void main(){gl_FragData[1]=vec4(0);gl_FragData[0]=vec4(1);}`
+//@check effect.shaders[0].glsl3.frag === `precision highp float;layout(location=0)out vec4 fragColor5;layout(location=1)out vec4 fragColor6;void main(){fragColor6=vec4(0);fragColor5=vec4(1);}`
+//@check effect.shaders[0].glsl4.frag === effect.shaders[0].glsl3.frag
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () { return vec4(0); }
+}%
+
+CCProgram fs %{
+  precision highp float;
+  layout(location = 0) out vec4 fragColor5;
+  layout(location = 1) out vec4 fragColor6;
+  void main () {
+    fragColor6 = vec4(0);
+    fragColor5 = vec4(1);
+  }
+}%

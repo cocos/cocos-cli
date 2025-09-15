@@ -36,6 +36,20 @@ interface IPhysicsMaterial {
     spinningFriction: number; // 0.1
     restitution: number; // 0.1
 }
+
+export interface ICustomJointTextureLayout {
+    textureLength: number;
+    contents: IChunkContent[];
+}
+
+export interface IChunkContent {
+    skeleton: null | string;
+    clips: string[];
+}
+export type MacroItem = {
+    key: string;
+    value: boolean;
+}
 /**
  * TODO 引擎配置文件
  */
@@ -50,6 +64,10 @@ export interface EngineConfig {
     // 是否使用自定义管线，如与其他模块配置不匹配将会以当前选项为准
     customPipeline?: boolean;
     highQuality: boolean;
+
+    macroCustom: MacroItem[];
+
+    customJointTextureLayouts: ICustomJointTextureLayout[];
 }
 
 
@@ -57,3 +75,14 @@ export interface InitEngineInfo {
     importBase: string;
     nativeBase: string;
 }
+
+interface CCEModuleConfig {
+    description: string;
+    main: string;
+    types: string;
+}
+export type CCEModuleMap = {
+    [moduleName: string]: CCEModuleConfig;
+} & {
+    mapLocation: string;
+};

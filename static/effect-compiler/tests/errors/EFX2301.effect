@@ -1,0 +1,26 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:test
+      frag: fs:test
+}%
+
+CCProgram vs %{
+  precision mediump float;
+  vec4 test () {}
+}%
+
+CCProgram fs %{
+  precision mediump float;
+  uniform sampler2D tex_albedo;
+  vec4 test () {
+    vec2 uv = vec2(0);
+    #if __VERSION__ >= 300
+      return texelFetch(tex_albedo, uv, 0);
+    #elif IRRELEVANT_MACRO
+      return vec4(0);
+    #else
+      return texture(tex_albedo, uv);
+    #endif
+  }
+}%

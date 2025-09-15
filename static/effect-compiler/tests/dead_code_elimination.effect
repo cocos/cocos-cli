@@ -1,0 +1,33 @@
+
+//@check effect.shaders[0].glsl3.vert === `precision mediump float;vec4 vert(){return vec4(1);}void main(){gl_Position=vert();}`
+//@check effect.shaders[1].glsl1.vert === `precision mediump float;test(){}vec4 vert(){return vec4(1);}void main(){gl_Position=vert();}`
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: test-vs:vert
+      frag: test-fs:frag
+    - vert: test2-vs:vert
+      frag: test-fs:frag
+}%
+
+CCProgram test-vs %{
+  precision mediump float;
+  vec4 vert () { return vec4(1); }
+  void deadA () { deadB(); }
+  void deadB () { circleB(); }
+  void circleA () { circleB(); circleC(); }
+  void circleB () { circleC(); circleA(); }
+  void circleC () { circleA(); circleB(); deadA(); }
+}%
+
+CCProgram test-fs %{
+  precision mediump float;
+  vec4 frag () { return vec4(1); }
+}%
+
+CCProgram test2-vs %{
+  precision mediump float;
+  test() {} // intentionally broken to test against a potentially infinite loop
+  vec4 vert () { return vec4(1); }
+}%
