@@ -18,7 +18,7 @@ describe('Import Project', () => {
         });
     });
 
-    describe('video import', async () => {
+    describe('video import', () => {
         const videoAsset = join(projectRoot, 'assets/video.mp4');
         const videoMetaPath = videoAsset + '.meta';
         it('video meta exists', () => {
@@ -26,13 +26,13 @@ describe('Import Project', () => {
         });
 
         const data = readJSONSync(videoMetaPath);
-        it('audio importer', () => {
+        it('video importer', () => {
             expect(data.importer).toEqual('video-clip');
             expect(data.imported).toBeTruthy;
         });
     });
-    describe('audio import', async () => {
-        const audioAsset = join(projectRoot, 'assets/audio.mp4');
+    describe('audio import', () => {
+        const audioAsset = join(projectRoot, 'assets/audio.mp3');
         const audioMetaPath = audioAsset + '.meta';
         it('audio meta exists', () => {
             expect(existsSync(audioMetaPath));

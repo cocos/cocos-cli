@@ -32,7 +32,7 @@
     "dependencies": {
         "@babel/core": "7.22.20",
         "@cocos/ccbuild": "2.3.16",
-        "@editor/asset-db": "^2.7.4",
+        "@editor/asset-db": "^3.0.0-alpha.1",
         "@editor/lib-programming": "3.8.1",
         "@editor/quick-compiler": "^4.2.20",
         "@types/lodash": "^4.17.20",
