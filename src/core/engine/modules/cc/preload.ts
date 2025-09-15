@@ -77,7 +77,7 @@ async function preload(options: {
         // }
         // @ts-ignore
         globalThis.window = {};
-        require(ps.join(info.enginePath, 'bin/.editor/web-adapter.js'));
+        require(ps.join(Engine.default.getInfo().path, 'bin/.editor/web-adapter.js'));
         const engineModules: Record<string, unknown> = {};
     
         const loaderModule = require(ps.resolve(dist, 'loader')) as {
