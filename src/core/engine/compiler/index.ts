@@ -3,7 +3,7 @@ import { QuickCompiler } from '@editor/quick-compiler';
 import { StatsQuery } from '@cocos/ccbuild';
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
 import { dirname, join } from 'path';
-import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove,existsSync,copyFileSync } from 'fs-extra';
+import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove,existsSync, mkdirSync,copyFileSync } from 'fs-extra';
 import { IFeatureItem, IModuleItem, ModuleRenderConfig } from '../@types/modules';
 
 const VERSION = '3';
@@ -359,8 +359,12 @@ export class EngineCompiler {
     async updateAdapter() {
         try {
             let isSuccess = true;
+            
             const nativeOutDir = join(this.enginePath, 'bin/.editor');
             const webAdapter = join(this.enginePath, 'bin/adapter/nodejs/web-adapter.js');
+            if(!existsSync(nativeOutDir)) {
+                mkdirSync(nativeOutDir);
+            }
             if (existsSync(webAdapter)) {
                 const output = join(nativeOutDir, 'web-adapter.js');
                 copyFileSync(webAdapter, output);

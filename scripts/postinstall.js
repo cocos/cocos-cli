@@ -10,12 +10,13 @@ if (!existsSync(userConfig)) {
 }
 
 async function mockNpmModules() {
-    const { node_modules } = require('../.user.json');
+    const { engine, node_modules } = require('../.user.json');
     for (const name of Object.keys(node_modules)) {
         await copy(node_modules[name], join(__dirname, `../node_modules/${name}`));
         console.log(`模拟 ${name} 模块成功`);
     }
-
+    // 编译引擎adapter
+    require(join(engine, 'scripts/build-adapter.js'));
     // 模拟 i18n 包
 
 }
