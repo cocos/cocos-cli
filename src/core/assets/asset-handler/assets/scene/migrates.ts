@@ -20,6 +20,7 @@ import profile from '../../../../profile';
 import assetConfig from '../../../asset-config';
 import { assetDBManager } from '../../../manager/asset-db';
 import { GlobalPaths } from '../../../../../global';
+import { MissingClass } from '../../../../engine/editor-extends/missing-reporter/missing-class-reporter';
 
 /////////////////
 // 版本升级
@@ -433,18 +434,6 @@ export async function migrateAnimationName(asset: Asset) {
 }
 
 ///////////////////////////////////////////////
-
-// @ts-ignore
-const MissingClass = EditorExtends.MissingReporter.classInstance;
-function classFinder(type: any, data: any, owner: any, propName: any) {
-    const res = MissingClass.classFinder(type, data, owner, propName);
-    if (res) {
-        return res;
-    }
-    return cc.MissingScript;
-}
-classFinder.onDereferenced = MissingClass.classFinder.onDereferenced;
-
 /**
  * 迁移挂点模型到新 socket 系统
  * @param asset
@@ -526,57 +515,6 @@ classFinder.onDereferenced = MissingClass.classFinder.onDereferenced;
 //     await writeFile(asset.source, EditorExtends.serialize(resource));
 //     MissingClass.reset();
 // }
-
-/**
- * 将场景的 Transform 信息进行归一化处理，并且将 scene 上的组件置空
- */
-async function migrateNormalizeScene(asset: Asset) {
-    if (asset.extname !== '.scene') {
-        return;
-    }
-    const swap: any = asset.getSwapSpace();
-    const json: any[] = swap.json || (await readJSON(asset.source));
-
-    // @ts-ignore TS2339
-    const tdInfo = cc.deserialize.Details.pool.get()!;
-    MissingClass.hasMissingClass = false;
-    const resource = cc.deserialize(json, tdInfo, {
-        createAssetRefs: true,
-        ignoreEditorOnly: false,
-        classFinder,
-    }) as cc.SceneAsset;
-
-    if (resource instanceof cc.SceneAsset) {
-        /** hack for old beta version, scene changed after v1.0.1 */
-        const scene = resource.scene as any;
-        if (scene !== null) {
-            if (scene._lpos) {
-                scene._lpos.x = scene._lpos.y = scene._lpos.z = 0;
-            }
-
-            if (scene._lscale) {
-                scene._lscale.x = scene._lscale.y = scene._lscale.z = 1;
-            }
-
-            if (scene._lrot) {
-                scene._lrot.x = scene._lrot.y = scene._lrot.z = 0;
-                scene._lrot.w = 1;
-            }
-
-            if (scene._euler) {
-                scene._euler.x = scene._euler.y = scene._euler.z = 0;
-            }
-
-            if (scene._components) {
-                scene._components = [];
-            }
-        }
-    }
-
-    // @ts-ignore
-    writeFileSync(asset.source, EditorExtends.serialize(resource));
-    MissingClass.reset();
-}
 
 ///////////////////////////////////////////////
 
@@ -692,88 +630,6 @@ export async function migrateDefaultLayer(asset: Asset) {
             }
         }
     }
-}
-
-///////////////////////////////////////////////
-
-/**
- * 编辑 prefab 后保存的数据错误了
- * @param asset
- */
-export async function migrateSavePrefabInfo(asset: Asset) {
-    if (asset.extname !== '.prefab') {
-        return;
-    }
-
-    const swap: any = asset.getSwapSpace();
-    const json: any[] = swap.json || (await readJSON(asset.source));
-
-    // 可能多出 cc.Scene
-    // 可能缺少 cc.PrefabInfo
-    let hasScene = false;
-    let hasPrefabInfo = false;
-    for (const comp of json) {
-        if (comp.__type__.startsWith('cc.Scene')) {
-            hasScene = true;
-        }
-
-        if (comp.__type__.startsWith('cc.PrefabInfo')) {
-            hasPrefabInfo = true;
-        }
-    }
-
-    if (!hasScene && hasPrefabInfo) {
-        return; // 正常的数据结构
-    }
-
-    // @ts-ignore TS2339
-    const tdInfo = cc.deserialize.Details.pool.get()!;
-    MissingClass.hasMissingClass = false;
-    const prefabNode = cc.deserialize(json, tdInfo, {
-        createAssetRefs: true,
-        ignoreEditorOnly: false,
-        classFinder,
-    }) as cc.Prefab;
-    prefabNode.data.parent = null;
-
-    link(prefabNode.data, prefabNode);
-
-    // @ts-ignore
-    swap.json = JSON.parse(EditorExtends.serialize(prefabNode));
-
-    // 重新关联资源，使 cc.PrefabInfo 正常出现
-    function link(node: cc.Node, asset: cc.Prefab | null) {
-        // @ts-ignore TS2445
-        const parentPrefab = node.parent && node.parent._prefab;
-
-        const info = new cc.Prefab._utils.PrefabInfo();
-        info.asset = asset || parentPrefab?.asset;
-        info.root = (parentPrefab && parentPrefab.root) || node;
-        // 重要：原本就有 _prefab 属性，复用 fileId，会在 prefab 从资源还原的时候使用
-        // @ts-ignore TS2445
-        info.fileId = node._prefab ? node._prefab.fileId : node.uuid;
-        // @ts-ignore TS2445
-        node._prefab = info;
-
-        if (Array.isArray(node.children)) {
-            node.children.forEach((child) => {
-                // @ts-ignore TS2445
-                if (child.parent && child.parent._prefab) {
-                    link(child, null);
-                }
-            });
-        }
-    }
-    MissingClass.reset();
-}
-
-/**
- * 最新发现将 prefab 子节点拖为新的 prefab 资源，
- * 会序列化出含有 cc.Scene 的错误数据
- * @param asset
- */
-export function migrateSavePrefabInfoAgain(asset: Asset) {
-    migrateSavePrefabInfo(asset);
 }
 
 ///////////////////////////////////////////////

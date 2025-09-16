@@ -10,7 +10,7 @@
         "inlineSources": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "experimentalDecorators": false,
+        "experimentalDecorators": true,
         "declaration": false,
         "declarationMap": false,
         "moduleResolution": "node",

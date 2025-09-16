@@ -8,8 +8,6 @@ declare module 'tga-js' {
     }
 }
 
-declare const cce: any;
-
 declare module 'psd.js' {
     import PNG from 'pngjs';
     export default class PSD {
@@ -27,10 +25,10 @@ declare module 'draco3dgltf' {
     export function createDecoderModule(options: DecoderModuleOptions): typeof DecoderModule;
 
     // eslint-disable-next-line
-    export interface DecoderModuleOptions {}
+    export interface DecoderModuleOptions { }
 
     // eslint-disable-next-line
-    interface DecoderModule {}
+    interface DecoderModule { }
 
     namespace DecoderModule {
         function destroy(decoder: Decoder): void;
@@ -80,7 +78,7 @@ declare module 'draco3dgltf' {
             public error_msg(): string;
         }
 
-        enum GeometryType {}
+        enum GeometryType { }
         // See below
 
         export const TRIANGULAR_MESH: GeometryType;
@@ -103,7 +101,7 @@ declare module 'draco3dgltf' {
 
         export type Geometry = Mesh | PointCloud;
 
-        enum AttributeType {}
+        enum AttributeType { }
         // See below
 
         export const POSITION: AttributeType;
@@ -152,5 +150,3 @@ declare module 'draco3dgltf' {
         }
     }
 }
-
-declare const EditorExtends: any;
