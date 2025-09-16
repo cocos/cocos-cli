@@ -49,6 +49,7 @@
         "@editor/build-polyfills": "^2.0.0",
         "@editor/lib-programming": "3.8.1",
         "@editor/quick-compiler": "^4.2.20",
+        "chalk": "^2.4.2",
         "ejs": "^2.7.1",
         "fs-extra": "^10.0.0",
         "get-audio-duration": "^4.0.1",

@@ -22,12 +22,12 @@ function readDirRecurse(root, visitor, relativeRoot = '') {
 }
 
 function generateProxyModule(relativePath) {
-    // 规范化路径处理
+    // Normalized path processing
     const noExt = relativePath.replace(/\.ts$/, '');
     const normalized = noExt.replace(/\\/g, '\\\\');
     const moduleId = `cc/editor/${normalized}`;
 
-    // 使用模板字符串生成代码
+    // Generate code using template string
     return `/**
  * Auto-generated proxy module (use node ./scripts/build-cc-module.js);
  */
