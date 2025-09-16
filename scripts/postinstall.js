@@ -2,6 +2,7 @@
 
 const { existsSync, copy } = require('fs-extra');
 const { join } = require('path');
+const { runCommand } = require('./utils');
 
 const userConfig = join(__dirname, '../.user.json');
 
@@ -15,10 +16,11 @@ async function mockNpmModules() {
         await copy(node_modules[name], join(__dirname, `../node_modules/${name}`));
         console.log(`模拟 ${name} 模块成功`);
     }
-    // 编译引擎adapter
-    require(join(engine, 'scripts/build-adapter.js'));
+    // build web-adapter
+    await runCommand('node', [join(engine, 'scripts/build-adapter.js')]);
     // 模拟 i18n 包
-
+    // build cc-module
+    await runCommand('node', ['./scripts/build-cc-module.js']);
 }
 
 mockNpmModules();

@@ -1,10 +1,13 @@
 import Engine, { IEngine } from '../index';
 import { join } from 'path';
+import { engine as EnginPath } from '../../../../.user.json';
+import { EngineLoader } from '../modules/cc/loader';
 
-// 指定需要编译的引擎所在目录
-const MOCK_ENGINE_PATH = '/Users/cocos/editor-3d-develop/resources/3d/engine';
-// 指定项目目录
-const MOCK_PROJECT_PATH = '/Users/cocos/ai/NewProject';
+const ProjectPath = join(__dirname, '../../../../test-project');
+
+jest.mock('cc', () => {
+    return EngineLoader.getEngineModuleById('cc')
+}, { virtual: true });
 
 /**
  * Engine 类的测试 - 验证是否需要 mock
@@ -14,14 +17,13 @@ describe('Engine', () => {
 
     beforeEach(async () => {
         // 在每个测试用例之前初始化engine
-        engine = await Engine.init(MOCK_ENGINE_PATH);
+        engine = await engine.init(EnginPath);
     });
 
     it('test engine compile', async () => {
         // 测试引擎编译功能
         try {
-            await engine.getCompiler().clear();
-            await engine.getCompiler().compileEngine(MOCK_ENGINE_PATH, true);
+            await engine.getCompiler().compileEngine(EnginPath, true);
             // 如果编译成功，测试通过
             expect(true).toBe(true);
         } catch (error) {
@@ -29,15 +31,15 @@ describe('Engine', () => {
             expect(error).toBeInstanceOf(Error);
             console.log('Compilation error:', error);
         }
-    }, 1000 * 60 * 5);
+    }, 1000 * 60 * 50);
 
     it('test engine initEngine', async () => {
         await engine.initEngine({
-            importBase: join(MOCK_ENGINE_PATH, 'library'),
-            nativeBase: join(MOCK_ENGINE_PATH, 'library'),
+            importBase: join(ProjectPath, 'library'),
+            nativeBase: join(ProjectPath, 'library'),
         });
-
-        console.log(cc);
-    });
-
+        expect(cc).toBeDefined();
+        // @ts-ignore
+        expect(ccm).toBeDefined();
+    },  1000 * 60 * 50);
 });

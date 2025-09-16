@@ -16,5 +16,8 @@ tsconfig.tsbuildinfo
 **/node_modules/
 **/yarn.lock
 
+# static
+src/core/engine/static/modules/cc/editor
+
 # 构建文件
 /dist

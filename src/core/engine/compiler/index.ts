@@ -1,4 +1,3 @@
-//临时配置的引擎路径
 import { QuickCompiler } from '@editor/quick-compiler';
 import { StatsQuery } from '@cocos/ccbuild';
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
@@ -17,21 +16,26 @@ type IEnvLimitModule = Record<string, {
     envList: string[];
     fallback?: string;
 }>
+
 export class EngineCompiler {
-    private enginePath: string;
     private busy: boolean = false;
     private compiler: QuickCompiler | null = null;
     private editorFeaturesCache: string[] = [];
     private outDir: string = '';
     private statsQuery: StatsQuery | null = null;
-    private constructor(path: string, outDir: string) {
-        this.outDir = outDir
-        this.enginePath = path;
+    private constructor(
+        private enginePath: string,
+    ) {
+        this.outDir = join(enginePath, 'bin', '.cache', 'dev-cli');
     }
 
-    static create(path: string, outDir: string) {
+    public getOutDir(): string {
+        return this.outDir;
+    }
+
+    static create(path: string) {
         // TODO 根据 Engine 地址读取引擎配置文件，确认初始化信息
-        return new EngineCompiler(path, outDir);
+        return new EngineCompiler(path);
     }
 
     async compile(force: boolean = false): Promise<void> {
@@ -171,7 +175,6 @@ export class EngineCompiler {
                 ],
                 logFile,
             };
-            console.log(JSON.stringify(conf))
             return new QuickCompiler({
                 rootDir: this.enginePath,
                 outDir: this.outDir,

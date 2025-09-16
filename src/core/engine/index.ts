@@ -1,9 +1,7 @@
-
 import { EngineCompiler } from './compiler';
 import { EngineInfo } from './@types/public';
 import { EngineConfig, InitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
-import { join } from 'path';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -61,10 +59,6 @@ class Engine implements IEngine {
         customJointTextureLayouts: [],
     }
     private _compiler: EngineCompiler | null = null;
-
-    private get compilerOutDir() {
-        return join(this._info.path, 'bin', '.cache', 'dev-cli');
-    }
     
     /**
      * TODO init data in register project modules
@@ -103,7 +97,7 @@ class Engine implements IEngine {
         if (!this._init) {
             throw new Error('Engine not init');
         }
-        this._compiler = this._compiler || EngineCompiler.create(this._info.path, this.compilerOutDir);
+        this._compiler = this._compiler || EngineCompiler.create(this._info.path);
         return this._compiler;
     }
 
@@ -122,20 +116,21 @@ class Engine implements IEngine {
         return this;
     }
 
-    async importEditorExtensions() {
+    async initEditorExtensions() {
         // @ts-ignore
         globalThis.EditorExtends = await import('./editor-extends');
+        // @ts-ignore
+        globalThis.EditorExtends.init();
     }
 
     /**
      * 加载以及初始化引擎环境
      */
     async initEngine(info: InitEngineInfo) {
-        await this.importEditorExtensions();
-        const { default: preload } = await import('./modules/cc/preload');
+        const { default: preload } = await import('cc/preload');
         await preload({
             engineRoot: this._info.path,
-            engineDev: this.compilerOutDir,
+            engineDev: this.getCompiler().getOutDir(),
 
             requiredModules: [
                 'cc',
@@ -150,6 +145,7 @@ class Engine implements IEngine {
                 'cc/editor/custom-pipeline',
             ]
         });
+        await this.initEditorExtensions();
 
         // @ts-ignore
         // window.cc.debug._resetDebugSetting(cc.DebugMode.INFO);
