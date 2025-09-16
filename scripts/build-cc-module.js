@@ -75,7 +75,7 @@ ${readFileSync(ccTemplatePath)}\n
     });
 
     const sourceDir = join(__dirname, '../static/engine/cc-module');
-    const targetDir = join(__dirname, '../node_modules/cc');
+    const targetDir = join(__dirname, '../node_modules/cc-module');
 
     console.log('sourceDir:', sourceDir);
     console.log('targetDir:', targetDir);

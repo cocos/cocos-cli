@@ -1,7 +1,7 @@
 import Engine, { IEngine } from '../index';
 import { join } from 'path';
 import { engine as EnginPath } from '../../../../.user.json';
-import { EngineLoader } from '../modules/cc/loader';
+import { EngineLoader } from 'cc-module/loader.js';
 
 const ProjectPath = join(__dirname, '../../../../test-project');
 
@@ -17,12 +17,13 @@ describe('Engine', () => {
 
     beforeEach(async () => {
         // 在每个测试用例之前初始化engine
-        engine = await engine.init(EnginPath);
+        engine = await Engine.init(EnginPath);
     });
 
     it('test engine compile', async () => {
         // 测试引擎编译功能
         try {
+            await engine.getCompiler().clear();
             await engine.getCompiler().compileEngine(EnginPath, true);
             // 如果编译成功，测试通过
             expect(true).toBe(true);
@@ -38,6 +39,7 @@ describe('Engine', () => {
             importBase: join(ProjectPath, 'library'),
             nativeBase: join(ProjectPath, 'library'),
         });
+        // @ts-ignore
         expect(cc).toBeDefined();
         // @ts-ignore
         expect(ccm).toBeDefined();

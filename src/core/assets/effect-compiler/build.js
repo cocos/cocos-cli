@@ -58,8 +58,7 @@ Object.assign(global, {
     CC_TEST: false,
 });
 
-// const { default: preload } = require('cc/preload');
-const { default: preload } = require('../../engine/modules/cc/preload');
+const { default: preload } = require('cc-module/preload');
 (async () => {
     await preload({
         root: options.engineRoot,

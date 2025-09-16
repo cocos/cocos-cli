@@ -127,7 +127,7 @@ class Engine implements IEngine {
      * 加载以及初始化引擎环境
      */
     async initEngine(info: InitEngineInfo) {
-        const { default: preload } = await import('cc/preload');
+        const { default: preload } = await import('cc-module/preload');
         await preload({
             engineRoot: this._info.path,
             engineDev: this.getCompiler().getOutDir(),

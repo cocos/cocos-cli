@@ -10,7 +10,8 @@
         "build": "npm run build:clear && tsc -b",
         "build:watch": "tsc -b --watch",
         "build:clear": "node ./scripts/clear.js",
-        "postinstall": "node ./scripts/postinstall.js"
+        "postinstall": "node ./scripts/postinstall.js",
+        "tesss": "node ./dist/launcher.js"
     },
     "author": "cocos",
     "license": "ISC",
