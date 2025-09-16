@@ -5,6 +5,7 @@ import * as Path from './path';
 import * as Url from './url';
 import * as Math from './math';
 import * as Parse from './parse';
+import * as Process from './process';
 
 export default {
     UUID,
@@ -13,4 +14,5 @@ export default {
     Url,
     Math,
     Parse,
+    Process,
 };

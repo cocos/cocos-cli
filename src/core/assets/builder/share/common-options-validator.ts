@@ -13,7 +13,7 @@ import { IInternalBuildSceneItem } from '../@types/options';
 import { BuildCheckResult, BundleCompressionType, ISplashSetting } from '../@types/protected';
 import i18n from '../../../base/i18n';
 import Utils from '../../../base/utils';
-import { assetManager } from '../../manager/asset-manager';
+import { assetManager } from '../../manager';
 import { getConfig } from './utils';
 import { BuildGlobalInfo } from './global';
 interface ModuleConfig {

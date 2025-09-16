@@ -12,7 +12,7 @@ import { StatsQuery } from '@cocos/ccbuild';
 import { SharedSettings } from '../../../../../script/interface';
 import { IPolyFills, IBuildSystemJsOption } from '../../../../@types';
 import { ImportMapWithImports, IScriptOptions, IInternalBuildOptions, IInternalBundleBuildOptions, ModulePreservation, IBundle, IAssetInfo, ImportMap, IImportMapOptions } from '../../../../@types/protected';
-import { assetDBManager } from '../../../../../manager/asset-db-manager';
+import { assetDBManager } from '../../../../../manager/asset-db';
 import script from '../../../../../script';
 import engine from '../../../../../../engine';
 import { MacroItem } from '../../../../../../engine/@types/config';

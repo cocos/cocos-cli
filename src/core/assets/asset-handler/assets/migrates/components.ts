@@ -1,0 +1,28 @@
+// 版本 3d 分支
+export const Widget = {
+    __type__: 'cc.Widget',
+    _objFlags: 0,
+    node: {
+        __id__: '',
+    },
+    _enabled: true,
+    __prefab: null,
+    _alignFlags: 0,
+    _target: null,
+    _left: 0,
+    _right: 0,
+    _top: 0,
+    _bottom: 0,
+    _horizontalCenter: 0,
+    _verticalCenter: 0,
+    _isAbsLeft: true,
+    _isAbsRight: true,
+    _isAbsTop: true,
+    _isAbsBottom: true,
+    _isAbsHorizontalCenter: true,
+    _isAbsVerticalCenter: true,
+    _originalWidth: 0,
+    _originalHeight: 0,
+    _alignMode: 2,
+    _lockFlags: 0,
+};

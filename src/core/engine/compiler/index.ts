@@ -99,7 +99,7 @@ export class EngineCompiler {
         } */
         // Spine Hack End
         const env: StatsQuery.ConstantManager.ConstantOptions = {
-            platform: 'NODEJS',
+            platform: 'NODEJS' as any,
             mode: 'EDITOR',
             flags: {
                 DEBUG: true,

@@ -17,7 +17,7 @@ import { BuildTemplate } from './manager/build-template';
 import { newConsole } from '../../../../base/console';
 import { ITaskResultMap } from '../../@types/builder';
 import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildTaskOption } from '../../@types/protected';
-import { assetDBManager } from '../../../manager/asset-db-manager';
+import { assetDBManager } from '../../../manager/asset-db';
 import Utils from '../../../../base/utils';
 import { pluginManager } from '../../manager/plugin';
 import i18n from '../../../../base/i18n';

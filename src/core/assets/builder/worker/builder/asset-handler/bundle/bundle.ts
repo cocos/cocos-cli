@@ -10,7 +10,7 @@ import { hasCCONFormatAssetInLibrary } from '../../utils/cconb';
 import fg from 'fast-glob';
 import { BundleCompressionType, BundleFilterConfig, IBundleConfig, IBuildSceneItem } from '../../../../@types';
 import { IVersionMap, IGroup, IAtlasResult, IImageTaskInfo, IBundleInitOptions, IJSONGroupType, ISuffixMap } from '../../../../@types/protected';
-import { assetManager } from '../../../../../manager/asset-manager';
+import { assetManager } from '../../../../../manager';
 import { IAsset } from '../../../../../@types/protected';
 import { initBundleConfig } from './utils';
 import i18n from '../../../../../../base/i18n';

@@ -5,8 +5,29 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
 import { serialize } from '../../engine/editor-extends/utils/serialize';
+import { Asset } from '@editor/asset-db';
+import { Meta } from '@editor/asset-db/libs/meta';
 declare const cc: any;
 
+export function i18nTranslate<Key extends string>(
+    key: Key,
+    ...args: any[]
+): string {
+    let translated = i18n.t(key);
+
+    if (typeof args[0] === 'object') {
+        const paramArgument = args[0];
+        const matches = translated.match(/{(\w+)}/g);
+        if (matches) {
+            for (const match of matches) {
+                const name = match.substr(1, match.length - 2);
+                translated = translated.replace(match, paramArgument[name]);
+            }
+        }
+    }
+
+    return translated;
+}
 export function getDependUUIDList(content: string | CCON | Object, uuid?: string) {
     if (typeof content === 'string') {
         // 注意：此方法无法匹配出脚本引用的 uuid
@@ -241,4 +262,38 @@ export class MigrateStep {
             this.step();
         }
     }
+}
+
+export async function openCode(asset: Asset): Promise<boolean> {
+    return false;
+}
+
+/**
+ * 将两个 meta 合并
+ * 因为 meta 的可能被其他 asset 直接引用，所以不能直接覆盖
+ * subMetas 里的数据是另一个 asset 的 meta，所以也需要拷贝
+ * @param a 
+ * @param b 
+ */
+export function mergeMeta(a: Meta, b: Meta) {
+    Object.keys(b).map((key) => {
+        if (key === 'subMetas') {
+            Object.keys(b.subMetas).forEach((id) => {
+                if (!a.subMetas[id]) {
+                    a.subMetas[id] = {} as Meta;
+                }
+                mergeMeta(a.subMetas[id], b.subMetas[id]);
+            });
+            if (a.subMetas) {
+                Object.keys(a.subMetas).forEach((id) => {
+                    if (!(id in b.subMetas)) {
+                        delete a.subMetas[id];
+                    }
+                });
+            }
+        } else {
+            // @ts-ignore
+            a[key] = b[key];
+        }
+    });
 }

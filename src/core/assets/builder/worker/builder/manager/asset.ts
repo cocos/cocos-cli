@@ -8,7 +8,7 @@ import { hasCCONFormatAssetInLibrary } from '../utils/cconb';
 import { IAsset } from '../../../../@types/protected';
 import { IBuildSceneItem } from '../../../@types';
 import { IInstanceMap, IBuilder, ISerializedOptions, IInternalBuildOptions, BuilderAssetCache as IBuilderAssetCache } from '../../../@types/protected';
-import { assetManager } from '../../../../manager/asset-manager';
+import { assetManager } from '../../../../manager';
 import { BuildGlobalInfo } from '../../../share/global';
 import { transI18n } from '../../../share/utils';
 

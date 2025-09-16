@@ -78,7 +78,7 @@ describe('Project', () => {
                 return path === mockPackageJsonPath;
 
             });
-            mockReadJSON.mockResolvedValue(mockProjectInfo);
+            (mockReadJSON as any).mockResolvedValue(mockProjectInfo);
 
             const result = await Project.open(mockProjectPath);
 
@@ -93,7 +93,7 @@ describe('Project', () => {
                 return path === mockPackageJsonPath;
 
             });
-            mockReadJSON.mockResolvedValue({ invalid: 'data' });
+            (mockReadJSON as any).mockResolvedValue({ invalid: 'data' });
 
             await expect(Project.open(mockProjectPath)).rejects.toThrow('Failed to open project: package.json data error.');
         });
@@ -131,7 +131,7 @@ describe('Project', () => {
             mockExistsSync.mockImplementation(() => false);
             await Project.create(mockProjectPath);
             mockExistsSync.mockImplementation((path) => path === mockProjectPath || path === mockPackageJsonPath);
-            mockReadJSON.mockResolvedValue(mockProjectInfo);
+            (mockReadJSON as any).mockResolvedValue(mockProjectInfo);
             await Project.open(mockProjectPath);
         });
 
@@ -173,7 +173,7 @@ describe('Project', () => {
             mockExistsSync.mockImplementation(() => false);
             await Project.create(mockProjectPath);
             mockExistsSync.mockImplementation((path) => path === mockProjectPath || path === mockPackageJsonPath);
-            mockReadJSON.mockResolvedValue(mockProjectInfo);
+            (mockReadJSON as any).mockResolvedValue(mockProjectInfo);
             await Project.open(mockProjectPath);
         });
 

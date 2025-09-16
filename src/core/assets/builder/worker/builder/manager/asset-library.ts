@@ -12,10 +12,10 @@ import { recursively } from '../utils';
 import assert from 'assert';
 import { getCCONFormatAssetInLibrary, outputCCONFormat } from '../utils/cconb';
 import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../../../@types/protected';
-import { assetManager } from '../../../../manager/asset-manager';
+import { assetManager } from '../../../../manager';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../@types/protected';
 import { BuildGlobalInfo } from '../../../share/global';
-import { assetDBManager } from '../../../../manager/asset-db-manager';
+import { assetDBManager } from '../../../../manager/asset-db';
 import { transI18n } from '../../../share/utils';
 
 // 版本号记录
@@ -363,7 +363,7 @@ class BuildAssetLibrary {
 
         // 调用 effect 编译器来做 effect 多余数据剔除，不走数据缓存，每次重新剔除生成
         if (instance instanceof EffectAsset) {
-            const { stripEditorSupport } = require(join(__dirname, '../../../../../../../static/effect-compiler/utils.js'));
+            const { stripEditorSupport } = require(join(__dirname, '../../../../effect-compiler/utils.js'));
             instance = stripEditorSupport(instance, options['cc.EffectAsset']);
         }
 

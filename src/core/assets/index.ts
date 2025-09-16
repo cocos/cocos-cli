@@ -3,10 +3,10 @@
  */
 import { join } from 'path';
 import { newConsole } from '../base/console';
-import { assetDBManager } from './manager/asset-db-manager';
-import { assetManager } from './manager/asset-manager';
+import { assetDBManager } from './manager/asset-db';
+import { assetManager } from './manager';
 import { getCurrentLocalTime } from './utils';
-import assetConfig, { AssetDBConfig } from './manager/config';
+import assetConfig, { AssetDBConfig } from './asset-config';
 
 export async function startupAssetDB(config: Partial<AssetDBConfig> = {}) {
     try {

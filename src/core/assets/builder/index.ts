@@ -8,7 +8,7 @@ import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./sh
 import { newConsole } from "../../base/console";
 import { join } from "path";
 import { BuildGlobalInfo } from "./share/global";
-import { assetManager } from "../manager/asset-manager";
+import { assetManager } from "../manager";
 import { removeDbHeader } from "./worker/builder/utils";
 import { BundleManager } from "./worker/builder/asset-handler/bundle";
 
@@ -104,7 +104,6 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
     let success = true;
     for (let i = 0; i < optionsList.length; i++) {
         const options = optionsList[i];
-        __manager.__taskId = buildTaskId;
         const tasksLabel = options.taskName || 'bundle Build';
         const startTime = Date.now();
         const logDest = getTaskLogDest(options.platform, buildTaskId);
@@ -171,7 +170,6 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             buildTaskOptions: buildOptions,
             ...stageConfig,
         });
-        __manager.currentStageTask = buildStageTask;
         let stageLabel = stageConfig.name;
         await buildStageTask.run();
         newConsole.trackMemoryEnd(`builder:build-stage-total ${stageName}`);
