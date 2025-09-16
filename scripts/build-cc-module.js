@@ -1,8 +1,8 @@
-const { outputFileSync, readFileSync, readdirSync, statSync, writeFileSync, copySync, existsSync, removeSync} = require('fs-extra');
+const { outputFileSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync, removeSync } = require('fs-extra');
 const { join } = require('path');
 const { spawnSync } = require('child_process');
 const { magenta, green } = require('chalk');
-const ps = require('path');
+const { copySync } = require('./utils');
 
 const prefix = ''.padStart(20, '=');
 console.log(magenta(`${prefix} Build cc-module ${prefix}`));
@@ -87,7 +87,7 @@ ${readFileSync(ccTemplatePath)}\n
     spawnSync('tsc', { cwd: sourceDir });
     console.log('Compilation:', sourceDir);
 
-    copySync(sourceDir, targetDir);
+    copySync(sourceDir, targetDir, ['.ts', '.gitignore', 'tsconfig.json', '.DS_Store', '!.d.ts']);
 
     console.log('Copy', targetDir);
 

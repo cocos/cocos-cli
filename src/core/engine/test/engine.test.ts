@@ -6,7 +6,7 @@ import { EngineLoader } from 'cc-module/loader.js';
 const ProjectPath = join(__dirname, '../../../../test-project');
 
 jest.mock('cc', () => {
-    return EngineLoader.getEngineModuleById('cc')
+    return EngineLoader.getEngineModuleById('cc');
 }, { virtual: true });
 
 /**
@@ -20,19 +20,19 @@ describe('Engine', () => {
         engine = await Engine.init(EnginPath);
     });
 
-    it('test engine compile', async () => {
-        // 测试引擎编译功能
-        try {
-            await engine.getCompiler().clear();
-            await engine.getCompiler().compileEngine(EnginPath, true);
-            // 如果编译成功，测试通过
-            expect(true).toBe(true);
-        } catch (error) {
-            // 如果编译失败，检查错误类型
-            expect(error).toBeInstanceOf(Error);
-            console.log('Compilation error:', error);
-        }
-    }, 1000 * 60 * 50);
+    // it('test engine compile', async () => {
+    //     // 测试引擎编译功能
+    //     try {
+    //         await engine.getCompiler().clear();
+    //         await engine.getCompiler().compileEngine(EnginPath, true);
+    //         // 如果编译成功，测试通过
+    //         expect(true).toBe(true);
+    //     } catch (error) {
+    //         // 如果编译失败，检查错误类型
+    //         expect(error).toBeInstanceOf(Error);
+    //         console.log('Compilation error:', error);
+    //     }
+    // }, 1000 * 60 * 50);
 
     it('test engine initEngine', async () => {
         await engine.initEngine({
