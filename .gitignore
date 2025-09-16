@@ -9,6 +9,9 @@
 .user.json
 .DS_Store
 
+# tsconfig
+tsconfig.tsbuildinfo
+
 # node 模块
 **/node_modules/
 **/yarn.lock
