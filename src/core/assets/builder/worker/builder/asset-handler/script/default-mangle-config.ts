@@ -36,6 +36,11 @@ export const defaultMangleConfig: Record<MangleConfigPlatformType, IMangleConfig
             'Component',
         ],
     },
+    NODEJS: {
+        extends: 'COMMON',
+        mangleList: [],
+        dontMangleList: [],
+    },
     HTML5: {
         extends: 'COMMON',
         mangleList: [],
