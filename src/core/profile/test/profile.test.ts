@@ -69,14 +69,14 @@ describe('Profile', () => {
     });
 
     test('setProject should return false on error', async () => {
-        (mockReadJSON as any).mockRejectedValue(new Error('read error'));
+        mockReadJSON.mockRejectedValue(new Error('read error'));
 
         const ok = await Profile.setProject(pkgName, 'a', 1);
         expect(ok).toBe(false);
     });
 
     test('getProject should return default value when file not exists', async () => {
-        (mockReadJSON as any).mockRejectedValue(new Error('ENOENT'));
+        mockReadJSON.mockRejectedValue(new Error('ENOENT'));
         
         // Mock a package name that has default configuration
         const packageWithDefault = 'asset-db';
