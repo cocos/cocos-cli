@@ -1,5 +1,6 @@
 import { Asset } from '@editor/asset-db';
 import { AssetHandler } from '../../@types/private';
+import { AudioClip } from 'cc';
 
 const AudioHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -34,12 +35,9 @@ const AudioHandler: AssetHandler = {
                     `Loading audio ${asset.source} failed, the audio you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
                 );
             }
-            // const audio = createAudio(asset, duration);
-            // await asset.saveToLibrary('.json', EditorExtends.serialize(audio));
-            await asset.saveToLibrary('.json', JSON.stringify({
-                duration,
-                name: asset._name,
-            }));
+            const audio = createAudio(asset, duration);
+            console.log('duration', audio.getDuration());
+            await asset.saveToLibrary('.json', EditorExtends.serialize(audio));
             return true;
         },
     },
@@ -56,9 +54,11 @@ function getAudioDurationInSeconds(path: string) {
     });
 }
 
-function createAudio(asset: Asset, duration: number) {
-    const audio = new cc.AudioClip();
+function createAudio(asset: Asset, duration: number): AudioClip {
+    const audio = new AudioClip();
+    // @ts-ignore
     audio._loadMode = asset.userData.downloadMode;
+    // @ts-ignore
     audio._duration = duration;
 
     audio.name = asset.basename;

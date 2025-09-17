@@ -1,6 +1,6 @@
 import { Asset } from '@editor/asset-db';
-// import { VideoClip, js } from 'cc';
 import { AssetHandler } from '../../@types/protected';
+import { VideoClip } from 'cc';
 
 export const VideoHandler: AssetHandler = {
     name: 'video-clip',
@@ -19,25 +19,21 @@ export const VideoHandler: AssetHandler = {
          */
         async import(asset: Asset) {
             await asset.copyToLibrary(asset.extname, asset.source);
-            let duration = 0;
-            try {
-                duration = await getVideoDurationInSeconds(asset.source);
-            } catch (error) {
-                console.error(
-                    `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
-                );
-                console.debug(error);
-            }
+            let duration = 10;
+            // try {
+            //     duration = await getVideoDurationInSeconds(asset.source);
+            // } catch (error) {
+            //     console.error(
+            //         `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
+            //     );
+            //     console.debug(error);
+            // }
+            console.log('duration', duration);
+            const video = createVideo(asset, duration);
+            const serializeJSON = EditorExtends.serialize(video) as string;
+            console.log('serializeJSON', serializeJSON);
 
-            // const video = createVideo(asset, duration);
-            // const serializeJSON = serialize(video) as string;
-
-            // await asset.saveToLibrary('.json', serializeJSON);
-            // TODO temp
-            await asset.saveToLibrary('.json', JSON.stringify({
-                duration,
-                name: asset._name,
-            }));
+            await asset.saveToLibrary('.json', serializeJSON);
             return true;
         },
     },
@@ -54,13 +50,14 @@ function getVideoDurationInSeconds(path: string) {
     });
 }
 
-// function createVideo(asset: Asset, duration?: number) {
-//     const video = new VideoClip();
-//     // @ts-ignore
-//     duration && (video._duration = duration);
+function createVideo(asset: Asset, duration?: number) {
 
-//     video.name = asset.basename;
-//     video._setRawAsset(asset.extname);
+    const video = new VideoClip();
+    // @ts-ignore
+    duration && (video._duration = duration);
 
-//     return video;
-// }
+    video.name = asset.basename;
+    video._setRawAsset(asset.extname);
+
+    return video;
+}

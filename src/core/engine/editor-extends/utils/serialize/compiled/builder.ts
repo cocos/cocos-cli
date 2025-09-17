@@ -32,7 +32,6 @@ type InstanceIndex = D.InstanceIndex_;
 type IRefs = D.IRefs_;
 type ITRSData = D.ITRSData_;
 import Refs = D.Refs_;
-import assert = require('assert');
 import { Builder, IBuilderOptions } from '../base-builder';
 type SharedString = D.SharedString_;
 type AnyCCClass = D.AnyCCClass_;
@@ -129,12 +128,12 @@ export default class CompiledBuilder extends Builder {
 
     // 缓存资源使用情况
     // [item1, key1, uuid1, item2, key2, uuid2, ...]
-    dependAssets = new Array<Node|string|number>();
+    dependAssets = new Array<Node | string | number>();
 
     private rootNode: Node | undefined;
     private normalNodes = new Array<ClassNode>();
-    private advancedNodes = new Array<CustomClassNode|ArrayNode|DictNode>();
-    private classNodes = new Array<ClassNode|CustomClassNode>();
+    private advancedNodes = new Array<CustomClassNode | ArrayNode | DictNode>();
+    private classNodes = new Array<ClassNode | CustomClassNode>();
 
     private data = new Array<any>(File.ARRAY_LENGTH) as IFileData;
 
@@ -152,21 +151,21 @@ export default class CompiledBuilder extends Builder {
 
     // Object Nodes，将来如有复用则会变成 InstanceRef
 
-    setProperty_Array(owner: object|null, ownerInfo: IObjParsingInfo|null, key: string|number, options: IArrayOptions): IObjParsingInfo {
+    setProperty_Array(owner: object | null, ownerInfo: IObjParsingInfo | null, key: string | number, options: IArrayOptions): IObjParsingInfo {
         const node = new ArrayNode(options.writeOnlyArray.length);
         this.advancedNodes.push(node);
         this.setDynamicProperty(ownerInfo, key, node);
         return node;
     }
 
-    setProperty_Dict(owner: object|null, ownerInfo: IObjParsingInfo|null, key: string|number, options: PropertyOptions): IObjParsingInfo {
+    setProperty_Dict(owner: object | null, ownerInfo: IObjParsingInfo | null, key: string | number, options: PropertyOptions): IObjParsingInfo {
         const node = new DictNode();
         this.advancedNodes.push(node);
         this.setDynamicProperty(ownerInfo, key, node);
         return node;
     }
 
-    setProperty_Class(owner: object|null, ownerInfo: IObjParsingInfo|null, key: string|number, options: IClassOptions): IObjParsingInfo {
+    setProperty_Class(owner: object | null, ownerInfo: IObjParsingInfo | null, key: string | number, options: IClassOptions): IObjParsingInfo {
         const node = new ClassNode(options.type);
         this.normalNodes.push(node);
         this.classNodes.push(node);
@@ -174,7 +173,7 @@ export default class CompiledBuilder extends Builder {
         return node;
     }
 
-    setProperty_CustomizedClass(owner: object|null, ownerInfo: IObjParsingInfo|null, key: string | number, options: ICustomClassOptions): IObjParsingInfo {
+    setProperty_CustomizedClass(owner: object | null, ownerInfo: IObjParsingInfo | null, key: string | number, options: ICustomClassOptions): IObjParsingInfo {
         const node = new CustomClassNode(options.type, options.content);
         this.advancedNodes.push(node);
         this.classNodes.push(node);
@@ -184,17 +183,17 @@ export default class CompiledBuilder extends Builder {
 
     // parsed
 
-    setProperty_ParsedObject(ownerInfo: IObjParsingInfo, key: string|number, valueInfo: IObjParsingInfo, formerlySerializedAs: string|null): void {
+    setProperty_ParsedObject(ownerInfo: IObjParsingInfo, key: string | number, valueInfo: IObjParsingInfo, formerlySerializedAs: string | null): void {
         (ownerInfo as Node).setDynamic((valueInfo as Node), key);
     }
 
     // Static Values
 
-    setProperty_Raw(owner: object, ownerInfo: IObjParsingInfo, key: string|number, value: any, options: PropertyOptions): void {
+    setProperty_Raw(owner: object, ownerInfo: IObjParsingInfo, key: string | number, value: any, options: PropertyOptions): void {
         (ownerInfo as Node).setStatic(key, DataTypeID.SimpleType, value);
     }
 
-    setProperty_ValueType(owner: object|null, ownerInfo: IObjParsingInfo|null, key: string|number, value: ValueType, options: PropertyOptions): IObjParsingInfo|null {
+    setProperty_ValueType(owner: object | null, ownerInfo: IObjParsingInfo | null, key: string | number, value: ValueType, options: PropertyOptions): IObjParsingInfo | null {
         if (!ownerInfo) {
             throw new Error('CompiledBulider: Not support serializing ValueType as root object.');
         }
@@ -211,7 +210,7 @@ export default class CompiledBuilder extends Builder {
         return data;
     }
 
-    setProperty_TypedArray(owner: object, ownerInfo: IObjParsingInfo, key: string|number, value: any, options: PropertyOptions): void {
+    setProperty_TypedArray(owner: object, ownerInfo: IObjParsingInfo, key: string | number, value: any, options: PropertyOptions): void {
         if (!(owner instanceof cc.Node) || key !== '_trs') {
             throw new Error('Not support to serialize TypedArray yet. Can only use TypedArray in TRS.');
         }
@@ -222,7 +221,7 @@ export default class CompiledBuilder extends Builder {
         (ownerInfo as Node).setStatic(key, DataTypeID.TRS, data);
     }
 
-    setProperty_AssetUuid(owner: object, ownerInfo: IObjParsingInfo, key: string|number, uuid: string, options: PropertyOptions): void {
+    setProperty_AssetUuid(owner: object, ownerInfo: IObjParsingInfo, key: string | number, uuid: string, options: PropertyOptions): void {
         // 先缓存到 dependAssets，最后 ownerItem 如做为嵌套对象将改成 AssetRefByInnerObj
         const ownerNode = (ownerInfo as Node);
         this.dependAssets.push(ownerNode, key, uuid);
@@ -237,7 +236,7 @@ export default class CompiledBuilder extends Builder {
 
     // markAsSharedObj (obj: any): void {}
 
-    private setDynamicProperty(ownerInfo: IObjParsingInfo|null, key: string|number, node: Node) {
+    private setDynamicProperty(ownerInfo: IObjParsingInfo | null, key: string | number, node: Node) {
         ownerInfo && (ownerInfo as Node).setDynamic(node, key);
     }
 
@@ -337,19 +336,19 @@ export default class CompiledBuilder extends Builder {
     private dumpDependUuids() {
         const innerDepends = {
             owners: new Array<number>(),
-            keys: new Array<string|number>(),
+            keys: new Array<string | number>(),
             uuids: new Array<string>(),
         };
         const indexedDepends = {
             owners: new Array<InstanceIndex>(),
-            keys: new Array<string|number>(),
+            keys: new Array<string | number>(),
             uuids: new Array<string>(),
         };
 
         const array = this.dependAssets;
         for (let i = 0; i < array.length; i += 3) {
             const owner = array[i] as Node;
-            let key = array[i + 1] as string|number;
+            let key = array[i + 1] as string | number;
             const uuid = array[i + 2] as string;
             let depends;
             if (owner.indexed) {

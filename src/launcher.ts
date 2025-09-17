@@ -23,7 +23,16 @@ class ProjectManager {
         })
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./core/assets');
-        await startupAssetDB();
+        await startupAssetDB({
+            root: path,
+            assetDBList: [{
+                name: 'assets',
+                target: join(path, 'assets'),
+                readonly: false,
+                visible: true,
+                library: join(path, 'library'),
+            }],
+        });
     }
 
     /**

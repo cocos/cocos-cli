@@ -2,7 +2,7 @@ import { QuickCompiler } from '@editor/quick-compiler';
 import { StatsQuery } from '@cocos/ccbuild';
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
 import { dirname, join } from 'path';
-import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove,existsSync, mkdirSync,copyFileSync } from 'fs-extra';
+import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove, existsSync, mkdirSync, copyFileSync } from 'fs-extra';
 import { IFeatureItem, IModuleItem, ModuleRenderConfig } from '../@types/modules';
 
 const VERSION = '3';
@@ -252,7 +252,7 @@ export class EngineCompiler {
     async clear() {
         try {
             await remove(this.outDir);
-        } catch (error) {}
+        } catch (error) { }
     }
 
     async compileEngine(directory: string, force?: boolean, options?: IRebuildOptions) {
@@ -330,10 +330,10 @@ export class EngineCompiler {
     async updateAdapter() {
         try {
             let isSuccess = true;
-            
+
             const nativeOutDir = join(this.enginePath, 'bin/.editor');
             const webAdapter = join(this.enginePath, 'bin/adapter/nodejs/web-adapter.js');
-            if(!existsSync(nativeOutDir)) {
+            if (!existsSync(nativeOutDir)) {
                 mkdirSync(nativeOutDir);
             }
             if (existsSync(webAdapter)) {
@@ -355,15 +355,15 @@ export class EngineCompiler {
             } else {
                 console.error('update adapter failed');
             }
-   
+
             return Promise.resolve();
         } catch (error) {
             console.error(error);
             return Promise.reject(error);
         }
     }
-    
-    
+
+
     async rebuildImportMaps() {
         if (!this.compiler) {
             return;

@@ -38,7 +38,6 @@ export const baseNativeCommonOptions: IInternalBuildPluginConfig = {
         supportedCompressionTypes: ['none', 'merge_dep', 'merge_all_json'],
         platformType: 'native',
     },
-    panel: './view',
     buildTemplateConfig: {
         templates: [{
             path: join(__dirname, '../../../../../../../resources/3d/engine/templates/native/index.ejs'),

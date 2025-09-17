@@ -2,7 +2,6 @@ import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@ed
 import { copy, copyFile, ensureDir, existsSync, outputFile, outputFileSync, outputJSON, outputJSONSync, readJSONSync } from 'fs-extra';
 import { basename, dirname, extname, isAbsolute, join } from 'path';
 import { url2path } from '../utils';
-import pluginManager from './plugin';
 import lodash, { extend } from 'lodash';
 import fg from 'fast-glob';
 import Sharp from 'sharp';
@@ -86,7 +85,7 @@ class AssetHandlerManager {
 
     async init() {
         const { assetHandlerInfos } = await import('../../assets/asset-handler/config');
-        this.register('cocos-cli', assetHandlerInfos, true)
+        this.register('cocos-cli', assetHandlerInfos, true);
     }
 
     /**

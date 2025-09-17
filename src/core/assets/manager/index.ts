@@ -50,7 +50,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
     }
 
     // ------------- 实例化方法 ------------
-    init() {
+    async init() {
         assetDBManager.on('db-created', this._onAssetDBCreated);
         assetDBManager.on('db-removed', this._onAssetDBRemoved);
     }

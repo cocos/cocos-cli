@@ -59,7 +59,7 @@ class Engine implements IEngine {
         customJointTextureLayouts: [],
     }
     private _compiler: EngineCompiler | null = null;
-    
+
     /**
      * TODO init data in register project modules
      */
@@ -120,7 +120,7 @@ class Engine implements IEngine {
         // @ts-ignore
         globalThis.EditorExtends = await import('./editor-extends');
         // @ts-ignore
-        globalThis.EditorExtends.init();
+        await globalThis.EditorExtends.init();
     }
 
     /**
@@ -201,7 +201,7 @@ class Engine implements IEngine {
             exactFitScreen: true,
         };
         cc.physics.selector.runInEditor = true;
-        await cc.game.init(defaultConfig);
+        // await cc.game.init(defaultConfig);
 
         return this;
     }

@@ -1,10 +1,9 @@
 'use strict';
 
-import { CCON } from 'cc/editor/serialization';
+import type { CCON } from 'cc/editor/serialization';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
-import { serialize } from '../../engine/editor-extends/utils/serialize';
 import { Asset } from '@editor/asset-db';
 import { Meta } from '@editor/asset-db/libs/meta';
 declare const cc: any;
@@ -85,7 +84,7 @@ export function getDeserializeResult(json: CCON | Object) {
         classFinder,
     });
     deserializeDetails.assignAssetsBy(function (uuid: string, options: { owner: object; prop: string; type: Function }) {
-        return serialize.asAsset(uuid);
+        return EditorExtends.serialize.asAsset(uuid);
     });
     return {
         instance: deserializedAsset,

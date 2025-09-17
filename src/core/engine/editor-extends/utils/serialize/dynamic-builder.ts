@@ -72,15 +72,15 @@ export default class DynamicBuilder extends Builder {
         this.forceInline = !!options.forceInline;
     }
 
-    setProperty_Array(owner: object|null, ownerInfo: IObjAndId|null, key: string|number, options: IArrayOptions): IObjAndId {
+    setProperty_Array(owner: object | null, ownerInfo: IObjAndId | null, key: string | number, options: IArrayOptions): IObjAndId {
         return this.addObject(options.writeOnlyArray, ownerInfo, key, options.formerlySerializedAs, false);
     }
 
-    setProperty_Dict(owner: object|null, ownerInfo: IObjAndId|null, key: string|number, options: PropertyOptions): IObjAndId {
+    setProperty_Dict(owner: object | null, ownerInfo: IObjAndId | null, key: string | number, options: PropertyOptions): IObjAndId {
         return this.addObject({}, ownerInfo, key, options?.formerlySerializedAs, false);
     }
 
-    private addObject(data: Format.Object, ownerInfo: IObjAndId|null, key: string|number, formerlySerializedAs: string|undefined, forceIndexed: boolean): IObjAndId {
+    private addObject(data: Format.Object, ownerInfo: IObjAndId | null, key: string | number, formerlySerializedAs: string | undefined, forceIndexed: boolean): IObjAndId {
         let id = -1;
         let refData: Format.AnyItem = data;
         const isRoot = !ownerInfo;
@@ -100,14 +100,14 @@ export default class DynamicBuilder extends Builder {
         return { data, id };
     }
 
-    setProperty_Class(owner: object|null, ownerInfo: IObjAndId|null, key: string|number, options: IClassOptions): IObjAndId {
+    setProperty_Class(owner: object | null, ownerInfo: IObjAndId | null, key: string | number, options: IClassOptions): IObjAndId {
         const data = {
             __type__: options.type,
         } as Format.Class;
         return this.addObject(data, ownerInfo, key, options.formerlySerializedAs, !(options.uniquelyReferenced ?? false));
     }
 
-    setProperty_CustomizedClass(owner: object|null, ownerInfo: IObjAndId|null, key: string | number, options: ICustomClassOptions): IObjAndId {
+    setProperty_CustomizedClass(owner: object | null, ownerInfo: IObjAndId | null, key: string | number, options: ICustomClassOptions): IObjAndId {
         const data = {
             __type__: options.type,
             content: options.content,
@@ -117,7 +117,7 @@ export default class DynamicBuilder extends Builder {
 
     // parsed
 
-    setProperty_ParsedObject(ownerInfo: IObjAndId, key: string|number, valueInfo: IObjAndId, formerlySerializedAs: string|null): void {
+    setProperty_ParsedObject(ownerInfo: IObjAndId, key: string | number, valueInfo: IObjAndId, formerlySerializedAs: string | null): void {
         if (!this.forceInline && valueInfo.id >= 0) {
             // 可索引对象
             (ownerInfo.data as any)[key] = { __id__: valueInfo.id } as Format.InstanceReference;
@@ -133,14 +133,14 @@ export default class DynamicBuilder extends Builder {
 
     // Static Values
 
-    setProperty_Raw(owner: object, ownerInfo: IObjAndId, key: string|number, value: any, options: PropertyOptions): void {
+    setProperty_Raw(owner: object, ownerInfo: IObjAndId, key: string | number, value: any, options: PropertyOptions): void {
         (ownerInfo.data as any)[key] = value;
         if (options?.formerlySerializedAs) {
             (ownerInfo.data as any)[options.formerlySerializedAs] = value;
         }
     }
 
-    setProperty_ValueType(owner: object|null, ownerInfo: IObjAndId|null, key: string|number, value: ValueType, options: PropertyOptions): IObjAndId {
+    setProperty_ValueType(owner: object | null, ownerInfo: IObjAndId | null, key: string | number, value: ValueType, options: PropertyOptions): IObjAndId {
         const data = {
             __type__: js.getClassId(value, false),
         } as Format.Class;
@@ -166,7 +166,7 @@ export default class DynamicBuilder extends Builder {
         }
     }
 
-    setProperty_TypedArray(owner: object, ownerInfo: IObjAndId, key: string|number, value: any, options: PropertyOptions): void {
+    setProperty_TypedArray(owner: object, ownerInfo: IObjAndId, key: string | number, value: any, options: PropertyOptions): void {
         let data;
         if (this.hasBinaryBuffer) {
             const isDataView = value instanceof DataView;
@@ -198,7 +198,7 @@ export default class DynamicBuilder extends Builder {
         }
     }
 
-    setProperty_AssetUuid(owner: object, ownerInfo: IObjAndId, key: string|number, uuid: string, options: PropertyOptions): void {
+    setProperty_AssetUuid(owner: object, ownerInfo: IObjAndId, key: string | number, uuid: string, options: PropertyOptions): void {
         (ownerInfo.data as any)[key] = { __uuid__: uuid } as Format.AssetReference;
         if (options?.formerlySerializedAs) {
             (ownerInfo.data as any)[options.formerlySerializedAs] = (ownerInfo.data as any)[key];
@@ -209,7 +209,7 @@ export default class DynamicBuilder extends Builder {
     }
 
     setRoot(objInfo: IObjAndId): void {
-        console.assert(objInfo.id === 0, `Wrong root object to serialize, id is ${objInfo.id}`);
+        assert(objInfo.id === 0, `Wrong root object to serialize, id is ${objInfo.id}`);
     }
 
     protected finalizeJsonPart() {
@@ -261,4 +261,10 @@ export function findRootObject(data: Format.AnyItem, type: string) {
         return data;
     }
     return null;
+}
+
+export function assert(condition: any, message?: string): void {
+    if (!condition) {
+        throw new Error(message || 'Assertion failed');
+    }
 }

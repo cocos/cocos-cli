@@ -1,11 +1,9 @@
 'use strict';
 
 import { join } from 'path';
-import { AssetDB, Importer } from '@editor/asset-db';
 import EventEmitter from 'events';
 import { newConsole } from '../../base/console';
-import i18n from '../../base/i18n';
-import { AssetDBHookType, AssetDBPluginInfo, AssetDBRegisterInfo, EditorMethodModule, ExecuteAssetDBScriptMethodOptions, PackageRegisterInfo } from '../@types/private';
+import { AssetDBPluginInfo, AssetDBRegisterInfo, PackageRegisterInfo } from '../@types/private';
 import Utils from '../../base/utils';
 type PackageEventType = 'register' | 'unregister' | 'enable' | 'disable';
 
