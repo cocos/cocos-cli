@@ -42,6 +42,10 @@ cocos open ./my-project
 - `build` - 构建项目用于部署
 - `help` - 显示帮助信息
 
+
+## API 说明
+[ConstantOptions](docs/Api/ConstantOptions-zh.md)
+
 ## 贡献
 
 欢迎贡献代码！在提交拉取请求之前，请阅读我们的贡献指南。

@@ -42,6 +42,9 @@ cocos open ./my-project
 - `build` - Build project for deployment
 - `help` - Display help information
 
+## API Documentation
+[ConstantOptions](docs/Api/ConstantOptions.md)
+
 ## Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
