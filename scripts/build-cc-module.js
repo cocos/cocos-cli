@@ -42,7 +42,7 @@ module.exports = modsMgr.syncImport('${moduleId}');
 }
 
 function build() {
-    console.time('Bundle cc-module');
+    console.time('Bundle node_modules/cc');
 
     const { engine } = require('../.user.json');
 
@@ -75,7 +75,7 @@ ${readFileSync(ccTemplatePath)}\n
     });
 
     const sourceDir = join(__dirname, '../static/engine/cc-module');
-    const targetDir = join(__dirname, '../node_modules/cc-module');
+    const targetDir = join(__dirname, '../node_modules/cc');
 
     console.log('sourceDir:', sourceDir);
     console.log('targetDir:', targetDir);
@@ -91,7 +91,7 @@ ${readFileSync(ccTemplatePath)}\n
 
     console.log('Copy', targetDir);
 
-    console.timeEnd('Bundle cc-module');
+    console.timeEnd('Bundle node_modules/cc');
 }
 
 build();
