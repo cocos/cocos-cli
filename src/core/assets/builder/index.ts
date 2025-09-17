@@ -8,7 +8,7 @@ import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./sh
 import { newConsole } from "../../base/console";
 import { join } from "path";
 import { BuildGlobalInfo } from "./share/global";
-import { assetManager } from "../manager";
+import { assetManager } from "../manager/asset";
 import { removeDbHeader } from "./worker/builder/utils";
 import { BundleManager } from "./worker/builder/asset-handler/bundle";
 

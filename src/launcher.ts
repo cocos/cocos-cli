@@ -31,6 +31,7 @@ class ProjectManager {
                 readonly: false,
                 visible: true,
                 library: join(path, 'library'),
+                preImportExtList: ['.ts', '.chunk', '.effect'],
             }],
         });
     }

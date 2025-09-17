@@ -12,7 +12,7 @@ import { recursively } from '../utils';
 import assert from 'assert';
 import { getCCONFormatAssetInLibrary, outputCCONFormat } from '../utils/cconb';
 import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../../../@types/protected';
-import { assetManager } from '../../../../manager';
+import { assetManager } from '../../../../manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../@types/protected';
 import { BuildGlobalInfo } from '../../../share/global';
 import { assetDBManager } from '../../../../manager/asset-db';

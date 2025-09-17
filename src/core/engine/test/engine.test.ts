@@ -5,9 +5,22 @@ import { EngineLoader } from 'cc/loader.js';
 
 const ProjectPath = join(__dirname, '../../../../test-project');
 
-jest.mock('cc', () => {
-    return EngineLoader.getEngineModuleById('cc');
-}, { virtual: true });
+[
+    'cc',
+    'cc/editor/populate-internal-constants',
+    'cc/editor/serialization',
+    'cc/editor/animation-clip-migration',
+    'cc/editor/exotic-animation',
+    'cc/editor/new-gen-anim',
+    'cc/editor/offline-mappings',
+    'cc/editor/embedded-player',
+    'cc/editor/color-utils',
+    'cc/editor/custom-pipeline',
+].forEach((module) => {
+    jest.mock(module, () => {
+        return EngineLoader.getEngineModuleById(module);
+    }, { virtual: true });
+});
 
 /**
  * Engine 类的测试 - 验证是否需要 mock
@@ -43,5 +56,5 @@ describe('Engine', () => {
         expect(cc).toBeDefined();
         // @ts-ignore
         expect(ccm).toBeDefined();
-    },  1000 * 60 * 50);
+    }, 1000 * 60 * 50);
 });

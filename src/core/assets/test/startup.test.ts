@@ -42,32 +42,43 @@ describe('Import Project', () => {
                 library: join(projectRoot, 'library'),
             }],
         });
+        console.log('startupAssetDB success');
+    }, 1000 * 60 * 50);
+
+    const testAssets = [{
+        name: 'video',
+        url: 'assets/video.mp4',
+        importer: 'video-clip',
+        library: ['.json', '.mp4']
+    }, {
+        name: 'audio',
+        url: 'assets/audio.mp3',
+        importer: 'audio-clip',
+        library: ['.json', '.mp3']
+    }];
+    testAssets.forEach((asset) => {
+        const assetPath = join(projectRoot, asset.url);
+        const metaPath = assetPath + '.meta';
+        const meta = readJSONSync(metaPath);
+        describe(asset.name + ' import', () => {
+            it('meta exists', () => {
+                expect(existsSync(metaPath));
+            });
+            it('importer', () => {
+                expect(meta.importer).toEqual(asset.importer);
+            });
+        });
+
+        asset.library.forEach((extension) => {
+            it('library exists', () => {
+                const uuid = meta.uuid;
+                expect(existsSync(join(projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`)));
+            });
+        });
+
+        it('imported', () => {
+            expect(meta.imported).toBeTruthy;
+        });
     });
 
-    describe('video import', () => {
-        const videoAsset = join(projectRoot, 'assets/video.mp4');
-        const videoMetaPath = videoAsset + '.meta';
-        it('video meta exists', () => {
-            expect(existsSync(videoAsset + '.meta'));
-        });
-
-        const data = readJSONSync(videoMetaPath);
-        it('video importer', () => {
-            expect(data.importer).toEqual('video-clip');
-            expect(data.imported).toBeTruthy;
-        });
-    });
-    describe('audio import', () => {
-        const audioAsset = join(projectRoot, 'assets/audio.mp3');
-        const audioMetaPath = audioAsset + '.meta';
-        it('audio meta exists', () => {
-            expect(existsSync(audioMetaPath));
-        });
-
-        const data = readJSONSync(audioMetaPath);
-        it('audio importer', () => {
-            expect(data.importer).toEqual('audio-clip');
-            expect(data.imported).toBeTruthy;
-        });
-    });
 });

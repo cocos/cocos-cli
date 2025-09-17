@@ -1,8 +1,12 @@
-export const registerMap = {
-    async registerVideoHandler() {
-        return (await import('./assets/video-clip')).default;
-    },
-    async registerAudioHandler() {
-        return (await import('./assets/audio-clip')).default;
-    },
-};
+import { afterImport, autoGenEffectBinInfo } from './assets/effect';
+export async function compileEffect(force?: boolean) {
+    // 需要做好容错，要保证能执行这个返回数据的函数，否则后续流启动程会被中断
+    try {
+        await afterImport(force);
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+export function startAutoGenEffectBin() {
+    autoGenEffectBinInfo.autoGenEffectBin = true;

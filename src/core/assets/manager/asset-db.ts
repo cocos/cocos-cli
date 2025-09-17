@@ -13,6 +13,7 @@ import assetHandlerManager from './asset-handler';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
+import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
 
 export interface IPhysicsConfig {
     gravity: IVec3Like; // （0，-10， 0）
@@ -162,7 +163,6 @@ export class AssetDBManager extends EventEmitter {
      */
     private async _start() {
         newConsole.trackMemoryStart('asset-db:worker-init: preStart');
-        // 目前专为脚本系统设计的钩子函数：beforePreStart，afterPreStart ，不对外
         const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
         const startupDatabaseQueue: IStartupDatabaseHandleInfo[] = [];
         for (const assetDBName of assetDBNames) {
@@ -172,6 +172,7 @@ export class AssetDBManager extends EventEmitter {
         }
         newConsole.trackMemoryEnd('asset-db:worker-init: preStart');
 
+        await afterStartDB();
         newConsole.trackMemoryStart('asset-db:worker-init: startup');
         for (let i = 0; i < startupDatabaseQueue.length; i++) {
             const startupDatabase = startupDatabaseQueue[i];
@@ -186,7 +187,6 @@ export class AssetDBManager extends EventEmitter {
     private async _startFromCache() {
         console.debug('try start all assetDB from cache...');
         const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
-        // 目前专为脚本系统设计的钩子函数：beforePreStart，afterPreStart ，不对外
         for (const assetDBName of assetDBNames) {
             const db = await this._createDB(this.assetDBInfo[assetDBName]);
             if (existsSync(db.cachePath)) {
@@ -207,6 +207,7 @@ export class AssetDBManager extends EventEmitter {
             const waitingStartupDBInfo = await this._preStartDB(db);
             await this._startupDB(waitingStartupDBInfo);
         }
+        await afterStartDB();
     }
 
     public isBusy() {
@@ -233,6 +234,7 @@ export class AssetDBManager extends EventEmitter {
         await this._createDB(info);
         await this._startDB(info.name);
         this.emit('asset-db:db-ready', info.name);
+        await afterStartDB();
     }
 
     /**
@@ -706,9 +708,13 @@ for (let i = 0; i <= 19; i++) {
     layerMask[i] = 1 << i;
 }
 
+const defaultPreImportExtList = ['.ts', '.chunk', '.effect'];
+
 function getPreImporterHandler(preImportExtList?: string[]) {
     if (!preImportExtList || !preImportExtList.length) {
-        return null;
+        preImportExtList = defaultPreImportExtList;
+    } else {
+        preImportExtList = Array.from(new Set(preImportExtList.concat(defaultPreImportExtList)));
     }
 
     return function (file: string) {
@@ -750,4 +756,12 @@ async function afterPreImport(db: assetdb.AssetDB) {
     db.taskManager.start();
     await db.taskManager.waitQueue();
     db.taskManager.stop();
+}
+
+async function afterStartDB() {
+    await compileEffect();
+    // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
+    startAutoGenEffectBin();
+
+    // TODO 编译脚本
 }
