@@ -44,7 +44,7 @@ cocos open ./my-project
 
 
 ## API 说明
-[ConstantOptions](docs/Api/ConstantOptions-zh.md)
+[ConstantOptions](docs/core/ConstantOptions-zh.md)
 
 ## 贡献
 

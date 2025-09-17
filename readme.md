@@ -43,7 +43,7 @@ cocos open ./my-project
 - `help` - Display help information
 
 ## API Documentation
-[ConstantOptions](docs/Api/ConstantOptions.md)
+[ConstantOptions](docs/core/ConstantOptions.md)
 
 ## Contributing
 
