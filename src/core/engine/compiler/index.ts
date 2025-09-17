@@ -144,37 +144,6 @@ export class EngineCompiler {
         } else {
             const editorFeatures = await this.filterEngineModules(env, allFeatures);
             this.editorFeaturesCache.push(...editorFeatures);
-            const conf = {
-                rootDir: this.enginePath,
-                outDir: this.outDir,
-                platform: env.platform,
-                targets: [
-                    {
-                        featureUnitPrefix,
-                        dir: join(this.outDir, 'editor'),
-                        format: 'systemjs',
-                        // inlineSourceMap: true,
-                        // 使用 indexed source map 加快编译速度：
-                        // 见 https://github.com/cocos-creator/3d-tasks/issues/4720
-                        // indexedSourceMap: true,
-                        usedInElectron509: true,
-                        targets: editorBrowserslistQuery,
-                        includeIndex: {
-                            features: editorFeatures,
-                        },
-                        loader: true, // 编辑器里没有 SystemJS，所以需要生成 loader
-                        loose: true, // TODO(cjh): 当前 ccbuild 构建强制使用了 loose 模式且后面一个 preview target 也是强制开启，先把当前 editor target 也开启 loose 模式，临时修复 Though the "loose" option was set to "false" in your @babel/preset-env config ... 问题。后续需要考虑使用项目设置中的「宽松模式」设置选项。
-                    },
-                    {
-                        featureUnitPrefix,
-                        dir: join(this.outDir, 'preview'),
-                        format: 'systemjs',
-                        loose: true,
-                        // indexedSourceMap: true,
-                    },
-                ],
-                logFile,
-            };
             return new QuickCompiler({
                 rootDir: this.enginePath,
                 outDir: this.outDir,
@@ -196,13 +165,13 @@ export class EngineCompiler {
                         loader: true, // 编辑器里没有 SystemJS，所以需要生成 loader
                         loose: true, // TODO(cjh): 当前 ccbuild 构建强制使用了 loose 模式且后面一个 preview target 也是强制开启，先把当前 editor target 也开启 loose 模式，临时修复 Though the "loose" option was set to "false" in your @babel/preset-env config ... 问题。后续需要考虑使用项目设置中的「宽松模式」设置选项。
                     },
-                    {
-                        featureUnitPrefix,
-                        dir: join(this.outDir, 'preview'),
-                        format: 'systemjs',
-                        loose: true,
-                        // indexedSourceMap: true,
-                    },
+                    // {
+                    //     featureUnitPrefix,
+                    //     dir: join(this.outDir, 'preview'),
+                    //     format: 'systemjs',
+                    //     loose: true,
+                    //     // indexedSourceMap: true,
+                    // },
                 ],
                 logFile,
             });
@@ -308,10 +277,10 @@ export class EngineCompiler {
         const debugNative = false;
 
         if (needClear) {
-            console.debug('[EditorQuickCompiler]Version information lost.');
+            console.debug('[EditorQuickCompiler] Version information lost.');
             await emptyDir(this.outDir);
         } else {
-            console.debug('[EditorQuickCompiler]Version information looks good.');
+            console.debug('[EditorQuickCompiler] Version information looks good.');
         }
         if ((needClear || debugNative || force) && !process.argv.includes('--no-quick-compile')) {
             await this.rebuild({ isNativeScene, debugNative });
@@ -407,12 +376,12 @@ export class EngineCompiler {
             editorShippedFeatures,
         );
 
-        const previewShippedFeatures = await this.getPreviewShippedFeatures();
-        await this.rebuildTargetImportMap(
-            this.compiler,
-            1,
-            previewShippedFeatures,
-        );
+        // const previewShippedFeatures = await this.getPreviewShippedFeatures();
+        // await this.rebuildTargetImportMap(
+        //     this.compiler,
+        //     1,
+        //     previewShippedFeatures,
+        // );
     }
     async rebuildTargetImportMap(compiler: QuickCompiler, targetIndex: number, features: string[], platform?: string, mode?: string, out?: string) {
         const configurableFlags = await this.getConfigurableFlagsOfFeatures(features);

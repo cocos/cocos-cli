@@ -1,3 +1,3 @@
-const fs = require('fs-extra');
-const ps = require('path');
+import fs from 'fs-extra';
+import ps from 'path';
 (async () => await fs.emptyDir(ps.join(__dirname, '..', 'dist')))();

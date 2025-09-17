@@ -1,7 +1,7 @@
 import Engine, { IEngine } from '../index';
 import { join } from 'path';
 import { engine as EnginPath } from '../../../../.user.json';
-import { EngineLoader } from 'cc-module/loader.js';
+import { EngineLoader } from 'cc/loader.js';
 
 const ProjectPath = join(__dirname, '../../../../test-project');
 

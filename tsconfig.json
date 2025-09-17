@@ -19,8 +19,7 @@
         "resolveJsonModule": true,
         "types": [
             "jest",
-            "node",
-            "./node_modules/cc"
+            "node"
         ]
     },
     "include": [

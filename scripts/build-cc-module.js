@@ -1,11 +1,7 @@
 const { outputFileSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync, removeSync } = require('fs-extra');
 const { join } = require('path');
 const { spawnSync } = require('child_process');
-const { magenta, green } = require('chalk');
-const { copySync } = require('./utils');
-
-const prefix = ''.padStart(20, '=');
-console.log(magenta(`${prefix} Build cc-module ${prefix}`));
+const { copySync, logTitle } = require('./utils');
 
 function readDirRecurse(root, visitor, relativeRoot = '') {
     const fileNames = readdirSync(root);
@@ -41,7 +37,9 @@ module.exports = modsMgr.syncImport('${moduleId}');
 `;
 }
 
-function build() {
+(() => {
+    logTitle('Build node_modules/cc');
+
     console.time('Bundle node_modules/cc');
 
     const { engine } = require('../.user.json');
@@ -84,7 +82,8 @@ ${readFileSync(ccTemplatePath)}\n
         console.log('Clean:', targetDir);
     }
 
-    spawnSync('tsc', { cwd: sourceDir });
+    const cmd = process.platform === 'win32' ? 'tsc.cmd' : 'tsc';
+    spawnSync(cmd, { cwd: sourceDir });
     console.log('Compilation:', sourceDir);
 
     copySync(sourceDir, targetDir, ['.ts', '.gitignore', 'tsconfig.json', '.DS_Store', '!.d.ts']);
@@ -92,6 +91,4 @@ ${readFileSync(ccTemplatePath)}\n
     console.log('Copy', targetDir);
 
     console.timeEnd('Bundle node_modules/cc');
-}
-
-build();
+})();

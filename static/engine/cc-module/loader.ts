@@ -79,7 +79,7 @@ export class EngineLoader {
             if (result.status === 'fulfilled') {
                 EngineLoader.engineModules[modules[index]] = result.value;
             } else {
-                console.warn(`Failed to load engine module: ${modules[index]}`);
+                console.error(`Failed to load engine module: ${modules[index]}`, result.reason);
             }
         });
     }

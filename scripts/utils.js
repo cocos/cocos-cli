@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import chalk from 'chalk';
 
 /**
  * 异步执行命令
@@ -11,21 +12,38 @@ import { join } from 'path';
  * @returns {Promise<void>}
  */
 export async function runCommand(cmd, args = [], opts = {}) {
-    const { debug = true, ...spawnOpts } = opts;
+    const { debug = true, shell = true, ...spawnOpts } = opts;
+    const isWindows = process.platform === 'win32';
+
+    // 如果是 Windows 且命令是 "npm"，改用 "npm.cmd"
+    if (isWindows && cmd === 'npm') {
+        cmd = 'npm.cmd';
+    }
+
+    let finalCmd = cmd;
+    let finalArgs = args;
+
+    if (isWindows && shell) {
+        finalCmd = 'cmd.exe';
+        finalArgs = ['/c', cmd, ...args];
+    }
+
+    if (debug) {
+        console.log(`Executing: ${finalCmd} ${finalArgs.join(' ')}`);
+    }
+
+    const child = spawn(finalCmd, finalArgs, {
+        stdio: 'inherit',
+        shell: shell,
+        ...spawnOpts,
+    });
 
     return new Promise((resolve, reject) => {
-        const child = spawn(cmd, args, {
-            stdio: 'inherit',
-            ...spawnOpts
+        child.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Process exited with code ${code}`));
         });
-
-        child.on('close', code => {
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`Exit code ${code}`));
-            }
-        });
+        child.on('error', reject);
     });
 }
 
@@ -62,4 +80,13 @@ export function copySync(source, target, ignoreExts = []) {
             copyFileSync(srcPath, destPath);
         }
     });
+}
+
+/**
+ * 统一输出标题日志
+ * @param title
+ */
+export function logTitle(title) {
+    const prefix = ''.padStart(20, '=');
+    console.log(chalk.magenta(`${prefix} ${title} ${prefix}`));
 }
