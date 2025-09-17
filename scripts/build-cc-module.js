@@ -82,8 +82,9 @@ ${readFileSync(ccTemplatePath)}\n
         console.log('Clean:', targetDir);
     }
 
-    const cmd = process.platform === 'win32' ? 'tsc.cmd' : 'tsc';
-    spawnSync(cmd, { cwd: sourceDir });
+    const binDir = join(__dirname, '../node_modules', '.bin');
+    const cmd = join(binDir, process.platform === 'win32' ? 'tsc.cmd': 'tsc');
+    spawnSync(cmd, { cwd: sourceDir, shell: true, stdio: 'inherit' });
     console.log('Compilation:', sourceDir);
 
     copySync(sourceDir, targetDir, ['.ts', '.gitignore', 'tsconfig.json', '.DS_Store', '!.d.ts']);

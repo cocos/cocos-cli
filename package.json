@@ -49,7 +49,7 @@
         "@cocos/fbx2gltf": "^1.0.8",
         "@cocos/module-system": "^0.0.21",
         "@editor/asset-db": "^3.0.0-alpha.1",
-        "@editor/build-polyfills": "^2.0.0",
+        "@editor/build-polyfills": "2.0.0",
         "@editor/lib-programming": "3.8.1",
         "@editor/quick-compiler": "^4.2.20",
         "chalk": "^2.4.2",

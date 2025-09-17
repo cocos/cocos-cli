@@ -1,9 +1,9 @@
 {
-    "creator": {
-        "version": "3.8.7"
-    },
     "name": "cocos-example-test",
     "type": "3d",
+    "version": "3.8.4",
     "uuid": "cb08068e-a967-4ef4-b4d4-b4fd8d24334c",
-    "version": "3.8.4"
+    "creator": {
+        "version": "3.8.7"
+    }
 }
