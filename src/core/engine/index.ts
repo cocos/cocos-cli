@@ -143,6 +143,7 @@ class Engine implements IEngine {
      * 加载以及初始化引擎环境
      */
     async initEngine(info: InitEngineInfo) {
+        // @ts-ignore - cc/preload is a dynamic module
         const { default: preload } = await import('cc/preload');
         await preload({
             engineRoot: this._info.typescript.path,
