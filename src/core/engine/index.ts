@@ -11,7 +11,7 @@ export interface IEngine {
     getInfo(): EngineInfo;
     getConfig(): EngineConfig;
     getCompiler(): EngineCompiler;
-    init(enginePath: string, projectResourcePath: string): Promise<this>;
+    init(enginePath: string): Promise<this>;
     initEngine(info: InitEngineInfo): Promise<this>;
 }
 
@@ -29,7 +29,6 @@ class Engine implements IEngine {
     private _init: boolean = false;
     private _info: EngineInfo = {
         path: '',
-        projectResourcePath: '',
         tmpDir: '',
         version: '',
     }
@@ -107,12 +106,11 @@ class Engine implements IEngine {
     /**
      * TODO 初始化配置等
      */
-    async init(enginePath: string, projectResourcePath: string) {
+    async init(enginePath: string) {
         if (this._init) {
             return this;
         }
         this._info.path = enginePath;
-        this._info.projectResourcePath = projectResourcePath;
         this._init = true;
 
         return this;
@@ -133,7 +131,6 @@ class Engine implements IEngine {
         await preload({
             engineRoot: this._info.path,
             engineDev: this.getCompiler().getOutDir(),
-            projectResourcePath: this._info.projectResourcePath,
 
             requiredModules: [
                 'cc',
@@ -204,8 +201,7 @@ class Engine implements IEngine {
             exactFitScreen: true,
         };
         cc.physics.selector.runInEditor = true;
-        // await cc.game.init(defaultConfig);
-        console.log('33333333333333333333333  2222');
+        await cc.game.init(defaultConfig);
         return this;
     }
 

@@ -16,7 +16,7 @@ class ProjectManager {
         await Project.open(path);
         // 初始化引擎
         const { default: Engine } = await import('./core/engine');
-        await Engine.init(enginePath, path);
+        await Engine.init(enginePath);
         await Engine.initEngine({
             importBase: join(path, 'library'),
             nativeBase: join(path, 'library'),

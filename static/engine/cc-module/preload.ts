@@ -1,5 +1,7 @@
 import { join } from 'path';
 import { EngineLoader } from './loader';
+import * as fs from 'fs-extra';
+import * as path from 'path';
 
 let hasPreload = false;
 
@@ -16,10 +18,6 @@ async function preload(options: {
      * 引擎分发目录（引擎编译后的目录）
      */
     engineDev: string;
-    /**
-     * 工程资源目录
-     */
-    projectResourcePath: string;
     /**
      * 需要预加载的模块。
      */
@@ -40,9 +38,7 @@ async function preload(options: {
         // @ts-ignore
         globalThis.window.path = path;
         // @ts-ignore
-        globalThis.window.XMLHttpRequest = XMLHttpRequest;
-        // @ts-ignore
-        globalThis.window.projectResourcePath = options.projectResourcePath;
+        globalThis.window.XMLHttpRequest = require('xhr2');
         // @ts-ignore
         globalThis.window.enginePath = options.engineRoot;
         // loader web adapter
@@ -54,7 +50,7 @@ async function preload(options: {
             // ---- 加载引擎主体 ----
             // @ts-ignore
             const ccm = window.ccm = require('cc');
-            
+
             await import(join(options.engineRoot, 'bin/adapter/nodejs/engine-adapter.js'));
             // ---- hack creator 使用的一些 engine 参数
             require('./polyfill/engine');
