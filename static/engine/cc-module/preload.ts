@@ -37,6 +37,7 @@ async function preload(options: {
         globalThis.window.fs = fs;
         // @ts-ignore
         globalThis.window.path = path;
+        // TODO: 使用import方式会报错，暂时使用require
         // @ts-ignore
         globalThis.window.XMLHttpRequest = require('xhr2');
         // @ts-ignore

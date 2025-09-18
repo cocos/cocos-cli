@@ -51,5 +51,4 @@ export const projectManager = new ProjectManager();
 (async () => {
     const { engine, project } = require('../.user.json');
     await projectManager.open(project, engine)
-    console.log('qqqqqqqqqqqqqqqqqq  2');
 })();
