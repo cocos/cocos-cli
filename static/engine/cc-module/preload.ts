@@ -2,6 +2,7 @@ import { join } from 'path';
 import { EngineLoader } from './loader';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import XMLHttpRequest from 'xhr2';
 
 let hasPreload = false;
 
@@ -37,9 +38,8 @@ async function preload(options: {
         globalThis.window.fs = fs;
         // @ts-ignore
         globalThis.window.path = path;
-        // TODO: 使用import方式会报错，暂时使用require
         // @ts-ignore
-        globalThis.window.XMLHttpRequest = require('xhr2');
+        globalThis.window.XMLHttpRequest = XMLHttpRequest;
         // @ts-ignore
         globalThis.window.enginePath = options.engineRoot;
         // loader web adapter
