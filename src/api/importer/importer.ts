@@ -2,23 +2,20 @@ import 'reflect-metadata';
 import { startupAssetDB } from "../../core/assets";
 import { ApiBase } from "../base/api-base";
 import { TypeUriPath, uriPath, queryResult, TypeQueryResult } from "./importer-scheme";
-import { COMMON_STATUS, CommonResultType } from "../base/scheme-base";
+import { COMMON_STATUS, CommonResultType, HTTP_STATUS } from "../base/scheme-base";
 import { join } from "path";
 import { AssetManager as IAssetManager } from "../../core/assets/@types/private";
-import { Description, Param, Result, Title, Tool } from '../decorator/decorator.js';
+import { Description, Param, Result, Title, Tool } from '../decorator/decorator';
 
 export class ImporterApi extends ApiBase {
     private _assetManager!: IAssetManager;
 
     async init(): Promise<void> {
-        // this._assetManager = (await import('../../core/assets/manager')).assetManager;
+        this._assetManager = (await import('../../core/assets/manager')).assetManager;
     }
 
     /**
      * 刷新资源
-     * @title sss
-     * @tool xxx
-     * @result {}
      */
     @Tool('queryUrl')
     @Title('获取文件路径的 url')
@@ -26,8 +23,8 @@ export class ImporterApi extends ApiBase {
     @Result(queryResult)
     async queryUrl(@Param(uriPath) path: TypeUriPath): Promise<CommonResultType<TypeQueryResult>> {
         try {
-            // await startupAssetDB();
-            const url = `db://just/a/test/${path}.png`
+            await startupAssetDB();
+            const url = await this._assetManager.queryUrl(path);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: {url},
@@ -49,8 +46,8 @@ export class ImporterApi extends ApiBase {
     @Result(queryResult)
     async queryUrl2(@Param(uriPath) path: TypeUriPath): Promise<CommonResultType<TypeQueryResult>> {
         try {
-            // await startupAssetDB();
-            const url = `db://just/b/test/${path}.png`
+            await startupAssetDB();
+            const url = await this._assetManager.queryUrl(path);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: {url},

@@ -1,11 +1,11 @@
 // src/decorators.ts
 import "reflect-metadata";
-import type { ZodType } from "zod";
+import { ZodType } from "zod";
 import { createCommonResult } from "../base/scheme-base";
 
 interface ParamSchema {
   index: number;
-  schema: ZodType<any>;
+  schema: ZodType;
 }
 
 interface ToolMetaData {
@@ -13,107 +13,59 @@ interface ToolMetaData {
   title?: string;
   description?: string;
   paramSchemas: ParamSchema[];
-  returnSchema?: ZodType<any>;
-  methodName: string | symbol;
+  returnSchema?: ZodType;
+  methodName: string;
 }
 
+// 工具注册表，map from tool name → metadata + target class prototype + method
 const toolRegistry = new Map<string, { target: any; meta: ToolMetaData }>();
 
-// helper 判断旧签名 vs 新签名
-function isOldSignature(args: any[]): args is [target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor] {
-  return args.length === 3 && typeof args[2] === "object";
-}
+// Method decorator：标注一个方法是 tool
+export function Tool(toolName: string) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const proto = target;
+    // 获取已有 paramSchemas，title, description, returnSchema（如果有的话）
+    const paramSchemas: ParamSchema[] =
+      Reflect.getOwnMetadata(`tool:paramSchemas:${propertyKey}`, proto) || [];
+    const returnSchema: ZodType | undefined =
+      Reflect.getOwnMetadata(`tool:returnSchema:${propertyKey}`, proto);
+    const title: string | undefined =
+      Reflect.getOwnMetadata(`tool:title:${propertyKey}`, proto);
+    const description: string | undefined =
+      Reflect.getOwnMetadata(`tool:description:${propertyKey}`, proto);
 
-export function Tool(toolName?: string) {
-  return function (...decoratorArgs: any[]) {
-    if (isOldSignature(decoratorArgs)) {
-      // 旧签名
-      const [target, propertyKey, descriptor] = decoratorArgs;
-      const proto = target;
-      const name = toolName || propertyKey.toString();
-
-      if (toolRegistry.has(name)) {
-        throw new Error(`Tool name "${name}" is already registered`);
-      }
-
-      const paramSchemas: ParamSchema[] =
-        Reflect.getOwnMetadata(`tool:paramSchemas:${propertyKey.toString()}`, proto) || [];
-
-      const returnSchema: ZodType<any> | undefined =
-        Reflect.getOwnMetadata(`tool:returnSchema:${propertyKey.toString()}`, proto);
-
-      const title: string | undefined =
-        Reflect.getOwnMetadata(`tool:title:${propertyKey.toString()}`, proto);
-
-      const description: string | undefined =
-        Reflect.getOwnMetadata(`tool:description:${propertyKey.toString()}`, proto);
-
-      const meta: ToolMetaData = {
-        toolName: name,
-        title,
-        description,
-        paramSchemas,
-        returnSchema,
-        methodName: propertyKey
-      };
-      toolRegistry.set(name, { target: proto, meta });
-    } else {
-      // 新签名 proposal
-      const [value, context] = decoratorArgs;
-      // context.name 是方法名 (string | symbol)
-      const propertyKey = context.name;
-      const proto = value;  // value 是函数本身， but for metadata we treat `proto = value`? Actually `value` is the method function, but metadata is usually on prototype, so need to find the prototype
-      // In new proposal, `context` has `kind`, static, etc. To get the prototype, you might need to use context on class or instance.
-      // Assuming the class's prototype is accessible via: context.static ? targetClass : targetClass.prototype
-      // But context doesn't directly give the target object in TS new API — might need to adapt depending on runtime.
-
-      // For simplicity, assume we have metadata stored on prototype under same propertyKey
-      const name = toolName || propertyKey.toString();
-
-      if (toolRegistry.has(name)) {
-        throw new Error(`Tool name "${name}" is already registered`);
-      }
-
-      const paramSchemas: ParamSchema[] =
-        Reflect.getOwnMetadata(`tool:paramSchemas:${propertyKey.toString()}`, proto) || [];
-
-      const returnSchema: ZodType<any> | undefined =
-        Reflect.getOwnMetadata(`tool:returnSchema:${propertyKey.toString()}`, proto);
-
-      const title: string | undefined =
-        Reflect.getOwnMetadata(`tool:title:${propertyKey.toString()}`, proto);
-
-      const description: string | undefined =
-        Reflect.getOwnMetadata(`tool:description:${propertyKey.toString()}`, proto);
-
-      const meta: ToolMetaData = {
-        toolName: name,
-        title,
-        description,
-        paramSchemas,
-        returnSchema,
-        methodName: propertyKey
-      };
-      toolRegistry.set(name, { target: proto, meta });
+    if (toolRegistry.has(toolName)) {
+      throw new Error(`Tool name "${toolName}" is already registered`);
     }
+
+    const meta: ToolMetaData = {
+      toolName,
+      title,
+      description,
+      paramSchemas,
+      returnSchema,
+      methodName: propertyKey,
+    };
+    toolRegistry.set(toolName, { target: proto, meta });
   };
 }
 
+// Description decorator
 export function Description(desc: string) {
-  return function (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
-    const key = `tool:description:${propertyKey.toString()}`;
-    Reflect.defineMetadata(key, desc, target);
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    Reflect.defineMetadata(`tool:description:${propertyKey}`, desc, target);
   };
 }
 
+// Title decorator
 export function Title(title: string) {
-  return function (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
-    const key = `tool:title:${propertyKey.toString()}`;
-    Reflect.defineMetadata(key, title, target);
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    Reflect.defineMetadata(`tool:title:${propertyKey}`, title, target);
   };
 }
 
-export function Param(schema: ZodType<any>) {
+// Param decorator (标注某个参数要用某个 Zod schema 验证)
+export function Param(schema: ZodType) {
   return function (target: any, propertyKey: string | symbol, parameterIndex: number) {
     const proto = target;
     const key = `tool:paramSchemas:${propertyKey.toString()}`;
@@ -123,11 +75,15 @@ export function Param(schema: ZodType<any>) {
   };
 }
 
-export function Result(returnType: ZodType<any>) {
-  return function (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
+// Result decorator（标注返回值 schema）
+// 接受 returnType 参数，自动包装成 CommonResult 格式
+export function Result(returnType: ZodType) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    // 使用 createCommonResult 自动包装成 { code: number, data: returnType } 的格式
     const wrappedSchema = createCommonResult(returnType);
-    Reflect.defineMetadata(`tool:returnSchema:${propertyKey.toString()}`, wrappedSchema, target);
+    Reflect.defineMetadata(`tool:returnSchema:${propertyKey}`, wrappedSchema, target);
   };
 }
 
+// 导出 registry
 export { toolRegistry, ToolMetaData };
