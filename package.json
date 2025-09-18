@@ -13,7 +13,8 @@
         "build": "npm run build:clear && tsc -b",
         "build:watch": "tsc -b --watch",
         "build:clear": "node ./scripts/clear.js",
-        "postinstall": "node ./scripts/postinstall.js"
+        "postinstall": "node ./scripts/postinstall.js",
+        "download-tools": "node ./scripts/download-tools.js"
     },
     "author": "cocos",
     "license": "ISC",

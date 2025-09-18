@@ -8,6 +8,7 @@
 .vscode/launch.json
 .user.json
 .DS_Store
+.temp
 
 # tsconfig
 tsconfig.tsbuildinfo
@@ -18,6 +19,7 @@ tsconfig.tsbuildinfo
 
 # static
 static/engine/cc-module/editor
+static/tools/
 
 # 构建文件
 /dist

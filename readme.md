@@ -42,7 +42,22 @@ cocos open ./my-project
 - `build` - Build project for deployment
 - `help` - Display help information
 
+## Development Tools
+
+### Download Development Tools
+
+This project includes various development tools that need to be downloaded separately. Use the following command to download all required tools:
+
+```bash
+npm run download-tools
+```
+
+This will download platform-specific tools for Windows, macOS, and Linux. For detailed information about the tools and troubleshooting, see:
+
+📖 [Tool Download Guide](docs/download-tools.md)
+
 ## API Documentation
+
 [ConstantOptions](docs/core/ConstantOptions.md)
 
 ## Contributing

@@ -42,8 +42,22 @@ cocos open ./my-project
 - `build` - 构建项目用于部署
 - `help` - 显示帮助信息
 
+## 开发工具
+
+### 下载开发工具
+
+本项目包含各种开发工具，需要单独下载。使用以下命令下载所有必需的工具：
+
+```bash
+npm run download-tools
+```
+
+这将下载适用于 Windows、macOS 和 Linux 的平台特定工具。有关工具的详细信息和故障排除，请参阅：
+
+📖 [工具下载指南](docs/download-tools.md)
 
 ## API 说明
+
 [ConstantOptions](docs/core/ConstantOptions-zh.md)
 
 ## 贡献
