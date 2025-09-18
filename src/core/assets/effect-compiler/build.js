@@ -3,7 +3,6 @@
 const ps = require('path');
 const fs = require('fs-extra');
 const fsJetpack = require('fs-jetpack');
-const { Module } = require('module');
 
 const options = {
     engineRoot: '',

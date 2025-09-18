@@ -57,6 +57,7 @@
         "fs-extra": "^10.0.0",
         "get-audio-duration": "^4.0.1",
         "get-video-duration": "^4.1.0",
+        "gl": "^8.1.6",
         "globby": "^14.1.0",
         "glsl-tokenizer": "^2.1.5",
         "gltf-validator": "^2.0.0-dev.2.7",

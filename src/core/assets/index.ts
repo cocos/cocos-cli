@@ -24,3 +24,6 @@ export async function startupAssetDB(config: Partial<AssetDBConfig> = {}) {
         throw error;
     }
 }
+
+
+// TODO 对外接口暴露

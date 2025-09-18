@@ -20,19 +20,16 @@ export const VideoHandler: AssetHandler = {
         async import(asset: Asset) {
             await asset.copyToLibrary(asset.extname, asset.source);
             let duration = 10;
-            // try {
-            //     duration = await getVideoDurationInSeconds(asset.source);
-            // } catch (error) {
-            //     console.error(
-            //         `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
-            //     );
-            //     console.debug(error);
-            // }
-            console.log('duration', duration);
+            try {
+                duration = await getVideoDurationInSeconds(asset.source);
+            } catch (error) {
+                console.error(
+                    `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
+                );
+                console.debug(error);
+            }
             const video = createVideo(asset, duration);
             const serializeJSON = EditorExtends.serialize(video) as string;
-            console.log('serializeJSON', serializeJSON);
-
             await asset.saveToLibrary('.json', serializeJSON);
             return true;
         },

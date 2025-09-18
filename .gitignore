@@ -21,3 +21,6 @@ static/engine/cc-module/editor
 
 # 构建文件
 /dist
+
+# jest
+coverage

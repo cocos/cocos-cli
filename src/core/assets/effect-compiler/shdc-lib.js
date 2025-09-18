@@ -1001,7 +1001,7 @@ const extractParams = (() => {
         } while (exMap[tokens[i].type]);
         return i;
     };
-    const nextSemicolon = (tokens, i, check = (t) => {}) => {
+    const nextSemicolon = (tokens, i, check = (t) => { }) => {
         while (tokens[i].data !== ';') {
             check(tokens[i++]);
         }
@@ -1112,7 +1112,7 @@ const extractParams = (() => {
                     if (implicitPadding) {
                         error(
                             `EFX2205: UBO '${param.name}' introduces implicit padding: ` +
-                                `${implicitPadding} bytes before '${cur.name}', consider re-ordering the members`,
+                            `${implicitPadding} bytes before '${cur.name}', consider re-ordering the members`,
                         );
                     }
                     return alignedOffset + baseAlignment * cur.count; // base offset for the next member
@@ -1127,7 +1127,7 @@ const extractParams = (() => {
                     if (typeof info.type === 'string') {
                         error(
                             `EFX2211: '${info.type} ${info.name}' in block '${param.name}': ` +
-                                'struct-typed member within UBOs is not supported due to compatibility reasons.',
+                            'struct-typed member within UBOs is not supported due to compatibility reasons.',
                             tokens[idx].line,
                         );
                     }
@@ -1136,7 +1136,7 @@ const extractParams = (() => {
                 if (tokens[idx].data !== ';') {
                     error(
                         'EFX2209: Block declarations must be semicolon-terminated，non-array-typed and instance-name-free. ' +
-                            `Please check your '${param.name}' block declaration.`,
+                        `Please check your '${param.name}' block declaration.`,
                         tokens[idx].line,
                     );
                 }
@@ -1213,22 +1213,7 @@ const miscChecks = (() => {
 })();
 
 const finalTypeCheck = (() => {
-    let gl = null;
-    let backendCheckEnabled = true;
-    const createGL = () => {
-        if (!gl && typeof document !== 'undefined') {
-            gl = document.createElement('canvas').getContext('webgl', { depth: true, stencil: true });
-            if (gl) {
-                gl.getSupportedExtensions().forEach((e) => gl.getExtension(e));
-                // some of our shaders assumes some basic device capabilities and we shouldn't
-                // directly reject the effect file only because we are running the editor on a
-                // less-capable device, so just skip the WebGL backend check here and leave
-                // the problem for runtime to handle.
-                backendCheckEnabled = backendCheckEnabled && gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS) >= 8;
-            }
-        }
-        return backendCheckEnabled && gl;
-    };
+    let gl = require('gl')(width, height, { preserveDrawingBuffer: true });
     const getDefineString = (defines) =>
         defines.reduce((acc, cur) => {
             let value = 1; // enable all boolean swithces
@@ -1275,9 +1260,6 @@ const finalTypeCheck = (() => {
         return prog;
     };
     return (vert, frag, defines, vertName, fragName) => {
-        if (!createGL()) {
-            return;
-        } // delay context creation to the first compilation job
         const prefix = '#version 100\n' + getDefineString(defines);
         shaderName = vertName;
         const vs = compile(prefix + vert, gl.VERTEX_SHADER);
@@ -1600,22 +1582,22 @@ const decorateBindings = (code, manifest, paramInfo) => {
                 } else if (info.type === 'buffers') {
                     error(
                         `EFX2603: illegal custom binding for '${name}', buffer bindings should be consecutive and after all the ` +
-                            'blocks/samplerTextures',
+                        'blocks/samplerTextures',
                     );
                 } else if (info.type === 'images') {
                     error(
                         `EFX2604: illegal custom binding for '${name}', image bindings should be consecutive and after all the ` +
-                            'blocks/samplerTextures/buffers',
+                        'blocks/samplerTextures/buffers',
                     );
                 } else if (info.type === 'textures') {
                     error(
                         `EFX2605: illegal custom binding for '${name}', texture bindings should be consecutive and after all the ` +
-                            'blocks/samplerTextures/buffers/images',
+                        'blocks/samplerTextures/buffers/images',
                     );
                 } else if (info.type === 'samplers') {
                     error(
                         `EFX2606: illegal custom binding for '${name}', sampler bindings should be consecutive and after all the ` +
-                            'blocks/samplerTextures/buffers/images/textures',
+                        'blocks/samplerTextures/buffers/images/textures',
                     );
                 } else {
                     // attributes or varyings

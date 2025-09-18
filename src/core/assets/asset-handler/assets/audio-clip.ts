@@ -36,7 +36,6 @@ const AudioHandler: AssetHandler = {
                 );
             }
             const audio = createAudio(asset, duration);
-            console.log('duration', audio.getDuration());
             await asset.saveToLibrary('.json', EditorExtends.serialize(audio));
             return true;
         },
