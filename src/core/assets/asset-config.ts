@@ -72,6 +72,7 @@ class AssetConfig {
         }
         Object.assign(this._assetConfig, userConfig);
         this._assetConfig.libraryRoot = this._assetConfig.libraryRoot || join(this._assetConfig.root, 'library');
+        this._assetConfig.tempRoot = join(this._assetConfig.root, 'temp/asset-db');
         this._init = true;
     }
 }

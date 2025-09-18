@@ -43,12 +43,12 @@ import { GlobalPaths } from '../../../../global';
 
 const lodash = require('lodash');
 
-const ajv = new Ajv({
-    errorDataPath: '',
-});
-const schemaFile = path.join(__dirname, '..', '..', '..', 'dist', 'meta-schemas', 'glTF.meta.json');
-const schema = fs.readJSONSync(schemaFile);
-const metaValidator = ajv.compile(schema);
+// const ajv = new Ajv({
+//     errorDataPath: '',
+// });
+// const schemaFile = path.join(__dirname, '..', '..', '..', 'dist', 'meta-schemas', 'glTF.meta.json');
+// const schema = fs.readJSONSync(schemaFile);
+// const metaValidator = ajv.compile(schema);
 
 export const GltfHandler: AssetHandlerBase = {
     // Handler 的名字，用于指定 Handler as 等
@@ -312,38 +312,37 @@ async function _getOptimizerPath(asset: Asset, source: string, options: Gltfpack
 }
 
 async function validateMeta(asset: Asset) {
-    asset.meta.userData.imageMetas ??= [];
-    const metaValidation = await metaValidator(asset.meta.userData);
-    if (!metaValidation) {
-        if (Object.keys(asset.meta.userData).length !== 0) {
-            console.debug(
-                'Meta file of asset ' +
-                asset.source +
-                ' is damaged: \n' +
-                (metaValidator.errors || []).map((error) => error.message) +
-                '\nA default meta file is patched.',
-            );
-        }
-        const defaultMeta: GlTFUserData = {
-            imageMetas: [],
-            legacyFbxImporter: false,
-            allowMeshDataAccess: true,
-            addVertexColor: false,
-            generateLightmapUVNode: false,
-            meshOptimizer: {
-                enable: false,
-                algorithm: 'simplify',
-                simplifyOptions: getDefaultSimplifyOptions(),
-            },
-            lods: {
-                enable: false,
-                hasBuiltinLOD: false,
-                options: [],
-            },
-        };
-        // TODO 由于目前资源界面编辑的部分默认值是自行编写的，很容易出现此类默认值有缺失的情况，补齐即可
-        asset.meta.userData = lodash.defaultsDeep(asset.meta.userData, defaultMeta);
-    }
+    // asset.meta.userData.imageMetas ??= [];
+    // const metaValidation = await metaValidator(asset.meta.userData);
+    // if (!metaValidation) {
+    //     if (Object.keys(asset.meta.userData).length !== 0) {
+    //         console.debug(
+    //             'Meta file of asset ' +
+    //             asset.source +
+    //             ' is damaged: \n' +
+    //             (metaValidator.errors || []).map((error) => error.message) +
+    //             '\nA default meta file is patched.',
+    //         );
+    //     }
+    const defaultMeta: GlTFUserData = {
+        imageMetas: [],
+        legacyFbxImporter: false,
+        allowMeshDataAccess: true,
+        addVertexColor: false,
+        generateLightmapUVNode: false,
+        meshOptimizer: {
+            enable: false,
+            algorithm: 'simplify',
+            simplifyOptions: getDefaultSimplifyOptions(),
+        },
+        lods: {
+            enable: false,
+            hasBuiltinLOD: false,
+            options: [],
+        },
+    };
+    // TODO 由于目前资源界面编辑的部分默认值是自行编写的，很容易出现此类默认值有缺失的情况，补齐即可
+    asset.meta.userData = lodash.defaultsDeep(asset.meta.userData, defaultMeta);
 }
 
 async function importSubAssets(asset: Asset) {

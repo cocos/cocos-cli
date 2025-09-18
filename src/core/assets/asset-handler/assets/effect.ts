@@ -338,6 +338,10 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
  */
 export async function afterImport(force?: boolean) {
     const effectList: Asset[] = [];
+    if (!effectList.length) {
+        console.debug('no effect to compile');
+        return;
+    }
     forEach((database: AssetDB) => {
         database.path2asset.forEach((asset) => {
             if (asset.meta.importer === 'effect') {

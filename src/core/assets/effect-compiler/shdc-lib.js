@@ -1213,7 +1213,7 @@ const miscChecks = (() => {
 })();
 
 const finalTypeCheck = (() => {
-    let gl = require('gl')(width, height, { preserveDrawingBuffer: true });
+    let gl = require('gl')(300, 150, { preserveDrawingBuffer: true });
     const getDefineString = (defines) =>
         defines.reduce((acc, cur) => {
             let value = 1; // enable all boolean swithces

@@ -23,29 +23,30 @@ describe('Import Project', () => {
         importer: 'audio-clip',
         library: ['.json', '.mp3']
     }];
+    console.log(`test assets in project ${testInfo.projectRoot}, engine root ${testInfo.engineRoot}`)
     testAssets.forEach((asset) => {
         const assetPath = join(testInfo.projectRoot, asset.url);
         const metaPath = assetPath + '.meta';
         const meta = readJSONSync(metaPath);
         describe(asset.name + ' import', () => {
             it('meta exists', () => {
-                expect(existsSync(metaPath));
+                expect(existsSync(metaPath)).toBeTruthy();
             });
             it('importer', () => {
                 expect(meta.importer).toEqual(asset.importer);
             });
-        });
+            asset.library.forEach((extension) => {
+                it('library exists', () => {
+                    const uuid = meta.uuid;
+                    expect(existsSync(join(testInfo.projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`))).toBeTruthy();
+                });
+            });
 
-        asset.library.forEach((extension) => {
-            it('library exists', () => {
-                const uuid = meta.uuid;
-                expect(existsSync(join(testInfo.projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`)));
+            it('imported', () => {
+                expect(meta.imported).toBeTruthy;
             });
         });
 
-        it('imported', () => {
-            expect(meta.imported).toBeTruthy;
-        });
     });
 
 });

@@ -9,7 +9,7 @@ import { changeImageDefaultType } from './utils/image-utils';
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
 
-const fntParser = require('../../../static/utils/fnt-parser');
+const fntParser = require('./utils/fnt-parser');
 
 /**
  * 获取实际的纹理文件位置

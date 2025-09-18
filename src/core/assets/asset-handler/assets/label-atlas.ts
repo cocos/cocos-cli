@@ -5,7 +5,7 @@ import { basename } from 'path';
 
 import { getDependUUIDList } from '../utils';
 
-const fntParser = require('../../../static/utils/fnt-parser');
+const fntParser = require('./utils/fnt-parser');
 
 const FONT_SIZE = 0.88;
 
