@@ -1,23 +1,85 @@
-# Cocos CLI
+# 🎮 Cocos CLI
 
-## 概述
+[![Node.js](https://img.shields.io/badge/Node.js-22.17.0-green.svg)](https://nodejs.org/)
+[![Cocos Engine](https://img.shields.io/badge/Cocos-Engine-orange.svg)](https://github.com/cocos/cocos-engine)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的命令行界面工具。它为开发者提供了便捷的方式来管理 Cocos 项目，包括导入导出资源、项目初始化、项目的多平台导出和其他自动化任务。
+> 🚀 专为 Cocos Engine 开发设计的强大命令行界面工具
 
-## 功能特性
+## 📖 概述
 
-- **项目管理**：初始化和管理 Cocos 项目
-- **资源导入/导出**：将外部资源导入项目或导出项目资源
-- **自动化工具**：批处理操作和自动化工作流
-- **跨平台支持**：支持 Cocos Creator 3.x 项目
+Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的综合命令行界面工具。它为开发者提供了便捷的方式来管理 Cocos 项目，包括导入导出资源、项目初始化、资源处理、多平台导出和其他自动化任务。
 
-## 安装
+## ✨ 功能特性
 
-```bash
-npm install -g cocos-cli
-```
+- 🏗️ **项目管理**：初始化和管理 Cocos 项目
+- 📦 **资源导入/导出**：将外部资源导入项目或导出项目资源
+- 🔧 **自动化工具**：批处理操作和自动化工作流
+- 🌐 **跨平台支持**：支持 Cocos Creator 3.x 项目
+- 🎯 **资源处理**：高级纹理打包、效果编译和资源优化
+- ⚡ **构建系统**：多平台构建支持，可自定义选项
 
-## 使用方法
+## 🛠️ 开发环境配置
+
+### 环境要求
+
+- **Node.js**：版本 22.17.0（必需）
+- **Cocos Engine**：本地安装路径
+- **Git**：用于克隆仓库
+
+### 快速开始
+
+1. **克隆仓库**
+
+   ```bash
+   git clone <repository-url>
+   cd cocos-cli
+   ```
+
+2. **配置环境**
+
+   在根目录创建 `.user.json` 文件：
+
+   ```json
+   {
+     "engine": "/path/to/your/cocos/engine",
+     "project": "/path/to/your/project (可选，默认使用 tests 目录)"
+   }
+   ```
+
+   示例：
+
+   ```json
+   {
+     "engine": "F:\\code\\editor-3d-dev\\resources\\3d\\engine",
+     "project": "F:\\code\\cocos-cli\\tests\\fixtures\\projects\\asset-operation"
+   }
+   ```
+
+3. **安装依赖**
+
+   ```bash
+   npm install
+   ```
+
+4. **下载开发工具**（首次运行）
+
+   ```bash
+   npm run download-tools
+   ```
+
+5. **启动应用**
+
+   ```bash
+   npm start
+   ```
+
+### 📋 配置说明
+
+- **`engine`**：本地 Cocos Engine 安装路径（必需）
+- **`project`**：测试项目路径（可选，默认为 `tests` 目录）
+
+## 🚀 使用方法
 
 ```bash
 # 初始化新 Cocos 项目
@@ -33,16 +95,18 @@ cocos export --project ./my-project --config-path ./config.json --output ./expor
 cocos open ./my-project
 ```
 
-## 命令说明
+## 📚 命令说明
 
-- `init` - 创建新的 Cocos 项目
-- `import` - 导入资源到项目
-- `export` - 导出项目资源
-- `open` - 在 Cocos Creator 中打开项目
-- `build` - 构建项目用于部署
-- `help` - 显示帮助信息
+| 命令 | 描述 | 示例 |
+|------|------|------|
+| `init` | 创建新的 Cocos 项目 | `cocos init my-project` |
+| `import` | 导入资源到项目 | `cocos import --project ./my-project --source ./assets` |
+| `export` | 导出项目资源 | `cocos export --project ./my-project --output ./exported-assets` |
+| `open` | 在 Cocos Creator 中打开项目 | `cocos open ./my-project` |
+| `build` | 构建项目用于部署 | `cocos build --platform web-mobile` |
+| `help` | 显示帮助信息 | `cocos help` |
 
-## 开发工具
+## 🔧 开发工具
 
 ### 下载开发工具
 
@@ -56,10 +120,38 @@ npm run download-tools
 
 📖 [工具下载指南](docs/download-tools.md)
 
-## API 说明
+## 📖 API 说明
 
-[ConstantOptions](docs/core/ConstantOptions-zh.md)
+- [ConstantOptions](docs/core/ConstantOptions-zh.md) - 配置选项和常量说明
 
-## 贡献
+## 🧪 测试
+
+运行测试套件以验证一切正常工作：
+
+```bash
+npm run test
+```
+
+## 🤝 贡献
 
 欢迎贡献代码！在提交拉取请求之前，请阅读我们的贡献指南。
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 🙏 致谢
+
+- [Cocos Engine](https://github.com/cocos/cocos-engine) - 出色的游戏引擎
+- [Node.js](https://nodejs.org/) - JavaScript 运行时
+- 所有帮助改进此项目的贡献者
+
+---
+
+<div align="center">
+
+**用 ❤️ 为 Cocos 社区打造**
+
+[⭐ 给这个仓库点星](https://github.com/SUD-GLOBAL/cocos-cli) | [🐛 报告 Bug](https://github.com/SUD-GLOBAL/cocos-cli/issues) | [💡 请求功能](https://github.com/SUD-GLOBAL/cocos-cli/issues)
+
+</div>

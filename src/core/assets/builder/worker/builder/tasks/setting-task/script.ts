@@ -3,7 +3,7 @@
 import { basename } from 'path';
 import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
-import { removeDbHeader } from '../../utils';
+import { relativeUrl, removeDbHeader } from '../../utils';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
 
 export const title = 'i18n:builder.tasks.settings.script';
@@ -15,7 +15,7 @@ export const title = 'i18n:builder.tasks.settings.script';
  */
 export async function handle(this: IBuilder, options: IInternalBuildOptions, result: InternalBuildResult, cache: BuilderAssetCache) {
     const settings = result.settings;
-    settings.scripting.scriptPackages = result.scriptPackages.map((path) => Build.Utils.relativeUrl(result.paths.engineDir!, path));
+    settings.scripting.scriptPackages = result.scriptPackages.map((path) => relativeUrl(result.paths.engineDir!, path));
     settings.plugins.jsList = result.pluginScripts.map((script) => {
         let fileDbUrlNoProtocolHeader = removeDbHeader(script.url);
         if (options.md5Cache && result.paths.plugins[script.uuid]) {

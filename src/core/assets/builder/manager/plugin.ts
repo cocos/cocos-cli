@@ -1,11 +1,11 @@
 import EventEmitter from 'events';
-import { dirname, isAbsolute, join } from 'path';
+import { dirname, isAbsolute, join, resolve } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting, commonOptionConfigs, getCommonOptions } from '../share/common-options-validator';
 import { builtinPlugins, NATIVE_PLATFORM, platformPlugins, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
-import { checkConfigDefault, defaultMerge, defaultsDeep, resolveToRaw } from '../share/utils';
+import { checkConfigDefault, defaultMerge, defaultsDeep, getConfig, getOptionsDefault, resolveToRaw, setConfig } from '../share/utils';
 import { Platform, IConfigItem, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
-import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IPlatformInfo, IBuildStageItem, IBuildIconItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo } from '../@types/protected';
+import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IPlatformInfo, IBuildStageItem, IBuildIconItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired } from '../@types/protected';
 import Utils from '../../../base/utils';
 import i18n from '../../../base/i18n';
 import lodash from 'lodash';
@@ -24,6 +24,7 @@ export interface InternalPackageInfo {
 export interface IRegisterPlatformInfo {
     platform: Platform;
     config: IInternalBuildPluginConfig | IPlatformBuildPluginConfig;
+    path: string;
 }
 type ICustomAssetHandlerType = 'compressTextures';
 type IAssetHandlers = Record<ICustomAssetHandlerType, Record<string, Function>>;
@@ -36,10 +37,10 @@ export class PluginManager extends EventEmitter {
     public pkgOptionConfigs: Record<string, Record<string, IDisplayOptions>> = {};
     public platformConfig: Record<string, IPlatformConfig> = {};
     public buildTemplateConfigMap: Record<string, BuildTemplateConfig> = {};
-    public readonly configMap: Record<Platform, Record<string, IInternalBuildPluginConfig>>; // 存储注入进来的 config
+    public configMap: Record<Platform, Record<string, IInternalBuildPluginConfig>>; // 存储注入进来的 config
     // 存储注册进来的，带有 hooks 的插件路径，[pkgName][platform]: hooks
-    private readonly builderPathsMap: Record<string, Record<string, string>> = {};
-    private readonly customBuildStagesMap: {
+    private builderPathsMap: Record<string, Record<string, string>> = {};
+    private customBuildStagesMap: {
         [pkgName: string]: {
             [platform: string]: IBuildStageItem[];
         };
@@ -70,12 +71,19 @@ export class PluginManager extends EventEmitter {
         });
     }
 
-    async init(platforms: string[]) {
+    async init(platforms: Platform[]) {
+        const platformMap: Record<string, Object> = {};
+        platforms.forEach((platform) => platformMap[platform] = {});
+        BuildGlobalInfo.platforms = platforms;
+        this.platformConfig = JSON.parse(JSON.stringify(platformMap));
+        this.configMap = JSON.parse(JSON.stringify(platformMap));
         await Promise.all(platforms.map(async (platform) => {
             const config = (await import(`../platforms/${platform}`));
+            const platformRoot = join(__dirname, `../platforms/${platform}`);
             await this.internalRegister({
-                platformName: platform,
-                ...config.default,
+                platform,
+                config: config.default,
+                path: platformRoot,
             });
         }));
     }
@@ -110,6 +118,7 @@ export class PluginManager extends EventEmitter {
                 const registerInfo: IRegisterPlatformInfo = {
                     platform,
                     config,
+                    path: pkg.path,
                 };
                 if (key === '*') {
                     for (const platform of this.enablePlatforms) {
@@ -145,7 +154,7 @@ export class PluginManager extends EventEmitter {
     }
 
     protected async internalRegister(registerInfo: IRegisterPlatformInfo, pkgInfo?: InternalPackageInfo): Promise<void> {
-        const { platform, config } = registerInfo;
+        const { platform, config, path } = registerInfo;
 
         const pkgName = pkgInfo?.name || platform;
         // 插件显示顺序需要由 service 提供查询接口
@@ -163,10 +172,11 @@ export class PluginManager extends EventEmitter {
             config.doc = Utils.Url.getDocUrl(config.doc);
         }
         if (typeof config.options === 'object') {
-            this.pkgOptionConfigs[registerInfo.platform][pkgName] = config.options;
+            lodash.set(this.pkgOptionConfigs, `${registerInfo.platform}.${pkgName}`, config.options)
             Object.keys(config.options).forEach((key) => {
                 checkConfigDefault(config.options![key]);
             });
+            setConfig(`options.${platform}.${pkgName}`, getOptionsDefault(config.options));
         }
 
         if (config.customBuildStages) {
@@ -222,7 +232,6 @@ export class PluginManager extends EventEmitter {
             }
             this.platformConfig[platform].texture = config.textureCompressConfig;
         }
-
         if (config.platformName) {
             this.platformConfig[platform].name = config.platformName;
             this.platformConfig[platform].platformType = (config as IPlatformBuildPluginConfig).platformType;
@@ -241,7 +250,7 @@ export class PluginManager extends EventEmitter {
         this.configMap[platform][pkgName] = config;
         // 注册 hooks 路径
         if (typeof config.hooks === 'string') {
-            config.hooks = resolveToRaw(config.hooks, dirname(config.hooks));
+            config.hooks = resolveToRaw(config.hooks, path);
             lodash.set(this.builderPathsMap, `${pkgName}.${platform}`, config.hooks);
         }
         // 注册构建模板菜单项
@@ -298,7 +307,7 @@ export class PluginManager extends EventEmitter {
      * 完整校验构建参数（校验平台插件相关的参数校验）
      * @param options
      */
-    public async checkOptions(options: IBuildTaskOption): Promise<undefined | IBuildTaskOption> {
+    public async checkOptions(options: MakeRequired<IBuildCommandOption, 'platform' | 'mainBundleCompressionType'>): Promise<undefined | IBuildTaskOption> {
         // 对参数做数据验证
         let checkRes = true;
         if (this.bundleConfigs[options.platform]) {
@@ -493,8 +502,7 @@ export class PluginManager extends EventEmitter {
         };
         const pkgNames = Object.keys(this.configMap[platform]);
         for (const pkgName of pkgNames) {
-            // TODO 从默认配置里取
-            // options.packages[pkgName] = await Editor.Profile.getConfig(pkgName, `builder.options.${platform}`, 'default');
+            options.packages[pkgName] = getConfig(`options.${platform}.${pkgName}`);
         }
         return options;
     }

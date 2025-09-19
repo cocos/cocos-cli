@@ -10,12 +10,13 @@ import { validatorManager } from './validator-manager';
 import { NATIVE_PLATFORM } from './platforms-options';
 import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IConfigItem, IBuildTaskOption } from '../@types';
 import { IInternalBuildSceneItem } from '../@types/options';
-import { BuildCheckResult, BundleCompressionType, ISplashSetting } from '../@types/protected';
+import { BuildCheckResult, BundleCompressionType, IBuildDesignResolution, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig, ISplashSetting } from '../@types/protected';
 import i18n from '../../../base/i18n';
 import Utils from '../../../base/utils';
 import { assetManager } from '../../manager/asset';
 import { getConfig } from './utils';
 import { BuildGlobalInfo } from './global';
+import { profile, Profile } from '../../../profile/script';
 interface ModuleConfig {
     match: (module: string) => boolean;
     default: string | boolean;
@@ -473,7 +474,8 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
 };
 
 export async function getCommonOptions(platform: Platform, useDefault = false) {
-    const result: IBuildTaskOption = JSON.parse(JSON.stringify((getConfig('common'))));
+    const commonConfig = getConfig('common', useDefault, 'global');
+    const result: IBuildTaskOption = JSON.parse(JSON.stringify(commonConfig));
     if (!useDefault) {
         const platformCustomCommonOptions = getConfig(`${platform}.common`);
         if (platformCustomCommonOptions) {
@@ -696,4 +698,69 @@ export function handleOverwriteProjectSettings(options: IBuildTaskOption) {
         }
         options.includeModules = Array.from(new Set(includeModules));
     }
+}
+
+export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {
+    // 默认 Canvas 设置
+    if (!options.designResolution) {
+        const designResolution = await profile.getProject<IBuildDesignResolution>('project', 'general.designResolution');
+        if (designResolution) {
+            options.designResolution = designResolution;
+        }
+    }
+
+    // renderPipeline
+    if (!options.renderPipeline) {
+        const renderPipeline = await profile.getProject<string>('project', 'general.renderPipeline');
+        if (renderPipeline) {
+            options.renderPipeline = renderPipeline;
+        }
+    }
+
+    // physicsConfig
+    if (!options.physicsConfig) {
+        const physicsConfig = await profile.getProject<IPhysicsConfig>('project', 'physics');
+        if (physicsConfig) {
+            options.physicsConfig = physicsConfig;
+            if (!options.physicsConfig.defaultMaterial) {
+                options.physicsConfig.defaultMaterial = 'ba21476f-2866-4f81-9c4d-6e359316e448';
+            }
+        }
+    }
+
+    // customLayers
+    if (!options.customLayers) {
+        const customLayers = await profile.getProject<{ name: string, value: number }[]>('project', 'layer');
+        if (customLayers) {
+            options.customLayers = customLayers;
+        }
+    }
+
+    // sortingLayers
+    if (!options.sortingLayers) {
+        const sortingLayers = await profile.getProject<{ id: number, name: string, value: number }[]>('project', 'sorting-layer');
+        if (sortingLayers) {
+            options.sortingLayers = sortingLayers;
+        }
+    }
+
+    // macro 配置
+    if (!options.macroConfig) {
+        const macroConfig = await profile.getProject<Record<string, any>>('engine', 'macroConfig');
+        if (macroConfig) {
+            options.macroConfig = macroConfig;
+        }
+    }
+
+    if (!options.includeModules || !options.includeModules.length) {
+        options.includeModules = ['base', '2d', '3d', 'animation', 'audio', 'base', 'custom-pipeline', 'dragon-bones', 'gfx-webgl', 'graphics', 'intersection-2d', 'light-probe', 'marionette', 'mask', 'particle', 'particle-2d', 'physics-2d-box2d', 'physics-ammo', 'primitive', 'profiler', 'rich-text', 'skeletal-animation', 'spine-3.8', 'terrain', 'tiled-map', 'tween', 'ui', 'ui-skew', 'video', 'websocket', 'webview'];
+    }
+
+    if (!options.flags) {
+        options.flags = {
+            LOAD_BULLET_MANUALLY: false,
+            LOAD_SPINE_MANUALLY: false,
+        };
+    }
+
 }

@@ -5,8 +5,7 @@ import { IQuickSpawnOption } from '../../@types/protected';
 import { GlobalPaths } from '../../../../../global';
 
 // 获取 CPU 数量，有几个 CPU 就创建几个子进程，这样就可以最大化的利用机器性能
-// HACK 目前编辑器打包无法定制加密文件
-const workerPath = join(__dirname, '../../../static/sub-process-index');
+const workerPath = join(__dirname, './sub-process');
 
 interface ChildProcessMessageInfo {
     type: string;

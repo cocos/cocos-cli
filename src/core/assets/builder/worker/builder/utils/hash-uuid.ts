@@ -1,6 +1,6 @@
 import { compareUUID } from '../../../share/utils';
 
-const XXH = require('xxhashjs');
+import XXH from 'xxhashjs';
 
 // 因为我们计算的哈希值字符串长度不一定一样，所以在后面添加 ID 时要用分隔符隔开，
 // 才能避免加了 ID 后又刚好和其它哈希值冲突

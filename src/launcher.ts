@@ -1,6 +1,10 @@
 import { join } from 'path';
+import { IBuildCommandOption } from './core/assets/builder/@types/protected';
+import utils from './core/base/utils';
+import profile from './core/profile';
 
 class ProjectManager {
+
     create() {
 
     }
@@ -11,6 +15,14 @@ class ProjectManager {
      * @param enginePath
      */
     async open(path: string, enginePath: string) {
+        /**
+         * 初始化一些基础模块信息
+         */
+        utils.Path.register('project', {
+            label: '项目',
+            path,
+        });
+        await profile.init(path);
         // 初始化项目信息
         const { default: Project } = await import('./core/project');
         await Project.open(path);
@@ -34,7 +46,6 @@ class ProjectManager {
                 readonly: false,
                 visible: true,
                 library: join(path, 'library'),
-                preImportExtList: ['.ts', '.chunk', '.effect'],
             }],
         });
     }
@@ -44,8 +55,15 @@ class ProjectManager {
      * @param projectPath 
      * @param options 
      */
-    async build(projectPath: string, options: any) {
-
+    async build(projectPath: string, enginePath: string, options: Partial<IBuildCommandOption>) {
+        // 先打开项目
+        await this.open(projectPath, enginePath);
+        // 执行构建流程
+        const { build } = await import('./core/assets');
+        return await build({
+            ...options,
+            root: projectPath,
+        });
     }
 }
 

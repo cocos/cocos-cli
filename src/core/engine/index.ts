@@ -2,6 +2,7 @@ import { EngineCompiler } from './compiler';
 import { EngineInfo } from './@types/public';
 import { EngineConfig, InitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
+import { join } from 'path';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -28,9 +29,18 @@ const ignoreModules = ['custom-pipeline-post-process'];
 class Engine implements IEngine {
     private _init: boolean = false;
     private _info: EngineInfo = {
-        path: '',
+        version: '3.8.8',
         tmpDir: '',
-        version: '',
+        typescript: {
+            path: '',
+            type: 'builtin',
+            builtin: '',
+        },
+        native: {
+            path: '',
+            type: 'builtin',
+            builtin: '',
+        }
     }
     private _config: EngineConfig = {
         includedModules: [],
@@ -97,7 +107,7 @@ class Engine implements IEngine {
         if (!this._init) {
             throw new Error('Engine not init');
         }
-        this._compiler = this._compiler || EngineCompiler.create(this._info.path);
+        this._compiler = this._compiler || EngineCompiler.create(this._info.typescript.path);
         return this._compiler;
     }
 
@@ -110,7 +120,10 @@ class Engine implements IEngine {
         if (this._init) {
             return this;
         }
-        this._info.path = enginePath;
+        this._info.typescript.path = enginePath;
+        this._info.native.path = join(enginePath, 'native');
+        this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
+        this._info.tmpDir = join(enginePath, '.temp');
         this._init = true;
 
         return this;
@@ -129,7 +142,7 @@ class Engine implements IEngine {
     async initEngine(info: InitEngineInfo) {
         const { default: preload } = await import('cc/preload');
         await preload({
-            engineRoot: this._info.path,
+            engineRoot: this._info.typescript.path,
             engineDev: this.getCompiler().getOutDir(),
 
             requiredModules: [

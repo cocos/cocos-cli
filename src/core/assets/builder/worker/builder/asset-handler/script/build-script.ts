@@ -354,7 +354,7 @@ export async function buildScriptCommand(
 
         // defaultHandler(warning);
         const message = typeof warning === 'object' ? (warning.message || warning) : warning;
-        console.warn(`[[Build.Script.Rollup]] ${message}`);
+        console.warn(`[[BuildGlobalInfo.Script.Rollup]] ${message}`);
     };
 
     const importMappings: Record<string, string> = {};

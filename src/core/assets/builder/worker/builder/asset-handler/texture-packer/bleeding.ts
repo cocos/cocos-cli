@@ -235,7 +235,6 @@ export class BleedingProcessor {
         }
 
         if (options.paddingBleed) {
-            console.time('apply padding bleed');
             for (i = 0, tex = null; i < atlas.spriteFrameInfos.length; i++) {
                 tex = atlas.spriteFrameInfos[i].trim;
                 this.applyPaddingBleed(resultBuffer, srcBuffer, atlas.width, atlas.height,
@@ -248,7 +247,6 @@ export class BleedingProcessor {
                         yMax: tex.y + tex.rotatedHeight
                     });
             }
-            console.timeEnd('apply padding bleed');
         }
     }
 }

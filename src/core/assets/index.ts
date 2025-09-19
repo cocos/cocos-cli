@@ -7,6 +7,8 @@ import { assetDBManager } from './manager/asset-db';
 import { assetManager } from './manager/asset';
 import { getCurrentLocalTime } from './utils';
 import assetConfig, { AssetDBConfig } from './asset-config';
+import { IBuildCommandOption } from './builder/@types/private';
+import engine from '../engine';
 
 export async function startupAssetDB(config: Partial<AssetDBConfig> = {}) {
     try {
@@ -27,3 +29,11 @@ export async function startupAssetDB(config: Partial<AssetDBConfig> = {}) {
 
 
 // TODO 对外接口暴露
+
+export async function build(options: IBuildCommandOption) {
+    const { init } = await import('./builder/share/global');
+    init(options.root);
+    const { build } = await import('./builder');
+    options.engineInfo = engine.getInfo();
+    return await build(options);
+}

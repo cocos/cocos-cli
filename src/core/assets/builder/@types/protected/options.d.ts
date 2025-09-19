@@ -185,6 +185,16 @@ export interface IInternalBundleBuildOptions extends MakeRequired<IBuildTaskOpti
     platformType: StatsQuery.ConstantManager.PlatformType;
 }
 
+export interface IBuildCommandOption extends Partial<IBuildTaskOption> {
+    configPath?: string;
+    logDest?: string; // 日志输出地址
+    migrate?: boolean; // 是否迁移传入的构建参数，默认开启
+    stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
+    root: string; // 项目地址
+    projectSettingsPath?: string; // 导出的项目设置文件地址
+    skipCheck?: boolean; // 跳过参数的检查流程
+}
+
 export interface IInternalBuildOptions extends IInternalBundleBuildOptions {
     dest: string;
     // 编译 application.js 参数配置

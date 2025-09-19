@@ -1,9 +1,6 @@
 'use strict';
 
-declare const cc: any;
-const EditorExtends: any = require('@base/electron-module').require('EditorExtends');
-
-import { readJSON, existsSync, readJSONSync, outputJSON, removeSync, copy, outputFile, remove } from 'fs-extra';
+import { readJSON, existsSync, outputJSON, removeSync, copy } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 import { CCON } from 'cc/editor/serialization';
 import { transformCCON } from './cconb-utils';
@@ -97,7 +94,6 @@ class BuildAssetLibrary {
      * @returns 
      */
     queryAllAssets() {
-        console.time('queryAllAssets');
         const assetMap: Record<string, IAsset> = {};
         const assetDBMap = assetDBManager.assetDBMap;
         // 循环每一个已经启动的 database
@@ -110,7 +106,6 @@ class BuildAssetLibrary {
             }
         }
         this.assetMap = assetMap;
-        console.timeEnd('queryAllAssets');
         return this.assets;
     }
 

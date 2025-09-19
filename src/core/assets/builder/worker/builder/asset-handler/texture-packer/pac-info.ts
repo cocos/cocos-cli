@@ -9,8 +9,7 @@ import { IAsset } from '../../../../../@types/protected';
 import { IPackOptions, IPacInfo, PacStoreInfo, IPackResult, CompressedInfo, IAtlasInfo, ISpriteFrameInfo } from '../../../../@types/protected';
 import { BuildGlobalInfo } from '../../../../share/global';
 import utils from '../../../../../../base/utils';
-const Lodash = require('lodash');
-const EditorExtends: any = require('@base/electron-module').require('EditorExtends');
+import lodash from 'lodash';
 
 export const DefaultPackOption: IPackOptions = {
     maxWidth: 1024,
@@ -128,7 +127,7 @@ export class PacInfo implements IPacInfo {
 
         // 对 图片 进行排序，确保每次重新计算合图后的结果是稳定的。
         // 该排序只影响合图解析碎图的顺序，最终图集中的排序与合图算法有关，只有当图集中有相同尺寸的碎图时该排序才会产生作用。
-        spriteFrameInfos = Lodash.sortBy(spriteFrameInfos, 'uuid');
+        spriteFrameInfos = lodash.sortBy(spriteFrameInfos, 'uuid');
         this.spriteFrameInfos = spriteFrameInfos as SpriteFrameInfo[];
         this.storeInfo.sprites = this.spriteFrameInfos.map((info) => info.toJSON());
 

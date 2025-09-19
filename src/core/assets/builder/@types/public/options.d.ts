@@ -3,6 +3,7 @@ import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig 
 import { BuildTemplateConfig, IPlatformType } from '../protected';
 import { IFlags } from '@cocos/creator-types/editor/packages/engine/@types'
 import { StatsQuery } from '@cocos/ccbuild';
+import { EngineInfo } from '../../../../engine/@types/public';
 
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
 export type ISortType = 'taskName' | 'createTime' | 'platform' | 'buildTime';

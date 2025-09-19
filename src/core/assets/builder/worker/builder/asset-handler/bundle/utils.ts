@@ -10,6 +10,7 @@ import { IAsset } from '../../../../../@types/protected';
 import { IAssetPathInfo, IImportAssetPathInfo } from '../../../../@types';
 import { BundleFilterConfig, IBundle } from '../../../../@types/protected';
 import { assetManager } from '../../../../../manager/asset';
+import { BuildGlobalInfo } from '../../../../share/global';
 
 /**
  * 获取指定 uuid 资源的路径相关信息
@@ -82,7 +83,7 @@ export function resolveNativePath(libraryPath: string, extName: string, bundle: 
     const uuid = basename(libraryPath, extName);
     const version = bundle.assetVer.native[uuid];
 
-    const path = libraryPath.replace(getLibraryDir(libraryPath), join(bundle.dest, Build.NATIVE_HEADER));
+    const path = libraryPath.replace(getLibraryDir(libraryPath), join(bundle.dest, BuildGlobalInfo.NATIVE_HEADER));
     return version ? path.replace(extName, `.${version}${extName}`) : path;
 }
 

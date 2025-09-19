@@ -151,8 +151,8 @@ export class AssetDBManager extends EventEmitter {
         // 性能测试: 资源冷导入
         newConsole.trackTimeEnd('asset-db:ready', { output: true });
         this.emit('asset-db:ready');
-        // 启动成功后，开始加载尚未注册的资源处理器
-        this.assetHandlerManager.activateRegisterAll();
+        // TODO 不是常驻模式，则无需开启，启动成功后，开始加载尚未注册的资源处理器
+        // this.assetHandlerManager.activateRegisterAll();
 
         this.step();
         // TODO 启动成功后开始再去做一些日志缓存清理
@@ -244,7 +244,7 @@ export class AssetDBManager extends EventEmitter {
      */
     public path2url(path: string, dbName?: string): string {
         // 否则会出现返回 'db://internal/../../../../../db:/internal' 的情况
-        if (path === `db://${name}`) {
+        if (path === `db://${dbName}`) {
             return path;
         }
         let database;

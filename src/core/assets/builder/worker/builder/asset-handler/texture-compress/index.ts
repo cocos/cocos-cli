@@ -262,7 +262,6 @@ export class TextureCompress extends EventEmitter {
      * 执行所有纹理压缩任务，支持限定任务，否则将执行收集的所有纹理压缩任务
      */
     async run(taskMap = this._taskMap) {
-        console.group('Compress image...');
 
         const { customConfigs } = TextureCompress.userCompressConfig;
         // 1. 整理纹理压缩任务
@@ -271,7 +270,6 @@ export class TextureCompress extends EventEmitter {
 
         if (!compressQueue.length) {
             console.debug('No image need to compress');
-            console.groupEnd();
             return;
         }
         const compressQueueCopy = JSON.parse(JSON.stringify(compressQueue));
@@ -308,7 +306,6 @@ export class TextureCompress extends EventEmitter {
 
         // 存储纹理压缩缓存信息
         await outputJSON(TextureCompress.storedCompressInfoPath, TextureCompress.storedCompressInfo);
-        console.groupEnd();
         console.debug(`Num of sorted image asset: ${Object.keys(taskMap).length}`);
         return taskMap;
     }

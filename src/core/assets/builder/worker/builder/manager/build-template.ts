@@ -55,7 +55,7 @@ export class BuildTemplate implements IBuildTemplate {
         }
         try {
             // 默认构建模板需要有版本号
-            const templateVersionJson = join(Build.buildTemplateDir, 'templates-version.json');
+            const templateVersionJson = join(BuildGlobalInfo.buildTemplateDir, 'templates-version.json');
             // 用户模板版本号
             if (existsSync(templateVersionJson)) {
                 this._versionUser = (await readJSON(templateVersionJson))[platform];

@@ -3,8 +3,8 @@ import * as textureCompressConfig from '../share/texture-compress';
 import i18n from '../../../base/i18n';
 import Utils from '../../../base/utils';
 import { IBuildTaskOption, IConfigItem, IDisplayOptions } from '../@types';
-import { BuildGlobalInfo } from './global';
-
+import { BuildGlobalInfo, config, getDefaultConfig } from './global';
+import lodash from 'lodash';
 export function compareNumeric(lhs: string, rhs: string): number {
     return lhs.localeCompare(rhs, 'en', { numeric: true });
 }
@@ -295,21 +295,24 @@ export function transI18n(key: string, obj?: {
     return i18n.t(key, obj);
 }
 
-export function setConfig(key: string, value: any) {
-
+export function setConfig(key: string, value: any, type?: 'global' | 'project') {
+    lodash.set(config, type === 'global' ? `global.${key}` : `project.${key}`, value);
 }
 
 /**
- * TODO: `common.${key}`,
  * @param key 
  * @returns 
  */
-export function getConfig(key: string, useDefault: boolean = false): any {
-    return null;
+export function getConfig(key: string, useDefault: boolean = false, type?: 'global' | 'project'): any {
+    let buildConfig = config;
+    if (useDefault) {
+        buildConfig = getDefaultConfig();
+    }
+    return lodash.get(buildConfig, type === 'global' ? `global.${key}` : `project.${key}`);
 }
 
 export function getBuildPath(options: IBuildTaskOption) {
-    return join(Utils.Path.resolveToRaw(options.buildPath), options.outputName);
+    return join(Utils.Path.resolveToRaw(options.buildPath), options.outputName || options.platform);
 }
 
 /**

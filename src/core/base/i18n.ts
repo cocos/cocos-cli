@@ -58,7 +58,7 @@ class I18n extends EventEmitter {
     }) {
         let text = lodash.get(this._data[this._lang], key);
         if (typeof text !== 'string') {
-            return key;
+            return key + (obj ? JSON.stringify(obj) : '');
         }
         if (obj && typeof obj === 'object') {
             const len = Object.keys(obj).length;

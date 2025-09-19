@@ -1,6 +1,5 @@
 'use strict';
 
-const ps = require('path');
 interface IMessageInfo {
     type: string;
     path: string;
@@ -12,7 +11,7 @@ process.on('uncaughtException', (err) => {
     console.error(err);
 });
 
-process.on('message', async function(msgInfo: IMessageInfo) {
+process.on('message', async function (msgInfo: IMessageInfo) {
     if (msgInfo.type === 'execute-script' && process.send) {
         const res = await executeScript(msgInfo.path, msgInfo.method, msgInfo.args);
         process.send({

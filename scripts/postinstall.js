@@ -13,9 +13,11 @@ if (!existsSync(userConfig)) {
 
 async function mockNpmModules() {
     const { engine, node_modules } = require('../.user.json');
-    for (const name of Object.keys(node_modules)) {
-        await copy(node_modules[name], join(__dirname, `../node_modules/${name}`));
-        console.log(`模拟 ${name} 模块成功`);
+    if (node_modules) {
+        for (const name of Object.keys(node_modules)) {
+            await copy(node_modules[name], join(__dirname, `../node_modules/${name}`));
+            console.log(`模拟 ${name} 模块成功`);
+        }
     }
 
     // build cc-module

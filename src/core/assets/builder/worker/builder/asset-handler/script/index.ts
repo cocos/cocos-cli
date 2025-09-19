@@ -16,6 +16,7 @@ import { assetDBManager } from '../../../../../manager/asset-db';
 import script from '../../../../../script';
 import engine from '../../../../../../engine';
 import { MacroItem } from '../../../../../../engine/@types/config';
+import { compressUuid } from '../../utils';
 type PlatformType = StatsQuery.ConstantManager.PlatformType;
 
 interface IScriptProjectOption extends SharedSettings {
@@ -87,7 +88,7 @@ export class ScriptBuilder {
         const ccEnvConstants = await getCCEnvConstants({
             platform: options.buildScriptParam.platform,
             flags: options.buildScriptParam.flags,
-        }, options.engineInfo.path);
+        }, options.engineInfo.typescript.path);
         const sharedSettings = await script.querySharedSettings();
         // TODO 从 db 查询的都要封装在 asset-library 模块内
         const dbInfos = Object.values(assetDBManager.assetDBMap).map((info) => {
@@ -116,7 +117,7 @@ export class ScriptBuilder {
             scriptBundles.push({
                 id: bundle.name,
                 scripts: bundle.scripts.map((uuid) => {
-                    uuidCompressMap[uuid] = Build.Utils.compressUuid(uuid, false);
+                    uuidCompressMap[uuid] = compressUuid(uuid, false);
                     return buildAssetLibrary.getAssetInfo(uuid);
                 }).sort((a, b) => a.name.localeCompare(b.name)),
                 outFile: bundle.scriptDest,

@@ -95,7 +95,9 @@ export function normalize(path: string) {
 
 
 class FileUrlManager {
-    static urlMap: Record<string, RegisterProtocolInfo> = {};
+    static urlMap: Record<string, RegisterProtocolInfo> = {
+
+    };
 
     /**
      * 注册某个协议信息
@@ -175,8 +177,11 @@ export interface ProtocolInfo extends RegisterProtocolInfo {
     protocol: string;
 }
 
-export const resolveToRaw = fileUrlManager.resolveToRaw;
-export const resolveToUrl = fileUrlManager.resolveToUrl;
+// 使用 bind 绑定 this 上下文
+export const register = fileUrlManager.register.bind(fileUrlManager);
+export const unregister = fileUrlManager.unregister.bind(fileUrlManager);
+export const resolveToRaw = fileUrlManager.resolveToRaw.bind(fileUrlManager);
+export const resolveToUrl = fileUrlManager.resolveToUrl.bind(fileUrlManager);
 export const resolve = Path.resolve;
 export const isAbsolute = Path.isAbsolute;
 export const relative = Path.relative;

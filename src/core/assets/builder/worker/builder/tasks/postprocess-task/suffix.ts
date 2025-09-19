@@ -9,6 +9,7 @@ import { outputFileSync, readdirSync, rename, readFileSync, stat, statSync, remo
 import { md5CacheHandler } from './md5-cache-handler';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
 import { assetManager } from '../../../../../manager/asset';
+import { relativeUrl } from '../../utils';
 export const title = 'i18n:builder.tasks.build_suffix';
 
 export const name = 'build-task/suffix';
@@ -49,7 +50,7 @@ export async function handle(this: IBuilder, options: IInternalBuildOptions, res
         }
         const dest = join(dirName, value);
         const newPath = await md5Cache.addMd5ToPath(dest);
-        result.importMap.imports![key] = `./${Build.Utils.relativeUrl(dirName, newPath)}`;
+        result.importMap.imports![key] = `./${relativeUrl(dirName, newPath)}`;
     }
     // 存在 md5 需要重新生成 import-map 数据
     await ScriptBuilder.outputImportMap(result.importMap, {

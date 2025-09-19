@@ -1,11 +1,10 @@
 import { readJSON, existsSync, copy, emptyDirSync } from 'fs-extra';
 import { dirname, join, relative } from 'path';
 
-import { TextureCompress } from '../texture-compress';
+import type { TextureCompress } from '../texture-compress';
 import { Bundle } from './bundle';
 import { bundleDataTask, bundleOutputTask } from './texture-compress';
-import { TexturePacker } from '../texture-packer/index';
-import { createAssetInstance, PacInfo } from '../texture-packer/pac-info';
+import type { PacInfo } from '../texture-packer/pac-info';
 import { sortBundleInPac } from './pac';
 import { getCCONFormatAssetInLibrary, getDesiredCCONExtensionMap, hasCCONFormatAssetInLibrary } from '../../utils/cconb';
 import { ScriptBuilder } from '../script';
@@ -106,15 +105,13 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         [RESOURCES]: 8,
     };
 
-    constructor(options: IBuildTaskOption, task?: IBuilder) {
-        // @ts-ignore
-        super(this.options.taskId, 'Bundle Task');
+    private constructor(options: IBuildTaskOption, imageCompressManager: TextureCompress | null, task?: IBuilder) {
+        super(options.taskId!, 'Bundle Task');
         // @ts-ignore TODO 补全 options 为 IInternalBundleBuildOptions
         this.options = options as IInternalBundleBuildOptions;
-        if (!this.options.skipCompressTexture) {
-            this.updateProcess('Skip compress image');
-            this.imageCompressManager = new TextureCompress(this.options.platform, this.options.useBuildTextureCompressCache);
-            this.imageCompressManager.on('update-progress', (message) => {
+        if (imageCompressManager) {
+            this.imageCompressManager = imageCompressManager;
+            imageCompressManager.on('update-progress', (message) => {
                 this.updateProcess(message);
             });
         }
@@ -124,6 +121,15 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         // @ts-ignore
         this.cache = task ? task.cache : new BuilderAssetCache();
         this.hooksInfo = task ? task.hooksInfo : pluginManager.getHooksInfo(this.options.platform);
+    }
+
+    static async create(options: IBuildTaskOption, task?: IBuilder) {
+        if (!options.skipCompressTexture) {
+            const { TextureCompress } = await import('../texture-compress');
+            const imageCompressManager = new TextureCompress(options.platform, options.useBuildTextureCompressCache);
+            return new BundleManager(options, imageCompressManager, task);
+        }
+        return new BundleManager(options, null, task);
     }
 
     async loadScript(scriptUuids: string[]) {
@@ -384,7 +390,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
                 config.scriptDest = join(config.dest, BuildGlobalInfo.SCRIPT_NAME);
             }
             if ((this.options.moveRemoteBundleScript && config.isRemote) && !customConfig.scriptDest) {
-                config.scriptDest = this._task ? join(this._task.result.paths.bundleScripts, config.name, Build.SCRIPT_NAME) : join(config.dest, BuildGlobalInfo.SCRIPT_NAME);
+                config.scriptDest = this._task ? join(this._task.result.paths.bundleScripts, config.name, BuildGlobalInfo.SCRIPT_NAME) : join(config.dest, BuildGlobalInfo.SCRIPT_NAME);
             }
 
             this.addBundle(config);
@@ -446,7 +452,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         }
 
         if ((this.options.moveRemoteBundleScript && config.isRemote) && !customConfig.scriptDest) {
-            config.scriptDest = this._task ? join(this._task.result.paths.bundleScripts, config.name, Build.SCRIPT_NAME) : join(config.dest, BuildGlobalInfo.SCRIPT_NAME);
+            config.scriptDest = this._task ? join(this._task.result.paths.bundleScripts, config.name, BuildGlobalInfo.SCRIPT_NAME) : join(config.dest, BuildGlobalInfo.SCRIPT_NAME);
         }
         return config;
     }
@@ -458,7 +464,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
     private async initBundleRootAssets() {
         this.updateProcess('Init bundle root assets start...');
         if (this.bundleMap[INTERNAL]) {
-            const internalAssets = await queryPreloadAssetList(this.options.includeModules, this.options.engineInfo);
+            const internalAssets = await queryPreloadAssetList(this.options.includeModules, this.options.engineInfo.typescript.path);
             // 添加引擎依赖的预加载内置资源/脚本到 internal 包内
             console.debug(`Query preload assets/scripts from cc.config.json: ${internalAssets.toString()}`);
             internalAssets.forEach((uuid) => {
@@ -670,6 +676,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         console.debug(`Number of pac assets: ${pacAssets.length}`);
         const includeAssets = new Set<string>();
         this.bundles.forEach((bundle => bundle.assets.forEach((asset) => includeAssets.add(asset))));
+        const { TexturePacker } = await import('../texture-packer/index');
         this.packResults = await (await new TexturePacker().init(pacAssets, Array.from(includeAssets))).pack();
         if (!this.packResults.length) {
             console.debug('No pack results');
@@ -685,6 +692,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
             }
             const atlases = pacRes.result.atlases;
             const assetInfo = buildAssetLibrary.getAsset(pacRes.uuid);
+            const { createAssetInstance } = await import('../texture-packer/pac-info');
             // atlases 是可被序列化的缓存信息，不包含 spriteFrames
             const pacInstances = createAssetInstance(atlases, assetInfo, pacRes.spriteFrames);
             pacInstances.forEach((instance) => {

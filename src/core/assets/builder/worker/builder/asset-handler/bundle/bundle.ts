@@ -15,6 +15,7 @@ import { IAsset } from '../../../../../@types/protected';
 import { initBundleConfig } from './utils';
 import i18n from '../../../../../../base/i18n';
 import utils from '../../../../../../base/utils';
+import { BuildGlobalInfo } from '../../../../share/global';
 export class Bundle {
 
     public get scenes() {
@@ -43,8 +44,8 @@ export class Bundle {
 
     public root = ''; // bundle 的根目录, 开发者勾选的目录，如果是 main 包，这个字段为 ''
     public dest = ''; // bundle 的输出目录
-    public importBase: string = Build.IMPORT_HEADER;
-    public nativeBase: string = Build.NATIVE_HEADER;
+    public importBase: string = BuildGlobalInfo.IMPORT_HEADER;
+    public nativeBase: string = BuildGlobalInfo.NATIVE_HEADER;
     public scriptDest = ''; // 脚本的输出地址
     public name = ''; // bundle 的名称
     public priority = 0; // bundle 的优先级
@@ -67,8 +68,8 @@ export class Bundle {
     public debug = false;
     // TODO 废弃 bundle 的 config 结构，输出 config 时即时整理即可
     public config: IBundleConfig = {
-        importBase: Build.IMPORT_HEADER,
-        nativeBase: Build.NATIVE_HEADER,
+        importBase: BuildGlobalInfo.IMPORT_HEADER,
+        nativeBase: BuildGlobalInfo.NATIVE_HEADER,
         name: '',
         deps: [],
         uuids: [],
@@ -340,9 +341,9 @@ export class Bundle {
             this.config.zipVersion = this.zipVer;
         }
         console.debug(`output config of bundle ${this.name}`);
-        let outpath = join(this.dest, (this.configOutPutName || parse(Build.CONFIG_NAME).name) + '.json');
+        let outpath = join(this.dest, (this.configOutPutName || parse(BuildGlobalInfo.CONFIG_NAME).name) + '.json');
         if (this.version) {
-            outpath = join(this.dest, `${this.configOutPutName || parse(Build.CONFIG_NAME).name}.${this.version}.json`);
+            outpath = join(this.dest, `${this.configOutPutName || parse(BuildGlobalInfo.CONFIG_NAME).name}.${this.version}.json`);
         }
 
         const content = JSON.stringify(this.config, null, this.config.debug ? 4 : 0);
@@ -381,9 +382,9 @@ export class Bundle {
         this.version = hash;
 
         if (this.isZip) {
-            const zipPath = join(this.dest, Build.BUNDLE_ZIP_NAME);
+            const zipPath = join(this.dest, BuildGlobalInfo.BUNDLE_ZIP_NAME);
             if (existsSync(zipPath)) {
-                const res = await Build.Utils.appendMd5ToPaths([zipPath]);
+                const res = await appendMd5ToPaths([zipPath]);
                 if (res) {
                     this.zipVer = res.hash!;
                 }
@@ -436,7 +437,7 @@ export class Bundle {
         }
 
         for (const uuid in suffixMap.import) {
-            const res = await Build.Utils.appendMd5ToPaths(suffixMap.import[uuid]);
+            const res = await appendMd5ToPaths(suffixMap.import[uuid]);
             if (!res) {
                 continue;
             }
@@ -494,7 +495,7 @@ export class Bundle {
         const dirsToCompress = [nativeDir, importDir].filter(dir => existsSync(dir));
         if (dirsToCompress.length > 0) {
             this.isZip = true;
-            await compressDirs(dirsToCompress, dest, join(dest, Build.BUNDLE_ZIP_NAME));
+            await compressDirs(dirsToCompress, dest, join(dest, BuildGlobalInfo.BUNDLE_ZIP_NAME));
         }
         console.debug(`zip bundle ${this.name} success...`);
     }

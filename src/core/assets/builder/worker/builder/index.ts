@@ -21,6 +21,8 @@ import { assetDBManager } from '../../../manager/asset-db';
 import Utils from '../../../../base/utils';
 import { pluginManager } from '../../manager/plugin';
 import i18n from '../../../../base/i18n';
+import project from '../../../../project';
+import { checkProjectSetting } from '../../share/common-options-validator';
 
 export class BuildTask extends BuildTaskBase implements IBuilder {
     public cache: BuilderAssetCache;
@@ -229,7 +231,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         await this.runPluginTask(taskManager.pluginTasks.onBeforeInit);
         await this.init();
         await this.runPluginTask(taskManager.pluginTasks.onAfterInit);
-        this.bundleManager = new BundleManager(this.options, this);
+        this.bundleManager = await BundleManager.create(this.options, this);
         this.bundleManager.options.dest = this.result.paths.assets;
         this.bundleManager.destDir = this.result.paths.assets;
         this.bundleManager.on('update', (message: string, progress: number) => {
@@ -304,7 +306,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             await this.onError(this.error);
             return;
         }
-        this.bundleManager = new BundleManager(this.options, this);
+        this.bundleManager = await BundleManager.create(this.options, this);
         this.bundleManager.options.dest = this.result.paths.assets;
         this.bundleManager.destDir = this.result.paths.assets;
         if (this.options.preview) {
@@ -361,7 +363,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         }
     }
 
-    private initOptions() {
+    private async initOptions() {
         this.options.platformType = pluginManager.platformConfig[this.options.platform].platformType;
         // this.options.md5CacheOptions = this.options.md5CacheOptions || defaultsDeep(this.options.md5CacheOptions, {
         //     excludes: [],
@@ -369,6 +371,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         //     replaceOnly: [],
         //     handleTemplateMd5Link: false,
         // });
+        await checkProjectSetting(this.options);
 
         // TODO 支持传参直接传递 resolution
         this.options.resolution = {
@@ -423,7 +426,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             cocosTemplate: '',
         };
         this.options.buildEngineParam = {
-            entry: this.options.engineInfo.path,
+            entry: this.options.engineInfo.typescript.path,
             debug: this.options.debug,
             mangleProperties: this.options.mangleProperties,
             inlineEnum: this.options.inlineEnum,

@@ -10,7 +10,7 @@ const { logTitle } = require('./utils');
     const isForce = args.includes('--force');
     const { engine } = require('../.user.json');
 
-    if (existsSync(join(engine, 'bin', '.cache', 'dev-cli')) || isForce) {
+    if (existsSync(join(engine, 'bin', '.cache', 'dev-cli')) && !isForce) {
         console.log('[Skip] compiler engine');
         return;
     }

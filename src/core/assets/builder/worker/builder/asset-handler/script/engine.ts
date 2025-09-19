@@ -22,6 +22,7 @@ import { StatsQuery } from '@cocos/ccbuild';
 import { IBuildEngineParam, IInternalBuildOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult } from '../../../../@types/protected';
 import { BuildGlobalInfo } from '../../../../share/global';
 import utils from '../../../../../../base/utils';
+import { relativeUrl } from '../../utils';
 
 // 存储引擎复用参数的文件
 const EngineCacheName = 'engine-cache';
@@ -338,7 +339,7 @@ export async function queryEngineImportMap(
         if (baseUrlObj) {
             importUrl = new URL(moduleFile, baseUrlObj).href;
         } else {
-            importUrl = `./${Build.Utils.relativeUrl(importMapDir, ps.join(enginePath, moduleFile))}`;
+            importUrl = `./${relativeUrl(importMapDir, ps.join(enginePath, moduleFile))}`;
         }
         return importUrl;
     };

@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { readJSONSync } from "fs-extra";
 import i18n from "../../base/i18n";
-import { BuildExitCode, IBuildSceneItem, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IExportBuildOptions, IInternalBuildOptions } from "./@types/private";
+import { BuildExitCode, IBuildCommandOption, IBuildSceneItem, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IExportBuildOptions, IInternalBuildOptions } from "./@types/private";
 import { PLATFORMS } from "./share/platforms-options";
 import { pluginManager } from "./manager/plugin";
 import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./share/utils";
@@ -10,17 +10,6 @@ import { join } from "path";
 import { BuildGlobalInfo } from "./share/global";
 import { assetManager } from "../manager/asset";
 import { removeDbHeader } from "./worker/builder/utils";
-import { BundleManager } from "./worker/builder/asset-handler/bundle";
-
-export interface IBuildCommandOption extends IExportBuildOptions {
-    configPath?: string;
-    logDest?: string; // 日志输出地址
-    migrate?: boolean; // 是否迁移传入的构建参数，默认开启
-    stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
-    root?: string;
-    projectSettingsPath?: string; // 导出的项目设置文件地址
-    skipCheck?: boolean; // 跳过参数的检查流程
-}
 
 export async function build(options: IBuildCommandOption): Promise<BuildExitCode> {
     if (options.configPath) {
@@ -37,8 +26,14 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
         // 移除旧的 key 方便和 configPath 未读取的情况做区分
         delete options.configPath;
     }
+
+    if (!options.platform) {
+        console.error('platform is required');
+        return BuildExitCode.PARAM_ERROR;
+    }
     options.taskId = options.taskId || String(new Date().getTime());
     options.logDest = options.logDest || getTaskLogDest(options.platform, options.taskId);
+    options.taskName = options.taskName || options.platform;
     if (options.stage === 'bundle') {
         return await buildBundleOnly(options as unknown as IBundleBuildOptions);
     }
@@ -48,7 +43,7 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
         return await executeBuildStageTask(options.taskId, options.stage, options as IBuildStageOptions);
     }
     // 不支持的构建平台不执行构建
-    if (PLATFORMS.includes(options.platform)) {
+    if (!PLATFORMS.includes(options.platform)) {
         console.error(i18n.t('builder.tips.disablePlatformForBuildCommand', {
             platform: options.platform,
         }));
@@ -59,24 +54,25 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
     await pluginManager.init([options.platform])
     // 命令行构建前，补全项目配置数据
     // await checkProjectSettingsBeforeCommand(options);
-    let res: undefined | IBuildTaskOption;
+    let res: IBuildTaskOption;
     if (!options.skipCheck) {
         try {
             // 校验插件选项
-            res = await pluginManager.checkOptions(options);
+            // @ts-ignore
+            const rightOptions = await pluginManager.checkOptions(options);
+            if (!rightOptions) {
+                console.error(i18n.t('builder.error.check_options_failed'));
+                return BuildExitCode.PARAM_ERROR;
+            }
+            res = rightOptions;
         } catch (error) {
             console.error(error);
             return BuildExitCode.PARAM_ERROR;
         }
-        if (!res) {
-            console.error(i18n.t('builder.error.check_options_failed'));
-            return BuildExitCode.PARAM_ERROR;
-        }
     } else {
+        // @ts-ignore
         res = options;
     }
-
-
 
     newConsole.record(getTaskLogDest(options.platform, options.taskId));
     let buildSuccess = true;
@@ -96,7 +92,7 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
 }
 
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<BuildExitCode> {
-
+    const { BundleManager } = await import("./worker/builder/asset-handler/bundle");
     const optionsList = bundleOptions.optionList;
     const buildTaskId = 'buildBundle';
     const weight = 1 / optionsList.length;
@@ -112,7 +108,7 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
             console.debug(`=================================== ${tasksLabel} Task (${options.platform}) Start ================================`);
             console.debug('Start build task, options:', options);
             newConsole.trackMemoryStart(`builder:build-bundle-total`);
-            const builder = new BundleManager(options);
+            const builder = await BundleManager.create(options);
             builder.on('update', (message: string, progress: number) => {
                 console.log('build-worker:update-progress', buildTaskId, (progress + i) * weight, 'processing', message);
             });

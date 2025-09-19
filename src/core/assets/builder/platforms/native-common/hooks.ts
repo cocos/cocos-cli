@@ -24,6 +24,7 @@ import i18n from '../../../../base/i18n';
 import { BuildGlobalInfo } from '../../share/global';
 import engine from '../../../../engine';
 import { GlobalPaths } from '../../../../../global';
+import { relativeUrl } from '../../worker/builder/utils';
 
 export const throwError = true;
 
@@ -242,10 +243,10 @@ export async function onAfterCompressSettings(this: IBuilder, options: ITaskOpti
     // 支持自定义模板 index.ejs
     const buildTemplateDir = join(options.engineInfo.typescript.path, 'templates/native');
     const indexJsTemplateRenderData = {
-        polyfillsBundleFile: (result.paths.polyfillsJs && Build.Utils.relativeUrl(result.paths.dir, result.paths.polyfillsJs)) || false,
-        systemJsBundleFile: Build.Utils.relativeUrl(result.paths.dir, result.paths.systemJs!),
-        importMapFile: Build.Utils.relativeUrl(result.paths.dir, result.paths.importMap),
-        applicationJs: './' + Build.Utils.relativeUrl(result.paths.dir, result.paths.applicationJS),
+        polyfillsBundleFile: (result.paths.polyfillsJs && relativeUrl(result.paths.dir, result.paths.polyfillsJs)) || false,
+        systemJsBundleFile: relativeUrl(result.paths.dir, result.paths.systemJs!),
+        importMapFile: relativeUrl(result.paths.dir, result.paths.importMap),
+        applicationJs: './' + relativeUrl(result.paths.dir, result.paths.applicationJS),
     };
     // index.ejs 模板文件单独支持在 native 里，其他自定义模板文件加在具体平台模板目录下
     const indexJsTemplatePath = this.buildTemplate.initUrl('index.ejs') || join(buildTemplateDir, 'index.ejs');

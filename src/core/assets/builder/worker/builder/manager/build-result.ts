@@ -35,7 +35,7 @@ class Paths implements IBuildPaths {
     }
 
     get subpackages() {
-        return this.cache.subpackages || join(this.dir, Build.SUBPACKAGES_HEADER);
+        return this.cache.subpackages || join(this.dir, BuildGlobalInfo.SUBPACKAGES_HEADER);
     }
 
     set subpackages(val: string) {
@@ -43,7 +43,7 @@ class Paths implements IBuildPaths {
     }
 
     get assets() {
-        return this.cache.assets || join(this.dir, Build.ASSETS_HEADER);
+        return this.cache.assets || join(this.dir, BuildGlobalInfo.ASSETS_HEADER);
     }
 
     set assets(val: string) {
@@ -51,7 +51,7 @@ class Paths implements IBuildPaths {
     }
 
     get remote() {
-        return this.cache.remote || join(this.dir, Build.REMOTE_HEADER);
+        return this.cache.remote || join(this.dir, BuildGlobalInfo.REMOTE_HEADER);
     }
 
     set remote(val: string) {
@@ -75,7 +75,7 @@ class Paths implements IBuildPaths {
     }
 
     get bundleScripts() {
-        return this.cache.bundleScripts || join(this.dir, 'src', Build.BUNDLE_SCRIPTS_HEADER);
+        return this.cache.bundleScripts || join(this.dir, 'src', BuildGlobalInfo.BUNDLE_SCRIPTS_HEADER);
     }
 
     set bundleScripts(val: string) {

@@ -11,18 +11,11 @@ import { transI18n, transI18nName as transI18nNameShare } from '../../../share/u
 import { IAsset } from '../../../../@types/protected';
 import { IModules, ITransformOptions, IBuildTaskOption } from '../../../@types';
 import { BuildGlobalInfo } from '../../../share/global';
+import utils from '../../../../../base/utils';
 
 export { getBuildPath } from '../../../share/utils';
 
-let EditorExtends: any;
 
-export function getEditorExtends() {
-    if (EditorExtends) {
-        return EditorExtends;
-    }
-    EditorExtends = require('@base/electron-module').require('EditorExtends');
-    return EditorExtends;
-}
 
 // 当前文件对外暴露的接口是直接对用户公开的，对内使用的工具接口请在其他文件夹内放置
 
@@ -221,11 +214,11 @@ export const transI18nName = transI18nNameShare;
 
 // 注意：目前 Editor.Utils 用的是 UUID，EditorExtends 用的是 Uuid 
 export function compressUuid(uuid: string, min = true) {
-    return getEditorExtends().UuidUtils.compressUuid(uuid, min);
+    return utils.UUID.compressUUID(uuid, min);
 }
 
 export function decompressUuid(uuid: string) {
-    return getEditorExtends().UuidUtils.decompressUuid(uuid);
+    return utils.UUID.decompressUUID(uuid);
 }
 
 /**
@@ -233,7 +226,7 @@ export function decompressUuid(uuid: string) {
  * @param path
  */
 export function getUuidFromPath(path: string) {
-    return getEditorExtends().UuidUtils.getUuidFromLibPath(path);
+    return utils.UUID.getUuidFromLibPath(path);
 }
 
 /**
@@ -242,7 +235,7 @@ export function getUuidFromPath(path: string) {
  * @returns 
  */
 export function nameToSubId(name: string) {
-    return getEditorExtends().UuidUtils.nameToSubId(name);
+    return utils.UUID.nameToSubId(name);
 }
 
 /**
@@ -252,7 +245,7 @@ export function nameToSubId(name: string) {
  * @param extName 指定 import 的文件格式，默认 .json
  */
 export function getResImportPath(dest: string, uuid: string, extName = '.json') {
-    return join(dest, Build.IMPORT_HEADER, uuid.substr(0, 2), uuid + extName);
+    return join(dest, BuildGlobalInfo.IMPORT_HEADER, uuid.substr(0, 2), uuid + extName);
 }
 
 /**
@@ -262,7 +255,7 @@ export function getResImportPath(dest: string, uuid: string, extName = '.json') 
  * @param extName 路径后缀
  */
 export function getResRawAssetsPath(dest: string, uuid: string, extName: string) {
-    return join(dest, Build.NATIVE_HEADER, uuid.substr(0, 2), uuid + extName);
+    return join(dest, BuildGlobalInfo.NATIVE_HEADER, uuid.substr(0, 2), uuid + extName);
 }
 
 export function toBabelModules(modules: IModules): string | false {

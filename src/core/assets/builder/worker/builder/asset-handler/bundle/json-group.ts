@@ -7,7 +7,6 @@ import * as HashUuid from '../../utils/hash-uuid';
 import { outputJSON } from 'fs-extra';
 import { compareUUID } from '../../../../share/utils';
 import { ImageAsset, js, Texture2D } from 'cc';
-import { getEditorExtends } from '../../utils';
 import i18n from '../../../../../../base/i18n';
 import { IBundle, IGroup } from '../../../../@types/protected';
 
@@ -100,7 +99,6 @@ export async function outputJsonGroup(bundle: IBundle, manager: BundleManager) {
         debug: manager.options.debug,
         ...manager.options.assetSerializeOptions,
     };
-    const EditorExtends = getEditorExtends();
     for (let index = 0; index < bundle.groups.length; index++) {
         const group = bundle.groups[index];
 
@@ -209,7 +207,6 @@ export async function outputJsonGroup(bundle: IBundle, manager: BundleManager) {
      * @param groupItem
      */
     async function packTextures(dest: string, name: string, groupItem: IGroup) {
-        const EditorExtends = getEditorExtends();
         const jsons = await Promise.all(
             groupItem.uuids.map(async (uuid) => {
                 const data = await manager.cache.getSerializedJSON(uuid, assetSerializeOptions);

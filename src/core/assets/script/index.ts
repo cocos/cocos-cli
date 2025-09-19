@@ -1,3 +1,4 @@
+import { join } from "path";
 import { CCEModuleMap } from "../../engine/@types/config";
 import { SharedSettings } from "./interface";
 
@@ -42,7 +43,7 @@ class ScriptManager {
      */
     queryCCEModuleMap(): CCEModuleMap {
         // return PackerDriver.queryCCEModuleMap();
-        const cceModuleMapLocation = ps.join(__dirname, '../../cce-module.jsonc');
+        const cceModuleMapLocation = join(__dirname, '../../cce-module.jsonc');
         // const cceModuleMap = JSON5.parse(readFileSync(cceModuleMapLocation, 'utf8')) as CCEModuleMap;
         // cceModuleMap.mapLocation = cceModuleMapLocation;
         return {} as CCEModuleMap;

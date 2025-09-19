@@ -8,6 +8,7 @@ import { PacInfo } from './pac-info';
 import { packer } from './packer';
 import { IAsset } from '../../../../../@types/protected';
 import { IPackOptions, IStorePackInfo, PreviewPackResult } from '../../../../@types/protected';
+import { calcMd5 } from '../../utils';
 
 // 管理自动图集缓存，提供对外接口
 export class TexturePacker {
@@ -114,12 +115,12 @@ export class TexturePacker {
         const newStoredPacInfo: IStorePackInfo = {
             md5: '',
             versionDev,
-            sharpMd5: Build.Utils.calcMd5(JSON.stringify(require('sharp').versions)),
+            sharpMd5: calcMd5(JSON.stringify(require('sharp').versions)),
         };
         // 对图片进行排序，确保每次重新计算 md5 一致
         pacInfo.storeInfo.sprites = lodash.sortBy(pacInfo.storeInfo.sprites, 'uuid');
         // TODO 字符串计算 md5 可能导致计算结果不稳定
-        newStoredPacInfo.md5 = Build.Utils.calcMd5(JSON.stringify({
+        newStoredPacInfo.md5 = calcMd5(JSON.stringify({
             packStoreInfo: pacInfo.storeInfo,
             versionDev,
             sharpMd5: newStoredPacInfo.sharpMd5,

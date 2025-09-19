@@ -5,6 +5,7 @@ import { join } from 'path';
 import Ejs from 'ejs';
 import { InternalBuildResult, BuilderAssetCache, IBuilder } from '../../@types/protected';
 import { ITaskOption, IBuildResult } from './interface';
+import { relativeUrl, transformCode } from '../../worker/builder/utils';
 
 export const throwError = true;
 
@@ -60,10 +61,10 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: ITaskOp
     // index.js 模板生成
     const indexJsTemplate = this.buildTemplate.initUrl('index.js.ejs', 'indexJs') || join(staticDir, 'index.js.ejs');
     const indexJsContent: string = await Ejs.renderFile(indexJsTemplate, {
-        applicationJS: './' + Build.Utils.relativeUrl(result.paths.dir, result.paths.applicationJS),
+        applicationJS: './' + relativeUrl(result.paths.dir, result.paths.applicationJS),
     });
     // TODO 需要优化，不应该直接读到内存里
-    const indexJsSourceTransformedCode = await Build.Utils.transformCode(indexJsContent, {
+    const indexJsSourceTransformedCode = await transformCode(indexJsContent, {
         importMapFormat: 'systemjs',
     });
     if (!indexJsSourceTransformedCode) {
@@ -78,14 +79,14 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: ITaskOp
     // index.html 模板生成
     const indexEjsTemplate = this.buildTemplate.initUrl('index.ejs') || join(staticDir, 'index.ejs');
     const data = {
-        polyfillsBundleFile: (result.paths.polyfillsJs && Build.Utils.relativeUrl(result.paths.dir, result.paths.polyfillsJs)) || false,
-        systemJsBundleFile: Build.Utils.relativeUrl(result.paths.dir, result.paths.systemJs!),
+        polyfillsBundleFile: (result.paths.polyfillsJs && relativeUrl(result.paths.dir, result.paths.polyfillsJs)) || false,
+        systemJsBundleFile: relativeUrl(result.paths.dir, result.paths.systemJs!),
         projectName: options.name,
         engineName: options.buildEngineParam.engineName,
         previewWidth: packageOptions.resolution.designWidth,
         previewHeight: packageOptions.resolution.designHeight,
         cocosTemplate: join(staticDir, 'index-plugin.ejs'),
-        importMapFile: Build.Utils.relativeUrl(result.paths.dir, result.paths.importMap),
+        importMapFile: relativeUrl(result.paths.dir, result.paths.importMap),
         indexJsName: './index.js',
         cssUrl: './style.css',
     };
