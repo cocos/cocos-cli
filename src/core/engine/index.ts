@@ -132,6 +132,9 @@ class Engine implements IEngine {
     async initEditorExtensions() {
         // @ts-ignore
         globalThis.EditorExtends = await import('./editor-extends');
+        // 注意：目前 Editor.Utils 用的是 UUID，EditorExtends 用的是 Uuid 
+        // @ts-ignore
+        globalThis.EditorExtends.UuidUtils.compressUuid = globalThis.EditorExtends.UuidUtils.compressUUID;
         // @ts-ignore
         await globalThis.EditorExtends.init();
     }

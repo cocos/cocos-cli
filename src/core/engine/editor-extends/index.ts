@@ -9,6 +9,9 @@ import { MissingClassReporter, MissingClass } from './missing-reporter/missing-c
 import { MissingObjectReporter } from './missing-reporter/missing-object-reporter';
 export { walkProperties } from './missing-reporter/object-walker';
 
+import utils from '../../base/utils';
+export const UuidUtils = utils.UUID;
+
 export const MissingReporter = {
     classInstance: MissingClass,
     class: MissingClassReporter,
