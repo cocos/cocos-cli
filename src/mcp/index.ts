@@ -2,15 +2,17 @@ import { Request, Response, Router } from 'express';
 import { toolRegistry } from '../api/decorator/decorator.js';
 import { ImporterApi } from '../api/importer/importer.js';
 
+// ==================== 公共类型定义 ====================
+
 // JSON-RPC 类型定义
-interface JsonRpcRequest {
+export interface JsonRpcRequest {
   jsonrpc: '2.0';
   method: string;
   params?: any;
   id?: string | number | null;
 }
 
-interface JsonRpcResponse {
+export interface JsonRpcResponse {
   jsonrpc: '2.0';
   result?: any;
   error?: {
@@ -21,10 +23,8 @@ interface JsonRpcResponse {
   id: string | number | null;
 }
 
-
-
 // MCP 特定的方法
-interface McpTool {
+export interface McpTool {
   name: string;
   description?: string;
   inputSchema: {
@@ -34,16 +34,16 @@ interface McpTool {
   };
 }
 
-interface McpListToolsResult {
+export interface McpListToolsResult {
   tools: McpTool[];
 }
 
-interface McpCallToolParams {
+export interface McpCallToolParams {
   name: string;
   arguments?: Record<string, any>;
 }
 
-interface McpCallToolResult {
+export interface McpCallToolResult {
   content: Array<{
     type: 'text';
     text: string;
@@ -51,7 +51,7 @@ interface McpCallToolResult {
   isError?: boolean;
 }
 
-interface McpInitializeParams {
+export interface McpInitializeParams {
   protocolVersion: string;
   capabilities: {
     tools?: {};
@@ -65,7 +65,7 @@ interface McpInitializeParams {
   };
 }
 
-interface McpInitializeResult {
+export interface McpInitializeResult {
   protocolVersion: string;
   capabilities: {
     tools?: {
@@ -80,6 +80,8 @@ interface McpInitializeResult {
     version: string;
   };
 }
+
+// ==================== 公共工具管理 ====================
 
 // 工具实例管理
 const toolInstances = new Map<string, any>();
@@ -113,7 +115,7 @@ function getSimpleJsonSchema(): any {
 }
 
 // 获取所有注册的工具
-function getRegisteredTools(): McpTool[] {
+export function getRegisteredTools(): McpTool[] {
   const tools: McpTool[] = [];
   
   for (const [toolName, { meta }] of toolRegistry) {
@@ -143,7 +145,7 @@ function getRegisteredTools(): McpTool[] {
 }
 
 // 调用工具
-async function callTool(name: string, args: Record<string, any> = {}): Promise<McpCallToolResult> {
+export async function callTool(name: string, args: Record<string, any> = {}): Promise<McpCallToolResult> {
   try {
     const toolInfo = toolRegistry.get(name);
     if (!toolInfo) {
@@ -203,8 +205,10 @@ async function callTool(name: string, args: Record<string, any> = {}): Promise<M
   }
 }
 
+// ==================== 公共 JSON-RPC 处理 ====================
+
 // 处理 JSON-RPC 请求
-async function handleJsonRpcRequest(request: JsonRpcRequest): Promise<JsonRpcResponse | null> {
+export async function handleJsonRpcRequest(request: JsonRpcRequest): Promise<JsonRpcResponse | null> {
   const { method, params, id } = request;
   const responseId = id ?? null;
   
@@ -276,6 +280,25 @@ async function handleJsonRpcRequest(request: JsonRpcRequest): Promise<JsonRpcRes
   }
 }
 
+// ==================== 公共工具初始化 ====================
+
+// 初始化工具注册
+export async function initializeTools() {
+  try {
+    // 创建 ImporterApi 实例以触发装饰器注册
+    const projectPath = process.cwd();
+    const enginePath = process.cwd();
+    const importerApi = new ImporterApi(projectPath, enginePath);
+    await importerApi.init();
+    toolInstances.set('ImporterApi', importerApi);
+    console.log(`Initialized ${toolRegistry.size} tools`);
+  } catch (error) {
+    console.error('Failed to initialize tools:', error);
+  }
+}
+
+// ==================== HTTP Middleware 实现 ====================
+
 // 验证 Origin 头以防止 DNS rebinding 攻击
 function validateOrigin(req: Request): boolean {
   const origin = req.headers.origin;
@@ -293,21 +316,6 @@ function validateOrigin(req: Request): boolean {
 
 // MCP 中间件
 export const mcpMiddleware = Router();
-
-// 初始化工具注册
-async function initializeTools() {
-  try {
-    // 创建 ImporterApi 实例以触发装饰器注册
-    const projectPath = process.cwd();
-    const enginePath = process.cwd();
-    const importerApi = new ImporterApi(projectPath, enginePath);
-    await importerApi.init();
-    toolInstances.set('ImporterApi', importerApi);
-    console.log(`Initialized ${toolRegistry.size} tools`);
-  } catch (error) {
-    console.error('Failed to initialize tools:', error);
-  }
-}
 
 // 启动时初始化工具
 initializeTools();

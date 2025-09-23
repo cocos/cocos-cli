@@ -11,13 +11,13 @@ import {
 
 /**
  * MCP Stdio Server
- * 
+ *
  * 这个服务器实现了基于标准输入输出的 MCP 协议，
  * 遵循 MCP 最佳实践，支持 JSON-RPC 2.0 协议。
- * 
+ *
  * 使用方式：
  * node dist/mcp/stdio.js
- * 
+ *
  * 或者在 MCP 客户端配置中：
  * {
  *   "command": "node",
