@@ -16,7 +16,7 @@ import { migrateGeometryCurve330 } from '../migrates/migrate-geometry-curve-3-3-
 import { migratePrefabInstanceRoots } from './migrate-prefab-1-1-34';
 import { linearToSRGB } from '../utils/equirect-cubemap-faces';
 import utils from '../../../../base/utils';
-import profile from '../../../../profile';
+import { configurationManager } from '../../../../configuration';
 import assetConfig from '../../../asset-config';
 import { assetDBManager } from '../../../manager/asset-db';
 import { GlobalPaths } from '../../../../../global';
@@ -1130,7 +1130,7 @@ async function migrateCanvasCamera(asset: Asset) {
     const swap: any = asset.getSwapSpace();
     const json: any[] = swap.json || (await readJSON(asset.source));
 
-    let userLayers: LayerItem[] = await profile.getProject('project', 'layer') ?? [];
+    let userLayers: LayerItem[] = await configurationManager.getValue( 'project.layer') ?? [];
 
     // 在第一次数据迁移时，获取用户独占 layer 的列表。
     // 避免被后续插入的 canvas layer 影响。
@@ -1197,7 +1197,7 @@ async function migrateCanvasCamera(asset: Asset) {
                         userLayers.sort((a, b) => {
                             return a.value - b.value;
                         });
-                        await profile.setProject('project', 'layer', userLayers);
+                        await configurationManager.updateValue('project.layer', userLayers);
                     }
 
                     break;
@@ -1486,8 +1486,8 @@ export async function migrateShadowInfo(asset: Asset) {
 
                 item._size = {
                     __type__: 'cc.Vec2',
-                    x: 1 << mi,
-                    y: 1 << mi,
+                    x: (1 << mi),
+                    y: (1 << mi),
                 };
             }
         }

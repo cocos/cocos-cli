@@ -7,7 +7,7 @@ import { openCode } from '../utils';
 import JavascriptHandler from './javascript';
 import { DefaultScriptFileNameCheckConfig, ScriptNameChecker, ScriptNameCheckerManager } from './utils/ts-utils';
 import { AssetHandler, ICreateMenuInfo } from '../../@types/protected';
-import profile from '../../../profile';
+import { configurationManager } from '../../../configuration';
 import assetConfig from '../../asset-config';
 import i18n from '../../../base/i18n';
 // import { getCompilerOptions } from './utils/ts-utils';
@@ -180,7 +180,7 @@ export const TypeScriptHandler: AssetHandler = {
 export default TypeScriptHandler;
 
 async function getTypeCheckLevel() {
-    const data = await profile.getProject('project', 'general.type_check_level');
+    const data = await configurationManager.getValue('project.general.type_check_level');
     return data;
 }
 

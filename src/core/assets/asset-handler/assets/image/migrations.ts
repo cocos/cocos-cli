@@ -1,7 +1,7 @@
 import { Asset, queryUrl } from '@editor/asset-db';
 import * as migratesNameToId from '../migrates/name2id';
 import { MigrateStep } from '../../utils';
-import profile from '../../../../profile';
+import { configurationManager } from '../../../../configuration';
 import utils from '../../../../base/utils';
 import { ImageAssetUserData } from '../../../@types/userDatas';
 import { UserCompressConfig } from '../../../builder/@types';
@@ -161,7 +161,7 @@ function migrateCompressTextureType(config: any) {
 
 async function getPresetId(platformSettings: any) {
     const presetId = 'presetId' + Date.now();
-    let userPreset = await profile.getProject('builder', 'textureCompressConfig.userPreset') as UserCompressConfig['userPreset'];
+    let userPreset = await configurationManager.getValue('builder.textureCompressConfig.userPreset') as UserCompressConfig['userPreset'];
     if (!userPreset) {
         userPreset = {
             [presetId]: {
@@ -169,7 +169,7 @@ async function getPresetId(platformSettings: any) {
                 options: platformSettings,
             },
         };
-        await profile.setProject('builder', 'textureCompressConfig.userPreset', userPreset);
+        await configurationManager.updateValue('builder.textureCompressConfig.userPreset', userPreset);
         return presetId;
     }
 
@@ -179,7 +179,7 @@ async function getPresetId(platformSettings: any) {
         }
     }
 
-    await profile.setProject('builder', `textureCompressConfig.userPreset.${presetId}`, {
+    await configurationManager.updateValue(`builder.textureCompressConfig.userPreset.${presetId}`, {
         name: presetId,
         options: platformSettings,
     });

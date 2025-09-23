@@ -13,3 +13,8 @@ export const defaultConfigMap: Record<string, any> = {
     project: project.default,
     scene: scene.default,
 }
+
+function initDefaultConfig() {
+
+
+}

@@ -3,7 +3,7 @@ import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
 import { MigrateStep, i18nTranslate, linkToAssetTarget, openCode } from '../utils';
 import { AssetHandlerBase } from '../../@types/protected';
-import profile from '../../../profile';
+import { configurationManager } from '../../../configuration';
 
 interface IScriptModuleUseData {
     isPlugin: false;
@@ -98,7 +98,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                         return;
                     }
                     await migrateStep.hold();
-                    const sortingPlugins: string[] = await profile.getProject('project', 'script.sortingPlugin') ?? [];
+                    const sortingPlugins: string[] = await configurationManager.getValue('project.script.sortingPlugin') ?? [];
                     if (Array.isArray(sortingPlugins) && sortingPlugins.length && sortingPlugins.includes(asset.uuid)) {
                         const index = sortingPlugins.findIndex((item) => item === asset.uuid);
                         // 当前脚本已经被其他脚本依赖
@@ -122,7 +122,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                         }
                         sortingPlugins.push(asset.uuid);
                     }
-                    await profile.setProject('project', 'script.sortingPlugin', sortingPlugins);
+                    await configurationManager.updateValue('project.script.sortingPlugin', sortingPlugins);
                     delete asset.userData.dependencies;
                     migrateStep.step();
                 },

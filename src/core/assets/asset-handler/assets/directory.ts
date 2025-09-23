@@ -7,7 +7,7 @@ import { basename } from 'path';
 import { mergeBundleConfig } from './migrates/migrate-bundle-config';
 import utils from '../../../base/utils';
 import { i18nTranslate } from '../utils';
-import profile from '../../../profile';
+import { configurationManager } from '../../../configuration';
 
 const InternalBundleName = ['internal', 'resources', 'main'];
 
@@ -119,7 +119,7 @@ async function migrateBundleConfig(asset: Asset | VirtualAsset) {
         );
     }
     const bundleConfig = mergeBundleConfig(compressionType, isRemoteBundle, name);
-    profile.setProject('builder', `bundleConfig.custom.${key}`, bundleConfig);
+    configurationManager.updateValue(`builder.bundleConfig.custom.${key}`, bundleConfig);
 
     asset.userData.bundleConfigID = key;
     delete asset.userData.compressionType;

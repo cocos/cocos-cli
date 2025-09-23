@@ -1,7 +1,6 @@
 import { join } from 'path';
 import { IBuildCommandOption } from './core/assets/builder/@types/protected';
 import utils from './core/base/utils';
-import profile from './core/profile';
 
 class ProjectManager {
 
@@ -22,7 +21,8 @@ class ProjectManager {
             label: '项目',
             path,
         });
-        await profile.init(path);
+        const { configurationManager } = await import('./core/configuration');
+        await configurationManager.initialize(path);
         // 初始化项目信息
         const { default: Project } = await import('./core/project');
         await Project.open(path);
