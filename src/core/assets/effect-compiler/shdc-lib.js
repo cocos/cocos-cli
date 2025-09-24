@@ -1214,6 +1214,10 @@ const miscChecks = (() => {
 
 const finalTypeCheck = (() => {
     let gl = require('gl')(300, 150, { preserveDrawingBuffer: true });
+    const supportedExtensions = gl.getSupportedExtensions();
+    for (let i = 0; i !== supportedExtensions.length; ++i) {
+        gl.getExtension(supportedExtensions[i]);
+    }
     const getDefineString = (defines) =>
         defines.reduce((acc, cur) => {
             let value = 1; // enable all boolean swithces
