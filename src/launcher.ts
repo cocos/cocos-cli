@@ -1,6 +1,8 @@
 import { join } from 'path';
 import { IBuildCommandOption } from './core/assets/builder/@types/protected';
 import utils from './core/base/utils';
+import { newConsole, NewConsole } from './core/base/console';
+import { getCurrentLocalTime } from './core/assets/utils';
 
 class ProjectManager {
 
@@ -56,6 +58,13 @@ class ProjectManager {
      * @param options 
      */
     async build(projectPath: string, enginePath: string, options: Partial<IBuildCommandOption>) {
+        if (!options.logDest) {
+            options.logDest = join(projectPath, 'temp/build', getCurrentLocalTime() + '.log');
+        }
+        await newConsole.init(options.logDest);
+        await newConsole.record();
+        await newConsole.startProgress('Start build project...');
+
         // 先打开项目
         await this.open(projectPath, enginePath);
         // 执行构建流程

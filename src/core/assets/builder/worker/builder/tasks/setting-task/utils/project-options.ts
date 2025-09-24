@@ -101,7 +101,7 @@ export function formatSplashScreen(splashScreen: ISplashSetting) {
             splashScreen.logo.base64 = `data:image/png;base64,${readFileSync(path).toString('base64')}`;
         } else if (splashScreen.logo.type === 'default') {
             // 先不从 defaultSplashSettings 里获取默认图片
-            const defaultLogoPath = join(GlobalPaths.staticDir, 'build-templates/launcher/icon.png').replace('app.asar', 'app.asar.unpacked');
+            const defaultLogoPath = join(GlobalPaths.staticDir, 'build-templates/launcher/icon.png');
             splashScreen.logo.base64 = `data:image/png;base64,${readFileSync(defaultLogoPath).toString('base64')}`;
         }
         delete splashScreen.logo.image;

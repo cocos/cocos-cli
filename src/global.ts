@@ -5,7 +5,7 @@
 import { join } from "path";
 
 export const GlobalPaths = {
-    staticDir: join(__dirname, '../../../../../../static'),
+    staticDir: join(__dirname, '../static'),
     workspace: join(__dirname, '..'),
 };
 

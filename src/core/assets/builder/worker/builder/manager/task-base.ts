@@ -39,13 +39,39 @@ export abstract class BuildTaskBase extends EventEmitter {
      * 更新进度消息 log
      * @param message 
      * @param increment 
-     * @param logType 
+     * @param outputType 
      */
     public updateProcess(message: string, increment = 0, outputType: IConsoleType = 'debug') {
         increment && (this.progress = Utils.Math.clamp01(this.progress + increment));
         this.emit('update', message, this.progress);
-        // @ts-ignore
-        console[outputType](`${message}, progress: ${(this.progress * 100).toFixed(0)}%`);
+
+        const percentage = Math.round(this.progress * 100);
+        const progressMessage = `${message} (${percentage}%)`;
+
+        // 根据输出类型选择不同的显示方式
+        switch (outputType) {
+            case 'error':
+                newConsole.error(progressMessage);
+                break;
+            case 'warn':
+                newConsole.warn(progressMessage);
+                break;
+            case 'log':
+            case 'success':
+                newConsole.success(progressMessage);
+                break;
+            case 'info':
+                newConsole.info(progressMessage);
+                break;
+            case 'debug':
+            default:
+                if (increment > 0 || message.includes('✓') || message.includes('success')) {
+                    newConsole.success(progressMessage);
+                } else {
+                    newConsole.debug(progressMessage);
+                }
+                break;
+        }
     }
 
     abstract handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
@@ -70,19 +96,24 @@ export abstract class BuildTaskBase extends EventEmitter {
                 newConsole.trackTimeStart(trickTimeLabel);
                 hooks = Utils.File.requireFile(info.path);
                 if (hooks[funcName]) {
-                    this.updateProcess(`${pkgName}:(${funcName}) start...`);
+                    // 使用新的 console 方法显示插件任务开始
+                    newConsole.pluginTask(pkgName, funcName, 'start');
                     console.debug(trickTimeLabel);
                     await this.handleHook(hooks[funcName], info.internal);
                     const time = newConsole.trackTimeEnd(trickTimeLabel, { output: true });
-                    this.updateProcess(`${pkgName}:(${funcName}) in ${time} ms ✓`, increment);
+                    // 使用新的 console 方法显示插件任务完成
+                    newConsole.pluginTask(pkgName, funcName, 'complete', `${time}ms`);
+                    this.updateProcess(`${pkgName}:${funcName} completed ✓`, increment, 'success');
                 }
             } catch (error) {
                 const errorMsg = transI18n('builder.error.run_hooks_failed', {
                     pkgName,
                     funcName,
                 });
+                // 使用新的 console 方法显示插件任务错误
+                newConsole.pluginTask(pkgName, funcName, 'error');
                 this.updateProcess(errorMsg, increment, 'error');
-                this.updateProcess(error + '', increment);
+                this.updateProcess(String(error), increment, 'error');
                 if (hooks && hooks.throwError || info.internal) {
                     this.onError(error as Error);
                 }

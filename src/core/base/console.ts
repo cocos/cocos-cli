@@ -2,7 +2,9 @@ import { existsSync } from 'fs';
 import { appendFile, outputFileSync, readdir, remove } from 'fs-extra';
 import { basename } from 'path';
 import { transI18nName } from '../assets/utils';
-export type IConsoleType = 'log' | 'warn' | 'error' | 'debug';
+import { consola, type ConsolaInstance } from 'consola';
+import ora, { type Ora } from 'ora';
+export type IConsoleType = 'log' | 'warn' | 'error' | 'debug' | 'info' | 'success' | 'ready' | 'start';
 
 interface IConsoleMessage {
     type: IConsoleType,
@@ -18,6 +20,7 @@ let rawConsole: any = global.console;
 
 /**
  * 自定义的一个新 console 类型，用于收集日志
+ * 集成 consola 提供美观的日志输出
  */
 export class NewConsole {
     command = false;
@@ -26,11 +29,40 @@ export class NewConsole {
     private _start = false;
     private memoryTrackMap: Map<string, number> = new Map();
     private trackTimeStartMap: Map<string, number> = new Map();
+    private consola: ConsolaInstance;
+    private isVerbose: boolean = false;
+
+    // 进度管理相关
+    private currentSpinner: Ora | null = null;
+    private progressMode: boolean = false;
+    private lastProgressMessage: string = '';
+    private progressStartTime: number = 0;
+
+    // 去重控制（控制台防抖与重复抑制）
+    private lastPrintType?: IConsoleType;
+    private lastPrintMessage?: string;
+    private lastPrintTime = 0;
+    private duplicateSuppressWindowMs = 800;
 
     _init = false;
 
+    constructor() {
+        // 初始化 consola 实例
+        this.consola = consola.create({
+            level: process.env.DEBUG === 'true' || process.argv.includes('--debug') ? 4 : 3,
+            formatOptions: {
+                colors: true,
+                compact: false,
+                date: false
+            }
+        });
+
+        // 检查是否启用详细模式
+        this.isVerbose = process.env.DEBUG === 'true' || process.argv.includes('--debug');
+    }
+
     public init(logDest: string) {
-        if (!this._init) {
+        if (this._init) {
             return;
         }
         // 兼容可能存在多个同样自定义 console 的处理
@@ -64,6 +96,10 @@ export class NewConsole {
      * */
     public record(logDest?: string) {
         logDest && (this.logDest = logDest);
+        if (!this.logDest) {
+            console.error('logDest is required');
+            return;
+        }
         // @ts-ignore
         if (globalThis.console.switchConsole) {
             // @ts-ignore
@@ -89,7 +125,8 @@ export class NewConsole {
     // --------------------- 重写 console 相关方法 -------------------------
 
     public log(...args: any[]) {
-        rawConsole.log(...args);
+        const message = args.join(' ');
+        this._handleProgressMessage('log', message);
         if (!this._start) {
             return;
         }
@@ -100,8 +137,61 @@ export class NewConsole {
         this.save();
     }
 
+    public info(...args: any[]) {
+        const message = args.join(' ');
+        this._handleProgressMessage('info', message);
+        if (!this._start) {
+            return;
+        }
+        this.messages.push({
+            type: 'info',
+            value: args,
+        });
+        this.save();
+    }
+
+    public success(...args: any[]) {
+        const message = args.join(' ');
+        this._handleProgressMessage('success', message);
+        if (!this._start) {
+            return;
+        }
+        this.messages.push({
+            type: 'success',
+            value: args,
+        });
+        this.save();
+    }
+
+    public ready(...args: any[]) {
+        const message = args.join(' ');
+        this._handleProgressMessage('ready', message);
+        if (!this._start) {
+            return;
+        }
+        this.messages.push({
+            type: 'ready',
+            value: args,
+        });
+        this.save();
+    }
+
+    public start(...args: any[]) {
+        const message = args.join(' ');
+        this._handleProgressMessage('start', message);
+        if (!this._start) {
+            return;
+        }
+        this.messages.push({
+            type: 'start',
+            value: args,
+        });
+        this.save();
+    }
+
     public error(error: Error | string) {
-        rawConsole.error(error);
+        const message = (error instanceof Error) ? (error.stack || error.message || String(error)) : String(error);
+        this._handleProgressMessage('error', message);
         if (!this._start) {
             return;
         }
@@ -113,7 +203,8 @@ export class NewConsole {
     }
 
     public warn(...args: any[]) {
-        rawConsole.warn(...args);
+        const message = args.join(' ');
+        this._handleProgressMessage('warn', message);
         if (!this._start) {
             return;
         }
@@ -125,7 +216,8 @@ export class NewConsole {
     }
 
     public debug(...args: any[]) {
-        rawConsole.debug(...args);
+        const message = args.join(' ');
+        this._handleProgressMessage('debug', message);
         if (!this._start) {
             return;
         }
@@ -134,6 +226,106 @@ export class NewConsole {
             value: args,
         });
         this.save();
+    }
+
+    /**
+     * 处理进度消息显示
+     */
+    private _handleProgressMessage(type: IConsoleType, message: string) {
+        // 如果是错误或警告，总是显示
+        if (type === 'error') {
+            this._stopProgress();
+            this._printOnce(type, message);
+            return;
+        }
+
+        // 在进度模式下，使用 ora 显示
+        if (this.progressMode) {
+            this._updateProgress(message);
+        } else {
+            // 非进度模式，正常显示
+            this._printOnce(type, message);
+        }
+    }
+
+    /**
+     * 控制台输出去重与防抖
+     */
+    private _printOnce(type: IConsoleType, message: string) {
+        const now = Date.now();
+        if (this.lastPrintType === type && this.lastPrintMessage === message && (now - this.lastPrintTime) < this.duplicateSuppressWindowMs) {
+            // 在时间窗口内的重复消息不再打印，避免刷屏
+            return;
+        }
+        this.lastPrintType = type;
+        this.lastPrintMessage = message;
+        this.lastPrintTime = now;
+        this.consola[type](message);
+    }
+
+    /**
+     * 开始进度模式
+     */
+    public startProgress(initialMessage: string = 'Processing...') {
+        // this.progressMode = true;
+        // this.lastProgressMessage = initialMessage;
+
+        // try {
+        //     this.currentSpinner = ora({
+        //         text: initialMessage,
+        //         spinner: 'dots',
+        //         color: 'blue'
+        //     }).start();
+        // } catch (error) {
+        //     // 如果 ora 导入失败，回退到简单的文本显示
+        //     console.log(`⏳ ${initialMessage}`);
+        //     console.error(error);
+        // }
+    }
+
+    /**
+     * 更新进度消息
+     */
+    private _updateProgress(message: string) {
+        if (this.currentSpinner) {
+            this.lastProgressMessage = message;
+            this.currentSpinner.text = message;
+        }
+    }
+
+    /**
+     * 停止进度模式
+     */
+    public stopProgress(success: boolean = true, finalMessage?: string) {
+        if (this.currentSpinner) {
+            const message = finalMessage || this.lastProgressMessage;
+            if (success) {
+                this.currentSpinner.succeed(message);
+            } else {
+                this.currentSpinner.fail(message);
+            }
+            this.currentSpinner = null;
+        } else {
+            // 如果没有 spinner，使用简单的文本显示
+            const message = finalMessage || this.lastProgressMessage;
+            if (success) {
+                console.log(`✅ ${message}`);
+            } else {
+                console.log(`❌ ${message}`);
+            }
+        }
+        this.progressMode = false;
+    }
+
+    /**
+     * 停止当前进度（不显示成功/失败状态）
+     */
+    private _stopProgress() {
+        if (this.currentSpinner) {
+            this.currentSpinner.stop();
+            this.currentSpinner = null;
+        }
+        this.progressMode = false;
     }
 
     private async save() {
@@ -157,9 +349,6 @@ export class NewConsole {
 
         const content = `${getRealTime()}-${type}: ${translate(info)}\n`;
         appendFile(this.logDest, content);
-        // if (this.command) {
-        //     ccWorker.Ipc.send('build-worker:stdout', type, content);
-        // }
     }
 
     trackMemoryStart(name: string) {
@@ -204,6 +393,106 @@ export class NewConsole {
         this.debug(label + ` (${durTime}ms)`);
         this.trackTimeStartMap.delete(message);
         return durTime;
+    }
+
+    // --------------------- 构建相关便捷方法 -------------------------
+
+    /**
+     * 显示构建开始信息
+     */
+    public buildStart(platform: string) {
+        this.start(`🚀 Starting build for ${platform}`);
+        this.info(`📋 Detailed logs will be saved to log file`);
+        this.startProgress(`Building ${platform}...`);
+    }
+
+    /**
+     * 显示构建完成信息
+     */
+    public buildComplete(platform: string, duration: string, success: boolean = true) {
+        this.stopProgress(success);
+        if (success) {
+            this.success(`✅ Build completed successfully for ${platform} in ${duration}`);
+        } else {
+            this.error(`❌ Build failed for ${platform} after ${duration}`);
+        }
+    }
+
+    /**
+     * 显示插件任务信息
+     */
+    public pluginTask(pkgName: string, funcName: string, status: 'start' | 'complete' | 'error', duration?: string) {
+        const pluginInfo = `${pkgName}:${funcName}`;
+        switch (status) {
+            case 'start':
+                this.info(`🔧 ${pluginInfo} starting...`);
+                break;
+            case 'complete':
+                this.success(`✅ ${pluginInfo} completed${duration ? ` in ${duration}` : ''}`);
+                break;
+            case 'error':
+                this.error(`❌ ${pluginInfo} failed`);
+                break;
+        }
+    }
+
+    /**
+     * 显示进度信息（在进度模式下更新，否则正常显示）
+     */
+    public progress(message: string, current: number, total: number) {
+        const percentage = Math.round((current / total) * 100);
+        const progressBar = this.createProgressBar(percentage);
+        const progressMessage = `${progressBar} ${percentage}% - ${message}`;
+
+        if (this.progressMode) {
+            this._updateProgress(progressMessage);
+        } else {
+            this.info(progressMessage);
+        }
+    }
+
+    /**
+     * 创建进度条
+     */
+    private createProgressBar(percentage: number, width: number = 20): string {
+        const filled = Math.round((percentage / 100) * width);
+        const empty = width - filled;
+        const bar = '█'.repeat(filled) + '░'.repeat(empty);
+        return `[${bar}]`;
+    }
+
+    /**
+     * 显示阶段信息
+     */
+    public stage(stage: string, message?: string) {
+        const stageText = `[${stage}]`;
+        if (message) {
+            this.info(`${stageText} ${message}`);
+        } else {
+            this.info(stageText);
+        }
+    }
+
+    /**
+     * 显示任务开始（带进度）
+     */
+    public taskStart(taskName: string, description?: string) {
+        const message = description ? `${taskName}: ${description}` : taskName;
+        this.start(`🚀 ${message}`);
+        this.startProgress(message);
+    }
+
+    /**
+     * 显示任务完成
+     */
+    public taskComplete(taskName: string, success: boolean = true, duration?: string) {
+        const message = duration ? `${taskName} completed in ${duration}` : `${taskName} completed`;
+        this.stopProgress(success, message);
+        if (success) {
+            this.success(`✅ ${message}`);
+        } else {
+            this.error(`❌ ${taskName} failed`);
+        }
     }
 }
 

@@ -41,7 +41,7 @@ export interface IPhysicsMaterial {
     spinningFriction: number; // 0.1
     restitution: number; // 0.1
 }
-export type IConsoleType = 'log' | 'warn' | 'error' | 'debug';
+export type IConsoleType = 'log' | 'warn' | 'error' | 'debug' | 'info' | 'success' | 'ready' | 'start';
 
 export type BreakType = 'cancel' | 'crashed' | 'refreshed' | 'interrupted' | '';
 export type ICustomConsoleType = IConsoleType | 'group' | 'groupEnd' | 'groupCollapsed';

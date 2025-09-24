@@ -6,6 +6,7 @@
 !.husky/
 .vscode/extensions.json
 .vscode/launch.json
+.vscode/*.code-workspace
 .user.json
 .DS_Store
 .temp

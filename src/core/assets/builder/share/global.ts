@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { Platform } from '../@types/protected';
+import { Platform, IMD5Options } from '../@types/protected';
 
 // 接口定义
 
@@ -75,6 +75,8 @@ export interface CommonConfig {
     overwriteProjectSettings: OverwriteProjectSettings;
     /** 原生代码打包模式，默认值: 'both' */
     nativeCodeBundleMode: string;
+
+    md5CacheOptions: IMD5Options;
 }
 
 /**
@@ -331,7 +333,13 @@ export function getDefaultConfig(): BuilderConfig {
                         'gfx-webgl2': 'inherit-project-setting'
                     }
                 },
-                nativeCodeBundleMode: 'both'
+                nativeCodeBundleMode: 'both',
+                md5CacheOptions: {
+                    excludes: [],
+                    includes: [],
+                    replaceOnly: [],
+                    handleTemplateMd5Link: true,
+                },
             },
             useBuildEngineCache: true,
             useBuildTextureCompressCache: true,

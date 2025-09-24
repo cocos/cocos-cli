@@ -74,21 +74,33 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
         res = options;
     }
 
-    newConsole.record(getTaskLogDest(options.platform, options.taskId));
     let buildSuccess = true;
+    const startTime = Date.now();
+
+    // 显示构建开始信息
+    newConsole.buildStart(options.platform);
 
     try {
         const { BuildTask } = await import('./worker/builder');
         const builder = new BuildTask(options.taskId, res);
+
+        // 监听构建进度
+        builder.on('update', (message: string, progress: number) => {
+            newConsole.progress(message, Math.round(progress * 100), 100);
+        });
+
         await builder.run();
         buildSuccess = !builder.error;
-    } catch (error) {
-        buildSuccess = false;
-        console.error(error);
-    }
-    newConsole.stopRecord();
 
-    return BuildExitCode.BUILD_SUCCESS;
+        const duration = formatMSTime(Date.now() - startTime);
+        newConsole.buildComplete(options.platform, duration, buildSuccess);
+    } catch (error: any) {
+        buildSuccess = false;
+        const duration = formatMSTime(Date.now() - startTime);
+        newConsole.error(error);
+        newConsole.buildComplete(options.platform, duration, false);
+    }
+    return buildSuccess ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
 }
 
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<BuildExitCode> {
@@ -98,38 +110,44 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
     const weight = 1 / optionsList.length;
     const startTime = Date.now();
     let success = true;
+
     for (let i = 0; i < optionsList.length; i++) {
         const options = optionsList[i];
         const tasksLabel = options.taskName || 'bundle Build';
-        const startTime = Date.now();
+        const taskStartTime = Date.now();
         const logDest = getTaskLogDest(options.platform, buildTaskId);
+
         try {
-            newConsole.record(logDest);
-            console.debug(`=================================== ${tasksLabel} Task (${options.platform}) Start ================================`);
+            newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
             console.debug('Start build task, options:', options);
             newConsole.trackMemoryStart(`builder:build-bundle-total`);
+
             const builder = await BundleManager.create(options);
             builder.on('update', (message: string, progress: number) => {
-                console.log('build-worker:update-progress', buildTaskId, (progress + i) * weight, 'processing', message);
+                const totalProgress = (progress + i) * weight;
+                newConsole.progress(`${options.platform}: ${message}`, Math.round(totalProgress * 100), 100);
             });
+
             await builder.run();
             newConsole.trackMemoryEnd(`builder:build-bundle-total`);
-            console.log(`${tasksLabel} (${options.platform}) in {link(${builder.destDir})} success!`);
+
             success = !builder.error;
             if (builder.error) {
                 const errorMsg = typeof builder.error == 'object' ? (builder.error.stack || builder.error.message) : builder.error;
-                console.error(getCurrentTime() + ` ${tasksLabel} failed! ` + errorMsg);
+                newConsole.error(`${tasksLabel} (${options.platform}) failed: ${errorMsg}`);
                 success = false;
             } else {
-                console.debug(getCurrentTime() + `Build Bundle success in ${formatMSTime(Date.now() - startTime)}!`);
+                const duration = formatMSTime(Date.now() - taskStartTime);
+                newConsole.success(`${tasksLabel} (${options.platform}) completed in ${duration}`);
             }
         } catch (error: any) {
             success = false;
-            console.error(error);
+            newConsole.error(`${tasksLabel} (${options.platform}) error: ${String(error)}`);
         }
-        console.debug(`================================ ${tasksLabel} Task (${options.taskName}) Finished in (${formatMSTime(Date.now() - startTime)})ms ================================`);
+        console.debug(`================================ ${tasksLabel} Task (${options.taskName}) Finished in (${formatMSTime(Date.now() - taskStartTime)})ms ================================`);
     }
-    console.log(getCurrentTime() + `Build Bundle success in ${formatMSTime(Date.now() - startTime)}!`);
+    const totalDuration = formatMSTime(Date.now() - startTime);
+    newConsole.taskComplete('Bundle Build', success, totalDuration);
     return success ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
 }
 
@@ -167,7 +185,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             ...stageConfig,
         });
         let stageLabel = stageConfig.name;
-        await buildStageTask.run();
+        buildSuccess = await buildStageTask.run();
         newConsole.trackMemoryEnd(`builder:build-stage-total ${stageName}`);
 
         if (!buildStageTask.error) {
@@ -182,8 +200,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             break;
         }
     }
-    return BuildExitCode.BUILD_SUCCESS;
-
+    return buildSuccess ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
 }
 
 function readBuildTaskOptions(root: string): IBuildTaskOption | null {

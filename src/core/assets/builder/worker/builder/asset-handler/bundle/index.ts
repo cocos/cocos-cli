@@ -466,7 +466,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         if (this.bundleMap[INTERNAL]) {
             const internalAssets = await queryPreloadAssetList(this.options.includeModules, this.options.engineInfo.typescript.path);
             // 添加引擎依赖的预加载内置资源/脚本到 internal 包内
-            console.debug(`Query preload assets/scripts from cc.config.json: ${internalAssets.toString()}`);
+            console.debug(`Query preload assets/scripts from cc.config.json`);
             internalAssets.forEach((uuid) => {
                 this.bundleMap[INTERNAL].addRootAsset(buildAssetLibrary.getAsset(uuid));
             });

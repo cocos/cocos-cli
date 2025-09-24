@@ -44,7 +44,7 @@ export async function onBeforeCompressSettings(options: ITaskOption, result: Int
 }
 
 export async function onBeforeCopyBuildTemplate(this: IBuilder, options: ITaskOption, result: IBuildResult) {
-    const staticDir = join(options.engineInfo.typescript.builtin, 'templates/web-desktop');
+    const staticDir = join(options.engineInfo.typescript.path, 'templates/web-desktop');
     const packageOptions = options.packages['web-desktop'];
 
     // 拷贝内部提供的模板文件

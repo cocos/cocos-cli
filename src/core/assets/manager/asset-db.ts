@@ -7,7 +7,7 @@ import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import { extname, join, relative } from 'path';
 import { newConsole } from '../../base/console';
-import { decidePromiseState, PROMISE_STATE } from '../utils';
+import { decidePromiseState, getCurrentLocalTime, PROMISE_STATE } from '../utils';
 import pluginManager from './plugin';
 import assetHandlerManager from './asset-handler';
 import i18n from '../../base/i18n';
@@ -144,7 +144,8 @@ export class AssetDBManager extends EventEmitter {
         if (AssetDBManager.useCache) {
             await this._startFromCache();
         } else {
-            await this._start();
+            // await this._start();
+            await this._startDirectly();
         }
         this.ready = true;
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
@@ -179,6 +180,16 @@ export class AssetDBManager extends EventEmitter {
             await this._startupDB(startupDatabase);
         }
         newConsole.trackMemoryEnd('asset-db:worker-init: startup');
+    }
+
+    /**
+     * 直接启动数据库
+     */
+    private async _startDirectly() {
+        const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
+        for (const assetDBName of assetDBNames) {
+            await this.startDB(this.assetDBInfo[assetDBName]);
+        }
     }
 
     /**
@@ -234,7 +245,6 @@ export class AssetDBManager extends EventEmitter {
         await this._createDB(info);
         await this._startDB(info.name);
         this.emit('asset-db:db-ready', info.name);
-        await afterStartDB();
     }
 
     /**
@@ -524,7 +534,6 @@ export class AssetDBManager extends EventEmitter {
         this.hasPause = false;
         this.startPause = false;
         this.emit('asset-db:resume');
-        newConsole.record();
         console.log('Asset DB is resume!');
         await this.step();
         return true;
@@ -645,9 +654,7 @@ export class AssetDBManager extends EventEmitter {
                 this.waitPausePromiseTask = undefined;
                 this.emit('asset-db:pause', source);
                 console.log(`Asset DB is paused with ${source}!`);
-                newConsole.stopRecord();
                 this.hasPause = true;
-                newConsole.stopRecord();
                 resolve(true);
             };
         });
@@ -759,9 +766,9 @@ async function afterPreImport(db: assetdb.AssetDB) {
 }
 
 async function afterStartDB() {
-    await compileEffect();
+    // await compileEffect();
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
-    startAutoGenEffectBin();
+    // startAutoGenEffectBin();
 
     // TODO 编译脚本
 }

@@ -81,30 +81,259 @@ Cocos CLI is a comprehensive command-line interface tool designed for the [Cocos
 
 ## 🚀 Usage
 
+### Global Options
+
 ```bash
-# Initialize a new Cocos project
-cocos init my-project
+cocos [options] [command]
 
-# Import resources into project
-cocos import --project ./my-project --source ./assets
+Options:
+  -V, --version          output the version number
+  -d, --debug           Enable debug mode
+  --no-interactive      Disable interactive mode (for CI)
+  --engine <path>       Specify engine path
+  --config <path>       Specify config file path
+  -h, --help            display help for command
+```
 
-# Export project resources
-cocos export --project ./my-project --output ./exported-assets
+### Basic Commands
 
-# Open project in Cocos Creator
-cocos open ./my-project
+```bash
+# Import/open a Cocos project
+cocos import ./my-project --engine /path/to/engine
+
+# Build a Cocos project
+cocos build ./my-project --platform web-desktop --engine /path/to/engine
+
+# Show project information
+cocos info ./my-project
+
+# Display help
+cocos --help
+cocos build --help
 ```
 
 ## 📚 Commands
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `init` | Create a new Cocos project | `cocos init my-project` |
-| `import` | Import resources into project | `cocos import --project ./my-project --source ./assets` |
-| `export` | Export project resources | `cocos export --project ./my-project --output ./exported-assets` |
-| `open` | Open project in Cocos Creator | `cocos open ./my-project` |
-| `build` | Build project for deployment | `cocos build --platform web-mobile` |
-| `help` | Display help information | `cocos help` |
+### `import` - Import/Open Project
+
+Import or open a Cocos Creator project for development.
+
+```bash
+cocos import <project-path> [options]
+```
+
+**Arguments:**
+
+- `<project-path>` - Path to the Cocos Creator project
+
+**Options:**
+
+- `--wait` - Keep the process running after import (for development)
+
+**Examples:**
+
+```bash
+# Import project and exit
+cocos import ./my-project --engine /path/to/engine
+
+# Import project and keep running
+cocos import ./my-project --engine /path/to/engine --wait
+```
+
+### `build` - Build Project
+
+Build a Cocos Creator project for deployment.
+
+```bash
+cocos build <project-path> [options]
+```
+
+**Arguments:**
+
+- `<project-path>` - Path to the Cocos Creator project
+
+**Options:**
+
+- `-p, --platform <platform>` - Target platform (web-desktop, web-mobile, android, ios, etc.) (default: "web-desktop")
+- `--skip-check` - Skip option validation
+- `--stage <stage>` - Build stage (compile, bundle, etc.)
+
+**Examples:**
+
+```bash
+# Build for web-desktop platform
+cocos build ./my-project --platform web-desktop --engine /path/to/engine
+
+# Build in debug mode
+cocos build ./my-project --platform web-mobile --debug --engine /path/to/engine
+
+# Build in release mode
+cocos build ./my-project --platform android --release --engine /path/to/engine
+```
+
+### `info` - Show Project Information
+
+Display detailed information about a Cocos Creator project.
+
+```bash
+cocos info <project-path>
+```
+
+**Arguments:**
+
+- `<project-path>` - Path to the Cocos Creator project
+
+**Examples:**
+
+```bash
+# Show project information
+cocos info ./my-project
+```
+
+## 🛠️ Development & Testing
+
+### Development Setup
+
+For development and testing, you have several options:
+
+#### Option 1: Using npm link (Recommended)
+
+1. **Link the package globally:**
+
+   ```bash
+   npm link
+   ```
+
+2. **Now you can use `cocos` command anywhere:**
+
+   ```bash
+   cocos --help
+   cocos build ./my-project --platform web-desktop --engine /path/to/engine
+   ```
+
+3. **To unlink when done:**
+
+   ```bash
+   npm unlink -g cocos-cli
+   ```
+
+#### Option 2: Using npm scripts
+
+```bash
+# Run CLI directly with ts-node
+npm run cli -- --help
+npm run cli -- build ./my-project --platform web-desktop --engine /path/to/engine
+
+# Build and run compiled version
+npm run cli:build -- --help
+npm run cli:build -- build ./my-project --platform web-desktop --engine /path/to/engine
+```
+
+#### Option 3: Direct execution
+
+```bash
+# Using ts-node directly
+npx ts-node src/cli.ts --help
+npx ts-node src/cli.ts build ./my-project --platform web-desktop --engine /path/to/engine
+
+# Using compiled version
+node dist/cli.js --help
+node dist/cli.js build ./my-project --platform web-desktop --engine /path/to/engine
+```
+
+### Testing Commands
+
+#### Test Basic Functionality
+
+```bash
+# Test help commands
+cocos --help
+cocos build --help
+cocos import --help
+cocos info --help
+
+# Test version
+cocos --version
+```
+
+#### Test with Sample Project
+
+```bash
+# Test import command
+cocos import ./tests/fixtures/projects/asset-operation --engine /path/to/your/engine
+
+# Test build command
+cocos build ./tests/fixtures/projects/asset-operation --platform web-desktop --engine /path/to/your/engine
+
+# Test info command
+cocos info ./tests/fixtures/projects/asset-operation
+```
+
+#### Test with Debug Mode
+
+```bash
+# Enable debug mode for detailed output
+cocos --debug build ./my-project --platform web-desktop --engine /path/to/engine
+```
+
+### Development Workflow
+
+1. **Make changes to the code**
+2. **Build the project:**
+
+   ```bash
+   npm run build
+   ```
+
+3. **Test your changes:**
+
+   ```bash
+   cocos --help  # Test if command works
+   ```
+
+4. **Run specific tests:**
+
+   ```bash
+   npm test
+   ```
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Command not found after npm link:**
+
+   ```bash
+   # Check if the link was created
+   npm list -g --depth=0
+   
+   # Re-link if needed
+   npm unlink -g cocos-cli
+   npm link
+   ```
+
+2. **TypeScript compilation errors:**
+
+   ```bash
+   # Clean and rebuild
+   npm run build:clear
+   npm run build
+   ```
+
+3. **Engine path issues:**
+   - Make sure the engine path is correct and accessible
+   - Use absolute paths for better reliability
+   - Check that the engine directory contains the necessary files
+
+#### Debug Mode
+
+Enable debug mode to get more detailed output:
+
+```bash
+cocos --debug build ./my-project --platform web-desktop --engine /path/to/engine
+```
+
+This will provide additional logging information to help diagnose issues.
 
 ## 🔧 Development Tools
 

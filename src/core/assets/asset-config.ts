@@ -1,5 +1,7 @@
 import { join } from "path";
 import { AssetDBRegisterInfo } from "./@types/private";
+import { getCurrentLocalTime } from "./utils";
+import { newConsole } from "../base/console";
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;

@@ -213,7 +213,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         await this.buildTemplate!.copyTo(this.result.paths.output);
         await this.runPluginTask(taskManager.pluginTasks.onAfterCopyBuildTemplate);
         // MD5 处理
-        await this.runBuildTask(this.md5Tasks!, taskManager.taskWeight.md5Tasks);
+        this.md5Tasks && (await this.runBuildTask(this.md5Tasks, taskManager.taskWeight.md5Tasks));
         // 构建进程结束之前
         await this.runPluginTask(taskManager.pluginTasks.onAfterBuild);
         await this.postBuild();
@@ -234,9 +234,9 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         this.bundleManager = await BundleManager.create(this.options, this);
         this.bundleManager.options.dest = this.result.paths.assets;
         this.bundleManager.destDir = this.result.paths.assets;
-        this.bundleManager.on('update', (message: string, progress: number) => {
+        this.bundleManager.updateProcess = (message, progress: number) => {
             this.updateProcess(message, progress - this.bundleManager.progress);
-        });
+        };
         await this.bundleManager.run();
         await this.runBuildTask(taskManager.getTaskHandleFromNames([
             'setting-task/cache',
@@ -312,9 +312,9 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         if (this.options.preview) {
             await this.bundleManager.initOptions();
         } else {
-            this.bundleManager.addListener('update', (message: string, progress: number) => {
+            this.bundleManager.updateProcess = (message: string, progress: number) => {
                 this.updateProcess(message);
-            });
+            };
         }
         await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleInit);
         await this.bundleManager.initBundle();

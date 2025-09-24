@@ -12,6 +12,7 @@ import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
 import { BuildGlobalInfo } from '../share/global';
 import utils from '../../../base/utils';
+import { newConsole } from '../../../base/console';
 export interface InternalPackageInfo {
     name: string; // 插件名
     path: string; // 插件路径
@@ -474,9 +475,9 @@ export class PluginManager extends EventEmitter {
                     checkRes = false;
                     continue;
                 } else {
-                    const consoleType = (verifyLevel !== 'error' && console[verifyLevel]) ? verifyLevel : 'warn';
+                    const consoleType = (verifyLevel !== 'error' && newConsole[verifyLevel]) ? verifyLevel : 'warn';
                     // 有报错信息，但有默认值，报错后填充默认值
-                    console[consoleType](i18n.t('builder.warn.checkFailedWithNewValue', {
+                    newConsole[consoleType](i18n.t('builder.warn.checkFailedWithNewValue', {
                         key: `options.packages.${pkgName}.${key}`,
                         value: JSON.stringify(value),
                         error: errMsg,
