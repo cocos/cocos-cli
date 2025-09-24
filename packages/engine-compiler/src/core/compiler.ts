@@ -3,7 +3,7 @@ import { StatsQuery } from '@cocos/ccbuild';
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
 import { dirname, join } from 'path';
 import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove, existsSync, mkdirSync, copyFileSync } from 'fs-extra';
-import { IFeatureItem, IModuleItem, ModuleRenderConfig } from '../@types/modules';
+import { IFeatureItem, IModuleItem, ModuleRenderConfig } from './modules';
 
 const VERSION = '3';
 const TEMP_ENGINE_CONFIG: any = { "configs": { "defaultConfig": { "name": "默认配置", "cache": { "base": { "_value": true }, "gfx-webgl": { "_value": true }, "gfx-webgl2": { "_value": false }, "gfx-webgpu": { "_value": false }, "animation": { "_value": true }, "skeletal-animation": { "_value": true }, "3d": { "_value": true }, "meshopt": { "_value": false }, "2d": { "_value": true }, "sorting-2d": { "_value": false }, "rich-text": { "_value": true }, "mask": { "_value": true }, "graphics": { "_value": true }, "ui-skew": { "_value": true }, "affine-transform": { "_value": true }, "ui": { "_value": true }, "particle": { "_value": true }, "physics": { "_value": true, "_option": "physics-physx" }, "physics-ammo": { "_value": true, "_flags": { "LOAD_BULLET_MANUALLY": false } }, "physics-cannon": { "_value": false }, "physics-physx": { "_value": false, "_flags": { "LOAD_PHYSX_MANUALLY": false } }, "physics-builtin": { "_value": false }, "physics-2d": { "_value": true, "_option": "physics-2d-box2d" }, "physics-2d-box2d": { "_value": true }, "physics-2d-box2d-wasm": { "_value": false, "_flags": { "LOAD_BOX2D_MANUALLY": false } }, "physics-2d-builtin": { "_value": false }, "physics-2d-box2d-jsb": { "_value": false }, "intersection-2d": { "_value": true }, "primitive": { "_value": true }, "profiler": { "_value": true }, "occlusion-query": { "_value": false }, "geometry-renderer": { "_value": false }, "debug-renderer": { "_value": false }, "particle-2d": { "_value": true }, "audio": { "_value": true }, "video": { "_value": true }, "webview": { "_value": true }, "tween": { "_value": true }, "websocket": { "_value": true }, "websocket-server": { "_value": false }, "terrain": { "_value": true }, "light-probe": { "_value": true }, "tiled-map": { "_value": true }, "vendor-google": { "_value": false }, "spine": { "_value": true, "_option": "spine-3.8" }, "spine-3.8": { "_value": true, "_flags": { "LOAD_SPINE_MANUALLY": false } }, "spine-4.2": { "_value": false, "_flags": { "LOAD_SPINE_MANUALLY": false } }, "dragon-bones": { "_value": true }, "marionette": { "_value": true }, "procedural-animation": { "_value": true }, "custom-pipeline-post-process": { "_value": false }, "render-pipeline": { "_value": true, "_option": "custom-pipeline" }, "custom-pipeline": { "_value": true }, "legacy-pipeline": { "_value": false }, "xr": { "_value": false } }, "flags": { "LOAD_BULLET_MANUALLY": false, "LOAD_SPINE_MANUALLY": false, "LOAD_PHYSX_MANUALLY": false }, "includeModules": ["2d", "3d", "affine-transform", "animation", "audio", "base", "custom-pipeline", "dragon-bones", "gfx-webgl", "graphics", "intersection-2d", "light-probe", "marionette", "mask", "particle", "particle-2d", "physics-2d-box2d", "physics-physx", "primitive", "procedural-animation", "profiler", "rich-text", "skeletal-animation", "spine-3.8", "terrain", "tiled-map", "tween", "ui", "ui-skew", "video", "websocket", "webview"], "noDeprecatedFeatures": { "value": false, "version": "" } } }, "globalConfigKey": "defaultConfig", "graphics": { "pipeline": "custom-pipeline", "custom-pipeline-post-process": false } };
@@ -34,7 +34,6 @@ export class EngineCompiler {
     }
 
     static create(path: string) {
-        // TODO 根据 Engine 地址读取引擎配置文件，确认初始化信息
         return new EngineCompiler(path);
     }
 
@@ -387,12 +386,12 @@ export class EngineCompiler {
         const configurableFlags = await this.getConfigurableFlagsOfFeatures(features);
         await compiler.buildImportMap(
             targetIndex, features, {
-            mode,
-            platform,
-            out,
-            features,
-            configurableFlags,
-        },
+                mode,
+                platform,
+                out,
+                features,
+                configurableFlags,
+            },
         );
     }
 

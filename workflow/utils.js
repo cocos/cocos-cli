@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
@@ -47,6 +47,15 @@ async function runCommand(cmd, args = [], opts = {}) {
     });
 }
 
+/**
+ * 执行 Tsc 命令
+ * @param sourceDir
+ */
+function runTscCommand(sourceDir) {
+    const binDir = path.join(__dirname, '../node_modules', '.bin');
+    const cmd = path.join(binDir, process.platform === 'win32' ? 'tsc.cmd': 'tsc');
+    spawnSync(cmd, { cwd: sourceDir, shell: true, stdio: 'inherit' });
+}
 
 /**
  * 复制目录（忽略规则）
@@ -142,6 +151,7 @@ function copyRecursiveWithBase(src, dest, basePath) {
 
 module.exports = {
     runCommand,
+    runTscCommand,
     copyDirWithIgnore,
     copyFilesFromDirsWithStructure,
     logTitle

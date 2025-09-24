@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { IBuildCommandOption } from './core/assets/builder/@types/protected';
 import utils from './core/base/utils';
-import { newConsole, NewConsole } from './core/base/console';
+import { newConsole } from './core/base/console';
 import { getCurrentLocalTime } from './core/assets/utils';
 
 class ProjectManager {
@@ -60,8 +60,9 @@ class ProjectManager {
 
     /**
      * 构建某个项目
-     * @param projectPath 
-     * @param options 
+     * @param projectPath
+     * @param enginePath
+     * @param options
      */
     async build(projectPath: string, enginePath: string, options: Partial<IBuildCommandOption>) {
         if (!options.logDest) {

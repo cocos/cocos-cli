@@ -1,4 +1,3 @@
-import { EngineCompiler } from './compiler';
 import { EngineInfo } from './@types/public';
 import { EngineConfig, InitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
@@ -11,7 +10,6 @@ import { join } from 'path';
 export interface IEngine {
     getInfo(): EngineInfo;
     getConfig(): EngineConfig;
-    getCompiler(): EngineCompiler;
     init(enginePath: string): Promise<this>;
     initEngine(info: InitEngineInfo): Promise<this>;
 }
@@ -68,7 +66,6 @@ class Engine implements IEngine {
         macroCustom: [],
         customJointTextureLayouts: [],
     }
-    private _compiler: EngineCompiler | null = null;
 
     /**
      * TODO init data in register project modules
@@ -103,14 +100,6 @@ class Engine implements IEngine {
         return this._config;
     }
 
-    getCompiler(): EngineCompiler {
-        if (!this._init) {
-            throw new Error('Engine not init');
-        }
-        this._compiler = this._compiler || EngineCompiler.create(this._info.typescript.path);
-        return this._compiler;
-    }
-
     // TODO 对外开发一些 compile 已写好的接口
 
     /**
@@ -122,7 +111,9 @@ class Engine implements IEngine {
         }
         this._info.typescript.builtin = this._info.typescript.path = enginePath;
         this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
-        this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
+        // TODO 这里先读取 version.json，后续如果引擎独立了，在去读 package.json
+        // this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
+        this._info.version = await import(join(enginePath, 'version.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
         this._init = true;
 
@@ -147,7 +138,7 @@ class Engine implements IEngine {
         const { default: preload } = await import('cc/preload');
         await preload({
             engineRoot: this._info.typescript.path,
-            engineDev: this.getCompiler().getOutDir(),
+            engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
 
             requiredModules: [
                 'cc',

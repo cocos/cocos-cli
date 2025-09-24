@@ -1,9 +1,13 @@
-const { EngineCompiler } = require('../dist/core/engine/compiler');
+const { compileEngine } = require('../packages/engine-compiler/dist/index');
 const fse = require('fs-extra');
 const path = require('path');
 const utils = require('./utils');
 
-// TODO 这里最后还需要整理一下，因为缺了构建需要的引擎代码，例如 cmake 之类的
+const userConfig = path.join(__dirname, '../.user.json');
+if (!fse.existsSync(userConfig)) {
+    // TODO 需要完善：如果没有 user.json 不是开发版本
+    return;
+}
 
 (async () => {
     utils.logTitle('Compiler engine');
@@ -18,17 +22,22 @@ const utils = require('./utils');
     }
 
     try {
-        const compiler = EngineCompiler.create(engine);
-        await compiler.clear();
-        await compiler.compileEngine(engine, true);
+        // tsc engine-compiler
+        const sourceDir = path.join(__dirname, '../packages/engine-compiler');
+        fse.removeSync(path.join(sourceDir, 'dist'));
+        utils.runTscCommand(sourceDir)
+        console.log('tsc', sourceDir);
+        // 编译引擎
+        await compileEngine(engine);
+
         // 编译后拷贝 .bind 文件夹
         const bindSourcePath = path.join(engine, 'bin');
         const engineTargetPath = path.join(__dirname, '..', 'bin', 'engine');
 
-        console.log(`remove ${engineTargetPath}`);
         fse.removeSync(engineTargetPath);
+        console.log(`remove ${engineTargetPath}`);
 
-        // TODO 后续需要统一整理具体要导出那些
+        // TODO 后续需要统一整理具体要导出那些，因为缺了构建需要的引擎代码，例如 cmake 之类的
         // 拷贝需要的脚本
         utils.copyFilesFromDirsWithStructure([
             path.join(engine, 'native', 'external', 'emscripten'),

@@ -2,18 +2,17 @@
 
 const fse = require('fs-extra');
 const path = require('path');
-const utils = require('./utils');
-const { spawnSync } = require('child_process');
 const readline = require('readline');
+const utils = require('./utils');
 
 const userConfig = path.join(__dirname, '../.user.json');
-
 if (!fse.existsSync(userConfig)) {
-    console.warn('测试 assets 相关模块前，请在仓库下添加 .user.json 文件填写 cc 和 @editor/asset-db 地址');
+    // TODO 需要完善：如果没有 user.json 不是开发版本
+    return;
 }
 
 /**
- * 询问是否强制更新全部模块
+ * 询问用户是否强制更新全部模块
  * @returns {Promise<boolean>}
  */
 function askForForceUpdate() {
@@ -26,11 +25,11 @@ function askForForceUpdate() {
         // 设置3秒超时，默认强制更新
         const timeout = setTimeout(() => {
             rl.close();
-            console.log('\n3秒内未响应，默认选择强制更新');
-            resolve(true);
+            console.log('\n3秒内未响应，默认跳过强制更新');
+            resolve(false);
         }, 3000);
 
-        rl.question('是否强制更新？(y/n) [3秒后默认强制更新]: ', (answer) => {
+        rl.question('是否强制更新？(y/n) [3秒后默认跳过强制更新]: ', (answer) => {
             clearTimeout(timeout);
             rl.close();
             const shouldForce = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes' || answer.toLowerCase() === '';
@@ -50,22 +49,22 @@ async function mockNpmModules() {
     } else {
         forceUpdate = await askForForceUpdate();
     }
-
+    
     const forceFlag = forceUpdate ? '--force' : '';
-
+    
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
 
-    // build cc-module
-    await utils.runCommand('node', ['./scripts/build-cc-module.js']);
     // build web-adapter
-    await utils.runCommand('node', ['./scripts/build-adapter.js', forceFlag]);
-
-    // build cli
-    await utils.runCommand('node', ['./scripts/build-ts.js', forceFlag]);
+    await utils.runCommand('node', ['./workflow/build-adapter.js', forceFlag].filter(Boolean));
     // compiler engine
-    await utils.runCommand('node', ['./scripts/compiler-engine.js', forceFlag]);
-
+    await utils.runCommand('node', ['./workflow/compiler-engine.js', forceFlag].filter(Boolean));
+    // build cc module
+    await utils.runCommand('node', ['./workflow/build-cc-module.js', forceFlag].filter(Boolean));
+    // tsc cli
+    await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
     // 模拟 i18n 包
+    
+    console.log('所有模块构建完成！');
 }
 
 mockNpmModules();

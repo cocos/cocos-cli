@@ -2,6 +2,12 @@ const path = require('path');
 const fse = require('fs-extra');
 const utils = require('./utils');
 
+const userConfig = path.join(__dirname, '../.user.json');
+if (!fse.existsSync(userConfig)) {
+    // TODO 需要完善：如果没有 user.json 不是开发版本
+    return;
+}
+
 (async () => {
     utils.logTitle('Build web-adapter');
 

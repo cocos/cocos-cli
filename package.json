@@ -1,5 +1,5 @@
 {
-    "name": "cocos-cli",
+    "name": "@base/cocos-cli",
     "version": "1.0.0",
     "description": "Cocos Creator CLI tool for project management and building",
     "main": "index.js",
@@ -7,22 +7,32 @@
         "cocos": "./dist/cli.js"
     },
     "scripts": {
+        "clear": "node workflow/clear.js",
         "test": "jest",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
-        "compiler:engine": "node ./scripts/compiler-engine.js --force",
-        "build:adapter": "node ./scripts/build-adapter.js --force",
-        "build:cc-module": "node ./scripts/build-cc-module.js",
+        "compiler": "FORCE_UPDATE=true npm i",
+        "compiler:engine": "node workflow/compiler-engine.js --force",
+        "build:adapter": "node workflow/build-adapter.js --force",
+        "build:cc-module": "node workflow/build-cc-module.js",
         "build": "npm run build:clear && tsc -b",
+        "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
-        "build:clear": "node ./scripts/clear.js",
-        "postinstall": "node ./scripts/postinstall.js",
-        "download-tools": "node ./scripts/download-tools.js",
+        "postinstall": "node workflow/postinstall.js",
+        "download-tools": "node workflow/download-tools.js",
         "start": "node ./dist/commands/build-directly.js",
-        "cli": "ts-node src/cli.ts",
-        "cli:build": "npm run build && node ./dist/cli.js"
+        "cli": "ts-node src/cli.ts"
     },
     "author": "cocos",
+    "files": [
+        "bin",
+        "dist",
+        "docs",
+        "static",
+        "workflow",
+        "writablePath",
+        "packages/cc-module"
+    ],
     "license": "ISC",
     "devDependencies": {
         "@types/commander": "^2.12.5",
@@ -65,6 +75,7 @@
         "@modelcontextprotocol/sdk": "^1.18.0",
         "@types/semver": "^7.7.1",
         "@types/xxhashjs": "^0.2.4",
+        "cc": "file:./packages/cc-module",
         "chalk": "^2.4.2",
         "commander": "^11.0.0",
         "consola": "^3.4.2",

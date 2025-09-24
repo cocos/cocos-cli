@@ -18,8 +18,10 @@ tsconfig.tsbuildinfo
 **/node_modules/
 **/yarn.lock
 
+# packages
+packages/cc-module/editor
+
 # static
-static/engine/cc-module/editor
 static/tools/
 
 # 构建文件

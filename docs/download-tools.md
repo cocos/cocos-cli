@@ -13,7 +13,7 @@ npm run download-tools
 ### 直接运行脚本
 
 ```bash
-node scripts/download-tools.js
+node workflow/download-tools.js
 ```
 
 ## 脚本说明

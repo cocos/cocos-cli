@@ -13,17 +13,23 @@
             "DOM",
             "esnext"
         ],
-        "rootDir": "./",
+        "rootDir": "./src",
         "outDir": "./",
         "declaration": true,
-        "types": [
-            "node"
-        ]
+        "typeRoots": [
+            "./",
+            "../../../node_modules/@types"
+        ],
+        "types": []
     },
     "include": [
-        "./*.ts"
+        "./src/**/*.ts",
+        "./xhr2.d.ts"
     ],
     "exclude": [
-        "./*.js"
+        "./*.js",
+        "./editor/**/*",
+        "./overwrite/**/*",
+        "./polyfill/**/*"
     ]
 }
