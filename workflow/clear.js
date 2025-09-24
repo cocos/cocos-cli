@@ -20,6 +20,9 @@ function clear() {
         fse.removeSync(dir);
         console.log('clear ', dir);
     }
+    // remove packages/engine-compiler
+    const sourceDir = path.join(__dirname, '../packages/engine-compiler/dist');
+    fse.removeSync(path.join(sourceDir, 'dist'));
 }
 
 console.time('clear');

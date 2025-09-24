@@ -1,4 +1,3 @@
-const { compileEngine } = require('../packages/engine-compiler/dist/index');
 const fse = require('fs-extra');
 const path = require('path');
 const utils = require('./utils');
@@ -28,6 +27,7 @@ if (!fse.existsSync(userConfig)) {
         utils.runTscCommand(sourceDir)
         console.log('tsc', sourceDir);
         // 编译引擎
+        const { compileEngine } = require('../packages/engine-compiler/dist/index');
         await compileEngine(engine);
 
         // 编译后拷贝 .bind 文件夹
