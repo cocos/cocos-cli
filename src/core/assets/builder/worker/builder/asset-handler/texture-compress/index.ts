@@ -16,7 +16,7 @@ import { formatMSTime, getConfig } from '../../../../share/utils';
 import { newConsole } from '../../../../../../base/console';
 import { ICustomConfig, ITextureCompressFormatType, AllTextureCompressConfig, UserCompressConfig, ICompressConfig } from '../../../../@types';
 import { IBuildAssetHandlerInfo } from '../../../../@types/private';
-import { IImageTaskInfo, BuildMetricKey, ITextureFormatInfo } from '../../../../@types/protected';
+import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
 import { BuildGlobalInfo } from '../../../../share/global';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';

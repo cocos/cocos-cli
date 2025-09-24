@@ -12,32 +12,32 @@ import assetOperation from './operation';
  */
 export class AssetManager extends EventEmitter implements IAssetManager {
     // --------- query ---------
-    queryAssets = assetQuery.queryAssets;
-    queryAssetDependencies = assetQuery.queryAssetDependencies;
-    queryAssetUsers = assetQuery.queryAssetUsers;
-    queryAsset = assetQuery.queryAsset;
-    queryAssetInfo = assetQuery.queryAssetInfo;
-    queryAssetInfoByUUID = assetQuery.queryAssetInfoByUUID;
-    queryAssetInfos = assetQuery.queryAssetInfos;
-    querySortedPlugins = assetQuery.querySortedPlugins;
-    queryAssetUUID = assetQuery.queryAssetUUID;
-    queryUrl = assetQuery.queryUrl;
-    queryDBAssetInfo = assetQuery.queryDBAssetInfo;
-    encodeAsset = assetQuery.encodeAsset;
-    queryAssetProperty = assetQuery.queryAssetProperty;
-    queryAssetMeta = assetQuery.queryAssetMeta;
-    queryAssetMtime = assetQuery.queryAssetMtime;
+    queryAssets = assetQuery.queryAssets.bind(assetQuery);
+    queryAssetDependencies = assetQuery.queryAssetDependencies.bind(assetQuery);
+    queryAssetUsers = assetQuery.queryAssetUsers.bind(assetQuery);
+    queryAsset = assetQuery.queryAsset.bind(assetQuery);
+    queryAssetInfo = assetQuery.queryAssetInfo.bind(assetQuery);
+    queryAssetInfoByUUID = assetQuery.queryAssetInfoByUUID.bind(assetQuery);
+    queryAssetInfos = assetQuery.queryAssetInfos.bind(assetQuery);
+    querySortedPlugins = assetQuery.querySortedPlugins.bind(assetQuery);
+    queryAssetUUID = assetQuery.queryAssetUUID.bind(assetQuery);
+    queryUrl = assetQuery.queryUrl.bind(assetQuery);
+    queryDBAssetInfo = assetQuery.queryDBAssetInfo.bind(assetQuery);
+    encodeAsset = assetQuery.encodeAsset.bind(assetQuery);
+    queryAssetProperty = assetQuery.queryAssetProperty.bind(assetQuery);
+    queryAssetMeta = assetQuery.queryAssetMeta.bind(assetQuery);
+    queryAssetMtime = assetQuery.queryAssetMtime.bind(assetQuery);
     // ---------- operation ---------
-    saveAssetMeta = assetOperation.saveAssetMeta;
-    saveAsset = assetOperation.saveAsset;
-    createAsset = assetOperation.createAsset;
-    refreshAsset = assetOperation.refreshAsset;
-    reimportAsset = assetOperation.reimportAsset;
-    renameAsset = assetOperation.renameAsset;
-    removeAsset = assetOperation.removeAsset;
-    moveAsset = assetOperation.moveAsset;
-    generateExportData = assetOperation.generateExportData;
-    outputExportData = assetOperation.outputExportData;
+    saveAssetMeta = assetOperation.saveAssetMeta.bind(assetOperation);
+    saveAsset = assetOperation.saveAsset.bind(assetOperation);
+    createAsset = assetOperation.createAsset.bind(assetOperation);
+    refreshAsset = assetOperation.refreshAsset.bind(assetOperation);
+    reimportAsset = assetOperation.reimportAsset.bind(assetOperation);
+    renameAsset = assetOperation.renameAsset.bind(assetOperation);
+    removeAsset = assetOperation.removeAsset.bind(assetOperation);
+    moveAsset = assetOperation.moveAsset.bind(assetOperation);
+    generateExportData = assetOperation.generateExportData.bind(assetOperation);
+    outputExportData = assetOperation.outputExportData.bind(assetOperation);
 
     url2uuid(url: string) {
         return url2uuid(url);

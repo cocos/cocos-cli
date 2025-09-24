@@ -149,8 +149,6 @@ export class InternalBuildResult extends EventEmitter implements InternalBuildRe
 
     public compileOptions: any = null; // 允许自定义编译选项，如果未指定将会使用构建 options 存储
 
-    public staticsInfo: Record<string, any> = {};
-
     private __task: IBuilder;
 
     public pluginScripts: Array<{

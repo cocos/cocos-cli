@@ -5,47 +5,6 @@ import { ImportMap, ImportMapWithImports } from './import-map';
 import { IAssetInfo, IImportMapOptions, IInternalBuildOptions, IBuildSeparateEngineResult } from './options';
 import { IPacInfo } from './texture-packer';
 
-// 已经约定好的一些统计 key （不完整）
-export const enum BuildMetricKey {
-    platform = 'B100001',
-    gameName = 'B100004',
-    packageName = 'B100005',
-    sceneNum = 'B100006',
-    scriptNum = 'B100007',
-    assetNum = 'B100008',
-    includeModules = 'B100009',
-    size = 'B100010',
-    server = 'B100012',
-    orientation = 'B100011',
-    is3D = 'B100014',
-    sceneOrPrefab = 'B100016',
-    audioClip = 'B100038',
-    appid = 'B100013',
-    dimension = 'B100014',
-    meshNum = 'B100015',
-    prefabNum = 'B100016',
-    useSplashScreen = 'B100018',
-    designResolution = 'B100017',
-    buildTime = 'B100042',
-    makeTime = 'B100043',
-    error = 'B100044',
-    customCompress = 'B100145',
-    renderPipeline = 'B100031',
-    splashSettings = 'B100039',
-}
-
-export const enum BuildCrashMetricKey {
-    platform = 'B100000',
-    projectId = 'B100002',
-    gameName = 'B100003',
-    packageName = 'B100004',
-    sceneNum = 'B100005',
-    scriptNum = 'B100006',
-    assetNum = 'B100007',
-    includeModules = 'B100008',
-    appid = 'B100009',
-}
-
 export class TextureCompress {
     _taskMap: Record<string, IImageTaskInfo>;
     platform: string;
@@ -111,7 +70,6 @@ export class InternalBuildResult {
     paths: IBuildPaths;
     // 允许的自定义编译选项
     compileOptions?: any;
-    staticsInfo: Record<string, any>;
     separateEngineResult?: IBuildSeparateEngineResult;
 }
 

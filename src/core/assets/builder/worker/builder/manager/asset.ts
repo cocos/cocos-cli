@@ -276,19 +276,4 @@ export class BuilderAssetCache implements IBuilderAssetCache {
         const asset = await buildAssetLibrary.getAsset(uuid);
         return buildAssetLibrary.getInstance(asset);
     }
-
-    /**
-     * 废弃接口，兼容到 3.9
-     * @param data 
-     */
-    public __addStaticsInfo(data: Record<string, any>) {
-        if (!this._task) {
-            return;
-        }
-        console.warn(transI18n('builder.warn.deprecatedTip', {
-            oldName: 'cache.__addStaticsInfo',
-            newName: 'result.staticsInfo',
-        }));
-        Object.assign(this._task.result.staticsInfo, data);
-    }
 }

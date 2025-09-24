@@ -62,6 +62,30 @@ Cocos CLI is a comprehensive command-line interface tool designed for the [Cocos
    npm install
    ```
 
+#### Native dependencies and node-gyp (required for packages like gl)
+
+When installing native modules such as `gl`, the build uses `node-gyp` to compile C++ addons. Please prepare the environment first:
+
+- Install node-gyp globally (recommended)
+
+  ```bash
+  npm i -g node-gyp
+  ```
+
+- Windows
+  - Install Visual Studio Build Tools (select "C++ build tools")
+  - Install Python 3 and ensure it is available in PATH
+  - Reopen your terminal before running installation
+
+- macOS
+  - Install Xcode Command Line Tools: `xcode-select --install`
+  - Ensure Python 3 is installed
+
+- Linux (Debian/Ubuntu example)
+  - `sudo apt update && sudo apt install -y build-essential python3 make gcc g++`
+
+After completing the above, run `npm install` again to install dependencies.
+
 4. **Download development tools** (first time only)
 
    ```bash

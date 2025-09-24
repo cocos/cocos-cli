@@ -534,7 +534,6 @@ export class AssetDBManager extends EventEmitter {
         this.hasPause = false;
         this.startPause = false;
         this.emit('asset-db:resume');
-        console.log('Asset DB is resume!');
         await this.step();
         return true;
     }

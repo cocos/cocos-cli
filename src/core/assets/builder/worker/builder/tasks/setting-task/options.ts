@@ -1,6 +1,6 @@
 'use strict';
 
-import { IInternalBuildOptions, BuildMetricKey } from '../../../../@types/protected';
+import { IInternalBuildOptions } from '../../../../@types/protected';
 import { defaultConfigs } from '../../../../share/common-options-validator';
 import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
@@ -38,6 +38,4 @@ async function postSplashSettingsMetric(result: InternalBuildResult) {
     } else if (!isEqual(defaultSplashScreenSettings, splashScreenSettings)) {
         metricSplash = 1;
     }
-    // 插屏配置统计  自定义：1  默认：2  关闭：3
-    result.staticsInfo[BuildMetricKey.splashSettings] = metricSplash;
 }

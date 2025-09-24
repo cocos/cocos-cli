@@ -13,7 +13,6 @@ export async function onAfterInit(options: ITaskOption, result: InternalBuildRes
 
     // 添加统计信息
     const packageOptions = options.packages['web-mobile'];
-    result.staticsInfo.orientation = packageOptions.orientation;
     options.buildEngineParam.split = false;
     options.buildEngineParam.assetURLFormat = 'runtime-resolved';
     if (options.server && !options.server.endsWith('/')) {

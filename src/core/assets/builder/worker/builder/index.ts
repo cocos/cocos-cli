@@ -313,7 +313,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             await this.bundleManager.initOptions();
         } else {
             this.bundleManager.updateProcess = (message: string, progress: number) => {
-                this.updateProcess(message);
+                this.updateProcess(message, progress - this.bundleManager.progress);
             };
         }
         await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleInit);

@@ -62,6 +62,30 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
    npm install
    ```
 
+#### 原生依赖与 node-gyp（用于安装 gl 等需要编译的包）
+
+安装 `gl` 等原生模块时需要使用 `node-gyp` 编译 C++ addon，请先完成以下准备：
+
+- 全局安装 node-gyp（建议）
+
+  ```bash
+  npm i -g node-gyp
+  ```
+
+- Windows
+  - 安装 [Visual Studio Build Tools]（勾选「C++ 生成工具」）
+  - 安装 Python 3（并确保加入 PATH）
+  - 重新打开终端后再执行依赖安装
+
+- macOS
+  - 安装 Xcode Command Line Tools：`xcode-select --install`
+  - 确保已安装 Python 3
+
+- Linux（Debian/Ubuntu 示例）
+  - `sudo apt update && sudo apt install -y build-essential python3 make gcc g++`
+
+完成以上准备后，再执行 `npm install` 安装依赖。
+
 4. **下载开发工具**（首次运行）
 
    ```bash

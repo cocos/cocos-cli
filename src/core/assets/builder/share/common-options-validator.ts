@@ -753,7 +753,32 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
     }
 
     if (!options.includeModules || !options.includeModules.length) {
-        options.includeModules = ['base', '2d', '3d', 'animation', 'audio', 'base', 'custom-pipeline', 'dragon-bones', 'gfx-webgl', 'graphics', 'intersection-2d', 'light-probe', 'marionette', 'mask', 'particle', 'particle-2d', 'physics-2d-box2d', 'physics-ammo', 'primitive', 'profiler', 'rich-text', 'skeletal-animation', 'spine-3.8', 'terrain', 'tiled-map', 'tween', 'ui', 'ui-skew', 'video', 'websocket', 'webview'];
+        options.includeModules = [
+            '2d',
+            'affine-transform',
+            'animation',
+            'audio',
+            'base',
+            'custom-pipeline',
+            'dragon-bones',
+            'gfx-webgl',
+            'graphics',
+            'intersection-2d',
+            'mask',
+            'particle-2d',
+            'physics-2d-box2d',
+            'profiler',
+            'rich-text',
+            'skeletal-animation',
+            'spine-3.8',
+            'tiled-map',
+            'tween',
+            'ui',
+            'ui-skew',
+            'video',
+            'websocket',
+            'webview'
+        ];
     }
 
     if (!options.flags) {

@@ -47,31 +47,7 @@ export abstract class BuildTaskBase extends EventEmitter {
 
         const percentage = Math.round(this.progress * 100);
         const progressMessage = `${message} (${percentage}%)`;
-
-        // 根据输出类型选择不同的显示方式
-        switch (outputType) {
-            case 'error':
-                newConsole.error(progressMessage);
-                break;
-            case 'warn':
-                newConsole.warn(progressMessage);
-                break;
-            case 'log':
-            case 'success':
-                newConsole.success(progressMessage);
-                break;
-            case 'info':
-                newConsole.info(progressMessage);
-                break;
-            case 'debug':
-            default:
-                if (increment > 0 || message.includes('✓') || message.includes('success')) {
-                    newConsole.success(progressMessage);
-                } else {
-                    newConsole.debug(progressMessage);
-                }
-                break;
-        }
+        newConsole[outputType](progressMessage);
     }
 
     abstract handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
