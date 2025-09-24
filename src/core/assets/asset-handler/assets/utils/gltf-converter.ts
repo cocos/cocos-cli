@@ -684,7 +684,7 @@ export class GltfConverter {
 
         if (gltfSkin.inverseBindMatrices !== undefined) {
             const inverseBindMatricesAccessor = this._gltf.accessors![gltfSkin.inverseBindMatrices];
-            if (inverseBindMatricesAccessor.componentType !== WebGLRenderingContext.FLOAT || inverseBindMatricesAccessor.type !== 'MAT4') {
+            if (inverseBindMatricesAccessor.componentType !== GltfAccessorComponentType.FLOAT || inverseBindMatricesAccessor.type !== 'MAT4') {
                 throw new Error('The inverse bind matrix should be floating-point 4x4 matrix.');
             }
 
