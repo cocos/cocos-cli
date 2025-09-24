@@ -11,12 +11,12 @@ export type TypeQueryResult = z.infer<typeof queryResult>;
 export const jsonStr = z.string().describe('json string');
 export type TypeJsonStr = z.infer<typeof jsonStr>;
 
-export const importResult = z.object({
+export const createJsonFile = z.object({
     filePath: z.string().describe('file path'),
     dbPath: z.string().describe('db path'),
     uuid: z.string().describe('asset uuid'),
-}).describe('import assets result');
-export type TypeImportResult = z.infer<typeof importResult>;
+}).describe('create json file result');
+export type TypeCreateJsonFileResult = z.infer<typeof createJsonFile>;
 
 export const dirOrDbPath = z.string().describe('dir or db path');
 export type TypeDirOrDbPath = z.infer<typeof dirOrDbPath>;

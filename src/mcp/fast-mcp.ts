@@ -2,6 +2,7 @@ import { FastMCP, type Tool, type Context } from 'fastmcp';
 import { toolRegistry, ToolMetaData } from '../api/decorator/decorator';
 import { z } from 'zod';
 import { CocosAPI } from '../api';
+import { join } from 'path';
 
 /**
  * FastMCP 服务器类，用于自动从装饰器收集工具信息并注册到 MCP 服务器
@@ -21,9 +22,9 @@ export class FastMcpServer {
     /**
      * 初始化工具，从装饰器注册表中收集工具信息
      */
-    private async initializeTools(): Promise<void> {
-        const tempProjectPath = '/Users/wzm/Documents/wzm/myself/projects/384';
-        const tempEnginePath = '/Users/wzm/Documents/wzm/creator/cocos-code/cocos';
+    private async initializeTools(projectPath: string): Promise<void> {
+        const tempProjectPath = projectPath;
+        const tempEnginePath = join(__dirname, '../../bin/engine');
         const cocosAPI = new CocosAPI(tempProjectPath, tempEnginePath);
 
         await cocosAPI.startup();
@@ -145,6 +146,7 @@ export class FastMcpServer {
         }
 
         // 调用方法
+        console.log(`Calling method ${String(meta.methodName)} with args:`, args);
         return await method.apply(instance, args);
     }
 
@@ -190,8 +192,8 @@ export class FastMcpServer {
     /**
      * 启动 MCP 服务器
      */
-    async start(): Promise<void> {
-        await this.initializeTools();
+    async start(projectPath: string): Promise<void> {
+        await this.initializeTools(projectPath);
         await this.server.start({
             transportType: 'httpStream',
             httpStream: {

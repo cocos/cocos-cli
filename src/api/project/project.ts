@@ -2,7 +2,7 @@ import { ApiBase } from "../base/api-base";
 
 export class ProjectApi extends ApiBase {
     async init(): Promise<void> {
-        throw new Error("Method not implemented.");
+        console.log('project init invoke');
     }
     constructor() {
         super();

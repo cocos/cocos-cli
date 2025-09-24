@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { ApiBase } from "../base/api-base";
-import { TypeUriPath, uriPath, queryResult, TypeQueryResult, TypeImportResult, importResult, dirOrDbPath, refreshDirResult, TypeDirOrDbPath, TypeRefreshDirResult, TypeJsonStr, jsonStr } from "./importer-scheme";
+import { TypeUriPath, uriPath, queryResult, TypeQueryResult, TypeCreateJsonFileResult   , dirOrDbPath, refreshDirResult, TypeDirOrDbPath, TypeRefreshDirResult, TypeJsonStr, jsonStr, createJsonFile } from "./importer-scheme";
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from "../base/scheme-base";
 import { IAssetInfo, AssetManager as IAssetManager } from "../../core/assets/@types/private";
 import { Description, Param, Result, Title, Tool } from '../decorator/decorator.js';
@@ -65,9 +65,9 @@ export class ImporterApi extends ApiBase {
     @Tool('createJsonFile')
     @Title('创建 json 资源')
     @Description('根据传入的字符串内容，在对应项目路径创建一个 json 文件，文件路径根据 filePath 参数返回')
-    @Result(importResult)
-    async createJsonFile(@Param(jsonStr) jsonStr: TypeJsonStr, @Param(dirOrDbPath) filePath: TypeDirOrDbPath): Promise<CommonResultType<TypeImportResult>> {
-        const retData: TypeImportResult = {
+    @Result(createJsonFile)
+    async createJsonFile(@Param(jsonStr) jsonStr: TypeJsonStr, @Param(dirOrDbPath) filePath: TypeDirOrDbPath): Promise<CommonResultType<TypeCreateJsonFileResult>> {
+        const retData: TypeCreateJsonFileResult = {
             filePath: '',
             dbPath: '',
             uuid: '',
@@ -79,6 +79,7 @@ export class ImporterApi extends ApiBase {
             let ret = await assetOperation.createAsset({
                 content: jsonStr,
                 target: filePath,
+                overwrite: true
             });
 
             if (!ret) {
@@ -92,7 +93,7 @@ export class ImporterApi extends ApiBase {
             retData.uuid = ret!.uuid;
         } catch (e) {
             code = COMMON_STATUS.FAIL;
-            console.error('create json asset fail:', e);
+            console.error('create json asset fail:', e instanceof Error ? e.message : String(e));
         }
 
         return {

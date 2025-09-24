@@ -15,12 +15,12 @@ import { fastMcpServer } from './fast-mcp';
  *    }
  */
 
-async function main() {
+export async function startServer(projectPath:string) {
     try {
         console.error('Starting FastMCP Server...');
         
         // 启动服务器
-        await fastMcpServer.start();
+        await fastMcpServer.start(projectPath);
         
         console.error('FastMCP Server started successfully');
         
@@ -56,5 +56,5 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // 如果直接运行此文件，启动服务器
 if (require.main === module) {
-    main();
+    startServer('/Users/wzm/Documents/wzm/myself/projects/384');
 }
