@@ -1,17 +1,15 @@
 import 'reflect-metadata';
-import { startupAssetDB } from "../../core/assets";
 import { ApiBase } from "../base/api-base";
-import { TypeUriPath, uriPath, queryResult, TypeQueryResult } from "./importer-scheme";
-import { COMMON_STATUS, CommonResultType } from "../base/scheme-base";
-import { join } from "path";
-import { AssetManager as IAssetManager } from "../../core/assets/@types/private";
+import { TypeUriPath, uriPath, queryResult, TypeQueryResult, TypeImportResult, importResult, dirOrDbPath, refreshDirResult, TypeDirOrDbPath, TypeRefreshDirResult, TypeJsonStr, jsonStr } from "./importer-scheme";
+import { COMMON_STATUS, CommonResultType, HttpStatusCode } from "../base/scheme-base";
+import { IAssetInfo, AssetManager as IAssetManager } from "../../core/assets/@types/private";
 import { Description, Param, Result, Title, Tool } from '../decorator/decorator.js';
+import assetOperation from '../../core/assets/manager/operation';
 
 export class ImporterApi extends ApiBase {
     private _assetManager!: IAssetManager;
 
     async init(): Promise<void> {
-        // this._assetManager = (await import('../../core/assets/manager')).assetManager;
     }
 
     /**
@@ -30,13 +28,13 @@ export class ImporterApi extends ApiBase {
             const url = `db://just/a/test/${path}.png`
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: {url},
+                data: { url },
             };
         } catch (error) {
             console.error('刷新资源失败:', error);
             return {
                 code: COMMON_STATUS.FAIL,
-                data: {url: ''},
+                data: { url: '' },
             };
         }
     }
@@ -53,14 +51,75 @@ export class ImporterApi extends ApiBase {
             const url = `db://just/b/test/${path}.png`
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: {url},
+                data: { url },
             };
         } catch (error) {
             console.error('刷新资源失败:', error);
             return {
                 code: COMMON_STATUS.FAIL,
-                data: {url: ''},
+                data: { url: '' },
             };
         }
+    }
+
+    @Tool('createJsonFile')
+    @Title('创建 json 资源')
+    @Description('根据传入的字符串内容，在对应项目路径创建一个 json 文件，文件路径根据 filePath 参数返回')
+    @Result(importResult)
+    async createJsonFile(@Param(jsonStr) jsonStr: TypeJsonStr, @Param(dirOrDbPath) filePath: TypeDirOrDbPath): Promise<CommonResultType<TypeImportResult>> {
+        const retData: TypeImportResult = {
+            filePath: '',
+            dbPath: '',
+            uuid: '',
+        };
+        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        try {
+            //先判断下，如果不是 json 字符串就先挂为敬
+            JSON.parse(jsonStr);
+            let ret = await assetOperation.createAsset({
+                content: jsonStr,
+                target: filePath,
+            });
+
+            if (!ret) {
+                throw new Error('create json asset fail');
+            }
+            if (Array.isArray(ret)) {
+                ret = ret[0];
+            }
+            retData.filePath = ret!.source;
+            retData.dbPath = ret!.path;
+            retData.uuid = ret!.uuid;
+        } catch (e) {
+            code = COMMON_STATUS.FAIL;
+            console.error('create json asset fail:', e);
+        }
+
+        return {
+            code: code,
+            data: retData
+        };
+    }
+
+    /**
+     * 刷新资源目录
+     */
+    @Tool('refreshDir')
+    @Title('刷新资源目录')
+    @Description('刷新资源目录，会刷新目录下的所有资源')
+    @Result(refreshDirResult)
+    async refresh(@Param(dirOrDbPath) dir: TypeDirOrDbPath): Promise<CommonResultType<TypeRefreshDirResult>> {
+        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        try {
+            await assetOperation.refreshAsset(dir);
+        } catch (e) {
+            code = COMMON_STATUS.FAIL;
+            console.error('refresh dir fail:', e);
+        }
+
+        return {
+            code: code,
+            data: { dbPath: dir },
+        };
     }
 }

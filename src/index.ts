@@ -1,0 +1,1 @@
+export { CocosAPI } from './api';

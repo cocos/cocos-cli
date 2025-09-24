@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
 import { toolRegistry } from '../api/decorator/decorator.js';
-import { ImporterApi } from '../api/importer/importer.js';
+import { CocosAPI } from '../api/index.js';
 
 // ==================== 公共类型定义 ====================
 
@@ -288,9 +288,8 @@ export async function initializeTools() {
     // 创建 ImporterApi 实例以触发装饰器注册
     const projectPath = process.cwd();
     const enginePath = process.cwd();
-    const importerApi = new ImporterApi(projectPath, enginePath);
-    await importerApi.init();
-    toolInstances.set('ImporterApi', importerApi);
+    const cocosAPI = new CocosAPI(projectPath, enginePath);
+    toolInstances.set('cocosAPI', cocosAPI);
     console.log(`Initialized ${toolRegistry.size} tools`);
   } catch (error) {
     console.error('Failed to initialize tools:', error);
