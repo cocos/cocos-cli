@@ -25,17 +25,4 @@ export async function handle(options: IInternalBuildOptions, result: InternalBui
     //     throw new Error('Get cache settings failed!');
     // }
     await patchOptionsToSettings(options, result.settings);
-    // 发送插屏设置统计
-    await postSplashSettingsMetric(result);
-}
-
-async function postSplashSettingsMetric(result: InternalBuildResult) {
-    const splashScreenSettings = result.settings.splashScreen;
-    const defaultSplashScreenSettings = formatSplashScreen(defaultConfigs.splashScreenSetting);
-    let metricSplash = 2;
-    if (splashScreenSettings?.totalTime === 0) {
-        metricSplash = 3;
-    } else if (!isEqual(defaultSplashScreenSettings, splashScreenSettings)) {
-        metricSplash = 1;
-    }
 }

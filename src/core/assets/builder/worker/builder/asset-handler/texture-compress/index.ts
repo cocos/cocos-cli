@@ -20,6 +20,7 @@ import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected
 import { pluginManager } from '../../../../manager/plugin';
 import { BuildGlobalInfo } from '../../../../share/global';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';
+import { configurationManager } from '../../../../../../configuration';
 interface CompressCacheInfo {
     option: {
         mtime: number | string;
@@ -75,7 +76,7 @@ export class TextureCompress extends EventEmitter {
         } else {
             TextureCompress.storedCompressInfo = {};
         }
-        TextureCompress.enableMipMaps = getConfig('textureCompressConfig.genMipmaps');
+        TextureCompress.enableMipMaps = !!(await configurationManager.getValue<boolean>('builder.textureCompressConfig.genMipmaps'));
     }
 
     async init() {
@@ -88,7 +89,7 @@ export class TextureCompress extends EventEmitter {
     async updateUserConfig() {
         await TextureCompress.initCommonOptions();
         // 查询纹理压缩配置等
-        TextureCompress.userCompressConfig = getConfig('textureCompressConfig') as UserCompressConfig;
+        TextureCompress.userCompressConfig = await configurationManager.getValue<UserCompressConfig>('builder.textureCompressConfig') as UserCompressConfig;
         const { customConfigs } = TextureCompress.userCompressConfig;
         // 收集目前已有配置内会覆盖现有格式的配置集合
         const overwriteFormats: Record<string, string> = {};

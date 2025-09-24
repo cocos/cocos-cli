@@ -11,6 +11,7 @@ import { GlobalPaths } from '../../../../../../../../global';
 import { defaultConfigs } from '../../../../../share/common-options-validator';
 import { getConfig } from '../../../../../share/utils';
 import engine from '../../../../../../../engine';
+import { configurationManager } from '../../../../../../../configuration';
 
 const layerMask: number[] = [];
 for (let i = 0; i <= 19; i++) {
@@ -52,13 +53,13 @@ export async function patchOptionsToSettings(options: IInternalBuildOptions, set
     settings.splashScreen = await getSplashSettings(!!options.useSplashScreen, !!options.preview);
     settings.physics = await getPhysicsConfig(options.includeModules, options.physicsConfig);
     settings.engine.macros = options.macroConfig || {};
-    const downloadMaxConcurrency = await getConfig('general.downloadMaxConcurrency');
+    const downloadMaxConcurrency = await configurationManager.getValue<number>('project.general.downloadMaxConcurrency');
     settings.assets.downloadMaxConcurrency = downloadMaxConcurrency || 15;
 }
 
 export async function getSplashSettings(useSplashScreen: boolean, preview: boolean): Promise<ISplashSetting> {
     const defaultSplashScreen: ISplashSetting = defaultConfigs.splashScreenSetting;
-    let splashScreen: ISplashSetting = await getConfig('splashScreenSetting');
+    let splashScreen = await configurationManager.getValue<ISplashSetting>('builder.splash-setting');
     if (useSplashScreen !== false || preview) {
         try {
             splashScreen = Object.assign({}, defaultSplashScreen, splashScreen);

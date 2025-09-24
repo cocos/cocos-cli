@@ -5,12 +5,14 @@ import { globalSetup, testInfo } from './utils';
 
 describe('Import Project', () => {
     beforeAll(async () => {
-        await globalSetup();
         try {
             // clear cache
             await remove(join(testInfo.projectRoot, 'library'));
+            console.log('clear library cache done')
         } catch (error) {
+
         }
+        await globalSetup();
     });
     const testAssets = [{
         name: 'video',
