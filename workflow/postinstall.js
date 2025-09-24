@@ -25,11 +25,11 @@ function askForForceUpdate() {
         // 设置3秒超时，默认强制更新
         const timeout = setTimeout(() => {
             rl.close();
-            console.log('\n3秒内未响应，默认跳过强制更新');
-            resolve(false);
+            console.log('\n3秒内未响应，默认强制更新');
+            resolve(true);
         }, 3000);
 
-        rl.question('是否强制更新？(y/n) [3秒后默认跳过强制更新]: ', (answer) => {
+        rl.question('是否强制更新？(y/n) [3秒后默认强制更新]: ', (answer) => {
             clearTimeout(timeout);
             rl.close();
             const shouldForce = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes' || answer.toLowerCase() === '';
