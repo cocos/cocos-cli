@@ -12,6 +12,9 @@ export { walkProperties } from './missing-reporter/object-walker';
 import utils from '../../base/utils';
 export const UuidUtils = utils.UUID;
 
+export * as GeometryUtils from './utils/geometry';
+export * as PrefabUtils from './utils/prefab';
+
 export const MissingReporter = {
     classInstance: MissingClass,
     class: MissingClassReporter,
