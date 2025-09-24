@@ -1,6 +1,6 @@
-const { runCommand, logTitle } = require('./utils');
+const utils = require('./utils');
 
 (async () => {
-    logTitle('Npm run build');
-    await runCommand('npm', ['run', 'build']);
+    utils.logTitle('Npm run build');
+    await utils.runCommand('npm', ['run', 'build']);
 })();
