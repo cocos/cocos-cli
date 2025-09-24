@@ -6,6 +6,7 @@ import * as utils from './utils';
 import { IConfigurationManager, ConfigurationScope, IConfiguration } from '../@types/public';
 import { CocosMigrationManager } from '../migration';
 import { configurationRegistry } from './registry';
+import { defaultConfigMap } from '../configs';
 
 export class ConfigurationManager implements IConfigurationManager {
 
@@ -97,8 +98,8 @@ export class ConfigurationManager implements IConfigurationManager {
      */
     private getDefaultConfigValue(key: string): { value: any; found: boolean } {
         const topLevelKey = key.split('.')[0];
-        const defaultConfig = configurationRegistry.get(topLevelKey);
-        
+        const defaultConfig = configurationRegistry.get(topLevelKey) || defaultConfigMap[topLevelKey];
+
         if (!defaultConfig) {
             return { value: undefined, found: false };
         }
@@ -140,7 +141,7 @@ export class ConfigurationManager implements IConfigurationManager {
                 newConsole.warn(`[Configuration] 不支持的配置作用域: ${scope}`);
                 return false;
             }
-            
+
             return true;
         } catch (error) {
             newConsole.error(`[Configuration] 更新配置失败: ${key} - ${error}`);
@@ -158,7 +159,7 @@ export class ConfigurationManager implements IConfigurationManager {
     private updateDefaultConfigValue<T>(key: string, value: T): boolean {
         const configKey = key.split('.')[0]; // 获取顶级配置键
         const existingConfig = configurationRegistry.get(configKey);
-        
+
         if (!existingConfig) {
             newConsole.warn(`[Configuration] 默认配置 "${configKey}" 未找到，无法更新`);
             return false;
@@ -205,7 +206,7 @@ export class ConfigurationManager implements IConfigurationManager {
         try {
             // 确保目录存在
             await fse.ensureDir(path.dirname(this.configPath));
-            
+
             // 保存配置文件
             await fse.writeJSON(this.configPath, this.projectConfig, { spaces: 4 });
             newConsole.debug(`[Configuration] 已保存项目配置: ${this.configPath}`);

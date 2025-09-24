@@ -48,6 +48,12 @@ class ProjectManager {
                 readonly: false,
                 visible: true,
                 library: join(path, 'library'),
+            }, {
+                name: 'internal',
+                target: join(enginePath, 'editor/assets'),
+                readonly: false,
+                visible: true,
+                library: join(enginePath, 'editor/library'),
             }],
         });
     }

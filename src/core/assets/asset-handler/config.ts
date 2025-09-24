@@ -8,6 +8,20 @@ export interface AssetHandlerInfo {
 
 export const assetHandlerInfos: AssetHandlerInfo[] = [
     {
+        name: 'directory',
+        extensions: ['*'],
+        load: async () => {
+            return (await import('./assets/directory')).default;
+        }
+    },
+    {
+        name: 'unknown',
+        extensions: ['*'],
+        load: async () => {
+            return (await import('./assets/unknown')).default;
+        }
+    },
+    {
         name: 'text',
         extensions: [
             '.txt',
