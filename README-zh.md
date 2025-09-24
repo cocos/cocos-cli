@@ -95,7 +95,7 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
 5. **启动应用**
 
    ```bash
-   npm start
+   npm run start
    ```
 
 ### 📋 配置说明
