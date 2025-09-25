@@ -26,7 +26,6 @@ if (!fse.existsSync(userConfig)) {
         fse.removeSync(path.join(sourceDir, 'dist'));
         utils.runTscCommand(sourceDir)
         console.log('tsc', sourceDir);
-        const { compileEngine } = require('../packages/engine-compiler/dist/index');
 
         // 编译引擎
         const { compileEngine } = require('../packages/engine-compiler/dist/index');
