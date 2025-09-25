@@ -44,8 +44,27 @@ if (!fse.existsSync(userConfig)) {
             'package.json',
             'bin'
         ];
+        const ignoreList = [
+            'bin/.cache/dev'
+        ];
+
+        const createFilter = function (baseDri) {
+            return (src) => {
+                const rel = path.relative(baseDri, src);
+                for (const pattern of ignoreList) {
+                    if (rel.endsWith(pattern)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+        console.log('ignore:', ignoreList.join(','));
+
         for (const item of list) {
-            await fse.copy(path.join(engine, item), path.join(engineTargetPath, item))
+            await fse.copy(path.join(engine, item), path.join(engineTargetPath, item), {
+                filter: createFilter(engine),
+            });
         }
     } catch (error) {
         throw error;
