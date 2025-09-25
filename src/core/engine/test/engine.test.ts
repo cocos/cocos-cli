@@ -1,7 +1,6 @@
 import Engine, { IEngine } from '../index';
 import { join } from 'path';
 import { EngineLoader } from 'cc/loader.js';
-import { GlobalPaths } from '../../../global';
 
 const ProjectPath = join(__dirname, '../../../../test-project');
 
@@ -30,7 +29,7 @@ describe('Engine', () => {
 
     beforeEach(async () => {
         // 在每个测试用例之前初始化 engine
-        engine = await Engine.init(GlobalPaths.engine);
+        engine = await Engine.init(require('../../../../.user.json').engine);
     });
 
     it('test engine initEngine', async () => {

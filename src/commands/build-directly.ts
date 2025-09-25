@@ -5,15 +5,14 @@
 // 1. 先导入资源 2. 执行命令行构建
 import { join } from 'path';
 import { projectManager } from '../launcher';
-import { GlobalPaths } from '../global';
 
 // 这是测试代码，不能使用单元测试，因为 jest 会捕获 require 然后不走 preload 的特殊处理,导致读不了 cc
 (async () => {
-    const { project } = require('../../.user.json');
+    const { project, engine } = require('../../.user.json');
     const projectRoot = project || join(__dirname, '../tests/fixtures/projects/asset-operation');
     const res = await projectManager.build(
         project || projectRoot,
-        GlobalPaths.engine,
+        engine,
         {
             platform: 'web-desktop',
         });

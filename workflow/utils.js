@@ -53,7 +53,7 @@ async function runCommand(cmd, args = [], opts = {}) {
  */
 function runTscCommand(sourceDir) {
     const binDir = path.join(__dirname, '../node_modules', '.bin');
-    const cmd = path.join(binDir, process.platform === 'win32' ? 'tsc.cmd': 'tsc');
+    const cmd = path.join(binDir, process.platform === 'win32' ? 'tsc.cmd' : 'tsc');
     spawnSync(cmd, { cwd: sourceDir, shell: true, stdio: 'inherit' });
 }
 
@@ -100,59 +100,10 @@ function logTitle(title) {
     console.log(chalk.magenta(`${prefix} ${title} ${prefix}`));
 }
 
-/**
- * 递归复制指定目录列表下的所有文件到目标目录，保留源目录层级
- * @param {string[]} sourceDirs 源目录列表（绝对或相对路径）
- * @param {string} targetDir 目标目录（绝对或相对路径）
- */
-function copyFilesFromDirsWithStructure(sourceDirs, targetDir) {
-    const absTargetDir = path.resolve(process.cwd(), targetDir);
-
-    if (!fs.existsSync(absTargetDir)) {
-        fs.mkdirSync(absTargetDir, { recursive: true });
-    }
-
-    for (const srcDir of sourceDirs) {
-        const absSrcDir = path.resolve(process.cwd(), srcDir);
-        if (!fs.existsSync(absSrcDir)) continue;
-
-        // 保留相对路径
-        const relativeBase = srcDir.split(path.sep).slice(-3).join(path.sep);
-
-        copyRecursiveWithBase(absSrcDir, absTargetDir, relativeBase);
-    }
-}
-
-/**
- * 递归复制目录内容，保留 basePath
- * @param {string} src 源目录
- * @param {string} dest 目标目录
- * @param {string} basePath 相对基准路径
- */
-function copyRecursiveWithBase(src, dest, basePath) {
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-
-    for (const entry of entries) {
-        const srcPath = path.join(src, entry.name);
-        const relPath = path.relative(src, srcPath);
-        const destPath = path.join(dest, basePath, relPath);
-
-        if (entry.isDirectory()) {
-            if (!fs.existsSync(destPath)) fs.mkdirSync(destPath, { recursive: true });
-            copyRecursiveWithBase(srcPath, dest, path.join(basePath, entry.name));
-        } else if (entry.isFile()) {
-            const parentDir = path.dirname(destPath);
-            if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
-            fs.copyFileSync(srcPath, destPath);
-            console.log(`Copied: ${srcPath} -> ${destPath}`);
-        }
-    }
-}
 
 module.exports = {
     runCommand,
     runTscCommand,
     copyDirWithIgnore,
-    copyFilesFromDirsWithStructure,
     logTitle
 };

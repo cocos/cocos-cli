@@ -26,35 +26,28 @@ if (!fse.existsSync(userConfig)) {
         fse.removeSync(path.join(sourceDir, 'dist'));
         utils.runTscCommand(sourceDir)
         console.log('tsc', sourceDir);
+        const { compileEngine } = require('../packages/engine-compiler/dist/index');
+
         // 编译引擎
         const { compileEngine } = require('../packages/engine-compiler/dist/index');
         await compileEngine(engine);
 
         // 编译后拷贝 .bind 文件夹
-        const bindSourcePath = path.join(engine, 'bin');
         const engineTargetPath = path.join(__dirname, '..', 'bin', 'engine');
 
         fse.removeSync(engineTargetPath);
         console.log(`remove ${engineTargetPath}`);
 
         // TODO 后续需要统一整理具体要导出那些，因为缺了构建需要的引擎代码，例如 cmake 之类的
-        // 拷贝需要的脚本
-        utils.copyFilesFromDirsWithStructure([
-            path.join(engine, 'native', 'external', 'emscripten'),
-        ], engineTargetPath);
-
-        if (fse.existsSync(bindSourcePath)) {
-            console.log(`[Copy] .bin ${bindSourcePath} -> ${engineTargetPath}`);
-            fse.copySync(bindSourcePath, path.join(engineTargetPath, 'bin'));
-        } else {
-            console.log(`[Skip] .bin folder not found, path: ${bindSourcePath}`);
+        const list = [
+            'native/external/emscripten',
+            'editor/assets',
+            'package.json',
+            'bin'
+        ];
+        for (const item of list) {
+            await fse.copy(path.join(engine, item), path.join(engineTargetPath, item))
         }
-        // 写入 engine 版本号
-        const enginePkgJSON = require(path.join(engine, 'package.json'))
-        console.log(`write engine version: ${enginePkgJSON.version}`);
-        fse.writeJSONSync(path.join(engineTargetPath, 'version.json'), {
-            version: enginePkgJSON.version,
-        }, { encoding: 'utf8', spaces: 4 });
     } catch (error) {
         throw error;
     }
