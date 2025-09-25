@@ -20,6 +20,7 @@
         "build:watch": "tsc -b --watch",
         "postinstall": "node workflow/postinstall.js",
         "download-tools": "node workflow/download-tools.js",
+        "pack:script": "node workflow/pack-scripts.js",
         "start": "node ./dist/commands/build-directly.js",
         "cli": "ts-node src/cli.ts"
     },

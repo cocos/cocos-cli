@@ -3,6 +3,7 @@ import { IBuildCommandOption } from './core/assets/builder/@types/protected';
 import utils from './core/base/utils';
 import { newConsole } from './core/base/console';
 import { getCurrentLocalTime } from './core/assets/utils';
+import { PackerDriver } from './core/scripting/packer-driver';
 
 class ProjectManager {
 
@@ -56,6 +57,9 @@ class ProjectManager {
                 library: join(enginePath, 'editor/library'),
             }],
         });
+        const packDriver = await PackerDriver.create(path, enginePath);
+        await packDriver.init(Engine.getConfig().includedModules);
+        await packDriver.pullAssetDb();
     }
 
     /**

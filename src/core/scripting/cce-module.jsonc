@@ -1,0 +1,11 @@
+{
+    // // 模块名
+    // "cce/inspector": {
+    //     // 用于生成 dts 的模块入口
+    //     "types": "./test.ts",
+    //     // 用于生成模块注释
+    //     "description": "This module is exported by editor.\nYou can only import this module in `Editor` folder.",
+    //     // 用于指定运行时入口, 是 CommonJS 模块就行
+    //     "main": "./test.js"
+    // }
+}
