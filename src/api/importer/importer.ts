@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { ApiBase } from "../base/api-base";
-import { TypeUriPath, uriPath, queryResult, TypeQueryResult, TypeCreateJsonFileResult   , dirOrDbPath, refreshDirResult, TypeDirOrDbPath, TypeRefreshDirResult, TypeJsonStr, jsonStr, createJsonFile } from "./importer-scheme";
+import { TypeCreateJsonFileResult, dirOrDbPath, dbDirResult, TypeDirOrDbPath, TypeDbDirResult, TypeJsonStr, jsonStr, createJsonFile } from "./scheme";
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from "../base/scheme-base";
-import { IAssetInfo, AssetManager as IAssetManager } from "../../core/assets/@types/private";
+import { AssetManager as IAssetManager } from "../../core/assets/@types/private";
 import { Description, Param, Result, Title, Tool } from '../decorator/decorator.js';
 import assetOperation from '../../core/assets/manager/operation';
 
@@ -13,53 +13,24 @@ export class ImporterApi extends ApiBase {
     }
 
     /**
-     * 刷新资源
-     * @title sss
-     * @tool xxx
-     * @result {}
+     * 删除资源
      */
-    @Tool('queryUrl')
-    @Title('获取文件路径的 url')
-    @Description('根据某个路径转化为 url，返回的是文件的 db 路径，类似db://assets/abc.png')
-    @Result(queryResult)
-    async queryUrl(@Param(uriPath) path: TypeUriPath): Promise<CommonResultType<TypeQueryResult>> {
+    @Tool('removeAsset')
+    @Title('删除资源')
+    @Description('删除指定的资源，返回的 code 如果是 200 就表示操作成功')
+    @Result(dbDirResult)
+    async removeAsset(@Param(dirOrDbPath) dbPath: TypeDirOrDbPath): Promise<CommonResultType<TypeDbDirResult>> {
+        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
-            // await startupAssetDB();
-            const url = `db://just/a/test/${path}.png`
-            return {
-                code: COMMON_STATUS.SUCCESS,
-                data: { url },
-            };
-        } catch (error) {
-            console.error('刷新资源失败:', error);
-            return {
-                code: COMMON_STATUS.FAIL,
-                data: { url: '' },
-            };
+            await assetOperation.removeAsset(dbPath);
+        } catch (e) {
+            code = COMMON_STATUS.FAIL;
+            console.error('remove asset fail:', e instanceof Error ? e.message : String(e));
         }
-    }
-    /**
-     * 刷新资源
-     */
-    @Tool('queryUrl2')
-    @Title('获取文件路径的 url2')
-    @Description('2根据某个路径转化为 url，返回的是文件的 db 路径，类似db://assets/abc.png')
-    @Result(queryResult)
-    async queryUrl2(@Param(uriPath) path: TypeUriPath): Promise<CommonResultType<TypeQueryResult>> {
-        try {
-            // await startupAssetDB();
-            const url = `db://just/b/test/${path}.png`
-            return {
-                code: COMMON_STATUS.SUCCESS,
-                data: { url },
-            };
-        } catch (error) {
-            console.error('刷新资源失败:', error);
-            return {
-                code: COMMON_STATUS.FAIL,
-                data: { url: '' },
-            };
-        }
+        return {
+            code: code,
+            data: { dbPath }
+        };
     }
 
     @Tool('createJsonFile')
@@ -108,8 +79,8 @@ export class ImporterApi extends ApiBase {
     @Tool('refreshDir')
     @Title('刷新资源目录')
     @Description('刷新资源目录，会刷新目录下的所有资源')
-    @Result(refreshDirResult)
-    async refresh(@Param(dirOrDbPath) dir: TypeDirOrDbPath): Promise<CommonResultType<TypeRefreshDirResult>> {
+    @Result(dbDirResult)
+    async refresh(@Param(dirOrDbPath) dir: TypeDirOrDbPath): Promise<CommonResultType<TypeDbDirResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
             await assetOperation.refreshAsset(dir);

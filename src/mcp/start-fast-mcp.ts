@@ -4,7 +4,7 @@ import { fastMcpServer } from './fast-mcp';
 
 /**
  * 启动 FastMCP 服务器的脚本
- * 
+ *
  * 使用方式：
  * 1. 直接运行: node dist/mcp/start-fast-mcp.js
  * 2. 在 MCP 客户端配置中使用:
@@ -17,26 +17,26 @@ import { fastMcpServer } from './fast-mcp';
 
 export async function startServer(projectPath:string) {
     try {
-        console.error('Starting FastMCP Server...');
-        
+        console.log('Starting FastMCP Server...');
+
         // 启动服务器
         await fastMcpServer.start(projectPath);
-        
-        console.error('FastMCP Server started successfully');
-        
+
+        console.log('FastMCP Server started successfully');
+
         // 设置优雅关闭
         process.on('SIGINT', async () => {
             console.error('Received SIGINT, shutting down gracefully...');
             await fastMcpServer.stop();
             process.exit(0);
         });
-        
+
         process.on('SIGTERM', async () => {
             console.error('Received SIGTERM, shutting down gracefully...');
             await fastMcpServer.stop();
             process.exit(0);
         });
-        
+
     } catch (error) {
         console.error('Failed to start FastMCP Server:', error);
         process.exit(1);

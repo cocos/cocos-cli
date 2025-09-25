@@ -12,7 +12,7 @@
         "skipLibCheck": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
-        "declaration": false,
+        "declaration": true,
         "declarationMap": false,
         "moduleResolution": "node",
         "allowJs": true,
