@@ -45,7 +45,8 @@ if (!fse.existsSync(userConfig)) {
             'bin'
         ];
         const ignoreList = [
-            'bin/.cache/dev'
+            'bin/.cache/dev',
+            'bin/.cache/logs',
         ];
 
         const createFilter = function (baseDri) {
