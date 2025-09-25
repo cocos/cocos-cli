@@ -1,15 +1,18 @@
 import { join } from "path";
 import { ImporterApi } from "./importer/importer";
+import { SceneApi } from "./scene/scene";
 export class CocosAPI {
     private _projectPath: string;
     private _enginePath: string;
     loaded: boolean = false;
 
     importer: ImporterApi;
+    scene: SceneApi;
     constructor(projectPath: string, enginePath: string) {
         this._projectPath = projectPath;
         this._enginePath = enginePath;
         this.importer = new ImporterApi(this._projectPath, this._enginePath);
+        this.scene = new SceneApi(this._projectPath, this._enginePath);
     }
     /**
      * 初始化 Cocos API
@@ -32,6 +35,7 @@ export class CocosAPI {
 
             //各个 importer 的初始化
             await this.importer.init();
+            await this.scene.init();
         } catch (e) {
             console.error('ImporterApi init failed', e);
         }
