@@ -235,17 +235,20 @@ class ToolDownloader {
         console.log(`📦 解压: ${path.basename(zipPath)}`);
 
         try {
-            let command;
-
+            let command , options = {};
             if (this.platform === 'win32') {
                 // Windows 使用 PowerShell 的 Expand-Archive
                 command = `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`;
             } else {
                 // macOS/Linux 使用 unzip
                 command = `unzip -o '${zipPath}' -d '${extractDir}'`;
+                // 增加缓冲区大小
+                options = {
+                    maxBuffer: 1024 * 1024 * 50 // 增加到 50MB，防止解压失败
+                }
             }
 
-            execSync(command, { stdio: 'pipe' });
+            execSync(command, { stdio: 'pipe', ...options });
             console.log(`✅ 解压完成: ${path.basename(zipPath)}`);
         } catch (error) {
             throw new Error(`解压失败: ${error.message}`);
@@ -407,7 +410,7 @@ class ToolDownloader {
         // 显示统计信息
         console.log(`\n🎉 处理完成!`);
         console.log(`✅ 成功: ${successCount}`);
-        console.log(`⏭️  跳过: ${skipCount}`);
+        console.log(`⏭️ 跳过: ${skipCount}`);
         console.log(`❌ 失败: ${failCount}`);
 
         if (failCount > 0) {
