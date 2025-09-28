@@ -1,0 +1,10 @@
+{
+  "continue.mcpServers": {
+    "cocos-cli": {
+      "command": "node",
+      "args": ["./dist/mcp/start-fast-mcp.js"],
+      "cwd": "${workspaceFolder}",
+      "env": {}
+    }
+  }
+}
