@@ -192,12 +192,12 @@ export class FastMcpServer {
     /**
      * 启动 MCP 服务器
      */
-    async start(projectPath: string): Promise<void> {
+    async start(projectPath: string, port: number = 7456): Promise<void> {
         await this.initializeTools(projectPath);
         await this.server.start({
             transportType: 'httpStream',
             httpStream: {
-                port: 8080,
+                port: port,
             },
         });
     }

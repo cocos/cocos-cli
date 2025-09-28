@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { fastMcpServer } from './fast-mcp';
+import { getFreePort } from '../server/network';
 
 /**
  * 启动 FastMCP 服务器的脚本
@@ -15,14 +16,17 @@ import { fastMcpServer } from './fast-mcp';
  *    }
  */
 
-export async function startServer(projectPath:string) {
+export async function startServer(projectPath: string, port: number = 7456) {
     try {
         console.log('Starting FastMCP Server...');
 
-        // 启动服务器
-        await fastMcpServer.start(projectPath);
+        // 获取可用端口，默认从 7456 开始
+        console.log(`Using port: ${port}`);
 
-        console.log('FastMCP Server started successfully');
+        // 启动服务器
+        await fastMcpServer.start(projectPath, port);
+
+        console.log(`FastMCP Server started successfully on port ${port}`);
 
         // 设置优雅关闭
         process.on('SIGINT', async () => {
@@ -56,5 +60,11 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // 如果直接运行此文件，启动服务器
 if (require.main === module) {
-    startServer('/Users/wzm/Documents/wzm/myself/projects/384');
+    const defaultPort = 7456;
+    getFreePort(defaultPort).then((port) => {
+        startServer('/Users/wzm/Documents/wzm/myself/projects/384', port);
+    }).catch((e) => {
+        console.error('getFreePort failed:', e instanceof Error ? e.message : String(e));
+        process.exit(1);
+    });
 }

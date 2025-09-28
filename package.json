@@ -1,6 +1,6 @@
 {
     "name": "@base/cocos-cli",
-    "version": "1.0.0",
+    "version": "1.0.0-alpha.1",
     "description": "Cocos Creator CLI tool for project management and building",
     "main": "dist/index.js",
     "bin": {

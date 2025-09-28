@@ -2,6 +2,7 @@ import { join } from "path";
 import { ImporterApi } from "./importer/importer";
 import { ProjectApi } from "./project/project";
 import utils from "../core/base/utils";
+import { PackerDriver } from "../core/scripting/packer-driver";
 export class CocosAPI {
     private _projectPath: string;
     private _enginePath: string;
@@ -52,6 +53,10 @@ export class CocosAPI {
                     library: join(this._projectPath, 'library'),
                 }],
             });
+
+            const packDriver = await PackerDriver.create(this._projectPath, this._enginePath);
+            await packDriver.init(Engine.getConfig().includedModules);
+            await packDriver.pullAssetDb();
 
             await this.project.init();
             await this.importer.init();
