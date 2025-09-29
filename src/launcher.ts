@@ -59,7 +59,7 @@ class ProjectManager {
         });
         const packDriver = await PackerDriver.create(path, enginePath);
         await packDriver.init(Engine.getConfig().includedModules);
-        await packDriver.pullAssetDb();
+        await packDriver.build();
     }
 
     /**

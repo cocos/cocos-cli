@@ -1,6 +1,6 @@
 import { project } from '../../project/script';
 import { PackerDriver } from '../packer-driver';
-import { project as projectPath } from '../../../../.user.json';
+import { project as projectPath, engine as enginePath } from '../../../../.user.json';
 
 
 /**
@@ -12,11 +12,11 @@ describe('Pack', () => {
     beforeEach(async () => {
         await project.create(projectPath);
         // 在每个测试用例之前初始化engine
-        packDriver = await PackerDriver.create();
+        packDriver = await PackerDriver.create(projectPath, enginePath);
     });
 
     it('test script pack', async () => {
-        await packDriver.pullAssetDb();
+        await packDriver.build();
         // @ts-ignore
         // expect(packDriver.queryScriptDeps()).toBeDefined();
     }, 1000 * 60 * 50);

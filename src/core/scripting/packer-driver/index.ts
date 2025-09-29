@@ -101,6 +101,12 @@ type CCEModuleMap = {
  */
 export class PackerDriver {
     public languageService: LanguageServiceAdapter;
+    private static _instance: PackerDriver | null = null;
+
+    public static getInstance(): PackerDriver {
+        asserts(PackerDriver._instance, 'PackerDriver is not created yet. Please call PackerDriver.create first.');
+        return PackerDriver._instance;
+    }
 
     /**
      * 创建 Packer 驱动器。
@@ -249,6 +255,7 @@ export class PackerDriver {
             await tsBuilder.getCompilerOptions(),
             await tsBuilder.getInternalDbURLInfos()
         );
+        PackerDriver._instance = packer;
         return packer;
     }
 
@@ -340,7 +347,7 @@ export class PackerDriver {
     /**
      * 从 asset-db 获取所有数据并构建。
      */
-    public async pullAssetDb() {
+    public async build() {
         const logger = this._logger;
 
         logger.debug('Pulling asset-db.');

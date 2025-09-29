@@ -56,7 +56,7 @@ export class CocosAPI {
 
             const packDriver = await PackerDriver.create(this._projectPath, this._enginePath);
             await packDriver.init(Engine.getConfig().includedModules);
-            await packDriver.pullAssetDb();
+            await packDriver.build();
 
             await this.project.init();
             await this.importer.init();
