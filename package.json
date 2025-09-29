@@ -64,7 +64,11 @@
     "dependencies": {
         "@babel/core": "7.22.20",
         "@cocos/ccbuild": "2.3.17",
-        "@cocos/creator-programming-rollup-plugin-mod-lo": "^1.4.2",
+        "@cocos/creator-programming-common": "1.2.3",
+        "@cocos/creator-programming-import-maps": "1.0.0",
+        "@cocos/creator-programming-mod-lo": "1.12.0",
+        "@cocos/creator-programming-quick-pack": "1.7.2",
+        "@cocos/creator-programming-rollup-plugin-mod-lo": "1.4.2",
         "@cocos/data-uri": "^1.0.6",
         "@cocos/fbx-gltf-conv": "^1.0.0-alpha.49.editor.1",
         "@cocos/fbx2gltf": "^1.0.8",
