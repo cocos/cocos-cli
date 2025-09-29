@@ -9,7 +9,7 @@ import {
     // @ts-ignore
 } from '../../static/executor/systemjs-bridge/out';
 import NodeUrl from 'url';
-import { i18nTranslate } from '../../assets/asset-handler/utils';
+import { i18nTranslate } from '../../../assets/asset-handler/utils';
 import type { ResolutionDetailMap } from '@cocos/creator-programming-quick-pack/lib/resolution-detail-map';
 
 type SystemJsRegistry = Record<string, ModuleRegister>;

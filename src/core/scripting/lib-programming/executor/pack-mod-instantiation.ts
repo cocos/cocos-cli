@@ -1,10 +1,10 @@
 
 import vm from 'vm';
-import { asserts } from '../utils/asserts';
+import { asserts } from '../../utils/asserts';
 import fs from 'fs-extra';
 import { ChunkTimestamp, ChunkId, QuickPackLoader } from '@cocos/creator-programming-quick-pack/lib/loader';
 import type { ExecutorSystem } from '../editor-systemjs';
-import { i18nTranslate } from '../../assets/asset-handler/utils';
+import { i18nTranslate } from '../../../assets/asset-handler/utils';
 import { pathToFileURL } from 'url';
 
 export interface PackModuleEvaluator {
