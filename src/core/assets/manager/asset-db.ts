@@ -14,6 +14,7 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
+import { PackerDriver } from '../../scripting/packer-driver';
 
 export interface IPhysicsConfig {
     gravity: IVec3Like; // （0，-10， 0）
@@ -769,5 +770,5 @@ async function afterStartDB() {
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
     await startAutoGenEffectBin();
 
-    // TODO 编译脚本
+    PackerDriver.getInstance().build();
 }

@@ -10,6 +10,7 @@ import { MissingObjectReporter } from './missing-reporter/missing-object-reporte
 export { walkProperties } from './missing-reporter/object-walker';
 
 import utils from '../../base/utils';
+import EventEmitter from 'events';
 export const UuidUtils = utils.UUID;
 
 export * as GeometryUtils from './utils/geometry';
@@ -26,6 +27,20 @@ export async function init() {
     serialize = serializeUtils.serialize;
     serializeCompiled = serializeUtils.serializeCompiled;
     deserializeFull = await import('./utils/deserialize');
+}
+
+const event = new EventEmitter();
+
+export function emit(name: string | symbol, ...args: string[]) {
+    event.emit(name, ...args);
+}
+
+export function on(name: string | symbol, handle: (...args: any[]) => void) {
+    event.on(name, handle);
+}
+
+export function removeListener(name: string | symbol, handle: (...args: any[]) => void) {
+    event.removeListener(name, handle);
 }
 
 declare global {

@@ -464,6 +464,10 @@ export class PackerDriver {
         await this._syncEngineFeatures(features);
     }
 
+    public async querySharedSettings(): Promise<SharedSettings> {
+        return querySharedSettings(this._logger);
+    }
+
     async destroyed() {
         this._init = false;
         await this._assetDbInterop.destroyed();

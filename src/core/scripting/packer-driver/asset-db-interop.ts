@@ -21,7 +21,6 @@ export class AssetDbInterop {
     protected readonly _blockScriptUUIDSet = blockAssetUUIDSet;
     protected _assetChangeTimeOut: NodeJS.Timeout | undefined;
     private _hasInit = false;
-    private broadcastListenerMap: Record<string, (...args: any[]) => void> = {};
 
     constructor(
         onChangeHandler: OnChangeHandler,
@@ -36,16 +35,11 @@ export class AssetDbInterop {
         if (this._hasInit) {
             return;
         }
-        type AssetChangeParams = RemoveFirst<Parameters<AssetDbInterop['_onAssetChange']>>;
-        this.broadcastListenerMap['asset-db:asset-change'] = async (...args: AssetChangeParams) => this._onAssetChange(AssetChangeType.modified, ...args);
-        this.broadcastListenerMap['asset-db:asset-add'] = async (...args: AssetChangeParams) => this._onAssetChange(AssetChangeType.add, ...args);
-        this.broadcastListenerMap['asset-db:asset-delete'] = async (...args: AssetChangeParams) => this._onAssetChange(AssetChangeType.remove, ...args);
 
         this._hasInit = true;
     }
 
     async destroyed() {
-        this.broadcastListenerMap = {};
         this._hasInit = false;
     }
 
