@@ -3,10 +3,7 @@ import {
     setByDotPath,
     isValidConfigKey,
     isValidConfigValue,
-    deepMerge,
-    isEmptyObject,
-    safeGet,
-    safeSet
+    deepMerge
 } from '../script/utils';
 
 describe('Configuration Utils', () => {
@@ -199,49 +196,4 @@ describe('Configuration Utils', () => {
         });
     });
 
-    describe('isEmptyObject', () => {
-        test('应该识别空对象', () => {
-            expect(isEmptyObject({})).toBe(true);
-            expect(isEmptyObject(null)).toBe(true);
-            expect(isEmptyObject(undefined)).toBe(true);
-        });
-
-        test('应该识别非空对象', () => {
-            expect(isEmptyObject({ a: 1 })).toBe(false);
-            expect(isEmptyObject([])).toBe(false);
-        });
-
-        test('应该识别非对象类型', () => {
-            expect(isEmptyObject('string')).toBe(true);
-            expect(isEmptyObject(123)).toBe(true);
-            expect(isEmptyObject(true)).toBe(true);
-        });
-    });
-
-    describe('safeGet', () => {
-        const testObj = { a: { b: { c: 3 } } };
-
-        test('应该安全获取值', () => {
-            expect(safeGet(testObj, 'a.b.c')).toBe(3);
-            expect(safeGet(testObj, 'a.b.nonExistent', 'default')).toBe('default');
-        });
-
-        test('应该使用默认值', () => {
-            expect(safeGet(testObj, 'nonExistent', 'default')).toBe('default');
-            expect(safeGet(null, 'a.b.c', 'default')).toBe('default');
-        });
-    });
-
-    describe('safeSet', () => {
-        test('应该安全设置值', () => {
-            const obj: any = {};
-            expect(safeSet(obj, 'a.b.c', 3)).toBe(true);
-            expect(obj.a.b.c).toBe(3);
-        });
-
-        test('应该处理错误情况', () => {
-            expect(safeSet(null, 'a.b.c', 3)).toBe(false);
-            expect(safeSet({}, '', 3)).toBe(false);
-        });
-    });
 });

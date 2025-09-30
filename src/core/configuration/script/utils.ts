@@ -120,53 +120,5 @@ export function deepMerge(target: any, source: any): any {
     return result;
 }
 
-/**
- * 检查对象是否为空
- * @param obj 要检查的对象
- * @returns 是否为空
- */
-export function isEmptyObject(obj: any): boolean {
-    if (!obj || typeof obj !== 'object') {
-        return true;
-    }
-    
-    // 数组不是空对象
-    if (Array.isArray(obj)) {
-        return false;
-    }
-    
-    return Object.keys(obj).length === 0;
-}
 
-/**
- * 安全地获取对象的属性值
- * @param obj 源对象
- * @param path 属性路径（点号分隔）
- * @param defaultValue 默认值
- * @returns 属性值或默认值
- */
-export function safeGet(obj: any, path: string, defaultValue: any = undefined): any {
-    const value = getByDotPath(obj, path);
-    return value !== undefined ? value : defaultValue;
-}
-
-/**
- * 安全地设置对象的属性值
- * @param obj 目标对象
- * @param path 属性路径（点号分隔）
- * @param value 要设置的值
- * @returns 是否设置成功
- */
-export function safeSet(obj: any, path: string, value: any): boolean {
-    if (!obj || !path) {
-        return false;
-    }
-    
-    try {
-        setByDotPath(obj, path, value);
-        return true;
-    } catch (error) {
-        return false;
-    }
-}
 

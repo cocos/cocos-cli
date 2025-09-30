@@ -57,7 +57,7 @@ export interface RegistryItem {
 export interface IConfigurationRegistry {
     /**
      * 注册配置
-     * @param key 配置键名
+     * @param key 配置键名，支持点号分隔的路径（如 'module.submodule.config'）
      * @param value 配置值
      * @param options 注册选项
      * @returns 注册成功返回配置对象，失败返回 null
@@ -66,46 +66,20 @@ export interface IConfigurationRegistry {
     
     /**
      * 获取已注册的配置
-     * @param key 配置键名
+     * @param key 配置键名，支持点号分隔的路径（如 'module.submodule.config'）
      * @returns 配置值，如果不存在返回 undefined
      */
     get(key: string): Record<string, any> | undefined;
     
     /**
-     * 检查配置是否已注册
-     * @param key 配置键名
-     * @returns 是否已注册
-     */
-    has(key: string): boolean;
-    
-    /**
-     * 获取所有已注册的配置键名
-     * @returns 配置键名数组
-     */
-    keys(): string[];
-    
-    /**
      * 获取所有已注册的配置
-     * @returns 配置对象
+     * @returns 配置对象（树形结构）
      */
     getAll(): Record<string, Record<string, any>>;
     
     /**
-     * 获取注册项信息
-     * @param key 配置键名
-     * @returns 注册项信息，如果不存在返回 undefined
-     */
-    getItemInfo(key: string): RegistryItem | undefined;
-    
-    /**
-     * 获取所有注册项信息
-     * @returns 注册项信息数组
-     */
-    getAllItemsInfo(): RegistryItem[];
-    
-    /**
      * 移除配置
-     * @param key 配置键名
+     * @param key 配置键名，支持点号分隔的路径（如 'module.submodule.config'）
      * @returns 是否移除成功
      */
     remove(key: string): boolean;
@@ -114,15 +88,6 @@ export interface IConfigurationRegistry {
      * 清空所有配置
      */
     clear(): void;
-    
-    /**
-     * 获取注册器统计信息
-     */
-    getStats(): {
-        total: number;
-        keys: string[];
-        lastRegistered?: string;
-    };
 }
 
 export interface IConfigurationManager {
