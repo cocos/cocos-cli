@@ -122,7 +122,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                         }
                         sortingPlugins.push(asset.uuid);
                     }
-                    await configurationManager.updateValue('project.script.sortingPlugin', sortingPlugins);
+                    await configurationManager.setValue('project.script.sortingPlugin', sortingPlugins);
                     delete asset.userData.dependencies;
                     migrateStep.step();
                 },

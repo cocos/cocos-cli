@@ -43,7 +43,7 @@ export class ConfigurationManager implements IConfigurationManager {
         const upgrade = gt(ConfigurationManager.VERSION, currentVersion);
         if (upgrade) {
             const configs = await CocosMigrationManager.migrate(projectPath);
-            this.projectConfig = Object.assign({}, this.projectConfig, configs);
+            this.projectConfig = utils.deepMerge(this.projectConfig, configs);
             this.projectConfig.version = ConfigurationManager.VERSION;
             await this.save();
         }
@@ -55,10 +55,9 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param key 配置键名，支持点号分隔的嵌套路径
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    public async getValue<T>(key: string, scope?: ConfigurationScope): Promise<T | undefined> {
+    public async getValue<T>(key: string, scope?: ConfigurationScope): Promise<T> {
         if (!utils.isValidConfigKey(key)) {
-            newConsole.warn('[Configuration] 获取配置失败：配置键名不能为空');
-            return undefined;
+            throw new Error('[Configuration] 获取配置失败：配置键名不能为空');
         }
 
         await this.ensureInitialized();
@@ -69,26 +68,27 @@ export class ConfigurationManager implements IConfigurationManager {
 
         // 根据作用域决定返回策略
         if (scope === 'project') {
-            return hasProjectValue ? (projectValue as T) : undefined;
+            if (!hasProjectValue) {
+                throw new Error(`[Configuration] 通过 ${key} 获取配置失败`);
+            }
+            return (projectValue as T);
         }
 
+        const defaultConfig = this.getDefaultConfigValue(key);
         if (scope === 'default') {
-            const result = this.getDefaultConfigValue(key);
-            return result.found ? (result.value as T) : undefined;
+            if (!defaultConfig.found) {
+                throw new Error(`[Configuration] 通过 ${key} 获取配置失败`);
+            }
+            return (defaultConfig.value as T);
         }
-
-        // 按优先级查找：先项目配置，后默认配置
-        if (hasProjectValue) {
-            return projectValue as T;
+        
+        // 如果项目配置和默认配置都不存在，抛出错误
+        if (!hasProjectValue && !defaultConfig.found) {
+            throw new Error(`[Configuration] 通过 ${key} 获取配置失败`);
         }
-
-        const result = this.getDefaultConfigValue(key);
-        if (!result.found) {
-            newConsole.warn(`[Configuration] 配置项 "${key}" 未找到，请检查配置是否正确注册`);
-            return undefined;
-        }
-
-        return result.value as T;
+        
+        const result = utils.deepMerge(defaultConfig.value, projectValue);
+        return (result as T);
     }
 
     /**
@@ -122,7 +122,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param value 新的配置值
      * @param scope 配置作用域，默认为 'project'
      */
-    public async updateValue<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
+    public async setValue<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
         if (!utils.isValidConfigKey(key)) {
             newConsole.warn('[Configuration] 更新配置失败：配置键名不能为空');
             return false;

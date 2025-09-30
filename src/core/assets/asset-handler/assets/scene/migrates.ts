@@ -1197,7 +1197,7 @@ async function migrateCanvasCamera(asset: Asset) {
                         userLayers.sort((a, b) => {
                             return a.value - b.value;
                         });
-                        await configurationManager.updateValue('project.layer', userLayers);
+                        await configurationManager.setValue('project.layer', userLayers);
                     }
 
                     break;

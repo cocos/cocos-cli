@@ -74,20 +74,45 @@ export function isValidConfigValue(value: any): boolean {
 }
 
 /**
- * 深度合并两个对象
- * @param target 目标对象
- * @param source 源对象
- * @returns 合并后的对象
+ * 深度合并两个值
+ * @param target 目标值
+ * @param source 源值
+ * @returns 合并后的值
  */
-export function deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
+export function deepMerge(target: any, source: any): any {
+    // 如果源值为 null 或 undefined，返回目标值
+    if (source === null || source === undefined) {
+        return target;
+    }
+    
+    // 如果目标值为 null 或 undefined，返回源值
+    if (target === null || target === undefined) {
+        return source;
+    }
+    
+    // 检查是否为非对象类型（包括数组）
+    const isSourcePrimitive = typeof source !== 'object' || Array.isArray(source);
+    const isTargetPrimitive = typeof target !== 'object' || Array.isArray(target);
+    
+    // 如果任一值为非对象类型，返回源值（覆盖）
+    if (isSourcePrimitive || isTargetPrimitive) {
+        return source;
+    }
+    
+    // 两个都是普通对象，进行深度合并
     const result = { ...target };
     
     for (const key in source) {
         if (source.hasOwnProperty(key)) {
-            if (isValidConfigValue(source[key]) && isValidConfigValue(result[key])) {
-                result[key] = deepMerge(result[key], source[key]);
+            const sourceValue = source[key];
+            const targetValue = result[key];
+            
+            // 递归合并：只有当两个值都是普通对象时才进行深度合并
+            if (typeof sourceValue === 'object' && sourceValue !== null && !Array.isArray(sourceValue) &&
+                typeof targetValue === 'object' && targetValue !== null && !Array.isArray(targetValue)) {
+                result[key] = deepMerge(targetValue, sourceValue);
             } else {
-                result[key] = source[key];
+                result[key] = sourceValue;
             }
         }
     }

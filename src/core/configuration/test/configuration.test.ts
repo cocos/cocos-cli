@@ -69,10 +69,9 @@ describe('ConfigurationManager', () => {
             expect(logLevel).toBe('info');
         });
 
-        test('应该返回 undefined 对于不存在的配置', async () => {
-            const result = await configurationManager.getValue('myModule.nonExistent');
-            
-            expect(result).toBeUndefined();
+        test('应该抛出错误对于不存在的配置', async () => {
+            await expect(configurationManager.getValue('myModule.nonExistent'))
+                .rejects.toThrow('[Configuration] 通过 myModule.nonExistent 获取配置失败');
         });
 
         test('应该只从项目配置读取', async () => {
@@ -98,6 +97,7 @@ describe('ConfigurationManager', () => {
             
             expect(timeout).toBe(5000);
         });
+
 
         test('应该优先读取项目配置', async () => {
             // 先设置 mock
@@ -138,6 +138,91 @@ describe('ConfigurationManager', () => {
             
             expect(result).toBeNull();
         });
+
+        test('应该抛出错误当项目配置和默认配置都不存在时', async () => {
+            await expect(configurationManager.getValue('nonExistentModule.key'))
+                .rejects.toThrow('[Configuration] 通过 nonExistentModule.key 获取配置失败');
+        });
+
+        test('应该抛出错误当项目配置不存在且指定 project 作用域时', async () => {
+            await expect(configurationManager.getValue('myModule.nonExistent', 'project'))
+                .rejects.toThrow('[Configuration] 通过 myModule.nonExistent 获取配置失败');
+        });
+
+        test('应该抛出错误当默认配置不存在且指定 default 作用域时', async () => {
+            await expect(configurationManager.getValue('nonExistentModule.key', 'default'))
+                .rejects.toThrow('[Configuration] 通过 nonExistentModule.key 获取配置失败');
+        });
+
+        test('应该抛出错误当配置键名为空时', async () => {
+            await expect(configurationManager.getValue(''))
+                .rejects.toThrow('[Configuration] 获取配置失败：配置键名不能为空');
+        });
+
+        test('应该深度合并项目配置和默认配置', async () => {
+            // 设置项目配置（部分覆盖默认配置）
+            (fse.pathExists as jest.Mock).mockResolvedValue(true);
+            (fse.readJSON as jest.Mock).mockResolvedValue({
+                myModule: { 
+                    timeout: 10000,  // 覆盖默认值
+                    settings: {
+                        debug: true  // 覆盖默认值
+                        // logLevel 保持默认值
+                    }
+                }
+            });
+            
+            // 重置并重新初始化配置管理器
+            (configurationManager as any).initialized = false;
+            (configurationManager as any).projectConfig = {};
+            await configurationManager.initialize(projectPath);
+            
+            // 重新注册默认配置
+            const { configurationRegistry } = require('../script/registry');
+            configurationRegistry.register('myModule', {
+                enabled: true,
+                timeout: 5000,
+                settings: {
+                    debug: false,
+                    logLevel: 'info'
+                }
+            });
+            
+            // 测试合并结果
+            const timeout = await configurationManager.getValue<number>('myModule.timeout');
+            expect(timeout).toBe(10000); // 项目配置优先
+            
+            const debug = await configurationManager.getValue<boolean>('myModule.settings.debug');
+            expect(debug).toBe(true); // 项目配置优先
+            
+            const logLevel = await configurationManager.getValue<string>('myModule.settings.logLevel');
+            expect(logLevel).toBe('info'); // 使用默认配置
+            
+            const enabled = await configurationManager.getValue<boolean>('myModule.enabled');
+            expect(enabled).toBe(true); // 使用默认配置
+        });
+
+        test('应该使用默认配置当项目配置不存在时', async () => {
+            // 项目配置为空
+            (fse.pathExists as jest.Mock).mockResolvedValue(false);
+            (configurationManager as any).initialized = false;
+            (configurationManager as any).projectConfig = {};
+            await configurationManager.initialize(projectPath);
+            
+            // 重新注册默认配置
+            const { configurationRegistry } = require('../script/registry');
+            configurationRegistry.register('myModule', {
+                enabled: true,
+                timeout: 5000,
+                settings: {
+                    debug: false,
+                    logLevel: 'info'
+                }
+            });
+            
+            const timeout = await configurationManager.getValue<number>('myModule.timeout');
+            expect(timeout).toBe(5000); // 使用默认配置
+        });
     });
 
     describe('更新配置', () => {
@@ -149,7 +234,7 @@ describe('ConfigurationManager', () => {
         });
 
         test('应该成功更新项目配置', async () => {
-            const result = await configurationManager.updateValue('myModule.timeout', 10000);
+            const result = await configurationManager.setValue('myModule.timeout', 10000);
             
             expect(result).toBe(true);
             expect(fse.writeJSON).toHaveBeenCalled();
@@ -166,14 +251,14 @@ describe('ConfigurationManager', () => {
                 timeout: 5000
             });
             
-            const result = await configurationManager.updateValue('myModule.timeout', 8000, 'default');
+            const result = await configurationManager.setValue('myModule.timeout', 8000, 'default');
             
             expect(result).toBe(true);
             expect(fse.writeJSON).not.toHaveBeenCalled(); // 默认配置不写入文件
         });
 
         test('应该拒绝空键名', async () => {
-            const result = await configurationManager.updateValue('', 10000);
+            const result = await configurationManager.setValue('', 10000);
             
             expect(result).toBe(false);
         });
@@ -181,14 +266,14 @@ describe('ConfigurationManager', () => {
         test('应该处理保存错误', async () => {
             (fse.writeJSON as jest.Mock).mockRejectedValue(new Error('Write failed'));
             
-            const result = await configurationManager.updateValue('myModule.timeout', 10000);
+            const result = await configurationManager.setValue('myModule.timeout', 10000);
             
             expect(result).toBe(false);
         });
 
         test('应该能够设置没有默认值的配置', async () => {
             // 设置一个全新的配置项（没有默认值）
-            const result = await configurationManager.updateValue('newModule.newSetting', 'newValue');
+            const result = await configurationManager.setValue('newModule.newSetting', 'newValue');
             
             expect(result).toBe(true);
             
@@ -199,7 +284,7 @@ describe('ConfigurationManager', () => {
 
         test('应该能够设置嵌套的配置路径', async () => {
             // 设置深层嵌套的配置
-            const result = await configurationManager.updateValue('newModule.nested.deep.value', 123);
+            const result = await configurationManager.setValue('newModule.nested.deep.value', 123);
             
             expect(result).toBe(true);
             
@@ -226,16 +311,16 @@ describe('ConfigurationManager', () => {
             
             await configurationManager.initialize(projectPath);
             
-            // 应该不会抛出错误，而是使用空配置
-            const result = await configurationManager.getValue('any.key');
-            expect(result).toBeUndefined();
+            // 配置文件读取失败时，项目配置为空，应该抛出错误
+            await expect(configurationManager.getValue('any.key'))
+                .rejects.toThrow('[Configuration] 通过 any.key 获取配置失败');
         });
 
         test('应该处理不支持的配置作用域', async () => {
             (fse.pathExists as jest.Mock).mockResolvedValue(false);
             await configurationManager.initialize(projectPath);
             
-            const result = await configurationManager.updateValue('key', 'value', 'invalid' as any);
+            const result = await configurationManager.setValue('key', 'value', 'invalid' as any);
             
             expect(result).toBe(false);
         });

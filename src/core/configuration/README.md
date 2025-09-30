@@ -53,7 +53,7 @@ await configurationManager.initialize('/path/to/project');
 const value = await configurationManager.getValue('myModule.timeout');
 
 // 更新配置
-await configurationManager.updateValue('myModule.timeout', 6000, 'project');
+await configurationManager.setValue('myModule.timeout', 6000, 'project');
 ```
 
 ## 使用示例
@@ -92,7 +92,7 @@ console.log(dbHost); // localhost
 
 ```typescript
 // 设置项目配置
-await configurationManager.updateValue('database.host', 'project-db-host', 'project');
+await configurationManager.setValue('database.host', 'project-db-host', 'project');
 
 // 获取配置（项目配置优先）
 const host = await configurationManager.getValue('database.host'); // project-db-host

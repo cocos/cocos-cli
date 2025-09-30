@@ -131,15 +131,15 @@ export interface IConfigurationManager {
      * @param key 配置键名，支持点号分隔的嵌套路径，如 'builder.platforms.web-mobile'
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    getValue<T>(key: string, scope?: ConfigurationScope): Promise<T | undefined>;
+    getValue<T>(key: string, scope?: ConfigurationScope): Promise<T>;
 
     /**
-     * 更新配置
+     * 设置配置
      * @param key 配置键名，支持点号分隔的嵌套路径
      * @param value 新的配置值
      * @param scope 配置作用域，默认为 'project'
      */
-    updateValue<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+    setValue<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
 
     /**
      * 初始化配置管理器

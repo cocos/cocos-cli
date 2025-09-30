@@ -121,6 +121,82 @@ describe('Configuration Utils', () => {
                 b: { c: 4 }
             });
         });
+
+        test('应该处理基本类型值', () => {
+            expect(deepMerge(123, 456)).toBe(456);
+            expect(deepMerge('hello', 'world')).toBe('world');
+            expect(deepMerge(true, false)).toBe(false);
+            expect(deepMerge(123, 'string')).toBe('string');
+        });
+
+        test('应该处理数组', () => {
+            expect(deepMerge([1, 2], [3, 4])).toEqual([3, 4]);
+            expect(deepMerge({ a: 1 }, [1, 2, 3])).toEqual([1, 2, 3]);
+            expect(deepMerge([1, 2], { b: 2 })).toEqual({ b: 2 });
+        });
+
+        test('应该处理 null 和 undefined', () => {
+            expect(deepMerge(null, { a: 1 })).toEqual({ a: 1 });
+            expect(deepMerge({ a: 1 }, null)).toEqual({ a: 1 });
+            expect(deepMerge(undefined, { a: 1 })).toEqual({ a: 1 });
+            expect(deepMerge({ a: 1 }, undefined)).toEqual({ a: 1 });
+            // 当 source 为 null/undefined 时，返回 target
+            expect(deepMerge(null, undefined)).toBe(null);
+            expect(deepMerge(undefined, null)).toBe(undefined);
+        });
+
+        test('应该处理复杂嵌套对象', () => {
+            const target = {
+                a: 1,
+                b: {
+                    c: 2,
+                    d: {
+                        e: 3,
+                        f: 4
+                    }
+                },
+                g: 'target'
+            };
+            const source = {
+                b: {
+                    d: {
+                        f: 5,
+                        h: 6
+                    },
+                    i: 7
+                },
+                j: 'source'
+            };
+            const result = deepMerge(target, source);
+            
+            expect(result).toEqual({
+                a: 1,
+                b: {
+                    c: 2,
+                    d: {
+                        e: 3,
+                        f: 5,
+                        h: 6
+                    },
+                    i: 7
+                },
+                g: 'target',
+                j: 'source'
+            });
+        });
+
+        test('应该处理混合类型覆盖', () => {
+            expect(deepMerge({ a: 1 }, 123)).toBe(123);
+            expect(deepMerge(123, { a: 1 })).toEqual({ a: 1 });
+            expect(deepMerge('string', [1, 2, 3])).toEqual([1, 2, 3]);
+            expect(deepMerge([1, 2], 'string')).toBe('string');
+        });
+
+        test('应该处理空对象', () => {
+            expect(deepMerge({}, { a: 1 })).toEqual({ a: 1 });
+            expect(deepMerge({ a: 1 }, {})).toEqual({ a: 1 });
+            expect(deepMerge({}, {})).toEqual({});
+        });
     });
 
     describe('isEmptyObject', () => {

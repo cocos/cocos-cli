@@ -169,7 +169,7 @@ async function getPresetId(platformSettings: any) {
                 options: platformSettings,
             },
         };
-        await configurationManager.updateValue('builder.textureCompressConfig.userPreset', userPreset);
+        await configurationManager.setValue('builder.textureCompressConfig.userPreset', userPreset);
         return presetId;
     }
 
@@ -179,7 +179,7 @@ async function getPresetId(platformSettings: any) {
         }
     }
 
-    await configurationManager.updateValue(`builder.textureCompressConfig.userPreset.${presetId}`, {
+    await configurationManager.setValue(`builder.textureCompressConfig.userPreset.${presetId}`, {
         name: presetId,
         options: platformSettings,
     });
