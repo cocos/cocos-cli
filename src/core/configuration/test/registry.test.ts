@@ -148,4 +148,157 @@ describe('ConfigurationRegistry', () => {
             expect(allConfigs).toEqual({});
         });
     });
+
+    describe('树形结构支持', () => {
+        test('应该支持点号分隔的键名注册', () => {
+            const config1 = { enabled: true, timeout: 5000 };
+            const config2 = { debug: false, level: 'info' };
+            
+            registry.register('module.submodule.config1', config1);
+            registry.register('module.submodule.config2', config2);
+            
+            expect(registry.get('module.submodule.config1')).toEqual(config1);
+            expect(registry.get('module.submodule.config2')).toEqual(config2);
+        });
+
+        test('应该支持深层嵌套的键名注册', () => {
+            const config = { value: 'test' };
+            
+            registry.register('a.b.c.d.e.f', config);
+            
+            expect(registry.get('a.b.c.d.e.f')).toEqual(config);
+        });
+
+        test('应该正确构建树形结构', () => {
+            const config1 = { enabled: true };
+            const config2 = { timeout: 1000 };
+            
+            registry.register('module.config1', config1);
+            registry.register('module.config2', config2);
+            
+            const allConfigs = registry.getAll();
+            expect(allConfigs).toEqual({
+                module: {
+                    config1: { enabled: true },
+                    config2: { timeout: 1000 }
+                }
+            });
+        });
+
+        test('应该支持混合键名（点号分隔和普通键名）', () => {
+            const config1 = { enabled: true };
+            const config2 = { timeout: 1000 };
+            const config3 = { debug: false };
+            
+            registry.register('module.config1', config1);
+            registry.register('module.config2', config2);
+            registry.register('standalone', config3);
+            
+            expect(registry.get('module.config1')).toEqual(config1);
+            expect(registry.get('module.config2')).toEqual(config2);
+            expect(registry.get('standalone')).toEqual(config3);
+            
+            const allConfigs = registry.getAll();
+            expect(allConfigs).toEqual({
+                module: {
+                    config1: { enabled: true },
+                    config2: { timeout: 1000 }
+                },
+                standalone: { debug: false }
+            });
+        });
+
+        test('应该支持覆盖树形结构中的配置', () => {
+            const config1 = { enabled: true, timeout: 5000 };
+            const config2 = { enabled: false, timeout: 1000 };
+            
+            registry.register('module.config', config1);
+            const result = registry.register('module.config', config2, { overwrite: true });
+            
+            expect(result).toEqual(config2);
+            expect(registry.get('module.config')).toEqual(config2);
+        });
+
+        test('应该支持移除树形结构中的配置', () => {
+            const config1 = { enabled: true };
+            const config2 = { timeout: 1000 };
+            
+            registry.register('module.config1', config1);
+            registry.register('module.config2', config2);
+            
+            const result = registry.remove('module.config1');
+            
+            expect(result).toBe(true);
+            expect(registry.get('module.config1')).toBeUndefined();
+            expect(registry.get('module.config2')).toEqual(config2);
+            
+            const allConfigs = registry.getAll();
+            expect(allConfigs).toEqual({
+                module: {
+                    config2: { timeout: 1000 }
+                }
+            });
+        });
+
+        test('应该支持移除深层嵌套的配置', () => {
+            const config = { value: 'test' };
+            
+            registry.register('a.b.c.d.e.f', config);
+            
+            const result = registry.remove('a.b.c.d.e.f');
+            
+            expect(result).toBe(true);
+            expect(registry.get('a.b.c.d.e.f')).toBeUndefined();
+        });
+
+        test('应该正确处理不存在的树形路径', () => {
+            expect(registry.get('nonexistent.path')).toBeUndefined();
+            expect(registry.remove('nonexistent.path')).toBe(false);
+        });
+
+        test('应该正确处理部分存在的树形路径', () => {
+            registry.register('module.config1', { enabled: true });
+            
+            expect(registry.get('module.config1')).toEqual({ enabled: true });
+            expect(registry.get('module.config2')).toBeUndefined();
+            expect(registry.get('module.nonexistent.config')).toBeUndefined();
+        });
+
+        test('应该支持复杂的树形结构场景', () => {
+            // 注册多个层级的配置
+            registry.register('app.database.host', { value: 'localhost' });
+            registry.register('app.database.port', { value: 5432 });
+            registry.register('app.cache.enabled', { value: true });
+            registry.register('app.cache.ttl', { value: 3600 });
+            registry.register('logging.level', { value: 'info' });
+            registry.register('logging.file', { value: 'app.log' });
+            
+            // 验证所有配置都能正确获取
+            expect(registry.get('app.database.host')).toEqual({ value: 'localhost' });
+            expect(registry.get('app.database.port')).toEqual({ value: 5432 });
+            expect(registry.get('app.cache.enabled')).toEqual({ value: true });
+            expect(registry.get('app.cache.ttl')).toEqual({ value: 3600 });
+            expect(registry.get('logging.level')).toEqual({ value: 'info' });
+            expect(registry.get('logging.file')).toEqual({ value: 'app.log' });
+            
+            // 验证树形结构
+            const allConfigs = registry.getAll();
+            expect(allConfigs).toEqual({
+                app: {
+                    database: {
+                        host: { value: 'localhost' },
+                        port: { value: 5432 }
+                    },
+                    cache: {
+                        enabled: { value: true },
+                        ttl: { value: 3600 }
+                    }
+                },
+                logging: {
+                    level: { value: 'info' },
+                    file: { value: 'app.log' }
+                }
+            });
+        });
+    });
 });
