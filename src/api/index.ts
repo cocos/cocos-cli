@@ -2,11 +2,11 @@ import { ProjectApi } from './project/project';
 import utils from '../core/base/utils';
 import { ConfigurationApi } from './configuration/configuration';
 import { EngineApi } from './engine/engine';
-import { AssetDBApi } from './asset-db/asset-db';
+import { AssetsApi } from './asset-db/assets';
 import { PackDriverApi } from './pack-driver/pack-driver';
 
 export class CocosAPI {
-    public assetDB: AssetDBApi;
+    public assetDB: AssetsApi;
     public engine: EngineApi;
     public project: ProjectApi;
 
@@ -20,7 +20,7 @@ export class CocosAPI {
         this.init();
         this.project = new ProjectApi(projectPath);
         this.configuration = new ConfigurationApi(projectPath);
-        this.assetDB = new AssetDBApi(projectPath);
+        this.assetDB = new AssetsApi(projectPath);
         this.packDriver = new PackDriverApi(projectPath, enginePath);
         this.engine = new EngineApi(projectPath, enginePath);
     }

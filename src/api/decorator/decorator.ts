@@ -6,6 +6,7 @@ import { createCommonResult } from "../base/scheme-base";
 interface ParamSchema {
   index: number;
   schema: ZodType<any>;
+  name?: string;
 }
 
 interface ToolMetaData {
@@ -72,9 +73,29 @@ export function param(schema: ZodType<any>) {
     const proto = target;
     const key = `tool:paramSchemas:${propertyKey.toString()}`;
     const existing: ParamSchema[] = Reflect.getOwnMetadata(key, proto) || [];
-    existing.push({ index: parameterIndex, schema });
+    
+    // 尝试获取参数名称
+    const paramTypes = Reflect.getMetadata('design:paramtypes', target, propertyKey);
+    const paramNames = getParameterNames(target[propertyKey]);
+    const paramName = paramNames && paramNames[parameterIndex] ? paramNames[parameterIndex] : `param${parameterIndex}`;
+    
+    existing.push({ index: parameterIndex, schema, name: paramName });
     Reflect.defineMetadata(key, existing, proto);
   };
+}
+
+// 辅助函数：从函数中提取参数名称
+function getParameterNames(func: Function): string[] | null {
+  if (!func) return null;
+  
+  const funcStr = func.toString();
+  const match = funcStr.match(/\(([^)]*)\)/);
+  if (!match || !match[1]) return null;
+  
+  return match[1]
+    .split(',')
+    .map(param => param.trim().split(/\s+/)[0].split(':')[0].trim())
+    .filter(name => name && name !== '');
 }
 
 export function result(returnType: ZodType<any>) {

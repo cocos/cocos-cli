@@ -127,7 +127,8 @@ export class FastMcpServer {
         const mcpTool: any = {
             name: toolName,
             description: meta.description || meta.title || `Tool: ${toolName}`,
-            inputSchema: zodSchema ? zodToCompatibleJsonSchema(zodSchema) : undefined,
+            parameters: zodSchema,
+            // parameters: z.object({ a: z.string(), b: z.string() }),
             execute: async (args: any, context: Context<any>) => {
                 try {
                     // 使用 Zod schema 进行参数验证（如果存在）
@@ -164,13 +165,14 @@ export class FastMcpServer {
 
         // 按参数索引排序
         const sortedParams = meta.paramSchemas.sort((a, b) => a.index - b.index);
-
+        let obj = z.object({});
         for (const param of sortedParams) {
-            const paramName = `param${param.index}`;
-            schemaObject[paramName] = param.schema;
+            obj = obj.extend({
+                [param.name || `param${param.index}`]: param.schema
+            });
         }
 
-        return z.object(schemaObject);
+        return obj;
     }
 
     /**
@@ -185,7 +187,7 @@ export class FastMcpServer {
         const sortedParams = meta.paramSchemas.sort((a, b) => a.index - b.index);
 
         for (const param of sortedParams) {
-            const paramName = `param${param.index}`;
+            const paramName = param.name || `param${param.index}`;
             const value = args[paramName];
 
             try {

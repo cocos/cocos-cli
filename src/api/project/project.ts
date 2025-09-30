@@ -16,7 +16,7 @@ export class ProjectApi extends ApiBase {
         await Project.open(this.projectPath);
     }
 
-    @tool('Project.open')
+    @tool('project-open')
     @title('打开 Cocos Creator 项目')
     @description('打开指定路径的 Cocos Creator 项目，初始化项目环境并加载项目配置。项目路径必须是绝对路径，指向包含 project.json 的项目根目录。成功打开后可以进行后续的资源管理、构建等操作。')
     @result(z.boolean().describe('项目打开结果，true 表示成功，false 表示失败'))
@@ -36,7 +36,7 @@ export class ProjectApi extends ApiBase {
         }
     }
 
-    @tool('Project.close')
+    @tool('project-close')
     @title('关闭当前 Cocos Creator 项目')
     @description('关闭当前打开的 Cocos Creator 项目，清理项目相关的内存状态和资源。关闭后需要重新打开项目才能进行后续操作。建议在完成所有项目操作后调用此方法释放资源。')
     @result(z.boolean().describe('项目关闭结果，true 表示成功，false 表示失败'))
