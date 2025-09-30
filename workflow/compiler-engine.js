@@ -39,10 +39,17 @@ if (!fse.existsSync(userConfig)) {
 
         // TODO 后续需要统一整理具体要导出那些，因为缺了构建需要的引擎代码，例如 cmake 之类的
         const list = [
-            'native/external/emscripten',
+            'bin/.cache/dev-cli',
+            'bin/.declarations',
+            'bin/.editor',
+            'bin/adapter',
             'editor/assets',
+            'editor/exports',
+            'exports',
+            'native/external/emscripten',
+            'cc.config.json',
             'package.json',
-            'bin'
+
         ];
         const ignoreList = [
             'bin/.cache/dev',

@@ -1,69 +1,50 @@
-import { join } from "path";
-import { ImporterApi } from "./importer/importer";
-import { ProjectApi } from "./project/project";
-import utils from "../core/base/utils";
-import { PackerDriver } from "../core/scripting/packer-driver";
-export class CocosAPI {
-    private _projectPath: string;
-    private _enginePath: string;
-    loaded: boolean = false;
+import { ProjectApi } from './project/project';
+import utils from '../core/base/utils';
+import { ConfigurationApi } from './configuration/configuration';
+import { EngineApi } from './engine/engine';
+import { AssetDBApi } from './asset-db/asset-db';
+import { PackDriverApi } from './pack-driver/pack-driver';
 
-    importer: ImporterApi;
-    project: ProjectApi;
-    constructor(projectPath: string, enginePath: string) {
-        this._projectPath = projectPath;
-        this._enginePath = enginePath;
-        this.importer = new ImporterApi();
-        this.project = new ProjectApi();
+export class CocosAPI {
+    public assetDB: AssetDBApi;
+    public engine: EngineApi;
+    public project: ProjectApi;
+
+    private packDriver: PackDriverApi;
+    private configuration: ConfigurationApi;
+
+    constructor(
+        private projectPath: string,
+        private enginePath: string
+    ) {
+        this.init();
+        this.project = new ProjectApi(projectPath);
+        this.configuration = new ConfigurationApi(projectPath);
+        this.assetDB = new AssetDBApi(projectPath);
+        this.packDriver = new PackDriverApi(projectPath, enginePath);
+        this.engine = new EngineApi(projectPath, enginePath);
     }
+
+    private init() {
+        //todo: 初始化一些基础模块信息,这边应该归纳到每个模块的 init 吧？
+        utils.Path.register('project', {
+            label: '项目',
+            path: this.projectPath,
+        });
+    }
+
     /**
      * 初始化 Cocos API
      */
-    async startup() {
+    public async startup() {
         try {
-            //todo: 初始化一些基础模块信息,这边应该归纳到每个模块的 init 吧？
-            utils.Path.register('project', {
-                label: '项目',
-                path: this._projectPath,
-            });
-            const { configurationManager } = await import('../core/configuration');
-            await configurationManager.initialize(this._projectPath);
-            // 初始化项目信息
-            const { default: Project } = await import('../core/project');
-            await Project.open(this._projectPath);
-            // 初始化引擎
-            const { default: Engine } = await import('../core/engine');
-            await Engine.init(this._enginePath);
-            console.log('initEngine', this._enginePath);
-            await Engine.initEngine({
-                importBase: join(this._projectPath, 'library'),
-                nativeBase: join(this._projectPath, 'library'),
-            });
-            console.log('initEngine success');
-            // 启动以及初始化资源数据库
-            const { startupAssetDB } = await import('../core/assets');
-            console.log('startupAssetDB', this._projectPath);
-            await startupAssetDB({
-                root: this._projectPath,
-                assetDBList: [{
-                    name: 'assets',
-                    target: join(this._projectPath, 'assets'),
-                    readonly: false,
-                    visible: true,
-                    library: join(this._projectPath, 'library'),
-                }],
-            });
-
-            const packDriver = await PackerDriver.create(this._projectPath, this._enginePath);
-            await packDriver.init(Engine.getConfig().includedModules);
-            await packDriver.build();
-
+            await this.configuration.init();
             await this.project.init();
-            await this.importer.init();
+            await this.engine.init();
+            await this.assetDB.init();
+            await this.packDriver.init();
         } catch (e) {
-            console.error('ImporterApi init failed', e);
+            console.error('startup failed', e);
         }
-        //加载引擎，加载项目配置等操作
-        this.loaded = true;
     }
 }

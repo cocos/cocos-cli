@@ -1,4 +1,4 @@
-import z from "zod";
+import z from 'zod';
 
 // ===== HTTP 状态码常量定义 =====
 
@@ -75,3 +75,8 @@ export type CommonResultType<T> = {
     code: HttpStatusCode;
     data: T;
 };
+
+/**
+ * 项目路径
+ */
+export const ProjectPathSchema = z.string().min(1).describe('Cocos Creator 项目的绝对路径，必须指向包含 project.json 文件的项目根目录')

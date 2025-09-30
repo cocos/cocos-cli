@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { z } from 'zod';
-import { Tool, Description, Title, Param, Result, toolRegistry, ToolMetaData } from '../decorator/decorator';
-import { createCommonResult, HttpStatusCodeSchema } from '../base/scheme-base';
+import { description, param, result, title, tool, toolRegistry } from '../decorator/decorator';
+import { createCommonResult } from '../base/scheme-base';
 
 // 禁用装饰器类型检查以避免测试中的类型错误
 /* eslint-disable @typescript-eslint/ban-ts-comment */
@@ -15,7 +15,7 @@ describe('Decorator Module', () => {
     describe('Tool decorator', () => {
         test('should register tool with basic metadata', () => {
             class TestApi {
-                @Tool('testTool')
+                @tool('testTool')
                 testMethod() {
                     return 'test';
                 }
@@ -34,14 +34,16 @@ describe('Decorator Module', () => {
 
         test('should throw error when registering duplicate tool name', () => {
             class TestApi1 {
-                @Tool('duplicateTool')
-                method1() { }
+                @tool('duplicateTool')
+                method1() {
+                }
             }
 
             expect(() => {
                 class TestApi2 {
-                    @Tool('duplicateTool')
-                    method2() { }
+                    @tool('duplicateTool')
+                    method2() {
+                    }
                 }
             }).toThrow('Tool name "duplicateTool" is already registered');
         });
@@ -51,10 +53,10 @@ describe('Decorator Module', () => {
             const expectedWrappedSchema = createCommonResult(testSchema);
 
             class TestApi {
-                @Tool('complexTool')
-                @Title('Test Title')
-                @Description('Test Description')
-                @Result(testSchema)
+                @tool('complexTool')
+                @title('Test Title')
+                @description('Test Description')
+                @result(testSchema)
                 testMethod() {
                     return 'test';
                 }
@@ -75,11 +77,10 @@ describe('Decorator Module', () => {
     describe('Title decorator', () => {
         test('should set title metadata', () => {
             class TestApi {
-
-                @Tool('titleTool')
-
-                @Title('My Tool Title')
-                testMethod() { }
+                @tool('titleTool')
+                @title('My Tool Title')
+                testMethod() {
+                }
             }
 
             // Instantiate the class to trigger decorators
@@ -91,13 +92,15 @@ describe('Decorator Module', () => {
 
         test('should work with multiple methods', () => {
             class TestApi {
+                @tool('tool1')
+                @title('First Title')
+                method1() {
+                }
 
-                @Tool('tool1')
-                @Title('First Title')
-                method1() { }
-                @Tool('tool2')
-                @Title('Second Title')
-                method2() { }
+                @tool('tool2')
+                @title('Second Title')
+                method2() {
+                }
             }
 
             // Instantiate the class to trigger decorators
@@ -111,11 +114,10 @@ describe('Decorator Module', () => {
     describe('Description decorator', () => {
         test('should set description metadata', () => {
             class TestApi {
-
-                @Tool('descTool')
-
-                @Description('This is a test tool')
-                testMethod() { }
+                @tool('descTool')
+                @description('This is a test tool')
+                testMethod() {
+                }
             }
 
             // Instantiate the class to trigger decorators
@@ -129,11 +131,10 @@ describe('Decorator Module', () => {
             const longDesc = 'This is a very long description that explains what this tool does in great detail and provides comprehensive information about its functionality.';
 
             class TestApi {
-
-                @Tool('longDescTool')
-
-                @Description(longDesc)
-                testMethod() { }
+                @tool('longDescTool')
+                @description(longDesc)
+                testMethod() {
+                }
             }
 
             // Instantiate the class to trigger decorators
@@ -150,14 +151,9 @@ describe('Decorator Module', () => {
             const numberSchema = z.number();
 
             class TestApi {
-
-                @Tool('paramTool')
-                testMethod(
-
-                    @Param(stringSchema) param1: string,
-
-                    @Param(numberSchema) param2: number
-                ) { }
+                @tool('paramTool')
+                testMethod(@param(stringSchema) param1: string, @param(numberSchema) param2: number) {
+                }
             }
 
             const toolInfo = toolRegistry.get('paramTool');
@@ -176,12 +172,9 @@ describe('Decorator Module', () => {
             const booleanSchema = z.boolean();
 
             class TestApi {
-
-                @Tool('singleParamTool')
-                testMethod(
-
-                    @Param(booleanSchema) param: boolean
-                ) { }
+                @tool('singleParamTool')
+                testMethod(@param(booleanSchema) param: boolean) {
+                }
             }
 
             const toolInfo = toolRegistry.get('singleParamTool');
@@ -197,11 +190,9 @@ describe('Decorator Module', () => {
             });
 
             class TestApi {
-
-                @Tool('complexParamTool')
-                testMethod(
-                    @Param(objectSchema) user: any
-                ) { }
+                @tool('complexParamTool')
+                testMethod(@param(objectSchema) user: any) {
+                }
             }
 
             const toolInfo = toolRegistry.get('complexParamTool');
@@ -215,11 +206,10 @@ describe('Decorator Module', () => {
             const expectedWrappedSchema = createCommonResult(dataSchema);
 
             class TestApi {
-
-                @Tool('resultTool')
-
-                @Result(dataSchema)
-                testMethod() { }
+                @tool('resultTool')
+                @result(dataSchema)
+                testMethod() {
+                }
             }
 
             const toolInfo = toolRegistry.get('resultTool');
@@ -241,11 +231,10 @@ describe('Decorator Module', () => {
             const expectedWrappedSchema = createCommonResult(complexSchema);
 
             class TestApi {
-
-                @Tool('complexResultTool')
-
-                @Result(complexSchema)
-                testMethod() { }
+                @tool('complexResultTool')
+                @result(complexSchema)
+                testMethod() {
+                }
             }
 
             const toolInfo = toolRegistry.get('complexResultTool');
@@ -264,18 +253,12 @@ describe('Decorator Module', () => {
             const expectedWrappedSchema = createCommonResult(returnSchema);
 
             class TestApi {
-
-                @Tool('fullTool')
-
-                @Title('Full Featured Tool')
-
-                @Description('A tool that demonstrates all decorators')
-
-                @Result(returnSchema)
-                testMethod(
-
-                    @Param(paramSchema) input: string
-                ) { }
+                @tool('fullTool')
+                @title('Full Featured Tool')
+                @description('A tool that demonstrates all decorators')
+                @result(returnSchema)
+                testMethod(@param(paramSchema) input: string) {
+                }
             }
 
             const toolInfo = toolRegistry.get('fullTool');
@@ -300,21 +283,17 @@ describe('Decorator Module', () => {
             const expectedWrappedSchema2 = createCommonResult(schema2);
 
             class TestApi {
+                @tool('tool1')
+                @title('First Tool')
+                @result(schema1)
+                method1() {
+                }
 
-                @Tool('tool1')
-
-                @Title('First Tool')
-
-                @Result(schema1)
-                method1() { }
-
-
-                @Tool('tool2')
-
-                @Title('Second Tool')
-
-                @Result(schema2)
-                method2() { }
+                @tool('tool2')
+                @title('Second Tool')
+                @result(schema2)
+                method2() {
+                }
             }
 
             expect(toolRegistry.size).toBe(2);
@@ -345,9 +324,9 @@ describe('Decorator Module', () => {
 
         test('should store tool metadata correctly', () => {
             class TestApi {
-
-                @Tool('registryTest')
-                testMethod() { }
+                @tool('registryTest')
+                testMethod() {
+                }
             }
 
             expect(toolRegistry.size).toBe(1);
@@ -361,9 +340,9 @@ describe('Decorator Module', () => {
 
         test('should be clearable', () => {
             class TestApi {
-
-                @Tool('clearTest')
-                testMethod() { }
+                @tool('clearTest')
+                testMethod() {
+                }
             }
 
             expect(toolRegistry.size).toBe(1);
@@ -374,15 +353,15 @@ describe('Decorator Module', () => {
 
         test('should handle multiple registrations', () => {
             class TestApi1 {
-
-                @Tool('tool1')
-                method1() { }
+                @tool('tool1')
+                method1() {
+                }
             }
 
             class TestApi2 {
-
-                @Tool('tool2')
-                method2() { }
+                @tool('tool2')
+                method2() {
+                }
             }
 
             expect(toolRegistry.size).toBe(2);
@@ -397,18 +376,12 @@ describe('Decorator Module', () => {
             const returnSchema = z.boolean();
 
             class TestApi {
-
-                @Tool('metadataTest')
-
-                @Title('Test Title')
-
-                @Description('Test Description')
-
-                @Result(returnSchema)
-                testMethod(
-
-                    @Param(paramSchema) param: string
-                ) { }
+                @tool('metadataTest')
+                @title('Test Title')
+                @description('Test Description')
+                @result(returnSchema)
+                testMethod(@param(paramSchema) param: string) {
+                }
             }
 
             const toolInfo = toolRegistry.get('metadataTest');
@@ -433,9 +406,9 @@ describe('Decorator Module', () => {
         test('should handle empty tool name', () => {
             expect(() => {
                 class TestApi {
-
-                    @Tool('')
-                    testMethod() { }
+                    @tool('')
+                    testMethod() {
+                    }
                 }
             }).not.toThrow();
 
@@ -447,9 +420,9 @@ describe('Decorator Module', () => {
             const specialName = 'tool-with_special.chars@123';
 
             class TestApi {
-
-                @Tool(specialName)
-                testMethod() { }
+                @tool(specialName)
+                testMethod() {
+                }
             }
 
             expect(toolRegistry.has(specialName)).toBe(true);
@@ -457,9 +430,9 @@ describe('Decorator Module', () => {
 
         test('should handle methods without parameters', () => {
             class TestApi {
-
-                @Tool('noParamTool')
-                testMethod() { }
+                @tool('noParamTool')
+                testMethod() {
+                }
             }
 
             const toolInfo = toolRegistry.get('noParamTool');
@@ -471,15 +444,12 @@ describe('Decorator Module', () => {
             const expectedWrappedSchema = createCommonResult(returnSchema);
 
             class TestApi {
-
-                @Tool('orderTest')
-
-                @Description('Description first')
-
-                @Title('Title last')
-
-                @Result(returnSchema)
-                testMethod() { }
+                @tool('orderTest')
+                @description('Description first')
+                @title('Title last')
+                @result(returnSchema)
+                testMethod() {
+                }
             }
 
             // Instantiate the class to trigger decorators

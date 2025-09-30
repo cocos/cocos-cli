@@ -61,8 +61,9 @@ process.on('unhandledRejection', (reason, promise) => {
 // 如果直接运行此文件，启动服务器
 if (require.main === module) {
     const defaultPort = 7456;
-    getFreePort(defaultPort).then((port) => {
-        startServer('/Users/wzm/Documents/wzm/myself/projects/384', port);
+    getFreePort(defaultPort).then(async (port) => {
+        const { project } = require('../../.user.json');
+        await startServer(project, port);
     }).catch((e) => {
         console.error('getFreePort failed:', e instanceof Error ? e.message : String(e));
         process.exit(1);

@@ -1,7 +1,4 @@
-export abstract class ApiBase {
- 
-  constructor() {
 
-  }
-  abstract init(): Promise<void>;
+export abstract class ApiBase {
+  abstract init(...args: any[]): Promise<void>;
 }
