@@ -5,69 +5,6 @@ import { CocosAPI } from '../api';
 import { join } from 'path';
 
 /**
- * 将 Zod schema 转换为兼容的 JSON Schema (不包含 $schema 字段)
- */
-function zodToCompatibleJsonSchema(zodSchema: z.ZodType): any {
-    // 简化的 Zod 到 JSON Schema 转换，确保兼容性
-    if (zodSchema instanceof z.ZodString) {
-        return { 
-            type: 'string',
-            description: 'String parameter'
-        };
-    }
-    if (zodSchema instanceof z.ZodNumber) {
-        return { 
-            type: 'number',
-            description: 'Number parameter'
-        };
-    }
-    if (zodSchema instanceof z.ZodBoolean) {
-        return { 
-            type: 'boolean',
-            description: 'Boolean parameter'
-        };
-    }
-    if (zodSchema instanceof z.ZodArray) {
-        return {
-            type: 'array',
-            items: zodToCompatibleJsonSchema((zodSchema as any).element),
-            description: 'Array parameter'
-        };
-    }
-    if (zodSchema instanceof z.ZodObject) {
-        const properties: Record<string, any> = {};
-        const required: string[] = [];
-        
-        for (const [key, value] of Object.entries(zodSchema.shape)) {
-            properties[key] = zodToCompatibleJsonSchema(value as any);
-            // 检查是否为可选字段
-            if (!(value as any).isOptional()) {
-                required.push(key);
-            }
-        }
-        
-        // 确保不包含 $schema 字段，只返回基本的 JSON Schema 结构
-        const schema: any = {
-            type: 'object',
-            properties
-        };
-        
-        if (required.length > 0) {
-            schema.required = required;
-        }
-        
-        // 不设置 additionalProperties，让 MCP 客户端自行处理
-        return schema;
-    }
-    
-    // 默认返回简单的字符串类型
-    return { 
-        type: 'string',
-        description: 'Parameter value'
-    };
-}
-
-/**
  * FastMCP 服务器类，用于自动从装饰器收集工具信息并注册到 MCP 服务器
  */
 export class FastMcpServer {
@@ -122,7 +59,7 @@ export class FastMcpServer {
         const { toolName, target, meta } = toolInfo;
         const zodSchema = this.buildInputSchema(meta);
         console.log(`Registering tool: ${toolName}`);
-        
+
         // 创建兼容的工具定义
         const mcpTool: any = {
             name: toolName,
@@ -135,7 +72,7 @@ export class FastMcpServer {
                     if (zodSchema) {
                         args = zodSchema.parse(args);
                     }
-                    
+
                     // 准备方法参数
                     const methodArgs = this.prepareMethodArguments(meta, args);
 
