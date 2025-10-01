@@ -19,7 +19,7 @@ export default FbxHandler;
 export async function getGltfFilePath(asset: Asset) {
     const userData = asset.userData as GlTFUserData;
     if (typeof userData.fbx?.smartMaterialEnabled === 'undefined') {
-        (userData.fbx ??= {}).smartMaterialEnabled = await configurationManager.getValue('project.fbx.material.smart') ?? false;
+        (userData.fbx ??= {}).smartMaterialEnabled = await configurationManager.get('project.fbx.material.smart') ?? false;
     }
     let outGLTFFile: string;
     if (userData.legacyFbxImporter) {

@@ -703,7 +703,7 @@ export function handleOverwriteProjectSettings(options: IBuildTaskOption) {
 export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {
     // 默认 Canvas 设置
     if (!options.designResolution) {
-        const designResolution = await configurationManager.getValue<IBuildDesignResolution>('project.general.designResolution');
+        const designResolution = await configurationManager.get<IBuildDesignResolution>('project.general.designResolution');
         if (designResolution) {
             options.designResolution = designResolution;
         }
@@ -711,7 +711,7 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // renderPipeline
     if (!options.renderPipeline) {
-        const renderPipeline = await configurationManager.getValue<string>('project.general.renderPipeline');
+        const renderPipeline = await configurationManager.get<string>('project.general.renderPipeline');
         if (renderPipeline) {
             options.renderPipeline = renderPipeline;
         }
@@ -719,7 +719,7 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // physicsConfig
     if (!options.physicsConfig) {
-        const physicsConfig = await configurationManager.getValue<IPhysicsConfig>('project.physics');
+        const physicsConfig = await configurationManager.get<IPhysicsConfig>('project.physics');
         if (physicsConfig) {
             options.physicsConfig = physicsConfig;
             if (!options.physicsConfig.defaultMaterial) {
@@ -730,7 +730,7 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // customLayers
     if (!options.customLayers) {
-        const customLayers = await configurationManager.getValue<{ name: string, value: number }[]>('project.layer');
+        const customLayers = await configurationManager.get<{ name: string, value: number }[]>('project.layer');
         if (customLayers) {
             options.customLayers = customLayers;
         }
@@ -738,7 +738,7 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // sortingLayers
     if (!options.sortingLayers) {
-        const sortingLayers = await configurationManager.getValue<{ id: number, name: string, value: number }[]>('project.sorting-layer');
+        const sortingLayers = await configurationManager.get<{ id: number, name: string, value: number }[]>('project.sorting-layer');
         if (sortingLayers) {
             options.sortingLayers = sortingLayers;
         }
@@ -746,7 +746,7 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // macro 配置
     if (!options.macroConfig) {
-        const macroConfig = await configurationManager.getValue<Record<string, any>>('engine.macroConfig');
+        const macroConfig = await configurationManager.get<Record<string, any>>('engine.macroConfig');
         if (macroConfig) {
             options.macroConfig = macroConfig;
         }

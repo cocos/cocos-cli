@@ -1130,7 +1130,7 @@ async function migrateCanvasCamera(asset: Asset) {
     const swap: any = asset.getSwapSpace();
     const json: any[] = swap.json || (await readJSON(asset.source));
 
-    let userLayers: LayerItem[] = await configurationManager.getValue( 'project.layer') ?? [];
+    let userLayers: LayerItem[] = await configurationManager.get( 'project.layer') ?? [];
 
     // 在第一次数据迁移时，获取用户独占 layer 的列表。
     // 避免被后续插入的 canvas layer 影响。
@@ -1197,7 +1197,7 @@ async function migrateCanvasCamera(asset: Asset) {
                         userLayers.sort((a, b) => {
                             return a.value - b.value;
                         });
-                        await configurationManager.setValue('project.layer', userLayers);
+                        await configurationManager.set('project.layer', userLayers);
                     }
 
                     break;

@@ -180,7 +180,7 @@ export const TypeScriptHandler: AssetHandler = {
 export default TypeScriptHandler;
 
 async function getTypeCheckLevel() {
-    const data = await configurationManager.getValue('project.general.type_check_level');
+    const data = await configurationManager.get('project.general.type_check_level');
     return data;
 }
 

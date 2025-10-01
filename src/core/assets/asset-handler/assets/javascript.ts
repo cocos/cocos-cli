@@ -98,7 +98,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                         return;
                     }
                     await migrateStep.hold();
-                    const sortingPlugins: string[] = await configurationManager.getValue('project.script.sortingPlugin') ?? [];
+                    const sortingPlugins: string[] = await configurationManager.get('project.script.sortingPlugin') ?? [];
                     if (Array.isArray(sortingPlugins) && sortingPlugins.length && sortingPlugins.includes(asset.uuid)) {
                         const index = sortingPlugins.findIndex((item) => item === asset.uuid);
                         // 当前脚本已经被其他脚本依赖
@@ -122,7 +122,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                         }
                         sortingPlugins.push(asset.uuid);
                     }
-                    await configurationManager.setValue('project.script.sortingPlugin', sortingPlugins);
+                    await configurationManager.set('project.script.sortingPlugin', sortingPlugins);
                     delete asset.userData.dependencies;
                     migrateStep.step();
                 },

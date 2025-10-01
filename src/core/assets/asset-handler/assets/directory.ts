@@ -119,7 +119,7 @@ async function migrateBundleConfig(asset: Asset | VirtualAsset) {
         );
     }
     const bundleConfig = mergeBundleConfig(compressionType, isRemoteBundle, name);
-    configurationManager.setValue(`builder.bundleConfig.custom.${key}`, bundleConfig);
+    configurationManager.set(`builder.bundleConfig.custom.${key}`, bundleConfig);
 
     asset.userData.bundleConfigID = key;
     delete asset.userData.compressionType;

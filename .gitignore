@@ -30,3 +30,6 @@ static/tools/
 # jest
 coverage
 bin
+
+# test project
+tests/fixtures/projects/asset-operation/cocos.config.json

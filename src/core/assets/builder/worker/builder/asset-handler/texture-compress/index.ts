@@ -76,7 +76,7 @@ export class TextureCompress extends EventEmitter {
         } else {
             TextureCompress.storedCompressInfo = {};
         }
-        TextureCompress.enableMipMaps = !!(await configurationManager.getValue<boolean>('builder.textureCompressConfig.genMipmaps'));
+        TextureCompress.enableMipMaps = !!(await configurationManager.get<boolean>('builder.textureCompressConfig.genMipmaps'));
     }
 
     async init() {
@@ -89,7 +89,7 @@ export class TextureCompress extends EventEmitter {
     async updateUserConfig() {
         await TextureCompress.initCommonOptions();
         // 查询纹理压缩配置等
-        TextureCompress.userCompressConfig = await configurationManager.getValue<UserCompressConfig>('builder.textureCompressConfig') as UserCompressConfig;
+        TextureCompress.userCompressConfig = await configurationManager.get<UserCompressConfig>('builder.textureCompressConfig') as UserCompressConfig;
         const { customConfigs } = TextureCompress.userCompressConfig;
         // 收集目前已有配置内会覆盖现有格式的配置集合
         const overwriteFormats: Record<string, string> = {};

@@ -266,7 +266,7 @@ async function generateEnvDeclarationFile(engineRoot: string) {
 
 async function generateCustomMacroDeclarationFile() {
     
-const customMacroList = await configurationManager.getValue('engine.macroCustom') as [];
+const customMacroList = await configurationManager.get('engine.macroCustom') as [];
 const code = `\
 declare module "cc/userland/macro" {
 ${customMacroList.map((item: any) => `\texport const ${item.key}: boolean;`).join('\n')}
@@ -276,7 +276,7 @@ ${customMacroList.map((item: any) => `\texport const ${item.key}: boolean;`).joi
 }
 
 async function generateCustomMacroJSFile() {
-    const customMacroList = await configurationManager.getValue('engine.macroCustom') as [];
+    const customMacroList = await configurationManager.get('engine.macroCustom') as [];
     const code = `\
 System.register([], function (_export, _context) {      
     return {

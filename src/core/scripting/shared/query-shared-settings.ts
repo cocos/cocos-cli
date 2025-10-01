@@ -31,13 +31,13 @@ export async function querySharedSettings(logger: Logger): Promise<SharedSetting
         importMapFile,
         preserveSymlinks,
     ] = await Promise.all([
-        configurationManager.getValue('project.script.useDefineForClassFields') as Promise<boolean | undefined>,
-        configurationManager.getValue('project.script.allowDeclareFields') as Promise<boolean | undefined>,
-        configurationManager.getValue('project.script.loose') as Promise<boolean | undefined>,
+        configurationManager.get('project.script.useDefineForClassFields') as Promise<boolean | undefined>,
+        configurationManager.get('project.script.allowDeclareFields') as Promise<boolean | undefined>,
+        configurationManager.get('project.script.loose') as Promise<boolean | undefined>,
         false, // Editor.Profile.getProject('project', 'script.guessCommonJsExports') as Promise<boolean | undefined>,
-        configurationManager.getValue('project.script.exportsConditions') as Promise<string[] | undefined>,
-        configurationManager.getValue('project.script.importMap') as Promise<string | undefined>,
-        configurationManager.getValue('project.script.preserveSymlinks') as Promise<boolean | undefined>,
+        configurationManager.get('project.script.exportsConditions') as Promise<string[] | undefined>,
+        configurationManager.get('project.script.importMap') as Promise<string | undefined>,
+        configurationManager.get('project.script.preserveSymlinks') as Promise<boolean | undefined>,
     ]);
 
     let importMap: SharedSettings['importMap'];

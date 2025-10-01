@@ -551,7 +551,7 @@ export class PackerDriver {
             },
         };
 
-        const previewBrowsersListConfigFile = await configurationManager.getValue('project.script.previewBrowserslistConfigFile') as string;
+        const previewBrowsersListConfigFile = await configurationManager.get('project.script.previewBrowserslistConfigFile') as string;
         if (previewBrowsersListConfigFile && previewBrowsersListConfigFile !== 'project://') {
             const previewBrowsersListConfigFilePath = url2path(previewBrowsersListConfigFile as string);
             try {
