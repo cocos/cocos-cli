@@ -15,7 +15,7 @@ const config: Config.InitialOptions = {
         'src/**/*.{ts,tsx}',
         '!src/**/*.d.ts',
     ],
-    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node', 'd.ts'],
     testTimeout: 100000,
     verbose: true,
 };

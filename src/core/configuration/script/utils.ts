@@ -65,12 +65,40 @@ export function isValidConfigKey(key: string): boolean {
 }
 
 /**
- * 验证配置值是否为对象类型
- * @param value 配置值
- * @returns 是否为有效对象
+ * 通过点号分隔的路径删除嵌套对象的值
+ * @param target 目标对象
+ * @param dotPath 点号分隔的路径
+ * @returns 是否成功删除
  */
-export function isValidConfigValue(value: any): boolean {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
+export function removeByDotPath(target: any, dotPath: string): boolean {
+    if (!target || !dotPath) {
+        return false;
+    }
+    
+    const keys = dotPath.split('.');
+    const lastKey = keys.pop()!;
+    let current = target;
+    
+    // 遍历到倒数第二层
+    for (const key of keys) {
+        if (current === undefined || current === null || typeof current !== 'object') {
+            return false;
+        }
+        current = current[key];
+    }
+    
+    // 检查最后一层是否存在
+    if (current === undefined || current === null || typeof current !== 'object') {
+        return false;
+    }
+    
+    // 删除属性
+    if (lastKey in current) {
+        delete current[lastKey];
+        return true;
+    }
+    
+    return false;
 }
 
 /**
@@ -119,6 +147,3 @@ export function deepMerge(target: any, source: any): any {
     
     return result;
 }
-
-
-

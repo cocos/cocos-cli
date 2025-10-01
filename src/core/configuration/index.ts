@@ -1,5 +1,6 @@
 export * from './migration';
 
-export { IConfigurationManager, IConfigurationRegistry, RegistryOptions, RegistryItem } from './@types/public';
+export { IBaseConfiguration } from './script/config';
+export { ConfigurationScope } from './script/interface';
+export { configurationRegistry } from './script/registry';
 export { configurationManager } from './script/manager';
-export { ConfigurationRegistry, configurationRegistry } from './script/registry';

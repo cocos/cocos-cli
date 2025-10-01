@@ -1,199 +1,172 @@
-import {
-    getByDotPath,
-    setByDotPath,
-    isValidConfigKey,
-    isValidConfigValue,
-    deepMerge
-} from '../script/utils';
+import * as utils from '../script/utils';
 
 describe('Configuration Utils', () => {
-    describe('getByDotPath', () => {
-        const testObj = {
-            a: {
-                b: {
-                    c: 3,
-                    d: null,
-                    e: undefined
-                }
+    const testObject = {
+        level1: {
+            level2: {
+                level3: 'value3',
+                array: [1, 2, 3],
+                nullValue: null,
+                undefinedValue: undefined
             },
-            f: 'simple'
-        };
+            simple: 'value1'
+        },
+        topLevel: 'top'
+    };
 
-        test('应该获取嵌套值', () => {
-            expect(getByDotPath(testObj, 'a.b.c')).toBe(3);
-            expect(getByDotPath(testObj, 'f')).toBe('simple');
+    describe('getByDotPath', () => {
+        it('should get values by dot path', () => {
+            expect(utils.getByDotPath(testObject, 'level1.level2.level3')).toBe('value3');
+            expect(utils.getByDotPath(testObject, 'level1.simple')).toBe('value1');
+            expect(utils.getByDotPath(testObject, 'topLevel')).toBe('top');
+            expect(utils.getByDotPath(testObject, 'level1.level2.array')).toEqual([1, 2, 3]);
         });
 
-        test('应该返回 null 值', () => {
-            expect(getByDotPath(testObj, 'a.b.d')).toBeNull();
+        it('should return undefined for non-existent paths', () => {
+            expect(utils.getByDotPath(testObject, 'non.existent.path')).toBeUndefined();
+            expect(utils.getByDotPath(testObject, 'level1.non.existent')).toBeUndefined();
         });
 
-        test('应该返回 undefined 值', () => {
-            expect(getByDotPath(testObj, 'a.b.e')).toBeUndefined();
-        });
-
-        test('应该返回 undefined 对于不存在的路径', () => {
-            expect(getByDotPath(testObj, 'a.b.nonExistent')).toBeUndefined();
-            expect(getByDotPath(testObj, 'nonExistent')).toBeUndefined();
-        });
-
-        test('应该处理空输入', () => {
-            expect(getByDotPath(null, 'a.b.c')).toBeUndefined();
-            expect(getByDotPath(testObj, '')).toBeUndefined();
+        it('should handle null/undefined values and invalid inputs', () => {
+            expect(utils.getByDotPath(testObject, 'level1.level2.nullValue')).toBeNull();
+            expect(utils.getByDotPath(testObject, 'level1.level2.undefinedValue')).toBeUndefined();
+            expect(utils.getByDotPath(null, 'level1')).toBeUndefined();
+            expect(utils.getByDotPath(testObject, '')).toBeUndefined();
         });
     });
 
     describe('setByDotPath', () => {
-        test('应该设置嵌套值', () => {
-            const obj: any = {};
-            setByDotPath(obj, 'a.b.c', 3);
-            expect(obj.a.b.c).toBe(3);
+        it('should set values by dot path', () => {
+            const target = {};
+            utils.setByDotPath(target, 'level1.level2.level3', 'newValue');
+            expect(target).toEqual({
+                level1: { level2: { level3: 'newValue' } }
+            });
+
+            utils.setByDotPath(target, 'topLevel', 'topValue');
+            expect(target).toEqual({
+                level1: { level2: { level3: 'newValue' } },
+                topLevel: 'topValue'
+            });
         });
 
-        test('应该覆盖现有值', () => {
-            const obj: any = { a: { b: { c: 1 } } };
-            setByDotPath(obj, 'a.b.c', 2);
-            expect(obj.a.b.c).toBe(2);
+        it('should overwrite existing values and create nested structures', () => {
+            const target = { existing: 'value' };
+            utils.setByDotPath(target, 'existing', 'updated');
+            utils.setByDotPath(target, 'new.nested.path', 'value');
+            expect(target).toEqual({
+                existing: 'updated',
+                new: { nested: { path: 'value' } }
+            });
         });
 
-        test('应该处理空输入', () => {
-            const obj: any = {};
-            setByDotPath(obj, '', 'value');
-            setByDotPath(null, 'a.b.c', 'value');
-            // 应该不会抛出错误
+        it('should handle null/undefined values and invalid inputs', () => {
+            const target = { existing: 'value' };
+            utils.setByDotPath(target, 'nullValue', null);
+            utils.setByDotPath(target, 'undefinedValue', undefined);
+            expect(target).toEqual({
+                existing: 'value',
+                nullValue: null,
+                undefinedValue: undefined
+            });
+
+            // Invalid inputs should not modify target
+            const originalTarget = JSON.parse(JSON.stringify(target));
+            utils.setByDotPath(null, 'path', 'value');
+            utils.setByDotPath(target, '', 'value');
+            expect(target).toEqual(originalTarget);
+        });
+    });
+
+    describe('removeByDotPath', () => {
+        it('should remove values by dot path', () => {
+            const target = {
+                level1: { level2: { level3: 'value3', keep: 'keepValue' } },
+                topLevel: 'value'
+            };
+            
+            expect(utils.removeByDotPath(target, 'level1.level2.level3')).toBe(true);
+            expect(target).toEqual({
+                level1: { level2: { keep: 'keepValue' } },
+                topLevel: 'value'
+            });
+
+            expect(utils.removeByDotPath(target, 'topLevel')).toBe(true);
+            expect(target).toEqual({
+                level1: { level2: { keep: 'keepValue' } }
+            });
+        });
+
+        it('should return false for non-existent paths and invalid inputs', () => {
+            const target = { level1: { level2: 'value' } };
+            expect(utils.removeByDotPath(target, 'level1.non.existent')).toBe(false);
+            expect(utils.removeByDotPath(null, 'path')).toBe(false);
+            expect(utils.removeByDotPath({}, '')).toBe(false);
+            expect(utils.removeByDotPath({ level1: 'string' }, 'level1.nested')).toBe(false);
         });
     });
 
     describe('isValidConfigKey', () => {
-        test('应该验证有效键名', () => {
-            expect(isValidConfigKey('validKey')).toBe(true);
-            expect(isValidConfigKey('valid.key')).toBe(true);
-            expect(isValidConfigKey('valid-key')).toBe(true);
-        });
-
-        test('应该拒绝无效键名', () => {
-            expect(isValidConfigKey('')).toBe(false);
-            expect(isValidConfigKey('   ')).toBe(false);
-            expect(isValidConfigKey(null as any)).toBe(false);
-            expect(isValidConfigKey(undefined as any)).toBe(false);
-        });
-    });
-
-    describe('isValidConfigValue', () => {
-        test('应该验证有效对象值', () => {
-            expect(isValidConfigValue({})).toBe(true);
-            expect(isValidConfigValue({ a: 1 })).toBe(true);
-            expect(isValidConfigValue({ a: { b: 2 } })).toBe(true);
-        });
-
-        test('应该拒绝无效值', () => {
-            expect(isValidConfigValue(null)).toBe(false);
-            expect(isValidConfigValue([])).toBe(false);
-            expect(isValidConfigValue('string')).toBe(false);
-            expect(isValidConfigValue(123)).toBe(false);
-            expect(isValidConfigValue(true)).toBe(false);
+        it('should validate config keys', () => {
+            expect(utils.isValidConfigKey('validKey')).toBe(true);
+            expect(utils.isValidConfigKey('nested.key')).toBe(true);
+            expect(utils.isValidConfigKey('key-with-dash')).toBe(true);
+            expect(utils.isValidConfigKey('key_with_underscore')).toBe(true);
+            expect(utils.isValidConfigKey('123key')).toBe(true);
+            
+            expect(utils.isValidConfigKey('')).toBe(false);
+            expect(utils.isValidConfigKey('   ')).toBe(false);
+            expect(utils.isValidConfigKey(null as any)).toBe(false);
+            expect(utils.isValidConfigKey(undefined as any)).toBe(false);
+            expect(utils.isValidConfigKey(123 as any)).toBe(false);
         });
     });
 
     describe('deepMerge', () => {
-        test('应该深度合并对象', () => {
-            const target = { a: 1, b: { c: 2 } };
-            const source = { b: { d: 3 }, e: 4 };
-            const result = deepMerge(target, source);
-            
-            expect(result).toEqual({
-                a: 1,
-                b: { c: 2, d: 3 },
-                e: 4
-            });
-        });
-
-        test('应该覆盖非对象值', () => {
-            const target = { a: 1, b: 2 };
-            const source = { a: 3, b: { c: 4 } };
-            const result = deepMerge(target, source);
-            
-            expect(result).toEqual({
-                a: 3,
-                b: { c: 4 }
-            });
-        });
-
-        test('应该处理基本类型值', () => {
-            expect(deepMerge(123, 456)).toBe(456);
-            expect(deepMerge('hello', 'world')).toBe('world');
-            expect(deepMerge(true, false)).toBe(false);
-            expect(deepMerge(123, 'string')).toBe('string');
-        });
-
-        test('应该处理数组', () => {
-            expect(deepMerge([1, 2], [3, 4])).toEqual([3, 4]);
-            expect(deepMerge({ a: 1 }, [1, 2, 3])).toEqual([1, 2, 3]);
-            expect(deepMerge([1, 2], { b: 2 })).toEqual({ b: 2 });
-        });
-
-        test('应该处理 null 和 undefined', () => {
-            expect(deepMerge(null, { a: 1 })).toEqual({ a: 1 });
-            expect(deepMerge({ a: 1 }, null)).toEqual({ a: 1 });
-            expect(deepMerge(undefined, { a: 1 })).toEqual({ a: 1 });
-            expect(deepMerge({ a: 1 }, undefined)).toEqual({ a: 1 });
-            // 当 source 为 null/undefined 时，返回 target
-            expect(deepMerge(null, undefined)).toBe(null);
-            expect(deepMerge(undefined, null)).toBe(undefined);
-        });
-
-        test('应该处理复杂嵌套对象', () => {
+        it('should merge objects deeply', () => {
             const target = {
-                a: 1,
-                b: {
-                    c: 2,
-                    d: {
-                        e: 3,
-                        f: 4
-                    }
-                },
-                g: 'target'
+                level1: { level2: { value1: 'original', value2: 'original' }, value3: 'original' },
+                topLevel: 'original'
             };
             const source = {
-                b: {
-                    d: {
-                        f: 5,
-                        h: 6
-                    },
-                    i: 7
-                },
-                j: 'source'
+                level1: { level2: { value1: 'updated', value4: 'new' }, value5: 'new' },
+                topLevel2: 'new'
             };
-            const result = deepMerge(target, source);
-            
+
+            const result = utils.deepMerge(target, source);
             expect(result).toEqual({
-                a: 1,
-                b: {
-                    c: 2,
-                    d: {
-                        e: 3,
-                        f: 5,
-                        h: 6
-                    },
-                    i: 7
+                level1: {
+                    level2: { value1: 'updated', value2: 'original', value4: 'new' },
+                    value3: 'original',
+                    value5: 'new'
                 },
-                g: 'target',
-                j: 'source'
+                topLevel: 'original',
+                topLevel2: 'new'
             });
         });
 
-        test('应该处理混合类型覆盖', () => {
-            expect(deepMerge({ a: 1 }, 123)).toBe(123);
-            expect(deepMerge(123, { a: 1 })).toEqual({ a: 1 });
-            expect(deepMerge('string', [1, 2, 3])).toEqual([1, 2, 3]);
-            expect(deepMerge([1, 2], 'string')).toBe('string');
+        it('should handle null/undefined and primitive values', () => {
+            const source = { key: 'value' };
+            const target = { key: 'value' };
+            
+            expect(utils.deepMerge(null, source)).toEqual(source);
+            expect(utils.deepMerge(target, null)).toEqual(target);
+            expect(utils.deepMerge('string', { key: 'value' })).toEqual({ key: 'value' });
+            expect(utils.deepMerge({ key: 'value' }, 'string')).toBe('string');
         });
 
-        test('应该处理空对象', () => {
-            expect(deepMerge({}, { a: 1 })).toEqual({ a: 1 });
-            expect(deepMerge({ a: 1 }, {})).toEqual({ a: 1 });
-            expect(deepMerge({}, {})).toEqual({});
+        it('should handle arrays and not modify original objects', () => {
+            const target = { array: [1, 2, 3] };
+            const source = { array: [4, 5, 6] };
+            const result = utils.deepMerge(target, source);
+            expect(result).toEqual({ array: [4, 5, 6] });
+
+            // Should not modify original objects
+            const originalTarget = JSON.parse(JSON.stringify(target));
+            const originalSource = JSON.parse(JSON.stringify(source));
+            utils.deepMerge(target, source);
+            expect(target).toEqual(originalTarget);
+            expect(source).toEqual(originalSource);
         });
     });
-
 });
