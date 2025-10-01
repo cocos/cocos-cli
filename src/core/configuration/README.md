@@ -20,12 +20,12 @@ const dbConfig = await configurationRegistry.register('database');
 await configurationManager.initialize('/path/to/project');
 
 // 3. 设置配置值
-await configurationManager.set('database', 'host', 'localhost', 'project');
-await configurationManager.set('database', 'port', 5432, 'project');
+await configurationManager.set('database.host', 'localhost', 'project');
+await configurationManager.set('database.port', 5432, 'project');
 
 // 4. 获取配置值
-const host = await configurationManager.get('database', 'host');
-const port = await configurationManager.get('database', 'port');
+const host = await configurationManager.get('database.host');
+const port = await configurationManager.get('database.port');
 ```
 
 ## 主要功能
@@ -33,20 +33,20 @@ const port = await configurationManager.get('database', 'port');
 ### 点号路径操作
 ```typescript
 // 支持嵌套配置
-await configurationManager.set('database', 'connection.pool.max', 10, 'project');
-const maxPool = await configurationManager.get('database', 'connection.pool.max');
+await configurationManager.set('database.connection.pool.max', 10, 'project');
+const maxPool = await configurationManager.get('database.connection.pool.max');
 ```
 
 ### 配置作用域
 ```typescript
 // 设置默认配置
-await configurationManager.set('database', 'timeout', 5000, 'default');
+await configurationManager.set('database.timeout', 5000, 'default');
 
 // 设置项目配置
-await configurationManager.set('database', 'timeout', 10000, 'project');
+await configurationManager.set('database.timeout', 10000, 'project');
 
 // 获取配置（项目配置优先）
-const timeout = await configurationManager.get('database', 'timeout'); // 10000
+const timeout = await configurationManager.get('database.timeout'); // 10000
 ```
 
 ### 事件监听
@@ -81,13 +81,13 @@ await configurationRegistry.unregister('myModule');
 await configurationManager.initialize('/path/to/project');
 
 // 获取配置值
-const value = await configurationManager.get('myModule', 'key');
+const value = await configurationManager.get('myModule.key');
 
 // 设置配置值
-await configurationManager.set('myModule', 'key', 'value', 'project');
+await configurationManager.set('myModule.key', 'value', 'project');
 
 // 删除配置值
-await configurationManager.remove('myModule', 'key', 'project');
+await configurationManager.remove('myModule.key', 'project');
 ```
 
 ### BaseConfiguration

@@ -101,31 +101,31 @@ describe('ConfigurationManager', () => {
             mockRegistry.getInstance.mockReturnValue(mockInstance as any);
 
             // Get with default scope
-            const result1 = await manager.get('testModule', 'testKey');
+            const result1 = await manager.get('testModule.testKey');
             expect(result1).toBe('testValue');
             expect(mockInstance.get).toHaveBeenCalledWith('testKey', undefined);
 
             // Get with specific scope
             mockInstance.get.mockResolvedValue('defaultValue');
-            const result2 = await manager.get('testModule', 'testKey', 'default');
+            const result2 = await manager.get('testModule.testKey', 'default');
             expect(result2).toBe('defaultValue');
             expect(mockInstance.get).toHaveBeenCalledWith('testKey', 'default');
 
             // Invalid key
-            await expect(manager.get('testModule', '')).rejects.toThrow(
-                '[Configuration] 获取配置失败：配置键名不能为空'
+            await expect(manager.get('testModule.')).rejects.toThrow(
+                '[Configuration] 获取配置失败：Error: 配置键名不能为空'
             );
 
             // Unregistered module
             mockRegistry.getInstance.mockReturnValue(undefined);
-            await expect(manager.get('unregisteredModule', 'testKey')).rejects.toThrow(
+            await expect(manager.get('unregisteredModule.testKey')).rejects.toThrow(
                 '[Configuration] 设置配置错误，unregisteredModule 未注册'
             );
 
             // Not initialized
             const uninitializedManager = new ConfigurationManager();
-            await expect(uninitializedManager.get('testModule', 'testKey')).rejects.toThrow(
-                '[Configuration] 未初始化'
+            await expect(uninitializedManager.get('testModule.testKey')).rejects.toThrow(
+                '[Configuration] 获取配置失败：Error: [Configuration] 未初始化'
             );
         });
     });
@@ -145,29 +145,30 @@ describe('ConfigurationManager', () => {
             mockRegistry.getInstance.mockReturnValue(mockInstance as any);
 
             // Set with default scope
-            const result1 = await manager.set('testModule', 'testKey', 'testValue');
+            const result1 = await manager.set('testModule.testKey', 'testValue');
             expect(result1).toBe(true);
             expect(mockInstance.set).toHaveBeenCalledWith('testKey', 'testValue', 'project');
 
             // Set with specific scope
-            const result2 = await manager.set('testModule', 'testKey', 'testValue', 'default');
+            const result2 = await manager.set('testModule.testKey', 'testValue', 'default');
             expect(result2).toBe(true);
             expect(mockInstance.set).toHaveBeenCalledWith('testKey', 'testValue', 'default');
 
             // Invalid key
-            const result3 = await manager.set('testModule', '', 'testValue');
-            expect(result3).toBe(false);
+            await expect(manager.set('testModule.', 'testValue')).rejects.toThrow(
+                '[Configuration] 更新配置失败：Error: 配置键名不能为空'
+            );
 
             // Unregistered module
             mockRegistry.getInstance.mockReturnValue(undefined);
-            await expect(manager.set('unregisteredModule', 'testKey', 'testValue')).rejects.toThrow(
-                '[Configuration] 设置配置错误，unregisteredModule 未注册'
+            await expect(manager.set('unregisteredModule.testKey', 'testValue')).rejects.toThrow(
+                '[Configuration] 更新配置失败：Error: [Configuration] 设置配置错误，unregisteredModule 未注册'
             );
 
             // Not initialized
             const uninitializedManager = new ConfigurationManager();
-            await expect(uninitializedManager.set('testModule', 'testKey', 'testValue')).rejects.toThrow(
-                '[Configuration] 未初始化'
+            await expect(uninitializedManager.set('testModule.testKey', 'testValue')).rejects.toThrow(
+                '[Configuration] 更新配置失败：Error: [Configuration] 未初始化'
             );
         });
     });
@@ -187,29 +188,30 @@ describe('ConfigurationManager', () => {
             mockRegistry.getInstance.mockReturnValue(mockInstance as any);
 
             // Remove with default scope
-            const result1 = await manager.remove('testModule', 'testKey');
+            const result1 = await manager.remove('testModule.testKey');
             expect(result1).toBe(true);
             expect(mockInstance.remove).toHaveBeenCalledWith('testKey', 'project');
 
             // Remove with specific scope
-            const result2 = await manager.remove('testModule', 'testKey', 'default');
+            const result2 = await manager.remove('testModule.testKey', 'default');
             expect(result2).toBe(true);
             expect(mockInstance.remove).toHaveBeenCalledWith('testKey', 'default');
 
             // Invalid key
-            const result3 = await manager.remove('testModule', '');
-            expect(result3).toBe(false);
+            await expect(manager.remove('testModule.')).rejects.toThrow(
+                '[Configuration] 移除配置失败：Error: 配置键名不能为空'
+            );
 
             // Unregistered module
             mockRegistry.getInstance.mockReturnValue(undefined);
-            await expect(manager.remove('unregisteredModule', 'testKey')).rejects.toThrow(
-                '[Configuration] 设置配置错误，unregisteredModule 未注册'
+            await expect(manager.remove('unregisteredModule.testKey')).rejects.toThrow(
+                '[Configuration] 移除配置失败：Error: [Configuration] 设置配置错误，unregisteredModule 未注册'
             );
 
             // Not initialized
             const uninitializedManager = new ConfigurationManager();
-            await expect(uninitializedManager.remove('testModule', 'testKey')).rejects.toThrow(
-                '[Configuration] 未初始化'
+            await expect(uninitializedManager.remove('testModule.testKey')).rejects.toThrow(
+                '[Configuration] 移除配置失败：Error: [Configuration] 未初始化'
             );
         });
     });
@@ -329,10 +331,10 @@ describe('ConfigurationManager', () => {
             mockRegistry.getInstance.mockReturnValue(mockInstance as any);
 
             // Complex nested operations
-            const result1 = await manager.get('testModule', 'nested.deep.key');
-            const result2 = await manager.set('testModule', 'nested.deep.key', 'newValue');
-            const result3 = await manager.remove('testModule', 'nested.deep.key');
-            const result4 = await manager.get('testModule', 'items.0');
+            const result1 = await manager.get('testModule.nested.deep.key');
+            const result2 = await manager.set('testModule.nested.deep.key', 'newValue');
+            const result3 = await manager.remove('testModule.nested.deep.key');
+            const result4 = await manager.get('testModule.items.0');
 
             expect(result1).toBe('complexValue');
             expect(result2).toBe(true);
@@ -341,9 +343,9 @@ describe('ConfigurationManager', () => {
 
             // Concurrent operations
             const promises = [
-                manager.get('testModule', 'key1'),
-                manager.set('testModule', 'key2', 'value2'),
-                manager.remove('testModule', 'key3')
+                manager.get('testModule.key1'),
+                manager.set('testModule.key2', 'value2'),
+                manager.remove('testModule.key3')
             ];
             const results = await Promise.all(promises);
             expect(results).toEqual(['complexValue', true, true]);

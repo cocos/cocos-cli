@@ -16,28 +16,25 @@ export interface IConfigurationManager {
 
     /**
      * 获取配置
-     * @param moduleName 模块名
-     * @param key 配置键名，支持点号分隔的嵌套路径，如 'builder.platforms.web-mobile'
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    get<T>(moduleName: string, key: string, scope?: ConfigurationScope): Promise<T>;
+    get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
 
     /**
      * 设置配置
-     * @param moduleName 模块名
-     * @param key 配置键名，支持点号分隔的嵌套路径
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param value 新的配置值
      * @param scope 配置作用域，默认为 'project'
      */
-    set<T>(moduleName: string, key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+    set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
 
     /**
      * 移除配置
-     * @param moduleName 模块名
-     * @param key 配置键名，支持点号分隔的嵌套路径
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，默认为 'project'
      */
-    remove(moduleName: string, key: string, scope?: ConfigurationScope): Promise<boolean>;
+    remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 }
 
 export class ConfigurationManager implements IConfigurationManager {
@@ -109,6 +106,31 @@ export class ConfigurationManager implements IConfigurationManager {
     }
 
     /**
+     * 解析配置键，提取模块名和实际键名
+     * @param key 配置键名，如 'test.x.x'
+     * @private
+     */
+    private parseKey(key: string): { moduleName: string; actualKey: string } {
+        if (!utils.isValidConfigKey(key)) {
+            throw new Error('配置键名不能为空');
+        }
+        
+        const parts = key.split('.');
+        if (parts.length < 2) {
+            throw new Error('配置键名格式错误，必须包含模块名，如 "module.key"');
+        }
+        
+        const moduleName = parts[0];
+        const actualKey = parts.slice(1).join('.');
+        
+        if (!actualKey || actualKey.trim() === '') {
+            throw new Error('配置键名不能为空');
+        }
+        
+        return { moduleName, actualKey };
+    }
+
+    /**
      * 获取模块配置实例
      * @param moduleName 模块名
      * @private
@@ -124,48 +146,49 @@ export class ConfigurationManager implements IConfigurationManager {
     /**
      * 获取配置值
      * 读取规则：优先读项目配置，如果没有再读默认配置，默认配置也没定义的话，就打印警告日志
-     * @param moduleName 模块名
-     * @param key 配置键名，支持点号分隔的嵌套路径
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    public async get<T>(moduleName: string, key: string, scope?: ConfigurationScope): Promise<T> {
-        if (!utils.isValidConfigKey(key)) {
-            throw new Error('[Configuration] 获取配置失败：配置键名不能为空');
+    public async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
+        try {
+            await this.ensureInitialized();
+            const { moduleName, actualKey } = this.parseKey(key);
+            return await this.getInstance(moduleName).get(actualKey, scope) as T;
+        } catch (error) {
+            throw new Error(`[Configuration] 获取配置失败：${error}`);
         }
-        await this.ensureInitialized();
-        return await this.getInstance(moduleName).get(key, scope) as T;
     }
 
     /**
      * 更新配置值
-     * @param moduleName
-     * @param key 配置键名，支持点号分隔的嵌套路径
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param value 新的配置值
      * @param scope 配置作用域，默认为 'project'
      */
-    public async set<T>(moduleName: string, key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
-        if (!utils.isValidConfigKey(key)) {
-            newConsole.warn('[Configuration] 更新配置失败：配置键名不能为空');
-            return false;
+    public async set<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
+        try {
+            await this.ensureInitialized();
+            const { moduleName, actualKey } = this.parseKey(key);
+            await this.getInstance(moduleName).set(actualKey, value, scope);
+            return true;
+        } catch (error) {
+            throw new Error(`[Configuration] 更新配置失败：${error}`);
         }
-        await this.ensureInitialized();
-        await this.getInstance(moduleName).set(key, value, scope);
-        return true;
     }
 
     /**
      * 移除配置值
-     * @param moduleName
-     * @param key 配置键名，支持点号分隔的嵌套路径
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，默认为 'project'
      */
-    public async remove(moduleName: string, key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
-        if (!utils.isValidConfigKey(key)) {
-            newConsole.warn('[Configuration] 移除配置失败：配置键名不能为空');
-            return false;
+    public async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
+        try {
+            await this.ensureInitialized();
+            const { moduleName, actualKey } = this.parseKey(key);
+            return await this.getInstance(moduleName).remove(actualKey, scope);
+        } catch (error) {
+            throw new Error(`[Configuration] 移除配置失败：${error}`);
         }
-        await this.ensureInitialized();
-        return await this.getInstance(moduleName).remove(key, scope);
     }
 
     /**
