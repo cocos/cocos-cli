@@ -85,7 +85,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
         // 根据作用域决定返回策略
         if (scope === 'project') {
             if (!hasProjectValue) {
-                throw new Error(`[Configuration] 通过 ${key} 获取配置失败`);
+                throw new Error(`[Configuration] 通过 ${this.moduleName}.${key} 获取配置失败`);
             }
             return (projectConfig as T);
         }
@@ -95,14 +95,14 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
 
         if (scope === 'default') {
             if (!hasDefaultValue) {
-                throw new Error(`[Configuration] 通过 ${key} 获取配置失败`);
+                throw new Error(`[Configuration] 通过 ${this.moduleName}.${key} 获取配置失败`);
             }
             return (defaultConfig as T);
         }
 
         // 如果项目配置和默认配置都不存在，抛出错误
         if (!hasProjectValue && !hasDefaultValue) {
-            throw new Error(`[Configuration] 通过 ${key} 获取配置失败`);
+            throw new Error(`[Configuration] 通过 ${this.moduleName}.${key} 获取配置失败`);
         }
 
         return (utils.deepMerge(defaultConfig, projectConfig) as T);

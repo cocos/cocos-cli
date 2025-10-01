@@ -82,13 +82,13 @@ describe('BaseConfiguration', () => {
 
         it('should throw error for non-existent values', async () => {
             await expect(config.get('nonExistent', 'project')).rejects.toThrow(
-                '[Configuration] 通过 nonExistent 获取配置失败'
+                '[Configuration] 通过 test-module.nonExistent 获取配置失败'
             );
             await expect(config.get('nonExistent', 'default')).rejects.toThrow(
-                '[Configuration] 通过 nonExistent 获取配置失败'
+                '[Configuration] 通过 test-module.nonExistent 获取配置失败'
             );
             await expect(config.get('nonExistent')).rejects.toThrow(
-                '[Configuration] 通过 nonExistent 获取配置失败'
+                '[Configuration] 通过 test-module.nonExistent 获取配置失败'
             );
         });
     });
