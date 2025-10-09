@@ -1,5 +1,5 @@
 import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneManager, ISceneInfo } from '../../interfaces';
-import { sceneManager } from '../../scene-subprocess';
+import { sceneManager } from '../../scene-process';
 
 export const SceneProxy: ISceneManager = {
     closeScene(): Promise<ISceneInfo | null> {
