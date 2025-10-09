@@ -198,4 +198,4 @@ export class SceneManager implements ISceneManager {
     }
 }
 
-export const sceneHandler = new SceneManager();
+export const sceneManager = new SceneManager();

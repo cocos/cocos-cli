@@ -1,20 +1,20 @@
 import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneManager, ISceneInfo } from '../../interfaces';
-import { sceneHandler } from '../../scene-subprocess';
+import { sceneManager } from '../../scene-subprocess';
 
 export const SceneProxy: ISceneManager = {
     closeScene(): Promise<ISceneInfo | null> {
-        return sceneHandler.closeScene();
+        return sceneManager.closeScene();
     },
     createScene(params: ICreateSceneOptions): Promise<ISceneInfo> {
-        return sceneHandler.createScene(params);
+        return sceneManager.createScene(params);
     },
     getCurrentScene(): Promise<ISceneInfo | null> {
-        return sceneHandler.getCurrentScene();
+        return sceneManager.getCurrentScene();
     },
     openScene(params: IOpenSceneOptions): Promise<ISceneInfo> {
-        return sceneHandler.openScene(params);
+        return sceneManager.openScene(params);
     },
     saveScene(params: ISaveSceneOptions): Promise<ISceneInfo> {
-        return sceneHandler.saveScene(params);
+        return sceneManager.saveScene(params);
     }
 }

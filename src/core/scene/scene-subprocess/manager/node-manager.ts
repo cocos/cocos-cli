@@ -7,3 +7,5 @@ import { INodeManager } from '../../interfaces';
 export class NodeManager implements INodeManager {
     
 }
+
+export const nodeManager = new NodeManager();
