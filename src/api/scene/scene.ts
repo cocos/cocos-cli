@@ -48,7 +48,6 @@ export class SceneApi extends ApiBase {
             url: 'unknown',
             path: 'unknown',
             uuid: 'unknown',
-            success: false,
         };
 
         try {
@@ -58,7 +57,6 @@ export class SceneApi extends ApiBase {
                 retData.url = sceneInfo.url;
                 retData.path = sceneInfo.path;
                 retData.uuid = sceneInfo.uuid;
-                retData.success = true;
             }
         } catch (e) {
             code = COMMON_STATUS.FAIL;
@@ -81,19 +79,16 @@ export class SceneApi extends ApiBase {
     async openScene(@param(SchemeSceneUUID) sceneUuid: TSceneUUID): Promise<CommonResultType<TOpenSceneResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const retData: TOpenSceneResult = {
-            path: '',
-            uuid: '',
-            success: false,
+            path: 'unknown',
+            uuid: 'unknown',
         };
 
         try {
-            // 通过子进程打开场景
             const sceneInfo = await Scene.openScene({ uuid: sceneUuid });
-
-            retData.path = sceneInfo.path;
-            retData.uuid = sceneInfo.uuid;
-            retData.success = true;
-
+            if (sceneInfo) {
+                retData.path = sceneInfo.path;
+                retData.uuid = sceneInfo.uuid;
+            }
         } catch (e) {
             code = COMMON_STATUS.FAIL;
             console.error('打开场景失败:', e);
@@ -115,20 +110,15 @@ export class SceneApi extends ApiBase {
     async closeScene(): Promise<CommonResultType<TCloseSceneResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const retData: TCloseSceneResult = {
-            path: undefined,
-            success: false,
+            path: 'unknown',
         };
 
         try {
-            // 通过子进程关闭场景
             const closedScene = await Scene.closeScene();
             
             if (closedScene) {
                 retData.path = closedScene.path;
             }
-            
-            retData.success = true;
-
         } catch (e) {
             code = COMMON_STATUS.FAIL;
             console.error('关闭场景失败:', e);
@@ -150,18 +140,16 @@ export class SceneApi extends ApiBase {
     async saveScene(@param(SchemeSceneUUID) sceneUuid?: TSceneUUID): Promise<CommonResultType<TSaveSceneResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const retData: TSaveSceneResult = {
-            path: '',
-            uuid: '',
-            success: false,
+            path: 'unknown',
+            uuid: 'unknown',
         };
 
         try {
             const sceneInfo = await Scene.saveScene({ uuid: sceneUuid });
-
-            retData.path = sceneInfo.path;
-            retData.uuid = sceneInfo.uuid;
-            retData.success = true;
-
+            if (sceneInfo) {
+                retData.path = sceneInfo.path;
+                retData.uuid = sceneInfo.uuid;
+            }
         } catch (e) {
             code = COMMON_STATUS.FAIL;
             console.error('保存场景失败:', e);
@@ -183,25 +171,22 @@ export class SceneApi extends ApiBase {
     async createScene(@param(SchemeCreateSceneOptions) options: TCreateSceneOptions): Promise<CommonResultType<TCreateSceneResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const retData: TCreateSceneResult = {
-            path: '',
-            url: '',
-            uuid: '',
-            success: false,
+            path: 'unknown',
+            url: 'unknown',
+            uuid: 'unknown',
         };
 
         try {
-            // 通过子进程创建场景
             const sceneInfo = await Scene.createScene({
                 name: options.name,
                 targetPath: options.targetPath,
                 templateType: options.templateType as TSceneTemplateType
             });
-
-            retData.path = sceneInfo.path;
-            retData.url = sceneInfo.url || '';
-            retData.uuid = sceneInfo.uuid;
-            retData.success = true;
-
+            if (sceneInfo) {
+                retData.path = sceneInfo.path;
+                retData.url = sceneInfo.url || '';
+                retData.uuid = sceneInfo.uuid;
+            }
         } catch (e) {
             code = COMMON_STATUS.FAIL;
             console.error('创建场景失败:', e);
