@@ -18,8 +18,8 @@ export class Ipc {
      * 发送消息到其他进程
      * @param channel 通道名称 (如: 'scene', 'node')
      * @param methodName 方法名称
-     * @param data 要发送的数据
-     * @returns 发送结果
+     * @param args 参数
+     * @returns 结果
      */
     async send(channel: string, methodName: string, ...args: any[]): Promise<any> {
         if (!this.manager[channel]) {
