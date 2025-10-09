@@ -20,11 +20,20 @@ export interface IConfigurationRegistry {
     getInstance(moduleName: string): IBaseConfiguration | undefined;
 
     /**
-     * 注册配置
+     * 注册配置（使用默认配置对象）
      * @param moduleName 模块名
-     * @returns 注册成功返回配置实例或配置对象，失败返回 null
+     * @param defaultConfig 默认配置对象
+     * @returns 注册成功返回配置实例，失败返回 null
      */
-    register(moduleName: string): Promise<IBaseConfiguration>;
+    register(moduleName: string, defaultConfig?: Record<string, any>): Promise<IBaseConfiguration>;
+
+    /**
+     * 注册配置（使用自定义配置实例）
+     * @param moduleName 模块名
+     * @param instance 自定义配置实例
+     * @returns 注册成功返回配置实例，失败返回 null
+     */
+    register<T extends IBaseConfiguration>(moduleName: string, instance: T): Promise<T>;
 
     /**
      * 反注册配置
@@ -60,15 +69,26 @@ export class ConfigurationRegistry extends EventEmitter implements IConfiguratio
     }
 
     /**
-     * 注册配置
+     * 注册配置（使用默认配置对象）
      * @param moduleName 模块名
-     * @param defaultConfig
-     * @returns 注册成功返回配置实例或配置对象，失败报错
+     * @param defaultConfig 默认配置对象
+     * @returns 注册成功返回配置实例，失败报错
      */
-    public async register(moduleName: string, defaultConfig?: Record<string, any>): Promise<IBaseConfiguration> {
+    public async register(moduleName: string, defaultConfig?: Record<string, any>): Promise<IBaseConfiguration>;
+    
+    /**
+     * 注册配置（使用自定义配置实例）
+     * @param moduleName 模块名
+     * @param instance 自定义配置实例
+     * @returns 注册成功返回配置实例，失败报错
+     */
+    public async register<T extends IBaseConfiguration>(moduleName: string, instance: T): Promise<T>;
+    
+    public async register<T extends IBaseConfiguration>(moduleName: string, configOrInstance?: Record<string, any> | T): Promise<IBaseConfiguration | T> {
         if (!utils.isValidConfigKey(moduleName)) {
             throw new Error('[Configuration] 注册配置失败：模块名不能为空。');
         }
+        
         // 检查配置是否已存在
         const existingInstance = this.instances[moduleName];
         const exists = existingInstance !== undefined;
@@ -77,7 +97,23 @@ export class ConfigurationRegistry extends EventEmitter implements IConfiguratio
             newConsole.warn(`[Configuration] 配置项 "${moduleName}" 已存在，跳过注册。`);
             return existingInstance;
         }
-        const instance = this.instances[moduleName] = new BaseConfiguration(moduleName, defaultConfig);
+        
+        let instance: IBaseConfiguration | T;
+        
+        // 判断第二个参数是配置对象还是配置实例
+        if (configOrInstance && 'moduleName' in configOrInstance && typeof configOrInstance.get === 'function') {
+            // 是配置实例
+            instance = configOrInstance as T;
+            // 验证实例的模块名是否匹配
+            if (instance.moduleName !== moduleName) {
+                throw new Error(`[Configuration] 注册配置失败：配置实例的模块名 "${instance.moduleName}" 与注册的模块名 "${moduleName}" 不匹配。`);
+            }
+        } else {
+            // 是配置对象或 undefined
+            instance = new BaseConfiguration(moduleName, configOrInstance as Record<string, any>);
+        }
+        
+        this.instances[moduleName] = instance;
         this.emit(MessageType.Registry, instance);
         return instance;
     }

@@ -1,5 +1,6 @@
 import { ConfigurationRegistry } from '../script/registry';
 import { BaseConfiguration } from '../script/config';
+import { IBaseConfiguration } from '../script/config';
 import { MessageType } from '../script/interface';
 
 // Mock console.warn to avoid test output noise
@@ -206,7 +207,7 @@ describe('ConfigurationRegistry', () => {
             expect(Object.keys(registry.getInstances())).toHaveLength(0);
 
             // Concurrent registrations
-            const promises = [];
+            const promises: Promise<IBaseConfiguration>[] = [];
             for (let i = 0; i < 10; i++) {
                 promises.push(registry.register(`concurrent-module-${i}`));
             }
@@ -233,6 +234,69 @@ describe('ConfigurationRegistry', () => {
             specialNames.forEach(name => {
                 expect(registry.getInstance(name)).toBeUndefined();
             });
+        });
+    });
+
+    describe('register with custom instance', () => {
+        it('should register a custom BaseConfiguration instance', async () => {
+            const customInstance = new BaseConfiguration('customModule', { customKey: 'customValue' });
+            const registeredInstance = await registry.register('customModule', customInstance);
+
+            expect(registeredInstance).toBe(customInstance);
+            expect(registry.getInstance('customModule')).toBe(customInstance);
+            expect(registeredInstance.moduleName).toBe('customModule');
+        });
+
+        it('should throw error when module names do not match', async () => {
+            const customInstance = new BaseConfiguration('differentModule', { key: 'value' });
+            
+            await expect(registry.register('targetModule', customInstance))
+                .rejects.toThrow('配置实例的模块名 "differentModule" 与注册的模块名 "targetModule" 不匹配');
+        });
+
+        it('should not register if module already exists', async () => {
+            // First registration
+            const firstInstance = await registry.register('existingModule', { key: 'value' });
+            
+            // Try to register a custom instance with the same module name
+            const customInstance = new BaseConfiguration('existingModule', { customKey: 'customValue' });
+            const registeredInstance = await registry.register('existingModule', customInstance);
+
+            // Should return the existing instance, not the custom one
+            expect(registeredInstance).toBe(firstInstance);
+            expect(registeredInstance).not.toBe(customInstance);
+        });
+
+        it('should work with custom configuration class extending BaseConfiguration', async () => {
+            class CustomConfiguration extends BaseConfiguration {
+                public customMethod(): string {
+                    return 'custom method result';
+                }
+
+                public async getCustomValue(): Promise<string> {
+                    return await this.get('customKey') || 'default custom value';
+                }
+            }
+
+            const customInstance = new CustomConfiguration('extendedModule', { customKey: 'extended value' });
+            const registeredInstance = await registry.register<CustomConfiguration>('extendedModule', customInstance);
+
+            expect(registeredInstance).toBe(customInstance);
+            expect(registeredInstance instanceof CustomConfiguration).toBe(true);
+            
+            // Test custom methods - with generic type inference, we should get the correct type
+            expect(registeredInstance.customMethod()).toBe('custom method result');
+            expect(await registeredInstance.getCustomValue()).toBe('extended value');
+        });
+
+        it('should emit registry event when registering custom instance', async () => {
+            const customInstance = new BaseConfiguration('eventModule', { key: 'value' });
+            const eventSpy = jest.fn();
+            
+            registry.on(MessageType.Registry, eventSpy);
+            await registry.register('eventModule', customInstance);
+
+            expect(eventSpy).toHaveBeenCalledWith(customInstance);
         });
     });
 });
