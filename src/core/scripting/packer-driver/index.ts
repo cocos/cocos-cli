@@ -147,7 +147,7 @@ export class PackerDriver {
 
         const loadMappings: Record<string, string> = {
             'cce:/internal/code-quality/': pathToFileURL(
-                ps.join(__dirname, '..', '..', 'static', 'builtin-mods', 'code-quality', '/')).href,
+                ps.join(__dirname, '../..', '..', '..', 'static', 'scripting', 'builtin-mods', 'code-quality', '/')).href,
         };
 
         const statsQuery = await StatsQuery.create(engineTsPath);
