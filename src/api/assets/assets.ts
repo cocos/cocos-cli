@@ -9,7 +9,7 @@ import {
     TDbDirResult,
     TDirOrDbPath,
     TJsonStr
-} from './importer/scheme';
+} from './scheme';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
 import assetOperation from '../../core/assets/manager/operation';
