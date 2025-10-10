@@ -52,6 +52,7 @@ export function getBuildCommonOptions(): IBuildCommonOptions {
         startSceneAssetBundle: false,
         moveRemoteBundleScript: false,
         nativeCodeBundleMode: 'asmjs',
+        packAutoAtlas: true,
     }
 }
 

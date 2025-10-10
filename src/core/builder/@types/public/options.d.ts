@@ -85,6 +85,7 @@ export interface IBuildCommonOptions {
     platform: Platform;
     scenes: IBuildSceneItem[];
     skipCompressTexture: boolean;
+    packAutoAtlas: boolean;
     sourceMaps: boolean | 'inline';
     experimentalEraseModules: boolean;
     bundleCommonChunk: boolean;

@@ -1,10 +1,10 @@
-import { webDesktopOptions, IBuildCommonOptions, webMobileOptions, IBuildCacheUseConfig, OverwriteProjectSettings, IBundleOptions, UserCompressConfig } from './public'
+import { IBuildCommonOptions, WebMobileBuildOptions, IBuildCacheUseConfig, OverwriteProjectSettings, IBundleOptions, UserCompressConfig, WebDesktopBuildOptions } from './public'
 
 export interface BuildConfiguration {
     common: IBuildCommonOptions;
     platforms: {
-        'web-desktop'?: webDesktopOptions & OverwriteProjectSettings;
-        'web-mobile'?: webMobileOptions & OverwriteProjectSettings;
+        'web-desktop'?: WebDesktopBuildOptions & OverwriteProjectSettings;
+        'web-mobile'?: WebMobileBuildOptions & OverwriteProjectSettings;
     };
     useCacheConfig?: IBuildCacheUseConfig;
     bundleConfig: {
