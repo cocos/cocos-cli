@@ -114,6 +114,7 @@ export interface EngineConfig {
 export interface InitEngineInfo {
     importBase: string;
     nativeBase: string;
+    writablePath: string;
 }
 
 interface CCEModuleConfig {

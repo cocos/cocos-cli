@@ -222,7 +222,7 @@ class Engine implements IEngine {
         await preload({
             engineRoot: this._info.typescript.path,
             engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
-
+            writablePath: info.writablePath,
             requiredModules: [
                 'cc',
                 'cc/editor/populate-internal-constants',

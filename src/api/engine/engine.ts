@@ -17,6 +17,7 @@ export class EngineApi extends ApiBase {
         await Engine.initEngine({
             importBase: join(this.projectPath, 'library'),
             nativeBase: join(this.projectPath, 'library'),
+            writablePath: join(this.projectPath, 'temp'),
         });
         console.log('initEngine success');
     }

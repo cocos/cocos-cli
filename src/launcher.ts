@@ -36,6 +36,7 @@ class ProjectManager {
         await Engine.initEngine({
             importBase: join(path, 'library'),
             nativeBase: join(path, 'library'),
+            writablePath: join(path, 'temp'),
         });
         console.log('initEngine success');
         // 启动以及初始化资源数据库

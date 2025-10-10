@@ -2,7 +2,6 @@ import { join } from 'path';
 import { EngineLoader } from './loader';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import XMLHttpRequest from 'xhr2';
 
 let hasPreload = false;
 
@@ -20,6 +19,10 @@ async function preload(options: {
      */
     engineDev: string;
     /**
+     * 引擎可写目录
+     */
+    writablePath: string;
+    /**
      * 需要预加载的模块。
      */
     requiredModules: string[];
@@ -34,14 +37,23 @@ async function preload(options: {
         globalThis.CC_EDITOR = false;
         // @ts-ignore
         globalThis.window = globalThis.global;
-        // @ts-ignore
-        globalThis.window.fs = fs;
-        // @ts-ignore
-        globalThis.window.path = path;
-        // @ts-ignore
-        globalThis.window.XMLHttpRequest = XMLHttpRequest;
-        // @ts-ignore
-        globalThis.window.enginePath = options.engineRoot;
+        var LocalStorage = require('node-localstorage').LocalStorage;
+        (globalThis as any).nodeEnv = {
+            enginePath: options.engineRoot,
+            require: require,
+            userDataPath: options.writablePath,
+            process: process,
+            systemLanguage: Intl.DateTimeFormat().resolvedOptions().locale,
+            XMLHttpRequest: require('xhr2'),
+            SocketIO: require('socket.io-client'),
+            WebSocket: require('ws'),
+            localStorage: new LocalStorage(join(options.writablePath, 'node.localStorage')), 
+            fetch: fetch,
+            Headers: Headers,
+            Request: Request,
+            Response: Response
+        };
+        
         // loader web adapter
         require(join(options.engineRoot, 'bin/adapter/nodejs/web-adapter.js'));
         // init EngineLoader
