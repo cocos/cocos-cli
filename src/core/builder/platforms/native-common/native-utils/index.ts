@@ -4,7 +4,7 @@ import { remove, existsSync, readJSON, readdirSync, statSync, writeFileSync, ens
 import { join, dirname } from 'path';
 import { CocosParams, NativePackTool } from '../pack-tool/default';
 import { NativePackToolManager } from '../pack-tool/manager';
-import { GlobalPaths } from '../../../../../../global';
+import { GlobalPaths } from '../../../../../global';
 import { IBuildTaskOption } from '../../../@types';
 
 const babelify = require('babelify');

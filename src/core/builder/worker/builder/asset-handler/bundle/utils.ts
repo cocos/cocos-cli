@@ -6,10 +6,10 @@ import { basename, join } from 'path';
 import { buildAssetLibrary } from '../../manager/asset-library';
 import { getLibraryDir, getResImportPath, getResRawAssetsPath, getUuidFromPath } from '../../utils';
 import { hasCCONFormatAssetInLibrary } from '../../utils/cconb';
-import { IAsset } from '../../../../../@types/protected';
+import { IAsset } from '../../../../../assets/@types/protected';
 import { IAssetPathInfo, IImportAssetPathInfo } from '../../../../@types';
 import { BundleFilterConfig, IBundle } from '../../../../@types/protected';
-import { assetManager } from '../../../../../manager/asset';
+import { assetManager } from '../../../../../assets/manager/asset';
 import { BuildGlobalInfo } from '../../../../share/builder-config';
 
 /**

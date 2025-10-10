@@ -2,7 +2,7 @@ import { ProjectApi } from './project/project';
 import utils from '../core/base/utils';
 import { ConfigurationApi } from './configuration/configuration';
 import { EngineApi } from './engine/engine';
-import { AssetsApi } from './asset-db/assets';
+import { AssetsApi } from './assets/assets';
 import { PackDriverApi } from './pack-driver/pack-driver';
 import { SceneApi } from './scene/scene';
 

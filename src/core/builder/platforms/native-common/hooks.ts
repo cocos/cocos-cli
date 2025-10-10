@@ -19,10 +19,9 @@ import {
 import { getCmakePath, packToolHandler } from './native-utils';
 import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildResult } from '../../@types/protected';
 import { CocosParams } from './pack-tool/default';
-import i18n from '../../../../base/i18n';
+import i18n from '../../../base/i18n';
 import { BuildGlobalInfo } from '../../share/builder-config';
-import engine from '../../../../engine';
-import { GlobalPaths } from '../../../../../global';
+import engine from '../../../engine';
 import { relativeUrl } from '../../worker/builder/utils';
 import { ITaskOption } from '../../@types/platforms/native';
 

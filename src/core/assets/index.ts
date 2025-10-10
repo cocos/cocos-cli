@@ -5,8 +5,6 @@ import { newConsole } from '../base/console';
 import { assetDBManager } from './manager/asset-db';
 import { assetManager } from './manager/asset';
 import assetConfig, { AssetDBConfig } from './asset-config';
-import { IBuildCommandOption } from './builder/@types/private';
-import engine from '../engine';
 
 /**
  * 启动资源数据库，依赖于 project, engine 的初始化
@@ -26,12 +24,4 @@ export async function startupAssetDB() {
         newConsole.error(error);
         throw error;
     }
-}
-
-// TODO 对外接口暴露
-
-export async function build(options: IBuildCommandOption) {
-    const { build } = await import('./builder');
-    options.engineInfo = options.engineInfo || engine.getInfo();
-    return await build(options);
 }

@@ -4,7 +4,7 @@
  */
 import { basename, dirname, extname, join } from 'path';
 import { existsSync, ensureDirSync, readFileSync } from 'fs-extra';
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { ICompressConfig } from '../../../../@types';
 
 const Sharp = require('sharp');

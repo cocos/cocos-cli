@@ -20,7 +20,7 @@ import { parseMangleConfig } from './mangle-config-parser';
 import { defaultMangleConfig } from './default-mangle-config';
 import { StatsQuery } from '@cocos/ccbuild';
 import { IBuildEngineParam, IInternalBuildOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult } from '../../../../@types/protected';
-import utils from '../../../../../../base/utils';
+import utils from '../../../../../base/utils';
 import { relativeUrl } from '../../utils';
 import { BuildGlobalInfo } from '../../../../share/builder-config';
 

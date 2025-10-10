@@ -1,9 +1,9 @@
 import { existsSync, copy, remove, readJSON } from 'fs-extra';
 import { basename, join } from 'path';
-import i18n from '../../../../../base/i18n';
+import i18n from '../../../../base/i18n';
 import { Platform } from '../../../@types';
 import { IBuildTemplate, BuildTemplateConfig } from '../../../@types/protected';
-import utils from '../../../../../base/utils';
+import utils from '../../../../base/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
 
 export class BuildTemplate implements IBuildTemplate {

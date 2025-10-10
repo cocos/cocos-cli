@@ -3,7 +3,7 @@ import { extname, join } from 'path';
 import { BundleCompressionTypes } from '../../../../share/bundle-utils';
 import { buildAssetLibrary } from '../../manager/asset-library';
 import { TextureCompress } from '../texture-compress';
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { IBundle, IAtlasInfo, IPacInfo, IImageTaskInfo } from '../../../../@types/protected';
 
 export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: IPacInfo, dependedAssets: Record<string, string[]>, imageCompressManager?: TextureCompress) {

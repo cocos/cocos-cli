@@ -1,6 +1,6 @@
 import { StatsQuery } from '@cocos/ccbuild';
 import { IPolyFills, IBuildDesignResolution, IBuildOptionBase, IBuildTaskOption, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired } from '../public';
-import { IAssetInfo as IAssetInfoFromDB, IAssetMeta } from '../../../@types/private';
+import { IAssetInfo as IAssetInfoFromDB, IAssetMeta } from '../../../assets/@types/private';
 import * as rollup from 'rollup';
 import { EngineInfo } from '../../../engine/@types/index';
 import { BuiltinBundleName } from './bundle-config';

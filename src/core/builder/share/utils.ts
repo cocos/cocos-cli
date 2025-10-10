@@ -1,7 +1,7 @@
 import { basename, isAbsolute, join, normalize, relative } from 'path';
 import * as textureCompressConfig from '../share/texture-compress';
-import i18n from '../../../base/i18n';
-import Utils from '../../../base/utils';
+import i18n from '../../base/i18n';
+import Utils from '../../base/utils';
 import { IBuildTaskOption, IConfigItem, IDisplayOptions } from '../@types';
 import lodash from 'lodash';
 import { BuildGlobalInfo } from './builder-config';

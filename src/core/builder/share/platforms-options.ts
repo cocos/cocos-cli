@@ -43,7 +43,6 @@ export const PLATFORMS: Platform[] = [
     'baidu-mini-game', // 3.7.0 强制下线
     'wechatgame',
     'wechatprogram',
-    'fb-instant-games',
 
     'web-desktop',
     'web-mobile',

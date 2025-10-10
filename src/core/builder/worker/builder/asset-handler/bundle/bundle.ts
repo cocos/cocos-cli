@@ -10,11 +10,11 @@ import { hasCCONFormatAssetInLibrary } from '../../utils/cconb';
 import fg from 'fast-glob';
 import { BundleCompressionType, BundleFilterConfig, IBundleConfig, IBuildSceneItem } from '../../../../@types';
 import { IVersionMap, IGroup, IAtlasResult, IImageTaskInfo, IBundleInitOptions, IJSONGroupType, ISuffixMap } from '../../../../@types/protected';
-import { assetManager } from '../../../../../manager/asset';
-import { IAsset } from '../../../../../@types/protected';
+import { assetManager } from '../../../../../assets/manager/asset';
+import { IAsset } from '../../../../../assets/@types/protected';
 import { initBundleConfig } from './utils';
-import i18n from '../../../../../../base/i18n';
-import utils from '../../../../../../base/utils';
+import i18n from '../../../../../base/i18n';
+import utils from '../../../../../base/utils';
 import { BuildGlobalInfo } from '../../../../share/builder-config';
 export class Bundle {
 

@@ -3,7 +3,7 @@ import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig 
 import { BuildTemplateConfig, IBuildTaskOption, IPlatformType } from '../protected';
 import { IFlags } from '@cocos/creator-types/editor/packages/engine/@types'
 import { StatsQuery } from '@cocos/ccbuild';
-import { EngineInfo, EngineConfig } from '../../../../engine/@types/public';
+import { EngineInfo, EngineConfig } from '../../../engine/@types/public';
 import { extend } from 'lodash';
 
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
@@ -245,10 +245,6 @@ export type Platform =
     | 'mac'
     | 'ios'
     | 'linux'
-<<<<<<< HEAD:src/core/assets/builder/@types/public/options.d.ts
-    // | 'ios-app-clip'
-=======
->>>>>>> 9893fb5 (move core/assets/builder -> core/builder):src/core/builder/@types/public/options.d.ts
     | 'android'
     | 'google-play'
     | 'ohos'
@@ -259,35 +255,6 @@ export type Platform =
     | 'bytedance-mini-game'
     | 'cocos-play'
     | 'huawei-agc'
-<<<<<<< HEAD:src/core/assets/builder/@types/public/options.d.ts
-    | 'link-sure'
-    | 'qtt'
-    | 'fb-instant-games'
-    | 'cocos-runtime'
-    | 'xr-meta'
-    | 'xr-huaweivr'
-    | 'xr-pico'
-    | 'xr-rokid'
-    | 'xr-monado'
-    | 'ar-android'
-    | 'ar-ios'
-    | 'xr-spaces'
-    | 'xr-seed'
-    | 'online'
-    | 'xr-gsxr'
-    | 'xr-yvr'
-    | 'xr-htc'
-    | 'xr-iqiyi'
-    | 'xr-skyworth'
-    | 'xr-ffalcon'
-    | 'xr-nreal'
-    | 'xr-inmo'
-    | 'xr-lenovo'
-    | 'android-hmi'
-    | 'platform-example'
-=======
-    | 'fb-instant-games'
->>>>>>> 9893fb5 (move core/assets/builder -> core/builder):src/core/builder/@types/public/options.d.ts
     ;
 export type BundleCompressionType = 'none' | 'merge_dep' | 'merge_all_json' | 'subpackage' | 'zip';
 

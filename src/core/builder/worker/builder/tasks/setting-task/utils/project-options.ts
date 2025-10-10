@@ -3,14 +3,14 @@
 import { readFileSync } from 'fs-extra';
 import { isEqual } from 'lodash';
 import { join } from 'path';
-import i18n from '../../../../../../../base/i18n';
+import i18n from '../../../../../../base/i18n';
 import { ISettings, IPhysicsConfig } from '../../../../../@types';
 import { IInternalBuildOptions } from '../../../../../@types/protected';
-import utils from '../../../../../../../base/utils';
-import { GlobalPaths } from '../../../../../../../../global';
-import engine from '../../../../../../../engine';
-import { configurationManager } from '../../../../../../../configuration';
-import { ISplashSetting } from '../../../../../../../engine/@types/config';
+import utils from '../../../../../../base/utils';
+import engine from '../../../../../../engine';
+import { configurationManager } from '../../../../../../configuration';
+import { ISplashSetting } from '../../../../../../engine/@types/config';
+import { GlobalPaths } from '../../../../../../../global';
 
 const layerMask: number[] = [];
 for (let i = 0; i <= 19; i++) {

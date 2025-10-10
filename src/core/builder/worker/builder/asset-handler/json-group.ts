@@ -1,6 +1,6 @@
 'use strict';
 
-import { IAsset } from '../../../../@types/protected';
+import { IAsset } from '../../../../assets/@types/protected';
 import { IBundle } from '../../../@types/protected';
 import { buildAssetLibrary } from '../manager/asset-library';
 

@@ -8,9 +8,9 @@ import * as babel from '@babel/core';
 import babelPresetEnv from '@babel/preset-env';
 import { workerManager } from '../../worker-pools/sub-process-manager';
 import { transI18n, transI18nName as transI18nNameShare } from '../../../share/utils';
-import { IAsset } from '../../../../@types/protected';
+import { IAsset } from '../../../../assets/@types/protected';
 import { IModules, ITransformOptions, IBuildTaskOption } from '../../../@types';
-import utils from '../../../../../base/utils';
+import utils from '../../../../base/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
 
 export { getBuildPath } from '../../../share/utils';

@@ -6,12 +6,12 @@ import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
 import { Platform, IConfigItem, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
 import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IPlatformInfo, IBuildStageItem, IBuildIconItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired } from '../@types/protected';
-import Utils from '../../../base/utils';
-import i18n from '../../../base/i18n';
+import Utils from '../../base/utils';
+import i18n from '../../base/i18n';
 import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
-import utils from '../../../base/utils';
-import { newConsole } from '../../../base/console';
+import utils from '../../base/utils';
+import { newConsole } from '../../base/console';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from '../share/builder-config';
 export interface InternalPackageInfo {
     name: string; // 插件名

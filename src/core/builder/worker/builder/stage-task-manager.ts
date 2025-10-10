@@ -2,7 +2,7 @@ import { join } from 'path';
 import { readJSONSync, emptyDirSync, existsSync, outputJSON } from 'fs-extra';
 import { workerManager } from '../worker-pools/sub-process-manager';
 import { BuildTaskBase } from './manager/task-base';
-import { newConsole } from '../../../../base/console';
+import { newConsole } from '../../../base/console';
 import { IBuildTaskOption } from '../../@types';
 import { IBuildHooksInfo, IBuildStageTask, IBuildStageItem } from '../../@types/protected';
 import { BuildGlobalInfo } from '../../share/builder-config';

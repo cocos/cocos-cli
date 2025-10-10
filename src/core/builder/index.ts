@@ -1,15 +1,16 @@
 import { existsSync } from "fs";
 import { readJSONSync } from "fs-extra";
-import i18n from "../../base/i18n";
+import i18n from "../base/i18n";
 import { BuildExitCode, IBuildCommandOption, IBuildSceneItem, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IExportBuildOptions, IInternalBuildOptions } from "./@types/private";
 import { PLATFORMS } from "./share/platforms-options";
 import { pluginManager } from "./manager/plugin";
 import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./share/utils";
-import { newConsole } from "../../base/console";
+import { newConsole } from "../base/console";
 import { join } from "path";
-import { assetManager } from "../manager/asset";
+import { assetManager } from "../assets/manager/asset";
 import { removeDbHeader } from "./worker/builder/utils";
 import builderConfig, { BuildGlobalInfo } from "./share/builder-config";
+import engine from "../engine";
 
 export async function build(options: IBuildCommandOption): Promise<BuildExitCode> {
     if (options.configPath) {
@@ -34,6 +35,8 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
     options.taskId = options.taskId || String(new Date().getTime());
     options.logDest = options.logDest || getTaskLogDest(options.platform, options.taskId);
     options.taskName = options.taskName || options.platform;
+    options.engineInfo = options.engineInfo || engine.getInfo();
+
     if (options.stage === 'bundle') {
         return await buildBundleOnly(options as unknown as IBundleBuildOptions);
     }

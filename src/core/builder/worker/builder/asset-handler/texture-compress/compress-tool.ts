@@ -3,10 +3,10 @@ import { dirname } from 'path';
 import * as Path from 'path';
 import { roundToPowerOfTwo } from './utils';
 import { quickSpawn } from '../../utils';
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { ICompressConfig, ITextureCompressType } from '../../../../@types';
-import { GlobalPaths } from '../../../../../../../global';
-import utils from '../../../../../../base/utils';
+import { GlobalPaths } from '../../../../../../global';
+import utils from '../../../../../base/utils';
 import { BuildGlobalInfo } from '../../../../share/builder-config';
 const Sharp = require('sharp');
 

@@ -1,8 +1,8 @@
 import { join } from "path";
-import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from "../../../configuration";
+import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from "../../configuration";
 import { IBuildCommonOptions, Platform } from "../@types";
 import { PLATFORMS } from "./platforms-options";
-import { BuildConfiguration } from "../../@types/config-export";
+import { BuildConfiguration } from "../../assets/@types/config-export";
 
 export const BuildGlobalInfo = {
     // 一些常量
@@ -233,7 +233,7 @@ class BuilderConfig {
             return;
         }
         BuildGlobalInfo.platforms = platforms || PLATFORMS
-        const project = await import('../../../project');
+        const project = await import('../../project');
         const projectInfo = project.default.getInfo();
         BuildGlobalInfo.projectName = projectInfo.name;
         BuildGlobalInfo.projectRoot = project.default.path;

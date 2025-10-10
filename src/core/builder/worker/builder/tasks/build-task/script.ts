@@ -7,8 +7,8 @@ import { buildEngineX, buildSplitEngine, queryEngineImportMap } from '../../asse
 import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
 import { removeDbHeader } from '../../utils';
-import { newConsole } from '../../../../../../base/console';
-import i18n from '../../../../../../base/i18n';
+import { newConsole } from '../../../../../base/console';
+import i18n from '../../../../../base/i18n';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
 
 export const title = 'i18n:builder.tasks.build_script';

@@ -7,7 +7,7 @@ import * as HashUuid from '../../utils/hash-uuid';
 import { outputJSON } from 'fs-extra';
 import { compareUUID } from '../../../../share/utils';
 import { ImageAsset, js, Texture2D } from 'cc';
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { IBundle, IGroup } from '../../../../@types/protected';
 
 export async function handleJsonGroup(bundle: IBundle) {

@@ -2,7 +2,7 @@
 
 import { join } from 'path';
 import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { GlobalPaths } from '../../../../../global';
+import { GlobalPaths } from '../../../../global';
 
 const PLATFORM = 'web-mobile';
 

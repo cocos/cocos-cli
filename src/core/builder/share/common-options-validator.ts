@@ -11,10 +11,10 @@ import { NATIVE_PLATFORM } from './platforms-options';
 import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IConfigItem, IBuildTaskOption, IBuildCommonOptions } from '../@types';
 import { IInternalBuildSceneItem } from '../@types/options';
 import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig } from '../@types/protected';
-import i18n from '../../../base/i18n';
-import Utils from '../../../base/utils';
-import { assetManager } from '../../manager/asset';
-import engine from '../../../engine';
+import i18n from '../../base/i18n';
+import Utils from '../../base/utils';
+import { assetManager } from '../../assets/manager/asset';
+import engine from '../../engine';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
 import { fa } from 'zod/v4/locales';
 interface ModuleConfig {

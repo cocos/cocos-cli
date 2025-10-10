@@ -1,6 +1,6 @@
 import { CCON, encodeCCONBinary } from 'cc/editor/serialization';
 import { outputFile } from 'fs-extra';
-import { IAsset } from '../../../../@types/protected';
+import { IAsset } from '../../../../assets/@types/protected';
 import { AssetSerializeOptions } from '../../../@types/protected';
 
 export function hasCCONFormatAssetInLibrary(asset: IAsset) {

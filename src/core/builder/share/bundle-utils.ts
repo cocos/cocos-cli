@@ -1,8 +1,7 @@
 import { basename } from 'path';
-import { IAsset } from '../../@types/protected';
+import { IAsset } from '../../assets/@types/protected';
 import { BundleCompressionType } from '../@types';
 import { PlatformBundleConfig, IPlatformInfo, BundleRenderConfig, CustomBundleConfig, CustomBundleConfigItem } from '../@types/protected';
-import { pluginManager } from '../manager/plugin';
 
 export enum BundleCompressionTypes {
     NONE = 'none',

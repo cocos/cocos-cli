@@ -5,8 +5,8 @@ import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
-import { FilterPluginOptions } from '../../../../../script/interface';
-import { assetManager } from '../../../../../manager/asset';
+import { FilterPluginOptions } from '../../../../../assets/script/interface';
+import { assetManager } from '../../../../../assets/manager/asset';
 
 export const title = 'i18n:builder.tasks.sort_asset_bundle';
 

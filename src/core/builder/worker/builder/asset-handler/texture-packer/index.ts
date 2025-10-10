@@ -6,7 +6,7 @@ import { buildAssetLibrary } from '../../manager/asset-library';
 import { versionDev } from './config';
 import { PacInfo } from './pac-info';
 import { packer } from './packer';
-import { IAsset } from '../../../../../@types/protected';
+import { IAsset } from '../../../../../assets/@types/protected';
 import { IPackOptions, IStorePackInfo, PreviewPackResult } from '../../../../@types/protected';
 import { calcMd5 } from '../../utils';
 

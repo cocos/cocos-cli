@@ -13,13 +13,12 @@ const numCPUs = cpus().length;
 import Sharp from 'sharp';
 import Lodash from 'lodash';
 import { formatMSTime } from '../../../../share/utils';
-import { newConsole } from '../../../../../../base/console';
+import { newConsole } from '../../../../../base/console';
 import { ICustomConfig, ITextureCompressFormatType, AllTextureCompressConfig, UserCompressConfig, ICompressConfig } from '../../../../@types';
 import { IBuildAssetHandlerInfo } from '../../../../@types/private';
 import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';
-import { configurationManager } from '../../../../../../configuration';
 import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
 interface CompressCacheInfo {
     option: {

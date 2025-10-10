@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
 import { IInternalVerificationRule, IVerificationRuleMap, IVerificationRule } from '../@types';
-import Utils from '../../../base/utils';
+import Utils from '../../base/utils';
 
 export class Validator {
     private static internalVerifyRules: Record<string, IInternalVerificationRule> = {

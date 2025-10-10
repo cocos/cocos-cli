@@ -3,7 +3,7 @@
 import { join } from 'path';
 import { IDisplayOptions } from '../../@types';
 import { IBuildStageItem, IInternalBuildPluginConfig } from '../../@types/protected';
-import Utils from '../../../../base/utils';
+import Utils from '../../../base/utils';
 
 const customBuildStages: IBuildStageItem[] = [{
     name: 'make',
@@ -40,7 +40,7 @@ export const baseNativeCommonOptions: IInternalBuildPluginConfig = {
     },
     buildTemplateConfig: {
         templates: [{
-            path: join(__dirname, '../../../../../../../resources/3d/engine/templates/native/index.ejs'),
+            path: join(__dirname, '../../../../../resources/3d/engine/templates/native/index.ejs'),
             destUrl: 'index.ejs',
         }],
         version: '1.0.0',

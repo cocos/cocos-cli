@@ -29,7 +29,7 @@ import { existsSync } from 'fs';
 import { IAssetDBInfo } from '../../assets/@types/protected';
 import { assetDBManager } from '../../assets/manager/asset-db';
 import { url2path } from '../../assets/utils';
-import { compressUuid } from '../../assets/builder/worker/builder/utils';
+import { compressUuid } from '../../builder/worker/builder/utils';
 import { configurationManager } from '../../configuration';
 import { TypeScriptConfigBuilder } from '../intelligence';
 

@@ -9,9 +9,9 @@ import babelPresetEnv from '@babel/preset-env';
 import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
 import { relativeUrl, toBabelModules } from '../../utils';
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
-import utils from '../../../../../../base/utils';
+import utils from '../../../../../base/utils';
 
 // 当前的 ejs 模板版本，升级版本后需要修改该字段与 application.ejs 里的版本号
 const APPLICATION_EJS_VERSION = '1.0.0';

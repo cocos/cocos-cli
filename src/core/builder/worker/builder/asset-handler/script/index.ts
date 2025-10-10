@@ -9,13 +9,13 @@ import { buildAssetLibrary } from '../../manager/asset-library';
 import * as babel from '@babel/core';
 import babelPresetEnv from '@babel/preset-env';
 import { StatsQuery } from '@cocos/ccbuild';
-import { SharedSettings } from '../../../../../script/interface';
+import { SharedSettings } from '../../../../../assets/script/interface';
 import { IPolyFills, IBuildSystemJsOption } from '../../../../@types';
 import { ImportMapWithImports, IScriptOptions, IInternalBuildOptions, IInternalBundleBuildOptions, ModulePreservation, IBundle, IAssetInfo, ImportMap, IImportMapOptions } from '../../../../@types/protected';
-import { assetDBManager } from '../../../../../manager/asset-db';
-import script from '../../../../../script';
-import engine from '../../../../../../engine';
-import { MacroItem } from '../../../../../../engine/@types/config';
+import { assetDBManager } from '../../../../../assets/manager/asset-db';
+import script from '../../../../../assets/script';
+import engine from '../../../../../engine';
+import { MacroItem } from '../../../../../engine/@types/config';
 import { compressUuid } from '../../utils';
 type PlatformType = StatsQuery.ConstantManager.PlatformType;
 

@@ -1,4 +1,4 @@
-import { IAssetInfo } from '../../../../@types/protected';
+import { IAssetInfo } from '../../../../assets/@types/protected';
 import minimatch from 'minimatch';
 import { Asset, VirtualAsset } from '@editor/asset-db';
 import { BundleFilterConfig } from '../../../@types';

@@ -1,5 +1,5 @@
 import * as Path from 'path';
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { ITextureFormatInfo } from '../../../../@types';
 
 export function changeSuffix(path: string, suffix: string) {

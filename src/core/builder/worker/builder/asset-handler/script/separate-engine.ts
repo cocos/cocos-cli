@@ -10,7 +10,7 @@ import { createHash } from 'crypto';
 import { buildEngine, StatsQuery } from '@cocos/ccbuild';
 import { compareOptions } from '../../utils';
 import { IBuildSeparateEngineCacheOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult, IEngineCachePaths, ISignatureConfig } from '../../../../@types/private';
-import { ModuleRenderConfig, IFeatureItem, IModuleItem } from '../../../../../../engine/@types/modules';
+import { ModuleRenderConfig, IFeatureItem, IModuleItem } from '../../../../../engine/@types/modules';
 
 class EngineCachePaths implements IEngineCachePaths {
     dir: string;

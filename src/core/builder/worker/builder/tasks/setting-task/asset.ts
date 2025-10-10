@@ -1,6 +1,6 @@
 'use strict';
 
-import i18n from '../../../../../../base/i18n';
+import i18n from '../../../../../base/i18n';
 import { IBuilder, IInternalBuildOptions, IBundle } from '../../../../@types/protected';
 import { BuiltinBundleName } from '../../../../share/bundle-utils';
 import { BuilderAssetCache } from '../../manager/asset';

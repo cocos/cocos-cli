@@ -1,9 +1,9 @@
 import EventEmitter from 'events';
 import { transI18n } from '../../../share/utils';
-import { newConsole } from '../../../../../base/console';
+import { newConsole } from '../../../../base/console';
 import { IBuildOptionBase, IConsoleType } from '../../../@types';
 import { IBuildHooksInfo } from '../../../@types/protected';
-import Utils from '../../../../../base/utils';
+import Utils from '../../../../base/utils';
 
 export abstract class BuildTaskBase extends EventEmitter {
     // break 原因

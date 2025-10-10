@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 import { projectManager } from '../launcher';
-import { IBuildCommandOption, BuildExitCode } from '../core/assets/builder/@types/protected';
+import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 
 /**
  * Build 命令类

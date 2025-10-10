@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { IBuildCommandOption } from './core/assets/builder/@types/protected';
+import { IBuildCommandOption } from './core/builder/@types/protected';
 import utils from './core/base/utils';
 import { newConsole } from './core/base/console';
 import { getCurrentLocalTime } from './core/assets/utils';
@@ -65,7 +65,7 @@ class ProjectManager {
         // 先打开项目
         await this.open(projectPath, enginePath);
         // 执行构建流程
-        const { build } = await import('./core/assets');
+        const { build } = await import('./core/builder');
         return await build(options);
     }
 }

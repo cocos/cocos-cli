@@ -5,9 +5,9 @@ import { ImageAsset, Rect, Size, SpriteAtlas, SpriteFrame, Texture2D, assetManag
 import { basename, dirname, extname, join, normalize, relative } from 'path';
 import { buildAssetLibrary } from '../../manager/asset-library';
 import * as HashUuid from '../../utils/hash-uuid';
-import { IAsset } from '../../../../../@types/protected';
+import { IAsset } from '../../../../../assets/@types/protected';
 import { IPackOptions, IPacInfo, PacStoreInfo, IPackResult, CompressedInfo, IAtlasInfo, ISpriteFrameInfo } from '../../../../@types/protected';
-import utils from '../../../../../../base/utils';
+import utils from '../../../../../base/utils';
 import lodash from 'lodash';
 import { BuildGlobalInfo } from '../../../../share/builder-config';
 
