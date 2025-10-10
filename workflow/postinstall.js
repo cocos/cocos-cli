@@ -62,6 +62,9 @@ async function mockNpmModules() {
     await utils.runCommand('node', ['./workflow/build-cc-module.js', forceFlag].filter(Boolean));
     // tsc cli
     await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
+    //download tools
+    await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag].filter(Boolean));
+
     // 模拟 i18n 包
     
     console.log('所有模块构建完成！');
