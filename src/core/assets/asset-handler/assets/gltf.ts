@@ -1,5 +1,4 @@
 import { Asset, queryPath, queryUrl, queryUUID } from '@editor/asset-db';
-import Ajv from 'ajv';
 import { AssertionError } from 'assert';
 import * as fs from 'fs-extra';
 import * as path from 'path';
@@ -13,10 +12,8 @@ import { GltfConverter, GltfSubAsset } from './utils/gltf-converter';
 
 import {
     AnimationImportSetting,
-    GltfpackOptions,
     GlTFUserData,
     ImageMeta,
-    MeshOptimizerOption,
     LODsOption,
 } from '../meta-schemas/glTF.meta';
 import * as migratesNameToId from './migrates/name2id';
@@ -135,7 +132,7 @@ export const GltfHandler: AssetHandlerBase = {
          */
         async import(asset: Asset) {
             await validateMeta(asset);
-            return await importSubAssets(asset);
+            return await importSubAssets(asset, this.version);
         },
         async afterSubAssetsImport(asset: Asset) {
             await glTfReaderManager.delete(asset);
@@ -143,173 +140,6 @@ export const GltfHandler: AssetHandlerBase = {
     },
 };
 export default GltfHandler;
-
-export async function getGltfFilePath(asset: Asset) {
-    const userData = asset.userData as GlTFUserData;
-    if (!userData.meshSimplify || !userData.meshSimplify.enable) {
-        return asset.source;
-    }
-    return await getOptimizerPath(asset, asset.source, userData.meshSimplify);
-}
-
-export function getOptimizerPath(asset: Asset, source: string, options: MeshOptimizerOption) {
-    if (options.algorithm === 'gltfpack' && options.gltfpackOptions) {
-        return _getOptimizerPath(asset, source, options.gltfpackOptions);
-    }
-
-    // 新的减面库直接在 mesh 子资源上处理
-    return source;
-}
-
-/**
- * gltfpackOptions
- * @param asset
- * @param source
- * @param options
- * @returns
- */
-async function _getOptimizerPath(asset: Asset, source: string, options: GltfpackOptions = {}): Promise<string> {
-    const tmpDirDir = asset._assetDB.options.temp;
-    const tmpDir = path.join(tmpDirDir, `gltfpack-${asset.uuid}`);
-    fs.ensureDirSync(tmpDir);
-
-    const out = path.join(tmpDir, 'out.gltf');
-    const statusPath = path.join(tmpDir, 'status.json');
-
-    const expectedStatus = {
-        mtimeMs: (await stat(asset.source)).mtimeMs,
-        version: GltfHandler.importer.version,
-        options: JSON.stringify(options),
-    };
-
-    if (existsSync(out) && existsSync(statusPath)) {
-        try {
-            const json = await readJSON(statusPath);
-            if (
-                json.mtimeMs === expectedStatus.mtimeMs &&
-                json.version === expectedStatus.version &&
-                json.options === expectedStatus.options
-            ) {
-                return out;
-            }
-        } catch (error) { }
-    }
-
-    return new Promise((resolve) => {
-        try {
-            const cmd = path.join(GlobalPaths.workspace, 'node_modules/gltfpack/bin/gltfpack.js');
-
-            const args = [
-                '-i',
-                source, // 输入 GLTF
-                '-o',
-                out, // 输出 GLTF
-            ];
-
-            const cVlaue = options.c;
-            if (cVlaue === '1') {
-                args.push('-c');
-            } else if (cVlaue === '2') {
-                args.push('-cc');
-            }
-
-            // textures
-            if (options.te) {
-                args.push('-te');
-            } // 主缓冲
-            if (options.tb) {
-                args.push('-tb');
-            } //
-            if (options.tc) {
-                args.push('-tc');
-            }
-            if (options.tq !== 50 && options.tq !== undefined) {
-                args.push('-tq');
-                args.push(options.tq);
-            }
-            if (options.tu) {
-                args.push('-tu');
-            }
-
-            // simplification
-            if (options.si !== 1 && options.si !== undefined) {
-                args.push('-si');
-                args.push(options.si);
-            }
-            if (options.sa) {
-                args.push('-sa');
-            }
-
-            // vertices
-            if (options.vp !== 14 && options.vp !== undefined) {
-                args.push('-vp');
-                args.push(options.vp);
-            }
-            if (options.vt !== 12 && options.vt !== undefined) {
-                args.push('-vt');
-                args.push(options.vt);
-            }
-            if (options.vn !== 8 && options.vn !== undefined) {
-                args.push('-vn');
-                args.push(options.vn);
-            }
-
-            // animation
-            if (options.at !== 16 && options.at !== undefined) {
-                args.push('-at');
-                args.push(options.at);
-            }
-            if (options.ar !== 12 && options.ar !== undefined) {
-                args.push('-ar');
-                args.push(options.ar);
-            }
-            if (options.as !== 16 && options.as !== undefined) {
-                args.push('-as');
-                args.push(options.as);
-            }
-            if (options.af !== 30 && options.af !== undefined) {
-                args.push('-af');
-                args.push(options.af);
-            }
-            if (options.ac) {
-                args.push('-ac');
-            }
-
-            // scene
-            if (options.kn) {
-                args.push('-kn');
-            }
-            if (options.ke) {
-                args.push('-ke');
-            }
-
-            // miscellaneous
-            if (options.cf) {
-                args.push('-cf');
-            }
-            if (options.noq || options.noq === undefined) {
-                args.push('-noq');
-            }
-            if (options.v || options.v === undefined) {
-                args.push('-v');
-            }
-            // if (options.h) { args.push'-h'; }
-
-            const child = fork(cmd, args);
-            child.on('exit', async (code) => {
-                // if (error) { console.error(`Error: ${error}`); }
-                // if (stderr) { console.error(`Error: ${stderr}`); }
-                // if (stdout) { console.log(`${stdout}`); }
-
-                await fs.writeFile(statusPath, JSON.stringify(expectedStatus, undefined, 2));
-                resolve(out);
-            });
-        } catch (error) {
-            console.error(error);
-            resolve(source);
-        }
-    });
-}
 
 async function validateMeta(asset: Asset) {
     // asset.meta.userData.imageMetas ??= [];
@@ -345,10 +175,10 @@ async function validateMeta(asset: Asset) {
     asset.meta.userData = lodash.defaultsDeep(asset.meta.userData, defaultMeta);
 }
 
-async function importSubAssets(asset: Asset) {
+async function importSubAssets(asset: Asset, importVersion: string) {
     // Create the converter
     glTfReaderManager.delete(asset);
-    const gltfConverter = await glTfReaderManager.getOrCreate(asset, true);
+    const gltfConverter = await glTfReaderManager.getOrCreate(asset, importVersion, true);
 
     await adjustMeta(asset, gltfConverter);
 

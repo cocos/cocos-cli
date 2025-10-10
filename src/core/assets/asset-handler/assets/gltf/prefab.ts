@@ -10,6 +10,8 @@ const { v5: uuidV5 } = require('uuid');
 import { getDependUUIDList } from '../../utils';
 import { GltfConverter } from '../utils/gltf-converter';
 import { AssetHandler } from '../../../@types/protected';
+import FbxHandler from '../fbx';
+import GltfHandler from '../gltf';
 
 declare const EditorExtends: any;
 const nodePathMap: Map<cc.Node, string> = new Map<cc.Node, string>();
@@ -32,8 +34,11 @@ export const GltfPrefabHandler: AssetHandler = {
             if (!asset.parent) {
                 return false;
             }
-
-            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset);
+            let version = GltfHandler.importer.version;
+            if (asset.parent.meta.importer === 'fbx') {
+                version = FbxHandler.importer.version;
+            }
+            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset, version);
 
             const gltfUserData = asset.parent.userData as GlTFUserData;
 

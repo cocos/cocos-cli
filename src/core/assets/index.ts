@@ -4,7 +4,7 @@
 import { newConsole } from '../base/console';
 import { assetDBManager } from './manager/asset-db';
 import { assetManager } from './manager/asset';
-import assetConfig, { AssetDBConfig } from './asset-config';
+import assetConfig from './asset-config';
 
 /**
  * 启动资源数据库，依赖于 project, engine 的初始化
@@ -25,3 +25,6 @@ export async function startupAssetDB() {
         throw error;
     }
 }
+
+export { assetManager } from './manager/asset';
+export { assetDBManager } from './manager/asset-db';

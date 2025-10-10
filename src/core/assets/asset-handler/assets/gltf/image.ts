@@ -15,6 +15,8 @@ import { ImageAsset } from 'cc';
 import { getDependUUIDList } from '../../utils';
 import { defaultIconConfig, handleImageUserData } from '../image/utils';
 import { AssetHandler } from '../../../@types/protected';
+import FbxHandler from '../fbx';
+import GltfHandler from '../gltf';
 
 export const GltfImageHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -48,7 +50,11 @@ export const GltfImageHandler: AssetHandler = {
             }
 
             const imageIndex = asset.userData.gltfIndex as number;
-            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset);
+            let version = GltfHandler.importer.version;
+            if (asset.parent.meta.importer === 'fbx') {
+                version = FbxHandler.importer.version;
+            }
+            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset, version);
             const glTFImage = gltfConverter.gltf.images![imageIndex];
 
             // The `mimeType` is the mime type which is recorded on or deduced from transport layer.

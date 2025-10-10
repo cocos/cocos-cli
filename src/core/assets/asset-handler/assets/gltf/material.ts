@@ -11,8 +11,9 @@ import { glTfReaderManager } from './reader-manager';
 import { getDependUUIDList, i18nTranslate, mergeMeta } from '../../utils';
 import { parse } from 'url';
 import { AssetHandler } from '../../../@types/protected';
-import assetQuery from '../../../manager/query';
 import { assetDBManager } from '../../../manager/asset-db';
+import FbxHandler from '../fbx';
+import GltfHandler from '../gltf';
 
 export const GltfMaterialHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -55,8 +56,11 @@ export const GltfMaterialHandler: AssetHandler = {
                     return true;
                 }
             }
-
-            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset);
+            let version = GltfHandler.importer.version;
+            if (asset.parent.meta.importer === 'fbx') {
+                version = FbxHandler.importer.version;
+            }
+            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset, version);
 
             const gltfUserData = asset.parent.userData as GlTFUserData;
             const material = createMaterial(
@@ -79,11 +83,15 @@ export const GltfMaterialHandler: AssetHandler = {
     createInfo: {
         async save(asset, content) {
             const materialUuid = asset.uuid;
-            const [fbxUuid] = materialUuid.split('@');
             if (!content || Buffer.isBuffer(content)) {
                 throw new Error(`${i18nTranslate('asset-db.saveAssetMeta.fail.content')}`);
             }
-            const fbxMeta = assetQuery.queryAssetMeta(fbxUuid)!;
+
+            if (!asset.parent) {
+                return false;
+            }
+
+            const fbxMeta = asset.parent.meta;
             if (!fbxMeta.userData.materials || typeof fbxMeta.userData.materials !== 'object') {
                 fbxMeta.userData.materials = {};
             }
@@ -93,7 +101,7 @@ export const GltfMaterialHandler: AssetHandler = {
                 mergeMeta(asset.meta, fbxMeta);
                 await asset.save();
             } catch (e) {
-                console.error(`Save materials({asset(${materialUuid})} data to fbx {asset(${fbxUuid})} failed!`);
+                console.error(`Save materials({asset(${materialUuid})} data to fbx {asset(${asset.parent.uuid})} failed!`);
                 console.error(e);
                 return false;
             }

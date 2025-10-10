@@ -20,11 +20,228 @@
                 "platforms": {
                     "additionalProperties": false,
                     "properties": {
-                        "web-desktop": {}
+                        "web-desktop": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "customJointTextureLayouts": {
+                                    "items": {
+                                        "$ref": "#/definitions/ICustomJointTextureLayout"
+                                    },
+                                    "type": "array"
+                                },
+                                "customLayers": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "customPipeline": {
+                                    "type": "boolean"
+                                },
+                                "designResolution": {
+                                    "$ref": "#/definitions/IDesignResolution"
+                                },
+                                "downloadMaxConcurrency": {
+                                    "type": "number"
+                                },
+                                "engineInfo": {
+                                    "$ref": "#/definitions/EngineInfo"
+                                },
+                                "flags": {
+                                    "$ref": "#/definitions/IFlags"
+                                },
+                                "highQuality": {
+                                    "type": "boolean"
+                                },
+                                "includeModules": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "macroConfig": {
+                                    "$ref": "#/definitions/Record<string,string|number|boolean>"
+                                },
+                                "macroCustom": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "key": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "physicsConfig": {
+                                    "$ref": "#/definitions/IPhysicsConfig"
+                                },
+                                "renderPipeline": {
+                                    "type": "string"
+                                },
+                                "resolution": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "designHeight": {
+                                            "type": "number"
+                                        },
+                                        "designWidth": {
+                                            "type": "number"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "sortingLayers": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "id": {
+                                                "type": "number"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "splashScreen": {
+                                    "$ref": "#/definitions/ISplashSetting"
+                                },
+                                "useWebGPU": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "web-mobile": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "customJointTextureLayouts": {
+                                    "items": {
+                                        "$ref": "#/definitions/ICustomJointTextureLayout"
+                                    },
+                                    "type": "array"
+                                },
+                                "customLayers": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "customPipeline": {
+                                    "type": "boolean"
+                                },
+                                "designResolution": {
+                                    "$ref": "#/definitions/IDesignResolution"
+                                },
+                                "downloadMaxConcurrency": {
+                                    "type": "number"
+                                },
+                                "embedWebDebugger": {
+                                    "type": "boolean"
+                                },
+                                "engineInfo": {
+                                    "$ref": "#/definitions/EngineInfo"
+                                },
+                                "flags": {
+                                    "$ref": "#/definitions/IFlags"
+                                },
+                                "highQuality": {
+                                    "type": "boolean"
+                                },
+                                "includeModules": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "macroConfig": {
+                                    "$ref": "#/definitions/Record<string,string|number|boolean>"
+                                },
+                                "macroCustom": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "key": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "orientation": {
+                                    "$ref": "#/definitions/IOrientation"
+                                },
+                                "physicsConfig": {
+                                    "$ref": "#/definitions/IPhysicsConfig"
+                                },
+                                "renderPipeline": {
+                                    "type": "string"
+                                },
+                                "sortingLayers": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "id": {
+                                                "type": "number"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "splashScreen": {
+                                    "$ref": "#/definitions/ISplashSetting"
+                                },
+                                "useWebGPU": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        }
                     },
                     "type": "object"
                 },
-                "textureCompressConfig": {},
+                "textureCompressConfig": {
+                    "$ref": "#/definitions/UserCompressConfig"
+                },
                 "useCacheConfig": {
                     "$ref": "#/definitions/IBuildCacheUseConfig"
                 }
@@ -175,6 +392,56 @@
                 },
                 "splashScreen": {
                     "$ref": "#/definitions/ISplashSetting"
+                }
+            },
+            "type": "object"
+        },
+        "EngineInfo": {
+            "additionalProperties": false,
+            "properties": {
+                "native": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "builtin": {
+                            "type": "string"
+                        },
+                        "path": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": [
+                                "builtin",
+                                "custom"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "tmpDir": {
+                    "type": "string"
+                },
+                "typescript": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "builtin": {
+                            "type": "string"
+                        },
+                        "path": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": [
+                                "builtin",
+                                "custom"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "version": {
+                    "type": "string"
                 }
             },
             "type": "object"
@@ -497,6 +764,14 @@
             "additionalProperties": false,
             "type": "object"
         },
+        "IOrientation": {
+            "enum": [
+                "auto",
+                "landscape",
+                "portrait"
+            ],
+            "type": "string"
+        },
         "IPhysicsConfig": {
             "additionalProperties": false,
             "properties": {
@@ -695,13 +970,39 @@
         },
         "Platform": {
             "enum": [
+                "alipay-mini-game",
+                "android",
+                "baidu-mini-game",
+                "bytedance-mini-game",
+                "cocos-play",
+                "google-play",
+                "harmonyos-next",
+                "honor-mini-game",
+                "huawei-agc",
+                "huawei-quick-game",
+                "ios",
+                "linux",
+                "mac",
+                "migu-mini-game",
+                "ohos",
+                "oppo-mini-game",
+                "taobao-creative-app",
+                "taobao-mini-game",
+                "vivo-mini-game",
                 "web-desktop",
                 "web-mobile",
-                "windows"
+                "wechatgame",
+                "wechatprogram",
+                "windows",
+                "xiaomi-quick-game"
             ],
             "type": "string"
         },
         "Record<string,IBundleOptions>": {
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "Record<string,ICustomConfig>": {
             "additionalProperties": false,
             "type": "object"
         },
@@ -711,6 +1012,32 @@
         },
         "Record<string,string|number|boolean>": {
             "additionalProperties": false,
+            "type": "object"
+        },
+        "Record<string,{name:string;options:Record<string,Record<string,{quality:string|number;}>>;overwrite?:Record<string,Record<string,{quality:string|number;}>>;}>": {
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "Record<string,{name:string;options:Record<string,Record<string,{quality:string|number;}>>;}>": {
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "UserCompressConfig": {
+            "additionalProperties": false,
+            "properties": {
+                "customConfigs": {
+                    "$ref": "#/definitions/Record<string,ICustomConfig>"
+                },
+                "defaultConfig": {
+                    "$ref": "#/definitions/Record<string,{name:string;options:Record<string,Record<string,{quality:string|number;}>>;}>"
+                },
+                "genMipmaps": {
+                    "type": "boolean"
+                },
+                "userPreset": {
+                    "$ref": "#/definitions/Record<string,{name:string;options:Record<string,Record<string,{quality:string|number;}>>;overwrite?:Record<string,Record<string,{quality:string|number;}>>;}>"
+                }
+            },
             "type": "object"
         }
     },

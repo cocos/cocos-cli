@@ -25,8 +25,10 @@ import { IBundleOptions } from '../../../../@types';
 import { IBundleManager, IBuilder, IInternalBundleBuildOptions, IBuildHooksInfo, IBundle, CustomBundleConfig, BundleRenderConfig, BundlePlatformType, IBundleInitOptions, IBundleBuildOptions, IBuildTaskOption } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
 import utils from '../../../../../base/utils';
-import script from '../../../../../assets/script';
+import script from '../../../../../scripting';
 import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
+import { IPluginScriptInfo } from '../../../../../scripting/interface';
+import assetQuery from '../../../../../assets/manager/query';
 
 const { MAIN, START_SCENE, INTERNAL, RESOURCES } = BuiltinBundleName;
 // 只 Bundle 构建时，可走此类的生成执行函数
@@ -132,11 +134,11 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         return new BundleManager(options, null, task);
     }
 
-    async loadScript(scriptUuids: string[]) {
+    async loadScript(scriptUuids: string[], pluginScripts: IPluginScriptInfo[]) {
         if (this.options.preview) {
             return;
         }
-        await script.loadScript(scriptUuids);
+        await script.loadScript(scriptUuids, pluginScripts);
     }
 
     /**
@@ -210,7 +212,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
     public async initAsset() {
         await this.initBundleRootAssets();
         // 需要在 this.cache 初始化后之后执行
-        await this.loadScript(this.cache.scriptUuids);
+        await this.loadScript(this.cache.scriptUuids, assetQuery.querySortedPlugins());
         await this.initBundleShareAssets();
         await this.initBundleConfig();
     }

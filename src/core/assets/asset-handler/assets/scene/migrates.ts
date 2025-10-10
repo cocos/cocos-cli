@@ -4,11 +4,8 @@
 import { Asset, queryAsset } from '@editor/asset-db';
 import { nameToId } from '@editor/asset-db/libs/utils';
 import * as cc from 'cc';
-import { existsSync, readJSON, writeJSONSync } from 'fs-extra';
-import { getComponent, walk, walkAsync } from './utils';
-import { Archive, MigrationSwapSpace } from '../utils/migration-utils';
-import { migrateCurveRange330 } from '../migrates/migrate-curve-range-3-3-0';
-import { migrateGeometryCurve330 } from '../migrates/migrate-geometry-curve-3-3-0';
+import { readJSON, writeJSONSync } from 'fs-extra';
+import { walk, walkAsync } from './utils';
 import { linearToSRGB } from '../utils/equirect-cubemap-faces';
 import utils from '../../../../base/utils';
 

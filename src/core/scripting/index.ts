@@ -1,13 +1,9 @@
 import { join } from "path";
-import { CCEModuleMap } from "../../engine/@types/config";
-import { SharedSettings } from "./interface";
-import { PackerDriver } from "../../scripting/packer-driver";
-
-
+import { CCEModuleMap } from "../engine/@types/config";
+import { IPluginScriptInfo, SharedSettings } from "./interface";
+import { PackerDriver } from "./packer-driver";
 import { Executor } from '@editor/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
-import { scriptConfig } from "../../scripting/shared/query-shared-settings";
-
 
 export const title = 'i18n:builder.tasks.load_script';
 
@@ -72,14 +68,14 @@ class ScriptManager {
         return PackerDriver.getInstance().querySharedSettings();
     }
 
-    async loadScript(scriptUuids: string[]) {
+    async loadScript(scriptUuids: string[], pluginScripts: IPluginScriptInfo[] = []) {
         if (!scriptUuids.length) {
             console.debug('No script need reload.');
             return;
         }
         console.debug('reload all scripts.');
+        // TODO 需要支持按入参按需加载脚本
         await globalEnv.record(async () => {
-            // TODO 进程合并后构建内的加载脚本流程理论上是不需要了
             if (!executor) {
                 console.log(`creating executor ...`);
                 const packerDriver = PackerDriver.getInstance();
@@ -104,9 +100,6 @@ class ScriptManager {
                 console.error('Failed to init executor');
                 return;
             }
-            const pluginScripts = (globalThis as any).assetManager.querySortedPlugins({
-                loadPluginInEditor: false,
-            });
             executor.setPluginScripts(pluginScripts);
             await executor.reload();
         });

@@ -1,11 +1,16 @@
 import { Asset } from '@editor/asset-db';
-import { GlTFUserData } from '../../meta-schemas/glTF.meta';
+import { GltfpackOptions, GlTFUserData, MeshOptimizerOption } from '../../meta-schemas/glTF.meta';
 import { i18nTranslate, linkToAssetTarget } from '../../utils';
 import { GltfConverter, readGltf } from '../utils/gltf-converter';
 import { validateGlTf } from './validation';
-import fs from 'fs-extra';
-import GltfHandler, { getGltfFilePath } from '../gltf';
-import { getGltfFilePath as getFbxFilePath } from '../fbx';
+import fs, { existsSync, readJSON, stat } from 'fs-extra';
+import { fork } from 'child_process';
+import path from 'path';
+import { GlobalPaths } from '../../../../../global';
+import assetConfig from '../../../asset-config';
+import { createFbxConverter } from '../utils/fbx-converter';
+import { modelConvertRoutine } from '../utils/model-convert-routine';
+import { fbxToGlTf } from './fbx-to-gltf';
 
 class GlTfReaderManager {
     private _map = new Map<string, GltfConverter>();
@@ -15,10 +20,10 @@ class GlTfReaderManager {
      * @param asset
      * @param injectBufferDependencies 是否当创建 glTF 转换器的时候同时注入 glTF asset 对其引用的 buffer 文件的依赖。
      */
-    public async getOrCreate(asset: Asset, injectBufferDependencies = false) {
+    public async getOrCreate(asset: Asset, importVersion: string, injectBufferDependencies = false) {
         let result = this._map.get(asset.uuid);
         if (!result) {
-            const { converter, referencedBufferFiles } = await createGlTfReader(asset);
+            const { converter, referencedBufferFiles } = await createGlTfReader(asset, importVersion);
             result = converter;
             this._map.set(asset.uuid, result);
             if (injectBufferDependencies) {
@@ -37,7 +42,201 @@ class GlTfReaderManager {
 
 export const glTfReaderManager = new GlTfReaderManager();
 
-async function createGlTfReader(asset: Asset) {
+export async function getFbxFilePath(asset: Asset, importerVersion: string,) {
+    const userData = asset.userData as GlTFUserData;
+    if (typeof userData.fbx?.smartMaterialEnabled === 'undefined') {
+        (userData.fbx ??= {}).smartMaterialEnabled = await assetConfig.getProject<boolean>('fbx.material.smart') ?? false;
+    }
+    let outGLTFFile: string;
+    if (userData.legacyFbxImporter) {
+        outGLTFFile = await fbxToGlTf(asset, asset._assetDB, importerVersion);
+    } else {
+        const options: Parameters<typeof createFbxConverter>[0] = {};
+        options.unitConversion = userData.fbx?.unitConversion;
+        options.animationBakeRate = userData.fbx?.animationBakeRate;
+        options.preferLocalTimeSpan = userData.fbx?.preferLocalTimeSpan;
+        options.smartMaterialEnabled = userData.fbx?.smartMaterialEnabled ?? false;
+        options.matchMeshNames = userData.fbx?.matchMeshNames ?? true;
+        const fbxConverter = createFbxConverter(options);
+        const converted = await modelConvertRoutine('fbx.FBX-glTF-conv', asset, asset._assetDB, importerVersion, fbxConverter);
+        if (!converted) {
+            throw new Error(`Failed to import ${asset.source}`);
+        }
+        outGLTFFile = converted;
+    }
+
+    if (!userData.meshSimplify || !userData.meshSimplify.enable) {
+        return outGLTFFile;
+    }
+    return await getOptimizerPath(asset, outGLTFFile, importerVersion, userData.meshSimplify);
+}
+export async function getGltfFilePath(asset: Asset, importerVersion: string) {
+    const userData = asset.userData as GlTFUserData;
+    if (!userData.meshSimplify || !userData.meshSimplify.enable) {
+        return asset.source;
+    }
+    return await getOptimizerPath(asset, asset.source, importerVersion, userData.meshSimplify);
+}
+
+export function getOptimizerPath(asset: Asset, source: string, importerVersion: string, options: MeshOptimizerOption) {
+    if (options.algorithm === 'gltfpack' && options.gltfpackOptions) {
+        return _getOptimizerPath(asset, source, importerVersion, options.gltfpackOptions);
+    }
+
+    // 新的减面库直接在 mesh 子资源上处理
+    return source;
+}
+
+/**
+ * gltfpackOptions
+ * @param asset
+ * @param source
+ * @param options
+ * @returns
+ */
+async function _getOptimizerPath(asset: Asset, source: string, importerVersion: string, options: GltfpackOptions = {}): Promise<string> {
+    const tmpDirDir = asset._assetDB.options.temp;
+    const tmpDir = path.join(tmpDirDir, `gltfpack-${asset.uuid}`);
+    fs.ensureDirSync(tmpDir);
+
+    const out = path.join(tmpDir, 'out.gltf');
+    const statusPath = path.join(tmpDir, 'status.json');
+
+    const expectedStatus = {
+        mtimeMs: (await stat(asset.source)).mtimeMs,
+        version: importerVersion,
+        options: JSON.stringify(options),
+    };
+
+    if (existsSync(out) && existsSync(statusPath)) {
+        try {
+            const json = await readJSON(statusPath);
+            if (
+                json.mtimeMs === expectedStatus.mtimeMs &&
+                json.version === expectedStatus.version &&
+                json.options === expectedStatus.options
+            ) {
+                return out;
+            }
+        } catch (error) { }
+    }
+
+    return new Promise((resolve) => {
+        try {
+            const cmd = path.join(GlobalPaths.workspace, 'node_modules/gltfpack/bin/gltfpack.js');
+
+            const args = [
+                '-i',
+                source, // 输入 GLTF
+                '-o',
+                out, // 输出 GLTF
+            ];
+
+            const cVlaue = options.c;
+            if (cVlaue === '1') {
+                args.push('-c');
+            } else if (cVlaue === '2') {
+                args.push('-cc');
+            }
+
+            // textures
+            if (options.te) {
+                args.push('-te');
+            } // 主缓冲
+            if (options.tb) {
+                args.push('-tb');
+            } //
+            if (options.tc) {
+                args.push('-tc');
+            }
+            if (options.tq !== 50 && options.tq !== undefined) {
+                args.push('-tq');
+                args.push(options.tq);
+            }
+            if (options.tu) {
+                args.push('-tu');
+            }
+
+            // simplification
+            if (options.si !== 1 && options.si !== undefined) {
+                args.push('-si');
+                args.push(options.si);
+            }
+            if (options.sa) {
+                args.push('-sa');
+            }
+
+            // vertices
+            if (options.vp !== 14 && options.vp !== undefined) {
+                args.push('-vp');
+                args.push(options.vp);
+            }
+            if (options.vt !== 12 && options.vt !== undefined) {
+                args.push('-vt');
+                args.push(options.vt);
+            }
+            if (options.vn !== 8 && options.vn !== undefined) {
+                args.push('-vn');
+                args.push(options.vn);
+            }
+
+            // animation
+            if (options.at !== 16 && options.at !== undefined) {
+                args.push('-at');
+                args.push(options.at);
+            }
+            if (options.ar !== 12 && options.ar !== undefined) {
+                args.push('-ar');
+                args.push(options.ar);
+            }
+            if (options.as !== 16 && options.as !== undefined) {
+                args.push('-as');
+                args.push(options.as);
+            }
+            if (options.af !== 30 && options.af !== undefined) {
+                args.push('-af');
+                args.push(options.af);
+            }
+            if (options.ac) {
+                args.push('-ac');
+            }
+
+            // scene
+            if (options.kn) {
+                args.push('-kn');
+            }
+            if (options.ke) {
+                args.push('-ke');
+            }
+
+            // miscellaneous
+            if (options.cf) {
+                args.push('-cf');
+            }
+            if (options.noq || options.noq === undefined) {
+                args.push('-noq');
+            }
+            if (options.v || options.v === undefined) {
+                args.push('-v');
+            }
+            // if (options.h) { args.push'-h'; }
+
+            const child = fork(cmd, args);
+            child.on('exit', async (code) => {
+                // if (error) { console.error(`Error: ${error}`); }
+                // if (stderr) { console.error(`Error: ${stderr}`); }
+                // if (stdout) { console.log(`${stdout}`); }
+
+                await fs.writeFile(statusPath, JSON.stringify(expectedStatus, undefined, 2));
+                resolve(out);
+            });
+        } catch (error) {
+            console.error(error);
+            resolve(source);
+        }
+    });
+}
+async function createGlTfReader(asset: Asset, importVersion: string) {
     let getFileFun: Function;
     if (asset.meta.importer === 'fbx') {
         getFileFun = getFbxFilePath;
@@ -45,7 +244,7 @@ async function createGlTfReader(asset: Asset) {
         getFileFun = getGltfFilePath;
     }
 
-    const glTfFilePath: string = await getFileFun(asset);
+    const glTfFilePath: string = await getFileFun(asset, importVersion);
 
     const isConvertedGlTf = glTfFilePath !== asset.source; // TODO: Better solution?
 

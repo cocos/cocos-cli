@@ -16,7 +16,6 @@ import Utils from '../../base/utils';
 import { assetManager } from '../../assets/manager/asset';
 import engine from '../../engine';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
-import { fa } from 'zod/v4/locales';
 interface ModuleConfig {
     match: (module: string) => boolean;
     default: string | boolean;

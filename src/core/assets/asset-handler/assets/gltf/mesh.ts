@@ -8,6 +8,8 @@ import { unwrapLightmapUV } from '../utils/uv-unwrap';
 import { ensureDir } from 'fs-extra';
 import { AssetHandler, ThumbnailInfo } from '../../../@types/protected';
 import { optimizeMesh, clusterizeMesh, simplifyMesh, getDefaultSimplifyOptions, compressMesh } from './meshOptimizer';
+import FbxHandler from '../fbx';
+import GltfHandler from '../gltf';
 
 export const GltfMeshHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -54,8 +56,12 @@ export const GltfMeshHandler: AssetHandler = {
             if (!asset.parent) {
                 return false;
             }
+            let version = GltfHandler.importer.version;
+            if (asset.parent.meta.importer === 'fbx') {
+                version = FbxHandler.importer.version;
+            }
             // Fetch the gltf convert associated with parent (gltf)asset
-            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset);
+            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset, version);
             const generateLightmapUV = (asset.parent.userData as GlTFUserData).generateLightmapUVNode;
             const gltfUserData = asset.parent.userData as GlTFUserData;
             const assetUserData = asset.userData as IVirtualAssetUserData;

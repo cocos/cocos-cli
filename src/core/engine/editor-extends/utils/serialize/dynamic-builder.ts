@@ -15,11 +15,8 @@ import {
     IObjParsingInfo,
 } from './parser';
 
-import { TextEncoder } from 'util';
-
 // import deserializer types
 import D = deserialize.Internal;
-import { CCON, BufferBuilder } from 'cc/editor/serialization';
 import { Builder, IBuilderOptions } from './base-builder';
 type AnyCCClass = D.AnyCCClass_;
 

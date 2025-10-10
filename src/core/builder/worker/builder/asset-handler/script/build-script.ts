@@ -17,7 +17,7 @@ import buildPolyfills from '@editor/build-polyfills';
 import { IBuildSystemJsOption, IPolyFills } from '../../../../@types';
 import { IAssetInfo, ModulePreservation, ITransformTarget } from '../../../../@types/protected';
 import minimatch from 'minimatch';
-import { SharedSettings } from '../../../../../assets/script/interface';
+import { SharedSettings } from '../../../../../scripting/interface';
 import { MacroItem } from '../../../../../engine/@types/config';
 
 interface buildRes {

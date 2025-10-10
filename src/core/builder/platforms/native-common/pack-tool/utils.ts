@@ -2,7 +2,7 @@ import * as ps from 'path';
 import * as fs from 'fs-extra';
 import { execSync, spawn } from 'child_process';
 import * as os from 'os';
-import { CocosParams } from './default';
+import type { CocosParams } from './default';
 const iconv = require('iconv-lite');
 
 

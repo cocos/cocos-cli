@@ -3,6 +3,8 @@ import { glTfReaderManager } from './reader-manager';
 
 import { getDependUUIDList } from '../../utils';
 import { AssetHandler } from '../../../@types/protected';
+import GltfHandler from '../gltf';
+import FbxHandler from '../fbx';
 
 export const GltfSkeletonHandler: AssetHandler = {
     name: 'gltf-skeleton',
@@ -30,8 +32,11 @@ export const GltfSkeletonHandler: AssetHandler = {
             if (!asset.parent) {
                 return false;
             }
-
-            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset);
+            let version = GltfHandler.importer.version;
+            if (asset.parent.meta.importer === 'fbx') {
+                version = FbxHandler.importer.version;
+            }
+            const gltfConverter = await glTfReaderManager.getOrCreate(asset.parent as Asset, version);
 
             const skeleton = gltfConverter.createSkeleton(asset.userData.gltfIndex as number);
 

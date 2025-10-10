@@ -1,4 +1,5 @@
-import { BuildConfiguration, ImportConfiguration } from '../../assets/@types/config-export';
+import { ImportConfiguration } from '../../assets/@types/config-export';
+import { BuildConfiguration } from '../../builder/@types/config-export';
 import { EngineConfig } from '../../engine/@types/config';
 
 // 用于 schema 校验规则导出
