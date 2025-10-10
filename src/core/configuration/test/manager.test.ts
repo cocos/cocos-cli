@@ -366,18 +366,18 @@ describe('ConfigurationManager', () => {
     });
 
     describe('configs should be initialized from projectConfig', () => {
-        it('should initialize configs from existing projectConfig when registering configuration', async () => {
-            // 模拟已存在的项目配置
-            const existingProjectConfig = {
-                version: '1.0.0',
-                testModule: {
-                    existingKey: 'existingValue',
-                    nested: {
-                        existingNestedKey: 'existingNestedValue'
-                    }
+        // 提取重复的项目配置对象
+        const existingProjectConfig = {
+            version: '1.0.0',
+            testModule: {
+                existingKey: 'existingValue',
+                nested: {
+                    existingNestedKey: 'existingNestedValue'
                 }
-            };
+            }
+        };
 
+        it('should initialize configs from existing projectConfig when registering configuration', async () => {
             // 模拟配置文件存在并包含配置
             mockFse.pathExists.mockResolvedValue(true);
             mockFse.readJSON.mockResolvedValue(existingProjectConfig);
@@ -448,17 +448,6 @@ describe('ConfigurationManager', () => {
         });
 
         it('should throw error when registering non-BaseConfiguration instances', async () => {
-            // 模拟已存在的项目配置
-            const existingProjectConfig = {
-                version: '1.0.0',
-                testModule: {
-                    existingKey: 'existingValue',
-                    nested: {
-                        existingNestedKey: 'existingNestedValue'
-                    }
-                }
-            };
-
             // 模拟配置文件存在并包含配置
             mockFse.pathExists.mockResolvedValue(true);
             mockFse.readJSON.mockResolvedValue(existingProjectConfig);
