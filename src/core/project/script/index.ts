@@ -67,7 +67,7 @@ export interface IProject {
      * @returns {ProjectInfo} The complete project information object
      */
     getInfo(): ProjectInfo;
-    
+
     /**
      * Gets specific project information by key path
      *
@@ -75,7 +75,7 @@ export interface IProject {
      * @returns {any} The value at the specified key path, or null if not found
      */
     getInfo(key: string): any;
-    
+
     /**
      * Gets project information with optional key path
      *
@@ -145,9 +145,9 @@ export class Project implements IProject {
     }
 
     public getInfo(): ProjectInfo;
-    
+
     public getInfo(key: string): any;
-    
+
     public getInfo(key?: string): ProjectInfo | any {
         if (typeof key !== 'string') {
             return this._info;
@@ -218,7 +218,7 @@ export class Project implements IProject {
 
     public async open(projectPath: string): Promise<boolean> {
         this._projectPath = projectPath;
-        if(!existsSync(projectPath) || !existsSync(this.pkgPath)) {
+        if (!existsSync(projectPath) || !existsSync(this.pkgPath)) {
             throw new Error('Failed to open project: package.json not found.');
         } else {
             const info: ProjectInfo = await readJSON(this.pkgPath);

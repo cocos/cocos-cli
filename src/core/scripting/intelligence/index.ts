@@ -5,8 +5,9 @@ import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { StatsQuery } from '@cocos/ccbuild';
 import { assetDBManager } from '../../assets/manager/asset-db';
 import { configurationManager } from '../../configuration';
+import engine from '../../engine';
 
-export interface DbURLInfo {dbURL: string, target: string}
+export interface DbURLInfo { dbURL: string, target: string }
 
 type TsConfigPaths = Record<string, string[]>;
 export class TypeScriptConfigBuilder {
@@ -19,7 +20,7 @@ export class TypeScriptConfigBuilder {
 
     private internalTsConfig: ts.CompilerOptions = {};
     private internalDbURLInfos: DbURLInfo[] = [];
-    
+
     constructor(projectPath: string, engineTsPath: string) {
         this._engineTsPath = engineTsPath;
         this._projectPath = projectPath;
@@ -265,9 +266,9 @@ async function generateEnvDeclarationFile(engineRoot: string) {
 }
 
 async function generateCustomMacroDeclarationFile() {
-    
-const customMacroList = await configurationManager.get('engine.macroCustom') as [];
-const code = `\
+
+    const customMacroList = engine.getConfig().macroCustom;
+    const code = `\
 declare module "cc/userland/macro" {
 ${customMacroList.map((item: any) => `\texport const ${item.key}: boolean;`).join('\n')}
 }
@@ -276,7 +277,7 @@ ${customMacroList.map((item: any) => `\texport const ${item.key}: boolean;`).joi
 }
 
 async function generateCustomMacroJSFile() {
-    const customMacroList = await configurationManager.get('engine.macroCustom') as [];
+    const customMacroList = engine.getConfig().macroCustom;
     const code = `\
 System.register([], function (_export, _context) {      
     return {

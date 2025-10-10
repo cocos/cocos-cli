@@ -1,10 +1,39 @@
 {
-  "continue.mcpServers": {
-    "cocos-cli": {
-      "command": "node",
-      "args": ["./dist/mcp/start-fast-mcp.js"],
-      "cwd": "${workspaceFolder}",
-      "env": {}
-    }
-  }
+    "continue.mcpServers": {
+        "cocos-cli": {
+            "command": "node",
+            "args": [
+                "./dist/mcp/start-fast-mcp.js"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {}
+        }
+    },
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.detectIndentation": false,
+    "editor.tabSize": 4,
+    "eslint.alwaysShowStatus": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit",
+        "source.fixAll.stylelint": "explicit",
+        "source.fixAll.markdownlint": "explicit"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[less]": {
+        "editor.defaultFormatter": "stylelint.vscode-stylelint"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "eslint.format.enable": true,
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "typescript.tsdk": "node_modules/typescript/lib",
 }

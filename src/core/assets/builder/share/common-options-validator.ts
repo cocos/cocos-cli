@@ -8,15 +8,15 @@ import { builtinPlugins, PLATFORMS } from './platforms-options';
 import { Validator } from './validator';
 import { validatorManager } from './validator-manager';
 import { NATIVE_PLATFORM } from './platforms-options';
-import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IConfigItem, IBuildTaskOption } from '../@types';
+import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IConfigItem, IBuildTaskOption, IBuildCommonOptions } from '../@types';
 import { IInternalBuildSceneItem } from '../@types/options';
-import { BuildCheckResult, BundleCompressionType, IBuildDesignResolution, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig, ISplashSetting } from '../@types/protected';
+import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig } from '../@types/protected';
 import i18n from '../../../base/i18n';
 import Utils from '../../../base/utils';
 import { assetManager } from '../../manager/asset';
-import { getConfig } from './utils';
-import { BuildGlobalInfo } from './global';
-import { configurationManager } from '../../../configuration';
+import engine from '../../../engine';
+import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
+import { fa } from 'zod/v4/locales';
 interface ModuleConfig {
     match: (module: string) => boolean;
     default: string | boolean;
@@ -194,33 +194,6 @@ Validator.addRule('supportPlatform', {
     func: supportPlatform,
     message: 'i18n:builder.error.unknown_platform',
 });
-
-export interface IBuildConfig {
-    splashScreenSetting: ISplashSetting;
-}
-
-export const defaultConfigs: IBuildConfig = {
-    splashScreenSetting: {
-        displayRatio: 1,
-        totalTime: 2000,
-        logo: {
-            type: 'default',
-            image: ''
-        },
-        background: {
-            type: 'default',
-            color: {
-                'x': 0.0156862745098039,
-                'y': 0.0352941176470588,
-                'z': 0.0392156862745098,
-                'w': 1
-            },
-            image: ''
-        },
-        watermarkLocation: 'default',
-        autoFit: true
-    },
-}
 
 export const commonOptionConfigs: Record<string, IConfigItem> = {
     platform: {
@@ -473,59 +446,51 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
     },
 };
 
-export async function getCommonOptions(platform: Platform, useDefault = false) {
-    const commonConfig = getConfig('common', useDefault, 'global');
-    const result: IBuildTaskOption = JSON.parse(JSON.stringify(commonConfig));
-    if (!useDefault) {
-        const platformCustomCommonOptions = getConfig(`${platform}.common`);
-        if (platformCustomCommonOptions) {
-            Object.keys(platformCustomCommonOptions).forEach((key) => {
-                if (platformCustomCommonOptions[key] !== undefined) {
-                    // @ts-ignore
-                    result[key] = platformCustomCommonOptions[key];
-                }
-            });
-        }
+// export async function getCommonOptions(platform: Platform, useDefault = false) {
+//     const commonConfig = await builderConfig.getProject<IBuildCommonOptions>('common', useDefault ? 'default' : 'project');
+//     const result: IBuildTaskOption<Platform> = JSON.parse(JSON.stringify(commonConfig));
+//     if (!useDefault) {
+//         const platformCustomCommonOptions = await builderConfig.getProject<IBuildCommonOptions>(`platforms.${platform}`);
+//         if (platformCustomCommonOptions) {
+//             Object.keys(platformCustomCommonOptions).forEach((key) => {
+//                 if (platformCustomCommonOptions[key as keyof IBuildCommonOptions] !== undefined) {
+//                     // @ts-ignore
+//                     result[key] = platformCustomCommonOptions[key as keyof IBuildCommonOptions];
+//                 }
+//             });
+//         }
+//     }
+//     // 场景信息不使用用户修改过的数据，这部分信息和资源相关联数据经常会变化，不存储使用
+//     result.scenes = await getDefaultScenes();
+//     if (!(await checkStartScene(result.startScene))) {
+//         result.startScene = await getDefaultStartScene();
+//     }
+//     if (!result.startScene) {
+//         console.error(i18n.t('builder.error.invalidStartScene'));
+//     }
+//     result.platform = platform;
+//     return result;
+// }
+
+export function getDefaultScenes(): IInternalBuildSceneItem[] {
+    const scenes = assetManager.queryAssets({ ccType: 'cc.SceneAsset', pattern: '!db://internal/default_file_content/**/*' });
+    if (!scenes) {
+        return [];
     }
-    // 场景信息不使用用户修改过的数据，这部分信息和资源相关联数据经常会变化，不存储使用
-    result.scenes = await getCommonOptionDefaultByKey('scenes');
-    if (!(await checkStartScene(result.startScene))) {
-        result.startScene = await getCommonOptionDefaultByKey('startScene');
-    }
-    if (!result.startScene) {
-        console.error(i18n.t('builder.error.invalidStartScene'));
-    }
-    result.packages = {};
-    result.platform = platform;
-    return result;
+    const directory = assetManager.queryAssets({ isBundle: true });
+    return scenes.map((asset) => {
+        return {
+            url: asset.url,
+            uuid: asset.uuid,
+            bundle: directory.find((dir) => asset.url.startsWith(dir.url + '/'))?.url || '',
+        };
+    });
 }
 
-export async function getCommonOptionDefaultByKey(key: string, options?: IBuildTaskOption) {
-    switch (key) {
-        case 'scenes':
-            {
-                const scenes = assetManager.queryAssets({ ccType: 'cc.SceneAsset', pattern: '!db://internal/default_file_content/**/*' });
-                if (!scenes) {
-                    return [];
-                }
-                const directory = assetManager.queryAssets({ isBundle: true });
-                return scenes.map((asset) => {
-                    return {
-                        url: asset.url,
-                        uuid: asset.uuid,
-                        bundle: directory.find((dir) => asset.url.startsWith(dir.url + '/'))?.url,
-                    };
-                });
-            }
-        case 'startScene':
-            {
-                const scenes: IInternalBuildSceneItem[] = await getCommonOptionDefaultByKey('scenes');
-                const realScenes = scenes.filter((item: any) => !item.bundle);
-                return realScenes[0] && realScenes[0].uuid;
-            }
-        default:
-            return getConfig(`common.${key}`);
-    }
+export async function getDefaultStartScene() {
+    const scenes = await getDefaultScenes();
+    const realScenes = scenes.filter((item: any) => !item.bundle);
+    return realScenes[0] && realScenes[0].uuid;
 }
 
 export async function checkBuildCommonOptionsByKey(key: string, value: any, options: IBuildTaskOption): Promise<BuildCheckResult | null> {
@@ -540,7 +505,7 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
                 const error = await checkScenes(value) || false;
                 if (error instanceof Error) {
                     res.error = error.message;
-                    res.newValue = await getCommonOptionDefaultByKey('scenes');
+                    res.newValue = await getDefaultScenes();
                 }
                 return res;
             }
@@ -552,7 +517,7 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
                 }
 
                 if (res.error) {
-                    res.newValue = await getCommonOptionDefaultByKey('startScene');
+                    res.newValue = await getDefaultStartScene();
                 }
                 return res;
             }
@@ -643,8 +608,10 @@ function checkIncludeChineseAndSymbol(value: string) {
 }
 
 export async function checkBuildCommonOptions(options: any) {
-    const commonOptions = getConfig('common', true);
+    const commonOptions = getBuildCommonOptions();
     const checkResMap: Record<string, BuildCheckResult> = {};
+    // const checkKeys = Array.from(new Set(Object.keys(commonOptions).concat(Object.keys(options))))
+    // 正常来说应该检查默认值和 options 整合的 key
     for (const key of Object.keys(commonOptions)) {
         checkResMap[key] = await checkBuildCommonOptionsByKey(key, options[key], options) || { newValue: options[key], error: '', level: 'error' };
     }
@@ -701,17 +668,14 @@ export function handleOverwriteProjectSettings(options: IBuildTaskOption) {
 }
 
 export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {
+    const { designResolution, renderPipeline, physicsConfig, customLayers, sortingLayers, macroConfig, includeModules } = engine.getConfig();
     // 默认 Canvas 设置
     if (!options.designResolution) {
-        const designResolution = await configurationManager.get<IBuildDesignResolution>('project.general.designResolution');
-        if (designResolution) {
-            options.designResolution = designResolution;
-        }
+        options.designResolution = designResolution;
     }
 
     // renderPipeline
     if (!options.renderPipeline) {
-        const renderPipeline = await configurationManager.get<string>('project.general.renderPipeline');
         if (renderPipeline) {
             options.renderPipeline = renderPipeline;
         }
@@ -719,26 +683,19 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // physicsConfig
     if (!options.physicsConfig) {
-        const physicsConfig = await configurationManager.get<IPhysicsConfig>('project.physics');
-        if (physicsConfig) {
-            options.physicsConfig = physicsConfig;
-            if (!options.physicsConfig.defaultMaterial) {
-                options.physicsConfig.defaultMaterial = 'ba21476f-2866-4f81-9c4d-6e359316e448';
-            }
+        options.physicsConfig = physicsConfig;
+        if (!options.physicsConfig.defaultMaterial) {
+            options.physicsConfig.defaultMaterial = 'ba21476f-2866-4f81-9c4d-6e359316e448';
         }
     }
 
     // customLayers
     if (!options.customLayers) {
-        const customLayers = await configurationManager.get<{ name: string, value: number }[]>('project.layer');
-        if (customLayers) {
-            options.customLayers = customLayers;
-        }
+        options.customLayers = customLayers;
     }
 
     // sortingLayers
     if (!options.sortingLayers) {
-        const sortingLayers = await configurationManager.get<{ id: number, name: string, value: number }[]>('project.sorting-layer');
         if (sortingLayers) {
             options.sortingLayers = sortingLayers;
         }
@@ -746,39 +703,13 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // macro 配置
     if (!options.macroConfig) {
-        const macroConfig = await configurationManager.get<Record<string, any>>('engine.macroConfig');
         if (macroConfig) {
             options.macroConfig = macroConfig;
         }
     }
 
     if (!options.includeModules || !options.includeModules.length) {
-        options.includeModules = [
-            '2d',
-            'affine-transform',
-            'animation',
-            'audio',
-            'base',
-            'custom-pipeline',
-            'dragon-bones',
-            'gfx-webgl',
-            'graphics',
-            'intersection-2d',
-            'mask',
-            'particle-2d',
-            'physics-2d-box2d',
-            'profiler',
-            'rich-text',
-            'skeletal-animation',
-            'spine-3.8',
-            'tiled-map',
-            'tween',
-            'ui',
-            'ui-skew',
-            'video',
-            'websocket',
-            'webview'
-        ];
+        options.includeModules = includeModules;
     }
 
     if (!options.flags) {

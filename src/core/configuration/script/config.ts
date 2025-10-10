@@ -1,6 +1,5 @@
 import * as utils from './utils';
 import { ConfigurationScope, MessageType } from './interface';
-import { defaultConfigMap } from '../configs';
 import { EventEmitter } from 'events';
 
 type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
@@ -66,9 +65,8 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
         super();
     }
 
-    public getDefaultConfig(): Record<string, any> | undefined {
-        // TODO 后续 defaultConfigMap 这个可以删除
-        return this.defaultConfigs || defaultConfigMap[this.moduleName];
+    public getDefaultConfig(): Record<string, any> {
+        return this.defaultConfigs || {};
     }
 
     public getAll(scope: ConfigurationScope = 'project'): Record<string, any> | undefined {
@@ -79,6 +77,9 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
     }
 
     public async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
+        if (!key) {
+            return utils.deepMerge(this.getDefaultConfig(), this.configs);
+        }
         const projectConfig = utils.getByDotPath(this.configs, key);
         const hasProjectValue = projectConfig !== undefined;
 
@@ -120,7 +121,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
 
     public async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
         let removed = false;
-        
+
         if (scope === 'default') {
             // 从默认配置中移除
             if (this.defaultConfigs) {
@@ -133,7 +134,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
                 await this.save();
             }
         }
-        
+
         return removed;
     }
 

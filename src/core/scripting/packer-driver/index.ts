@@ -7,7 +7,7 @@ import { makePrerequisiteImportsMod, makeTentativePrerequisiteImports, prerequis
 import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
 import { StatsQuery } from '@cocos/ccbuild';
 import { asserts } from '../utils/asserts';
-import { querySharedSettings, SharedSettings } from '../shared/query-shared-settings';
+import { querySharedSettings, scriptConfig, SharedSettings } from '../shared/query-shared-settings';
 import { Logger } from '@cocos/creator-programming-common/lib/logger';
 import { QuickPack } from '@cocos/creator-programming-quick-pack/lib/quick-pack';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
@@ -112,6 +112,8 @@ export class PackerDriver {
      * 创建 Packer 驱动器。
      */
     public static async create(projectPath: string, engineTsPath: string) {
+
+        await scriptConfig.init();
         const tsBuilder = new TypeScriptConfigBuilder(projectPath, engineTsPath);
         PackerDriver._cceModuleMap = PackerDriver.queryCCEModuleMap();
         const baseWorkspace = ps.join(tsBuilder.getTempPath(), 'programming', 'packer-driver');
@@ -551,7 +553,7 @@ export class PackerDriver {
             },
         };
 
-        const previewBrowsersListConfigFile = await configurationManager.get('project.script.previewBrowserslistConfigFile') as string;
+        const previewBrowsersListConfigFile = await scriptConfig.getProject('previewBrowserslistConfigFile') as string;
         if (previewBrowsersListConfigFile && previewBrowsersListConfigFile !== 'project://') {
             const previewBrowsersListConfigFilePath = url2path(previewBrowsersListConfigFile as string);
             try {
@@ -909,7 +911,7 @@ class PackTarget {
         // Update the import main module
         const prerequisiteImports = await this._getPrerequisiteAssetModsWithFilter();
         const source = (this._tentativePrerequisiteImportsMod ? makeTentativePrerequisiteImports : makePrerequisiteImportsMod)(prerequisiteImports);
-        
+
         console.time('update entry mod');
         if (OPTIMIZE_ENTRY_SOURCE_COMPILATION) {
             // 注意：.source 是一个 setter，其内部会更新 timestamp，导致每次都重新编译入口文件，如果项目比较大，入口文件的编译会非常耗时。

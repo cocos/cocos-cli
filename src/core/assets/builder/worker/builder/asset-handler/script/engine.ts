@@ -20,9 +20,9 @@ import { parseMangleConfig } from './mangle-config-parser';
 import { defaultMangleConfig } from './default-mangle-config';
 import { StatsQuery } from '@cocos/ccbuild';
 import { IBuildEngineParam, IInternalBuildOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult } from '../../../../@types/protected';
-import { BuildGlobalInfo } from '../../../../share/global';
 import utils from '../../../../../../base/utils';
 import { relativeUrl } from '../../utils';
+import { BuildGlobalInfo } from '../../../../share/builder-config';
 
 // 存储引擎复用参数的文件
 const EngineCacheName = 'engine-cache';

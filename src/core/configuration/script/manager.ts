@@ -14,27 +14,27 @@ export interface IConfigurationManager {
      */
     initialize(projectPath: string): Promise<void>;
 
-    /**
-     * 获取配置
-     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
-     * @param scope 配置作用域，不指定时按优先级查找
-     */
-    get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
+    // /**
+    //  * 获取配置
+    //  * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
+    //  * @param scope 配置作用域，不指定时按优先级查找
+    //  */
+    // get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
 
-    /**
-     * 设置配置
-     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
-     * @param value 新的配置值
-     * @param scope 配置作用域，默认为 'project'
-     */
-    set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+    // /**
+    //  * 设置配置
+    //  * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
+    //  * @param value 新的配置值
+    //  * @param scope 配置作用域，默认为 'project'
+    //  */
+    // set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
 
-    /**
-     * 移除配置
-     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
-     * @param scope 配置作用域，默认为 'project'
-     */
-    remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
+    // /**
+    //  * 移除配置
+    //  * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
+    //  * @param scope 配置作用域，默认为 'project'
+    //  */
+    // remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 }
 
 export class ConfigurationManager implements IConfigurationManager {
@@ -114,19 +114,19 @@ export class ConfigurationManager implements IConfigurationManager {
         if (!utils.isValidConfigKey(key)) {
             throw new Error('配置键名不能为空');
         }
-        
+
         const parts = key.split('.');
         if (parts.length < 2) {
             throw new Error('配置键名格式错误，必须包含模块名，如 "module.key"');
         }
-        
+
         const moduleName = parts[0];
         const actualKey = parts.slice(1).join('.');
-        
+
         if (!actualKey || actualKey.trim() === '') {
             throw new Error('配置键名不能为空');
         }
-        
+
         return { moduleName, actualKey };
     }
 
@@ -149,7 +149,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    public async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
+    protected async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
@@ -165,7 +165,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param value 新的配置值
      * @param scope 配置作用域，默认为 'project'
      */
-    public async set<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
+    protected async set<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
@@ -181,7 +181,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，默认为 'project'
      */
-    public async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
+    protected async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
@@ -222,7 +222,11 @@ export class ConfigurationManager implements IConfigurationManager {
      * 保存项目配置
      */
     private async save(): Promise<void> {
+        if (!Object.keys(this.projectConfig).length) {
+            return;
+        }
         try {
+            this.projectConfig.version = ConfigurationManager.VERSION;
             // 确保目录存在
             await fse.ensureDir(path.dirname(this.configPath));
 

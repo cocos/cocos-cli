@@ -1,4 +1,5 @@
 type IFlags = Record<string, boolean | number>;
+export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
 
 interface IPhysicsConfig {
     gravity: IVec3Like; // （0，-10， 0）
@@ -50,15 +51,51 @@ export type MacroItem = {
     key: string;
     value: boolean;
 }
+export interface ISplashBackgroundColor {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
+export interface ISplashSetting {
+    displayRatio: number;
+    totalTime: number;
+    watermarkLocation: 'default' | 'topLeft' | 'topRight' | 'topCenter' | 'bottomLeft' | 'bottomCenter' | 'bottomRight';
+    autoFit: boolean;
+
+    logo?: {
+        type: 'default' | 'none' | 'custom';
+        image?: string;
+        base64?: string;
+    }
+    background?: {
+        type: 'default' | 'color' | 'custom';
+        color?: ISplashBackgroundColor;
+        image?: string;
+        base64?: string;
+    }
+}
+
+/**
+ * 构建使用的设计分辨率数据
+ */
+export interface IDesignResolution {
+    height: number;
+    width: number;
+    fitWidth?: boolean;
+    fitHeight?: boolean;
+    policy?: number;
+}
+
 /**
  * TODO 引擎配置文件
  */
 export interface EngineConfig {
-    includedModules: string[];
-    physics: IPhysicsConfig;
+    includeModules: string[];
+    physicsConfig: IPhysicsConfig;
     macroConfig?: Record<string, string | number | boolean>;
     sortingLayers: { id: number, name: string, value: number }[];
-    layers: { name: string, value: number }[];
+    customLayers: { name: string, value: number }[];
     flags?: IFlags;
     renderPipeline?: string;
     // 是否使用自定义管线，如与其他模块配置不匹配将会以当前选项为准
@@ -68,6 +105,9 @@ export interface EngineConfig {
     macroCustom: MacroItem[];
 
     customJointTextureLayouts: ICustomJointTextureLayout[];
+    designResolution: IDesignResolution;
+    splashScreen: ISplashSetting;
+    downloadMaxConcurrency: number;
 }
 
 

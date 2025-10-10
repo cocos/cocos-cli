@@ -7,9 +7,9 @@ import { buildAssetLibrary } from '../../manager/asset-library';
 import * as HashUuid from '../../utils/hash-uuid';
 import { IAsset } from '../../../../../@types/protected';
 import { IPackOptions, IPacInfo, PacStoreInfo, IPackResult, CompressedInfo, IAtlasInfo, ISpriteFrameInfo } from '../../../../@types/protected';
-import { BuildGlobalInfo } from '../../../../share/global';
 import utils from '../../../../../../base/utils';
 import lodash from 'lodash';
+import { BuildGlobalInfo } from '../../../../share/builder-config';
 
 export const DefaultPackOption: IPackOptions = {
     maxWidth: 1024,

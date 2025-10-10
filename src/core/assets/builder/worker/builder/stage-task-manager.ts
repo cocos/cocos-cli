@@ -2,12 +2,11 @@ import { join } from 'path';
 import { readJSONSync, emptyDirSync, existsSync, outputJSON } from 'fs-extra';
 import { workerManager } from '../worker-pools/sub-process-manager';
 import { BuildTaskBase } from './manager/task-base';
-import { BuildGlobalInfo } from '../../share/global';
 import { newConsole } from '../../../../base/console';
 import { IBuildTaskOption } from '../../@types';
 import { IBuildHooksInfo, IBuildStageTask, IBuildStageItem } from '../../@types/protected';
+import { BuildGlobalInfo } from '../../share/builder-config';
 
-const tempDir = join(BuildGlobalInfo.projectTempDir, 'builder', 'compile');
 
 export interface IBuildStageConfig extends IBuildStageItem {
     root: string;
@@ -44,13 +43,7 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
         newConsole.trackTimeStart(trickTimeLabel);
         this.updateProcess('init options success', 0.1);
 
-        emptyDirSync(tempDir);
-        // let optionsCachePath = join(this.root, BuildGlobalInfo.buildOptionsFileName);
-        // let hasOptionsCache = existsSync(optionsCachePath);
-        // let tempOptionsCachePath = join(tempDir, basename(this.root), BuildGlobalInfo.buildOptionsFileName);
-        // if (hasOptionsCache) {
-        //     moveSync(optionsCachePath, tempOptionsCachePath);
-        // }
+        emptyDirSync(join(BuildGlobalInfo.projectTempDir, 'builder', 'compile'));
 
         try {
             for (const taskName of Object.keys(this.hookMap)) {

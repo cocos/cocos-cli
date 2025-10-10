@@ -7,6 +7,7 @@ import { PackerDriver } from "../../scripting/packer-driver";
 import { Executor } from '@editor/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { assetManager } from "../manager/asset";
+import { scriptConfig } from "../../scripting/shared/query-shared-settings";
 
 export const title = 'i18n:builder.tasks.load_script';
 
@@ -53,6 +54,7 @@ const globalEnv = new GlobalEnv();
 
 class ScriptManager {
 
+
     private _executor!: Executor;
 
     /**
@@ -84,7 +86,7 @@ class ScriptManager {
                 const serializedPackLoaderContext = packerDriver.getQuickPackLoaderContext('editor')!.serialize();
                 const quickPackLoaderContext = QuickPackLoaderContext.deserialize(serializedPackLoaderContext);
                 const { loadDynamic } = await import('cc/preload');
-                
+
                 const cceModuleMap = PackerDriver.queryCCEModuleMap();
                 executor = await Executor.create({
                     // @ts-ignore
@@ -97,7 +99,7 @@ class ScriptManager {
                 globalThis.self = window;
                 executor.addPolyfillFile(require.resolve('@editor/build-polyfills/prebuilt/editor/bundle'));
             }
-    
+
             if (!executor) {
                 console.error('Failed to init executor');
                 return;

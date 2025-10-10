@@ -1,6 +1,5 @@
 import { Asset } from '@editor/asset-db';
 import { makeDefaultTextureBaseAssetUserData } from './texture-base';
-import { migratePlatformSettings } from './image/migrations';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
@@ -78,23 +77,6 @@ const AutoAtlasHandler: AssetHandler = {
          * 数据迁移
          */
         migrations: [
-            {
-                version: '1.0.5',
-                migrate: migratePlatformSettings,
-            },
-            {
-                version: '1.0.6',
-                migrate: (asset: Asset) => {
-                    const userData = asset.userData as IAutoAtlasUserData;
-                    ['removeTextureInBundle', 'removeImageInBundle', 'removeSpriteAtlasInBundle'].forEach((key) => {
-                        // @ts-ignore
-                        if (typeof userData[key] !== 'boolean') {
-                            // @ts-ignore
-                            userData[key] = false;
-                        }
-                    });
-                },
-            },
             {
                 version: '1.0.8',
                 migrate: (asset: Asset) => {

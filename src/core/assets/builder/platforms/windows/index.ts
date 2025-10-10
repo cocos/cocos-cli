@@ -3,8 +3,8 @@
 import { basename } from 'path';
 import { executableNameOrDefault } from './utils';
 import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { BuildGlobalInfo } from '../../share/global';
 import { commonOptions, serverOptions } from '../native-common';
+import { BuildGlobalInfo } from '../../share/builder-config';
 
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
@@ -39,7 +39,7 @@ const config: IPlatformBuildPluginConfig = {
             render: {
                 ui: 'ui-input',
                 attributes: {
-                    placeholder: executableNameOrDefault(basename(BuildGlobalInfo.projectRoot)),
+                    placeholder: executableNameOrDefault(BuildGlobalInfo.projectName),
                 },
             },
             verifyRules: ['executableName'],

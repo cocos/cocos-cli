@@ -13,3 +13,6 @@ export interface EngineInfo {
     tmpDir: string;
     version: string;
 }
+
+export * from './config';
+export * from './modules';

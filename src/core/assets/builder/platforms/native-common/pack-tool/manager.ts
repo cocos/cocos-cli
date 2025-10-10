@@ -1,8 +1,8 @@
 
-import { CocosParams, NativePackTool } from "./default";
+import { NativePackTool } from "./default";
 
 export type ISupportPlatform = 'mac-os' | 'mac' | 'ios' | 'android' | 'google-play' | 'ohos';
-const platformPackToolMap: Record<string, () => typeof NativePackTool>  = {
+const platformPackToolMap: Record<string, () => typeof NativePackTool> = {
     ios: () => {
         return require('../platforms/ios').IOSPackTool;
     },
@@ -58,16 +58,16 @@ export class NativePackToolManager {
         return PackTool;
     }
 
-    async openWithIDE(platform: string, projectPath: string, IDEDir?: string) { 
-        const tool = NativePackToolManager.getPackTool(platform); 
-        if (!tool.openWithIDE) { 
-            return false; 
-        } 
-        await tool.openWithIDE(projectPath, IDEDir); 
-        return true; 
+    async openWithIDE(platform: string, projectPath: string, IDEDir?: string) {
+        const tool = NativePackToolManager.getPackTool(platform);
+        if (!tool.openWithIDE) {
+            return false;
+        }
+        await tool.openWithIDE(projectPath, IDEDir);
+        return true;
     }
 
-    init(params:any) {
+    init(params: any) {
         const tool = this.getTool(params.platform);
         tool.init(params);
         return tool;

@@ -4,8 +4,8 @@ import { remove, existsSync, readJSON, readdirSync, statSync, writeFileSync, ens
 import { join, dirname } from 'path';
 import { CocosParams, NativePackTool } from '../pack-tool/default';
 import { NativePackToolManager } from '../pack-tool/manager';
-import { ITaskOption } from '../interface';
 import { GlobalPaths } from '../../../../../../global';
+import { IBuildTaskOption } from '../../../@types';
 
 const babelify = require('babelify');
 const browserify = require('browserify');
@@ -174,11 +174,11 @@ class PackToolHandler {
 export const packToolHandler = new PackToolHandler();
 
 // 支持中文的平台如果有修改，需要同步到 configs
-export function acceptChineseName(options: ITaskOption) {
+export function acceptChineseName(options: IBuildTaskOption) {
     return ['mac', 'ios', 'windows', 'android'].includes(options.platform);
 }
 
-export function checkName(value: string, options: ITaskOption) {
+export function checkName(value: string, options: IBuildTaskOption) {
     if (acceptChineseName(options)) {
         return /^[\u4e00-\u9fa5A-Za-z0-9-_]+$/.test(value);
     } else {

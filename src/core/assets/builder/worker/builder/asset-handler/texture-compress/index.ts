@@ -12,15 +12,15 @@ import { cpus } from 'os';
 const numCPUs = cpus().length;
 import Sharp from 'sharp';
 import Lodash from 'lodash';
-import { formatMSTime, getConfig } from '../../../../share/utils';
+import { formatMSTime } from '../../../../share/utils';
 import { newConsole } from '../../../../../../base/console';
 import { ICustomConfig, ITextureCompressFormatType, AllTextureCompressConfig, UserCompressConfig, ICompressConfig } from '../../../../@types';
 import { IBuildAssetHandlerInfo } from '../../../../@types/private';
 import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
-import { BuildGlobalInfo } from '../../../../share/global';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';
 import { configurationManager } from '../../../../../../configuration';
+import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
 interface CompressCacheInfo {
     option: {
         mtime: number | string;
@@ -76,7 +76,7 @@ export class TextureCompress extends EventEmitter {
         } else {
             TextureCompress.storedCompressInfo = {};
         }
-        TextureCompress.enableMipMaps = !!(await configurationManager.get<boolean>('builder.textureCompressConfig.genMipmaps'));
+        TextureCompress.enableMipMaps = !!(await builderConfig.getProject<boolean>('textureCompressConfig.genMipmaps'));
     }
 
     async init() {
@@ -89,7 +89,7 @@ export class TextureCompress extends EventEmitter {
     async updateUserConfig() {
         await TextureCompress.initCommonOptions();
         // 查询纹理压缩配置等
-        TextureCompress.userCompressConfig = await configurationManager.get<UserCompressConfig>('builder.textureCompressConfig') as UserCompressConfig;
+        TextureCompress.userCompressConfig = await builderConfig.getProject<UserCompressConfig>('textureCompressConfig') as UserCompressConfig;
         const { customConfigs } = TextureCompress.userCompressConfig;
         // 收集目前已有配置内会覆盖现有格式的配置集合
         const overwriteFormats: Record<string, string> = {};
@@ -639,7 +639,7 @@ function increaseCustomCompressNum(config: ICustomConfig) {
 
 
 export async function queryAllCompressConfig(): Promise<AllTextureCompressConfig> {
-    const customConfig: Record<string, ICustomConfig> = await getConfig('textureCompressConfig.customConfigs');
+    const customConfig: Record<string, ICustomConfig> = await builderConfig.getProject('textureCompressConfig.customConfigs');
     const customFormats: Record<string, ITextureFormatInfo> = {};
     if (customConfig && Object.keys(customConfig).length) {
         for (const config of Object.values(customConfig)) {

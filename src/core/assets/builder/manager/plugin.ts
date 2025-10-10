@@ -1,18 +1,18 @@
 import EventEmitter from 'events';
 import { dirname, isAbsolute, join, resolve } from 'path';
-import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting, commonOptionConfigs, getCommonOptions } from '../share/common-options-validator';
+import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting, commonOptionConfigs } from '../share/common-options-validator';
 import { builtinPlugins, NATIVE_PLATFORM, platformPlugins, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
-import { checkConfigDefault, defaultMerge, defaultsDeep, getConfig, getOptionsDefault, resolveToRaw, setConfig } from '../share/utils';
+import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
 import { Platform, IConfigItem, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
 import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IPlatformInfo, IBuildStageItem, IBuildIconItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired } from '../@types/protected';
 import Utils from '../../../base/utils';
 import i18n from '../../../base/i18n';
 import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
-import { BuildGlobalInfo } from '../share/global';
 import utils from '../../../base/utils';
 import { newConsole } from '../../../base/console';
+import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from '../share/builder-config';
 export interface InternalPackageInfo {
     name: string; // 插件名
     path: string; // 插件路径
@@ -60,7 +60,6 @@ export class PluginManager extends EventEmitter {
 
     private enablePlatforms: Platform[] = [];
 
-
     constructor() {
         super();
         const compsMap: any = {};
@@ -72,13 +71,12 @@ export class PluginManager extends EventEmitter {
         });
     }
 
-    async init(platforms: Platform[]) {
+    async init() {
         const platformMap: Record<string, Object> = {};
-        platforms.forEach((platform) => platformMap[platform] = {});
-        BuildGlobalInfo.platforms = platforms;
+        BuildGlobalInfo.platforms.forEach((platform) => platformMap[platform] = {});
         this.platformConfig = JSON.parse(JSON.stringify(platformMap));
         this.configMap = JSON.parse(JSON.stringify(platformMap));
-        await Promise.all(platforms.map(async (platform) => {
+        await Promise.all(BuildGlobalInfo.platforms.map(async (platform) => {
             const config = (await import(`../platforms/${platform}`));
             const platformRoot = join(__dirname, `../platforms/${platform}`);
             await this.internalRegister({
@@ -177,7 +175,7 @@ export class PluginManager extends EventEmitter {
             Object.keys(config.options).forEach((key) => {
                 checkConfigDefault(config.options![key]);
             });
-            setConfig(`options.${platform}.${pkgName}`, getOptionsDefault(config.options));
+            await builderConfig.setProject(`platforms.${platform}.packages.${platform}`, getOptionsDefault(config.options), 'default');
         }
 
         if (config.customBuildStages) {
@@ -269,7 +267,7 @@ export class PluginManager extends EventEmitter {
     }
 
     public getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IConfigItem | null {
-        const config = this.commonOptionConfig[options.platform] && this.commonOptionConfig[options.platform][key] || {};
+        const config = this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key] || {};
         if (commonOptionConfigs[key]) {
             const defaultConfig = JSON.parse(JSON.stringify(commonOptionConfigs[key]));
             lodash.defaultsDeep(config, defaultConfig);
@@ -284,7 +282,7 @@ export class PluginManager extends EventEmitter {
         if (!key || !pkgName) {
             return null;
         }
-        const configs = this.pkgOptionConfigs[options.platform][pkgName];
+        const configs = this.pkgOptionConfigs[options.platform as Platform][pkgName];
         if (!configs) {
             return null;
         }
@@ -311,8 +309,8 @@ export class PluginManager extends EventEmitter {
     public async checkOptions(options: MakeRequired<IBuildCommandOption, 'platform' | 'mainBundleCompressionType'>): Promise<undefined | IBuildTaskOption> {
         // 对参数做数据验证
         let checkRes = true;
-        if (this.bundleConfigs[options.platform]) {
-            const supportedCompressionTypes = this.bundleConfigs[options.platform].supportOptions.compressionType;
+        if (this.bundleConfigs[options.platform as Platform]) {
+            const supportedCompressionTypes = this.bundleConfigs[options.platform as Platform].supportOptions.compressionType;
             const compressionTypeResult = await checkBundleCompressionSetting(options.mainBundleCompressionType, supportedCompressionTypes);
             const isValid = validator.checkWithInternalRule('valid', compressionTypeResult.newValue);
             if (isValid) {
@@ -410,7 +408,7 @@ export class PluginManager extends EventEmitter {
             value,
             config.verifyRules!,
             options,
-            this.commonOptionConfig[options.platform] && this.commonOptionConfig[options.platform][key]?.verifyKey || (options.platform + options.platform),
+            this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key]?.verifyKey || (options.platform + options.platform),
         );
         return {
             error,
@@ -429,12 +427,12 @@ export class PluginManager extends EventEmitter {
         }
         let checkRes = true;
         for (const pkgName of Object.keys(options.packages)) {
-            const packageOptions: any = options.packages![pkgName];
+            const packageOptions = options.packages[pkgName as Platform];
             if (!packageOptions) {
                 continue;
             }
 
-            const buildConfig = pluginManager.configMap[options.platform][pkgName];
+            const buildConfig = pluginManager.configMap[options.platform as Platform][pkgName];
             if (!buildConfig || !buildConfig.options) {
                 continue;
             }
@@ -448,7 +446,7 @@ export class PluginManager extends EventEmitter {
                     value,
                     buildConfig.options[key].verifyRules!,
                     options,
-                    pluginManager.commonOptionConfig[options.platform][key]?.verifyKey || (options.platform + pkgName),
+                    pluginManager.commonOptionConfig[options.platform as Platform][key]?.verifyKey || (options.platform + pkgName),
                 );
                 if (!error) {
                     continue;
@@ -460,7 +458,7 @@ export class PluginManager extends EventEmitter {
                         buildConfig.options[key].default,
                         buildConfig.options[key].verifyRules!,
                         options,
-                        pluginManager.commonOptionConfig[options.platform][key]?.verifyKey || (options.platform + pkgName),
+                        pluginManager.commonOptionConfig[options.platform as Platform][key]?.verifyKey || (options.platform + pkgName),
                     ));
                 }
                 const verifyLevel: IConsoleType = buildConfig.options[key].verifyLevel || 'error';
@@ -496,16 +494,8 @@ export class PluginManager extends EventEmitter {
      * @param platform
      */
     public async getOptionsByPlatform(platform: Platform) {
-        const commonOptions = await getCommonOptions(platform);
-        const options: any = {
-            packages: {},
-            ...commonOptions,
-        };
-        const pkgNames = Object.keys(this.configMap[platform]);
-        for (const pkgName of pkgNames) {
-            options.packages[pkgName] = getConfig(`options.${platform}.${pkgName}`);
-        }
-        return options;
+        const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
+        return Object.assign(getBuildCommonOptions(), options);
     }
 
     public getTexturePlatformConfigs(): Record<string, ITextureCompressConfig> {

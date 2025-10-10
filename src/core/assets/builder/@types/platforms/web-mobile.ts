@@ -1,4 +1,4 @@
-import { IInternalBuildOptions, InternalBuildResult, IBuildPaths } from "../../@types/protected";
+import { IInternalBuildOptions, InternalBuildResult, IBuildPaths } from "../protected";
 
 export type IOrientation = 'auto' | 'landscape' | 'portrait';
 export interface IOptions {
@@ -6,12 +6,6 @@ export interface IOptions {
     orientation: IOrientation;
     embedWebDebugger: boolean;
 }
-export interface ITaskOption extends IInternalBuildOptions {
-    packages: {
-        'web-mobile': IOptions;
-    }
-}
-
 export interface IBuildResult extends InternalBuildResult {
     paths: IPaths;
 }

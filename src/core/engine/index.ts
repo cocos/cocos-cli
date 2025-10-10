@@ -1,7 +1,8 @@
 import { EngineInfo } from './@types/public';
-import { EngineConfig, InitEngineInfo } from './@types/config';
+import { EngineConfig, InitEngineInfo, MakeRequired } from './@types/config';
 import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
+import { configurationManager, configurationRegistry, IBaseConfiguration } from '../configuration';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -40,31 +41,112 @@ class Engine implements IEngine {
             builtin: '',
         }
     }
-    private _config: EngineConfig = {
-        includedModules: [],
-        physics: {
-            gravity: { x: 0, y: -10, z: 0 },
-            allowSleep: true,
-            sleepThreshold: 0.1,
-            autoSimulation: true,
-            fixedTimeStep: 1 / 60,
-            maxSubSteps: 1,
-            defaultMaterial: '',
-            useNodeChains: true,
-            collisionMatrix: { '0': 1 },
-            physicsEngine: '',
-            physX: {
-                notPackPhysXLibs: false,
-                multiThread: false,
-                subThreadCount: 0,
-                epsilon: 0.0001,
+    private _config: EngineConfig = this.defaultConfig;
+    private _configInstance!: IBaseConfiguration;
+
+    private get defaultConfig(): EngineConfig {
+        return {
+            includeModules: [
+                '2d',
+                '3d',
+                'affine-transform',
+                'animation',
+                'audio',
+                'base',
+                'custom-pipeline',
+                'dragon-bones',
+                'gfx-webgl',
+                'graphics',
+                'intersection-2d',
+                'light-probe',
+                'marionette',
+                'mask',
+                'particle',
+                'particle-2d',
+                'physics-2d-box2d',
+                'physics-ammo',
+                'primitive',
+                'profiler',
+                'rich-text',
+                'skeletal-animation',
+                'spine-3.8',
+                'terrain',
+                'tiled-map',
+                'tween',
+                'ui',
+                'ui-skew',
+                'video',
+                'websocket',
+                'webview'
+            ],
+            flags: {
+                LOAD_BULLET_MANUALLY: false,
+                LOAD_SPINE_MANUALLY: false
             },
-        },
-        highQuality: false,
-        layers: [],
-        sortingLayers: [],
-        macroCustom: [],
-        customJointTextureLayouts: [],
+            physicsConfig: {
+                gravity: { x: 0, y: -10, z: 0 },
+                allowSleep: true,
+                sleepThreshold: 0.1,
+                autoSimulation: true,
+                fixedTimeStep: 1 / 60,
+                maxSubSteps: 1,
+                defaultMaterial: '',
+                useNodeChains: true,
+                collisionMatrix: { '0': 1 },
+                physicsEngine: '',
+                physX: {
+                    notPackPhysXLibs: false,
+                    multiThread: false,
+                    subThreadCount: 0,
+                    epsilon: 0.0001,
+                },
+            },
+            highQuality: false,
+            customLayers: [],
+            sortingLayers: [],
+            macroCustom: [],
+            // TODO 从 engine 内初始化
+            macroConfig: {
+                ENABLE_TILEDMAP_CULLING: true,
+                TOUCH_TIMEOUT: 5000,
+                ENABLE_TRANSPARENT_CANVAS: false,
+                ENABLE_WEBGL_ANTIALIAS: true,
+                ENABLE_FLOAT_OUTPUT: false,
+                CLEANUP_IMAGE_CACHE: false,
+                ENABLE_MULTI_TOUCH: true,
+                MAX_LABEL_CANVAS_POOL_SIZE: 20,
+                ENABLE_WEBGL_HIGHP_STRUCT_VALUES: false,
+                BATCHER2D_MEM_INCREMENT: 144
+            },
+            customJointTextureLayouts: [],
+            splashScreen: {
+                displayRatio: 1,
+                totalTime: 2000,
+                logo: {
+                    type: 'default',
+                    image: ''
+                },
+                background: {
+                    type: 'default',
+                    color: {
+                        'x': 0.0156862745098039,
+                        'y': 0.0352941176470588,
+                        'z': 0.0392156862745098,
+                        'w': 1
+                    },
+                    image: ''
+                },
+                watermarkLocation: 'default',
+                autoFit: true
+            },
+            designResolution: {
+                width: 1280,
+                height: 720,
+                fitWidth: true,
+                fitHeight: false
+            },
+            downloadMaxConcurrency: 15,
+        };
     }
 
     /**
@@ -92,11 +174,13 @@ class Engine implements IEngine {
         return this._info;
     }
 
-    getConfig(useDefault?: boolean) {
+    getConfig(useDefault?: boolean): EngineConfig {
+        if (useDefault) {
+            return this.defaultConfig;
+        }
         if (!this._init) {
             throw new Error('Engine not init');
         }
-        // TODO useDefault
         return this._config;
     }
 
@@ -113,8 +197,9 @@ class Engine implements IEngine {
         this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
         this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
+        this._configInstance = await configurationRegistry.register('engine', this.defaultConfig);
         this._init = true;
-
+        this._config = await this._configInstance.get('');
         return this;
     }
 
@@ -166,14 +251,7 @@ class Engine implements IEngine {
                 break;
             }
         }
-        const { physics, macroConfig, layers, sortingLayers, highQuality } = this.getConfig();
-        const customLayers = layers.map((layer: any) => {
-            const index = layerMask.findIndex((num) => { return layer.value === num; });
-            return {
-                name: layer.name,
-                bit: index,
-            };
-        });
+        const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
         const defaultConfig = {
             debugMode: cc.debug.DebugMode.WARN,
             overrideSettings: {
@@ -181,7 +259,13 @@ class Engine implements IEngine {
                     builtinAssets: [],
                     macros: macroConfig,
                     sortingLayers,
-                    customLayers,
+                    customLayers: customLayers.map((layer: any) => {
+                        const index = layerMask.findIndex((num) => { return layer.value === num; });
+                        return {
+                            name: layer.name,
+                            bit: index,
+                        };
+                    }),
                 },
                 profiling: {
                     showFPS: false,
@@ -195,7 +279,7 @@ class Engine implements IEngine {
                     highQualityMode: highQuality,
                 },
                 physics: {
-                    ...physics,
+                    ...physicsConfig,
                     physicsEngine,
                     enabled: false,
                 },

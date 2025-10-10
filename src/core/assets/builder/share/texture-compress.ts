@@ -1,5 +1,4 @@
 import { ISupportFormat, IConfigGroups, ITextureCompressFormatType, ITextureFormatConfig, ITextureCompressType, ITextureFormatInfo, ICustomConfig, AllTextureCompressConfig } from "../@types";
-import { getConfig } from "./utils";
 
 export const defaultSupport: ISupportFormat = Object.freeze({
     rgb: ['jpg', 'webp'],

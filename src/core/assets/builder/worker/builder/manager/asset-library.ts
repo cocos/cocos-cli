@@ -11,9 +11,9 @@ import { getCCONFormatAssetInLibrary, outputCCONFormat } from '../utils/cconb';
 import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../../../@types/protected';
 import { assetManager } from '../../../../manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../@types/protected';
-import { BuildGlobalInfo } from '../../../share/global';
 import { assetDBManager } from '../../../../manager/asset-db';
 import { transI18n } from '../../../share/utils';
+import { BuildGlobalInfo } from '../../../share/builder-config';
 
 // 版本号记录
 const CACHE_VERSION = '1.0.1';

@@ -17,14 +17,14 @@ import {
     readJSON,
 } from 'fs-extra';
 import { getCmakePath, packToolHandler } from './native-utils';
-import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask } from '../../@types/protected';
-import { ITaskOption, IBuildCache } from './interface';
+import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildResult } from '../../@types/protected';
 import { CocosParams } from './pack-tool/default';
 import i18n from '../../../../base/i18n';
-import { BuildGlobalInfo } from '../../share/global';
+import { BuildGlobalInfo } from '../../share/builder-config';
 import engine from '../../../../engine';
 import { GlobalPaths } from '../../../../../global';
 import { relativeUrl } from '../../worker/builder/utils';
+import { ITaskOption } from '../../@types/platforms/native';
 
 export const throwError = true;
 
@@ -36,7 +36,7 @@ function fixPath(p: string): string {
 }
 
 
-async function genCocosParams(options: ITaskOption, result: IBuildCache): Promise<CocosParams<Object>> {
+async function genCocosParams(options: ITaskOption, result: InternalBuildResult): Promise<CocosParams<Object>> {
     const name = options.name;
     const engineInfo = options.engineInfo;
     const pkg = options.packages;
@@ -133,7 +133,7 @@ export function onBeforeBuild(options: ITaskOption) {
     options.useCache = true;
 }
 
-export async function onAfterInit(options: ITaskOption, result: IBuildCache) {
+export async function onAfterInit(options: ITaskOption, result: InternalBuildResult) {
     // 3.4 在 m1 支持了 physx，这部分代码保留一个版本，3.5 后再移除这部分代码和对应 i18n
     // if (options.platform === 'mac' && options.packages.mac!.supportM1 && options.includeModules.includes('physics-physx')) {
     //     throw new Error(i18n.t('mac.error.m1_with_physic_x'));
@@ -233,7 +233,7 @@ export async function onAfterBundleDataTask(options: ITaskOption, bundles: IBund
  * @param options
  * @param result
  */
-export async function onAfterCompressSettings(this: IBuilder, options: ITaskOption, result: IBuildCache) {
+export async function onAfterCompressSettings(this: IBuilder, options: ITaskOption, result: InternalBuildResult) {
     // const output = result.paths.dir;
     // const args = ['compile', '-p', 'mac', '-m', 'debug', '--compile-script', '0'];
     // await cocos(args, {
@@ -283,7 +283,7 @@ export async function onAfterCompressSettings(this: IBuilder, options: ITaskOpti
  * @param options
  * @param result
  */
-export async function onAfterBuild(options: ITaskOption, result: IBuildCache) {
+export async function onAfterBuild(options: ITaskOption, result: InternalBuildResult) {
     await packToolHandler.runTask('generate', options.cocosParams);
 }
 
