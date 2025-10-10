@@ -47,16 +47,20 @@ export class AssetsApi extends ApiBase {
     @result(SchemeDbDirResult)
     async removeAsset(@param(SchemeDirOrDbPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TDbDirResult> = {
+            code: code,
+            data: { dbPath },
+        };
+
         try {
             await assetOperation.removeAsset(dbPath);
         } catch (e) {
-            code = COMMON_STATUS.FAIL;
+            ret.code = COMMON_STATUS.FAIL;
             console.error('remove asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
         }
-        return {
-            code: code,
-            data: { dbPath }
-        };
+
+        return ret;
     }
 
     @tool('assets-createJsonFile')
@@ -64,39 +68,41 @@ export class AssetsApi extends ApiBase {
     @description('在 Cocos Creator 项目中创建新的 JSON 资源文件。自动生成 UUID 和 .meta 文件，并将文件注册到资源数据库中。支持覆盖已存在的文件。JSON 内容必须是有效的 JSON 格式字符串。')
     @result(SchemeCreateJsonFile)
     async createJsonFile(@param(SchemeJsonStr) jsonStr: TJsonStr, @param(SchemeDirOrDbPath) filePath: TDirOrDbPath): Promise<CommonResultType<TCreateJsonFileResult>> {
-        const retData: TCreateJsonFileResult = {
-            filePath: '',
-            dbPath: '',
-            uuid: '',
-        };
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TCreateJsonFileResult> = {
+            code: code,
+            data: {
+                filePath: '',
+                dbPath: '',
+                uuid: '',
+            },
+        };
+
         try {
             //先判断下，如果不是 json 字符串就先挂为敬
             JSON.parse(jsonStr);
-            let ret = await assetOperation.createAsset({
+            let result = await assetOperation.createAsset({
                 content: jsonStr,
                 target: filePath,
                 overwrite: true
             });
 
-            if (!ret) {
+            if (!result) {
                 throw new Error('create json asset fail');
             }
-            if (Array.isArray(ret)) {
-                ret = ret[0];
+            if (Array.isArray(result)) {
+                result = result[0];
             }
-            retData.filePath = ret!.source;
-            retData.dbPath = ret!.path;
-            retData.uuid = ret!.uuid;
+            ret.data.filePath = result!.source;
+            ret.data.dbPath = result!.path;
+            ret.data.uuid = result!.uuid;
         } catch (e) {
-            code = COMMON_STATUS.FAIL;
+            ret.code = COMMON_STATUS.FAIL;
             console.error('create json asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
         }
 
-        return {
-            code: code,
-            data: retData
-        };
+        return ret;
     }
 
     /**
@@ -108,16 +114,19 @@ export class AssetsApi extends ApiBase {
     @result(SchemeDbDirResult)
     async refresh(@param(SchemeDirOrDbPath) dir: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        try {
-            await assetOperation.refreshAsset(dir);
-        } catch (e) {
-            code = COMMON_STATUS.FAIL;
-            console.error('refresh dir fail:', e);
-        }
-
-        return {
+        const ret: CommonResultType<TDbDirResult> = {
             code: code,
             data: { dbPath: dir },
         };
+
+        try {
+            await assetOperation.refreshAsset(dir);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('refresh dir fail:', e);
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
     }
 }

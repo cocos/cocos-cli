@@ -74,6 +74,7 @@ export function createCommonResult<T extends z.ZodTypeAny>(dataSchema: T) {
 export type CommonResultType<T> = {
     code: HttpStatusCode;
     data: T;
+    reason?: string;//当失败的时候，需要带上 reason 的字段提示错误信息
 };
 
 /**
