@@ -5,11 +5,13 @@ import { EngineApi } from './engine/engine';
 import { AssetsApi } from './assets/assets';
 import { PackDriverApi } from './pack-driver/pack-driver';
 import { SceneApi } from './scene/scene';
+import { BuilderApi } from './builder/builder';
 
 export class CocosAPI {
-    public assetDB: AssetsApi;
+    public assets: AssetsApi;
     public engine: EngineApi;
     public project: ProjectApi;
+    public builder: BuilderApi;
 
     private packDriver: PackDriverApi;
     private configuration: ConfigurationApi;
@@ -23,10 +25,11 @@ export class CocosAPI {
         this.init();
         this.project = new ProjectApi(projectPath);
         this.configuration = new ConfigurationApi(projectPath);
-        this.assetDB = new AssetsApi(projectPath);
+        this.assets = new AssetsApi(projectPath);
         this.packDriver = new PackDriverApi(projectPath, enginePath);
         this.engine = new EngineApi(projectPath, enginePath);
         this.scene = new SceneApi(projectPath, enginePath);
+        this.builder = new BuilderApi();
     }
 
     private init() {
@@ -45,8 +48,9 @@ export class CocosAPI {
             await this.configuration.init();
             await this.project.init();
             await this.engine.init();
-            await this.assetDB.init();
+            await this.assets.init();
             await this.packDriver.init();
+            await this.builder.init();
             await this.scene.init();
         } catch (e) {
             console.error('startup failed', e);

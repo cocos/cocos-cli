@@ -188,7 +188,7 @@ export interface IInternalBundleBuildOptions<P extends Platform = Platform> exte
 export interface IBuildCommandOption<P extends Platform = Platform> extends Partial<IBuildTaskOption<P>> {
     configPath?: string; // 构建配置文件地址
     migrate?: boolean; // 默认关闭，开启后自动迁移传入的配置
-    projectSettingsPath?: string; // 导出的项目设置文件地址
+    // projectSettingsPath?: string; // 导出的项目设置文件地址
     skipCheck?: boolean; // 跳过参数的检查流程
 }
 

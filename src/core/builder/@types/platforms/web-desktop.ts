@@ -3,7 +3,15 @@ import { IInternalBuildOptions, appTemplateData, InternalBuildResult } from "../
 
 
 export interface IOptions {
+    /**
+     * 是否使用 WEBGPU 渲染后端
+     * @default false
+     * @experiment
+     */
     useWebGPU: boolean;
+    /**
+     * 游戏视图分辨率
+     */
     resolution: {
         designHeight: number;
         designWidth: number;

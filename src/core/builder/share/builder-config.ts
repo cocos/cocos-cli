@@ -1,7 +1,6 @@
 import { join } from "path";
 import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from "../../configuration";
 import { IBuildCommonOptions, Platform } from "../@types";
-import { PLATFORMS } from "./platforms-options";
 import { BuildConfiguration } from "../@types/config-export";
 
 export const BuildGlobalInfo = {
@@ -23,7 +22,6 @@ export const BuildGlobalInfo = {
     projectTempDir: '',
     projectName: 'projectName',
 
-    platforms: [] as Platform[],
     debugMode: false,
     isCommand: false,
 
@@ -45,7 +43,6 @@ export function getBuildCommonOptions(): IBuildCommonOptions {
         debug: false,
         mangleProperties: false,
         inlineEnum: true,
-        inlineSpriteFrames: true,
         md5Cache: false,
         mainBundleCompressionType: 'merge_dep',
         mainBundleIsRemote: false,
@@ -228,11 +225,10 @@ class BuilderConfig {
 
     _init = false;
 
-    async init(platforms?: Platform[]) {
+    async init() {
         if (this._init) {
             return;
         }
-        BuildGlobalInfo.platforms = platforms || PLATFORMS
         const project = await import('../../project');
         const projectInfo = project.default.getInfo();
         BuildGlobalInfo.projectName = projectInfo.name;

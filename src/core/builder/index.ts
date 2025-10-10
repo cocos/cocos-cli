@@ -12,7 +12,12 @@ import { removeDbHeader } from "./worker/builder/utils";
 import builderConfig, { BuildGlobalInfo } from "./share/builder-config";
 import engine from "../engine";
 
-export async function build(options: IBuildCommandOption): Promise<BuildExitCode> {
+export async function build(options?: IBuildCommandOption): Promise<BuildExitCode> {
+    await builderConfig.init();
+    if (!options) {
+        options = await pluginManager.getOptionsByPlatform('web-desktop');
+    }
+
     if (options.configPath) {
         if (!existsSync(options.configPath)) {
             console.error(`${options.configPath} is not exist!`);
@@ -32,6 +37,8 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
         console.error('platform is required');
         return BuildExitCode.PARAM_ERROR;
     }
+    // 启动对应的平台模块注册流程
+    await pluginManager.prepare([options.platform!]);
     options.taskId = options.taskId || String(new Date().getTime());
     options.logDest = options.logDest || getTaskLogDest(options.platform, options.taskId);
     options.taskName = options.taskName || options.platform;
@@ -53,9 +60,6 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
         return BuildExitCode.BUILD_FAILED;
     }
 
-    await builderConfig.init([options.platform]);
-    // 启动对应的平台模块注册流程
-    await pluginManager.init();
     // 命令行构建前，补全项目配置数据
     // await checkProjectSettingsBeforeCommand(options);
     let res: IBuildTaskOption<any>;

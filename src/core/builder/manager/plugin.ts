@@ -13,6 +13,7 @@ import { configGroups } from '../share/texture-compress';
 import utils from '../../base/utils';
 import { newConsole } from '../../base/console';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from '../share/builder-config';
+import { existsSync } from 'fs-extra';
 export interface InternalPackageInfo {
     name: string; // 插件名
     path: string; // 插件路径
@@ -60,6 +61,8 @@ export class PluginManager extends EventEmitter {
 
     private enablePlatforms: Platform[] = [];
 
+    private _init = false;
+
     constructor() {
         super();
         const compsMap: any = {};
@@ -71,14 +74,19 @@ export class PluginManager extends EventEmitter {
         });
     }
 
-    async init() {
-        const platformMap: Record<string, Object> = {};
-        BuildGlobalInfo.platforms.forEach((platform) => platformMap[platform] = {});
-        this.platformConfig = JSON.parse(JSON.stringify(platformMap));
-        this.configMap = JSON.parse(JSON.stringify(platformMap));
-        await Promise.all(BuildGlobalInfo.platforms.map(async (platform) => {
-            const config = (await import(`../platforms/${platform}`));
+    async prepare(platforms: Platform[]) {
+        await Promise.allSettled(platforms.map(async (platform) => {
+            if (this.platformConfig[platform] && this.platformConfig[platform].name) {
+                return;
+            }
             const platformRoot = join(__dirname, `../platforms/${platform}`);
+            if (!existsSync(platformRoot)) {
+                console.error(`Platform ${platform} not found`);
+                return;
+            }
+            const config = (await import(platformRoot));
+            this.configMap[platform] = {};
+            this.platformConfig[platform] = {} as IPlatformConfig;
             await this.internalRegister({
                 platform,
                 config: config.default,
@@ -87,74 +95,11 @@ export class PluginManager extends EventEmitter {
         }));
     }
 
-    /*
-     * 注册接口（插件路径写入，默认参数注入，参数校验方法注入）
-     * 兼容旧插件的逻辑
-     */
-    async register(buildPath: string, pkg: { name: string, version: string, path: string }) {
-
-        try {
-            const buildMain = Utils.File.requireFile(buildPath);
-            if (!buildMain.configs) {
-                return false;
-            }
-            if (buildMain.load) {
-                await buildMain.load();
-            }
-            const configs = buildMain.configs;
-            const pkgInfo: InternalPackageInfo = {
-                path: pkg.path,
-                name: pkg.name,
-                buildPath,
-                version: pkg.version,
-            };
-            for (const key of Object.keys(configs)) {
-                const platform = key as Platform;
-                if (!this.enablePlatforms.includes(platform)) {
-                    continue;
-                }
-                const config: IInternalBuildPluginConfig = configs[platform];
-                const registerInfo: IRegisterPlatformInfo = {
-                    platform,
-                    config,
-                    path: pkg.path,
-                };
-                if (key === '*') {
-                    for (const platform of this.enablePlatforms) {
-                        registerInfo.platform = platform;
-                        await this.internalRegister(JSON.parse(JSON.stringify(registerInfo)), pkgInfo);
-                    }
-                    continue;
-                }
-                await this.internalRegister(registerInfo, pkgInfo);
-            }
-            if (buildMain.assetHandlers) {
-                const handles = utils.File.requireFile(resolveToRaw(buildMain.assetHandlers, dirname(buildPath)));
-                for (const key of CustomAssetHandlerTypes) {
-                    if (!handles[key]) {
-                        continue;
-                    }
-                    if (!this.assetHandlers[key]) {
-                        this.assetHandlers[key] = {
-                            [pkg.name]: handles[key],
-                        };
-                    } else {
-                        this.assetHandlers[key][pkg.name] = handles[key];
-                    }
-                }
-            }
-            this.packageRegisterInfo.set(pkg.name, pkgInfo);
-        } catch (error) {
-            console.error(error);
-            console.error(`${pkg.name} register panelInfo failed!`);
-            return false;
-        }
-        return true;
-    }
-
     protected async internalRegister(registerInfo: IRegisterPlatformInfo, pkgInfo?: InternalPackageInfo): Promise<void> {
         const { platform, config, path } = registerInfo;
-
+        if (this.platformConfig[platform] && this.platformConfig[platform].name) {
+            return;
+        }
         const pkgName = pkgInfo?.name || platform;
         // 插件显示顺序需要由 service 提供查询接口
         this.pkgPriorities[pkgName] = config.priority || (builtinPlugins.includes(pkgName) ? 1 : 0);
@@ -495,7 +440,8 @@ export class PluginManager extends EventEmitter {
      */
     public async getOptionsByPlatform(platform: Platform) {
         const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
-        return Object.assign(getBuildCommonOptions(), options);
+        const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
+        return Object.assign(commonOptions, options);
     }
 
     public getTexturePlatformConfigs(): Record<string, ITextureCompressConfig> {
@@ -511,7 +457,7 @@ export class PluginManager extends EventEmitter {
 
     public queryPlatformConfig() {
         return {
-            native: BuildGlobalInfo.platforms.filter((platform) => NATIVE_PLATFORM.includes(platform)),
+            native: Object.keys(this.platformConfig).filter((platform) => NATIVE_PLATFORM.includes(platform as Platform)),
             config: this.platformConfig,
         };
     }

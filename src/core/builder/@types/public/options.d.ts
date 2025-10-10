@@ -75,28 +75,90 @@ export interface IBuildCacheUseConfig {
 }
 
 export interface IBuildCommonOptions {
-    taskId?: string; // 指定构建任务 id，可选
-    logDest?: string; // 任务的指定构建输出地址，可选
+    /**
+     * 构建任务 id 
+     */
+    taskId?: string;
+    /**
+     * 构建任务名称，用于日志表示提示，默认为 outputName 字段值
+     */
+    taskName?: string;
+    /**
+     * 指定的构建日志输出地址
+     */
+    logDest?: string;
+    /**
+     * 游戏名称, 默认为项目名称
+     */
     name: string; // 游戏名称
+    /**
+     * 构建输出名称，默认为平台名称
+     */
     outputName: string;
-    // 构建后的游戏文件夹生成的路径
+    /**
+     * 构建后的游戏生成文件夹
+     */
     buildPath: string;
-    taskName: string;
+    /**
+     * 构建平台
+     * @default 'web-desktop'
+     */
     platform: Platform;
-    scenes: IBuildSceneItem[];
+    /**
+     * 构建场景列表，默认为全部场景
+     */
+    scenes?: IBuildSceneItem[];
+    /**
+     * 是否跳过纹理压缩
+     * @default false
+     */
     skipCompressTexture: boolean;
+    /**
+     * 是否自动合图
+     * @default true
+     */
     packAutoAtlas: boolean;
+    /**
+     * 是否生成 sourceMap
+     * @default false
+     * @description 将已转换的代码映射到源码，以便可以直接查看和调试源码，定位问题。<br><b>【关闭】</b>: 关闭 source map 的生成。这在生产环境中用于减少开发时的资源消耗和提高性能，但会牺牲代码可维护性和调试能力。<br><b>【启用(内联)】</b>: 选择此选项时，source map 信息将作为数据 URI 内联在生成的代码中，通常作为注释。这可以减少 HTTP 请求，但可能会增加生成文件的大小。<br><b>【启用 (独立文件)】</b>: 当用户选择此选项时，将会为转换后的代码生成一个源代码与转换代码之间的映射文件，该文件是独立的，并与主文件分开存储。这有助于在开发工具中跟踪源代码。
+     */
     sourceMaps: boolean | 'inline';
+    /**
+     * 是否使用实验性 eraseModules
+     * @default false
+     */
     experimentalEraseModules: boolean;
+    /**
+     * 在 Bundle 中嵌入公共脚本
+     * @description 在 Bundle 中包含所有依赖的公共脚本，确保 Bundle 可以被跨项目单独加载。此选项仅在只构建 Bundle 时生效，正常构建时将默认禁用。
+     * 【未勾选时】在构建 Bundle 时，会将不同 Bundle 之间公用的一些 helper 之类的内容生成在 src/chunk 内的 bundle.js 内，减少整体脚本的体积。但这样构建出来的 Bundle 是和项目相耦合的，无法跨项目复用。
+     * 【勾选时】不再提取 Bundle 依赖的公共 JS 库内而是直接构建在 Bundle 的内部。这样的 Bundle 可以跨项目使用（因为所需的脚本都在 Bundle 的内部，而引用相同代码的 Bundle 可能会有重复的部分），缺陷是由于脚本资源都在 Bundle 内部，因此最终的 Bundle 体积会增大。
+     */
     bundleCommonChunk: boolean;
 
+    /**
+     * 设置打开游戏后进入的第一个场景，db url 格式
+     * @default 默认为场景列表的第一个场景
+     */
     startScene: string;
-
+    /**
+     * 是否是调试模式
+     * @default false
+     */
     debug: boolean;
     mangleProperties: boolean;
     inlineEnum: boolean; // 内联枚举
-    inlineSpriteFrames: boolean;
+    /**
+     * MD5 缓存
+     * @default false
+     * @description 给构建后的所有资源文件名将加上 MD5 信息，解决 CDN 资源缓存问题
+     */
     md5Cache: boolean;
+    /**
+     * JavaScript Polyfills
+     * @description 实现运行环境并不支持的 JavaScript 标准库
+     */
     polyfills?: IPolyFills;
     buildScriptTargets?: string;
     // bundle 设置
@@ -152,6 +214,7 @@ export interface OverwriteProjectSettings extends EngineConfig {
 export interface IBuildOptionBase extends IBuildCommonOptions, OverwriteProjectSettings {
     engineModulesConfigKey?: string; // 3.8.6 新增的多模块裁切
     useCacheConfig?: IBuildCacheUseConfig;
+    taskName: string;
 }
 
 export interface BundleFilterConfig {
