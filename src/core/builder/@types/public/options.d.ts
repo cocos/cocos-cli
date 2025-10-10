@@ -245,7 +245,10 @@ export type Platform =
     | 'mac'
     | 'ios'
     | 'linux'
+<<<<<<< HEAD:src/core/assets/builder/@types/public/options.d.ts
     // | 'ios-app-clip'
+=======
+>>>>>>> 9893fb5 (move core/assets/builder -> core/builder):src/core/builder/@types/public/options.d.ts
     | 'android'
     | 'google-play'
     | 'ohos'
@@ -256,6 +259,7 @@ export type Platform =
     | 'bytedance-mini-game'
     | 'cocos-play'
     | 'huawei-agc'
+<<<<<<< HEAD:src/core/assets/builder/@types/public/options.d.ts
     | 'link-sure'
     | 'qtt'
     | 'fb-instant-games'
@@ -281,6 +285,9 @@ export type Platform =
     | 'xr-lenovo'
     | 'android-hmi'
     | 'platform-example'
+=======
+    | 'fb-instant-games'
+>>>>>>> 9893fb5 (move core/assets/builder -> core/builder):src/core/builder/@types/public/options.d.ts
     ;
 export type BundleCompressionType = 'none' | 'merge_dep' | 'merge_all_json' | 'subpackage' | 'zip';
 
