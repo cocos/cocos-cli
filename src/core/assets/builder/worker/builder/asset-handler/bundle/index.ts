@@ -126,7 +126,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
     static async create(options: IBuildTaskOption, task?: IBuilder) {
         if (!options.skipCompressTexture) {
             const { TextureCompress } = await import('../texture-compress');
-            const imageCompressManager = new TextureCompress(options.platform, options.useBuildTextureCompressCache);
+            const imageCompressManager = new TextureCompress(options.platform, options.useCacheConfig?.textureCompress);
             return new BundleManager(options, imageCompressManager, task);
         }
         return new BundleManager(options, null, task);

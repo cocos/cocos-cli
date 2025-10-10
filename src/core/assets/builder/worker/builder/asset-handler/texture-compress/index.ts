@@ -61,12 +61,12 @@ export class TextureCompress extends EventEmitter {
     _waitingCompressQueue: Set<ICompressConfig> = new Set();
     _compressAssetLen = 0;
     _compressExecuteInfo: CompressExecuteInfo | null = null;
-    useBuildTextureCompressCache: boolean;
+    textureCompress: boolean;
 
-    constructor(platform: string, useBuildTextureCompressCache?: boolean) {
+    constructor(platform: string, textureCompress?: boolean) {
         super();
         this.platform = platform;
-        this.useBuildTextureCompressCache = useBuildTextureCompressCache ?? true;
+        this.textureCompress = textureCompress ?? true;
     }
 
     static async initCommonOptions() {
@@ -363,7 +363,7 @@ export class TextureCompress extends EventEmitter {
                     return;
                 }
                 const cacheDest = join(TextureCompress.compressCacheDir, uuid.substr(0, 2), uuid + textureFormatConfigs[formatType].suffix);
-                if (this.useBuildTextureCompressCache && !dirty && existsSync(cacheDest)) {
+                if (this.textureCompress && !dirty && existsSync(cacheDest)) {
                     info.dest!.push(cacheDest);
                     info.suffix.push(getSuffix(formatsInfo[realFormat], textureFormatConfigs[formatType].suffix));
                     console.debug(`Use cache compress image of {Asset(${uuid})} ({link(${cacheDest})})`);

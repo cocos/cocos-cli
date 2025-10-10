@@ -148,27 +148,11 @@ export interface OverwriteProjectSettings extends EngineConfig {
     engineInfo: EngineInfo;
 }
 
-export interface IBuildOptionBase extends IBuildCommonOptions, OverwriteProjectSettings, IBuildCacheConfig {
+export interface IBuildOptionBase extends IBuildCommonOptions, OverwriteProjectSettings {
     engineModulesConfigKey?: string; // 3.8.6 新增的多模块裁切
-
+    useCacheConfig?: IBuildCacheUseConfig;
 }
 
-export interface IBuildCacheConfig {
-    useBuildAssetCache?: boolean;
-    useBuildEngineCache?: boolean;
-    useBuildTextureCompressCache?: boolean;
-    useBuildAutoAtlasCache?: boolean;
-}
-
-export interface IBuildProjectConfig {
-    common: IBuildCommonOptions;
-    platforms: Record<string, IBuildTaskOption>;
-    useCacheConfig: IBuildCacheConfig;
-    bundleConfig: {
-        custom: Record<string, IBundleOptions>;
-    };
-    textureCompressConfig: UserCompressConfig;
-}
 export interface BundleFilterConfig {
     range: 'include' | 'exclude';
     type: 'asset' | 'url';

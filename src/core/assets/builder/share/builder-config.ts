@@ -1,7 +1,8 @@
 import { join } from "path";
 import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from "../../../configuration";
-import { IBuildCommonOptions, IBuildProjectConfig, Platform } from "../@types";
+import { IBuildCommonOptions, Platform } from "../@types";
 import { PLATFORMS } from "./platforms-options";
+import { BuildConfiguration } from "../../@types/config-export";
 
 export const BuildGlobalInfo = {
     // 一些常量
@@ -54,17 +55,17 @@ export function getBuildCommonOptions(): IBuildCommonOptions {
     }
 }
 
-export function getDefaultConfig(): IBuildProjectConfig {
+export function getDefaultConfig(): BuildConfiguration {
     return {
         common: getBuildCommonOptions(),
         platforms: {
             // 'web-desktop': { xxx }
         },
         useCacheConfig: {
-            useBuildAssetCache: true,
-            useBuildEngineCache: true,
-            useBuildTextureCompressCache: true,
-            useBuildAutoAtlasCache: true,
+            serializeData: true,
+            engine: true,
+            textureCompress: true,
+            autoAtlas: true,
         },
         bundleConfig: {
             custom: {},

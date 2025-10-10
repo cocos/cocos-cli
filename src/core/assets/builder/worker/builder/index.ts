@@ -438,7 +438,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             engineName: 'cocos-js',
             output: join(this.result.paths.dir, 'cocos-js'),
             platformType: this.options.platformType,
-            useCache: this.options.useBuildEngineCache === false ? false : true,
+            useCache: this.options.useCacheConfig?.engine === false ? false : true,
             nativeCodeBundleMode: this.options.nativeCodeBundleMode,
             wasmCompressionMode: this.options.wasmCompressionMode,
         };
