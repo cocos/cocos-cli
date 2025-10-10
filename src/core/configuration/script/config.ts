@@ -23,7 +23,7 @@ export interface IBaseConfiguration extends EventEmitterMethods {
      * @param key 配置键名，支持点号分隔的嵌套路径
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
+    get<T>(key?: string, scope?: ConfigurationScope): Promise<T>;
 
     /**
      * 获取指定范围的所有配置，默认是 project
@@ -76,7 +76,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
         return this.configs;
     }
 
-    public async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
+    public async get<T>(key?: string, scope?: ConfigurationScope): Promise<T> {
         if (!key) {
             return utils.deepMerge(this.getDefaultConfig(), this.configs);
         }

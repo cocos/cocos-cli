@@ -81,7 +81,7 @@ class AssetConfig {
         this._configInstance = await configurationRegistry.register('import', {
             restoreAssetDBFromCache: this._assetConfig.restoreAssetDBFromCache,
             globList: this._assetConfig.globList,
-            templateDir: join(this._assetConfig.root, 'templates'),
+            createTemplateRoot: join(this._assetConfig.root, '.creator/templates'),
         });
         this._assetConfig.root = project.path;
         const enginePath = engine.getInfo().typescript.path;

@@ -64,7 +64,7 @@ class ScriptConfig {
         this._init = true;
     }
 
-    getProject<T>(path: string, scope?: ConfigurationScope) {
+    getProject<T>(path?: string, scope?: ConfigurationScope) {
         return this._configInstance.get<T>(path);
     }
 
@@ -84,7 +84,7 @@ export async function querySharedSettings(logger: Logger): Promise<SharedSetting
         exportsConditions,
         importMap: importMapFile,
         preserveSymlinks,
-    } = await scriptConfig.getProject<ScriptProjectConfig>('')
+    } = await scriptConfig.getProject<ScriptProjectConfig>();
 
     let importMap: SharedSettings['importMap'];
     // ui-file 可能因为清空产生 project:// 这样的数据，应视为空字符串一样的处理逻辑

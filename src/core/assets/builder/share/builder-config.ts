@@ -214,7 +214,7 @@ class BuilderConfig {
      * 持有的可双向绑定的配置管理实例
      */
     private _configInstance!: IBaseConfiguration;
-    getProject<T>(path: string, scope?: ConfigurationScope): Promise<T> {
+    getProject<T>(path?: string, scope?: ConfigurationScope): Promise<T> {
         return this._configInstance.get(path, scope);
     }
 
@@ -242,7 +242,7 @@ class BuilderConfig {
         // BuildGlobalInfo.globalTempDir = join(projectInfo.path, 'builder', 'temp', 'global');
         this._init = true;
         this._configInstance = await configurationRegistry.register('builder', getDefaultConfig());
-        const data = await this.getProject<Record<string, any>>('');
+        const data = await this.getProject<Record<string, any>>();
         console.log('builderConfig', data);
     }
 }
