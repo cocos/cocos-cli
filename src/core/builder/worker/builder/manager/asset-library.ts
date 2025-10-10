@@ -358,7 +358,7 @@ class BuildAssetLibrary {
 
         // 调用 effect 编译器来做 effect 多余数据剔除，不走数据缓存，每次重新剔除生成
         if (instance instanceof EffectAsset) {
-            const { stripEditorSupport } = require(join(__dirname, '../../../../effect-compiler/utils.js'));
+            const { stripEditorSupport } = require(join(__dirname, '../../../../assets/effect-compiler/utils.js'));
             instance = stripEditorSupport(instance, options['cc.EffectAsset']);
         }
 
