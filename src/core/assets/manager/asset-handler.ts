@@ -44,7 +44,7 @@ export class CustomImporter extends AssetDBImporter {
 
         this.import = async (asset: IAsset) => {
             await assetHandlerManager.runImporterHook(asset, 'before');
-            const res = await ImportAsset(asset);
+            const res = await ImportAsset.call(assetHandler, asset);
             await assetHandlerManager.runImporterHook(asset, 'after');
             return res;
         };
