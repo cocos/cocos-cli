@@ -1,7 +1,6 @@
 import { join } from 'path';
 import { EngineLoader } from './loader';
 import * as fs from 'fs-extra';
-import * as path from 'path';
 
 let hasPreload = false;
 
@@ -46,7 +45,7 @@ async function preload(options: {
             systemLanguage: Intl.DateTimeFormat().resolvedOptions().locale,
             XMLHttpRequest: require('xhr2'),
             SocketIO: require('socket.io-client'),
-            WebSocket: require('ws'),
+            WebSocket: WebSocket,
             localStorage: new LocalStorage(join(options.writablePath, 'node.localStorage')), 
             fetch: fetch,
             Headers: Headers,
