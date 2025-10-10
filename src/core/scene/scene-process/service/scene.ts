@@ -1,5 +1,4 @@
-import cc, { SceneAsset } from 'cc';
-import { join } from 'path';
+import cc from 'cc';
 import { register, expose } from './decorator';
 import {
     ISceneManager,
@@ -12,8 +11,8 @@ import {
 import { Ipc } from '../ipc';
 
 /**
- * 子进程场景处理器
- * 在子进程中处理所有场景相关操作
+ * 场景进程处理器
+ * 处理所有场景相关操作
  */
 @register('scene')
 export class SceneService implements ISceneManager {
@@ -24,15 +23,14 @@ export class SceneService implements ISceneManager {
         const { uuid } = params;
         return new Promise<ISceneInfo>(async (resolve, reject) => {
             // 查询场景资源信息
-            const asset = await Ipc.request('assetManager', 'queryAsset', uuid);
-            if (!asset) {
+            const assetInfo = await Ipc.request('assetManager', 'queryAssetInfo', uuid);
+            if (!assetInfo) {
                 reject(`场景资源不存在: ${uuid}`);
                 return;
             }
 
-            const assetType = await Ipc.request('assetManager', 'queryAssetProperty', asset, 'type');
-            if (!assetType || !assetType.includes('SceneAsset')) {
-                reject(`指定路径不是有效的场景资源: ${asset.url}`);
+            if (!assetInfo.type.includes('SceneAsset')) {
+                reject(`指定路径不是有效的场景资源: ${assetInfo.url}`);
                 return;
             }
 
@@ -53,16 +51,16 @@ export class SceneService implements ISceneManager {
 
                 // 创建场景信息
                 const sceneInfo: ISceneInfo = {
-                    path: asset.source,
-                    uuid: asset.uuid,
-                    url: asset.url,
-                    name: asset._name || ''
+                    path: assetInfo.source,
+                    uuid: assetInfo.uuid,
+                    url: assetInfo.url,
+                    name: assetInfo.name || ''
                 };
 
                 // 设置为当前场景
                 this.currentScene = sceneInfo;
                 resolve(sceneInfo);
-                console.log(`子进程成功打开场景: ${sceneInfo.path}`);
+                console.log(`[Scene] 场景进程成功打开场景: ${sceneInfo.path}`);
             });
         });
     }
@@ -72,9 +70,7 @@ export class SceneService implements ISceneManager {
         const closedScene = this.currentScene;
         
         if (closedScene) {
-            console.log(`子进程关闭场景: ${closedScene.path}`);
-        } else {
-            console.log('子进程当前没有打开的场景');
+            console.log(`[Scene] 关闭场景: ${closedScene.path}`);
         }
 
         // 清理当前场景
@@ -87,25 +83,24 @@ export class SceneService implements ISceneManager {
     async saveScene(params: ISaveSceneOptions): Promise<ISceneInfo> {
         const uuid = params.uuid ?? this.currentScene?.uuid;
         if (!uuid) {
-            throw new Error('保存失败，当前没有打开的场景');
+            throw new Error('[Scene] 保存失败，当前没有打开的场景');
         }
 
-        const asset = await Ipc.request('assetManager', 'queryAsset', uuid);
-        if (!asset) {
-            throw new Error(`场景资源不存在: ${uuid}`);
+        let assetInfo = await Ipc.request('assetManager', 'queryAssetInfo', uuid);
+        if (!assetInfo) {
+            throw new Error(`[Scene] 场景资源不存在: ${uuid}`);
         }
 
         const scene = cc.director.getScene();
         if (!scene) {
-            throw new Error(`获取不到当前场景实例`);
+            throw new Error(`[Scene] 获取不到当前场景实例`);
         }
 
-        const sceneAsset = new SceneAsset();
+        const sceneAsset = new cc.SceneAsset();
         sceneAsset.scene = scene;
 
-        const json = EditorExtends.serialize(asset);
+        const json = EditorExtends.serialize(assetInfo);
 
-        let assetInfo;
         try {
             assetInfo = await Ipc.request('assetManager', 'saveAsset', uuid, json);
         } catch (e) {
@@ -119,7 +114,7 @@ export class SceneService implements ISceneManager {
             name: assetInfo.name
         };
 
-        console.log(`子进程成功保存场景: ${sceneInfo.path}`);
+        console.log(`[Scene] 成功保存场景: ${sceneInfo.path}`);
         return sceneInfo;
     }
 
@@ -128,33 +123,27 @@ export class SceneService implements ISceneManager {
         // 获取场景模板 url
         const template = this.getSceneTemplateURL(params.templateType || 'default');
 
-        // 确保文件名以 .scene 结尾
-        const fileName = params.name.endsWith('.scene')
-            ? params.name
-            : `${params.name}.scene`;
-        const fullPath = join(params.targetPath, fileName);
-
         // 创建场景资源
         const result = await Ipc.request('assetManager', 'createAsset', {
             template: template,
-            target: fullPath,
+            target: params.targetPathOrURL,
             overwrite: true
         });
 
-        if (!result) {
-            throw new Error('创建场景资源失败');
+        const assetResult = Array.isArray(result) ? result[0] : result;
+        if (!assetResult) {
+            throw new Error(`创建场景资源失败\n${params}`);
         }
 
-        const assetResult = Array.isArray(result) ? result[0] : result;
-        
+
         const sceneInfo: ISceneInfo = {
             path: assetResult!.source,
             uuid: assetResult!.uuid,
             url: assetResult!.url,
-            name: params.name
+            name: assetResult!.name
         };
 
-        console.log(`子进程成功创建场景: ${sceneInfo.path}`);
+        console.log(`成功创建场景: ${sceneInfo.path}`);
         return sceneInfo;
     }
 

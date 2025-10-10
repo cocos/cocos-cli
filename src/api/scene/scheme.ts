@@ -30,9 +30,8 @@ export const SchemeSaveSceneResult = z.object({
 
 // 创建场景的参数
 export const SchemeCreateSceneOptions = z.object({
-    name: z.string().describe('场景名称'),
+    targetPathOrURL: z.string().describe('创建的场景文件路径，或者场景在数据库中的路径，使用 db:// 协议格式'),
     templateType: z.enum(['default', '2d', '3d', 'quality']).optional().default('default').describe('场景模板类型'),
-    targetPath: z.string().describe('场景创建的目标路径'),
 }).describe('创建场景的选项参数');
 
 // 创建场景的结果

@@ -27,8 +27,11 @@ export class IpcClient<TModules extends Record<string, any>> {
             const onMessage = (msg: TIpcResponse) => {
                 if (msg.id === id) {
                     this.process.off('message', onMessage);
-                    if (msg.error) reject(new Error(msg.error));
-                    else resolve(msg.data as any as Awaited<MethodReturn<TModules[M], K>>);
+                    if (msg.error) {
+                        reject(new Error(msg.error));
+                    } else {
+                        resolve(msg.data as any as Awaited<MethodReturn<TModules[M], K>>);
+                    }
                 }
             };
 

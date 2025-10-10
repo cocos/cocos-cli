@@ -1,30 +1,37 @@
+import path from 'path';
 import { Scene } from '../main-process';
-import { join } from 'path';
-import { EngineLoader } from 'cc/loader.js';
-
-[
-    'cc',
-    'cc/editor/populate-internal-constants',
-    'cc/editor/serialization',
-    'cc/editor/animation-clip-migration',
-    'cc/editor/exotic-animation',
-    'cc/editor/new-gen-anim',
-    'cc/editor/offline-mappings',
-    'cc/editor/embedded-player',
-    'cc/editor/color-utils',
-    'cc/editor/custom-pipeline',
-].forEach((module) => {
-    jest.mock(module, () => {
-        return EngineLoader.getEngineModuleById(module);
-    }, { virtual: true });
-});
 
 describe('Scene 测试', () => {
-    const projectPath = join(__dirname, '../../../../test-project');
-    const enginePath = require('../../../../.user.json').engine;
+    const user = require('../../../../.user.json');
+    const enginePath = user.engine;
+    const projectPath = user.project;
+
+    it('准备阶段', async () => {
+        // 初始化配置
+        const { configurationManager } = await import('../../configuration');
+        await configurationManager.initialize(projectPath);
+        // 打开项目
+        const { default: Project } = await import('../../project');
+        await Project.open(projectPath);
+        // 初始化引擎
+        const { default: Engine } = await import('../../engine');
+        await Engine.init(enginePath);
+        await Engine.initEngine({
+            importBase: path.join(projectPath, 'library'),
+            nativeBase: path.join(projectPath, 'library'),
+            writablePath: path.join(projectPath, 'temp'),
+        });
+        // 启动 db
+        const { startupAssetDB } = await import('../../assets');
+        await startupAssetDB();
+        // 初始化项目脚本
+        const { PackerDriver } = await import('../../scripting/packer-driver');
+        const packDriver = await PackerDriver.create(projectPath, enginePath);
+        await packDriver.init(Engine.getConfig().includeModules);
+    })
 
     it('启动场景进程', async () => {
-        // 使用真实的引擎路径和项目路径启动场景进程
+        // 启动场景进程
         const result = await Scene.worker.start(enginePath, projectPath);
         expect(result).toBe(true);
     });

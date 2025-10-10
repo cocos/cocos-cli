@@ -2,9 +2,6 @@ import path from 'path';
 import { managerMap } from './service/decorator';
 import { TIpcResponse, TIpcRequest, SceneReadyChannel } from '../common';
 
-// 导出 service，让他能处理装饰器，捕获开发的 api
-export * from './service'
-
 async function initEngine(enginePath: string, projectPath: string) {
     const { default: Engine } = await import('../../../core/engine');
     await Engine.init(enginePath);
@@ -12,6 +9,7 @@ async function initEngine(enginePath: string, projectPath: string) {
     await Engine.initEngine({
         importBase: path.join(projectPath, 'library'),
         nativeBase: path.join(projectPath, 'library'),
+        writablePath: path.join(projectPath, 'temp'),
     });
     console.log('[Scene] initEngine success');
 }
@@ -36,7 +34,12 @@ async function startup () {
 
     await initEngine(enginePath, projectPath);
 
+    // 导入 service，让他能处理装饰器，捕获开发的 api
+    await import('./service');
+
     process.on('message', async (msg: TIpcRequest) => {
+        if ((('data' in msg) || ('error' in msg)) && ('reply' in msg)) return;
+
         const { id, channel, methodName, params } = msg;
 
         const manager = managerMap.get(channel);
@@ -57,7 +60,7 @@ async function startup () {
             process.send?.({
                 id,
                 reply: true,
-                error: `Unknown manager or method: ${channel}.${methodName}`,
+                error: `Unknown manager or method: ${channel}.${methodName}${JSON.stringify(msg)}`,
             } as TIpcResponse);
         } else {
             console.warn(`Unknown send event: ${channel}.${methodName}`);

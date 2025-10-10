@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import { IIpcRequestOptions, TIpcResponse, TIpcRequest, SceneReadyChannel } from '../common';
 import { IpcServer } from '../ipc/ipc-server';
-import { assetManager } from '../../assets/manager/asset';
+import { assetManager } from '../../assets';
 
 export class SceneWorker extends EventEmitter {
     private _running = false;
@@ -36,12 +36,13 @@ export class SceneWorker extends EventEmitter {
 
     stop() {
         if (this.process) {
-            this.process.kill();
+            this.process.kill(0);
             console.log('[Node] Scene process stopped.');
         }
     }
 
     registerListener() {
+        this.ipcServer.attach(this.process);
         this.process.on('message', (msg: TIpcResponse) => {
             if (!this._running) {
                 if (msg.channel === SceneReadyChannel) {
@@ -54,12 +55,14 @@ export class SceneWorker extends EventEmitter {
                 }
                 return;
             }
+            // 检查是不是 TIpcResponse 类型
+            if (!('data' in msg) && !('error' in msg)) return;
 
             if (msg.reply && msg.id) {
                 const resolver = this.ipcReplyMap.get(msg.id);
                 if (resolver) {
                     this.ipcReplyMap.delete(msg.id);
-                    resolver(msg.data);
+                    resolver(msg.error, msg.data);
                 }
                 return;
             }
@@ -126,6 +129,7 @@ export class SceneWorker extends EventEmitter {
                 }
             });
 
+            console.log(`[Scene] request ${channel} ${methodName}`);
             this.process.send({
                 id,
                 channel,

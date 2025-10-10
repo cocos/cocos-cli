@@ -39,7 +39,8 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
         "start": "node ./dist/commands/build-directly.js",
-        "cli": "ts-node src/cli.ts"
+        "cli": "ts-node src/cli.ts",
+        "test:scene": " cd /Users/cocos/SUD-GLOBAL/cocos-cli && npm test -- src/core/scene/test/scene.test.ts"
     },
     "author": "cocos",
     "files": [
