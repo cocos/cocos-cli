@@ -1,0 +1,55 @@
+name: PR Test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: pr-test-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-test:
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test'))
+    runs-on: [ self-hosted ]
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      checks: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+            clean: false
+            persist-credentials: true
+            fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.17.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm i
+
+      - name: Run tests
+        run: npm run test --silent
+
+      - name: Run npm run start
+        run: npm run start
+
+      - name: Start command health check (timeout)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Run start with timeout to ensure it doesn't hang CI
+          # If the process exits with non-zero before timeout, fail fast
+          timeout 500s npm run start --silent
+
+

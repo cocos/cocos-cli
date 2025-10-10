@@ -1,0 +1,733 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": false,
+    "definitions": {
+        "BuildConfiguration": {
+            "additionalProperties": false,
+            "properties": {
+                "bundleConfig": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "custom": {
+                            "$ref": "#/definitions/Record<string,IBundleOptions>"
+                        }
+                    },
+                    "type": "object"
+                },
+                "common": {
+                    "$ref": "#/definitions/IBuildCommonOptions"
+                },
+                "platforms": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "web-desktop": {}
+                    },
+                    "type": "object"
+                },
+                "textureCompressConfig": {},
+                "useCacheConfig": {
+                    "$ref": "#/definitions/IBuildCacheUseConfig"
+                }
+            },
+            "type": "object"
+        },
+        "BundleCompressionType": {
+            "enum": [
+                "merge_all_json",
+                "merge_dep",
+                "none",
+                "subpackage",
+                "zip"
+            ],
+            "type": "string"
+        },
+        "BundleFilterConfig": {
+            "additionalProperties": false,
+            "properties": {
+                "assets": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "patchOption": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "patchType": {
+                            "enum": [
+                                "beginWith",
+                                "contain",
+                                "endWith",
+                                "glob"
+                            ],
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "range": {
+                    "enum": [
+                        "exclude",
+                        "include"
+                    ],
+                    "type": "string"
+                },
+                "type": {
+                    "enum": [
+                        "asset",
+                        "url"
+                    ],
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "EngineConfig": {
+            "additionalProperties": false,
+            "description": "TODO 引擎配置文件",
+            "properties": {
+                "customJointTextureLayouts": {
+                    "items": {
+                        "$ref": "#/definitions/ICustomJointTextureLayout"
+                    },
+                    "type": "array"
+                },
+                "customLayers": {
+                    "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "number"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "customPipeline": {
+                    "type": "boolean"
+                },
+                "designResolution": {
+                    "$ref": "#/definitions/IDesignResolution"
+                },
+                "downloadMaxConcurrency": {
+                    "type": "number"
+                },
+                "flags": {
+                    "$ref": "#/definitions/IFlags"
+                },
+                "highQuality": {
+                    "type": "boolean"
+                },
+                "includeModules": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "macroConfig": {
+                    "$ref": "#/definitions/Record<string,string|number|boolean>"
+                },
+                "macroCustom": {
+                    "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "key": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "physicsConfig": {
+                    "$ref": "#/definitions/IPhysicsConfig"
+                },
+                "renderPipeline": {
+                    "type": "string"
+                },
+                "sortingLayers": {
+                    "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "id": {
+                                "type": "number"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "number"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "splashScreen": {
+                    "$ref": "#/definitions/ISplashSetting"
+                }
+            },
+            "type": "object"
+        },
+        "IBinGroupConfig": {
+            "additionalProperties": false,
+            "properties": {
+                "enable": {
+                    "type": "boolean"
+                },
+                "threshold": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "IBuildCacheUseConfig": {
+            "additionalProperties": false,
+            "properties": {
+                "autoAtlas": {
+                    "type": "boolean"
+                },
+                "engine": {
+                    "type": "boolean"
+                },
+                "serializeData": {
+                    "type": "boolean"
+                },
+                "textureCompress": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "IBuildCommonOptions": {
+            "additionalProperties": false,
+            "properties": {
+                "binGroupConfig": {
+                    "$ref": "#/definitions/IBinGroupConfig"
+                },
+                "buildBundleOnly": {
+                    "type": "boolean"
+                },
+                "buildMode": {
+                    "enum": [
+                        "bundle",
+                        "normal",
+                        "script"
+                    ],
+                    "type": "string"
+                },
+                "buildPath": {
+                    "type": "string"
+                },
+                "buildScriptTargets": {
+                    "type": "string"
+                },
+                "bundleCommonChunk": {
+                    "type": "boolean"
+                },
+                "bundleCommonJs": {
+                    "type": "string"
+                },
+                "bundleConfigs": {
+                    "items": {
+                        "$ref": "#/definitions/IBundleOptions"
+                    },
+                    "type": "array"
+                },
+                "debug": {
+                    "type": "boolean"
+                },
+                "experimentalEraseModules": {
+                    "type": "boolean"
+                },
+                "inlineEnum": {
+                    "type": "boolean"
+                },
+                "inlineSpriteFrames": {
+                    "type": "boolean"
+                },
+                "logDest": {
+                    "type": "string"
+                },
+                "mainBundleCompressionType": {
+                    "$ref": "#/definitions/BundleCompressionType"
+                },
+                "mainBundleIsRemote": {
+                    "type": "boolean"
+                },
+                "mangleProperties": {
+                    "type": "boolean"
+                },
+                "md5Cache": {
+                    "type": "boolean"
+                },
+                "moveRemoteBundleScript": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nativeCodeBundleMode": {
+                    "enum": [
+                        "asmjs",
+                        "both",
+                        "wasm"
+                    ],
+                    "type": "string"
+                },
+                "nextStages": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "outputName": {
+                    "type": "string"
+                },
+                "overwriteProjectSettings": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "includeModules": {
+                            "additionalProperties": {
+                                "type": "string"
+                            },
+                            "properties": {
+                                "gfx-webgl2": {
+                                    "enum": [
+                                        "inherit-project-setting",
+                                        "off",
+                                        "on"
+                                    ],
+                                    "type": "string"
+                                },
+                                "physics": {
+                                    "type": "string"
+                                },
+                                "physics-2d": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "macroConfig": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "cleanupImageCache": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                "platform": {
+                    "$ref": "#/definitions/Platform"
+                },
+                "polyfills": {
+                    "$ref": "#/definitions/IPolyFills"
+                },
+                "preview": {
+                    "default": false,
+                    "description": "是否是预览进程发送的构建请求。",
+                    "type": "boolean"
+                },
+                "scenes": {
+                    "items": {
+                        "$ref": "#/definitions/IBuildSceneItem"
+                    },
+                    "type": "array"
+                },
+                "server": {
+                    "type": "string"
+                },
+                "skipCompressTexture": {
+                    "type": "boolean"
+                },
+                "sourceMaps": {
+                    "enum": [
+                        false,
+                        "inline",
+                        true
+                    ]
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "startScene": {
+                    "type": "string"
+                },
+                "startSceneAssetBundle": {
+                    "type": "boolean"
+                },
+                "taskId": {
+                    "type": "string"
+                },
+                "taskName": {
+                    "type": "string"
+                },
+                "useSplashScreen": {
+                    "type": "boolean"
+                },
+                "wasmCompressionMode": {
+                    "const": "brotli",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "IBuildSceneItem": {
+            "additionalProperties": false,
+            "description": "构建使用的场景的数据",
+            "properties": {
+                "url": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "IBundleOptions": {
+            "additionalProperties": false,
+            "properties": {
+                "bundleFilterConfig": {
+                    "items": {
+                        "$ref": "#/definitions/BundleFilterConfig"
+                    },
+                    "type": "array"
+                },
+                "compressionType": {
+                    "$ref": "#/definitions/BundleCompressionType"
+                },
+                "dest": {
+                    "type": "string"
+                },
+                "isRemote": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "output": {
+                    "type": "boolean"
+                },
+                "priority": {
+                    "type": "number"
+                },
+                "root": {
+                    "type": "string"
+                },
+                "scriptDest": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "IChunkContent": {
+            "additionalProperties": false,
+            "properties": {
+                "clips": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "skeleton": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "ICollisionMatrix": {
+            "additionalProperties": {
+                "type": "number"
+            },
+            "type": "object"
+        },
+        "ICustomJointTextureLayout": {
+            "additionalProperties": false,
+            "properties": {
+                "contents": {
+                    "items": {
+                        "$ref": "#/definitions/IChunkContent"
+                    },
+                    "type": "array"
+                },
+                "textureLength": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "IDesignResolution": {
+            "additionalProperties": false,
+            "description": "构建使用的设计分辨率数据",
+            "properties": {
+                "fitHeight": {
+                    "type": "boolean"
+                },
+                "fitWidth": {
+                    "type": "boolean"
+                },
+                "height": {
+                    "type": "number"
+                },
+                "policy": {
+                    "type": "number"
+                },
+                "width": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "IFlags": {
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "IPhysicsConfig": {
+            "additionalProperties": false,
+            "properties": {
+                "allowSleep": {
+                    "type": "boolean"
+                },
+                "autoSimulation": {
+                    "type": "boolean"
+                },
+                "collisionMatrix": {
+                    "$ref": "#/definitions/ICollisionMatrix"
+                },
+                "defaultMaterial": {
+                    "type": "string"
+                },
+                "fixedTimeStep": {
+                    "type": "number"
+                },
+                "gravity": {
+                    "$ref": "#/definitions/IVec3Like"
+                },
+                "maxSubSteps": {
+                    "type": "number"
+                },
+                "physX": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "epsilon": {
+                            "type": "number"
+                        },
+                        "multiThread": {
+                            "type": "boolean"
+                        },
+                        "notPackPhysXLibs": {
+                            "type": "boolean"
+                        },
+                        "subThreadCount": {
+                            "type": "number"
+                        }
+                    },
+                    "type": "object"
+                },
+                "physicsEngine": {
+                    "type": "string"
+                },
+                "sleepThreshold": {
+                    "type": "number"
+                },
+                "useNodeChains": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "IPolyFills": {
+            "additionalProperties": false,
+            "properties": {
+                "asyncFunctions": {
+                    "description": "True if async functions polyfills(i.e. regeneratorRuntime) needs to be included.\nYou need to turn on this field if you want to use async functions in language.",
+                    "type": "boolean"
+                },
+                "coreJs": {
+                    "description": "If true, [core-js](https://github.com/zloirock/core-js) polyfills are included.\nThe default options of [core-js-builder](https://github.com/zloirock/core-js/tree/master/packages/core-js-builder)\nwill be used to build the core-js.",
+                    "type": "boolean"
+                },
+                "targets": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "ISplashBackgroundColor": {
+            "additionalProperties": false,
+            "properties": {
+                "w": {
+                    "type": "number"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                },
+                "z": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "ISplashSetting": {
+            "additionalProperties": false,
+            "properties": {
+                "autoFit": {
+                    "type": "boolean"
+                },
+                "background": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "base64": {
+                            "type": "string"
+                        },
+                        "color": {
+                            "$ref": "#/definitions/ISplashBackgroundColor"
+                        },
+                        "image": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": [
+                                "color",
+                                "custom",
+                                "default"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "displayRatio": {
+                    "type": "number"
+                },
+                "logo": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "base64": {
+                            "type": "string"
+                        },
+                        "image": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": [
+                                "custom",
+                                "default",
+                                "none"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "totalTime": {
+                    "type": "number"
+                },
+                "watermarkLocation": {
+                    "enum": [
+                        "bottomCenter",
+                        "bottomLeft",
+                        "bottomRight",
+                        "default",
+                        "topCenter",
+                        "topLeft",
+                        "topRight"
+                    ],
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "IVec3Like": {
+            "additionalProperties": false,
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                },
+                "z": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "ImportConfiguration": {
+            "additionalProperties": false,
+            "properties": {
+                "createTemplateRoot": {
+                    "type": "string"
+                },
+                "globList": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "restoreAssetDBFromCache": {
+                    "type": "boolean"
+                },
+                "userDataTemplate": {
+                    "$ref": "#/definitions/Record<string,any>",
+                    "description": "资源 userData 的默认值"
+                }
+            },
+            "type": "object"
+        },
+        "Platform": {
+            "enum": [
+                "web-desktop",
+                "web-mobile",
+                "windows"
+            ],
+            "type": "string"
+        },
+        "Record<string,IBundleOptions>": {
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "Record<string,any>": {
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "Record<string,string|number|boolean>": {
+            "additionalProperties": false,
+            "type": "object"
+        }
+    },
+    "properties": {
+        "builder": {
+            "$ref": "#/definitions/BuildConfiguration"
+        },
+        "engine": {
+            "$ref": "#/definitions/EngineConfig"
+        },
+        "import": {
+            "$ref": "#/definitions/ImportConfiguration"
+        },
+        "version": {
+            "type": "string"
+        }
+    },
+    "type": "object"
+}
+

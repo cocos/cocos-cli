@@ -3,6 +3,7 @@ import { EngineConfig } from '../../engine/@types/config';
 
 // 用于 schema 校验规则导出
 export interface COCOS_CONFIG {
+    version: string;
     builder: BuildConfiguration;
     import: ImportConfiguration;
     engine: EngineConfig;

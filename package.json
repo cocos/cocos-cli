@@ -15,7 +15,7 @@
         "compiler:engine": "node workflow/compiler-engine.js --force",
         "build:adapter": "node workflow/build-adapter.js --force",
         "build:cc-module": "node workflow/build-cc-module.js",
-        "build": "npm run build:clear && tsc -b",
+        "build": "npm run build:clear && tsc -b && node workflow/generate-schema.js",
         "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
         "postinstall": "node workflow/postinstall.js",
@@ -59,7 +59,8 @@
         "ts-jest": "^29.1.2",
         "ts-node": "^10.9.2",
         "typescript": "^5.4.5",
-        "typescript-eslint": "^8.42.0"
+        "typescript-eslint": "^8.42.0",
+        "typescript-json-schema": "^0.65.1"
     },
     "dependencies": {
         "@babel/core": "7.22.20",
