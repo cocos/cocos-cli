@@ -14,7 +14,7 @@ export class NodeManager implements INodeManager {
     updateNode(params: IUpdateNodeOptions): Promise<INodeInfo> {
         throw new Error('Method not implemented.');
     }
-    queryNode(): Promise<INodeInfo> {
+    queryNode(): Promise<INodeInfo | null> {
         throw new Error('Method not implemented.');
     }
 }

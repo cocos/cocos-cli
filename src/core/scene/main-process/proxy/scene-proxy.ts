@@ -9,7 +9,7 @@ export const SceneProxy: ISceneManager = {
         return ipc.send('scene', 'createScene', params);
     },
     getCurrentScene(): Promise<ISceneInfo | null> {
-        return ipc.send('scene', 'getCurrentScene');
+        return ipc.request<ISceneInfo | null>('scene', 'getCurrentScene');
     },
     openScene(params: IOpenSceneOptions): Promise<ISceneInfo> {
         return ipc.send('scene', 'openScene', params);

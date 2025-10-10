@@ -3,15 +3,15 @@ import { ipc } from '../ipc';
 
 export const NodeProxy: INodeManager = {
     createNode(params: ICreateNodeOptions): Promise<INodeInfo> {
-        return ipc.send('node', 'createNode');
+        return ipc.send('node', 'createNode', params);
     },
     deleteNode(params: IDeleteNodeOptions): Promise<INodeInfo> {
-        return ipc.send('node', 'deleteNode');
+        return ipc.send('node', 'deleteNode', params);
     },
     updateNode(params: IUpdateNodeOptions): Promise<INodeInfo> {
-        return ipc.send('node', 'updateNode');
+        return ipc.send('node', 'updateNode', params);
     },
-    queryNode(): Promise<INodeInfo> {
-        return ipc.send('node', 'queryNode');
+    queryNode(): Promise<INodeInfo | null> {
+        return ipc.request<INodeInfo | null>('node', 'queryNode');
     }
 }

@@ -48,5 +48,5 @@ export interface INodeManager {
     /**
      * 查询节点
      */
-    queryNode(): Promise<INodeInfo>;
+    queryNode(): Promise<INodeInfo | null>;
 }
