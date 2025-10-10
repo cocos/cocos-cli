@@ -44,7 +44,7 @@ export interface ISceneManager {
      * 打开场景
      * @param params
      */
-    openScene(params: IOpenSceneOptions): Promise<ISceneInfo>;
+    openScene(params: IOpenSceneOptions): Promise<ISceneInfo | null>;
 
     /**
      * 关闭当前场景
@@ -54,13 +54,13 @@ export interface ISceneManager {
     /**
      * 保存场景
      */
-    saveScene(params: ISaveSceneOptions): Promise<ISceneInfo>;
+    saveScene(params: ISaveSceneOptions): Promise<ISceneInfo | null>;
 
     /**
      * 创建新场景
      * @param params
      */
-    createScene(params: ICreateSceneOptions): Promise<ISceneInfo>;
+    createScene(params: ICreateSceneOptions): Promise<ISceneInfo | null>;
 
     /**
      * 获取当前打开的场景

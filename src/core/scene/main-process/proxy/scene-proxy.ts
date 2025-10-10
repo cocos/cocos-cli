@@ -3,18 +3,18 @@ import { ipc } from '../ipc';
 
 export const SceneProxy: ISceneManager = {
     closeScene(): Promise<ISceneInfo | null> {
-        return ipc.send('scene', 'closeScene');
+        return ipc.request('scene', 'closeScene');
     },
-    createScene(params: ICreateSceneOptions): Promise<ISceneInfo> {
-        return ipc.send('scene', 'createScene', params);
+    createScene(params: ICreateSceneOptions): Promise<ISceneInfo | null> {
+        return ipc.request<ISceneInfo | null>('scene', 'createScene', [params]);
     },
     getCurrentScene(): Promise<ISceneInfo | null> {
         return ipc.request<ISceneInfo | null>('scene', 'getCurrentScene');
     },
-    openScene(params: IOpenSceneOptions): Promise<ISceneInfo> {
-        return ipc.send('scene', 'openScene', params);
+    openScene(params: IOpenSceneOptions): Promise<ISceneInfo | null> {
+        return ipc.request('scene', 'openScene', [params]);
     },
-    saveScene(params: ISaveSceneOptions): Promise<ISceneInfo> {
-        return ipc.send('scene', 'saveScene', params);
+    saveScene(params: ISaveSceneOptions): Promise<ISceneInfo | null> {
+        return ipc.request('scene', 'saveScene', [params]);
     }
 }

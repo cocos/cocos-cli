@@ -29,7 +29,7 @@ export class Ipc {
      * @param args 参数
      * @returns 结果
      */
-    async send(channel: string, methodName: string, ...args: any[]): Promise<any> {
+    async send(channel: string, methodName: string, ...args: any[]) {
         if (!this.manager[channel]) {
             throw new Error(`通道 "${channel}" 未定义`);
         }
@@ -37,7 +37,7 @@ export class Ipc {
         if (!method) {
             throw new Error(`方法 "${methodName}" 在通道 "${channel}" 中不存在`);
         }
-        return method(...args);
+        await method.apply(this.manager[channel], ...args);
     }
 
     /**
@@ -74,7 +74,7 @@ export class Ipc {
 
             // 执行方法调用
             return await Promise.race([
-                method.apply(this.manager[channel], args),
+                method.apply(this.manager[channel], ...args),
                 timeoutPromise
             ]);
         } catch (error) {

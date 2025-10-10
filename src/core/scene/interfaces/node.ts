@@ -34,17 +34,17 @@ export interface INodeManager {
      * 创建节点
      * @param params
      */
-    createNode(params: ICreateNodeOptions): Promise<INodeInfo>;
+    createNode(params: ICreateNodeOptions): Promise<INodeInfo | null>;
     /**
      * 删除节点
      * @param params 
      */
-    deleteNode(params: IDeleteNodeOptions): Promise<INodeInfo>;
+    deleteNode(params: IDeleteNodeOptions): Promise<INodeInfo | null>;
     /**
      * 更新节点
      * @param params
      */
-    updateNode(params: IUpdateNodeOptions): Promise<INodeInfo>;
+    updateNode(params: IUpdateNodeOptions): Promise<INodeInfo | null>;
     /**
      * 查询节点
      */
