@@ -44,18 +44,18 @@ async function release() {
         await fs.ensureDir(extensionDir);
 
         // 步骤 3: 执行根目录的 npm install
-        // console.log('📦 在根目录执行 npm install...');
-        // try {
-        //     execSync('npm install', { 
-        //         cwd: rootDir, 
-        //         stdio: 'inherit',
-        //         timeout: 300000 // 5分钟超时
-        //     });
-        //     console.log('✅ 根目录 npm install 完成');
-        // } catch (error) {
-        //     console.error('❌ 根目录 npm install 失败:', error.message);
-        //     throw error;
-        // }
+        console.log('📦 在根目录执行 npm install...');
+        try {
+            execSync('npm install', { 
+                cwd: rootDir, 
+                stdio: 'inherit',
+                timeout: 300000 // 5分钟超时
+            });
+            console.log('✅ 根目录 npm install 完成');
+        } catch (error) {
+            console.error('❌ 根目录 npm install 失败:', error.message);
+            throw error;
+        }
 
         // 步骤 4: 获取所有文件并过滤
         console.log('🔍 扫描项目文件...');

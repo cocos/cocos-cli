@@ -14,7 +14,7 @@ vsc-extension-quickstart.md
 .git/**
 tsconfig.json
 eslint.config.mjs
-workflow/!(postinstall|utils).js
+workflow/!(postinstall).js
 node_modules/**
 .cocos/**
 .user.json
