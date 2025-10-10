@@ -27,7 +27,6 @@ import JSON5 from 'json5';
 import minimatch from 'minimatch';
 import { existsSync } from 'fs';
 import { IAssetDBInfo } from '../../assets/@types/protected';
-import { assetDBManager } from '../../assets/manager/asset-db';
 import { url2path } from '../../assets/utils';
 import { compressUuid } from '../../assets/builder/worker/builder/utils';
 import { configurationManager } from '../../configuration';
@@ -46,10 +45,10 @@ function matchPattern(path: string, pattern: string): boolean {
 }
 
 async function getEditorPatterns() {
-    const dbList: string[] = Object.keys(assetDBManager.assetDBMap);
+    const dbList: string[] = Object.keys((globalThis as any).assetDBManager.assetDBMap);
     const editorPatterns = [];
     for (const dbID of dbList) {
-        const dbInfo = assetDBManager.assetDBInfo[dbID] || null;
+        const dbInfo = (globalThis as any).assetDBManager.assetDBInfo[dbID] || null;
         const dbEditorPattern = ps.join(dbInfo.target, '**', 'editor', '**/*');
         editorPatterns.push(dbEditorPattern);
     }
@@ -264,7 +263,7 @@ export class PackerDriver {
             return;
         }
 
-        const dbInfos = Object.values(assetDBManager.assetDBInfo);
+        const dbInfos = Object.values((globalThis as any).assetDBManager.assetDBInfo as Record<string, IAssetDBInfo>);
         const restrictions = PackerDriver._importRestrictions;
         restrictions.length = 0;
         const banSourcePatterns = await getEditorPatterns();

@@ -86,7 +86,7 @@ export class AssetManager extends EventEmitter implements IAssetManager {
 }
 
 export const assetManager = new AssetManager();
-
+(globalThis as any).assetManager = assetManager;
 // --------------- event handler -------------------
 
 async function onUnResponsive(asset: VirtualAsset) {

@@ -674,6 +674,7 @@ export class AssetDBManager extends EventEmitter {
 }
 
 export const assetDBManager = new AssetDBManager();
+(globalThis as any).assetDBManager = assetDBManager;
 
 function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {
     return {

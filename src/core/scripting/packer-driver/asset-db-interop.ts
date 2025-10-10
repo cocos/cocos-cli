@@ -1,14 +1,12 @@
-import type { AssetInfo, IAssetMeta, QueryAssetsOption } from '../../assets/@types/public';
+import type { AssetInfo, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../../assets/@types/public';
 import { asserts } from '../utils/asserts';
 import { setTimeout } from 'timers';
 import { pathToFileURL } from 'url';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { blockAssetUUIDSet, assetInfoCache, AssetInfoCache } from '../shared/cache';
 import { resolveFileName } from '../utils/path';
-import { IAssetDBInfo } from '../../assets/@types/protected';
+import { IAssetDBInfo } from '../../assets/@types/private';
 import { normalize } from '../../base/utils/path';
-import { assetManager } from '../../assets/manager/asset';
-import { assetDBManager } from '../../assets/manager/asset-db';
 
 export interface QueryAllAssetOption<T = { assetInfo: AssetInfo }> {
     assetDbOptions?: QueryAssetsOption,
@@ -108,7 +106,7 @@ export class AssetDbInterop {
         return scriptInfos;
     }
     public async queryAssetDomains() {
-        const dbInfos = assetDBManager.assetDBInfo;
+        const dbInfos = (globalThis as any).assetDBManager.assetDBInfo as Record<string, IAssetDBInfo>;
         const assetDatabaseDomains: AssetDatabaseDomain[] = [];
         for (const dbInfo of Object.values(dbInfos)) {
             const dbURL = getDatabaseModuleRootURL(dbInfo.name);
@@ -130,7 +128,7 @@ export class AssetDbInterop {
     public async fetchAssetDb<T = { assetInfo: AssetInfo }>(options?: QueryAllAssetOption<T>): Promise<T[]> {
         const results: T[] = [];
         const mapper = (options?.mapper ?? ((assetInfo: AssetInfo) => { return { assetInfo }; })) as (assetInfo: AssetInfo) => T;
-        const assetInfos = await assetManager.queryAssetInfos(options?.assetDbOptions, ['meta', 'url', 'file', 'importer', 'type']);
+        const assetInfos = await (globalThis as any).assetManager.queryAssetInfos(options?.assetDbOptions, ['meta', 'url', 'file', 'importer', 'type']) as IAssetInfo[];
         if (!assetInfos || !assetInfos.length) {
             // db 尚未 ready 之前是无法查询到信息的
             return results;
