@@ -5,7 +5,7 @@ import GltfHandler, { getOptimizerPath as getOptimizerPathInGltf } from './gltf'
 import { fbxToGlTf } from './gltf/fbx-to-gltf';
 import { createFbxConverter } from './utils/fbx-converter';
 import { modelConvertRoutine } from './utils/model-convert-routine';
-import { configurationManager } from '../../../configuration';
+import assetConfig from '../../asset-config';
 
 export const FbxHandler: AssetHandlerBase = {
     ...GltfHandler,
@@ -19,7 +19,7 @@ export default FbxHandler;
 export async function getGltfFilePath(asset: Asset) {
     const userData = asset.userData as GlTFUserData;
     if (typeof userData.fbx?.smartMaterialEnabled === 'undefined') {
-        (userData.fbx ??= {}).smartMaterialEnabled = await configurationManager.get('project.fbx.material.smart') ?? false;
+        (userData.fbx ??= {}).smartMaterialEnabled = await assetConfig.getProject<boolean>('fbx.material.smart') ?? false;
     }
     let outGLTFFile: string;
     if (userData.legacyFbxImporter) {

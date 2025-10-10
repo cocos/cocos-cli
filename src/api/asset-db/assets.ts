@@ -26,16 +26,7 @@ export class AssetsApi extends ApiBase {
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('../../core/assets');
         console.log('startupAssetDB', this.projectPath);
-        await startupAssetDB({
-            root: this.projectPath,
-            assetDBList: [{
-                name: 'assets',
-                target: join(this.projectPath, 'assets'),
-                readonly: false,
-                visible: true,
-                library: join(this.projectPath, 'library'),
-            }],
-        });
+        await startupAssetDB();
     }
 
     /**

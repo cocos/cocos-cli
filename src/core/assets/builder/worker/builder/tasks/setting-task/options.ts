@@ -1,11 +1,9 @@
 'use strict';
 
 import { IInternalBuildOptions } from '../../../../@types/protected';
-import { defaultConfigs } from '../../../../share/common-options-validator';
 import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
 import { formatSplashScreen, patchOptionsToSettings } from './utils/project-options';
-import { isEqual } from 'lodash';
 
 export const title = 'i18n:builder.tasks.settings.options';
 

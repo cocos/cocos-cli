@@ -1,6 +1,5 @@
 import * as utils from './utils';
 import { ConfigurationScope, MessageType } from './interface';
-import { defaultConfigMap } from '../configs';
 import { EventEmitter } from 'events';
 
 type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
@@ -24,7 +23,7 @@ export interface IBaseConfiguration extends EventEmitterMethods {
      * @param key 配置键名，支持点号分隔的嵌套路径
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
+    get<T>(key?: string, scope?: ConfigurationScope): Promise<T>;
 
     /**
      * 获取指定范围的所有配置，默认是 project
@@ -66,9 +65,8 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
         super();
     }
 
-    public getDefaultConfig(): Record<string, any> | undefined {
-        // TODO 后续 defaultConfigMap 这个可以删除
-        return this.defaultConfigs || defaultConfigMap[this.moduleName];
+    public getDefaultConfig(): Record<string, any> {
+        return this.defaultConfigs || {};
     }
 
     public getAll(scope: ConfigurationScope = 'project'): Record<string, any> | undefined {
@@ -78,7 +76,10 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
         return this.configs;
     }
 
-    public async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
+    public async get<T>(key?: string, scope?: ConfigurationScope): Promise<T> {
+        if (!key) {
+            return utils.deepMerge(this.getDefaultConfig(), this.configs);
+        }
         const projectConfig = utils.getByDotPath(this.configs, key);
         const hasProjectValue = projectConfig !== undefined;
 
@@ -120,7 +121,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
 
     public async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
         let removed = false;
-        
+
         if (scope === 'default') {
             // 从默认配置中移除
             if (this.defaultConfigs) {
@@ -133,7 +134,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
                 await this.save();
             }
         }
-        
+
         return removed;
     }
 

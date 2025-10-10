@@ -3,7 +3,6 @@ import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
 import { MigrateStep, i18nTranslate, linkToAssetTarget, openCode } from '../utils';
 import { AssetHandlerBase } from '../../@types/protected';
-import { configurationManager } from '../../../configuration';
 
 interface IScriptModuleUseData {
     isPlugin: false;
@@ -58,76 +57,6 @@ export const JavascriptHandler: AssetHandlerBase = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '4.0.24',
-        migrations: [
-            {
-                version: '4.0.22',
-                migrate(asset: Asset) {
-                    type OldUserData = Omit<PluginScriptUseData, 'executionScope'> & {
-                        /**
-                         * `false` 或者 `undefined` 时表示不模拟；
-                         * `true` 时候表示模拟默认的全局变量。
-                         */
-                        simulateGlobals?: boolean | string[];
-                    };
-                    const oldUserData = asset.userData as OldUserData;
-                    const userData = asset.userData as PluginScriptUseData;
-                    if (oldUserData.simulateGlobals === true) {
-                        userData.simulateGlobals = undefined;
-                    } else if (oldUserData.simulateGlobals === false || oldUserData.simulateGlobals === undefined) {
-                        userData.simulateGlobals = [];
-                    }
-                },
-            },
-            {
-                version: '4.0.23',
-                migrate(asset: Asset) {
-                    type OldUserData = {
-                        importAsPlugin?: boolean;
-                    };
-                    const userData = asset.userData as OldUserData;
-                    if (typeof userData.importAsPlugin !== 'undefined') {
-                        delete userData.importAsPlugin;
-                    }
-                },
-            },
-            {
-                version: '4.0.24',
-                async migrate(asset: Asset) {
-                    const userData = asset.userData as any;
-                    if (!userData.isPlugin || !Array.isArray(userData.dependencies) || !userData.dependencies.length) {
-                        return;
-                    }
-                    await migrateStep.hold();
-                    const sortingPlugins: string[] = await configurationManager.get('project.script.sortingPlugin') ?? [];
-                    if (Array.isArray(sortingPlugins) && sortingPlugins.length && sortingPlugins.includes(asset.uuid)) {
-                        const index = sortingPlugins.findIndex((item) => item === asset.uuid);
-                        // 当前脚本已经被其他脚本依赖
-                        for (const script of userData.dependencies) {
-                            const scriptIndex = sortingPlugins.findIndex((item) => item === script);
-                            if (scriptIndex === -1) {
-                                sortingPlugins.splice(index, 0, script);
-                                continue;
-                            }
-                            if (scriptIndex > index) {
-                                // 依赖的脚本在当前资源后，需要前移
-                                sortingPlugins.splice(scriptIndex, 1);
-                                sortingPlugins.splice(index, 0, script);
-                            }
-                        }
-                    } else {
-                        for (const script of userData.dependencies) {
-                            if (!sortingPlugins.includes(script)) {
-                                sortingPlugins.push(script);
-                            }
-                        }
-                        sortingPlugins.push(asset.uuid);
-                    }
-                    await configurationManager.set('project.script.sortingPlugin', sortingPlugins);
-                    delete asset.userData.dependencies;
-                    migrateStep.step();
-                },
-            },
-        ],
 
         /**
          * 实际导入流程

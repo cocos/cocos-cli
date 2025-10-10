@@ -10,6 +10,7 @@ import i18n from '../../base/i18n';
 import { IAsset, IExportData } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import { AssetHandlerInfo } from '../asset-handler/config';
+import assetConfig from '../asset-config';
 
 interface HandlerInfo extends AssetHandlerInfo {
     pkgName: string;
@@ -86,6 +87,7 @@ class AssetHandlerManager {
     async init() {
         const { assetHandlerInfos } = await import('../../assets/asset-handler/config');
         this.register('cocos-cli', assetHandlerInfos, true);
+        AssetHandlerManager.createTemplateRoot = await assetConfig.getProject('createTemplateRoot');
     }
 
     /**

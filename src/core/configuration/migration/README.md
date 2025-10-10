@@ -218,7 +218,6 @@ const migratedConfig = await CocosMigrationManager.migrate('/path/to/project');
 console.log('迁移完成:', migratedConfig);
 ```
 
-
 ## API 参考
 
 ### CocosMigrationManager

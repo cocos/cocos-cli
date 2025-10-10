@@ -12,9 +12,8 @@ import { BuiltinBundleName, BundleCompressionTypes, DefaultBundleConfig, getBund
 import { buildAssetLibrary } from '../../manager/asset-library';
 import { BuilderAssetCache } from '../../manager/asset';
 import { getLibraryDir, queryImageAssetFromSubAssetByUuid } from '../../utils';
-import { BuildGlobalInfo } from '../../../../share/global';
 import { handleJsonGroup, outputJsonGroup } from './json-group';
-import { defaultsDeep, getConfig } from '../../../../share/utils';
+import { defaultsDeep } from '../../../../share/utils';
 import { EffectAsset, Material } from 'cc';
 import { BuildTaskBase } from '../../manager/task-base';
 import { compareUUID } from '../../../../share/utils';
@@ -27,6 +26,7 @@ import { IBundleManager, IBuilder, IInternalBundleBuildOptions, IBuildHooksInfo,
 import { pluginManager } from '../../../../manager/plugin';
 import utils from '../../../../../../base/utils';
 import script from '../../../../../script';
+import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
 
 const { MAIN, START_SCENE, INTERNAL, RESOURCES } = BuiltinBundleName;
 // 只 Bundle 构建时，可走此类的生成执行函数
@@ -126,7 +126,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
     static async create(options: IBuildTaskOption, task?: IBuilder) {
         if (!options.skipCompressTexture) {
             const { TextureCompress } = await import('../texture-compress');
-            const imageCompressManager = new TextureCompress(options.platform, options.useBuildTextureCompressCache);
+            const imageCompressManager = new TextureCompress(options.platform, options.useCacheConfig?.textureCompress);
             return new BundleManager(options, imageCompressManager, task);
         }
         return new BundleManager(options, null, task);
@@ -143,7 +143,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
      * 初始化项目设置的一些 bundle 配置信息
      */
     static async initStaticBundleConfig() {
-        const bundleConfig: Record<string, CustomBundleConfig> = (getConfig('bundleConfig.custom')) || {};
+        const bundleConfig: Record<string, CustomBundleConfig> = (await builderConfig.getProject('bundleConfig.custom')) || {};
         if (!bundleConfig.default) {
             bundleConfig.default = DefaultBundleConfig;
         }

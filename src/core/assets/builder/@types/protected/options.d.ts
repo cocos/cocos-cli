@@ -172,7 +172,7 @@ export interface IImportMapOptions {
 
 export type IPlatformType = 'native' | 'miniGame' | 'web';
 
-export interface IInternalBundleBuildOptions extends MakeRequired<IBuildTaskOption, 'includeModules' | 'macroConfig' | 'engineModulesConfigKey' | 'customPipeline' | 'renderPipeline' | 'designResolution' | 'physicsConfig' | 'flags' | 'taskId'> {
+export interface IInternalBundleBuildOptions<P extends Platform = Platform> extends MakeRequired<IBuildTaskOption<P>, 'includeModules' | 'macroConfig' | 'engineModulesConfigKey' | 'customPipeline' | 'renderPipeline' | 'designResolution' | 'physicsConfig' | 'flags' | 'taskId'> {
     dest: string; // bundle 构建的输出地址，常规构建时为 assets 目录
     // 编译脚本配置选项
     buildScriptParam: IBuildScriptParam;
@@ -185,17 +185,14 @@ export interface IInternalBundleBuildOptions extends MakeRequired<IBuildTaskOpti
     platformType: StatsQuery.ConstantManager.PlatformType;
 }
 
-export interface IBuildCommandOption extends Partial<IBuildTaskOption> {
-    configPath?: string;
-    logDest?: string; // 日志输出地址
-    migrate?: boolean; // 是否迁移传入的构建参数，默认开启
-    stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
-    root: string; // 项目地址
+export interface IBuildCommandOption<P extends Platform = Platform> extends Partial<IBuildTaskOption<P>> {
+    configPath?: string; // 构建配置文件地址
+    migrate?: boolean; // 默认关闭，开启后自动迁移传入的配置
     projectSettingsPath?: string; // 导出的项目设置文件地址
     skipCheck?: boolean; // 跳过参数的检查流程
 }
 
-export interface IInternalBuildOptions extends IInternalBundleBuildOptions {
+export interface IInternalBuildOptions<P extends Platform = Platform> extends IInternalBundleBuildOptions<P> {
     dest: string;
     // 编译 application.js 参数配置
     appTemplateData: appTemplateData;
@@ -204,7 +201,11 @@ export interface IInternalBuildOptions extends IInternalBundleBuildOptions {
     updateOnly: boolean;
     generateCompileConfig?: boolean;
     recompileConfig?: IRecompileConfig;
-
+    resolution: {
+        width: number;
+        height: number;
+        policy: number;
+    };
     // 构建之前默认会清空构建目录，如不希望清空，请在 onBeforeInit 之前修改当前参数为 true
     useCache?: boolean;
     bundleConfigs?: IBundleInternalOptions[];

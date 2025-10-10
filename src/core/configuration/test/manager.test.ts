@@ -364,4 +364,122 @@ describe('ConfigurationManager', () => {
             await expect(writeErrorManager.initialize(projectPath)).rejects.toThrow('Write error');
         });
     });
+
+    describe('configs should be initialized from projectConfig', () => {
+        // 提取重复的项目配置对象
+        const existingProjectConfig = {
+            version: '1.0.0',
+            testModule: {
+                existingKey: 'existingValue',
+                nested: {
+                    existingNestedKey: 'existingNestedValue'
+                }
+            }
+        };
+
+        it('should initialize configs from existing projectConfig when registering configuration', async () => {
+            // 模拟配置文件存在并包含配置
+            mockFse.pathExists.mockResolvedValue(true);
+            mockFse.readJSON.mockResolvedValue(existingProjectConfig);
+            mockFse.ensureDir.mockResolvedValue(undefined);
+            mockFse.writeJSON.mockResolvedValue(undefined);
+
+            const newManager = new ConfigurationManager();
+            await newManager.initialize(projectPath);
+
+            // 验证 projectConfig 已正确加载
+            expect(newManager['projectConfig']).toEqual(existingProjectConfig);
+
+            // 模拟配置实例注册 - 使用 BaseConfiguration 类型
+            const mockInstance = {
+                moduleName: 'testModule',
+                configs: {}, // 模拟 BaseConfiguration 的 configs 属性
+                getAll: jest.fn().mockReturnValue({}), // 初始返回空对象
+                on: jest.fn(),
+                emit: jest.fn(),
+                set: jest.fn().mockResolvedValue(true)
+            };
+
+            // 获取注册事件处理器
+            const onRegistryHandler = mockRegistry.on.mock.calls.find(
+                call => call[0] === MessageType.Registry
+            )?.[1] as Function;
+
+            expect(onRegistryHandler).toBeDefined();
+            
+            // 执行注册事件处理器
+            await onRegistryHandler(mockInstance);
+
+            // 验证修复：注册时应该从 projectConfig 中初始化配置
+            // 期望的行为：configs 应该包含 projectConfig.testModule 的值
+            expect(mockInstance.configs).toEqual({
+                existingKey: 'existingValue',
+                nested: {
+                    existingNestedKey: 'existingNestedValue'
+                }
+            });
+            
+            // 模拟 Save 事件触发（当配置被修改时）
+            const saveHandler = mockInstance.on.mock.calls.find(
+                call => call[0] === MessageType.Save
+            )?.[1] as Function;
+            
+            expect(saveHandler).toBeDefined();
+            
+            // 更新 getAll 返回值以反映初始化后的配置
+            mockInstance.getAll.mockReturnValue(mockInstance.configs);
+            
+            await saveHandler(mockInstance);
+            
+            // 验证修复：Save 时应该保存正确的配置，而不是空对象
+            expect(mockInstance.getAll).toHaveBeenCalled();
+            expect(mockFse.writeJSON).toHaveBeenCalledWith(
+                configPath,
+                expect.objectContaining({
+                    testModule: {
+                        existingKey: 'existingValue',
+                        nested: {
+                            existingNestedKey: 'existingNestedValue'
+                        }
+                    }
+                }),
+                { spaces: 4 }
+            );
+        });
+
+        it('should throw error when registering non-BaseConfiguration instances', async () => {
+            // 模拟配置文件存在并包含配置
+            mockFse.pathExists.mockResolvedValue(true);
+            mockFse.readJSON.mockResolvedValue(existingProjectConfig);
+            mockFse.ensureDir.mockResolvedValue(undefined);
+            mockFse.writeJSON.mockResolvedValue(undefined);
+
+            const newManager = new ConfigurationManager();
+            await newManager.initialize(projectPath);
+
+            // 模拟非 BaseConfiguration 类型的配置实例
+            const mockInstance = {
+                moduleName: 'testModule',
+                getAll: jest.fn().mockReturnValue({}),
+                on: jest.fn(),
+                emit: jest.fn(),
+                set: jest.fn().mockResolvedValue(true)
+            };
+
+            // 获取注册事件处理器
+            const onRegistryHandler = mockRegistry.on.mock.calls.find(
+                call => call[0] === MessageType.Registry
+            )?.[1] as Function;
+
+            expect(onRegistryHandler).toBeDefined();
+            
+            // 执行注册事件处理器应该抛出错误
+            try {
+                await onRegistryHandler(mockInstance);
+                fail('Expected an error to be thrown');
+            } catch (error) {
+                expect((error as Error).message).toContain('配置实例必须是 BaseConfiguration 类型');
+            }
+        });
+    });
 });

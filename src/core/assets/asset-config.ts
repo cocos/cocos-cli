@@ -1,7 +1,8 @@
 import { join } from "path";
 import { AssetDBRegisterInfo } from "./@types/private";
-import { getCurrentLocalTime } from "./utils";
-import { newConsole } from "../base/console";
+import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from "../configuration";
+import project from "../project";
+import engine from "../engine";
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
@@ -51,15 +52,20 @@ class AssetConfig {
             '**/pnpm-lock.yaml',
         ],
         assetDBList: [],
-
         root: '',
         libraryRoot: '',
         tempRoot: '',
         createTemplateRoot: '',
         sortingPlugin: [],
+        // fbx.material.smart
     }
 
     private _init = false;
+
+    /**
+     * 持有的可双向绑定的配置管理实例
+     */
+    private _configInstance!: IBaseConfiguration;
     get data() {
         if (!this._init) {
             throw new Error('AssetConfig not init');
@@ -67,15 +73,42 @@ class AssetConfig {
         return this._assetConfig;
     }
 
-    init(userConfig: Partial<AssetDBConfig> = {}) {
+    async init() {
         if (this._init) {
             console.warn('AssetConfig already init');
             return;
         }
-        Object.assign(this._assetConfig, userConfig);
+        this._configInstance = await configurationRegistry.register('import', {
+            restoreAssetDBFromCache: this._assetConfig.restoreAssetDBFromCache,
+            globList: this._assetConfig.globList,
+            createTemplateRoot: join(this._assetConfig.root, '.creator/templates'),
+        });
+        this._assetConfig.root = project.path;
+        const enginePath = engine.getInfo().typescript.path;
         this._assetConfig.libraryRoot = this._assetConfig.libraryRoot || join(this._assetConfig.root, 'library');
         this._assetConfig.tempRoot = join(this._assetConfig.root, 'temp/asset-db');
+        this._assetConfig.assetDBList = [{
+            name: 'assets',
+            target: join(this._assetConfig.root, 'assets'),
+            readonly: false,
+            visible: true,
+            library: join(this._assetConfig.root, 'library'),
+        }, {
+            name: 'internal',
+            target: join(enginePath, 'editor/assets'),
+            readonly: false,
+            visible: true,
+            library: join(enginePath, 'editor/library'),
+        }];
         this._init = true;
+    }
+
+    getProject<T>(path: string, scope?: ConfigurationScope): Promise<T> {
+        return this._configInstance.get(path, scope);
+    }
+
+    setProject(path: string, value: any, scope?: ConfigurationScope) {
+        return this._configInstance.set(path, value, scope);
     }
 }
 

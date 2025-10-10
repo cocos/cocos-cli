@@ -1,5 +1,5 @@
 import { IPluginHookName } from '../../@types/protected';
-import { BuildGlobalInfo } from '../../share/global';
+import { BuildGlobalInfo } from '../../share/builder-config';
 
 // 任务划分管理器，也作为自我调试时的配置
 class TaskManager {

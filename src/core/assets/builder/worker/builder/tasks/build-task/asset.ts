@@ -5,8 +5,8 @@ import { dirname, join } from 'path';
 import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
-import { BuildGlobalInfo } from '../../../../share/global';
 import utils from '../../../../../../base/utils';
+import { BuildGlobalInfo } from '../../../../share/builder-config';
 
 export const title = 'Build Assets';
 

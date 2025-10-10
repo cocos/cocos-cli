@@ -3,13 +3,13 @@
 import Ejs from 'ejs';
 import { copyFileSync, outputFileSync } from 'fs-extra';
 import { basename, join } from 'path';
-import { IBuildResult, ITaskOption } from './interface';
-import { InternalBuildResult, BuilderAssetCache, IBuilder } from '../../@types/protected';
+import { InternalBuildResult, BuilderAssetCache, IBuilder, IInternalBuildOptions } from '../../@types/protected';
 import { relativeUrl, transformCode } from '../../worker/builder/utils';
+import { IBuildResult } from '../../@types/platforms/web-mobile';
 
 export const throwError = true;
 
-export async function onAfterInit(options: ITaskOption, result: InternalBuildResult, cache: BuilderAssetCache) {
+export async function onAfterInit(options: IInternalBuildOptions<'web-mobile'>, result: InternalBuildResult, cache: BuilderAssetCache) {
 
     // 添加统计信息
     const packageOptions = options.packages['web-mobile'];
@@ -20,7 +20,7 @@ export async function onAfterInit(options: ITaskOption, result: InternalBuildRes
     }
 }
 
-export function onAfterBundleInit(options: ITaskOption) {
+export function onAfterBundleInit(options: IInternalBuildOptions<'web-mobile'>) {
     options.buildScriptParam.system = { preset: 'web' };
     const useWebGPU = options.packages['web-mobile'].useWebGPU;
     options.buildScriptParam.flags['WEBGPU'] = useWebGPU;
@@ -40,7 +40,7 @@ export function onAfterBundleInit(options: ITaskOption) {
  * @param options
  * @param settings
  */
-export async function onBeforeCompressSettings(options: ITaskOption, result: InternalBuildResult, cache: BuilderAssetCache) {
+export async function onBeforeCompressSettings(options: IInternalBuildOptions<'web-mobile'>, result: InternalBuildResult, cache: BuilderAssetCache) {
     if (!result.paths.dir) {
         return;
     }
@@ -48,7 +48,7 @@ export async function onBeforeCompressSettings(options: ITaskOption, result: Int
     result.settings.screen.orientation = packageOptions.orientation;
 }
 
-export async function onBeforeCopyBuildTemplate(this: IBuilder, options: ITaskOption, result: IBuildResult) {
+export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInternalBuildOptions<'web-mobile'>, result: IBuildResult) {
     const staticDir = join(options.engineInfo.typescript.builtin, 'templates/web-mobile');
     const packageOptions = options.packages['web-mobile'];
 
@@ -109,7 +109,7 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: ITaskOp
     options.md5CacheOptions.replaceOnly.push('index.html');
 }
 
-export async function onAfterBuild(options: ITaskOption, result: InternalBuildResult) {
+export async function onAfterBuild(options: IInternalBuildOptions<'web-mobile'>, result: InternalBuildResult) {
     // 放在最后处理 url ，否则会破坏 md5 的处理
     result.settings.plugins.jsList.forEach((url: string, i: number) => {
         result.settings.plugins.jsList[i] = url.split('/').map(encodeURIComponent).join('/');

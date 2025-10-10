@@ -2,11 +2,11 @@ import { join } from 'path';
 import { buildAssetLibrary } from './asset-library';
 import * as BundleUtils from '../asset-handler/bundle/utils';
 import EventEmitter from 'events';
-import { BuildGlobalInfo } from '../../../share/global';
 import { getBuildPath } from '../utils';
 import { IBuildPaths, ISettings, IBuildTaskOption, IBuildResult, IRawAssetPathInfo, IAssetPathInfo, IImportAssetPathInfo } from '../../../@types';
 import { ICompressImageResult, ImportMapWithImports, IBuilder, IBuildSeparateEngineResult } from '../../../@types/protected';
 import { transI18n } from '../../../share/utils';
+import { BuildGlobalInfo } from '../../../share/builder-config';
 
 class Paths implements IBuildPaths {
     dir: string;

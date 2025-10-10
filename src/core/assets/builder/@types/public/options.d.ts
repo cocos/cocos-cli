@@ -1,9 +1,10 @@
 import * as babel from '@babel/core';
 import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig } from './texture-compress';
-import { BuildTemplateConfig, IPlatformType } from '../protected';
+import { BuildTemplateConfig, IBuildTaskOption, IPlatformType } from '../protected';
 import { IFlags } from '@cocos/creator-types/editor/packages/engine/@types'
 import { StatsQuery } from '@cocos/ccbuild';
-import { EngineInfo } from '../../../../engine/@types/public';
+import { EngineInfo, EngineConfig } from '../../../../engine/@types/public';
+import { extend } from 'lodash';
 
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
 export type ISortType = 'taskName' | 'createTime' | 'platform' | 'buildTime';
@@ -66,8 +67,20 @@ interface IBinGroupConfig {
     threshold: number;
 }
 
-export interface IBuildOptionBase {
-    // packAutoAtlas: boolean;
+export interface IBuildCacheUseConfig {
+    serializeData?: boolean; // 序列化结果
+    engine?: boolean;
+    textureCompress?: boolean;
+    autoAtlas?: boolean;
+}
+
+export interface IBuildCommonOptions {
+    taskId?: string; // 指定构建任务 id，可选
+    logDest?: string; // 任务的指定构建输出地址，可选
+    name: string; // 游戏名称
+    outputName: string;
+    // 构建后的游戏文件夹生成的路径
+    buildPath: string;
     taskName: string;
     platform: Platform;
     scenes: IBuildSceneItem[];
@@ -77,14 +90,14 @@ export interface IBuildOptionBase {
     bundleCommonChunk: boolean;
 
     startScene: string;
-    // 构建后的游戏文件夹生成的路径
-    buildPath: string;
+
     debug: boolean;
     mangleProperties: boolean;
-    inlineEnum: boolean;
+    inlineEnum: boolean; // 内联枚举
     inlineSpriteFrames: boolean;
     md5Cache: boolean;
-
+    polyfills?: IPolyFills;
+    buildScriptTargets?: string;
     // bundle 设置
     mainBundleCompressionType: BundleCompressionType;
     mainBundleIsRemote: boolean;
@@ -96,30 +109,48 @@ export interface IBuildOptionBase {
     // 移除远程包 Bundle 的脚本, 小游戏平台将会自动勾选
     moveRemoteBundleScript: boolean;
 
-    // 项目设置
-    engineModulesConfigKey?: string; // 3.8.6 新增的多模块裁切
-    includeModules?: string[];
-    renderPipeline?: string;
-    designResolution?: IBuildDesignResolution;
-    physicsConfig?: IPhysicsConfig;
-    flags?: IFlags;
-    customLayers: { name: string, value: number }[];
-    sortingLayers: { id: number, name: string, value: number }[];
-    macroConfig?: Record<string, any>;
-    // 是否使用自定义管线，如与其他模块配置不匹配将会以当前选项为准
-    customPipeline?: boolean;
-
     // 是否使用自定义插屏选项
     useSplashScreen?: boolean;
-    splashScreen: ISplashSetting;
 
     /**
      * 是否是预览进程发送的构建请求。
      * @default false
-     */
+    */
     preview?: boolean;
-
+    stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
     buildMode?: 'normal' | 'bundle' | 'script';
+    nextStages?: string[];
+    // 构建阶段性任务绑定分组
+    // buildStageGroup?: Record<string, string[]>;
+    nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
+    wasmCompressionMode?: 'brotli';
+    buildBundleOnly?: boolean; // 仅构建 Bundle
+    // 构建 Bundle 的指定包含传参，未传递时按照项目内所有 Bundle 的原始配置打包
+    // name 有一定的计算规则，作为选填项
+    bundleConfigs?: IBundleOptions[];
+    /**
+     * @deprecated please use engineModulesConfigKey
+     */
+    overwriteProjectSettings?: {
+        macroConfig?: {
+            cleanupImageCache: string;
+        },
+        includeModules?: {
+            physics?: 'inherit-project-setting' | string;
+            'physics-2d'?: 'inherit-project-setting' | string;
+            'gfx-webgl2'?: 'inherit-project-setting' | 'on' | 'off';
+            [key?: string]: string;
+        };
+    };
+}
+
+export interface OverwriteProjectSettings extends EngineConfig {
+    engineInfo: EngineInfo;
+}
+
+export interface IBuildOptionBase extends IBuildCommonOptions, OverwriteProjectSettings {
+    engineModulesConfigKey?: string; // 3.8.6 新增的多模块裁切
+    useCacheConfig?: IBuildCacheUseConfig;
 }
 
 export interface BundleFilterConfig {
@@ -146,59 +177,6 @@ export interface IBundleOptions {
     bundleFilterConfig?: BundleFilterConfig[];
 }
 
-/**
- * 构建所需的完整参数
- */
-export interface IBuildTaskOption extends IBuildOptionBase {
-    taskId?: string; // 指定构建任务 id，可选
-    logDest?: string; // 任务的指定构建输出地址，可选
-
-    name: string;
-
-    outputName: string;
-    taskName: string;
-    polyfills?: IPolyFills;
-    buildScriptTargets?: string;
-    nextStages?: string[];
-    resolution: {
-        width: number;
-        height: number;
-        policy: number;
-    }
-
-    // 构建阶段性任务绑定分组
-    buildStageGroup?: Record<string, string[]>;
-    packages?: Record<string, any>;
-    id?: string; // 手动配置构建任务 id
-    // recompileConfig?: IRecompileConfig;
-
-    // 构建 Bundle 的指定包含传参，未传递时按照项目内所有 Bundle 的原始配置打包
-    // name 有一定的计算规则，作为选填项
-    bundleConfigs?: IBundleOptions[];
-    buildBundleOnly?: boolean; // 仅构建 Bundle
-
-    // 一些偏好设置选项
-    useBuildAssetCache?: boolean;
-    useBuildEngineCache?: boolean;
-    useBuildTextureCompressCache?: boolean;
-    useBuildAutoAtlasCache?: boolean;
-    __version__?: string;
-
-    overwriteProjectSettings?: {
-        macroConfig?: {
-            cleanupImageCache: string;
-        },
-        includeModules?: {
-            physics?: 'inherit-project-setting' | string;
-            'physics-2d'?: 'inherit-project-setting' | string;
-            'gfx-webgl2'?: 'inherit-project-setting' | 'on' | 'off';
-            [key?: string]: string;
-        };
-    };
-    nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
-    wasmCompressionMode?: 'brotli';
-    engineInfo: EngineInfo;
-}
 
 export interface IBundleTaskOption extends IBuildTaskOption {
     dest: string;
@@ -206,44 +184,6 @@ export interface IBundleTaskOption extends IBuildTaskOption {
 
 export type UUID = string;
 
-export interface ISplashSetting {
-    displayRatio: number;
-    totalTime: number;
-    watermarkLocation: 'default' | 'topLeft' | 'topRight' | 'topCenter' | 'bottomLeft' | 'bottomCenter' | 'bottomRight';
-    autoFit: boolean;
-
-    logo?: {
-        type: 'default' | 'none' | 'custom';
-        image?: string;
-        base64?: string;
-    }
-    background?: {
-        type: 'default' | 'color' | 'custom';
-        color?: ISplashBackgroundColor;
-        image?: string;
-        base64?: string;
-    }
-}
-
-export interface ISplashBackgroundColor {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-}
-
-
-
-/**
- * 构建使用的设计分辨率数据
- */
-export interface IBuildDesignResolution {
-    height: number;
-    width: number;
-    fitWidth?: boolean;
-    fitHeight?: boolean;
-    policy?: number;
-}
 
 /**
  * 构建使用的场景的数据

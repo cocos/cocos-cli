@@ -12,7 +12,7 @@ import { workerManager } from '../worker-pools/sub-process-manager';
 import { BundleManager } from './asset-handler/bundle';
 import { ResolutionPolicy } from 'cc';
 import { BuildTaskBase } from './manager/task-base';
-import { formatMSTime, getBuildPath } from '../../share/utils';
+import { defaultsDeep, formatMSTime, getBuildPath } from '../../share/utils';
 import { BuildTemplate } from './manager/build-template';
 import { newConsole } from '../../../../base/console';
 import { ITaskResultMap } from '../../@types/builder';
@@ -365,12 +365,12 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
 
     private async initOptions() {
         this.options.platformType = pluginManager.platformConfig[this.options.platform].platformType;
-        // this.options.md5CacheOptions = this.options.md5CacheOptions || defaultsDeep(this.options.md5CacheOptions, {
-        //     excludes: [],
-        //     includes: [],
-        //     replaceOnly: [],
-        //     handleTemplateMd5Link: false,
-        // });
+        this.options.md5CacheOptions = this.options.md5CacheOptions || {
+            excludes: [],
+            includes: [],
+            replaceOnly: [],
+            handleTemplateMd5Link: false,
+        };
         await checkProjectSetting(this.options);
 
         // TODO 支持传参直接传递 resolution
@@ -438,7 +438,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             engineName: 'cocos-js',
             output: join(this.result.paths.dir, 'cocos-js'),
             platformType: this.options.platformType,
-            useCache: this.options.useBuildEngineCache === false ? false : true,
+            useCache: this.options.useCacheConfig?.engine === false ? false : true,
             nativeCodeBundleMode: this.options.nativeCodeBundleMode,
             wasmCompressionMode: this.options.wasmCompressionMode,
         };

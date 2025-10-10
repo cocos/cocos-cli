@@ -5,10 +5,10 @@ import { pathToFileURL } from 'url';
 import type { ImportMap } from '@cocos/creator-programming-import-maps/lib/import-map';
 import type { Logger } from '@cocos/creator-programming-common/lib/logger';
 import { existsSync } from 'fs';
-import { configurationManager } from '../../configuration';
+import { configurationManager, configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../../configuration';
 import Utils from '../../base/utils';
 
-export interface SharedSettings {
+export interface SharedSettings extends Pick<ScriptProjectConfig, 'useDefineForClassFields' | 'allowDeclareFields' | 'loose' | 'guessCommonJsExports' | 'exportsConditions'> {
     useDefineForClassFields: boolean;
     allowDeclareFields: boolean;
     loose: boolean;
@@ -21,24 +21,70 @@ export interface SharedSettings {
     preserveSymlinks: boolean;
 }
 
+interface ScriptProjectConfig {
+    useDefineForClassFields: boolean;
+    allowDeclareFields: boolean;
+    loose: boolean;
+    guessCommonJsExports: boolean;
+    exportsConditions: string[];
+    preserveSymlinks: boolean;
+
+    importMap: string;
+    previewBrowserslistConfigFile?: string;
+}
+
+export function getDefaultSharedSettings(): ScriptProjectConfig {
+    return {
+        useDefineForClassFields: true,
+        allowDeclareFields: true,
+        loose: false,
+        guessCommonJsExports: false,
+        exportsConditions: [],
+        preserveSymlinks: false,
+        importMap: '',
+        previewBrowserslistConfigFile: '',
+    }
+}
+
+class ScriptConfig {
+    private _config: ScriptProjectConfig = getDefaultSharedSettings();
+    /**
+     * 持有的可双向绑定的配置管理实例
+     * TODO 目前没有防护没有 init 的情况
+     */
+    private _configInstance!: IBaseConfiguration;
+
+    private _init = false;
+
+    async init() {
+        if (this._init) {
+            return;
+        }
+        this._configInstance = await configurationRegistry.register('script', getDefaultSharedSettings());
+        this._init = true;
+    }
+
+    getProject<T>(path?: string, scope?: ConfigurationScope) {
+        return this._configInstance.get<T>(path);
+    }
+
+    setProject(path: string, value: any, scope?: ConfigurationScope) {
+        return this._configInstance.set(path, value, scope);
+    }
+}
+
+export const scriptConfig = new ScriptConfig();
+
 export async function querySharedSettings(logger: Logger): Promise<SharedSettings> {
-    const [
+    const {
         useDefineForClassFields,
         allowDeclareFields,
         loose,
         guessCommonJsExports,
         exportsConditions,
-        importMapFile,
+        importMap: importMapFile,
         preserveSymlinks,
-    ] = await Promise.all([
-        configurationManager.get('project.script.useDefineForClassFields') as Promise<boolean | undefined>,
-        configurationManager.get('project.script.allowDeclareFields') as Promise<boolean | undefined>,
-        configurationManager.get('project.script.loose') as Promise<boolean | undefined>,
-        false, // Editor.Profile.getProject('project', 'script.guessCommonJsExports') as Promise<boolean | undefined>,
-        configurationManager.get('project.script.exportsConditions') as Promise<string[] | undefined>,
-        configurationManager.get('project.script.importMap') as Promise<string | undefined>,
-        configurationManager.get('project.script.preserveSymlinks') as Promise<boolean | undefined>,
-    ]);
+    } = await scriptConfig.getProject<ScriptProjectConfig>();
 
     let importMap: SharedSettings['importMap'];
     // ui-file 可能因为清空产生 project:// 这样的数据，应视为空字符串一样的处理逻辑

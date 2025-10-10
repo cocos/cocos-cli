@@ -8,9 +8,14 @@ import assetConfig, { AssetDBConfig } from './asset-config';
 import { IBuildCommandOption } from './builder/@types/private';
 import engine from '../engine';
 
-export async function startupAssetDB(config: Partial<AssetDBConfig> = {}) {
+/**
+ * 启动资源数据库，依赖于 project, engine 的初始化
+ */
+export async function startupAssetDB() {
     try {
-        assetConfig.init(config);
+        // @ts-ignore HACK 目前引擎有在一些资源序列化会调用的接口里使用这个变量，没有合理的传参之前需要临时设置兼容
+        window.Build = true;
+        await assetConfig.init();
         newConsole.trackMemoryStart('asset-db:worker-init');
         await assetManager.init();
         await assetDBManager.init();
@@ -26,9 +31,7 @@ export async function startupAssetDB(config: Partial<AssetDBConfig> = {}) {
 // TODO 对外接口暴露
 
 export async function build(options: IBuildCommandOption) {
-    const { init } = await import('./builder/share/global');
-    init(options.root);
     const { build } = await import('./builder');
-    options.engineInfo = engine.getInfo();
+    options.engineInfo = options.engineInfo || engine.getInfo();
     return await build(options);
 }

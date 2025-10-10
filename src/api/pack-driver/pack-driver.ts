@@ -12,7 +12,7 @@ export class PackDriverApi extends ApiBase {
 
     async init() {
         const packDriver = await PackerDriver.create(this.projectPath, this.enginePath);
-        await packDriver.init(Engine.getConfig().includedModules);
+        await packDriver.init(Engine.getConfig().includeModules);
         // await packDriver.build();
     }
 

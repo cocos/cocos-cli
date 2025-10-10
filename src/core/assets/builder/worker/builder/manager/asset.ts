@@ -9,8 +9,7 @@ import { IAsset } from '../../../../@types/protected';
 import { IBuildSceneItem } from '../../../@types';
 import { IInstanceMap, IBuilder, ISerializedOptions, IInternalBuildOptions, BuilderAssetCache as IBuilderAssetCache } from '../../../@types/protected';
 import { assetManager } from '../../../../manager/asset';
-import { BuildGlobalInfo } from '../../../share/global';
-import { transI18n } from '../../../share/utils';
+import { BuildGlobalInfo } from '../../../share/builder-config';
 
 /**
  * 资源管理器，主要负责资源的缓存查询缓存等

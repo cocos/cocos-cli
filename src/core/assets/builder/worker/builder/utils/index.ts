@@ -10,8 +10,8 @@ import { workerManager } from '../../worker-pools/sub-process-manager';
 import { transI18n, transI18nName as transI18nNameShare } from '../../../share/utils';
 import { IAsset } from '../../../../@types/protected';
 import { IModules, ITransformOptions, IBuildTaskOption } from '../../../@types';
-import { BuildGlobalInfo } from '../../../share/global';
 import utils from '../../../../../base/utils';
+import { BuildGlobalInfo } from '../../../share/builder-config';
 
 export { getBuildPath } from '../../../share/utils';
 

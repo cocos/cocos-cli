@@ -3,8 +3,8 @@ import * as textureCompressConfig from '../share/texture-compress';
 import i18n from '../../../base/i18n';
 import Utils from '../../../base/utils';
 import { IBuildTaskOption, IConfigItem, IDisplayOptions } from '../@types';
-import { BuildGlobalInfo, config, getDefaultConfig } from './global';
 import lodash from 'lodash';
+import { BuildGlobalInfo } from './builder-config';
 export function compareNumeric(lhs: string, rhs: string): number {
     return lhs.localeCompare(rhs, 'en', { numeric: true });
 }
@@ -293,22 +293,6 @@ export function transI18n(key: string, obj?: {
     [key: string]: string;
 }) {
     return i18n.t(key, obj);
-}
-
-export function setConfig(key: string, value: any, type?: 'global' | 'project') {
-    lodash.set(config, type === 'global' ? `global.${key}` : `project.${key}`, value);
-}
-
-/**
- * @param key 
- * @returns 
- */
-export function getConfig(key: string, useDefault: boolean = false, type?: 'global' | 'project'): any {
-    let buildConfig = config;
-    if (useDefault) {
-        buildConfig = getDefaultConfig();
-    }
-    return lodash.get(buildConfig, type === 'global' ? `global.${key}` : `project.${key}`);
 }
 
 export function getBuildPath(options: IBuildTaskOption) {

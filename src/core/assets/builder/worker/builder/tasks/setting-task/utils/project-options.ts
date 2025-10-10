@@ -4,14 +4,13 @@ import { readFileSync } from 'fs-extra';
 import { isEqual } from 'lodash';
 import { join } from 'path';
 import i18n from '../../../../../../../base/i18n';
-import { ISettings, ISplashSetting, IPhysicsConfig } from '../../../../../@types';
+import { ISettings, IPhysicsConfig } from '../../../../../@types';
 import { IInternalBuildOptions } from '../../../../../@types/protected';
 import utils from '../../../../../../../base/utils';
 import { GlobalPaths } from '../../../../../../../../global';
-import { defaultConfigs } from '../../../../../share/common-options-validator';
-import { getConfig } from '../../../../../share/utils';
 import engine from '../../../../../../../engine';
 import { configurationManager } from '../../../../../../../configuration';
+import { ISplashSetting } from '../../../../../../../engine/@types/config';
 
 const layerMask: number[] = [];
 for (let i = 0; i <= 19; i++) {
@@ -40,26 +39,23 @@ export async function patchOptionsToSettings(options: IInternalBuildOptions, set
     settings.engine.customLayers.sort((a, b) => a.bit - b.bit);
     settings.engine.sortingLayers = options.sortingLayers;
 
-    const defaultPipeline = engine.getConfig(true).renderPipeline;
+    const { renderPipeline: defaultPipeline, splashScreen: defaultSplashScreen } = engine.getConfig(true);
     settings.rendering.renderPipeline = options.renderPipeline === defaultPipeline ? '' : options.renderPipeline;
     settings.rendering.customPipeline = options.customPipeline;
-
-    settings.animation.customJointTextureLayouts = engine.getConfig().customJointTextureLayouts || [];
+    const { customJointTextureLayouts, downloadMaxConcurrency, splashScreen } = engine.getConfig();
+    settings.animation.customJointTextureLayouts = customJointTextureLayouts || [];
     if (options.includeModules.includes('custom-pipeline')) {
         settings.rendering.effectSettingsPath = 'src/effect.bin';
     }
     // 自定义插屏写入
     // const hasSetSplash = await Editor.Profile.getProject('builder', 'hasSetSplash');
-    settings.splashScreen = await getSplashSettings(!!options.useSplashScreen, !!options.preview);
+    settings.splashScreen = await getSplashSettings(!!options.useSplashScreen, !!options.preview, defaultSplashScreen, splashScreen);
     settings.physics = await getPhysicsConfig(options.includeModules, options.physicsConfig);
     settings.engine.macros = options.macroConfig || {};
-    const downloadMaxConcurrency = await configurationManager.get<number>('project.general.downloadMaxConcurrency');
-    settings.assets.downloadMaxConcurrency = downloadMaxConcurrency || 15;
+    settings.assets.downloadMaxConcurrency = downloadMaxConcurrency;
 }
 
-export async function getSplashSettings(useSplashScreen: boolean, preview: boolean): Promise<ISplashSetting> {
-    const defaultSplashScreen: ISplashSetting = defaultConfigs.splashScreenSetting;
-    let splashScreen = await configurationManager.get<ISplashSetting>('builder.splash-setting');
+export async function getSplashSettings(useSplashScreen: boolean, preview: boolean, defaultSplashScreen: ISplashSetting, splashScreen: ISplashSetting): Promise<ISplashSetting> {
     if (useSplashScreen !== false || preview) {
         try {
             splashScreen = Object.assign({}, defaultSplashScreen, splashScreen);
@@ -69,10 +65,10 @@ export async function getSplashSettings(useSplashScreen: boolean, preview: boole
             console.error(i18n.t('builder.error.missingSplashTips', {
                 splashScreen: JSON.stringify(splashScreen),
             }));
-            return formatSplashScreen(defaultSplashScreen);
+            return formatSplashScreen(defaultSplashScreen!);
         }
     } else {
-        const defaultSplashSettings = formatSplashScreen(defaultSplashScreen);
+        const defaultSplashSettings = formatSplashScreen(defaultSplashScreen!);
         defaultSplashSettings.totalTime = 0;
         delete defaultSplashSettings.logo;
         delete defaultSplashSettings.background;

@@ -7,9 +7,9 @@ import { pluginManager } from "./manager/plugin";
 import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./share/utils";
 import { newConsole } from "../../base/console";
 import { join } from "path";
-import { BuildGlobalInfo } from "./share/global";
 import { assetManager } from "../manager/asset";
 import { removeDbHeader } from "./worker/builder/utils";
+import builderConfig, { BuildGlobalInfo } from "./share/builder-config";
 
 export async function build(options: IBuildCommandOption): Promise<BuildExitCode> {
     if (options.configPath) {
@@ -50,11 +50,12 @@ export async function build(options: IBuildCommandOption): Promise<BuildExitCode
         return BuildExitCode.BUILD_FAILED;
     }
 
+    await builderConfig.init([options.platform]);
     // 启动对应的平台模块注册流程
-    await pluginManager.init([options.platform])
+    await pluginManager.init();
     // 命令行构建前，补全项目配置数据
     // await checkProjectSettingsBeforeCommand(options);
-    let res: IBuildTaskOption;
+    let res: IBuildTaskOption<any>;
     if (!options.skipCheck) {
         try {
             // 校验插件选项
@@ -203,7 +204,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     return buildSuccess ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
 }
 
-function readBuildTaskOptions(root: string): IBuildTaskOption | null {
+function readBuildTaskOptions(root: string): IBuildTaskOption<any> | null {
     const configFile = join(root, BuildGlobalInfo.buildOptionsFileName);
     try {
         if (existsSync(configFile)) {

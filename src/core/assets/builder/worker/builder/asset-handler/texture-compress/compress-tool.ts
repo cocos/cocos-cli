@@ -5,9 +5,9 @@ import { roundToPowerOfTwo } from './utils';
 import { quickSpawn } from '../../utils';
 import i18n from '../../../../../../base/i18n';
 import { ICompressConfig, ITextureCompressType } from '../../../../@types';
-import { BuildGlobalInfo } from '../../../../share/global';
 import { GlobalPaths } from '../../../../../../../global';
 import utils from '../../../../../../base/utils';
+import { BuildGlobalInfo } from '../../../../share/builder-config';
 const Sharp = require('sharp');
 
 /**

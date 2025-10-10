@@ -15,7 +15,7 @@ import { IAsset } from '../../../../../@types/protected';
 import { initBundleConfig } from './utils';
 import i18n from '../../../../../../base/i18n';
 import utils from '../../../../../../base/utils';
-import { BuildGlobalInfo } from '../../../../share/global';
+import { BuildGlobalInfo } from '../../../../share/builder-config';
 export class Bundle {
 
     public get scenes() {
@@ -341,13 +341,13 @@ export class Bundle {
             this.config.zipVersion = this.zipVer;
         }
         console.debug(`output config of bundle ${this.name}`);
-        let outpath = join(this.dest, (this.configOutPutName || parse(BuildGlobalInfo.CONFIG_NAME).name) + '.json');
+        let outputPath = join(this.dest, (this.configOutPutName || parse(BuildGlobalInfo.CONFIG_NAME).name) + '.json');
         if (this.version) {
-            outpath = join(this.dest, `${this.configOutPutName || parse(BuildGlobalInfo.CONFIG_NAME).name}.${this.version}.json`);
+            outputPath = join(this.dest, `${this.configOutPutName || parse(BuildGlobalInfo.CONFIG_NAME).name}.${this.version}.json`);
         }
 
         const content = JSON.stringify(this.config, null, this.config.debug ? 4 : 0);
-        outputFileSync(outpath, content, 'utf8');
+        outputFileSync(outputPath, content, 'utf8');
         console.debug(`output config of bundle ${this.name} success`);
     }
 

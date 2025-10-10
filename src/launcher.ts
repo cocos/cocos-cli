@@ -41,24 +41,9 @@ class ProjectManager {
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./core/assets');
         console.log('startupAssetDB', path);
-        await startupAssetDB({
-            root: path,
-            assetDBList: [{
-                name: 'assets',
-                target: join(path, 'assets'),
-                readonly: false,
-                visible: true,
-                library: join(path, 'library'),
-            }, {
-                name: 'internal',
-                target: join(enginePath, 'editor/assets'),
-                readonly: false,
-                visible: true,
-                library: join(enginePath, 'editor/library'),
-            }],
-        });
+        await startupAssetDB();
         const packDriver = await PackerDriver.create(path, enginePath);
-        await packDriver.init(Engine.getConfig().includedModules);
+        await packDriver.init(Engine.getConfig().includeModules);
         await packDriver.resetDatabases();
         await packDriver.build();
     }
@@ -81,10 +66,7 @@ class ProjectManager {
         await this.open(projectPath, enginePath);
         // 执行构建流程
         const { build } = await import('./core/assets');
-        return await build({
-            ...options,
-            root: projectPath,
-        });
+        return await build(options);
     }
 }
 

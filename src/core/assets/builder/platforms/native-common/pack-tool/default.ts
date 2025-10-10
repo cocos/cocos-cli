@@ -3,64 +3,19 @@ import * as fs from 'fs-extra';
 import { cchelper, Paths } from './utils';
 import { CocosProjectTasks } from './cocosProjectTypes';
 import { gzipSync } from 'zlib';
-const globby = require('globby');
+import { ICMakeConfig } from '../../../@types/platforms/native';
+import { globby } from 'globby';
 const xxtea = require('xxtea-node');
 
 const PackageNewConfig = 'cocos-project-template.json';
 
-export interface ICMakeConfig {
-    // 引擎模块
-    USE_AUDIO?: boolean;
-    USE_VIDEO?: boolean;
-    USE_WEBVIEW?: boolean;
-    // 任务调度系统配置，配置为布尔值的属性，会在生成时修改为 set(XXX ON) 的形式
-    USE_JOB_SYSTEM_TBB?: boolean;
-    USE_JOB_SYSTEM_TASKFLOW?: boolean;
-    // 是否勾选竖屏
-    USE_PORTRAIT?: boolean;
-
-    // 渲染后端
-    CC_USE_METAL?: boolean;
-    CC_USE_VUKAN?: boolean;
-    CC_USE_GLES3: boolean;
-    CC_USE_GLES2: boolean;
-
-    // 引擎路径
-    COCOS_X_PATH?: string;
-
-    // app名称
-    APP_NAME?: string;
-
-    // xxteakey
-    XXTEAKEY: string;
-
-    // // ios 和 mac 的bundle id设置
-    // MACOSX_BUNDLE_GUI_IDENTIFIER?: string;
-
-    // // ios 开发者
-    // DEVELOPMENT_TEAM?: string;
-    // TARGET_IOS_VERSION?: string;
-
-    // // mac
-    // TARGET_OSX_VERSION ?: string;
-
-    // // android
-    // CC_ENABLE_SWAPPY?: boolean;
-
-    // 其他属性
-    [propName: string]: any;
-
-    // 以服务器端模式运行
-    USE_SERVER_MODE: string;
-}
-
-export type InternaleNativePlatform = 'mac' | 'android' | 'windows' | 'ios' | 'ohos';
+export type InternalNativePlatform = 'mac' | 'android' | 'windows' | 'ios' | 'ohos';
 
 const ErrorCodeIncompatible = 15004;
 
 export interface INativePlatformOptions {
-    extends?: InternaleNativePlatform, //传入继承的平台，将会继承已有平台注册的一些代码
-    overwrite?: InternaleNativePlatform, //传入继承但如果有同名的方法等会复写平台，将会继承已有平台注册的一些代码
+    extends?: InternalNativePlatform, //传入继承的平台，将会继承已有平台注册的一些代码
+    overwrite?: InternalNativePlatform, //传入继承但如果有同名的方法等会复写平台，将会继承已有平台注册的一些代码
     create: () => Promise<boolean>;
     genrate: () => Promise<boolean>;
     make?: () => Promise<boolean>;

@@ -98,23 +98,23 @@ export const TypeScriptHandler: AssetHandler = {
             if (fileName.endsWith('.d.ts')) {
                 return true;
             }
-            let doTypeCheck = false;
-            let fatalOnError = false;
-            const checkLevel = await getTypeCheckLevel();
-            switch (checkLevel) {
-                case 'checkOnly':
-                    doTypeCheck = true;
-                    fatalOnError = false;
-                    break;
-                case 'fatalOnError':
-                    doTypeCheck = true;
-                    fatalOnError = true;
-                    break;
-                case 'disable':
-                default:
-                    doTypeCheck = false;
-                    break;
-            }
+            // let doTypeCheck = false;
+            // let fatalOnError = false;
+            // const checkLevel = await getTypeCheckLevel();
+            // switch (checkLevel) {
+            //     case 'checkOnly':
+            //         doTypeCheck = true;
+            //         fatalOnError = false;
+            //         break;
+            //     case 'fatalOnError':
+            //         doTypeCheck = true;
+            //         fatalOnError = true;
+            //         break;
+            //     case 'disable':
+            //     default:
+            //         doTypeCheck = false;
+            //         break;
+            // }
 
             return JavascriptHandler.importer.import(asset);
         },
@@ -179,10 +179,10 @@ export const TypeScriptHandler: AssetHandler = {
 
 export default TypeScriptHandler;
 
-async function getTypeCheckLevel() {
-    const data = await configurationManager.get('project.general.type_check_level');
-    return data;
-}
+// async function getTypeCheckLevel() {
+//     const data = await configurationManager.get('project.general.type_check_level');
+//     return data;
+// }
 
 // function CocosScriptFrameTransformer<T extends ts.Node>(compressedUUID: string, basename: string): ts.TransformerFactory<T> {
 //     return (context) => {
