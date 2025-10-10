@@ -1,5 +1,6 @@
 import cc, { SceneAsset } from 'cc';
 import { join } from 'path';
+import { register, expose } from './decorator';
 import assetOperation from '../../../assets/manager/operation';
 import assetQueryManager from '../../../assets/manager/query';
 import { assetManager } from '../../../assets/manager/asset';
@@ -10,18 +11,17 @@ import {
     ICreateSceneOptions,
     IOpenSceneOptions,
     ISaveSceneOptions,
-} from '../../interfaces';
+} from '../../common';
 
 /**
  * 子进程场景处理器
  * 在子进程中处理所有场景相关操作
  */
-export class SceneManager implements ISceneManager {
+@register('scene')
+export class SceneService implements ISceneManager {
     private currentScene: ISceneInfo | null = null;
 
-    /**
-     * 打开场景
-     */
+    @expose()
     async openScene(params: IOpenSceneOptions): Promise<ISceneInfo> {
         const { uuid } = params;
         return new Promise<ISceneInfo>(async (resolve, reject) => {
@@ -69,9 +69,7 @@ export class SceneManager implements ISceneManager {
         });
     }
 
-    /**
-     * 关闭当前场景
-     */
+    @expose()
     async closeScene(): Promise<ISceneInfo | null> {
         const closedScene = this.currentScene;
         
@@ -87,9 +85,7 @@ export class SceneManager implements ISceneManager {
         return closedScene;
     }
 
-    /**
-     * 保存场景
-     */
+    @expose()
     async saveScene(params: ISaveSceneOptions): Promise<ISceneInfo> {
         const uuid = params.uuid ?? this.currentScene?.uuid;
         if (!uuid) {
@@ -129,9 +125,7 @@ export class SceneManager implements ISceneManager {
         return sceneInfo;
     }
 
-    /**
-     * 创建新场景
-     */
+    @expose()
     async createScene(params: ICreateSceneOptions): Promise<ISceneInfo> {
         // 获取场景模板 url
         const template = this.getSceneTemplateURL(params.templateType || 'default');
@@ -166,9 +160,7 @@ export class SceneManager implements ISceneManager {
         return sceneInfo;
     }
 
-    /**
-     * 获取当前打开的场景
-     */
+    @expose()
     async getCurrentScene(): Promise<ISceneInfo | null> {
         return this.currentScene;
     }
@@ -197,5 +189,3 @@ export class SceneManager implements ISceneManager {
         return templatePath;
     }
 }
-
-export const sceneManager = new SceneManager();

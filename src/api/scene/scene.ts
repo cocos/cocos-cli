@@ -31,7 +31,7 @@ export class SceneApi extends ApiBase {
     async init(): Promise<void> {
         // 场景 API 依赖资源数据库，确保在 AssetsApi 初始化后调用
         console.log('初始化场景 API，项目路径:', this.projectPath);
-        // TODO 后续需要启动子进程跑引擎脚本
+        Scene.worker.start(this.enginePath, this.enginePath);
     }
 
     /**
