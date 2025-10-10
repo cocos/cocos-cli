@@ -365,7 +365,7 @@ describe('ConfigurationManager', () => {
         });
     });
 
-    describe('Bug: configs should be initialized from projectConfig', () => {
+    describe('configs should be initialized from projectConfig', () => {
         it('should initialize configs from existing projectConfig when registering configuration', async () => {
             // 模拟已存在的项目配置
             const existingProjectConfig = {
