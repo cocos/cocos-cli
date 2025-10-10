@@ -1,9 +1,6 @@
 import cc, { SceneAsset } from 'cc';
 import { join } from 'path';
 import { register, expose } from './decorator';
-import assetOperation from '../../../assets/manager/operation';
-import assetQueryManager from '../../../assets/manager/query';
-import { assetManager } from '../../../assets/manager/asset';
 import {
     ISceneManager,
     ISceneInfo,
@@ -12,6 +9,7 @@ import {
     IOpenSceneOptions,
     ISaveSceneOptions,
 } from '../../common';
+import { Ipc } from '../ipc';
 
 /**
  * 子进程场景处理器
@@ -26,13 +24,13 @@ export class SceneService implements ISceneManager {
         const { uuid } = params;
         return new Promise<ISceneInfo>(async (resolve, reject) => {
             // 查询场景资源信息
-            const asset = assetQueryManager.queryAsset(uuid);
+            const asset = await Ipc.request('assetManager', 'queryAsset', uuid);
             if (!asset) {
                 reject(`场景资源不存在: ${uuid}`);
                 return;
             }
 
-            const assetType = assetQueryManager.queryAssetProperty(asset, 'type');
+            const assetType = await Ipc.request('assetManager', 'queryAssetProperty', asset, 'type');
             if (!assetType || !assetType.includes('SceneAsset')) {
                 reject(`指定路径不是有效的场景资源: ${asset.url}`);
                 return;
@@ -92,7 +90,7 @@ export class SceneService implements ISceneManager {
             throw new Error('保存失败，当前没有打开的场景');
         }
 
-        const asset = assetQueryManager.queryAsset(uuid);
+        const asset = await Ipc.request('assetManager', 'queryAsset', uuid);
         if (!asset) {
             throw new Error(`场景资源不存在: ${uuid}`);
         }
@@ -109,7 +107,7 @@ export class SceneService implements ISceneManager {
 
         let assetInfo;
         try {
-            assetInfo = await assetManager.saveAsset(uuid, json);
+            assetInfo = await Ipc.request('assetManager', 'saveAsset', uuid, json);
         } catch (e) {
             throw e;
         }
@@ -137,7 +135,7 @@ export class SceneService implements ISceneManager {
         const fullPath = join(params.targetPath, fileName);
 
         // 创建场景资源
-        const result = await assetOperation.createAsset({
+        const result = await Ipc.request('assetManager', 'createAsset', {
             template: template,
             target: fullPath,
             overwrite: true

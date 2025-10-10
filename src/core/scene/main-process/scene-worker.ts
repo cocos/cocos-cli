@@ -2,8 +2,9 @@ import { fork, ChildProcess } from 'child_process';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
-import { IIpcRequestOptions, TIpcResponse, TIpcToSceneMessage } from '../common/ipc';
-import { SceneReadyChannel } from '../common/const';
+import { IIpcRequestOptions, TIpcResponse, TIpcRequest, SceneReadyChannel } from '../common';
+import { IpcServer } from '../ipc/ipc-server';
+import { assetManager } from '../../assets/manager/asset';
 
 export class SceneWorker extends EventEmitter {
     private _running = false;
@@ -12,6 +13,11 @@ export class SceneWorker extends EventEmitter {
 
     private sceneProcessReadyResolve: Function | null = null;
 
+    // 该 Ipc 服务，是用于模块跨进程之间的交互
+    private ipcServer: IpcServer = new IpcServer({
+        'assetManager': assetManager,
+    });
+
     private get process(): ChildProcess {
         if (!this._process) {
             throw new Error('Scene worker 未初始化, 请使用 sceneWorker.start()');
@@ -19,11 +25,9 @@ export class SceneWorker extends EventEmitter {
         return this._process;
     }
     async start(enginePath: string, projectPath: string): Promise<boolean> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const args = [`--enginePath=${enginePath}`, `--projectPath=${projectPath}`];
-
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-            console.log(precessPath);
             this._process = fork(precessPath, args, { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
             this.registerListener();
             this.sceneProcessReadyResolve = resolve;
@@ -38,7 +42,6 @@ export class SceneWorker extends EventEmitter {
     }
 
     registerListener() {
-        console.log('12312312323323123213')
         this.process.on('message', (msg: TIpcResponse) => {
             if (!this._running) {
                 if (msg.channel === SceneReadyChannel) {
@@ -93,7 +96,7 @@ export class SceneWorker extends EventEmitter {
                 console.log('场景进程退出');
             }
             this._running = false;
-        })
+        });
     }
 
     send(channel: string, methodName: string, ...args: any[]) {
@@ -101,11 +104,11 @@ export class SceneWorker extends EventEmitter {
             channel,
             methodName,
             params: [...args]
-        } as TIpcToSceneMessage);
+        } as TIpcRequest);
     }
 
     request<T = any>(channel: string, methodName: string, args: any[] = [], options: IIpcRequestOptions = {}): Promise<T> {
-        const id: string = randomUUID();
+        const id: string = `${channel}-${methodName}:${randomUUID()}`;
         return new Promise((resolve, reject) => {
             // 设置超时处理
             const timeout = options.timeout || 30000; // 默认30秒超时
@@ -114,9 +117,13 @@ export class SceneWorker extends EventEmitter {
                 reject(new Error(`Request timeout after ${timeout}ms: ${channel}.${methodName}`));
             }, timeout);
 
-            this.ipcReplyMap.set(id, (data: any) => {
+            this.ipcReplyMap.set(id, (err: Error | null, data: any) => {
                 clearTimeout(timeoutId);
-                resolve(data);
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(data);
+                }
             });
 
             this.process.send({
@@ -124,7 +131,7 @@ export class SceneWorker extends EventEmitter {
                 channel,
                 methodName,
                 params: args,
-            } as TIpcToSceneMessage);
+            } as TIpcRequest);
         });
     }
 }

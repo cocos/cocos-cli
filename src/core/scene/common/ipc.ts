@@ -6,7 +6,7 @@ export interface IIpcRequestOptions {
 /**
  * 发送给场景进程的消息类型
  */
-export type TIpcToSceneMessage = {
+export type TIpcRequest = {
     id?: string;
     channel: string;
     methodName: string;
@@ -21,5 +21,5 @@ export type TIpcResponse = {
     reply?: boolean;
     error?: string;
     channel: string;
-    data: any;
+    data?: any;
 }

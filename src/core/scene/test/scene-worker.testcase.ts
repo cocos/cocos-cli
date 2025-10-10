@@ -28,5 +28,5 @@ describe('Scene 测试', () => {
         const result = await Scene.worker.start(enginePath, projectPath);
         expect(result).toBe(true);
     });
-    
+
 });

@@ -1,6 +1,9 @@
 import path from 'path';
 import { managerMap } from './service/decorator';
-import { TIpcResponse, TIpcToSceneMessage, SceneReadyChannel } from '../common';
+import { TIpcResponse, TIpcRequest, SceneReadyChannel } from '../common';
+
+// 导出 service，让他能处理装饰器，捕获开发的 api
+export * from './service'
 
 async function initEngine(enginePath: string, projectPath: string) {
     const { default: Engine } = await import('../../../core/engine');
@@ -33,7 +36,7 @@ async function startup () {
 
     await initEngine(enginePath, projectPath);
 
-    process.on('message', async (msg: TIpcToSceneMessage) => {
+    process.on('message', async (msg: TIpcRequest) => {
         const { id, channel, methodName, params } = msg;
 
         const manager = managerMap.get(channel);
