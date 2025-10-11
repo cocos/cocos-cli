@@ -1,20 +1,11 @@
 import { fork, ChildProcess } from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { IpcPost, SceneReadyChannel } from '../common';
-import { IpcServer } from '../ipc/ipc-server';
-import { IpcClient } from '../ipc/ipc-client';
-import { assetManager } from '../../assets';
-import type { SceneServices } from '../types/services';
-
-import { managers } from '../scene-process/service';
+import { SceneReadyChannel } from '../common';
+import { startupRpc } from './rpc';
 
 export class SceneWorker extends EventEmitter {
     private _process: ChildProcess | null = null;
-
-    private ipcServer: IpcServer<{}> | undefined;
-    private _ipc: IpcClient<{}> | undefined;
-
     private get process(): ChildProcess {
         if (!this._process) {
             throw new Error('Scene worker 未初始化, 请使用 sceneWorker.start');
@@ -22,24 +13,12 @@ export class SceneWorker extends EventEmitter {
         return this._process;
     }
 
-    public get ipc() {
-        if (!this._ipc) {
-            throw new Error('Scene worker 未初始化, 请使用 sceneWorker.start()');
-        }
-        return this._ipc;
-    }
-
     async start(enginePath: string, projectPath: string): Promise<boolean> {
         return new Promise((resolve) => {
             const args = [`--enginePath=${enginePath}`, `--projectPath=${projectPath}`];
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
             this._process = fork(precessPath, args, { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
-            // 启动接收需要调用当前进程模块的 ipc
-            this.ipcServer = new IpcServer(IpcPost.SceneToMain, process, {
-                'assetManager': assetManager,
-            });
-            // 启动与场景模块交互的 ipc
-            this._ipc = new IpcClient(IpcPost.MainToScene, this._process, managers);
+            startupRpc(this._process);
             this.registerListener();
             const onReady = (msg: any) => {
                 if (msg === SceneReadyChannel) {
@@ -92,5 +71,3 @@ export class SceneWorker extends EventEmitter {
 }
 
 export const sceneWorker = new SceneWorker();
-
-export const Ipc = sceneWorker.ipc;

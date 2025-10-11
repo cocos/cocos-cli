@@ -1,6 +1,6 @@
 import path from 'path';
 import { SceneReadyChannel } from '../common';
-import { IpcServer } from '../ipc/ipc-server';
+import { startupRpc } from './rpc';
 
 async function initEngine(enginePath: string, projectPath: string) {
     const { default: Engine } = await import('../../../core/engine');
@@ -36,7 +36,7 @@ async function startup () {
 
     // 导入 service，让他能处理装饰器，捕获开发的 api
     await import('./service');
-    await import('./ipc');
+    await startupRpc();
 
     // 发送消息给父进程
     process.send?.(SceneReadyChannel);

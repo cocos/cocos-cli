@@ -38,7 +38,7 @@ export interface IOpenSceneOptions {
 /**
  * 场景相关处理接口
  */
-export interface ISceneManager {
+export interface ISceneServer {
     /**
      * 打开场景
      * @param params

@@ -1,20 +1,20 @@
-import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneManager, ISceneInfo } from '../../common';
-import { sceneWorker } from '../scene-worker';
+import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneServer, ISceneInfo } from '../../common';
+import { Rpc } from '../rpc';
 
-export const SceneProxy: ISceneManager = {
+export const SceneProxy: ISceneServer = {
     closeScene(): Promise<ISceneInfo | null> {
-        return sceneWorker.request('scene', 'closeScene');
+        return Rpc.request('Scene', 'closeScene');
     },
     createScene(params: ICreateSceneOptions): Promise<ISceneInfo | null> {
-        return sceneWorker.request('scene', 'createScene', [params]);
+        return Rpc.request('Scene', 'createScene', [params]);
     },
     getCurrentScene(): Promise<ISceneInfo | null> {
-        return sceneWorker.request('scene', 'getCurrentScene');
+        return Rpc.request('Scene', 'getCurrentScene');
     },
     openScene(params: IOpenSceneOptions): Promise<ISceneInfo | null> {
-        return sceneWorker.request('scene', 'openScene', [params]);
+        return Rpc.request('Scene', 'openScene', [params]);
     },
     saveScene(params: ISaveSceneOptions): Promise<ISceneInfo | null> {
-        return sceneWorker.request('scene', 'saveScene', [params]);
+        return Rpc.request('Scene', 'saveScene', [params]);
     }
 }

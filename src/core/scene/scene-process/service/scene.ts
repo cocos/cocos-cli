@@ -1,21 +1,21 @@
 import cc from 'cc';
 import { register, expose } from './decorator';
 import {
-    ISceneManager,
+    ISceneServer,
     ISceneInfo,
     TSceneTemplateType,
     ICreateSceneOptions,
     IOpenSceneOptions,
     ISaveSceneOptions,
 } from '../../common';
-import { Ipc } from '../ipc';
+import { Rpc } from '../rpc';
 
 /**
  * 场景进程处理器
  * 处理所有场景相关操作
  */
-@register('scene')
-export class SceneService implements ISceneManager {
+@register('Scene')
+export class SceneService implements ISceneServer {
     private currentScene: ISceneInfo | null = null;
 
     @expose()
@@ -23,7 +23,7 @@ export class SceneService implements ISceneManager {
         const { uuid } = params;
         return new Promise<ISceneInfo>(async (resolve, reject) => {
             // 查询场景资源信息
-            const assetInfo = await Ipc.request('assetManager', 'queryAssetInfo', [uuid]);
+            const assetInfo = await Rpc.request('assetManager', 'queryAssetInfo', [uuid]);
             if (!assetInfo) {
                 reject(`场景资源不存在: ${uuid}`);
                 return;
@@ -86,7 +86,7 @@ export class SceneService implements ISceneManager {
             throw new Error('[Scene] 保存失败，当前没有打开的场景');
         }
 
-        let assetInfo = await Ipc.request('assetManager', 'queryAssetInfo', [uuid]);
+        let assetInfo = await Rpc.request('assetManager', 'queryAssetInfo', [uuid]);
         if (!assetInfo) {
             throw new Error(`[Scene] 场景资源不存在: ${uuid}`);
         }
@@ -102,7 +102,7 @@ export class SceneService implements ISceneManager {
         const json = EditorExtends.serialize(assetInfo);
 
         try {
-            assetInfo = await Ipc.request('assetManager', 'saveAsset', [uuid, json]);
+            assetInfo = await Rpc.request('assetManager', 'saveAsset', [uuid, json]);
         } catch (e) {
             throw e;
         }
@@ -124,7 +124,7 @@ export class SceneService implements ISceneManager {
         const template = this.getSceneTemplateURL(params.templateType || 'default');
 
         // 创建场景资源
-        const result = await Ipc.request('assetManager', 'createAsset', [{
+        const result = await Rpc.request('assetManager', 'createAsset', [{
             template: template,
             target: params.targetPathOrURL,
             overwrite: true

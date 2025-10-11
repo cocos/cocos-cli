@@ -1,17 +1,17 @@
-import type { INodeManager, INodeInfo, ICreateNodeOptions, IDeleteNodeOptions, IUpdateNodeOptions } from '../../common';
-import { Ipc } from '../scene-worker';
+import type { INodeServer, INodeInfo, ICreateNodeOptions, IDeleteNodeOptions, IUpdateNodeOptions } from '../../common';
+import { Rpc } from '../rpc';
 
-export const NodeProxy: INodeManager = {
+export const NodeProxy: INodeServer = {
     createNode(params: ICreateNodeOptions): Promise<INodeInfo | null> {
-        return Ipc.request('node', 'createNode', [params]);
+        return Rpc.request('Node', 'createNode', [params]);
     },
     deleteNode(params: IDeleteNodeOptions): Promise<INodeInfo | null> {
-        return Ipc.request('node', 'deleteNode', [params]);
+        return Rpc.request('Node', 'deleteNode', [params]);
     },
     updateNode(params: IUpdateNodeOptions): Promise<INodeInfo | null> {
-        return Ipc.request('node', 'updateNode', [params]);
+        return Rpc.request('Node', 'updateNode', [params]);
     },
     queryNode(): Promise<INodeInfo | null> {
-        return Ipc.request('node', 'queryNode');
+        return Rpc.request('Node', 'queryNode');
     }
 }

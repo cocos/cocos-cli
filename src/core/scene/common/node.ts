@@ -29,7 +29,7 @@ export interface IUpdateNodeOptions {
 /**
  * 节点的相关处理接口
  */
-export interface INodeManager {
+export interface INodeServer {
     /**
      * 创建节点
      * @param params
