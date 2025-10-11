@@ -19,3 +19,4 @@ node_modules/**
 .cocos/**
 .user.json
 .npmmrc
+.publish/**

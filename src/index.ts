@@ -30,7 +30,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			try {
 				const port = await getFreePort(7456);
 				// 启动 MCP 服务器
-				await startServer(folder,port);
+				await startServer(folder, port);
 
 				// 返回 MCP 服务器定义
 				return [
