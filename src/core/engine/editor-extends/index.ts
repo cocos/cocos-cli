@@ -11,7 +11,15 @@ export { walkProperties } from './missing-reporter/object-walker';
 
 import utils from '../../base/utils';
 import EventEmitter from 'events';
+import ScriptManager from './manager/script';
+import NodeManager from './manager/node';
+import ComponentManager from './manager/component';
+
 export const UuidUtils = utils.UUID;
+
+export const Script = new ScriptManager();
+export const Node = new NodeManager();
+export const Component = new ComponentManager();
 
 export * as GeometryUtils from './utils/geometry';
 export * as PrefabUtils from './utils/prefab';
