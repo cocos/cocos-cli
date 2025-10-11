@@ -41,17 +41,17 @@ interface RequestOptions {
  *
  * 使用示例：
  *
- * interface INodeServer {
+ * interface INodeService {
  *   createNode(name: string): Promise<string>;
  *   deleteNode(id: string): Promise<void>;
  * }
  *
- * interface ISceneServer {
+ * interface ISceneService {
  *   loadScene(id: string): Promise<boolean>;
  * }
  *
  * // 假设我们在主进程
- * const rpc = new ProcessRPC<{ node: INodeServer; scene: ISceneServer }>(childProcess);
+ * const rpc = new ProcessRPC<{ node: INodeService; scene: ISceneService }>(childProcess);
  *
  * // 注册对象实例
  * rpc.register('scene', {
@@ -62,7 +62,7 @@ interface RequestOptions {
  * });
  *
  * // 注册类实例
- * class NodeServer implements INodeServer {
+ * class NodeService implements INodeService {
  *   async createNode(name: string) {
  *     return `Node:${name}`;
  *   }
@@ -70,7 +70,7 @@ interface RequestOptions {
  *     console.log('Node deleted:', id);
  *   }
  * }
- * rpc.register('node', new NodeServer());
+ * rpc.register('node', new NodeService());
  *
  * // 调用子进程方法
  * const nodeName = await rpc.request('node', 'createNode', ['Player']);

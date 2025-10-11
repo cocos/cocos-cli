@@ -1,6 +1,6 @@
 const { ProcessRPC } = require('../../../../../dist/core/scene/process-rpc');
 
-class NodeServer {
+class NodeService {
     async createNode(name) {
         return `Node:${name}`;
     }
@@ -24,7 +24,7 @@ rpc.attach({
 
 // 注册对象实例
 rpc.register({
-    'node': new NodeServer(),
+    'node': new NodeService(),
     'scene': {
         async loadScene(id) {
             return id === 'Level01';

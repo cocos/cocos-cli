@@ -2,12 +2,12 @@ import { fork } from 'child_process';
 import { ProcessRPC } from '../process-rpc';
 import path from 'path';
 
-interface INodeServer {
+interface INodeService {
     createNode(name: string): Promise<string>;
     longTask(): Promise<void>;
 }
 
-interface ISceneServer {
+interface ISceneService {
     loadScene(id: string): Promise<boolean>;
 }
 
@@ -16,7 +16,7 @@ const workerPath = path.resolve(__dirname, './process-rpc/rpc-worker.js');
 
 describe('ProcessRPC 双向调用测试', () => {
     let child: ReturnType<typeof fork>;
-    let rpc: ProcessRPC<{ node: INodeServer; scene: ISceneServer }>;
+    let rpc: ProcessRPC<{ node: INodeService; scene: ISceneService }>;
 
     beforeAll(() => {
         child = fork(workerPath, [], { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
@@ -27,7 +27,7 @@ describe('ProcessRPC 双向调用测试', () => {
         child.stderr?.on('data', (chunk) => {
             console.log(chunk.toString());
         });
-        rpc = new ProcessRPC<{ node: INodeServer; scene: ISceneServer }>();
+        rpc = new ProcessRPC<{ node: INodeService; scene: ISceneService }>();
         rpc.attach(child);
     });
 
