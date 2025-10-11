@@ -1,3 +1,5 @@
+import { ISceneService } from './scene';
+
 /**
  * 节点信息
  */
@@ -29,7 +31,7 @@ export interface IUpdateNodeOptions {
 /**
  * 节点的相关处理接口
  */
-export interface INodeServer {
+export interface INodeService {
     /**
      * 创建节点
      * @param params

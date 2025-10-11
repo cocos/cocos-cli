@@ -1,7 +1,7 @@
 import cc from 'cc';
 import { register, expose } from './decorator';
 import {
-    ISceneServer,
+    ISceneService,
     ISceneInfo,
     TSceneTemplateType,
     ICreateSceneOptions,
@@ -15,7 +15,7 @@ import { Rpc } from '../rpc';
  * 处理所有场景相关操作
  */
 @register('Scene')
-export class SceneService implements ISceneServer {
+export class SceneService implements ISceneService {
     private currentScene: ISceneInfo | null = null;
 
     @expose()

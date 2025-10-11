@@ -1,9 +1,9 @@
-import { ISceneServer, INodeServer } from '../../common';
+import { ISceneService, INodeService } from '../../common';
 
 /**
- * 场景进程开发出去的模块与接口
+ * 场景进程开放出去的模块与接口
  */
 export interface ISceneModule {
-    Scene: ISceneServer;
-    Node: INodeServer
+    Scene: ISceneService;
+    Node: INodeService,
 }

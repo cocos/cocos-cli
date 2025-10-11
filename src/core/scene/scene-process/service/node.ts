@@ -1,12 +1,12 @@
 import { register, expose } from './decorator';
-import type { ICreateNodeOptions, IDeleteNodeOptions, INodeInfo, INodeServer, IUpdateNodeOptions } from '../../common';
+import type { ICreateNodeOptions, IDeleteNodeOptions, INodeInfo, INodeService, IUpdateNodeOptions } from '../../common';
 
 /**
  * 子进程节点处理器
  * 在子进程中处理所有节点相关操作
  */
 @register('Node')
-export class NodeService implements INodeServer {
+export class NodeService implements INodeService {
     @expose()
     async createNode(params: ICreateNodeOptions): Promise<INodeInfo> {
         // TODO: 实现节点创建逻辑

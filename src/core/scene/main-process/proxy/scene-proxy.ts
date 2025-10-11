@@ -1,7 +1,7 @@
-import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneServer, ISceneInfo } from '../../common';
+import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneService, ISceneInfo } from '../../common';
 import { Rpc } from '../rpc';
 
-export const SceneProxy: ISceneServer = {
+export const SceneProxy: ISceneService = {
     closeScene(): Promise<ISceneInfo | null> {
         return Rpc.request('Scene', 'closeScene');
     },
