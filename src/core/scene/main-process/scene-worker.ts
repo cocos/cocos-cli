@@ -1,36 +1,53 @@
 import { fork, ChildProcess } from 'child_process';
 import path from 'path';
-import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
-import { IIpcRequestOptions, TIpcResponse, TIpcRequest, SceneReadyChannel } from '../common';
+import { IpcPost, SceneReadyChannel } from '../common';
 import { IpcServer } from '../ipc/ipc-server';
+import { IpcClient } from '../ipc/ipc-client';
 import { assetManager } from '../../assets';
+import type { SceneServices } from '../types/services';
+
+import { managers } from '../scene-process/service';
 
 export class SceneWorker extends EventEmitter {
-    private _running = false;
     private _process: ChildProcess | null = null;
-    private ipcReplyMap: Map<string, any> = new Map();
 
-    private sceneProcessReadyResolve: Function | null = null;
-
-    // 该 Ipc 服务，是用于模块跨进程之间的交互
-    private ipcServer: IpcServer = new IpcServer({
-        'assetManager': assetManager,
-    });
+    private ipcServer: IpcServer<{}> | undefined;
+    private _ipc: IpcClient<{}> | undefined;
 
     private get process(): ChildProcess {
         if (!this._process) {
-            throw new Error('Scene worker 未初始化, 请使用 sceneWorker.start()');
+            throw new Error('Scene worker 未初始化, 请使用 sceneWorker.start');
         }
         return this._process;
     }
+
+    public get ipc() {
+        if (!this._ipc) {
+            throw new Error('Scene worker 未初始化, 请使用 sceneWorker.start()');
+        }
+        return this._ipc;
+    }
+
     async start(enginePath: string, projectPath: string): Promise<boolean> {
         return new Promise((resolve) => {
             const args = [`--enginePath=${enginePath}`, `--projectPath=${projectPath}`];
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
             this._process = fork(precessPath, args, { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
+            // 启动接收需要调用当前进程模块的 ipc
+            this.ipcServer = new IpcServer(IpcPost.SceneToMain, process, {
+                'assetManager': assetManager,
+            });
+            // 启动与场景模块交互的 ipc
+            this._ipc = new IpcClient(IpcPost.MainToScene, this._process, managers);
             this.registerListener();
-            this.sceneProcessReadyResolve = resolve;
+            const onReady = (msg: any) => {
+                if (msg === SceneReadyChannel) {
+                    this.process.off('message', onReady);
+                    resolve(true);
+                }
+            }
+            this.process.on('message', onReady);
         });
     }
 
@@ -42,34 +59,6 @@ export class SceneWorker extends EventEmitter {
     }
 
     registerListener() {
-        this.ipcServer.attach(this.process);
-        this.process.on('message', (msg: TIpcResponse) => {
-            if (!this._running) {
-                if (msg.channel === SceneReadyChannel) {
-                    this._running = true;
-                    if (this.sceneProcessReadyResolve) {
-                        this.sceneProcessReadyResolve(true);
-                        this.sceneProcessReadyResolve = null;
-                    }
-                    return;
-                }
-                return;
-            }
-            // 检查是不是 TIpcResponse 类型
-            if (!('data' in msg) && !('error' in msg)) return;
-
-            if (msg.reply && msg.id) {
-                const resolver = this.ipcReplyMap.get(msg.id);
-                if (resolver) {
-                    this.ipcReplyMap.delete(msg.id);
-                    resolver(msg.error, msg.data);
-                }
-                return;
-            }
-
-            this.emit(msg.channel, msg.data);
-        });
-
         this.process.stdout?.on('data', (chunk) => {
             console.log(chunk.toString());
         });
@@ -98,46 +87,10 @@ export class SceneWorker extends EventEmitter {
             } else {
                 console.log('场景进程退出');
             }
-            this._running = false;
-        });
-    }
-
-    send(channel: string, methodName: string, ...args: any[]) {
-        this.process.send({
-            channel,
-            methodName,
-            params: [...args]
-        } as TIpcRequest);
-    }
-
-    request<T = any>(channel: string, methodName: string, args: any[] = [], options: IIpcRequestOptions = {}): Promise<T> {
-        const id: string = `${channel}-${methodName}:${randomUUID()}`;
-        return new Promise((resolve, reject) => {
-            // 设置超时处理
-            const timeout = options.timeout || 30000; // 默认30秒超时
-            const timeoutId = setTimeout(() => {
-                this.ipcReplyMap.delete(id);
-                reject(new Error(`Request timeout after ${timeout}ms: ${channel}.${methodName}`));
-            }, timeout);
-
-            this.ipcReplyMap.set(id, (err: Error | null, data: any) => {
-                clearTimeout(timeoutId);
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(data);
-                }
-            });
-
-            console.log(`[Scene] request ${channel} ${methodName}`);
-            this.process.send({
-                id,
-                channel,
-                methodName,
-                params: args,
-            } as TIpcRequest);
         });
     }
 }
 
 export const sceneWorker = new SceneWorker();
+
+export const Ipc = sceneWorker.ipc;

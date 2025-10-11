@@ -20,7 +20,7 @@ import 'reflect-metadata';
  */
 
 // 全局存储 manager 实例
-export const managerMap: Map<string, Record<string, Function>> = new Map();
+export const managers: Record<string, Record<string, Function>> = {};
 
 // 元数据 key
 const PUBLIC_METHODS_KEY = Symbol('public_methods');
@@ -51,7 +51,7 @@ export function register(name?: string): ClassDecorator {
             }
         }
 
-        managerMap.set(managerName, map);
+        managers[managerName] = map;
         console.log(`[Manager] Registered: ${managerName} -> [${Object.keys(map).join(', ')}]`);
     };
 }

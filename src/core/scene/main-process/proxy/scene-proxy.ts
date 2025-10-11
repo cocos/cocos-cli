@@ -6,10 +6,10 @@ export const SceneProxy: ISceneManager = {
         return sceneWorker.request('scene', 'closeScene');
     },
     createScene(params: ICreateSceneOptions): Promise<ISceneInfo | null> {
-        return sceneWorker.request<ISceneInfo | null>('scene', 'createScene', [params]);
+        return sceneWorker.request('scene', 'createScene', [params]);
     },
     getCurrentScene(): Promise<ISceneInfo | null> {
-        return sceneWorker.request<ISceneInfo | null>('scene', 'getCurrentScene');
+        return sceneWorker.request('scene', 'getCurrentScene');
     },
     openScene(params: IOpenSceneOptions): Promise<ISceneInfo | null> {
         return sceneWorker.request('scene', 'openScene', [params]);
