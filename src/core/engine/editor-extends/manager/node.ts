@@ -4,7 +4,7 @@ import type { Node } from 'cc';
 import { EventEmitter } from 'events';
 
 import * as ObjectWalker from '../missing-reporter/object-walker';
-import { UuidUtils } from '..';
+import utils from '../../../base/utils';
 
 const lodash = require('lodash');
 
@@ -97,12 +97,12 @@ export default class NodeManager extends EventEmitter {
             (obj: any, key: any, value: any, parsedObjects: any) => {
                 let isAsset = false;
                 if (value._uuid) {
-                    isAsset = value._uuid.includes(uuid) || UuidUtils.compressUUID(value._uuid, true).includes(uuid);
+                    isAsset = value._uuid.includes(uuid) || utils.UUID.compressUUID(value._uuid, true).includes(uuid);
                 }
 
                 let isScript = false;
                 if (value.__scriptUuid) {
-                    isScript = value.__scriptUuid.includes(uuid) || UuidUtils.compressUUID(value.__scriptUuid, false).includes(uuid);
+                    isScript = value.__scriptUuid.includes(uuid) || utils.UUID.compressUUID(value.__scriptUuid, false).includes(uuid);
                 }
 
                 if (isAsset || isScript) {
