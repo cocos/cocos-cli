@@ -1,6 +1,6 @@
-import express, { Express, Router } from 'express';
+import express, { Express } from 'express';
 import compression from 'compression';
-import { existsSync, readFile } from 'fs-extra';
+import { existsSync, readFileSync } from 'fs-extra';
 import { createServer as createHTTPServer, Server as HTTPServer } from 'http';
 import { createServer as createHTTPSServer, Server as HTTPSServer } from 'https';
 import { getAvailablePort } from './utils';
@@ -8,102 +8,115 @@ import { getAvailablePort } from './utils';
 import { socketService } from './socket';
 import { middlewareService } from './middleware';
 import { cors } from './utils/cors';
+import path from 'path';
+
+interface ServerOptions {
+    port: number,// 端口
+    useHttps: boolean;// 是否启动 HTTPS
+    keyFile?: string; // HTTPS 私钥文件路径
+    certFile?: string;// HTTPS 证书文件路径
+    caFile?: string;// 证书的签发请求文件 csr
+}
 
 export class ServerService {
     private app: Express = express();
-    private httpServer: HTTPServer | undefined;
-    private httpsServer: HTTPSServer | undefined;
-    private httpPost = 7456;
-    private httpsPost = 7456;
-
-    configs = {
-        port: 7456,
-        https: {
-            port: 7456,
-            enable: false,
-            key: '',
-            cert: '',
-            ca: '',
-        }
+    private server: HTTPServer | HTTPSServer | undefined;
+    private port = 7456;
+    private useHttps = false;
+    private httpsConfig = {
+        key: '',// HTTPS 私钥文件路径
+        cert: '',// HTTPS 证书文件路径
+        ca: '',// 证书的签发请求文件 csr ，没有可省略
     }
 
     public get url() {
-        return this.httpsUrl || this.httpUrl || 'http://localhost:9999999';
-    }
-
-    private get httpsUrl() {
-        if (this.httpsServer && this.httpsServer.listening) return `https://localhost:${this.httpsPost}`;
-        return undefined;
-    }
-
-    private get httpUrl() {
-        if (this.httpServer && this.httpServer.listening) return `https://localhost:${this.httpPost}`;
-        return undefined;
+        if (this.server && this.server.listening) {
+            const httpRoot = this.useHttps ? 'https' : 'http';
+            return `${httpRoot}://localhost:${this.port}`;
+        }
+        return 'http://localhost:9999999';
     }
 
     async start() {
         console.log('🚀 开始启动服务器...');
         this.init();
-        await this.createHttpServer();
-        await this.createHttpsServer();
-        socketService.startup(this.httpsServer || this.httpServer!);
-
+        this.port = await getAvailablePort(this.port);
+        this.server = await this.createServer({
+            port: this.port,
+            useHttps: this.useHttps,
+            keyFile: this.httpsConfig.key,
+            certFile: this.httpsConfig.cert,
+            caFile: this.httpsConfig.ca,
+        }, this.app);
+        socketService.startup(this.server);
         // 打印服务器地址
         this.printServerUrls();
     }
 
     async stop() {
-        [this.httpServer, this.httpsServer].forEach(server => {
-            server?.close();
+        this.server?.close();
+        this.server = undefined;
+    }
+
+    /**
+     * 创建 HTTP 或 HTTPS 服务器并等待启动
+     * @param options 配置对象
+     * @param requestHandler
+     * @returns Promise<http.Server | https.Server>
+     */
+    async createServer(options: ServerOptions, requestHandler: Express): Promise<HTTPServer | HTTPSServer> {
+        const { port, useHttps, keyFile, certFile, caFile } = options;
+
+        let server: HTTPServer | HTTPSServer;
+
+        if (useHttps) {
+            if (!keyFile || !certFile) {
+                return Promise.reject(new Error('HTTPS requires keyFile and certFile'));
+            }
+            const options: { key?: Buffer, cert?: Buffer, ca?: Buffer, } = {
+                key: undefined,
+                cert: undefined,
+                ca: undefined,
+            }
+            if (existsSync(keyFile)) {
+                options.key = readFileSync(path.resolve(keyFile));
+            }
+            if (existsSync(certFile)) {
+                options.cert = readFileSync(certFile);
+            }
+            if (caFile && existsSync(caFile)) {
+                options.ca = readFileSync(caFile);
+            }
+            server = createHTTPSServer(options, requestHandler);
+        } else {
+            server = createHTTPServer(requestHandler);
+        }
+
+        return new Promise((resolve, reject) => {
+            server.once('listening', () => {
+                resolve(server);
+            });
+
+            server.once('error', (err: NodeJS.ErrnoException) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.error(`❌ 端口 ${port} 已被占用`);
+                } else {
+                    console.error(`❌ ${useHttps ? 'HTTPS' : 'HTTP'} 服务器启动失败:`, err);
+                }
+                reject(err);
+            });
+
+            server.listen(port);
         });
-        this.httpServer = undefined;
-        this.httpsServer = undefined;
     }
 
     private printServerUrls() {
-        const hasHttpListening = !!(this.httpServer && this.httpServer.listening);
-        const hasHttpsListening = !!(this.httpsServer && this.httpsServer.listening);
-        if (!hasHttpListening && !hasHttpsListening) {
+        const hasListening = !!(this.server && this.server.listening);
+        if (!hasListening) {
             console.warn('⚠️ 服务器未开启或未监听端口');
             return;
         }
-        console.log('\n🚀 服务器已启动:');
-        if (hasHttpListening) {
-            console.log(`   HTTP: ${this.httpUrl}`);
-        }
-        if (hasHttpsListening) {
-            console.log(`   HTTPS: ${this.httpsUrl}`);
-        }
-    }
-
-    async createHttpServer() {
-        this.httpPost = await getAvailablePort(this.configs.port);
-        this.httpServer = createHTTPServer(this.app);
-        this.httpServer.listen(this.httpPost);
-    }
-
-    async createHttpsServer() {
-        const httpsConfig = this.configs.https;
-        if (!httpsConfig.enable) {
-            return;
-        }
-        this.httpsPost = await getAvailablePort(this.configs.https.port);
-        const options: { key?: Buffer, cert?: Buffer, ca?: Buffer, } = {
-            key: undefined,
-            cert: undefined,
-            ca: undefined,
-        };
-        if (existsSync(httpsConfig.key)) {
-            options.key = await readFile(httpsConfig.key);
-        }
-        if (existsSync(httpsConfig.cert)) {
-            options.cert = await readFile(httpsConfig.cert);
-        }
-        if (existsSync(httpsConfig.ca)) {
-            options.ca = await readFile(httpsConfig.ca);
-        }
-        this.httpsServer = createHTTPSServer(options, this.app);
-        this.httpsServer.listen(this.httpsPost);
+        console.log(`\n🚀 服务器已启动: ${this.url}`);
     }
 
     init () {

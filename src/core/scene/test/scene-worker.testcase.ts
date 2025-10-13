@@ -8,6 +8,8 @@ describe('Scene 测试', () => {
     const projectPath = user.project;
 
     it('准备阶段', async () => {
+        // 启动服务器
+        await startupServer();
         // 初始化配置
         const { configurationManager } = await import('../../configuration');
         await configurationManager.initialize(projectPath);
@@ -15,13 +17,8 @@ describe('Scene 测试', () => {
         const { default: Project } = await import('../../project');
         await Project.open(projectPath);
         // 初始化引擎
-        const { Engine: Engine } = await import('../../engine');
-        await Engine.init(enginePath);
-        await Engine.initEngine({
-            importBase: path.join(projectPath, 'library'),
-            nativeBase: path.join(projectPath, 'library'),
-            writablePath: path.join(projectPath, 'temp'),
-        });
+        const { Engine, initEngine } = await import('../../engine');
+        await initEngine(enginePath, projectPath);
         // 启动 db
         const { startupAssetDB } = await import('../../assets');
         await startupAssetDB();
@@ -29,8 +26,6 @@ describe('Scene 测试', () => {
         const { PackerDriver } = await import('../../scripting/packer-driver');
         const packDriver = await PackerDriver.create(projectPath, enginePath);
         await packDriver.init(Engine.getConfig().includeModules);
-        // 启动服务器
-        await startupServer();
     })
 
     it('启动场景进程', async () => {

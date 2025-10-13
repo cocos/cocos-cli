@@ -43,7 +43,7 @@ export class SceneService implements ISceneService {
 
             console.log(`加载场景 uuid: ${uuid}`);
             cc.assetManager.loadAny(uuid, (err: Error | null, sceneAsset: cc.SceneAsset) => {
-                console.log(`加载完场景 uuid: ${uuid}`);
+                console.log(`加载完场景 uuid: ${uuid} ${err}`);
                 if (err) {
                     reject(err);
                     return;

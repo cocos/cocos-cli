@@ -3,6 +3,7 @@ import path from 'path';
 import { EventEmitter } from 'events';
 import { SceneReadyChannel } from '../common';
 import { startupRpc } from './rpc';
+import { getServerUrl } from '../../../server';
 
 export class SceneWorker extends EventEmitter {
     private _process: ChildProcess | null = null;
@@ -18,9 +19,10 @@ export class SceneWorker extends EventEmitter {
             const args = [
                 `--enginePath=${enginePath}`,
                 `--projectPath=${projectPath}`,
+                `--serverURL=${getServerUrl()}`,
             ];
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-            const inspectPort = process.env.SCENE_WORKER_INSPECT_PORT || '9230';
+            const inspectPort = '9230';
             this._process = fork(precessPath, args, {
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 execArgv: [`--inspect=${inspectPort}`],

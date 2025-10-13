@@ -4,7 +4,6 @@ import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
 import { configurationRegistry, IBaseConfiguration } from '../configuration';
 import { assetManager } from '../assets';
-import { getServerUrl } from '../../server';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -312,11 +311,10 @@ export { Engine };
  * 初始化 engine
  * @param enginePath
  * @param projectPath
- * @param userServer
+ * @param serverURL
  */
-export async function initEngine(enginePath: string, projectPath: string, userServer: boolean = false) {
+export async function initEngine(enginePath: string, projectPath: string, serverURL?: string) {
     await Engine.init(enginePath);
-    const serverURL = userServer ? getServerUrl() : undefined;
     // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径
     await Engine.initEngine({
         serverURL: serverURL,

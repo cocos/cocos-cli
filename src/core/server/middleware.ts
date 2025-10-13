@@ -12,7 +12,7 @@ export const SceneMiddleware: IMiddleware = {
                 const url = req.query.url;
                 const externalProtocol = 'external:';
                 if (typeof url === 'string' && url.startsWith(externalProtocol)) {
-                    const { Engine: Engine } = await import('../engine');
+                    const { Engine } = await import('../engine');
                     const nativeEnginePath = Engine.getInfo().native.path;
                     const externalFilePath = url.replace(externalProtocol, path.join(nativeEnginePath, 'external/'));
                     const arrayBuffer = await fse.readFile(externalFilePath);

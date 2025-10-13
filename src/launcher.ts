@@ -30,14 +30,8 @@ class ProjectManager {
         const { default: Project } = await import('./core/project');
         await Project.open(path);
         // 初始化引擎
-        const { Engine: Engine } = await import('./core/engine');
-        await Engine.init(enginePath);
-        console.log('initEngine', enginePath);
-        await Engine.initEngine({
-            importBase: join(path, 'library'),
-            nativeBase: join(path, 'library'),
-            writablePath: join(path, 'temp'),
-        });
+        const { Engine, initEngine } = await import('./core/engine');
+        await initEngine(enginePath, path);
         console.log('initEngine success');
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./core/assets');

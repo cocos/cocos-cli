@@ -17,7 +17,7 @@ describe('Scene Proxy 测试', () => {
         it('createScene', async () => {
             const options: ICreateSceneOptions = {
                 targetPathOrURL: 'db://assets/scenes/TestScene.scene',
-                templateType: 'default'
+                templateType: '2d'
             };
             createdScene = await Scene.createScene(options);
             expect(createdScene).toBeDefined();

@@ -7,12 +7,12 @@ async function startup () {
     console.log('[Scene] startup worker');
 
     console.log(`[Scene] parse args ${process.argv}`);
-    const { enginePath, projectPath } = parseCommandLineArgs(process.argv);
+    const { enginePath, projectPath, serverURL } = parseCommandLineArgs(process.argv);
     if (!enginePath || !projectPath) {
         throw new Error('enginePath or projectPath is not set');
     }
 
-    await initEngine(enginePath, projectPath);
+    await initEngine(enginePath, projectPath, serverURL);
     console.log('[Scene] initEngine success');
     // 导入 service，让他能处理装饰器，捕获开发的 api
     await import('./service');
