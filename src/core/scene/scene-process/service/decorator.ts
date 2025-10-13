@@ -43,7 +43,6 @@ export function register(name?: string): ClassDecorator {
             Reflect.getMetadata(PUBLIC_METHODS_KEY, proto) || [];
 
         const managerName = name || target.name;
-        console.log(name || target.name);
         const map: Record<string, Function> = {};
 
         for (const key of publicMethods) {

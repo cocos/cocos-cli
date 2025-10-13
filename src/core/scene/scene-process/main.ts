@@ -7,8 +7,8 @@ async function initEngine(enginePath: string, projectPath: string) {
     await Engine.init(enginePath);
     console.log('initEngine', enginePath);
     await Engine.initEngine({
-        importBase: path.join(projectPath, 'library'),
-        nativeBase: path.join(projectPath, 'library'),
+        importBase: `http://localhost:${7456}`, // path.join(projectPath, 'library'),
+        nativeBase: `http://localhost:${7456}`, // path.join(projectPath, 'library'),
         writablePath: path.join(projectPath, 'temp'),
     });
     console.log('[Scene] initEngine success');

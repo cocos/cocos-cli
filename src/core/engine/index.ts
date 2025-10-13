@@ -1,8 +1,9 @@
 import { EngineInfo } from './@types/public';
-import { EngineConfig, InitEngineInfo, MakeRequired } from './@types/config';
+import { EngineConfig, InitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
-import { configurationManager, configurationRegistry, IBaseConfiguration } from '../configuration';
+import { configurationRegistry, IBaseConfiguration } from '../configuration';
+import { assetManager } from '../assets';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -217,7 +218,6 @@ class Engine implements IEngine {
      * 加载以及初始化引擎环境
      */
     async initEngine(info: InitEngineInfo) {
-        // @ts-ignore - cc/preload is a dynamic module
         const { default: preload } = await import('cc/preload');
         await preload({
             engineRoot: this._info.typescript.path,
@@ -237,7 +237,6 @@ class Engine implements IEngine {
             ]
         });
         await this.initEditorExtensions();
-
         // @ts-ignore
         // window.cc.debug._resetDebugSetting(cc.DebugMode.INFO);
         //newConsole.trackTimeEnd('asset-db:require-engine-code', { output: true });
@@ -252,6 +251,7 @@ class Engine implements IEngine {
             }
         }
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
+        const bundles = (await assetManager.queryAssets({ isBundle: true})).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
         const defaultConfig = {
             debugMode: cc.debug.DebugMode.WARN,
             overrideSettings: {
@@ -286,6 +286,11 @@ class Engine implements IEngine {
                 assets: {
                     importBase: info.importBase,
                     nativeBase: info.nativeBase,
+                    remoteBundles: ['internal', 'main'].concat(bundles),
+                    server: `http://localhost:${7456}`,
+                },
+                path: {
+                    previewServer: `http://localhost:${7456}`
                 },
             },
             exactFitScreen: true,

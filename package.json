@@ -40,6 +40,7 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
         "start": "node ./dist/commands/build-directly.js",
+        "start:server": "node ./dist/server/index.js",
         "cli": "ts-node src/cli.ts"
     },
     "author": "cocos",
@@ -55,6 +56,7 @@
     "license": "ISC",
     "devDependencies": {
         "@types/commander": "^2.12.5",
+        "@types/compression": "^1.8.1",
         "@types/ejs": "^2.7.0",
         "@types/express": "^5.0.3",
         "@types/fs-extra": "~9.0.0",
@@ -103,6 +105,7 @@
         "cc": "file:./packages/cc-module",
         "chalk": "^2.4.2",
         "commander": "^11.0.0",
+        "compression": "^1.8.1",
         "consola": "^3.4.2",
         "draco3dgltf": "^1.5.7",
         "ejs": "^2.7.1",
@@ -136,6 +139,7 @@
         "rollup-plugin-terser": "^7.0.2",
         "semver": "^7.7.2",
         "sharp": "^0.32.6",
+        "socket.io": "^4.8.1",
         "socket.io-client": "^4.8.1",
         "tga-js": "^1.1.1",
         "tmp": "^0.0.33",

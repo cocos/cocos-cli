@@ -15,7 +15,11 @@ export class SceneWorker extends EventEmitter {
 
     async start(enginePath: string, projectPath: string): Promise<boolean> {
         return new Promise((resolve) => {
-            const args = [`--enginePath=${enginePath}`, `--projectPath=${projectPath}`];
+            const args = [
+                `--enginePath=${enginePath}`,
+                `--projectPath=${projectPath}`,
+                '--inspect-brk=9229'
+            ];
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
             this._process = fork(precessPath, args, { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
             startupRpc(this._process);

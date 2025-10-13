@@ -1,5 +1,6 @@
 import path from 'path';
 import { Scene } from '../main-process';
+import { startupServer } from '../../../server';
 
 describe('Scene 测试', () => {
     const user = require('../../../../.user.json');
@@ -28,6 +29,8 @@ describe('Scene 测试', () => {
         const { PackerDriver } = await import('../../scripting/packer-driver');
         const packDriver = await PackerDriver.create(projectPath, enginePath);
         await packDriver.init(Engine.getConfig().includeModules);
+        // 启动服务器
+        await startupServer();
     })
 
     it('启动场景进程', async () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { fastMcpServer } from './fast-mcp';
-import { getFreePort } from '../server/network';
+import { getAvailablePort } from '../server/utils';
 
 /**
  * 启动 FastMCP 服务器的脚本
@@ -61,7 +61,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // 如果直接运行此文件，启动服务器
 if (require.main === module) {
     const defaultPort = 7456;
-    getFreePort(defaultPort).then(async (port) => {
+    getAvailablePort(defaultPort).then(async (port) => {
         const { project } = require('../../.user.json');
         await startServer(project, port);
     }).catch((e) => {
