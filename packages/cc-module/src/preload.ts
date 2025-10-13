@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { EngineLoader } from './loader';
 import * as fs from 'fs-extra';
-
+import sharp from 'sharp';
 let hasPreload = false;
 
 /**
@@ -35,6 +35,8 @@ async function preload(options: {
         // @ts-ignore
         globalThis.CC_EDITOR = false;
         // @ts-ignore
+        globalThis.CC_PREVIEW = false;
+        // @ts-ignore
         globalThis.window = globalThis.global;
         var LocalStorage = require('node-localstorage').LocalStorage;
         (globalThis as any).nodeEnv = {
@@ -42,6 +44,7 @@ async function preload(options: {
             require: require,
             userDataPath: options.writablePath,
             process: process,
+            sharp: sharp, 
             systemLanguage: Intl.DateTimeFormat().resolvedOptions().locale,
             XMLHttpRequest: require('xhr2'),
             SocketIO: require('socket.io-client'),
