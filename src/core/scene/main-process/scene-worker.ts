@@ -18,10 +18,13 @@ export class SceneWorker extends EventEmitter {
             const args = [
                 `--enginePath=${enginePath}`,
                 `--projectPath=${projectPath}`,
-                '--inspect-brk=9229'
             ];
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-            this._process = fork(precessPath, args, { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
+            const inspectPort = process.env.SCENE_WORKER_INSPECT_PORT || '9230';
+            this._process = fork(precessPath, args, {
+                stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+                execArgv: [`--inspect-brk=${inspectPort}`],
+            });
             startupRpc(this._process);
             this.registerListener();
             const onReady = (msg: any) => {
