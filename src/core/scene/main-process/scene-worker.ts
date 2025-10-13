@@ -23,7 +23,7 @@ export class SceneWorker extends EventEmitter {
             const inspectPort = process.env.SCENE_WORKER_INSPECT_PORT || '9230';
             this._process = fork(precessPath, args, {
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-                execArgv: [`--inspect-brk=${inspectPort}`],
+                execArgv: [`--inspect=${inspectPort}`],
             });
             startupRpc(this._process);
             this.registerListener();
