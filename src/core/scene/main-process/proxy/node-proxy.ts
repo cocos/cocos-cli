@@ -1,4 +1,4 @@
-import type { INodeService, INodeInfo, ICreateNodeOptions, IDeleteNodeOptions, IUpdateNodeOptions } from '../../common';
+import type { INodeService, INodeInfo, ICreateNodeOptions, INodeIdentifier, IUpdateNodeOptions, IDeleteNodeOptions } from '../../common';
 import { Rpc } from '../rpc';
 
 export const NodeProxy: INodeService = {
@@ -11,7 +11,7 @@ export const NodeProxy: INodeService = {
     updateNode(params: IUpdateNodeOptions): Promise<INodeInfo | null> {
         return Rpc.request('Node', 'updateNode', [params]);
     },
-    queryNode(): Promise<INodeInfo | null> {
-        return Rpc.request('Node', 'queryNode');
+    queryNode(identifier: INodeIdentifier): Promise<INodeInfo | null> {
+        return Rpc.request('Node', 'queryNode', [identifier]);
     }
 }

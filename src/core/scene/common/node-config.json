@@ -1,0 +1,349 @@
+{
+    "empty": [
+        {
+            "name": "Node",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Capsule": [
+        {
+            "name": "Capsule",
+            "assetUuid": "73ce1f7f-d1f4-4942-ad93-66ca3b3041ab",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Cone": [
+        {
+            "name": "Cone",
+            "assetUuid": "6350d660-e888-4acf-a552-f3b719ae9110",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Cube": [
+        {
+            "name": "Cube",
+            "assetUuid": "30da77a1-f02d-4ede-aa56-403452ee7fde",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Cylinder": [
+        {
+            "name": "Cylinder",
+            "assetUuid": "ab3e16f9-671e-48a7-90b7-d0884d9cbb85",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Plane": [
+        {
+            "name": "Plane",
+            "assetUuid": "40563723-f8fc-4216-99ea-a81636435c10",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Quad": [
+        {
+            "name": "Quad",
+            "assetUuid": "34a07346-9f62-4a84-90ae-cb83f7a426c1",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Sphere": [
+        {
+            "name": "Sphere",
+            "assetUuid": "655c9519-1a37-472b-bae6-29fefac0b550",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Torus": [
+        {
+            "name": "Torus",
+            "assetUuid": "d47f5d5e-c931-4ff4-987b-cc818a728b82",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Graphics": [
+        {
+            "name": "Graphics",
+            "assetUuid": "c96e159e-43ea-4a16-8279-05bc39119d1a",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Label": [
+        {
+            "name": "Label",
+            "assetUuid": "36008810-7ad3-47c0-8112-e30aee089e45",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Mask": [
+        {
+            "name": "Mask",
+            "assetUuid": "7fa63aed-f3e2-46a5-8a7c-c1a1adf6cea6",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Particle": [
+        {
+            "project-type": "2d",
+            "name": "Particle2D",
+            "assetUuid": "f396261e-3e06-41ec-bdd6-9a8b6d99026f",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        },
+        {
+            "project-type": "3d",
+            "name": "Particle",
+            "assetUuid": "f09a0597-10e6-49e5-8759-a148b5e85395",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Sprite": [
+        {
+            "project-type": "2d",
+            "name": "Sprite",
+            "assetUuid": "9db8cd0b-cbe4-42e7-96a9-a239620c0a9d",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        },
+        {
+            "project-type": "3d",
+            "name": "SpriteRenderer",
+            "assetUuid": "279ed042-5a65-4efe-9afb-2fc23c61e15a",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "SpriteSplash": [
+        {
+            "name": "SpriteSplash",
+            "assetUuid": "e5f21aad-3a69-4011-ac62-b74352ac025e",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "TiledMap": [
+        {
+            "name": "TiledMap",
+            "assetUuid": "3139fa4f-8c42-4ce6-98be-15e848d9734c",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Button": [
+        {
+            "name": "Button",
+            "assetUuid": "90bdd2a9-2838-4888-b66c-e94c8b7a5169",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Canvas": [
+        {
+            "project-type": "3d",
+            "name": "Canvas",
+            "assetUuid": "f773db21-62b8-4540-956a-29bacf5ddbf5",
+            "snapshot": true,
+            "nameIncrease": true
+        },
+        {
+            "project-type": "2d",
+            "name": "Canvas",
+            "assetUuid": "4c33600e-9ca9-483b-b734-946008261697",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "EditBox": [
+        {
+            "name": "EditBox",
+            "assetUuid": "05e79121-8675-4551-9ad7-1b901a4025db",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Layout": [
+        {
+            "name": "Layout",
+            "assetUuid": "a9ef7dfc-ea8b-4cf8-918e-36da948c4de0",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "PageView": [
+        {
+            "name": "PageView",
+            "assetUuid": "20a5d8cb-ccad-4543-a937-fccd98c9f3de",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "ProgressBar": [
+        {
+            "name": "ProgressBar",
+            "assetUuid": "0d9353c4-6fb9-49bb-bc62-77f1750078c2",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "RichText": [
+        {
+            "name": "RichText",
+            "assetUuid": "fc6bfcfa-8086-4326-809b-0ba1226bac7d",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "ScrollView": [
+        {
+            "name": "ScrollView",
+            "assetUuid": "c1baa707-78d6-4b89-8d5d-0b7fdf0c39bc",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Slider": [
+        {
+            "name": "Slider",
+            "assetUuid": "2bd7e5b6-cd8c-41a1-8136-ddb8efbf6326",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Toggle": [
+        {
+            "name": "Toggle",
+            "assetUuid": "0e89afe7-56de-4f99-96a1-cba8a75bedd2",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "ToggleGroup": [
+        {
+            "name": "ToggleGroup",
+            "assetUuid": "2af73429-41d1-4346-9062-7798e42945dd",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "VideoPlayer": [
+        {
+            "name": "VideoPlayer",
+            "assetUuid": "7e089eaf-fa97-40d7-8a20-741a152585df",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "WebView": [
+        {
+            "name": "WebView",
+            "assetUuid": "9c541fa2-1dc8-4d8b-813a-aec89133f5b1",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Widget": [
+        {
+            "name": "Widget",
+            "assetUuid": "36ed4422-3542-4cc4-bf02-dc4bfc590836",
+            "canvasRequired": true,
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Light-Directional": [
+        {
+            "name": "Directional Light",
+            "assetUuid": "a0e9756d-9128-4f49-8097-e041c8b733b8",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Light-Sphere": [
+        {
+            "name": "Sphere Light",
+            "assetUuid": "4182ee46-ffa0-4de2-b66b-c93cc6c7e9b8",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Light-Spot": [
+        {
+            "name": "Spot Light",
+            "assetUuid": "7a49aa24-bd7a-40a8-b31a-b2a9da85abcd",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Light-Probe-Group": [
+        {
+            "name": "Light Probe Group",
+            "assetUuid": "50dfda40-7c45-4868-a876-2fe2a4c782f4",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Light-Reflection-Probe": [
+        {
+            "name": "Reflection Probe",
+            "assetUuid": "d8b49b64-cfba-4cfa-be53-1e469547b28b",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Camera": [
+        {
+            "project-type": "3d",
+            "name": "Camera",
+            "assetUuid": "bb0a6472-cd67-4afb-a031-94fca8f4cc92",
+            "snapshot": true,
+            "nameIncrease": true
+        },
+        {
+            "project-type": "2d",
+            "name": "Camera",
+            "assetUuid": "3487d118-0158-4983-93fe-c3822790e7c5",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ],
+    "Terrain": [
+        {
+            "name": "Terrain",
+            "assetUuid": "90e8b0d4-12dc-412d-9156-ea1fdb18c15b",
+            "snapshot": true,
+            "nameIncrease": true
+        }
+    ]
+}
