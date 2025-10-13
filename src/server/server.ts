@@ -3,10 +3,10 @@ import compression from 'compression';
 import { existsSync, readFile } from 'fs-extra';
 import { createServer as createHTTPServer, Server as HTTPServer } from 'http';
 import { createServer as createHTTPSServer, Server as HTTPSServer } from 'https';
+import { getAvailablePort } from './utils';
 
 import { socketService } from './socket';
 import { middlewareService } from './middleware';
-import { getAvailablePort } from './utils/index';
 import { cors } from './utils/cors';
 
 export class ServerService {
@@ -27,13 +27,27 @@ export class ServerService {
         }
     }
 
+    public get url() {
+        return this.httpsUrl || this.httpUrl || 'http://localhost:9999999';
+    }
+
+    private get httpsUrl() {
+        if (this.httpsServer && this.httpsServer.listening) return `https://localhost:${this.httpsPost}`;
+        return undefined;
+    }
+
+    private get httpUrl() {
+        if (this.httpServer && this.httpServer.listening) return `https://localhost:${this.httpPost}`;
+        return undefined;
+    }
+
     async start() {
         console.log('🚀 开始启动服务器...');
         this.init();
         await this.createHttpServer();
         await this.createHttpsServer();
         socketService.startup(this.httpsServer || this.httpServer!);
-        
+
         // 打印服务器地址
         this.printServerUrls();
     }
@@ -47,12 +61,18 @@ export class ServerService {
     }
 
     private printServerUrls() {
-        console.log('\n🚀 服务器已启动:');
-        if (this.httpServer) {
-            console.log(`   HTTP:  http://localhost:${this.httpPost}`);
+        const hasHttpListening = !!(this.httpServer && this.httpServer.listening);
+        const hasHttpsListening = !!(this.httpsServer && this.httpsServer.listening);
+        if (!hasHttpListening && !hasHttpsListening) {
+            console.warn('⚠️ 服务器未开启或未监听端口');
+            return;
         }
-        if (this.httpsServer) {
-            console.log(`   HTTPS: https://localhost:${this.httpsPost}`);
+        console.log('\n🚀 服务器已启动:');
+        if (hasHttpListening) {
+            console.log(`   HTTP: ${this.httpUrl}`);
+        }
+        if (hasHttpsListening) {
+            console.log(`   HTTPS: ${this.httpsUrl}`);
         }
     }
 
@@ -104,7 +124,6 @@ export class ServerService {
             res.send('500 - Server Error');
         });
     }
-
 }
 
 export const serverService = new ServerService();

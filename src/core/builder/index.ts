@@ -10,7 +10,7 @@ import { join } from "path";
 import { assetManager } from "../assets/manager/asset";
 import { removeDbHeader } from "./worker/builder/utils";
 import builderConfig, { BuildGlobalInfo } from "./share/builder-config";
-import engine from "../engine";
+import { Engine } from "../engine";
 
 export async function build(options?: IBuildCommandOption): Promise<BuildExitCode> {
     await builderConfig.init();
@@ -42,7 +42,7 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
     options.taskId = options.taskId || String(new Date().getTime());
     options.logDest = options.logDest || getTaskLogDest(options.platform, options.taskId);
     options.taskName = options.taskName || options.platform;
-    options.engineInfo = options.engineInfo || engine.getInfo();
+    options.engineInfo = options.engineInfo || Engine.getInfo();
 
     if (options.stage === 'bundle') {
         return await buildBundleOnly(options as unknown as IBundleBuildOptions);

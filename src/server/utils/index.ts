@@ -1,4 +1,8 @@
 import net from 'net';
+import os from 'os';
+import type { AddressInfo } from 'net';
+import type { Server as HTTPServer } from 'http';
+import type { Server as HTTPSServer } from 'https';
 
 /**
  * 获取当前系统可用端口

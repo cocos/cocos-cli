@@ -14,7 +14,7 @@ import { IPolyFills, IBuildSystemJsOption } from '../../../../@types';
 import { ImportMapWithImports, IScriptOptions, IInternalBuildOptions, IInternalBundleBuildOptions, ModulePreservation, IBundle, IAssetInfo, ImportMap, IImportMapOptions } from '../../../../@types/protected';
 import { assetDBManager } from '../../../../../assets/manager/asset-db';
 import script from '../../../../../scripting';
-import engine from '../../../../../engine';
+import { Engine } from '../../../../../engine';
 import { MacroItem } from '../../../../../engine/@types/config';
 import { compressUuid } from '../../utils';
 type PlatformType = StatsQuery.ConstantManager.PlatformType;
@@ -97,7 +97,7 @@ export class ScriptBuilder {
                 target: info.options.target,
             };
         });
-        const customMacroList = engine.getConfig().macroCustom;
+        const customMacroList = Engine.getConfig().macroCustom;
         ScriptBuilder.projectOptions = {
             customMacroList,
             dbInfos,

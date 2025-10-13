@@ -12,10 +12,10 @@ import {
     migrateCSMInclude,
     migrateMacroUseBatching,
 } from './effect';
-import engine from '../../../engine';
+import { Engine } from '../../../engine';
 
 // 添加所有 builtin 头文件
-const builtinChunkDir = join(engine.getInfo().typescript.path, './editor/assets/chunks');
+const builtinChunkDir = join(Engine.getInfo().typescript.path, './editor/assets/chunks');
 const builtinChunks = (() => {
     const arr: string[] = [];
     function step(dir: string) {

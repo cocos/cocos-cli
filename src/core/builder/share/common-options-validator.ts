@@ -14,7 +14,7 @@ import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IIntern
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { assetManager } from '../../assets/manager/asset';
-import engine from '../../engine';
+import { Engine } from '../../engine';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
 interface ModuleConfig {
     match: (module: string) => boolean;
@@ -667,7 +667,7 @@ export function handleOverwriteProjectSettings(options: IBuildTaskOption) {
 }
 
 export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {
-    const { designResolution, renderPipeline, physicsConfig, customLayers, sortingLayers, macroConfig, includeModules } = engine.getConfig();
+    const { designResolution, renderPipeline, physicsConfig, customLayers, sortingLayers, macroConfig, includeModules } = Engine.getConfig();
     // 默认 Canvas 设置
     if (!options.designResolution) {
         options.designResolution = designResolution;

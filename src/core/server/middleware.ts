@@ -1,14 +1,32 @@
 import type { IMiddleware } from '../../server/interfaces';
 import { Request, Response } from 'express';
-import { assetManager } from '../assets';
 import path from 'path';
+import fse from 'fs-extra';
 
 export const SceneMiddleware: IMiddleware = {
     get: [
         {
+            // TODO 这里后续需要改引擎 wasm/wasm-nodejs.ts 的写法，改成向服务器请求数据
+            url: '/engine_external/',
+            async handler(req: Request, res: Response) {
+                const url = req.query.url;
+                const externalProtocol = 'external:';
+                if (typeof url === 'string' && url.startsWith(externalProtocol)) {
+                    const { Engine: Engine } = await import('../engine');
+                    const nativeEnginePath = Engine.getInfo().native.path;
+                    const externalFilePath = url.replace(externalProtocol, path.join(nativeEnginePath, 'external/'));
+                    const arrayBuffer = await fse.readFile(externalFilePath);
+                    res.status(200).send(arrayBuffer);
+                } else {
+                    res.status(404).send(`请求 external 资源失败，请使用 external 协议: ${req.url}`);
+                }
+            },
+        },
+        {
             url: '/query-extname/:uuid',
             async handler(req: Request, res: Response) {
                 const uuid = req.params.uuid;
+                const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo && assetInfo.library['.bin'] && Object.keys(assetInfo.library).length === 1) {
                     res.status(200).send('.cconb');
@@ -18,49 +36,21 @@ export const SceneMiddleware: IMiddleware = {
             },
         },
         {
-            url: '/:dir/:uuid',
+            url: '/:dir/:uuid.:ext',
             async handler(req: Request, res: Response) {
-                const extname = path.extname(req.params.uuid);
-                const uuid = path.basename(req.params.uuid, extname);
+                const { uuid, ext } = req.params;
+                const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
-                console.log(`接收到请求 ${uuid}`);
-                const file = assetInfo && assetInfo.library[extname]
-                if (file) {
-                    console.log(assetInfo);
-                    console.log(`转换路径 ${req.url}: ${req.params.uuid} -> ${file}`);
-                    res.status(200).send(file);
-                } else {
-                }
+                const filePath = assetInfo && assetInfo.library[`.${ext}`];
+                res.status(200).send(filePath || req.url);
             },
         }
     ],
-    post: [
-        {
-            url: '/test-post',
-            async handler(req: Request, res: Response) {
-                console.log('🎯 SceneMiddleware POST handler 被调用!');
-                console.log('📝 POST 请求路径:', req.path);
-                console.log('📝 POST 请求参数:', req.params);
-                console.log('📝 POST 请求体:', req.body);
-
-                const uuid = req.params[0];
-                console.log('🔍 POST 查询的 UUID:', uuid);
-
-                res.status(200).json({
-                    message: 'POST 请求处理成功',
-                    uuid: uuid,
-                    body: req.body
-                });
-            },
-        }
-    ],
+    post: [],
     staticFiles: [],
     socket: {
-        connection: (socket: any) => {
-
-        },
-        disconnect: (socket: any) => {
-        }
+        connection: (socket: any) => {},
+        disconnect: (socket: any) => {}
     },
 }
 

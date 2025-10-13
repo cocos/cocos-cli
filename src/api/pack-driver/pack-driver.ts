@@ -1,6 +1,6 @@
 import { ApiBase } from '../base/api-base';
 import { PackerDriver } from '../../core/scripting/packer-driver';
-import Engine from '../../core/engine';
+import { Engine } from '../../core/engine';
 
 export class PackDriverApi extends ApiBase {
     constructor(

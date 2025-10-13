@@ -21,7 +21,7 @@ import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildRes
 import { CocosParams } from './pack-tool/default';
 import i18n from '../../../base/i18n';
 import { BuildGlobalInfo } from '../../share/builder-config';
-import engine from '../../../engine';
+import { Engine } from '../../../engine';
 import { relativeUrl } from '../../worker/builder/utils';
 import { ITaskOption } from '../../@types/platforms/native';
 
@@ -77,7 +77,7 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
         params.cMakeConfig.BUILTIN_COCOS_X_PATH = `set(BUILTIN_COCOS_X_PATH "${fixPath(engineInfo.native.builtin)}")`;
     }
 
-    const moduleConfig = engine.queryModuleConfig().moduleCmakeConfig;
+    const moduleConfig = Engine.queryModuleConfig().moduleCmakeConfig;
     Object.keys(moduleConfig).forEach((module) => {
         if (moduleConfig[module].native) {
             params.cMakeConfig[moduleConfig[module].native] = `set(${moduleConfig[module].native} ${options.includeModules.includes(module) ? 'ON' : 'OFF'})`;

@@ -11,7 +11,7 @@ import { migrationHook } from '../utils/migration-utils';
 import utils from '../../../../base/utils';
 import { url2path } from '../../../utils';
 import assetConfig from '../../../asset-config';
-import engine from '../../../../engine';
+import { Engine } from '../../../../engine';
 
 export const version = '1.1.50';
 export const versionCode = 2;
@@ -122,7 +122,7 @@ function changeSceneUuid(scene: any, uuid: string) {
 async function queryDefaultTemplateURL() {
     const templateDir = 'db://internal/default_file_content/scene';
     let template = `${templateDir}/default.scene`;
-    const { includeModules, highQuality } = engine.getConfig();
+    const { includeModules, highQuality } = Engine.getConfig();
     if (includeModules && !includeModules.includes('3d')) {
         template = `${templateDir}/scene-2d.scene`;
     } else {

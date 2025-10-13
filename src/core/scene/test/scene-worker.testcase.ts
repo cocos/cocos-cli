@@ -15,7 +15,7 @@ describe('Scene 测试', () => {
         const { default: Project } = await import('../../project');
         await Project.open(projectPath);
         // 初始化引擎
-        const { default: Engine } = await import('../../engine');
+        const { Engine: Engine } = await import('../../engine');
         await Engine.init(enginePath);
         await Engine.initEngine({
             importBase: path.join(projectPath, 'library'),

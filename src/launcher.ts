@@ -30,7 +30,7 @@ class ProjectManager {
         const { default: Project } = await import('./core/project');
         await Project.open(path);
         // 初始化引擎
-        const { default: Engine } = await import('./core/engine');
+        const { Engine: Engine } = await import('./core/engine');
         await Engine.init(enginePath);
         console.log('initEngine', enginePath);
         await Engine.initEngine({
