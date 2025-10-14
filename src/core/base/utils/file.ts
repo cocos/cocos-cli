@@ -1,6 +1,7 @@
 'use strict';
 
 import { existsSync } from 'fs';
+import { remove } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 
 /**
@@ -67,6 +68,7 @@ export async function trashItem(file: string) {
     // TODO
     // const trash = await import('sudo-trash');
     // return await trash.trash(file);
+    await remove(file);
 }
 
 export function requireFile(file: string, options?: { root: string }) {

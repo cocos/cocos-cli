@@ -11,7 +11,7 @@ import { glTfReaderManager } from './reader-manager';
 import { getDependUUIDList, i18nTranslate, mergeMeta } from '../../utils';
 import { parse } from 'url';
 import { AssetHandler } from '../../../@types/protected';
-import { assetDBManager } from '../../../manager/asset-db';
+import assetDBManager from '../../../manager/asset-db';
 import FbxHandler from '../fbx';
 import GltfHandler from '../gltf';
 

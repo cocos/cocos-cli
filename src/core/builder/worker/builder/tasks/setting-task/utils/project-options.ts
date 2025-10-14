@@ -7,7 +7,7 @@ import i18n from '../../../../../../base/i18n';
 import { ISettings, IPhysicsConfig } from '../../../../../@types';
 import { IInternalBuildOptions } from '../../../../../@types/protected';
 import utils from '../../../../../../base/utils';
-import engine from '../../../../../../engine';
+import { Engine } from '../../../../../../engine';
 import { configurationManager } from '../../../../../../configuration';
 import { ISplashSetting } from '../../../../../../engine/@types/config';
 import { GlobalPaths } from '../../../../../../../global';
@@ -28,7 +28,7 @@ export async function patchOptionsToSettings(options: IInternalBuildOptions, set
     settings.screen.designResolution = options.resolution;
     settings.engine.platform = options.platform || settings.engine.platform;
     settings.assets.server = options.server || '';
-    settings.CocosEngine = engine.getInfo().version;
+    settings.CocosEngine = Engine.getInfo().version;
     settings.engine.customLayers = options.customLayers.map((layer) => {
         const index = layerMask.findIndex((num) => { return layer.value === num; });
         return {
@@ -39,10 +39,10 @@ export async function patchOptionsToSettings(options: IInternalBuildOptions, set
     settings.engine.customLayers.sort((a, b) => a.bit - b.bit);
     settings.engine.sortingLayers = options.sortingLayers;
 
-    const { renderPipeline: defaultPipeline, splashScreen: defaultSplashScreen } = engine.getConfig(true);
+    const { renderPipeline: defaultPipeline, splashScreen: defaultSplashScreen } = Engine.getConfig(true);
     settings.rendering.renderPipeline = options.renderPipeline === defaultPipeline ? '' : options.renderPipeline;
     settings.rendering.customPipeline = options.customPipeline;
-    const { customJointTextureLayouts, downloadMaxConcurrency, splashScreen } = engine.getConfig();
+    const { customJointTextureLayouts, downloadMaxConcurrency, splashScreen } = Engine.getConfig();
     settings.animation.customJointTextureLayouts = customJointTextureLayouts || [];
     if (options.includeModules.includes('custom-pipeline')) {
         settings.rendering.effectSettingsPath = 'src/effect.bin';

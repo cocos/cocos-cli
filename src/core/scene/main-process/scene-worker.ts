@@ -3,6 +3,7 @@ import path from 'path';
 import { EventEmitter } from 'events';
 import { SceneReadyChannel } from '../common';
 import { startupRpc } from './rpc';
+import { getServerUrl } from '../../../server';
 
 export class SceneWorker extends EventEmitter {
     private _process: ChildProcess | null = null;
@@ -15,9 +16,17 @@ export class SceneWorker extends EventEmitter {
 
     async start(enginePath: string, projectPath: string): Promise<boolean> {
         return new Promise((resolve) => {
-            const args = [`--enginePath=${enginePath}`, `--projectPath=${projectPath}`];
+            const args = [
+                `--enginePath=${enginePath}`,
+                `--projectPath=${projectPath}`,
+                `--serverURL=${getServerUrl()}`,
+            ];
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-            this._process = fork(precessPath, args, { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
+            const inspectPort = '9230';
+            this._process = fork(precessPath, args, {
+                stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+                execArgv: [`--inspect=${inspectPort}`],
+            });
             startupRpc(this._process);
             this.registerListener();
             const onReady = (msg: any) => {

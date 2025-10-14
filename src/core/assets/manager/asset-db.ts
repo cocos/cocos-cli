@@ -72,7 +72,7 @@ interface IWaitingTaskInfo {
 /**
  * 总管理器，管理整个资源进程的启动流程、以及一些子管理器的启动流程
  */
-export class AssetDBManager extends EventEmitter {
+ class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
     public globalInternalLibrary = false;
 
@@ -295,6 +295,7 @@ export class AssetDBManager extends EventEmitter {
             return newImporter || importer;
         };
         this.emit('db-created', db);
+        console.debug(`create db ${info.name} success in ${info.library}`);
         return db;
     }
 
@@ -673,7 +674,8 @@ export class AssetDBManager extends EventEmitter {
     }
 }
 
-export const assetDBManager = new AssetDBManager();
+const assetDBManager = new AssetDBManager();
+export default assetDBManager;
 (globalThis as any).assetDBManager = assetDBManager;
 
 function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {

@@ -8,7 +8,7 @@ import { createHash } from 'crypto';
 import { outputFileSync, readdirSync, rename, readFileSync, stat, statSync, remove, outputFile } from 'fs-extra';
 import { md5CacheHandler } from './md5-cache-handler';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
-import { assetManager } from '../../../../../assets/manager/asset';
+import assetManager from '../../../../../assets/manager/asset';
 import { relativeUrl } from '../../utils';
 export const title = 'i18n:builder.tasks.build_suffix';
 

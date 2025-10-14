@@ -3,7 +3,7 @@ import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig 
 import { BuildTemplateConfig, IBuildTaskOption, IPlatformType } from '../protected';
 import { IFlags } from '@cocos/creator-types/editor/packages/engine/@types'
 import { StatsQuery } from '@cocos/ccbuild';
-import { EngineInfo, EngineConfig } from '../../../engine/@types/public';
+import { EngineInfo, IEngineConfig } from '../../../engine/@types/public';
 import { extend } from 'lodash';
 
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
@@ -207,7 +207,7 @@ export interface IBuildCommonOptions {
     };
 }
 
-export interface OverwriteProjectSettings extends EngineConfig {
+export interface OverwriteProjectSettings extends IEngineConfig {
     engineInfo: EngineInfo;
 }
 

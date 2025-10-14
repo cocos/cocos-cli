@@ -4,6 +4,7 @@ import utils from './core/base/utils';
 import { newConsole } from './core/base/console';
 import { getCurrentLocalTime } from './core/assets/utils';
 import { PackerDriver } from './core/scripting/packer-driver';
+import { startServer } from './server';
 
 class ProjectManager {
 
@@ -24,20 +25,15 @@ class ProjectManager {
             label: '项目',
             path,
         });
+        await startServer();
         const { configurationManager } = await import('./core/configuration');
         await configurationManager.initialize(path);
         // 初始化项目信息
         const { default: Project } = await import('./core/project');
         await Project.open(path);
         // 初始化引擎
-        const { default: Engine } = await import('./core/engine');
-        await Engine.init(enginePath);
-        console.log('initEngine', enginePath);
-        await Engine.initEngine({
-            importBase: join(path, 'library'),
-            nativeBase: join(path, 'library'),
-            writablePath: join(path, 'temp'),
-        });
+        const { Engine, initEngine } = await import('./core/engine');
+        await initEngine(enginePath, path);
         console.log('initEngine success');
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./core/assets');

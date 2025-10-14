@@ -1,5 +1,6 @@
 import path from 'path';
 import { Scene } from '../main-process';
+import { startServer } from '../../../server';
 
 describe('Scene 测试', () => {
     const user = require('../../../../.user.json');
@@ -7,6 +8,8 @@ describe('Scene 测试', () => {
     const projectPath = user.project;
 
     it('准备阶段', async () => {
+        // 启动服务器
+        await startServer();
         // 初始化配置
         const { configurationManager } = await import('../../configuration');
         await configurationManager.initialize(projectPath);
@@ -14,13 +17,8 @@ describe('Scene 测试', () => {
         const { default: Project } = await import('../../project');
         await Project.open(projectPath);
         // 初始化引擎
-        const { default: Engine } = await import('../../engine');
-        await Engine.init(enginePath);
-        await Engine.initEngine({
-            importBase: path.join(projectPath, 'library'),
-            nativeBase: path.join(projectPath, 'library'),
-            writablePath: path.join(projectPath, 'temp'),
-        });
+        const { Engine, initEngine } = await import('../../engine');
+        await initEngine(enginePath, projectPath);
         // 启动 db
         const { startupAssetDB } = await import('../../assets');
         await startupAssetDB();

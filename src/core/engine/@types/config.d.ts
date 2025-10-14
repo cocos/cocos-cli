@@ -90,7 +90,7 @@ export interface IDesignResolution {
 /**
  * TODO 引擎配置文件
  */
-export interface EngineConfig {
+export interface IEngineConfig {
     includeModules: string[];
     physicsConfig: IPhysicsConfig;
     macroConfig?: Record<string, string | number | boolean>;
@@ -110,11 +110,11 @@ export interface EngineConfig {
     downloadMaxConcurrency: number;
 }
 
-
-export interface InitEngineInfo {
+export interface IInitEngineInfo {
     importBase: string;
     nativeBase: string;
     writablePath: string;
+    serverURL?: string;
 }
 
 interface CCEModuleConfig {

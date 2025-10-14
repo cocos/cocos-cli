@@ -2,7 +2,6 @@
 
 import { Asset } from '@editor/asset-db';
 import { version, versionCode } from './index';
-import { migrations } from './migrates';
 import { readJSON, writeFile } from 'fs-extra';
 
 import { AssetHandler } from '../../../@types/protected';
@@ -33,22 +32,7 @@ export const PrefabHandler: AssetHandler = {
     importer: {
         version,
         versionCode,
-        migrations,
-        migrationHook: {
-            async pre(asset: Asset) {
-                const swap: any = asset.getSwapSpace();
-                swap.json = await readJSON(asset.source);
-            },
-            async post(asset: Asset, num: number) {
-                const swap: any = asset.getSwapSpace();
-                if (num > 0) {
-                    // 请勿使用 writeJson，因为这个接口会在末尾增加空行
-                    const json = JSON.stringify(swap.json, null, 2);
-                    await writeFile(asset.source, json);
-                }
-                delete swap.json;
-            },
-        },
+
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件

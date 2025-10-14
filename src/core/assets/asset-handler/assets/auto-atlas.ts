@@ -73,24 +73,6 @@ const AutoAtlasHandler: AssetHandler = {
 
     importer: {
         version: '1.0.8',
-        /**
-         * 数据迁移
-         */
-        migrations: [
-            {
-                version: '1.0.8',
-                migrate: (asset: Asset) => {
-                    const userData = asset.userData as IAutoAtlasUserData;
-                    // 面板上隐藏了 allowRotation 和 algorithm
-                    if (!userData['allowRotation']) {
-                        userData['allowRotation'] = true;
-                    }
-                    if (!userData['algorithm'] || userData['algorithm'] !== 'MaxRects') {
-                        userData['algorithm'] = 'MaxRects';
-                    }
-                },
-            },
-        ],
 
         /**
          * 实际导入流程

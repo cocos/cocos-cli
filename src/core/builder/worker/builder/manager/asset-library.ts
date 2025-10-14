@@ -9,9 +9,9 @@ import { recursively } from '../utils';
 import assert from 'assert';
 import { getCCONFormatAssetInLibrary, outputCCONFormat } from '../utils/cconb';
 import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../../../@types/protected';
-import { assetManager } from '../../../../assets/manager/asset';
+import assetManager from '../../../../assets/manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../assets/@types/protected';
-import { assetDBManager } from '../../../../assets/manager/asset-db';
+import assetDBManager from '../../../../assets/manager/asset-db';
 import { transI18n } from '../../../share/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
 

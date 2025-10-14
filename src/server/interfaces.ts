@@ -1,0 +1,23 @@
+import { Request, Response, RequestHandler } from 'express';
+
+export interface IGetPostConfig {
+    url: string;
+    handler: (req: Request, res: Response) => Promise<void>;
+}
+
+export interface IStaticFileConfig {
+    url: string;
+    path: string;
+}
+
+export interface ISocketConfig {
+    connection: (socket: any) => void;
+    disconnect: (socket: any) => void;
+}
+
+export interface IMiddlewareContribution {
+    get?: IGetPostConfig[];
+    post?: IGetPostConfig[];
+    staticFiles?: IStaticFileConfig[];
+    socket?: ISocketConfig;
+}

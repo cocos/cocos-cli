@@ -10,7 +10,6 @@ import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
-import utils from '../../base/utils';
 import { newConsole } from '../../base/console';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from '../share/builder-config';
 import { existsSync } from 'fs-extra';

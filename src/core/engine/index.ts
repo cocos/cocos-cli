@@ -1,8 +1,9 @@
 import { EngineInfo } from './@types/public';
-import { EngineConfig, InitEngineInfo, MakeRequired } from './@types/config';
+import { IEngineConfig, IInitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
-import { configurationManager, configurationRegistry, IBaseConfiguration } from '../configuration';
+import { configurationRegistry, IBaseConfiguration } from '../configuration';
+import { assetManager } from '../assets';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -10,9 +11,9 @@ import { configurationManager, configurationRegistry, IBaseConfiguration } from 
 
 export interface IEngine {
     getInfo(): EngineInfo;
-    getConfig(): EngineConfig;
+    getConfig(): IEngineConfig;
     init(enginePath: string): Promise<this>;
-    initEngine(info: InitEngineInfo): Promise<this>;
+    initEngine(info: IInitEngineInfo): Promise<this>;
 }
 
 const layerMask: number[] = [];
@@ -25,7 +26,7 @@ for (let i = 0; i <= 19; i++) {
 // 所以界面上的 勾选动作 和 状态判断 都要忽略这个列表的数据，从 3.8.6 开始我将这个 ignoreKeys 改成 ignoreModules 从 视图层移到主进程
 // 直接在数据源上过滤掉，减少 视图层的判断
 const ignoreModules = ['custom-pipeline-post-process'];
-class Engine implements IEngine {
+class EngineManager implements IEngine {
     private _init: boolean = false;
     private _info: EngineInfo = {
         version: '3.8.8',
@@ -41,10 +42,10 @@ class Engine implements IEngine {
             builtin: '',
         }
     }
-    private _config: EngineConfig = this.defaultConfig;
-    private _configInstance!: IBaseConfiguration;
+    private _config: IEngineConfig = this.defaultConfig;
+    // private _configInstance!: IBaseConfiguration;
 
-    private get defaultConfig(): EngineConfig {
+    private get defaultConfig(): IEngineConfig {
         return {
             includeModules: [
                 '2d',
@@ -167,6 +168,10 @@ class Engine implements IEngine {
         envLimitModule: {}, // 记录有环境限制的模块数据
     };
 
+    get type() {
+        return this._config.includeModules.includes('3d') ? '3d' : '2d';
+    }
+
     getInfo() {
         if (!this._init) {
             throw new Error('Engine not init');
@@ -174,7 +179,7 @@ class Engine implements IEngine {
         return this._info;
     }
 
-    getConfig(useDefault?: boolean): EngineConfig {
+    getConfig(useDefault?: boolean): IEngineConfig {
         if (useDefault) {
             return this.defaultConfig;
         }
@@ -197,9 +202,9 @@ class Engine implements IEngine {
         this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
         this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
-        this._configInstance = await configurationRegistry.register('engine', this.defaultConfig);
+        const configInstance = await configurationRegistry.register('engine', this.defaultConfig);
         this._init = true;
-        this._config = await this._configInstance.get('');
+        this._config = await configInstance.get('');
         return this;
     }
 
@@ -216,8 +221,7 @@ class Engine implements IEngine {
     /**
      * 加载以及初始化引擎环境
      */
-    async initEngine(info: InitEngineInfo) {
-        // @ts-ignore - cc/preload is a dynamic module
+    async initEngine(info: IInitEngineInfo) {
         const { default: preload } = await import('cc/preload');
         await preload({
             engineRoot: this._info.typescript.path,
@@ -238,11 +242,7 @@ class Engine implements IEngine {
         });
         await this.initEditorExtensions();
 
-        // @ts-ignore
-        // window.cc.debug._resetDebugSetting(cc.DebugMode.INFO);
-        //newConsole.trackTimeEnd('asset-db:require-engine-code', { output: true });
-
-        const modules = this.getConfig().includedModules || [];
+        const modules = this.getConfig().includeModules || [];
         let physicsEngine = '';
         const engineList = ['physics-cannon', 'physics-ammo', 'physics-builtin', 'physics-physx'];
         for (let i = 0; i < engineList.length; i++) {
@@ -252,6 +252,7 @@ class Engine implements IEngine {
             }
         }
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
+        const bundles = assetManager.queryAssets({ isBundle: true }).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
         const defaultConfig = {
             debugMode: cc.debug.DebugMode.WARN,
             overrideSettings: {
@@ -286,7 +287,9 @@ class Engine implements IEngine {
                 assets: {
                     importBase: info.importBase,
                     nativeBase: info.nativeBase,
-                },
+                    remoteBundles: ['internal', 'main'].concat(bundles),
+                    server: info.serverURL,
+                }
             },
             exactFitScreen: true,
         };
@@ -304,4 +307,23 @@ class Engine implements IEngine {
     }
 }
 
-export default new Engine();
+const Engine = new EngineManager();
+
+export { Engine };
+
+/**
+ * 初始化 engine
+ * @param enginePath
+ * @param projectPath
+ * @param serverURL
+ */
+export async function initEngine(enginePath: string, projectPath: string, serverURL?: string) {
+    await Engine.init(enginePath);
+    // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径
+    await Engine.initEngine({
+        serverURL: serverURL,
+        importBase: serverURL ?? join(projectPath, 'library'),
+        nativeBase: serverURL ?? join(projectPath, 'library'),
+        writablePath: join(projectPath, 'temp'),
+    });
+}

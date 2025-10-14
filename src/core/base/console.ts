@@ -20,7 +20,7 @@ let rawConsole: any = global.console;
 
 /**
  * 自定义的一个新 console 类型，用于收集日志
- * 集成 consola 提供美观的日志输出
+ * 集成 console 提供美观的日志输出
  */
 export class NewConsole {
     command = false;

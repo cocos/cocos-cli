@@ -1,5 +1,5 @@
 import { startServer } from './mcp/start-fast-mcp.js';
-import { getFreePort } from './server/network.js';
+import { getAvailablePort } from './server/utils/index.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -26,9 +26,8 @@ export async function activate(context: vscode.ExtensionContext) {
 				return []; // 不启动 MCP 服务器，也不返回任何定义
 			}
 
-
 			try {
-				const port = await getFreePort(7456);
+				const port = await getAvailablePort(7456);
 				// 启动 MCP 服务器
 				await startServer(folder, port);
 

@@ -1,0 +1,19 @@
+name: Test PR Trigger
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  test-trigger:
+    runs-on: [ self-hosted, macOS ]
+    steps:
+      - name: Print success message
+        run: |
+          echo "🎉 SUCCESS: Workflow triggered successfully!"
+          echo "Event: ${{ github.event_name }}"
+          echo "Action: ${{ github.event.action }}"
+          echo "PR Number: ${{ github.event.pull_request.number }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Runner: $(hostname)"
+          echo "Date: $(date)"

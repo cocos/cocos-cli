@@ -1,46 +1,28 @@
-import path from 'path';
 import { SceneReadyChannel } from '../common';
 import { startupRpc } from './rpc';
-
-async function initEngine(enginePath: string, projectPath: string) {
-    const { default: Engine } = await import('../../../core/engine');
-    await Engine.init(enginePath);
-    console.log('initEngine', enginePath);
-    await Engine.initEngine({
-        importBase: path.join(projectPath, 'library'),
-        nativeBase: path.join(projectPath, 'library'),
-        writablePath: path.join(projectPath, 'temp'),
-    });
-    console.log('[Scene] initEngine success');
-}
-
-function parseParams() {
-    return process.argv.slice(2).reduce((acc, cur) => {
-        const [k, v] = cur.replace(/^--/, '').split('=');
-        acc[k] = v;
-        return acc;
-    }, {} as Record<string, string>);
-}
+import { parseCommandLineArgs } from './utils';
+import { initEngine } from '../../engine';
 
 async function startup () {
-    console.log('[Scene] startup');
-    const params = parseParams();
+    console.log('[Scene] startup worker');
 
-    const enginePath = params.enginePath;
-    const projectPath = params.projectPath;
+    console.log(`[Scene] parse args ${process.argv}`);
+    const { enginePath, projectPath, serverURL } = parseCommandLineArgs(process.argv);
     if (!enginePath || !projectPath) {
         throw new Error('enginePath or projectPath is not set');
     }
 
-    await initEngine(enginePath, projectPath);
-
+    await initEngine(enginePath, projectPath, serverURL);
+    console.log('[Scene] initEngine success');
     // 导入 service，让他能处理装饰器，捕获开发的 api
     await import('./service');
+    console.log('[Scene] import service');
     await startupRpc();
+    console.log('[Scene] startup Rpc');
 
     // 发送消息给父进程
     process.send?.(SceneReadyChannel);
-    console.log('[Scene] startup worker success, cocos creator version:', cc.ENGINE_VERSION);
+    console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);
 }
 
 void startup();

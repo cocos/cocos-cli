@@ -9,16 +9,17 @@ import { isAbsolute, dirname, basename, join, relative } from 'path';
 import { newConsole } from '../../base/console';
 import { IMoveOptions } from '../@types/private';
 import { IAsset, CreateAssetOptions, IExportOptions, IExportData } from '../@types/protected';
-import { AssetOperationOption, IAssetInfo } from '../@types/public';
+import { AssetOperationOption, IAssetInfo, ISupportCreateType } from '../@types/public';
 import assetConfig from '../asset-config';
 import { url2path, ensureOutputData, url2uuid, removeFile } from '../utils';
-import { assetDBManager } from './asset-db';
+import assetDBManager from './asset-db';
 import assetHandlerManager from './asset-handler';
 import i18n from '../../base/i18n';
-import assetQueryManager from './query';
+import assetQueryManager, { assetQuery } from './query';
 import utils from '../../base/utils';
 import EventEmitter from 'events';
 import { mergeMeta } from '../asset-handler/utils';
+import * as lodash from 'lodash';
 
 class AssetOperation extends EventEmitter {
 
@@ -33,6 +34,16 @@ class AssetOperation extends EventEmitter {
         info = info || assetQueryManager.queryAsset(uuid)!;
         mergeMeta(info.meta, meta);
         await info.save(); // 这里才是将数据保存到 .meta 文件
+    }
+
+    async updateUserData(uuidOrURLOrPath: string, path: string, value: any) {
+        const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
+        if (!asset) {
+            console.error(`can not find asset ${uuidOrURLOrPath}`);
+            return;
+        }
+        lodash.set(asset?.meta.userData, path, value);
+        await asset.save();
     }
 
     async saveAsset(uuidOrURLOrPath: string, content: string | Buffer) {
@@ -53,9 +64,12 @@ class AssetOperation extends EventEmitter {
 
         const res = await assetHandlerManager.saveAsset(asset, content);
         if (res) {
-            this.reimportAsset(asset.uuid);
+            await this.reimportAsset(asset.uuid);
         }
         return assetQueryManager.encodeAsset(asset);
+    }
+
+    async copyAsset(urlOrPath: string, target: string, options?: IMoveOptions) { 
     }
 
     checkValidUrl(urlOrPath: string) {
@@ -69,7 +83,7 @@ class AssetOperation extends EventEmitter {
         const dbName = urlOrPath.split('/').filter(Boolean)[1];
         const dbInfo = assetDBManager.assetDBInfo[dbName];
 
-        if (dbInfo.readonly) {
+        if (!dbInfo || dbInfo.readonly) {
             throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${urlOrPath}`);
         }
 
@@ -90,17 +104,29 @@ class AssetOperation extends EventEmitter {
         if (!assetPath || !assetPath.length) {
             return null;
         }
-        let paths: string[] = [];
-        if (typeof assetPath === 'string') {
-            paths = [assetPath];
-        } else {
-            paths = assetPath;
+        await this.refreshAsset(assetPath);
+        return assetQueryManager.queryAssetInfo(queryUUID(assetPath));
+    }
+
+    /**
+     * 从项目外拷贝导入资源进来
+     * @param source 
+     * @param target 
+     * @param options 
+     */
+    async importAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
+        await copy(source, target, options);
+        await this.refreshAsset(target);
+        const assetInfo = assetQuery.queryAssetInfo(target);
+        if (!assetInfo) {
+            return [];
         }
-        const result = await Promise.all(paths.map(async (path) => {
-            await this.refreshAsset(path);
-            return assetQueryManager.queryAssetInfo(queryUUID(path));
-        }));
-        return result.length === 1 ? result[0] : result;
+        if (!assetInfo.isDirectory) {
+            return [assetInfo];
+        }
+        return assetQuery.queryAssetInfos({
+            pattern: `${assetInfo.url}/**/*`
+        });
     }
 
     /**
@@ -178,7 +204,6 @@ class AssetOperation extends EventEmitter {
     }
 
     private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<void> {
-        console.debug(`start refresh asset from ${pathOrUrlOrUUID}...`);
         const result = await refresh(pathOrUrlOrUUID);
         if (autoRefreshDir) {
             // HACK 某些情况下导入原始资源后，文件夹的 mtime 会发生变化，导致资源量大的情况下下次获得焦点自动刷新时会有第二次的文件夹大批量刷新

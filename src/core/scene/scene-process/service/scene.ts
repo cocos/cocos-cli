@@ -41,7 +41,9 @@ export class SceneService implements ISceneService {
                 return;
             }
 
+            console.log(`加载场景 uuid: ${uuid}`);
             cc.assetManager.loadAny(uuid, (err: Error | null, sceneAsset: cc.SceneAsset) => {
+                console.log(`加载完场景 uuid: ${uuid} ${err}`);
                 if (err) {
                     reject(err);
                     return;
@@ -153,7 +155,7 @@ export class SceneService implements ISceneService {
     }
 
     /**
-     * 获取场景模板数据
+     * TODO 获取场景模板数据，后续 db 支持传类型，这边可以去掉
      */
     private getSceneTemplateURL(templateType: TSceneTemplateType): string {
         // 根据模板类型确定模板路径

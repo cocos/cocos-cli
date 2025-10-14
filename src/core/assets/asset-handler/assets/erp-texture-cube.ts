@@ -6,7 +6,6 @@ import { equirectToCubemapFaces, nearestPowerOfTwo } from './utils/equirect-cube
 import * as cc from 'cc';
 import { ISimpleLayout, matchSimpleLayout } from './utils/cube-map-simple-layout';
 
-import * as migratesNameToId from './migrates/name2id';
 import sharp, { Sharp } from 'sharp';
 import { copyFileSync, existsSync, mkdirSync, readFile } from 'fs-extra';
 import path, { basename, dirname, join, sep } from 'path';
@@ -72,12 +71,6 @@ export const ERPTextureCubeHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.10',
-        migrations: [
-            {
-                version: '1.0.9',
-                migrate: migratesNameToId.migrate,
-            },
-        ],
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件

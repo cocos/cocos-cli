@@ -2,7 +2,7 @@ import { join } from "path";
 import { AssetDBRegisterInfo } from "./@types/private";
 import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from "../configuration";
 import project from "../project";
-import engine from "../engine";
+import { Engine } from "../engine";
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
@@ -84,7 +84,7 @@ class AssetConfig {
             createTemplateRoot: join(this._assetConfig.root, '.creator/templates'),
         });
         this._assetConfig.root = project.path;
-        const enginePath = engine.getInfo().typescript.path;
+        const enginePath = Engine.getInfo().typescript.path;
         this._assetConfig.libraryRoot = this._assetConfig.libraryRoot || join(this._assetConfig.root, 'library');
         this._assetConfig.tempRoot = join(this._assetConfig.root, 'temp/asset-db');
         this._assetConfig.assetDBList = [{

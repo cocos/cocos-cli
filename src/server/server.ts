@@ -1,74 +1,155 @@
-import express from 'express';
-import { mcpMiddleware } from '../mcp/index.js';
+import express, { Express } from 'express';
+import compression from 'compression';
+import { existsSync, readFileSync } from 'fs-extra';
+import { createServer as createHTTPServer, Server as HTTPServer } from 'http';
+import { createServer as createHTTPSServer, Server as HTTPSServer } from 'https';
+import { getAvailablePort } from './utils';
 
-const app = express();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+import { socketService } from './socket';
+import { middlewareService } from './middleware';
+import { cors } from './utils/cors';
+import path from 'path';
 
-// 基础中间件
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// CORS 处理
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
-
-// 健康检查端点
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// MCP 端点 - 使用我们的 MCP 中间件
-app.use('/mcp', mcpMiddleware);
-
-// 错误处理中间件
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: err.message
-  });
-});
-
-// 404 处理
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Route ${req.originalUrl} not found`
-  });
-});
-
-// 启动服务器
-export function startServer() {
-  return new Promise<void>((resolve, reject) => {
-    const server = app.listen(PORT, '127.0.0.1', () => {
-      console.log(`🚀 MCP Server running on http://127.0.0.1:${PORT}`);
-      console.log(`📡 MCP endpoint available at http://127.0.0.1:${PORT}/mcp`);
-      resolve();
-    });
-
-    server.on('error', (err) => {
-      console.error('Failed to start server:', err);
-      reject(err);
-    });
-  });
+interface ServerOptions {
+    port: number,// 端口
+    useHttps: boolean;// 是否启动 HTTPS
+    keyFile?: string; // HTTPS 私钥文件路径
+    certFile?: string;// HTTPS 证书文件路径
+    caFile?: string;// 证书的签发请求文件 csr
 }
 
-// 如果直接运行此文件，启动服务器
-if (require.main === module) {
-  startServer().catch(console.error);
+export class ServerService {
+    private app: Express = express();
+    private server: HTTPServer | HTTPSServer | undefined;
+    private port = 7456;
+    private useHttps = false;
+    private httpsConfig = {
+        key: '',// HTTPS 私钥文件路径
+        cert: '',// HTTPS 证书文件路径
+        ca: '',// 证书的签发请求文件 csr ，没有可省略
+    }
+
+    public get url() {
+        if (this.server && this.server.listening) {
+            const httpRoot = this.useHttps ? 'https' : 'http';
+            return `${httpRoot}://localhost:${this.port}`;
+        }
+        return '服务器未启动';
+    }
+
+    async start() {
+        console.log('🚀 开始启动服务器...');
+        this.init();
+        this.port = await getAvailablePort(this.port);
+        this.server = await this.createServer({
+            port: this.port,
+            useHttps: this.useHttps,
+            keyFile: this.httpsConfig.key,
+            certFile: this.httpsConfig.cert,
+            caFile: this.httpsConfig.ca,
+        }, this.app);
+        socketService.startup(this.server);
+        // 打印服务器地址
+        this.printServerUrls();
+    }
+
+    async stop(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.server?.close((err?: Error) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                console.log('关闭服务器');
+                this.server = undefined;
+                resolve();
+            });
+        });
+
+    }
+
+    /**
+     * 创建 HTTP 或 HTTPS 服务器并等待启动
+     * @param options 配置对象
+     * @param requestHandler
+     * @returns Promise<http.Server | https.Server>
+     */
+    async createServer(options: ServerOptions, requestHandler: Express): Promise<HTTPServer | HTTPSServer> {
+        const { port, useHttps, keyFile, certFile, caFile } = options;
+
+        let server: HTTPServer | HTTPSServer;
+
+        if (useHttps) {
+            if (!keyFile || !certFile) {
+                return Promise.reject(new Error('HTTPS requires keyFile and certFile'));
+            }
+            const options: { key?: Buffer, cert?: Buffer, ca?: Buffer, } = {
+                key: undefined,
+                cert: undefined,
+                ca: undefined,
+            }
+            if (existsSync(keyFile)) {
+                options.key = readFileSync(path.resolve(keyFile));
+            }
+            if (existsSync(certFile)) {
+                options.cert = readFileSync(certFile);
+            }
+            if (caFile && existsSync(caFile)) {
+                options.ca = readFileSync(caFile);
+            }
+            server = createHTTPSServer(options, requestHandler);
+        } else {
+            server = createHTTPServer(requestHandler);
+        }
+
+        return new Promise((resolve, reject) => {
+            server.once('listening', () => {
+                resolve(server);
+            });
+
+            server.once('error', (err: NodeJS.ErrnoException) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.error(`❌ 端口 ${port} 已被占用`);
+                } else {
+                    console.error(`❌ ${useHttps ? 'HTTPS' : 'HTTP'} 服务器启动失败:`, err);
+                }
+                reject(err);
+            });
+
+            server.listen(port);
+        });
+    }
+
+    private printServerUrls() {
+        const hasListening = !!(this.server && this.server.listening);
+        if (!hasListening) {
+            console.warn('⚠️ 服务器未开启或未监听端口');
+            return;
+        }
+        console.log(`\n🚀 服务器已启动: ${this.url}`);
+    }
+
+    init () {
+        this.app.use(compression());
+        this.app.use(cors);
+        this.app.use(middlewareService.router);
+        for (const config of middlewareService.middlewareStaticFile) {
+            this.app.use(config.url, express.static(config.path));
+        }
+
+        // 未能正常响应的接口
+        this.app.use((req: any, res: any) => {
+            res.status(404);
+            res.send('404 - Not Found');
+        });
+
+        // 出现错误的接口
+        this.app.use((err: any, req: any, res: any, next: any) => {
+            console.error(err);
+            res.status(500);
+            res.send('500 - Server Error');
+        });
+    }
 }
 
-export { app };
+export const serverService = new ServerService();

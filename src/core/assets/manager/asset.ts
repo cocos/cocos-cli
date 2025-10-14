@@ -1,16 +1,17 @@
 import { AssetDB, VirtualAsset } from '@editor/asset-db';
-import { assetDBManager } from './asset-db';
+import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
 import { AssetManager as IAssetManager } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
+import assetHandlerManager from './asset-handler';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
  * 对外暴露资源的一些变动广播消息、事件消息
  */
-export class AssetManager extends EventEmitter implements IAssetManager {
+class AssetManager extends EventEmitter implements IAssetManager {
     // --------- query ---------
     queryAssets = assetQuery.queryAssets.bind(assetQuery);
     queryAssetDependencies = assetQuery.queryAssetDependencies.bind(assetQuery);
@@ -20,14 +21,17 @@ export class AssetManager extends EventEmitter implements IAssetManager {
     queryAssetInfoByUUID = assetQuery.queryAssetInfoByUUID.bind(assetQuery);
     queryAssetInfos = assetQuery.queryAssetInfos.bind(assetQuery);
     querySortedPlugins = assetQuery.querySortedPlugins.bind(assetQuery);
-    queryAssetUUID = assetQuery.queryAssetUUID.bind(assetQuery);
+    queryUUID = assetQuery.queryUUID.bind(assetQuery);
+    queryPath = assetQuery.queryPath.bind(assetQuery);
     queryUrl = assetQuery.queryUrl.bind(assetQuery);
+    generateAvailableURL = assetQuery.generateAvailableURL.bind(assetQuery);
     queryDBAssetInfo = assetQuery.queryDBAssetInfo.bind(assetQuery);
     encodeAsset = assetQuery.encodeAsset.bind(assetQuery);
     queryAssetProperty = assetQuery.queryAssetProperty.bind(assetQuery);
     queryAssetMeta = assetQuery.queryAssetMeta.bind(assetQuery);
     queryAssetMtime = assetQuery.queryAssetMtime.bind(assetQuery);
     // ---------- operation ---------
+    importAsset = assetOperation.importAsset.bind(assetOperation);
     saveAssetMeta = assetOperation.saveAssetMeta.bind(assetOperation);
     saveAsset = assetOperation.saveAsset.bind(assetOperation);
     createAsset = assetOperation.createAsset.bind(assetOperation);
@@ -38,6 +42,14 @@ export class AssetManager extends EventEmitter implements IAssetManager {
     moveAsset = assetOperation.moveAsset.bind(assetOperation);
     generateExportData = assetOperation.generateExportData.bind(assetOperation);
     outputExportData = assetOperation.outputExportData.bind(assetOperation);
+
+    // ----------- assetHandlerManager ------------
+    queryIconConfigMap = assetHandlerManager.queryIconConfigMap.bind(assetHandlerManager);
+    queryAssetConfigMap = assetHandlerManager.queryAssetConfigMap.bind(assetHandlerManager);
+    updateDefaultUserData = assetHandlerManager.updateDefaultUserData.bind(assetHandlerManager);
+    getCreateMap = assetHandlerManager.getCreateMap.bind(assetHandlerManager);
+    queryAssetUserDataConfig = assetHandlerManager.queryUserDataConfig.bind(assetHandlerManager);
+    createAssetByType = assetHandlerManager.createAssetByType.bind(assetHandlerManager);
 
     url2uuid(url: string) {
         return url2uuid(url);
@@ -85,7 +97,8 @@ export class AssetManager extends EventEmitter implements IAssetManager {
     }
 }
 
-export const assetManager = new AssetManager();
+const assetManager = new AssetManager();
+export default assetManager;
 (globalThis as any).assetManager = assetManager;
 // --------------- event handler -------------------
 

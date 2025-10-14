@@ -3,9 +3,8 @@ import ps from 'path';
 import fs from 'fs-extra';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { StatsQuery } from '@cocos/ccbuild';
-import { configurationManager } from '../../configuration';
 import { IAssetDBInfo } from '../../assets/@types/private';
-import engine from '../../engine';
+import { Engine } from '../../engine';
 
 export interface DbURLInfo { dbURL: string, target: string }
 
@@ -268,7 +267,7 @@ async function generateEnvDeclarationFile(engineRoot: string) {
 
 async function generateCustomMacroDeclarationFile() {
 
-    const customMacroList = engine.getConfig().macroCustom;
+    const customMacroList = Engine.getConfig().macroCustom;
     const code = `\
 declare module "cc/userland/macro" {
 ${customMacroList.map((item: any) => `\texport const ${item.key}: boolean;`).join('\n')}
@@ -278,7 +277,7 @@ ${customMacroList.map((item: any) => `\texport const ${item.key}: boolean;`).joi
 }
 
 async function generateCustomMacroJSFile() {
-    const customMacroList = engine.getConfig().macroCustom;
+    const customMacroList = Engine.getConfig().macroCustom;
     const code = `\
 System.register([], function (_export, _context) {      
     return {

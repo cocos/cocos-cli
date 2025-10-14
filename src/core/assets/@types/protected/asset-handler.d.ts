@@ -122,7 +122,7 @@ export interface AssetHandlerBase extends CustomHandlerBase {
          * 创建当前资源，可选，无此方法时走 db 默认创建资源的流程（需要提供模板地址）
          * @param option 
          */
-        create?(option: CreateAssetOptions): Promise<string | string[] | null>;
+        create?(option: CreateAssetOptions): Promise<string | null>;
 
         /**
          * 保存当前资源，可选，无此方法时走 db 默认保存资源的流程

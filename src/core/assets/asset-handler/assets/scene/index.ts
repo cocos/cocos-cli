@@ -1,17 +1,15 @@
 'use strict';
 
 import { Asset } from '@editor/asset-db';
-import { migrations } from './migrates';
 import { readJSON, writeFile } from 'fs-extra';
 import { extname, basename } from 'path';
 
 import { getDependList, removeNull } from '../../utils';
 import { AssetHandler } from '../../../@types/protected';
-import { migrationHook } from '../utils/migration-utils';
 import utils from '../../../../base/utils';
 import { url2path } from '../../../utils';
 import assetConfig from '../../../asset-config';
-import engine from '../../../../engine';
+import { Engine } from '../../../../engine';
 
 export const version = '1.1.50';
 export const versionCode = 2;
@@ -59,8 +57,7 @@ export const SceneHandler: AssetHandler = {
         // 版本号如果变更，则会强制重新导入
         version,
         versionCode,
-        migrations,
-        migrationHook,
+
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件
@@ -122,8 +119,8 @@ function changeSceneUuid(scene: any, uuid: string) {
 async function queryDefaultTemplateURL() {
     const templateDir = 'db://internal/default_file_content/scene';
     let template = `${templateDir}/default.scene`;
-    const { includeModules, highQuality } = engine.getConfig();
-    if (includeModules && !includeModules.includes('3d')) {
+    const { highQuality } = Engine.getConfig();
+    if (Engine.type === '2d') {
         template = `${templateDir}/scene-2d.scene`;
     } else {
         if (highQuality) {

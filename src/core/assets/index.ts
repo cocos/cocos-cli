@@ -2,8 +2,8 @@
  * 资源导入、构建的对外调度，后续可能移除
  */
 import { newConsole } from '../base/console';
-import { assetDBManager } from './manager/asset-db';
-import { assetManager } from './manager/asset';
+import assetDBManager from './manager/asset-db';
+import assetManager from './manager/asset';
 import assetConfig from './asset-config';
 
 /**
@@ -26,5 +26,5 @@ export async function startupAssetDB() {
     }
 }
 
-export { assetManager } from './manager/asset';
-export { assetDBManager } from './manager/asset-db';
+export { default as assetManager } from './manager/asset';
+export { default as assetDBManager } from './manager/asset-db';
