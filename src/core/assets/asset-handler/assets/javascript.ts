@@ -3,46 +3,7 @@ import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
 import { MigrateStep, i18nTranslate, linkToAssetTarget, openCode } from '../utils';
 import { AssetHandlerBase } from '../../@types/protected';
-
-interface IScriptModuleUseData {
-    isPlugin: false;
-}
-
-interface PluginScriptUseData {
-    isPlugin: true;
-
-    /**
-     * 界面没有开放给用户。默认开启。
-     */
-    experimentalHideCommonJs?: boolean;
-
-    /**
-     * 界面没有开放给用户。默认开启。
-     */
-    experimentalHideAmd?: boolean;
-
-    /**
-     * 仅当 `executionScope` 为 `enclosed` 时有效。指定了要模拟的全局变量。
-     * 当为 `undefined` 时将模拟 `self`, `window`, `global`, `globalThis`。
-     */
-    simulateGlobals?: string[];
-
-    /**
-     * 执行作用域。
-     * @description
-     * 当为 `global` 时，直接在目标环境中执行该脚本。
-     * 当为 `enclosed` 时，将整个脚本包裹在 IIFE 函数中执行，这意味着脚本顶部以 `var` 声明的变量不会提升为全局变量。
-     */
-    executionScope?: 'enclosed' | 'global';
-
-    // ------------ 插件执行时机 ------------
-    loadPluginInEditor?: boolean;
-    loadPluginInWeb?: boolean;
-    loadPluginInMiniGame?: boolean;
-    loadPluginInNative?: boolean;
-}
-
-type IJavaScriptUserData = IScriptModuleUseData | PluginScriptUseData;
+import { JavaScriptAssetUserData, PluginScriptUserData } from '../../@types/userDatas';
 const migrateStep = new MigrateStep();
 
 export const JavascriptHandler: AssetHandlerBase = {
@@ -73,7 +34,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                 return false;
             }
 
-            const userData = asset.userData as IJavaScriptUserData;
+            const userData = asset.userData as JavaScriptAssetUserData;
             try {
                 if (userData.isPlugin) {
                     return await _importPluginScript(asset);
@@ -106,9 +67,9 @@ async function _importPluginScript(asset: Asset) {
         experimentalHideCommonJs,
         experimentalHideAmd,
         simulateGlobals,
-    } = asset.userData as PluginScriptUseData;
+    } = asset.userData as PluginScriptUserData;
 
-    const defaultUserData: PluginScriptUseData = {
+    const defaultUserData: PluginScriptUserData = {
         isPlugin: true,
         loadPluginInEditor: false,
         loadPluginInWeb: true,

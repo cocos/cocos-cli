@@ -16,7 +16,7 @@ import {
     TCurrentOpenSceneResult,
 } from './scheme';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
 
 export class SceneApi extends ApiBase {

@@ -4,19 +4,11 @@ import { SpriteFrame } from 'cc';
 import { basename } from 'path';
 
 import { getDependUUIDList } from '../utils';
+import { LabelAtlasAssetUserData } from '../../@types/userDatas';
 
 const fntParser = require('./utils/fnt-parser');
 
 const FONT_SIZE = 0.88;
-
-interface ILabelAtlasUserData {
-    itemWidth: number;
-    itemHeight: number;
-    startChar: string;
-    fontSize: number;
-    spriteFrameUuid: string;
-    _fntConfig: {};
-}
 
 const defaultLabelAtlasUserData = {
     itemWidth: 2, // 默认值 1 - 32, 原本为 0 会导致引擎报错
@@ -55,7 +47,7 @@ export const LabelAtlasHandler: AssetHandler = {
          * @param asset
          */
         async import(asset: Asset) {
-            const userData = asset.userData as ILabelAtlasUserData;
+            const userData = asset.userData as LabelAtlasAssetUserData;
             // @ts-ignore
             Object.keys(defaultLabelAtlasUserData).forEach((key: string) => {
                 if (!(key in userData)) {
@@ -109,7 +101,7 @@ function createLabelAtlas(asset: Asset) {
 }
 
 function createFntConfigString(asset: Asset, spriteFrameAsset: IAsset) {
-    const userData = asset.userData as ILabelAtlasUserData;
+    const userData = asset.userData as LabelAtlasAssetUserData;
     const { itemWidth, itemHeight, fontSize } = userData;
 
     const spriteMeta = spriteFrameAsset.meta;

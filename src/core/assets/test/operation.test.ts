@@ -35,6 +35,7 @@ describe('测试 db 的操作接口', function() {
             overwrite: true,
         });
     });
+
     describe('create-asset', function() {
         it('创建文件夹', async function() {
             const asset = await assetOperation.createAsset({
@@ -278,6 +279,230 @@ describe('测试 db 的操作接口', function() {
             const meta = await assetManager.queryAssetMeta(uuid!);
 
             expect(meta!.userData.test).toStrictEqual(true);
+        });
+    });
+
+    describe('create-asset-by-type', () => {
+        // 定义所有支持创建的资源类型测试数据
+        const createTestCases = [
+            { type: 'animation-clip', ext: 'anim', ccType: 'cc.AnimationClip', description: '动画剪辑' },
+            { type: 'typescript', ext: 'ts', ccType: 'cc.Script', description: 'TypeScript 脚本' },
+            { type: 'auto-atlas', ext: 'pac', ccType: 'cc.SpriteAtlas', description: '自动图集' },
+            { type: 'effect', ext: 'effect', ccType: 'cc.EffectAsset', description: '着色器效果' },
+            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: '场景' },
+            { type: 'prefab', ext: 'prefab', ccType: 'cc.Prefab', description: '预制体' },
+            { type: 'material', ext: 'mtl', ccType: 'cc.Material', description: '材质' },
+            { type: 'texture-cube', ext: 'cubemap', ccType: 'cc.TextureCube', description: '立方体贴图' },
+            { type: 'terrain', ext: 'terrain', ccType: 'cc.TerrainAsset', description: '地形' },
+            { type: 'physics-material', ext: 'pmtl', ccType: 'cc.PhysicsMaterial', description: '物理材质' },
+            { type: 'label-atlas', ext: 'labelatlas', ccType: 'cc.LabelAtlas', description: '标签图集' },
+            { type: 'render-texture', ext: 'rt', ccType: 'cc.RenderTexture', description: '渲染纹理' },
+            { type: 'animation-graph', ext: 'animgraph', ccType: 'cc.AnimationGraph', description: '动画图' },
+            { type: 'animation-mask', ext: 'mask', ccType: 'cc.AnimationMask', description: '动画遮罩' },
+            { type: 'animation-graph-variant', ext: 'animgraphvariant', ccType: 'cc.AnimationGraphVariant', description: '动画图变体' },
+            { type: 'effect-header', ext: 'chunk', ccType: '', description: '着色器头文件', skipTypeCheck: true },
+        ];
+
+        // 使用 test.each 批量测试所有资源类型
+        test.each(createTestCases)(
+            '创建 $description ($type)',
+            async ({ type, ext, ccType, skipTypeCheck }) => {
+                const fileName = `${name}_${type}.${ext}`;
+                const asset = await assetManager.createAssetByType({
+                    type: type as any,
+                    targetPath: `${testInfo.testRootUrl}/${fileName}`,
+                });
+
+                // 验证资源创建成功
+                expect(asset).not.toBeNull();
+                
+                // 验证资源类型（某些特殊类型可能不需要验证）
+                if (!skipTypeCheck && ccType) {
+                    expect(asset!.type).toEqual(ccType);
+                }
+                
+                // 验证文件存在
+                const exists = existsSync(join(databasePath, fileName));
+                expect(exists).toBeTruthy();
+
+                // 验证 meta 文件存在
+                const metaExists = existsSync(join(databasePath, `${fileName}.meta`));
+                expect(metaExists).toBeTruthy();
+            }
+        );
+
+        // 单独测试文件夹创建
+        it('创建文件夹', async function() {
+            const dirName = `${name}_test_folder`;
+            const asset = await assetManager.createAssetByType({
+                type: 'directory',
+                targetPath: `${testInfo.testRootUrl}/${dirName}`,
+            });
+
+            expect(asset).not.toBeNull();
+            expect(asset!.isDirectory).toBeTruthy();
+            
+            const exists = existsSync(join(databasePath, dirName));
+            expect(exists).toBeTruthy();
+
+            const stat = statSync(join(databasePath, dirName));
+            expect(stat.isDirectory()).toBeTruthy();
+        });
+
+        // 测试使用自定义数据创建资源
+        it('使用自定义数据创建材质资源', async function() {
+            const materialName = `${name}_custom.mtl`;
+            const asset = await assetManager.createAssetByType({
+                type: 'material',
+                targetPath: `${testInfo.testRootUrl}/${materialName}`,
+                assetData: {
+                    _effectAsset: {
+                        __uuid__: '1baf0fc9-befa-459c-8bdd-af1a450a0319',
+                    },
+                },
+            });
+
+            expect(asset).not.toBeNull();
+            
+            const content = readJSONSync(join(databasePath, materialName));
+            expect(content._effectAsset.__uuid__).toEqual('1baf0fc9-befa-459c-8bdd-af1a450a0319');
+        });
+
+        // 测试使用自定义数据创建场景资源
+        it('使用自定义数据创建场景资源', async function() {
+            const sceneName = `${name}_custom.scene`;
+            const customData = {
+                __type__: 'cc.SceneAsset',
+                _name: 'CustomScene',
+            };
+            
+            const asset = await assetManager.createAssetByType({
+                type: 'scene',
+                targetPath: `${testInfo.testRootUrl}/${sceneName}`,
+                assetData: customData,
+            });
+
+            expect(asset).not.toBeNull();
+            expect(asset!.type).toEqual('cc.SceneAsset');
+        });
+    });
+
+    describe('import-asset', () => {
+        it('导入外部文件到项目中', async function() {
+            // 创建一个临时测试文件
+            const tempFilePath = join(databasePath, `${name}_temp.txt`);
+            await outputFile(tempFilePath, 'import test content');
+
+            const targetName = `${name}_imported.txt`;
+            const assets = await assetManager.importAsset({
+                sourcePath: tempFilePath,
+                targetPath: `${testInfo.testRootUrl}/${targetName}`,
+            });
+
+            // 验证返回的是数组且包含一个资源
+            expect(Array.isArray(assets)).toBeTruthy();
+            expect(assets.length).toBeGreaterThan(0);
+            
+            const asset = assets[0];
+            expect(asset).not.toBeNull();
+            expect(asset.isDirectory).toBeFalsy();
+            
+            const targetPath = join(databasePath, targetName);
+            expect(existsSync(targetPath)).toBeTruthy();
+            
+            const content = readFileSync(targetPath, 'utf8');
+            expect(content).toEqual('import test content');
+
+            // 清理临时文件
+            await remove(tempFilePath);
+        });
+
+        it('导入文件并覆盖已存在的资源', async function() {
+            // 先创建一个资源
+            const targetName = `${name}_overwrite.txt`;
+            await assetOperation.createAsset({
+                target: `${testInfo.testRootUrl}/${targetName}`,
+                content: 'original content',
+            });
+
+            // 创建临时源文件
+            const tempFilePath = join(databasePath, `${name}_temp2.txt`);
+            await outputFile(tempFilePath, 'new content');
+
+            // 导入并覆盖
+            const assets = await assetManager.importAsset({
+                sourcePath: tempFilePath,
+                targetPath: `${testInfo.testRootUrl}/${targetName}`,
+            });
+
+            // 验证返回的是数组
+            expect(Array.isArray(assets)).toBeTruthy();
+            expect(assets.length).toBeGreaterThan(0);
+
+            const targetPath = join(databasePath, targetName);
+            const content = readFileSync(targetPath, 'utf8');
+            expect(content).toEqual('new content');
+
+            // 清理临时文件
+            await remove(tempFilePath);
+        });
+
+        it('导入图片资源', async function() {
+            // 从 internal 复制一张图片作为源
+            const sourceImage = await assetManager.url2path('db://internal/default_ui/default_btn_normal.png');
+            
+            const targetName = `${name}_imported.png`;
+            const assets = await assetManager.importAsset({
+                sourcePath: sourceImage,
+                targetPath: `${testInfo.testRootUrl}/${targetName}`,
+            });
+
+            // 验证返回的是数组且包含资源
+            expect(Array.isArray(assets)).toBeTruthy();
+            expect(assets.length).toBeGreaterThan(0);
+            
+            const asset = assets[0];
+            expect(asset).not.toBeNull();
+            expect(asset.type).toEqual('cc.ImageAsset');
+            
+            const targetPath = join(databasePath, targetName);
+            expect(existsSync(targetPath)).toBeTruthy();
+            
+            const metaExists = existsSync(join(databasePath, `${targetName}.meta`));
+            expect(metaExists).toBeTruthy();
+        });
+
+        it('导入文件夹', async function() {
+            // 创建一个临时文件夹和文件
+            const tempDirPath = join(databasePath, `${name}_temp_dir`);
+            await outputFile(join(tempDirPath, 'file1.txt'), 'content1');
+            await outputFile(join(tempDirPath, 'file2.txt'), 'content2');
+
+            const targetDirName = `${name}_imported_dir`;
+            const assets = await assetManager.importAsset({
+                sourcePath: tempDirPath,
+                targetPath: `${testInfo.testRootUrl}/${targetDirName}`,
+            });
+
+            // 验证返回的是数组，包含文件夹和所有子文件
+            expect(Array.isArray(assets)).toBeTruthy();
+            expect(assets.length).toBeGreaterThan(0);
+            
+            // 查找文件夹资源
+            const dirAsset = assets.find(a => a.isDirectory);
+            expect(dirAsset).not.toBeUndefined();
+            
+            // 查找文件资源
+            const fileAssets = assets.filter(a => !a.isDirectory);
+            expect(fileAssets.length).toBeGreaterThan(0);
+            
+            const targetPath = join(databasePath, targetDirName);
+            expect(existsSync(targetPath)).toBeTruthy();
+            expect(existsSync(join(targetPath, 'file1.txt'))).toBeTruthy();
+            expect(existsSync(join(targetPath, 'file2.txt'))).toBeTruthy();
+
+            // 清理临时文件夹
+            await remove(tempDirPath);
         });
     });
 

@@ -14,23 +14,6 @@ function fillUserdata(asset: Asset, name: string, value: any) {
     }
 }
 
-const migrations = [
-    {
-        version: '1.1.0',
-        migrate: migrateAssetContent,
-    },
-    {
-        version: '1.2.0',
-        migrate: migrateRenderTextureData,
-    },
-    {
-        version: '1.2.1',
-        migrate(asset: Asset) {
-            delete asset.userData.redirect;
-        },
-    },
-];
-
 export const RenderTextureHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
     name: 'render-texture',
@@ -86,8 +69,9 @@ export const RenderTextureHandler: AssetHandler = {
             // @ts-ignore renderTexture._wrapT
             fillUserdata(asset, 'wrapModeT', getWrapModeString(renderTexture._wrapT));
 
-            renderTexture.resize(asset.userData.width, asset.userData.height);
-            applyTextureBaseAssetUserData(asset.userData as TextureBaseAssetUserData, renderTexture);
+            const userData = asset.userData as RenderTextureAssetUserData;
+            renderTexture.resize(userData.width, userData.height);
+            applyTextureBaseAssetUserData(userData, renderTexture);
 
             const serializeJSON = EditorExtends.serialize(renderTexture);
             await asset.saveToLibrary('.json', serializeJSON);

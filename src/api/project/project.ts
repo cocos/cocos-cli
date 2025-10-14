@@ -1,6 +1,6 @@
 import { ApiBase } from '../base/api-base';
 import { tool, param, title, description, result } from '../decorator/decorator';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode, ProjectPathSchema } from '../base/scheme-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode, ProjectPathSchema } from '../base/schema-base';
 import z from 'zod';
 
 export class ProjectApi extends ApiBase {

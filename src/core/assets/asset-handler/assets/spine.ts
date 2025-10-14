@@ -8,10 +8,7 @@ import { sp, Texture2D } from 'cc';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
-
-interface ISpineUserData {
-    atlasUuid: string;
-}
+import { SpineAssetUserData } from '../../@types/userDatas';
 
 interface ISpineAtlas {
     path: string;
@@ -239,7 +236,7 @@ function saveToLibrary(
 
 function initTexture(asset: Asset, spData: sp.SkeletonData): Promise<boolean> {
     return new Promise((resolve: (reason: any) => void, reject: (reason: any) => void) => {
-        const spineUserData = asset.userData as ISpineUserData;
+        const spineUserData = asset.userData as SpineAssetUserData;
         // 如果有图集 uuid 就通过图集 uuid 获取到资源去解析
         if (spineUserData.atlasUuid) {
             const atlasAsset = queryAsset(spineUserData.atlasUuid);

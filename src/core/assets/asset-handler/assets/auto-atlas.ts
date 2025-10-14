@@ -3,32 +3,7 @@ import { makeDefaultTextureBaseAssetUserData } from './texture-base';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
-
-interface IAutoAtlasUserData {
-    compressed: boolean;
-    dest: any;
-    // size of packed image.
-    maxWidth: number;
-    maxHeight: number;
-
-    // padding of image.
-    padding: number;
-
-    allowRotation: boolean;
-    forceSquared: boolean;
-    powerOfTwo: boolean;
-    algorithm: string;
-    format: string;
-    quality: number;
-    contourBleed: boolean;
-    paddingBleed: boolean;
-    filterUnused: boolean;
-    removeTextureInBundle: boolean;
-    removeImageInBundle: boolean;
-    removeSpriteAtlasInBundle: boolean;
-    platformSettings: any;
-    textureSetting: any;
-}
+import { AutoAtlasAssetUserData } from '../../@types/userDatas';
 
 const defaultAutoAtlasUserData = {
     maxWidth: 1024,
@@ -102,7 +77,7 @@ const AutoAtlasHandler: AssetHandler = {
          * @param asset
          */
         async import(asset: Asset) {
-            const userData = asset.userData as IAutoAtlasUserData;
+            const userData = asset.userData as AutoAtlasAssetUserData;
             // @ts-ignore
             Object.keys(defaultAutoAtlasUserData).forEach((key: string) => {
                 if (!(key in userData)) {

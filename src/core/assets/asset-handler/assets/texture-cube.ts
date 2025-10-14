@@ -2,33 +2,18 @@ import { VirtualAsset, Asset, queryUUID } from '@editor/asset-db';
 import * as cc from 'cc';
 
 import { AssetHandler } from '../../@types/protected';
-import { TextureBaseAssetUserData } from '../../@types/userDatas';
+import { TextureCubeAssetUserData } from '../../@types/userDatas';
 import { getDependUUIDList } from '../utils';
 import { makeDefaultTextureBaseAssetUserData, migrateAnisotropy, applyTextureBaseAssetUserData } from './texture-base';
 import { loadAssetSync } from './utils/load-asset-sync';
 
 type FaceName = 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom';
 
-export interface TextureCubeAssetUserData extends TextureBaseAssetUserData {
-    isRGBE: boolean;
-    front: string;
-    back: string;
-    left: string;
-    right: string;
-    top: string;
-    bottom: string;
-}
-
 export function makeDefaultTextureCubeAssetUserData(): TextureCubeAssetUserData {
     const userData = makeDefaultTextureBaseAssetUserData();
     (userData as unknown as TextureCubeAssetUserData).isRGBE = false;
     return userData as unknown as TextureCubeAssetUserData;
 }
-
-/**
- * Value is UUID of the side image, or empty string if not specified.
- */
-type TextureCubeUserData = Record<FaceName, string> & TextureCubeAssetUserData;
 
 export const TextureCubeHandler: AssetHandler = {
     name: 'texture-cube',

@@ -1,6 +1,6 @@
 import { ApiBase } from "../base/api-base";
 import { build } from '../../core/builder'
-import { HttpStatusCode, COMMON_STATUS, CommonResultType } from "../base/scheme-base";
+import { HttpStatusCode, COMMON_STATUS, CommonResultType } from "../base/schema-base";
 import { BuildExitCode } from "../../core/builder/@types/protected";
 import BuildErrorMap from "../../core/builder/error-map";
 import { description, param, title, tool } from "../decorator/decorator";
