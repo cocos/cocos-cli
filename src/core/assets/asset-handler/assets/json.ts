@@ -17,14 +17,6 @@ export const JsonHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '2.0.1',
-        migrations: [
-            {
-                version: '1.0.0',
-                migrate: (asset: Asset) => {
-                    asset.userData.json5 = false;
-                },
-            },
-        ],
 
         /**
          * 实际导入流程

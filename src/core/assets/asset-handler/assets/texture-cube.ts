@@ -4,7 +4,7 @@ import * as cc from 'cc';
 import { AssetHandler } from '../../@types/protected';
 import { TextureBaseAssetUserData } from '../../@types/userDatas';
 import { getDependUUIDList } from '../utils';
-import { makeDefaultTextureBaseAssetUserData, migrateAnisotropy, applyTextureBaseAssetUserData } from './texture-base';
+import { makeDefaultTextureBaseAssetUserData, applyTextureBaseAssetUserData } from './texture-base';
 import { loadAssetSync } from './utils/load-asset-sync';
 
 type FaceName = 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom';
@@ -49,12 +49,7 @@ export const TextureCubeHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.4',
-        migrations: [
-            {
-                version: '1.0.3',
-                migrate: migrateAnisotropy,
-            },
-        ],
+
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件

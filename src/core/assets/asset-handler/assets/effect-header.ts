@@ -3,15 +3,6 @@ import { AssetHandler } from '../../@types/protected';
 import { readFileSync, readdirSync, statSync } from 'fs-extra';
 import { basename, dirname, extname, join, relative } from 'path';
 import { addChunk } from '../../effect-compiler';
-import {
-    migrateDefines,
-    migrateEnableDirShadow,
-    migrateIncludeDecodeBase,
-    migrateMacroUseLightMap,
-    migrateChunkFolders,
-    migrateCSMInclude,
-    migrateMacroUseBatching,
-} from './effect';
 import { Engine } from '../../../engine';
 
 // 添加所有 builtin 头文件
@@ -39,37 +30,6 @@ for (let i = 0; i < builtinChunks.length; ++i) {
     addChunk(name, content);
 }
 
-const migrations = [
-    {
-        version: '1.0.1',
-        migrate: migrateDefines,
-    },
-    {
-        version: '1.0.2',
-        migrate: migrateEnableDirShadow,
-    },
-    {
-        version: '1.0.3',
-        migrate: migrateIncludeDecodeBase,
-    },
-    {
-        version: '1.0.4',
-        migrate: migrateMacroUseLightMap,
-    },
-    {
-        version: '1.0.5',
-        migrate: migrateChunkFolders,
-    },
-    {
-        version: '1.0.6',
-        migrate: migrateCSMInclude,
-    },
-    {
-        version: '1.0.7',
-        migrate: migrateMacroUseBatching,
-    },
-];
-
 export const EffectHeaderHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
     name: 'effect-header',
@@ -91,7 +51,6 @@ export const EffectHeaderHandler: AssetHandler = {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.7',
 
-        migrations,
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件

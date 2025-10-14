@@ -6,7 +6,7 @@ import { AssetHandler } from '../../@types/protected';
 import { Texture2DAssetUserData } from '../../@types/userDatas';
 import { getDependUUIDList } from '../utils';
 import { defaultIconConfig, makeDefaultTexture2DAssetUserData } from './image/utils';
-import { migrateAnisotropy, applyTextureBaseAssetUserData } from './texture-base';
+import { applyTextureBaseAssetUserData } from './texture-base';
 import { url2uuid } from '../../utils';
 
 export const TextureHandler: AssetHandler = {
@@ -37,12 +37,6 @@ export const TextureHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.22',
-        migrations: [
-            {
-                version: '1.0.21',
-                migrate: migrateAnisotropy,
-            },
-        ],
 
         /**
          * 实际导入流程

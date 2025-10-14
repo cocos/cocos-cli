@@ -1,12 +1,9 @@
 import { Asset } from '@editor/asset-db';
-import { js, animation } from 'cc';
+import { js } from 'cc';
 import { AnimationGraph } from 'cc/editor/new-gen-anim';
-import { migrateVariables } from './migrates/animation-graph/3.5.0';
-import { Archive, migrationHook } from './utils/migration-utils';
 import { readFile } from 'fs-extra';
 
 import { getDependUUIDList } from '../utils';
-import { migrateAnimationGraph_3_8_0 } from './migrates/animation-graph/3.8.0';
 import { AssetHandler } from '../../@types/protected';
 
 const AnimationGraphHandler: AssetHandler = {
@@ -54,60 +51,7 @@ const AnimationGraphHandler: AssetHandler = {
 
             return true;
         },
-        migrationHook,
-        migrations: [
-            {
-                version: '1.0.1',
-                migrate: async (asset: Asset) => {
-                    const swap: any = asset.getSwapSpace();
-                    const archive = new Archive(swap.json);
-                    migrateMotionStateSpeed(archive);
-                    const archiveResult = archive.get();
-                    swap.json = archiveResult;
-                },
-            },
-            {
-                version: '1.1.0',
-                migrate: async (asset: Asset) => {
-                    const swap: any = asset.getSwapSpace();
-                    const archive = new Archive(swap.json);
-                    migrateVariables(archive);
-                    const archiveResult = archive.get();
-                    swap.json = archiveResult;
-                },
-            },
-            {
-                version: '1.2.0',
-                migrate: async (asset: Asset) => {
-                    const swap: any = asset.getSwapSpace();
-                    const archive = new Archive(swap.json);
-                    migrateAnimationGraph_3_8_0(archive);
-                    const archiveResult = archive.get();
-                    swap.json = archiveResult;
-                },
-            },
-        ],
     },
 };
 
 export default AnimationGraphHandler;
-/**
- * Version: 3.6.0
- * Detail: `MotionState.prototype.speed: BindableNumber` -> `MotionState.prototype.speed: number`
- */
-export function migrateMotionStateSpeed(archive: Archive) {
-    archive.visitTypedObject(
-        'cc.animation.Motion',
-        (motionSerialized: {
-            speed: {
-                variable?: string;
-                value?: number;
-            };
-        }) => {
-            const speedValue = motionSerialized.speed.value;
-            if (typeof speedValue === 'number') {
-                (motionSerialized as { speed: number }).speed = speedValue;
-            }
-        },
-    );
-}

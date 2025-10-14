@@ -3,7 +3,6 @@
 import { Asset } from '@editor/asset-db';
 import { existsSync, readFile } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
-import * as migratesNameToId from './migrates/name2id';
 import { SpriteFrame, Vec2, Size, Rect } from 'cc';
 
 import { getDependUUIDList } from '../utils';
@@ -36,12 +35,7 @@ export const TexturePackerHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.8',
-        migrations: [
-            {
-                version: '1.0.4',
-                migrate: migratesNameToId.migrate,
-            },
-        ],
+
         async import(asset: Asset) {
             // await asset.copyToLibrary(ext, asset.source);
 

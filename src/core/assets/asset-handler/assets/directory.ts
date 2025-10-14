@@ -12,17 +12,6 @@ const DirectoryHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.2.0',
-        // 数据迁移
-        // migrations: [
-        //     {
-        //         version: '1.1.0',
-        //         migrate: migrateSubpackageSettings,
-        //     },
-        //     {
-        //         version: '1.2.0',
-        //         migrate: migrateBundleConfig,
-        //     },
-        // ],
         /**
          * 实际导入流程
          * @param asset

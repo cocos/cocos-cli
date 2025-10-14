@@ -2,7 +2,6 @@ import { Asset } from '@editor/asset-db';
 import { existsSync, readFile } from 'fs-extra';
 import { checkSize } from '../erp-texture-cube';
 import { convertTGA, convertPSD, convertTIFF, convertHDROrEXR, convertHDR } from './image-mics';
-import { migrations } from './migrations';
 import Sharp from 'sharp';
 import { ImageAssetUserData } from '../../../@types/userDatas';
 
@@ -40,7 +39,6 @@ export const ImageHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.27',
-        migrations,
         /**
          * 是否强制刷新
          * @param asset

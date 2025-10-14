@@ -12,7 +12,6 @@ import { serializeForLibrary } from '../utils/serialize-library';
 import { splitAnimation } from '../utils/split-animation';
 import { loadAssetSync } from '../utils/load-asset-sync';
 import { getOriginalAnimationLibraryPath } from './original-animation';
-import { glTfReaderManager } from './reader-manager';
 
 import { getDependUUIDList } from '../../utils';
 import { AnimationImportSetting } from '../../meta-schemas/glTF.meta';
@@ -77,13 +76,6 @@ export const GltfAnimationHandler: AssetHandler = {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.18',
         versionCode: 3,
-        migrations: [
-            {
-                version: '1.0.16',
-                migrate: migrateEvents_3_3_0,
-            },
-        ],
-
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件
@@ -215,29 +207,3 @@ export const GltfAnimationHandler: AssetHandler = {
 };
 
 export default GltfAnimationHandler;
-
-// eslint-disable-next-line camelcase
-function migrateEvents_3_3_0(asset: Asset) {
-    type OldUserData = Omit<IGltfAnimationUserData, 'events'> & {
-        events?: Array<{
-            frame: number;
-            functionName: string;
-            parameters: string[];
-        }>;
-    };
-
-    const oldUserData = asset.meta.userData as OldUserData;
-    const oldEvents = oldUserData.events;
-    if (!oldEvents) {
-        return;
-    }
-
-    const newEvents = oldEvents.map((oldEvent) => ({
-        frame: oldEvent.frame,
-        func: oldEvent.functionName,
-        params: oldEvent.parameters.slice(),
-    }));
-
-    const newUserData = asset.meta.userData as IGltfAnimationUserData;
-    newUserData.events = newEvents;
-}

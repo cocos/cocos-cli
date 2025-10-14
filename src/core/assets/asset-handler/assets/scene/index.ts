@@ -1,13 +1,11 @@
 'use strict';
 
 import { Asset } from '@editor/asset-db';
-import { migrations } from './migrates';
 import { readJSON, writeFile } from 'fs-extra';
 import { extname, basename } from 'path';
 
 import { getDependList, removeNull } from '../../utils';
 import { AssetHandler } from '../../../@types/protected';
-import { migrationHook } from '../utils/migration-utils';
 import utils from '../../../../base/utils';
 import { url2path } from '../../../utils';
 import assetConfig from '../../../asset-config';
@@ -59,8 +57,7 @@ export const SceneHandler: AssetHandler = {
         // 版本号如果变更，则会强制重新导入
         version,
         versionCode,
-        migrations,
-        migrationHook,
+
         /**
          * 实际导入流程
          * 需要自己控制是否生成、拷贝文件
