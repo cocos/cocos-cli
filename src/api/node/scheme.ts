@@ -38,18 +38,13 @@ export const Vec3Schema = z.object({
     z: z.number().describe('z 轴坐标'),
 });
 
-export const NodePositionSchema = z.object({
-    position: Vec3Schema.describe('节点位置'),
-});
-export const NodeScaleSchema = z.object({
-    scale: Vec3Schema.describe('节点缩放'),
-});
-
 // 节点属性的 schema，
 export const NodePropertySchema = z.object({
-    position: NodePositionSchema.describe('节点位置'),
-    scale: NodeScaleSchema.describe('节点缩放'),
+    position: Vec3Schema.describe('节点位置'),
+    scale: Vec3Schema.describe('节点缩放'),
+
     //继续往上加其他属性
+    other:Vec3Schema.readonly().describe('其他属性'),
 });
 
 // 查询节点的参数
