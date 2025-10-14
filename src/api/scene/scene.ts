@@ -56,6 +56,7 @@ export class SceneApi extends ApiBase {
         try {
             const sceneInfo = await Scene.getCurrentScene();
             if (sceneInfo) {
+                console.log('sceneInfo', sceneInfo);
                 ret.data.name = sceneInfo.name;
                 ret.data.url = sceneInfo.url;
                 ret.data.path = sceneInfo.path;
