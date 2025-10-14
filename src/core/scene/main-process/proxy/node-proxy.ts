@@ -1,17 +1,17 @@
-import type { INodeService, INodeInfo, ICreateNodeOptions, INodeIdentifier, IUpdateNodeOptions, IDeleteNodeOptions } from '../../common';
+import type { INodeService, IQueryNodeResultItem, ICreateNodeParams, IQueryNodeParams, IUpdateNodeParams, IDeleteNodeParams, IUpdateNodeResult } from '../../common';
 import { Rpc } from '../rpc';
 
 export const NodeProxy: INodeService = {
-    createNode(params: ICreateNodeOptions): Promise<INodeInfo | null> {
+    createNode(params: ICreateNodeParams): Promise<IQueryNodeResultItem | null> {
         return Rpc.request('Node', 'createNode', [params]);
     },
-    deleteNode(params: IDeleteNodeOptions): Promise<INodeInfo | null> {
+    deleteNode(params: IDeleteNodeParams): Promise<boolean> {
         return Rpc.request('Node', 'deleteNode', [params]);
     },
-    updateNode(params: IUpdateNodeOptions): Promise<INodeInfo | null> {
+    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null> {
         return Rpc.request('Node', 'updateNode', [params]);
     },
-    queryNode(identifier: INodeIdentifier): Promise<INodeInfo | null> {
+    queryNode(identifier: IQueryNodeParams): Promise<IQueryNodeResultItem | null> {
         return Rpc.request('Node', 'queryNode', [identifier]);
     }
 }

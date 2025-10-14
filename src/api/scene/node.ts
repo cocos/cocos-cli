@@ -1,10 +1,9 @@
 import { ApiBase } from '../base/api-base';
 import {
-    SchemeCreateNodeOptions,
-    SchemeUpdateNodeOptions,
-    SchemeDeleteNodeOptions,
-    SchemeQueryNodeOptions,
-    SchemeCreateNodeResult,
+    NodeCreateSchema,
+    NodeUpdateSchema,
+    NodeDeleteSchema,
+    NodeQuerySchema,
     TNodeDetail,
     TCreateNodeOptions,
     TUpdateNodeOptions,
@@ -34,14 +33,13 @@ export class NodeApi extends ApiBase {
     @tool('scene-createNode')
     @title('创建节点')
     @description('在 Cocos Creator 项目中创建新的节点。')
-    @result(SchemeCreateNodeResult)
-    async createNode(@param(SchemeCreateNodeOptions) options: TCreateNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    @result(NodeCreateSchema)
+    async createNode(@param(NodeCreateSchema) options: TCreateNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
             data: {
-                path: 'unknown',
-                name: '',
+                
             },
         }
 
@@ -56,7 +54,6 @@ export class NodeApi extends ApiBase {
             if (nodeInfo) {
                 ret.data.path = nodeInfo.path;
                 ret.data.name = nodeInfo.name;
-                ret.data.index = nodeInfo.index;
                 ret.data.children = nodeInfo.children;
             }
         } catch (e) {
@@ -75,8 +72,8 @@ export class NodeApi extends ApiBase {
     @tool('scene-deleteNode')
     @title('删除节点')
     @description('在 Cocos Creator 项目中删除节点。')
-    @result(SchemeCreateNodeResult)
-    async deleteNode(@param(SchemeDeleteNodeOptions) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    @result(NodeDeleteSchema)
+    async deleteNode(@param(NodeDeleteSchema) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
@@ -90,9 +87,6 @@ export class NodeApi extends ApiBase {
             const params: any = {
                 path: options.path,
             };
-            if (options.index !== undefined) {
-                params.index = options.index;
-            }
             if (options.keepWorldTransform !== undefined) {
                 params.keepWorldTransform = options.keepWorldTransform;
             }
@@ -101,7 +95,6 @@ export class NodeApi extends ApiBase {
             if (nodeInfo) {
                 ret.data.path = nodeInfo.path;
                 ret.data.name = nodeInfo.name;
-                ret.data.index = nodeInfo.index;
                 ret.data.children = nodeInfo.children;
             }
         } catch (e) {
@@ -119,8 +112,8 @@ export class NodeApi extends ApiBase {
     @tool('scene-updateNode')
     @title('更新节点')
     @description('在 Cocos Creator 项目中修改节点。')
-    @result(SchemeCreateNodeResult)
-    async updateNode(@param(SchemeUpdateNodeOptions) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    @result(NodeUpdateSchema)
+    async updateNode(@param(NodeUpdateSchema) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
@@ -134,9 +127,6 @@ export class NodeApi extends ApiBase {
             const params: any = {
                 path: options.path,
             };
-            if (options.index !== undefined) {
-                params.index = options.index;
-            }
             if (options.fields !== undefined) {
                 params.fields = options.fields;
             }
@@ -145,7 +135,6 @@ export class NodeApi extends ApiBase {
             if (nodeInfo) {
                 ret.data.path = nodeInfo.path;
                 ret.data.name = nodeInfo.name;
-                ret.data.index = nodeInfo.index;
                 ret.data.children = nodeInfo.children;
             }
         } catch (e) {
@@ -163,8 +152,8 @@ export class NodeApi extends ApiBase {
     @tool('scene-queryNode')
     @title('查询节点')
     @description('在 Cocos Creator 项目中查询节点。')
-    @result(SchemeCreateNodeResult)
-    async queryNode(@param(SchemeQueryNodeOptions) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    @result(NodeQuerySchema)
+    async queryNode(@param(NodeQuerySchema) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
@@ -178,15 +167,11 @@ export class NodeApi extends ApiBase {
             const params: any = {
                 path: options.path,
             };
-            if (options.index !== undefined) {
-                params.index = options.index;
-            }
 
             const nodeInfo = await Scene.queryNode(params);
             if (nodeInfo) {
                 ret.data.path = nodeInfo.path;
                 ret.data.name = nodeInfo.name;
-                ret.data.index = nodeInfo.index;
                 ret.data.children = nodeInfo.children;
             }
         } catch (e) {

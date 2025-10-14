@@ -42,49 +42,118 @@ export enum NodeType {
     REFLECTION_LIGHT = 'ReflectionLight', // 反射探针
 }
 
+// 基础向量和矩阵类型
+export interface IVec3 {
+    x: number; // x 轴坐标
+    y: number; // y 轴坐标
+    z: number; // z 轴坐标
+}
+
+export interface IQuat {
+    x: number; // 旋转轴的 x 分量
+    y: number; // 旋转轴的 y 分量
+    z: number; // 旋转轴的 z 分量
+    w: number; // 旋转角度的余弦半角（实部）
+}
+
+export interface IMat4 {
+    m00: number; // 0列0行
+    m01: number; // 0列1行
+    m02: number; // 0列2行
+    m03: number; // 0列3行
+    m04: number; // 1列0行
+    m05: number; // 1列1行
+    m06: number; // 1列2行
+    m07: number; // 1列3行
+    m08: number; // 2列0行
+    m09: number; // 2列1行
+    m10: number; // 2列2行
+    m11: number; // 2列3行
+    m12: number; // 3列0行
+    m13: number; // 3列1行
+    m14: number; // 3列2行
+    m15: number; // 3列3行
+}
+
+// 节点基础属性接口
+export interface IBaseNodeProperties {
+    position: IVec3; // 节点位置
+    worldPosition: IVec3; // 节点世界位置
+    rotation: IQuat; // 节点旋转, 四元数
+    worldRotation: IQuat; // 节点世界旋转, 四元数
+    eulerAngles: IVec3; // 节点旋转，欧拉角
+    angle: number; // 本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上
+    scale: IVec3; // 节点缩放
+    worldScale: IVec3; // 节点世界缩放
+    matrix: IMat4; // 节点的本地变换矩阵
+    worldMatrix: IMat4; // 节点的世界变换矩阵
+    forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
+    up: IVec3; // 当前节点在世界空间中朝上的方向向量
+    right: IVec3; // 当前节点在世界空间中朝右的方向向量
+    mobility: 'Static' | 'Stationary' | 'Movable'; // 节点的移动性
+    layer: number; // 节点所在的层级
+    hasChangedFlags: number; // 这个节点的空间变换信息在当前帧内是否有变过？
+    active: boolean; // 节点是否激活
+    readonly activeInHierarchy: boolean; // 节点在场景中是否激活
+}
+
+// 完整节点属性接口（包含父节点引用）
+export interface INodeProperties extends IBaseNodeProperties {
+    parent?: IBaseNodeProperties; // 父节点的属性
+}
+
+// 节点标识符接口
 export interface INodeIdentifier {
-    path: string; // 节点在场景中的路径
-    index: number; // 节点有存在重名时的索引
-}
-/**
- * 节点信息
- */
-export interface INodeInfo extends INodeIdentifier {
-    name: string;
-    children?: Record<string, number>; // 子节点数组
-}
-
-export interface IDeleteNodeOptions extends INodeIdentifier {
-    keepWorldTransform?: boolean; // 保持世界变换
-}
-
-/**
- * 更新节点参数
- */
-export type UpdateNodeOptions = 'name' | 'path';
-
-// 使用 Partial 使属性可选
-export type UpdateNodeRecords = Partial<Record<UpdateNodeOptions, string>>;
-
-export interface IUpdateNodeOptions extends INodeIdentifier {
-    fields: UpdateNodeRecords;
-}
-
-/**
- * 场景模板类型
- */
-export type TWorkMode = '2d' | '3d';
-
-/**
- * 创建节点参数
- */
-export interface ICreateNodeOptions {
-    nodeType: NodeType; // 节点类型
-    path: string; // 节点在场景中的路径
-    workMode?: TWorkMode; // 工作模式，2D 还是 3D
+    nodeId?: string; // 节点的 id
+    path?: string; // 节点在场景中的路径
     name?: string; // 节点名称
+}
+
+// 节点查询参数接口
+export interface IQueryNodeParams extends INodeIdentifier {
+    deeps?: number; // 查询的深度
+    queryChildren?: boolean; // 是否查询子节点信息
+}
+
+// 节点查询结果项接口
+export interface IQueryNodeResultItem extends INodeProperties{
+    readonly nodeId: string; // 节点的 id
+    path: string; // 节点路径
+    name: string; // 节点名称
+    readonly children?: IQueryNodeResultItem[]; // 子节点列表
+}
+
+// 节点查询结果接口
+export type IQueryNodeResult = IQueryNodeResultItem[];
+
+// 节点更新参数接口
+export interface IUpdateNodeParams extends INodeProperties {
+    readonly nodeId: string; // 节点的 id
+    path: string; // 节点路径
+}
+
+// 节点更新结果接口
+export interface IUpdateNodeResult {
+    failedInfo: string; // 节点的 id
+}
+
+// 节点删除参数接口
+export interface IDeleteNodeParams {
+    nodeId?: string; // 节点的 id
+    path: string; // 节点相对路径
+    keepWorldTransform: boolean; // 保持世界变换
+}
+
+// 节点创建参数接口
+export interface ICreateNodeParams {
+    assetPath?: string; // 预制体资源路径
+    path: string; // 创建的节点相对路径
+    name?: string; // 节点的名称
+    workMode?: '2d' | '3d'; // 节点工作模式，2D 还是 3D
+    nodeType: string; // 节点类型
     keepWorldTransform?: boolean; // 保持世界变换
 }
+
 
 /**
  * 节点的相关处理接口
@@ -94,19 +163,19 @@ export interface INodeService {
      * 创建节点
      * @param params
      */
-    createNode(params: ICreateNodeOptions): Promise<INodeInfo | null>;
+    createNode(params: ICreateNodeParams): Promise<IQueryNodeResultItem | null>;
     /**
      * 删除节点
      * @param params 
      */
-    deleteNode(params: IDeleteNodeOptions): Promise<INodeInfo | null>;
+    deleteNode(params: IDeleteNodeParams): Promise<boolean>;
     /**
      * 更新节点
      * @param params
      */
-    updateNode(params: IUpdateNodeOptions): Promise<INodeInfo | null>;
+    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null>;
     /**
     * 查询节点
     */
-    queryNode(identifier: INodeIdentifier): Promise<INodeInfo | null>;
+    queryNode(identifier: INodeIdentifier): Promise<IQueryNodeResultItem | null>;
 }
