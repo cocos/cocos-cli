@@ -155,7 +155,7 @@ export class SceneService implements ISceneService {
     }
 
     /**
-     * 获取场景模板数据
+     * TODO 获取场景模板数据，后续 db 支持传类型，这边可以去掉
      */
     private getSceneTemplateURL(templateType: TSceneTemplateType): string {
         // 根据模板类型确定模板路径

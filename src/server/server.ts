@@ -34,7 +34,7 @@ export class ServerService {
             const httpRoot = this.useHttps ? 'https' : 'http';
             return `${httpRoot}://localhost:${this.port}`;
         }
-        return 'http://localhost:9999999';
+        return '服务器未启动';
     }
 
     async start() {
@@ -53,9 +53,19 @@ export class ServerService {
         this.printServerUrls();
     }
 
-    async stop() {
-        this.server?.close();
-        this.server = undefined;
+    async stop(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.server?.close((err?: Error) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                console.log('关闭服务器');
+                this.server = undefined;
+                resolve();
+            });
+        });
+
     }
 
     /**
@@ -123,6 +133,9 @@ export class ServerService {
         this.app.use(compression());
         this.app.use(cors);
         this.app.use(middlewareService.router);
+        for (const config of middlewareService.middlewareStaticFile) {
+            this.app.use(config.url, express.static(config.path));
+        }
 
         // 未能正常响应的接口
         this.app.use((req: any, res: any) => {

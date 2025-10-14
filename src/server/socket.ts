@@ -14,16 +14,17 @@ export class SocketService {
         this.io = new Server(server);
         this.io.on('connection', (socket: any) => {
             console.log(`socket ${socket.id} connected`)
-            for (const item of middlewareService.middlewareSocket) {
-                item.socket.connection(socket);
-            }
+            middlewareService.middlewareSocket.forEach((middleware) => {
+                middleware.connection(socket);
+            })
             socket.on('disconnect', () => {
-                for (const item of middlewareService.middlewareSocket) {
-                    item.socket.disconnect(socket);
-                }
+                middlewareService.middlewareSocket.forEach((middleware) => {
+                    middleware.disconnect(socket);
+                });
             });
         });
     }
+
     /**
      * 断开与客户端的连接
      */

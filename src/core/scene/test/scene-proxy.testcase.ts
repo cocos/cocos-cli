@@ -1,9 +1,8 @@
-import type {
-    ICreateSceneOptions,
-    IOpenSceneOptions,
-    ISceneInfo
-} from '../common';
+import type { ICreateSceneOptions, IOpenSceneOptions, ISceneInfo } from '../common';
 import { Scene } from '../main-process';
+
+// 单个测试文件生效
+jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
 
 describe('Scene Proxy 测试', () => {
     describe('Scene 操作', () => {

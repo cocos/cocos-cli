@@ -6,7 +6,7 @@ import { AssetsApi } from './assets/assets';
 import { PackDriverApi } from './pack-driver/pack-driver';
 import { SceneApi } from './scene/scene';
 import { BuilderApi } from './builder/builder';
-import { startupServer } from '../server';
+import { startServer } from '../server';
 
 export class CocosAPI {
     public assets: AssetsApi;
@@ -46,7 +46,7 @@ export class CocosAPI {
      */
     public async startup() {
         try {
-            await startupServer();
+            await startServer();
             await this.configuration.init();
             await this.project.init();
             await this.engine.init();

@@ -1,2 +1,0 @@
-
-export { SceneMiddleware } from './middleware';

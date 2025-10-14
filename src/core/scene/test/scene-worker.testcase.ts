@@ -1,6 +1,6 @@
 import path from 'path';
 import { Scene } from '../main-process';
-import { startupServer } from '../../../server';
+import { startServer } from '../../../server';
 
 describe('Scene 测试', () => {
     const user = require('../../../../.user.json');
@@ -9,7 +9,7 @@ describe('Scene 测试', () => {
 
     it('准备阶段', async () => {
         // 启动服务器
-        await startupServer();
+        await startServer();
         // 初始化配置
         const { configurationManager } = await import('../../configuration');
         await configurationManager.initialize(projectPath);

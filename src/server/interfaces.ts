@@ -1,35 +1,23 @@
 import { Request, Response, RequestHandler } from 'express';
 
-export interface IMiddlewareGetPost {
+export interface IGetPostConfig {
     url: string;
     handler: (req: Request, res: Response) => Promise<void>;
 }
 
-export interface IMiddlewareStaticFile {
+export interface IStaticFileConfig {
     url: string;
     path: string;
 }
 
-export interface IMiddlewareSocket {
+export interface ISocketConfig {
     connection: (socket: any) => void;
     disconnect: (socket: any) => void;
 }
 
-export interface IMiddleware {
-    get: IMiddlewareGetPost[];
-    post: IMiddlewareGetPost[];
-    staticFiles: IMiddlewareStaticFile[];
-    socket: IMiddlewareSocket;
-}
-
-export interface IMiddlewareItem {
-    name: string;
-    url: string;
-    regexp: any;
-    handler: RequestHandler | ((req: Request, res: Response) => Promise<void>);
-}
-
-export interface IMiddlewareSocketItem {
-    name: string;
-    socket: IMiddlewareSocket;
+export interface IMiddlewareContribution {
+    get?: IGetPostConfig[];
+    post?: IGetPostConfig[];
+    staticFiles?: IStaticFileConfig[];
+    socket?: ISocketConfig;
 }
