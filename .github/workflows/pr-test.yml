@@ -3,6 +3,7 @@ name: PR Test
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch: # 添加手动触发入口
 
 env:
   HTTP_PROXY: 'http://127.0.0.1:7890'
