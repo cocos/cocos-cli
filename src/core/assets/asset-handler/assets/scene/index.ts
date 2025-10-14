@@ -122,8 +122,8 @@ function changeSceneUuid(scene: any, uuid: string) {
 async function queryDefaultTemplateURL() {
     const templateDir = 'db://internal/default_file_content/scene';
     let template = `${templateDir}/default.scene`;
-    const { includeModules, highQuality } = Engine.getConfig();
-    if (includeModules && !includeModules.includes('3d')) {
+    const { highQuality } = Engine.getConfig();
+    if (Engine.type === '2d') {
         template = `${templateDir}/scene-2d.scene`;
     } else {
         if (highQuality) {

@@ -1,17 +1,18 @@
-import { queryUUID, Utils, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach } from "@editor/asset-db";
+import { queryUUID, Utils, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach, queryPath } from "@editor/asset-db";
 import { Meta } from "@editor/asset-db/libs/meta";
 import { isAbsolute, basename, extname } from "path";
 import { QueryAssetType, IAsset } from "../@types/protected";
 import { IAssetInfo, QueryAssetsOption } from "../@types/public";
 import { FilterPluginOptions, IPluginScriptInfo } from "../../scripting/interface";
 import { url2uuid, libArr2Obj, getExtendsFromCCType } from "../utils";
-import { assetDBManager } from "./asset-db";
+import assetDBManager from "./asset-db";
 import assetHandlerManager from "./asset-handler";
 import script from "../../scripting";
 import i18n from "../../base/i18n";
 import assetConfig from "../asset-config";
 import minimatch from "minimatch";
 import utils from "../../base/utils";
+import { existsSync } from "fs-extra";
 
 class AssetQueryManager {
 
@@ -86,7 +87,7 @@ class AssetQueryManager {
      * @param uuidOrURLOrPath
      */
     queryAsset(uuidOrURLOrPath: string): IAsset | null {
-        const uuid = utils.UUID.isUUID(uuidOrURLOrPath) ? uuidOrURLOrPath : this.queryAssetUUID(uuidOrURLOrPath);
+        const uuid = utils.UUID.isUUID(uuidOrURLOrPath) ? uuidOrURLOrPath : this.queryUUID(uuidOrURLOrPath);
         for (const name in assetDBManager.assetDBMap) {
             const database = assetDBManager.assetDBMap[name];
             if (!database) {
@@ -317,7 +318,7 @@ class AssetQueryManager {
      * @param asset
      * @param invalid 是否是无效的资源，例如已被删除的资源
      */
-    encodeAsset(asset: IAsset, dataKeys: (keyof IAssetInfo)[] = ['displayName', 'subAssets', 'redirect', 'visible', 'extends'], invalid = false) {
+    encodeAsset(asset: IAsset, dataKeys: (keyof IAssetInfo)[] = ['displayName', 'subAssets', 'visible', 'extends'], invalid = false) {
         let name = '';
         let source = '';
         let file = '';
@@ -379,7 +380,6 @@ class AssetQueryManager {
             invalid: asset.invalid, // 是否导入成功
             type: this.queryAssetProperty(asset, 'type'),
             isDirectory,
-            instantiation: this.queryAssetProperty(asset, 'instantiation'),
             readonly: database.options.readonly,
             library: libArr2Obj(asset),
         };
@@ -453,6 +453,8 @@ class AssetQueryManager {
                 } else {
                     return asset._name;
                 }
+            case 'readonly':
+                return asset._assetDB.options.readonly;
             case 'url':
                 {
                     const name = this.queryAssetProperty(asset, 'name') as string;
@@ -587,14 +589,15 @@ class AssetQueryManager {
 
     /**
      * 查询指定的资源的 meta
-     * @param uuid 资源的唯一标识符
+     * @param uuidOrURLOrPath 资源的唯一标识符
      */
-    queryAssetMeta(uuid: string): Meta | null {
-        if (!uuid || typeof uuid !== 'string') {
+    queryAssetMeta(uuidOrURLOrPath: string): Meta | null {
+        if (!uuidOrURLOrPath || typeof uuidOrURLOrPath !== 'string') {
             return null;
         }
-        if (uuid.startsWith('db://')) {
-            const name = uuid.substr(5);
+        let uuid = uuidOrURLOrPath;
+        if (uuidOrURLOrPath.startsWith('db://')) {
+            const name = uuidOrURLOrPath.substr(5);
             if (assetDBManager.assetDBMap[name]) {
                 // @ts-ignore DB 数据库并不存在 meta 理论上并不需要返回，但旧版本已支持
                 return {
@@ -606,11 +609,11 @@ class AssetQueryManager {
                     // name: '',
                     subMetas: {},
                     userData: {},
-                    uuid: uuid,
+                    uuid: uuidOrURLOrPath,
                     ver: '1.0.0',
                 };
             }
-            uuid = url2uuid(uuid);
+            uuid = url2uuid(uuidOrURLOrPath);
         }
         const asset = queryAsset(uuid);
         if (!asset) {
@@ -646,7 +649,7 @@ class AssetQueryManager {
         return null;
     }
 
-    queryAssetUUID(urlOrPath: string): string | null {
+    queryUUID(urlOrPath: string): string | null {
         if (!urlOrPath || typeof urlOrPath !== 'string') {
             return null;
         }
@@ -696,7 +699,6 @@ class AssetQueryManager {
             library: {},
             subAssets: {},
             visible: dbInfo.visible,
-            instantiation: undefined,
             readonly: dbInfo.readonly,
         };
 
@@ -714,6 +716,37 @@ class AssetQueryManager {
             return `db://${name}`;
         }
         return queryUrl(uuidOrPath);
+    }
+
+    queryPath(urlOrUuid: string): string {
+        if (!urlOrUuid || typeof urlOrUuid !== 'string') {
+            return '';
+        }
+        if (urlOrUuid.startsWith('db://')) {
+            const name = urlOrUuid.substr(5);
+            if (assetDBManager.assetDBMap[name]) {
+                return assetDBManager.assetDBMap[name].options.target;
+            }
+            const uuid = url2uuid(urlOrUuid);
+            if (uuid) {
+                return queryPath(uuid);
+            }
+        }
+        return queryPath(urlOrUuid);
+    }
+
+    generateAvailableURL(url: string): string {
+        if (!url || typeof url !== 'string') {
+            return '';
+        }
+        const path = queryPath(url);
+        if (!path) {
+            return '';
+        } else if (!existsSync(path)) {
+            return url;
+        }
+        const newPath = utils.File.getName(path);
+        return queryUrl(newPath);
     }
 }
 

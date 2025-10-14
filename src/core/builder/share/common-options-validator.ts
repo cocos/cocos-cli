@@ -13,8 +13,8 @@ import { IInternalBuildSceneItem } from '../@types/options';
 import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig } from '../@types/protected';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
-import { assetManager } from '../../assets/manager/asset';
-import { Engine } from '../../engine';
+import assetManager from '../../assets/manager/asset';
+import engine from '../../engine';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
 interface ModuleConfig {
     match: (module: string) => boolean;

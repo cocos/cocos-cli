@@ -43,7 +43,7 @@ class EngineManager implements IEngine {
         }
     }
     private _config: IEngineConfig = this.defaultConfig;
-    private _configInstance!: IBaseConfiguration;
+    // private _configInstance!: IBaseConfiguration;
 
     private get defaultConfig(): IEngineConfig {
         return {
@@ -168,6 +168,10 @@ class EngineManager implements IEngine {
         envLimitModule: {}, // 记录有环境限制的模块数据
     };
 
+    get type() {
+        return this._config.includeModules.includes('3d') ? '3d' : '2d';
+    }
+
     getInfo() {
         if (!this._init) {
             throw new Error('Engine not init');
@@ -198,9 +202,9 @@ class EngineManager implements IEngine {
         this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
         this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
-        this._configInstance = await configurationRegistry.register('engine', this.defaultConfig);
+        const configInstance = await configurationRegistry.register('engine', this.defaultConfig);
         this._init = true;
-        this._config = await this._configInstance.get('');
+        this._config = await configInstance.get('');
         return this;
     }
 

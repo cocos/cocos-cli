@@ -5,13 +5,6 @@ import { globalSetup, testInfo } from './utils';
 
 describe('Import Project', () => {
     beforeAll(async () => {
-        try {
-            // clear cache
-            await remove(join(testInfo.projectRoot, 'library'));
-            console.log('clear library cache done')
-        } catch (error) {
-
-        }
         await globalSetup();
     });
     const testAssets = [{
@@ -48,7 +41,6 @@ describe('Import Project', () => {
                 expect(meta.imported).toBeTruthy;
             });
         });
-
     });
 
 });

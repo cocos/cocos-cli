@@ -14,6 +14,45 @@ export interface IAssetMeta {
     id: string;
     name: string;
 }
+
+// 支持创建的资源类型（引擎类型）
+export type ISupportCreateCCType = 
+| 'cc.AnimationClip'        // 动画剪辑
+| 'cc.Script'               // 脚本（TypeScript/JavaScript）
+| 'cc.SpriteAtlas'          // 精灵图集（自动图集）
+| 'cc.EffectAsset'          // 着色器效果
+| 'cc.SceneAsset'           // 场景
+| 'cc.Prefab'               // 预制体
+| 'cc.Material'             // 材质
+| 'cc.TextureCube'          // 立方体贴图
+| 'cc.TerrainAsset'         // 地形
+| 'cc.PhysicsMaterial'      // 物理材质
+| 'cc.LabelAtlas'           // 标签图集
+| 'cc.RenderTexture'        // 渲染纹理
+| 'cc.AnimationGraph'       // 动画图
+| 'cc.AnimationMask'        // 动画遮罩
+| 'cc.AnimationGraphVariant'; // 动画图变体
+
+// 支持创建的资源处理器名称
+export type ISupportCreateType = 
+| 'animation-clip'          // 动画剪辑
+| 'typescript'              // TypeScript 脚本
+| 'auto-atlas'              // 自动图集
+| 'effect'                  // 着色器效果
+| 'scene'                   // 场景
+| 'prefab'                  // 预制体
+| 'material'                // 材质
+| 'texture-cube'            // 立方体贴图
+| 'terrain'                 // 地形
+| 'physics-material'        // 物理材质
+| 'label-atlas'             // 标签图集
+| 'render-texture'          // 渲染纹理
+| 'animation-graph'         // 动画图
+| 'animation-mask'          // 动画遮罩
+| 'animation-graph-variant' // 动画图变体
+| 'directory'               // 文件夹
+| 'effect-header';          // 着色器头文件（chunk）
+
 // 如果使用了 datakeys 过滤，请使用此接口定义
 export interface IAssetInfo {
     name: string; // 资源名字

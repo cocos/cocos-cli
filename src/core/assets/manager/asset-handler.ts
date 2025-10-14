@@ -7,7 +7,7 @@ import fg from 'fast-glob';
 import Sharp from 'sharp';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
-import { IAsset, IExportData } from '../@types/protected/asset';
+import { AssetOperationOption, IAsset, IExportData, ISupportCreateCCType, ISupportCreateType } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
@@ -73,7 +73,6 @@ class AssetHandlerManager {
     _userDataCache: Record<string, any> = {};
     // 导入器里注册的默认 userData 值， 注册后不可修改
     _defaultUserData: Record<string, any> = {};
-
     clear() {
         this.name2handler = {};
         this.extname2registerInfo = {};
@@ -280,82 +279,94 @@ class AssetHandlerManager {
     async getCreateMap(): Promise<ICreateMenuInfo[]> {
         const result: Omit<ICreateMenuInfo, 'create'>[] = [];
         for (const importer of Object.keys(this.name2handler)) {
-            const handler = this.name2handler[importer];
-            if (!handler.createInfo || !handler.createInfo.generateMenuInfo) {
-                continue;
-            }
-            const { generateMenuInfo, preventDefaultTemplateMenu } = handler.createInfo;
-            try {
-                const defaultMenuInfo = await generateMenuInfo();
-                const templateDir = getUserTemplateDir(importer);
-                let templates = preventDefaultTemplateMenu ? [] : await queryUserTemplates(templateDir);
-                // TODO 统一命名为 extensions
-                const extensions = this.name2importer[importer].extnames;
-                // 如果存在后缀则过滤不合法后缀的模板数据，无后缀作为正常模板处理（主要兼容旧版本无后缀的资源模板放置方式）
-                templates = templates.filter((file) => {
-                    const extName = extname(file);
-                    if (!extName) {
-                        return true;
-                    }
-                    return extensions.includes(extName);
-                });
-
-                const importMenu: ICreateMenuInfo[] = [];
-                defaultMenuInfo.forEach((info) => {
-                    // 存在用户模板时检查是否有覆盖默认模板的情况
-                    if (info.template && templates.length) {
-                        const userTemplateIndex = templates.findIndex((templatePath) => {
-                            return basename(templatePath) === basename(info.template!);
-                        });
-                        if (userTemplateIndex !== -1) {
-                            info = JSON.parse(JSON.stringify(info));
-                            info.template = templates[userTemplateIndex];
-                            templates.splice(userTemplateIndex, 1);
-                        }
-                    }
-                    importMenu.push(patchHandler(info, importer, extensions));
-                });
-
-                // 与默认模板非同名的模板文件为用户自定义模板
-                if (templates.length && importMenu.length) {
-                    let menuAddTarget = importMenu;
-                    if (importMenu[0].submenu) {
-                        menuAddTarget = importMenu[0].submenu;
-                    } else {
-                        importMenu[0] = {
-                            ...importMenu[0],
-                            submenu: [{
-                                ...importMenu[0],
-                                label: 'Default',
-                            }],
-                        };
-                        menuAddTarget = importMenu[0].submenu!;
-                    }
-                    templates.forEach((templatePath) => {
-                        menuAddTarget.push(patchHandler({
-                            label: basename(templatePath, extname(templatePath)),
-                            template: templatePath,
-                        }, importer, extensions));
-                    });
-                    // 存在模板的情况下，添加资源模板管理的菜单入口
-                    menuAddTarget.push({
-                        label: 'i18n:asset-db.createAssetTemplate.manageTemplate',
-                        // TODO 与 vs 桥接层
-                        // message: {
-                        //     target: 'asset-db',
-                        //     name: 'show-asset-template-dir',
-                        //     params: [templateDir],
-                        // },
-                    });
-                }
-
-                result.push(...importMenu);
-            } catch (error) {
-                console.error(`Generate create list in handler ${importer} failed`);
-            }
+            const createMenu = await this.getCreateMenuByName(importer);
+            result.push(...createMenu);
         }
         return result;
     }
+
+    /**
+     * 根据导入器名称获取资源模板信息
+     * @param importer 
+     * @returns 
+     */
+    async getCreateMenuByName(importer: string): Promise<ICreateMenuInfo[]> {
+        const handler = this.name2handler[importer];
+        if (!handler.createInfo || !handler.createInfo.generateMenuInfo) {
+            return [];
+        }
+        const { generateMenuInfo, preventDefaultTemplateMenu } = handler.createInfo;
+        try {
+            const defaultMenuInfo = await generateMenuInfo();
+            const templateDir = getUserTemplateDir(importer);
+            let templates = preventDefaultTemplateMenu ? [] : await queryUserTemplates(templateDir);
+            // TODO 统一命名为 extensions
+            const extensions = this.name2importer[importer].extnames;
+            // 如果存在后缀则过滤不合法后缀的模板数据，无后缀作为正常模板处理（主要兼容旧版本无后缀的资源模板放置方式）
+            templates = templates.filter((file) => {
+                const extName = extname(file);
+                if (!extName) {
+                    return true;
+                }
+                return extensions.includes(extName);
+            });
+
+            const createMenu: ICreateMenuInfo[] = [];
+            defaultMenuInfo.forEach((info) => {
+                // 存在用户模板时检查是否有覆盖默认模板的情况
+                if (info.template && templates.length) {
+                    const userTemplateIndex = templates.findIndex((templatePath) => {
+                        return basename(templatePath) === basename(info.template!);
+                    });
+                    if (userTemplateIndex !== -1) {
+                        info = JSON.parse(JSON.stringify(info));
+                        info.template = templates[userTemplateIndex];
+                        templates.splice(userTemplateIndex, 1);
+                    }
+                }
+                createMenu.push(patchHandler(info, importer, extensions));
+            });
+
+            // 与默认模板非同名的模板文件为用户自定义模板
+            if (templates.length && createMenu.length) {
+                let menuAddTarget = createMenu;
+                if (createMenu[0].submenu) {
+                    menuAddTarget = createMenu[0].submenu;
+                } else {
+                    createMenu[0] = {
+                        ...createMenu[0],
+                        submenu: [{
+                            ...createMenu[0],
+                            label: 'Default',
+                        }],
+                    };
+                    menuAddTarget = createMenu[0].submenu!;
+                }
+                templates.forEach((templatePath) => {
+                    menuAddTarget.push(patchHandler({
+                        label: basename(templatePath, extname(templatePath)),
+                        template: templatePath,
+                    }, importer, extensions));
+                });
+                // 存在模板的情况下，添加资源模板管理的菜单入口
+                menuAddTarget.push({
+                    label: 'i18n:asset-db.createAssetTemplate.manageTemplate',
+                    // TODO 与 vs 桥接层
+                    // message: {
+                    //     target: 'asset-db',
+                    //     name: 'show-asset-template-dir',
+                    //     params: [templateDir],
+                    // },
+                });
+            }
+
+            return createMenu;
+        } catch (error) {
+            console.error(`Generate create list in handler ${importer} failed`);
+        }
+        return [];
+    }
+
 
     /**
      * 生成创建资源模板
@@ -399,7 +410,7 @@ class AssetHandlerManager {
         return result;
     }
 
-    async createAsset(options: CreateAssetOptions): Promise<null | string | string[]> {
+    async createAsset(options: CreateAssetOptions): Promise<null | string> {
         if (!options.handler) {
             const registerInfos = this.extname2registerInfo[extname(options.target)];
             options.handler = registerInfos && registerInfos.length ? registerInfos[0].name : undefined;
@@ -447,6 +458,23 @@ class AssetHandlerManager {
         }
         await afterCreateAsset(options.target, options);
         return options.target;
+    }
+
+    // async createAssetByCCType(ccType: ISupportCreateCCType, target: string, options?: AssetOperationOption) {
+
+    // }
+
+    async createAssetByType(type: ISupportCreateType, target: string, options?: AssetOperationOption) {
+        const createMenus = await this.getCreateMenuByName(type);
+        if (!createMenus.length) {
+            throw new Error(`Can not support create type: ${type}`);
+        }
+        return await this.createAsset({
+            handler: createMenus[0].handler,
+            target,
+            overwrite: options?.overwrite ?? false,
+            template: createMenus[0].template,
+        }); 
     }
 
     async saveAsset(asset: IAsset, content: string | Buffer) {
@@ -705,6 +733,7 @@ class AssetHandlerManager {
             ...this._userDataCache[handler],
         };
         setDefaultUserData(handler, combineUserData);
+        outputJSONSync(join(assetConfig.data.root, '.creator', 'default-meta.json'), this._userDataCache);
     }
 
     /**

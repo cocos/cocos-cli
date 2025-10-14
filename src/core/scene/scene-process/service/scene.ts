@@ -1,5 +1,8 @@
-import cc from 'cc';
-import { register, expose } from './decorator';
+import cc, { SceneAsset } from 'cc';
+import { join } from 'path';
+import assetOperation from '../../../assets/manager/operation';
+import assetQueryManager from '../../../assets/manager/query';
+import assetManager from '../../../assets/manager/asset';
 import {
     ISceneService,
     ISceneInfo,

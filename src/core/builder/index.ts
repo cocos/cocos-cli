@@ -7,7 +7,7 @@ import { pluginManager } from "./manager/plugin";
 import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./share/utils";
 import { newConsole } from "../base/console";
 import { join } from "path";
-import { assetManager } from "../assets/manager/asset";
+import assetManager from "../assets/manager/asset";
 import { removeDbHeader } from "./worker/builder/utils";
 import builderConfig, { BuildGlobalInfo } from "./share/builder-config";
 import { Engine } from "../engine";

@@ -5,6 +5,7 @@ import { IAssetInfo, QueryAssetsOption } from '../public';
 import { EventEmitter } from 'events';
 
 export declare class AssetManager extends EventEmitter {
+    /**------------- 查询方法 ------------- */
     queryAssetUsers(uuid: string, type: QueryAssetType = 'asset'): string[] | PromiseLike<string[]>;
     queryAssetInfos: (options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]) => IAssetInfo[];
     queryAssets: (options?: QueryAssetsOption) => IAsset[];
@@ -17,10 +18,23 @@ export declare class AssetManager extends EventEmitter {
     queryDBAssetInfo: (name: string) => IAssetInfo | null;
     queryAssetMtime: (uuid: string) => number | null;
     queryAssetDependencies: (uuid: string, type: QueryAssetType = 'asset') => Promise<string[]>;
+
     encodeAsset: (asset: IAsset) => IAssetInfo;
     saveAssetMeta: (uuid: string, meta: Meta) => Promise<void>;
     queryUrl: (uuidOrPath: string) => string;
+    createAsset: (options: CreateAssetOptions) => Promise<IAssetInfo | null>;
+    removeAsset: (uuidOrURLOrPath: string) => Promise<IAssetInfo | null>;
+    saveAsset: (uuidOrURLOrPath: string, content: string | Buffer) => Promise<IAssetInfo>;
+    saveAssetMeta: (uuid: string, meta: Meta) => Promise<void>;
+    reimportAsset: (uuidOrURLOrPath: string) => Promise<void>;
+    moveAsset: (source: string, target: string, option?: AssetOperationOption) => Promise<void>;
+    renameAsset: (source: string, target: string, option?: AssetOperationOption) => Promise<void>;
+
+    url2uuid: (url: string) => string;
+    url2path: (uuid: string) => string;
+    path2url: (path: string) => string;
 }
+
 export interface IAssetWorkerInfo {
     engine: string; // 引擎所在目录
     type: string; // 当前项目的类型 2d | 3d
