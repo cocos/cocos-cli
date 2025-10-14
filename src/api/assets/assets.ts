@@ -32,7 +32,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 删除资源
      */
-    @tool('assets-removeAsset')
+    @tool('assets-remove-asset')
     @title('删除项目资源')
     @description('从 Cocos Creator 项目中删除指定的资源文件。支持删除单个文件或整个目录。删除的资源会从资源数据库中移除，同时删除对应的 .meta 文件。删除操作不可逆，请谨慎使用。')
     @result(SchemeDbDirResult)
@@ -54,7 +54,7 @@ export class AssetsApi extends ApiBase {
         return ret;
     }
 
-    @tool('assets-createJsonFile')
+    @tool('assets-create-json-file')
     @title('创建 JSON 资源文件')
     @description('在 Cocos Creator 项目中创建新的 JSON 资源文件。自动生成 UUID 和 .meta 文件，并将文件注册到资源数据库中。支持覆盖已存在的文件。JSON 内容必须是有效的 JSON 格式字符串。')
     @result(SchemeCreateJsonFile)
@@ -99,7 +99,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 刷新资源目录
      */
-    @tool('assets-refreshDir')
+    @tool('assets-refresh-dir')
     @title('刷新资源目录')
     @description('刷新 Cocos Creator 项目中的指定资源目录，重新扫描目录下的所有资源文件，更新资源数据库索引。当外部修改了资源文件或添加了新文件时，需要调用此方法同步资源状态。')
     @result(SchemeDbDirResult)

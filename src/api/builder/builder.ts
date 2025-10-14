@@ -14,7 +14,7 @@ export class BuilderApi extends ApiBase {
 
     }
 
-    @tool('build')
+    @tool('builder-build')
     @title('构建项目')
     @description('根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数')
     async build(@param(SchemeBuildOption) options?: SchemeBuildOptionType) {
