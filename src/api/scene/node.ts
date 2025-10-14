@@ -30,7 +30,7 @@ export class NodeApi extends ApiBase {
     /**
      * 创建节点
      */
-    @tool('scene-createNode')
+    @tool('scene-create-node')
     @title('创建节点')
     @description('在 Cocos Creator 项目中创建新的节点。')
     @result(NodeCreateSchema)
@@ -39,7 +39,9 @@ export class NodeApi extends ApiBase {
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
             data: {
-                
+                nodeId: '',
+                path: '',
+                name: ''
             },
         }
 
@@ -54,7 +56,6 @@ export class NodeApi extends ApiBase {
             if (nodeInfo) {
                 ret.data.path = nodeInfo.path;
                 ret.data.name = nodeInfo.name;
-                ret.data.children = nodeInfo.children;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -69,7 +70,7 @@ export class NodeApi extends ApiBase {
     /**
      * 删除节点
      */
-    @tool('scene-deleteNode')
+    @tool('scene-delete-node')
     @title('删除节点')
     @description('在 Cocos Creator 项目中删除节点。')
     @result(NodeDeleteSchema)
@@ -78,8 +79,7 @@ export class NodeApi extends ApiBase {
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
             data: {
-                path: 'unknown',
-                name: '',
+
             },
         }
 
@@ -109,7 +109,7 @@ export class NodeApi extends ApiBase {
     /**
      * 更新节点
      */
-    @tool('scene-updateNode')
+    @tool('scene-update-node')
     @title('更新节点')
     @description('在 Cocos Creator 项目中修改节点。')
     @result(NodeUpdateSchema)
@@ -127,9 +127,6 @@ export class NodeApi extends ApiBase {
             const params: any = {
                 path: options.path,
             };
-            if (options.fields !== undefined) {
-                params.fields = options.fields;
-            }
 
             const nodeInfo = await Scene.updateNode(params);
             if (nodeInfo) {
@@ -149,7 +146,7 @@ export class NodeApi extends ApiBase {
     /**
     * 查询节点
     */
-    @tool('scene-queryNode')
+    @tool('scene-query-node')
     @title('查询节点')
     @description('在 Cocos Creator 项目中查询节点。')
     @result(NodeQuerySchema)

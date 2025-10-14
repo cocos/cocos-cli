@@ -35,11 +35,11 @@ export enum NodeType {
     WEB_VIEW = 'WebView', // 网页视图节点
     WIDGET = 'Widget', // 小部件节点
 
-    Directional_Light = 'DirectionalLight', // 平行光
-    SPHERE_LIGHT = 'SphereLight', // 球面光
-    SPOT_LIGHT = 'SpotLight', // 聚光灯
-    PROBE_LIGHT = 'ProbeLight', // 光照探针
-    REFLECTION_LIGHT = 'ReflectionLight', // 反射探针
+    DIRECTIONAL_LIGHT = 'Light-Directional', // 平行光
+    SPHERE_LIGHT = 'Light-Sphere', // 球面光
+    SPOT_LIGHT = 'Light-Spot', // 聚光灯
+    PROBE_LIGHT = 'Light-Probe-Group', // 光照探针
+    REFLECTION_LIGHT = 'Light-Reflection-Probe', // 反射探针
 }
 
 // 基础向量和矩阵类型
