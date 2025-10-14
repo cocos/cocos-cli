@@ -6,9 +6,9 @@ on:
   issue_comment:
     types: [created]
 
-concurrency:
-  group: pr-test-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-  cancel-in-progress: true
+env:
+  HTTP_PROXY: 'http://127.0.0.1:7890'
+  HTTPS_PROXY: 'http://127.0.0.1:7890'
 
 jobs:
   pr-test:
