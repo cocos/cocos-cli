@@ -40,7 +40,6 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
         "start": "node ./dist/commands/build-directly.js",
-        "start:server": "node ./dist/server/index.js",
         "cli": "ts-node src/cli.ts"
     },
     "author": "cocos",

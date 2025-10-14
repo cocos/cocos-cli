@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import path from 'path';
 import fse from 'fs-extra';
 
-export const SceneMiddleware: IMiddlewareContribution = {
+export default {
     get: [
         {
             // TODO 这里后续需要改引擎 wasm/wasm-nodejs.ts 的写法，改成向服务器请求数据
@@ -52,4 +52,4 @@ export const SceneMiddleware: IMiddlewareContribution = {
         connection: (socket: any) => {},
         disconnect: (socket: any) => {}
     },
-};
+} as IMiddlewareContribution;

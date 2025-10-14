@@ -4,6 +4,7 @@ import utils from './core/base/utils';
 import { newConsole } from './core/base/console';
 import { getCurrentLocalTime } from './core/assets/utils';
 import { PackerDriver } from './core/scripting/packer-driver';
+import { startServer } from './server';
 
 class ProjectManager {
 
@@ -24,6 +25,7 @@ class ProjectManager {
             label: '项目',
             path,
         });
+        await startServer();
         const { configurationManager } = await import('./core/configuration');
         await configurationManager.initialize(path);
         // 初始化项目信息
