@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-// 场景名称相关的 scheme
-export const SchemeSceneUuid = z.string().describe('场景资源的唯一标识符 UUID');
-
 // 创建组件信息
 export const SchemeCreateComponentInfo = z.object({
     uuid: z.string().describe('节点UUID'),
@@ -14,19 +11,15 @@ export const SchemeComponentInfo = z.object({
     uuid: z.string().describe('返回组件的 UUID'),
 }).describe('当前组件的信息');
 
-
 // 移除组件
 export const SchemeRemoveComponent = z.object({
-    path: z.string().optional().describe('关闭的场景文件路径'),
-}).describe('关闭场景操作的结果信息');
+    path: z.string().optional().describe('组件的UUID'),
+}).describe('移除组件需要的信息');
 
 // 查询组件
 export const SchemeQueryComponent = z.object({
-    path: z.string().optional().describe('关闭的场景文件路径'),
-}).describe('关闭场景操作的结果信息');
-
-
-
+    path: z.string().optional().describe('组件的UUID'),
+}).describe('查询组件需要的信息');
 
 /**
  * 属性数据结构和配置选项
@@ -104,13 +97,13 @@ export const SchemeProperty: z.ZodTypeAny = z.lazy((): z.ZodTypeAny =>
     }).describe('属性数据结构和编辑器配置选项，用于定义属性的值、UI显示、验证规则等')
 );
 
-// 移除组件
+// 设置属性选项
 export const SchemeSetPropertyOptions = z.object({
     uuid: z.string().describe('组件的 UUID'),
     path: z.string().describe('属性挂载对象的搜索路径'),
-    dump: SchemeProperty.describe('关闭的场景文件路径'),
+    dump: SchemeProperty.describe('属性 dump 出来的数据'),
     record: z.boolean().optional().describe('是否记录undo'),
-}).describe('关闭场景操作的结果信息');
+}).describe('设置组件属性的信息');
 
 // 组件值类型定义
 export const SchemaComponentValue = z.object({
@@ -125,11 +118,7 @@ export const SchemaComponentDumpInfoResult = z.object({
 }).describe('组件dump信息');
 
 // 类型导出
-
-
 export type TSchemeCreateComponentInfo = z.infer<typeof SchemeCreateComponentInfo>;
-
-export type TSchemeSceneUuid = z.infer<typeof SchemeSceneUuid>;
 export type TComponentInfo = z.infer<typeof SchemeComponentInfo>;
 export type TSetPropertyOptions = z.infer<typeof SchemeSetPropertyOptions>;
 export type TComponentDumpInfoResult = z.infer<typeof SchemaComponentDumpInfoResult>;

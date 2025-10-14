@@ -1,4 +1,4 @@
-import type { ICreateComponentOptions, SetPropertyOptions, IComponentInfo, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
+import type { ICreateComponentOptions, ISetPropertyOptions, IComponentInfo, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './export/dump'
 import { IComponent, IComponentMenu, IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
@@ -129,7 +129,7 @@ export class componentService implements IComponentService {
     }
 
     @expose()
-    setProperty(options: SetPropertyOptions): Promise<boolean> {
+    setProperty(options: ISetPropertyOptions): Promise<boolean> {
         return new Promise<boolean>(async (resolve, reject) => {
             const ret = await this.setPropertyImp(options.uuid, options.path, options.dump);
             if(ret) {

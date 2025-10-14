@@ -11,7 +11,7 @@ import {
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
-import { Scene, SetPropertyOptions } from '../../core/scene';
+import { Scene, ISetPropertyOptions } from '../../core/scene';
 
 export class ComponentApi extends ApiBase {
 
@@ -131,7 +131,7 @@ export class ComponentApi extends ApiBase {
         };
 
         try {
-            const sceneInfo = await Scene.setProperty(setPropertyOptions as SetPropertyOptions);
+            const sceneInfo = await Scene.setProperty(setPropertyOptions as ISetPropertyOptions);
             if (sceneInfo) {
                 ret.data = true;
             }

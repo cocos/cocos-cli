@@ -1,6 +1,6 @@
-import type { IComponentInfo, ICreateComponentOptions, IDeleteComponentOptions, IQueryComponentOptions, IComponentService } from '../../common';
+import type { IComponentInfo, ICreateComponentOptions, IDeleteComponentOptions, IQueryComponentOptions, ISetPropertyOptions, IComponentService } from '../../common';
 import { Rpc } from '../rpc';
-import { SetPropertyOptions, IComponent } from '../../@types/public';
+import { IComponent } from '../../@types/public';
 
 export const ComponentProxy: IComponentService = {
     createComponent(params: ICreateComponentOptions): Promise<IComponentInfo | null> {
@@ -15,7 +15,7 @@ export const ComponentProxy: IComponentService = {
         return Rpc.request('Component', 'queryComponent', [params]);
     },
 
-    setProperty(params: SetPropertyOptions): Promise<boolean> {
+    setProperty(params: ISetPropertyOptions): Promise<boolean> {
         return Rpc.request('Component', 'setProperty', [params]);
     }
 
