@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const SchemeBuildOption = z.object({
+export const SchemaBuildOption = z.object({
     configPath: z.string().optional().describe('构建配置文件地址'),
     skipCheck: z.boolean().default(true).optional().describe('跳过参数的检查流程'),
     migrate: z.boolean().optional().default(false).describe('自动迁移传入的配置'),
@@ -52,8 +52,8 @@ export const SchemeBuildOption = z.object({
      nextStages: z.array(z.enum(['make', 'run'])).optional().describe('指定后续联合的构建阶段，可指定多个'),
 });
 
-export type SchemeBuildOptionType = z.infer<typeof SchemeBuildOption>;
+export type SchemaBuildOptionType = z.infer<typeof SchemaBuildOption>;
 
-export const SchemeBuildResult = z.object({
+export const SchemaBuildResult = z.object({
     exitCode: z.string().describe('构建的退出码'),
 }).describe('构建项目后的结果');
