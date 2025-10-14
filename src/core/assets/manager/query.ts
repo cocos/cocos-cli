@@ -2,7 +2,7 @@ import { queryUUID, Utils, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, f
 import { Meta } from "@editor/asset-db/libs/meta";
 import { isAbsolute, basename, extname } from "path";
 import { QueryAssetType, IAsset } from "../@types/protected";
-import { IAssetInfo, QueryAssetsOption } from "../@types/public";
+import { AssetHandlerType, IAssetInfo, QueryAssetsOption } from "../@types/public";
 import { FilterPluginOptions, IPluginScriptInfo } from "../../scripting/interface";
 import { url2uuid, libArr2Obj, getExtendsFromCCType } from "../utils";
 import assetDBManager from "./asset-db";
@@ -375,7 +375,7 @@ class AssetQueryManager {
             url, // 实际的带有扩展名的路径
             file, // 实际磁盘路径
             uuid: asset.uuid,
-            importer: asset.meta.importer,
+            importer: asset.meta.importer as AssetHandlerType,
             imported: asset.meta.imported, // 是否结束导入过程
             invalid: asset.invalid, // 是否导入成功
             type: this.queryAssetProperty(asset, 'type'),
@@ -683,7 +683,7 @@ class AssetQueryManager {
             return null;
         }
 
-        const info = {
+        const info: IAssetInfo = {
             name,
             displayName: name || '',
             source: `db://${name}`,

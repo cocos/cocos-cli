@@ -410,6 +410,11 @@ class AssetHandlerManager {
         return result;
     }
 
+    /**
+     * 创建资源
+     * @param options 
+     * @returns 返回资源创建地址
+     */
     async createAsset(options: CreateAssetOptions): Promise<null | string> {
         if (!options.handler) {
             const registerInfos = this.extname2registerInfo[extname(options.target)];
@@ -458,23 +463,6 @@ class AssetHandlerManager {
         }
         await afterCreateAsset(options.target, options);
         return options.target;
-    }
-
-    // async createAssetByCCType(ccType: ISupportCreateCCType, target: string, options?: AssetOperationOption) {
-
-    // }
-
-    async createAssetByType(type: ISupportCreateType, target: string, options?: AssetOperationOption) {
-        const createMenus = await this.getCreateMenuByName(type);
-        if (!createMenus.length) {
-            throw new Error(`Can not support create type: ${type}`);
-        }
-        return await this.createAsset({
-            handler: createMenus[0].handler,
-            target,
-            overwrite: options?.overwrite ?? false,
-            template: createMenus[0].template,
-        }); 
     }
 
     async saveAsset(asset: IAsset, content: string | Buffer) {

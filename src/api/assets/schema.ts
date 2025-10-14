@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/asset-types';
+import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/asset-handler/config';
 
 // 基础类型定义
 export const SchemaDirOrDbPath = z.string().min(1).describe('目录或资源的路径，可以是文件系统路径或 db:// 协议路径');
@@ -141,7 +141,7 @@ export const SchemaAssetMetaResult = SchemaAssetMeta.nullable().describe('资源
 export const SchemaCreateMapResult = z.array(SchemaCreateMenuInfo).describe('可创建资源菜单列表');
 export const SchemaAssetInfosResult = z.array(SchemaAssetInfo).describe('资源信息列表');
 export const SchemaAssetDBInfosResult = z.array(SchemaAssetDBInfo).describe('资源数据库信息列表');
-export const SchemaCreatedAssetResult = SchemaAssetInfo.nullable().describe('创建的资源信息对象');
+export const SchemaCreatedAssetResult = SchemaAssetMeta.nullable().describe('创建的资源路径');
 export const SchemaImportedAssetResult = z.array(SchemaAssetInfo).describe('导入的资源信息数组，当导入文件夹时会包含文件夹及其所有子资源的信息');
 export const SchemaReimportResult = z.null().describe('重新导入操作结果（无返回值）');
 export const SchemaSaveAssetResult = SchemaAssetInfo.nullable().describe('保存资源后的资源信息对象');

@@ -95,11 +95,13 @@ export interface TextureCubeAssetUserData extends TextureBaseAssetUserData {
 }
 
 export interface SpriteFrameVertices {
-    rawPosition?: number[];
-    indexes?: number[];
-    uv?: number[];
-    nuv?: number[];
+    rawPosition: number[];
+    indexes: number[];
+    uv: number[];
+    nuv: number[];
     triangles?: number[];
+    minPos: number[];
+    maxPos: number[];
 }
 
 import { GlTFUserData } from '../asset-handler/meta-schemas/glTF.meta';

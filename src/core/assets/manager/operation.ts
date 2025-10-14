@@ -108,6 +108,19 @@ class AssetOperation extends EventEmitter {
         return assetQueryManager.queryAssetInfo(queryUUID(assetPath));
     }
 
+    async createAssetByType(type: ISupportCreateType, target: string, options?: AssetOperationOption) {
+        const createMenus = await assetHandlerManager.getCreateMenuByName(type);
+        if (!createMenus.length) {
+            throw new Error(`Can not support create type: ${type}`);
+        }
+        return await this.createAsset({
+            handler: createMenus[0].handler,
+            target,
+            overwrite: options?.overwrite ?? false,
+            template: createMenus[0].template,
+        }); 
+    }
+
     /**
      * 从项目外拷贝导入资源进来
      * @param source 
