@@ -14,7 +14,7 @@ import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IIntern
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetManager from '../../assets/manager/asset';
-import engine from '../../engine';
+import { Engine } from '../../engine';
 import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
 interface ModuleConfig {
     match: (module: string) => boolean;

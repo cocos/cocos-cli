@@ -15,7 +15,7 @@ jobs:
     if: |
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test'))
-    runs-on: [ self-hosted ]
+    runs-on: [ self-hosted, macOS ]
     permissions:
       contents: read
       pull-requests: read
