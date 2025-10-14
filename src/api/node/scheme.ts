@@ -5,7 +5,7 @@ export const ComponentPropertySchema = z.object({
     name: z.string().describe('属性名称'),
     type: z.string().describe('属性类型'),
     visible: z.boolean().describe('是否可见'),
-    values: z.union([z.record(z.string(), z.any()), z.string()]).describe('属性值'),
+    value: z.union([z.record(z.string(), z.any()), z.string()]).describe('属性值'),
     extends: z.array(z.string()).describe('继承的属性'),
 });
 
