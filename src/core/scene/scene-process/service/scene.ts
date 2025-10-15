@@ -1,180 +1,364 @@
-import cc from 'cc';
-import { register, expose } from './decorator';
+import lodash from 'lodash';
+import path from 'path';
+import cc, { SceneAsset } from 'cc';
+import { expose, register } from './decorator';
 import {
-    ISceneService,
-    ISceneInfo,
-    TSceneTemplateType,
+    ICloseSceneOptions,
     ICreateSceneOptions,
     IOpenSceneOptions,
+    ISoftReloadSceneOptions,
     ISaveSceneOptions,
+    IScene,
+    ISceneService,
 } from '../../common';
 import { Rpc } from '../rpc';
+import { EventEmitter } from 'events';
+import sceneUtil from './scene/utils';
+import type { IAssetInfo } from '../../../assets/@types/public';
+
+/**
+ * 场景事件类型
+ */
+type EventOnType = 'create' | 'open' | 'close' | 'save' | 'soft-reload';
 
 /**
  * 场景进程处理器
  * 处理所有场景相关操作
  */
 @register('Scene')
-export class SceneService implements ISceneService {
-    private currentScene: ISceneInfo | null = null;
+export class SceneService extends EventEmitter implements ISceneService {
+    // 限制消息类型
+    on(type: EventOnType, listener: (arg: any) => void): this { return super.on(type, listener); }
+    off(type: EventOnType, listener: (arg: any) => void): this { return super.off(type, listener); }
+    once(type: EventOnType, listener: (arg: any) => void): this { return super.once(type, listener); }
+    emit(type: EventOnType, ...args: any[]): boolean { return super.emit(type, ...args); }
+
+    private currentSceneUUID: string = '';
+    private sceneMap: Map<string, { info: IScene, instance: cc.Scene, }> = new Map();
 
     @expose()
-    async openScene(params: IOpenSceneOptions): Promise<ISceneInfo> {
-        const { uuid } = params;
-        return new Promise<ISceneInfo>(async (resolve, reject) => {
-            // 查询场景资源信息
-            const assetInfo = await Rpc.request('assetManager', 'queryAssetInfo', [uuid]);
-            if (!assetInfo) {
-                reject(`场景资源不存在: ${uuid}`);
-                return;
+    async open(params: IOpenSceneOptions): Promise<IScene> {
+        const { urlOrUUIDOrPath } = params;
+
+        console.group(`打开场景 [${urlOrUUIDOrPath}]`);
+        try {
+            console.group('场景信息验证');
+            const info: IScene = await this.createSceneInfo(urlOrUUIDOrPath);
+
+            if (!info.uuid) {
+                console.error('场景资源不存在');
+                throw new Error(`场景资源不存在，${urlOrUUIDOrPath}`);
             }
 
-            if (!assetInfo.type.includes('SceneAsset')) {
-                reject(`指定路径不是有效的场景资源: ${assetInfo.url}`);
-                return;
+            if (!info.type.includes('SceneAsset')) {
+                console.error('无效的场景资源类型');
+                throw new Error(`指定路径不是有效的场景资源，urlOrUUIDOrPath: ${urlOrUUIDOrPath}, ${info.type}`);
             }
+            console.log('场景信息验证通过');
+            console.groupEnd();
 
             try {
-                await this.closeScene();
+                await this.close();
             } catch (error) {
-                reject(error);
-                return;
+                console.warn('关闭当前场景时发生错误:', error);
             }
 
-            console.log(`加载场景 uuid: ${uuid}`);
-            cc.assetManager.loadAny(uuid, (err: Error | null, sceneAsset: cc.SceneAsset) => {
-                console.log(`加载完场景 uuid: ${uuid} ${err}`);
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                cc.director.runSceneImmediate(sceneAsset);
-
-                // 创建场景信息
-                const sceneInfo: ISceneInfo = {
-                    path: assetInfo.source,
-                    uuid: assetInfo.uuid,
-                    url: assetInfo.url,
-                    name: assetInfo.name || ''
-                };
-
-                // 设置为当前场景
-                this.currentScene = sceneInfo;
-                resolve(sceneInfo);
-                console.log(`[Scene] 场景进程成功打开场景: ${sceneInfo.path}`);
+            // 加载场景分组
+            console.group('加载场景资源');
+            const sceneAsset = await new Promise<cc.SceneAsset>((resolve, reject) => {
+                cc.assetManager.loadAny(urlOrUUIDOrPath, (err: Error | null, asset: cc.SceneAsset) => {
+                    if (err) {
+                        console.error('加载场景资源失败:', err);
+                        reject(err);
+                        return;
+                    }
+                    console.log('场景资源加载完成');
+                    resolve(asset);
+                });
             });
-        });
+            console.groupEnd(); // 结束加载场景分组
+
+            // 运行场景分组
+            console.group('运行场景');
+            const sceneInstance = await new Promise<cc.Scene>((resolve, reject) => {
+                cc.director.runSceneImmediate(sceneAsset,
+                    () => {},
+                    (err, instance: cc.Scene | undefined) => {
+                        if (!instance) {
+                            console.error('场景实例化失败', err);
+                            reject(`打开场景失败，urlOrUUIDOrPath：${urlOrUUIDOrPath}`);
+                            return;
+                        }
+                        console.log('场景运行成功');
+                        resolve(instance);
+                    }
+                );
+            });
+            console.groupEnd(); // 结束运行场景分组
+
+            // 更新场景状态
+            this.currentSceneUUID = info.uuid;
+            this.sceneMap.set(info.uuid, { info, instance: sceneInstance });
+            this.emit('open', sceneInstance, info.uuid);
+
+            console.log(`场景打开成功`);
+            return info;
+        } catch (error) {
+            console.error(`打开场景失败: ${error}`);
+            throw error;
+        } finally {
+            console.groupEnd();
+        }
     }
 
     @expose()
-    async closeScene(): Promise<ISceneInfo | null> {
-        const closedScene = this.currentScene;
-        
-        if (closedScene) {
-            console.log(`[Scene] 关闭场景: ${closedScene.path}`);
+    async close(params: ICloseSceneOptions = {}): Promise<boolean> {
+        if (!this.currentSceneUUID && params.urlOrUUIDOrPath) {
+            // 无需关闭
+            return true;
         }
+        console.group(`关闭场景 [${params.urlOrUUIDOrPath || '当前场景'}]`);
+        try {
+            console.group('场景是否存在');
+            const uuid = await sceneUtil.queryUUID(params.urlOrUUIDOrPath) ?? this.currentSceneUUID;
 
-        // 清理当前场景
-        this.currentScene = null;
-        
-        return closedScene;
+            const closedScene = this.sceneMap.get(uuid);
+            if (!closedScene) {
+                console.error(`场景不存在于场景映射表中`);
+                throw new Error(`关闭场景失败，uuid: ${uuid}.`);
+            }
+            console.log(`找到场景: ${closedScene.info.name}`);
+            console.groupEnd();
+
+            console.group('执行关闭操作');
+            if (this.currentSceneUUID === uuid) {
+                cc.director.runSceneImmediate(new cc.Scene(''));
+                this.currentSceneUUID = '';
+                console.log('关闭当前打开场景');
+            } else {
+                console.log('销毁非活动场景实例...');
+                closedScene.instance.destroy();
+                console.log('场景实例已销毁');
+            }
+            console.groupEnd();
+
+            console.groupCollapsed('更新数据，发出 close 消息');
+            this.sceneMap.delete(uuid);
+            console.log(`场景映射表移除: ${uuid}`);
+            this.emit('close', closedScene.instance);
+            console.log('发出关闭事件');
+            console.groupEnd();
+
+            console.log(`场景关闭成功: ${closedScene.info.path}`);
+            return true;
+        } catch (error) {
+            console.error(`关闭场景失败: ${error}`);
+            throw error;
+        } finally {
+            console.groupEnd();
+        }
     }
 
     @expose()
-    async saveScene(params: ISaveSceneOptions): Promise<ISceneInfo> {
-        const uuid = params.uuid ?? this.currentScene?.uuid;
-        if (!uuid) {
-            throw new Error('[Scene] 保存失败，当前没有打开的场景');
-        }
-
-        let assetInfo = await Rpc.request('assetManager', 'queryAssetInfo', [uuid]);
-        if (!assetInfo) {
-            throw new Error(`[Scene] 场景资源不存在: ${uuid}`);
-        }
-
-        const scene = cc.director.getScene();
-        if (!scene) {
-            throw new Error(`[Scene] 获取不到当前场景实例`);
-        }
-
-        const sceneAsset = new cc.SceneAsset();
-        sceneAsset.scene = scene;
-
-        const json = EditorExtends.serialize(assetInfo);
+    async save(params: ISaveSceneOptions): Promise<boolean> {
+        console.group(`保存场景 [${params.urlOrUUIDOrPath || '当前场景'}]`);
 
         try {
-            assetInfo = await Rpc.request('assetManager', 'saveAsset', [uuid, json]);
+            console.group('查询场景资源');
+            const uuid = params.urlOrUUIDOrPath ?? this.currentSceneUUID;
+            if (!uuid) {
+                console.error('没有可用的场景 UUID');
+                throw new Error('保存失败，当前没有打开的场景');
+            }
+
+
+            let assetInfo = await Rpc.request('assetManager', 'queryAssetInfo', [uuid]);
+            if (!assetInfo) {
+                console.error(`场景资源不存在`);
+                throw new Error(`场景资源不存在: ${uuid}`);
+            }
+            console.log(`找到场景资源: ${assetInfo.name}`);
+            console.groupEnd();
+
+            const scene = this.sceneMap.get(uuid);
+            if (!scene) {
+                console.error('获取不到当前场景实例');
+                throw new Error(`获取不到当前场景实例`);
+            }
+
+            console.group('场景序列化');
+            const json = this.serialize(scene.instance);
+            console.log('场景序列化完成');
+            console.groupEnd();
+
+            // 保存操作分组
+            console.group('保存到资源管理器');
+            try {
+                assetInfo = await Rpc.request('assetManager', 'saveAsset', [uuid, json]);
+                console.log('场景保存成功');
+            } catch (e) {
+                console.error('保存场景失败:', e);
+                throw e;
+            }
+            console.groupEnd();
+
+            // 更新数据
+            scene.info = {
+                name: assetInfo.name,
+                path: assetInfo.source,
+                url: assetInfo.url,
+                uuid: assetInfo.uuid,
+                type: assetInfo.type,
+            };
+            this.sceneMap.set(uuid, scene);
+            console.log(`成功保存场景`);
+            return true;
+        } catch (error) {
+            console.error(`场景保存失败: ${error}`);
+            throw error;
+        } finally {
+            console.groupEnd(); // 结束最外层分组
+        }
+    }
+
+    @expose()
+    async create(params: ICreateSceneOptions): Promise<IScene> {
+        console.group(`创建场景 [${path.basename(params.targetPathOrURL) || '默认模板'}]`);
+
+        try {
+            // 资源创建
+            console.group('创建场景资源');
+            let assetInfo;
+            try {
+                const result = await Rpc.request('assetManager', 'createAssetByType', ['scene', params.targetPathOrURL, {
+                    templateName: params.templateType,
+                    overwrite: true
+                }]);
+
+                assetInfo = Array.isArray(result) ? result[0] : result;
+                if (!assetInfo) {
+                    console.error('创建场景资源失败 createAsset 返回值无效', result);
+                    throw new Error(`创建场景资源失败\n${JSON.stringify(params, null, 2)}`);
+                }
+                console.log('场景资源创建成功');
+            } catch (e) {
+                console.error(e);
+                throw e;
+            }
+            console.groupEnd();
+
+            const sceneInfo = await this.createSceneInfo(assetInfo);
+
+            console.log(`创建场景成功`);
+            return sceneInfo;
+        } catch (error) {
+            console.error(`创建场景失败: ${error}`);
+            throw error;
+        } finally {
+            console.groupEnd(); // 结束最外层分组
+        }
+    }
+
+    @expose()
+    async queryCurrentScene(): Promise<IScene | null> {
+        if (!this.currentSceneUUID) {
+            return null;
+        }
+        const scene = this.sceneMap.get(this.currentSceneUUID);
+        return scene ? scene.info : null;
+    }
+
+    @expose()
+    async queryScenes(): Promise<IScene[]> {
+        const scene: IScene[] = [];
+        for (const item of this.sceneMap.values()) {
+            scene.push(item.info);
+        }
+        return scene;
+    }
+
+    @expose()
+    async reload(): Promise<boolean> {
+        try {
+            const uuid = this.currentSceneUUID;
+            await this.close();
+            await this.open({
+                urlOrUUIDOrPath: uuid
+            });
+            return true;
         } catch (e) {
             throw e;
         }
-
-        const sceneInfo: ISceneInfo = {
-            path: assetInfo.source,
-            url: assetInfo.url,
-            uuid: assetInfo.uuid,
-            name: assetInfo.name
-        };
-
-        console.log(`[Scene] 成功保存场景: ${sceneInfo.path}`);
-        return sceneInfo;
     }
 
     @expose()
-    async createScene(params: ICreateSceneOptions): Promise<ISceneInfo> {
-        // 获取场景模板 url
-        const template = this.getSceneTemplateURL(params.templateType || 'default');
+    async softReload(params: ISoftReloadSceneOptions): Promise<boolean> {
+        try {
+            const { urlOrUUIDOrPath } = params;
+            const scene = await this.getScene(urlOrUUIDOrPath);
+            const serializeJSON = this.serialize(scene.instance);
+            scene.instance = await sceneUtil.runSceneImmediateByJson(serializeJSON);
+            this.sceneMap.set(scene.info.uuid, scene)
+            this.emit('soft-reload', scene);
+            return true;
+        } catch (e) {
+            throw e;
+        }
+    }
 
-        // 创建场景资源
-        const result = await Rpc.request('assetManager', 'createAsset', [{
-            template: template,
-            target: params.targetPathOrURL,
-            overwrite: true
-        }]);
 
-        const assetResult = Array.isArray(result) ? result[0] : result;
-        if (!assetResult) {
-            throw new Error(`创建场景资源失败\n${params}`);
+    /**
+     * 创建场景信息
+     * @param source
+     * @private
+     */
+    private async createSceneInfo(source?: string | IAssetInfo): Promise<IScene> {
+        const defaultSceneInfo: IScene = {
+            type: 'unknown',
+            name: 'unknown',
+            path: 'unknown',
+            uuid: 'unknown',
+            url: 'unknown',
+        };
+
+        if (!source) return defaultSceneInfo;
+
+        const isString = typeof source === 'string';
+        const assetInfo: IAssetInfo | null = isString ? await Rpc.request('assetManager', 'queryAssetInfo', [source]) : source;
+        console.log(assetInfo);
+        if (!assetInfo) {
+            console.error('无法请求场景资源');
+            return defaultSceneInfo;
         }
 
-
-        const sceneInfo: ISceneInfo = {
-            path: assetResult!.source,
-            uuid: assetResult!.uuid,
-            url: assetResult!.url,
-            name: assetResult!.name
-        };
-
-        console.log(`成功创建场景: ${sceneInfo.path}`);
-        return sceneInfo;
-    }
-
-    @expose()
-    async getCurrentScene(): Promise<ISceneInfo | null> {
-        return this.currentScene;
+        // 只合并有效字段
+        const validUpdates = lodash.pick(assetInfo, Object.keys(defaultSceneInfo));
+        return { ...defaultSceneInfo, ...validUpdates };
     }
 
     /**
-     * TODO 获取场景模板数据，后续 db 支持传类型，这边可以去掉
+     * 获取场景数据，如果没有 urlOrUUIDOrPath 传，默认当前场景
+     * @param urlOrUUIDOrPath
+     * @private
      */
-    private getSceneTemplateURL(templateType: TSceneTemplateType): string {
-        // 根据模板类型确定模板路径
-        const templateDir = 'db://internal/default_file_content/scene';
-        let templatePath = `${templateDir}/default.scene`;
-        
-        switch (templateType) {
-            case '2d':
-                templatePath = `${templateDir}/scene-2d.scene`;
-                break;
-            case '3d':
-                templatePath = `${templateDir}/default.scene`;
-                break;
-            case 'quality':
-                templatePath = `${templateDir}/scene-quality.scene`;
-                break;
-            default:
-                templatePath = `${templateDir}/default.scene`;
+    private async getScene(urlOrUUIDOrPath?: string) {
+        const uuid = (await sceneUtil.queryUUID(urlOrUUIDOrPath)) ?? this.currentSceneUUID;
+        const scene = this.sceneMap.get(uuid);
+        if (!scene) {
+            throw new Error('获取场景失败');
         }
-        return templatePath;
+        return scene;
+    }
+
+    /**
+     * 序列化场景
+     * @private
+     */
+    private serialize(scene: cc.Scene) {
+        const asset = new SceneAsset();
+        asset.scene = scene;
+        return EditorExtends.serialize(asset);
     }
 }
+
+export const Scene = new SceneService();
