@@ -82,7 +82,7 @@ export interface IQueryNodeParams {
 // 节点查询结果项接口
 export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
-    component: string[]; // 节点上的组件列表
+    component?: string[]; // 节点上的组件列表
     children?: INode[]; // 子节点列表
 }
 

@@ -107,7 +107,7 @@ export class NodeApi extends ApiBase {
 
         try {
             const result = await Scene.deleteNode(options);
-            if (result?.path) {
+            if (ret.data && result?.path) {
                 ret.data.path = result.path;
             }
         } catch (e) {
@@ -137,7 +137,7 @@ export class NodeApi extends ApiBase {
 
         try {
             const result = await Scene.updateNode(options);
-            if (result?.path) {
+            if (ret.data && result?.path) {
                 ret.data.path = result.path;
             }
         } catch (e) {

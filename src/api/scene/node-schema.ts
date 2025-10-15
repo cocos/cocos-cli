@@ -68,7 +68,7 @@ export const NodeSearchSchema = z.object({
     nodeId: z.string().optional().describe('节点的 id'),
     path: z.string().optional().describe('节点路径'),
     name: z.string().optional().describe('节点名称'),
-    deeps: z.int().default(10).describe('查询的深度'),
+    deeps: z.number().default(10).describe('查询的深度'),
     queryChildren: z.boolean().default(false).describe('是否查询子节点信息'),
 }).describe('查询节点的选项参数，查询结果是传入的信息的交集');
 
