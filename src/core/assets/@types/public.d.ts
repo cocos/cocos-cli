@@ -1,57 +1,18 @@
-export interface IAssetMeta {
+import { AssetHandlerType, ISupportCreateType, AssetUserDataMap } from './asset-types';
+export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'> {
     ver: string;
-    importer: string;
+    importer: AssetHandlerType;
     imported: boolean;
     uuid: string;
     files: string[];
     subMetas: {
-        [index: string]: IAssetMeta;
+        [index: string]: IAssetMeta<'unknown'>;
     };
-    userData: {
-        [index: string]: any;
-    };
+    userData: AssetUserDataMap[T];
     displayName: string;
     id: string;
     name: string;
 }
-
-// 支持创建的资源类型（引擎类型）
-export type ISupportCreateCCType = 
-| 'cc.AnimationClip'        // 动画剪辑
-| 'cc.Script'               // 脚本（TypeScript/JavaScript）
-| 'cc.SpriteAtlas'          // 精灵图集（自动图集）
-| 'cc.EffectAsset'          // 着色器效果
-| 'cc.SceneAsset'           // 场景
-| 'cc.Prefab'               // 预制体
-| 'cc.Material'             // 材质
-| 'cc.TextureCube'          // 立方体贴图
-| 'cc.TerrainAsset'         // 地形
-| 'cc.PhysicsMaterial'      // 物理材质
-| 'cc.LabelAtlas'           // 标签图集
-| 'cc.RenderTexture'        // 渲染纹理
-| 'cc.AnimationGraph'       // 动画图
-| 'cc.AnimationMask'        // 动画遮罩
-| 'cc.AnimationGraphVariant'; // 动画图变体
-
-// 支持创建的资源处理器名称
-export type ISupportCreateType = 
-| 'animation-clip'          // 动画剪辑
-| 'typescript'              // TypeScript 脚本
-| 'auto-atlas'              // 自动图集
-| 'effect'                  // 着色器效果
-| 'scene'                   // 场景
-| 'prefab'                  // 预制体
-| 'material'                // 材质
-| 'texture-cube'            // 立方体贴图
-| 'terrain'                 // 地形
-| 'physics-material'        // 物理材质
-| 'label-atlas'             // 标签图集
-| 'render-texture'          // 渲染纹理
-| 'animation-graph'         // 动画图
-| 'animation-mask'          // 动画遮罩
-| 'animation-graph-variant' // 动画图变体
-| 'directory'               // 文件夹
-| 'effect-header';          // 着色器头文件（chunk）
 
 // 如果使用了 datakeys 过滤，请使用此接口定义
 export interface IAssetInfo {
@@ -61,7 +22,7 @@ export interface IAssetInfo {
     url: string; // loader 加载地址会去掉扩展名，这个参数不去掉
     file: string; // 绝对路径
     uuid: string; // 资源的唯一 ID
-    importer: string; // 使用的导入器名字
+    importer: AssetHandlerType; // 使用的导入器名字
     imported: boolean; // 是否结束导入过程
     invalid: boolean; // 是否导入成功
     type: string; // 类型
@@ -168,6 +129,13 @@ export interface AssetOperationOption {
     rename?: boolean;
 }
 
+export interface CreateAssetByTypeOptions extends AssetOperationOption {
+    /**
+     * 指定的模板名称，默认为 default
+     */
+    templateName?: string;
+}
+
 export interface AssetDBOptions {
     name: string;
     target: string;
@@ -194,3 +162,5 @@ export interface ExecuteAssetDBScriptMethodOptions {
     method: string;
     args?: any[];
 }
+
+export * from './asset-types';

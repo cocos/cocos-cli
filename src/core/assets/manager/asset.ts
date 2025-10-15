@@ -42,6 +42,7 @@ class AssetManager extends EventEmitter implements IAssetManager {
     moveAsset = assetOperation.moveAsset.bind(assetOperation);
     generateExportData = assetOperation.generateExportData.bind(assetOperation);
     outputExportData = assetOperation.outputExportData.bind(assetOperation);
+    createAssetByType = assetOperation.createAssetByType.bind(assetOperation);
 
     // ----------- assetHandlerManager ------------
     queryIconConfigMap = assetHandlerManager.queryIconConfigMap.bind(assetHandlerManager);
@@ -49,7 +50,6 @@ class AssetManager extends EventEmitter implements IAssetManager {
     updateDefaultUserData = assetHandlerManager.updateDefaultUserData.bind(assetHandlerManager);
     getCreateMap = assetHandlerManager.getCreateMap.bind(assetHandlerManager);
     queryAssetUserDataConfig = assetHandlerManager.queryUserDataConfig.bind(assetHandlerManager);
-    createAssetByType = assetHandlerManager.createAssetByType.bind(assetHandlerManager);
 
     url2uuid(url: string) {
         return url2uuid(url);

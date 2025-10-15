@@ -8,7 +8,7 @@ import { copy, move, remove, rename, existsSync } from 'fs-extra';
 import { isAbsolute, dirname, basename, join, relative } from 'path';
 import { newConsole } from '../../base/console';
 import { IMoveOptions } from '../@types/private';
-import { IAsset, CreateAssetOptions, IExportOptions, IExportData } from '../@types/protected';
+import { IAsset, CreateAssetOptions, IExportOptions, IExportData, CreateAssetByTypeOptions, ICreateMenuInfo } from '../@types/protected';
 import { AssetOperationOption, IAssetInfo, ISupportCreateType } from '../@types/public';
 import assetConfig from '../asset-config';
 import { url2path, ensureOutputData, url2uuid, removeFile } from '../utils';
@@ -106,6 +106,34 @@ class AssetOperation extends EventEmitter {
         }
         await this.refreshAsset(assetPath);
         return assetQueryManager.queryAssetInfo(queryUUID(assetPath));
+    }
+
+    /**
+     * 根据类型创建资源
+     * @param type 
+     * @param target 目标地址，需要包含文件后缀
+     * @param options 
+     * @returns 
+     */
+    async createAssetByType(type: ISupportCreateType, target: string, options?: CreateAssetByTypeOptions) {
+        const createMenus = await assetHandlerManager.getCreateMenuByName(type);
+        if (!createMenus.length) {
+            throw new Error(`Can not support create type: ${type}`);
+        }
+        let createInfo: undefined | ICreateMenuInfo = createMenus[0];
+        if (createMenus.length > 1 && options?.templateName) {
+            createInfo = createMenus.find((menu) => menu.name === options.templateName);
+            if (!createInfo) {
+                throw new Error(`Can not find template: ${options.templateName}`);
+            }
+        }
+
+        return await this.createAsset({
+            handler: createInfo.handler,
+            target,
+            overwrite: options?.overwrite ?? false,
+            template: createInfo.template,
+        });
     }
 
     /**

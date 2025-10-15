@@ -75,6 +75,7 @@ describe('测试 db 的查询接口', function() {
                 handler: 'label-atlas',
                 label: 'i18n:ENGINE.assets.newLabelAtlas',
                 template: 'db://internal/default_file_content/label-atlas/default.labelatlas',
+                name: 'default',
             };
             expect(atlasMenu).toEqual(value);
         });

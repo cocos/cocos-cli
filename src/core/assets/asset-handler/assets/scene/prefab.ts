@@ -24,6 +24,7 @@ export const PrefabHandler: AssetHandler = {
                     fullFileName: 'Node.prefab',
                     template: `db://internal/default_file_content/${PrefabHandler.name}/default.prefab`,
                     group: 'scene',
+                    name: 'default',
                 },
             ];
         },

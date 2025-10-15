@@ -20,6 +20,7 @@ export const TerrainHandler: AssetHandler = {
                     label: 'i18n:ENGINE.assets.newTerrain',
                     fullFileName: 'terrain.terrain',
                     template: `db://internal/default_file_content/${TerrainHandler.name}/default.terrain`,
+                    name: 'default',
                 },
             ];
         },

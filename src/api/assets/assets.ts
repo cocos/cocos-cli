@@ -1,17 +1,17 @@
 import { ApiBase } from '../base/api-base';
 import {
-    SchemeDbDirResult,
-    SchemeDirOrDbPath,
+    SchemaDbDirResult,
+    SchemaDirOrDbPath,
     TDbDirResult,
     TDirOrDbPath,
-    SchemeUrlOrUUIDOrPath,
-    SchemeDataKeys,
-    SchemeQueryAssetsOption,
-    SchemeSupportCreateType,
-    SchemeTargetPath,
-    SchemeAssetOperationOption,
-    SchemeSourcePath,
-    SchemeAssetData,
+    SchemaUrlOrUUIDOrPath,
+    SchemaDataKeys,
+    SchemaQueryAssetsOption,
+    SchemaSupportCreateType,
+    SchemaTargetPath,
+    SchemaAssetOperationOption,
+    SchemaSourcePath,
+    SchemaAssetData,
     TUrlOrUUIDOrPath,
     TDataKeys,
     TQueryAssetsOption,
@@ -20,15 +20,15 @@ import {
     TAssetOperationOption,
     TSourcePath,
     TAssetData,
-    SchemeAssetInfoResult,
-    SchemeAssetMetaResult,
-    SchemeCreateMapResult,
-    SchemeAssetInfosResult,
-    SchemeAssetDBInfosResult,
-    SchemeCreatedAssetResult,
-    SchemeImportedAssetResult,
-    SchemeReimportResult,
-    SchemeSaveAssetResult,
+    SchemaAssetInfoResult,
+    SchemaAssetMetaResult,
+    SchemaCreateMapResult,
+    SchemaAssetInfosResult,
+    SchemaAssetDBInfosResult,
+    SchemaCreatedAssetResult,
+    SchemaImportedAssetResult,
+    SchemaReimportResult,
+    SchemaSaveAssetResult,
     TAssetInfoResult,
     TAssetMetaResult,
     TCreateMapResult,
@@ -38,9 +38,9 @@ import {
     TImportedAssetResult,
     TReimportResult,
     TSaveAssetResult
-} from './scheme';
+} from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { assetDBManager, assetManager } from '../../core/assets';
 import { IAssetInfo } from '../../core/assets/@types/public';
 
@@ -65,8 +65,8 @@ export class AssetsApi extends ApiBase {
     @tool('assets-remove-asset')
     @title('删除项目资源')
     @description('从 Cocos Creator 项目中删除指定的资源文件。支持删除单个文件或整个目录。删除的资源会从资源数据库中移除，同时删除对应的 .meta 文件。删除操作不可逆，请谨慎使用。')
-    @result(SchemeDbDirResult)
-    async removeAsset(@param(SchemeDirOrDbPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
+    @result(SchemaDbDirResult)
+    async removeAsset(@param(SchemaDirOrDbPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TDbDirResult> = {
             code: code,
@@ -90,8 +90,8 @@ export class AssetsApi extends ApiBase {
     @tool('assets-refresh')
     @title('刷新资源目录')
     @description('刷新 Cocos Creator 项目中的指定资源目录，重新扫描目录下的所有资源文件，更新资源数据库索引。当外部修改了资源文件或添加了新文件时，需要调用此方法同步资源状态。')
-    @result(SchemeDbDirResult)
-    async refresh(@param(SchemeDirOrDbPath) dir: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
+    @result(SchemaDbDirResult)
+    async refresh(@param(SchemaDirOrDbPath) dir: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TDbDirResult> = {
             code: code,
@@ -115,10 +115,10 @@ export class AssetsApi extends ApiBase {
     @tool('assets-query-asset-info')
     @title('查询资源详细信息')
     @description('根据资源的 URL、UUID 或文件路径查询资源的详细信息。可以通过 dataKeys 参数指定需要查询的字段，以优化性能。返回的信息包括资源名称、类型、路径、UUID、导入状态等。')
-    @result(SchemeAssetInfoResult)
+    @result(SchemaAssetInfoResult)
     async queryAssetInfo(
-        @param(SchemeUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath,
-        @param(SchemeDataKeys) dataKeys?: TDataKeys
+        @param(SchemaUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath,
+        @param(SchemaDataKeys) dataKeys?: TDataKeys
     ): Promise<CommonResultType<TAssetInfoResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TAssetInfoResult> = {
@@ -143,8 +143,8 @@ export class AssetsApi extends ApiBase {
     @tool('assets-query-asset-meta')
     @title('查询资源元数据')
     @description('根据资源的 URL、UUID 或文件路径查询资源的 .meta 文件内容。元数据包含资源的导入配置、用户自定义数据、版本信息等。')
-    @result(SchemeAssetMetaResult)
-    async queryAssetMeta(@param(SchemeUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TAssetMetaResult>> {
+    @result(SchemaAssetMetaResult)
+    async queryAssetMeta(@param(SchemaUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TAssetMetaResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TAssetMetaResult> = {
             code: code,
@@ -168,12 +168,12 @@ export class AssetsApi extends ApiBase {
     @tool('assets-query-create-map')
     @title('查询可创建资源映射表')
     @description('获取所有支持创建的资源类型映射表。返回的映射表包含资源处理器名称、对应的引擎类型、创建菜单信息等，用于了解系统支持创建哪些类型的资源。')
-    @result(SchemeCreateMapResult)
+    @result(SchemaCreateMapResult)
     async queryCreateMap(): Promise<CommonResultType<TCreateMapResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TCreateMapResult> = {
             code: code,
-            data: {},
+            data: [],
         };
 
         try {
@@ -193,8 +193,8 @@ export class AssetsApi extends ApiBase {
     @tool('assets-query-asset-infos')
     @title('批量查询资源信息')
     @description('根据查询条件批量获取资源信息。支持按资源类型、导入器、路径模式、扩展名、userData 等条件筛选。可用于资源列表展示、批量处理等场景。')
-    @result(SchemeAssetInfosResult)
-    async queryAssetInfos(@param(SchemeQueryAssetsOption) options?: TQueryAssetsOption): Promise<CommonResultType<TAssetInfosResult>> {
+    @result(SchemaAssetInfosResult)
+    async queryAssetInfos(@param(SchemaQueryAssetsOption) options?: TQueryAssetsOption): Promise<CommonResultType<TAssetInfosResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TAssetInfosResult> = {
             code: code,
@@ -218,7 +218,7 @@ export class AssetsApi extends ApiBase {
     @tool('assets-query-asset-db-infos')
     @title('查询所有资源数据库信息')
     @description('获取项目中所有资源数据库的信息，包括内置数据库（internal）、资源数据库（assets）等。返回数据库的配置、路径、选项等信息。')
-    @result(SchemeAssetDBInfosResult)
+    @result(SchemaAssetDBInfosResult)
     async queryAssetDBInfos(): Promise<CommonResultType<TAssetDBInfosResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TAssetDBInfosResult> = {
@@ -243,11 +243,11 @@ export class AssetsApi extends ApiBase {
     @tool('assets-create-asset-by-type')
     @title('按类型创建资源')
     @description('根据指定的资源处理器类型在目标路径创建新资源。支持创建动画、脚本、材质、场景、预制体等各类资源。可通过 options 参数控制是否覆盖或自动重命名。')
-    @result(SchemeCreatedAssetResult)
+    @result(SchemaCreatedAssetResult)
     async createAssetByType(
-        @param(SchemeSupportCreateType) ccType: TSupportCreateType,
-        @param(SchemeTargetPath) target: TTargetPath,
-        @param(SchemeAssetOperationOption) options?: TAssetOperationOption
+        @param(SchemaSupportCreateType) ccType: TSupportCreateType,
+        @param(SchemaTargetPath) target: TTargetPath,
+        @param(SchemaAssetOperationOption) options?: TAssetOperationOption
     ): Promise<CommonResultType<TCreatedAssetResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TCreatedAssetResult> = {
@@ -272,16 +272,16 @@ export class AssetsApi extends ApiBase {
     @tool('assets-import-asset')
     @title('导入外部资源')
     @description('将外部资源文件导入到项目中。从源路径复制文件到目标路径，并自动执行资源导入流程，生成 .meta 文件和库文件。适用于从外部引入图片、音频、模型等资源。')
-    @result(SchemeImportedAssetResult)
+    @result(SchemaImportedAssetResult)
     async importAsset(
-        @param(SchemeSourcePath) source: TSourcePath,
-        @param(SchemeTargetPath) target: TTargetPath,
-        @param(SchemeAssetOperationOption) options?: TAssetOperationOption
+        @param(SchemaSourcePath) source: TSourcePath,
+        @param(SchemaTargetPath) target: TTargetPath,
+        @param(SchemaAssetOperationOption) options?: TAssetOperationOption
     ): Promise<CommonResultType<TImportedAssetResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TImportedAssetResult> = {
             code: code,
-            data: null,
+            data: [],
         };
 
         try {
@@ -301,8 +301,8 @@ export class AssetsApi extends ApiBase {
     @tool('assets-reimport-asset')
     @title('重新导入资源')
     @description('强制重新导入指定资源。当资源文件或导入配置发生变化时，调用此方法重新执行导入流程，更新库文件和资源信息。常用于资源修复或配置更新后的刷新。')
-    @result(SchemeReimportResult)
-    async reimportAsset(@param(SchemeUrlOrUUIDOrPath) pathOrUrlOrUUID: TUrlOrUUIDOrPath): Promise<CommonResultType<TReimportResult>> {
+    @result(SchemaReimportResult)
+    async reimportAsset(@param(SchemaUrlOrUUIDOrPath) pathOrUrlOrUUID: TUrlOrUUIDOrPath): Promise<CommonResultType<TReimportResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TReimportResult> = {
             code: code,
@@ -310,7 +310,7 @@ export class AssetsApi extends ApiBase {
         };
 
         try {
-            ret.data = await assetManager.reimportAsset(pathOrUrlOrUUID);
+            await assetManager.reimportAsset(pathOrUrlOrUUID);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('reimport asset fail:', e instanceof Error ? e.message : String(e));
@@ -326,10 +326,10 @@ export class AssetsApi extends ApiBase {
     @tool('assets-save-asset')
     @title('保存资源数据')
     @description('保存资源文件的内容。用于修改文本类资源（如脚本、配置文件、场景等）的内容并写入磁盘。支持字符串和 Buffer 两种数据格式。')
-    @result(SchemeSaveAssetResult)
+    @result(SchemaSaveAssetResult)
     async saveAsset(
-        @param(SchemeUrlOrUUIDOrPath) pathOrUrlOrUUID: TUrlOrUUIDOrPath,
-        @param(SchemeAssetData) data: TAssetData
+        @param(SchemaUrlOrUUIDOrPath) pathOrUrlOrUUID: TUrlOrUUIDOrPath,
+        @param(SchemaAssetData) data: TAssetData
     ): Promise<CommonResultType<TSaveAssetResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TSaveAssetResult> = {

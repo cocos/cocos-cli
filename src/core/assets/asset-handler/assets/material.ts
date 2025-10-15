@@ -31,6 +31,7 @@ export const MaterialHandler: AssetHandler = {
                     fullFileName: 'material.mtl',
                     template: `db://internal/default_file_content/${MaterialHandler.name}/default.mtl`,
                     group: 'material',
+                    name: 'default',
                 },
             ];
             // const assets = Editor.Selection.getSelected('asset');

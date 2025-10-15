@@ -18,7 +18,6 @@ import {
 } from '../meta-schemas/glTF.meta';
 import * as migratesNameToId from './migrates/name2id';
 import { convertsEncodedSeparatorsInURI } from './utils/uri-utils';
-import { IGltfAnimationUserData } from './gltf/animation';
 import { AnimationClip, MeshRenderer, Node } from 'cc';
 
 import { existsSync, readJSON, stat } from 'fs-extra';
@@ -33,7 +32,7 @@ import { getDefaultSimplifyOptions } from './gltf/meshSimplify';
 import { AssetHandler, AssetHandlerBase } from '../../@types/protected';
 import { fork } from 'child_process';
 import { makeDefaultTexture2DAssetUserData } from './image/utils';
-import { Texture2DAssetUserData } from '../../@types/userDatas';
+import { Texture2DAssetUserData, GltfAnimationAssetUserData } from '../../@types/userDatas';
 import assetQuery from '../../manager/query';
 import assetConfig from '../../asset-config';
 import { GlobalPaths } from '../../../../global';
@@ -137,7 +136,7 @@ async function importSubAssets(asset: Asset, importVersion: string) {
                     id: previousId,
                 });
                 split.previousId = subAsset._id;
-                const subAssetUserData = subAsset.userData as IGltfAnimationUserData;
+                const subAssetUserData = subAsset.userData as GltfAnimationAssetUserData;
                 subAssetUserData.gltfIndex = animationImportSettings.indexOf(animationSetting);
                 Object.assign(subAssetUserData, remain);
                 subAssetUserData.sample = fps ?? animationSetting.fps;

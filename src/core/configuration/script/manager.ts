@@ -14,27 +14,27 @@ export interface IConfigurationManager {
      */
     initialize(projectPath: string): Promise<void>;
 
-    // /**
-    //  * 获取配置
-    //  * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
-    //  * @param scope 配置作用域，不指定时按优先级查找
-    //  */
-    // get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
+    /**
+     * 获取配置
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
+     * @param scope 配置作用域，不指定时按优先级查找
+     */
+    get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
 
-    // /**
-    //  * 设置配置
-    //  * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
-    //  * @param value 新的配置值
-    //  * @param scope 配置作用域，默认为 'project'
-    //  */
-    // set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+    /**
+     * 设置配置
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
+     * @param value 新的配置值
+     * @param scope 配置作用域，默认为 'project'
+     */
+    set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
 
-    // /**
-    //  * 移除配置
-    //  * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
-    //  * @param scope 配置作用域，默认为 'project'
-    //  */
-    // remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
+    /**
+     * 移除配置
+     * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
+     * @param scope 配置作用域，默认为 'project'
+     */
+    remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 }
 
 export class ConfigurationManager implements IConfigurationManager {
@@ -173,7 +173,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，不指定时按优先级查找
      */
-    protected async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
+    public async get<T>(key: string, scope?: ConfigurationScope): Promise<T> {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
@@ -189,7 +189,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param value 新的配置值
      * @param scope 配置作用域，默认为 'project'
      */
-    protected async set<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
+    public async set<T>(key: string, value: T, scope: ConfigurationScope = 'project'): Promise<boolean> {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
@@ -205,7 +205,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * @param key 配置键名，支持点号分隔的嵌套路径，如 'test.x.x'，第一位作为模块名
      * @param scope 配置作用域，默认为 'project'
      */
-    protected async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
+    public async remove(key: string, scope: ConfigurationScope = 'project'): Promise<boolean> {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);

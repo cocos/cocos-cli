@@ -1,7 +1,7 @@
 // src/decorators.ts
 import "reflect-metadata";
 import type { ZodType } from "zod";
-import { createCommonResult } from "../base/scheme-base";
+import { createCommonResult } from "../base/schema-base";
 
 interface ParamSchema {
   index: number;

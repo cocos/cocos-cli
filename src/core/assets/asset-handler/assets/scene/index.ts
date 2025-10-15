@@ -2,14 +2,10 @@
 
 import { Asset } from '@editor/asset-db';
 import { readJSON, writeFile } from 'fs-extra';
-import { extname, basename } from 'path';
+import { extname, basename, join } from 'path';
 
 import { getDependList, removeNull } from '../../utils';
-import { AssetHandler } from '../../../@types/protected';
-import utils from '../../../../base/utils';
-import { url2path } from '../../../utils';
-import assetConfig from '../../../asset-config';
-import { Engine } from '../../../../engine';
+import { AssetHandler, ICreateMenuInfo } from '../../../@types/protected';
 
 export const version = '1.1.50';
 export const versionCode = 2;
@@ -20,36 +16,18 @@ export const SceneHandler: AssetHandler = {
 
     // 引擎内对应的类型
     assetType: 'cc.SceneAsset',
-    open(asset) {
-        // TODO: 实现打开场景资产
-        return false;
-    },
     createInfo: {
         async generateMenuInfo() {
-            const template = await queryDefaultTemplateURL();
-            const sceneConfig = {
-                label: 'i18n:ENGINE.assets.newScene',
-                // 此处主要兼容 3.8.2 以及之前的行为
-                // 默认场景 -> scene，2d 场景 -> scene-2d，高质量场景 -> scene-quality
-                fullFileName: template.endsWith('default.scene') ? 'scene.scene' : basename(template),
-                template,
-                group: 'scene',
-            };
-            return [sceneConfig];
-        },
-    },
-
-    customOperationMap: {
-        // queryDefaultTemplateURL: {
-        //     operator: queryDefaultTemplateURL,
-        // },
-        queryDefaultContent: {
-            async operator() {
-                const templateUrl = await queryDefaultTemplateURL();
-                const scene = await readJSON(url2path(templateUrl));
-                await changeSceneUuid(scene, utils.UUID.generate(false));
-                return scene;
-            },
+            const templateDir = 'db://internal/default_file_content/scene';
+            return ['3d', '2d', 'quality'].map((name) => {
+                return {
+                    group: 'scene',
+                    label: `i18n:ENGINE.assets.newScene.${name}`,
+                    name,
+                    fullFileName: name === '3d' ? 'scene.scene' : `scene-${name}.scene`,
+                    template: `${templateDir}/${name}.scene`,
+                };
+            });
         },
     },
 
@@ -114,18 +92,4 @@ function changeSceneUuid(scene: any, uuid: string) {
         return true;
     }
     return false;
-}
-
-async function queryDefaultTemplateURL() {
-    const templateDir = 'db://internal/default_file_content/scene';
-    let template = `${templateDir}/default.scene`;
-    const { highQuality } = Engine.getConfig();
-    if (Engine.type === '2d') {
-        template = `${templateDir}/scene-2d.scene`;
-    } else {
-        if (highQuality) {
-            template = `${templateDir}/scene-quality.scene`;
-        }
-    }
-    return template;
 }

@@ -17,6 +17,7 @@ export const PhysicsMaterialHandler: AssetHandler = {
                     fullFileName: 'physics-material.pmtl',
                     template: 'db://internal/default_file_content/physics-material/default.pmtl',
                     group: 'material',
+                    name: 'default',
                 },
             ];
         },

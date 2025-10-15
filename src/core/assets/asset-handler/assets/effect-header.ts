@@ -42,6 +42,7 @@ export const EffectHeaderHandler: AssetHandler = {
                     label: 'i18n:ENGINE.assets.newChunk',
                     fullFileName: 'chunk.chunk',
                     template: `db://internal/default_file_content/${EffectHeaderHandler.name}/chunk`,
+                    name: 'default',
                 },
             ];
         },

@@ -2,6 +2,7 @@
 
 import { Asset, queryUrl, VirtualAsset } from '@editor/asset-db';
 import { AssetHandler } from '../../@types/protected';
+import { DirectoryAssetUserData } from '../../@types/userDatas';
 import { ensureDirSync } from 'fs-extra';
 
 const InternalBundleName = ['internal', 'resources', 'main'];
@@ -17,12 +18,13 @@ const DirectoryHandler: AssetHandler = {
          * @param asset
          */
         async import(asset: Asset | VirtualAsset) {
+            const userData = asset.userData as DirectoryAssetUserData;
             const url = queryUrl(asset.uuid);
             if (url === 'db://assets/resources') {
-                asset.userData.isBundle = true;
-                asset.userData.bundleConfigID = asset.userData.bundleConfigID ?? 'default';
-                asset.userData.bundleName = 'resources';
-                asset.userData.priority = 8;
+                userData.isBundle = true;
+                userData.bundleConfigID = userData.bundleConfigID ?? 'default';
+                userData.bundleName = 'resources';
+                userData.priority = 8;
             }
             return true;
         },
@@ -34,7 +36,8 @@ const DirectoryHandler: AssetHandler = {
             type: 'icon',
         },
         generateThumbnail(asset) {
-            if (asset.userData.isBundle) {
+            const userData = asset.userData as DirectoryAssetUserData;
+            if (userData.isBundle) {
                 return {
                     value: 'bundle-folder',
                     type: 'icon',
@@ -53,6 +56,7 @@ const DirectoryHandler: AssetHandler = {
                 {
                     label: 'i18n:ENGINE.assets.newFolder',
                     fullFileName: 'folder',
+                    name: 'default',
                 },
             ];
         },

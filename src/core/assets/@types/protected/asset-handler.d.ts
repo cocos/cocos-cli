@@ -148,9 +148,11 @@ export interface FileNameCheckConfig {
     failedInfo: string;
 }
 
-export interface ICreateMenuInfo extends Editor.Menu.ContextMenuItem {
+export interface ICreateMenuInfo {
     // 新建菜单名称，支持 i18n:xxx
     label: string;
+    // 模板名称，默认为 default ，作为模板选择的唯一标识符
+    name: string;
     // 创建的默认文件名称带后缀，具体实际上是为 assets 面板提供的数据，assets 面板新建时，需要先让用户填写清楚命名最后才创建
     fullFileName?: string;
 

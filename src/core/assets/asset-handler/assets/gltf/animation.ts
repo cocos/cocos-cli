@@ -17,48 +17,7 @@ import { getDependUUIDList } from '../../utils';
 import { AnimationImportSetting } from '../../meta-schemas/glTF.meta';
 import assert from 'assert';
 import { AssetHandler } from '../../../@types/protected';
-
-export interface IGltfAnimationUserData {
-    gltfIndex: number;
-    events: Array<{
-        frame: number;
-        func: string;
-        params: string[];
-    }>;
-    editorExtras?: unknown;
-    embeddedPlayers?: Array<{
-        editorExtras?: unknown;
-        begin: number;
-        end: number;
-        reconciledSpeed: boolean;
-        playable:
-        | {
-            type: 'animation-clip';
-            path: string;
-            clip: string;
-        }
-        | {
-            type: 'particle-system';
-            path: string;
-        };
-    }>;
-    auxiliaryCurves?: AnimationImportSetting['splits'][0]['auxiliaryCurves'];
-    wrapMode: number;
-    speed?: number;
-    sample?: number;
-    span?: {
-        /**
-         * 起始时间（秒）。
-         */
-        from: number;
-
-        /**
-         * 结束时间（秒）。
-         */
-        to: number;
-    };
-    additive?: AnimationImportSetting['splits'][0]['additive'];
-}
+import { GltfAnimationAssetUserData } from '../../../@types/userDatas';
 
 export const GltfAnimationHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -89,7 +48,7 @@ export const GltfAnimationHandler: AssetHandler = {
                 return false;
             }
 
-            const userData = asset.userData as IGltfAnimationUserData;
+            const userData = asset.userData as GltfAnimationAssetUserData;
 
             userData.events ??= [];
 

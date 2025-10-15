@@ -7,7 +7,6 @@ import { openCode } from '../utils';
 import JavascriptHandler from './javascript';
 import { DefaultScriptFileNameCheckConfig, ScriptNameChecker, ScriptNameCheckerManager } from './utils/ts-utils';
 import { AssetHandler, ICreateMenuInfo } from '../../@types/protected';
-import { configurationManager } from '../../../configuration';
 import assetConfig from '../../asset-config';
 import i18n from '../../../base/i18n';
 // import { getCompilerOptions } from './utils/ts-utils';
@@ -31,9 +30,10 @@ export const TypeScriptHandler: AssetHandler = {
                 {
                     label: 'i18n:ENGINE.assets.newTypeScript',
                     fullFileName: `${ScriptNameChecker.getDefaultClassName()}.ts`,
-                    template: `db://internal/default_file_content/${TypeScriptHandler.name}/ts`,
+                    template: `db://internal/default_file_content/${TypeScriptHandler.name}/default`,
                     group: 'script',
                     fileNameCheckConfigs: [DefaultScriptFileNameCheckConfig],
+                    name: 'default',
                 },
             ];
             const templateDir = join(assetConfig.data.root, '.creator/asset-template/typescript');
@@ -51,7 +51,6 @@ export const TypeScriptHandler: AssetHandler = {
 
             if (existsSync(templateDir)) {
                 const names = readdirSync(templateDir);
-                const subMenu: ICreateMenuInfo[] = [];
                 names.forEach((name: string) => {
                     const filePath = join(templateDir, name);
                     const stat = statSync(filePath);
@@ -63,28 +62,14 @@ export const TypeScriptHandler: AssetHandler = {
                     }
 
                     const baseName = basename(name, extname(name));
-                    subMenu.push({
+                    menu.push({
                         label: baseName,
                         fullFileName: (ScriptNameChecker.getValidClassName(baseName) || ScriptNameChecker.getDefaultClassName()) + '.ts',
                         template: filePath,
                         fileNameCheckConfigs: [DefaultScriptFileNameCheckConfig],
+                        name: baseName,
                     });
                 });
-                if (subMenu.length) {
-                    subMenu.splice(0, 0, menu[0]);
-                    subMenu[0].fullFileName = ScriptNameChecker.getDefaultClassName() + '.ts';
-                    menu = [
-                        {
-                            label: 'i18n:ENGINE.assets.newTypeScript',
-                            group: 'script',
-                            submenu: subMenu,
-                        },
-                    ];
-                    // TODO 需要转移管理脚本模板入口到偏好设置内
-                    subMenu.push({
-                        label: i18n.t('assets.menu.setCustomTypeScript'),
-                    });
-                }
             }
             return menu;
         },

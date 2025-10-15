@@ -8,55 +8,13 @@ import { Color, Vec2, gfx, ParticleSystem2D, SpriteFrame } from 'cc';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
+import { ParticleAssetUserData } from '../../@types/userDatas';
 
 const BlendFactor = gfx.BlendFactor;
 const { PositionType, EmitterMode } = ParticleSystem2D;
 
 declare const EditorExtends: any;
 const plist = require('plist');
-
-interface IParticlesUseData {
-    totalParticles: number;
-    life: number;
-    lifeVar: number;
-    emissionRate: number;
-    duration: number;
-    srcBlendFactor: number;
-    dstBlendFactor: number;
-    startColor: Color;
-    startColorVar: Color;
-    endColor: Color;
-    endColorVar: Color;
-    startSize: number;
-    startSizeVar: number;
-    endSize: number;
-    endSizeVar: number;
-    positionType: number;
-    sourcePos: Vec2;
-    posVar: Vec2;
-    angle: number;
-    angleVar: number;
-    startSpin: number;
-    startSpinVar: number;
-    endSpin: number;
-    endSpinVar: number;
-    emitterMode: number;
-    gravity: Vec2;
-    speed: number;
-    speedVar: number;
-    radialAccel: number;
-    radialAccelVar: number;
-    tangentialAccel: number;
-    tangentialAccelVar: number;
-    rotationIsDir: boolean;
-    startRadius: number;
-    startRadiusVar: number;
-    endRadius: number;
-    endRadiusVar: number;
-    rotatePerS: number;
-    rotatePerSVar: number;
-    spriteFrameUuid: string;
-}
 
 const defaultParticlesUseData = {
     totalParticles: 150,
@@ -159,7 +117,7 @@ export const ParticleHandler: AssetHandler = {
          * @param asset
          */
         async import(asset: Asset) {
-            const userData = asset.userData as IParticlesUseData;
+            const userData = asset.userData as ParticleAssetUserData;
             // @ts-ignore
             Object.keys(defaultParticlesUseData).forEach((key: string) => {
                 if (!(key in userData)) {
@@ -249,7 +207,7 @@ function createParticle(asset: Asset) {
 }
 
 async function syncParticleData(asset: Asset) {
-    const userData = asset.userData as IParticlesUseData;
+    const userData = asset.userData as ParticleAssetUserData;
     const dict = plist.parse(await readFile(asset.source, 'utf8'));
 
     userData.totalParticles = parseInt(dict['maxParticles'] || 0);
