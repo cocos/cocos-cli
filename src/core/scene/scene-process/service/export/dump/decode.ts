@@ -230,7 +230,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         }
 
         // 还原mountedRoot
-        decodeMountedRoot(component, dumpComp.mountedRoot);
+        //decodeMountedRoot(component, dumpComp.mountedRoot);
 
         // TODO: 不知道为啥这个方法是个protected的,应该改成public的
         // @ts-ignore 
@@ -359,7 +359,7 @@ export async function decodeNode(dump: INode, node?: Node, excludeComps?: any) {
     node.setRotation(quat);
     node.setScale(dump.scale.value as Vec3);
 
-    decodeMountedRoot(node, dump.mountedRoot);
+    //decodeMountedRoot(node, dump.mountedRoot);
 
     if (dump.parent && dump.parent.value && dump.parent.value.uuid) {
         node.parent = NodeMgr.getNode(dump.parent.value.uuid);

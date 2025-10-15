@@ -1,0 +1,65 @@
+import { z } from 'zod';
+
+// 创建组件信息
+export const SchemaCreateComponentInfo = z.object({
+    uuid: z.string().describe('节点UUID'),
+    component: z.string().describe('组件名称'),
+}).describe('当前组件的信息');
+
+// 当前组件信息
+export const SchemaComponentInfo = z.object({
+    uuid: z.string().describe('返回组件的 UUID'),
+}).describe('当前组件的信息');
+
+// 移除组件
+export const SchemaRemoveComponent = z.object({
+    path: z.string().optional().describe('组件的UUID'),
+}).describe('移除组件需要的信息');
+
+// 查询组件
+export const SchemaQueryComponent = z.object({
+    path: z.string().optional().describe('组件的UUID'),
+}).describe('查询组件需要的信息');
+
+/**
+ * 属性数据结构和配置选项
+ * 用于描述编辑器中的属性字段，支持多种数据类型和UI控件
+ */
+export const SchemaProperty: z.ZodTypeAny = z.lazy((): z.ZodTypeAny =>
+    z.object({
+        value: z.union([
+            z.record(z.string(), z.any()),
+            z.any()
+        ]).describe('属性的当前值，可以是键值对对象或基础类型值'),
+        
+        cid: z.string().optional().describe('组件标识符'),
+        type: z.string().optional().describe('属性数据类型'),
+        readonly: z.boolean().optional().describe('是否只读'),
+        name: z.string().optional().describe('属性名称'),
+        elementTypeData: z.lazy(() => SchemaProperty).optional().describe('数组元素类型的数据定义'),
+        path: z.string().optional().describe('数据的搜索路径，由使用方填充'),
+        isArray: z.boolean().optional().describe('是否为数组类型'),
+        userData: z.record(z.string(), z.any()).optional().describe('用户透传数据')
+    }).describe('属性数据结构和编辑器配置选项，用于定义属性的值、UI显示、验证规则等')
+);
+
+// 设置属性选项
+export const SchemaSetPropertyOptions = z.object({
+    uuid: z.string().describe('组件的 UUID'),
+    path: z.string().describe('属性挂载对象的搜索路径'),
+    dump: SchemaProperty.describe('属性 dump 出来的数据'),
+    record: z.boolean().optional().describe('是否记录undo'),
+}).describe('设置组件属性的信息');
+
+
+export const SchemaComponentDumpInfoResult = z.object({
+    value: SchemaProperty.describe('组件的值对象'),
+    enabled: z.any().describe('组件是否启用'),
+    uuid: z.string().describe('组件的唯一标识符'),
+}).describe('组件dump信息');
+
+// 类型导出
+export type TCreateComponentInfo = z.infer<typeof SchemaCreateComponentInfo>;
+export type TComponentInfo = z.infer<typeof SchemaComponentInfo>;
+export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
+export type TComponentDumpInfoResult = z.infer<typeof SchemaComponentDumpInfoResult>;

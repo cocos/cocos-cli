@@ -8,28 +8,6 @@ import { DumpDefines } from './dump-defines';
 
 import { Node, Component, js, Prefab, MobilityMode } from 'cc';
 import { INode, IScene, IComponent, IProperty, ITargetOverrideInfo } from '../../../../@types/public';
-import utils from '../../../../../base/utils';
-
-const attributeProps = [
-    'enumList',
-    'radioGroup',
-    'bitmaskList',
-    'displayName',
-    'group',
-    'multiline',
-    'step',
-    'slide',
-    'tooltip',
-    'animatable',
-    'unit',
-    'radian',
-    'displayOrder',
-];
-
-const autoI18nAttributeNames = [
-    'displayName',
-    'tooltip',
-] as const;
 
 /**
  * 编码一个 node 数据
@@ -242,26 +220,16 @@ export function encodeComponent(component: any): IComponent {
     //     }
     // }
     const data: IComponent = {
-        value: {
-            uuid: encodeObject(component.uuid, { default: null, visible: false }, component),
-            name: encodeObject(component.name, { default: null, visible: false }, component),
-            enabled: encodeObject(component.enabled, { default: null, visible: false }, component),
-        },
-        default: undefined,
+        value: {},
+        uuid: component.uuid,
+        name: component.name,
+        enabled: component.enabled,
         type: dumpUtil.getTypeName(ctor),
-        readonly: false,
-        visible: true,
         cid: component.__cid__,
-
-    //    mountedRoot: mountedRoot,
     };
 
     // 遍历组件内所有属性
     ctor.__props__.forEach((key: string) => {
-        if (!data.value) {
-            return;
-        }
-
         try {
             if (key in component) {
                 /**
@@ -286,39 +254,39 @@ export function encodeComponent(component: any): IComponent {
         }
     });
 
-    // editor 附加数据
-    data.editor = {
-        inspector: ctor._inspector || '',
-        icon: ctor._icon || '',
-        help: ctor._help || '',
-        _showTick:
-            typeof component.start === 'function' ||
-            typeof component.update === 'function' ||
-            typeof component.lateUpdate === 'function' ||
-            typeof component.onEnable === 'function' ||
-            typeof component.onDisable === 'function',
-    };
+    // // editor 附加数据
+    // data.editor = {
+    //     inspector: ctor._inspector || '',
+    //     icon: ctor._icon || '',
+    //     help: ctor._help || '',
+    //     _showTick:
+    //         typeof component.start === 'function' ||
+    //         typeof component.update === 'function' ||
+    //         typeof component.lateUpdate === 'function' ||
+    //         typeof component.onEnable === 'function' ||
+    //         typeof component.onDisable === 'function',
+    // };
 
-    // __scriptUuid
-    if (data.value) {
-        const scriptType: any = data.value.__scriptAsset;
-        if (component instanceof cc._MissingScript) {
-            const compData = component['_$erialized'];
-            let uuid = compData && compData['__type__'];
-            uuid = uuid && utils.UUID.decompressUUID(component._$erialized.__type__);
-            scriptType.visible = !!(uuid && utils.UUID.isUUID(uuid));
-            scriptType.value = { uuid };
-        } else {
-            scriptType.visible = !!component.__scriptUuid;
-            scriptType.value = { uuid: component.__scriptUuid };
-        }
-        scriptType.displayOrder = -999;
-    }
+    // // __scriptUuid
+    // if (data.value) {
+    //     const scriptType: any = data.value.__scriptAsset;
+    //     if (component instanceof cc._MissingScript) {
+    //         const compData = component['_$erialized'];
+    //         let uuid = compData && compData['__type__'];
+    //         uuid = uuid && utils.UUID.decompressUUID(component._$erialized.__type__);
+    //         scriptType.visible = !!(uuid && utils.UUID.isUUID(uuid));
+    //         scriptType.value = { uuid };
+    //     } else {
+    //         scriptType.visible = !!component.__scriptUuid;
+    //         scriptType.value = { uuid: component.__scriptUuid };
+    //     }
+    //     scriptType.displayOrder = -999;
+    // }
 
-    // 继承链
-    if (ctor) {
-        data.extends = dumpUtil.getTypeInheritanceChain(ctor);
-    }
+    // // 继承链
+    // if (ctor) {
+    //     data.extends = dumpUtil.getTypeInheritanceChain(ctor);
+    // }
 
     return data;
 }
@@ -359,13 +327,13 @@ function _checkFuncAttribute(attributeName: string, attributes: any, owner: any)
 
 function _checkAttributes(data: IProperty, attributes: any, owner: any) {
     // 处理存在函数写法的属性
-    ['visible', 'min', 'max'].forEach((name: string) => {
-        const attributeName = name as keyof IProperty;
-        const value = _checkFuncAttribute(attributeName, attributes, owner);
-        if (value !== undefined) {
-            data[attributeName] = value;
-        }
-    });
+    // ['visible', 'min', 'max'].forEach((name: string) => {
+    //     const attributeName = name as keyof IProperty;
+    //     const value = _checkFuncAttribute(attributeName, attributes, owner);
+    //     if (value !== undefined) {
+    //         data[attributeName] = value;
+    //     }
+    // });
 
     if (!attributes.ctor && attributes.type) {
         data.type = '' + attributes.type;
@@ -380,32 +348,32 @@ function _checkAttributes(data: IProperty, attributes: any, owner: any) {
         data.readonly = true;
     }
 
-    attributeProps.forEach((propName) => {
-        // eslint-disable-next-line no-prototype-builtins
-        if (attributes.hasOwnProperty(propName)) {
-            // @ts-ignore
-            data[propName] = attributes[propName];
-        }
-    });
+    // attributeProps.forEach((propName) => {
+    //     // eslint-disable-next-line no-prototype-builtins
+    //     if (attributes.hasOwnProperty(propName)) {
+    //         // @ts-ignore
+    //         data[propName] = attributes[propName];
+    //     }
+    // });
 
-    // 如果对象类型名以 `cc.` 开始，也就是引擎对象。
-    // 则自动按规则组装出要 i18n 的特性（比如显示名和工具提示）的 i18n 路径，作为 Dump 数据。
-    //
-    // 组装规则如下。对于某个引擎类的某个属性的某个特性，编辑器会按以下的字典路径去查找该特性的 i18n 字符串：
-    // `i18n:ENGINE.classes.<类的 cc-class 名称>.properties.<属性的名称>.<特性的名称>`
-    //
-    if (typeof data.name === 'string' && owner && typeof owner === 'object') {
-        const ownerTypeName = findClassName(owner, data.name);
-        if (ownerTypeName) {
-            for (const autoI18nAttributeName of autoI18nAttributeNames) {
-                // 如果该特性已经被声明，比如 `@property({ tooltip: '' })`，跳过组装。
-                if (Object.prototype.hasOwnProperty.call(attributes, autoI18nAttributeName)) {
-                    continue;
-                }
-                data[autoI18nAttributeName] = `i18n:ENGINE.classes.${ownerTypeName}.properties.${data.name}.${autoI18nAttributeName}`;
-            }
-        }
-    }
+    // // 如果对象类型名以 `cc.` 开始，也就是引擎对象。
+    // // 则自动按规则组装出要 i18n 的特性（比如显示名和工具提示）的 i18n 路径，作为 Dump 数据。
+    // //
+    // // 组装规则如下。对于某个引擎类的某个属性的某个特性，编辑器会按以下的字典路径去查找该特性的 i18n 字符串：
+    // // `i18n:ENGINE.classes.<类的 cc-class 名称>.properties.<属性的名称>.<特性的名称>`
+    // //
+    // if (typeof data.name === 'string' && owner && typeof owner === 'object') {
+    //     const ownerTypeName = findClassName(owner, data.name);
+    //     if (ownerTypeName) {
+    //         for (const autoI18nAttributeName of autoI18nAttributeNames) {
+    //             // 如果该特性已经被声明，比如 `@property({ tooltip: '' })`，跳过组装。
+    //             if (Object.prototype.hasOwnProperty.call(attributes, autoI18nAttributeName)) {
+    //                 continue;
+    //             }
+    //             data[autoI18nAttributeName] = `i18n:ENGINE.classes.${ownerTypeName}.properties.${data.name}.${autoI18nAttributeName}`;
+    //         }
+    //     }
+    // }
 }
 
 /**
@@ -519,23 +487,23 @@ function _checkObjFlags(node: any, data: INode) {
  */
 export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean): IProperty {
     const ctor = dumpUtil.getConstructor(object, attributes);
-    let defValue = dumpUtil.getDefault(attributes);
+    // let defValue = dumpUtil.getDefault(attributes);
 
-    // 构造器存在，属性也存在
-    if (defValue && typeof defValue === 'object' && defValue.constructor && Array.isArray(defValue.constructor.__props__)) {
-        const result: { [key: string]: any } = {
-            type: dumpUtil.getTypeName(defValue.constructor),
-            value: {},
-        };
-        defValue.constructor.__props__.forEach((key: string) => {
-            const attrs = cc.Class.attr(defValue.constructor, key);
-            const dumpData = encodeObject(defValue[key], attrs, defValue, key);
-            if (dumpData.type !== 'Unknown') {
-                result.value[key] = dumpData;
-            }
-        });
-        defValue = result;
-    }
+    // // 构造器存在，属性也存在
+    // if (defValue && typeof defValue === 'object' && defValue.constructor && Array.isArray(defValue.constructor.__props__)) {
+    //     const result: { [key: string]: any } = {
+    //         type: dumpUtil.getTypeName(defValue.constructor),
+    //         value: {},
+    //     };
+    //     defValue.constructor.__props__.forEach((key: string) => {
+    //         const attrs = cc.Class.attr(defValue.constructor, key);
+    //         const dumpData = encodeObject(defValue[key], attrs, defValue, key);
+    //         if (dumpData.type !== 'Unknown') {
+    //             result.value[key] = dumpData;
+    //         }
+    //     });
+    //     defValue = result;
+    // }
 
     let type = dumpUtil.getTypeName(ctor);
 
@@ -553,11 +521,11 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
     const data: IProperty = {
         name: objectKey,
         value: null,
-        default: defValue,
+        //default: defValue,
         type: type,
-        readonly: !!attributes.readonly,
-        visible: true,
-        animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值
+        //readonly: !!attributes.readonly,
+        //visible: true,
+        //animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值
     };
 
     //如果有 userData 就把 userData 传递过去
@@ -567,11 +535,11 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
 
     _checkAttributes(data, attributes, owner);
 
-    if (defValue) {
-        if (Array.isArray(defValue)) {
-            data.isArray = true;
-        }
-    }
+    // if (defValue) {
+    //     if (Array.isArray(defValue)) {
+    //         data.isArray = true;
+    //     }
+    // }
 
     if (!data.isArray && Array.isArray(object)) {
         data.isArray = true;
@@ -664,10 +632,10 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         }
     }
 
-    // 继承链
-    if (ctor) {
-        data.extends = dumpUtil.getTypeInheritanceChain(ctor);
-    }
+    // // 继承链
+    // if (ctor) {
+    //     data.extends = dumpUtil.getTypeInheritanceChain(ctor);
+    // }
 
     return data;
 }

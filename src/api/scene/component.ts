@@ -1,13 +1,13 @@
 import { ApiBase } from '../base/api-base';
 import {
-    SchemeCreateComponentInfo,
-    SchemeComponentInfo,
-    SchemeSetPropertyOptions,
-    TSchemeCreateComponentInfo,
+    SchemaCreateComponentInfo,
+    SchemaComponentInfo,
+    SchemaSetPropertyOptions,
+    TCreateComponentInfo,
     TComponentInfo,
     TSetPropertyOptions,
     TComponentDumpInfoResult,
-} from './component-scheme';
+} from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
@@ -25,11 +25,11 @@ export class ComponentApi extends ApiBase {
     /**
      * 创建组件
      */
-    @tool('scene-createComponent')
+    @tool('scene-create-component')
     @title('创建组件')
     @description('创建一个组件添加到节点中')
-    @result(SchemeComponentInfo)
-    async createComponent(@param(SchemeCreateComponentInfo) createComponentInfo: TSchemeCreateComponentInfo): Promise<CommonResultType<TComponentInfo>> {
+    @result(SchemaComponentInfo)
+    async createComponent(@param(SchemaCreateComponentInfo) createComponentInfo: TCreateComponentInfo): Promise<CommonResultType<TComponentInfo>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TComponentInfo> = {
             code: code,
@@ -55,11 +55,11 @@ export class ComponentApi extends ApiBase {
     /**
      * 移除组件
      */
-    @tool('scene-removeComponent')
+    @tool('scene-remove-component')
     @title('移除组件')
     @description('移除 节点 组件')
-    @result(SchemeComponentInfo)
-    async removeComponent(@param(SchemeComponentInfo) componentInfo: TComponentInfo): Promise<CommonResultType<boolean>> {
+    @result(SchemaComponentInfo)
+    async removeComponent(@param(SchemaComponentInfo) componentInfo: TComponentInfo): Promise<CommonResultType<boolean>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<boolean> = {
             code: code,
@@ -84,20 +84,18 @@ export class ComponentApi extends ApiBase {
     /**
      * 查询组件
      */
-    @tool('scene-queryComponent')
+    @tool('scene-query-component')
     @title('查询组件')
     @description('查询组件信息')
-    @result(SchemeComponentInfo)
-    async queryComponent(@param(SchemeComponentInfo) componentInfo: TComponentInfo): Promise<CommonResultType<TComponentDumpInfoResult>> {
+    @result(SchemaComponentInfo)
+    async queryComponent(@param(SchemaComponentInfo) componentInfo: TComponentInfo): Promise<CommonResultType<TComponentDumpInfoResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TComponentDumpInfoResult> = {
             code: code,
             data: {
-                value: {
-                    uuid: '',
-                    name: '',
-                    enabled: false,
-                },
+                value: {},
+                uuid: '',
+                enabled: false,
             },
         };
 
@@ -119,11 +117,11 @@ export class ComponentApi extends ApiBase {
     /**
      * 设置组件属性
      */
-    @tool('scene-setProperty')
+    @tool('scene-set-property-component')
     @title('设置组件属性')
     @description('设置组件属性')
-    @result(SchemeComponentInfo)
-    async setProperty(@param(SchemeSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
+    @result(SchemaComponentInfo)
+    async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<boolean> = {
             code: code,
