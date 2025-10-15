@@ -44,7 +44,7 @@ jobs:
         run: npm i
 
       - name: Run tests
-        run: npm run test --silent
+        run: npm run test:quiet
 
       - name: Run npm run start
         run: npm run start
