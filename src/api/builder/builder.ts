@@ -20,15 +20,12 @@ export class BuilderApi extends ApiBase {
     @result(SchemaBuildResult)
     async build(@param(SchemaBuildOption) options?: SchemaBuildOptionType) {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<{ exitCode: number }> = {
+        const ret: CommonResultType<number> = {
             code: code,
-            data: {
-                exitCode: 0,
-            },
         };
         try {
             const exitCode = await build(options);
-            ret.data.exitCode = exitCode;
+            ret.data = exitCode;
             if (exitCode !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = BuildErrorMap[exitCode];
