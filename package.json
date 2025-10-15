@@ -25,6 +25,7 @@
     "scripts": {
         "clear": "node workflow/clear.js",
         "test": "jest",
+        "test:quiet": "jest --silent",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "compiler": "FORCE_UPDATE=true npm i",
