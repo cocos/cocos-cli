@@ -2,7 +2,7 @@ import { Asset, queryPath, queryUrl, queryUUID, VirtualAsset } from '@editor/ass
 import * as cc from 'cc';
 import fs from 'fs-extra';
 import path from 'path';
-import { GlTFUserData } from '../../meta-schemas/glTF.meta';
+import { GlTFUserData } from '../../../@types/userDatas';
 import { GltfConverter, IGltfAssetFinder } from '../utils/gltf-converter';
 import { DefaultGltfAssetFinder } from './asset-finder';
 import { loadAssetSync } from '../utils/load-asset-sync';

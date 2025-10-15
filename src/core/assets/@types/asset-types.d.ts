@@ -25,8 +25,85 @@ import {
     RtSpriteFrameAssetUserData,
 } from './userDatas';
 
-import { SUPPORT_CREATE_TYPES, ASSET_HANDLER_TYPES } from '../asset-handler/config';
+/** 所有资源处理器类型的常量数组（用于 Zod enum 和 TypeScript type） */
+export const ASSET_HANDLER_TYPES = [
+    'directory',
+    'unknown',
+    'text',
+    'json',
+    'spine-data',
+    'dragonbones',
+    'dragonbones-atlas',
+    'terrain',
+    'javascript',
+    'typescript',
+    'scene',
+    'prefab',
+    'sprite-frame',
+    'tiled-map',
+    'buffer',
+    'image',
+    'sign-image',
+    'alpha-image',
+    'texture',
+    'texture-cube',
+    'erp-texture-cube',
+    'render-texture',
+    'texture-cube-face',
+    'rt-sprite-frame',
+    'gltf',
+    'gltf-mesh',
+    'gltf-animation',
+    'gltf-skeleton',
+    'gltf-material',
+    'gltf-scene',
+    'gltf-embeded-image',
+    'fbx',
+    'material',
+    'physics-material',
+    'effect',
+    'effect-header',
+    'audio-clip',
+    'animation-clip',
+    'animation-graph',
+    'animation-graph-variant',
+    'animation-mask',
+    'ttf-font',
+    'bitmap-font',
+    'particle',
+    'sprite-atlas',
+    'auto-atlas',
+    'label-atlas',
+    'render-pipeline',
+    'render-stage',
+    'render-flow',
+    'instantiation-material',
+    'instantiation-mesh',
+    'instantiation-skeleton',
+    'instantiation-animation',
+    'video-clip',
+];
 
+/** 支持创建的资源类型常量数组（用于 Zod enum 和 TypeScript type） */
+export const SUPPORT_CREATE_TYPES = [
+    'animation-clip',          // 动画剪辑
+    'typescript',              // TypeScript 脚本
+    'auto-atlas',              // 自动图集
+    'effect',                  // 着色器效果
+    'scene',                   // 场景
+    'prefab',                  // 预制体
+    'material',                // 材质
+    // 'texture-cube',            // 立方体贴图
+    'terrain',                 // 地形
+    'physics-material',        // 物理材质
+    'label-atlas',             // 标签图集
+    'render-texture',          // 渲染纹理
+    // 'animation-graph',         // 动画图
+    // 'animation-mask',          // 动画遮罩
+    // 'animation-graph-variant', // 动画图变体
+    'directory',               // 文件夹
+    'effect-header',           // 着色器头文件（chunk）
+];
 // 支持创建的资源类型（引擎类型）
 export type ISupportCreateCCType = 
 | 'cc.AnimationClip'        // 动画剪辑

@@ -1,7 +1,7 @@
 import { Asset, VirtualAsset } from '@editor/asset-db';
 import * as cc from 'cc';
 import path from 'path';
-import { GlTFUserData, IVirtualAssetUserData } from '../../meta-schemas/glTF.meta';
+import { GlTFUserData, IVirtualAssetUserData } from '../../../@types/userDatas';
 import { DefaultGltfAssetFinder } from './asset-finder';
 import { loadAssetSync } from '../utils/load-asset-sync';
 import { glTfReaderManager } from './reader-manager';

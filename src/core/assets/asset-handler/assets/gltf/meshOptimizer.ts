@@ -1,6 +1,6 @@
 import { Mesh, gfx } from 'cc';
 import encoder from 'meshopt_encoder';
-import { MeshCompressOptions, MeshOptimizeOptions, MeshSimplifyOptions, MeshClusterOptions } from '../../meta-schemas/glTF.meta';
+import { MeshCompressOptions, MeshOptimizeOptions, MeshSimplifyOptions, MeshClusterOptions } from '../../../@types/userDatas';
 import { mergeMeshes } from './meshUtils';
 import zlib from 'zlib';
 import { BufferBlob } from '../utils/gltf-converter';

@@ -1,5 +1,5 @@
 import { Asset } from '@editor/asset-db';
-import { GltfpackOptions, GlTFUserData, MeshOptimizerOption } from '../../meta-schemas/glTF.meta';
+import { GltfpackOptions, GlTFUserData, MeshOptimizerOption } from '../../../@types/userDatas';
 import { i18nTranslate, linkToAssetTarget } from '../../utils';
 import { GltfConverter, readGltf } from '../utils/gltf-converter';
 import { validateGlTf } from './validation';

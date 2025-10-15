@@ -1,6 +1,6 @@
 import { AssetHandler } from '../@types/protected';
 
-/** æ‰€æœ‰èµ„æºå¤„ç†å™¨ç±»å‹çš„å¸¸é‡æ•°ç»„ï¼ˆç”¨äº Zod enum å’Œ TypeScript typeï¼‰ */
+/** ËùÓĞ×ÊÔ´´¦ÀíÆ÷ÀàĞÍµÄ³£Á¿Êı×é£¨ÓÃÓÚ Zod enum ºÍ TypeScript type£© */
 export const ASSET_HANDLER_TYPES = [
     'directory',
     'unknown',
@@ -60,25 +60,25 @@ export const ASSET_HANDLER_TYPES = [
 ];
 
 
-/** æ”¯æŒåˆ›å»ºçš„èµ„æºç±»å‹å¸¸é‡æ•°ç»„ï¼ˆç”¨äº Zod enum å’Œ TypeScript typeï¼‰ */
+/** Ö§³Ö´´½¨µÄ×ÊÔ´ÀàĞÍ³£Á¿Êı×é£¨ÓÃÓÚ Zod enum ºÍ TypeScript type£© */
 export const SUPPORT_CREATE_TYPES = [
-    'animation-clip',          // åŠ¨ç”»å‰ªè¾‘
-    'typescript',              // TypeScript è„šæœ¬
-    'auto-atlas',              // è‡ªåŠ¨å›¾é›†
-    'effect',                  // ç€è‰²å™¨æ•ˆæœ
-    'scene',                   // åœºæ™¯
-    'prefab',                  // é¢„åˆ¶ä½“
-    'material',                // æè´¨
-    // 'texture-cube',            // ç«‹æ–¹ä½“è´´å›¾
-    'terrain',                 // åœ°å½¢
-    'physics-material',        // ç‰©ç†æè´¨
-    'label-atlas',             // æ ‡ç­¾å›¾é›†
-    'render-texture',          // æ¸²æŸ“çº¹ç†
-    // 'animation-graph',         // åŠ¨ç”»å›¾
-    // 'animation-mask',          // åŠ¨ç”»é®ç½©
-    // 'animation-graph-variant', // åŠ¨ç”»å›¾å˜ä½“
-    'directory',               // æ–‡ä»¶å¤¹
-    'effect-header',           // ç€è‰²å™¨å¤´æ–‡ä»¶ï¼ˆchunkï¼‰
+    'animation-clip',          // ¶¯»­¼ô¼­
+    'typescript',              // TypeScript ½Å±¾
+    'auto-atlas',              // ×Ô¶¯Í¼¼¯
+    'effect',                  // ×ÅÉ«Æ÷Ğ§¹û
+    'scene',                   // ³¡¾°
+    'prefab',                  // Ô¤ÖÆÌå
+    'material',                // ²ÄÖÊ
+    // 'texture-cube',            // Á¢·½ÌåÌùÍ¼
+    'terrain',                 // µØĞÎ
+    'physics-material',        // ÎïÀí²ÄÖÊ
+    'label-atlas',             // ±êÇ©Í¼¼¯
+    'render-texture',          // äÖÈ¾ÎÆÀí
+    // 'animation-graph',         // ¶¯»­Í¼
+    // 'animation-mask',          // ¶¯»­ÕÚÕÖ
+    // 'animation-graph-variant', // ¶¯»­Í¼±äÌå
+    'directory',               // ÎÄ¼ş¼Ğ
+    'effect-header',           // ×ÅÉ«Æ÷Í·ÎÄ¼ş£¨chunk£©
 ];
 
 export interface AssetHandlerInfo {

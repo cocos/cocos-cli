@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { z } from 'zod';
 import { description, param, result, title, tool, toolRegistry } from '../decorator/decorator';
-import { createCommonResult } from '../base/scheme-base';
+import { createCommonResult } from '../base/schema-base';
 
 // 禁用装饰器类型检查以避免测试中的类型错误
 /* eslint-disable @typescript-eslint/ban-ts-comment */
