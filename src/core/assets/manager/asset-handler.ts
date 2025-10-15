@@ -401,7 +401,7 @@ class AssetHandlerManager {
 
         const newTarget = Utils.File.getName(options.target);
         if (newTarget !== options.target) {
-            if (options.overwrite) {
+            if (!options.overwrite) {
                 options.target = newTarget;
             } else {
                 throw new Error(`Target file already exists: ${options.target}`);

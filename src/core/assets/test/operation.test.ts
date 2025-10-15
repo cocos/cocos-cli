@@ -16,10 +16,10 @@ const invalidParams = [
     { name: 'boolean- false', value: false },
     { name: 'array', value: [] },
     { name: 'object', value: {} },
-    { name: 'readonly url', value: 'db://internal/primitives.fbx/lambert1.material'},
+    { name: 'readonly url', value: 'db://internal/primitives.fbx/lambert1.material' },
 ];
 
-describe('测试 db 的操作接口', function() {
+describe('测试 db 的操作接口', function () {
     const name = `__${Date.now()}__`;
     const testName = 'test-asset.txt';
     const databasePath = testInfo.testRoot;
@@ -36,8 +36,8 @@ describe('测试 db 的操作接口', function() {
         });
     });
 
-    describe('create-asset', function() {
-        it('创建文件夹', async function() {
+    describe('create-asset', function () {
+        it('创建文件夹', async function () {
             const asset = await assetOperation.createAsset({
                 target: join(databasePath, `${name}.directory`),
             });
@@ -51,6 +51,26 @@ describe('测试 db 的操作接口', function() {
 
             const meta = readJSONSync(join(databasePath, `${name}.directory.meta`));
             expect(meta.uuid).toEqual(asset!.uuid);
+        });
+
+        it('创建普通的文本文件', async function () {
+            const asset = await assetOperation.createAsset({
+                target: join(databasePath, `${name}.txt`),
+                content: 'test',
+            });
+            expect(asset).not.toBeNull();
+        });
+
+        it('创建普通的文本文件 overwrite', async function () {
+            const dest = join(databasePath, `${name}.txt`);
+            outputFile(dest, 'original content');
+            const asset = await assetOperation.createAsset({
+                target: dest,
+                content: 'new content',
+                overwrite: true,
+            });
+            expect(asset).not.toBeNull();
+            expect(readFileSync(dest, 'utf8')).toEqual('new content');
         });
     });
 
@@ -186,8 +206,8 @@ describe('测试 db 的操作接口', function() {
     // });
 
     describe('delete-asset', () => {
-        describe('删除文件夹', function() {
-            
+        describe('删除文件夹', function () {
+
             it('删除文件夹后源文件不存在', async () => {
                 await assetManager.removeAsset(`${testInfo.testRootUrl}/${testName}`);
                 const exists = existsSync(join(databasePath, `${testName}`));
@@ -198,7 +218,7 @@ describe('测试 db 的操作接口', function() {
             });
         });
 
-        it('使用 url 删除普通资源', async function() {
+        it('使用 url 删除普通资源', async function () {
             await assetManager.removeAsset(`${testInfo.testRootUrl}/${testName}`);
 
             const exists = existsSync(join(databasePath, `${testName}`));
@@ -208,7 +228,7 @@ describe('测试 db 的操作接口', function() {
             expect(metaExists).toStrictEqual(false);
         });
 
-        it('使用 uuid 删除普通资源', async function() {
+        it('使用 uuid 删除普通资源', async function () {
             const testName = `${name}_delete.normal`;
             const asset = await assetOperation.createAsset({
                 target: join(databasePath, testName),
@@ -225,7 +245,7 @@ describe('测试 db 的操作接口', function() {
     });
 
     describe('save-asset', () => {
-        it('保存普通资源', async function() {
+        it('保存普通资源', async function () {
             await assetManager.saveAsset(`${testInfo.testRootUrl}/${testName}`, 'test2');
 
             const filePath = join(testInfo.testRoot, `${testName}`);
@@ -240,7 +260,7 @@ describe('测试 db 的操作接口', function() {
     describe('reimport-asset', () => {
         it('普通资源 uuid 的 reimport', async () => {
             const uuid = await assetManager.queryUUID(`${testInfo.testRootUrl}/${testName}`);
-    
+
             const metaJson = readJSONSync(join(testInfo.testRoot, `${testName}.meta`));
             metaJson.userData.testReimport = true;
             writeJSONSync(join(databasePath, `${testName}.meta`), metaJson);
@@ -269,7 +289,7 @@ describe('测试 db 的操作接口', function() {
         });
     });
     describe('save-asset-meta', () => {
-        it('保存资源的 meta', async function() {
+        it('保存资源的 meta', async function () {
             const uuid = await assetManager.queryUUID(`${testInfo.testRootUrl}/${testName}`);
 
             const metaJson = readJSONSync(join(databasePath, `${testName}.meta`));
@@ -318,14 +338,14 @@ describe('测试 db 的操作接口', function() {
                         templateName,
                     }
                 );
-                
+
                 expect(assetInfo).not.toBeNull();
-                
+
                 // 验证资源类型（某些特殊类型可能不需要验证）
                 if (!skipTypeCheck && ccType) {
                     expect(assetInfo!.type).toEqual(ccType);
                 }
-                
+
                 // 验证文件存在
                 const exists = existsSync(join(databasePath, fileName));
                 expect(exists).toBeTruthy();
@@ -339,7 +359,7 @@ describe('测试 db 的操作接口', function() {
     });
 
     describe('import-asset', () => {
-        it('导入外部文件到项目中', async function() {
+        it('导入外部文件到项目中', async function () {
             // 创建一个临时测试文件
             const tempFilePath = join(databasePath, `${name}_temp.txt`);
             await outputFile(tempFilePath, 'import test content');
@@ -350,14 +370,14 @@ describe('测试 db 的操作接口', function() {
             // 验证返回的是数组且包含一个资源
             expect(Array.isArray(assets)).toBeTruthy();
             expect(assets.length).toBeGreaterThan(0);
-            
+
             const asset = assets[0];
             expect(asset).not.toBeNull();
             expect(asset.isDirectory).toBeFalsy();
-            
+
             const targetPath = join(databasePath, targetName);
             expect(existsSync(targetPath)).toBeTruthy();
-            
+
             const content = readFileSync(targetPath, 'utf8');
             expect(content).toEqual('import test content');
 
@@ -365,12 +385,13 @@ describe('测试 db 的操作接口', function() {
             await remove(tempFilePath);
         });
 
-        it('导入文件并覆盖已存在的资源', async function() {
+        it('导入文件并覆盖已存在的资源', async function () {
             // 先创建一个资源
             const targetName = `${name}_overwrite.txt`;
             await assetOperation.createAsset({
                 target: join(databasePath, targetName),
                 content: 'original content',
+                overwrite: true,
             });
 
             // 创建临时源文件
@@ -392,29 +413,29 @@ describe('测试 db 的操作接口', function() {
             await remove(tempFilePath);
         });
 
-        it('导入图片资源', async function() {
+        it('导入图片资源', async function () {
             // 从 internal 复制一张图片作为源
             const sourceImage = await assetManager.url2path('db://internal/default_ui/default_btn_normal.png');
-            
+
             const targetName = `${name}_imported.png`;
             const assets = await assetManager.importAsset(sourceImage, join(databasePath, targetName));
 
             // 验证返回的是数组且包含资源
             expect(Array.isArray(assets)).toBeTruthy();
             expect(assets.length).toBeGreaterThan(0);
-            
+
             const asset = assets[0];
             expect(asset).not.toBeNull();
             expect(asset.type).toEqual('cc.ImageAsset');
-            
+
             const targetPath = join(databasePath, targetName);
             expect(existsSync(targetPath)).toBeTruthy();
-            
+
             const metaExists = existsSync(join(databasePath, `${targetName}.meta`));
             expect(metaExists).toBeTruthy();
         });
 
-        it('导入文件夹', async function() {
+        it('导入文件夹', async function () {
             // 创建一个临时文件夹和文件
             const tempDirPath = join(databasePath, `${name}_temp_dir`);
             await outputFile(join(tempDirPath, 'file1.txt'), 'content1');
@@ -426,7 +447,7 @@ describe('测试 db 的操作接口', function() {
             // 验证返回的是数组，包含文件夹和所有子文件
             expect(Array.isArray(assets)).toBeTruthy();
             expect(assets.length).toBeGreaterThan(0);
-            
+
             const targetPath = join(databasePath, targetDirName);
             expect(existsSync(targetPath)).toBeTruthy();
             expect(existsSync(join(targetPath, 'file1.txt'))).toBeTruthy();
@@ -555,14 +576,14 @@ describe('测试 db 的操作接口', function() {
     //                 test: 2,
     //             },
     //         });
-            
+
     //         // UUID 需要与指定的一致
     //         expect(asset && asset.uuid).toStrictEqual(uuid);
-            
+
     //         // 指定 userData 生效
     //         const meta = readJSONSync(join(databasePath, `${name}.normal.meta`));
     //         expect(meta.userData.test).toEqual(2);
-            
+
     //         // overwrite 生效，正确修改文件内容
     //         const content = readFileSync(join(databasePath, `${name}.normal`), 'utf8');
     //         expect(content).toStrictEqual('new-asset');
@@ -673,7 +694,7 @@ describe('测试 db 的操作接口', function() {
 
     // 旧版本使用，新版本已不再使用
     // describe('refresh-default-user-data-config', () => {
-        
+
     // });
 
     // init-asset create-asset-dialog
@@ -686,10 +707,10 @@ describe('测试 db 的操作接口', function() {
         } catch (e) {
             console.error('清理测试资源失败:', e);
         }
-        
+
         // 等待一小段时间确保所有异步任务完成
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // 最后清理残留文件
         if (existsSync(testInfo.testRoot)) {
             await remove(testInfo.testRoot);
