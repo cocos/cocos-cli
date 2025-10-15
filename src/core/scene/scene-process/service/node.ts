@@ -1,6 +1,8 @@
 import { register, expose } from './decorator';
 import type { ICreateNodeParams, IDeleteNodeParams, INodeService, IUpdateNodeParams, IUpdateNodeResult, IQueryNodeParams, INode, IDeleteNodeResult } from '../../common';
 import { Rpc } from '../rpc';
+import { readFile } from 'fs-extra';
+
 /**
  * 子进程节点处理器
  * 在子进程中处理所有节点相关操作
@@ -8,10 +10,6 @@ import { Rpc } from '../rpc';
 @register('Node')
 export class NodeService implements INodeService {
     _nodeConfigJson: Record<string, object> = {};
-
-    constructor() {
-        this._nodeConfigJson = JSON.parse("../../common/node-config.json");
-    }
 
     @expose()
     async createNode(params: ICreateNodeParams): Promise<INode | null> {
@@ -22,6 +20,10 @@ export class NodeService implements INodeService {
             return null;
         }
 
+        if (!this._nodeConfigJson) {
+            const serializeJSON = await readFile("../../common/node-config.json", 'utf8');
+            this._nodeConfigJson = JSON.parse(serializeJSON);
+        }
         const createOptions = this._nodeConfigJson[params.nodeType];
         if (!createOptions) {
             throw new Error('NodeService.createNode nodeType ${params.nodeType} not implement .');
