@@ -100,6 +100,7 @@ describe('Decorator Module', () => {
                 @tool('tool2')
                 @title('Second Title')
                 method2() {
+
                 }
             }
 

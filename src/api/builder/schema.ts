@@ -44,16 +44,16 @@ export const SchemaBuildOption = z.object({
         output: z.boolean().default(true).optional(),
         name: z.string(),
         dest: z.string().optional().describe('指定 bundle 的输出目录'),
-     })).describe('构建 Bundle 的指定包含传参，未传递时按照项目内所有 Bundle 的原始配置打包'),
-     nativeCodeBundleMode: z.enum(['wasm', 'asmjs', 'both']).default('asmjs').optional().describe('指定构建的 Native Code 的模式'),
-     moveRemoteBundleScript: z.boolean().default(false).optional().describe('移除远程包 Bundle 的脚本, 小游戏平台将会自动勾选'),
-     useSplashScreen: z.boolean().default(false).optional().describe('是否使用自定义启动画面'),
-     stage: z.enum(['build', 'make', 'run']).default('build').optional().describe('构建阶段指定，默认为 build 可指定为 make/run 等'),
-     nextStages: z.array(z.enum(['make', 'run'])).optional().describe('指定后续联合的构建阶段，可指定多个'),
+    })).describe('构建 Bundle 的指定包含传参，未传递时按照项目内所有 Bundle 的原始配置打包'),
+    nativeCodeBundleMode: z.enum(['wasm', 'asmjs', 'both']).default('asmjs').optional().describe('指定构建的 Native Code 的模式'),
+    moveRemoteBundleScript: z.boolean().default(false).optional().describe('移除远程包 Bundle 的脚本, 小游戏平台将会自动勾选'),
+    useSplashScreen: z.boolean().default(false).optional().describe('是否使用自定义启动画面'),
+    stage: z.enum(['build', 'make', 'run']).default('build').optional().describe('构建阶段指定，默认为 build 可指定为 make/run 等'),
+    nextStages: z.array(z.enum(['make', 'run'])).optional().describe('指定后续联合的构建阶段，可指定多个'),
 });
 
 export type SchemaBuildOptionType = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaBuildResult = z.object({
-    exitCode: z.string().describe('构建的退出码'),
+    exitCode: z.number().describe('构建的退出码'),
 }).describe('构建项目后的结果');

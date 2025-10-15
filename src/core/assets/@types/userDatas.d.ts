@@ -1,3 +1,4 @@
+import { NormalImportSetting, TangentImportSetting } from './interface';
 // 这个文件用于记录导入器的各种类型定义，导出声明文件的时候将导出这个配置文件
 export type ImageImportType = 'raw' | 'texture' | 'normal map' | 'sprite-frame' | 'texture cube';
 
@@ -84,7 +85,7 @@ export interface TextureCubeAssetUserData extends TextureBaseAssetUserData {
     faceSize?: number;
     // 符号资源 uuid
     sign?: string;
-    
+
     // 六个面的 UUID
     front?: string;
     back?: string;
@@ -389,52 +390,6 @@ export interface ParticleAssetUserData {
     rotatePerS: number;
     rotatePerSVar: number;
     spriteFrameUuid: string;
-}
-
-
-
-export enum NormalImportSetting {
-    /**
-     * 如果模型文件中包含法线信息则导出法线，否则不导出法线。
-     */
-    optional,
-
-    /**
-     * 不在导出的网格中包含法线信息。
-     */
-    exclude,
-
-    /**
-     * 如果模型文件中包含法线信息则导出法线，否则重新计算并导出法线。
-     */
-    require,
-
-    /**
-     * 不管模型文件中是否包含法线信息，直接重新计算并导出法线。
-     */
-    recalculate,
-}
-
-export enum TangentImportSetting {
-    /**
-     * 不在导出的网格中包含正切信息。
-     */
-    exclude,
-
-    /**
-     * 如果模型文件中包含正切信息则导出正切，否则不导出正切。
-     */
-    optional,
-
-    /**
-     * 如果模型文件中包含正切信息则导出正切，否则若纹理坐标存在则重新计算并导出正切。
-     */
-    require,
-
-    /**
-     * 不管模型文件中是否包含正切信息，直接重新计算并导出正切。
-     */
-    recalculate,
 }
 
 export interface AnimationImportSetting {
@@ -800,3 +755,6 @@ interface IFbxSetting {
      */
     matchMeshNames?: boolean;
 }
+
+// 重新导出其他类型定义
+export * from './interface';

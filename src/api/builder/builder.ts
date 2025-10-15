@@ -3,8 +3,8 @@ import { build } from '../../core/builder'
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from "../base/schema-base";
 import { BuildExitCode } from "../../core/builder/@types/protected";
 import BuildErrorMap from "../../core/builder/error-map";
-import { description, param, title, tool } from "../decorator/decorator";
-import { SchemaBuildOption, SchemaBuildOptionType } from "./schema";
+import { description, param, result, title, tool } from "../decorator/decorator";
+import { SchemaBuildOption, SchemaBuildOptionType, SchemaBuildResult } from "./schema";
 
 export class BuilderApi extends ApiBase {
     constructor() {
@@ -17,6 +17,7 @@ export class BuilderApi extends ApiBase {
     @tool('builder-build')
     @title('构建项目')
     @description('根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数')
+    @result(SchemaBuildResult)
     async build(@param(SchemaBuildOption) options?: SchemaBuildOptionType) {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<{ exitCode: number }> = {
@@ -27,6 +28,7 @@ export class BuilderApi extends ApiBase {
         };
         try {
             const exitCode = await build(options);
+            ret.data.exitCode = exitCode;
             if (exitCode !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = BuildErrorMap[exitCode];
@@ -36,5 +38,6 @@ export class BuilderApi extends ApiBase {
             console.error('build project failed:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
+        return ret;
     }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/asset-handler/config';
+import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
 
 // 基础类型定义
 export const SchemaDirOrDbPath = z.string().min(1).describe('目录或资源的路径，可以是文件系统路径或 db:// 协议路径');
@@ -9,7 +9,7 @@ export const SchemaDbDirResult = z.object({
 
 // JSON 值类型（递归定义）
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
-const SchemaJsonValue: z.ZodType<JsonValue> = z.lazy(() => 
+const SchemaJsonValue: z.ZodType<JsonValue> = z.lazy(() =>
     z.union([
         z.string(),
         z.number(),
@@ -92,7 +92,7 @@ const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
     type: z.string().describe('资源类型，如 cc.ImageAsset'),
     isDirectory: z.boolean().describe('是否是文件夹'),
     library: z.record(z.string(), z.string()).describe('导入资源的映射表'),
-    
+
     // 可选字段（dataKeys 作用范围）
     isBundle: z.boolean().optional().describe('是否是 asset bundle'),
     displayName: z.string().optional().describe('资源用于显示的名字'),
