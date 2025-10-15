@@ -6,7 +6,6 @@ import { extname, basename, join } from 'path';
 
 import { getDependList, removeNull } from '../../utils';
 import { AssetHandler, ICreateMenuInfo } from '../../../@types/protected';
-import { Engine } from '../../../../engine';
 
 export const version = '1.1.50';
 export const versionCode = 2;
@@ -93,18 +92,4 @@ function changeSceneUuid(scene: any, uuid: string) {
         return true;
     }
     return false;
-}
-
-async function queryDefaultTemplateURL() {
-    const templateDir = 'db://internal/default_file_content/scene';
-    let template = `${templateDir}/default.scene`;
-    const { highQuality } = Engine.getConfig();
-    if (Engine.type === '2d') {
-        template = `${templateDir}/scene-2d.scene`;
-    } else {
-        if (highQuality) {
-            template = `${templateDir}/scene-quality.scene`;
-        }
-    }
-    return template;
 }
