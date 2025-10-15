@@ -11,9 +11,9 @@ import {
     TUpdateNodeOptions,
     TQueryNodeOptions,
     TDeleteNodeOptions
-} from './node-scheme';
+} from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { NodeType, Scene } from '../../core/scene';
 
 
@@ -77,13 +77,7 @@ export class NodeApi extends ApiBase {
                 keepWorldTransform: options.keepWorldTransform
             });
             if (nodeInfo) {
-                const nodeObj = ret.data;
-                nodeObj.path = nodeInfo.path;
-                nodeObj.name = nodeInfo.name;
-                nodeObj.nodeId = nodeInfo.nodeId;
-                nodeObj.children = nodeInfo.children;
-                nodeObj.properties = nodeInfo.properties;
-                nodeObj.component = nodeInfo.component;
+                ret.data = nodeInfo;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -195,11 +189,9 @@ export class NodeApi extends ApiBase {
         }
 
         try {
-            const nodeInfo = await Scene.queryNode(options);
-            if (nodeInfo) {
-                ret.data.path = nodeInfo.path;
-                ret.data.name = nodeInfo.name;
-                ret.data.children = nodeInfo.children;
+            const result = await Scene.queryNode(options);
+            if (result) {
+                ret.data = result;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;

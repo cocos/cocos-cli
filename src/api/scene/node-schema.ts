@@ -79,18 +79,8 @@ export const NodeQuerySchema = z.object({
     queryChildren: z.boolean().default(false).describe('是否查询子节点信息'),
 }).describe('查询节点的选项参数，查询结果是传入的信息的交集');
 
-// 先声明类型接口
-interface NodeQueryResultItemType {
-    nodeId: string;
-    path: string;
-    name: string;
-    properties: INodeProperties;
-    children?: INode[];
-    component: string[];
-}
-
 // 查询节点的结果的 item
-export const NodeQueryResultItemSchema: z.ZodType<NodeQueryResultItemType> = z.object({
+export const NodeQueryResultItemSchema: z.ZodType<INode> = z.object({
     nodeId: z.string().readonly().describe('节点的 id'),
     path: z.string().describe('节点路径'),
     name: z.string().describe('节点名称'),
@@ -138,7 +128,6 @@ export const NodeCreateSchema = z.object({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
 }).describe('创建节点的选项参数');
-
 
 
 // 类型导出

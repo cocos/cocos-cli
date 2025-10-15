@@ -83,7 +83,7 @@ export interface IQueryNodeParams {
 export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
     component: string[]; // 节点上的组件列表
-    readonly children?: INode[]; // 子节点列表
+    children?: INode[]; // 子节点列表
 }
 
 // 节点更新参数接口
@@ -117,7 +117,6 @@ export interface ICreateNodeParams {
     nodeType: string; // 节点类型
     keepWorldTransform?: boolean; // 保持世界变换
 }
-
 
 /**
  * 节点的相关处理接口

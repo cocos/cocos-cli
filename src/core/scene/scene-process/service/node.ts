@@ -8,7 +8,6 @@ import { Rpc } from '../rpc';
 @register('Node')
 export class NodeService implements INodeService {
     _nodeConfigJson: Record<string, object> = {};
-    _
 
     constructor() {
         this._nodeConfigJson = JSON.parse("../../common/node-config.json");
