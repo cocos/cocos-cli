@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { NodeType } from '../../core/scene';
+import { INode, INodeProperties, INodeIdentifier } from "../../core/scene/common/node";
 
 
 //预定义好几个类型，和对应的 schema，node 的 properties 中会有这些类型的属性
@@ -40,7 +41,7 @@ export const Mat4Schema = z.object({
 
 
 // 节点属性的 schema，
-export const BaseNodePropertySchema = z.object({
+export const NodePropertySchema = z.object({
     position: Vec3Schema.describe('节点位置'),
     worldPosition: Vec3Schema.describe('节点位置'),
     rotation: QuatSchema.describe('节点旋转, 四元数'),
@@ -54,24 +55,27 @@ export const BaseNodePropertySchema = z.object({
     forward: Vec3Schema.describe('节点的前方向向量, 默认前方为 -z 方向'),
     up: Vec3Schema.describe('当前节点在世界空间中朝上的方向向量'),
     right: Vec3Schema.describe('当前节点在世界空间中朝右的方向向量'),
-    mobility: z.enum(['static', 'Stationary', 'movable']).describe('节点的移动性，static 表示静态节点，movable 表示可移动节点, Stationary 固定节点'),
+    mobility: z.enum(['Static', 'Stationary', 'Movable']).describe('节点的移动性，static 表示静态节点，movable 表示可移动节点, Stationary 固定节点'),
     layer: z.number().describe('节点所在的层级'),
     hasChangedFlags: z.number().describe('这个节点的空间变换信息在当前帧内是否有变过？'),
     active: z.boolean().describe('节点是否激活'),
     activeInHierarchy: z.boolean().readonly().describe('节点在场景中是否激活'),
 });
 
-// 节点属性的 schema，
-export const NodePropertySchema = BaseNodePropertySchema.extend({
-    parent: z.lazy(() => BaseNodePropertySchema.optional()).describe('父节点的属性'),
-});
 
 // 查询节点的参数
-export const NodeQuerySchema = z.object({
+export const NodeSearchSchema = z.object({
     nodeId: z.string().optional().describe('节点的 id'),
     path: z.string().optional().describe('节点路径'),
     name: z.string().optional().describe('节点名称'),
     deeps: z.int().default(10).describe('查询的深度'),
+    queryChildren: z.boolean().default(false).describe('是否查询子节点信息'),
+}).describe('查询节点的选项参数，查询结果是传入的信息的交集');
+
+
+// 查询节点的参数
+export const NodeQuerySchema = z.object({
+    path: z.string().describe('节点路径'),
     queryChildren: z.boolean().default(false).describe('是否查询子节点信息'),
 }).describe('查询节点的选项参数，查询结果是传入的信息的交集');
 
@@ -80,7 +84,9 @@ interface NodeQueryResultItemType {
     nodeId: string;
     path: string;
     name: string;
-    children?: NodeQueryResultItemType[];
+    properties: INodeProperties;
+    children?: INode[];
+    component: string[];
 }
 
 // 查询节点的结果的 item
@@ -90,6 +96,7 @@ export const NodeQueryResultItemSchema: z.ZodType<NodeQueryResultItemType> = z.o
     name: z.string().describe('节点名称'),
     properties: NodePropertySchema.describe('节点属性'),
     children: z.array(z.lazy(() => NodeQueryResultItemSchema)).optional().default([]).describe('子节点列表'),
+    component: z.array(z.string()).default([]).describe('节点上的组件列表'),
 });
 
 // 查询节点的结果的 scheme
@@ -97,13 +104,19 @@ export const NodeQueryResultScheme = z.array(NodeQueryResultItemSchema).default(
 
 //节点更新的参数
 export const NodeUpdateSchema = z.object({
+    nodeId: z.string().readonly().describe('节点的 id'),
     path: z.string().describe('节点路径'),
+    name: z.string().describe('节点名称'),
     properties: NodePropertySchema.partial().describe('要更新的节点属性，可以只更新部分属性'),
 }).describe('更新节点的选项参数');
 
 // 节点更新结果的 schema
 export const NodeUpdateResultScheme = z.object({
-    nodeId: z.string().describe('节点的 id'),
+    path: z.string().describe('节点路径'),
+});
+
+// 节点删除结果的 schema
+export const NodeDeleteResultScheme = z.object({
     path: z.string().describe('节点路径'),
 });
 
@@ -134,3 +147,5 @@ export type TUpdateNodeOptions = z.infer<typeof NodeUpdateSchema>;
 export type TCreateNodeOptions = z.infer<typeof NodeCreateSchema>;
 export type TQueryNodeOptions = z.infer<typeof NodeQuerySchema>;
 export type TNodeDetail = z.infer<typeof NodeQueryResultItemSchema>;
+export type TNodeUpdateResult = z.infer<typeof NodeUpdateResultScheme>;
+export type TNodeDeleteResult = z.infer<typeof NodeDeleteResultScheme>;

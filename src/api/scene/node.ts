@@ -5,6 +5,8 @@ import {
     NodeDeleteSchema,
     NodeQuerySchema,
     TNodeDetail,
+    TNodeUpdateResult,
+    TNodeDeleteResult,
     TCreateNodeOptions,
     TUpdateNodeOptions,
     TQueryNodeOptions,
@@ -41,7 +43,28 @@ export class NodeApi extends ApiBase {
             data: {
                 nodeId: '',
                 path: '',
-                name: ''
+                name: '',
+                properties: {
+                    position: { x: 0, y: 0, z: 0 },
+                    worldPosition: { x: 0, y: 0, z: 0 },
+                    rotation: { x: 0, y: 0, z: 0, w: 1 },
+                    worldRotation: { x: 0, y: 0, z: 0, w: 1 },
+                    eulerAngles: { x: 0, y: 0, z: 0 },
+                    angle: 0,
+                    scale: { x: 1, y: 1, z: 1 },
+                    worldScale: { x: 1, y: 1, z: 1 },
+                    matrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
+                    worldMatrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
+                    forward: { x: 0, y: 0, z: 0 },
+                    up: { x: 0, y: 1, z: 0 },
+                    right: { x: 1, y: 0, z: 0 },
+                    mobility: 'Static',
+                    layer: 0,
+                    hasChangedFlags: 0,
+                    active: false,
+                    activeInHierarchy: false
+                },
+                component: []
             },
         }
 
@@ -54,8 +77,13 @@ export class NodeApi extends ApiBase {
                 keepWorldTransform: options.keepWorldTransform
             });
             if (nodeInfo) {
-                ret.data.path = nodeInfo.path;
-                ret.data.name = nodeInfo.name;
+                const nodeObj = ret.data;
+                nodeObj.path = nodeInfo.path;
+                nodeObj.name = nodeInfo.name;
+                nodeObj.nodeId = nodeInfo.nodeId;
+                nodeObj.children = nodeInfo.children;
+                nodeObj.properties = nodeInfo.properties;
+                nodeObj.component = nodeInfo.component;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -74,28 +102,19 @@ export class NodeApi extends ApiBase {
     @title('删除节点')
     @description('在 Cocos Creator 项目中删除节点。')
     @result(NodeDeleteSchema)
-    async deleteNode(@param(NodeDeleteSchema) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    async deleteNode(@param(NodeDeleteSchema) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDeleteResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TNodeDetail> = {
+        const ret: CommonResultType<TNodeDeleteResult> = {
             code: code,
             data: {
-
+                path: '',
             },
         }
 
         try {
-            const params: any = {
-                path: options.path,
-            };
-            if (options.keepWorldTransform !== undefined) {
-                params.keepWorldTransform = options.keepWorldTransform;
-            }
-
-            const nodeInfo = await Scene.deleteNode(params);
-            if (nodeInfo) {
-                ret.data.path = nodeInfo.path;
-                ret.data.name = nodeInfo.name;
-                ret.data.children = nodeInfo.children;
+            const result = await Scene.deleteNode(options);
+            if (result?.path) {
+                ret.data.path = result.path;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -113,26 +132,19 @@ export class NodeApi extends ApiBase {
     @title('更新节点')
     @description('在 Cocos Creator 项目中修改节点。')
     @result(NodeUpdateSchema)
-    async updateNode(@param(NodeUpdateSchema) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    async updateNode(@param(NodeUpdateSchema) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TNodeDetail> = {
+        const ret: CommonResultType<TNodeUpdateResult> = {
             code: code,
             data: {
-                path: 'unknown',
-                name: '',
+                path: '',
             },
         }
 
         try {
-            const params: any = {
-                path: options.path,
-            };
-
-            const nodeInfo = await Scene.updateNode(params);
-            if (nodeInfo) {
-                ret.data.path = nodeInfo.path;
-                ret.data.name = nodeInfo.name;
-                ret.data.children = nodeInfo.children;
+            const result = await Scene.updateNode(options);
+            if (result?.path) {
+                ret.data.path = result.path;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -155,17 +167,35 @@ export class NodeApi extends ApiBase {
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
             data: {
-                path: 'unknown',
+                nodeId: '',
+                path: '',
                 name: '',
+                properties: {
+                    position: { x: 0, y: 0, z: 0 },
+                    worldPosition: { x: 0, y: 0, z: 0 },
+                    rotation: { x: 0, y: 0, z: 0, w: 1 },
+                    worldRotation: { x: 0, y: 0, z: 0, w: 1 },
+                    eulerAngles: { x: 0, y: 0, z: 0 },
+                    angle: 0,
+                    scale: { x: 1, y: 1, z: 1 },
+                    worldScale: { x: 1, y: 1, z: 1 },
+                    matrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
+                    worldMatrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
+                    forward: { x: 0, y: 0, z: 0 },
+                    up: { x: 0, y: 1, z: 0 },
+                    right: { x: 1, y: 0, z: 0 },
+                    mobility: 'Static',
+                    layer: 0,
+                    hasChangedFlags: 0,
+                    active: false,
+                    activeInHierarchy: false
+                },
+                component: []
             },
         }
 
         try {
-            const params: any = {
-                path: options.path,
-            };
-
-            const nodeInfo = await Scene.queryNode(params);
+            const nodeInfo = await Scene.queryNode(options);
             if (nodeInfo) {
                 ret.data.path = nodeInfo.path;
                 ret.data.name = nodeInfo.name;

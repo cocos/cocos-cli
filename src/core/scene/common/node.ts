@@ -1,3 +1,5 @@
+import { IVec3, IQuat, IMat4 } from './value-types';
+
 export enum NodeType {
     EMPTY = 'Empty', // 空节点
     TERRAIN = 'Terrain', // 地形节点
@@ -42,41 +44,8 @@ export enum NodeType {
     REFLECTION_LIGHT = 'Light-Reflection-Probe', // 反射探针
 }
 
-// 基础向量和矩阵类型
-export interface IVec3 {
-    x: number; // x 轴坐标
-    y: number; // y 轴坐标
-    z: number; // z 轴坐标
-}
-
-export interface IQuat {
-    x: number; // 旋转轴的 x 分量
-    y: number; // 旋转轴的 y 分量
-    z: number; // 旋转轴的 z 分量
-    w: number; // 旋转角度的余弦半角（实部）
-}
-
-export interface IMat4 {
-    m00: number; // 0列0行
-    m01: number; // 0列1行
-    m02: number; // 0列2行
-    m03: number; // 0列3行
-    m04: number; // 1列0行
-    m05: number; // 1列1行
-    m06: number; // 1列2行
-    m07: number; // 1列3行
-    m08: number; // 2列0行
-    m09: number; // 2列1行
-    m10: number; // 2列2行
-    m11: number; // 2列3行
-    m12: number; // 3列0行
-    m13: number; // 3列1行
-    m14: number; // 3列2行
-    m15: number; // 3列3行
-}
-
 // 节点基础属性接口
-export interface IBaseNodeProperties {
+export interface INodeProperties {
     position: IVec3; // 节点位置
     worldPosition: IVec3; // 节点世界位置
     rotation: IQuat; // 节点旋转, 四元数
@@ -97,44 +66,34 @@ export interface IBaseNodeProperties {
     readonly activeInHierarchy: boolean; // 节点在场景中是否激活
 }
 
-// 完整节点属性接口（包含父节点引用）
-export interface INodeProperties extends IBaseNodeProperties {
-    parent?: IBaseNodeProperties; // 父节点的属性
-}
-
 // 节点标识符接口
 export interface INodeIdentifier {
-    nodeId?: string; // 节点的 id
-    path?: string; // 节点在场景中的路径
-    name?: string; // 节点名称
+    nodeId: string; // 节点的 id
+    path: string; // 节点在场景中的路径
+    name: string; // 节点名称
 }
 
 // 节点查询参数接口
-export interface IQueryNodeParams extends INodeIdentifier {
-    deeps?: number; // 查询的深度
-    queryChildren?: boolean; // 是否查询子节点信息
+export interface IQueryNodeParams {
+    path: string; // 查询的深度
+    queryChildren: boolean; // 是否查询子节点信息
 }
 
 // 节点查询结果项接口
-export interface IQueryNodeResultItem extends INodeProperties{
-    readonly nodeId: string; // 节点的 id
-    path: string; // 节点路径
-    name: string; // 节点名称
-    readonly children?: IQueryNodeResultItem[]; // 子节点列表
+export interface INode extends INodeIdentifier {
+    properties: INodeProperties; // 节点属性
+    component: string[]; // 节点上的组件列表
+    readonly children?: INode[]; // 子节点列表
 }
 
-// 节点查询结果接口
-export type IQueryNodeResult = IQueryNodeResultItem[];
-
 // 节点更新参数接口
-export interface IUpdateNodeParams extends INodeProperties {
-    readonly nodeId: string; // 节点的 id
-    path: string; // 节点路径
+export interface IUpdateNodeParams extends INodeIdentifier {
+    properties: Partial<INodeProperties>; // 节点属性
 }
 
 // 节点更新结果接口
 export interface IUpdateNodeResult {
-    failedInfo: string; // 节点的 id
+    path: string; // 节点相对根节点路径
 }
 
 // 节点删除参数接口
@@ -142,6 +101,11 @@ export interface IDeleteNodeParams {
     nodeId?: string; // 节点的 id
     path: string; // 节点相对路径
     keepWorldTransform: boolean; // 保持世界变换
+}
+
+// 节点删除后返回参数
+export interface IDeleteNodeResult {
+    path: string; // 节点相对根节点路径
 }
 
 // 节点创建参数接口
@@ -163,12 +127,12 @@ export interface INodeService {
      * 创建节点
      * @param params
      */
-    createNode(params: ICreateNodeParams): Promise<IQueryNodeResultItem | null>;
+    createNode(params: ICreateNodeParams): Promise<INode | null>;
     /**
      * 删除节点
      * @param params 
      */
-    deleteNode(params: IDeleteNodeParams): Promise<boolean>;
+    deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     /**
      * 更新节点
      * @param params
@@ -177,5 +141,5 @@ export interface INodeService {
     /**
     * 查询节点
     */
-    queryNode(identifier: INodeIdentifier): Promise<IQueryNodeResultItem | null>;
+    queryNode(params: IQueryNodeParams): Promise<INode | null>;
 }
