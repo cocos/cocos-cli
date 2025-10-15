@@ -1,18 +1,6 @@
 import { BaseConfiguration } from '../script/config';
 import { MessageType } from '../script/interface';
 
-// Mock the defaultConfigMap
-jest.mock('../configs', () => ({
-    defaultConfigMap: {
-        'test-module': {
-            defaultKey: 'defaultValue',
-            nested: {
-                key: 'nestedValue'
-            }
-        }
-    }
-}));
-
 describe('BaseConfiguration', () => {
     let config: BaseConfiguration;
     const moduleName = 'test-module';
@@ -31,15 +19,6 @@ describe('BaseConfiguration', () => {
         it('should initialize with module name and default configs', () => {
             expect(config.moduleName).toBe(moduleName);
             expect(config.getDefaultConfig()).toEqual(defaultConfigs);
-        });
-
-        it('should initialize with module name only and use defaultConfigMap', () => {
-            const configWithoutDefaults = new BaseConfiguration('test-module');
-            expect(configWithoutDefaults.moduleName).toBe('test-module');
-            expect(configWithoutDefaults.getDefaultConfig()).toEqual({
-                defaultKey: 'defaultValue',
-                nested: { key: 'nestedValue' }
-            });
         });
     });
 

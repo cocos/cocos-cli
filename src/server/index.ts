@@ -1,4 +1,5 @@
 import { serverService } from './server';
+import { IMiddlewareContribution } from './interfaces';
 
 /**
  * 启动服务器
@@ -26,6 +27,10 @@ export async function stopServer(): Promise<void> {
 /**
  * 获取当前服务器的地址
  */
-export function getServerUrl (): string {
+export function getServerUrl(): string {
     return serverService.url;
+}
+
+export function register(name: string, module: IMiddlewareContribution) {
+    serverService.register(name, module);
 }

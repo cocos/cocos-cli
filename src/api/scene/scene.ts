@@ -1,22 +1,22 @@
 import { ApiBase } from '../base/api-base';
 import {
-    SchemeSceneUUID,
-    SchemeOpenSceneResult,
-    SchemeCloseSceneResult,
-    SchemeSaveSceneResult,
-    SchemeCreateSceneOptions,
-    SchemeCreateSceneResult,
-    SchemeCurrentOpenSceneResult,
-    TSceneUUID,
+    SchemaScenePathOrURL,
+    SchemaOpenSceneResult,
+    SchemaCloseSceneResult,
+    SchemaSaveSceneResult,
+    SchemaCreateSceneOptions,
+    SchemaCreateSceneResult,
+    SchemaCurrentSceneResult,
+    TUrlOrUUIDOrPath,
     TOpenSceneResult,
     TCloseSceneResult,
     TSaveSceneResult,
     TCreateSceneOptions,
     TCreateSceneResult,
-    TCurrentOpenSceneResult,
-} from './scheme';
+    TCurrentSceneResult,
+} from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
+import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
 
 export class SceneApi extends ApiBase {
@@ -31,43 +31,30 @@ export class SceneApi extends ApiBase {
     async init(): Promise<void> {
         // 场景 API 依赖资源数据库，确保在 AssetsApi 初始化后调用
         console.log('初始化场景 API，项目路径:', this.projectPath);
-        await Scene.worker.start(this.enginePath, this.enginePath);
+        await Scene.worker.start(this.enginePath, this.projectPath);
     }
 
     /**
      * 获取当前打开场景信息
      */
-    @tool('scene-get-current-scene')
+    @tool('scene-query-current-scene')
     @title('获取当前打开场景信息')
     @description('获取 Cocos Creator 项目中当前打开场景信息')
-    @result(SchemeCurrentOpenSceneResult)
-    async getCurrentOpenScene(): Promise<CommonResultType<TCurrentOpenSceneResult>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TCurrentOpenSceneResult> = {
-            code: code,
-            data: {
-                name: 'unknown',
-                url: 'unknown',
-                path: 'unknown',
-                uuid: 'unknown',
-            },
-        };
-
+    @result(SchemaCurrentSceneResult)
+    async queryCurrentScene(): Promise<CommonResultType<TCurrentSceneResult>> {
         try {
-            const sceneInfo = await Scene.getCurrentScene();
-            if (sceneInfo) {
-                ret.data.name = sceneInfo.name;
-                ret.data.url = sceneInfo.url;
-                ret.data.path = sceneInfo.path;
-                ret.data.uuid = sceneInfo.uuid;
+            const data = await Scene.queryCurrentScene();
+            return {
+                data,
+                code: COMMON_STATUS.SUCCESS,
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('获取当前打开场景失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -76,30 +63,21 @@ export class SceneApi extends ApiBase {
     @tool('scene-open-scene')
     @title('打开场景')
     @description('打开 Cocos Creator 项目中的指定场景文件。加载场景数据到内存中，使其成为当前活动场景。只需要提供场景名称即可。')
-    @result(SchemeOpenSceneResult)
-    async openScene(@param(SchemeSceneUUID) sceneUuid: TSceneUUID): Promise<CommonResultType<TOpenSceneResult>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TOpenSceneResult> = {
-            code: code,
-            data: {
-                path: 'unknown',
-                uuid: 'unknown',
-            },
-        };
-
+    @result(SchemaOpenSceneResult)
+    async openScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TOpenSceneResult>> {
         try {
-            const sceneInfo = await Scene.openScene({ uuid: sceneUuid });
-            if (sceneInfo) {
-                ret.data.path = sceneInfo.path;
-                ret.data.uuid = sceneInfo.uuid;
+            const data = await Scene.open({ urlOrUUIDOrPath });
+            return {
+                data,
+                code: COMMON_STATUS.SUCCESS,
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('打开场景失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -108,29 +86,21 @@ export class SceneApi extends ApiBase {
     @tool('scene-close-scene')
     @title('关闭场景')
     @description('关闭当前活动的场景，清理场景相关的内存资源。关闭前会提示保存未保存的更改。')
-    @result(SchemeCloseSceneResult)
-    async closeScene(): Promise<CommonResultType<TCloseSceneResult>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TCloseSceneResult> = {
-            code: code,
-            data: {
-                path: 'unknown',
-            },
-        };
-
+    @result(SchemaCloseSceneResult)
+    async closeScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath?: TUrlOrUUIDOrPath): Promise<CommonResultType<TCloseSceneResult>> {
         try {
-            const closedScene = await Scene.closeScene();
-
-            if (closedScene) {
-                ret.data.path = closedScene.path;
+            const data = await Scene.close({ urlOrUUIDOrPath });
+            return {
+                data,
+                code: COMMON_STATUS.SUCCESS,
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('关闭场景失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -139,30 +109,21 @@ export class SceneApi extends ApiBase {
     @tool('scene-save-scene')
     @title('保存场景')
     @description('保存当前活动场景的所有更改到磁盘。包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。')
-    @result(SchemeSaveSceneResult)
-    async saveScene(@param(SchemeSceneUUID) sceneUuid?: TSceneUUID): Promise<CommonResultType<TSaveSceneResult>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TSaveSceneResult> = {
-            code: code,
-            data: {
-                path: 'unknown',
-                uuid: 'unknown',
-            },
-        };
-
+    @result(SchemaSaveSceneResult)
+    async saveScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath?: TUrlOrUUIDOrPath): Promise<CommonResultType<TSaveSceneResult>> {
         try {
-            const sceneInfo = await Scene.saveScene({ uuid: sceneUuid });
-            if (sceneInfo) {
-                ret.data.path = sceneInfo.path;
-                ret.data.uuid = sceneInfo.uuid;
+            const data = await Scene.save({ urlOrUUIDOrPath });
+            return {
+                data,
+                code: COMMON_STATUS.SUCCESS,
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('保存场景失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -171,34 +132,23 @@ export class SceneApi extends ApiBase {
     @tool('scene-create-scene')
     @title('创建场景')
     @description('在 Cocos Creator 项目中创建新的场景文件。可以选择不同的场景模板（默认、2D、3D、高质量）。自动生成场景的 UUID 和 .meta 文件，并注册到资源数据库中。')
-    @result(SchemeCreateSceneResult)
-    async createScene(@param(SchemeCreateSceneOptions) options: TCreateSceneOptions): Promise<CommonResultType<TCreateSceneResult>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret:CommonResultType<TCreateSceneResult> = {
-            code: code,
-            data: {
-                path: 'unknown',
-                url: 'unknown',
-                uuid: 'unknown',
-            },
-        }
-
+    @result(SchemaCreateSceneResult)
+    async createScene(@param(SchemaCreateSceneOptions) options: TCreateSceneOptions): Promise<CommonResultType<TCreateSceneResult>> {
         try {
-            const sceneInfo = await Scene.createScene({
+            const data = await Scene.create({
                 targetPathOrURL: options.targetPathOrURL,
                 templateType: options.templateType as TSceneTemplateType
             });
-            if (sceneInfo) {
-                ret.data.path = sceneInfo.path;
-                ret.data.url = sceneInfo.url || '';
-                ret.data.uuid = sceneInfo.uuid;
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: data,
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('创建场景失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 }

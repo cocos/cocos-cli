@@ -15,7 +15,7 @@ import {
     GlTFUserData,
     ImageMeta,
     LODsOption,
-} from '../meta-schemas/glTF.meta';
+} from '../../@types/userDatas';
 import * as migratesNameToId from './migrates/name2id';
 import { convertsEncodedSeparatorsInURI } from './utils/uri-utils';
 import { AnimationClip, MeshRenderer, Node } from 'cc';

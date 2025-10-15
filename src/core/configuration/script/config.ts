@@ -77,7 +77,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
     }
 
     public async get<T>(key?: string, scope?: ConfigurationScope): Promise<T> {
-        if (!key) {
+        if (key === undefined) {
             return utils.deepMerge(this.getDefaultConfig(), this.configs);
         }
         const projectConfig = utils.getByDotPath(this.configs, key);

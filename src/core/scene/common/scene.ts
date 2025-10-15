@@ -1,17 +1,29 @@
 /**
- * 场景信息
+ * 场景
  */
-export interface ISceneInfo {
-    path: string;
-    uuid: string;
-    url: string;
-    name: string;
-}
 
 /**
  * 场景模板类型
  */
-export type TSceneTemplateType = 'default' | '2d' | '3d' | 'quality';
+export type TSceneTemplateType = '2d' | '3d' | 'quality';
+
+/**
+ * 场景标识
+ */
+export interface ISceneIdentifier {
+    uuid: string;
+    path: string;
+    url: string;
+    type: string;
+}
+
+/**
+ * 场景基础信息
+ */
+export interface IScene extends ISceneIdentifier {
+    name: string;
+}
+
 
 /**
  * 创建场景选项
@@ -25,14 +37,28 @@ export interface ICreateSceneOptions {
  * 保持场景选项
  */
 export interface ISaveSceneOptions {
-    uuid?: string;
+    urlOrUUIDOrPath?: string;
 }
 
 /**
  * 打开场景选项
  */
 export interface IOpenSceneOptions {
-    uuid: string;
+    urlOrUUIDOrPath: string;
+}
+
+/**
+ * 软刷新场景选项
+ */
+export interface ISoftReloadSceneOptions {
+    urlOrUUIDOrPath?: string;
+}
+
+/**
+ * 关闭场景选项
+ */
+export interface ICloseSceneOptions {
+    urlOrUUIDOrPath?: string;
 }
 
 /**
@@ -43,26 +69,42 @@ export interface ISceneService {
      * 打开场景
      * @param params
      */
-    openScene(params: IOpenSceneOptions): Promise<ISceneInfo | null>;
+    open(params: IOpenSceneOptions): Promise<IScene>;
 
     /**
      * 关闭当前场景
      */
-    closeScene(): Promise<ISceneInfo | null>;
+    close(params: ICloseSceneOptions): Promise<boolean>;
 
     /**
      * 保存场景
      */
-    saveScene(params: ISaveSceneOptions): Promise<ISceneInfo | null>;
+    save(params: ISaveSceneOptions): Promise<boolean>;
+
+    /**
+     * 重载场景
+     */
+    reload(): Promise<boolean>;
+
+    /**
+     * 软重载场景
+     * @param params
+     */
+    softReload(params: ISoftReloadSceneOptions): Promise<boolean>;
 
     /**
      * 创建新场景
      * @param params
      */
-    createScene(params: ICreateSceneOptions): Promise<ISceneInfo | null>;
+    create(params: ICreateSceneOptions): Promise<IScene>;
 
     /**
      * 获取当前打开的场景
      */
-    getCurrentScene(): Promise<ISceneInfo | null>;
+    queryCurrentScene(): Promise<IScene | null>;
+
+    /**
+     * 获取当前所有场景
+     */
+    queryScenes(): Promise<IScene[]>;
 }

@@ -24,26 +24,24 @@ import {
     SpriteAtlasAssetUserData,
     RtSpriteFrameAssetUserData,
 } from './userDatas';
-
-import { SUPPORT_CREATE_TYPES, ASSET_HANDLER_TYPES } from '../asset-handler/config';
-
+import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from './interface';
 // 支持创建的资源类型（引擎类型）
-export type ISupportCreateCCType = 
-| 'cc.AnimationClip'        // 动画剪辑
-| 'cc.Script'               // 脚本（TypeScript/JavaScript）
-| 'cc.SpriteAtlas'          // 精灵图集（自动图集）
-| 'cc.EffectAsset'          // 着色器效果
-| 'cc.SceneAsset'           // 场景
-| 'cc.Prefab'               // 预制体
-| 'cc.Material'             // 材质
-| 'cc.TextureCube'          // 立方体贴图
-| 'cc.TerrainAsset'         // 地形
-| 'cc.PhysicsMaterial'      // 物理材质
-| 'cc.LabelAtlas'           // 标签图集
-| 'cc.RenderTexture'        // 渲染纹理
-| 'cc.AnimationGraph'       // 动画图
-| 'cc.AnimationMask'        // 动画遮罩
-| 'cc.AnimationGraphVariant'; // 动画图变体
+export type ISupportCreateCCType =
+    | 'cc.AnimationClip'        // 动画剪辑
+    | 'cc.Script'               // 脚本（TypeScript/JavaScript）
+    | 'cc.SpriteAtlas'          // 精灵图集（自动图集）
+    | 'cc.EffectAsset'          // 着色器效果
+    | 'cc.SceneAsset'           // 场景
+    | 'cc.Prefab'               // 预制体
+    | 'cc.Material'             // 材质
+    | 'cc.TextureCube'          // 立方体贴图
+    | 'cc.TerrainAsset'         // 地形
+    | 'cc.PhysicsMaterial'      // 物理材质
+    | 'cc.LabelAtlas'           // 标签图集
+    | 'cc.RenderTexture'        // 渲染纹理
+    | 'cc.AnimationGraph'       // 动画图
+    | 'cc.AnimationMask'        // 动画遮罩
+    | 'cc.AnimationGraphVariant'; // 动画图变体
 
 
 /** 支持创建的资源类型（从常量数组派生） */
@@ -85,7 +83,7 @@ export interface AssetUserDataMap {
     'rt-sprite-frame': RtSpriteFrameAssetUserData;
     'sign-image': ImageAssetUserData;
     'alpha-image': ImageAssetUserData;
-    
+
     // 无特定 userData 的资源类型（仅保留 unknown）
     'unknown': any;
 }

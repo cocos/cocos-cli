@@ -14,7 +14,6 @@ import { loadAssetSync } from '../utils/load-asset-sync';
 import { getOriginalAnimationLibraryPath } from './original-animation';
 
 import { getDependUUIDList } from '../../utils';
-import { AnimationImportSetting } from '../../meta-schemas/glTF.meta';
 import assert from 'assert';
 import { AssetHandler } from '../../../@types/protected';
 import { GltfAnimationAssetUserData } from '../../../@types/userDatas';

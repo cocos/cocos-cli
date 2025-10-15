@@ -1,4 +1,4 @@
-import Engine, { IEngine } from '../index';
+import { Engine, IEngine } from '../index';
 import { join } from 'path';
 import { EngineLoader } from 'cc/loader.js';
 
@@ -36,6 +36,7 @@ describe('Engine', () => {
         await engine.initEngine({
             importBase: join(ProjectPath, 'library'),
             nativeBase: join(ProjectPath, 'library'),
+            writablePath: join(ProjectPath, 'temp'),
         });
         // @ts-ignore
         expect(cc).toBeDefined();

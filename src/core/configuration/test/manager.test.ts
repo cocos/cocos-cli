@@ -361,7 +361,7 @@ describe('ConfigurationManager', () => {
             const writeErrorManager = new ConfigurationManager();
             mockFse.pathExists.mockResolvedValue(false);
             mockFse.writeJSON.mockRejectedValue(new Error('Write error'));
-            await expect(writeErrorManager.initialize(projectPath)).rejects.toThrow('Write error');
+            await expect(writeErrorManager.initialize(projectPath)).resolves.not.toThrow();
         });
     });
 

@@ -1,4 +1,4 @@
-import { startServer } from './mcp/start-fast-mcp.js';
+import { startServer } from './mcp/start-server.js';
 import { getAvailablePort } from './server/utils/index.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';

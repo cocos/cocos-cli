@@ -1,20 +1,37 @@
-import type { ICreateSceneOptions, ISaveSceneOptions, IOpenSceneOptions, ISceneService, ISceneInfo } from '../../common';
+import {
+    ICloseSceneOptions,
+    ICreateSceneOptions,
+    IOpenSceneOptions,
+    ISaveSceneOptions,
+    IScene,
+    ISceneService,
+    ISoftReloadSceneOptions
+} from '../../common';
 import { Rpc } from '../rpc';
 
 export const SceneProxy: ISceneService = {
-    closeScene(): Promise<ISceneInfo | null> {
-        return Rpc.request('Scene', 'closeScene');
+    open(params: IOpenSceneOptions): Promise<IScene> {
+        return Rpc.request('Scene', 'open', [params]);
     },
-    createScene(params: ICreateSceneOptions): Promise<ISceneInfo | null> {
-        return Rpc.request('Scene', 'createScene', [params]);
+    close(params: ICloseSceneOptions): Promise<boolean> {
+        return Rpc.request('Scene', 'close', [params]);
     },
-    getCurrentScene(): Promise<ISceneInfo | null> {
-        return Rpc.request('Scene', 'getCurrentScene');
+    save(params: ISaveSceneOptions): Promise<boolean> {
+        return Rpc.request('Scene', 'save', [params]);
     },
-    openScene(params: IOpenSceneOptions): Promise<ISceneInfo | null> {
-        return Rpc.request('Scene', 'openScene', [params]);
+    reload(): Promise<boolean> {
+        return Rpc.request('Scene', 'reload');
     },
-    saveScene(params: ISaveSceneOptions): Promise<ISceneInfo | null> {
-        return Rpc.request('Scene', 'saveScene', [params]);
+    softReload(params: ISoftReloadSceneOptions): Promise<boolean> {
+        return Rpc.request('Scene', 'softReload', [params]);
+    },
+    create(params: ICreateSceneOptions): Promise<IScene> {
+        return Rpc.request('Scene', 'create', [params]);
+    },
+    queryCurrentScene(): Promise<IScene | null> {
+        return Rpc.request('Scene', 'queryCurrentScene', []);
+    },
+    queryScenes(): Promise<IScene[]> {
+        return Rpc.request('Scene', 'queryScenes');
     }
 }

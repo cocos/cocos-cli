@@ -9,6 +9,7 @@ import { socketService } from './socket';
 import { middlewareService } from './middleware';
 import { cors } from './utils/cors';
 import path from 'path';
+import { IMiddlewareContribution } from './interfaces';
 
 interface ServerOptions {
     port: number,// 端口
@@ -129,7 +130,7 @@ export class ServerService {
         console.log(`\n🚀 服务器已启动: ${this.url}`);
     }
 
-    init () {
+    init() {
         this.app.use(compression());
         this.app.use(cors);
         this.app.use(middlewareService.router);
@@ -149,6 +150,11 @@ export class ServerService {
             res.status(500);
             res.send('500 - Server Error');
         });
+    }
+
+    register(name: string, module: IMiddlewareContribution) {
+        middlewareService.register(name, module);
+        this.app.use(middlewareService.router);
     }
 }
 

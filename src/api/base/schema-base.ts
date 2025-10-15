@@ -66,14 +66,15 @@ export const HttpStatusCodeSchema = z.union([
 export function createCommonResult<T extends z.ZodTypeAny>(dataSchema: T) {
     return z.object({
         code: HttpStatusCodeSchema,
-        data: dataSchema,
+        data: z.union([dataSchema, z.undefined()]),
+        reason: z.union([z.string(), z.undefined()])
     });
 }
 
 // 类型推导辅助
 export type CommonResultType<T> = {
     code: HttpStatusCode;
-    data: T;
+    data?: T;
     reason?: string;//当失败的时候，需要带上 reason 的字段提示错误信息
 };
 

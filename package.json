@@ -25,6 +25,7 @@
     "scripts": {
         "clear": "node workflow/clear.js",
         "test": "jest",
+        "test:quiet": "jest --silent",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "compiler": "FORCE_UPDATE=true npm i",
@@ -40,6 +41,7 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
         "start": "node ./dist/commands/build-directly.js",
+        "start:mcp": "node ./dist/mcp/start-server.js",
         "cli": "ts-node src/cli.ts"
     },
     "author": "cocos",
@@ -109,7 +111,6 @@
         "draco3dgltf": "^1.5.7",
         "ejs": "^2.7.1",
         "express": "^5.1.0",
-        "fastmcp": "^3.17.0",
         "fs-extra": "^10.0.0",
         "get-audio-duration": "^4.0.1",
         "get-video-duration": "^4.1.0",
@@ -147,6 +148,6 @@
         "xhr2": "^0.2.1",
         "xmldom": "^0.1.31",
         "xxhashjs": "^0.2.2",
-        "zod": "^4.1.9"
+        "zod": "^3.25.76"
     }
 }

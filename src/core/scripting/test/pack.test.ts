@@ -1,7 +1,5 @@
-import { project } from '../../project/script';
 import { PackerDriver } from '../packer-driver';
 import { project as projectPath, engine as enginePath } from '../../../../.user.json';
-
 
 /**
  * pack 类的测试 
@@ -9,11 +7,11 @@ import { project as projectPath, engine as enginePath } from '../../../../.user.
 describe('Pack', () => {
     let packDriver: PackerDriver;
 
-    beforeEach(async () => {
-        await project.create(projectPath);
-        // 在每个测试用例之前初始化engine
-        packDriver = await PackerDriver.create(projectPath, enginePath);
-    });
+    it('准备阶段', async () => {
+        const TestUtils = await import('../../base/test-utils');
+        const core = await TestUtils.fastStartup(enginePath, projectPath);
+        packDriver = core.packDriver;
+    })
 
     it('test script pack', async () => {
         await packDriver.build();

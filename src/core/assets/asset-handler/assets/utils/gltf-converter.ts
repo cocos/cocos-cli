@@ -20,7 +20,8 @@ import {
     Skin,
     Texture,
 } from '../../../@types/glTF';
-import { GlTFUserData, NormalImportSetting, TangentImportSetting } from '../../meta-schemas/glTF.meta';
+import { GlTFUserData } from '../../../@types/userDatas';
+import { NormalImportSetting, TangentImportSetting } from '../../../@types/interface';
 import { defaultMagFilter, defaultMinFilter } from '../texture-base';
 import { decodeBase64ToArrayBuffer } from './base64';
 import {

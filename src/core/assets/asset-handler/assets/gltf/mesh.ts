@@ -1,7 +1,7 @@
 import { Asset, VirtualAsset } from '@editor/asset-db';
 import { glTfReaderManager } from './reader-manager';
 import { getDependUUIDList } from '../../utils';
-import { GlTFUserData, IVirtualAssetUserData } from '../../meta-schemas/glTF.meta';
+import { GlTFUserData, IVirtualAssetUserData } from '../../../@types/userDatas';
 import { gfx } from 'cc';
 import fs from 'fs-extra';
 import { unwrapLightmapUV } from '../utils/uv-unwrap';

@@ -1,6 +1,6 @@
 import * as cc from 'cc';
 import { Constructor } from 'cc';
-import { SerializedAssetFinder } from '../../meta-schemas/glTF.meta';
+import { SerializedAssetFinder } from '../../../@types/userDatas';
 import { GltfAssetFinderKind, IGltfAssetFinder } from '../utils/gltf-converter';
 import { loadAssetSync } from '../utils/load-asset-sync';
 

@@ -1,6 +1,4 @@
 import { gfx, Mesh, Morph, utils, Vec3 } from 'cc';
-import { SimplifyOptions } from '../../meta-schemas/glTF.meta';
-import { getDefaultSimplifyOptions, MeshSimplify } from './meshSimplify';
 
 export function mergeMeshes(meshes: Mesh[] = []): Mesh {
     if (meshes.length === 0) {

@@ -204,7 +204,7 @@ class EngineManager implements IEngine {
         this._info.tmpDir = join(enginePath, '.temp');
         const configInstance = await configurationRegistry.register('engine', this.defaultConfig);
         this._init = true;
-        this._config = await configInstance.get('');
+        this._config = await configInstance.get();
         return this;
     }
 
