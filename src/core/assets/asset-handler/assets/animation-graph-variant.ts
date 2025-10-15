@@ -18,6 +18,7 @@ const AnimationGraphVariantHandler: AssetHandler = {
                     fullFileName: 'Animation Graph Varint.animgraphvari',
                     template: `db://internal/default_file_content/${AnimationGraphVariantHandler.name}/default.animgraphvari`,
                     group: 'animation',
+                    name: 'default',
                 },
             ];
         },

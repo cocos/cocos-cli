@@ -292,7 +292,7 @@ class AssetHandlerManager {
      */
     async getCreateMenuByName(importer: string): Promise<ICreateMenuInfo[]> {
         const handler = this.name2handler[importer];
-        if (!handler.createInfo || !handler.createInfo.generateMenuInfo) {
+        if (!handler || !handler.createInfo || !handler.createInfo.generateMenuInfo) {
             return [];
         }
         const { generateMenuInfo, preventDefaultTemplateMenu } = handler.createInfo;
@@ -329,34 +329,12 @@ class AssetHandlerManager {
 
             // 与默认模板非同名的模板文件为用户自定义模板
             if (templates.length && createMenu.length) {
-                let menuAddTarget = createMenu;
-                if (createMenu[0].submenu) {
-                    menuAddTarget = createMenu[0].submenu;
-                } else {
-                    createMenu[0] = {
-                        ...createMenu[0],
-                        submenu: [{
-                            ...createMenu[0],
-                            label: 'Default',
-                        }],
-                    };
-                    menuAddTarget = createMenu[0].submenu!;
-                }
                 templates.forEach((templatePath) => {
-                    menuAddTarget.push(patchHandler({
+                    createMenu.push(patchHandler({
                         label: basename(templatePath, extname(templatePath)),
                         template: templatePath,
+                        name: basename(templatePath, extname(templatePath)),
                     }, importer, extensions));
-                });
-                // 存在模板的情况下，添加资源模板管理的菜单入口
-                menuAddTarget.push({
-                    label: 'i18n:asset-db.createAssetTemplate.manageTemplate',
-                    // TODO 与 vs 桥接层
-                    // message: {
-                    //     target: 'asset-db',
-                    //     name: 'show-asset-template-dir',
-                    //     params: [templateDir],
-                    // },
                 });
             }
 

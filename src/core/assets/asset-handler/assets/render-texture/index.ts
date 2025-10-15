@@ -5,7 +5,7 @@ import { RenderTexture } from 'cc';
 
 import { getDependUUIDList } from '../../utils';
 import { AssetHandler } from '../../../@types/protected';
-import { TextureBaseAssetUserData } from '../../../@types/userDatas';
+import { RenderTextureAssetUserData, TextureBaseAssetUserData } from '../../../@types/userDatas';
 
 function fillUserdata(asset: Asset, name: string, value: any) {
     if (!(name in asset.userData)) {
@@ -27,6 +27,7 @@ export const RenderTextureHandler: AssetHandler = {
                     label: 'i18n:ENGINE.assets.newRenderTexture',
                     fullFileName: 'render-texture.rt',
                     template: `db://internal/default_file_content/${RenderTextureHandler.name}/default.rt`,
+                    name: 'default',
                 },
             ];
         },

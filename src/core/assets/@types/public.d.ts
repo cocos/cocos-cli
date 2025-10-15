@@ -129,6 +129,13 @@ export interface AssetOperationOption {
     rename?: boolean;
 }
 
+export interface CreateAssetByTypeOptions extends AssetOperationOption {
+    /**
+     * 指定的模板名称，默认为 default
+     */
+    templateName?: string;
+}
+
 export interface AssetDBOptions {
     name: string;
     target: string;

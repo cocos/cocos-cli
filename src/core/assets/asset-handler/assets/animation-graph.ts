@@ -22,6 +22,7 @@ const AnimationGraphHandler: AssetHandler = {
                     fullFileName: 'Animation Graph.animgraph',
                     template: `db://internal/default_file_content/${AnimationGraphHandler.name}/default.animgraph`,
                     group: 'animation',
+                    name: 'default',
                 },
                 {
                     label: 'i18n:ENGINE.assets.newAnimationGraphTS',
@@ -29,6 +30,7 @@ const AnimationGraphHandler: AssetHandler = {
                     template: `db://internal/default_file_content/${AnimationGraphHandler.name}/ts-animation-graph`,
                     handler: 'typescript',
                     group: 'animation',
+                    name: 'ts-animation-graph',
                 },
             ];
         },

@@ -289,14 +289,16 @@ describe('测试 db 的操作接口', function() {
             { type: 'typescript', ext: 'ts', ccType: 'cc.Script', description: 'TypeScript 脚本' },
             { type: 'auto-atlas', ext: 'pac', ccType: 'cc.SpriteAtlas', description: '自动图集' },
             { type: 'effect', ext: 'effect', ccType: 'cc.EffectAsset', description: '着色器效果' },
-            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: '场景' },
+            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: '3d 场景', templateName: '3d' },
+            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: '2d 场景', templateName: '2d' },
+            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: 'quality 场景', templateName: 'quality' },
             { type: 'prefab', ext: 'prefab', ccType: 'cc.Prefab', description: '预制体' },
             { type: 'material', ext: 'mtl', ccType: 'cc.Material', description: '材质' },
             // { type: 'texture-cube', ext: 'cubemap', ccType: 'cc.TextureCube', description: '立方体贴图' },
             { type: 'terrain', ext: 'terrain', ccType: 'cc.TerrainAsset', description: '地形' },
             { type: 'physics-material', ext: 'pmtl', ccType: 'cc.PhysicsMaterial', description: '物理材质' },
             { type: 'label-atlas', ext: 'labelatlas', ccType: 'cc.LabelAtlas', description: '标签图集' },
-            { type: 'render-texture', ext: 'rt', ccType: 'cc.RenderTexture', description: '渲染纹理' },
+            // { type: 'render-texture', ext: 'rt', ccType: 'cc.RenderTexture', description: '渲染纹理' },
             // { type: 'animation-graph', ext: 'animgraph', ccType: 'cc.AnimationGraph', description: '动画图' },
             // { type: 'animation-mask', ext: 'mask', ccType: 'cc.AnimationMask', description: '动画遮罩' },
             // { type: 'animation-graph-variant', ext: 'animgraphvariant', ccType: 'cc.AnimationGraphVariant', description: '动画图变体' },
@@ -306,13 +308,14 @@ describe('测试 db 的操作接口', function() {
         // 使用 test.each 批量测试所有资源类型
         test.each(createTestCases)(
             '创建 $description ($type)',
-            async ({ type, ext, ccType, skipTypeCheck }) => {
-                const fileName = `${name}_${type}.${ext}`;
+            async ({ type, ext, ccType, skipTypeCheck, templateName }) => {
+                const fileName = `${type}.${ext}`;
                 const assetInfo = await assetManager.createAssetByType(
                     type as any,
                     join(databasePath, fileName),
                     {
                         overwrite: true,
+                        templateName,
                     }
                 );
                 

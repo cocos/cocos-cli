@@ -19,6 +19,7 @@ const AnimationMaskHandler: AssetHandler = {
                     fullFileName: 'Animation Mask.animask',
                     template: `db://internal/default_file_content/${AnimationMaskHandler.name}/default.animask`,
                     group: 'animation',
+                    name: 'default',
                 },
             ];
         },

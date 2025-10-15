@@ -24,6 +24,7 @@ const AnimationHandler: AssetHandler = {
                     fullFileName: 'animation.anim',
                     template: `db://internal/default_file_content/${AnimationHandler.name}/default.anim`,
                     group: 'animation',
+                    name: 'default',
                 },
             ];
         },

@@ -30,6 +30,7 @@ export const LabelAtlasHandler: AssetHandler = {
                     label: 'i18n:ENGINE.assets.newLabelAtlas',
                     fullFileName: 'label-atlas.labelatlas',
                     template: `db://internal/default_file_content/${LabelAtlasHandler.name}/default.labelatlas`,
+                    name: 'default',
                 },
             ];
         },

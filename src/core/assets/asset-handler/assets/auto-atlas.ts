@@ -41,6 +41,7 @@ const AutoAtlasHandler: AssetHandler = {
                     label: 'i18n:ENGINE.assets.newPac',
                     fullFileName: 'auto-atlas.pac',
                     template: `db://internal/default_file_content/${AutoAtlasHandler.name}/default.pac`,
+                    name: 'default',
                 },
             ];
         },

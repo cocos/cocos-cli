@@ -79,12 +79,14 @@ export const EffectHandler: AssetHandler = {
                     fullFileName: 'effect.effect',
                     template: `db://internal/default_file_content/${EffectHandler.name}/default.effect`,
                     group: 'effect',
+                    name: 'default',
                 },
                 {
                     label: 'i18n:ENGINE.assets.newSurfaceEffect',
                     fullFileName: 'surface-effect.effect',
                     template: `db://internal/default_file_content/${EffectHandler.name}/effect-surface.effect`,
                     group: 'effect',
+                    name: 'surface',
                 },
             ];
         },

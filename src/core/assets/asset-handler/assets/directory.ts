@@ -56,6 +56,7 @@ const DirectoryHandler: AssetHandler = {
                 {
                     label: 'i18n:ENGINE.assets.newFolder',
                     fullFileName: 'folder',
+                    name: 'default',
                 },
             ];
         },
