@@ -55,22 +55,22 @@ describe('测试 db 的操作接口', function () {
 
         it('创建普通的文本文件', async function () {
             const asset = await assetOperation.createAsset({
-                target: join(databasePath, `${name}.txt`),
+                target: join(databasePath, `${name}-create-asset-normal.txt`),
                 content: 'test',
             });
             expect(asset).not.toBeNull();
         });
 
         it('创建普通的文本文件 overwrite', async function () {
-            const dest = join(databasePath, `${name}.txt`);
+            const dest = join(databasePath, `${name}-create-asset-overwrite.txt`);
             outputFile(dest, 'original content');
             const asset = await assetOperation.createAsset({
                 target: dest,
-                content: 'new content',
+                content: 'createAssetOverwrite',
                 overwrite: true,
             });
             expect(asset).not.toBeNull();
-            expect(readFileSync(dest, 'utf8')).toEqual('new content');
+            expect(readFileSync(dest, 'utf8')).toEqual('createAssetOverwrite');
         });
     });
 
@@ -248,7 +248,7 @@ describe('测试 db 的操作接口', function () {
         it('保存普通资源', async function () {
             await assetManager.saveAsset(`${testInfo.testRootUrl}/${testName}`, 'test2');
 
-            const filePath = join(testInfo.testRoot, `${testName}`);
+            const filePath = join(testInfo.testRoot, testName);
             expect(existsSync(filePath)).toStrictEqual(true);
 
             const content = readFileSync(filePath, 'utf8');
