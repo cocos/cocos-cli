@@ -233,6 +233,12 @@ export function encodeComponent(component: any): IComponent {
         try {
             if (key in component) {
                 /**
+                 * 过滤私有属性与内置属性
+                 */
+                if(key.startsWith('_') || key.startsWith('__')) {
+                    return;
+                }
+                /**
                  * 此处 cc.Class.attr(component, key) 中的 component 不能用 ctor 替代
                  * 因为 ctor 是基类定义，component 是子类，子类的 __attr__ 存了一些自己数据了
                  * 比如 sp.Skeleton 当 skeletonData 属性有数据时取 _animationIndex 属性的 enumList 数据  
