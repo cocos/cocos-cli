@@ -26,6 +26,8 @@
         "clear": "node workflow/clear.js",
         "test": "jest",
         "test:quiet": "jest --silent",
+        "test:core": "jest --selectProjects core-test",
+        "test:mcp": "jest --selectProjects mcp-test",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "compiler": "FORCE_UPDATE=true npm i",
@@ -42,6 +44,7 @@
         "release": "node workflow/release.js",
         "start": "node ./dist/commands/build-directly.js",
         "start:mcp": "node ./dist/mcp/start-server.js",
+        "start:mcp-debug": "npx @modelcontextprotocol/inspector node /dist/mcp/start-server.js",
         "cli": "ts-node src/cli.ts"
     },
     "author": "cocos",

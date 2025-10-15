@@ -1,6 +1,6 @@
 {
   "ver": "1.0.0",
-  "importer": "audio-clip",
+  "importer": "*",
   "imported": true,
   "uuid": "6a14f0d7-1567-425f-a396-583546c2823d",
   "files": [
