@@ -22,8 +22,6 @@ export interface IProperty {
 
     name?: string;
 
-    elementTypeData?: IProperty; // 数组里的数据的默认值 dump
-
     path?: string; // 数据的搜索路径，这个是由使用方填充的
 
     isArray?: boolean;
@@ -59,13 +57,6 @@ export interface INode {
     removedComponents?: IRemovedComponentInfo[];
 }
 
-export interface IComponent extends IProperty {
-    value: {
-
-    } & Record<string, IPropertyValueType>;
-    uuid:string;
-    enabled:string;
-}
 
 /**
  * 组件信息

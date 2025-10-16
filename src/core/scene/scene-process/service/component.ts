@@ -1,6 +1,6 @@
-import type { ICreateComponentOptions, ISetPropertyOptions, IComponentInfo, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
+import type { ICreateComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './export/dump'
-import { IComponent, IComponentMenu, IProperty } from '../../@types/public';
+import { IComponentMenu, IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
 import compMgr from './component/index';
 
@@ -19,7 +19,7 @@ import {
  */
 @register('Component')
 export class componentService implements IComponentService {
-    private createComponentImpl(uuid: string, componentName: string): IComponentInfo | null {
+    private createComponentImpl(uuid: string, componentName: string): IComponent | null {
         if (Array.isArray(uuid)) {
             uuid.forEach((id) => {
                 this.createComponentImpl(id, componentName);
@@ -64,8 +64,8 @@ export class componentService implements IComponentService {
     }
     
     @expose()
-    createComponent(params: ICreateComponentOptions): Promise<IComponentInfo | null> {
-        return new Promise<IComponentInfo | null>(async (resolve, reject) => {
+    createComponent(params: ICreateComponentOptions): Promise<IComponent | null> {
+        return new Promise<IComponent | null>(async (resolve, reject) => {
             const component = await this.createComponentImpl(params.uuid, params.component);
             if(component != null) {
                 resolve({uuid: component.uuid});
@@ -76,23 +76,21 @@ export class componentService implements IComponentService {
     }
 
     @expose()
-    removeComponent(params: IDeleteComponentOptions): Promise<IComponentInfo | null> {
-        return new Promise<IComponentInfo | null>(async (resolve, reject) => {
+    removeComponent(params: IDeleteComponentOptions): Promise<boolean> {
+        return new Promise<boolean>(async (resolve, reject) => {
             const uuid = params.uuid;
             const comp = compMgr.query(uuid);
             if (!comp) {
                 reject(`Remove Component failed: ${uuid} does not exist`);
                 return;
             }
-
-            compMgr.removeComponent(comp);
-            resolve(null);
+            resolve(compMgr.removeComponent(comp));
         });
     }
 
     @expose()
-    queryComponent(params: IQueryComponentOptions): Promise<IComponent> {
-        return new Promise<IComponent>(async (resolve, reject) => {
+    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo> {
+        return new Promise<IComponentInfo>(async (resolve, reject) => {
             const uuid = params.uuid;
             const comp = compMgr.query(uuid);
             if (!comp) {

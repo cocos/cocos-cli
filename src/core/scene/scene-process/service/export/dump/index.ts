@@ -1,10 +1,11 @@
 'use strict';
 import { Node, Component, js, Scene, CCClass } from 'cc';
-import { IComponent, INode, IScene } from '../../../../@types/public';
+import { INode, IScene } from '../../../../@types/public';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeScene, encodeNode, encodeComponent } from './encode';
+import { IComponentInfo } from '../../../../common';
 
 // import * as dumpDecode from './decode';
 const { get, set } = require('lodash');
@@ -40,7 +41,7 @@ class DumpUtil {
 
     }
     // 生成一个component的dump数据
-    dumpComponent(comp: Component): IComponent;
+    dumpComponent(comp: Component): IComponentInfo;
     dumpComponent(comp: null | undefined): null;
     dumpComponent(comp: Component | null | undefined) {
         if (!comp) {

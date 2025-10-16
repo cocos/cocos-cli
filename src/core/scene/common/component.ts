@@ -1,8 +1,14 @@
-import { IProperty, IComponent } from '../@types/public';
+import { IProperty } from '../@types/public';
+
+export interface IComponentInfo extends IProperty {
+    uuid:string;
+    enabled:string;
+}
+
 /**
  * 组件信息
  */
-export interface IComponentInfo {
+export interface IComponent {
     uuid: string; // 返回创建组件的uuid
 }
 
@@ -48,12 +54,12 @@ export interface IComponentService {
      * 创建组件
      * @param params
      */
-    createComponent(params: ICreateComponentOptions): Promise<IComponentInfo | null>;
+    createComponent(params: ICreateComponentOptions): Promise<IComponent | null>;
     /**
      * 删除组件
      * @param params 
      */
-    removeComponent(params: IDeleteComponentOptions): Promise<IComponentInfo | null>;
+    removeComponent(params: IDeleteComponentOptions): Promise<boolean>;
     /**
      * 设置组件属性
      * @param params
@@ -62,5 +68,5 @@ export interface IComponentService {
     /**
      * 查询组件
      */
-    queryComponent(params: IQueryComponentOptions): Promise<IComponent | null>;
+    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null>;
 }

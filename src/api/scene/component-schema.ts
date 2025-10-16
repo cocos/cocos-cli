@@ -1,3 +1,4 @@
+import { result } from 'lodash';
 import { z } from 'zod';
 
 // 创建组件信息
@@ -7,7 +8,7 @@ export const SchemaCreateComponentInfo = z.object({
 }).describe('当前组件的信息');
 
 // 当前组件信息
-export const SchemaComponentInfo = z.object({
+export const SchemaComponent = z.object({
     uuid: z.string().describe('返回组件的 UUID'),
 }).describe('当前组件的信息');
 
@@ -36,7 +37,6 @@ export const SchemaProperty: z.ZodTypeAny = z.lazy((): z.ZodTypeAny =>
         type: z.string().optional().describe('属性数据类型'),
         readonly: z.boolean().optional().describe('是否只读'),
         name: z.string().optional().describe('属性名称'),
-        elementTypeData: z.lazy(() => SchemaProperty).optional().describe('数组元素类型的数据定义'),
         path: z.string().optional().describe('数据的搜索路径，由使用方填充'),
         isArray: z.boolean().optional().describe('是否为数组类型'),
         userData: z.record(z.string(), z.any()).optional().describe('用户透传数据')
@@ -52,14 +52,16 @@ export const SchemaSetPropertyOptions = z.object({
 }).describe('设置组件属性的信息');
 
 
-export const SchemaComponentDumpInfoResult = z.object({
+export const SchemaComponentInfoResult = z.object({
     value: SchemaProperty.describe('组件的值对象'),
     enabled: z.any().describe('组件是否启用'),
     uuid: z.string().describe('组件的唯一标识符'),
 }).describe('组件dump信息');
 
+export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
+
 // 类型导出
 export type TCreateComponentInfo = z.infer<typeof SchemaCreateComponentInfo>;
-export type TComponentInfo = z.infer<typeof SchemaComponentInfo>;
+export type TComponent = z.infer<typeof SchemaComponent>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
-export type TComponentDumpInfoResult = z.infer<typeof SchemaComponentDumpInfoResult>;
+export type TComponentInfoResult = z.infer<typeof SchemaComponentInfoResult>;

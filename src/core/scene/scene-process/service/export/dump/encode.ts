@@ -7,8 +7,8 @@ import dumpUtil from './utils';
 import { DumpDefines } from './dump-defines';
 
 import { Node, Component, js, Prefab, MobilityMode } from 'cc';
-import { INode, IScene, IComponent, IProperty, ITargetOverrideInfo } from '../../../../@types/public';
-
+import { INode, IScene, IProperty, ITargetOverrideInfo } from '../../../../@types/public';
+import { IComponentInfo } from '../../../../common';
 /**
  * 编码一个 node 数据
  * @param node
@@ -204,7 +204,7 @@ export function encodeScene(scene: any): IScene {
  * 编码一个 component
  * @param component
  */
-export function encodeComponent(component: any): IComponent {
+export function encodeComponent(component: any): IComponentInfo {
     const ctor = component.constructor;
     // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
     // const mountedRootNode = prefabUtils.getMountedRoot(component);
@@ -219,7 +219,7 @@ export function encodeComponent(component: any): IComponent {
     //         }
     //     }
     // }
-    const data: IComponent = {
+    const data: IComponentInfo = {
         value: {},
         uuid: component.uuid,
         name: component.name,
@@ -568,9 +568,9 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
             // 子元素的类型由父级决定，子元素的默认值跟随父级类型的默认值
             childAttribute.default = getElementDefaultValue(attributes, propertyDefaultValue);
 
-            if (!isTemplate) {
-                data.elementTypeData = encodeObject(childAttribute.default, childAttribute, propertyDefaultValue, undefined, true);
-            }
+            // if (!isTemplate) {
+            //     data.elementTypeData = encodeObject(childAttribute.default, childAttribute, propertyDefaultValue, undefined, true);
+            // }
 
             const resultValue: any = [];
             // 未避免有可能出现的内部数据有空，需要用普通的 for 循环，不要使用 forEach\map 等来遍历
@@ -585,7 +585,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 if (result.type !== 'Unknown') {
                     resultValue.push(result);
                 } else {
-                    resultValue.push(data.elementTypeData);
+                    // resultValue.push(data.elementTypeData);
                 }
             }
             data.value = resultValue;
