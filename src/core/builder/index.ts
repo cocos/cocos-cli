@@ -1,16 +1,16 @@
-import { existsSync } from "fs";
-import { readJSONSync } from "fs-extra";
-import i18n from "../base/i18n";
-import { BuildExitCode, IBuildCommandOption, IBuildSceneItem, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IExportBuildOptions, IInternalBuildOptions } from "./@types/private";
-import { PLATFORMS } from "./share/platforms-options";
-import { pluginManager } from "./manager/plugin";
-import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from "./share/utils";
-import { newConsole } from "../base/console";
-import { join } from "path";
-import assetManager from "../assets/manager/asset";
-import { removeDbHeader } from "./worker/builder/utils";
-import builderConfig, { BuildGlobalInfo } from "./share/builder-config";
-import { Engine } from "../engine";
+import { existsSync } from 'fs';
+import { readJSONSync } from 'fs-extra';
+import i18n from '../base/i18n';
+import { BuildExitCode, IBuildCommandOption, IBuildSceneItem, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IExportBuildOptions, IInternalBuildOptions } from './@types/private';
+import { PLATFORMS } from './share/platforms-options';
+import { pluginManager } from './manager/plugin';
+import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from './share/utils';
+import { newConsole } from '../base/console';
+import { join } from 'path';
+import assetManager from '../assets/manager/asset';
+import { removeDbHeader } from './worker/builder/utils';
+import builderConfig, { BuildGlobalInfo } from './share/builder-config';
+import { Engine } from '../engine';
 
 export async function build(options?: IBuildCommandOption): Promise<BuildExitCode> {
     await builderConfig.init();
@@ -112,7 +112,7 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
 }
 
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<BuildExitCode> {
-    const { BundleManager } = await import("./worker/builder/asset-handler/bundle");
+    const { BundleManager } = await import('./worker/builder/asset-handler/bundle');
     const optionsList = bundleOptions.optionList;
     const buildTaskId = 'buildBundle';
     const weight = 1 / optionsList.length;

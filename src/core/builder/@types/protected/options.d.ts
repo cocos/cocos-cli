@@ -354,7 +354,7 @@ export interface IBuildStageOptions {
 export const enum BuildExitCode {
     PARAM_ERROR = 32,
     BUILD_FAILED = 34,
-    BUILD_SUCCESS = 36,
+    BUILD_SUCCESS = 0,
     BUILD_BUSY = 37,
     UNKNOWN_ERROR = 50,
 }
