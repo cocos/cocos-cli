@@ -34,12 +34,23 @@
       "name": "texture"
     },
     "f9941": {
+      "ver": "1.0.12",
       "importer": "sprite-frame",
       "uuid": "b5929d2c-caf4-4454-8f7e-4e84cb5ce144@f9941",
-      "displayName": "default_btn_normal",
-      "id": "f9941",
-      "name": "spriteFrame",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {},
       "userData": {
+        "wrapModeS": "clamp-to-edge",
+        "wrapModeT": "clamp-to-edge",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "premultiplyAlpha": false,
+        "generateMipmap": false,
+        "anisotropy": 1,
+        "trimType": "auto",
         "trimThreshold": 1,
         "rotated": false,
         "offsetX": 0,
@@ -50,15 +61,15 @@
         "height": 40,
         "rawWidth": 40,
         "rawHeight": 40,
-        "borderTop": 0,
-        "borderBottom": 0,
-        "borderLeft": 0,
-        "borderRight": 0,
+        "borderTop": 12,
+        "borderBottom": 12,
+        "borderLeft": 12,
+        "borderRight": 12,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "b5929d2c-caf4-4454-8f7e-4e84cb5ce144@6c48a",
+        "atlasUuid": "",
+        "mipfilter": "none",
         "packable": true,
-        "pixelsToUnit": 100,
-        "pivotX": 0.5,
-        "pivotY": 0.5,
-        "meshType": 0,
         "vertices": {
           "rawPosition": [
             -20,
@@ -113,17 +124,14 @@
             0
           ]
         },
-        "isUuid": true,
-        "imageUuidOrDatabaseUri": "b5929d2c-caf4-4454-8f7e-4e84cb5ce144@6c48a",
-        "atlasUuid": "",
-        "trimType": "auto"
+        "pixelsToUnit": 100,
+        "pivotX": 0.5,
+        "pivotY": 0.5,
+        "meshType": 0
       },
-      "ver": "1.0.12",
-      "imported": true,
-      "files": [
-        ".json"
-      ],
-      "subMetas": {}
+      "displayName": "default_btn_normal",
+      "id": "f9941",
+      "name": "spriteFrame"
     }
   },
   "userData": {
