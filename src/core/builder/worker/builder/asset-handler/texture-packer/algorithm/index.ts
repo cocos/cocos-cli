@@ -38,7 +38,7 @@ export interface IAtlasInfo {
     }>;
 }
 
-export class TexturePacker {
+export class TexturePackerAlgorithm {
     private static getRectsFromInputs(inputs: IInputRect[]): (IRect & { origin: IInputRect })[] {
         return inputs.map((r) => {
             return { width: r.width, height: r.height, origin: r } as IRect & { origin: IInputRect };
@@ -99,7 +99,7 @@ export class TexturePacker {
         for (let i = 0; i <= 5; i++) {
             // TODO: 修复 ContactPointRule 算法，这个算法现在会有重叠的部分
             if (i === 4) { continue; }
-            this.scoreMaxRects(TexturePacker.getRectsFromInputs(inputs), binWidth, binHeight, i, allowRotation, result);
+            this.scoreMaxRects(this.getRectsFromInputs(inputs), binWidth, binHeight, i, allowRotation, result);
         }
     }
 
@@ -186,7 +186,3 @@ export class TexturePacker {
         return this.getInputsFromRects(scorePackResult.packedRects);
     }
 }
-
-// 导出兼容性接口
-export const ipacker = TexturePacker.ipacker;
-export const MaxRects = TexturePacker.MaxRects;

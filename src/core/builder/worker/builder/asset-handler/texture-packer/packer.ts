@@ -4,10 +4,9 @@ import { buildTempDir } from './config';
 import { AtlasInfo, PacInfo, SpriteFrameInfo } from './pac-info';
 import { IInternalPackOptions, IPackResult, IPackOptions } from '../../../../@types/protected';
 
-const Algorithm = require('./algorithm');
-const Sharp = require('sharp');
-
-const applyBleed = require('./bleeding').applyBleed;
+import { TexturePackerAlgorithm } from './algorithm';
+import Sharp, { SharpOptions } from 'sharp';
+import { BleedingProcessor } from './bleeding';
 
 export async function packer(spriteFrameInfos: SpriteFrameInfo[], packOptions: IInternalPackOptions): Promise<IPackResult> {
 
@@ -42,10 +41,10 @@ function determineAtlasSize(spriteFrameInfos: SpriteFrameInfo[], options: IInter
     const inputs = spriteFrameInfos.concat();
     const packAtlas = [];
     let unpackedImages: SpriteFrameInfo[] = [];
-    let packingFunc = Algorithm[options.algorithm];
+    let packingFunc = TexturePackerAlgorithm[options.algorithm];
     if (!packingFunc) {
         console.warn(`determineAtlasSize failed: Can not find algorithm ${options.algorithm}, use MaxRects`);
-        packingFunc = Algorithm.MaxRects;
+        packingFunc = TexturePackerAlgorithm.MaxRects;
     }
     const maxWidth = options.maxWidth;
     const maxHeight = options.maxHeight;
@@ -54,7 +53,7 @@ function determineAtlasSize(spriteFrameInfos: SpriteFrameInfo[], options: IInter
     // 多张碎图无法放进图集内时，自动生成多个图集
     let n = 0;
     while (inputs.length > 0) {
-        const packedSprites = packingFunc(inputs, maxWidth, maxHeight, allowRotation);
+        const packedSprites = packingFunc.call(TexturePackerAlgorithm, inputs, maxWidth, maxHeight, allowRotation);
 
         if (packedSprites.length === 0) {
             unpackedImages = unpackedImages.concat(inputs);
@@ -91,7 +90,8 @@ function determineAtlasSize(spriteFrameInfos: SpriteFrameInfo[], options: IInter
         const name = options.name + '-' + n;
         n++;
         const imagePath = join(options.destDir, name + '.' + options.format);
-        packAtlas.push(new AtlasInfo(packedSprites, width, height, name, imagePath));
+        // TODO packedSprites 的定义需要梳理
+        packAtlas.push(new AtlasInfo(packedSprites as unknown as SpriteFrameInfo[], width, height, name, imagePath));
     }
 
     // square and powerOfTwo options here
@@ -159,7 +159,7 @@ async function generateAtlas(atlas: AtlasInfo, options: IPackOptions) {
     const width = atlas.width;
     const height = atlas.height;
     const channels = 4;
-    const opts = { raw: { width, height, channels } };
+    const opts: SharpOptions = { raw: { width, height, channels } };
 
     let atlasImage = await Sharp({
         create: {
@@ -219,7 +219,7 @@ async function generateAtlas(atlas: AtlasInfo, options: IPackOptions) {
         .composite(compositeInputs)
         .toBuffer();
     if (options.contourBleed || options.paddingBleed) {
-        applyBleed(options, atlas, atlasImage, atlasImage);
+        BleedingProcessor.applyBleed(options, atlas, atlasImage, atlasImage);
     }
 
     await Sharp(atlasImage, opts).png().toFile(atlas.imagePath);

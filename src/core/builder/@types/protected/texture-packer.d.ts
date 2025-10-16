@@ -10,7 +10,7 @@ export interface IPackOptions {
     allowRotation: boolean;
     forceSquared: boolean;
     powerOfTwo: boolean;
-    algorithm: string;
+    algorithm: 'MaxRects' | 'ipacker';
     format: string;
     quality: number;
     contourBleed: boolean;
@@ -42,12 +42,12 @@ interface StoreInfo {
 export interface PacStoreInfo {
     pac: StoreInfo;
     sprites: ISpriteFrameInfo[];
-    atlas?: { sprits: string[], imagePath: string[]}[];
+    atlas?: { sprits: string[], imagePath: string[] }[];
     options: IPackOptions;
 }
 export interface PreviewPackResult {
     atlasImagePaths: string[];
-    unpackedImages: {imageUuid: string, libraryPath: string} [];
+    unpackedImages: { imageUuid: string, libraryPath: string }[];
     dirty: boolean;
     storeInfo: PacStoreInfo;
     atlases: IAtlasInfo[];
@@ -64,7 +64,7 @@ export interface IInternalPackOptions {
     allowRotation: boolean;
     forceSquared: boolean;
     powerOfTwo: boolean;
-    algorithm: string;
+    algorithm: 'MaxRects' | 'ipacker';
     format: string;
     quality: number;
     contourBleed: boolean;
@@ -127,7 +127,7 @@ export interface ISpriteFrameInfo {
 
 export interface IPackResult {
     atlases: IAtlasInfo[];
-    unpackedImages: {imageUuid: string, libraryPath: string} [];
+    unpackedImages: { imageUuid: string, libraryPath: string }[];
     pacUuid: string;
 }
 
