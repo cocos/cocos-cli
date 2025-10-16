@@ -29,10 +29,8 @@ import { existsSync } from 'fs';
 import { IAssetDBInfo } from '../../assets/@types/protected';
 import { url2path } from '../../assets/utils';
 import { compressUuid } from '../../builder/worker/builder/utils';
-import { configurationManager } from '../../configuration';
 import { TypeScriptConfigBuilder } from '../intelligence';
-
-
+import { eventEmitter } from '../event-emitter';
 
 const VERSION = '20';
 
@@ -494,6 +492,9 @@ export class PackerDriver {
      * 开始一次构建。
      */
     private async _startBuildIteration() {
+
+        eventEmitter.emit('compile-start', 'project');
+
         this._logger.clear();
         this._logger.debug(
             'Build iteration starts.\n' +
@@ -526,6 +527,9 @@ export class PackerDriver {
             this._depsGraph = buildResult.depsGraph; // 更新依赖图
             this._needUpdateDepsCache = true;
         }
+
+        eventEmitter.emit('compiled', 'project');
+
     }
 
     /**
@@ -819,6 +823,10 @@ class PackTarget {
         this._ensureIdle();
         this._buildStarted = true;
         const targetName = this._name;
+
+        // 发送开始编译消息
+        eventEmitter.emit('pack-build-start', targetName);
+
         this._logger.debug(`Target(${targetName}) build started.`);
 
         let buildResult: BuildResult | undefined;
@@ -853,6 +861,10 @@ class PackTarget {
         this._logger.debug(`Target(${targetName}) ends with cost ${t2 - t1}ms.`);
 
         this._ready = true;
+
+        // 发送编译完成消息
+        eventEmitter.emit('pack-build-end', targetName);
+
         this._buildStarted = false;
         if (buildResult) {
             return buildResult;

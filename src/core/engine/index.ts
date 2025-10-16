@@ -21,6 +21,19 @@ for (let i = 0; i <= 19; i++) {
     layerMask[i] = 1 << i;
 }
 
+const Backends = {
+    'physics-cannon': 'cannon.js',
+    'physics-ammo': 'bullet',
+    'physics-builtin': 'builtin',
+    'physics-physx': 'physx',
+};
+
+const Backends2D = {
+    'physics-2d-box2d': 'box2d',
+    'physics-2d-box2d-wasm': 'box2d-wasm',
+    'physics-2d-builtin': 'builtin',
+};
+
 // TODO issue 记录： https://github.com/cocos/3d-tasks/issues/18489 后续完善
 // 后处理管线模块的开关，在图像设置那边处理 (说是 3.9 会彻底删除)
 // 所以界面上的 勾选动作 和 状态判断 都要忽略这个列表的数据，从 3.8.6 开始我将这个 ignoreKeys 改成 ignoreModules 从 视图层移到主进程
@@ -208,21 +221,28 @@ class EngineManager implements IEngine {
         return this;
     }
 
-    async initEditorExtensions() {
+    async importEditorExtensions() {
         // @ts-ignore
         globalThis.EditorExtends = await import('./editor-extends');
         // 注意：目前 utils 用的是 UUID，EditorExtends 用的是 Uuid 
         // @ts-ignore
         globalThis.EditorExtends.UuidUtils.compressUuid = globalThis.EditorExtends.UuidUtils.compressUUID;
+    }
+
+    async initEditorExtensions() {
         // @ts-ignore
-        await globalThis.EditorExtends.init();
+        globalThis.EditorExtends.init();
     }
 
     /**
      * 加载以及初始化引擎环境
+     * @param info 初始化引擎数据
+     * @param onBeforeGameInit - 在初始化之前需要做的工作
+     * @param onAfterGameInit - 在初始化之后需要做的工作
      */
-    async initEngine(info: IInitEngineInfo) {
+    async initEngine(info: IInitEngineInfo, onBeforeGameInit?: () => Promise<void>, onAfterGameInit?: () => Promise<void>) {
         const { default: preload } = await import('cc/preload');
+        await this.importEditorExtensions();
         await preload({
             engineRoot: this._info.typescript.path,
             engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
@@ -231,12 +251,13 @@ class EngineManager implements IEngine {
                 'cc',
                 'cc/editor/populate-internal-constants',
                 'cc/editor/serialization',
-                'cc/editor/animation-clip-migration',
-                'cc/editor/exotic-animation',
                 'cc/editor/new-gen-anim',
-                'cc/editor/offline-mappings',
                 'cc/editor/embedded-player',
-                'cc/editor/color-utils',
+                'cc/editor/reflection-probe',
+                'cc/editor/lod-group-utils',
+                'cc/editor/material',
+                'cc/editor/2d-misc',
+                'cc/editor/offline-mappings',
                 'cc/editor/custom-pipeline',
             ]
         });
@@ -294,7 +315,34 @@ class EngineManager implements IEngine {
             exactFitScreen: true,
         };
         cc.physics.selector.runInEditor = true;
+
+        if (onBeforeGameInit) {
+            await onBeforeGameInit();
+        }
         await cc.game.init(defaultConfig);
+        if (onAfterGameInit) {
+            await onAfterGameInit();
+        }
+
+        let backend = 'builtin';
+        let backend2d = 'builtin';
+        modules.forEach((module: string) => {
+            if (module in Backends) {
+                // @ts-ignore
+                backend = Backends[module];
+            } else if (module in Backends2D) {
+                // @ts-ignore
+                backend2d = Backends2D[module];
+            }
+        });
+
+        // 切换物理引擎
+        // cc.physics.selector.switchTo(backend);
+        // 禁用计算，避免刚体在tick的时候生效
+        // cc.physics.PhysicsSystem.instance.enable = false;
+
+        // @ts-ignore
+        // window.cc.internal.physics2d.selector.switchTo(backend2d);
         return this;
     }
 

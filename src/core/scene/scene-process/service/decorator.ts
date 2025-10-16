@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import type { ISceneModule } from './interfaces';
 
 /**
  * @register('Scene')
@@ -19,8 +20,9 @@ import 'reflect-metadata';
  * }
  */
 
-// 全局存储 manager 实例
-export const managers: Record<string, Record<string, Function>> = {};
+// 全局存储 manager 实例（键限定为已定义的 Service 名称）
+export type ServiceName = keyof ISceneModule; // 'Scene' | 'Node' | 'Script' ...
+export const Service: Partial<Record<ServiceName, Record<string, Function>>> = {};
 
 // 元数据 key
 const PUBLIC_METHODS_KEY = Symbol('public_methods');
@@ -34,7 +36,7 @@ export function expose(): MethodDecorator {
     };
 }
 
-/** 类装饰器：注册 Manager 类 */
+/** 类装饰器：注册 Service 类 */
 export function register(name?: string): ClassDecorator {
     return (target: any) => {
         const instance = new target();
@@ -42,7 +44,7 @@ export function register(name?: string): ClassDecorator {
         const publicMethods: (string | symbol)[] =
             Reflect.getMetadata(PUBLIC_METHODS_KEY, proto) || [];
 
-        const managerName = name || target.name;
+        const managerName = (name || target.name) as ServiceName;
         const map: Record<string, Function> = {};
 
         for (const key of publicMethods) {
@@ -51,7 +53,7 @@ export function register(name?: string): ClassDecorator {
             }
         }
 
-        managers[managerName] = map;
+        Service[managerName] = map;
         console.log(`[Manager] Registered: ${managerName} -> [${Object.keys(map).join(', ')}]`);
     };
 }

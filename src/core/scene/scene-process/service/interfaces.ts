@@ -1,4 +1,4 @@
-import { ISceneService, INodeService } from '../../common';
+import { ISceneService, INodeService, IScriptService } from '../../common';
 
 /**
  * 场景进程开放出去的模块与接口
@@ -6,4 +6,5 @@ import { ISceneService, INodeService } from '../../common';
 export interface ISceneModule {
     Scene: ISceneService;
     Node: INodeService,
+    Script: IScriptService,
 }
