@@ -9,14 +9,20 @@ import { EngineLoader } from 'cc/loader';
 /**
  * 快速启动主流，用于其他依赖主流程启动的单元测试
  */
-export async function fastStartup (enginePath: string, projectPath: string): Promise<{
+let core: {
     server: typeof server,
     configurationManager: typeof configurationManager,
     project: typeof Project,
     engine: typeof Engine
     assetManager: typeof assetManager,
     packDriver: PackerDriver
-}> {
+} | undefined;
+
+export async function fastStartup (enginePath: string, projectPath: string) {
+    if (core) {
+        // 如果已经启动过了就不在启动，直接返回
+        return core;
+    }
 
     [
         'cc',
@@ -49,7 +55,7 @@ export async function fastStartup (enginePath: string, projectPath: string): Pro
     const packDriver = await PackerDriver.create(projectPath, enginePath);
     await packDriver.init(Engine.getConfig().includeModules);
 
-    return {
+    core = {
         server: server,
         configurationManager: configurationManager,
         project: Project,
@@ -57,4 +63,5 @@ export async function fastStartup (enginePath: string, projectPath: string): Pro
         assetManager: assetManager,
         packDriver
     }
+    return core;
 }

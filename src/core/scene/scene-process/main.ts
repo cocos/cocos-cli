@@ -4,6 +4,14 @@ import { parseCommandLineArgs } from './utils';
 import { initEngine } from '../../engine';
 
 async function startup () {
+    // 监听进程退出事件
+    process.on('message', (msg) => {
+        if (msg === 'scene-process:exit') {
+            process.disconnect(); // 关闭 IPC
+            process.exit(0);// 退出进程
+        }
+    });
+
     console.log('[Scene] startup worker');
 
     console.log(`[Scene] parse args ${process.argv}`);

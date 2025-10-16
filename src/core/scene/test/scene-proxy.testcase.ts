@@ -7,6 +7,7 @@ import type {
     ISoftReloadSceneOptions
 } from '../common';
 import { SceneProxy } from '../main-process/proxy/scene-proxy';
+import { SceneTestEnv } from './scene-test-env';
 
 // 单个测试文件生效
 jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
@@ -22,7 +23,7 @@ describe('Scene Proxy 测试', () => {
 
         it('createScene - 创建新场景', async () => {
             const options: ICreateSceneOptions = {
-                targetPathOrURL: 'db://assets/scenes/TestScene.scene',
+                targetPathOrURL: SceneTestEnv.newSceneURL,
                 templateType: '2d'
             };
             createdScene = await SceneProxy.create(options);

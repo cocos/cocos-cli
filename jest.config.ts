@@ -21,6 +21,7 @@ const config: Config.InitialOptions = {
     // 失败测试汇总选项
     bail: false, // 不因第一个失败而停止
     maxWorkers: 1, // 单线程运行，便于查看错误
+    forceExit: true, // 由于单元测试 @cocos/ccbuild 有 GC 残留没办法自动关闭需要强制关
 };
 
 export default config;
