@@ -1,6 +1,6 @@
 import { engine as EnginPath } from '../../../.user.json';
 import { join } from 'path';
-
+import * as server from '../../server';
 import { EngineLoader } from 'cc/loader.js';
 import { Engine } from '../engine';
 import { existsSync, remove } from 'fs-extra';
@@ -38,6 +38,8 @@ export async function globalSetup() {
         label: '项目',
         path: TestGlobalEnv.projectRoot,
     });
+    // 启动服务器
+    await server.startServer();
     const { configurationManager } = await import('../configuration');
     await configurationManager.initialize(TestGlobalEnv.projectRoot);
     // 初始化项目信息
