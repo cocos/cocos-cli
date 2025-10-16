@@ -44,6 +44,24 @@ export enum NodeType {
     REFLECTION_LIGHT = 'Light-Reflection-Probe', // 反射探针
 }
 
+export enum MobilityMode {
+    /**
+    * @en Static node
+    * @zh 静态节点
+    */
+    Static = 0,
+    /**
+     * @en Stationary node
+     * @zh 固定节点
+     */
+    Stationary = 1,
+    /**
+     * @en Movable node
+     * @zh 可移动节点
+     */
+    Movable = 2
+}
+
 // 节点基础属性接口
 export interface INodeProperties {
     position: IVec3; // 节点位置
@@ -59,7 +77,7 @@ export interface INodeProperties {
     forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
     up: IVec3; // 当前节点在世界空间中朝上的方向向量
     right: IVec3; // 当前节点在世界空间中朝右的方向向量
-    mobility: 'Static' | 'Stationary' | 'Movable'; // 节点的移动性
+    mobility: MobilityMode; // 节点的移动性
     layer: number; // 节点所在的层级
     hasChangedFlags: number; // 这个节点的空间变换信息在当前帧内是否有变过？
     active: boolean; // 节点是否激活

@@ -14,7 +14,7 @@ import {
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
-import { NodeType, Scene } from '../../core/scene';
+import { MobilityMode, NodeType, Scene } from '../../core/scene';
 
 
 export class NodeApi extends ApiBase {
@@ -58,7 +58,7 @@ export class NodeApi extends ApiBase {
                     forward: { x: 0, y: 0, z: 0 },
                     up: { x: 0, y: 1, z: 0 },
                     right: { x: 1, y: 0, z: 0 },
-                    mobility: 'Static',
+                    mobility: MobilityMode.Static,
                     layer: 0,
                     hasChangedFlags: 0,
                     active: false,
@@ -178,7 +178,7 @@ export class NodeApi extends ApiBase {
                     forward: { x: 0, y: 0, z: 0 },
                     up: { x: 0, y: 1, z: 0 },
                     right: { x: 1, y: 0, z: 0 },
-                    mobility: 'Static',
+                    mobility: MobilityMode.Static,
                     layer: 0,
                     hasChangedFlags: 0,
                     active: false,
