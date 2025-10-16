@@ -89,6 +89,7 @@ export const NodeCreateSchema = z.object({
     workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
+    position: Vec3Schema.optional().describe('节点位置'),
 }).describe('创建节点的选项参数');
 
 

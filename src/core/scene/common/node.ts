@@ -133,6 +133,7 @@ export interface ICreateNodeParams {
     name?: string; // 节点的名称
     workMode?: '2d' | '3d'; // 节点工作模式，2D 还是 3D
     nodeType: string; // 节点类型
+    position?: IVec3;
     keepWorldTransform?: boolean; // 保持世界变换
 }
 
