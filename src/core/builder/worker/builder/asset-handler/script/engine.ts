@@ -100,7 +100,6 @@ const fixedMd5Keys: readonly (keyof IInternalBuildOptions['buildEngineParam'] | 
 
 async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuery.ConstantManager.CCEnvConstants) {
     // TODO
-    // const noDeprecatedFeaturesConfig: { value: boolean, version: string } = (await Editor.Message.request('engine', 'query-engine-modules-profile'))?.noDeprecatedFeatures ?? { value: false, version: '' };
     const noDeprecatedFeaturesConfig: { value: boolean, version: string } = { value: false, version: '' };
     const loose: boolean = options.loose || false;
 

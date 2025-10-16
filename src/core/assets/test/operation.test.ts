@@ -1,23 +1,10 @@
 'use strict';
-import { join, extname } from 'path';
-import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, removeSync, copy, readJsonSync, remove, outputFile } from 'fs-extra';
+import { join } from 'path';
+import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, remove, outputFile } from 'fs-extra';
 import { globalSetup, testInfo } from './utils';
 import assetOperation from '../manager/operation';
 import { assetManager } from '..';
 
-const invalidParams = [
-    { name: 'undefined', value: undefined },
-    { name: 'null', value: null },
-    { name: 'number - 0', value: 0 },
-    { name: 'number - 2', value: 2 },
-    { name: 'string - empty', value: '' },
-    { name: 'string - str', value: 'str' },
-    { name: 'boolean - true', value: true },
-    { name: 'boolean- false', value: false },
-    { name: 'array', value: [] },
-    { name: 'object', value: {} },
-    { name: 'readonly url', value: 'db://internal/primitives.fbx/lambert1.material' },
-];
 
 describe('测试 db 的操作接口', function () {
     const name = `__${Date.now()}__`;
@@ -273,18 +260,7 @@ describe('测试 db 的操作接口', function () {
         it('子资源 url 的 reimport', async () => {
             const parentUrl = 'db://internal/default_ui/default_toggle_disabled.png';
             const subAssetUrl = `${parentUrl}/texture`;
-            const subAssetUuid = await assetManager.queryUUID(subAssetUrl);
-            let hasRefresh = false;
-            // function testListener(uuid) {
-            //     if (subAssetUuid === uuid) {
-            //         hasRefresh = true;
-            //     }
-            // }
-            // Editor.Message.__protected__.addBroadcastListener('asset-db:asset-change', testListener);
             await assetOperation.reimportAsset(subAssetUrl);
-            // await new Promise((resolve) => setTimeout(resolve, 1000));
-            // Editor.Message.__protected__.removeBroadcastListener('asset-db:asset-change', testListener);
-
             expect(true).toBeTruthy();
         });
     });

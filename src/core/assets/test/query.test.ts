@@ -1,10 +1,10 @@
 'use strict';
 
-import { basename } from "path";
-import { assetManager, assetDBManager } from "..";
-import { globalSetup, testInfo } from "./utils";
-import assetOperation from "../manager/operation";
-import { ICreateMenuInfo } from "../@types/protected";
+import { basename } from 'path';
+import { assetManager, assetDBManager } from '..';
+import { globalSetup, testInfo } from './utils';
+import assetOperation from '../manager/operation';
+import { ICreateMenuInfo } from '../@types/protected';
 
 const { join, extname } = require('path');
 const { existsSync, remove } = require('fs-extra');
@@ -26,7 +26,7 @@ const internalSpriteUuid = '951249e0-9f16-456d-8b85-a6ca954da16b@f9941';
 const internalSpriteImageUuid = '951249e0-9f16-456d-8b85-a6ca954da16b';
 const assetTestRoot = testInfo.testRoot;
 
-describe('测试 db 的查询接口', function() {
+describe('测试 db 的查询接口', function () {
     const name = `__${Date.now()}__.test`;
     let uuid = '';
     // 测试前的准备工作
@@ -41,14 +41,14 @@ describe('测试 db 的查询接口', function() {
     });
 
 
-    afterAll(async function() {
+    afterAll(async function () {
         await assetManager.removeAsset(`db://assets/${name}`);
     });
 
     describe('query-create-list', () => {
         let result: ICreateMenuInfo[] = [];
-        beforeAll(async function() {
-           result = await assetManager.getCreateMap();
+        beforeAll(async function () {
+            result = await assetManager.getCreateMap();
         });
         it('正常查询到资源创建列表', () => {
             expect(Array.isArray(result)).toBe(true);
@@ -95,7 +95,7 @@ describe('测试 db 的查询接口', function() {
                 try {
                     const targetUrl = `${testInfo.testRootUrl}/${info.fullFileName}`;
                     const assetInfo = await assetManager.createAsset({
-                        ...info,    
+                        ...info,
                         target: targetUrl,
                         overwrite: true,
                     });
@@ -139,29 +139,29 @@ describe('测试 db 的查询接口', function() {
         }
     });
 
-    describe('query-path', function() {
-        it('查询 assets 数据库', async function() {
+    describe('query-path', function () {
+        it('查询 assets 数据库', async function () {
             const path = await assetManager.queryPath('db://assets');
             const exists = existsSync(path);
             expect(exists).toBe(true);
         });
-        it('查询 internal 数据库', async function() {
+        it('查询 internal 数据库', async function () {
             const path = await assetManager.queryPath('db://internal');
             expect(path).not.toBeNull();
             const exists = existsSync(path);
             expect(exists).toBe(true);
         });
-        it('查询不存在的数据库', async function() {
+        it('查询不存在的数据库', async function () {
             const path = await assetManager.queryPath('db://不存在');
             expect(path).toBe('');
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const path = await assetManager.queryPath(`db://assets/${name}`);
             expect(path).not.toBeNull();
             const exists = existsSync(path);
             expect(exists).toBe(true);
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const path = await assetManager.queryPath(`db://assets/${name}.xxx`);
             expect(path).not.toBeNull();
             const exists = existsSync(path);
@@ -169,10 +169,10 @@ describe('测试 db 的查询接口', function() {
         });
     });
 
-    describe('query-url', function() {
+    describe('query-url', function () {
         const assetsPath = join(testInfo.projectRoot, 'assets');
         // const internalPath = join(__dirname, '../static/internal/assets');
-        it('查询 assets 数据库', async function() {
+        it('查询 assets 数据库', async function () {
             const url = await assetManager.queryUrl(assetsPath);
             expect(url).toBe('db://assets');
         });
@@ -180,52 +180,52 @@ describe('测试 db 的查询接口', function() {
         //     const url = await assetManager.queryUrl(internalPath);
         //     expect(url).toBe('db://internal');
         // });
-        it('查询不存在的数据库', async function() {
+        it('查询不存在的数据库', async function () {
             const url = await assetManager.queryUrl(__dirname);
             expect(url).toBe('');
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const url = await assetManager.queryUrl(join(assetsPath, name));
             expect(url).toBe(`db://assets/${name}`);
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const url = await assetManager.queryUrl(join(assetsPath, name + '.xxx'));
             expect(url).toBe(`db://assets/${name}.xxx`);
         });
     });
 
-    describe('query-uuid', function() {
-        it('查询 assets 数据库', async function() {
+    describe('query-uuid', function () {
+        it('查询 assets 数据库', async function () {
             const id = await assetManager.queryUUID('db://assets');
             expect(id).toBe('db://assets');
         });
-        it('查询 internal 数据库', async function() {
+        it('查询 internal 数据库', async function () {
             const id = await assetManager.queryUUID('db://internal');
             expect(id).toBe('db://internal');
         });
-        it('查询不存在的数据库', async function() {
+        it('查询不存在的数据库', async function () {
             const id = await assetManager.queryUUID('db://不存在');
             expect(id).toBe('');
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const id = await assetManager.queryUUID(`db://assets/${name}`);
             expect(id).toBe(uuid);
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const id = await assetManager.queryUUID(`db://assets/${name}.xxx`);
             expect(id).toBe('');
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const id = await assetManager.queryUUID(`db://assets/${name}.xxx`);
             expect(id).toBe('');
         });
-        it('查询 assets 数据库里不存在的资源2', async function() {
+        it('查询 assets 数据库里不存在的资源2', async function () {
             const id = await assetManager.queryUUID('db://internal/default_file_content/abc.xxx');
             expect(id).toBe('');
         });
     });
 
-    describe('query-asset-info 消息接口测试', function() {
+    describe('query-asset-info 消息接口测试', function () {
         const values = {
             displayName: 'string',
             file: 'string',
@@ -246,47 +246,47 @@ describe('测试 db 的查询接口', function() {
         };
         const keys = Object.keys(values);
 
-        it('查询 assets 数据库', async function() {
+        it('查询 assets 数据库', async function () {
             const info = await assetManager.queryAssetInfo('db://assets');
             expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
-        it('查询 internal 数据库', async function() {
+        it('查询 internal 数据库', async function () {
             const info = await assetManager.queryAssetInfo('db://internal');
             expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
-        it('查询不存在的数据库', async function() {
+        it('查询不存在的数据库', async function () {
             const info = await assetManager.queryAssetInfo('db://不存在');
             expect(info).toBeNull();
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const info = await assetManager.queryAssetInfo(uuid);
             expect(info).not.toBeNull();
             expect(info && Object.keys(info).sort()).toEqual([...keys, 'extends'].sort());
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const info = await assetManager.queryAssetInfo(`db://assets/${name}`);
             expect(info).not.toBeNull();
             expect(info && Object.keys(info).sort()).toEqual([...keys, 'extends'].sort());
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const info = await assetManager.queryAssetInfo(uuid + '@xxx');
             expect(info).toBeNull();
         });
 
-        it('dataKeys: 查询 depends 信息', async function() {
+        it('dataKeys: 查询 depends 信息', async function () {
             const info = await assetManager.queryAssetInfo('d032ac98-05e1-4090-88bb-eb640dcb5fc1@b47c0', ['depends']);
             expect(info && info.depends!.length).toBe(6);
         });
-        it('dataKeys: 查询 meta 信息', async function() {
+        it('dataKeys: 查询 meta 信息', async function () {
             const info = await assetManager.queryAssetInfo('d032ac98-05e1-4090-88bb-eb640dcb5fc1@b47c0', ['meta']);
             expect(typeof (info && info.meta) === 'object').toBe(true);
         });
-        it('dataKeys: 查询 mtime 信息', async function() {
+        it('dataKeys: 查询 mtime 信息', async function () {
             const info = await assetManager.queryAssetInfo('d032ac98-05e1-4090-88bb-eb640dcb5fc1', ['mtime']);
             expect(typeof (info && info.mtime) === 'number').toBe(true);
         });
     });
-    describe('query-asset-meta', function() {
+    describe('query-asset-meta', function () {
         const values = {
             ver: 'string',
             importer: 'string',
@@ -301,30 +301,30 @@ describe('测试 db 的查询接口', function() {
         };
         const keys = Object.keys(values);
 
-        it('查询 assets 数据库', async function() {
+        it('查询 assets 数据库', async function () {
             const info = await assetManager.queryAssetMeta('db://assets');
             expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
-        it('查询 internal 数据库', async function() {
+        it('查询 internal 数据库', async function () {
             const info = await assetManager.queryAssetMeta('db://internal');
-            expect(info && Object.keys(info).sort()).toEqual(keys.sort());  
+            expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
-        it('查询不存在的数据库', async function() {
+        it('查询不存在的数据库', async function () {
             const info = await assetManager.queryAssetMeta('db://不存在');
             expect(info).toBeNull();
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const info = await assetManager.queryAssetMeta(uuid);
             expect(info).not.toBeNull();
             expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const info = await assetManager.queryAssetMeta(uuid + '@xxx');
             expect(info).toBeNull();
         });
     });
 
-    describe('query-assets', function() {
+    describe('query-assets', function () {
         let all: any[];
         let allAssets: any[];
         let allInternal: any[];
@@ -352,39 +352,39 @@ describe('测试 db 的查询接口', function() {
         });
 
         it('查询 internal 目录下 ccType = cc.SceneAsset 资源', async () => {
-            const allScenes = await assetManager.queryAssetInfos({ ccType: 'cc.SceneAsset', pattern: 'db://internal/**/*'});
+            const allScenes = await assetManager.queryAssetInfos({ ccType: 'cc.SceneAsset', pattern: 'db://internal/**/*' });
             expect(allScenes.length).toBe(3);
         });
         it('查询 internal 目录下 extname = mp4资源', async () => {
-            const allMP4 = await assetManager.queryAssetInfos({ extname: '.mp4', pattern: 'db://internal/**/*'});
+            const allMP4 = await assetManager.queryAssetInfos({ extname: '.mp4', pattern: 'db://internal/**/*' });
             expect(allMP4.length).toBe(1);
         });
         it('查询 internal 目录下 importer = video-clip 资源', async () => {
-            const allMP4 = await assetManager.queryAssetInfos({ importer: 'video-clip', pattern: 'db://internal/**/*'});
+            const allMP4 = await assetManager.queryAssetInfos({ importer: 'video-clip', pattern: 'db://internal/**/*' });
             expect(allMP4.length).toBe(1);
         });
         it('通过 pattern 精准查询 internal 下指定地址的 spriteFrame 资源', async () => {
-            const sprites = await assetManager.queryAssetInfos({ pattern: 'db://internal/default_ui/default_editbox_bg.png/spriteFrame'});
+            const sprites = await assetManager.queryAssetInfos({ pattern: 'db://internal/default_ui/default_editbox_bg.png/spriteFrame' });
             expect(sprites.length).toBe(1);
         });
         if (basename(testInfo.projectRoot) === 'build-example') {
             it('查询 assets 目录下 userData.isPlugin = true 的插件脚本资源', async () => {
-                const allPlugins = await assetManager.queryAssetInfos({ userData: { isPlugin: true }, pattern: 'db://assets/**/*'});
+                const allPlugins = await assetManager.queryAssetInfos({ userData: { isPlugin: true }, pattern: 'db://assets/**/*' });
                 expect(allPlugins.length).toBe(3);
             });
         }
     });
 
-    describe('query-asset-mtime', function() {
-        it('查询 assets 数据库', async function() {
+    describe('query-asset-mtime', function () {
+        it('查询 assets 数据库', async function () {
             const mtime = await assetManager.queryAssetMtime('db://assets');
             expect(mtime).toBeNull();
         });
-        it('查询 assets 数据库里测试生成的临时资源', async function() {
+        it('查询 assets 数据库里测试生成的临时资源', async function () {
             const mtime = await assetManager.queryAssetMtime(uuid);
             expect(typeof mtime).toBe('number');
         });
-        it('查询 assets 数据库里不存在的资源', async function() {
+        it('查询 assets 数据库里不存在的资源', async function () {
             const mtime = await assetManager.queryAssetMtime(uuid + '@xxx');
             expect(mtime).toBeNull();
         });
@@ -407,7 +407,7 @@ describe('测试 db 的查询接口', function() {
         // db://assets/atlas/test-texture.mtl
         const material = 'b58097d1-e862-45dd-8f04-5ae4704761cf';
 
-        describe('query-asset-users', function() {
+        describe('query-asset-users', function () {
             it('脚本 uuid, asset -> 使用此脚本 uuid 的资源列表', async () => {
                 const assetUuids = await assetManager.queryAssetUsers(scriptRequired);
                 expect(assetUuids).toContain(prefabUuid);
@@ -438,7 +438,7 @@ describe('测试 db 的查询接口', function() {
             });
         });
 
-        describe('query-asset-dependencies', function() {
+        describe('query-asset-dependencies', function () {
             it('脚本 uuid, asset -> 脚本使用的资源列表', async () => {
                 const assetUuids = await assetManager.queryAssetDependencies(scriptUuid);
                 expect(assetUuids.length).toBe(0);

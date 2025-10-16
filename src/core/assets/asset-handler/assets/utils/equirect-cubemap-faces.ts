@@ -31,7 +31,6 @@ export function nearestPowerOfTwo(value: number) {
     return 1 << Math.round(Math.log(value) * ilog2);
 }
 
-export type ImageSource = HTMLImageElement | HTMLCanvasElement | ImageData;
 export enum InterpolationType {
     BILINEAR = 'bilinear',
     NEAREST = 'nearest',
@@ -215,24 +214,6 @@ function transformToCubeFaces(inPixels: IData, facePixArray: IData[], options: T
         transformSingleFace(inPixels, face, facePixArray[face], options);
     }
     return facePixArray;
-}
-
-function imageGetPixels(image: ImageSource): ImageData {
-    if (image instanceof ImageData) {
-        return image;
-    }
-    let canvas = image;
-    let ctx: CanvasRenderingContext2D | null;
-    if (canvas.tagName !== 'CANVAS') {
-        canvas = document.createElement('canvas');
-        canvas.width = image.width;
-        canvas.height = image.height;
-        ctx = canvas.getContext('2d');
-        (ctx as CanvasRenderingContext2D).drawImage(image, 0, 0, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-    } else {
-        ctx = (canvas as HTMLCanvasElement).getContext('2d');
-    }
-    return (ctx as CanvasRenderingContext2D).getImageData(0, 0, canvas.width, canvas.height);
 }
 
 export async function equirectToCubemapFaces(image: Sharp, faceSize: number, options?: TransformOptions): Promise<IData[]> {

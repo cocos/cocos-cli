@@ -1,17 +1,15 @@
 'use strict';
 
-import { queryPath, queryAsset, VirtualAsset, Asset } from '@editor/asset-db';
-import { applyTextureBaseAssetUserData, makeDefaultTextureBaseAssetUserData } from './texture-base';
+import { queryAsset, VirtualAsset } from '@editor/asset-db';
+import { applyTextureBaseAssetUserData } from './texture-base';
 import { equirectToCubemapFaces, nearestPowerOfTwo } from './utils/equirect-cubemap-faces';
 import * as cc from 'cc';
 import { ISimpleLayout, matchSimpleLayout } from './utils/cube-map-simple-layout';
 
-import sharp, { Sharp } from 'sharp';
-import { copyFileSync, existsSync, mkdirSync, readFile } from 'fs-extra';
-import path, { basename, dirname, join, sep } from 'path';
+import sharp from 'sharp';
+import { copyFileSync, existsSync, readFile } from 'fs-extra';
+import { basename, dirname, join } from 'path';
 import { ensureDirSync } from 'fs-extra';
-
-declare const EditorExtends: any;
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';

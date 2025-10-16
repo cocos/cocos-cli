@@ -3,7 +3,7 @@
 import { Asset } from '@editor/asset-db';
 import { existsSync, readFile } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
-import { SpriteFrame, Vec2, Size, Rect } from 'cc';
+import { SpriteFrame, Vec2, Size, Rect, SpriteAtlas } from 'cc';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
@@ -80,14 +80,14 @@ export const TexturePackerHandler: AssetHandler = {
                 // @ts-ignore
                 const keys = Object.keys(data.frames);
                 // @ts-ignore
-                const spriteAtlas = new cc.SpriteAtlas();
+                const spriteAtlas = new SpriteAtlas();
                 spriteAtlas.name = asset.basename || '';
 
                 for (const key of keys) {
                     keyNoExt = key.replace(ext_replacer, '');
                     // 数据 atlas 内 spriteFrame 填充
                     // @ts-ignore
-                    const f = data.frames[key] as IFrame;
+                    const f = data.frames[key];
                     const atlasSubAsset = await asset.createSubAsset(keyNoExt, 'sprite-frame');
                     const frameData = fillFrameData(f, userData);
                     frameData.borderBottom = frameData.borderBottom | atlasSubAsset.userData.borderBottom;
@@ -168,8 +168,7 @@ function fillFrameData(frameData: any, userData: IPackAtlas) {
 }
 
 interface IAtlas {
-    // @ts-ignore
-    size: cc.Size;
+    size: Size;
     atlasTextureName: string;
     textureUuid: string | null;
     frames: SpriteFrameBaseAssetUserData[];

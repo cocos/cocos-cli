@@ -5,7 +5,9 @@ import { EngineLoader } from 'cc/loader.js';
 import { Engine } from '../../engine';
 import { existsSync, remove } from 'fs-extra';
 import utils from '../../base/utils';
+
 const projectRoot = join(__dirname, '../../../../tests/fixtures/projects/asset-operation');
+
 export const testInfo = {
     projectRoot,
     engineRoot: EnginPath,

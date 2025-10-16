@@ -212,7 +212,7 @@ export function copyDirSync(path: string, dest: string) {
  */
 export const transI18nName = transI18nNameShare;
 
-// 注意：目前 Editor.Utils 用的是 UUID，EditorExtends 用的是 Uuid 
+// 注意：目前 utils 用的是 UUID，EditorExtends 用的是 Uuid 
 export function compressUuid(uuid: string, min = true) {
     return utils.UUID.compressUUID(uuid, min);
 }

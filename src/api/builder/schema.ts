@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
 export const SchemaBuildOption = z.object({
-    configPath: z.string().optional().describe('构建配置文件地址'),
-    skipCheck: z.boolean().default(true).optional().describe('跳过参数的检查流程'),
+    configPath: z.string().optional().describe('构建配置 JSON 文件地址'),
+    skipCheck: z.boolean().default(true).optional().describe('跳过构建参数的检查流程'),
     migrate: z.boolean().optional().default(false).describe('自动迁移传入的配置'),
-    projectSettingsPath: z.string().optional().describe('导出的项目设置文件地址'),
     taskId: z.string().optional().describe('指定构建任务 ID'),
     taskName: z.string().optional().describe('指定构建任务名称'),
     logDest: z.string().optional().describe('指定构建日志输出地址'),

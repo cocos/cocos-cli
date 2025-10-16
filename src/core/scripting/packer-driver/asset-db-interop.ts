@@ -115,9 +115,6 @@ export class AssetDbInterop {
                 physical: dbInfo.target,
             };
             if (isPackageDomain(dbInfo.name)) {
-                // const packageInfos = Editor.Package.getPackages({ name: dbID });
-                // asserts(packageInfos.length === 1, `Database ${dbID} is enabled but lack of package info.`);
-                // const packageInfo = packageInfos[packageInfos.length - 1];
                 assetDatabaseDomain.jail = dbInfo.target;
             }
             assetDatabaseDomains.push(assetDatabaseDomain);
@@ -291,7 +288,7 @@ function mapperForAssetChange(assetInfo: AssetInfo, meta?: IAssetMeta): AssetCha
 
 function mapperForAssetInfoCache(assetInfo: AssetInfo, meta?: IAssetMeta): AssetInfoCache {
     assetInfo.file = resolveFileName(assetInfo.file);
-    return { 
+    return {
         uuid: assetInfo.uuid,
         filePath: assetInfo.file,
         url: getURL(assetInfo),

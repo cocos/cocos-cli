@@ -18,7 +18,7 @@ describe('Import Project', () => {
         importer: 'audio-clip',
         library: ['.json', '.mp3']
     }];
-    console.log(`test assets in project ${testInfo.projectRoot}, engine root ${testInfo.engineRoot}`)
+    console.log(`test assets in project ${testInfo.projectRoot}, engine root ${testInfo.engineRoot}`);
     testAssets.forEach((asset) => {
         const assetPath = join(testInfo.projectRoot, asset.url);
         const metaPath = assetPath + '.meta';

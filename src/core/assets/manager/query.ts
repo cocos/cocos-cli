@@ -1,18 +1,18 @@
-import { queryUUID, Utils, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach, queryPath } from "@editor/asset-db";
-import { Meta } from "@editor/asset-db/libs/meta";
-import { isAbsolute, basename, extname } from "path";
-import { QueryAssetType, IAsset } from "../@types/protected";
-import { AssetHandlerType, IAssetInfo, QueryAssetsOption } from "../@types/public";
-import { FilterPluginOptions, IPluginScriptInfo } from "../../scripting/interface";
-import { url2uuid, libArr2Obj, getExtendsFromCCType } from "../utils";
-import assetDBManager from "./asset-db";
-import assetHandlerManager from "./asset-handler";
-import script from "../../scripting";
-import i18n from "../../base/i18n";
-import assetConfig from "../asset-config";
-import minimatch from "minimatch";
-import utils from "../../base/utils";
-import { existsSync } from "fs-extra";
+import { queryUUID, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach, queryPath } from '@editor/asset-db';
+import { Meta } from '@editor/asset-db/libs/meta';
+import { isAbsolute, basename, extname } from 'path';
+import { QueryAssetType, IAsset } from '../@types/protected';
+import { AssetHandlerType, IAssetInfo, QueryAssetsOption } from '../@types/public';
+import { FilterPluginOptions, IPluginScriptInfo } from '../../scripting/interface';
+import { url2uuid, libArr2Obj, getExtendsFromCCType } from '../utils';
+import assetDBManager from './asset-db';
+import assetHandlerManager from './asset-handler';
+import script from '../../scripting';
+import i18n from '../../base/i18n';
+import assetConfig from '../asset-config';
+import minimatch from 'minimatch';
+import utils from '../../base/utils';
+import { existsSync } from 'fs-extra';
 
 class AssetQueryManager {
 

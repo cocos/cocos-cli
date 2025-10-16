@@ -13,7 +13,7 @@ import utils from '../../../../base/utils';
 export async function convertTGA(data: Buffer): Promise<{ extName: string; data: Buffer }> {
     const tga = new TGA();
     tga.load(data);
-    const imageData: any = tga.getImageData();
+    const imageData = tga.getImageData();
     const png = new PNG({ width: imageData.width, height: imageData.height });
     png.data = Buffer.from(imageData.data);
     return await savePNGObject(png);

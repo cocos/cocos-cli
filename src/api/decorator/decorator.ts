@@ -1,7 +1,7 @@
 // src/decorators.ts
-import "reflect-metadata";
-import type { ZodType } from "zod";
-import { createCommonResult } from "../base/schema-base";
+import 'reflect-metadata';
+import type { ZodType } from 'zod';
+import { createCommonResult } from '../base/schema-base';
 
 interface ParamSchema {
   index: number;
@@ -22,7 +22,7 @@ const toolRegistry = new Map<string, { target: any; meta: ToolMetaData }>();
 
 export function tool(toolName?: string) {
   return function (...decoratorArgs: any[]) {
-    const [target, propertyKey, descriptor] = decoratorArgs;
+    const [target, propertyKey, _descriptor] = decoratorArgs;
     const proto = target;
     const name = toolName || propertyKey.toString();
 
@@ -55,14 +55,14 @@ export function tool(toolName?: string) {
 }
 
 export function description(desc: string) {
-  return function (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
+  return function (target: any, propertyKey: string | symbol, _descriptor?: PropertyDescriptor) {
     const key = `tool:description:${propertyKey.toString()}`;
     Reflect.defineMetadata(key, desc, target);
   };
 }
 
 export function title(title: string) {
-  return function (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
+  return function (target: any, propertyKey: string | symbol, _descriptor?: PropertyDescriptor) {
     const key = `tool:title:${propertyKey.toString()}`;
     Reflect.defineMetadata(key, title, target);
   };
@@ -99,7 +99,7 @@ function getParameterNames(func: Function): string[] | null {
 }
 
 export function result(returnType: ZodType<any>) {
-  return function (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
+  return function (target: any, propertyKey: string | symbol, _descriptor?: PropertyDescriptor) {
     const wrappedSchema = createCommonResult(returnType);
     Reflect.defineMetadata(`tool:returnSchema:${propertyKey.toString()}`, wrappedSchema, target);
   };

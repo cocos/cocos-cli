@@ -169,9 +169,33 @@ export interface LabelAtlasAssetUserData {
     startChar: string;
     fontSize: number;
     spriteFrameUuid: string;
-    _fntConfig: {};
+    _fntConfig: FntData;
+}
+export interface FntData {
+    commonHeight?: number;
+    fontSize?: number;
+    atlasName?: string;
+    fontDefDictionary?: FontDefDictionary;
+    kerningDict?: KerningDict;
 }
 
+export interface FontDefDictionary {
+    [charId: number]: FontDef;
+}
+export interface FontDef {
+    rect: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+    xOffset: number;
+    yOffset: number;
+    xAdvance: number;
+}
+export interface KerningDict {
+    [key: number]: number;
+}
 /** 渲染纹理资源的 userData */
 export interface RenderTextureAssetUserData extends TextureBaseAssetUserData {
     width: number;

@@ -9,6 +9,7 @@
         "inlineSourceMap": true,
         "inlineSources": true,
         "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
         "skipLibCheck": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
@@ -18,13 +19,15 @@
         "allowJs": true,
         "emitDeclarationOnly": false,
         "resolveJsonModule": true,
+        "forceConsistentCasingInFileNames": true,
         "types": [
             "jest",
             "node"
         ]
     },
     "include": [
-        "src/**/*"
+        "src/**/*",
+        "@types/**/*"
     ],
     "exclude": [
         "dist",

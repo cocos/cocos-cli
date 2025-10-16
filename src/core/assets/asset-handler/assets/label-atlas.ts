@@ -1,12 +1,12 @@
 import { Asset, queryAsset } from '@editor/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
-import { SpriteFrame } from 'cc';
+import { SpriteFrame, LabelAtlas } from 'cc';
 import { basename } from 'path';
 
 import { getDependUUIDList } from '../utils';
-import { LabelAtlasAssetUserData } from '../../@types/userDatas';
+import { FntData, LabelAtlasAssetUserData } from '../../@types/userDatas';
 
-const fntParser = require('./utils/fnt-parser');
+import fntParser from './utils/fnt-parser';
 
 const FONT_SIZE = 0.88;
 
@@ -66,9 +66,8 @@ export const LabelAtlasHandler: AssetHandler = {
                     return false;
                 }
                 labelAtlas.fontSize = userData.fontSize = userData.itemHeight * FONT_SIZE;
-                // @ts-ignore
                 labelAtlas.spriteFrame = EditorExtends.serialize.asAsset(userData.spriteFrameUuid, SpriteFrame);
-                labelAtlas.fntConfig = userData._fntConfig = createFntConfigString(asset, spriteFrameAsset);
+                labelAtlas.fntConfig = userData._fntConfig = createFntConfigString(asset, spriteFrameAsset) as FntData;
             }
 
             labelAtlas.name = asset.basename || '';
@@ -92,7 +91,7 @@ export default LabelAtlasHandler;
  */
 function createLabelAtlas(asset: Asset) {
     // @ts-ignore
-    const labelAtlas = new cc.LabelAtlas();
+    const labelAtlas = new LabelAtlas();
     labelAtlas.name = basename(asset.source, asset.extname);
 
     labelAtlas.fontSize = asset.userData.fontSize;

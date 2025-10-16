@@ -223,9 +223,6 @@ export class Parser {
         if (this.missingObjectReporter) {
             const exists = this.assetExists[uuid];
             // TODO 这里需要判断一下 db 是否存在对应的资源
-            // if (exists === undefined) {
-            //     exists = this.assetExists[uuid] = !!Editor.assetdb.remote.uuidToFspath(uuid);
-            // }
             if (!exists) {
                 this.missingObjectReporter(asset);
             }
@@ -700,7 +697,7 @@ export class Parser {
     private enumerateBindedDict(obj: any, objInfo: IObjParsingInfo) {
         for (const key in obj) {
             // 不能用 hasOwnProperty 来判断，因为 JSB 对象的属性在 prototype 上面
-            // eslint-disable-next-line no-prototype-builtins
+
             if ((key.charCodeAt(0) === 95 && key.charCodeAt(1) === 95) // starts with __
                 && key !== '__prefab'
             ) {

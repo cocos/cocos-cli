@@ -48,7 +48,6 @@ export async function patchOptionsToSettings(options: IInternalBuildOptions, set
         settings.rendering.effectSettingsPath = 'src/effect.bin';
     }
     // 自定义插屏写入
-    // const hasSetSplash = await Editor.Profile.getProject('builder', 'hasSetSplash');
     settings.splashScreen = await getSplashSettings(!!options.useSplashScreen, !!options.preview, defaultSplashScreen, splashScreen);
     settings.physics = await getPhysicsConfig(options.includeModules, options.physicsConfig);
     settings.engine.macros = options.macroConfig || {};
