@@ -24,10 +24,9 @@
     },
     "scripts": {
         "clear": "node workflow/clear.js",
-        "test": "jest",
-        "test:quiet": "jest --silent",
-        "test:core": "jest --selectProjects core-test",
-        "test:mcp": "jest --selectProjects mcp-test",
+        "test": "jest --config jest.config.ts && jest --config jest.config.mcp.ts",
+        "test:quiet": "jest --config jest.config.ts --silent && jest --config jest.config.mcp.ts --silent",
+        "test:mcp": "jest --config jest.config.mcp.ts",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "compiler": "FORCE_UPDATE=true npm i",
