@@ -269,7 +269,26 @@ export type IBuildSeparateEngineOptions = Pick<IBuildEngineParam, 'platformType'
     signatureProvider?: string;
 }
 
-export type IBuildSeparateEngineCacheOptions = Pick<IBuildSeparateEngineOptions, 'pluginName' | 'engine' | 'platform' | 'platformType' | 'pluginFeatures' | 'nativeCodeBundleMode' | 'signatureProvider' | 'useCacheForce'> & { engineFeatureQuery?: EngineFeatureQuery };
+export type IEnvLimitModule = Record<string, {
+    envList: string[];
+    fallback?: string;
+}>
+export interface IEngineFeatureQuery {
+
+    all: string[];
+    allUnit: string[];
+    plugin: string[];
+    pluginUnit: string[];
+
+    engineStatsQuery: StatsQuery;
+    envLimitModule: IEnvLimitModule;
+
+    _defaultPlugins: string[];
+    env: StatsQuery.ConstantManager.ConstantOptions;
+    getUnitsOfFeatures(features: string[]): string[];
+    filterEngineModules(features: string[]): string[];
+}
+export type IBuildSeparateEngineCacheOptions = Pick<IBuildSeparateEngineOptions, 'pluginName' | 'engine' | 'platform' | 'platformType' | 'pluginFeatures' | 'nativeCodeBundleMode' | 'signatureProvider' | 'useCacheForce'> & { engineFeatureQuery?: IEngineFeatureQuery };
 
 export interface IBuildEngineParam {
     entry: string; // 引擎入口文件

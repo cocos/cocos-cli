@@ -1,12 +1,8 @@
 import { engine as EnginPath } from '../../../.user.json';
-import { join } from 'path';
-import * as server from '../../server';
 import { EngineLoader } from 'cc/loader.js';
-import { Engine } from '../engine';
 import { existsSync, remove } from 'fs-extra';
-import utils from '../base/utils';
 import { TestGlobalEnv } from './global-env';
-import { PackerDriver } from '../scripting/packer-driver';
+import { projectManager } from '../launcher';
 let hasInit = false;
 
 export async function globalSetup() {
@@ -14,44 +10,6 @@ export async function globalSetup() {
     if (hasInit) {
         return;
     }
-    [
-        'cc',
-        'cc/editor/populate-internal-constants',
-        'cc/editor/serialization',
-        'cc/editor/new-gen-anim',
-        'cc/editor/embedded-player',
-        'cc/editor/reflection-probe',
-        'cc/editor/lod-group-utils',
-        'cc/editor/material',
-        'cc/editor/2d-misc',
-        'cc/editor/offline-mappings',
-        'cc/editor/custom-pipeline',
-    ].forEach((module) => {
-        jest.mock(module, () => {
-            return EngineLoader.getEngineModuleById(module);
-        }, { virtual: true });
-    });
-    console.log('start init engine with project root: ', TestGlobalEnv.projectRoot);
-    /**
-     * 初始化一些基础模块信息
-     */
-    utils.Path.register('project', {
-        label: '项目',
-        path: TestGlobalEnv.projectRoot,
-    });
-    // 启动服务器
-    await server.startServer();
-    const { configurationManager } = await import('../configuration');
-    await configurationManager.initialize(TestGlobalEnv.projectRoot);
-    // 初始化项目信息
-    const { default: Project } = await import('../project');
-    await Project.open(TestGlobalEnv.projectRoot);
-    const engine = await Engine.init(EnginPath);
-    await engine.initEngine({
-        importBase: TestGlobalEnv.libraryPath,
-        nativeBase: TestGlobalEnv.libraryPath,
-        writablePath: join(TestGlobalEnv.projectRoot, 'temp'),
-    });
     if (existsSync(TestGlobalEnv.libraryPath)) {
         try {
             await remove(TestGlobalEnv.libraryPath);
@@ -70,12 +28,25 @@ export async function globalSetup() {
             console.error('remove project test root cache fail');
         }
     }
-    const { startupAssetDB } = await import('../assets');
-    await startupAssetDB();
-    console.log('startupAssetDB success');
-    // 初始化项目脚本
-    const packDriver = await PackerDriver.create(TestGlobalEnv.projectRoot, EnginPath);
-    await packDriver.init(Engine.getConfig().includeModules);
+    [
+        'cc',
+        'cc/editor/populate-internal-constants',
+        'cc/editor/serialization',
+        'cc/editor/new-gen-anim',
+        'cc/editor/embedded-player',
+        'cc/editor/reflection-probe',
+        'cc/editor/lod-group-utils',
+        'cc/editor/material',
+        'cc/editor/2d-misc',
+        'cc/editor/offline-mappings',
+        'cc/editor/custom-pipeline',
+    ].forEach((module) => {
+        jest.mock(module, () => {
+            return EngineLoader.getEngineModuleById(module);
+        }, { virtual: true });
+    });
+    await projectManager.open(TestGlobalEnv.projectRoot, EnginPath);
+
     hasInit = true;
 }
 

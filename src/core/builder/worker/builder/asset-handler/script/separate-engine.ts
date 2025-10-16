@@ -9,7 +9,7 @@ import { join, basename, dirname, relative } from 'path';
 import { createHash } from 'crypto';
 import { buildEngine, StatsQuery } from '@cocos/ccbuild';
 import { compareOptions } from '../../utils';
-import { IBuildSeparateEngineCacheOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult, IEngineCachePaths, ISignatureConfig } from '../../../../@types/private';
+import { IBuildSeparateEngineCacheOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult, IEngineCachePaths, IEnvLimitModule, ISignatureConfig } from '../../../../@types/private';
 import { ModuleRenderConfig, IFeatureItem, IModuleItem } from '../../../../../engine/@types/modules';
 
 class EngineCachePaths implements IEngineCachePaths {
@@ -45,11 +45,6 @@ interface IEngineFeatureQueryOptions {
     engine: string;
     pluginFeatures?: string[] | 'all' | 'default';
 }
-
-type IEnvLimitModule = Record<string, {
-    envList: string[];
-    fallback?: string;
-}>
 
 function extractMacros(expression: string): string[] {
     return expression.split('||').map(match => match.trim().substring(1));

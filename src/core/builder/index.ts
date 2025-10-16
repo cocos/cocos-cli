@@ -1,10 +1,10 @@
 import { existsSync } from 'fs';
 import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
-import { BuildExitCode, IBuildCommandOption, IBuildSceneItem, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IExportBuildOptions, IInternalBuildOptions } from './@types/private';
+import { BuildExitCode, IBuildCommandOption, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IInternalBuildOptions } from './@types/private';
 import { PLATFORMS } from './share/platforms-options';
 import { pluginManager } from './manager/plugin';
-import { formatMSTime, getBuildPath, getCurrentTime, getTaskLogDest } from './share/utils';
+import { formatMSTime, getTaskLogDest } from './share/utils';
 import { newConsole } from '../base/console';
 import { join } from 'path';
 import assetManager from '../assets/manager/asset';

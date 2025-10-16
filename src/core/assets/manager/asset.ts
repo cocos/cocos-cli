@@ -2,7 +2,7 @@ import { AssetDB, VirtualAsset } from '@editor/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { AssetManager as IAssetManager } from '../@types/private';
+import { IAsset, AssetManager as IAssetManager } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
@@ -74,26 +74,45 @@ class AssetManager extends EventEmitter implements IAssetManager {
 
     _onAssetDBCreated(db: AssetDB) {
         db.on('unresponsive', onUnResponsive);
-        // db.on('added', assetManager._onAssetAdded);
-        // db.on('changed', assetManager._onAssetChanged);
-        // db.on('deleted', assetManager._onAssetDeleted);
+        db.on('added', assetManager._onAssetAdded);
+        db.on('changed', assetManager._onAssetChanged);
+        db.on('deleted', assetManager._onAssetDeleted);
 
-        // db.on('add', assetAdd);
-        // db.on('delete', assetChange);
-        // db.on('change', assetDeleted);
+        db.on('add', assetManager._onAssetAdded);
+        db.on('delete', assetManager._onAssetDeleted);
+        db.on('change', assetManager._onAssetChanged);
     }
 
-    // _onAssetDBStarted(db: AssetDB) {
-    //     // 移除一些仅进度条使用的监听
-    //     db.removeListener('add', assetAdd);
-    //     db.removeListener('change', assetChange);
-    //     db.removeListener('delete', assetDeleted);
-    // }
+    _onAssetDBStarted(db: AssetDB) {
+        // 移除一些仅进度条使用的监听
+        db.removeListener('add', assetManager._onAssetAdded);
+        db.removeListener('change', assetManager._onAssetChanged);
+        db.removeListener('delete', assetManager._onAssetDeleted);
+    }
     _onAssetDBRemoved(db: AssetDB) {
         db.removeListener('unresponsive', onUnResponsive);
-        // db.removeListener('added', assetManager._onAssetAdded);
-        // db.removeListener('changed', assetManager._onAssetChanged);
-        // db.removeListener('deleted', assetManager._onAssetDeleted);
+        db.removeListener('added', assetManager._onAssetAdded);
+        db.removeListener('changed', assetManager._onAssetChanged);
+        db.removeListener('deleted', assetManager._onAssetDeleted);
+    }
+
+    async _onAssetAdded(asset: IAsset) {
+        if (assetDBManager.ready) {
+            this.emit('asset-add', asset);
+            return;
+        }
+    }
+    async _onAssetChanged(asset: IAsset) {
+        if (assetDBManager.ready) {
+            this.emit('asset-change', asset);
+            return;
+        }
+    }
+    async _onAssetDeleted(asset: IAsset) {
+        if (assetDBManager.ready) {
+            this.emit('asset-delete', asset);
+            return;
+        }
     }
 }
 

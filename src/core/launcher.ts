@@ -1,10 +1,10 @@
 import { join } from 'path';
-import { IBuildCommandOption } from './core/builder/@types/protected';
-import utils from './core/base/utils';
-import { newConsole } from './core/base/console';
-import { getCurrentLocalTime } from './core/assets/utils';
-import { PackerDriver } from './core/scripting/packer-driver';
-import { startServer } from './server';
+import { IBuildCommandOption } from './builder/@types/protected';
+import utils from './base/utils';
+import { newConsole } from './base/console';
+import { getCurrentLocalTime } from './assets/utils';
+import { PackerDriver } from './scripting/packer-driver';
+import { startServer } from '../server';
 
 class ProjectManager {
 
@@ -26,17 +26,17 @@ class ProjectManager {
             path,
         });
         await startServer();
-        const { configurationManager } = await import('./core/configuration');
+        const { configurationManager } = await import('./configuration');
         await configurationManager.initialize(path);
         // 初始化项目信息
-        const { default: Project } = await import('./core/project');
+        const { default: Project } = await import('./project');
         await Project.open(path);
         // 初始化引擎
-        const { Engine, initEngine } = await import('./core/engine');
+        const { Engine, initEngine } = await import('./engine');
         await initEngine(enginePath, path);
         console.log('initEngine success');
         // 启动以及初始化资源数据库
-        const { startupAssetDB } = await import('./core/assets');
+        const { startupAssetDB } = await import('./assets');
         console.log('startupAssetDB', path);
         await startupAssetDB();
         const packDriver = await PackerDriver.create(path, enginePath);
@@ -62,7 +62,7 @@ class ProjectManager {
         // 先打开项目
         await this.open(projectPath, enginePath);
         // 执行构建流程
-        const { build } = await import('./core/builder');
+        const { build } = await import('./builder');
         return await build(options);
     }
 }
