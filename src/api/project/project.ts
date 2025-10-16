@@ -6,7 +6,7 @@ import z from 'zod';
 export class ProjectApi extends ApiBase {
 
     constructor(
-       private projectPath: string
+        private projectPath: string
     ) {
         super();
     }
@@ -33,7 +33,7 @@ export class ProjectApi extends ApiBase {
         return {
             code: code,
             data: code === COMMON_STATUS.SUCCESS
-        }
+        };
     }
 
     @tool('project-close')
@@ -53,6 +53,6 @@ export class ProjectApi extends ApiBase {
         return {
             code: code,
             data: code === COMMON_STATUS.SUCCESS
-        }
+        };
     }
 }

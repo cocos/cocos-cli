@@ -24,9 +24,9 @@
     },
     "scripts": {
         "clear": "node workflow/clear.js",
-        "test": "jest --config jest.config.ts && jest --config jest.config.mcp.ts",
-        "test:quiet": "jest --config jest.config.ts --silent && jest --config jest.config.mcp.ts --silent",
-        "test:mcp": "jest --config jest.config.mcp.ts",
+        "test": "jest --config jest/jest.config.core.ts && jest --config jest/jest.config.mcp.ts",
+        "test:quiet": "jest --config jest/jest.config.core.ts --silent && jest --config jest/jest.config.mcp.ts --silent",
+        "test:mcp": "jest --config jest/jest.config.mcp.ts",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "compiler": "FORCE_UPDATE=true npm i",

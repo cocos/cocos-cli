@@ -28,7 +28,7 @@ export class ServerService {
         key: '',// HTTPS 私钥文件路径
         cert: '',// HTTPS 证书文件路径
         ca: '',// 证书的签发请求文件 csr ，没有可省略
-    }
+    };
 
     public get url() {
         if (this.server && this.server.listening) {
@@ -88,7 +88,7 @@ export class ServerService {
                 key: undefined,
                 cert: undefined,
                 ca: undefined,
-            }
+            };
             if (existsSync(keyFile)) {
                 options.key = readFileSync(path.resolve(keyFile));
             }

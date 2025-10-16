@@ -1,18 +1,34 @@
-import { join } from "path";
-import { CocosAPI } from "../../api";
-import { getServerUrl, register } from "../../server";
-import { McpMiddleware } from "../mcp.middleware";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { join } from 'path';
+import { CocosAPI } from '../../api';
+import { getServerUrl, register } from '../../server';
+import { McpMiddleware } from '../mcp.middleware';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { EngineLoader } from 'cc/loader';
 
-
+[
+    'cc',
+    'cc/editor/populate-internal-constants',
+    'cc/editor/serialization',
+    'cc/editor/animation-clip-migration',
+    'cc/editor/exotic-animation',
+    'cc/editor/new-gen-anim',
+    'cc/editor/offline-mappings',
+    'cc/editor/embedded-player',
+    'cc/editor/color-utils',
+    'cc/editor/custom-pipeline',
+].forEach((module) => {
+    jest.mock(module, () => {
+        return EngineLoader.getEngineModuleById(module);
+    }, { virtual: true });
+});
 // MCP Server 启动函数
 export async function startMCPServer(folder: string) {
     const tempEnginePath = join(__dirname, '../../../bin/engine');
     const cocosAPI = new CocosAPI(folder, tempEnginePath);
     await cocosAPI.startup();
 
-    let middleware = new McpMiddleware();
+    const middleware = new McpMiddleware();
     middleware.registerDecoratorTools();
     register('mcp', middleware.getMiddlewareContribution());
     const url = getServerUrl();
@@ -27,7 +43,7 @@ export class MCPClient {
     private isConnected: boolean = false;
 
     constructor() {
-        this.mcp = new Client({ name: "mcp-client-test", version: "1.0.0" });
+        this.mcp = new Client({ name: 'mcp-client-test', version: '1.0.0' });
     }
 
     /**
