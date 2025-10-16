@@ -1,7 +1,8 @@
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { readJSONSync, remove } from 'fs-extra';
-import { globalSetup, testInfo } from './utils';
+import { globalSetup } from '../../test/global-setup';
+import { TestGlobalEnv } from '../../test/global-env';
 
 describe('Import Project', () => {
     beforeAll(async () => {
@@ -18,9 +19,9 @@ describe('Import Project', () => {
         importer: 'audio-clip',
         library: ['.json', '.mp3']
     }];
-    console.log(`test assets in project ${testInfo.projectRoot}, engine root ${testInfo.engineRoot}`);
+    console.log(`test assets in project ${TestGlobalEnv.projectRoot}, engine root ${TestGlobalEnv.engineRoot}`);
     testAssets.forEach((asset) => {
-        const assetPath = join(testInfo.projectRoot, asset.url);
+        const assetPath = join(TestGlobalEnv.projectRoot, asset.url);
         const metaPath = assetPath + '.meta';
         const meta = readJSONSync(metaPath);
         describe(asset.name + ' import', () => {
@@ -33,7 +34,7 @@ describe('Import Project', () => {
             asset.library.forEach((extension) => {
                 it('library exists', () => {
                     const uuid = meta.uuid;
-                    expect(existsSync(join(testInfo.projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`))).toBeTruthy();
+                    expect(existsSync(join(TestGlobalEnv.projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`))).toBeTruthy();
                 });
             });
 

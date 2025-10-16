@@ -73,6 +73,7 @@ export default [
                 ...globals.node,
                 ...globals.commonjs,
                 ...globals.es2022,
+                jest: 'readonly',
             },
         },
         rules: {

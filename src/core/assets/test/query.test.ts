@@ -2,7 +2,8 @@
 
 import { basename } from 'path';
 import { assetManager, assetDBManager } from '..';
-import { globalSetup, testInfo } from './utils';
+import { globalSetup } from '../../test/global-setup';
+import { TestGlobalEnv } from '../../test/global-env';
 import assetOperation from '../manager/operation';
 import { ICreateMenuInfo } from '../@types/protected';
 
@@ -24,7 +25,7 @@ const invalidParams = [
 
 const internalSpriteUuid = '951249e0-9f16-456d-8b85-a6ca954da16b@f9941';
 const internalSpriteImageUuid = '951249e0-9f16-456d-8b85-a6ca954da16b';
-const assetTestRoot = testInfo.testRoot;
+const assetTestRoot = TestGlobalEnv.testRoot;
 
 describe('测试 db 的查询接口', function () {
     const name = `__${Date.now()}__.test`;
@@ -93,7 +94,7 @@ describe('测试 db 的查询接口', function () {
             it(`测试创建 ${label || info.label}(${info.fullFileName})`, async () => {
                 const target = join(assetTestRoot, info.fullFileName);
                 try {
-                    const targetUrl = `${testInfo.testRootUrl}/${info.fullFileName}`;
+                    const targetUrl = `${TestGlobalEnv.testRootUrl}/${info.fullFileName}`;
                     const assetInfo = await assetManager.createAsset({
                         ...info,
                         target: targetUrl,
@@ -170,7 +171,7 @@ describe('测试 db 的查询接口', function () {
     });
 
     describe('query-url', function () {
-        const assetsPath = join(testInfo.projectRoot, 'assets');
+        const assetsPath = join(TestGlobalEnv.projectRoot, 'assets');
         // const internalPath = join(__dirname, '../static/internal/assets');
         it('查询 assets 数据库', async function () {
             const url = await assetManager.queryUrl(assetsPath);
@@ -367,7 +368,7 @@ describe('测试 db 的查询接口', function () {
             const sprites = await assetManager.queryAssetInfos({ pattern: 'db://internal/default_ui/default_editbox_bg.png/spriteFrame' });
             expect(sprites.length).toBe(1);
         });
-        if (basename(testInfo.projectRoot) === 'build-example') {
+        if (basename(TestGlobalEnv.projectRoot) === 'build-example') {
             it('查询 assets 目录下 userData.isPlugin = true 的插件脚本资源', async () => {
                 const allPlugins = await assetManager.queryAssetInfos({ userData: { isPlugin: true }, pattern: 'db://assets/**/*' });
                 expect(allPlugins.length).toBe(3);
@@ -390,7 +391,7 @@ describe('测试 db 的查询接口', function () {
         });
     });
 
-    if (basename(testInfo.projectRoot) === 'build-example') {
+    if (basename(TestGlobalEnv.projectRoot) === 'build-example') {
         // db://assets/asset-depends/test.ts
         const scriptUuid = 'e26cd737-d346-4c64-9c6b-b50792fa8ba7';
         // db://assets/atlas-compress/atlas-compress.scene

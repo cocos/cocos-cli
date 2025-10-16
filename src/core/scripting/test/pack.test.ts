@@ -1,17 +1,15 @@
 import { PackerDriver } from '../packer-driver';
-import { project as projectPath, engine as enginePath } from '../../../../.user.json';
+import { globalSetup } from '../../test/global-setup';
 
 /**
  * pack 类的测试 
  */
 describe('Pack', () => {
     let packDriver: PackerDriver;
-
-    it('准备阶段', async () => {
-        const TestUtils = await import('../../base/test-utils');
-        const core = await TestUtils.fastStartup(enginePath, projectPath);
-        packDriver = core.packDriver;
-    })
+    beforeAll(async () => {
+        await globalSetup();
+        packDriver = PackerDriver.getInstance();
+    });
 
     it('test script pack', async () => {
         await packDriver.build();
