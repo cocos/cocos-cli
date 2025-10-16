@@ -10,12 +10,13 @@ import { EngineLoader } from 'cc/loader';
     'cc',
     'cc/editor/populate-internal-constants',
     'cc/editor/serialization',
-    'cc/editor/animation-clip-migration',
-    'cc/editor/exotic-animation',
     'cc/editor/new-gen-anim',
-    'cc/editor/offline-mappings',
     'cc/editor/embedded-player',
-    'cc/editor/color-utils',
+    'cc/editor/reflection-probe',
+    'cc/editor/lod-group-utils',
+    'cc/editor/material',
+    'cc/editor/2d-misc',
+    'cc/editor/offline-mappings',
     'cc/editor/custom-pipeline',
 ].forEach((module) => {
     jest.mock(module, () => {

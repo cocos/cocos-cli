@@ -1,19 +1,19 @@
 import { Engine, IEngine } from '../index';
 import { join } from 'path';
 import { EngineLoader } from 'cc/loader.js';
-
-const ProjectPath = join(__dirname, '../../../../test-project');
+import { TestGlobalEnv } from '../../test/global-env';
 
 [
     'cc',
     'cc/editor/populate-internal-constants',
     'cc/editor/serialization',
-    'cc/editor/animation-clip-migration',
-    'cc/editor/exotic-animation',
     'cc/editor/new-gen-anim',
-    'cc/editor/offline-mappings',
     'cc/editor/embedded-player',
-    'cc/editor/color-utils',
+    'cc/editor/reflection-probe',
+    'cc/editor/lod-group-utils',
+    'cc/editor/material',
+    'cc/editor/2d-misc',
+    'cc/editor/offline-mappings',
     'cc/editor/custom-pipeline',
 ].forEach((module) => {
     jest.mock(module, () => {
@@ -29,14 +29,14 @@ describe('Engine', () => {
 
     beforeEach(async () => {
         // 在每个测试用例之前初始化 engine
-        engine = await Engine.init(require('../../../../.user.json').engine);
+        engine = await Engine.init(TestGlobalEnv.engineRoot);
     });
 
     it('test engine initEngine', async () => {
         await engine.initEngine({
-            importBase: join(ProjectPath, 'library'),
-            nativeBase: join(ProjectPath, 'library'),
-            writablePath: join(ProjectPath, 'temp'),
+            importBase: join(TestGlobalEnv.projectRoot, 'library'),
+            nativeBase: join(TestGlobalEnv.projectRoot, 'library'),
+            writablePath: join(TestGlobalEnv.projectRoot, 'temp'),
         });
         // @ts-ignore
         expect(cc).toBeDefined();

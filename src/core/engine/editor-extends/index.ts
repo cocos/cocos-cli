@@ -21,8 +21,8 @@ export const Script = new ScriptManager();
 export const Node = new NodeManager();
 export const Component = new ComponentManager();
 
-export * as GeometryUtils from './utils/geometry';
-export * as PrefabUtils from './utils/prefab';
+export let GeometryUtils: any;
+export let PrefabUtils: any;
 
 export const MissingReporter = {
     classInstance: MissingClass,
@@ -35,6 +35,8 @@ export async function init() {
     serialize = serializeUtils.serialize;
     serializeCompiled = serializeUtils.serializeCompiled;
     deserializeFull = await import('./utils/deserialize');
+    GeometryUtils = await import('./utils/geometry');
+    PrefabUtils = await import('./utils/prefab');
 }
 
 const event = new EventEmitter();

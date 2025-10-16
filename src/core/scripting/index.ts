@@ -1,9 +1,9 @@
-import { join } from "path";
 import { CCEModuleMap } from "../engine/@types/config";
 import { IPluginScriptInfo, SharedSettings } from "./interface";
 import { PackerDriver } from "./packer-driver";
 import { Executor } from '@editor/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
+import { CustomEvent, EventType, eventEmitter } from './event-emitter';
 
 export const title = 'i18n:builder.tasks.load_script';
 
@@ -50,6 +50,9 @@ const globalEnv = new GlobalEnv();
 
 class ScriptManager {
 
+    on(type: EventType, listener: (arg: any) => void): CustomEvent { return eventEmitter.on(type, listener); }
+    off(type: EventType, listener: (arg: any) => void): CustomEvent { return eventEmitter.off(type, listener); }
+    once(type: EventType, listener: (arg: any) => void): CustomEvent { return eventEmitter.once(type, listener); }
 
     private _executor!: Executor;
 
@@ -105,16 +108,12 @@ class ScriptManager {
         });
     }
 
-    /**
-     * TODO
-     * @returns 
-     */
     queryCCEModuleMap(): CCEModuleMap {
-        // return PackerDriver.queryCCEModuleMap();
-        const cceModuleMapLocation = join(__dirname, '../../cce-module.jsonc');
-        // const cceModuleMap = JSON5.parse(readFileSync(cceModuleMapLocation, 'utf8')) as CCEModuleMap;
-        // cceModuleMap.mapLocation = cceModuleMapLocation;
-        return {} as CCEModuleMap;
+        return PackerDriver.queryCCEModuleMap();
+    }
+
+    getPackerDriverLoaderContext(targetName: string) {
+        return PackerDriver.getInstance().getQuickPackLoaderContext(targetName)?.serialize();
     }
 
 }
