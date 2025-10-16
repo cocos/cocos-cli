@@ -26,7 +26,7 @@ export const TypeScriptHandler: AssetHandler = {
     open: openCode,
     createInfo: {
         async generateMenuInfo() {
-            let menu: ICreateMenuInfo[] = [
+            const menu: ICreateMenuInfo[] = [
                 {
                     label: 'i18n:ENGINE.assets.newTypeScript',
                     fullFileName: `${ScriptNameChecker.getDefaultClassName()}.ts`,

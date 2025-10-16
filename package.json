@@ -24,8 +24,9 @@
     },
     "scripts": {
         "clear": "node workflow/clear.js",
-        "test": "jest",
-        "test:quiet": "jest --silent",
+        "test": "jest --config jest/jest.config.core.ts && jest --config jest/jest.config.mcp.ts",
+        "test:quiet": "jest --config jest/jest.config.core.ts --silent && jest --config jest/jest.config.mcp.ts --silent",
+        "test:mcp": "jest --config jest/jest.config.mcp.ts",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "compiler": "FORCE_UPDATE=true npm i",
@@ -42,6 +43,7 @@
         "release": "node workflow/release.js",
         "start": "node ./dist/commands/build-directly.js",
         "start:mcp": "node ./dist/mcp/start-server.js",
+        "start:mcp-debug": "npx @modelcontextprotocol/inspector node /dist/mcp/start-server.js",
         "cli": "ts-node src/cli.ts"
     },
     "author": "cocos",

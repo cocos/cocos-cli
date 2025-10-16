@@ -9,7 +9,7 @@ import { changeImageDefaultType } from './utils/image-utils';
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
 
-const fntParser = require('./utils/fnt-parser');
+import fntParser from './utils/fnt-parser';
 
 /**
  * 获取实际的纹理文件位置
@@ -78,7 +78,7 @@ export const BitmapHandler: AssetHandler = {
             asset.userData.fontSize = fntConfig.fontSize;
 
             // 标记依赖资源
-            const texturePath = getRealFntTexturePath(fntConfig.atlasName, asset);
+            const texturePath = getRealFntTexturePath(fntConfig.atlasName as string, asset);
             asset.depend(texturePath);
             const textureUuid = asset._assetDB.pathToUuid(texturePath);
             if (!textureUuid) {

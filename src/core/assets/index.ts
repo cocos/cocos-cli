@@ -12,7 +12,7 @@ import assetConfig from './asset-config';
 export async function startupAssetDB() {
     try {
         // @ts-ignore HACK 目前引擎有在一些资源序列化会调用的接口里使用这个变量，没有合理的传参之前需要临时设置兼容
-        window.Build = true;
+        globalThis.Build = true;
         await assetConfig.init();
         newConsole.trackMemoryStart('asset-db:worker-init');
         await assetManager.init();

@@ -724,11 +724,11 @@ function makeUniqueSubAssetNames(
 
     if (!isDifferWithEachOther(names as string[])) {
         let tail = '-';
-        // eslint-disable-next-line no-constant-condition
+
         while (true) {
-            // eslint-disable-line
+
             if (names.every((name) => !name!.endsWith(tail))) {
-                // eslint-disable-line
+
                 break;
             }
             tail += '-';

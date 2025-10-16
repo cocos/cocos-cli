@@ -34,25 +34,6 @@ export const MaterialHandler: AssetHandler = {
                     name: 'default',
                 },
             ];
-            // const assets = Editor.Selection.getSelected('asset');
-            // // 多选资源后，出现自动生成材质的菜单
-            // if (assets.length) {
-            //     menu.push({
-            //         label: 'i18n:ENGINE.assets.autoGenerateMaterial',
-            //         fullFileName: 'material.mtl',
-            //         template: 'autoGenerateMaterial',
-            //         group: 'material',
-            //         message: {
-            //             target: 'asset-db',
-            //             name: 'new-asset',
-            //             params: [{
-            //                 template: 'autoGenerateMaterial',
-            //                 handler: 'material',
-            //             }],
-            //         }
-            //     })
-            // }
-            // return menu;
         },
     },
 

@@ -113,7 +113,7 @@ export class Project implements IProject {
         creator: {
             version: 'unknow',
         }
-    }
+    };
 
     get path(): string {
         return this._projectPath;
@@ -212,7 +212,7 @@ export class Project implements IProject {
             return true;
         } catch (error) {
             console.error('Failed to create project.', error);
-            return false
+            return false;
         }
     }
 
@@ -251,7 +251,7 @@ export class Project implements IProject {
                 version: Project.version,
                 dependencies: {}
             }
-        }
+        };
     }
 
     /**
@@ -263,7 +263,7 @@ export class Project implements IProject {
     private isValid(info: ProjectInfo): boolean {
         return typeof info.type !== 'undefined' ||
             typeof info.version !== 'undefined' ||
-            typeof info.creator !== 'undefined'
+            typeof info.creator !== 'undefined';
     }
 }
 

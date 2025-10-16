@@ -81,7 +81,7 @@ export class ConfigurationManager implements IConfigurationManager {
             const bind = async (configInstance: IBaseConfiguration) => {
                 this.projectConfig[configInstance.moduleName] = configInstance.getAll();
                 await this.save();
-            }
+            };
             instance.on(MessageType.Save, bind);
             this.configurationMap.set(instance.moduleName, bind);
         }

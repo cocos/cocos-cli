@@ -48,13 +48,3 @@ jobs:
 
       - name: Run npm run start
         run: npm run start
-
-      - name: Start command health check (timeout)
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Run start with timeout to ensure it doesn't hang CI
-          # If the process exits with non-zero before timeout, fail fast
-          timeout 500s npm run start --silent
-
-

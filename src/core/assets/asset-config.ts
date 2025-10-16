@@ -1,8 +1,8 @@
-import { join } from "path";
-import { AssetDBRegisterInfo } from "./@types/private";
-import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from "../configuration";
-import project from "../project";
-import { Engine } from "../engine";
+import { join } from 'path';
+import { AssetDBRegisterInfo } from './@types/private';
+import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../configuration';
+import project from '../project';
+import { Engine } from '../engine';
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
@@ -58,7 +58,7 @@ class AssetConfig {
         createTemplateRoot: '',
         sortingPlugin: [],
         // fbx.material.smart
-    }
+    };
 
     private _init = false;
 

@@ -6,6 +6,9 @@ import { startupRpc } from './rpc';
 import { getServerUrl } from '../../../server';
 
 export class SceneWorker extends EventEmitter {
+
+    static ExitWorkerEvent = 'scene-process:exit';
+
     private _process: ChildProcess | null = null;
     private get process(): ChildProcess {
         if (!this._process) {
@@ -31,6 +34,7 @@ export class SceneWorker extends EventEmitter {
             this.registerListener();
             const onReady = (msg: any) => {
                 if (msg === SceneReadyChannel) {
+                    console.log('Scene process start.')
                     this.process.off('message', onReady);
                     resolve(true);
                 }
@@ -39,11 +43,16 @@ export class SceneWorker extends EventEmitter {
         });
     }
 
-    stop() {
-        if (this.process) {
-            this.process.kill(0);
-            console.log('[Node] Scene process stopped.');
-        }
+    async stop() {
+        if (!this.process) return true;
+        return new Promise<boolean>((resolve) => {
+            this.process.once('exit', () => {
+                console.log('Scene process stopped.');
+                resolve(true);
+            });
+            this.process.once('error', () => resolve(false));
+            this.process.send(SceneWorker.ExitWorkerEvent);
+        });
     }
 
     registerListener() {

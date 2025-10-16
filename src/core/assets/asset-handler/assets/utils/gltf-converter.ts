@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable @typescript-eslint/no-namespace */
+
+
 import * as DataURI from '@cocos/data-uri';
 import * as cc from 'cc';
 import { Mat4, Quat, Vec3, Vec4, gfx, Constructor } from 'cc';
@@ -3061,7 +3061,7 @@ function makeUniqueNames(names: (string | null)[], generator: UniqueNameGenerato
     for (let i = 0; i < names.length; ++i) {
         let name = names[i];
         let count = 0;
-        // eslint-disable-next-line no-constant-condition
+
         while (true) {
             const isUnique = () =>
                 uniqueNames.every((uniqueName, index) => {

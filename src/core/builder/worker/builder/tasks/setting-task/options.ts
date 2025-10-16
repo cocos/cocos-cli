@@ -18,9 +18,5 @@ for (let i = 0; i <= 19; i++) {
  * @param settings
  */
 export async function handle(options: IInternalBuildOptions, result: InternalBuildResult, cache: BuilderAssetCache) {
-    // const settingDest = Editor.Utils.Path.join(result.paths!.dir, 'res', 'settings.json');
-    // if (!existsSync(settingDest)) {
-    //     throw new Error('Get cache settings failed!');
-    // }
     await patchOptionsToSettings(options, result.settings);
 }

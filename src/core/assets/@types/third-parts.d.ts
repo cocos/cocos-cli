@@ -2,7 +2,7 @@ declare module 'tga-js' {
     export default class TGA {
         width: number;
         height: number;
-        getImageData(imageData?: ImageData): ImageData | { width: number; height: number; data: Uint8ClampedArray };
+        getImageData(): { width: number; height: number; data: Uint8ClampedArray };
         constructor();
         load(data: Buffer): null;
     }
@@ -24,10 +24,10 @@ declare module 'psd.js' {
 declare module 'draco3dgltf' {
     export function createDecoderModule(options: DecoderModuleOptions): typeof DecoderModule;
 
-    // eslint-disable-next-line
+
     export interface DecoderModuleOptions { }
 
-    // eslint-disable-next-line
+
     interface DecoderModule { }
 
     namespace DecoderModule {

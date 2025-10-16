@@ -302,7 +302,7 @@ export class Bundle {
             this.config.paths[asset.uuid] = info;
         });
 
-        // eslint-disable-next-line  no-inner-declarations
+
         function checkUrl(uuid: string, url: string, type: string) {
             if (!urlCollect[url]) {
                 urlCollect[url] = {};
@@ -577,8 +577,8 @@ export class Bundle {
         // const newDependencyRelationships: Record<string, Array<string | number>> = {};
         // for (const uuid in config.dependencyRelationships) {
         //     let depends: Array<string | number> = config.dependencyRelationships[uuid];
-        //     const index = uuidIndices[uuid] ?? Editor.Utils.string.compressUUID(uuid, true);
-        //     depends = depends.map((uuid) => uuidIndices[uuid] ?? Editor.Utils.string.compressUUID(uuid as string, true));
+        //     const index = uuidIndices[uuid] ?? utils.string.compressUUID(uuid, true);
+        //     depends = depends.map((uuid) => uuidIndices[uuid] ?? utils.string.compressUUID(uuid as string, true));
         //     newDependencyRelationships[index] = depends;
         // }
         // config.dependencyRelationships = newDependencyRelationships;

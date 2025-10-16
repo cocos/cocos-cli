@@ -46,10 +46,6 @@ export async function buildEngineCommand(options: buildEngineOptions) {
     await ensureDir(dirname(out));
     console.debug(`start build engine with options: ${JSON.stringify(buildOptions)}`);
     const buildResult = await buildEngine(buildOptions);
-    // 缓存引擎不能放置在之前的 engine 目录下，在 mac 上可能会有权限问题
-    // const output = join(Editor.App.temp, 'builder', 'engine', name);
-    // const metaDir = join(dirname(output), `${name}.meta`);
-    // const metaFile = join(metaDir, exportsMetaFile);
 
     if (buildOptions.split) {
         const statsQuery = await StatsQuery.create(buildOptions.engine);

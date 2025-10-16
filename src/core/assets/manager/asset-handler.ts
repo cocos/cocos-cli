@@ -394,6 +394,7 @@ class AssetHandlerManager {
      * @returns 返回资源创建地址
      */
     async createAsset(options: CreateAssetOptions): Promise<null | string> {
+        options.rename = options.rename ?? true;
         if (!options.handler) {
             const registerInfos = this.extname2registerInfo[extname(options.target)];
             options.handler = registerInfos && registerInfos.length ? registerInfos[0].name : undefined;
@@ -401,9 +402,9 @@ class AssetHandlerManager {
 
         const newTarget = Utils.File.getName(options.target);
         if (newTarget !== options.target) {
-            if (options.overwrite) {
+            if (!options.overwrite && options.rename) {
                 options.target = newTarget;
-            } else {
+            } else if (!options.overwrite && !options.rename) {
                 throw new Error(`Target file already exists: ${options.target}`);
             }
         }
@@ -437,7 +438,7 @@ class AssetHandlerManager {
                 options.content = JSON.stringify(options.content, null, 4);
             }
             // 部分自定义创建资源没有模板，内容为空，只需要一个空文件即可完成创建
-            await outputFile(options.target, options.content);
+            await outputFile(options.target, options.content, 'utf8');
         }
         await afterCreateAsset(options.target, options);
         return options.target;

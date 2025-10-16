@@ -24,7 +24,6 @@ export interface IScene extends ISceneIdentifier {
     name: string;
 }
 
-
 /**
  * 创建场景选项
  */

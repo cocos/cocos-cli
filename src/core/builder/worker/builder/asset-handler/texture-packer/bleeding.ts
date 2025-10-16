@@ -250,6 +250,3 @@ export class BleedingProcessor {
         }
     }
 }
-
-// 导出兼容性接口
-export const applyBleed = BleedingProcessor.applyBleed;

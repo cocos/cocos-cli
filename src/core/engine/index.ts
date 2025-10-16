@@ -41,7 +41,7 @@ class EngineManager implements IEngine {
             type: 'builtin',
             builtin: '',
         }
-    }
+    };
     private _config: IEngineConfig = this.defaultConfig;
     // private _configInstance!: IBaseConfiguration;
 
@@ -211,7 +211,7 @@ class EngineManager implements IEngine {
     async initEditorExtensions() {
         // @ts-ignore
         globalThis.EditorExtends = await import('./editor-extends');
-        // 注意：目前 Editor.Utils 用的是 UUID，EditorExtends 用的是 Uuid 
+        // 注意：目前 utils 用的是 UUID，EditorExtends 用的是 Uuid 
         // @ts-ignore
         globalThis.EditorExtends.UuidUtils.compressUuid = globalThis.EditorExtends.UuidUtils.compressUUID;
         // @ts-ignore

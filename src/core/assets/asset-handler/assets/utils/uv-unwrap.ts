@@ -1,5 +1,7 @@
 import os from 'os';
 import path from 'path';
+import utils from '../../../../base/utils';
+import { GlobalPaths } from '../../../../../global';
 /**
  *
  * @param inputFile The file is the mesh data extracted from cc.Mesh for generating LightmapUV.
@@ -12,9 +14,7 @@ export function unwrapLightmapUV(inputFile: string, outFile: string) {
     const tool = path.join(GlobalPaths.staticDir, 'tools/LightFX', toolName + toolExt);
     const args = ['--input', inputFile, '--output', outFile];
 
-    // @ts-ignore
-    return Editor.Utils.Process.quickSpawn(tool, args, {
-        // @ts-ignore
+    return utils.Process.quickSpawn(tool, args, {
         shell: true,
     });
 }

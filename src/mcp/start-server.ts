@@ -1,14 +1,14 @@
-import { join } from "path";
-import { CocosAPI } from "../api";
-import { register } from "../server";
-import { McpMiddleware } from "./mcp.middleware";
+import { join } from 'path';
+import { CocosAPI } from '../api';
+import { register } from '../server';
+import { McpMiddleware } from './mcp.middleware';
 
 export async function startServer(folder: string, port: number) {
     const tempEnginePath = join(__dirname, '../../bin/engine');
     const cocosAPI = new CocosAPI(folder, tempEnginePath);
     await cocosAPI.startup();
 
-    let middleware = new McpMiddleware();
+    const middleware = new McpMiddleware();
     middleware.registerDecoratorTools();
     register('mcp', middleware.getMiddlewareContribution());
 }
@@ -19,7 +19,7 @@ if (require.main === module) {
     const cocosAPI = new CocosAPI(project, engine);
     cocosAPI.startup();
 
-    let middleware = new McpMiddleware();
+    const middleware = new McpMiddleware();
     middleware.registerDecoratorTools();
     register('mcp', middleware.getMiddlewareContribution());
 }
