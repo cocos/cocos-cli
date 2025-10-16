@@ -18,5 +18,5 @@ afterAll(() => {
 import './scene-worker.testcase';
 import './scene-proxy.testcase';
 
-import './scene-worker-exit.testcase';
+import './scene-exit.testcase';
 
