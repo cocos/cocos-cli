@@ -1,5 +1,5 @@
 'use strict';
-import { Node, Component, js, Scene, CCClass } from 'cc';
+import { Node, Component, js, CCClass } from 'cc';
 import { INode } from '../../../../@types/public';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';

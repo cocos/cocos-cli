@@ -32,26 +32,18 @@ export class ComponentApi extends ApiBase {
     @description('创建一个组件添加到节点中')
     @result(SchemaComponent)
     async addComponent(@param(SchemaAddComponentInfo) createComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponent>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TComponent> = {
-            code: code,
-            data: {
-                uuid: 'unknown',
-            },
-        };
-
         try {
             const componentInfo = await Scene.addComponent(createComponentInfo);
-            if (componentInfo && ret.data) {
-                ret.data.uuid = componentInfo.uuid;
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: componentInfo
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('创建组件失败失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -62,25 +54,18 @@ export class ComponentApi extends ApiBase {
     @description('移除 节点 组件')
     @result(SchemaBooleanResult)
     async removeComponent(@param(SchemaComponent) componentInfo: TComponent): Promise<CommonResultType<boolean>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<boolean> = {
-            code: code,
-            data: false,
-        };
-
         try {
-            const sceneInfo = await Scene.removeComponent(componentInfo);
-            if (sceneInfo) {
-                ret.data = false;
-
+            const result = await Scene.removeComponent(componentInfo);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: result
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('移除组件失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -90,30 +75,19 @@ export class ComponentApi extends ApiBase {
     @title('查询组件')
     @description('查询组件信息')
     @result(SchemaComponentInfoResult)
-    async queryComponent(@param(SchemaComponent) componentInfo: TComponent): Promise<CommonResultType<TComponentInfoResult>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TComponentInfoResult> = {
-            code: code,
-            data: {
-                value: { value: {} },
-                uuid: '',
-                enabled: false,
-            },
-        };
-
+    async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentInfoResult>> {
         try {
-            const componentDumpInfo = await Scene.queryComponent(componentInfo);
-
-            if (componentDumpInfo) {
-                ret.data = JSON.parse(JSON.stringify(componentInfo));
+            const componentInfo = await Scene.queryComponent(component);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: componentInfo
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('查询组件信息失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 
     /**
@@ -124,23 +98,17 @@ export class ComponentApi extends ApiBase {
     @description('设置组件属性')
     @result(SchemaBooleanResult)
     async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<boolean> = {
-            code: code,
-            data: false,
-        };
-
         try {
-            const sceneInfo = await Scene.setProperty(setPropertyOptions as ISetPropertyOptions);
-            if (sceneInfo) {
-                ret.data = true;
+            const result = await Scene.setProperty(setPropertyOptions as ISetPropertyOptions);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: result
             }
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('设置属性失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            }
         }
-
-        return ret;
     }
 }

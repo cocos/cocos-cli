@@ -10,7 +10,7 @@ class RealCurveDump implements DumpInterface {
 
     public encode(object: cc.RealCurve, data: IProperty, opts?: any): void {
         data.value = this.encodeByObj(object, opts);
-       
+
         // HACK 目前曲线新建完无默认数据
         // @ts-ignore
         // if (!data.value.keyFrames.length) {
@@ -63,13 +63,13 @@ class RealCurveDump implements DumpInterface {
             const keyData = dump.value.keyFrames.map((item: any) => {
                 return [item.time, {
                     value: item.value,
-    
+
                     leftTangent: item.inTangent,
                     rightTangent: item.outTangent,
-    
+
                     interpolationMode: item.interpMode,
                     tangentWeightMode: item.tangentWeightMode,
-    
+
                     leftTangentWeight: item.inTangentWeight,
                     rightTangentWeight: item.outTangentWeight,
                 }];

@@ -45,13 +45,13 @@ export const SchemaProperty = z.object({
 export const SchemaSetPropertyOptions = z.object({
     uuid: z.string().describe('组件的 UUID'),
     path: z.string().describe('属性挂载对象的搜索路径'),
-    dump: SchemaProperty.describe('属性 dump 出来的数据'),
-    record: z.boolean().optional().describe('是否记录undo'),
+    properties: SchemaProperty.describe('需要修改的属性'),
+    record: z.boolean().optional().default(true).describe('是否记录undo'),
 }).describe('设置组件属性的信息');
 
 
-export const SchemaComponentInfoResult = z.object({
-    value: SchemaProperty.describe('组件的值对象'),
+export const SchemaComponentInfoResult = SchemaProperty.extend({
+    properties: SchemaProperty.describe('组件的值对象'),
     enabled: z.any().describe('组件是否启用'),
     uuid: z.string().describe('组件的唯一标识符'),
 }).describe('组件dump信息');

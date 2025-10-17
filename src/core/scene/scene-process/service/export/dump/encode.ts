@@ -177,6 +177,9 @@ export function encodeComponent(component: any): IComponentInfo {
     // }
     const data: IComponentInfo = {
         value: {},
+        properties: {
+            value: {}
+        },
         uuid: component.uuid,
         name: component.name,
         enabled: component.enabled,
@@ -202,7 +205,7 @@ export function encodeComponent(component: any): IComponentInfo {
                 const attrs = cc.Class.attr(component, key);
                 const dumpData = encodeObject(component[key], attrs, component, key);
                 if (dumpData.type !== 'Unknown') {
-                    data.value[key] = dumpData;
+                    data.properties.value[key] = dumpData;
                 }
                 _checkConstructorRewriteType(dumpData, component[key], attrs);
             }
@@ -212,7 +215,7 @@ export function encodeComponent(component: any): IComponentInfo {
                 `Component property dump failed:\n  Node: ${component.node.name}(${component.node.uuid})\n Component: ${data.type}(${component.uuid})\n Property: ${key}`,
             );
             console.warn(error);
-            delete data.value[key];
+            delete data.properties.value[key];
         }
     });
 

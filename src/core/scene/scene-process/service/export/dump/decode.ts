@@ -189,13 +189,13 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
     for (let i = 0; i < dumpComps.length; i++) {
         const dumpComp: IComponentInfo = dumpComps[i];
 
-        if (!dumpComp.value || !dumpComp.value.uuid) {
+        if (!dumpComp.properties || !dumpComp.properties.value.uuid) {
             continue;
         }
 
         let component = components[i];
 
-        const compUuid = (dumpComp.value.uuid as IProperty).value as string;
+        const compUuid = (dumpComp.properties.value.uuid as IProperty).value as string;
         let cacheComp = ComponentManager.query(compUuid);
 
         if (cacheComp) {
@@ -226,8 +226,8 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
 
 
         // 对于原先还在的组件，还原内部的值
-        for (const key in dumpComp.value) {
-            await decodePatch(key, dumpComp.value[key], component);
+        for (const key in dumpComp.properties.value) {
+            await decodePatch(key, dumpComp.properties.value[key], component);
         }
 
         // 还原mountedRoot

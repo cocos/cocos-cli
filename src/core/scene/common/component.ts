@@ -1,8 +1,9 @@
 import { IProperty } from '../@types/public';
 
 export interface IComponentInfo extends IProperty {
-    uuid:string;
-    enabled:string;
+    uuid: string;
+    enabled: string;
+    properties: IProperty;
 }
 
 /**
@@ -42,7 +43,7 @@ export interface ISetPropertyOptions {
     uuid: string; // 修改属性的对象的 uuid
     path: string; // 属性挂载对象的搜索路径
     // key: string; // 属性的 key
-    dump: IProperty; // 属性 dump 出来的数据
+    properties: IProperty; // 属性 dump 出来的数据
     record?: boolean;// 是否记录undo
 }
 
@@ -54,7 +55,7 @@ export interface IComponentService {
      * 创建组件
      * @param params
      */
-    addComponent(params: IAddComponentOptions): Promise<IComponent | null>;
+    addComponent(params: IAddComponentOptions): Promise<IComponent>;
     /**
      * 删除组件
      * @param params 
@@ -68,5 +69,5 @@ export interface IComponentService {
     /**
      * 查询组件
      */
-    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null>;
+    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo>;
 }
