@@ -213,8 +213,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                 throw e;
             }
 
-            const sceneInfo = await this.createSceneInfo(assetInfo);
-            return sceneInfo;
+            return await this.createSceneInfo(assetInfo);
         } catch (error) {
             console.error(`创建场景失败: ${error}`);
             throw error;
@@ -241,33 +240,24 @@ export class SceneService extends EventEmitter implements ISceneService {
 
     @expose()
     async reload(): Promise<boolean> {
-        try {
-            const uuid = this.currentSceneUUID;
-            await this.close();
-            await this.open({
-                urlOrUUIDOrPath: uuid
-            });
-            return true;
-        } catch (e) {
-            throw e;
-        }
+        const uuid = this.currentSceneUUID;
+        await this.close();
+        await this.open({
+            urlOrUUIDOrPath: uuid
+        });
+        return true;
     }
 
     @expose()
     async softReload(params: ISoftReloadSceneOptions): Promise<boolean> {
-        try {
-            const { urlOrUUIDOrPath } = params;
-            const scene = await this.getScene(urlOrUUIDOrPath);
-            const serializeJSON = this.serialize(scene.instance);
-            scene.instance = await sceneUtil.runSceneImmediateByJson(serializeJSON);
-            this.sceneMap.set(scene.info.uuid, scene)
-            this.emit('soft-reload', scene);
-            return true;
-        } catch (e) {
-            throw e;
-        }
+        const { urlOrUUIDOrPath } = params;
+        const scene = await this.getScene(urlOrUUIDOrPath);
+        const serializeJSON = this.serialize(scene.instance);
+        scene.instance = await sceneUtil.runSceneImmediateByJson(serializeJSON);
+        this.sceneMap.set(scene.info.uuid, scene);
+        this.emit('soft-reload', scene);
+        return true;
     }
-
 
     /**
      * 创建场景信息
