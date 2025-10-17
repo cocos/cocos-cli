@@ -1,4 +1,4 @@
-import type { ICreateComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
+import type { IAddComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './export/dump'
 import { IComponentMenu, IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
@@ -19,10 +19,10 @@ import {
  */
 @register('Component')
 export class componentService implements IComponentService {
-    private createComponentImpl(uuid: string, componentName: string): IComponent | null {
+    private addComponentImpl(uuid: string, componentName: string): IComponent | null {
         if (Array.isArray(uuid)) {
             uuid.forEach((id) => {
-                this.createComponentImpl(id, componentName);
+                this.addComponentImpl(id, componentName);
             });
             console.warn('don\'t add component to more than one node at one time');
             return null;
@@ -64,9 +64,9 @@ export class componentService implements IComponentService {
     }
     
     @expose()
-    createComponent(params: ICreateComponentOptions): Promise<IComponent | null> {
+    addComponent(params: IAddComponentOptions): Promise<IComponent | null> {
         return new Promise<IComponent | null>(async (resolve, reject) => {
-            const component = await this.createComponentImpl(params.uuid, params.component);
+            const component = await this.addComponentImpl(params.uuid, params.component);
             if(component != null) {
                 resolve({uuid: component.uuid});
             } else {

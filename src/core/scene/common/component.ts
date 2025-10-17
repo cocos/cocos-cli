@@ -15,7 +15,7 @@ export interface IComponent {
 /**
  * 创建组件
  */
-export interface ICreateComponentOptions {
+export interface IAddComponentOptions {
     uuid: string;// 节点uuid
     component: string;// 组件注册到ccclass里的类名
 }
@@ -54,7 +54,7 @@ export interface IComponentService {
      * 创建组件
      * @param params
      */
-    createComponent(params: ICreateComponentOptions): Promise<IComponent | null>;
+    addComponent(params: IAddComponentOptions): Promise<IComponent | null>;
     /**
      * 删除组件
      * @param params 

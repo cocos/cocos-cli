@@ -1,18 +1,18 @@
 import { ApiBase } from '../base/api-base';
 import {
-    SchemaCreateComponentInfo,
+    SchemaAddComponentInfo,
     SchemaComponent,
     SchemaSetPropertyOptions,
     SchemaComponentInfoResult,
     SchemaBooleanResult,
-    TCreateComponentInfo,
+    TAddComponentInfo,
     TComponent,
     TSetPropertyOptions,
     TComponentInfoResult,
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/scheme-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { Scene, ISetPropertyOptions } from '../../core/scene';
 
 export class ComponentApi extends ApiBase {
@@ -31,7 +31,7 @@ export class ComponentApi extends ApiBase {
     @title('创建组件')
     @description('创建一个组件添加到节点中')
     @result(SchemaComponent)
-    async createComponent(@param(SchemaCreateComponentInfo) createComponentInfo: TCreateComponentInfo): Promise<CommonResultType<TComponent>> {
+    async addComponent(@param(SchemaAddComponentInfo) createComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponent>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TComponent> = {
             code: code,
@@ -41,8 +41,8 @@ export class ComponentApi extends ApiBase {
         };
 
         try {
-            const componentInfo = await Scene.createComponent(createComponentInfo);
-            if (componentInfo) {
+            const componentInfo = await Scene.addComponent(createComponentInfo);
+            if (componentInfo && ret.data) {
                 ret.data.uuid = componentInfo.uuid;
             }
         } catch (e) {
@@ -95,7 +95,7 @@ export class ComponentApi extends ApiBase {
         const ret: CommonResultType<TComponentInfoResult> = {
             code: code,
             data: {
-                value: {},
+                value: { value: {} },
                 uuid: '',
                 enabled: false,
             },
@@ -119,7 +119,7 @@ export class ComponentApi extends ApiBase {
     /**
      * 设置组件属性
      */
-    @tool('scene-set-property-component')
+    @tool('scene-set-component-property')
     @title('设置组件属性')
     @description('设置组件属性')
     @result(SchemaBooleanResult)
