@@ -42,10 +42,9 @@
         "download-tools": "node workflow/download-tools.js",
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
-        "start": "node ./dist/commands/build-directly.js",
         "start:mcp": "node ./dist/mcp/start-server.js",
-        "start:mcp-debug": "npx @modelcontextprotocol/inspector node /dist/mcp/start-server.js",
-        "cli": "ts-node src/cli.ts"
+        "start:mcp-debug": "npx @modelcontextprotocol/inspector",
+        "cli": "node ./dist/cli.js"
     },
     "author": "cocos",
     "files": [

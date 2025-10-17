@@ -33,6 +33,7 @@
         "dist",
         "node_modules",
         "**/test/**",
-        "**/*.test.ts"
+        "**/*.test.ts",
+        "./tests/**"
     ]
 }
