@@ -1,9 +1,9 @@
 import {
     IProperty,
-} from '../../../../../@types/public';
+} from '../../../../@types/public';
 
 import { DumpInterface } from './dump-interface';
-import ComponentManager from '../../../component/index';
+import ComponentManager from '../../component/index';
 
 // valueType直接使用引擎序列化
 class ComponentDump implements DumpInterface {

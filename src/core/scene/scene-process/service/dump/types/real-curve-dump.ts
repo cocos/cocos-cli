@@ -1,6 +1,6 @@
 import {
     IProperty,
-} from '../../../../../@types/public';
+} from '../../../../@types/public';
 
 import { DumpInterface } from './dump-interface';
 import * as cc from 'cc';

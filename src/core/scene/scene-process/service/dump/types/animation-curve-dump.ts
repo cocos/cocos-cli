@@ -2,7 +2,7 @@
 import { DumpInterface } from './dump-interface';
 import { realCurveDump } from './real-curve-dump';
 import * as cc from 'cc';
-import { IProperty } from '../../../../../@types/public';
+import { IProperty } from '../../../../@types/public';
 
 // 即将废弃的数据结构
 class AnimationCurveDump implements DumpInterface {

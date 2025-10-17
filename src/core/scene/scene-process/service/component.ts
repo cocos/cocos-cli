@@ -1,5 +1,5 @@
 import type { IAddComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
-import dumpUtil from './export/dump'
+import dumpUtil from './dump'
 import { IComponentMenu, IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
 import compMgr from './component/index';

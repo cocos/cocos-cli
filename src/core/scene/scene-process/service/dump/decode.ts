@@ -9,9 +9,9 @@ const { get, set } = lodash;
 import { DumpDefines } from './dump-defines';
 import { assetManager, Component, editorExtrasTag, Node, Prefab, Vec3, MobilityMode, Quat, Animation, AnimationState } from 'cc';
 import { promisify } from 'util';
-import { INode, IProperty } from '../../../../@types/public';
-import { IComponent, IComponentInfo } from '../../../../common'
-import ComponentManager from '../../component/index';
+import { INode, IProperty } from '../../../@types/public';
+import { IComponent, IComponentInfo } from '../../../common'
+import ComponentManager from '../component/index';
 import {
     MissingScript,
 } from 'cc';

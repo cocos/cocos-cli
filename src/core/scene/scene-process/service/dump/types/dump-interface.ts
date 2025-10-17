@@ -1,6 +1,6 @@
 import {
     IProperty,
-} from '../../../../../@types/public';
+} from '../../../../@types/public';
 
 export interface DumpInterface {
     /**

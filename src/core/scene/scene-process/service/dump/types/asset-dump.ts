@@ -1,4 +1,4 @@
-import { IProperty } from '../../../../../@types/public';
+import { IProperty } from '../../../../@types/public';
 
 import { DumpInterface } from './dump-interface';
 

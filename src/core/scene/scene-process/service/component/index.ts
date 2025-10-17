@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import dumpUtil from '../export/dump';
+import dumpUtil from '../dump';
 const { get } = require('lodash');
 
 const CompMgr = EditorExtends.Component;

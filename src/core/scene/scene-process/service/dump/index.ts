@@ -1,11 +1,11 @@
 'use strict';
 import { Node, Component, js, CCClass } from 'cc';
-import { INode } from '../../../../@types/public';
+import { INode } from '../../../@types/public';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeNode, encodeComponent } from './encode';
-import { IComponentInfo } from '../../../../common';
+import { IComponentInfo } from '../../../common';
 
 // import * as dumpDecode from './decode';
 const { get, set } = require('lodash');

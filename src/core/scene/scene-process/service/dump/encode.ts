@@ -7,8 +7,8 @@ import dumpUtil from './utils';
 import { DumpDefines } from './dump-defines';
 
 import { Node, Component, js, Prefab, MobilityMode } from 'cc';
-import { INode, IProperty } from '../../../../@types/public';
-import { IComponentInfo } from '../../../../common';
+import { INode, IProperty } from '../../../@types/public';
+import { IComponentInfo } from '../../../common';
 /**
  * 编码一个 node 数据
  * @param node
