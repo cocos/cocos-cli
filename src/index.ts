@@ -27,7 +27,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }
 
             try {
-                const port = await getAvailablePort(7456);
+                const port = await getAvailablePort(9527);
                 // 启动 MCP 服务器
                 await startServer(folder, port);
 

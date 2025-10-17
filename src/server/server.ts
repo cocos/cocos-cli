@@ -22,7 +22,7 @@ interface ServerOptions {
 export class ServerService {
     private app: Express = express();
     private server: HTTPServer | HTTPSServer | undefined;
-    private port = 7456;
+    private port = 9527;
     private useHttps = false;
     private httpsConfig = {
         key: '',// HTTPS 私钥文件路径
