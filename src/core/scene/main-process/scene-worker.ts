@@ -18,6 +18,10 @@ export class SceneWorker extends EventEmitter {
     }
 
     async start(enginePath: string, projectPath: string): Promise<boolean> {
+        if (this._process) {
+            console.warn('重复启动场景进程，请 stop 进程在 start');
+            return false;
+        }
         return new Promise((resolve) => {
             const args = [
                 `--enginePath=${enginePath}`,
@@ -27,6 +31,7 @@ export class SceneWorker extends EventEmitter {
             const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
             const inspectPort = '9230';
             this._process = fork(precessPath, args, {
+                detached: false,
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 execArgv: [`--inspect=${inspectPort}`],
             });
@@ -34,11 +39,11 @@ export class SceneWorker extends EventEmitter {
             this.registerListener();
             const onReady = (msg: any) => {
                 if (msg === SceneReadyChannel) {
-                    console.log('Scene process start.')
+                    console.log('Scene process start.');
                     this.process.off('message', onReady);
                     resolve(true);
                 }
-            }
+            };
             this.process.on('message', onReady);
         });
     }
