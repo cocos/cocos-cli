@@ -10,7 +10,7 @@ if (!utils.hasDevelopmentEnvironment()) return;
     const args = process.argv.slice(2);
     const isForce = args.includes('--force');
 
-    const engine = path.join(__dirname, '..', 'resources', 'engine');
+    const engine = path.join(__dirname, '..', 'packages', 'engine');
     if (fse.existsSync(path.join(engine, 'bin', 'adapter')) && !isForce) {
         console.log('[Skip] build web-adapter');
         return;

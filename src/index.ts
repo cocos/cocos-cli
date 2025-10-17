@@ -1,4 +1,4 @@
-import { startMcpServer } from './mcp/start-server.js';
+import { startServer } from './mcp/start-server.js';
 import { serverService } from './server/server.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -28,7 +28,7 @@ export async function activate(context: vscode.ExtensionContext, port?: number) 
 
             try {
                 // 启动 MCP 服务器
-                await startMcpServer(folder, port);
+                await startServer(folder, port);
 
                 // 返回 MCP 服务器定义
                 return [

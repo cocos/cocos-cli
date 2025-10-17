@@ -49,7 +49,7 @@ async function mockNpmModules() {
     
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
 
-    if (!fse.existsSync(path.join(__dirname, '..', 'resources', 'engine'))) {
+    if (!fse.existsSync(path.join(__dirname, '..', 'packages', 'engine'))) {
         await utils.runCommand('npm', ['run', 'update:repos']);
     }
 
