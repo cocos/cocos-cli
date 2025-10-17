@@ -6,7 +6,7 @@ import { serverService } from '../server/server';
 import chalk from 'chalk';
 
 export async function startServer(folder: string, port: number) {
-    const enginePath = join(__dirname, '../../resources/engine');
+    const enginePath = join(__dirname, '../../packages/engine');
     const cocosAPI = new CocosAPI(folder, enginePath);
     await cocosAPI.startup();
 
@@ -23,7 +23,7 @@ export async function startServer(folder: string, port: number) {
 if (require.main === module) {
     //todo: 后续需要整理下这边的启动逻辑，现在看着有点乱，api 里面启动了 server，然后 server 还要等 api 初始化后才能 register tools
     const { project } = require('../../.user.json');
-    const engine = join(__dirname, '../../resources/engine');
+    const engine = join(__dirname, '../../packages/engine');
     const cocosAPI = new CocosAPI(project, engine);
     cocosAPI.startup().then(() => console.log('CocosAPI startup completed'));
 

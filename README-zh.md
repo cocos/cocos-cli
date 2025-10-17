@@ -158,12 +158,12 @@ npm run download-tools
    {
      "engine": {
        "repo": "git@github.com:cocos/cocos-engine.git",
-       "dist": "resources/engine",
+       "dist": "packages/engine",
        "branch": "v3.8.8"
      },
      "external": {
        "repo": "git@github.com:cocos/cocos-engine-external.git",
-       "dist": "resources/engine/native/external"
+       "dist": "packages/engine/native/external"
      }
    }
    ```
