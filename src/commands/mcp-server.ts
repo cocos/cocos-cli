@@ -24,18 +24,8 @@ export class McpServerCommand extends BaseCommand {
                     }
 
                     CommandUtils.showMcpServerInfo(resolvedPath, port);
-
-                    console.log(chalk.blue('🚀 Starting MCP Server...'));
-                    console.log(chalk.gray(`Project: ${resolvedPath}`));
-                    console.log(chalk.gray(`Port: ${port}`));
-                    console.log('');
-
                     // 启动 MCP 服务器
                     await startMcpServer(resolvedPath, port);
-
-                    console.log(chalk.green('✓ MCP Server started successfully!'));
-                    console.log(chalk.blue(`Server is running on port ${port}`));
-                    console.log(chalk.yellow('Press Ctrl+C to stop the server'));
 
                     // 保持进程运行
                     process.stdin.resume();
