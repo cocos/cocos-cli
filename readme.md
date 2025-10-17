@@ -373,6 +373,52 @@ This will download platform-specific tools for Windows, macOS, and Linux. For de
 
 📖 [Tool Download Guide](docs/download-tools.md)
 
+### Update Repository Dependencies
+
+The project uses external repositories (like Cocos Engine) that need to be updated periodically. Use the repository update command to manage these dependencies:
+
+#### Setup Steps
+
+1. **Configure repository settings**
+
+   Ensure the `repo.json` file in the root directory is properly configured with the repositories you want to manage:
+
+   ```json
+   {
+     "engine": {
+       "repo": "git@github.com:cocos/cocos-engine.git",
+       "dist": "resources/engine",
+       "branch": "v3.8.8"
+     },
+     "external": {
+       "repo": "git@github.com:cocos/cocos-engine-external.git",
+       "dist": "resources/engine/native/external"
+     }
+   }
+   ```
+
+2. **Run the update command**
+
+   ```bash
+   npm run update:repos
+   ```
+
+3. **What this command does**
+
+   - **Smart Repository Detection**: Automatically detects existing repositories and prompts for updates
+   - **Interactive Updates**: Provides a 3-second countdown with user confirmation (default: auto-update)
+   - **Safe Reset**: Only resets tracked files (`git reset --hard HEAD`) while preserving untracked files
+   - **Branch/Tag Switching**: Automatically switches to the specified branch or tag
+   - **Error Handling**: Comprehensive error handling with fallback to re-cloning if updates fail
+
+   The command will:
+   - Check each repository defined in `repo.json`
+   - Prompt you to confirm updates for existing repositories
+   - Reset any local changes to tracked files
+   - Fetch the latest updates from remote
+   - Switch to the specified branch/tag
+   - Update to the latest code
+
 ## 📖 API Documentation
 
 - [ConstantOptions](docs/core/ConstantOptions.md) - Configuration options and constants
