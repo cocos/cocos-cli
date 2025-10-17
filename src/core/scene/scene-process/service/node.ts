@@ -253,12 +253,11 @@ export class NodeService extends EventEmitter implements INodeService {
             });
         }
         node.components.forEach((comp) => {
-            const compName = cc.js.getClassName(comp.constructor);
-            if (compName) {
+            if (comp) {
                 if (!(info as any).component) {
                     (info as any).component = [];
                 }
-                (info as any).component.push(compName);
+                (info as any).component.push(comp.uuid);
             }
         });
 

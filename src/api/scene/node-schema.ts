@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { NodeType } from '../../core/scene';
 import { INode, MobilityMode } from "../../core/scene/common/node";
 import { Mat4Schema, QuatSchema, Vec3Schema } from '../base/value-types';
+import { SchemaComponent } from './component-schema'
 
 
 // 节点属性的 schema，
@@ -51,7 +52,7 @@ export const NodeQuerySchema = z.object({
 export const NodeQueryResultSchema: z.ZodType<INode> = NodeIdentifierSchema.extend({
     properties: NodePropertySchema.describe('节点属性'),
     children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
-    component: z.array(z.string()).default([]).describe('节点上的组件列表'),
+    component: z.array(z.lazy(() => SchemaComponent)).default([]).describe('节点上的组件列表'),
 });
 
 //节点更新的参数
