@@ -69,7 +69,7 @@ class AssetOperation extends EventEmitter {
         return assetQueryManager.encodeAsset(asset);
     }
 
-    async copyAsset(urlOrPath: string, target: string, options?: IMoveOptions) { 
+    async copyAsset(urlOrPath: string, target: string, options?: IMoveOptions) {
     }
 
     checkValidUrl(urlOrPath: string) {
@@ -224,9 +224,9 @@ class AssetOperation extends EventEmitter {
     /**
      * 刷新某个资源或是资源目录
      * @param pathOrUrlOrUUID 
-     * @returns boolean
+     * @returns number 刷新数量
      */
-    async refreshAsset(pathOrUrlOrUUID: string): Promise<void> {
+    async refreshAsset(pathOrUrlOrUUID: string): Promise<number> {
         // 将实际的刷新任务塞到 db 管理器的队列内等待执行
         return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID]);
     }

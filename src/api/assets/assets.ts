@@ -37,7 +37,8 @@ import {
     TCreatedAssetResult,
     TImportedAssetResult,
     TReimportResult,
-    TSaveAssetResult
+    TSaveAssetResult,
+    TRefreshDirResult
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
@@ -91,15 +92,16 @@ export class AssetsApi extends ApiBase {
     @title('刷新资源目录')
     @description('刷新 Cocos Creator 项目中的指定资源目录，重新扫描目录下的所有资源文件，更新资源数据库索引。当外部修改了资源文件或添加了新文件时，需要调用此方法同步资源状态。')
     @result(SchemaDbDirResult)
-    async refresh(@param(SchemaDirOrDbPath) dir: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
+    async refresh(@param(SchemaDirOrDbPath) dir: TDirOrDbPath): Promise<CommonResultType<TRefreshDirResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TDbDirResult> = {
+        const ret: CommonResultType<TRefreshDirResult> = {
             code: code,
-            data: { dbPath: dir },
+            data: { refreshAssetNumber: 0 },
         };
 
         try {
-            await assetManager.refreshAsset(dir);
+            const refreshAssetNumber = await assetManager.refreshAsset(dir);
+            ret.data = { refreshAssetNumber };
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('refresh dir fail:', e);

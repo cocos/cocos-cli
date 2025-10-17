@@ -72,7 +72,7 @@ interface IWaitingTaskInfo {
 /**
  * 总管理器，管理整个资源进程的启动流程、以及一些子管理器的启动流程
  */
- class AssetDBManager extends EventEmitter {
+class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
     public globalInternalLibrary = false;
 
@@ -287,7 +287,7 @@ interface IWaitingTaskInfo {
         const db = assetdb.create(info);
         this.assetDBMap[info.name] = db;
         db.importerManager.find = async (asset: IAsset) => {
-            let importer = await this.assetHandlerManager.findImporter(asset, true);
+            const importer = await this.assetHandlerManager.findImporter(asset, true);
             if (importer) {
                 return importer;
             }
@@ -452,11 +452,11 @@ interface IWaitingTaskInfo {
 
     /**
      * 刷新所有数据库
-     * @returns 
+     * @returns 刷新数量
      */
-    async refresh() {
+    async refresh(): Promise<number> {
         if (!this.ready) {
-            return;
+            return 0;
         }
         if (this.state !== 'free' || this.isPause || this.assetBusy) {
             if (this.isPause) {
@@ -477,6 +477,7 @@ interface IWaitingTaskInfo {
 
     private async _refresh() {
         this.state = 'busy';
+        let num = 0;
         newConsole.trackTimeStart('asset-db:refresh-all-database');
         for (const name in this.assetDBMap) {
             if (!this.assetDBMap[name]) {
@@ -484,7 +485,7 @@ interface IWaitingTaskInfo {
                 continue;
             }
             const db = this.assetDBMap[name];
-            await db.refresh(db.options.target, {
+            num += await db.refresh(db.options.target, {
                 ignoreSelf: true,
                 // 只有 assets 资源库做 effect 编译处理
                 hooks: name === 'assets' ? {
@@ -499,6 +500,7 @@ interface IWaitingTaskInfo {
         this.emit('asset-db:refresh-finish');
         this.state = 'free';
         this.step();
+        return num;
     }
 
     /**

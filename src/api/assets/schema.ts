@@ -145,9 +145,13 @@ export const SchemaCreatedAssetResult = SchemaAssetMeta.nullable().describe('创
 export const SchemaImportedAssetResult = z.array(SchemaAssetInfo).describe('导入的资源信息数组，当导入文件夹时会包含文件夹及其所有子资源的信息');
 export const SchemaReimportResult = z.null().describe('重新导入操作结果（无返回值）');
 export const SchemaSaveAssetResult = SchemaAssetInfo.nullable().describe('保存资源后的资源信息对象');
+export const SchemaRefreshDirResult = z.object({
+    refreshAssetNumber: z.number().describe('刷新资源数量'),
+}).describe('刷新资源目录结果');
 
 export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
+export type TRefreshDirResult = z.infer<typeof SchemaRefreshDirResult>;
 export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
 export type TDataKeys = z.infer<typeof SchemaDataKeys>;
 export type TQueryAssetsOption = z.infer<typeof SchemaQueryAssetsOption>;
