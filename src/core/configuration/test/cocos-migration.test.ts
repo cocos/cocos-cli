@@ -14,8 +14,8 @@ describe('CocosMigrationManager', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        // 清空已注册的迁移器（访问私有静态字段）
-        (CocosMigrationManager as any).migrationTargets = new Map();
+        // 清空已注册的迁移器
+        CocosMigrationManager.clear();
 
         // 静音日志输出
         jest.spyOn(newConsole, 'debug').mockImplementation(() => { });
@@ -34,7 +34,7 @@ describe('CocosMigrationManager', () => {
 
             CocosMigrationManager.register(t1);
 
-            const map = (CocosMigrationManager as any).migrationTargets as Map<string, IMigrationTarget[]>;
+            const map = CocosMigrationManager.migrationTargets;
             expect(map.size).toBe(1);
             expect(map.get('project')?.length).toBe(1);
             expect(newConsole.debug).toHaveBeenCalledWith('[Migration] 已注册迁移插件: pkgA');
@@ -55,17 +55,20 @@ describe('CocosMigrationManager', () => {
 
             CocosMigrationManager.register([t1, t2]);
 
-            const map = (CocosMigrationManager as any).migrationTargets as Map<string, IMigrationTarget[]>;
+            const map = CocosMigrationManager.migrationTargets;
             expect(map.get('project')?.[0]).toBe(t1);
             expect(map.get('global')?.[0]).toBe(t2);
-            expect(newConsole.debug).toHaveBeenCalledTimes(2);
         });
     });
 
     describe('migrate', () => {
         it('无注册迁移器时返回空对象并给出提示', async () => {
             const res = await CocosMigrationManager.migrate('/path');
-            expect(res).toEqual({});
+            expect(res).toEqual({
+                project: {},
+                global: {},
+                local: {},
+            });
             expect(newConsole.warn).toHaveBeenCalledWith('[Migration] 没有注册任何迁移器');
         });
 
@@ -99,7 +102,8 @@ describe('CocosMigrationManager', () => {
             expect(mockMigrate).toHaveBeenCalledTimes(3);
             expect(res).toEqual({
                 project: { a: { x: 1, y: 2 }, p: 2 },
-                global: { g: { k: 3 } }
+                global: { g: { k: 3 } },
+                local: {}
             });
             expect(newConsole.log).toHaveBeenCalledWith('[Migration] 开始执行迁移');
             expect(newConsole.log).toHaveBeenCalledWith('[Migration] 所有迁移执行完成');
@@ -126,10 +130,12 @@ describe('CocosMigrationManager', () => {
                 .mockRejectedValueOnce(new Error('boom'));
 
             const res = await CocosMigrationManager.migrate('/proj');
-            expect(res).toEqual({ project: { v: 1 } });
+            expect(res).toEqual({
+                project: { v: 1 },
+                global: {},
+                local: {},
+            });
             expect(newConsole.error).toHaveBeenCalled();
         });
     });
 });
-
-

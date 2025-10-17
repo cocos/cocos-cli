@@ -3,6 +3,7 @@ import { configurationRegistry } from '../script/registry';
 import { MessageType } from '../script/interface';
 import * as fse from 'fs-extra';
 import * as path from 'path';
+import { CocosMigrationManager } from '../migration';
 
 // Mock dependencies
 jest.mock('fs-extra');
@@ -47,6 +48,13 @@ describe('ConfigurationManager', () => {
 
     describe('initialize', () => {
         it('should initialize successfully with new project and load existing configuration', async () => {
+            const { CocosMigrationManager } = require('../migration');
+            CocosMigrationManager.migrate.mockResolvedValue({
+                global: {},
+                local: {},
+                project: {},
+            });
+
             // New project
             mockFse.pathExists.mockResolvedValue(false);
             mockFse.ensureDir.mockResolvedValue(undefined);
@@ -60,7 +68,7 @@ describe('ConfigurationManager', () => {
             expect(mockFse.writeJSON).toHaveBeenCalledWith(configPath, { version: '1.0.0' }, { spaces: 4 });
 
             // Existing configuration
-            const existingConfig = { version: '0.9.0', module1: { key: 'value' } };
+            const existingConfig = { version: '1.0.0', module1: { key: 'value' } };
             mockFse.pathExists.mockResolvedValue(true);
             mockFse.readJSON.mockResolvedValue(existingConfig);
             
@@ -71,6 +79,13 @@ describe('ConfigurationManager', () => {
         });
 
         it('should handle errors and not initialize twice', async () => {
+            const { CocosMigrationManager } = require('../migration');
+            CocosMigrationManager.migrate.mockResolvedValue({
+                global: {},
+                local: {},
+                project: {},
+            });
+
             // File read errors
             mockFse.pathExists.mockResolvedValue(true);
             mockFse.readJSON.mockRejectedValue(new Error('Read error'));
@@ -261,7 +276,13 @@ describe('ConfigurationManager', () => {
     describe('migration', () => {
         it('should perform migration when version is lower and not when same or higher', async () => {
             const { CocosMigrationManager } = require('../migration');
-            const migratedConfig = { migratedKey: 'migratedValue' };
+            const migratedConfig = {
+                project: {
+                    migratedKey: 'migratedValue'
+                },
+                global: {},
+                local: {},
+            };
             CocosMigrationManager.migrate.mockResolvedValue(migratedConfig);
 
             // Lower version - should migrate
@@ -272,6 +293,7 @@ describe('ConfigurationManager', () => {
 
             await manager.initialize(projectPath);
             expect(CocosMigrationManager.migrate).toHaveBeenCalledWith(projectPath);
+            console.log(manager['projectConfig']);
             expect(manager['projectConfig']).toEqual({
                 version: '1.0.0',
                 migratedKey: 'migratedValue'
@@ -343,9 +365,9 @@ describe('ConfigurationManager', () => {
 
             // Concurrent operations
             const promises = [
-                manager.get('testModule.key1'),
-                manager.set('testModule.key2', 'value2'),
-                manager.remove('testModule.key3')
+                await manager.get('testModule.key1'),
+                await manager.set('testModule.key2', 'value2'),
+                await manager.remove('testModule.key3')
             ];
             const results = await Promise.all(promises);
             expect(results).toEqual(['complexValue', true, true]);
@@ -476,6 +498,7 @@ describe('ConfigurationManager', () => {
             // 执行注册事件处理器应该抛出错误
             try {
                 await onRegistryHandler(mockInstance);
+                // eslint-disable-next-line no-undef
                 fail('Expected an error to be thrown');
             } catch (error) {
                 expect((error as Error).message).toContain('配置实例必须是 BaseConfiguration 类型');

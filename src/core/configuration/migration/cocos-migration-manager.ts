@@ -28,7 +28,14 @@ function mergeConfigs(target: any, source: any): any {
  * CocosCreator 配置迁移管理器
  */
 export class CocosMigrationManager {
-    private static migrationTargets: Map<CocosCLIConfigScope, IMigrationTarget[]> = new Map();
+    private static _targets: Map<CocosCLIConfigScope, IMigrationTarget[]> = new Map();
+
+    /**
+     * 迁移器列表
+     */
+    public static get migrationTargets(): Map<CocosCLIConfigScope, IMigrationTarget[]> {
+        return this._targets;
+    }
 
     /**
      * 注册迁移器
@@ -38,9 +45,9 @@ export class CocosMigrationManager {
         migrationTarget = !Array.isArray(migrationTarget) ? [migrationTarget] : migrationTarget;
         for (const target of migrationTarget) {
             const scope = target.targetScope || 'project';
-            const items = this.migrationTargets.get(scope) || [];
+            const items = this._targets.get(scope) || [];
             items.push(target);
-            this.migrationTargets.set(scope, items);
+            this._targets.set(scope, items);
             newConsole.debug(`[Migration] 已注册迁移插件: ${target.pluginName}`);
         }
     }
@@ -56,7 +63,7 @@ export class CocosMigrationManager {
             local: {},
             project: {},
         };
-        if (this.migrationTargets.size === 0) {
+        if (this._targets.size === 0) {
             newConsole.warn('[Migration] 没有注册任何迁移器');
             return result;
         }
@@ -64,7 +71,7 @@ export class CocosMigrationManager {
         newConsole.log(`[Migration] 开始执行迁移`);
 
         // 执行所有注册的迁移
-        for (const items of this.migrationTargets.values()) {
+        for (const items of this._targets.values()) {
             for (const target of items) {
                 try {
                     const targetScope = target.targetScope || 'project';
@@ -79,5 +86,13 @@ export class CocosMigrationManager {
 
         newConsole.log('[Migration] 所有迁移执行完成');
         return result;
+    }
+
+    /**
+     * 清空所有迁移器
+     */
+    public static clear(): void {
+        this._targets.clear();
+        newConsole.debug('[Migration] 已清空所有迁移器');
     }
 }
