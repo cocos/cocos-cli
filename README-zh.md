@@ -179,13 +179,6 @@ Cocos CLI 提供以下主要命令：
 #### 方案二：直接执行
 
 ```bash
-# 使用 ts-node 直接运行（开发时无需构建）
-npx ts-node src/cli.ts --help
-npx ts-node src/cli.ts build --project ./my-project --platform web-desktop
-npx ts-node src/cli.ts import --project ./my-project
-npx ts-node src/cli.ts info --project ./my-project
-npx ts-node src/cli.ts start-mcp-server --project ./my-project --port 9527
-
 # 使用编译版本（需要先执行 npm run build）
 node ./dist/cli.js --help
 node ./dist/cli.js build --project ./my-project --platform web-desktop

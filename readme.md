@@ -179,13 +179,6 @@ For development and testing, you have several options:
 #### Option 2: Direct execution
 
 ```bash
-# Using ts-node directly (for development without building)
-npx ts-node src/cli.ts --help
-npx ts-node src/cli.ts build --project ./my-project --platform web-desktop
-npx ts-node src/cli.ts import --project ./my-project
-npx ts-node src/cli.ts info --project ./my-project
-npx ts-node src/cli.ts start-mcp-server --project ./my-project --port 9527
-
 # Using compiled version (after npm run build)
 node ./dist/cli.js --help
 node ./dist/cli.js build --project ./my-project --platform web-desktop
