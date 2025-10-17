@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { ImportCommand, BuildCommand, InfoCommand, CommandRegistry } from './commands';
+import { ImportCommand, BuildCommand, InfoCommand, McpServerCommand, CommandRegistry } from './commands';
 
 const program = new Command();
 
@@ -23,9 +23,10 @@ const commandRegistry = new CommandRegistry();
 commandRegistry.register(new ImportCommand(program));
 commandRegistry.register(new BuildCommand(program));
 commandRegistry.register(new InfoCommand(program));
+commandRegistry.register(new McpServerCommand(program));
 
 // 注册所有命令
-commandRegistry.registerAll(program);
+commandRegistry.registerAll();
 
 // 错误处理
 program.configureHelp({

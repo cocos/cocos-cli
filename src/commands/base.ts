@@ -42,10 +42,7 @@ export abstract class BaseCommand {
     /**
      * 获取引擎路径
      */
-    protected getEnginePath(options: any): string | null {
-        if (options.engine) {
-            return resolve(options.engine);
-        }
+    protected getEnginePath(): string | null {
 
         // TODO 需要修改为全局的配置系统，目前先尝试从 .user.json 读取
         try {
@@ -55,11 +52,6 @@ export abstract class BaseCommand {
             }
         } catch (error) {
             // 忽略错误，使用默认值
-        }
-
-        // 尝试从环境变量读取
-        if (process.env.COCOS_ENGINE_PATH) {
-            return resolve(process.env.COCOS_ENGINE_PATH);
         }
 
         return null;
@@ -114,5 +106,16 @@ export class CommandUtils {
         console.log(chalk.blue('Importing project...'));
         console.log(chalk.gray(`Project: ${projectPath}`));
         console.log(chalk.gray(`Engine: ${enginePath}`));
+    }
+
+    /**
+     * 显示 MCP 服务器信息
+     */
+    static showMcpServerInfo(projectPath: string, port: number): void {
+        console.log(chalk.blue('MCP Server Configuration'));
+        console.log(chalk.blue('========================'));
+        console.log(chalk.gray(`Project: ${projectPath}`));
+        console.log(chalk.gray(`Port: ${port}`));
+        console.log('');
     }
 }

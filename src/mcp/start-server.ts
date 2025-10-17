@@ -3,9 +3,9 @@ import { CocosAPI } from '../api';
 import { register } from '../server';
 import { McpMiddleware } from './mcp.middleware';
 
-export async function startServer(folder: string, port: number) {
+export async function startServer(project: string, port?: number) {
     const tempEnginePath = join(__dirname, '../../bin/engine');
-    const cocosAPI = new CocosAPI(folder, tempEnginePath);
+    const cocosAPI = new CocosAPI(project, tempEnginePath);
     await cocosAPI.startup();
 
     const middleware = new McpMiddleware();

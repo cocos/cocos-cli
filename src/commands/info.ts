@@ -1,4 +1,3 @@
-import { Command } from 'commander';
 import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 
@@ -10,10 +9,10 @@ export class InfoCommand extends BaseCommand {
         this.program
             .command('info')
             .description('Show project information')
-            .argument('<project-path>', 'Path to the Cocos project')
-            .action(async (projectPath: string) => {
+            .requiredOption('--project <path>', 'Path to the Cocos project (required)')
+            .action(async (options: any) => {
                 try {
-                    const resolvedPath = this.validateProjectPath(projectPath);
+                    const resolvedPath = this.validateProjectPath(options.project);
                     CommandUtils.showProjectInfo(resolvedPath);
                 } catch (error) {
                     console.error(chalk.red('Failed to get project info:'), error);
