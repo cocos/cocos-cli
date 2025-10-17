@@ -104,18 +104,15 @@ cocos start-mcp-server --project /path/to/project --port 3000
 
 所有命令都支持以下全局选项：
 
-- `--engine <path>` - 指定引擎路径
 - `--config <path>` - 指定配置文件路径
 - `--debug` - 启用调试模式
 - `--no-interactive` - 禁用交互模式（用于 CI）
 
 ## 引擎路径配置
 
-引擎路径可以通过以下方式指定（按优先级排序）：
+引擎路径通过以下方式配置（按优先级排序）：
 
-1. 全局 `--engine` 选项
-2. `.user.json` 文件中的 `engine` 字段
-3. `COCOS_ENGINE_PATH` 环境变量
+`.user.json` 文件中的 `engine` 字段
 
 **示例 .user.json:**
 

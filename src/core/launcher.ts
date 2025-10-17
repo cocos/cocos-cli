@@ -5,6 +5,7 @@ import { newConsole } from './base/console';
 import { getCurrentLocalTime } from './assets/utils';
 import { PackerDriver } from './scripting/packer-driver';
 import { startServer } from '../server';
+import { GlobalPaths } from '../global';
 
 class ProjectManager {
 
@@ -15,9 +16,8 @@ class ProjectManager {
     /**
      * 打开某个项目
      * @param path
-     * @param enginePath
      */
-    async open(path: string, enginePath: string) {
+    async open(path: string) {
         /**
          * 初始化一些基础模块信息
          */
@@ -33,13 +33,13 @@ class ProjectManager {
         await Project.open(path);
         // 初始化引擎
         const { Engine, initEngine } = await import('./engine');
-        await initEngine(enginePath, path);
+        await initEngine(GlobalPaths.enginePath, path);
         console.log('initEngine success');
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
         console.log('startupAssetDB', path);
         await startupAssetDB();
-        const packDriver = await PackerDriver.create(path, enginePath);
+        const packDriver = await PackerDriver.create(path, GlobalPaths.enginePath);
         await packDriver.init(Engine.getConfig().includeModules);
         await packDriver.resetDatabases();
         await packDriver.build();
@@ -48,10 +48,9 @@ class ProjectManager {
     /**
      * 构建某个项目
      * @param projectPath
-     * @param enginePath
      * @param options
      */
-    async build(projectPath: string, enginePath: string, options: Partial<IBuildCommandOption>) {
+    async build(projectPath: string, options: Partial<IBuildCommandOption>) {
         if (!options.logDest) {
             options.logDest = join(projectPath, 'temp/build', getCurrentLocalTime() + '.log');
         }
@@ -60,7 +59,7 @@ class ProjectManager {
         await newConsole.startProgress('Start build project...');
 
         // 先打开项目
-        await this.open(projectPath, enginePath);
+        await this.open(projectPath);
         // 执行构建流程
         const { build } = await import('./builder');
         return await build(options);

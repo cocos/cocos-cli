@@ -17,17 +17,9 @@ export class ImportCommand extends BaseCommand {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
 
-                    const enginePath = this.getEnginePath();
-                    if (!enginePath) {
-                        console.error(chalk.red('Error: Engine path is required.'));
-                        console.error(chalk.yellow('Please specify engine path using:'));
-                        console.error(chalk.yellow('  - .user.json file'));
-                        process.exit(1);
-                    }
+                    CommandUtils.showImportInfo(resolvedPath);
 
-                    CommandUtils.showImportInfo(resolvedPath, enginePath);
-
-                    await projectManager.open(resolvedPath, enginePath);
+                    await projectManager.open(resolvedPath);
 
                     console.log(chalk.green('✓ Project imported successfully!'));
 

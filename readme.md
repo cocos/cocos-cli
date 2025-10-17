@@ -105,114 +105,38 @@ After completing the above, run `npm install` again to install dependencies.
 
 ## 🚀 Usage
 
-### Global Options
-
-```bash
-cocos [options] [command]
-
-Options:
-  -V, --version          output the version number
-  -d, --debug           Enable debug mode
-  --no-interactive      Disable interactive mode (for CI)
-  --engine <path>       Specify engine path
-  --config <path>       Specify config file path
-  -h, --help            display help for command
-```
-
 ### Basic Commands
 
 ```bash
 # Import/open a Cocos project
-cocos import ./my-project --engine /path/to/engine
+cocos import --project ./my-project
 
 # Build a Cocos project
-cocos build ./my-project --platform web-desktop --engine /path/to/engine
+cocos build --project ./my-project --platform web-desktop
 
 # Show project information
-cocos info ./my-project
+cocos info --project ./my-project
+
+# Start MCP server
+cocos start-mcp-server --project ./my-project --port 9527
 
 # Display help
 cocos --help
 cocos build --help
 ```
 
+> 📖 **详细命令说明**: 查看 [Commands 文档](src/commands/readme.md) 获取完整的命令参数和使用示例。
+
 ## 📚 Commands
 
-### `import` - Import/Open Project
+Cocos CLI 提供以下主要命令：
 
-Import or open a Cocos Creator project for development.
+- **`import`** - 导入/打开 Cocos 项目
+- **`build`** - 构建 Cocos 项目
+- **`info`** - 显示项目信息
+- **`start-mcp-server`** - 启动 MCP 服务器
 
-```bash
-cocos import <project-path> [options]
-```
-
-**Arguments:**
-
-- `<project-path>` - Path to the Cocos Creator project
-
-**Options:**
-
-- `--wait` - Keep the process running after import (for development)
-
-**Examples:**
-
-```bash
-# Import project and exit
-cocos import ./my-project --engine /path/to/engine
-
-# Import project and keep running
-cocos import ./my-project --engine /path/to/engine --wait
-```
-
-### `build` - Build Project
-
-Build a Cocos Creator project for deployment.
-
-```bash
-cocos build <project-path> [options]
-```
-
-**Arguments:**
-
-- `<project-path>` - Path to the Cocos Creator project
-
-**Options:**
-
-- `-p, --platform <platform>` - Target platform (web-desktop, web-mobile, android, ios, etc.) (default: "web-desktop")
-- `--skip-check` - Skip option validation
-- `--stage <stage>` - Build stage (compile, bundle, etc.)
-
-**Examples:**
-
-```bash
-# Build for web-desktop platform
-cocos build ./my-project --platform web-desktop --engine /path/to/engine
-
-# Build in debug mode
-cocos build ./my-project --platform web-mobile --debug --engine /path/to/engine
-
-# Build in release mode
-cocos build ./my-project --platform android --release --engine /path/to/engine
-```
-
-### `info` - Show Project Information
-
-Display detailed information about a Cocos Creator project.
-
-```bash
-cocos info <project-path>
-```
-
-**Arguments:**
-
-- `<project-path>` - Path to the Cocos Creator project
-
-**Examples:**
-
-```bash
-# Show project information
-cocos info ./my-project
-```
+> 📖 **完整命令文档**: 查看 [Commands 文档](src/commands/readme.md) 获取详细的命令参数、选项和使用示例。
 
 ## 🛠️ Development & Testing
 
@@ -232,7 +156,7 @@ For development and testing, you have several options:
 
    ```bash
    cocos --help
-   cocos build ./my-project --platform web-desktop --engine /path/to/engine
+   cocos build --project ./my-project --platform web-desktop
    ```
 
 3. **To unlink when done:**
@@ -246,11 +170,11 @@ For development and testing, you have several options:
 ```bash
 # Run CLI directly with ts-node
 npm run cli -- --help
-npm run cli -- build ./my-project --platform web-desktop --engine /path/to/engine
+npm run cli -- build --project ./my-project --platform web-desktop
 
 # Build and run compiled version
 npm run cli:build -- --help
-npm run cli:build -- build ./my-project --platform web-desktop --engine /path/to/engine
+npm run cli:build -- build --project ./my-project --platform web-desktop
 ```
 
 #### Option 3: Direct execution
@@ -258,11 +182,11 @@ npm run cli:build -- build ./my-project --platform web-desktop --engine /path/to
 ```bash
 # Using ts-node directly
 npx ts-node src/cli.ts --help
-npx ts-node src/cli.ts build ./my-project --platform web-desktop --engine /path/to/engine
+npx ts-node src/cli.ts build --project ./my-project --platform web-desktop
 
 # Using compiled version
 node dist/cli.js --help
-node dist/cli.js build ./my-project --platform web-desktop --engine /path/to/engine
+node dist/cli.js build --project ./my-project --platform web-desktop
 ```
 
 ### Testing Commands
@@ -284,20 +208,23 @@ cocos --version
 
 ```bash
 # Test import command
-cocos import ./tests/fixtures/projects/asset-operation --engine /path/to/your/engine
+cocos import --project ./tests/fixtures/projects/asset-operation
 
 # Test build command
-cocos build ./tests/fixtures/projects/asset-operation --platform web-desktop --engine /path/to/your/engine
+cocos build --project ./tests/fixtures/projects/asset-operation --platform web-desktop
 
 # Test info command
-cocos info ./tests/fixtures/projects/asset-operation
+cocos info --project ./tests/fixtures/projects/asset-operation
+
+# Test MCP server
+cocos start-mcp-server --project ./tests/fixtures/projects/asset-operation --port 9527
 ```
 
 #### Test with Debug Mode
 
 ```bash
 # Enable debug mode for detailed output
-cocos --debug build ./my-project --platform web-desktop --engine /path/to/engine
+cocos --debug build --project ./my-project --platform web-desktop
 ```
 
 ### Development Workflow
@@ -354,7 +281,7 @@ cocos --debug build ./my-project --platform web-desktop --engine /path/to/engine
 Enable debug mode to get more detailed output:
 
 ```bash
-cocos --debug build ./my-project --platform web-desktop --engine /path/to/engine
+cocos --debug build --project ./my-project --platform web-desktop
 ```
 
 This will provide additional logging information to help diagnose issues.

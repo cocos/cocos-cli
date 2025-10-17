@@ -21,22 +21,10 @@ export class BuildCommand extends BaseCommand {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
 
-                    // 获取引擎路径：从全局选项或配置文件获取
-                    const enginePath = this.getEnginePath();
-
-                    if (!enginePath) {
-                        console.error(chalk.red('Error: Engine path is required.'));
-                        console.error(chalk.yellow('Please specify engine path using:'));
-                        console.error(chalk.yellow('  - Global --engine option'));
-                        console.error(chalk.yellow('  - .user.json file'));
-                        console.error(chalk.yellow('  - COCOS_ENGINE_PATH environment variable'));
-                        process.exit(1);
-                    }
-
                     // 获取平台：优先使用命令选项，然后是默认值
                     const platform = options.platform || 'web-desktop';
 
-                    CommandUtils.showBuildInfo(resolvedPath, enginePath, platform);
+                    CommandUtils.showBuildInfo(resolvedPath, platform);
 
                     // 构建选项
                     const buildOptions: Partial<IBuildCommandOption> = {
@@ -52,7 +40,7 @@ export class BuildCommand extends BaseCommand {
                         buildOptions.debug = false;
                     }
 
-                    const result = await projectManager.build(resolvedPath, enginePath, buildOptions);
+                    const result = await projectManager.build(resolvedPath, buildOptions);
 
                     if (result === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Build completed successfully!'));

@@ -4,9 +4,10 @@
 
 import { join } from 'path';
 
-export const GlobalPaths = {
+export const GlobalPaths: Record<string, string> = {
     staticDir: join(__dirname, '../static'),
     workspace: join(__dirname, '..'),
+    enginePath: require(join(__dirname, '..', '.user.json')).engine,
 };
 
 // /**
