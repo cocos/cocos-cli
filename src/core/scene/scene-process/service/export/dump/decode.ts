@@ -9,7 +9,7 @@ const { get, set } = lodash;
 import { DumpDefines } from './dump-defines';
 import { assetManager, Component, editorExtrasTag, Node, Prefab, Vec3, MobilityMode, Quat, Animation, AnimationState } from 'cc';
 import { promisify } from 'util';
-import { INode, IProperty, IScene, ITargetOverrideInfo } from '../../../../@types/public';
+import { INode, IProperty } from '../../../../@types/public';
 import { IComponent, IComponentInfo } from '../../../../common'
 import ComponentManager from '../../component/index';
 import {
@@ -220,7 +220,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
                     // cce.Component.recycle(compUuid);
                 }
                 component = cacheComp;
-            } 
+            }
             addComponentAt(node, component, i); // 插入新位置
         }
 
@@ -260,76 +260,6 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
     }
 }
 
-async function decodePrefab(dumpPrefab: any, node: any) {
-    // 不需要处理
-    if (!dumpPrefab && !node['_prefab']) {
-        return;
-    }
-
-    // 删除
-    if (!dumpPrefab && node['_prefab']) {
-        node['_prefab'] = null;
-        return;
-    }
-
-    // 新增
-    const info = new PrefabInfo();
-    const root = NodeMgr.getNode(dumpPrefab.rootUuid);
-    info.root = root ? root : node;
-    if (dumpPrefab.uuid) {
-        try {
-            info.asset = await promisify(assetManager.loadAny)(dumpPrefab.uuid);
-        } catch (e) {
-            console.error(e);
-            info.asset = new Prefab();
-            info.asset.initDefault(dumpPrefab.uuid);
-        }
-    }
-    info.fileId = dumpPrefab.fileId || node.uuid;
-    if (dumpPrefab.instance) {
-        await decodePatch('instance', dumpPrefab.instance, info);
-        
-    } else {
-        info.instance = undefined;
-    }
-
-    if (dumpPrefab.targetOverrides) {
-        info.targetOverrides = decodeTargetOverrides(dumpPrefab.targetOverrides);
-    } else {
-        info.targetOverrides = undefined;
-    }
-
-    node['_prefab'] = info;
-}
-/**
- * 解码一个场景 dump 数据
- * @param dump
- * @param scene
- */
-export async function decodeScene(dump: IScene, scene?: any) {
-    if (!dump) {
-        return;
-    }
-    scene = scene || new cc.Scene();
-    scene.name = dump.name.value;
-    scene.active = dump.active.value;
-
-    dump.children && decodeChildren(dump.children, scene);
-
-    for (const key of Object.keys(dump._globals)) {
-        await decodePatch(`_globals.${key}`, dump._globals[key], scene);
-    }
-
-    if (dump.targetOverrides) {
-        if (!scene['_prefab']) {
-            scene['_prefab'] = new cc._PrefabInfo();
-        }
-        scene['_prefab'].targetOverrides = decodeTargetOverrides(dump.targetOverrides);
-    } else {
-        scene['_prefab'] = undefined;
-    }
-}
-
 /**
  * 解码一个 dump 数据
  * @param dump
@@ -345,9 +275,6 @@ export async function decodeNode(dump: INode, node?: Node, excludeComps?: any) {
     if (!node) {
         return null;
     }
-
-    // 先还原prefab的相关信息，因为下面的属性设置会触发prefab的override
-    await decodePrefab(dump.__prefab__, node);
 
     node.name = dump.name.value as string;
     node.active = dump.active.value as boolean;
@@ -646,38 +573,10 @@ export function updatePropertyFromNull(node: any, path: string) {
     }
 }
 
-export function decodeTargetOverrides(dumpedTargetOverrides: ITargetOverrideInfo[]) {
-    const targetOverrides: TargetOverrideInfo[] = [];
-    dumpedTargetOverrides.forEach((itr: ITargetOverrideInfo) => {
-        const targetOverride = new TargetOverrideInfo();
-        targetOverride.source = NodeMgr.getNode(itr.source);
-        if (itr.sourceInfo) {
-            const sourceInfo = new TargetInfo();
-            sourceInfo.localID = itr.sourceInfo;
-            targetOverride.sourceInfo = sourceInfo;
-        }
-
-        targetOverride.propertyPath = itr.propertyPath;
-
-        targetOverride.target = NodeMgr.getNode(itr.target);
-        if (itr.targetInfo) {
-            const targetInfo = new TargetInfo();
-            targetInfo.localID = itr.targetInfo;
-            targetOverride.targetInfo = targetInfo;
-        }
-
-        targetOverrides.push(targetOverride);
-    });
-
-    return targetOverrides;
-}
-
 export default {
-    decodeScene,
     decodeNode,
     decodePatch,
     resetProperty,
     updatePropertyFromNull,
     decodeMountedRoot,
-    decodeTargetOverrides,
 };

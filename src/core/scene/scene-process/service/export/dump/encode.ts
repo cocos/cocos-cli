@@ -7,7 +7,7 @@ import dumpUtil from './utils';
 import { DumpDefines } from './dump-defines';
 
 import { Node, Component, js, Prefab, MobilityMode } from 'cc';
-import { INode, IScene, IProperty, ITargetOverrideInfo } from '../../../../@types/public';
+import { INode, IProperty } from '../../../../@types/public';
 import { IComponentInfo } from '../../../../common';
 /**
  * 编码一个 node 数据
@@ -79,14 +79,14 @@ export function encodeNode(node: Node): INode {
         ),
         layer: encodeObject(
             node.layer, {
-                displayName: 'i18n:scene.cc.Node.properties.layer.displayName',
-                tooltip: 'i18n:scene.cc.Node.properties.layer.tooltip',
-                default: 1073741824,
-                type: 'Enum',
-                enumList: LayersEnumList,
-                readonly: false,
-                animatable: false,
-            },
+            displayName: 'i18n:scene.cc.Node.properties.layer.displayName',
+            tooltip: 'i18n:scene.cc.Node.properties.layer.tooltip',
+            default: 1073741824,
+            type: 'Enum',
+            enumList: LayersEnumList,
+            readonly: false,
+            animatable: false,
+        },
             node,
             'layer',
         ),
@@ -157,50 +157,6 @@ export function encodeNode(node: Node): INode {
 }
 
 /**
- * 编码一个场景数据
- * @param scene
- */
-export function encodeScene(scene: any): IScene {
-    const ctor = scene.constructor;
-
-    const data: IScene = {
-        active: encodeObject(scene.active, { default: null }),
-        locked: encodeObject(false, { default: false }),
-        name: encodeObject(scene.name || ctor.name, { default: null }),
-        uuid: encodeObject(scene.uuid, { default: null }),
-        autoReleaseAssets: encodeObject(scene.autoReleaseAssets, { displayName: 'Auto Release Assets', default: false }),
-        children: scene.children
-            .map((child: any) => {
-                if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
-                    return;
-                }
-
-                return encodeObject(child, {
-                    ctor: cc.Node,
-                });
-            })
-            .filter(Boolean),
-        parent: '',
-        __type__: dumpUtil.getTypeName(ctor),
-        _globals: {},
-        isScene: true,
-    };
-
-    // 遍历 scene._globals 内所有属性
-    if (scene._globals) {
-        scene._globals.constructor.__props__.map((key: string) => {
-            const attrs = cc.Class.attr(scene._globals.constructor, key);
-            data._globals[key] = encodeObject(scene._globals[key], attrs, scene._globals);
-        });
-    }
-
-    if (scene['_prefab']?.targetOverrides) {
-        data.targetOverrides = encodeTargetOverrides(scene['_prefab'].targetOverrides);
-    }
-
-    return data;
-}
-/**
  * 编码一个 component
  * @param component
  */
@@ -235,7 +191,7 @@ export function encodeComponent(component: any): IComponentInfo {
                 /**
                  * 过滤私有属性与内置属性
                  */
-                if(key.startsWith('_') || key.startsWith('__')) {
+                if (key.startsWith('_') || key.startsWith('__')) {
                     return;
                 }
                 /**
@@ -304,8 +260,8 @@ export function encodeComponent(component: any): IComponentInfo {
  * @param object 
  * @param attributes 
  */
-function _checkConstructorRewriteType(data: IProperty, object: any, attributes: any){
-    if (object && typeof object === 'object' && !Array.isArray(object) && object.constructor && attributes && attributes.ctor && !(object instanceof attributes.ctor)){
+function _checkConstructorRewriteType(data: IProperty, object: any, attributes: any) {
+    if (object && typeof object === 'object' && !Array.isArray(object) && object.constructor && attributes && attributes.ctor && !(object instanceof attributes.ctor)) {
         data.type = 'Unknown';
     }
 }
@@ -495,22 +451,6 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
     const ctor = dumpUtil.getConstructor(object, attributes);
     // let defValue = dumpUtil.getDefault(attributes);
 
-    // // 构造器存在，属性也存在
-    // if (defValue && typeof defValue === 'object' && defValue.constructor && Array.isArray(defValue.constructor.__props__)) {
-    //     const result: { [key: string]: any } = {
-    //         type: dumpUtil.getTypeName(defValue.constructor),
-    //         value: {},
-    //     };
-    //     defValue.constructor.__props__.forEach((key: string) => {
-    //         const attrs = cc.Class.attr(defValue.constructor, key);
-    //         const dumpData = encodeObject(defValue[key], attrs, defValue, key);
-    //         if (dumpData.type !== 'Unknown') {
-    //             result.value[key] = dumpData;
-    //         }
-    //     });
-    //     defValue = result;
-    // }
-
     let type = dumpUtil.getTypeName(ctor);
 
     if (owner === null) {
@@ -540,12 +480,6 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
     }
 
     _checkAttributes(data, attributes, owner);
-
-    // if (defValue) {
-    //     if (Array.isArray(defValue)) {
-    //         data.isArray = true;
-    //     }
-    // }
 
     if (!data.isArray && Array.isArray(object)) {
         data.isArray = true;
@@ -614,8 +548,8 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 const result: { [key: string]: any } = {};
                 ctor.__props__.forEach((key: string) => {
                     const attrs = cc.Class.attr(object, key); // object 是实例，可能有自定义的 attrs
-                    
-                    if (attributes.readonly && attributes.readonly.deep){
+
+                    if (attributes.readonly && attributes.readonly.deep) {
                         attrs.readonly = { deep: true };
                     }
 
@@ -668,34 +602,10 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
     return null;
 }
 
-function encodeTargetOverrides(targetOverrides: any) {
-    if (!targetOverrides || targetOverrides.length <= 0) {
-        return null;
-    }
-
-    const dumpedTargetOverrides: ITargetOverrideInfo[] = [];
-    targetOverrides.forEach((itr: Prefab._utils.TargetOverrideInfo) => {
-        if (!itr.source || !itr.target) {
-            return;
-        }
-        const dumpOverride = {
-            source: itr.source.uuid,
-            sourceInfo: itr.sourceInfo ? itr.sourceInfo.localID : undefined,
-            propertyPath: itr.propertyPath,
-            target: itr.target.uuid,
-            targetInfo: itr.targetInfo ? itr.targetInfo.localID : undefined,
-        };
-
-        dumpedTargetOverrides.push(dumpOverride);
-    });
-
-    return dumpedTargetOverrides;
-}
 
 // export * as default from './encode';
 export default {
     encodeNode,
-    encodeScene,
     encodeComponent,
     encodeObject,
 };

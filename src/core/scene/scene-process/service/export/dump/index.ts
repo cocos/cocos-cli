@@ -1,10 +1,10 @@
 'use strict';
 import { Node, Component, js, Scene, CCClass } from 'cc';
-import { INode, IScene } from '../../../../@types/public';
+import { INode } from '../../../../@types/public';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
-import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeScene, encodeNode, encodeComponent } from './encode';
+import { decodePatch, decodeNode, resetProperty, updatePropertyFromNull } from './decode';
+import { encodeObject, encodeNode, encodeComponent } from './encode';
 import { IComponentInfo } from '../../../../common';
 
 // import * as dumpDecode from './decode';
@@ -30,12 +30,9 @@ class DumpUtil {
      * 生成一个 node 的 dump 数据
      * @param {*} node
      */
-    dumpNode(node: Node): INode|IScene|null {
+    dumpNode(node: Node): INode | null {
         if (!node) {
             return null;
-        }
-        if (node instanceof Scene) {
-            return encodeScene(node);
         }
         return encodeNode(node);
 
@@ -61,12 +58,12 @@ class DumpUtil {
         if (/^__comps__\.\d+$/.test(path)) {
             if (typeof dump.value === 'object') {
                 for (const key in dump.value) {
-                // @ts-ignore
+                    // @ts-ignore
                     await decodePatch(`${path}.${key}`, dump.value[key], node);
                 }
             }
         } else {
-        // 还原单个属性
+            // 还原单个属性
             return decodePatch(path, dump, node);
         }
     }
@@ -95,9 +92,6 @@ class DumpUtil {
      * @param {*} dump
      */
     async restoreNode(node: Node, dump: any) {
-        if (dump && dump.isScene) {
-            return await decodeScene(dump, node);
-        }
         return await decodeNode(dump, node);
     }
 
@@ -138,7 +132,7 @@ class DumpUtil {
         }
         return value;
     }
-    
+
 }
 
 export default new DumpUtil();

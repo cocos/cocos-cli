@@ -8,9 +8,9 @@ export interface IPropertyGroupOptions {
     style: string // 默认为 'tab'
 }
 
-export type IPropertyLock = { 
-    default: number; 
-    message: string 
+export type IPropertyLock = {
+    default: number;
+    message: string
 };
 
 export interface IProperty {
@@ -66,27 +66,4 @@ export interface IComponentMenu {
     cid: string;// 组件注册到ccclass里的类名
     path: string;// 组件注册到ccclass里的类名
     assetUuid: string;// 组件注册到ccclass里的类名
-}
-
-export interface IScene {
-    name: IProperty;
-    active: IProperty;
-    locked: IProperty;
-    _globals: any;
-    isScene: boolean;
-    autoReleaseAssets: IProperty;
-
-    uuid: IProperty;
-    children: any[];
-    parent: any;
-    __type__: string;
-    targetOverrides?: any;
-}
-
-export interface ITargetOverrideInfo {
-    source: string;
-    sourceInfo?: string[];
-    propertyPath: string[];
-    target: string;
-    targetInfo?: string[];
 }
