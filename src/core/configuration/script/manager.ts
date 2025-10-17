@@ -114,7 +114,7 @@ export class ConfigurationManager implements IConfigurationManager {
 
 
     /**
-     * 3.x 升级 4.x
+     * 迁移，包含了 3x 迁移
      * @param projectPath
      * @private
      */
@@ -122,8 +122,8 @@ export class ConfigurationManager implements IConfigurationManager {
         const currentVersion = this.projectConfig.version || '0.0.0';
         const upgrade = gt(ConfigurationManager.VERSION, currentVersion);
         if (upgrade) {
-            const configs = await CocosMigrationManager.migrate(projectPath);
-            this.projectConfig = utils.deepMerge(this.projectConfig, configs);
+            const list = await CocosMigrationManager.migrate(projectPath);
+            this.projectConfig = utils.deepMerge(this.projectConfig, list.project);
             this.projectConfig.version = ConfigurationManager.VERSION;
             await this.save();
         }

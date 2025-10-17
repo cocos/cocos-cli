@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import fse from 'fs-extra';
-import { CocosConfigScope, VERSION } from './types';
+import { CocosCreatorConfigScope, COCOS_CREATOR_VERSION } from './types';
 import { newConsole } from '../../base/console';
 
 /**
@@ -25,7 +25,7 @@ export class CocosConfigLoader {
      * @param scope
      * @private
      */
-    private getPathByScope(pkgName: string, scope: CocosConfigScope): string {
+    private getPathByScope(pkgName: string, scope: CocosCreatorConfigScope): string {
         let dir = '';
         if (scope === 'project') {
             dir = path.join(this.projectPath, 'settings');
@@ -35,7 +35,7 @@ export class CocosConfigLoader {
             dir = path.join(os.homedir(), '.CocosCreator', 'profiles');
         }
 
-        return path.join(dir, VERSION, 'packages', pkgName + '.json');
+        return path.join(dir, COCOS_CREATOR_VERSION, 'packages', pkgName + '.json');
     }
 
     /**
@@ -44,7 +44,7 @@ export class CocosConfigLoader {
      * @param pkgName 包名
      * @returns 配置对象
      */
-    public async loadConfig(scope: CocosConfigScope, pkgName: string): Promise<any> {
+    public async loadConfig(scope: CocosCreatorConfigScope, pkgName: string): Promise<any> {
         const configs = this.configMap.get(scope);
         if (configs && configs[pkgName]) {
             return configs[pkgName];
