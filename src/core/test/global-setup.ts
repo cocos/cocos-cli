@@ -40,6 +40,9 @@ export async function globalSetup() {
         'cc/editor/2d-misc',
         'cc/editor/offline-mappings',
         'cc/editor/custom-pipeline',
+        'cc/editor/animation-clip-migration',
+        'cc/editor/exotic-animation',
+        'cc/editor/color-utils',
     ].forEach((module) => {
         jest.mock(module, () => {
             return EngineLoader.getEngineModuleById(module);
