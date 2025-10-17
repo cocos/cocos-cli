@@ -2,7 +2,7 @@
 import { join } from 'path';
 import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, remove, outputFile } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
-import { TestGlobalEnv } from '../../test/global-env';
+import { TestGlobalEnv } from '../../../../tests/global-env';
 import assetOperation from '../manager/operation';
 import { assetManager } from '..';
 

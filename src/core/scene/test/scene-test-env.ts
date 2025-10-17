@@ -1,5 +1,5 @@
 import path from 'path';
-import { TestGlobalEnv } from '../../test/global-env';
+import { TestGlobalEnv } from '../../../../tests/global-env';
 
 export const SceneTestEnv = {
     RootName: 'scene-test-directory',
