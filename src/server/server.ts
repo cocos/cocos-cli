@@ -22,7 +22,7 @@ interface ServerOptions {
 export class ServerService {
     private app: Express = express();
     private server: HTTPServer | HTTPSServer | undefined;
-    private port = 9527;
+    private _port = 9527;
     private useHttps = false;
     private httpsConfig = {
         key: '',// HTTPS 私钥文件路径
@@ -33,17 +33,21 @@ export class ServerService {
     public get url() {
         if (this.server && this.server.listening) {
             const httpRoot = this.useHttps ? 'https' : 'http';
-            return `${httpRoot}://localhost:${this.port}`;
+            return `${httpRoot}://localhost:${this._port}`;
         }
         return '服务器未启动';
     }
 
-    async start() {
+    public get port() {
+        return this._port;
+    }
+
+    async start(port?: number) {
         console.log('🚀 开始启动服务器...');
         this.init();
-        this.port = await getAvailablePort(this.port);
+        this._port = await getAvailablePort(port || this._port);
         this.server = await this.createServer({
-            port: this.port,
+            port: this._port,
             useHttps: this.useHttps,
             keyFile: this.httpsConfig.key,
             certFile: this.httpsConfig.cert,

@@ -44,9 +44,9 @@ export class CocosAPI {
     /**
      * 初始化 Cocos API
      */
-    public async startup() {
+    public async startup(port?: number) {
         try {
-            await startServer();
+            await startServer(port);
             await this.configuration.init();
             await this.project.init();
             await this.engine.init();

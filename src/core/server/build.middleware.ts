@@ -7,7 +7,7 @@ export default {
     get: [
         {
             /**
-             * http://localhost:9527/build/web-desktop/index.html
+             * http://localhost:xxxx/build/web-desktop/index.html
              */
             url: '/build{/*path}',
             async handler(req: Request, res: Response) {

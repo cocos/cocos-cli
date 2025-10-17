@@ -3,10 +3,10 @@ import { CocosAPI } from '../api';
 import { register } from '../server';
 import { McpMiddleware } from './mcp.middleware';
 
-export async function startServer(project: string, port?: number) {
+export async function startMcpServer(project: string, port?: number) {
     const tempEnginePath = join(__dirname, '../../bin/engine');
     const cocosAPI = new CocosAPI(project, tempEnginePath);
-    await cocosAPI.startup();
+    await cocosAPI.startup(port);
 
     const middleware = new McpMiddleware();
     middleware.registerDecoratorTools();

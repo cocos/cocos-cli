@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
-import { startServer } from '../mcp/start-server';
+import { startMcpServer } from '../mcp/start-server';
 
 /**
  * MCP Server 命令类
@@ -31,7 +31,7 @@ export class McpServerCommand extends BaseCommand {
                     console.log('');
 
                     // 启动 MCP 服务器
-                    await startServer(resolvedPath, port);
+                    await startMcpServer(resolvedPath, port);
 
                     console.log(chalk.green('✓ MCP Server started successfully!'));
                     console.log(chalk.blue(`Server is running on port ${port}`));

@@ -4,7 +4,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { toolRegistry } from '../api/decorator/decorator';
 import { z } from 'zod';
-import { CocosAPI } from '../api';
 
 export class McpMiddleware {
     private server: McpServer;
