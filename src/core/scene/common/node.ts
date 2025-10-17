@@ -105,7 +105,9 @@ export interface INode extends INodeIdentifier {
 }
 
 // 节点更新参数接口
-export interface IUpdateNodeParams extends INodeIdentifier {
+export interface IUpdateNodeParams {
+    path: string;
+    name?: string;
     properties: Partial<INodeProperties>; // 节点属性
 }
 
@@ -116,9 +118,8 @@ export interface IUpdateNodeResult {
 
 // 节点删除参数接口
 export interface IDeleteNodeParams {
-    nodeId?: string; // 节点的 id
     path: string; // 节点相对路径
-    keepWorldTransform: boolean; // 保持世界变换
+    keepWorldTransform?: boolean; // 保持世界变换
 }
 
 // 节点删除后返回参数

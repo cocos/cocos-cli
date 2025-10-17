@@ -29,6 +29,35 @@ export class NodeApi extends ApiBase {
     }
 
 
+    private _generateDefaultNodeInfo(): TNodeDetail {
+        return {
+            nodeId: '',
+            path: '',
+            name: '',
+            properties: {
+                position: { x: 0, y: 0, z: 0 },
+                worldPosition: { x: 0, y: 0, z: 0 },
+                rotation: { x: 0, y: 0, z: 0, w: 1 },
+                worldRotation: { x: 0, y: 0, z: 0, w: 1 },
+                eulerAngles: { x: 0, y: 0, z: 0 },
+                angle: 0,
+                scale: { x: 1, y: 1, z: 1 },
+                worldScale: { x: 1, y: 1, z: 1 },
+                matrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
+                worldMatrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
+                forward: { x: 0, y: 0, z: 0 },
+                up: { x: 0, y: 1, z: 0 },
+                right: { x: 1, y: 0, z: 0 },
+                mobility: MobilityMode.Static,
+                layer: 0,
+                hasChangedFlags: 0,
+                active: false,
+                activeInHierarchy: false
+            },
+            component: []
+        };
+    }
+
     /**
      * 创建节点
      */
@@ -40,32 +69,7 @@ export class NodeApi extends ApiBase {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
-            data: {
-                nodeId: '',
-                path: '',
-                name: '',
-                properties: {
-                    position: { x: 0, y: 0, z: 0 },
-                    worldPosition: { x: 0, y: 0, z: 0 },
-                    rotation: { x: 0, y: 0, z: 0, w: 1 },
-                    worldRotation: { x: 0, y: 0, z: 0, w: 1 },
-                    eulerAngles: { x: 0, y: 0, z: 0 },
-                    angle: 0,
-                    scale: { x: 1, y: 1, z: 1 },
-                    worldScale: { x: 1, y: 1, z: 1 },
-                    matrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
-                    worldMatrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
-                    forward: { x: 0, y: 0, z: 0 },
-                    up: { x: 0, y: 1, z: 0 },
-                    right: { x: 1, y: 0, z: 0 },
-                    mobility: MobilityMode.Static,
-                    layer: 0,
-                    hasChangedFlags: 0,
-                    active: false,
-                    activeInHierarchy: false
-                },
-                component: []
-            },
+            data: this._generateDefaultNodeInfo(),
         }
 
         try {
@@ -160,32 +164,7 @@ export class NodeApi extends ApiBase {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TNodeDetail> = {
             code: code,
-            data: {
-                nodeId: '',
-                path: '',
-                name: '',
-                properties: {
-                    position: { x: 0, y: 0, z: 0 },
-                    worldPosition: { x: 0, y: 0, z: 0 },
-                    rotation: { x: 0, y: 0, z: 0, w: 1 },
-                    worldRotation: { x: 0, y: 0, z: 0, w: 1 },
-                    eulerAngles: { x: 0, y: 0, z: 0 },
-                    angle: 0,
-                    scale: { x: 1, y: 1, z: 1 },
-                    worldScale: { x: 1, y: 1, z: 1 },
-                    matrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
-                    worldMatrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
-                    forward: { x: 0, y: 0, z: 0 },
-                    up: { x: 0, y: 1, z: 0 },
-                    right: { x: 1, y: 0, z: 0 },
-                    mobility: MobilityMode.Static,
-                    layer: 0,
-                    hasChangedFlags: 0,
-                    active: false,
-                    activeInHierarchy: false
-                },
-                component: []
-            },
+            data: this._generateDefaultNodeInfo(),
         }
 
         try {

@@ -47,37 +47,35 @@ export const NodeQuerySchema = z.object({
     queryChildren: z.boolean().default(false).describe('是否查询子节点信息'),
 }).describe('查询节点的选项参数，查询结果是传入的信息的交集');
 
-// 查询节点的结果的 item
-export const NodeQueryResultItemSchema: z.ZodType<INode> = NodeIdentifierSchema.extend({
+// 查询节点的结果
+export const NodeQueryResultSchema: z.ZodType<INode> = NodeIdentifierSchema.extend({
     properties: NodePropertySchema.describe('节点属性'),
-    children: z.array(z.lazy(() => NodeQueryResultItemSchema)).optional().default([]).describe('子节点列表'),
+    children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
     component: z.array(z.string()).default([]).describe('节点上的组件列表'),
 });
 
-// 查询节点的结果的 scheme
-export const NodeQueryResultScheme = z.array(NodeQueryResultItemSchema).default([]).describe('查询节点的结果信息');
-
 //节点更新的参数
-export const NodeUpdateSchema = NodeIdentifierSchema.extend({
+export const NodeUpdateSchema = z.object({
+    path: z.string().describe('节点相对路径'),
+    name: z.string().optional().describe('更新的节点名称'),
     properties: NodePropertySchema.partial().describe('要更新的节点属性，可以只更新部分属性'),
 }).describe('更新节点的选项参数');
 
 // 节点更新结果的 schema
-export const NodeUpdateResultScheme = z.object({
-    path: z.string().describe('节点路径'),
+export const NodeUpdateResultSchema = z.object({
+    path: z.string().describe('节点相对路径'),
 });
 
 // 节点删除结果的 schema
-export const NodeDeleteResultScheme = z.object({
+export const NodeDeleteResultSchema = z.object({
     path: z.string().describe('节点路径'),
 });
 
 
 // 删除节点的参数
 export const NodeDeleteSchema = z.object({
-    nodeId: z.string().optional().describe('节点的 id'),
     path: z.string().describe('节点相对路径'),
-    keepWorldTransform: z.boolean().describe('保持世界变换'),
+    keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
 }).describe('删除节点的选项参数');
 
 
@@ -98,6 +96,6 @@ export type TDeleteNodeOptions = z.infer<typeof NodeDeleteSchema>;
 export type TUpdateNodeOptions = z.infer<typeof NodeUpdateSchema>;
 export type TCreateNodeOptions = z.infer<typeof NodeCreateSchema>;
 export type TQueryNodeOptions = z.infer<typeof NodeQuerySchema>;
-export type TNodeDetail = z.infer<typeof NodeQueryResultItemSchema>;
-export type TNodeUpdateResult = z.infer<typeof NodeUpdateResultScheme>;
-export type TNodeDeleteResult = z.infer<typeof NodeDeleteResultScheme>;
+export type TNodeDetail = z.infer<typeof NodeQueryResultSchema>;
+export type TNodeUpdateResult = z.infer<typeof NodeUpdateResultSchema>;
+export type TNodeDeleteResult = z.infer<typeof NodeDeleteResultSchema>;

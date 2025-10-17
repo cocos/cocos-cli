@@ -90,7 +90,6 @@ describe('Node Proxy 测试', () => {
             if (createdNode) {
                 const newPosition: IVec3 = { x: 5, y: 5, z: 5 };
                 const params: IUpdateNodeParams = {
-                    nodeId: createdNode.nodeId,
                     path: createdNode.path,
                     name: 'TestNode',
                     properties: {
@@ -116,7 +115,6 @@ describe('Node Proxy 测试', () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IUpdateNodeParams = {
-                    nodeId: createdNode.nodeId,
                     path: createdNode.path,
                     name: 'TestNode',
                     properties: {
@@ -142,7 +140,6 @@ describe('Node Proxy 测试', () => {
             if (createdNode) {
                 const newScale: IVec3 = { x: 2, y: 2, z: 2 };
                 const params: IUpdateNodeParams = {
-                    nodeId: createdNode.nodeId,
                     path: createdNode.path,
                     name: 'TestNode',
                     properties: {
@@ -170,7 +167,6 @@ describe('Node Proxy 测试', () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IDeleteNodeParams = {
-                    nodeId: createdNode.nodeId,
                     path: createdNode.path,
                     keepWorldTransform: false
                 };
@@ -205,7 +201,6 @@ describe('Node Proxy 测试', () => {
 
             // 删除该节点
             const deleteParams: IDeleteNodeParams = {
-                nodeId: tempNode!.nodeId,
                 path: tempNode!.path,
                 keepWorldTransform: true
             };
@@ -229,7 +224,6 @@ describe('Node Proxy 测试', () => {
 
         it('updateNode - 更新不存在的节点应返回null', async () => {
             const params: IUpdateNodeParams = {
-                nodeId: 'non-existent-id',
                 path: '/NonExistentNode',
                 name: 'NonExistentNode',
                 properties: {
@@ -243,7 +237,6 @@ describe('Node Proxy 测试', () => {
 
         it('deleteNode - 删除不存在的节点应返回null', async () => {
             const params: IDeleteNodeParams = {
-                nodeId: 'non-existent-id',
                 path: '/NonExistentNode',
                 keepWorldTransform: false
             };

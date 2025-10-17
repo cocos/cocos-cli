@@ -40,7 +40,6 @@ export class NodeService extends EventEmitter implements INodeService {
 
         let canvasNeeded = false;
         let assetUuid;
-        let keepWorldTransform = params.keepWorldTransform || false;
         if (params.assetPath) { //create from prefab resource
             assetUuid = await Rpc.request('assetManager', 'queryUUID', [params.assetPath]);
         } else if (params.nodeType) {
@@ -95,7 +94,7 @@ export class NodeService extends EventEmitter implements INodeService {
         this.emit('before-add', resultNode);
         this.emit('before-change', parent);
 
-        resultNode.setParent(parent, keepWorldTransform);
+        resultNode.setParent(parent, params.keepWorldTransform);
         this.ensureUITransformComponent(resultNode);
 
         // 发送添加节点事件，添加节点中的根节点
@@ -157,7 +156,7 @@ export class NodeService extends EventEmitter implements INodeService {
         if (!node) {
             return null;
         }
-        if (params.name !== node.name) {
+        if (params.name && params.name !== node.name) {
             const oldName = node.name;
             NodeMgr.updateNodeName(node.uuid, params.name);
         }
