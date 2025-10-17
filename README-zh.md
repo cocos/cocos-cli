@@ -144,6 +144,52 @@ npm run download-tools
 
 📖 [工具下载指南](docs/download-tools.md)
 
+### 更新仓库依赖
+
+项目使用外部仓库（如 Cocos Engine）需要定期更新。使用仓库更新命令来管理这些依赖：
+
+#### 使用步骤
+
+1. **配置仓库设置**
+
+   确保根目录的 `repo.json` 文件已正确配置要管理的仓库：
+
+   ```json
+   {
+     "engine": {
+       "repo": "git@github.com:cocos/cocos-engine.git",
+       "dist": "resources/engine",
+       "branch": "v3.8.8"
+     },
+     "external": {
+       "repo": "git@github.com:cocos/cocos-engine-external.git",
+       "dist": "resources/engine/native/external"
+     }
+   }
+   ```
+
+2. **执行更新命令**
+
+   ```bash
+   npm run update:repos
+   ```
+
+3. **命令作用说明**
+
+   - **智能仓库检测**：自动检测已存在的仓库并提示更新
+   - **交互式更新**：提供 3 秒倒计时和用户确认（默认：自动更新）
+   - **安全重置**：仅重置已跟踪的文件（`git reset --hard HEAD`），保留未跟踪的文件
+   - **分支/标签切换**：自动切换到指定的分支或标签
+   - **错误处理**：全面的错误处理，更新失败时回退到重新克隆
+
+   该命令将：
+   - 检查 `repo.json` 中定义的每个仓库
+   - 提示您确认更新已存在的仓库
+   - 重置已跟踪文件的本地更改
+   - 从远程获取最新更新
+   - 切换到指定的分支/标签
+   - 更新到最新代码
+
 ## 📖 API 说明
 
 - [ConstantOptions](docs/core/ConstantOptions-zh.md) - 配置选项和常量说明

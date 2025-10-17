@@ -5,16 +5,18 @@
 import { BuildCommand } from './build';
 import { ImportCommand } from './import';
 import { InfoCommand } from './info';
+import { McpServerCommand } from './mcp-server';
 
 export { BaseCommand, CommandUtils } from './base';
 export { ImportCommand } from './import';
 export { BuildCommand } from './build';
 export { InfoCommand } from './info';
+export { McpServerCommand } from './mcp-server';
 
 /**
  * 所有命令类的类型
  */
-export type CommandClass = ImportCommand | BuildCommand | InfoCommand;
+export type CommandClass = ImportCommand | BuildCommand | InfoCommand | McpServerCommand;
 
 /**
  * 命令注册器
@@ -32,7 +34,7 @@ export class CommandRegistry {
     /**
      * 注册所有命令
      */
-    registerAll(program: any): void {
+    registerAll(): void {
         this.commands.forEach(command => command.register());
     }
 

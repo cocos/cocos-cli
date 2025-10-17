@@ -1,12 +1,12 @@
-import { startServer } from './mcp/start-server.js';
-import { getAvailablePort } from './server/utils/index.js';
+import { startMcpServer } from './mcp/start-server.js';
+import { serverService } from './server/server.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const PROVIDER_ID = 'cocos-cli-mcp-provider';
 
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext, port?: number) {
     // 创建事件发射器，用于通知 MCP 服务器定义变化
     const onDidChangeMcpServerDefinitionsEmitter = new vscode.EventEmitter<void>();
 
@@ -27,15 +27,14 @@ export async function activate(context: vscode.ExtensionContext) {
             }
 
             try {
-                const port = await getAvailablePort(7456);
                 // 启动 MCP 服务器
-                await startServer(folder, port);
+                await startMcpServer(folder, port);
 
                 // 返回 MCP 服务器定义
                 return [
                     new vscode.McpHttpServerDefinition(
                         'Cocos CLI MCP Server',
-                        vscode.Uri.parse(`http://localhost:${port}/mcp`)
+                        vscode.Uri.parse(`http://localhost:${serverService.port}/mcp`)
                     )
                 ];
             } catch (error) {

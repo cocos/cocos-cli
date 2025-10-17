@@ -1,0 +1,12 @@
+{
+    "engine": {
+        "repo": "git@github.com:SUD-GLOBAL/cocos.git",
+        "dist": "resources/engine",
+        "branch": "v4.0.0"
+    },
+    "external": {
+        "repo": "git@github.com:cocos/cocos-engine-external.git",
+        "dist": "resources/engine/native/external",
+        "tag": "v3.8.8-1"
+    }
+}

@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 import { projectManager } from '../core/launcher';
+import { GlobalPaths } from '../global';
 
 /**
  * Import 命令类
@@ -10,30 +11,15 @@ export class ImportCommand extends BaseCommand {
         this.program
             .command('import')
             .description('Import/open a Cocos project')
-            .argument('<project-path>', 'Path to the Cocos project')
-            .option('--engine <path>', 'Specify engine path')
+            .requiredOption('--project <path>', 'Path to the Cocos project (required)')
             .option('--wait', 'Keep the process running after import (for development)')
-            .action(async (projectPath: string, options: any) => {
+            .action(async (options: any) => {
                 try {
-                    const resolvedPath = this.validateProjectPath(projectPath);
+                    const resolvedPath = this.validateProjectPath(options.project);
 
-                    // 获取引擎路径：优先使用命令选项，然后是全局选项，最后是配置文件
-                    const globalOptions = this.getGlobalOptions();
-                    const enginePath = options.engine || globalOptions.engine || this.getEnginePath(globalOptions);
+                    CommandUtils.showImportInfo(resolvedPath);
 
-                    if (!enginePath) {
-                        console.error(chalk.red('Error: Engine path is required.'));
-                        console.error(chalk.yellow('Please specify engine path using:'));
-                        console.error(chalk.yellow('  - --engine option'));
-                        console.error(chalk.yellow('  - Global --engine option'));
-                        console.error(chalk.yellow('  - .user.json file'));
-                        console.error(chalk.yellow('  - COCOS_ENGINE_PATH environment variable'));
-                        process.exit(1);
-                    }
-
-                    CommandUtils.showImportInfo(resolvedPath, enginePath);
-
-                    await projectManager.open(resolvedPath, enginePath);
+                    await projectManager.open(resolvedPath);
 
                     console.log(chalk.green('✓ Project imported successfully!'));
 

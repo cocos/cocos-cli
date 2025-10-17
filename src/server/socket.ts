@@ -10,13 +10,13 @@ export class SocketService {
      * 启动 io 服务器
      * @param server http 服务器
      */
-    startup (server: HTTPServer | HTTPSServer) {
+    startup(server: HTTPServer | HTTPSServer) {
         this.io = new Server(server);
         this.io.on('connection', (socket: any) => {
-            console.log(`socket ${socket.id} connected`)
+            console.log(`socket ${socket.id} connected`);
             middlewareService.middlewareSocket.forEach((middleware) => {
                 middleware.connection(socket);
-            })
+            });
             socket.on('disconnect', () => {
                 middlewareService.middlewareSocket.forEach((middleware) => {
                     middleware.disconnect(socket);

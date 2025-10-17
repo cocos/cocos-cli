@@ -7,10 +7,10 @@ export default {
     get: [
         {
             /**
-             * http://localhost:7456/build/web-desktop/index.html
+             * http://localhost:xxxx/build/web-desktop/index.html
              */
             url: '/build{/*path}',
-            async handler (req: Request, res: Response) {
+            async handler(req: Request, res: Response) {
                 const { default: Project } = await import('../project');
                 const path = join(Project.path, req.url);
                 if (existsSync(path)) {

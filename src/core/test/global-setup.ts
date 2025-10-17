@@ -48,7 +48,7 @@ export async function globalSetup() {
             return EngineLoader.getEngineModuleById(module);
         }, { virtual: true });
     });
-    await projectManager.open(TestGlobalEnv.projectRoot, EnginPath);
+    await projectManager.open(TestGlobalEnv.projectRoot);
 
     hasInit = true;
 }

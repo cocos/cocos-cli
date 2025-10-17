@@ -2,15 +2,21 @@ import { join } from 'path';
 import { CocosAPI } from '../api';
 import { register } from '../server';
 import { McpMiddleware } from './mcp.middleware';
+import { serverService } from '../server/server';
+import chalk from 'chalk';
 
-export async function startServer(folder: string, port: number) {
+export async function startMcpServer(project: string, port?: number) {
     const tempEnginePath = join(__dirname, '../../bin/engine');
-    const cocosAPI = new CocosAPI(folder, tempEnginePath);
-    await cocosAPI.startup();
+    const cocosAPI = new CocosAPI(project, tempEnginePath);
+    await cocosAPI.startup(port);
 
     const middleware = new McpMiddleware();
     middleware.registerDecoratorTools();
     register('mcp', middleware.getMiddlewareContribution());
+    const mcpUrl = `${serverService.url}/mcp`;
+    console.log(chalk.green('✓ MCP Server started successfully!'));
+    console.log(chalk.blue(`Server is running on: ${mcpUrl}`));
+    console.log(chalk.yellow('Press Ctrl+C to stop the server'));
 }
 // 如果直接运行此文件，启动服务器
 if (require.main === module) {

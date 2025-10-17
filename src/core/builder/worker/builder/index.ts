@@ -5,7 +5,7 @@ import { join, relative } from 'path';
 import { BuilderAssetCache } from './manager/asset';
 import { InternalBuildResult } from './manager/build-result';
 import { BuildResult } from './manager/build-result';
-import { taskManager } from './task-config';
+import { TaskManager } from './task-config';
 import { BuildStageTask } from './stage-task-manager';
 import { workerManager } from '../worker-pools/sub-process-manager';
 import { BundleManager } from './asset-handler/bundle';
@@ -35,19 +35,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
 
     public hooksInfo: IBuildHooksInfo;
 
-    // 数据整理任务
-    public dataTasks: IBuildTask[];
-
-    // setting 生成整理任务
-    public settingTasks: IBuildTask[];
-
-    public postprocessTasks?: IBuildTask[];
-
-    public buildTasks?: IBuildTask[];
-
-    private md5Tasks?: IBuildTask[];
-
-    private dbPauseNoticeId?: number;
+    public taskManager: TaskManager;
 
     // 构建主流程任务权重，随着其他阶段性任务的加入可能会有变化
     private mainTaskWeight = 1;
@@ -84,8 +72,12 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
 
     constructor(id: string, options: IBuildTaskOption) {
         super(id, 'build');
-        this.dataTasks = taskManager.getTaskHandle('dataTasks');
-        this.settingTasks = taskManager.getTaskHandle('settingTasks');
+        this.taskManager = new TaskManager();
+        this.taskManager.activeTask('dataTasks');
+        this.taskManager.activeTask('settingTasks');
+        this.taskManager.activeTask('buildTasks');
+        this.taskManager.activeTask('md5Tasks');
+        this.taskManager.activeTask('postprocessTasks');
         this.hooksInfo = pluginManager.getHooksInfo(options.platform);
         // TODO 补全 options 为 IInternalBuildOptions
         this.options = options as IInternalBuildOptions;
@@ -99,15 +91,15 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         this.result.addListener('updateProcess', (message: string) => {
             this.updateProcess(message);
         });
-        this.buildTasks = taskManager.getTaskHandle('buildTasks');
-        this.options.md5Cache && (this.md5Tasks = taskManager.getTaskHandle('md5Tasks'));
-        this.postprocessTasks = taskManager.getTaskHandle('postprocessTasks');
+        this.taskManager.activeTask('buildTasks');
+        this.options.md5Cache && (this.taskManager.activeTask('md5Tasks'));
+        this.taskManager.activeTask('postprocessTasks');
         this.buildResult = new BuildResult(this);
         if (this.options.nextStages) {
             // 当存在阶段性任务时，构建主流程的权重降级
             this.mainTaskWeight = 1 / (this.options.nextStages.length + 1);
         }
-        this.hookWeight = this.mainTaskWeight * taskManager.taskWeight.pluginTasks;
+        this.hookWeight = this.mainTaskWeight * this.taskManager.taskWeight;
         this.buildTemplate = new BuildTemplate(this.options.platform, this.options.taskName, pluginManager.getBuildTemplateConfig(this.options.platform));
 
         // TODO
@@ -154,7 +146,6 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             return;
         }
         console.debug('Query all assets info in project');
-        await taskManager.init();
         await this.initOptions();
 
         // 清空所有资源缓存
@@ -178,42 +169,42 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         }
         await ensureDir(this.result.paths.dir);
         // 允许插件在 onBeforeBuild 内修改 useCache
-        await this.runPluginTask(taskManager.pluginTasks.onBeforeBuild);
+        await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuild);
         if (!this.options.useCache) {
             // 固定清理工程的时机，请勿改动以免造成不必要的插件兼容问题
             emptyDirSync(this.result.paths.dir);
         }
         await this.lockAssetDB();
-        await this.runPluginTask(taskManager.pluginTasks.onBeforeInit);
+        await this.runPluginTask(TaskManager.pluginTasks.onBeforeInit);
         await this.init();
-        await this.runPluginTask(taskManager.pluginTasks.onAfterInit);
+        await this.runPluginTask(TaskManager.pluginTasks.onAfterInit);
 
         await this.initBundleManager();
 
         await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleDataTask);
         // 开始执行预制任务
-        await this.runBuildTask(this.dataTasks, taskManager.taskWeight.dataTasks);
+        await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
         await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleDataTask);
 
-        await this.runPluginTask(taskManager.pluginTasks.onBeforeBuildAssets);
+        await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuildAssets);
         await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleBuildTask);
         // 开始执行构建任务
-        await this.runBuildTask(this.buildTasks!, taskManager.taskWeight.buildTasks);
+        await this.runBuildTask(TaskManager.getBuildTask('buildTasks'), this.taskManager.taskWeight);
         await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleBuildTask);
-        await this.runPluginTask(taskManager.pluginTasks.onAfterBuildAssets);
+        await this.runPluginTask(TaskManager.pluginTasks.onAfterBuildAssets);
 
-        await this.runBuildTask(this.settingTasks, taskManager.taskWeight.settingTasks);
-        await this.runPluginTask(taskManager.pluginTasks.onBeforeCompressSettings);
-        await this.runBuildTask(this.postprocessTasks!, taskManager.taskWeight.postprocessTasks);
-        await this.runPluginTask(taskManager.pluginTasks.onAfterCompressSettings);
-        await this.runPluginTask(taskManager.pluginTasks.onBeforeCopyBuildTemplate);
+        await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
+        await this.runPluginTask(TaskManager.pluginTasks.onBeforeCompressSettings);
+        await this.runBuildTask(TaskManager.getBuildTask('postprocessTasks'), this.taskManager.taskWeight);
+        await this.runPluginTask(TaskManager.pluginTasks.onAfterCompressSettings);
+        await this.runPluginTask(TaskManager.pluginTasks.onBeforeCopyBuildTemplate);
         // 拷贝自定义模板
         await this.buildTemplate!.copyTo(this.result.paths.output);
-        await this.runPluginTask(taskManager.pluginTasks.onAfterCopyBuildTemplate);
+        await this.runPluginTask(TaskManager.pluginTasks.onAfterCopyBuildTemplate);
         // MD5 处理
-        this.md5Tasks && (await this.runBuildTask(this.md5Tasks, taskManager.taskWeight.md5Tasks));
+        this.options.md5Cache && (await this.runBuildTask(TaskManager.getBuildTask('md5Tasks'), this.taskManager.taskWeight));
         // 构建进程结束之前
-        await this.runPluginTask(taskManager.pluginTasks.onAfterBuild);
+        await this.runPluginTask(TaskManager.pluginTasks.onAfterBuild);
         await this.postBuild();
         this.options.nextStages && (await this.handleBuildStageTask(this.options.nextStages));
         return true;
@@ -223,12 +214,17 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 仅构建 Bundle 流程
      */
     public async buildBundleOnly() {
+        const settingTasks = this.taskManager.activeCustomTask('settingTasks', [
+            'setting-task/cache',
+            'setting-task/asset',
+            'setting-task/script',
+        ]);
         await this.lockAssetDB();
         // 走构建任务的仅 Bundle 构建模式也需要执行 init 前后钩子，因为此时需要保障包完整
         // 不执行一些选项的修改可能没有同步到
-        await this.runPluginTask(taskManager.pluginTasks.onBeforeInit);
+        await this.runPluginTask(TaskManager.pluginTasks.onBeforeInit);
         await this.init();
-        await this.runPluginTask(taskManager.pluginTasks.onAfterInit);
+        await this.runPluginTask(TaskManager.pluginTasks.onAfterInit);
         this.bundleManager = await BundleManager.create(this.options, this);
         this.bundleManager.options.dest = this.result.paths.assets;
         this.bundleManager.destDir = this.result.paths.assets;
@@ -236,11 +232,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             this.updateProcess(message, progress - this.bundleManager.progress);
         };
         await this.bundleManager.run();
-        await this.runBuildTask(taskManager.getTaskHandleFromNames([
-            'setting-task/cache',
-            'setting-task/asset',
-            'setting-task/script',
-        ]), taskManager.taskWeight.postprocessTasks);
+        await this.runBuildTask(settingTasks, this.taskManager.taskWeight);
         const bundles = this.bundleManager.bundles.filter((bundle) => bundle.output).sort((a, b) => a.name.localeCompare(b.name));
         if (this.options.md5Cache) {
             for (const bundle of bundles) {
@@ -349,11 +341,10 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         try {
             await this.init();
             this.result.settings.engine.engineModules = this.options.includeModules;
-            this.dataTasks = taskManager.getTaskHandle('dataTasks');
             await this.initBundleManager();
             // 开始执行预制任务
-            await this.runBuildTask(this.dataTasks, taskManager.taskWeight.dataTasks);
-            await this.runBuildTask(this.settingTasks, taskManager.taskWeight.settingTasks);
+            await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
+            await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
             return this.result.settings;
         } catch (error) {
             console.error(error);
@@ -471,11 +462,6 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
                 glsl4: false,
             },
         };
-
-        if (!taskManager.cacheConfig.engine) {
-            // @ts-ignore
-            this.options.compileEngineForce = true;
-        }
     }
 
     /**

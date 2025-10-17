@@ -7,6 +7,7 @@ import { PackDriverApi } from './pack-driver/pack-driver';
 import { SceneApi } from './scene/scene';
 import { BuilderApi } from './builder/builder';
 import { startServer } from '../server';
+import { ComponentApi } from './scene/component';
 
 export class CocosAPI {
     public assets: AssetsApi;
@@ -18,6 +19,7 @@ export class CocosAPI {
     private configuration: ConfigurationApi;
 
     private scene: SceneApi;
+    private component: ComponentApi;
 
     constructor(
         private projectPath: string,
@@ -30,6 +32,7 @@ export class CocosAPI {
         this.packDriver = new PackDriverApi(projectPath, enginePath);
         this.engine = new EngineApi(projectPath, enginePath);
         this.scene = new SceneApi(projectPath, enginePath);
+        this.component = new ComponentApi();
         this.builder = new BuilderApi();
     }
 
@@ -44,9 +47,9 @@ export class CocosAPI {
     /**
      * 初始化 Cocos API
      */
-    public async startup() {
+    public async startup(port?: number) {
         try {
-            await startServer();
+            await startServer(port);
             await this.configuration.init();
             await this.project.init();
             await this.engine.init();
@@ -54,6 +57,7 @@ export class CocosAPI {
             await this.packDriver.init();
             await this.builder.init();
             await this.scene.init();
+            await this.component.init();
         } catch (e) {
             console.error('startup failed', e);
         }

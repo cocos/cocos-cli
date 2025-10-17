@@ -2,7 +2,7 @@ import { EngineInfo } from './@types/public';
 import { IEngineConfig, IInitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
-import { configurationRegistry, IBaseConfiguration } from '../configuration';
+import { configurationRegistry } from '../configuration';
 import { assetManager } from '../assets';
 
 /**

@@ -40,32 +40,6 @@ export abstract class BaseCommand {
     }
 
     /**
-     * 获取引擎路径
-     */
-    protected getEnginePath(options: any): string | null {
-        if (options.engine) {
-            return resolve(options.engine);
-        }
-
-        // TODO 需要修改为全局的配置系统，目前先尝试从 .user.json 读取
-        try {
-            const userConfig = require(join(process.cwd(), '.user.json'));
-            if (userConfig.engine) {
-                return resolve(userConfig.engine);
-            }
-        } catch (error) {
-            // 忽略错误，使用默认值
-        }
-
-        // 尝试从环境变量读取
-        if (process.env.COCOS_ENGINE_PATH) {
-            return resolve(process.env.COCOS_ENGINE_PATH);
-        }
-
-        return null;
-    }
-
-    /**
      * 获取全局选项
      */
     protected getGlobalOptions(): any {
@@ -100,19 +74,28 @@ export class CommandUtils {
     /**
      * 显示构建信息
      */
-    static showBuildInfo(projectPath: string, enginePath: string, platform: string): void {
+    static showBuildInfo(projectPath: string, platform: string): void {
         console.log(chalk.blue('Building project...'));
         console.log(chalk.gray(`Project: ${projectPath}`));
-        console.log(chalk.gray(`Engine: ${enginePath}`));
         console.log(chalk.gray(`Platform: ${platform}`));
     }
 
     /**
      * 显示导入信息
      */
-    static showImportInfo(projectPath: string, enginePath: string): void {
+    static showImportInfo(projectPath: string): void {
         console.log(chalk.blue('Importing project...'));
         console.log(chalk.gray(`Project: ${projectPath}`));
-        console.log(chalk.gray(`Engine: ${enginePath}`));
+    }
+
+    /**
+     * 显示 MCP 服务器信息
+     */
+    static showMcpServerInfo(projectPath: string, port: number): void {
+        console.log(chalk.blue('MCP Server Configuration'));
+        console.log(chalk.blue('========================'));
+        console.log(chalk.gray(`Project: ${projectPath}`));
+        console.log(chalk.gray(`Port: ${port}`));
+        console.log('');
     }
 }
