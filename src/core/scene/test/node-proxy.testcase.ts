@@ -16,26 +16,10 @@ jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
 
 describe('Node Proxy 测试', () => {
     let createdNode: INode | null = null;
-    const testNodePath = '/TestNode';
-    const testPosition: IVec3 = { x: 1, y: 2, z: 3 };
+    let testNodePath = '/TestNode';
+    const testPosition: IVec3 = { x: 1, y: 2, z: 0 };
 
     describe('1. 基础节点操作', () => {
-        it('createNode - 创建新节点', async () => {
-            const params: ICreateNodeParams = {
-                path: testNodePath,
-                name: 'TestNode',
-                nodeType: 'Cube',
-                position: testPosition,
-                workMode: '3d'
-            };
-
-            createdNode = await NodeProxy.createNode(params);
-            expect(createdNode).toBeDefined();
-            expect(createdNode?.name).toBe('TestNode');
-            expect(createdNode?.path).toBe(testNodePath);
-            expect(createdNode?.properties.position).toEqual(testPosition);
-        });
-
         it('createNode - 创建带预制体的节点', async () => {
             const params: ICreateNodeParams = {
                 assetPath: 'db://internal/default_prefab/ui/Sprite.prefab',
@@ -48,6 +32,24 @@ describe('Node Proxy 测试', () => {
             const prefabNode = await NodeProxy.createNode(params);
             expect(prefabNode).toBeDefined();
             expect(prefabNode?.name).toBe('PrefabNode');
+            console.log("Created prefab node path=", prefabNode?.path);
+        });
+
+        it('createNode - 创建新节点', async () => {
+            const params: ICreateNodeParams = {
+                path: testNodePath,
+                name: 'TestNode',
+                nodeType: 'Sprite',
+                position: testPosition,
+                workMode: '2d'
+            };
+
+            createdNode = await NodeProxy.createNode(params);
+            expect(createdNode).toBeDefined();
+            expect(createdNode?.name).toBe('TestNode');
+            expect(createdNode?.path).toBe(testNodePath);
+            expect(createdNode?.properties.position).toEqual(testPosition);
+            console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
         });
     });
 
@@ -56,7 +58,7 @@ describe('Node Proxy 测试', () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IQueryNodeParams = {
-                    path: testNodePath,
+                    path: createdNode.path,
                     queryChildren: false
                 };
 
@@ -71,7 +73,7 @@ describe('Node Proxy 测试', () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IQueryNodeParams = {
-                    path: testNodePath,
+                    path: createdNode.path,
                     queryChildren: true
                 };
 
@@ -89,7 +91,7 @@ describe('Node Proxy 测试', () => {
                 const newPosition: IVec3 = { x: 5, y: 5, z: 5 };
                 const params: IUpdateNodeParams = {
                     nodeId: createdNode.nodeId,
-                    path: testNodePath,
+                    path: createdNode.path,
                     name: 'TestNode',
                     properties: {
                         position: newPosition
@@ -102,7 +104,7 @@ describe('Node Proxy 测试', () => {
 
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
-                    path: testNodePath,
+                    path: createdNode.path,
                     queryChildren: false
                 };
                 const updatedNode = await NodeProxy.queryNode(queryParams);
@@ -115,7 +117,7 @@ describe('Node Proxy 测试', () => {
             if (createdNode) {
                 const params: IUpdateNodeParams = {
                     nodeId: createdNode.nodeId,
-                    path: testNodePath,
+                    path: createdNode.path,
                     name: 'TestNode',
                     properties: {
                         active: false
@@ -127,7 +129,7 @@ describe('Node Proxy 测试', () => {
 
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
-                    path: testNodePath,
+                    path: createdNode.path,
                     queryChildren: false
                 };
                 const updatedNode = await NodeProxy.queryNode(queryParams);
@@ -141,7 +143,7 @@ describe('Node Proxy 测试', () => {
                 const newScale: IVec3 = { x: 2, y: 2, z: 2 };
                 const params: IUpdateNodeParams = {
                     nodeId: createdNode.nodeId,
-                    path: testNodePath,
+                    path: createdNode.path,
                     name: 'TestNode',
                     properties: {
                         scale: newScale,
@@ -154,7 +156,7 @@ describe('Node Proxy 测试', () => {
 
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
-                    path: testNodePath,
+                    path: createdNode.path,
                     queryChildren: false
                 };
                 const updatedNode = await NodeProxy.queryNode(queryParams);
@@ -169,7 +171,7 @@ describe('Node Proxy 测试', () => {
             if (createdNode) {
                 const params: IDeleteNodeParams = {
                     nodeId: createdNode.nodeId,
-                    path: testNodePath,
+                    path: createdNode.path,
                     keepWorldTransform: false
                 };
 
@@ -179,7 +181,7 @@ describe('Node Proxy 测试', () => {
 
                 // 验证节点是否已被删除
                 const queryParams: IQueryNodeParams = {
-                    path: testNodePath,
+                    path: createdNode.path,
                     queryChildren: false
                 };
                 const deletedNode = await NodeProxy.queryNode(queryParams);
@@ -204,7 +206,7 @@ describe('Node Proxy 测试', () => {
             // 删除该节点
             const deleteParams: IDeleteNodeParams = {
                 nodeId: tempNode!.nodeId,
-                path: '/NodeToDelete',
+                path: tempNode!.path,
                 keepWorldTransform: true
             };
 

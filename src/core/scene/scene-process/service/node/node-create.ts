@@ -39,8 +39,6 @@ import {
     CCObject,
 } from 'cc';
 
-import { getUICanvasNode } from './node-utils';
-
 
 /**
  * 根据资源 uuid 加载资源

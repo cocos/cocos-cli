@@ -37,6 +37,10 @@ export async function init() {
     deserializeFull = await import('./utils/deserialize');
     GeometryUtils = await import('./utils/geometry');
     PrefabUtils = await import('./utils/prefab');
+
+    Script.allow = true;
+    Node.allow = true;
+    Component.allow = true;
 }
 
 const event = new EventEmitter();

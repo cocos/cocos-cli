@@ -26,13 +26,16 @@ export class NodeService extends EventEmitter implements INodeService {
     once(type: NodeEventType, listener: (arg: any) => void): this { return super.once(type, listener); }
     emit(type: NodeEventType, ...args: any[]): boolean { return super.emit(type, ...args); }
 
-    _nodeConfigJson: Record<string, Array<{ assetUuid: string, name: string, canvasRequired: boolean }>> = {};
+    _nodeConfigJson: Record<string, Array<{ assetUuid: string, name: string, canvasRequired: boolean }>> | null = null;
 
     @expose()
     async createNode(params: ICreateNodeParams): Promise<INode | null> {
         if (!this._nodeConfigJson) {
-            const serializeJSON = await readFile("../../common/node-config.json", 'utf8');
+            const serializeJSON = await readFile("src/core/scene/common/node-config.json", 'utf8');
             this._nodeConfigJson = JSON.parse(serializeJSON);
+        }
+        if (!this._nodeConfigJson) {
+            throw new Error('NodeService.createNode load node-config.json failed .');
         }
 
         let canvasNeeded = false;
@@ -73,6 +76,12 @@ export class NodeService extends EventEmitter implements INodeService {
             return null;
         }
 
+        if (params.name) {
+            resultNode.name = params.name;
+        }
+        if (params.position) {
+            resultNode.setPosition(params.position as Vec3);
+        }
         NodeMgr.add(resultNode.uuid, resultNode);
 
         /**
@@ -94,7 +103,7 @@ export class NodeService extends EventEmitter implements INodeService {
 
         // 发送节点修改消息
         if (parent) {
-            this.emit('change', parent, { type: cc.NodeEventType.CHILD_CHANGED });
+            // this.emit('change', parent, { type: cc.NodeEventType.CHILD_CHANGED });
         }
 
         return this._generateNodeInfo(resultNode, true);
@@ -105,8 +114,7 @@ export class NodeService extends EventEmitter implements INodeService {
         const path = params.path;
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
-            console.warn(`NodeService.deleteNode can not find node by path: ${path}`);
-            throw new Error(`NodeService.deleteNode can not find node by path: ${path}`);
+            return null;
         }
 
         // 发送节点修改消息
@@ -128,10 +136,8 @@ export class NodeService extends EventEmitter implements INodeService {
             console.warn(error);
         }
 
-        console.timeEnd('NodeMgr::removeNode');
-
         // 被删除节点里的根节点
-        this.emit('remove', node, { source: cc.EventSourceType.ENGINE });
+        // this.emit('remove', node, { source: cc.EventSourceType.ENGINE });
 
         return {
             path: path,
@@ -149,7 +155,7 @@ export class NodeService extends EventEmitter implements INodeService {
     async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null> {
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
-            throw new Error(`NodeService.updateNode can not find node by path: ${params.path}`);
+            return null;
         }
         if (params.name !== node.name) {
             const oldName = node.name;
@@ -157,7 +163,7 @@ export class NodeService extends EventEmitter implements INodeService {
         }
         if (params.properties) {
             const options = params.properties;
-            if (options.active) {
+            if (options.active !== undefined) {
                 node.active = options.active;
             }
             if (options.position) {
@@ -210,7 +216,7 @@ export class NodeService extends EventEmitter implements INodeService {
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
-            throw new Error(`NodeService.queryNode can not find node by path: ${params.path}`);
+            return null;
         }
         return this._generateNodeInfo(node, params.queryChildren || false);
     }

@@ -70,11 +70,11 @@ export default class NodeManager extends EventEmitter {
         // this._recycle[uuid] = this._map[uuid];
         delete this._map[uuid];
 
-        this._uuidToPath.delete(uuid);
         const path = this._uuidToPath.get(uuid);
         if (path) {
             this._pathToUuid.delete(path);
         }
+        this._uuidToPath.delete(uuid);
 
         // 清理父子关系
         this._cleanupParentRelations(uuid);
