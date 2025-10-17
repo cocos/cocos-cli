@@ -57,7 +57,7 @@ class UpdateRepo {
             });
 
             console.log(`\n仓库 ${repoName} 已存在，是否还原所有文件并更新到最新代码？`);
-            console.log('输入 n 跳过，其他任意键或3秒后自动确认还原...');
+            console.log('输入 n 跳过，其他任意键或 3 秒后自动确认还原...');
             
             const timeout = setTimeout(() => {
                 rl.close();

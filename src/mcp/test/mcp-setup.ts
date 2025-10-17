@@ -31,7 +31,7 @@ import { EngineLoader } from 'cc/loader';
 });
 // MCP Server 启动函数
 export async function startMCPServer(folder: string) {
-    const tempEnginePath = join(__dirname, '../../../bin/engine');
+    const tempEnginePath = join(__dirname, '../../../packages/engine');
     const cocosAPI = new CocosAPI(folder, tempEnginePath);
     await cocosAPI.startup();
 

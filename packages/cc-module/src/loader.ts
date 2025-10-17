@@ -40,7 +40,7 @@ export class EngineLoader {
                 return request;
             } else {
                 // @ts-ignore
-                // eslint-disable-next-line prefer-rest-params
+                 
                 return vendorResolveFilename.apply(this, arguments);
             }
         };
@@ -58,7 +58,7 @@ export class EngineLoader {
                 }
             } else {
                 // @ts-ignore
-                // eslint-disable-next-line prefer-rest-params
+                 
                 return vendorLoad.apply(this, arguments);
             }
         };
@@ -71,7 +71,7 @@ export class EngineLoader {
 
         const results: PromiseSettledResult<unknown>[] = await Promise.allSettled(
             modules.map(module => {
-                return this.loader!.import(module)
+                return this.loader!.import(module);
             })
         );
 
@@ -89,6 +89,6 @@ export class EngineLoader {
             throw new Error(`Failed to load engine module ${module}. ` + 'Loader has not been initialized. engineLoader.init.');
         }
 
-        return await this.loader.import(module)
+        return await this.loader.import(module);
     }
 }

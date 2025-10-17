@@ -1,13 +1,8 @@
 const fse = require('fs-extra');
 const path = require('path');
-const { spawnSync } = require('child_process');
 const utils = require('./utils');
 
-const userConfig = path.join(__dirname, '../.user.json');
-if (!fse.existsSync(userConfig)) {
-    // TODO 需要完善：如果没有 user.json 不是开发版本
-    return;
-}
+if (!utils.hasDevelopmentEnvironment()) return;
 
 function readDirRecurse(root, visitor, relativeRoot = '') {
     const fileNames = fse.readdirSync(root);
@@ -48,11 +43,13 @@ module.exports = modsMgr.syncImport('${moduleId}');
 
     console.time('Bundle node_modules/cc');
 
+    const enginePath = path.join(__dirname, '../packages/engine');
+
     const ccTemplatePath = path.join(__dirname, '../packages/cc-module/statics/cc-template.d.ts');
     const ccPath = path.join(__dirname, '../packages/cc-module/cc.d.ts');
 
-    const ccdPath = path.join(__dirname, '../bin/engine', '/bin/.declarations/cc.d.ts');
-    const ccEditorExportsDtsPath = path.join(__dirname, '../bin/engine','./bin/.declarations/cc.editor.d.ts');
+    const ccdPath = path.join(enginePath, '/bin/.declarations/cc.d.ts');
+    const ccEditorExportsDtsPath = path.join(__dirname, '../packages/engine','./bin/.declarations/cc.editor.d.ts');
 
     const relativeCcdPath = path.relative(path.dirname(ccPath), ccdPath);
     const relativeCcEditorExportsDtsPath = path.relative(path.dirname(ccPath), ccEditorExportsDtsPath);
@@ -72,8 +69,7 @@ ${fse.readFileSync(ccTemplatePath)}\n
     fse.removeSync(proxyRoot);
     console.log('remove', proxyRoot);
 
-    const { engine } = require('../.user.json');
-    readDirRecurse(path.join(engine, 'editor', 'exports'), (relativePath) => {
+    readDirRecurse(path.join(enginePath, 'editor', 'exports'), (relativePath) => {
         const extReplaced = relativePath.endsWith('.ts') ? relativePath.substr(0, relativePath.length - 3) : relativePath;
         const modulePath = path.join(proxyRoot, `${extReplaced}.js`);
         const moduleCode = generateProxyModule(relativePath);
@@ -89,12 +85,12 @@ ${fse.readFileSync(ccTemplatePath)}\n
     const ccModuleDir = path.join(__dirname, '../packages/cc-module');
     const indexJsPath = path.join(ccModuleDir, 'index.js');
     if (!fse.existsSync(indexJsPath)) {
-        fse.writeFileSync(indexJsPath, "// ");
+        fse.writeFileSync(indexJsPath, '// ');
     }
     console.log('cc-module prepared for npm installation');
 
     const sourceDir = path.join(__dirname, '../packages/cc-module');
-    utils.runTscCommand(sourceDir)
+    utils.runTscCommand(sourceDir);
     console.log('tsc', sourceDir);
 
     console.timeEnd('Bundle node_modules/cc');

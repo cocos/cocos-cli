@@ -1,7 +1,14 @@
 const { spawn, spawnSync } = require('child_process');
-const fs = require('fs');
+const fse = require('fs-extra');
 const path = require('path');
 const chalk = require('chalk');
+
+/**
+ * 是否是开发环境
+ */
+function hasDevelopmentEnvironment() {
+    return fse.existsSync(path.join(__dirname, '../repo.json'));
+}
 
 /**
  * 异步执行命令
@@ -58,40 +65,6 @@ function runTscCommand(sourceDir) {
 }
 
 /**
- * 复制目录（忽略规则）
- * @param {string} source 源目录
- * @param {string} target 目标目录
- * @param {string[]} ignoreExts 支持普通后缀（如 '.ts'）或排除规则（如 '!.d.ts'）
- */
-function copyDirWithIgnore(source, target, ignoreExts = []) {
-    if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
-
-    // 分离普通忽略规则和排除规则
-    const keepRules = ignoreExts.filter(r => r.startsWith('!')).map(r => r.slice(1));
-    const ignoreRules = ignoreExts.filter(r => !r.startsWith('!'));
-
-    fs.readdirSync(source).forEach(file => {
-        const srcPath = path.join(source, file);
-        const destPath = path.join(target, file);
-        const stat = fs.statSync(srcPath);
-
-        // 检查是否被排除规则保留（优先级最高）
-        const shouldKeep = keepRules.some(rule => file.endsWith(rule));
-        if (!shouldKeep) {
-            // 检查是否匹配普通忽略规则
-            const shouldIgnore = ignoreRules.some(ext => file.endsWith(ext));
-            if (shouldIgnore) return;
-        }
-
-        if (stat.isDirectory()) {
-            copyDirWithIgnore(srcPath, destPath, ignoreExts);
-        } else {
-            fs.copyFileSync(srcPath, destPath);
-        }
-    });
-}
-
-/**
  * 统一输出标题日志
  * @param title
  */
@@ -104,6 +77,6 @@ function logTitle(title) {
 module.exports = {
     runCommand,
     runTscCommand,
-    copyDirWithIgnore,
-    logTitle
+    logTitle,
+    hasDevelopmentEnvironment
 };

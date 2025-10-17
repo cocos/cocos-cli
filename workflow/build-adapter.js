@@ -2,11 +2,7 @@ const path = require('path');
 const fse = require('fs-extra');
 const utils = require('./utils');
 
-const userConfig = path.join(__dirname, '../.user.json');
-if (!fse.existsSync(userConfig)) {
-    // TODO 需要完善：如果没有 user.json 不是开发版本
-    return;
-}
+if (!utils.hasDevelopmentEnvironment()) return;
 
 (async () => {
     utils.logTitle('Build web-adapter');
@@ -14,8 +10,7 @@ if (!fse.existsSync(userConfig)) {
     const args = process.argv.slice(2);
     const isForce = args.includes('--force');
 
-    const { engine } = require('../.user.json');
-
+    const engine = path.join(__dirname, '..', 'packages', 'engine');
     if (fse.existsSync(path.join(engine, 'bin', 'adapter')) && !isForce) {
         console.log('[Skip] build web-adapter');
         return;
