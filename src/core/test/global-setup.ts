@@ -1,4 +1,3 @@
-import { engine as EnginPath } from '../../../.user.json';
 import { EngineLoader } from 'cc/loader.js';
 import { existsSync, remove } from 'fs-extra';
 import { TestGlobalEnv } from './global-env';

@@ -1,6 +1,5 @@
 import { join } from 'path';
 import { EngineLoader } from './loader';
-import * as fs from 'fs-extra';
 import sharp from 'sharp';
 let hasPreload = false;
 
@@ -38,7 +37,7 @@ async function preload(options: {
         globalThis.CC_PREVIEW = false;
         // @ts-ignore
         globalThis.window = globalThis.global;
-        var LocalStorage = require('node-localstorage').LocalStorage;
+        const LocalStorage = require('node-localstorage').LocalStorage;
         (globalThis as any).nodeEnv = {
             enginePath: options.engineRoot,
             require: require,
@@ -64,6 +63,7 @@ async function preload(options: {
         if (options.requiredModules.includes('cc')) {
             // ---- 加载引擎主体 ----
             // @ts-ignore
+            // eslint-disable-next-line no-undef
             const ccm = window.ccm = require('cc');
 
             await import(join(options.engineRoot, 'bin/adapter/nodejs/engine-adapter.js'));
