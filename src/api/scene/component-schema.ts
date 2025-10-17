@@ -14,12 +14,12 @@ export const SchemaComponent = z.object({
 
 // 移除组件
 export const SchemaRemoveComponent = z.object({
-    path: z.string().optional().describe('组件的UUID'),
+    uuid: z.string().optional().describe('组件的UUID'),
 }).describe('移除组件需要的信息');
 
 // 查询组件
 export const SchemaQueryComponent = z.object({
-    path: z.string().optional().describe('组件的UUID'),
+    uuid: z.string().optional().describe('组件的UUID'),
 }).describe('查询组件需要的信息');
 
 /**
