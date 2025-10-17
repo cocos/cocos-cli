@@ -1,14 +1,10 @@
-import { IPluginHookName } from '../../@types/protected';
-import { BuildGlobalInfo } from '../../share/builder-config';
+import { IBuildTask, IPluginHookName } from '../../@types/protected';
 
-// 任务划分管理器，也作为自我调试时的配置
-class TaskManager {
-    get debug() {
-        return this._optionsDebug || BuildGlobalInfo.debugMode;
-    }
-    public _optionsDebug = false; // 构建参数传入的 debug
+type TaskType = 'dataTasks' | 'settingTasks' | 'buildTasks' | 'md5Tasks' | 'postprocessTasks' | string;
 
-    public readonly tasks = {
+export class TaskManager {
+
+    private static readonly tasks: Record<TaskType, string[]> = {
         dataTasks: [
             'data-task/asset',
             'data-task/script',
@@ -33,7 +29,7 @@ class TaskManager {
         ],
     };
 
-    public pluginTasks: Record<IPluginHookName, IPluginHookName> = {
+    static readonly pluginTasks: Record<IPluginHookName, IPluginHookName> = {
         onBeforeBuild: 'onBeforeBuild',
         onBeforeInit: 'onBeforeInit',
         onAfterInit: 'onAfterInit',
@@ -47,55 +43,47 @@ class TaskManager {
         onError: 'onError',
     };
 
-    // 定义使用的缓存规则
-    public cacheConfig = {
-        engine: true,
-        settings: false,
-        // 'jsb-adapter': true,
+    private static buildTaskMap: Record<TaskType, IBuildTask[]> = {
+        dataTasks: [],
+        settingTasks: [],
+        buildTasks: [],
+        md5Tasks: [],
+        postprocessTasks: [],
     };
 
-    // 任务权重，总和不要超过 1 否则未编译进度已经 100%
-    public taskWeight = {
-        dataTasks: 0.1,
-        buildTasks: 0.1,
-        md5Tasks: 0.1,
-        settingTasks: 0.05,
-        postprocessTasks: 0.05,
-        pluginTasks: 0.2,
-        bundleTask: 0.3,
-    };
+    activeTasks: Set<TaskType> = new Set();
 
-    private debugTaskConfig: Record<string, Record<string, boolean>> = {
-        dataTasks: {},
-        settingTasks: {},
-        buildTasks: {},
-    };
-
-    // 查询本地存储的 task 配置
-    public async init() {
-        this.debugTaskConfig.settingTasks['setting-task/cache'] = false;
-        this._optionsDebug = false;
+    get taskWeight() {
+        return 1 / this.activeTasks.size;
     }
 
     // 获取某一类资源任务
-    public getTaskHandle(type: 'dataTasks' | 'settingTasks' | 'buildTasks' | 'md5Tasks' | 'postprocessTasks') {
-        if (this.debug) {
-            const config = this.debugTaskConfig[type];
-            const result: any[] = [];
-            this.tasks[type].forEach((name) => {
-                if (config[name] === false) {
-                    return;
-                }
-                result.push(require(`./${name}`));
-            });
-            return result;
+    public static getBuildTask(type: TaskType) {
+        if (!this.buildTaskMap[type]) {
+            return this.buildTaskMap[type];
         }
-        return this.tasks[type].map((name) => require(`./tasks/${name}`));
+        return this.buildTaskMap[type] = TaskManager.tasks[type].map((name) => require(`./tasks/${name}`));
     }
 
-    public getTaskHandleFromNames(taskNames: string[]) {
+    public static getTaskHandleFromNames(taskNames: string[]) {
         return taskNames.map((name) => require(`./tasks/${name}`));
     }
-}
 
-export const taskManager = new TaskManager();
+    public static getCustomTaskName(name: string) {
+        return 'custom-task' + name;
+    }
+
+    public activeTask(type: TaskType) {
+        this.activeTasks.add(type);
+        return TaskManager.getBuildTask(type);
+    }
+
+    public activeCustomTask(name: string, taskNames: string[]) {
+        const type = TaskManager.getCustomTaskName(name);
+        // 自定义任务如果不可以复用缓存
+        delete TaskManager.tasks[type];
+        this.activeTasks.add(type);
+        return TaskManager.buildTaskMap[type] = TaskManager.getTaskHandleFromNames(taskNames);
+    }
+
+}
