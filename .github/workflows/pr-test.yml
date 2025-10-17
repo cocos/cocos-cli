@@ -7,10 +7,6 @@ on:
   issue_comment:
     types: [created]
 
-concurrency:
-  group: pr-test-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-  cancel-in-progress: true
-
 env:
   HTTP_PROXY: 'http://127.0.0.1:7890'
   HTTPS_PROXY: 'http://127.0.0.1:7890'
@@ -33,12 +29,6 @@ jobs:
             clean: false
             persist-credentials: true
             fetch-depth: 0
-
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.17.0
-          cache: npm
 
       - name: Install dependencies
         run: npm i
