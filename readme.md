@@ -36,27 +36,7 @@ Cocos CLI is a comprehensive command-line interface tool designed for the [Cocos
    cd cocos-cli
    ```
 
-2. **Configure environment**
-
-   Create a `.user.json` file in the root directory:
-
-   ```json
-   {
-     "engine": "/path/to/your/cocos/engine",
-     "project": "/path/to/your/project (optional, defaults to tests directory)"
-   }
-   ```
-
-   Example:
-
-   ```json
-   {
-     "engine": "F:\\code\\editor-3d-dev\\resources\\3d\\engine",
-     "project": "F:\\code\\cocos-cli\\tests\\fixtures\\projects\\asset-operation"
-   }
-   ```
-
-3. **Install dependencies**
+2. **Install dependencies**
 
    ```bash
    npm install
@@ -86,10 +66,23 @@ When installing native modules such as `gl`, the build uses `node-gyp` to compil
 
 After completing the above, run `npm install` again to install dependencies.
 
-4. **Download development tools** (first time only)
+3. **Download development tools** (first time only)
 
    ```bash
    npm run download-tools
+   ```
+
+4. **Link to global (optional, for CLI usage)**
+
+   ```bash
+   # Build the project first
+   npm run build
+   
+   # Link to global
+   npm link
+   
+   # Now you can use 'cocos' command anywhere
+   cocos --help
    ```
 
 5. **Start the application**
@@ -97,11 +90,6 @@ After completing the above, run `npm install` again to install dependencies.
    ```bash
    npm start
    ```
-
-### 📋 Configuration Details
-
-- **`engine`**: Path to your local Cocos Engine installation (required)
-- **`project`**: Path to your test project (optional, defaults to `tests` directory)
 
 ## 🚀 Usage
 
@@ -146,47 +134,57 @@ For development and testing, you have several options:
 
 #### Option 1: Using npm link (Recommended)
 
-1. **Link the package globally:**
+1. **Build the project first:**
+
+   ```bash
+   npm run build
+   ```
+
+2. **Link the package globally:**
 
    ```bash
    npm link
    ```
 
-2. **Now you can use `cocos` command anywhere:**
+3. **Now you can use `cocos` command anywhere:**
 
    ```bash
+   # Test the command
    cocos --help
+   cocos --version
+   
+   # Use all available commands
    cocos build --project ./my-project --platform web-desktop
+   cocos import --project ./my-project
+   cocos info --project ./my-project
+   cocos start-mcp-server --project ./my-project --port 9527
    ```
 
-3. **To unlink when done:**
+4. **To unlink when done:**
 
    ```bash
    npm unlink -g cocos-cli
    ```
 
-#### Option 2: Using npm scripts
+5. **Verify the link:**
+
+   ```bash
+   # Check if the command is available
+   which cocos
+   
+   # Check global packages
+   npm list -g --depth=0 | grep cocos
+   ```
+
+#### Option 2: Direct execution
 
 ```bash
-# Run CLI directly with ts-node
-npm run cli -- --help
-npm run cli -- build --project ./my-project --platform web-desktop
-
-# Build and run compiled version
-npm run cli:build -- --help
-npm run cli:build -- build --project ./my-project --platform web-desktop
-```
-
-#### Option 3: Direct execution
-
-```bash
-# Using ts-node directly
-npx ts-node src/cli.ts --help
-npx ts-node src/cli.ts build --project ./my-project --platform web-desktop
-
-# Using compiled version
-node dist/cli.js --help
-node dist/cli.js build --project ./my-project --platform web-desktop
+# Using compiled version (after npm run build)
+node ./dist/cli.js --help
+node ./dist/cli.js build --project ./my-project --platform web-desktop
+node ./dist/cli.js import --project ./my-project
+node ./dist/cli.js info --project ./my-project
+node ./dist/cli.js start-mcp-server --project ./my-project --port 9527
 ```
 
 ### Testing Commands
@@ -271,10 +269,10 @@ cocos --debug build --project ./my-project --platform web-desktop
    npm run build
    ```
 
-3. **Engine path issues:**
-   - Make sure the engine path is correct and accessible
+3. **Project path issues:**
+   - Make sure the project path is correct and accessible
    - Use absolute paths for better reliability
-   - Check that the engine directory contains the necessary files
+   - Check that the project directory contains the necessary files
 
 #### Debug Mode
 

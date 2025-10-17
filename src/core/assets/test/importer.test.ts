@@ -2,7 +2,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { readJSONSync, remove } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
-import { TestGlobalEnv } from '../../test/global-env';
+import { TestGlobalEnv } from '../../../../tests/global-env';
 
 describe('Import Project', () => {
     beforeAll(async () => {

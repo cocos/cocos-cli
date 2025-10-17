@@ -36,27 +36,7 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
    cd cocos-cli
    ```
 
-2. **配置环境**
-
-   在根目录创建 `.user.json` 文件：
-
-   ```json
-   {
-     "engine": "/path/to/your/cocos/engine",
-     "project": "/path/to/your/project (可选，默认使用 tests 目录)"
-   }
-   ```
-
-   示例：
-
-   ```json
-   {
-     "engine": "F:\\code\\editor-3d-dev\\resources\\3d\\engine",
-     "project": "F:\\code\\cocos-cli\\tests\\fixtures\\projects\\asset-operation"
-   }
-   ```
-
-3. **安装依赖**
+2. **安装依赖**
 
    ```bash
    npm install
@@ -86,49 +66,223 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
 
 完成以上准备后，再执行 `npm install` 安装依赖。
 
-4. **下载开发工具**（首次运行）
+3. **下载开发工具**（首次运行）
 
    ```bash
    npm run download-tools
    ```
 
+4. **链接到全局**（可选，用于 CLI 使用）
+
+   ```bash
+   # 先构建项目
+   npm run build
+   
+   # 链接到全局
+   npm link
+   
+   # 现在可以在任何地方使用 'cocos' 命令
+   cocos --help
+   ```
+
 5. **启动应用**
 
    ```bash
-   npm run start
+   npm start
    ```
-
-### 📋 配置说明
-
-- **`engine`**：本地 Cocos Engine 安装路径（必需）
-- **`project`**：测试项目路径（可选，默认为 `tests` 目录）
 
 ## 🚀 使用方法
 
+### 基本命令
+
 ```bash
-# 初始化新 Cocos 项目
-cocos init my-project
+# 导入/打开 Cocos 项目
+cocos import --project ./my-project
 
-# 导入资源到项目
-cocos import --project ./my-project --source ./assets
+# 构建 Cocos 项目
+cocos build --project ./my-project --platform web-desktop
 
-# 导出项目资源
-cocos export --project ./my-project --config-path ./config.json --output ./exported-assets
+# 显示项目信息
+cocos info --project ./my-project
 
-# 在 Cocos Creator 中打开项目
-cocos open ./my-project
+# 启动 MCP 服务器
+cocos start-mcp-server --project ./my-project --port 9527
+
+# 显示帮助
+cocos --help
+cocos build --help
 ```
+
+> 📖 **详细命令说明**: 查看 [Commands 文档](src/commands/readme.md) 获取完整的命令参数和使用示例。
 
 ## 📚 命令说明
 
-| 命令 | 描述 | 示例 |
-|------|------|------|
-| `init` | 创建新的 Cocos 项目 | `cocos init my-project` |
-| `import` | 导入资源到项目 | `cocos import --project ./my-project --source ./assets` |
-| `export` | 导出项目资源 | `cocos export --project ./my-project --output ./exported-assets` |
-| `open` | 在 Cocos Creator 中打开项目 | `cocos open ./my-project` |
-| `build` | 构建项目用于部署 | `cocos build --platform web-mobile` |
-| `help` | 显示帮助信息 | `cocos help` |
+Cocos CLI 提供以下主要命令：
+
+- **`import`** - 导入/打开 Cocos 项目
+- **`build`** - 构建 Cocos 项目
+- **`info`** - 显示项目信息
+- **`start-mcp-server`** - 启动 MCP 服务器
+
+> 📖 **完整命令文档**: 查看 [Commands 文档](src/commands/readme.md) 获取详细的命令参数、选项和使用示例。
+
+## 🛠️ 开发与测试
+
+### 开发设置
+
+对于开发和测试，你有以下几种选择：
+
+#### 方案一：使用 npm link（推荐）
+
+1. **先构建项目：**
+
+   ```bash
+   npm run build
+   ```
+
+2. **链接到全局：**
+
+   ```bash
+   npm link
+   ```
+
+3. **现在可以在任何地方使用 `cocos` 命令：**
+
+   ```bash
+   # 测试命令
+   cocos --help
+   cocos --version
+   
+   # 使用所有可用命令
+   cocos build --project ./my-project --platform web-desktop
+   cocos import --project ./my-project
+   cocos info --project ./my-project
+   cocos start-mcp-server --project ./my-project --port 9527
+   ```
+
+4. **完成后取消链接：**
+
+   ```bash
+   npm unlink -g cocos-cli
+   ```
+
+5. **验证链接：**
+
+   ```bash
+   # 检查命令是否可用
+   which cocos
+   
+   # 检查全局包
+   npm list -g --depth=0 | grep cocos
+   ```
+
+#### 方案二：直接执行
+
+```bash
+# 使用编译版本（需要先执行 npm run build）
+node ./dist/cli.js --help
+node ./dist/cli.js build --project ./my-project --platform web-desktop
+node ./dist/cli.js import --project ./my-project
+node ./dist/cli.js info --project ./my-project
+node ./dist/cli.js start-mcp-server --project ./my-project --port 9527
+```
+
+### 测试命令
+
+#### 测试基本功能
+
+```bash
+# 测试帮助命令
+cocos --help
+cocos build --help
+cocos import --help
+cocos info --help
+
+# 测试版本
+cocos --version
+```
+
+#### 使用示例项目测试
+
+```bash
+# 测试导入命令
+cocos import --project ./tests/fixtures/projects/asset-operation
+
+# 测试构建命令
+cocos build --project ./tests/fixtures/projects/asset-operation --platform web-desktop
+
+# 测试信息命令
+cocos info --project ./tests/fixtures/projects/asset-operation
+
+# 测试 MCP 服务器
+cocos start-mcp-server --project ./tests/fixtures/projects/asset-operation --port 9527
+```
+
+#### 使用调试模式测试
+
+```bash
+# 启用调试模式获取详细输出
+cocos --debug build --project ./my-project --platform web-desktop
+```
+
+### 开发工作流
+
+1. **修改代码**
+2. **构建项目：**
+
+   ```bash
+   npm run build
+   ```
+
+3. **测试修改：**
+
+   ```bash
+   cocos --help  # 测试命令是否工作
+   ```
+
+4. **运行特定测试：**
+
+   ```bash
+   npm test
+   ```
+
+### 故障排除
+
+#### 常见问题
+
+1. **npm link 后找不到命令：**
+
+   ```bash
+   # 检查链接是否创建
+   npm list -g --depth=0
+   
+   # 如需要重新链接
+   npm unlink -g cocos-cli
+   npm link
+   ```
+
+2. **TypeScript 编译错误：**
+
+   ```bash
+   # 清理并重新构建
+   npm run build:clear
+   npm run build
+   ```
+
+3. **项目路径问题：**
+   - 确保项目路径正确且可访问
+   - 使用绝对路径以获得更好的可靠性
+   - 检查项目目录是否包含必要的文件
+
+#### 调试模式
+
+启用调试模式以获取更详细的输出：
+
+```bash
+cocos --debug build --project ./my-project --platform web-desktop
+```
+
+这将提供额外的日志信息来帮助诊断问题。
 
 ## 🔧 开发工具
 

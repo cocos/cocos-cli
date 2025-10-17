@@ -83,6 +83,9 @@ class AssetConfig {
             globList: this._assetConfig.globList,
             createTemplateRoot: join(this._assetConfig.root, '.creator/templates'),
         });
+        if (!project.path) {
+            throw new Error('Project not found');
+        }
         this._assetConfig.root = project.path;
         const enginePath = Engine.getInfo().typescript.path;
         this._assetConfig.libraryRoot = this._assetConfig.libraryRoot || join(this._assetConfig.root, 'library');

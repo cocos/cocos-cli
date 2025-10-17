@@ -5,6 +5,7 @@ import { McpMiddleware } from '../mcp.middleware';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { EngineLoader } from 'cc/loader';
+import { TestGlobalEnv } from '../../../tests/global-env';
 
 [
     'cc',
@@ -204,8 +205,7 @@ const mcpTestHelper = new MCPTestHelper();
 export async function getClient(): Promise<MCPClient | null> {
     let client = mcpTestHelper.getClient();
     if (!client) {
-        const user = require('../../../.user.json');
-        const { url, client: cli } = await mcpTestHelper.setupTest(user.project);
+        const { url, client: cli } = await mcpTestHelper.setupTest(TestGlobalEnv.projectRoot);
         // 连接客户端
         await cli.connect(url);
         client = cli;
