@@ -4,7 +4,7 @@ const config: Config.InitialOptions = {
     preset: 'ts-jest',
     testEnvironment: 'node',
     rootDir: '..',
-    roots: ['<rootDir>/src/core'],
+    roots: ['<rootDir>/src/core', '<rootDir>/tests'],
     testMatch: [
         '**/__tests__/**/*.+(ts|tsx|js)',
         '**/*.(test|spec).+(ts|tsx|js)'

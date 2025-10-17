@@ -1,7 +1,6 @@
-import { Command } from 'commander';
 import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
-import { projectManager } from '../launcher';
+import { projectManager } from '../core/launcher';
 import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 
 /**

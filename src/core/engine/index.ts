@@ -259,6 +259,9 @@ class EngineManager implements IEngine {
                 'cc/editor/2d-misc',
                 'cc/editor/offline-mappings',
                 'cc/editor/custom-pipeline',
+                'cc/editor/animation-clip-migration',
+                'cc/editor/exotic-animation',
+                'cc/editor/color-utils',
             ]
         });
         await this.initEditorExtensions();

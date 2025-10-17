@@ -2,6 +2,7 @@
 import { ChildProcess, fork, ForkOptions, spawn } from 'child_process';
 import { dirname, join } from 'path';
 import { IQuickSpawnOption } from '../../@types/protected';
+import project from '../../../project';
 import { GlobalPaths } from '../../../../global';
 
 // 获取 CPU 数量，有几个 CPU 就创建几个子进程，这样就可以最大化的利用机器性能
@@ -17,6 +18,7 @@ interface ITask {
     name: string; // 任务名称
     path: string; // 执行的脚本
     lazy?: boolean; // 是否使用时再创建进程
+    options?: ForkOptions;
 }
 
 class ProcessPool {
@@ -83,7 +85,7 @@ class WorkerTask {
     path: string;
     lazy = false;
     busy = false;
-
+    options?: ForkOptions;
     _name: string;
     _method?: string;
 
@@ -133,6 +135,7 @@ class WorkerTask {
         this._name = params.name;
         this.path = params.path;
         this.lazy = params.lazy || false;
+        this.options = params.options;
     }
 
     public async execute(method: string, args?: any[]) {
@@ -167,7 +170,11 @@ class WorkerTask {
             execArgv: WorkerManager.defaultArgv || [],
             stdio: ['ipc', 'pipe', 'pipe', 'pipe'],
             // 进程默认的 cwd 不同系统上不稳定，在编译脚本时可能遇到问题
-            cwd: dirname(GlobalPaths.workspace),
+            cwd: this.options?.cwd || GlobalPaths.workspace,
+            // 确保子进程能够独立运行
+            detached: false,
+            // 确保信号处理正确
+            killSignal: 'SIGTERM',
         });
         child.on('message', (m: ChildProcessMessageInfo) => {
             if (m && m.type === 'execute-script-end') {

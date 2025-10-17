@@ -198,6 +198,9 @@ async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuer
     await workerManager.registerTask({
         name: 'build-engine',
         path: join(__dirname, './build-engine'),
+        options: {
+            cwd: options.entry,
+        },
     });
     console.debug(`Cache is invalid, start build engine with options: ${JSON.stringify(buildOptions, null, 2)}`);
     console.debug(`md5String: ${md5String.split(',').join(',\n')}`);
