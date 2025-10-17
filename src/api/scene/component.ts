@@ -12,7 +12,7 @@ import {
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
+import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, ISetPropertyOptions } from '../../core/scene';
 
 export class ComponentApi extends ApiBase {
@@ -27,13 +27,13 @@ export class ComponentApi extends ApiBase {
     /**
      * 创建组件
      */
-    @tool('scene-create-component')
-    @title('创建组件')
-    @description('创建一个组件添加到节点中')
+    @tool('scene-add-component')
+    @title('添加组件')
+    @description('添加组件到节点中')
     @result(SchemaComponent)
-    async addComponent(@param(SchemaAddComponentInfo) createComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponent>> {
+    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponent>> {
         try {
-            const componentInfo = await Scene.addComponent(createComponentInfo);
+            const componentInfo = await Scene.addComponent(addComponentInfo);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: componentInfo
@@ -51,11 +51,11 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-remove-component')
     @title('移除组件')
-    @description('移除 节点 组件')
+    @description('移除节点组件')
     @result(SchemaBooleanResult)
-    async removeComponent(@param(SchemaComponent) componentInfo: TComponent): Promise<CommonResultType<boolean>> {
+    async removeComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<boolean>> {
         try {
-            const result = await Scene.removeComponent(componentInfo);
+            const result = await Scene.removeComponent(component);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result
