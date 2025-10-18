@@ -1,7 +1,7 @@
 import { Engine, IEngine } from '../index';
 import { join } from 'path';
 import { EngineLoader } from 'cc/loader.js';
-import { TestGlobalEnv } from '../../../../tests/global-env';
+import { TestGlobalEnv } from '../../../tests/global-env';
 
 [
     'cc',

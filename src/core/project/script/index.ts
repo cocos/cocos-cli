@@ -219,11 +219,11 @@ export class Project implements IProject {
     public async open(projectPath: string): Promise<boolean> {
         this._projectPath = projectPath;
         if (!existsSync(projectPath) || !existsSync(this.pkgPath)) {
-            throw new Error('Failed to open project: package.json not found.');
+            throw new Error(`Failed to open project ${projectPath} : package.json not found.`);
         } else {
             const info: ProjectInfo = await readJSON(this.pkgPath);
             if (!this.isValid(info)) {
-                throw new Error('Failed to open project: package.json data error.');
+                throw new Error(`Failed to open project ${projectPath}: package.json data error.`);
             }
             await this.updateInfo(info);
         }

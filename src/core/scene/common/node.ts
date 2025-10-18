@@ -73,7 +73,6 @@ export interface INodeProperties {
     angle: number; // 本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上
     scale: IVec3; // 节点缩放
     worldScale: IVec3; // 节点世界缩放
-    matrix: IMat4; // 节点的本地变换矩阵
     worldMatrix: IMat4; // 节点的世界变换矩阵
     forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
     up: IVec3; // 当前节点在世界空间中朝上的方向向量

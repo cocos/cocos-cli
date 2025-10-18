@@ -195,9 +195,6 @@ export class NodeService extends EventEmitter implements INodeService {
             if (options.worldScale) {
                 node.worldScale = options.worldScale as Vec3;
             }
-            if (options.matrix) {
-                node.matrix = options.matrix as Mat4;
-            }
             if (options.forward) {
                 node.forward = options.forward as Vec3;
             }

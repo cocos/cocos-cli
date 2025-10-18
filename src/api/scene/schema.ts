@@ -1,36 +1,47 @@
 import { z } from 'zod';
+import { NodeQueryResultSchema } from './node-schema';
 
 export const SchemaSceneName = z.string().describe('场景资源名称');
+
 export const SchemaSceneAssetType = z.string().describe('场景资源类型');
-export const SchemaSceneUUID = z.string().describe('场景资源唯一标识符 UUID');
-export const SchemaScenePath = z.string().describe('场景资源文件系统路径（Unix/Windows格式）');
+
+export const SchemaSceneAssetUUID = z.string().describe('场景资源唯一标识符 UUID');
+
 export const SchemaSceneURL = z.string().describe('场景资源使用 db:// 协议格式');
-export const SchemaScenePathOrURL = z.union([SchemaSceneUUID, SchemaScenePath]).describe('场景资源的文件系统路径（Unix/Windows格式）或者 使用 db:// 协议格式');
-export const SchemaSceneTemplateType = z.enum(['2d', '3d', 'quality']).optional().default('2d').describe('场景模板类型')
-export const SchemaUrlOrUUIDOrPath = z.string().min(1).describe('场景资源的 URL、UUID 或文件路径');
+
+export const SchemaSceneUrlOrUUID = z.union([SchemaSceneAssetUUID, SchemaSceneURL]).describe('使用 db:// 协议格式或者 UUID');
+
 const SchemaSceneIdentifier = z.object({
-    path: SchemaScenePath,
-    uuid: SchemaSceneUUID,
+    assetUuid: SchemaSceneAssetUUID,
     url: SchemaSceneURL,
     name: SchemaSceneName,
     type: SchemaSceneAssetType,
 }).describe('场景基础信息');
-const SchemaScene = SchemaSceneIdentifier.extend({
 
+const SchemaScene = SchemaSceneIdentifier.extend({
+    children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
 }).describe('场景信息');
+
 export const SchemaCurrentSceneResult = z.union([SchemaScene, z.null()]).describe('获取当前场景返回数据');
+
 export const SchemaOpenSceneResult = SchemaScene.describe('打开场景操作的结果信息');
+
 export const SchemaCloseSceneResult = z.boolean().describe('关闭场景结果');
+
 export const SchemaSaveSceneResult = z.boolean().describe('保存场景结果');
-export const SchemaSoftReloadScene = z.boolean().describe('软重载场景结果');
+
+export const SchemaSoftReloadScene = SchemaScene.describe('软重载场景结果');
+
 export const SchemaCreateSceneOptions = z.object({
-    targetPathOrURL: SchemaScenePathOrURL,
-    templateType: SchemaSceneTemplateType,
+    baseName: z.string().describe('场景资源名称'),
+    templateType: z.enum(['2d', '3d', 'quality']).optional().default('2d').describe('场景模板类型，默认 2D'),
+    targetDirectory: z.string().describe('目标目录路径，用于存放场景文件'),
 }).describe('创建场景参数');
-export const SchemaCreateSceneResult = SchemaScene.describe('创建场景操作的结果信息');
+
+export const SchemaCreateSceneResult = SchemaSceneIdentifier.describe('创建场景操作的结果信息');
 
 // 类型导出
-export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
+export type TUrlOrUUID = z.infer<typeof SchemaSceneUrlOrUUID>;
 export type TCurrentSceneResult = z.infer<typeof SchemaCurrentSceneResult>;
 export type TOpenSceneResult = z.infer<typeof SchemaOpenSceneResult>;
 export type TCloseSceneResult = z.infer<typeof SchemaCloseSceneResult>;

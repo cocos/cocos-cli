@@ -16,7 +16,6 @@ export const NodePropertySchema = z.object({
     angle: z.number().describe('本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上'),
     scale: Vec3Schema.describe('节点缩放'),
     worldScale: Vec3Schema.describe('节点缩放'),
-    matrix: Mat4Schema.describe('节点的本地变换矩阵'),
     worldMatrix: Mat4Schema.describe('节点的世界变换矩阵'),
     forward: Vec3Schema.describe('节点的前方向向量, 默认前方为 -z 方向'),
     up: Vec3Schema.describe('当前节点在世界空间中朝上的方向向量'),

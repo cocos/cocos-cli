@@ -2,6 +2,8 @@
  * 场景
  */
 
+import { INode } from './node';
+
 /**
  * 场景模板类型
  */
@@ -11,8 +13,8 @@ export type TSceneTemplateType = '2d' | '3d' | 'quality';
  * 场景标识
  */
 export interface ISceneIdentifier {
-    uuid: string;
-    path: string;
+    name: string;
+    assetUuid: string;
     url: string;
     type: string;
 }
@@ -21,14 +23,15 @@ export interface ISceneIdentifier {
  * 场景基础信息
  */
 export interface IScene extends ISceneIdentifier {
-    name: string;
+    children: INode[];
 }
 
 /**
  * 创建场景选项
  */
 export interface ICreateSceneOptions {
-    targetPathOrURL: string;
+    baseName: string;
+    targetDirectory: string;
     templateType?: TSceneTemplateType;
 }
 
@@ -36,28 +39,28 @@ export interface ICreateSceneOptions {
  * 保持场景选项
  */
 export interface ISaveSceneOptions {
-    urlOrUUIDOrPath?: string;
+    urlOrUUID?: string;
 }
 
 /**
  * 打开场景选项
  */
 export interface IOpenSceneOptions {
-    urlOrUUIDOrPath: string;
+    urlOrUUID: string;
 }
 
 /**
  * 软刷新场景选项
  */
 export interface ISoftReloadSceneOptions {
-    urlOrUUIDOrPath?: string;
+    urlOrUUID?: string;
 }
 
 /**
  * 关闭场景选项
  */
 export interface ICloseSceneOptions {
-    urlOrUUIDOrPath?: string;
+    urlOrUUID?: string;
 }
 
 /**
@@ -89,13 +92,13 @@ export interface ISceneService {
      * 软重载场景
      * @param params
      */
-    softReload(params: ISoftReloadSceneOptions): Promise<boolean>;
+    softReload(params: ISoftReloadSceneOptions): Promise<IScene>;
 
     /**
      * 创建新场景
      * @param params
      */
-    create(params: ICreateSceneOptions): Promise<IScene>;
+    create(params: ICreateSceneOptions): Promise<ISceneIdentifier>;
 
     /**
      * 获取当前打开的场景

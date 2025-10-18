@@ -1,6 +1,6 @@
 import { EngineLoader } from 'cc/loader.js';
 import { existsSync, remove } from 'fs-extra';
-import { TestGlobalEnv } from '../../../tests/global-env';
+import { TestGlobalEnv } from '../../tests/global-env';
 import { projectManager } from '../launcher';
 let hasInit = false;
 

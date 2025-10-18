@@ -4,6 +4,7 @@ import {
     IOpenSceneOptions,
     ISaveSceneOptions,
     IScene,
+    ISceneIdentifier,
     ISceneService,
     ISoftReloadSceneOptions
 } from '../../common';
@@ -22,10 +23,10 @@ export const SceneProxy: ISceneService = {
     reload(): Promise<boolean> {
         return Rpc.request('Scene', 'reload');
     },
-    softReload(params: ISoftReloadSceneOptions): Promise<boolean> {
+    softReload(params: ISoftReloadSceneOptions): Promise<IScene> {
         return Rpc.request('Scene', 'softReload', [params]);
     },
-    create(params: ICreateSceneOptions): Promise<IScene> {
+    create(params: ICreateSceneOptions): Promise<ISceneIdentifier> {
         return Rpc.request('Scene', 'create', [params]);
     },
     queryCurrentScene(): Promise<IScene | null> {
