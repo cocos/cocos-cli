@@ -13,7 +13,7 @@ jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
 
 describe('Scene Proxy 测试', () => {
     let createdSceneIdentifier: ISceneIdentifier | null = null;
-    let openSceneInfo: IScene | null = null;
+    // let openSceneInfo: IScene | null = null;
 
     describe('基础场景操作（无依赖）', () => {
         it('getScenes - 获取所有场景', async () => {
