@@ -43,7 +43,9 @@ import {
     TBaseName,
     SchemaRefreshDirResult,
     SchemaCreateAssetByTypeOptions,
-    TCreateAssetByTypeOptions
+    TCreateAssetByTypeOptions,
+    SchemaCreateAssetOptions,
+    TCreateAssetOptions
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
@@ -270,6 +272,29 @@ export class AssetsApi extends ApiBase {
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 
+        return ret;
+    }
+
+    @tool('assets-create-asset')
+    @title('创建资源')
+    @description('根据实际地址和文件内容创建资源')
+    @result(SchemaCreatedAssetResult)
+    async createAsset(
+        @param(SchemaCreateAssetOptions) options: TCreateAssetOptions
+    ): Promise<CommonResultType<TCreatedAssetResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TCreatedAssetResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = await assetManager.createAsset(options);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('create asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
         return ret;
     }
 

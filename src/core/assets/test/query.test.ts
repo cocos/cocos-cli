@@ -228,7 +228,6 @@ describe('测试 db 的查询接口', function () {
 
     describe('query-asset-info 消息接口测试', function () {
         const values = {
-            displayName: 'string',
             file: 'string',
             imported: 'boolean',
             importer: 'string',
@@ -243,7 +242,6 @@ describe('测试 db 的查询接口', function () {
             type: 'string',
             url: 'string',
             uuid: 'string',
-            visible: 'boolean',
         };
         const keys = Object.keys(values);
 

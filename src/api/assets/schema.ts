@@ -133,6 +133,17 @@ export const SchemaCreateAssetByTypeOptions = z.object({
     content: z.union([z.string(), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
 }).optional().describe('按类型创建资源选项');
 
+export const SchemaCreateAssetOptions = z.object({
+    overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
+    rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
+    content: z.union([z.string(), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    target: z.string().describe('资源创建的输出地址，支持绝对路径和 url'),
+    template: z.string().optional().describe('资源文件模板地址，例如 db://xxx/ani，支持 url 与绝对路径'),
+    uuid: z.string().optional().describe('指定 uuid ，由于 uuid 也有概率冲突，uuid 冲突时会自动重新分配 uuid'),
+    userData: z.record(z.string(), SchemaJsonValue).optional().describe('新建资源时指定的一些 userData 默认配置值'),
+    customOptions: z.record(z.string(), SchemaJsonValue).optional().describe('传递一些自定义配置信息，可以在自定义资源处理器内使用'),
+}).describe('创建资源选项');
+
 // 资源导入相关
 export const SchemaSourcePath = z.string().min(1).describe('源文件路径，要导入的资源文件位置');
 
@@ -145,7 +156,7 @@ export const SchemaAssetMetaResult = SchemaAssetMeta.nullable().describe('资源
 export const SchemaCreateMapResult = z.array(SchemaCreateMenuInfo).describe('可创建资源菜单列表');
 export const SchemaAssetInfosResult = z.array(SchemaAssetInfo).describe('资源信息列表');
 export const SchemaAssetDBInfosResult = z.array(SchemaAssetDBInfo).describe('资源数据库信息列表');
-export const SchemaCreatedAssetResult = SchemaAssetInfo.nullable().describe('创建的资源路径');
+export const SchemaCreatedAssetResult = SchemaAssetInfo.nullable().describe('创建的资源信息对象');
 export const SchemaImportedAssetResult = z.array(SchemaAssetInfo).describe('导入的资源信息数组，当导入文件夹时会包含文件夹及其所有子资源的信息');
 export const SchemaReimportResult = z.null().describe('重新导入操作结果（无返回值）');
 export const SchemaSaveAssetResult = SchemaAssetInfo.nullable().describe('保存资源后的资源信息对象');
@@ -169,6 +180,7 @@ export type TAssetInfosResult = z.infer<typeof SchemaAssetInfosResult>;
 export type TAssetDBInfosResult = z.infer<typeof SchemaAssetDBInfosResult>;
 export type TCreatedAssetResult = z.infer<typeof SchemaCreatedAssetResult>;
 export type TCreateAssetByTypeOptions = z.infer<typeof SchemaCreateAssetByTypeOptions>;
+export type TCreateAssetOptions = z.infer<typeof SchemaCreateAssetOptions>;
 export type TImportedAssetResult = z.infer<typeof SchemaImportedAssetResult>;
 export type TReimportResult = z.infer<typeof SchemaReimportResult>;
 export type TSaveAssetResult = z.infer<typeof SchemaSaveAssetResult>;
