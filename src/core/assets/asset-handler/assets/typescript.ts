@@ -1,7 +1,7 @@
-import { Asset } from '@editor/asset-db';
+import { Asset, queryUrl } from '@editor/asset-db';
 import { ensureDirSync, existsSync, outputFileSync, readdirSync, readFile, statSync } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
-import { openCode } from '../utils';
+import { i18nTranslate, openCode } from '../utils';
 // import { dirname, normalize } from 'path';
 // import * as ts from 'typescript';
 import JavascriptHandler from './javascript';
@@ -9,6 +9,8 @@ import { DefaultScriptFileNameCheckConfig, ScriptNameChecker, ScriptNameCheckerM
 import { AssetHandler, ICreateMenuInfo } from '../../@types/protected';
 import assetConfig from '../../asset-config';
 import i18n from '../../../base/i18n';
+import { url2path } from '../../utils';
+import { Engine } from '../../../engine';
 // import { getCompilerOptions } from './utils/ts-utils';
 
 // const enum TypeCheckLevel {
@@ -72,6 +74,73 @@ export const TypeScriptHandler: AssetHandler = {
                 });
             }
             return menu;
+        },
+        async create(options) {
+            const path = url2path(options.template || 'db://internal/default_file_content/typescript/default');
+            if (options.content && typeof options.content !== 'string') {
+                outputFileSync(options.target, options.content, 'utf-8');
+                return options.target;
+            }
+            let content = options.content || await readFile(path, 'utf-8');
+            content = content.replace(ScriptNameChecker.commentsReg, ($0: string) => {
+                if ($0.includes('COMMENTS_GENERATE_IGNORE')) {
+                    return '';
+                }
+                return $0;
+            });
+
+            const FileBasenameNoExtension = basename(options.target, extname(options.target));
+            const scriptNameChecker = await ScriptNameCheckerManager.getScriptChecker(content);
+
+            // 替换模板内的脚本信息
+            const useData = {
+                nickname: 'cocos cli'
+            };
+            const replaceContents: Record<string, string> = {
+                // 获取一个可用的类名
+                Name: ScriptNameChecker.getValidClassName(FileBasenameNoExtension),
+                UnderscoreCaseClassName: ScriptNameChecker.getValidClassName(FileBasenameNoExtension),
+                CamelCaseClassName: scriptNameChecker.getValidCamelCaseClassName(FileBasenameNoExtension),
+                DateTime: new Date().toString(),
+                Author: useData.nickname,
+                FileBasename: basename(options.target),
+                FileBasenameNoExtension,
+                URL: queryUrl(options.target),
+                EditorVersion: Engine.getInfo().version,
+                ManualUrl: 'https://docs.cocos.com/creator/manual/en/scripting/setup.html#custom-script-template',
+            };
+            const classKey = scriptNameChecker.classNameStringFormat.substring(2, scriptNameChecker.classNameStringFormat.length - 2);
+            if (classKey in replaceContents) {
+                let className = replaceContents[classKey];
+                if (!className || !ScriptNameChecker.invalidClassNameReg.test(className)) {
+                    replaceContents.DefaultCamelCaseClassName =
+                        replaceContents.CamelCaseClassName || ScriptNameChecker.getDefaultClassName();
+                    if (!ScriptNameChecker.invalidClassNameReg.test(className)) {
+                        content = content.replace(`@ccclass('<%${classKey}%>')`, `@ccclass('<%DefaultCamelCaseClassName%>')`);
+                        content = content.replace(`class <%${classKey}%>`, `class <%DefaultCamelCaseClassName%>`);
+                    }
+                    className = replaceContents.DefaultCamelCaseClassName;
+                    !replaceContents.CamelCaseClassName &&
+                        console.warn(
+                            i18n.t('engine-extends.importers.script.findClassNameFromFileNameFailed', {
+                                fileBasename: FileBasenameNoExtension,
+                                className,
+                            }),
+                        );
+                }
+
+                if (!replaceContents.CamelCaseClassName) {
+                    if (!replaceContents.Name) {
+                        replaceContents.Name = className;
+                    }
+                    replaceContents.CamelCaseClassName = className;
+                }
+            }
+            Object.keys(replaceContents).forEach((key) => {
+                content = content.replace(new RegExp(`<%${key}%>`, 'g'), replaceContents[key]);
+            });
+            outputFileSync(options.target, content, 'utf-8');
+            return options.target;
         },
         preventDefaultTemplateMenu: true,
     },

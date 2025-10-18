@@ -41,7 +41,9 @@ import {
     TRefreshDirResult,
     SchemaBaseName,
     TBaseName,
-    SchemaRefreshDirResult
+    SchemaRefreshDirResult,
+    SchemaCreateAssetByTypeOptions,
+    TCreateAssetByTypeOptions
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
@@ -252,7 +254,7 @@ export class AssetsApi extends ApiBase {
         @param(SchemaSupportCreateType) ccType: TSupportCreateType,
         @param(SchemaDirOrDbPath) dirOrUrl: TDirOrDbPath,
         @param(SchemaBaseName) baseName: TBaseName,
-        @param(SchemaAssetOperationOption) options?: TAssetOperationOption
+        @param(SchemaCreateAssetByTypeOptions) options?: TCreateAssetByTypeOptions
     ): Promise<CommonResultType<TCreatedAssetResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TCreatedAssetResult> = {

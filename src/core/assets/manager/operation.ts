@@ -140,6 +140,7 @@ class AssetOperation extends EventEmitter {
             target,
             overwrite: options?.overwrite ?? false,
             template: createInfo.template,
+            content: options?.content,
         });
     }
 

@@ -126,6 +126,13 @@ export const SchemaAssetOperationOption = z.object({
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
 }).optional().describe('资源操作选项');
 
+export const SchemaCreateAssetByTypeOptions = z.object({
+    overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
+    rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
+    templateName: z.string().optional().describe('指定的模板名称，默认为 default'),
+    content: z.union([z.string(), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
+}).optional().describe('按类型创建资源选项');
+
 // 资源导入相关
 export const SchemaSourcePath = z.string().min(1).describe('源文件路径，要导入的资源文件位置');
 
@@ -161,6 +168,7 @@ export type TCreateMapResult = z.infer<typeof SchemaCreateMapResult>;
 export type TAssetInfosResult = z.infer<typeof SchemaAssetInfosResult>;
 export type TAssetDBInfosResult = z.infer<typeof SchemaAssetDBInfosResult>;
 export type TCreatedAssetResult = z.infer<typeof SchemaCreatedAssetResult>;
+export type TCreateAssetByTypeOptions = z.infer<typeof SchemaCreateAssetByTypeOptions>;
 export type TImportedAssetResult = z.infer<typeof SchemaImportedAssetResult>;
 export type TReimportResult = z.infer<typeof SchemaReimportResult>;
 export type TSaveAssetResult = z.infer<typeof SchemaSaveAssetResult>;

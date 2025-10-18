@@ -335,6 +335,16 @@ describe('测试 db 的操作接口', function () {
             }
         );
 
+        it('创建 TypeScript 脚本 并传递 content', async () => {
+            const assetInfo = await assetManager.createAssetByType('typescript', databasePath, `${name}.ts`, {
+                content: 'console.log("Hello, World!");',
+            });
+            expect(assetInfo).not.toBeNull();
+            expect(assetInfo!.type).toEqual('cc.Script');
+            const content = readFileSync(assetInfo!.file, 'utf8');
+            expect(content).toEqual('console.log("Hello, World!");');
+        });
+
     });
 
     describe('import-asset', () => {

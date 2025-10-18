@@ -16,34 +16,6 @@ import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
 import { PackerDriver } from '../../scripting/packer-driver';
 
-export interface IPhysicsConfig {
-    gravity: IVec3Like; // （0，-10， 0）
-    allowSleep: boolean; // true
-    sleepThreshold: number; // 0.1，最小 0
-    autoSimulation: boolean; // true
-    fixedTimeStep: number; // 1 / 60 ，最小 0
-    maxSubSteps: number; // 1，最小 0
-    defaultMaterial?: string; // 物理材质 uuid
-    useNodeChains: boolean; // true
-    collisionMatrix: ICollisionMatrix;
-    physicsEngine: string;
-    physX?: {
-        notPackPhysXLibs: boolean;
-        multiThread: boolean;
-        subThreadCount: number;
-        epsilon: number;
-    };
-}
-// 物理配置
-export interface ICollisionMatrix {
-    [x: string]: number;
-}
-export interface IVec3Like {
-    x: number;
-    y: number;
-    z: number;
-}
-
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
     assets: 98,
@@ -72,7 +44,7 @@ interface IWaitingTaskInfo {
 /**
  * 总管理器，管理整个资源进程的启动流程、以及一些子管理器的启动流程
  */
- class AssetDBManager extends EventEmitter {
+class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
     public globalInternalLibrary = false;
 
@@ -287,7 +259,7 @@ interface IWaitingTaskInfo {
         const db = assetdb.create(info);
         this.assetDBMap[info.name] = db;
         db.importerManager.find = async (asset: IAsset) => {
-            let importer = await this.assetHandlerManager.findImporter(asset, true);
+            const importer = await this.assetHandlerManager.findImporter(asset, true);
             if (importer) {
                 return importer;
             }

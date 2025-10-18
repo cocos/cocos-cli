@@ -134,6 +134,11 @@ export interface CreateAssetByTypeOptions extends AssetOperationOption {
      * 指定的模板名称，默认为 default
      */
     templateName?: string;
+
+    /**
+     * 资源内容，当 content 与 template 都传递时，优先使用 content 创建文件
+     */
+    content?: string | Buffer | JSON;
 }
 
 export interface AssetDBOptions {
