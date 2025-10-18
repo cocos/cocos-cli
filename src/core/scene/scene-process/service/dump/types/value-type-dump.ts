@@ -8,7 +8,7 @@ import { DumpInterface } from './dump-interface';
 class ValueTypeDump implements DumpInterface {
     public encode(object: any, data: IProperty, opts?: any): void {
         try {
-            const dump = cce.Utils.serialize(object, { stringify: false, forceInline: true }) as any;
+            const dump = EditorExtends.serialize(object, { stringify: false, forceInline: true }) as any;
             delete dump.__type__;
             data.value = dump;
         } catch (error) {
@@ -16,7 +16,7 @@ class ValueTypeDump implements DumpInterface {
             console.warn(error);
 
             const ctor = opts.ctor;
-            const dump = cce.Utils.serialize(new ctor(), { stringify: false, forceInline: true }) as any;
+            const dump = EditorExtends.serialize(new ctor(), { stringify: false, forceInline: true }) as any;
             delete dump.__type__;
             data.value = dump;
         }

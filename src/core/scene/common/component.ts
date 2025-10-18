@@ -10,22 +10,22 @@ export interface IComponentInfo extends IProperty {
  * 组件信息
  */
 export interface IComponent {
-    uuid: string; // 返回创建组件的uuid
+    path: string; // 返回创建组件的路径，包含节点路径
 }
 
 /**
  * 创建组件
  */
 export interface IAddComponentOptions {
-    uuid: string;// 节点uuid
+    nodePath: string;// 节点uuid
     component: string;// 组件注册到ccclass里的类名
 }
 
 /**
  * 删除组件
  */
-export interface IDeleteComponentOptions {
-    uuid: string;// 节点uuid
+export interface IRemoveComponentOptions {
+    path: string;// 包含节点/组件的路径
 }
 
 
@@ -33,15 +33,15 @@ export interface IDeleteComponentOptions {
  * 查询组件
  */
 export interface IQueryComponentOptions {
-    uuid: string;// 节点uuid
+    path: string;// 包含节点/组件的路径
 }
 
 /**
  * 查询组件
  */
 export interface ISetPropertyOptions {
-    uuid: string; // 修改属性的对象的 uuid
-    path: string; // 属性挂载对象的搜索路径
+    componentPath: string; // 修改属性的对象的 uuid
+    mountPath: string;     // 属性挂载对象的搜索路径
     // key: string; // 属性的 key
     properties: IProperty; // 属性 dump 出来的数据
     record?: boolean;// 是否记录undo
@@ -60,7 +60,7 @@ export interface IComponentService {
      * 删除组件
      * @param params 
      */
-    removeComponent(params: IDeleteComponentOptions): Promise<boolean>;
+    removeComponent(params: IRemoveComponentOptions): Promise<boolean>;
     /**
      * 设置组件属性
      * @param params
@@ -69,5 +69,5 @@ export interface IComponentService {
     /**
      * 查询组件
      */
-    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo>;
+    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null>;
 }

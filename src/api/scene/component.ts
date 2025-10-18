@@ -75,7 +75,7 @@ export class ComponentApi extends ApiBase {
     @title('查询组件')
     @description('查询组件信息')
     @result(SchemaComponentInfoResult)
-    async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentInfoResult>> {
+    async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentInfoResult | null>> {
         try {
             const componentInfo = await Scene.queryComponent(component);
             return {

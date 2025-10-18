@@ -52,7 +52,7 @@ class RealCurveDump implements DumpInterface {
             console.warn(error);
 
             const ctor = opts.ctor;
-            const dump = cce.Utils.serialize(new ctor(), { stringify: false, forceInline: true }) as any;
+            const dump = EditorExtends.serialize(new ctor(), { stringify: false, forceInline: true }) as any;
             delete dump.__type__;
             return dump;
         }

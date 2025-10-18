@@ -3,23 +3,23 @@ import { z } from 'zod';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
-    uuid: z.string().describe('节点UUID'),
+    nodePath: z.string().describe('节点路径'),
     component: z.string().describe('组件名称'),
-}).describe('当前组件的信息');
+}).describe('添加组件的信息');
 
 // 当前组件信息
 export const SchemaComponent = z.object({
-    uuid: z.string().describe('返回组件的 UUID'),
+    path: z.string().describe('返回组件的路径，不包含节点路径'),
 }).describe('当前组件的信息');
 
 // 移除组件
 export const SchemaRemoveComponent = z.object({
-    uuid: z.string().optional().describe('组件的UUID'),
+    path: z.string().optional().describe('组件的路径，不包含节点路径'),
 }).describe('移除组件需要的信息');
 
 // 查询组件
 export const SchemaQueryComponent = z.object({
-    uuid: z.string().optional().describe('组件的UUID'),
+    path: z.string().optional().describe('组件的路径，不包含节点路径'),
 }).describe('查询组件需要的信息');
 
 /**
@@ -43,8 +43,8 @@ export const SchemaProperty = z.object({
 
 // 设置属性选项
 export const SchemaSetPropertyOptions = z.object({
-    uuid: z.string().describe('组件的 UUID'),
-    path: z.string().describe('属性挂载对象的搜索路径'),
+    componentPath: z.string().describe('组件路径名'),
+    mountPath: z.string().describe('属性挂载对象的搜索路径'),
     properties: SchemaProperty.describe('需要修改的属性'),
     record: z.boolean().optional().default(true).describe('是否记录undo'),
 }).describe('设置组件属性的信息');

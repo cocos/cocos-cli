@@ -1,4 +1,4 @@
-import type { IAddComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IDeleteComponentOptions, IQueryComponentOptions } from '../../common';
+import type { IAddComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './dump'
 import { IComponentMenu, IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
@@ -9,9 +9,8 @@ const NodeMgr = EditorExtends.Node;
 import {
     js,
     Component,
-    Constructor,
+    Constructor
 } from 'cc';
-
 
 /**
  * 子进程节点处理器
@@ -19,16 +18,18 @@ import {
  */
 @register('Component')
 export class ComponentService implements IComponentService {
-    private addComponentImpl(uuid: string, componentName: string): Component {
-        if (Array.isArray(uuid)) {
-            uuid.forEach((id) => {
-                this.addComponentImpl(id, componentName);
+    private pathToUuid: Map<string, string> = new Map();
+
+    private addComponentImpl(path: string, componentName: string): IComponent {
+        if (Array.isArray(path)) {
+            path.forEach((p) => {
+                this.addComponentImpl(p, componentName);
             });
             throw new Error('don\'t add component to more than one node at one time');
         }
-        const node = NodeMgr.getNode(uuid);
+        const node = NodeMgr.getNodeByPath(path);
         if (!node) {
-            throw new Error(`create component failed: ${uuid} does not exist`);
+            throw new Error(`create component failed: ${path} does not exist`);
         }
         if (!componentName || componentName.length <= 0) {
             throw new Error(`create component failed: ${componentName} does not exist`);
@@ -43,16 +44,20 @@ export class ComponentService implements IComponentService {
              * 增加编辑器对外 create-component 接口的兼容性
              * getClassById(string) 查不到的时候，再查一次 getClassByName(string)
              */
-            let ctor = js.getClassById(componentName);
+            let ctor = cc.js.getClassById(componentName);
             if (!ctor) {
-                ctor = js.getClassByName(componentName);
+                ctor = cc.js.getClassByName(componentName);
             }
-            if (js.isChildClassOf(ctor, Component)) {
+            if (cc.js.isChildClassOf(ctor, Component)) {
                 comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
             } else {
+                console.log(`ctor with name ${componentName} is not child class of Component `);
                 throw new Error(`ctor with name ${componentName} is not child class of Component `);
             }
-            return comp;
+            const components = node.getComponents(componentName);
+            const path = `${componentName}_${components.length}`;
+            this.pathToUuid.set(path, comp.uuid);
+            return { path: path };
         } catch (error) {
             throw error;
         }
@@ -60,26 +65,36 @@ export class ComponentService implements IComponentService {
 
     @expose()
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
-        const component = await this.addComponentImpl(params.uuid, params.component);
-        return { uuid: component.uuid };
+        const component = await this.addComponentImpl(params.nodePath, params.component);
+        return component;
     }
 
     @expose()
-    async removeComponent(params: IDeleteComponentOptions): Promise<boolean> {
-        const uuid = params.uuid;
+    async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
+        const path = params.path;
+        const uuid = this.pathToUuid.get(path);
+        if (!uuid) {
+            throw new Error(`Remove component failed: ${path} does not exist`);
+        }
         const comp = compMgr.query(uuid);
         if (!comp) {
-            throw new Error(`Remove Component failed: ${uuid} does not exist`);
+            throw new Error(`Remove component failed: ${uuid} does not exist`);
         }
         return compMgr.removeComponent(comp);
     }
 
     @expose()
-    async queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo> {
-        const uuid = params.uuid;
+    async queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null> {
+        const path = params.path;
+        const uuid = this.pathToUuid.get(path);
+        if (!uuid) {
+            console.warn(`Query component failed: ${path} does not exist`);
+            return null;
+        }
         const comp = compMgr.query(uuid);
         if (!comp) {
-            throw new Error(`Remove Component failed: ${uuid} does not exist`);
+            console.warn(`Query component failed: ${uuid} does not exist`);
+            return null;
         }
         return (dumpUtil.dumpComponent(comp as Component));
     }
@@ -110,7 +125,11 @@ export class ComponentService implements IComponentService {
 
     @expose()
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
-        return await this.setPropertyImp(options.uuid, options.path, options.properties);
+        const uuid = this.pathToUuid.get(options.componentPath);
+        if (!uuid) {
+            throw new Error(`Set component property failed: ${options.componentPath} does not exist`);
+        }
+        return await this.setPropertyImp(uuid, options.mountPath, options.properties);
     }
 
     private setPropertyImp(uuid: string, path: string, properties: IProperty, record: boolean = true): boolean {
