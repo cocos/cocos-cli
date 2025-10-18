@@ -45,8 +45,6 @@ async function mockNpmModules() {
     const forceFlag = forceUpdate ? '--force' : '';
     
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
-
-    await utils.runCommand('node', ['./workflow/update-repo.js', forceFlag].filter(Boolean));
     // build web-adapter
     await utils.runCommand('node', ['./workflow/build-adapter.js', forceFlag].filter(Boolean));
     // compiler engine
@@ -60,5 +58,5 @@ async function mockNpmModules() {
 }
 
 mockNpmModules().then(() => {
-    console.log('\n🎉所有模块构建完成！');
+    console.log('\n🎉所有模块构建完成！\n');
 });

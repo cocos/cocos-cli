@@ -40,6 +40,7 @@ Cocos CLI is a comprehensive command-line interface tool designed for the [Cocos
 2. **Install dependencies**
 
    ```bash
+   npm run init
    npm install
    ```
 

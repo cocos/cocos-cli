@@ -40,8 +40,9 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
    ```
 
 2. **安装依赖**
-
+   
    ```bash
+   npm run init
    npm install
    ```
 

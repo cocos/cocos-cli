@@ -23,6 +23,7 @@
         ]
     },
     "scripts": {
+        "init": "node workflow/init.js",
         "clear": "node workflow/clear.js",
         "update:repos": "node workflow/update-repo.js",
         "test": "jest --config jest/jest.config.core.ts && jest --config jest/jest.config.mcp.ts",
