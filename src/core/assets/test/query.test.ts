@@ -3,7 +3,7 @@
 import { basename } from 'path';
 import { assetManager, assetDBManager } from '..';
 import { globalSetup } from '../../test/global-setup';
-import { TestGlobalEnv } from '../../../../tests/global-env';
+import { TestGlobalEnv } from '../../../tests/global-env';
 import assetOperation from '../manager/operation';
 import { ICreateMenuInfo } from '../@types/protected';
 

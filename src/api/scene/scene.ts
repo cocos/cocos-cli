@@ -1,20 +1,20 @@
 import { ApiBase } from '../base/api-base';
 import {
-    SchemaScenePathOrURL,
     SchemaOpenSceneResult,
     SchemaCloseSceneResult,
     SchemaSaveSceneResult,
     SchemaCreateSceneOptions,
     SchemaCreateSceneResult,
     SchemaCurrentSceneResult,
-    TUrlOrUUIDOrPath,
+    SchemaSceneUrlOrUUID,
+    TUrlOrUUID,
     TOpenSceneResult,
     TCloseSceneResult,
     TSaveSceneResult,
     TCreateSceneOptions,
     TCreateSceneResult,
     TCurrentSceneResult,
-    TSoftReloadScene,
+    TSoftReloadScene, SchemaSoftReloadScene,
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
@@ -62,9 +62,9 @@ export class SceneApi extends ApiBase {
     @title('打开场景')
     @description('打开 Cocos Creator 项目中的指定场景文件。加载场景数据到内存中，使其成为当前活动场景。只需要提供场景名称即可。')
     @result(SchemaOpenSceneResult)
-    async openScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TOpenSceneResult>> {
+    async openScene(@param(SchemaSceneUrlOrUUID) urlOrUUID: TUrlOrUUID): Promise<CommonResultType<TOpenSceneResult>> {
         try {
-            const data = await Scene.open({ urlOrUUIDOrPath });
+            const data = await Scene.open({ urlOrUUID: urlOrUUID });
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
@@ -82,9 +82,9 @@ export class SceneApi extends ApiBase {
     @title('关闭场景')
     @description('关闭当前活动的场景，清理场景相关的内存资源。关闭前会提示保存未保存的更改。')
     @result(SchemaCloseSceneResult)
-    async closeScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath?: TUrlOrUUIDOrPath): Promise<CommonResultType<TCloseSceneResult>> {
+    async closeScene(): Promise<CommonResultType<TCloseSceneResult>> {
         try {
-            const data = await Scene.close({ urlOrUUIDOrPath });
+            const data = await Scene.close({});
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
@@ -102,9 +102,9 @@ export class SceneApi extends ApiBase {
     @title('保存场景')
     @description('保存当前活动场景的所有更改到磁盘。包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。')
     @result(SchemaSaveSceneResult)
-    async saveScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath?: TUrlOrUUIDOrPath): Promise<CommonResultType<TSaveSceneResult>> {
+    async saveScene(): Promise<CommonResultType<TSaveSceneResult>> {
         try {
-            const data = await Scene.save({ urlOrUUIDOrPath });
+            const data = await Scene.save({});
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
@@ -120,12 +120,13 @@ export class SceneApi extends ApiBase {
 
     @tool('scene-create-scene')
     @title('创建场景')
-    @description('在 Cocos Creator 项目中创建新的场景文件。可以选择不同的场景模板（2D、3D、高质量）。自动生成场景的 UUID 和 .meta 文件，并注册到资源数据库中。')
+    @description('在项目中创建新的场景文件。可以选择不同的场景模板（2D、3D、高质量）。自动生成场景的 UUID 和 .meta 文件，并注册到资源数据库中。')
     @result(SchemaCreateSceneResult)
     async createScene(@param(SchemaCreateSceneOptions) options: TCreateSceneOptions): Promise<CommonResultType<TCreateSceneResult>> {
         try {
             const data = await Scene.create({
-                targetPathOrURL: options.targetPathOrURL,
+                baseName: options.baseName,
+                targetDirectory: options.dbURL,
                 templateType: options.templateType as TSceneTemplateType
             });
             return {
@@ -143,13 +144,11 @@ export class SceneApi extends ApiBase {
 
     @tool('scene-soft-reload-scene')
     @title('重新加载场景')
-    @description('在 Cocos Creator 项目中重新加载场景')
-    @result(SchemaCreateSceneResult)
-    async reloadScene(@param(SchemaScenePathOrURL) urlOrUUIDOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TSoftReloadScene>> {
+    @description('重新加载场景，可在添加脚本时使用')
+    @result(SchemaSoftReloadScene)
+    async reloadScene(): Promise<CommonResultType<TSoftReloadScene>> {
         try {
-            const data = await Scene.softReload({
-                urlOrUUIDOrPath: urlOrUUIDOrPath,
-            });
+            const data = await Scene.softReload({});
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: data,

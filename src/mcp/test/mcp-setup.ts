@@ -5,7 +5,7 @@ import { McpMiddleware } from '../mcp.middleware';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { EngineLoader } from 'cc/loader';
-import { TestGlobalEnv } from '../../../tests/global-env';
+import { TestGlobalEnv } from '../../tests/global-env';
 
 [
     'cc',

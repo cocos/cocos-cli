@@ -165,6 +165,37 @@ export const SchemaUUIDResult = z.string().nullable().describe('资源的唯一�
 export const SchemaPathResult = z.string().nullable().describe('资源的文件系统路径');
 export const SchemaUrlResult = z.string().nullable().describe('资源的数据库 URL 地址');
 
+// 资源操作相关
+export const SchemaQueryAssetType = z.enum(['asset', 'script', 'all']).describe('查询资源类型：asset(普通资源)、script(脚本)、all(全部)');
+export const SchemaFilterPluginOptions = z.object({
+    loadPluginInEditor: z.boolean().optional().describe('是否在编辑器中加载插件'),
+    loadPluginInWeb: z.boolean().optional().describe('是否在 Web 平台加载插件'),
+    loadPluginInNative: z.boolean().optional().describe('是否在原生平台加载插件'),
+    loadPluginInMiniGame: z.boolean().optional().describe('是否在小游戏平台加载插件'),
+}).optional().describe('插件筛选选项');
+
+export const SchemaPluginScriptInfo = z.object({
+    uuid: z.string().describe('插件脚本的 UUID'),
+    file: z.string().describe('插件脚本的文件路径'),
+    url: z.string().describe('插件脚本的 URL 地址'),
+}).describe('插件脚本信息');
+
+export const SchemaAssetMoveOptions = z.object({
+    overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
+    rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
+}).optional().describe('资源移动选项');
+
+export const SchemaAssetRenameOptions = z.object({
+    overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
+    rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
+}).optional().describe('资源重命名选项');
+
+export const SchemaUpdateUserDataOptions = z.object({
+    handler: z.string().describe('资源处理器名称'),
+    key: z.string().describe('要更新的配置键名'),
+    value: z.any().describe('要设置的配置值'),
+}).describe('更新用户数据选项');
+
 export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
@@ -191,3 +222,9 @@ export type TRefreshDirResult = z.infer<typeof SchemaRefreshDirResult>;
 export type TUUIDResult = z.infer<typeof SchemaUUIDResult>;
 export type TPathResult = z.infer<typeof SchemaPathResult>;
 export type TUrlResult = z.infer<typeof SchemaUrlResult>;
+export type TQueryAssetType = z.infer<typeof SchemaQueryAssetType>;
+export type TFilterPluginOptions = z.infer<typeof SchemaFilterPluginOptions>;
+export type TPluginScriptInfo = z.infer<typeof SchemaPluginScriptInfo>;
+export type TAssetMoveOptions = z.infer<typeof SchemaAssetMoveOptions>;
+export type TAssetRenameOptions = z.infer<typeof SchemaAssetRenameOptions>;
+export type TUpdateUserDataOptions = z.infer<typeof SchemaUpdateUserDataOptions>;

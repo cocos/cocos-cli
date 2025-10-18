@@ -51,8 +51,21 @@ import {
     SchemaUrlResult,
     TUUIDResult,
     TPathResult,
-    TUrlResult
+    TUrlResult,
+    SchemaQueryAssetType,
+    SchemaFilterPluginOptions,
+    SchemaPluginScriptInfo,
+    SchemaAssetMoveOptions,
+    SchemaAssetRenameOptions,
+    SchemaUpdateUserDataOptions,
+    TQueryAssetType,
+    TFilterPluginOptions,
+    TPluginScriptInfo,
+    TAssetMoveOptions,
+    TAssetRenameOptions,
+    TUpdateUserDataOptions
 } from './schema';
+import { z } from 'zod';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { assetDBManager, assetManager } from '../../core/assets';
@@ -455,6 +468,204 @@ export class AssetsApi extends ApiBase {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query URL fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源依赖
+     */
+    @tool('assets-query-asset-dependencies')
+    @title('查询资源依赖')
+    @description('查询指定资源所依赖的其他资源列表。支持查询普通资源依赖、脚本依赖或全部依赖。')
+    @result(z.array(z.string()).describe('依赖资源的 UUID 列表'))
+    async queryAssetDependencies(
+        @param(SchemaUrlOrUUIDOrPath) uuidOrUrl: TUrlOrUUIDOrPath,
+        @param(SchemaQueryAssetType) type: TQueryAssetType = 'asset'
+    ): Promise<CommonResultType<string[]>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<string[]> = {
+            code: code,
+            data: [],
+        };
+
+        try {
+            ret.data = await assetManager.queryAssetDependencies(uuidOrUrl, type);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query asset dependencies fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源使用者
+     */
+    @tool('assets-query-asset-users')
+    @title('查询资源使用者')
+    @description('查询使用指定资源的其他资源列表。支持查询普通资源使用者、脚本使用者或全部使用者。')
+    @result(z.array(z.string()).describe('使用该资源的资源 UUID 列表'))
+    async queryAssetUsers(
+        @param(SchemaUrlOrUUIDOrPath) uuidOrUrl: TUrlOrUUIDOrPath,
+        @param(SchemaQueryAssetType) type: TQueryAssetType = 'asset'
+    ): Promise<CommonResultType<string[]>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<string[]> = {
+            code: code,
+            data: [],
+        };
+
+        try {
+            ret.data = await assetManager.queryAssetUsers(uuidOrUrl, type);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query asset users fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询排序后的插件脚本
+     */
+    @tool('assets-query-sorted-plugins')
+    @title('查询排序后的插件脚本')
+    @description('查询项目中所有插件脚本的排序列表。支持按平台筛选插件脚本。')
+    @result(z.array(SchemaPluginScriptInfo).describe('插件脚本信息列表'))
+    async querySortedPlugins(
+        @param(SchemaFilterPluginOptions) filterOptions: TFilterPluginOptions = {}
+    ): Promise<CommonResultType<TPluginScriptInfo[]>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TPluginScriptInfo[]> = {
+            code: code,
+            data: [],
+        };
+
+        try {
+            ret.data = assetManager.querySortedPlugins(filterOptions);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query sorted plugins fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 重命名资源
+     */
+    @tool('assets-rename-asset')
+    @title('重命名资源')
+    @description('重命名指定的资源文件。支持重命名文件和文件夹，可选择是否覆盖或自动重命名。')
+    @result(SchemaAssetInfoResult)
+    async renameAsset(
+        @param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath,
+        @param(SchemaUrlOrUUIDOrPath) target: TUrlOrUUIDOrPath,
+        @param(SchemaAssetRenameOptions) options: TAssetRenameOptions = {}
+    ): Promise<CommonResultType<TAssetInfoResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TAssetInfoResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = await assetManager.renameAsset(source, target, options);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('rename asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 移动资源
+     */
+    @tool('assets-move-asset')
+    @title('移动资源')
+    @description('将资源从源位置移动到目标位置。支持移动文件和文件夹，可选择是否覆盖或自动重命名。')
+    @result(SchemaAssetInfoResult)
+    async moveAsset(
+        @param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath,
+        @param(SchemaUrlOrUUIDOrPath) target: TUrlOrUUIDOrPath,
+        @param(SchemaAssetMoveOptions) options: TAssetMoveOptions = {}
+    ): Promise<CommonResultType<TAssetInfoResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TAssetInfoResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = await assetManager.moveAsset(source, target, options);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('move asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 更新默认用户数据
+     */
+    @tool('assets-update-default-user-data')
+    @title('更新默认用户数据')
+    @description('更新指定资源处理器的默认用户数据配置。用于修改资源的默认导入设置。')
+    @result(z.null().describe('更新操作结果（无返回值）'))
+    async updateDefaultUserData(
+        @param(SchemaUpdateUserDataOptions) options: TUpdateUserDataOptions
+    ): Promise<CommonResultType<null>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<null> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            await assetManager.updateDefaultUserData(options.handler, options.key, options.value);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('update default user data fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源用户数据配置
+     */
+    @tool('assets-query-asset-user-data-config')
+    @title('查询资源用户数据配置')
+    @description('查询指定资源的用户数据配置信息。返回资源的导入配置和用户自定义数据。')
+    @result(z.any().nullable().describe('资源用户数据配置对象'))
+    async queryAssetUserDataConfig(
+        @param(SchemaUrlOrUUIDOrPath) urlOrUuidOrPath: TUrlOrUUIDOrPath
+    ): Promise<CommonResultType<any>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<any> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            const asset = assetManager.queryAsset(urlOrUuidOrPath);
+            if (asset) {
+                ret.data = await assetManager.queryAssetUserDataConfig(asset);
+            }
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query asset user data config fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 

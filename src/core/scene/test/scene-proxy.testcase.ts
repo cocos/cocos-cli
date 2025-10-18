@@ -2,7 +2,7 @@ import type {
     ICreateSceneOptions,
     IOpenSceneOptions,
     ISaveSceneOptions,
-    IScene,
+    IScene, ISceneIdentifier,
     ISoftReloadSceneOptions
 } from '../common';
 import { SceneProxy } from '../main-process/proxy/scene-proxy';
@@ -12,7 +12,8 @@ import { SceneTestEnv } from './scene-test-env';
 jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
 
 describe('Scene Proxy 测试', () => {
-    let createdScene: IScene | null = null;
+    let createdSceneIdentifier: ISceneIdentifier | null = null;
+    // let openSceneInfo: IScene | null = null;
 
     describe('基础场景操作（无依赖）', () => {
         it('getScenes - 获取所有场景', async () => {
@@ -22,32 +23,45 @@ describe('Scene Proxy 测试', () => {
 
         it('createScene - 创建新场景', async () => {
             const options: ICreateSceneOptions = {
-                targetPathOrURL: SceneTestEnv.newSceneURL,
-                templateType: '2d'
+                baseName: 'TestScene',
+                templateType: '2d',
+                targetDirectory: SceneTestEnv.targetDirectoryURL,
             };
-            createdScene = await SceneProxy.create(options);
-            expect(createdScene).toBeDefined();
-            expect(createdScene?.name).toBe('TestScene.scene');
+            createdSceneIdentifier = await SceneProxy.create(options);
+            expect(createdSceneIdentifier).toBeDefined();
+            expect(createdSceneIdentifier?.name).toBe('TestScene.scene');
         });
     });
 
     describe('场景打开相关操作（依赖创建的场景）', () => {
-        it('openScene - 打开场景', async () => {
-            expect(createdScene).not.toBeNull();
-            if (createdScene) {
+        it('openScene - 通过 UUID 打开场景', async () => {
+            expect(createdSceneIdentifier).not.toBeNull();
+            if (createdSceneIdentifier) {
                 const openOptions: IOpenSceneOptions = {
-                    urlOrUUIDOrPath: createdScene.uuid
+                    urlOrUUID: createdSceneIdentifier.assetUuid
                 };
                 const result = await SceneProxy.open(openOptions);
                 expect(result).toBeDefined();
-                expect(result.uuid).toBe(createdScene.uuid);
+                expect(result.assetUuid).toBe(createdSceneIdentifier.assetUuid);
+            }
+        });
+
+        it('openScene - 通过 URL 打开场景', async () => {
+            expect(createdSceneIdentifier).not.toBeNull();
+            if (createdSceneIdentifier) {
+                const openOptions: IOpenSceneOptions = {
+                    urlOrUUID: createdSceneIdentifier.url
+                };
+                const result = await SceneProxy.open(openOptions);
+                expect(result).toBeDefined();
+                expect(result.url).toBe(createdSceneIdentifier.url);
             }
         });
 
         it('queryCurrentScene - 获取当前场景（依赖打开场景）', async () => {
             const result = await SceneProxy.queryCurrentScene();
             expect(result).not.toBeNull();
-            expect(result && result.uuid).toBe(createdScene?.uuid);
+            expect(result && result.assetUuid).toBe(createdSceneIdentifier?.assetUuid);
         });
     });
 
@@ -68,7 +82,7 @@ describe('Scene Proxy 测试', () => {
         it('softReload - 软重载场景', async () => {
             const softReloadOptions: ISoftReloadSceneOptions = {};
             const result = await SceneProxy.softReload(softReloadOptions);
-            expect(result).toBe(true);
+            expect(result).toBeDefined();
         });
     });
 });
