@@ -30,6 +30,10 @@ export class NodeService extends EventEmitter implements INodeService {
 
     @expose()
     async createNode(params: ICreateNodeParams): Promise<INode | null> {
+        const currentScene = cc.director.getScene();
+        if (!currentScene) {
+            throw new Error('Failed to create node: the scene is not opened.');
+        }
         if (!this._nodeConfigJson) {
             const serializeJSON = await readFile("src/core/scene/common/node-config.json", 'utf8');
             this._nodeConfigJson = JSON.parse(serializeJSON);
@@ -57,6 +61,9 @@ export class NodeService extends EventEmitter implements INodeService {
             }
         }
         let parent = NodeMgr.getNodeByPath(params.path);
+        if (!parent) {
+            parent = currentScene;
+        }
         let resultNode;
         if (assetUuid) {
             const { node, canvasRequired } = await createNodeByAsset({
