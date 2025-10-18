@@ -45,7 +45,7 @@ import {
     SchemaCreateAssetByTypeOptions,
     TCreateAssetByTypeOptions,
     SchemaCreateAssetOptions,
-    TCreateAssetOptions
+    TCreateAssetOptions,
     SchemaUUIDResult,
     SchemaPathResult,
     SchemaUrlResult,
