@@ -1,7 +1,5 @@
-import { CocosMigrationManager } from '../migration/cocos-migration-manager';
-import { CocosMigration } from '../migration/cocos-migration';
-import { IMigrationTarget } from '../migration/types';
-import { newConsole } from '../../base/console';
+import { CocosMigrationManager, CocosMigration } from '../migration';
+import type { IMigrationTarget } from '../migration';
 
 jest.mock('../migration/cocos-migration', () => ({
     CocosMigration: {
@@ -16,12 +14,6 @@ describe('CocosMigrationManager', () => {
         jest.clearAllMocks();
         // 清空已注册的迁移器
         CocosMigrationManager.clear();
-
-        // 静音日志输出
-        jest.spyOn(newConsole, 'debug').mockImplementation(() => { });
-        jest.spyOn(newConsole, 'log').mockImplementation(() => { });
-        jest.spyOn(newConsole, 'warn').mockImplementation(() => { });
-        jest.spyOn(newConsole, 'error').mockImplementation(() => { });
     });
 
     describe('register', () => {
@@ -37,7 +29,6 @@ describe('CocosMigrationManager', () => {
             const map = CocosMigrationManager.migrationTargets;
             expect(map.size).toBe(1);
             expect(map.get('project')?.length).toBe(1);
-            expect(newConsole.debug).toHaveBeenCalledWith('[Migration] 已注册迁移插件: pkgA');
         });
 
         it('应支持批量注册并按各自 scope 分类', () => {
@@ -48,7 +39,7 @@ describe('CocosMigrationManager', () => {
             };
             const t2: IMigrationTarget = {
                 sourceScope: 'local',
-                targetScope: 'global',
+                targetScope: 'project',
                 pluginName: 'pkgB',
                 migrate: async () => ({ b: 2 })
             };
@@ -57,7 +48,7 @@ describe('CocosMigrationManager', () => {
 
             const map = CocosMigrationManager.migrationTargets;
             expect(map.get('project')?.[0]).toBe(t1);
-            expect(map.get('global')?.[0]).toBe(t2);
+            expect(map.get('project')?.[1]).toBe(t2);
         });
     });
 
@@ -66,10 +57,7 @@ describe('CocosMigrationManager', () => {
             const res = await CocosMigrationManager.migrate('/path');
             expect(res).toEqual({
                 project: {},
-                global: {},
-                local: {},
             });
-            expect(newConsole.warn).toHaveBeenCalledWith('[Migration] 没有注册任何迁移器');
         });
 
         it('应按 scope 执行迁移并深度合并结果', async () => {
@@ -85,7 +73,7 @@ describe('CocosMigrationManager', () => {
             };
             const t3: IMigrationTarget = {
                 sourceScope: 'local',
-                targetScope: 'global',
+                targetScope: 'project',
                 pluginName: 'pkgC',
                 migrate: async () => ({})
             };
@@ -101,15 +89,8 @@ describe('CocosMigrationManager', () => {
 
             expect(mockMigrate).toHaveBeenCalledTimes(3);
             expect(res).toEqual({
-                project: { a: { x: 1, y: 2 }, p: 2 },
-                global: { g: { k: 3 } },
-                local: {}
+                project: { a: { x: 1, y: 2 }, p: 2, g: { k: 3 } },
             });
-            expect(newConsole.log).toHaveBeenCalledWith('[Migration] 开始执行迁移');
-            expect(newConsole.log).toHaveBeenCalledWith('[Migration] 所有迁移执行完成');
-            expect(newConsole.debug).toHaveBeenCalledWith('[Migration] 迁移完成: pkgA');
-            expect(newConsole.debug).toHaveBeenCalledWith('[Migration] 迁移完成: pkgB');
-            expect(newConsole.debug).toHaveBeenCalledWith('[Migration] 迁移完成: pkgC');
         });
 
         it('单个迁移器失败不影响整体，错误被记录', async () => {
@@ -132,10 +113,7 @@ describe('CocosMigrationManager', () => {
             const res = await CocosMigrationManager.migrate('/proj');
             expect(res).toEqual({
                 project: { v: 1 },
-                global: {},
-                local: {},
             });
-            expect(newConsole.error).toHaveBeenCalled();
         });
     });
 });

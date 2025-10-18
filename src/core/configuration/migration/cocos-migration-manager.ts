@@ -58,11 +58,7 @@ export class CocosMigrationManager {
      * @returns 迁移后的新配置
      */
     public static async migrate(projectPath: string): Promise<Record<CocosCLIConfigScope, Record<string, any>>> {
-        const result: Record<CocosCLIConfigScope, Record<string, any>> = {
-            global: {},
-            local: {},
-            project: {},
-        };
+        const result: Record<CocosCLIConfigScope, Record<string, any>> = CocosMigrationManager.createConfigList();
         if (this._targets.size === 0) {
             newConsole.warn('[Migration] 没有注册任何迁移器');
             return result;
@@ -94,5 +90,15 @@ export class CocosMigrationManager {
     public static clear(): void {
         this._targets.clear();
         newConsole.debug('[Migration] 已清空所有迁移器');
+    }
+
+    /**
+     * 生成新的配置
+     * @private
+     */
+    private static createConfigList(): Record<CocosCLIConfigScope, Record<string, any>> {
+        return {
+            project: {},
+        };
     }
 }
