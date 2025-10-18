@@ -157,7 +157,6 @@ export class NodeService extends EventEmitter implements INodeService {
             return null;
         }
         if (params.name && params.name !== node.name) {
-            const oldName = node.name;
             NodeMgr.updateNodeName(node.uuid, params.name);
         }
         if (params.properties) {
@@ -320,7 +319,6 @@ export class NodeService extends EventEmitter implements INodeService {
                 if (workMode === '2d') {
                     canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
                 }
-
 
                 const canvasAsset = await loadAny<Prefab>(canvasAssetUuid);
                 canvasNode = cc.instantiate(canvasAsset) as Node;

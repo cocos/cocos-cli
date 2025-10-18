@@ -773,6 +773,6 @@ async function afterStartDB() {
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
     await startAutoGenEffectBin();
 
-    PackerDriver.getInstance().resetDatabases();
-    PackerDriver.getInstance().build();
+    await PackerDriver.getInstance().resetDatabases();
+    await PackerDriver.getInstance().build();
 }
