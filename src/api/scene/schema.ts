@@ -35,7 +35,7 @@ export const SchemaSoftReloadScene = SchemaScene.describe('软重载场景结果
 export const SchemaCreateSceneOptions = z.object({
     baseName: z.string().describe('场景资源名称'),
     templateType: z.enum(['2d', '3d', 'quality']).optional().default('2d').describe('场景模板类型，默认 2D'),
-    targetDirectory: z.string().describe('目标目录路径，用于存放场景文件'),
+    dbURL: z.string().describe('目标目录 URL（db://assets/xxx 格式），用于存放场景文件'),
 }).describe('创建场景参数');
 
 export const SchemaCreateSceneResult = SchemaSceneIdentifier.describe('创建场景操作的结果信息');
