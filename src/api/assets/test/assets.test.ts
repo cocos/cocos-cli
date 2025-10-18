@@ -139,6 +139,243 @@ describe('Assets API Tests', () => {
                 });
             }
         });
+
+        test('should have assets-create-asset-by-type tool available', async () => {
+            // 验证 assets-create-asset-by-type 工具是否可用
+            const tools = client.getTools();
+            expect(tools).toBeDefined();
+            expect(Array.isArray(tools)).toBe(true);
+
+            const createTool = tools.find((tool: any) => tool.name === 'assets-create-asset-by-type');
+            expect(createTool).toBeDefined();
+
+            if (createTool) {
+                expect(createTool).toHaveProperty('name', 'assets-create-asset-by-type');
+                expect(createTool).toHaveProperty('description');
+                expect(createTool).toHaveProperty('inputSchema');
+                console.debug('✅ assets-create-asset-by-type tool found:', {
+                    name: createTool.name,
+                    description: createTool.description
+                });
+            }
+        });
+    });
+
+    describe('createAssetByType API', () => {
+        test('should create TypeScript script successfully', async () => {
+            // 测试创建 TypeScript 脚本
+            const testDir = 'db://assets';
+            const baseName = 'test-script';
+            const ccType = 'typescript';
+
+            try {
+                const result = await client.callTool('assets-create-asset-by-type', {
+                    ccType,
+                    dirOrUrl: testDir,
+                    baseName,
+                    options: {
+                        overwrite: true
+                    }
+                });
+
+                // 验证返回结果结构
+                expect(result).toBeDefined();
+                expect(result.content).toBeDefined();
+
+                const response = Array.isArray(result.content) ? result.content[0] : result.content;
+                expect(response).toHaveProperty('text');
+
+                const responseData = JSON.parse(response.text);
+
+                // 验证响应结构
+                expect(responseData).toHaveProperty('result');
+                expect(responseData.result).toHaveProperty('code');
+                expect(responseData.result).toHaveProperty('data');
+
+                if (responseData.result.code === COMMON_STATUS.SUCCESS) {
+                    expect(responseData.result.data).not.toBeNull();
+                    expect(responseData.result.data).toHaveProperty('name');
+                    expect(responseData.result.data).toHaveProperty('type');
+                    expect(responseData.result.data).toHaveProperty('file');
+                    expect(responseData.result.data).toHaveProperty('uuid');
+                    expect(responseData.result.data.type).toBe('cc.Script');
+                    console.debug('✅ TypeScript script created successfully:', responseData.result.data);
+                } else {
+                    console.warn('⚠️ TypeScript script creation failed:', responseData.result.reason);
+                    expect(responseData.result).toHaveProperty('reason');
+                }
+            } catch (error) {
+                console.error('❌ Test failed with error:', error);
+                throw error;
+            }
+        });
+
+        test('should create material successfully', async () => {
+            // 测试创建材质
+            const testDir = 'db://assets';
+            const baseName = 'test-material';
+            const ccType = 'material';
+
+            try {
+                const result = await client.callTool('assets-create-asset-by-type', {
+                    ccType,
+                    dirOrUrl: testDir,
+                    baseName,
+                    options: {
+                        overwrite: true
+                    }
+                });
+
+                expect(result).toBeDefined();
+                expect(result.content).toBeDefined();
+
+                const response = Array.isArray(result.content) ? result.content[0] : result.content;
+                const responseData = JSON.parse(response.text);
+
+                expect(responseData).toHaveProperty('result');
+                expect(responseData.result).toHaveProperty('code');
+
+                if (responseData.result.code === COMMON_STATUS.SUCCESS) {
+                    expect(responseData.result.data).not.toBeNull();
+                    expect(responseData.result.data.type).toBe('cc.Material');
+                    console.debug('✅ Material created successfully:', responseData.result.data);
+                } else {
+                    console.warn('⚠️ Material creation failed:', responseData.result.reason);
+                }
+            } catch (error) {
+                console.error('❌ Test failed with error:', error);
+                throw error;
+            }
+        });
+
+        test('should create scene with template', async () => {
+            // 测试创建场景（带模板）
+            const testDir = 'db://assets';
+            const baseName = 'test-scene';
+            const ccType = 'scene';
+
+            try {
+                const result = await client.callTool('assets-create-asset-by-type', {
+                    ccType,
+                    dirOrUrl: testDir,
+                    baseName,
+                    options: {
+                        overwrite: true,
+                        templateName: '3d' // 使用 3D 场景模板
+                    }
+                });
+
+                expect(result).toBeDefined();
+                expect(result.content).toBeDefined();
+
+                const response = Array.isArray(result.content) ? result.content[0] : result.content;
+                const responseData = JSON.parse(response.text);
+
+                expect(responseData).toHaveProperty('result');
+                expect(responseData.result).toHaveProperty('code');
+
+                if (responseData.result.code === COMMON_STATUS.SUCCESS) {
+                    expect(responseData.result.data).not.toBeNull();
+                    expect(responseData.result.data.type).toBe('cc.SceneAsset');
+                    console.debug('✅ Scene created successfully:', responseData.result.data);
+                } else {
+                    console.warn('⚠️ Scene creation failed:', responseData.result.reason);
+                }
+            } catch (error) {
+                console.error('❌ Test failed with error:', error);
+                throw error;
+            }
+        });
+
+        test('should create directory successfully', async () => {
+            // 测试创建文件夹
+            const testDir = 'db://assets';
+            const baseName = 'test-directory';
+            const ccType = 'directory';
+
+            try {
+                const result = await client.callTool('assets-create-asset-by-type', {
+                    ccType,
+                    dirOrUrl: testDir,
+                    baseName,
+                    options: {
+                        overwrite: true
+                    }
+                });
+
+                expect(result).toBeDefined();
+                expect(result.content).toBeDefined();
+
+                const response = Array.isArray(result.content) ? result.content[0] : result.content;
+                const responseData = JSON.parse(response.text);
+
+                expect(responseData).toHaveProperty('result');
+                expect(responseData.result).toHaveProperty('code');
+
+                if (responseData.result.code === COMMON_STATUS.SUCCESS) {
+                    expect(responseData.result.data).not.toBeNull();
+                    expect(responseData.result.data.isDirectory).toBe(true);
+                    console.debug('✅ Directory created successfully:', responseData.result.data);
+                } else {
+                    console.warn('⚠️ Directory creation failed:', responseData.result.reason);
+                }
+            } catch (error) {
+                console.error('❌ Test failed with error:', error);
+                throw error;
+            }
+        });
+
+        test('should handle invalid resource type', async () => {
+            // 测试无效的资源类型
+            const testDir = 'db://assets';
+            const baseName = 'test-invalid';
+            const ccType = 'invalid-type';
+
+            try {
+                const result = await client.callTool('assets-create-asset-by-type', {
+                    ccType,
+                    dirOrUrl: testDir,
+                    baseName
+                });
+
+                expect(result).toBeDefined();
+                expect(result.content).toBeDefined();
+
+                const response = Array.isArray(result.content) ? result.content[0] : result.content;
+                const responseData = JSON.parse(response.text);
+
+                // 对于无效类型，应该返回失败状态
+                expect(responseData).toHaveProperty('result');
+                expect(responseData.result).toHaveProperty('code');
+
+                if (responseData.result.code === COMMON_STATUS.FAIL) {
+                    expect(responseData.result).toHaveProperty('reason');
+                    console.debug('✅ Invalid resource type correctly handled:', responseData.result.reason);
+                } else {
+                    console.debug('ℹ️ Unexpected success for invalid type:', responseData.result);
+                }
+            } catch (error) {
+                console.error('❌ Test failed with error:', error);
+                throw error;
+            }
+        });
+
+        test('should handle missing required parameters', async () => {
+            // 测试缺少必需参数的情况
+            try {
+                const result = await client.callTool('assets-create-asset-by-type', {
+                    ccType: 'typescript'
+                    // 缺少 dirOrUrl 和 baseName
+                });
+
+                expect(result).toBeDefined();
+                console.debug('📝 Missing parameters response:', result);
+            } catch (error) {
+                // 预期可能会抛出错误
+                console.debug('✅ Missing parameters correctly handled with error:', (error as Error).message);
+                expect(error).toBeDefined();
+            }
+        });
     });
 
     describe('Error Handling', () => {

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
 
 // 基础类型定义
-export const SchemaDirOrDbPath = z.string().min(1).describe('创建资源目录，可以是文件系统路径或 db:// 协议路径');
+export const SchemaDirOrDbPath = z.string().min(1).describe('资源地址，可以是文件系统路径或 db:// 协议路径');
 export const SchemaDbDirResult = z.object({
     dbPath: z.string().describe('操作后的资源路径，使用 db:// 协议格式'),
 }).describe('资源数据库目录操作的结果');
@@ -57,12 +57,9 @@ const SchemaFileNameCheckConfig = z.object({
 const SchemaCreateMenuInfo: z.ZodType<any> = z.lazy(() => z.object({
     label: z.string().describe('新建菜单名称，支持 i18n:xxx'),
     fullFileName: z.string().optional().describe('创建的默认文件名称带后缀'),
-    content: z.union([z.string(), z.instanceof(Buffer), z.object({})]).optional().describe('资源文件内容，支持字符串、Buffer、JSON'),
     template: z.string().optional().describe('资源文件模板地址，例如 db://xxx/ani，支持 url 与绝对路径'),
     handler: z.string().optional().describe('创建类型的 handler 名称，默认为当前处理器名称'),
-    submenu: z.array(SchemaCreateMenuInfo).optional().describe('创建子菜单'),
-    group: z.string().optional().describe('分组名称'),
-    fileNameCheckConfigs: z.array(SchemaFileNameCheckConfig).optional().describe('资源创建时的名称校验规则'),
+    name: z.string().optional().describe('创建资源模板名称，作为创建的模板选择的唯一标识符'),
 }));
 
 // 资源数据库信息 Schema
@@ -118,7 +115,6 @@ export const SchemaQueryAssetsOption = z.object({
     importer: z.union([z.string(), z.array(z.string())]).optional().describe('导入器名称，可以是单个或数组'),
     pattern: z.string().optional().describe('路径匹配模式，支持 globs 格式'),
     extname: z.union([z.string(), z.array(z.string())]).optional().describe('扩展名匹配，可以是单个或数组'),
-    userData: z.record(z.string(), z.union([z.boolean(), z.string(), z.number()])).optional().describe('筛选符合指定 userData 配置的资源'),
 }).optional().describe('资源查询选项');
 
 // 资源创建相关
@@ -134,7 +130,7 @@ export const SchemaAssetOperationOption = z.object({
 export const SchemaSourcePath = z.string().min(1).describe('源文件路径，要导入的资源文件位置');
 
 // 资源保存相关
-export const SchemaAssetData = z.union([z.string(), z.instanceof(Buffer)]).describe('要保存的资源数据，可以是字符串或 Buffer');
+export const SchemaAssetData = z.string().describe('要保存的资源数据，可以是字符串或 Buffer');
 
 // 返回值 Schema
 export const SchemaAssetInfoResult = SchemaAssetInfo.nullable().describe('资源详细信息对象，包含名称、类型、路径、UUID 等字段');
@@ -146,19 +142,17 @@ export const SchemaCreatedAssetResult = SchemaAssetInfo.nullable().describe('创
 export const SchemaImportedAssetResult = z.array(SchemaAssetInfo).describe('导入的资源信息数组，当导入文件夹时会包含文件夹及其所有子资源的信息');
 export const SchemaReimportResult = z.null().describe('重新导入操作结果（无返回值）');
 export const SchemaSaveAssetResult = SchemaAssetInfo.nullable().describe('保存资源后的资源信息对象');
-export const SchemaRefreshDirResult = z.object({
-    refreshAssetNumber: z.number().describe('刷新资源数量'),
-}).describe('刷新资源目录结果');
+export const SchemaRefreshDirResult = z.null().describe('刷新资源目录结果');
 
 export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
 export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
 export type TDataKeys = z.infer<typeof SchemaDataKeys>;
-export type TQueryAssetsOption = z.infer<typeof SchemaQueryAssetsOption>;
+export type TQueryAssetsOption = z.infer<typeof SchemaQueryAssetsOption> | undefined;
 export type TSupportCreateType = z.infer<typeof SchemaSupportCreateType>;
 export type TTargetPath = z.infer<typeof SchemaTargetPath>;
-export type TAssetOperationOption = z.infer<typeof SchemaAssetOperationOption>;
+export type TAssetOperationOption = z.infer<typeof SchemaAssetOperationOption> | undefined;
 export type TSourcePath = z.infer<typeof SchemaSourcePath>;
 export type TAssetData = z.infer<typeof SchemaAssetData>;
 export type TAssetInfoResult = z.infer<typeof SchemaAssetInfoResult>;

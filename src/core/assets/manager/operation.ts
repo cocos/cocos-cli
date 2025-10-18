@@ -150,6 +150,12 @@ class AssetOperation extends EventEmitter {
      * @param options 
      */
     async importAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
+        if (source.startsWith('db://')) {
+            source = url2path(source);
+        }
+        if (target.startsWith('db://')) {
+            target = url2path(target);
+        }
         await copy(source, target, options);
         await this.refreshAsset(target);
         const assetInfo = assetQuery.queryAssetInfo(target);
@@ -233,7 +239,7 @@ class AssetOperation extends EventEmitter {
      * @param pathOrUrlOrUUID 
      * @returns boolean
      */
-    async refreshAsset(pathOrUrlOrUUID: string): Promise<number> {
+    async refreshAsset(pathOrUrlOrUUID: string): Promise<void> {
         // 将实际的刷新任务塞到 db 管理器的队列内等待执行
         return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID]);
     }

@@ -56,6 +56,8 @@ export const ASSET_HANDLER_TYPES = [
     'instantiation-skeleton',
     'instantiation-animation',
     'video-clip',
+    '*',
+    'database',
 ];
 
 /** 支持创建的资源类型常量数组（用于 Zod enum 和 TypeScript type） */
