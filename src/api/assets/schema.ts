@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
 
 // 基础类型定义
-export const SchemaDirOrDbPath = z.string().min(1).describe('目录或资源的路径，可以是文件系统路径或 db:// 协议路径');
+export const SchemaDirOrDbPath = z.string().min(1).describe('创建资源目录，可以是文件系统路径或 db:// 协议路径');
 export const SchemaDbDirResult = z.object({
     dbPath: z.string().describe('操作后的资源路径，使用 db:// 协议格式'),
 }).describe('资源数据库目录操作的结果');

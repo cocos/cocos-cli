@@ -250,7 +250,7 @@ export class AssetsApi extends ApiBase {
     @result(SchemaCreatedAssetResult)
     async createAssetByType(
         @param(SchemaSupportCreateType) ccType: TSupportCreateType,
-        @param(SchemaDirOrDbPath) dir: TDirOrDbPath,
+        @param(SchemaDirOrDbPath) dirOrUrl: TDirOrDbPath,
         @param(SchemaBaseName) baseName: TBaseName,
         @param(SchemaAssetOperationOption) options?: TAssetOperationOption
     ): Promise<CommonResultType<TCreatedAssetResult>> {
@@ -261,7 +261,7 @@ export class AssetsApi extends ApiBase {
         };
 
         try {
-            ret.data = await assetManager.createAssetByType(ccType, dir, baseName, options);
+            ret.data = await assetManager.createAssetByType(ccType, dirOrUrl, baseName, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('create asset by type fail:', e instanceof Error ? e.message : String(e));

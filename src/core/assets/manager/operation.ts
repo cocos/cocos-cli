@@ -111,15 +111,19 @@ class AssetOperation extends EventEmitter {
     /**
      * 根据类型创建资源
      * @param type 
-     * @param dir 目标目录
+     * @param dirOrUrl 目标目录
      * @param baseName 基础名称
      * @param options 
      * @returns 
      */
-    async createAssetByType(type: ISupportCreateType, dir: string, baseName: string, options?: CreateAssetByTypeOptions) {
+    async createAssetByType(type: ISupportCreateType, dirOrUrl: string, baseName: string, options?: CreateAssetByTypeOptions) {
         const createMenus = await assetHandlerManager.getCreateMenuByName(type);
         if (!createMenus.length) {
             throw new Error(`Can not support create type: ${type}`);
+        }
+        let dir = dirOrUrl;
+        if (dirOrUrl.startsWith('db://')) {
+            dir = url2path(dirOrUrl);
         }
         let createInfo: undefined | ICreateMenuInfo = createMenus[0];
         if (createMenus.length > 1 && options?.templateName) {
