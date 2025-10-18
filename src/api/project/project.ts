@@ -55,31 +55,4 @@ export class ProjectApi extends ApiBase {
             data: code === COMMON_STATUS.SUCCESS
         };
     }
-
-    @tool('project-getInfo')
-    @title('获取当前 Cocos Creator 项目信息')
-    @description('获取当前打开的 Cocos Creator 项目信息，包括项目名称、项目路径、项目版本等。')
-    @result(z.object({
-        name: z.string().describe('项目名称'),
-        path: z.string().describe('项目路径'),
-        version: z.string().describe('项目版本')
-    }))
-    async getInfo() {
-        const { default: Project } = await import('../../core/project');
-        let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        try {
-            const info = Project.getInfo();
-            return {
-                code: code,
-                data: info
-            };
-        } catch (e) {
-            code = COMMON_STATUS.FAIL;
-            console.error('get project info fail:', e instanceof Error ? e.message : String(e));
-            return {
-                code: code,
-                data: null
-            };
-        }
-    }
 }
