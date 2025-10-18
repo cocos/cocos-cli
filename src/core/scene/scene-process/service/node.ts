@@ -42,14 +42,16 @@ export class NodeService extends EventEmitter implements INodeService {
             throw new Error('NodeService.createNode load node-config.json failed .');
         }
 
-        let canvasNeeded = false;
+        let canvasNeeded = params.canvasRequired || false;
         let assetUuid;
-        if (params.assetPath) { //create from prefab resource
-            assetUuid = await Rpc.request('assetManager', 'queryUUID', [params.assetPath]);
-        } else if (params.nodeType) {
-            const paramsArray = this._nodeConfigJson[params.nodeType];
+        const urlOrType = params.urlOrType;
+        if (urlOrType.startsWith("db://")) { //create from prefab resource
+            assetUuid = await Rpc.request('assetManager', 'queryUUID', [urlOrType]);
+        } else {
+            const nodeType = urlOrType as string;
+            const paramsArray = this._nodeConfigJson[nodeType];
             if (!paramsArray || paramsArray.length < 0) {
-                throw new Error('NodeService.createNode nodeType ${params.nodeType} not implement .');
+                throw new Error(`Node type '${nodeType}' is not implemented`);
             }
             assetUuid = paramsArray[0].assetUuid;
             canvasNeeded = paramsArray[0].canvasRequired ? true : false;
@@ -59,6 +61,9 @@ export class NodeService extends EventEmitter implements INodeService {
                     canvasNeeded = paramsArray[1].canvasRequired ? true : false;
                 }
             }
+        }
+        if (params.path && params.path.startsWith("Canvas/")) {
+            canvasNeeded = true;
         }
         let parent = NodeMgr.getNodeByPath(params.path);
         if (!parent) {

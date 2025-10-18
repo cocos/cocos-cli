@@ -74,13 +74,7 @@ export class NodeApi extends ApiBase {
             data: this._generateDefaultNodeInfo(),
         };
         try {
-            const nodeInfo = await Scene.createNode({
-                path: options.path,
-                name: options.name,
-                nodeType: options.nodeType as NodeType,
-                workMode: options.workMode,
-                keepWorldTransform: options.keepWorldTransform
-            });
+            const nodeInfo = await Scene.createNode(options);
             if (nodeInfo) {
                 ret.data = nodeInfo;
             }

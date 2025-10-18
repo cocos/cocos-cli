@@ -1,12 +1,12 @@
-import type {
-    ICreateNodeParams,
-    IDeleteNodeParams,
-    IDeleteNodeResult,
-    IQueryNodeParams,
-    IUpdateNodeParams,
-    IUpdateNodeResult,
-    INode,
-    INodeProperties,
+import {
+    type ICreateNodeParams,
+    type IDeleteNodeParams,
+    type IDeleteNodeResult,
+    type IQueryNodeParams,
+    type IUpdateNodeParams,
+    type IUpdateNodeResult,
+    type INode,
+    NodeType,
 } from '../common';
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -22,11 +22,9 @@ describe('Node Proxy 测试', () => {
     describe('1. 基础节点操作', () => {
         it('createNode - 创建带预制体的节点', async () => {
             const params: ICreateNodeParams = {
-                assetPath: 'db://internal/default_prefab/ui/Sprite.prefab',
-                path: '/PrefabNode',
+                urlOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
+                path: testNodePath,
                 name: 'PrefabNode',
-                nodeType: 'Empty',
-                workMode: '2d'
             };
 
             const prefabNode = await NodeProxy.createNode(params);
@@ -36,20 +34,23 @@ describe('Node Proxy 测试', () => {
         });
 
         it('createNode - 创建新节点', async () => {
-            const params: ICreateNodeParams = {
-                path: testNodePath,
-                name: 'TestNode',
-                nodeType: 'Sprite',
-                position: testPosition,
-                workMode: '2d'
-            };
+            const nodeTypes = Object.values(NodeType);
+            nodeTypes.forEach(nodeType => {
+                async () => {
+                    const params: ICreateNodeParams = {
+                        path: testNodePath,
+                        urlOrType: nodeType,
+                        position: testPosition,
+                    };
 
-            createdNode = await NodeProxy.createNode(params);
-            expect(createdNode).toBeDefined();
-            expect(createdNode?.name).toBe('TestNode');
-            expect(createdNode?.path).toBe(testNodePath);
-            expect(createdNode?.properties.position).toEqual(testPosition);
-            console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
+                    createdNode = await NodeProxy.createNode(params);
+                    expect(createdNode).toBeDefined();
+                    expect(createdNode?.name).toBe('TestNode');
+                    expect(createdNode?.path).toBe(testNodePath);
+                    expect(createdNode?.properties.position).toEqual(testPosition);
+                    console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
+                };
+            });
         });
     });
 
@@ -192,7 +193,7 @@ describe('Node Proxy 测试', () => {
             const createParams: ICreateNodeParams = {
                 path: '/NodeToDelete',
                 name: 'NodeToDelete',
-                nodeType: 'Sphere',
+                urlOrType: 'Sphere',
                 workMode: '3d'
             };
 

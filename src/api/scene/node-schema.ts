@@ -51,8 +51,8 @@ export const NodeQuerySchema = z.object({
 // 查询节点的结果
 export const NodeQueryResultSchema: z.ZodType<INode> = NodeIdentifierSchema.extend({
     properties: NodePropertySchema.describe('节点属性'),
-    children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
-    component: z.array(z.lazy(() => SchemaComponent)).default([]).describe('节点上的组件列表'),
+    children: z.array(z.lazy(() => NodeQueryResultSchema)).default([]).describe('子节点列表'),
+    components: z.array(z.lazy(() => SchemaComponent)).default([]).describe('节点上的组件列表'),
 });
 
 //节点更新的参数
@@ -82,13 +82,14 @@ export const NodeDeleteSchema = z.object({
 
 // 创建节点的参数
 export const NodeCreateSchema = z.object({
-    assetPath: z.string().optional().describe('预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab'),
+    urlOrType: z.string().describe('预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab'),
     path: z.string().describe('创建的节点相对路径，根节点是场景节点'),
     name: z.string().optional().describe('节点的名称，不传，系统会默认一个名字'),
     workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
     position: Vec3Schema.optional().default({ x: 0, y: 0, z: 0 }).describe('节点位置'),
+    canvasRequired: z.boolean().optional().describe('是否需要 Canvas'),
 }).describe('创建节点的选项参数');
 
 

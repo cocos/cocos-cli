@@ -130,13 +130,13 @@ export interface IDeleteNodeResult {
 
 // 节点创建参数接口
 export interface ICreateNodeParams {
-    assetPath?: string; // 预制体资源路径
-    path: string; // 创建的节点相对路径
-    name?: string; // 节点的名称
-    workMode?: '2d' | '3d'; // 节点工作模式，2D 还是 3D
-    nodeType: string; // 节点类型
+    urlOrType: string; // 预制体资源路径 或 节点类型（NodeType）
+    path: string; // 节点路径
+    workMode?: '2d' | '3d';
+    name?: string;
     position?: IVec3;
-    keepWorldTransform?: boolean; // 保持世界变换
+    keepWorldTransform?: boolean;
+    canvasRequired?: boolean;
 }
 
 /**

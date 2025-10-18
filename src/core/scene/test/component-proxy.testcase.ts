@@ -22,11 +22,9 @@ describe('Component Proxy 测试', () => {
     let componentInfo: IComponentInfo | null;
     beforeAll(async () => {
         const params: ICreateNodeParams = {
-            assetPath: 'db://internal/default_prefab/ui/Sprite.prefab',
+            urlOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
             path: '/PrefabNode',
             name: 'PrefabNode',
-            nodeType: 'Empty',
-            workMode: '2d'
         };
 
         const prefabNode = await NodeProxy.createNode(params);
