@@ -5,16 +5,26 @@ src/**
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
-**/tsconfig.json
+# 只忽略根目录和特定目录的 tsconfig.json，不忽略 packages 下的
+tsconfig.json
 **/eslint.config.mjs
-**/*.map
-**/*.ts
-**/.vscode-test.*
+eslint.config.mjs
+# 只忽略根目录的 .map 文件，不忽略 packages 下的
+*.map
+# 只忽略 src 目录下的 .ts 文件，不忽略 packages 下的
+src/**/*.ts
+**/.vscode.*
 .idea/**
 .git/**
-tsconfig.json
-eslint.config.mjs
-workflow/!(postinstall).js
+**/.git/**
+**/.idea/**
+**/.github/**
+**/.gitignore
+.gitattributes
+**/.gitattributes
+.gitmodules
+**/.gitmodules
+workflow/!(postinstall|utils).js
 node_modules/**
 tests/**
 jest/**
@@ -23,3 +33,5 @@ jest/**
 .user.json
 .npmmrc
 .publish/**
+repo.json
+.github/**

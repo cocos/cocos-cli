@@ -4,14 +4,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { toolRegistry } from '../api/decorator/decorator';
 import { z } from 'zod';
-
+import * as pkgJson from '../../package.json';
 export class McpMiddleware {
     private server: McpServer;
     constructor() {
         // 创建 MCP server
         this.server = new McpServer({
             name: 'cocos-cli-mcp-server',
-            version: '1.0.0'
+            version: pkgJson.version || '0.0.0',
         });
     }
 

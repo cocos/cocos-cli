@@ -82,7 +82,7 @@ async function release() {
             await fs.copy(srcPath, destPath);
             copiedCount++;
             
-            if (copiedCount % 500 === 0) {
+            if (copiedCount % 2000 === 0) {
                 console.log(`📋 已拷贝 ${copiedCount}/${allFiles.length} 个文件...`);
             }
         }

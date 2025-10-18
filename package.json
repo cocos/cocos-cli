@@ -43,8 +43,8 @@
         "download-tools": "node workflow/download-tools.js",
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
-        "start:mcp": "node ./dist/mcp/start-server.js",
-        "start:mcp-debug": "npx @modelcontextprotocol/inspector",
+        "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=/Users/wzm/Documents/wzm/myself/projects/2d-cli",
+        "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js"
     },
     "author": "cocos",

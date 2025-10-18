@@ -8,6 +8,7 @@ import { SceneApi } from './scene/scene';
 import { BuilderApi } from './builder/builder';
 import { startServer } from '../server';
 import { ComponentApi } from './scene/component';
+import { NodeApi } from './scene/node';
 
 export class CocosAPI {
     public assets: AssetsApi;
@@ -19,7 +20,10 @@ export class CocosAPI {
     private configuration: ConfigurationApi;
 
     private scene: SceneApi;
+
     private component: ComponentApi;
+
+    private node: NodeApi;
 
     constructor(
         private projectPath: string,
@@ -33,6 +37,7 @@ export class CocosAPI {
         this.engine = new EngineApi(projectPath, enginePath);
         this.scene = new SceneApi(projectPath, enginePath);
         this.component = new ComponentApi();
+        this.node = new NodeApi();
         this.builder = new BuilderApi();
     }
 
@@ -57,6 +62,7 @@ export class CocosAPI {
             await this.packDriver.init();
             await this.builder.init();
             await this.scene.init();
+            await this.node.init();
             await this.component.init();
         } catch (e) {
             console.error('startup failed', e);
