@@ -57,8 +57,8 @@ class UpdateRepo {
             });
 
             console.log(`\n仓库 ${repoName} 已存在，是否还原所有文件并更新到最新代码？`);
-            console.log('输入 n 跳过，其他任意键或 3 秒后自动确认还原...');
-            
+            console.log('输入 n 跳过，[其他任意键或 3 秒后自动确认还原]...');
+
             const timeout = setTimeout(() => {
                 rl.close();
                 console.log('\n超时，默认还原所有文件');
@@ -99,7 +99,10 @@ class UpdateRepo {
 
         try {
             // 询问用户是否还原
-            const shouldRestore = await this.promptUserRestore(key);
+            const args = process.argv.slice(2);
+            const isForce = args.includes('--force');
+            isForce && console.log('强制还原仓库更新');
+            const shouldRestore = isForce || await this.promptUserRestore(key);
             
             if (!shouldRestore) {
                 console.log(`跳过仓库 ${key} 的更新`);

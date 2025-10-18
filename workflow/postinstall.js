@@ -1,6 +1,3 @@
-// 拷贝模拟 cc 模块
-const fse = require('fs-extra');
-const path = require('path');
 const readline = require('readline');
 const utils = require('./utils');
 
@@ -49,10 +46,7 @@ async function mockNpmModules() {
     
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
 
-    if (!fse.existsSync(path.join(__dirname, '..', 'packages', 'engine'))) {
-        await utils.runCommand('npm', ['run', 'update:repos']);
-    }
-
+    await utils.runCommand('node', ['./workflow/update-repo.js', forceFlag].filter(Boolean));
     // build web-adapter
     await utils.runCommand('node', ['./workflow/build-adapter.js', forceFlag].filter(Boolean));
     // compiler engine
@@ -66,5 +60,5 @@ async function mockNpmModules() {
 }
 
 mockNpmModules().then(() => {
-    console.log('所有模块构建完成！');
+    console.log('\n🎉所有模块构建完成！');
 });

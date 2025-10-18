@@ -11,7 +11,9 @@ if (!utils.hasDevelopmentEnvironment()) return;
     const isForce = args.includes('--force');
 
     const engine = path.join(__dirname, '..', 'packages', 'engine');
-    if (fse.existsSync(path.join(engine, 'bin', '.cache', 'dev-cli')) && !isForce) {
+    const hasDev =fse.existsSync(path.join(engine, 'bin', '.cache', 'dev-cli'));
+
+    if (hasDev && !isForce) {
         console.log('[Skip] compiler engine');
         return;
     }
