@@ -17,7 +17,7 @@ export interface IComponent {
  * 创建组件
  */
 export interface IAddComponentOptions {
-    nodePath: string;// 节点uuid
+    nodePath: string;// 组件路径
     component: string;// 组件注册到ccclass里的类名
 }
 
@@ -25,7 +25,7 @@ export interface IAddComponentOptions {
  * 删除组件
  */
 export interface IRemoveComponentOptions {
-    path: string;// 包含节点/组件的路径
+    path: string;// 组件的路径，不包含节点路径
 }
 
 
@@ -33,7 +33,7 @@ export interface IRemoveComponentOptions {
  * 查询组件
  */
 export interface IQueryComponentOptions {
-    path: string;// 包含节点/组件的路径
+    path: string;// 组件的路径，不包含节点路径
 }
 
 /**

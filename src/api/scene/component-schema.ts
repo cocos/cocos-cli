@@ -44,7 +44,7 @@ export const SchemaProperty = z.object({
 // 设置属性选项
 export const SchemaSetPropertyOptions = z.object({
     componentPath: z.string().describe('组件路径名'),
-    mountPath: z.string().describe('属性挂载对象的搜索路径'),
+    mountPath: z.string().describe('属性名称'),
     properties: SchemaProperty.describe('需要修改的属性'),
     record: z.boolean().optional().default(true).describe('是否记录undo'),
 }).describe('设置组件属性的信息');
