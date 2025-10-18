@@ -27,6 +27,7 @@
         "update:repos": "node workflow/update-repo.js",
         "test": "jest --config jest/jest.config.core.ts && jest --config jest/jest.config.mcp.ts",
         "test:quiet": "jest --config jest/jest.config.core.ts --silent && jest --config jest/jest.config.mcp.ts --silent",
+        "test:core": "jest --config jest/jest.config.core.ts",
         "test:mcp": "jest --config jest/jest.config.mcp.ts",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",

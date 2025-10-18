@@ -48,13 +48,13 @@ export class SceneApi extends ApiBase {
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
-            }
+            };
         } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -68,13 +68,13 @@ export class SceneApi extends ApiBase {
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
-            }
+            };
         } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -88,13 +88,13 @@ export class SceneApi extends ApiBase {
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
-            }
+            };
         } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -108,13 +108,13 @@ export class SceneApi extends ApiBase {
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
-            }
+            };
         } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -131,13 +131,13 @@ export class SceneApi extends ApiBase {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: data,
-            }
+            };
         } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -153,13 +153,13 @@ export class SceneApi extends ApiBase {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: data,
-            }
+            };
         } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 }

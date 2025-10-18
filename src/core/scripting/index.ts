@@ -95,6 +95,7 @@ class ScriptManager {
                     quickPackLoaderContext,
                     cceModuleMap,
                 });
+                // eslint-disable-next-line no-undef
                 globalThis.self = window;
                 executor.addPolyfillFile(require.resolve('@editor/build-polyfills/prebuilt/editor/bundle'));
             }
