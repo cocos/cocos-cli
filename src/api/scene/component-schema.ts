@@ -50,12 +50,13 @@ export const SchemaSetPropertyOptions = z.object({
 }).describe('设置组件属性的信息');
 
 
-export const SchemaComponentInfoResult = SchemaProperty.extend({
+export const SchemaComponentInfo = SchemaProperty.extend({
     properties: SchemaProperty.describe('组件的值对象'),
     enabled: z.any().describe('组件是否启用'),
     uuid: z.string().describe('组件的唯一标识符'),
-}).describe('组件dump信息');
+}).describe('组件dump出来的信息');
 
+export const SchemaComponentInfoResult = z.union([SchemaComponentInfo, z.null()]).describe('获取当前组件信息返回的接口');
 export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
 // 类型导出

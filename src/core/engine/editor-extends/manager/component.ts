@@ -16,6 +16,8 @@ export default class ComponentManager extends EventEmitter {
 
     // 引擎内注册的 menu 列表
     _menus: MenuItem[] = [];
+    _pathToUuid: Map<string, string> = new Map();
+    _uuidToPath: Map<string, string> = new Map();
 
     /**
      * 添加一个组件的菜单项
@@ -60,7 +62,7 @@ export default class ComponentManager extends EventEmitter {
     // ---- 组件实例管理 ----
 
     // component
-    _map: {[index: string]: any} = {};
+    _map: { [index: string]: any } = {};
 
     // 被删除的 component
     // _recycle: {[index: string]: any} = {};
@@ -77,11 +79,26 @@ export default class ComponentManager extends EventEmitter {
             return;
         }
         this._map[uuid] = component;
+
+        this._mapComponentToPath(component);
+
         try {
             this.emit('add', uuid, component);
         } catch (error) {
             console.error(error);
         }
+    }
+
+    _mapComponentToPath(component: any) {
+        const path = this._generateUniquePath(component);
+        this._pathToUuid.set(path, component.uuid);
+        this._uuidToPath.set(component.uuid, path);
+    }
+
+    _generateUniquePath(component: any) {
+        const className = cc.js.getClassName(component);
+        const nodeComponents = component.node.getComponents(className);
+        return `${className}_${nodeComponents.length}`;
     }
 
     /**
@@ -117,7 +134,7 @@ export default class ComponentManager extends EventEmitter {
         }
         this._map = {};
         // this._recycle = {};
-        
+
     }
 
     /**
@@ -126,6 +143,18 @@ export default class ComponentManager extends EventEmitter {
      */
     getComponent(uuid: string) {
         return this._map[uuid] || null;
+    }
+
+    getComponentFromPath(path: string) {
+        const uuid = this._pathToUuid.get(path);
+        if (!uuid) {
+            return null;
+        }
+        return this.getComponent(uuid);
+    }
+
+    getPathFromUuid(uuid: string) {
+        return this._uuidToPath.get(uuid) || '';
     }
 
     /**

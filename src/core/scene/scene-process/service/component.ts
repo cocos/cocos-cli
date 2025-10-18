@@ -18,8 +18,6 @@ import {
  */
 @register('Component')
 export class ComponentService implements IComponentService {
-    private pathToUuid: Map<string, string> = new Map();
-
     private addComponentImpl(path: string, componentName: string): IComponent {
         if (Array.isArray(path)) {
             path.forEach((p) => {
@@ -54,10 +52,7 @@ export class ComponentService implements IComponentService {
                 console.log(`ctor with name ${componentName} is not child class of Component `);
                 throw new Error(`ctor with name ${componentName} is not child class of Component `);
             }
-            const components = node.getComponents(componentName);
-            const path = `${componentName}_${components.length}`;
-            this.pathToUuid.set(path, comp.uuid);
-            return { path: path };
+            return { path: compMgr.getPathFromUuid(comp.uuid) };
         } catch (error) {
             throw error;
         }
@@ -71,29 +66,18 @@ export class ComponentService implements IComponentService {
 
     @expose()
     async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
-        const path = params.path;
-        const uuid = this.pathToUuid.get(path);
-        if (!uuid) {
-            throw new Error(`Remove component failed: ${path} does not exist`);
-        }
-        const comp = compMgr.query(uuid);
+        const comp = compMgr.query(params.path);
         if (!comp) {
-            throw new Error(`Remove component failed: ${uuid} does not exist`);
+            throw new Error(`Remove component failed: ${params.path} does not exist`);
         }
         return compMgr.removeComponent(comp);
     }
 
     @expose()
     async queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null> {
-        const path = params.path;
-        const uuid = this.pathToUuid.get(path);
-        if (!uuid) {
-            console.warn(`Query component failed: ${path} does not exist`);
-            return null;
-        }
-        const comp = compMgr.query(uuid);
+        const comp = compMgr.query(params.path);
         if (!comp) {
-            console.warn(`Query component failed: ${uuid} does not exist`);
+            console.warn(`Query component failed: ${params.path} does not exist`);
             return null;
         }
         return (dumpUtil.dumpComponent(comp as Component));
@@ -125,19 +109,15 @@ export class ComponentService implements IComponentService {
 
     @expose()
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
-        const uuid = this.pathToUuid.get(options.componentPath);
-        if (!uuid) {
-            throw new Error(`Set component property failed: ${options.componentPath} does not exist`);
-        }
-        return await this.setPropertyImp(uuid, options.mountPath, options.properties);
+        return await this.setPropertyImp(options.componentPath, options.mountPath, options.properties);
     }
 
-    private setPropertyImp(uuid: string, path: string, properties: IProperty, record: boolean = true): boolean {
+    private setPropertyImp(componentPath: string, path: string, properties: IProperty, record: boolean = true): boolean {
         // 多个节点更新值
-        if (Array.isArray(uuid)) {
+        if (Array.isArray(componentPath)) {
             try {
-                for (let i = 0; i < uuid.length; i++) {
-                    this.setPropertyImp(uuid[i], path, properties);
+                for (let i = 0; i < componentPath.length; i++) {
+                    this.setPropertyImp(componentPath[i], path, properties);
                 }
                 return true;
             } catch (e) {
@@ -145,9 +125,9 @@ export class ComponentService implements IComponentService {
                 throw e;
             }
         }
-        const node = compMgr.query(uuid);
+        const node = compMgr.query(componentPath);
         if (!node) {
-            throw new Error(`Set property failed: ${uuid} does not exist`);
+            throw new Error(`Set property failed: ${componentPath} does not exist`);
         }
 
         // 恢复数据

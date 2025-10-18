@@ -1,3 +1,4 @@
+import fse from 'fs-extra';
 import { EngineInfo } from './@types/public';
 import { IEngineConfig, IInitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';

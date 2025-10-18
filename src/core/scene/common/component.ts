@@ -1,5 +1,8 @@
 import { IProperty } from '../@types/public';
 
+/**
+ * 代表组件属性信息
+ */
 export interface IComponentInfo extends IProperty {
     uuid: string;
     enabled: string;
@@ -7,7 +10,7 @@ export interface IComponentInfo extends IProperty {
 }
 
 /**
- * 组件信息
+ * 代表一个组件
  */
 export interface IComponent {
     path: string; // 返回创建组件的路径，包含节点路径
@@ -27,7 +30,6 @@ export interface IAddComponentOptions {
 export interface IRemoveComponentOptions {
     path: string;// 组件的路径，不包含节点路径
 }
-
 
 /**
  * 查询组件
