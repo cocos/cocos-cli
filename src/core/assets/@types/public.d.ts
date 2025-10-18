@@ -18,7 +18,7 @@ export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'
 export interface IAssetInfo {
     name: string; // 资源名字
     source: string; // url 地址
-    path: string; // loader 加载的层级地址
+    loadUrl: string; // loader 加载的层级地址
     url: string; // loader 加载地址会去掉扩展名，这个参数不去掉
     file: string; // 绝对路径
     uuid: string; // 资源的唯一 ID

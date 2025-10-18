@@ -236,7 +236,7 @@ describe('测试 db 的查询接口', function () {
             isDirectory: 'boolean',
             library: 'object',
             name: 'string',
-            path: 'string',
+            loadUrl: 'string',
             readonly: 'boolean',
             source: 'string',
             subAssets: 'object',

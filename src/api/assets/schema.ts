@@ -29,7 +29,7 @@ const SchemaAssetMeta: z.ZodType<any> = z.lazy(() => z.object({
     files: z.array(z.string()).describe('关联的文件列表'),
     subMetas: z.record(z.string(), SchemaAssetMeta).describe('子资源元数据映射'),
     userData: z.record(z.string(), SchemaJsonValue).describe('用户自定义数据'),
-    displayName: z.string().describe('显示名称'),
+    displayName: z.string().describe('显示名称').optional(),
     id: z.string().describe('资源 ID'),
     name: z.string().describe('资源名称'),
 }));
@@ -79,7 +79,7 @@ const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
     // 必需字段
     name: z.string().describe('资源名字'),
     source: z.string().describe('URL 地址'),
-    path: z.string().describe('loader 加载的层级地址'),
+    loadUrl: z.string().describe('loader 加载的层级地址'),
     url: z.string().describe('loader 加载地址（包含扩展名）'),
     file: z.string().describe('绝对路径'),
     uuid: z.string().describe('资源的唯一 ID'),

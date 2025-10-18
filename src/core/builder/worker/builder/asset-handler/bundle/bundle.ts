@@ -292,7 +292,7 @@ export class Bundle {
         // 先去重一次
         this.rootAssets.forEach((uuid) => {
             const asset = buildAssetLibrary.getAssetInfo(uuid);
-            const info: any = [asset.path.replace(this.root + '/', '').replace(extname(asset.url), ''), asset.type];
+            const info: any = [asset.loadUrl.replace(this.root + '/', '').replace(extname(asset.url), ''), asset.type];
             // 内置资源不做此警告提示
             this.name !== BuiltinBundleName.INTERNAL && checkUrl(asset.uuid, info[0], info[1]);
             // 作为判断是否为子资源的标识符，子资源需要加标记 1

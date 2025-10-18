@@ -331,24 +331,24 @@ class AssetQueryManager {
             name = asset._name;
         }
 
-        let path = name;
+        let loadUrl = name;
         let url = name;
 
         // 注：asset.uuid === asset.source 是 mac 上的 db://assets
         if (asset.uuid === asset.source || asset instanceof Asset) {
-            url = path = source;
+            url = loadUrl = source;
         } else {
             let parent: Asset | VirtualAsset | null = asset.parent;
             while (parent && !(parent instanceof Asset)) {
-                path = `${parent._name}/${name}`;
+                loadUrl = `${parent._name}/${name}`;
                 parent = parent.parent;
             }
             // @ts-ignore
             if (parent instanceof Asset) {
                 const ext = extname(parent._source);
                 const tempSource = assetDBManager.path2url(parent._source, database.options.name);
-                url = tempSource + '/' + path;
-                path = tempSource.substr(0, tempSource.length - ext.length) + '/' + path;
+                url = tempSource + '/' + loadUrl;
+                loadUrl = tempSource.substr(0, tempSource.length - ext.length) + '/' + loadUrl;
             }
         }
         let isDirectory = false;
@@ -364,14 +364,14 @@ class AssetQueryManager {
             isDirectory = extname(asset.source) === '';
         }
         if (!isDirectory) {
-            path = path.replace(/\.[^./]+$/, '');
+            loadUrl = loadUrl.replace(/\.[^./]+$/, '');
         }
 
         const info: IAssetInfo = {
             name,
             displayName: asset.displayName,
             source,
-            path, // loader 加载使用的路径
+            loadUrl, // loader 加载使用的路径
             url, // 实际的带有扩展名的路径
             file, // 实际磁盘路径
             uuid: asset.uuid,
@@ -420,32 +420,32 @@ class AssetQueryManager {
     queryAssetProperty(asset: IAsset, property: (keyof IAssetInfo | 'depends' | 'dependScripts' | 'dependedScripts')): any {
 
         switch (property) {
-            case 'path':
+            case 'loadUrl':
                 {
                     const name = this.queryAssetProperty(asset, 'name') as string;
-                    let path = name;
+                    let loadUrl = name;
                     // 注：asset.uuid === asset.source 是 mac 上的 db://assets
                     if (asset instanceof Asset) {
-                        path = assetDBManager.path2url(asset.source, asset._assetDB.options.name);
+                        loadUrl = assetDBManager.path2url(asset.source, asset._assetDB.options.name);
                     } else {
                         let parent: Asset | VirtualAsset | null = asset.parent;
                         while (parent && !(parent instanceof Asset)) {
-                            path = `${parent._name}/${name}`;
+                            loadUrl = `${parent._name}/${name}`;
                             parent = parent.parent;
                         }
                         // @ts-ignore
                         if (parent instanceof Asset) {
                             const ext = extname(parent._source);
                             const tempSource = assetDBManager.path2url(parent._source, asset._assetDB.options.name);
-                            path = tempSource.substr(0, tempSource.length - ext.length) + '/' + path;
+                            loadUrl = tempSource.substr(0, tempSource.length - ext.length) + '/' + loadUrl;
                         }
                     }
 
                     const isDirectory = asset.isDirectory();
                     if (!isDirectory) {
-                        path = path.replace(/\.[^./]+$/, '');
+                        loadUrl = loadUrl.replace(/\.[^./]+$/, '');
                     }
-                    return path;
+                    return loadUrl;
                 }
             case 'name':
                 if (asset.uuid === asset.source || (asset instanceof Asset && asset.source)) {
@@ -687,7 +687,7 @@ class AssetQueryManager {
             name,
             displayName: name || '',
             source: `db://${name}`,
-            path: `db://${name}`,
+            loadUrl: `db://${name}`,
             url: `db://${name}`,
             file: dbInfo.target, // 实际磁盘路径
             uuid: `db://${name}`,
@@ -821,9 +821,9 @@ const FilterHandlerInfos: FilterHandlerInfo[] = [{
 }, {
     name: 'pattern',
     handler: (value: string, asset) => {
-        const path = assetQuery.queryAssetProperty(asset, 'path');
+        const loadUrl = assetQuery.queryAssetProperty(asset, 'loadUrl');
         const url = assetQuery.queryAssetProperty(asset, 'url');
-        return minimatch(path, value) || minimatch(url, value);
+        return minimatch(loadUrl, value) || minimatch(url, value);
     },
     resolve: (value: string | string[]) => {
         return typeof value === 'string' ? value : undefined;
