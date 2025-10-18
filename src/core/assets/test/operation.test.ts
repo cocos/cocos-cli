@@ -306,10 +306,12 @@ describe('测试 db 的操作接口', function () {
         test.each(createTestCases)(
             '创建 $description ($type)',
             async ({ type, ext, ccType, skipTypeCheck, templateName }) => {
-                const fileName = `${type}.${ext}`;
+                const baseName = type;
+                const fileName = `${baseName}.${ext}`;
                 const assetInfo = await assetManager.createAssetByType(
                     type as any,
-                    join(databasePath, fileName),
+                    databasePath,
+                    baseName,
                     {
                         overwrite: true,
                         templateName,
@@ -324,7 +326,7 @@ describe('测试 db 的操作接口', function () {
                 }
 
                 // 验证文件存在
-                const exists = existsSync(join(databasePath, fileName));
+                const exists = existsSync(assetInfo!.file);
                 expect(exists).toBeTruthy();
 
                 // 验证 meta 文件存在

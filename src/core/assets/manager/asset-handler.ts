@@ -334,6 +334,7 @@ class AssetHandlerManager {
                         label: basename(templatePath, extname(templatePath)),
                         template: templatePath,
                         name: basename(templatePath, extname(templatePath)),
+                        fullFileName: basename(templatePath, extname(templatePath)),
                     }, importer, extensions));
                 });
             }

@@ -160,6 +160,7 @@ class EngineManager implements IEngine {
                 fitHeight: false
             },
             downloadMaxConcurrency: 15,
+            renderPipeline: 'fd8ec536-a354-4a17-9c74-4f3883c378c8',
         };
     }
 

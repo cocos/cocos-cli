@@ -5,7 +5,7 @@
 import { queryUUID, refresh, reimport, queryUrl, Utils, Asset } from '@editor/asset-db';
 import { Meta } from '@editor/asset-db/libs/meta';
 import { copy, move, remove, rename, existsSync } from 'fs-extra';
-import { isAbsolute, dirname, basename, join, relative } from 'path';
+import { isAbsolute, dirname, basename, join, relative, extname } from 'path';
 import { newConsole } from '../../base/console';
 import { IMoveOptions } from '../@types/private';
 import { IAsset, CreateAssetOptions, IExportOptions, IExportData, CreateAssetByTypeOptions, ICreateMenuInfo } from '../@types/protected';
@@ -69,7 +69,7 @@ class AssetOperation extends EventEmitter {
         return assetQueryManager.encodeAsset(asset);
     }
 
-    async copyAsset(urlOrPath: string, target: string, options?: IMoveOptions) { 
+    async copyAsset(urlOrPath: string, target: string, options?: IMoveOptions) {
     }
 
     checkValidUrl(urlOrPath: string) {
@@ -111,11 +111,12 @@ class AssetOperation extends EventEmitter {
     /**
      * 根据类型创建资源
      * @param type 
-     * @param target 目标地址，需要包含文件后缀
+     * @param dir 目标目录
+     * @param baseName 基础名称
      * @param options 
      * @returns 
      */
-    async createAssetByType(type: ISupportCreateType, target: string, options?: CreateAssetByTypeOptions) {
+    async createAssetByType(type: ISupportCreateType, dir: string, baseName: string, options?: CreateAssetByTypeOptions) {
         const createMenus = await assetHandlerManager.getCreateMenuByName(type);
         if (!createMenus.length) {
             throw new Error(`Can not support create type: ${type}`);
@@ -127,6 +128,8 @@ class AssetOperation extends EventEmitter {
                 throw new Error(`Can not find template: ${options.templateName}`);
             }
         }
+        const extName = extname(createInfo.fullFileName);
+        const target = join(dir, baseName + extName);
 
         return await this.createAsset({
             handler: createInfo.handler,
@@ -226,7 +229,7 @@ class AssetOperation extends EventEmitter {
      * @param pathOrUrlOrUUID 
      * @returns boolean
      */
-    async refreshAsset(pathOrUrlOrUUID: string): Promise<void> {
+    async refreshAsset(pathOrUrlOrUUID: string): Promise<number> {
         // 将实际的刷新任务塞到 db 管理器的队列内等待执行
         return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID]);
     }

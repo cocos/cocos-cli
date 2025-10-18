@@ -23,7 +23,6 @@ export interface Importer {
     // ---- 一些导入过程中需要的行为配置 ----
     migrations?: Migrate[];
 
-    migrationHook?: MigrateHook;
     afterSubAssetsImport?(asset: Asset): Promise<void>; //后续理论上是 createSubAsset 的时候可以监听它的 import 完成行为
 
     /**
@@ -154,7 +153,7 @@ export interface ICreateMenuInfo {
     // 模板名称，默认为 default ，作为模板选择的唯一标识符
     name: string;
     // 创建的默认文件名称带后缀，具体实际上是为 assets 面板提供的数据，assets 面板新建时，需要先让用户填写清楚命名最后才创建
-    fullFileName?: string;
+    fullFileName: string;
 
     // 资源文件内容，支持字符串、Buffer、JSON
     content?: string | Buffer | JSON;

@@ -1,5 +1,5 @@
 import lodash from 'lodash';
-import path from 'path';
+import path, { dirname } from 'path';
 import cc, { SceneAsset } from 'cc';
 import { expose, register } from './decorator';
 import {
@@ -80,7 +80,7 @@ export class SceneService extends EventEmitter implements ISceneService {
             console.log('运行场景');
             const sceneInstance = await new Promise<cc.Scene>((resolve, reject) => {
                 cc.director.runSceneImmediate(sceneAsset,
-                    () => {},
+                    () => { },
                     (err, instance: cc.Scene | undefined) => {
                         if (!instance) {
                             console.error('场景实例化失败', err);
@@ -197,9 +197,9 @@ export class SceneService extends EventEmitter implements ISceneService {
         try {
             let assetInfo;
             try {
-                const result = await Rpc.request('assetManager', 'createAssetByType', ['scene', params.targetPathOrURL, {
+                const result = await Rpc.request('assetManager', 'createAssetByType', ['scene', dirname(params.targetPathOrURL), path.basename(params.targetPathOrURL), {
                     templateName: params.templateType,
-                    overwrite: true
+                    overwrite: true,
                 }]);
 
                 assetInfo = Array.isArray(result) ? result[0] : result;

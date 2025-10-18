@@ -16,6 +16,9 @@ tsconfig.json
 eslint.config.mjs
 workflow/!(postinstall).js
 node_modules/**
+tests/**
+jest/**
+@types/**
 .cocos/**
 .user.json
 .npmmrc

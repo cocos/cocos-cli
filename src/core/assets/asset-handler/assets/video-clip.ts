@@ -1,6 +1,7 @@
 import { Asset } from '@editor/asset-db';
 import { AssetHandler } from '../../@types/protected';
 import { VideoClip } from 'cc';
+import { getMediaDuration } from '../utils';
 
 export const VideoHandler: AssetHandler = {
     name: 'video-clip',
@@ -21,7 +22,7 @@ export const VideoHandler: AssetHandler = {
             await asset.copyToLibrary(asset.extname, asset.source);
             let duration = 10;
             try {
-                duration = await getVideoDurationInSeconds(asset.source);
+                duration = await getMediaDuration(asset.source);
             } catch (error) {
                 console.error(
                     `Loading video ${asset.source} failed, the video you are using may be in a corrupted format or not supported by the current browser version of the editor, in the latter case you can ignore this error.`,
@@ -37,15 +38,6 @@ export const VideoHandler: AssetHandler = {
 };
 
 export default VideoHandler;
-
-function getVideoDurationInSeconds(path: string) {
-    return new Promise<number>((resolve, reject) => {
-        const { getVideoDurationInSeconds } = require('get-video-duration')
-        getVideoDurationInSeconds(path).then((duration: number) => {
-            resolve(duration);
-        })
-    });
-}
 
 function createVideo(asset: Asset, duration?: number) {
 

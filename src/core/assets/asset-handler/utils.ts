@@ -235,7 +235,7 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
 }
 
 async function findVsCode() {
-    let appPath = '';
+    const appPath = '';
     // TODO
 
     return appPath;
@@ -295,4 +295,18 @@ export function mergeMeta(a: Meta, b: Meta) {
             a[key] = b[key];
         }
     });
+}
+
+export async function getMediaDuration(filePath: string) {
+    const ffprobe = require('@ffprobe-installer/ffprobe');
+    const { execSync } = require('child_process');
+    const ffprobePath = ffprobe.path;
+    const command = `"${ffprobePath}" -v error -show_entries format=duration -of csv=p=0 "${filePath}"`;
+
+    try {
+        const result = execSync(command).toString().trim();
+        return parseFloat(result);
+    } catch (error: any) {
+        throw new Error(`获取媒体时长失败: ${error.message}`);
+    }
 }

@@ -124,6 +124,7 @@ export const SchemaQueryAssetsOption = z.object({
 // 资源创建相关
 export const SchemaSupportCreateType = z.enum(SUPPORT_CREATE_TYPES as any).describe('支持创建的资源处理器类型');
 export const SchemaTargetPath = z.string().min(1).describe('目标路径，资源将被创建或导入到此路径');
+export const SchemaBaseName = z.string().min(1).describe('基础名称，资源将被创建或导入到此名称');
 export const SchemaAssetOperationOption = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
@@ -141,12 +142,16 @@ export const SchemaAssetMetaResult = SchemaAssetMeta.nullable().describe('资源
 export const SchemaCreateMapResult = z.array(SchemaCreateMenuInfo).describe('可创建资源菜单列表');
 export const SchemaAssetInfosResult = z.array(SchemaAssetInfo).describe('资源信息列表');
 export const SchemaAssetDBInfosResult = z.array(SchemaAssetDBInfo).describe('资源数据库信息列表');
-export const SchemaCreatedAssetResult = SchemaAssetMeta.nullable().describe('创建的资源路径');
+export const SchemaCreatedAssetResult = SchemaAssetInfo.nullable().describe('创建的资源路径');
 export const SchemaImportedAssetResult = z.array(SchemaAssetInfo).describe('导入的资源信息数组，当导入文件夹时会包含文件夹及其所有子资源的信息');
 export const SchemaReimportResult = z.null().describe('重新导入操作结果（无返回值）');
 export const SchemaSaveAssetResult = SchemaAssetInfo.nullable().describe('保存资源后的资源信息对象');
+export const SchemaRefreshDirResult = z.object({
+    refreshAssetNumber: z.number().describe('刷新资源数量'),
+}).describe('刷新资源目录结果');
 
 export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
+export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
 export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
 export type TDataKeys = z.infer<typeof SchemaDataKeys>;
@@ -165,3 +170,4 @@ export type TCreatedAssetResult = z.infer<typeof SchemaCreatedAssetResult>;
 export type TImportedAssetResult = z.infer<typeof SchemaImportedAssetResult>;
 export type TReimportResult = z.infer<typeof SchemaReimportResult>;
 export type TSaveAssetResult = z.infer<typeof SchemaSaveAssetResult>;
+export type TRefreshDirResult = z.infer<typeof SchemaRefreshDirResult>;

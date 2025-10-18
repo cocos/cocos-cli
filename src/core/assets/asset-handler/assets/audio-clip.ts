@@ -1,6 +1,7 @@
 import { Asset } from '@editor/asset-db';
 import { AssetHandler } from '../../@types/private';
 import { AudioClip } from 'cc';
+import { getMediaDuration } from '../utils';
 
 const AudioHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -28,7 +29,7 @@ const AudioHandler: AssetHandler = {
             let duration = 0;
             // 如果当前资源没有生成 audio，则开始生成 audio
             try {
-                duration = await getAudioDurationInSeconds(asset.source);
+                duration = await getMediaDuration(asset.source);
             } catch (error) {
                 console.error(error);
                 console.error(
@@ -43,15 +44,6 @@ const AudioHandler: AssetHandler = {
 };
 
 export default AudioHandler;
-
-function getAudioDurationInSeconds(path: string) {
-    return new Promise<number>((resolve, reject) => {
-        const { getAudioDurationInSeconds } = require('get-audio-duration')
-        getAudioDurationInSeconds(path).then((duration: number) => {
-            resolve(duration);
-        })
-    });
-}
 
 function createAudio(asset: Asset, duration: number): AudioClip {
     const audio = new AudioClip();
