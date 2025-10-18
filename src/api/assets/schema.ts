@@ -161,6 +161,9 @@ export const SchemaImportedAssetResult = z.array(SchemaAssetInfo).describe('导�
 export const SchemaReimportResult = z.null().describe('重新导入操作结果（无返回值）');
 export const SchemaSaveAssetResult = SchemaAssetInfo.nullable().describe('保存资源后的资源信息对象');
 export const SchemaRefreshDirResult = z.null().describe('刷新资源目录结果');
+export const SchemaUUIDResult = z.string().nullable().describe('资源的唯一标识符 UUID');
+export const SchemaPathResult = z.string().nullable().describe('资源的文件系统路径');
+export const SchemaUrlResult = z.string().nullable().describe('资源的数据库 URL 地址');
 
 export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
@@ -185,3 +188,6 @@ export type TImportedAssetResult = z.infer<typeof SchemaImportedAssetResult>;
 export type TReimportResult = z.infer<typeof SchemaReimportResult>;
 export type TSaveAssetResult = z.infer<typeof SchemaSaveAssetResult>;
 export type TRefreshDirResult = z.infer<typeof SchemaRefreshDirResult>;
+export type TUUIDResult = z.infer<typeof SchemaUUIDResult>;
+export type TPathResult = z.infer<typeof SchemaPathResult>;
+export type TUrlResult = z.infer<typeof SchemaUrlResult>;

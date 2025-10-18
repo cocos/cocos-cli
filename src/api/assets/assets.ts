@@ -46,6 +46,12 @@ import {
     TCreateAssetByTypeOptions,
     SchemaCreateAssetOptions,
     TCreateAssetOptions
+    SchemaUUIDResult,
+    SchemaPathResult,
+    SchemaUrlResult,
+    TUUIDResult,
+    TPathResult,
+    TUrlResult
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
@@ -374,6 +380,81 @@ export class AssetsApi extends ApiBase {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('save asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源 UUID
+     */
+    @tool('assets-query-uuid')
+    @title('查询资源 UUID')
+    @description('根据资源的 URL 或文件路径查询资源的唯一标识符 UUID。支持 db:// 协议路径和文件系统路径。')
+    @result(SchemaUUIDResult)
+    async queryUUID(@param(SchemaUrlOrUUIDOrPath) urlOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TUUIDResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TUUIDResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = assetManager.queryUUID(urlOrPath);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query UUID fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源路径
+     */
+    @tool('assets-query-path')
+    @title('查询资源文件路径')
+    @description('根据资源的 URL 或 UUID 查询资源在文件系统中的实际路径。返回绝对路径字符串。')
+    @result(SchemaPathResult)
+    async queryPath(@param(SchemaUrlOrUUIDOrPath) urlOrUuid: TUrlOrUUIDOrPath): Promise<CommonResultType<TPathResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TPathResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = assetManager.queryPath(urlOrUuid);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query path fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源 URL
+     */
+    @tool('assets-query-url')
+    @title('查询资源数据库 URL')
+    @description('根据资源的文件路径或 UUID 查询资源在数据库中的 URL 地址。返回 db:// 协议格式的 URL。')
+    @result(SchemaUrlResult)
+    async queryUrl(@param(SchemaUrlOrUUIDOrPath) uuidOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TUrlResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TUrlResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = assetManager.queryUrl(uuidOrPath);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query URL fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 
