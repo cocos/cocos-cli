@@ -4,6 +4,7 @@
 [![Cocos Engine](https://img.shields.io/badge/Cocos-Engine-orange.svg)](https://github.com/cocos/cocos-engine)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+![cli logo](./static/image.png)
 > 🚀 A powerful command-line interface tool for Cocos Engine development
 
 ## 📖 Overview

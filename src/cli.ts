@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { ImportCommand, BuildCommand, InfoCommand, McpServerCommand, CommandRegistry } from './commands';
+import { ImportCommand, BuildCommand, InfoCommand, McpServerCommand, WizardCommand, CommandRegistry } from './commands';
+import { config } from './display/config';
 
 const program = new Command();
 
@@ -24,6 +25,7 @@ commandRegistry.register(new ImportCommand(program));
 commandRegistry.register(new BuildCommand(program));
 commandRegistry.register(new InfoCommand(program));
 commandRegistry.register(new McpServerCommand(program));
+commandRegistry.register(new WizardCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();
@@ -37,6 +39,11 @@ program.configureHelp({
 // 解析命令行参数
 try {
     program.parse();
+
+    // 设置交互模式
+    const interactiveMode = !program.getOptionValue('noInteractive');
+    config.setInteractiveMode(interactiveMode);
+
 } catch (error: any) {
     // 如果是帮助显示或版本显示错误，正常退出
     if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {

@@ -4,11 +4,12 @@
 [![Cocos Engine](https://img.shields.io/badge/Cocos-Engine-orange.svg)](https://github.com/cocos/cocos-engine)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+![cli logo](./static/image.png)
 > 🚀 专为 Cocos Engine 开发设计的强大命令行界面工具
 
 ## 📖 概述
 
-Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的综合命令行界面工具。它为开发者提供了便捷的方式来管理 Cocos 项目，包括导入导出资源、项目初始化、资源处理、多平台导出和其他自动化任务。
+Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的综合命令行界面工具。它提供了现代化的交互式体验，让开发者能够便捷地管理 Cocos 项目，包括导入导出资源、项目初始化、资源处理、多平台导出和其他自动化任务。通过智能向导和直观的界面，即使是新手也能快速上手。
 
 ## ✨ 功能特性
 
@@ -18,6 +19,8 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
 - 🌐 **跨平台支持**：支持 Cocos Creator 3.x 项目
 - 🎯 **资源处理**：高级纹理打包、效果编译和资源优化
 - ⚡ **构建系统**：多平台构建支持，可自定义选项
+- 🎨 **交互式界面**：现代化的命令行交互体验
+- 🧙 **智能向导**：引导式操作流程，降低使用门槛
 
 ## 🛠️ 开发环境配置
 
@@ -108,6 +111,9 @@ cocos info --project ./my-project
 # 启动 MCP 服务器
 cocos start-mcp-server --project ./my-project --port 9527
 
+# 启动交互式向导
+cocos wizard
+
 # 显示帮助
 cocos --help
 cocos build --help
@@ -123,8 +129,65 @@ Cocos CLI 提供以下主要命令：
 - **`build`** - 构建 Cocos 项目
 - **`info`** - 显示项目信息
 - **`start-mcp-server`** - 启动 MCP 服务器
+- **`wizard`** - 启动交互式向导
 
 > 📖 **完整命令文档**: 查看 [Commands 文档](src/commands/readme.md) 获取详细的命令参数、选项和使用示例。
+
+## 🎨 交互式功能
+
+Cocos CLI 提供了现代化的交互式体验，让命令行操作更加直观和友好。
+
+### 智能向导
+
+使用 `cocos wizard` 命令启动交互式向导，它会引导你完成各种操作：
+
+```bash
+# 启动交互式向导
+cocos wizard
+```
+
+**向导功能包括：**
+
+- 🏗️ **构建项目向导** - 选择平台和构建选项
+- 📂 **导入项目向导** - 引导项目导入流程
+- ℹ️ **查看项目信息向导** - 显示项目详细信息
+- 🚀 **启动 MCP 服务器向导** - 配置和启动服务器
+- ❓ **帮助信息查看** - 显示命令帮助和示例
+
+### 交互模式控制
+
+CLI 支持两种运行模式：
+
+**交互模式（默认）：**
+
+- 显示彩色 banner 和欢迎信息
+- 使用加载动画和进度条
+- 提供交互式对话框和选择列表
+- 支持实时状态更新
+
+**非交互模式（CI 环境）：**
+
+- 简化的文本输出
+- 适合自动化脚本和 CI/CD 环境
+- 使用 `--no-interactive` 参数启用
+
+```bash
+# 交互模式（默认）
+cocos wizard
+cocos build --project ./my-project
+
+# 非交互模式（CI 环境）
+cocos --no-interactive wizard
+cocos --no-interactive build --project ./my-project
+```
+
+### 视觉特性
+
+- 🌈 **渐变 Banner** - 彩色 ASCII 艺术字
+- ⏳ **加载动画** - 实时状态指示
+- 📊 **进度条** - 长时间操作的进度显示
+- 🎯 **状态图标** - 成功、错误、警告等状态提示
+- 📋 **表格显示** - 结构化的信息展示
 
 ## 🛠️ 开发与测试
 
@@ -158,6 +221,7 @@ Cocos CLI 提供以下主要命令：
    cocos import --project ./my-project
    cocos info --project ./my-project
    cocos start-mcp-server --project ./my-project --port 9527
+   cocos wizard
    ```
 
 4. **完成后取消链接：**
@@ -185,6 +249,7 @@ node ./dist/cli.js build --project ./my-project --platform web-desktop
 node ./dist/cli.js import --project ./my-project
 node ./dist/cli.js info --project ./my-project
 node ./dist/cli.js start-mcp-server --project ./my-project --port 9527
+node ./dist/cli.js wizard
 ```
 
 ### 测试命令
@@ -197,6 +262,7 @@ cocos --help
 cocos build --help
 cocos import --help
 cocos info --help
+cocos wizard --help
 
 # 测试版本
 cocos --version
@@ -216,6 +282,9 @@ cocos info --project ./tests/fixtures/projects/asset-operation
 
 # 测试 MCP 服务器
 cocos start-mcp-server --project ./tests/fixtures/projects/asset-operation --port 9527
+
+# 测试交互式向导
+cocos wizard
 ```
 
 #### 使用调试模式测试
@@ -273,6 +342,11 @@ cocos --debug build --project ./my-project --platform web-desktop
    - 确保项目路径正确且可访问
    - 使用绝对路径以获得更好的可靠性
    - 检查项目目录是否包含必要的文件
+
+4. **交互式功能问题：**
+   - 如果终端不支持颜色，使用 `--no-interactive` 参数
+   - 在 CI 环境中建议使用非交互模式
+   - 确保终端支持 Unicode 字符显示
 
 #### 调试模式
 

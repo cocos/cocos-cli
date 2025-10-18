@@ -100,10 +100,33 @@ cocos start-mcp-server --project <project-path> [options]
 cocos start-mcp-server --project /path/to/project --port 3000
 ```
 
+### `cocos wizard`
+启动交互式向导
+
+**用法:**
+```bash
+cocos wizard
+```
+
+**描述:**
+启动交互式向导，引导你完成项目设置和操作。提供友好的用户界面来执行各种 CLI 操作。
+
+**功能:**
+- 🏗️ 构建项目向导
+- 📂 导入项目向导
+- ℹ️ 查看项目信息向导
+- 🚀 启动 MCP 服务器向导
+- ❓ 帮助信息查看
+
+**示例:**
+```bash
+cocos wizard
+```
+
 ## 全局选项
 
 所有命令都支持以下全局选项：
 
 - `--config <path>` - 指定配置文件路径
 - `--debug` - 启用调试模式
-- `--no-interactive` - 禁用交互模式（用于 CI）
+- `--no-interactive` - 禁用交互模式（用于 CI，默认启用交互模式）
