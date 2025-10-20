@@ -56,7 +56,7 @@ export class NodeApi extends ApiBase {
                 active: false,
                 activeInHierarchy: false
             },
-            component: []
+            components: []
         };
     }
 

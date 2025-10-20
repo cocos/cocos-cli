@@ -22,7 +22,7 @@ describe('Node Proxy 测试', () => {
     describe('1. 基础节点操作', () => {
         it('createNode - 创建带预制体的节点', async () => {
             const params: ICreateNodeParams = {
-                urlOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
+                dbURLOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
                 path: testNodePath,
                 name: 'PrefabNode',
             };
@@ -39,7 +39,7 @@ describe('Node Proxy 测试', () => {
                 async () => {
                     const params: ICreateNodeParams = {
                         path: testNodePath,
-                        urlOrType: nodeType,
+                        dbURLOrType: nodeType,
                         position: testPosition,
                     };
 
@@ -193,7 +193,7 @@ describe('Node Proxy 测试', () => {
             const createParams: ICreateNodeParams = {
                 path: '/NodeToDelete',
                 name: 'NodeToDelete',
-                urlOrType: 'Sphere',
+                dbURLOrType: 'Sphere',
                 workMode: '3d'
             };
 

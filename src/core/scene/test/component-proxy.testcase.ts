@@ -20,7 +20,7 @@ describe('Component Proxy 测试', () => {
     let nodeId = '';
     beforeAll(async () => {
         const params: ICreateNodeParams = {
-            urlOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
+            dbURLOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
             path: '/PrefabNode',
             name: 'PrefabNode',
         };

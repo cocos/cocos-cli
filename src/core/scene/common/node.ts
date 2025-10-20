@@ -100,7 +100,7 @@ export interface IQueryNodeParams {
 // 节点查询结果项接口
 export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
-    component?: IComponent[]; // 节点上的组件列表
+    components?: IComponent[]; // 节点上的组件列表
     children?: INode[]; // 子节点列表
 }
 
@@ -129,7 +129,7 @@ export interface IDeleteNodeResult {
 
 // 节点创建参数接口
 export interface ICreateNodeParams {
-    urlOrType: string; // 预制体资源路径 或 节点类型（NodeType）
+    dbURLOrType: string; // 预制体资源路径 或 节点类型（NodeType）
     path: string; // 节点路径
     workMode?: '2d' | '3d';
     name?: string;

@@ -1,5 +1,5 @@
 import { register, expose } from './decorator';
-import type { ICreateNodeParams, IDeleteNodeParams, INodeService, IUpdateNodeParams, IUpdateNodeResult, IQueryNodeParams, INode, IDeleteNodeResult } from '../../common';
+import type { ICreateNodeParams, IDeleteNodeParams, INodeService, IUpdateNodeParams, IUpdateNodeResult, IQueryNodeParams, INode, IDeleteNodeResult, INodeProperties } from '../../common';
 import { Rpc } from '../rpc';
 import { readFile } from 'fs-extra';
 import EventEmitter from 'events';
@@ -8,6 +8,7 @@ import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, getUITransformParentNode, setLayer } from './node/node-utils';
 
 const NodeMgr = EditorExtends.Node;
+const ComponentMgr = EditorExtends.Component;
 
 /**
  * 场景事件类型
@@ -44,11 +45,11 @@ export class NodeService extends EventEmitter implements INodeService {
 
         let canvasNeeded = params.canvasRequired || false;
         let assetUuid;
-        const urlOrType = params.urlOrType;
-        if (urlOrType.startsWith("db://")) { //create from prefab resource
-            assetUuid = await Rpc.request('assetManager', 'queryUUID', [urlOrType]);
+        const dbURLOrType = params.dbURLOrType;
+        if (dbURLOrType.startsWith("db://")) { //create from prefab resource
+            assetUuid = await Rpc.request('assetManager', 'queryUUID', [dbURLOrType]);
         } else {
-            const nodeType = urlOrType as string;
+            const nodeType = dbURLOrType as string;
             const paramsArray = this._nodeConfigJson[nodeType];
             if (!paramsArray || paramsArray.length < 0) {
                 throw new Error(`Node type '${nodeType}' is not implemented`);
@@ -254,18 +255,21 @@ export class NodeService extends EventEmitter implements INodeService {
                 activeInHierarchy: node.activeInHierarchy,
             },
         };
+        let nodeInfo = info as INode;
         if (generateChildren) {
-            (info as any).children = [];
             node.children.forEach((child) => {
-                (info as any).children.push(this._generateNodeInfo(child, true));
+                if (!nodeInfo.children) {
+                    nodeInfo.children = [];
+                }
+                nodeInfo.children.push(this._generateNodeInfo(child, true));
             });
         }
         node.components.forEach((comp) => {
             if (comp) {
-                if (!(info as any).component) {
-                    (info as any).component = [];
+                if (!nodeInfo.components) {
+                    nodeInfo.components = [];
                 }
-                (info as any).component.push(comp.uuid);
+                // nodeInfo.components.push(ComponentMgr.get);
             }
         });
 
