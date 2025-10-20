@@ -332,13 +332,7 @@ export type ITransformTarget = string | string[] | Record<string, string>;
 
 export interface IAssetInfo extends IAssetInfoFromDB {
     temp?: string; // 资源的构建缓存目录
-    parent?: any;
-    // fatherUuid?: string | undefined;
-    userData?: any;
-
     dirty?: boolean;
-    // TODO
-    userData?: Record<string, any>;
     meta: IAssetMeta;
     subAssets: Record<string, IAssetInfo>;
     mtime: number;
