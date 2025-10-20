@@ -89,11 +89,11 @@ export class AssetsApi extends ApiBase {
     /**
      * 删除资源
      */
-    @tool('assets-remove-asset')
+    @tool('assets-delete-asset')
     @title('删除项目资源')
     @description('从 Cocos Creator 项目中删除指定的资源文件。支持删除单个文件或整个目录。删除的资源会从资源数据库中移除，同时删除对应的 .meta 文件。删除操作不可逆，请谨慎使用。')
     @result(SchemaDbDirResult)
-    async removeAsset(@param(SchemaDirOrDbPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
+    async deleteAsset(@param(SchemaDirOrDbPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TDbDirResult> = {
             code: code,

@@ -98,16 +98,15 @@ export class NodeApi extends ApiBase {
     async deleteNode(@param(NodeDeleteSchema) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDeleteResult>> {
         const ret: CommonResultType<TNodeDeleteResult> = {
             code: COMMON_STATUS.SUCCESS,
-            data: {
-                path: '',
-            },
+            data: undefined,
         };
 
         try {
             const result = await Scene.deleteNode(options);
-            if (ret.data && result?.path) {
-                ret.data.path = result.path;
-            }
+            if (!result) throw new Error(`node not found at path: ${options.path}`);
+            ret.data = {
+                path: result.path,
+            };
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('删除节点失败:', e);

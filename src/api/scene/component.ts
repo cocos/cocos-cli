@@ -49,11 +49,11 @@ export class ComponentApi extends ApiBase {
     /**
      * 移除组件
      */
-    @tool('scene-remove-component')
-    @title('移除组件')
-    @description('移除节点组件')
+    @tool('scene-delete-component')
+    @title('删除组件')
+    @description('删除节点组件')
     @result(SchemaBooleanResult)
-    async removeComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<boolean>> {
+    async deleteComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<boolean>> {
         try {
             const result = await Scene.removeComponent(component);
             return {
