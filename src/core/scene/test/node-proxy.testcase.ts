@@ -1,5 +1,6 @@
 import {
-    type ICreateNodeParams,
+    type ICreateByDBParams,
+    type ICreateByNodeTypeParams,
     type IDeleteNodeParams,
     type IDeleteNodeResult,
     type IQueryNodeParams,
@@ -21,8 +22,8 @@ describe('Node Proxy 测试', () => {
 
     describe('1. 基础节点操作', () => {
         it('createNode - 创建带预制体的节点', async () => {
-            const params: ICreateNodeParams = {
-                dbURLOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
+            const params: ICreateByDBParams = {
+                dbURL: 'db://internal/default_prefab/ui/Label.prefab',
                 path: testNodePath,
                 name: 'PrefabNode',
             };
@@ -37,9 +38,9 @@ describe('Node Proxy 测试', () => {
             const nodeTypes = Object.values(NodeType);
             nodeTypes.forEach(nodeType => {
                 async () => {
-                    const params: ICreateNodeParams = {
+                    const params: ICreateByNodeTypeParams = {
                         path: testNodePath,
-                        dbURLOrType: nodeType,
+                        nodeType: nodeType,
                         position: testPosition,
                     };
 
@@ -190,10 +191,10 @@ describe('Node Proxy 测试', () => {
 
         it('deleteNode - 删除节点（保持世界变换）', async () => {
             // 先创建一个新节点用于删除测试
-            const createParams: ICreateNodeParams = {
+            const createParams: ICreateByNodeTypeParams = {
                 path: '/NodeToDelete',
                 name: 'NodeToDelete',
-                dbURLOrType: 'Sphere',
+                nodeType: NodeType.SPHERE,
                 workMode: '3d'
             };
 
@@ -208,7 +209,7 @@ describe('Node Proxy 测试', () => {
 
             const result = await NodeProxy.deleteNode(deleteParams);
             expect(result).toBeDefined();
-            expect(result?.path).toBe('/NodeToDelete');
+            expect(result?.path).toBe('NodeToDelete');
         });
     });
 

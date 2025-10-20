@@ -1,6 +1,6 @@
 import { Component, Prefab } from 'cc';
 import type {
-    ICreateNodeParams,
+    ICreateByDBParams,
     IDeleteNodeParams,
     IAddComponentOptions,
     IRemoveComponentOptions,
@@ -19,8 +19,8 @@ describe('Component Proxy 测试', () => {
     let nodePath = '';
     let nodeId = '';
     beforeAll(async () => {
-        const params: ICreateNodeParams = {
-            dbURLOrType: 'db://internal/default_prefab/ui/Sprite.prefab',
+        const params: ICreateByDBParams = {
+            dbURL: 'db://internal/default_prefab/ui/Sprite.prefab',
             path: '/PrefabNode',
             name: 'PrefabNode',
         };

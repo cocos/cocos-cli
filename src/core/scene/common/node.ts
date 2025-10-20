@@ -128,14 +128,32 @@ export interface IDeleteNodeResult {
 }
 
 // 节点创建参数接口
-export interface ICreateNodeParams {
-    dbURLOrType: string; // 预制体资源路径 或 节点类型（NodeType）
-    path: string; // 节点路径
-    workMode?: '2d' | '3d';
+// export interface ICreateNodeParams {
+//     dbURL?: string; // 预制体资源路径 或 节点类型（NodeType）
+//     path: string; // 节点路径
+//     workMode?: '2d' | '3d';
+//     nodeType?: NodeType;
+//     name?: string;
+//     position?: IVec3;
+//     keepWorldTransform?: boolean;
+//     canvasRequired?: boolean;
+// }
+
+interface IBaseCreateNodeParams {
+    path: string;
     name?: string;
+    workMode?: '2d' | '3d';
     position?: IVec3;
     keepWorldTransform?: boolean;
     canvasRequired?: boolean;
+}
+
+export interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
+    nodeType: NodeType;
+}
+
+export interface ICreateByDBParams extends IBaseCreateNodeParams {
+    dbURL: string;
 }
 
 /**
@@ -146,7 +164,7 @@ export interface INodeService {
      * 创建节点
      * @param params
      */
-    createNode(params: ICreateNodeParams): Promise<INode | null>;
+    createNode(params: ICreateByNodeTypeParams | ICreateByDBParams): Promise<INode | null>;
     /**
      * 删除节点
      * @param params 

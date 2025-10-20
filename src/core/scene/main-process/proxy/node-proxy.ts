@@ -1,8 +1,8 @@
-import type { INodeService, INode, ICreateNodeParams, IQueryNodeParams, IUpdateNodeParams, IDeleteNodeParams, IUpdateNodeResult, IDeleteNodeResult } from '../../common';
+import type { INodeService, INode, ICreateByNodeTypeParams, ICreateByDBParams, IQueryNodeParams, IUpdateNodeParams, IDeleteNodeParams, IUpdateNodeResult, IDeleteNodeResult } from '../../common';
 import { Rpc } from '../rpc';
 
 export const NodeProxy: INodeService = {
-    createNode(params: ICreateNodeParams): Promise<INode | null> {
+    createNode(params: ICreateByNodeTypeParams | ICreateByDBParams): Promise<INode | null> {
         return Rpc.request('Node', 'createNode', [params]);
     },
     deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {

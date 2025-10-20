@@ -13,11 +13,11 @@ import {
     TDeleteNodeOptions,
     NodeQueryResultSchema,
     NodeDeleteResultSchema,
-    NodeUpdateResultSchema
+    NodeUpdateResultSchema,
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { MobilityMode, NodeType, Scene } from '../../core/scene';
+import { ICreateByNodeTypeParams, MobilityMode, NodeType, Scene } from '../../core/scene';
 
 
 export class NodeApi extends ApiBase {
@@ -73,9 +73,15 @@ export class NodeApi extends ApiBase {
             data: this._generateDefaultNodeInfo(),
         };
         try {
-            const nodeInfo = await Scene.createNode(options);
-            if (nodeInfo) {
-                ret.data = nodeInfo;
+            let resultNode;
+            if (options.dbURL) {
+                resultNode = await Scene.createNode(options);
+            } else if (options.nodeType) {
+                const params = options as ICreateByNodeTypeParams;
+                resultNode = await Scene.createNode(params);
+            }
+            if (resultNode) {
+                ret.data = resultNode;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;

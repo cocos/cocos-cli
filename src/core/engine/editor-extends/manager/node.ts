@@ -302,14 +302,17 @@ export default class NodeManager extends EventEmitter {
      * 生成唯一路径
      */
     private _generateUniquePath(uuid: string, name: string, parentUuid?: string): string {
+        if (!parentUuid) {
+            return '';
+        }
         const parentPath = parentUuid ? this._uuidToPath.get(parentUuid) || '' : '';
 
         // 清理名称中的非法路径字符
         const cleanName = this._sanitizeName(name);
 
         // 检查名称是否唯一，如果不唯一则添加自增后缀
-        const finalName = this.ensureUniqueName(parentUuid || 'root', cleanName);
-        const finalPath = parentPath ? `${parentPath}/${finalName}` : `/${finalName}`;
+        const finalName = this.ensureUniqueName(parentUuid, cleanName);
+        const finalPath = parentPath ? `${parentPath}/${finalName}` : `${finalName}`;
 
         return finalPath;
     }
