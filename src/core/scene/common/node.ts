@@ -152,7 +152,7 @@ export interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
     nodeType: NodeType;
 }
 
-export interface ICreateByDBParams extends IBaseCreateNodeParams {
+export interface ICreateByAssetParams extends IBaseCreateNodeParams {
     dbURL: string;
 }
 
@@ -164,7 +164,13 @@ export interface INodeService {
      * 创建节点
      * @param params
      */
-    createNode(params: ICreateByNodeTypeParams | ICreateByDBParams): Promise<INode | null>;
+    createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
+
+    /**
+     * 创建节点
+     * @param params
+     */
+    createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     /**
      * 删除节点
      * @param params 

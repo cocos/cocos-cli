@@ -1,6 +1,6 @@
 import { Component, Prefab } from 'cc';
 import type {
-    ICreateByDBParams,
+    ICreateByAssetParams,
     IDeleteNodeParams,
     IAddComponentOptions,
     IRemoveComponentOptions,
@@ -19,13 +19,13 @@ describe('Component Proxy 测试', () => {
     let nodePath = '';
     let nodeId = '';
     beforeAll(async () => {
-        const params: ICreateByDBParams = {
+        const params: ICreateByAssetParams = {
             dbURL: 'db://internal/default_prefab/ui/Sprite.prefab',
             path: '/PrefabNode',
             name: 'PrefabNode',
         };
 
-        const prefabNode = await NodeProxy.createNode(params);
+        const prefabNode = await NodeProxy.createNodeByAsset(params);
         expect(prefabNode).toBeDefined();
         expect(prefabNode?.name).toBe('PrefabNode');
         if (!prefabNode) {

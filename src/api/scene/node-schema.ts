@@ -88,23 +88,19 @@ const BaseSchema = z.object({
     canvasRequired: z.boolean().optional().describe('是否需要 Canvas'),
 });
 
-const CreateByDBSchema = BaseSchema.extend({
+export const NodeCreateByAssetSchema = BaseSchema.extend({
     dbURL: z.string().describe('预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab'),
-    nodeType: z.undefined().optional(), // 明确不允许 nodeType
 });
 
-const CreateByNodeTypeSchema = BaseSchema.extend({
+export const NodeCreateByTypeSchema = BaseSchema.extend({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
-    dbURL: z.undefined().optional(), // 明确不允许 dbURL
 });
-
-export const NodeCreateSchema = z.union([CreateByDBSchema, CreateByNodeTypeSchema]).describe('创建节点的选项参数，dbURL 和 nodeType 不能同时存在');
-
 
 // 类型导出
 export type TDeleteNodeOptions = z.infer<typeof NodeDeleteSchema>;
 export type TUpdateNodeOptions = z.infer<typeof NodeUpdateSchema>;
-export type TCreateNodeOptions = z.infer<typeof NodeCreateSchema>;
+export type TCreateNodeByAssetOptions = z.infer<typeof NodeCreateByAssetSchema>;
+export type TCreateNodeByTypeOptions = z.infer<typeof NodeCreateByTypeSchema>;
 export type TQueryNodeOptions = z.infer<typeof NodeQuerySchema>;
 export type TNodeDetail = z.infer<typeof NodeQueryResultSchema>;
 export type TNodeUpdateResult = z.infer<typeof NodeUpdateResultSchema>;
