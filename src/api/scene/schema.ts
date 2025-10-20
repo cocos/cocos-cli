@@ -15,11 +15,11 @@ const SchemaSceneIdentifier = z.object({
     assetType: z.string().describe('场景资源类型'),
 }).describe('场景基础信息');
 
-export const ScenePropertySchema = SchemaSceneIdentifier.extend({
+export const SchemaSceneProperty = SchemaSceneIdentifier.extend({
     name: z.string().describe('场景名称'),
 }).describe('场景基础属性');
 
-const SchemaScene = ScenePropertySchema.extend({
+const SchemaScene = SchemaSceneProperty.extend({
     children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
     components: z.array(z.lazy(() => SchemaComponent)).default([]).describe('节点上的组件列表'),
 }).describe('场景信息');
