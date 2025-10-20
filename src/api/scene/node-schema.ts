@@ -79,22 +79,10 @@ export const NodeDeleteSchema = z.object({
 }).describe('删除节点的选项参数');
 
 
-// 创建节点的参数
-// export const NodeCreateSchema = z.object({
-//     dbURLOrType: z.string().describe('预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab'),
-//     path: z.string().describe('创建的节点相对路径，根节点是场景节点'),
-//     name: z.string().optional().describe('节点的名称，不传，系统会默认一个名字'),
-//     workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
-//     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
-//     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
-//     position: Vec3Schema.optional().default({ x: 0, y: 0, z: 0 }).describe('节点位置'),
-//     canvasRequired: z.boolean().optional().describe('是否需要 Canvas'),
-// }).describe('创建节点的选项参数');
-
-
 const BaseSchema = z.object({
     path: z.string().describe('创建的节点相对路径，根节点是场景节点'),
     name: z.string().optional().describe('节点的名称，不传，系统会默认一个名字'),
+    workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
     position: Vec3Schema.optional().default({ x: 0, y: 0, z: 0 }).describe('节点位置'),
     canvasRequired: z.boolean().optional().describe('是否需要 Canvas'),
@@ -103,11 +91,9 @@ const BaseSchema = z.object({
 const CreateByDBSchema = BaseSchema.extend({
     dbURL: z.string().describe('预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab'),
     nodeType: z.undefined().optional(), // 明确不允许 nodeType
-    workMode: z.undefined().optional(), // 明确不允许 workMode
 });
 
 const CreateByNodeTypeSchema = BaseSchema.extend({
-    workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
     dbURL: z.undefined().optional(), // 明确不允许 dbURL
 });
