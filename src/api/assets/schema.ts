@@ -41,7 +41,7 @@ const SchemaRedirectInfo = z.object({
 }).describe('资源重定向信息');
 
 // 父级资源信息 Schema
-const SchemaFatherInfo = z.object({
+const SchemaParentInfo = z.object({
     source: z.string().describe('父级资源的 URL 地址'),
     library: z.record(z.string(), z.string()).describe('父级资源的导入资源映射表'),
     uuid: z.string().describe('父级资源的 UUID'),
@@ -79,7 +79,7 @@ const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
     // 必需字段
     name: z.string().describe('资源名字'),
     source: z.string().describe('URL 地址'),
-    loadUrl: z.string().describe('loader 加载的层级地址'),
+    loadUrl: z.string().describe('loader 加载的层级地址，主要用于在脚本内加载资源 url 的拼接'),
     url: z.string().describe('loader 加载地址（包含扩展名）'),
     file: z.string().describe('绝对路径'),
     uuid: z.string().describe('资源的唯一 ID'),
@@ -99,7 +99,7 @@ const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
     instantiation: z.string().optional().describe('虚拟资源可实例化成实体的扩展名'),
     redirect: SchemaRedirectInfo.optional().describe('跳转指向资源'),
     meta: SchemaAssetMeta.optional().describe('资源元数据'),
-    fatherInfo: SchemaFatherInfo.optional().describe('父级资源信息'),
+    parent: SchemaParentInfo.optional().describe('父级资源信息'),
     extends: z.array(z.string()).optional().describe('资源的继承链信息'),
     mtime: z.number().optional().describe('资源文件的修改时间'),
     depends: z.array(z.string()).optional().describe('依赖的资源 UUID 列表'),

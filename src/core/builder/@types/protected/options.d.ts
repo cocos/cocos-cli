@@ -332,7 +332,7 @@ export type ITransformTarget = string | string[] | Record<string, string>;
 
 export interface IAssetInfo extends IAssetInfoFromDB {
     temp?: string; // 资源的构建缓存目录
-    fatherInfo?: any;
+    parent?: any;
     // fatherUuid?: string | undefined;
     userData?: any;
 

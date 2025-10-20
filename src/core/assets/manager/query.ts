@@ -397,8 +397,8 @@ class AssetQueryManager {
             }
         }
 
-        if (dataKeys.includes('fatherInfo') && asset.parent) {
-            info.fatherInfo = {
+        if (dataKeys.includes('parent') && asset.parent) {
+            info.parent = {
                 source: asset.parent.source,
                 library: libArr2Obj(asset.parent),
                 uuid: asset.parent.uuid,

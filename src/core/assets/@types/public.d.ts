@@ -39,7 +39,11 @@ export interface IAssetInfo {
     instantiation?: string;
     redirect?: IRedirectInfo; // 跳转指向资源
     meta?: IAssetMeta,
-    fatherInfo?: any;
+    parent?: {
+        source: string;
+        library: { [key: string]: string };
+        uuid: string;
+    };
     extends?: string[]; // 资源的继承链信息
     mtime?: number; // 资源文件的 mtime
     depends?: string[]; // 依赖的资源 uuid 信息
