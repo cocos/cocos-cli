@@ -37,12 +37,12 @@ export class ComponentApi extends ApiBase {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: componentInfo
-            }
+            };
         } catch (e) {
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -59,12 +59,12 @@ export class ComponentApi extends ApiBase {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result
-            }
+            };
         } catch (e) {
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -78,15 +78,18 @@ export class ComponentApi extends ApiBase {
     async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentInfoResult | null>> {
         try {
             const componentInfo = await Scene.queryComponent(component);
+            if (!componentInfo) {
+                throw new Error(`component not fount at path ${component.path}`);
+            }
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: componentInfo
-            }
+            };
         } catch (e) {
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 
@@ -103,12 +106,12 @@ export class ComponentApi extends ApiBase {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result
-            }
+            };
         } catch (e) {
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e)
-            }
+            };
         }
     }
 }

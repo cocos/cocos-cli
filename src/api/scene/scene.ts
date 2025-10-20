@@ -40,7 +40,7 @@ export class SceneApi extends ApiBase {
      */
     @tool('scene-query-current-scene')
     @title('获取当前打开场景信息')
-    @description('获取 Cocos Creator 项目中当前打开场景信息')
+    @description('获取 Cocos Creator 项目中当前打开场景信息，如果没有打开场景，返回 null')
     @result(SchemaCurrentSceneResult)
     async queryCurrentScene(): Promise<CommonResultType<TCurrentSceneResult>> {
         try {
@@ -60,11 +60,11 @@ export class SceneApi extends ApiBase {
 
     @tool('scene-open-scene')
     @title('打开场景')
-    @description('打开 Cocos Creator 项目中的指定场景文件。加载场景数据到内存中，使其成为当前活动场景。只需要提供场景名称即可。')
+    @description('打开 Cocos Creator 项目中的指定场景文件。加载场景数据到内存中，使其成为当前活动场景，可以输入场景资源路径 dbURL 或 场景的 uuid。')
     @result(SchemaOpenSceneResult)
-    async openScene(@param(SchemaSceneUrlOrUUID) urlOrUUID: TUrlOrUUID): Promise<CommonResultType<TOpenSceneResult>> {
+    async openScene(@param(SchemaSceneUrlOrUUID) dbURLOrUUID: TUrlOrUUID): Promise<CommonResultType<TOpenSceneResult>> {
         try {
-            const data = await Scene.open({ urlOrUUID: urlOrUUID });
+            const data = await Scene.open({ urlOrUUID: dbURLOrUUID });
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
