@@ -79,7 +79,7 @@ export const NodeDeleteSchema = z.object({
 }).describe('删除节点的选项参数');
 
 
-const BaseSchema = z.object({
+const NodeCreateBaseSchema = z.object({
     path: z.string().describe('创建的节点相对路径，根节点是场景节点'),
     name: z.string().optional().describe('节点的名称，不传，系统会默认一个名字'),
     workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
@@ -88,11 +88,11 @@ const BaseSchema = z.object({
     canvasRequired: z.boolean().optional().describe('是否需要 Canvas'),
 });
 
-export const NodeCreateByAssetSchema = BaseSchema.extend({
+export const NodeCreateByAssetSchema = NodeCreateBaseSchema.extend({
     dbURL: z.string().describe('预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab'),
 });
 
-export const NodeCreateByTypeSchema = BaseSchema.extend({
+export const NodeCreateByTypeSchema = NodeCreateBaseSchema.extend({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('节点类型'),
 });
 
