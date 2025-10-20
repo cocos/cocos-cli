@@ -338,18 +338,13 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 获取预览 settings 信息
      */
     public async getPreviewSettings() {
-        try {
-            await this.init();
-            this.result.settings.engine.engineModules = this.options.includeModules;
-            await this.initBundleManager();
-            // 开始执行预制任务
-            await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
-            await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
-            return this.result.settings;
-        } catch (error) {
-            console.error(error);
-            return null;
-        }
+        await this.init();
+        this.result.settings.engine.engineModules = this.options.includeModules;
+        await this.initBundleManager();
+        // 开始执行预制任务
+        await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
+        await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
+        return this.result.settings;
     }
 
     private async initOptions() {

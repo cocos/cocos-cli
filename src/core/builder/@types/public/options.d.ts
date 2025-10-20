@@ -1,10 +1,8 @@
 import * as babel from '@babel/core';
 import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig } from './texture-compress';
-import { BuildTemplateConfig, IBuildTaskOption, IPlatformType } from '../protected';
-import { IFlags } from '@cocos/creator-types/editor/packages/engine/@types'
+import { IBuildTaskOption, IPlatformType } from '../protected';
 import { StatsQuery } from '@cocos/ccbuild';
 import { EngineInfo, IEngineConfig } from '../../../engine/@types/public';
-import { extend } from 'lodash';
 
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
 export type ISortType = 'taskName' | 'createTime' | 'platform' | 'buildTime';

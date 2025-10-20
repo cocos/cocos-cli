@@ -25,7 +25,6 @@ Cocos CLI is a comprehensive command-line interface tool designed for the [Cocos
 ### Prerequisites
 
 - **Node.js**: Version 22.17.0 (required)
-- **Cocos Engine**: Local installation path
 - **Git**: For cloning the repository
 
 ### Quick Start
@@ -95,7 +94,7 @@ After completing the above, run `npm install` again to install dependencies.
 
 ## 🚀 Usage
 
-### Basic Commands
+### 📚 Commands
 
 ```bash
 # Import/open a Cocos project
@@ -115,20 +114,9 @@ cocos --help
 cocos build --help
 ```
 
-> 📖 **详细命令说明**: 查看 [Commands 文档](src/commands/readme.md) 获取完整的命令参数和使用示例。
+> 📖 **Detailed Command Documentation**: See [Commands Documentation](src/commands/readme.md) for complete command parameters and usage examples.
 
-## 📚 Commands
-
-Cocos CLI 提供以下主要命令：
-
-- **`import`** - 导入/打开 Cocos 项目
-- **`build`** - 构建 Cocos 项目
-- **`info`** - 显示项目信息
-- **`start-mcp-server`** - 启动 MCP 服务器
-
-> 📖 **完整命令文档**: 查看 [Commands 文档](src/commands/readme.md) 获取详细的命令参数、选项和使用示例。
-
-## 🛠️ Development & Testing
+## 🛠️ Development
 
 ### Development Setup
 
@@ -187,44 +175,6 @@ node ./dist/cli.js build --project ./my-project --platform web-desktop
 node ./dist/cli.js import --project ./my-project
 node ./dist/cli.js info --project ./my-project
 node ./dist/cli.js start-mcp-server --project ./my-project --port 9527
-```
-
-### Testing Commands
-
-#### Test Basic Functionality
-
-```bash
-# Test help commands
-cocos --help
-cocos build --help
-cocos import --help
-cocos info --help
-
-# Test version
-cocos --version
-```
-
-#### Test with Sample Project
-
-```bash
-# Test import command
-cocos import --project ./tests/fixtures/projects/asset-operation
-
-# Test build command
-cocos build --project ./tests/fixtures/projects/asset-operation --platform web-desktop
-
-# Test info command
-cocos info --project ./tests/fixtures/projects/asset-operation
-
-# Test MCP server
-cocos start-mcp-server --project ./tests/fixtures/projects/asset-operation --port 9527
-```
-
-#### Test with Debug Mode
-
-```bash
-# Enable debug mode for detailed output
-cocos --debug build --project ./my-project --platform web-desktop
 ```
 
 ### Development Workflow

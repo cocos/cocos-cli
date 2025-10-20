@@ -1,17 +1,17 @@
 import EventEmitter from 'events';
-import { dirname, isAbsolute, join, resolve } from 'path';
+import { join } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting, commonOptionConfigs } from '../share/common-options-validator';
-import { builtinPlugins, NATIVE_PLATFORM, platformPlugins, PLATFORMS } from '../share/platforms-options';
+import { builtinPlugins, NATIVE_PLATFORM, platformPlugins } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
 import { Platform, IConfigItem, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
-import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IPlatformInfo, IBuildStageItem, IBuildIconItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired } from '../@types/protected';
+import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired } from '../@types/protected';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
 import { newConsole } from '../../base/console';
-import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from '../share/builder-config';
+import builderConfig, { } from '../share/builder-config';
 import { existsSync } from 'fs-extra';
 export interface InternalPackageInfo {
     name: string; // 插件名
@@ -115,7 +115,7 @@ export class PluginManager extends EventEmitter {
             config.doc = Utils.Url.getDocUrl(config.doc);
         }
         if (typeof config.options === 'object') {
-            lodash.set(this.pkgOptionConfigs, `${registerInfo.platform}.${pkgName}`, config.options)
+            lodash.set(this.pkgOptionConfigs, `${registerInfo.platform}.${pkgName}`, config.options);
             Object.keys(config.options).forEach((key) => {
                 checkConfigDefault(config.options![key]);
             });

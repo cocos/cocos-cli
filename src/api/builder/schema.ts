@@ -56,3 +56,37 @@ export type SchemaBuildOptionType = z.infer<typeof SchemaBuildOption>;
 export const SchemaBuildResult = z.object({
     exitCode: z.number().describe('构建的退出码'),
 }).describe('构建项目后的结果');
+
+export const SchemaPreviewSettingsResult = z.object({
+    settings: z.object({
+        CocosEngine: z.string().describe('Cocos Engine 版本'),
+        engine: z.object({
+            debug: z.boolean().describe('是否是调试模式'),
+            platform: z.string().describe('构建平台'),
+            customLayers: z.array(z.object({ name: z.string(), bit: z.number() })).describe('自定义层级'),
+            sortingLayers: z.array(z.object({ id: z.number(), name: z.string(), value: z.number() })).describe('排序层级'),
+            macros: z.record(z.string(), z.any()).describe('宏定义'),
+            builtinAssets: z.array(z.string()).describe('内置资源'),
+        }),
+    }),
+    script2library: z.record(z.string(), z.string()).describe('脚本与库的映射关系'),
+    bundleConfigs: z.array(z.object({
+        name: z.string().describe('bundle 名称'),
+        uuids: z.array(z.string()).describe('bundle 中的资源 UUID 列表'),
+        paths: z.record(z.string(), z.array(z.string())).describe('bundle 中的资源路径列表'),
+        scenes: z.record(z.string(), z.union([z.string(), z.number()])).describe('bundle 中的场景列表'),
+        packs: z.record(z.string(), z.array(z.union([z.string(), z.number()]))).describe('bundle 中的合并的 json 列表'),
+        versions: z.record(z.string(), z.array(z.union([z.string(), z.number()]))).describe('bundle 中的资源版本列表'),
+        redirect: z.array(z.union([z.string(), z.number()])).describe('bundle 中的重定向资源列表'),
+        debug: z.boolean().describe('bundle 是否是 debug 模式'),
+        types: z.array(z.string()).optional().describe('bundle 中的资源类型列表'),
+        encrypted: z.boolean().optional().describe('bundle 中的资源是否加密'),
+        isZip: z.boolean().optional().describe('bundle 是否是 zip 模式'),
+        zipVersion: z.string().optional().describe('bundle 的 zip 版本'),
+        extensionMap: z.record(z.string(), z.array(z.union([z.string(), z.number()]))).describe('bundle 中的扩展资源列表'),
+        dependencyRelationships: z.record(z.string(), z.array(z.union([z.string(), z.number()]))).describe('bundle 中的依赖关系列表'),
+        hasPreloadScript: z.boolean().describe('bundle 是否有需要预加载的脚本'),
+    })).describe('bundle 配置'),
+}).describe('获取预览信息结果').nullable();
+
+export type TPreviewSettingsResult = z.infer<typeof SchemaPreviewSettingsResult>;

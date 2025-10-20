@@ -1,13 +1,12 @@
 'use strict';
 
 import { AssetDBRegisterInfo, IAsset, IAssetDBInfo } from '../@types/private';
-
 import * as assetdb from '@editor/asset-db';
 import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import { extname, join, relative } from 'path';
 import { newConsole } from '../../base/console';
-import { decidePromiseState, getCurrentLocalTime, PROMISE_STATE } from '../utils';
+import { decidePromiseState, PROMISE_STATE } from '../utils';
 import pluginManager from './plugin';
 import assetHandlerManager from './asset-handler';
 import i18n from '../../base/i18n';

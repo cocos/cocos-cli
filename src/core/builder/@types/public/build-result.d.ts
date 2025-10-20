@@ -3,7 +3,7 @@
  */
 
 import { ISplashSetting, ICustomJointTextureLayout, UUID, IPhysicsConfig, IOrientation } from './options';
-
+import { ITextureCompressType, ITextureCompressFormatType, ICustomConfig } from './texture-compress';
 // ****************************** settings ************************************************
 
 // debug: true
@@ -77,6 +77,12 @@ export interface ISettings {
     profiling?: {
         showFPS: boolean;
     };
+}
+
+export interface IPreviewSettingsResult {
+    settings: ISettings;
+    script2library: Record<string, string>;
+    bundleConfigs: IBundleConfig[];
 }
 
 export interface IPackageInfo {

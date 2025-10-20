@@ -40,7 +40,7 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
    ```
 
 2. **安装依赖**
-   
+
    ```bash
    npm run init
    npm install
@@ -97,7 +97,7 @@ Cocos CLI 是为 [Cocos Engine](https://github.com/cocos/cocos-engine) 设计的
 
 ## 🚀 使用方法
 
-### 基本命令
+### 📚 基本命令
 
 ```bash
 # 导入/打开 Cocos 项目
@@ -121,18 +121,6 @@ cocos build --help
 ```
 
 > 📖 **详细命令说明**: 查看 [Commands 文档](src/commands/readme.md) 获取完整的命令参数和使用示例。
-
-## 📚 命令说明
-
-Cocos CLI 提供以下主要命令：
-
-- **`import`** - 导入/打开 Cocos 项目
-- **`build`** - 构建 Cocos 项目
-- **`info`** - 显示项目信息
-- **`start-mcp-server`** - 启动 MCP 服务器
-- **`wizard`** - 启动交互式向导
-
-> 📖 **完整命令文档**: 查看 [Commands 文档](src/commands/readme.md) 获取详细的命令参数、选项和使用示例。
 
 ## 🎨 交互式功能
 
@@ -251,48 +239,6 @@ node ./dist/cli.js import --project ./my-project
 node ./dist/cli.js info --project ./my-project
 node ./dist/cli.js start-mcp-server --project ./my-project --port 9527
 node ./dist/cli.js wizard
-```
-
-### 测试命令
-
-#### 测试基本功能
-
-```bash
-# 测试帮助命令
-cocos --help
-cocos build --help
-cocos import --help
-cocos info --help
-cocos wizard --help
-
-# 测试版本
-cocos --version
-```
-
-#### 使用示例项目测试
-
-```bash
-# 测试导入命令
-cocos import --project ./tests/fixtures/projects/asset-operation
-
-# 测试构建命令
-cocos build --project ./tests/fixtures/projects/asset-operation --platform web-desktop
-
-# 测试信息命令
-cocos info --project ./tests/fixtures/projects/asset-operation
-
-# 测试 MCP 服务器
-cocos start-mcp-server --project ./tests/fixtures/projects/asset-operation --port 9527
-
-# 测试交互式向导
-cocos wizard
-```
-
-#### 使用调试模式测试
-
-```bash
-# 启用调试模式获取详细输出
-cocos --debug build --project ./my-project --platform web-desktop
 ```
 
 ### 开发工作流

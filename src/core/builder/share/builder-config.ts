@@ -1,7 +1,7 @@
-import { join } from "path";
-import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from "../../configuration";
-import { IBuildCommonOptions, Platform } from "../@types";
-import { BuildConfiguration } from "../@types/config-export";
+import { join } from 'path';
+import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from '../../configuration';
+import { IBuildCommonOptions, Platform } from '../@types';
+import { BuildConfiguration } from '../@types/config-export';
 
 export const BuildGlobalInfo = {
     // 一些常量
@@ -50,7 +50,7 @@ export function getBuildCommonOptions(): IBuildCommonOptions {
         moveRemoteBundleScript: false,
         nativeCodeBundleMode: 'asmjs',
         packAutoAtlas: true,
-    }
+    };
 }
 
 export function getDefaultConfig(): BuildConfiguration {
@@ -71,132 +71,132 @@ export function getDefaultConfig(): BuildConfiguration {
         textureCompressConfig: {
             userPreset: {},
             defaultConfig: {
-                "default": {
-                    "name": "Default Opaque",
-                    "options": {
-                        "miniGame": {
-                            "etc1_rgb": {
-                                "quality": "fast"
+                'default': {
+                    'name': 'Default Opaque',
+                    'options': {
+                        'miniGame': {
+                            'etc1_rgb': {
+                                'quality': 'fast'
                             },
-                            "pvrtc_4bits_rgb": {
-                                "quality": "fast"
+                            'pvrtc_4bits_rgb': {
+                                'quality': 'fast'
                             },
-                            "jpg": {
-                                "quality": 80
+                            'jpg': {
+                                'quality': 80
                             }
                         },
-                        "android": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'android': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "etc1_rgb": {
-                                "quality": "fast"
+                            'etc1_rgb': {
+                                'quality': 'fast'
                             },
-                            "jpg": {
-                                "quality": 80
+                            'jpg': {
+                                'quality': 80
                             }
                         },
-                        "harmonyos-next": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'harmonyos-next': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "etc1_rgb": {
-                                "quality": "fast"
+                            'etc1_rgb': {
+                                'quality': 'fast'
                             },
-                            "jpg": {
-                                "quality": 80
+                            'jpg': {
+                                'quality': 80
                             }
                         },
-                        "ios": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'ios': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "pvrtc_4bits_rgb": {
-                                "quality": "fast"
+                            'pvrtc_4bits_rgb': {
+                                'quality': 'fast'
                             },
-                            "jpg": {
-                                "quality": 80
+                            'jpg': {
+                                'quality': 80
                             }
                         },
-                        "web": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'web': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "etc1_rgb": {
-                                "quality": "fast"
+                            'etc1_rgb': {
+                                'quality': 'fast'
                             },
-                            "pvrtc_4bits_rgb": {
-                                "quality": "fast"
+                            'pvrtc_4bits_rgb': {
+                                'quality': 'fast'
                             },
-                            "png": {
-                                "quality": 80
+                            'png': {
+                                'quality': 80
                             }
                         },
-                        "pc": {}
+                        'pc': {}
                     }
                 },
-                "transparent": {
-                    "name": "Default Transparent",
-                    "options": {
-                        "miniGame": {
-                            "etc1_rgb_a": {
-                                "quality": "fast"
+                'transparent': {
+                    'name': 'Default Transparent',
+                    'options': {
+                        'miniGame': {
+                            'etc1_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "pvrtc_4bits_rgb_a": {
-                                "quality": "fast"
+                            'pvrtc_4bits_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "png": {
-                                "quality": 80
+                            'png': {
+                                'quality': 80
                             }
                         },
-                        "android": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'android': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "etc1_rgb_a": {
-                                "quality": "fast"
+                            'etc1_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "png": {
-                                "quality": 80
+                            'png': {
+                                'quality': 80
                             }
                         },
-                        "harmonyos-next": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'harmonyos-next': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "etc1_rgb_a": {
-                                "quality": "fast"
+                            'etc1_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "png": {
-                                "quality": 80
+                            'png': {
+                                'quality': 80
                             }
                         },
-                        "ios": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'ios': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "pvrtc_4bits_rgb_a": {
-                                "quality": "fast"
+                            'pvrtc_4bits_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "png": {
-                                "quality": 80
+                            'png': {
+                                'quality': 80
                             }
                         },
-                        "web": {
-                            "astc_8x8": {
-                                "quality": "medium"
+                        'web': {
+                            'astc_8x8': {
+                                'quality': 'medium'
                             },
-                            "etc1_rgb_a": {
-                                "quality": "fast"
+                            'etc1_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "pvrtc_4bits_rgb_a": {
-                                "quality": "fast"
+                            'pvrtc_4bits_rgb_a': {
+                                'quality': 'fast'
                             },
-                            "png": {
-                                "quality": 80
+                            'png': {
+                                'quality': 80
                             }
                         },
-                        "pc": {}
+                        'pc': {}
                     }
                 }
             },
@@ -234,7 +234,7 @@ class BuilderConfig {
         BuildGlobalInfo.projectName = projectInfo.name;
         BuildGlobalInfo.projectRoot = project.default.path;
         BuildGlobalInfo.buildTemplateDir = join(BuildGlobalInfo.projectRoot, 'build-template');
-        BuildGlobalInfo.projectTempDir = join(BuildGlobalInfo.projectRoot, 'temp', 'builder', );
+        BuildGlobalInfo.projectTempDir = join(BuildGlobalInfo.projectRoot, 'temp', 'builder',);
         // BuildGlobalInfo.globalTempDir = join(projectInfo.path, 'builder', 'temp', 'global');
         this._init = true;
         this._configInstance = await configurationRegistry.register('builder', getDefaultConfig());
