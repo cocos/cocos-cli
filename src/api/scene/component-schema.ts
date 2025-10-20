@@ -39,7 +39,7 @@ export const SchemaProperty = z.object({
     path: z.string().optional().describe('数据的搜索路径，由使用方填充'),
     isArray: z.boolean().optional().describe('是否为数组类型'),
     userData: z.record(z.string(), z.any()).optional().describe('用户透传数据')
-}).describe('属性数据结构和编辑器配置选项，用于定义属性的值、UI显示、验证规则等')
+}).describe('属性数据结构和编辑器配置选项，用于定义属性的值、UI显示、验证规则等');
 
 // 设置属性选项
 export const SchemaSetPropertyOptions = z.object({

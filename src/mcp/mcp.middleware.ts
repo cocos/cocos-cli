@@ -69,7 +69,7 @@ export class McpMiddleware {
                             } else {
                                 structuredContent = { result: result };
                             }
-                            console.debug(`call ${toolName} with args:${methodArgs} result: ${formattedResult}`);
+                            console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
                             return {
                                 content: [{ type: 'text', text: formattedResult }],
                                 structuredContent: structuredContent

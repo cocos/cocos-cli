@@ -29,7 +29,7 @@ describe('Scene Proxy 测试', () => {
             };
             createdSceneIdentifier = await SceneProxy.create(options);
             expect(createdSceneIdentifier).toBeDefined();
-            expect(createdSceneIdentifier?.name).toBe('TestScene.scene');
+            expect(createdSceneIdentifier?.assetName).toBe('TestScene.scene');
         });
     });
 
@@ -50,11 +50,11 @@ describe('Scene Proxy 测试', () => {
             expect(createdSceneIdentifier).not.toBeNull();
             if (createdSceneIdentifier) {
                 const openOptions: IOpenSceneOptions = {
-                    urlOrUUID: createdSceneIdentifier.url
+                    urlOrUUID: createdSceneIdentifier.assetUrl
                 };
                 const result = await SceneProxy.open(openOptions);
                 expect(result).toBeDefined();
-                expect(result.url).toBe(createdSceneIdentifier.url);
+                expect(result.assetUrl).toBe(createdSceneIdentifier.assetUrl);
             }
         });
 

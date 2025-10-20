@@ -17,7 +17,8 @@ import {
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { ICreateByNodeTypeParams, MobilityMode, NodeType, Scene } from '../../core/scene';
+import { ICreateByNodeTypeParams, Scene } from '../../core/scene';
+
 
 
 export class NodeApi extends ApiBase {
@@ -31,35 +32,6 @@ export class NodeApi extends ApiBase {
         console.log('初始化 节点 API');
     }
 
-
-    private _generateDefaultNodeInfo(): TNodeDetail {
-        return {
-            nodeId: '',
-            path: '',
-            name: '',
-            properties: {
-                position: { x: 0, y: 0, z: 0 },
-                worldPosition: { x: 0, y: 0, z: 0 },
-                rotation: { x: 0, y: 0, z: 0, w: 1 },
-                worldRotation: { x: 0, y: 0, z: 0, w: 1 },
-                eulerAngles: { x: 0, y: 0, z: 0 },
-                angle: 0,
-                scale: { x: 1, y: 1, z: 1 },
-                worldScale: { x: 1, y: 1, z: 1 },
-                worldMatrix: { m00: 0, m01: 0, m02: 0, m03: 0, m04: 0, m05: 0, m06: 0, m07: 0, m08: 0, m09: 0, m10: 0, m11: 0, m12: 0, m13: 0, m14: 0, m15: 0 },
-                forward: { x: 0, y: 0, z: 0 },
-                up: { x: 0, y: 1, z: 0 },
-                right: { x: 1, y: 0, z: 0 },
-                mobility: MobilityMode.Static,
-                layer: 0,
-                hasChangedFlags: 0,
-                active: false,
-                activeInHierarchy: false
-            },
-            components: []
-        };
-    }
-
     /**
      * 创建节点
      */
@@ -70,7 +42,7 @@ export class NodeApi extends ApiBase {
     async createNode(@param(NodeCreateSchema) options: TCreateNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
             code: COMMON_STATUS.SUCCESS,
-            data: this._generateDefaultNodeInfo(),
+            data: undefined,
         };
         try {
             let resultNode;
@@ -117,6 +89,7 @@ export class NodeApi extends ApiBase {
             ret.code = COMMON_STATUS.FAIL;
             console.error('删除节点失败:', e);
             ret.reason = e instanceof Error ? e.message : String(e);
+            delete ret.data;
         }
 
         return ret;
@@ -146,6 +119,7 @@ export class NodeApi extends ApiBase {
             ret.code = COMMON_STATUS.FAIL;
             console.error('更新节点失败:', e);
             ret.reason = e instanceof Error ? e.message : String(e);
+            delete ret.data;
         }
 
         return ret;
@@ -161,14 +135,13 @@ export class NodeApi extends ApiBase {
     async queryNode(@param(NodeQuerySchema) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
             code: COMMON_STATUS.SUCCESS,
-            data: this._generateDefaultNodeInfo(),
+            data: undefined,
         };
 
         try {
             const result = await Scene.queryNode(options);
-            if (result) {
-                ret.data = result;
-            }
+            if (!result) throw new Error(`node not found at path: ${options.path}`);
+            ret.data = result;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('查询节点失败:', e);

@@ -1,6 +1,6 @@
 import cc from 'cc';
 import { Rpc } from '../../rpc';
-import { INode } from '../../../common';
+import { INode, IScene, ISceneIdentifier } from '../../../common';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -49,10 +49,21 @@ class SceneUtil {
     }
 
     /**
-     * 生成节点信息
+     * 获取组件 dump 数据
+     * @param component
+     */
+    getComponentDump(component: cc.Component) {
+        return {
+            path: '',
+            name: component.name,
+        };
+    };
+
+    /**
+     * 节点 dump 数据
      * @param node
      */
-    generateNodeInfo(node: cc.Node): INode | null {
+    getNodeDump(node: cc.Node): INode | null {
         if (node.objFlags & cc.CCObject.Flags.HideInHierarchy) {
             return null;
         }
@@ -82,29 +93,39 @@ class SceneUtil {
             },
             children: node.children
                 .map((node: cc.Node) => {
-                    return this.generateNodeInfo(node);
+                    return this.getNodeDump(node);
                 })
                 .filter(child => child !== null) as INode[],
+            components: node.components
+                .map((component: cc.Component)=> {
+                    return this.getComponentDump(component);
+                })
         };
     }
 
     /**
      * 请求某个路径的节点树，不传路径为当前场景
      */
-    generateNodeTree(path?: string): INode | null {
-        if (path) {
-            const node = EditorExtends.Node.getNodeByPath(path);
-            if (!node) {
-                return null;
-            }
-            return this.generateNodeInfo(node);
-        }
+    getSceneDump(identifier: ISceneIdentifier): IScene | null {
         const scene = cc.director.getScene();
         if (!scene) {
             return null;
         }
-
-        return this.generateNodeInfo(scene);
+        return {
+            ...identifier,
+            // Properties
+            name: scene.name,
+            //
+            children: scene.children
+                .map((node: cc.Node) => {
+                    return this.getNodeDump(node);
+                })
+                .filter(child => child !== null) as INode[],
+            components: scene.components
+                .map((component: cc.Component) => {
+                    return this.getComponentDump(component);
+                })
+        };
     }
 }
 

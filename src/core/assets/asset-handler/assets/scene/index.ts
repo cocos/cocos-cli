@@ -52,6 +52,11 @@ export const SceneHandler: AssetHandler = {
 
             if (dirty) {
                 source[0]._name = name;
+                // rename scene node
+                const index = findSceneNodeIndex(source);
+                if (index !== -1) {
+                    source[index]._name = name;
+                }
             }
 
             try {
@@ -92,4 +97,14 @@ function changeSceneUuid(scene: any, uuid: string) {
         return true;
     }
     return false;
+}
+
+function findSceneNodeIndex(scene: Record<string, any>[]) {
+    for (let i = 0; i < scene.length; i++) {
+        const item = scene[i];
+        if (item.__type__ === 'cc.Scene') {
+            return i;
+        }
+    }
+    return -1;
 }

@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { NodeQueryResultSchema } from './node-schema';
-
-export const SchemaSceneName = z.string().describe('场景资源名称');
-
-export const SchemaSceneAssetType = z.string().describe('场景资源类型');
+import { SchemaComponent } from './component-schema';
 
 export const SchemaSceneAssetUUID = z.string().describe('场景资源唯一标识符 UUID');
 
@@ -13,13 +10,18 @@ export const SchemaSceneUrlOrUUID = z.union([SchemaSceneAssetUUID, SchemaSceneUR
 
 const SchemaSceneIdentifier = z.object({
     assetUuid: SchemaSceneAssetUUID,
-    url: SchemaSceneURL,
-    name: SchemaSceneName,
-    type: SchemaSceneAssetType,
+    assetUrl: SchemaSceneURL,
+    assetName: z.string().describe('场景资源名称'),
+    assetType: z.string().describe('场景资源类型'),
 }).describe('场景基础信息');
 
-const SchemaScene = SchemaSceneIdentifier.extend({
+export const SchemaSceneProperty = SchemaSceneIdentifier.extend({
+    name: z.string().describe('场景名称'),
+}).describe('场景基础属性');
+
+const SchemaScene = SchemaSceneProperty.extend({
     children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
+    components: z.array(z.lazy(() => SchemaComponent)).default([]).describe('节点上的组件列表'),
 }).describe('场景信息');
 
 export const SchemaCurrentSceneResult = z.union([SchemaScene, z.null()]).describe('获取当前场景返回数据');
@@ -34,8 +36,8 @@ export const SchemaSoftReloadScene = SchemaScene.describe('软重载场景结果
 
 export const SchemaCreateSceneOptions = z.object({
     baseName: z.string().describe('场景资源名称'),
-    templateType: z.enum(['2d', '3d', 'quality']).optional().default('2d').describe('场景模板类型，默认 2D'),
-    dbURL: z.string().describe('目标目录 URL（db://assets/xxx 格式），用于存放场景文件'),
+    templateType: z.enum(['2d', '3d', 'quality']).optional().describe('场景模板类型'),
+    dbURL: z.string().describe('目标目录用于存放场景文件，例如 db://assets'),
 }).describe('创建场景参数');
 
 export const SchemaCreateSceneResult = SchemaSceneIdentifier.describe('创建场景操作的结果信息');

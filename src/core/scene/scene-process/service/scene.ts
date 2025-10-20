@@ -4,10 +4,11 @@ import {
     ICloseSceneOptions,
     ICreateSceneOptions,
     IOpenSceneOptions,
-    ISoftReloadSceneOptions,
     ISaveSceneOptions,
     IScene,
-    ISceneService, ISceneIdentifier,
+    ISceneIdentifier,
+    ISceneService,
+    ISoftReloadSceneOptions,
 } from '../../common';
 import { Rpc } from '../rpc';
 import { EventEmitter } from 'events';
@@ -31,8 +32,11 @@ export class SceneService extends EventEmitter implements ISceneService {
     once(type: EventType, listener: (arg: any) => void): this { return super.once(type, listener); }
     emit(type: EventType, ...args: any[]): boolean { return super.emit(type, ...args); }
 
-    private currentSceneUUID: string = '';
-    private sceneMap: Map<string, { info: IScene, instance: cc.Scene, }> = new Map();
+    private currentSceneAssetUuid: string = '';
+    private sceneMap: Map<string, {
+        identifier: ISceneIdentifier,
+        instance: cc.Scene,
+    }> = new Map();
 
     @expose()
     async open(params: IOpenSceneOptions): Promise<IScene> {
@@ -48,11 +52,22 @@ export class SceneService extends EventEmitter implements ISceneService {
                 throw new Error(`场景资源不存在，${urlOrUUID}`);
             }
 
-            if (!identifier.type.includes('SceneAsset')) {
+            if (!identifier.assetType.includes('SceneAsset')) {
                 console.error('无效的场景资源类型');
-                throw new Error(`指定路径不是有效的场景资源，urlOrUuid: ${urlOrUUID}, ${identifier.type}`);
+                throw new Error(`指定路径不是有效的场景资源，urlOrUUID: ${urlOrUUID}, ${identifier.assetType}`);
             }
             console.log('场景信息验证通过');
+
+            if (this.currentSceneAssetUuid === identifier.assetUuid) {
+                const instance = cc.director.getScene();
+                if (!instance) {
+                    this.sceneMap.delete(this.currentSceneAssetUuid);
+                    this.currentSceneAssetUuid = '';
+                    throw new Error('打开场景失败，当前场景没有实例，请重新打开场景');
+                }
+                console.log('场景已打开');
+                return await this.getSceneDump(identifier);
+            }
 
             try {
                 await this.close();
@@ -74,6 +89,9 @@ export class SceneService extends EventEmitter implements ISceneService {
                 });
             });
 
+            // 清空节点 path 缓存（重要，否则会出现数据重复的问题）
+            EditorExtends.Node.clear();
+
             console.log('运行场景');
             const sceneInstance = await new Promise<cc.Scene>((resolve, reject) => {
                 cc.director.runSceneImmediate(sceneAsset,
@@ -90,10 +108,12 @@ export class SceneService extends EventEmitter implements ISceneService {
                 );
             });
 
-            this.currentSceneUUID = identifier.assetUuid;
-            const info: IScene = await this.createSceneInfo(identifier);
-            this.sceneMap.set(identifier.assetUuid, { info, instance: sceneInstance });
-            this.emit('open', sceneInstance, info.assetUuid);
+            this.currentSceneAssetUuid = identifier.assetUuid;
+            const sceneInfo = { identifier: identifier, instance: sceneInstance };
+            this.sceneMap.set(identifier.assetUuid, sceneInfo);
+            const info: IScene = await this.getSceneDump(identifier);
+            // 发送打开消息
+            this.emit('open', sceneInfo);
 
             console.log(`场景打开成功`);
             return info;
@@ -105,24 +125,24 @@ export class SceneService extends EventEmitter implements ISceneService {
 
     @expose()
     async close(params: ICloseSceneOptions = {}): Promise<boolean> {
-        if (!this.currentSceneUUID && !params.urlOrUUID) {
+        if (!this.currentSceneAssetUuid && !params.urlOrUUID) {
             // 无需关闭
             return true;
         }
         console.log(`关闭场景 [${params.urlOrUUID || '当前场景'}]`);
         try {
             console.log('场景是否存在');
-            const uuid = await sceneUtil.queryUUID(params.urlOrUUID) ?? this.currentSceneUUID;
+            const uuid = await sceneUtil.queryUUID(params.urlOrUUID) ?? this.currentSceneAssetUuid;
             const closedScene = this.sceneMap.get(uuid);
             if (!closedScene) {
                 console.error(`场景不存在于场景映射表中`);
                 throw new Error(`关闭场景失败，uuid: ${uuid}`);
             }
-            console.log(`找到场景: ${closedScene.info.name}`);
+            console.log(`找到场景: ${closedScene.identifier.assetName}`);
 
-            if (this.currentSceneUUID === uuid) {
+            if (this.currentSceneAssetUuid === uuid) {
                 cc.director.runSceneImmediate(new cc.Scene(''));
-                this.currentSceneUUID = '';
+                this.currentSceneAssetUuid = '';
             } else {
                 closedScene.instance.destroy();
             }
@@ -133,7 +153,7 @@ export class SceneService extends EventEmitter implements ISceneService {
             this.emit('close', closedScene.instance);
             console.log('发出关闭事件');
 
-            console.log(`场景关闭成功: ${closedScene.info.url}`);
+            console.log(`场景关闭成功: ${closedScene.identifier.assetUrl}`);
             return true;
         } catch (error) {
             console.error(`关闭场景失败: ${error}`);
@@ -146,7 +166,7 @@ export class SceneService extends EventEmitter implements ISceneService {
         console.log(`保存场景 [${params.urlOrUUID || '当前场景'}]`);
 
         try {
-            const uuid = params.urlOrUUID ?? this.currentSceneUUID;
+            const uuid = params.urlOrUUID ?? this.currentSceneAssetUuid;
             if (!uuid) {
                 throw new Error('保存失败，当前没有打开的场景');
             }
@@ -172,10 +192,10 @@ export class SceneService extends EventEmitter implements ISceneService {
             }
 
             // 更新数据
-            scene.info.name = assetInfo.name;
-            scene.info.url = assetInfo.url;
-            scene.info.assetUuid = assetInfo.uuid;
-            scene.info.type = assetInfo.type;
+            scene.identifier.assetName = assetInfo.name;
+            scene.identifier.assetUrl = assetInfo.url;
+            scene.identifier.assetUuid = assetInfo.uuid;
+            scene.identifier.assetType = assetInfo.type;
             this.sceneMap.set(uuid, scene);
             return true;
         } catch (error) {
@@ -215,25 +235,32 @@ export class SceneService extends EventEmitter implements ISceneService {
 
     @expose()
     async queryCurrentScene(): Promise<IScene | null> {
-        if (!this.currentSceneUUID) {
+        console.time('SceneService.queryCurrentScene');
+        if (!this.currentSceneAssetUuid) {
             return null;
         }
-        const scene = this.sceneMap.get(this.currentSceneUUID);
-        return scene ? scene.info : null;
+        const sceneInfo = this.sceneMap.get(this.currentSceneAssetUuid);
+        if (!sceneInfo) return null;
+
+        return await this.getSceneDump(sceneInfo.identifier);
     }
 
     @expose()
     async queryScenes(): Promise<IScene[]> {
-        const scene: IScene[] = [];
-        for (const item of this.sceneMap.values()) {
-            scene.push(item.info);
-        }
-        return scene;
+        const scenes = (
+            await Promise.all(
+                Array.from(this.sceneMap.values()).map(async (sceneInfo) => {
+                    if (!sceneInfo) return null;
+                    return await this.getSceneDump(sceneInfo.identifier);
+                })
+            )
+        ).filter((s): s is IScene => s !== null);
+        return scenes;
     }
 
     @expose()
     async reload(): Promise<boolean> {
-        const uuid = this.currentSceneUUID;
+        const uuid = this.currentSceneAssetUuid;
         await this.close();
         await this.open({
             urlOrUUID: uuid
@@ -247,13 +274,13 @@ export class SceneService extends EventEmitter implements ISceneService {
         const scene = await this.getScene(urlOrUUID);
         const serializeJSON = this.serialize(scene.instance);
         scene.instance = await sceneUtil.runSceneImmediateByJson(serializeJSON);
-        // 创建新的场景数据
-        const newScene = await this.createSceneInfo(scene.info.url);
-        this.sceneMap.set(newScene.assetUuid, {
-            info: newScene,
+        const newScene = await this.getSceneDump(scene.identifier.assetUrl);
+        const sceneInfo = {
+            identifier: scene.identifier,
             instance: scene.instance
-        });
-        this.emit('soft-reload', scene);
+        };
+        this.sceneMap.set(newScene.assetUuid, sceneInfo);
+        this.emit('soft-reload', sceneInfo);
         return newScene;
     }
 
@@ -264,10 +291,10 @@ export class SceneService extends EventEmitter implements ISceneService {
      */
     private async createSceneIdentifier(source?: string | IAssetInfo): Promise<ISceneIdentifier> {
         const identifier: ISceneIdentifier = {
-            type: 'unknown',
-            name: 'unknown',
+            assetType: 'unknown',
+            assetName: 'unknown',
             assetUuid: 'unknown',
-            url: 'unknown',
+            assetUrl: 'unknown',
         };
 
         if (!source) return identifier;
@@ -279,26 +306,27 @@ export class SceneService extends EventEmitter implements ISceneService {
             return identifier;
         }
         return {
-            type: assetInfo.type,
-            name: assetInfo.name,
+            assetType: assetInfo.type,
+            assetName: assetInfo.name,
             assetUuid: assetInfo.uuid,
-            url: assetInfo.url,
+            assetUrl: assetInfo.url,
         };
     }
 
     /**
-     * 创建场景信息
+     * 更新场景信息
      * @param identifier 标识
      * @private
      */
-    private async createSceneInfo(identifier: ISceneIdentifier | string): Promise<IScene> {
+    private async getSceneDump(identifier: ISceneIdentifier | string): Promise<IScene> {
         if (typeof identifier === 'string') {
             identifier = await this.createSceneIdentifier(identifier);
         }
-        const scene = sceneUtil.generateNodeTree();
-        const sceneInfo: IScene = Object.assign({}, identifier) as IScene;
-        sceneInfo.children = scene?.children || [];
-        return sceneInfo;
+        const scene = sceneUtil.getSceneDump(identifier);
+        if (!scene) {
+            throw new Error('更新场景信息失败，当前没有场景');
+        }
+        return scene;
     }
 
     /**
@@ -307,10 +335,10 @@ export class SceneService extends EventEmitter implements ISceneService {
      * @private
      */
     private async getScene(urlOrUuid?: string) {
-        const uuid = (await sceneUtil.queryUUID(urlOrUuid)) ?? this.currentSceneUUID;
+        const uuid = (await sceneUtil.queryUUID(urlOrUuid)) ?? this.currentSceneAssetUuid;
         const scene = this.sceneMap.get(uuid);
         if (!scene) {
-            throw new Error('获取场景失败');
+            throw new Error(`获取场景失败 ${urlOrUuid}`);
         }
         return scene;
     }

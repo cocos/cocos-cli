@@ -3,6 +3,7 @@
  */
 
 import { INode } from './node';
+import { IComponent } from './component';
 
 /**
  * 场景模板类型
@@ -13,17 +14,22 @@ export type TSceneTemplateType = '2d' | '3d' | 'quality';
  * 场景标识
  */
 export interface ISceneIdentifier {
-    name: string;
+    assetName: string;
     assetUuid: string;
-    url: string;
-    type: string;
+    assetUrl: string;
+    assetType: string;
+}
+
+export interface ISceneProperties extends ISceneIdentifier {
+    name: string;
 }
 
 /**
  * 场景基础信息
  */
-export interface IScene extends ISceneIdentifier {
+export interface IScene extends ISceneProperties {
     children: INode[];
+    components: IComponent[];
 }
 
 /**
