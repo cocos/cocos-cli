@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
-import { BuildExitCode, IBuildCommandOption, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IInternalBuildOptions, IPreviewSettingsResult } from './@types/private';
+import { BuildExitCode, IBuildCommandOption, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IInternalBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { PLATFORMS } from './share/platforms-options';
 import { pluginManager } from './manager/plugin';
 import { formatMSTime, getTaskLogDest } from './share/utils';
@@ -11,6 +11,7 @@ import assetManager from '../assets/manager/asset';
 import { removeDbHeader } from './worker/builder/utils';
 import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { Engine } from '../engine';
+import { BuildConfiguration } from './@types/config-export';
 
 export async function build(options?: IBuildCommandOption): Promise<BuildExitCode> {
     await builderConfig.init();
@@ -254,4 +255,13 @@ export async function getPreviewSettings(options?: IBuildTaskOption): Promise<IP
         script2library,
         bundleConfigs: buildTask.bundleManager.bundles.map((x) => x.config),
     };
+}
+
+export function queryBuildConfig() {
+    return builderConfig.getProject<BuildConfiguration>();
+}
+
+export async function queryDefaultBuildConfigByPlatform(platform: Platform) {
+    return await pluginManager.getOptionsByPlatform(platform);
+
 }

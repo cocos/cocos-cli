@@ -1,5 +1,5 @@
-import { Platform } from "../@types";
-import { OverwriteCommonOption } from "../@types/protected";
+import { Platform } from '../@types';
+import { OverwriteCommonOption } from '../@types/protected';
 
 const INTERNAL_NATIVE_PLATFORM: Platform[] = [
     'android',

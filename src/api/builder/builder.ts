@@ -1,10 +1,10 @@
 import { ApiBase } from '../base/api-base';
-import { build, getPreviewSettings } from '../../core/builder';
+import { build, getPreviewSettings, queryDefaultBuildConfigByPlatform } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { BuildExitCode } from '../../core/builder/@types/protected';
+import { BuildExitCode, IBuildTaskOption } from '../../core/builder/@types/protected';
 import BuildErrorMap from '../../core/builder/error-map';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildOption, SchemaBuildOptionType, SchemaBuildResult, SchemaPreviewSettingsResult, TPreviewSettingsResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildOptionType, SchemaBuildResult, SchemaPlatform, SchemaPlatformType, SchemaPreviewSettingsResult, TBuildConfigResult, TPreviewSettingsResult } from './schema';
 
 export class BuilderApi extends ApiBase {
     constructor() {
@@ -53,6 +53,27 @@ export class BuilderApi extends ApiBase {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('get preview settings fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+        return ret;
+    }
+
+    @tool('builder-query-default-build-config-by-platform')
+    @title('获取平台默认构建配置')
+    @description('获取平台默认构建配置')
+    @result(SchemaBuildConfigResult)
+    async queryDefaultBuildConfigByPlatform(@param(SchemaPlatform) platform: SchemaPlatformType) {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TBuildConfigResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = await queryDefaultBuildConfigByPlatform(platform);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query default build config by platform fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
         return ret;
