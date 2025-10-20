@@ -278,11 +278,12 @@ class EngineManager implements IEngine {
         }
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
         const bundles = assetManager.queryAssets({ isBundle: true }).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
+        const builtinAssets = info.serverURL && await this.queryInternalAssetList(this.getInfo().typescript.path);
         const defaultConfig = {
             debugMode: cc.debug.DebugMode.WARN,
             overrideSettings: {
                 engine: {
-                    builtinAssets: [],
+                    builtinAssets: builtinAssets || [],
                     macros: macroConfig,
                     sortingLayers,
                     customLayers: customLayers.map((layer: any) => {
@@ -348,6 +349,18 @@ class EngineManager implements IEngine {
         // @ts-ignore
         // window.cc.internal.physics2d.selector.switchTo(backend2d);
         return this;
+    }
+
+    async queryInternalAssetList(enginePath: string) {
+        // 添加引擎依赖的预加载内置资源到主包内
+        const ccConfigJson = await fse.readJSON(join(enginePath, 'cc.config.json'));
+        const internalAssets: string[] = [];
+        for (const featureName in ccConfigJson.features) {
+            if (ccConfigJson.features[featureName].dependentAssets) {
+                internalAssets.push(...ccConfigJson.features[featureName].dependentAssets);
+            }
+        }
+        return Array.from(new Set(internalAssets));
     }
 
     /**

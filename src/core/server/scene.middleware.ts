@@ -36,12 +36,24 @@ export default {
             },
         },
         {
+            url: '/:dir/:uuid/:nativeName.:ext',
+            async handler(req: Request, res: Response) {
+                const { uuid, ext, nativeName } = req.params;
+                const { assetManager } = await import('../assets');
+                const assetInfo = assetManager.queryAssetInfo(uuid);
+                const filePath = assetInfo && assetInfo.library[`${nativeName}.${ext}`];
+                console.log('nativeName: ' + req.url + ' -> ' + filePath);
+                res.status(200).send(filePath || req.url);
+            },
+        },
+        {
             url: '/:dir/:uuid.:ext',
             async handler(req: Request, res: Response) {
                 const { uuid, ext } = req.params;
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 const filePath = assetInfo && assetInfo.library[`.${ext}`];
+                console.log(req.url + ' -> ' + filePath);
                 res.status(200).send(filePath || req.url);
             },
         }
