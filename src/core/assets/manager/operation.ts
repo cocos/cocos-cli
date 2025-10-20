@@ -101,9 +101,6 @@ class AssetOperation extends EventEmitter {
         }
 
         const assetPath = await assetHandlerManager.createAsset(options);
-        if (!assetPath || !assetPath.length) {
-            return null;
-        }
         await this.refreshAsset(assetPath);
         return assetQueryManager.queryAssetInfo(queryUUID(assetPath));
     }
@@ -151,9 +148,6 @@ class AssetOperation extends EventEmitter {
      * @param options 
      */
     async importAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
-        if (source.startsWith('db://')) {
-            source = url2path(source);
-        }
         if (target.startsWith('db://')) {
             target = url2path(target);
         }
@@ -240,13 +234,16 @@ class AssetOperation extends EventEmitter {
      * @param pathOrUrlOrUUID 
      * @returns boolean
      */
-    async refreshAsset(pathOrUrlOrUUID: string): Promise<void> {
+    async refreshAsset(pathOrUrlOrUUID: string): Promise<number> {
         // 将实际的刷新任务塞到 db 管理器的队列内等待执行
         return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID]);
     }
 
-    private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<void> {
+    private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<number> {
         const result = await refresh(pathOrUrlOrUUID);
+        if (!result) {
+            throw new Error(`无法在项目内找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+        }
         if (autoRefreshDir) {
             // HACK 某些情况下导入原始资源后，文件夹的 mtime 会发生变化，导致资源量大的情况下下次获得焦点自动刷新时会有第二次的文件夹大批量刷新
             // 用进入队列的方式才能保障 pause 等机制不会被影响
@@ -271,9 +268,10 @@ class AssetOperation extends EventEmitter {
         if (pathOrUrlOrUUID.startsWith('db://')) {
             pathOrUrlOrUUID = url2uuid(pathOrUrlOrUUID);
         }
-        newConsole.trackTimeStart('asset-db:reimport-asset' + pathOrUrlOrUUID);
-        await reimport(pathOrUrlOrUUID);
-        newConsole.trackTimeEnd('asset-db:reimport-asset' + pathOrUrlOrUUID, { output: true });
+        const asset = await reimport(pathOrUrlOrUUID);
+        if (!asset) {
+            throw new Error(`无法找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+        }
     }
 
     /**
@@ -294,6 +292,14 @@ class AssetOperation extends EventEmitter {
             // 要覆盖目标文件时，需要先删除目标文件
             await this._removeAsset(target);
         }
+
+        if (target.startsWith('db://')) {
+            target = url2path(target);
+        }
+        if (source.startsWith('db://')) {
+            source = url2path(source);
+        }
+
         await moveFile(source, target, option);
 
         const url = queryUrl(target);
@@ -355,23 +361,21 @@ class AssetOperation extends EventEmitter {
         if (asset._assetDB.options.readonly) {
             throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
         }
+
+        if (asset._parent) {
+            throw new Error(`子资源无法单独删除，请传递父资源的 URL 地址`);
+        }
         const path = asset.source;
         const res = await assetDBManager.addTask(this._removeAsset.bind(this), [path]);
         return res ? assetQueryManager.encodeAsset(asset) : null;
     }
 
     private async _removeAsset(path: string): Promise<boolean> {
-        console.debug(`start remove asset ${path}...`);
         let res = false;
-        try {
-            await removeFile(path);
-            await this.refreshAsset(path);
-            res = true;
-            console.debug(`remove asset ${path} success`);
-        } catch (error) {
-            console.warn(`${i18n.t('asset-db.deleteAsset.fail.unknown')}`);
-            console.warn(error);
-        }
+        await removeFile(path);
+        await this.refreshAsset(path);
+        res = true;
+        console.debug(`remove asset ${path} success`);
         return res;
     }
 }
@@ -384,13 +388,13 @@ export default assetOperation;
  * @param file
  */
 export async function moveFile(source: string, target: string, options?: IMoveOptions) {
-    if (!existsSync(source) || !existsSync(source + '.meta')) {
-        return;
+    if (!existsSync(source)) {
+        throw new Error(`source file ${source} not exists`);
     }
 
     if (!options) {
-        if (existsSync(target) || existsSync(target + '.meta')) {
-            return;
+        if (existsSync(target)) {
+            throw new Error(`target file ${target} already exists`);
         }
 
         options = { overwrite: false }; // fs move 要求实参 options 要有值

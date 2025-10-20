@@ -4,7 +4,7 @@ import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@ty
 // 基础类型定义
 export const SchemaDirOrDbPath = z.string().min(1).describe('资源地址，可以是文件系统路径或 db:// 协议路径');
 export const SchemaDbDirResult = z.object({
-    dbPath: z.string().describe('操作后的资源路径，使用 db:// 协议格式'),
+    dbPath: z.string().min(1).describe('操作后的资源路径，使用 db:// 协议格式'),
 }).describe('资源数据库目录操作的结果');
 
 // JSON 值类型（递归定义）
@@ -108,13 +108,13 @@ const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
 
 // 资源查询相关
 export const SchemaUrlOrUUIDOrPath = z.string().min(1).describe('资源的 URL、UUID 或文件路径');
-export const SchemaDataKeys = z.array(z.string()).optional().describe('需要查询的资源信息字段列表');
+export const SchemaDataKeys = z.array(z.string().min(1)).optional().describe('需要查询的资源信息字段列表');
 export const SchemaQueryAssetsOption = z.object({
-    ccType: z.union([z.string(), z.array(z.string())]).optional().describe('资源类型，如 "cc.ImageAsset"，可以是单个或数组'),
+    ccType: z.union([z.string().min(1), z.array(z.string().min(1))]).optional().describe('资源类型，如 "cc.ImageAsset"，可以是单个或数组'),
     isBundle: z.boolean().optional().describe('是否筛选 asset bundle 信息'),
-    importer: z.union([z.string(), z.array(z.string())]).optional().describe('导入器名称，可以是单个或数组'),
-    pattern: z.string().optional().describe('路径匹配模式，支持 globs 格式'),
-    extname: z.union([z.string(), z.array(z.string())]).optional().describe('扩展名匹配，可以是单个或数组'),
+    importer: z.union([z.string().min(1), z.array(z.string().min(1))]).optional().describe('导入器名称，可以是单个或数组'),
+    pattern: z.string().min(1).optional().describe('路径匹配模式，支持 globs 格式'),
+    extname: z.union([z.string().min(1), z.array(z.string().min(1))]).optional().describe('扩展名匹配，可以是单个或数组'),
 }).optional().describe('资源查询选项');
 
 // 资源创建相关
@@ -129,26 +129,26 @@ export const SchemaAssetOperationOption = z.object({
 export const SchemaCreateAssetByTypeOptions = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
-    templateName: z.string().optional().describe('指定的模板名称，默认为 default'),
-    content: z.union([z.string(), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    templateName: z.string().min(1).optional().describe('指定的模板名称，默认为 default'),
+    content: z.union([z.string().min(1), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
 }).optional().describe('按类型创建资源选项');
 
 export const SchemaCreateAssetOptions = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
-    content: z.union([z.string(), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
-    target: z.string().describe('资源创建的输出地址，支持绝对路径和 url'),
-    template: z.string().optional().describe('资源文件模板地址，例如 db://xxx/ani，支持 url 与绝对路径'),
-    uuid: z.string().optional().describe('指定 uuid ，由于 uuid 也有概率冲突，uuid 冲突时会自动重新分配 uuid'),
-    userData: z.record(z.string(), SchemaJsonValue).optional().describe('新建资源时指定的一些 userData 默认配置值'),
-    customOptions: z.record(z.string(), SchemaJsonValue).optional().describe('传递一些自定义配置信息，可以在自定义资源处理器内使用'),
+    content: z.union([z.string().min(1), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    target: z.string().min(1).describe('资源创建的输出地址，支持绝对路径和 url'),
+    template: z.string().min(1).optional().describe('资源文件模板地址，例如 db://xxx/ani，支持 url 与绝对路径'),
+    uuid: z.string().min(1).optional().describe('指定 uuid ，由于 uuid 也有概率冲突，uuid 冲突时会自动重新分配 uuid'),
+    userData: z.record(z.string().min(1), SchemaJsonValue).optional().describe('新建资源时指定的一些 userData 默认配置值'),
+    customOptions: z.record(z.string().min(1), SchemaJsonValue).optional().describe('传递一些自定义配置信息，可以在自定义资源处理器内使用'),
 }).describe('创建资源选项');
 
 // 资源导入相关
 export const SchemaSourcePath = z.string().min(1).describe('源文件路径，要导入的资源文件位置');
 
 // 资源保存相关
-export const SchemaAssetData = z.string().describe('要保存的资源数据，可以是字符串或 Buffer');
+export const SchemaAssetData = z.string().min(1).describe('要保存的资源数据，可以是字符串或 Buffer');
 
 // 返回值 Schema
 export const SchemaAssetInfoResult = SchemaAssetInfo.nullable().describe('资源详细信息对象，包含名称、类型、路径、UUID 等字段');
@@ -191,8 +191,8 @@ export const SchemaAssetRenameOptions = z.object({
 }).optional().describe('资源重命名选项');
 
 export const SchemaUpdateUserDataOptions = z.object({
-    handler: z.string().describe('资源处理器名称'),
-    key: z.string().describe('要更新的配置键名'),
+    handler: z.string().min(1).describe('资源处理器名称'),
+    key: z.string().min(1).describe('要更新的配置键名'),
     value: z.any().describe('要设置的配置值'),
 }).describe('更新用户数据选项');
 

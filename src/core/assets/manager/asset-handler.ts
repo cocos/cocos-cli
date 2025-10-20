@@ -394,7 +394,7 @@ class AssetHandlerManager {
      * @param options 
      * @returns 返回资源创建地址
      */
-    async createAsset(options: CreateAssetOptions): Promise<null | string> {
+    async createAsset(options: CreateAssetOptions): Promise<string> {
         options.rename = options.rename ?? true;
         if (!options.handler) {
             const registerInfos = this.extname2registerInfo[extname(options.target)];
@@ -418,10 +418,8 @@ class AssetHandlerManager {
             if (assetHandler && assetHandler.createInfo && assetHandler.createInfo.create) {
                 // 优先使用自定义的创建方法，若创建结果不存在则走默认的创建流程
                 const result = await assetHandler.createInfo.create(options);
-                if (result !== null) {
-                    await afterCreateAsset(result, options);
-                    return result;
-                }
+                await afterCreateAsset(result, options);
+                return result;
             }
         }
 
