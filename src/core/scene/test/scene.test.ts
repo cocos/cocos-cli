@@ -1,4 +1,4 @@
-import fse from 'fs-extra';
+import * as fse from 'fs-extra';
 import { SceneTestEnv } from './scene-test-env';
 
 beforeAll(async () => {
@@ -18,7 +18,7 @@ afterAll(() => {
 import './scene-worker.testcase';
 import './scene-proxy.testcase';
 import './node-proxy.testcase';
-import './component-proxy.testcase'
+import './component-proxy.testcase';
 import './scene-exit.testcase';
 
 
