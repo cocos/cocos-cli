@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { NodeQueryResultSchema } from './node-schema';
-import { SchemaComponent } from './component-schema';
+import { SchemaComponent, SchemaComponentIdentify } from './component-schema';
 
 export const SchemaSceneAssetUUID = z.string().describe('场景资源唯一标识符 UUID');
 
@@ -21,7 +21,7 @@ export const SchemaSceneProperty = SchemaSceneIdentifier.extend({
 
 const SchemaScene = SchemaSceneProperty.extend({
     children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
-    components: z.array(z.lazy(() => SchemaComponent)).default([]).describe('节点上的组件列表'),
+    components: z.array(z.lazy(() => SchemaComponentIdentify)).default([]).describe('节点上的组件列表'),
 }).describe('场景信息');
 
 export const SchemaCurrentSceneResult = z.union([SchemaScene, z.null()]).describe('获取当前场景返回数据');
