@@ -1,4 +1,5 @@
 import { ApiBase } from '../base/api-base';
+import { ComponentType } from '../../core/scene';
 import {
     SchemaAddComponentInfo,
     SchemaComponent,
@@ -6,9 +7,10 @@ import {
     SchemaComponentResult,
     SchemaBooleanResult,
     TAddComponentInfo,
-    TComponent,
+    TComponentIdentify,
     TSetPropertyOptions,
     TComponentResult,
+    SchemaComponentIdentify,
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -30,13 +32,17 @@ export class ComponentApi extends ApiBase {
     @tool('scene-add-component')
     @title('添加组件')
     @description('添加组件到节点中')
-    @result(SchemaComponent)
-    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponent>> {
+    @result(SchemaComponentIdentify)
+    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentIdentify>> {
         try {
-            const componentInfo = await Scene.addComponent(addComponentInfo);
+            const componentName = ComponentType[addComponentInfo.component as keyof typeof ComponentType];
+            if (!componentName) {
+                throw new Error('Parameter type incorrect');
+            }
+            const componentInfo = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: componentName });
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: componentInfo
+                data: { path: componentInfo.path }
             };
         } catch (e) {
             return {
@@ -53,7 +59,7 @@ export class ComponentApi extends ApiBase {
     @title('删除组件')
     @description('删除节点组件')
     @result(SchemaBooleanResult)
-    async deleteComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<boolean>> {
+    async removeComponent(@param(SchemaComponent) component: TComponentIdentify): Promise<CommonResultType<boolean>> {
         try {
             const result = await Scene.removeComponent(component);
             return {
@@ -75,7 +81,7 @@ export class ComponentApi extends ApiBase {
     @title('查询组件')
     @description('查询组件信息')
     @result(SchemaComponentResult)
-    async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentResult | null>> {
+    async queryComponent(@param(SchemaComponent) component: TComponentIdentify): Promise<CommonResultType<TComponentResult | null>> {
         try {
             const componentInfo = await Scene.queryComponent(component);
             if (!componentInfo) {

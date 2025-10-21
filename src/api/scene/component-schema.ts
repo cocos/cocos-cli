@@ -1,10 +1,10 @@
-import { result } from 'lodash';
 import { z } from 'zod';
+import { ComponentType } from '../../core/scene';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
     nodePath: z.string().describe('节点路径'),
-    component: z.string().describe('组件名称'),
+    component: z.enum(Object.keys(ComponentType) as [string, ...string[]]).describe('组件类型'),
 }).describe('添加组件的信息');
 
 // 当前组件信息
@@ -61,6 +61,6 @@ export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
 // 类型导出
 export type TAddComponentInfo = z.infer<typeof SchemaAddComponentInfo>;
-export type TComponent = z.infer<typeof SchemaComponentIdentify>;
+export type TComponentIdentify = z.infer<typeof SchemaComponentIdentify>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
