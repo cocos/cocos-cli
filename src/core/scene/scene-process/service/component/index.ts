@@ -77,8 +77,20 @@ export class CompManager extends EventEmitter {
         return CompMgr.getComponentFromPath(path) || null;
     }
 
-    getPathFromUuid(uuid: string): IComponentIdentifier {
-        return { path: CompMgr.getPathFromUuid(uuid) };
+    getComponentIdentify(component: Component): IComponentIdentifier {
+        const path = this.getPathFromUuid(component.uuid);
+        return {
+            cid: (component as any).__cid__,
+            type: cc.js.getClassName(component.constructor),
+            uuid: component.uuid,
+            name: component.name,
+            enabled: component.enabled,
+            path: path === null ? '' : path,
+        };
+    }
+
+    getPathFromUuid(uuid: string): string | null {
+        return CompMgr.getPathFromUuid(uuid);
     }
     /**
      * 获取所有在用的组件
@@ -104,7 +116,9 @@ export class CompManager extends EventEmitter {
         // 删除前查询依赖关系，被依赖的组件不能被删除
         // @ts-ignore
         if (component.node._getDependComponent(component).length > 0) {
-            console.warn('Dependent components cannot be removed.');
+            // @ts-ignore
+            const a = component.node._getDependComponent(component).length;
+            console.warn('Dependent components cannot be removed.  ' + component.name);
             return false;
         }
 
@@ -148,12 +162,12 @@ export class CompManager extends EventEmitter {
             const newComp = node.addComponent(component.constructor);
             const dump = dumpUtil.dumpComponent(newComp);
 
-            for (const key in dump.value) {
+            for (const key in dump.properties) {
                 if (skipCompProps.includes(key)) {
                     continue;
                 }
 
-                await dumpUtil.restoreProperty(component, key, dump.value[key]);
+                await dumpUtil.restoreProperty(component, key, dump.properties.value[key]);
             }
 
             component && component.resetInEditor && component.resetInEditor();

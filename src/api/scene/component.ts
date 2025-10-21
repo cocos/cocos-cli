@@ -18,7 +18,6 @@ import {
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, ISetPropertyOptions } from '../../core/scene';
-import { json } from 'stream/consumers';
 
 export class ComponentApi extends ApiBase {
 
@@ -45,7 +44,7 @@ export class ComponentApi extends ApiBase {
             const componentInfo = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: componentName });
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: { path: componentInfo.path }
+                data: componentInfo
             };
         } catch (e) {
             return {

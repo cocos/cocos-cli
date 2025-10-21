@@ -1,6 +1,7 @@
 'use strict';
 
 import { EventEmitter } from 'events';
+import pathManager from './node-path-manager';
 
 interface MenuItem {
     component: Function,
@@ -98,7 +99,8 @@ export default class ComponentManager extends EventEmitter {
     _generateUniquePath(component: any) {
         const className = cc.js.getClassName(component);
         const nodeComponents = component.node.getComponents(className);
-        return `${className}_${nodeComponents.length}`;
+        const nodePath = pathManager.getNodePath(component.node.uuid);
+        return `${nodePath}/${className}_${nodeComponents.length}`;
     }
 
     /**

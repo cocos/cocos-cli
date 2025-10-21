@@ -279,7 +279,7 @@ export class NodeService extends EventEmitter implements INodeService {
                 if (!nodeInfo.components) {
                     nodeInfo.components = [];
                 }
-                nodeInfo.components.push(compMgr.getPathFromUuid(comp.uuid));
+                nodeInfo.components.push(compMgr.getComponentIdentify(comp));
             }
         });
 

@@ -16,7 +16,6 @@ export type IPropertyLock = {
 export interface IProperty {
     value: { [key: string]: IPropertyValueType } | IPropertyValueType;
 
-    cid?: string;
     type?: string;
     readonly?: boolean;
 
@@ -27,34 +26,6 @@ export interface IProperty {
     isArray?: boolean;
 
     userData?: { [key: string]: any }; // 用户透传的数据
-}
-
-export interface INode {
-    active: IProperty;
-    locked: IProperty;
-    name: IProperty;
-    position: IProperty;
-
-    /**
-     * 此为 dump 数据，非 node.rotation
-     * 实际指向 node.eulerAngles
-     * rotation 为了给用户更友好的文案
-     */
-    rotation: IProperty;
-    mobility: IProperty;
-
-    scale: IProperty;
-    layer: IProperty;
-    uuid: IProperty;
-
-    children: any[];
-    parent: any;
-
-    __comps__: IProperty[];
-    __type__: string;
-    __prefab__?: any;
-    _prefabInstance?: any;
-    removedComponents?: IRemovedComponentInfo[];
 }
 
 

@@ -1,10 +1,9 @@
 'use strict';
 import { Node, Component, js, CCClass } from 'cc';
-import { INode } from '../../../@types/public';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
-import { decodePatch, decodeNode, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeNode, encodeComponent } from './encode';
+import { decodePatch, resetProperty, updatePropertyFromNull } from './decode';
+import { encodeObject, encodeComponent } from './encode';
 import { IComponent } from '../../../common';
 
 // import * as dumpDecode from './decode';
@@ -15,7 +14,7 @@ class DumpUtil {
     // 获取节点的某个属性
     dumpProperty(node: Node, path: string) {
         if (path === '') {
-            return this.dumpNode(node);
+            //return this.dumpNode(node);
         }
         // 通过路径找到对象，然后dump这个对象
         const info = parsingPath(path, node);
@@ -26,17 +25,7 @@ class DumpUtil {
         const ret = encodeObject(data, attr);
         return ret;
     }
-    /**
-     * 生成一个 node 的 dump 数据
-     * @param {*} node
-     */
-    dumpNode(node: Node): INode | null {
-        if (!node) {
-            return null;
-        }
-        return encodeNode(node);
 
-    }
     // 生成一个component的dump数据
     dumpComponent(comp: Component): IComponent;
     dumpComponent(comp: null | undefined): null;
@@ -84,15 +73,6 @@ class DumpUtil {
      */
     updatePropertyFromNull(node: Node | Component, path: string) {
         return updatePropertyFromNull(node, path);
-    }
-
-    /**
-     * 还原一个节点的全部属性
-     * @param {*} node
-     * @param {*} dump
-     */
-    async restoreNode(node: Node, dump: any) {
-        return await decodeNode(dump, node);
     }
 
     /**

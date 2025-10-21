@@ -1,6 +1,7 @@
 import cc from 'cc';
 import { Rpc } from '../../rpc';
-import { INode, IScene, ISceneIdentifier } from '../../../common';
+import { IComponentIdentifier, INode, IScene, ISceneIdentifier } from '../../../common';
+import compMgr from '../component/index';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -52,11 +53,8 @@ class SceneUtil {
      * 获取组件 dump 数据
      * @param component
      */
-    getComponentDump(component: cc.Component) {
-        return {
-            path: '',
-            name: component.name,
-        };
+    getComponentDump(component: cc.Component): IComponentIdentifier {
+        return compMgr.getComponentIdentify(component);
     };
 
     /**
@@ -97,7 +95,7 @@ class SceneUtil {
                 })
                 .filter(child => child !== null) as INode[],
             components: node.components
-                .map((component: cc.Component)=> {
+                .map((component: cc.Component) => {
                     return this.getComponentDump(component);
                 })
         };

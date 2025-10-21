@@ -179,15 +179,18 @@ export const globalComponentType = {
  * 代表一个组件
  */
 export interface IComponentIdentifier {
+    cid: string;
     path: string; // 返回创建组件的路径，包含节点路径
+    uuid: string;
+    name: string;
+    type: string;
+    enabled: boolean;
 }
 
 /**
  * 代表组件属性信息
  */
-export interface IComponent extends IProperty {
-    uuid: string;
-    enabled: string;
+export interface IComponent extends IComponentIdentifier {
     properties: IProperty;
 }
 

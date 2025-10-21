@@ -7,10 +7,9 @@ import { ccClassAttrPropertyDefaultValue, getDefault, getTypeInheritanceChain, g
 import lodash from 'lodash';
 const { get, set } = lodash;
 import { DumpDefines } from './dump-defines';
-import { assetManager, Component, editorExtrasTag, Node, Prefab, Vec3, MobilityMode, Quat, Animation, AnimationState } from 'cc';
-import { promisify } from 'util';
-import { INode, IProperty } from '../../../@types/public';
-import { IComponent, IComponentIdentifier } from '../../../common'
+import { Component, editorExtrasTag, Node, Prefab, Vec3, MobilityMode } from 'cc';
+import { IProperty } from '../../../@types/public';
+import { IComponent } from '../../../common'
 import ComponentManager from '../component/index';
 import {
     MissingScript,
@@ -37,51 +36,6 @@ function addComponentAt(node: Node, comp: Component, index: number): boolean {
     // @ts-ignore
     node._addComponentAt(comp, index);
     return true;
-}
-
-function decodeChildren(children: any[], node: any) {
-    const dumpChildrenUuids: string[] = children.map((child: any) => child.value.uuid);
-    const nodeChildrenUuids: string[] = node.children.map((child: INode) => child.uuid);
-
-    /**
-     * 出于性能考虑，不去移动两个数组共有的节点
-     * 移除在 node 中且不在 dump 中的 uuid
-     * 添加在 dump 中且不在 node 中的 uuid
-     * 按照 dump 中的顺序重新排列
-     */
-    nodeChildrenUuids.forEach((uuid: string) => {
-        // 删除不存在的节点
-        if (!dumpChildrenUuids.includes(uuid)) {
-            const child = NodeMgr.getNode(uuid);
-            // 重要：过滤隐藏节点 或 无效节点
-            if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
-                return;
-            }
-            child.parent = null;
-        }
-    });
-
-    dumpChildrenUuids.forEach((uuid: string, i: number) => {
-        const child = NodeMgr.getNode(uuid);
-        // 重要：过滤无效节点
-        if (!child) {
-            return;
-        }
-
-        // 重置对象状态位,后续应该提供还原的方法
-        child.walk((node: Node) => {
-            node._objFlags &= cc.Object.Flags.PersistentMask;
-            node._objFlags &= (~cc.Object.Flags.Destroyed);
-        });
-
-        // 节点挂靠父级
-        if (!nodeChildrenUuids.includes(uuid)) {
-            child.parent = node;
-        }
-
-        // 按新的顺序排列
-        child.setSiblingIndex(i);
-    });
 }
 
 // 还原mountedRoot
@@ -258,48 +212,6 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         NodeMgr.remove(component.uuid);
         cc.Object._deferredDestroy();
     }
-}
-
-/**
- * 解码一个 dump 数据
- * @param dump
- * @param node
- */
-export async function decodeNode(dump: INode, node?: Node, excludeComps?: any) {
-    if (!dump) {
-        return null;
-    }
-
-    node = node || new cc.Node();
-
-    if (!node) {
-        return null;
-    }
-
-    node.name = dump.name.value as string;
-    node.active = dump.active.value as boolean;
-    node.layer = dump.layer.value as number;
-    node.mobility = dump.mobility.value as number;
-    node.setPosition(dump.position.value as Vec3);
-    const quat = new Quat();
-    const vec3 = dump.rotation.value as Vec3;
-    Quat.fromEuler(quat, vec3.x, vec3.y, vec3.z);
-    node.setRotation(quat);
-    node.setScale(dump.scale.value as Vec3);
-
-    //decodeMountedRoot(node, dump.mountedRoot);
-
-    if (dump.parent && dump.parent.value && dump.parent.value.uuid) {
-        node.parent = NodeMgr.getNode(dump.parent.value.uuid);
-    } else {
-        node.parent = null;
-    }
-
-    dump.children && decodeChildren(dump.children, node);
-
-    await decodeComponents(dump.__comps__, node, excludeComps);
-
-    return node;
 }
 
 async function _decodeByType(type: string, node: any, info: any, dump: any, opts?: any) {
@@ -574,7 +486,6 @@ export function updatePropertyFromNull(node: any, path: string) {
 }
 
 export default {
-    decodeNode,
     decodePatch,
     resetProperty,
     updatePropertyFromNull,

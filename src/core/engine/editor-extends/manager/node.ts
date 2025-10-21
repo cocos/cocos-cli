@@ -5,6 +5,7 @@ import { EventEmitter } from 'events';
 
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
+import pathManager from './node-path-manager';
 
 const lodash = require('lodash');
 
@@ -14,11 +15,7 @@ export default class NodeManager extends EventEmitter {
 
     _map: { [index: string]: any } = {};
 
-
-    private _uuidToPath: Map<string, string> = new Map();          // UUID -> 路径
-    private _pathToUuid: Map<string, string> = new Map();          // 路径 -> UUID
     private _parentChildren: Map<string, Set<string>> = new Map(); // 父节点UUID -> 子节点UUID集合
-    private _nodeNames: Map<string, Map<string, number>> = new Map(); // 父节点UUID -> (节点名 -> 计数)
 
     // 被删除节点集合,为了undo，编辑器不会把Node删除
     // _recycle: { [index: string]: any } = {};
@@ -36,9 +33,7 @@ export default class NodeManager extends EventEmitter {
 
         const parentUuid = node.parent ? node.parent.uuid : undefined;
         // 生成唯一路径
-        const path = this._generateUniquePath(uuid, node.name, parentUuid);
-        this._uuidToPath.set(uuid, path);
-        this._pathToUuid.set(path, uuid);
+        pathManager.generateUniquePath(uuid, node.name, parentUuid);
 
         // 维护父子关系
         if (parentUuid) {
@@ -70,11 +65,7 @@ export default class NodeManager extends EventEmitter {
         // this._recycle[uuid] = this._map[uuid];
         delete this._map[uuid];
 
-        const path = this._uuidToPath.get(uuid);
-        if (path) {
-            this._pathToUuid.delete(path);
-        }
-        this._uuidToPath.delete(uuid);
+        pathManager.remove(uuid);
 
         // 清理父子关系
         this._cleanupParentRelations(uuid);
@@ -93,10 +84,8 @@ export default class NodeManager extends EventEmitter {
             return;
         }
         this._map = {};
-        this._uuidToPath.clear();
-        this._pathToUuid.clear();
+        pathManager.clear();
         this._parentChildren.clear();
-        this._nodeNames.clear();
         // this._recycle = {};
     }
 
@@ -109,20 +98,11 @@ export default class NodeManager extends EventEmitter {
             return;
         }
 
-        const oldPath = this._uuidToPath.get(uuid);
         const node = this._map[uuid];
 
         // 获取父节点UUID
         const parentUuid = this._getParentUuid(uuid);
-
-        // 生成新的唯一路径
-        const newPath = this._generateUniquePath(uuid, newName, parentUuid);
-
-        // 更新路径映射
-        this._uuidToPath.set(uuid, newPath);
-        this._pathToUuid.delete(oldPath!);
-        this._pathToUuid.set(newPath, uuid);
-
+        pathManager.updateUuid(uuid, newName, parentUuid);
         // 更新节点名称计数
         if (parentUuid) {
             this._updateNameCount(parentUuid, node.name, newName);
@@ -141,7 +121,7 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodeByPath(path: string): Node | null {
-        const uuid = this._pathToUuid.get(path);
+        const uuid = pathManager.getNodeUuid(path);
         if (uuid) {
             return this.getNode(uuid);
         }
@@ -149,7 +129,7 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodePath(node: Node): string {
-        return this._uuidToPath.get(node.uuid) || "";
+        return pathManager.getNodePath(node.uuid);
     }
 
     /**
@@ -256,18 +236,17 @@ export default class NodeManager extends EventEmitter {
         }
 
         // 清理名称计数
-        this._nodeNames.delete(uuid);
+        pathManager.deleteNodeName(uuid);
     }
 
     /**
      * 更新名称计数
      */
     private _updateNameCount(parentUuid: string, oldName: string | null, newName: string | null) {
-        if (!this._nodeNames.has(parentUuid)) {
+        const nameMap = pathManager.getNameMap(parentUuid);
+        if (!nameMap) {
             return;
         }
-
-        const nameMap = this._nodeNames.get(parentUuid)!;
 
         // 减少旧名称的计数
         if (oldName && nameMap.has(oldName)) {
@@ -287,64 +266,5 @@ export default class NodeManager extends EventEmitter {
                 nameMap.set(newName, nameMap.get(newName)! + 1);
             }
         }
-    }
-
-
-    /**
-     * 清理名称中的非法字符
-     */
-    private _sanitizeName(name: string): string {
-        // 移除或替换路径中的非法字符
-        return name.replace(/[\/\\:\*\?"<>\|]/g, '_');
-    }
-
-    /**
-     * 生成唯一路径
-     */
-    private _generateUniquePath(uuid: string, name: string, parentUuid?: string): string {
-        if (!parentUuid) {
-            return '';
-        }
-        const parentPath = parentUuid ? this._uuidToPath.get(parentUuid) || '' : '';
-
-        // 清理名称中的非法路径字符
-        const cleanName = this._sanitizeName(name);
-
-        // 检查名称是否唯一，如果不唯一则添加自增后缀
-        const finalName = this.ensureUniqueName(parentUuid, cleanName);
-        const finalPath = parentPath ? `${parentPath}/${finalName}` : `${finalName}`;
-
-        return finalPath;
-    }
-
-    /**
-     * 确保节点名称在父节点下唯一
-     */
-    ensureUniqueName(parentUuid: string, baseName: string): string {
-        if (!this._nodeNames.has(parentUuid)) {
-            this._nodeNames.set(parentUuid, new Map());
-        }
-
-        const nameMap = this._nodeNames.get(parentUuid)!;
-
-        if (!nameMap.has(baseName)) {
-            nameMap.set(baseName, 1);
-            return baseName;
-        }
-
-        // 名称已存在，添加自增后缀
-        let counter = nameMap.get(baseName)! + 1;
-        let newName = `${baseName}_${counter}`;
-
-        // 确保新名称也不存在
-        while (nameMap.has(newName)) {
-            counter++;
-            newName = `${baseName}_${counter}`;
-        }
-
-        nameMap.set(baseName, counter);
-        nameMap.set(newName, 1);
-
-        return newName;
     }
 }

@@ -6,155 +6,9 @@ import dumpUtil from './utils';
 
 import { DumpDefines } from './dump-defines';
 
-import { Node, Component, js, Prefab, MobilityMode } from 'cc';
-import { INode, IProperty } from '../../../@types/public';
+import { js } from 'cc';
+import { IProperty } from '../../../@types/public';
 import { IComponent } from '../../../common';
-/**
- * 编码一个 node 数据
- * @param node
- */
-export function encodeNode(node: Node): INode {
-    const ctor = node.constructor;
-
-    const LayersEnumList = Object.keys(cc.Layers.Enum).map((key, index) => {
-        return { name: key, value: cc.Layers.Enum[key] };
-    });
-    LayersEnumList.sort((a, b) => {
-        return a.value - b.value;
-    });
-
-    const MobilityModeEnumList = Object.keys(MobilityMode).map((key, index) => {
-        return { name: key, value: MobilityMode[key as keyof typeof MobilityMode] };
-    });
-
-    // FIXME: avoid using private field
-    const is2DProject = true;
-
-    const data: INode = {
-        active: encodeObject(node.active, { displayName: 'Active', default: null }, node),
-        locked: encodeObject(Boolean(node.objFlags & cc.Object.Flags.LockedInEditor), { displayName: 'Locked', default: false, animatable: false }, node),
-        name: encodeObject(node.name, { displayName: 'Name', default: null, animatable: false }, node),
-        position: encodeObject(
-            node.position,
-            {
-                displayName: 'i18n:scene.cc.Node.properties.position.displayName',
-                default: new cc.math.Vec3(),
-                tooltip: 'i18n:scene.cc.Node.properties.position.tooltip',
-            },
-            node,
-            'position',
-        ),
-        rotation: encodeObject(
-            node.eulerAngles,
-            {
-                name: 'eulerAngles',
-                displayName: 'i18n:scene.cc.Node.properties.eulerAngles.displayName',
-                default: new cc.math.Vec3(),
-                tooltip: `i18n:scene.cc.Node.properties.eulerAngles.${is2DProject ? 'tooltip2D' : 'tooltip3D'}`,
-            },
-            node,
-            is2DProject ? 'angle' : 'eulerAngles',
-        ),
-        scale: encodeObject(
-            node.scale,
-            {
-                displayName: 'i18n:scene.cc.Node.properties.scale.displayName',
-                default: new cc.math.Vec3(1, 1, 1),
-                tooltip: 'i18n:scene.cc.Node.properties.scale.tooltip',
-            },
-            node,
-            'scale',
-        ),
-        mobility: encodeObject(
-            node.mobility,
-            {
-                displayName: 'i18n:scene.cc.Node.properties.mobility.displayName',
-                tooltip: 'i18n:scene.cc.Node.properties.mobility.tooltip',
-                default: 0,
-                type: 'Enum',
-                enumList: MobilityModeEnumList,
-            },
-            node,
-            'mobility',
-        ),
-        layer: encodeObject(
-            node.layer, {
-            displayName: 'i18n:scene.cc.Node.properties.layer.displayName',
-            tooltip: 'i18n:scene.cc.Node.properties.layer.tooltip',
-            default: 1073741824,
-            type: 'Enum',
-            enumList: LayersEnumList,
-            readonly: false,
-            animatable: false,
-        },
-            node,
-            'layer',
-        ),
-        uuid: encodeObject(node.uuid, { displayName: 'UUID', default: null, animatable: false }, node),
-
-        parent: encodeObject(
-            node.parent,
-            {
-                ctor: cc.Node,
-            },
-            node,
-        ),
-
-        children: node.children
-            .map((child: any) => {
-                if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
-                    return;
-                }
-
-                return encodeObject(
-                    child,
-                    {
-                        ctor: cc.Node,
-                    },
-                    node,
-                );
-            })
-            .filter(Boolean),
-
-        __type__: dumpUtil.getTypeName(ctor),
-        __comps__: node['_components'].map((comp: any) => {
-            return encodeComponent(comp);
-        }),
-
-        //mountedRoot: prefabUtils.getMountedRoot(node)?.uuid,
-    };
-
-    // if (node['_prefab']) {
-    //     const prefabStateInfo = prefabUtils.getPrefabStateInfo(node);
-    //     data.__prefab__ = {
-    //         uuid: (node['_prefab'].asset && node['_prefab'].asset._uuid) || '',
-    //         fileId: node['_prefab'].fileId,
-    //         rootUuid: node['_prefab'].root && node['_prefab'].root.uuid,
-    //         sync: true,
-    //         prefabStateInfo,
-    //     };
-
-    //     if (node['_prefab'].targetOverrides) {
-    //         data.__prefab__.targetOverrides = encodeTargetOverrides(node['_prefab'].targetOverrides);
-    //     }
-
-    //     if (node['_prefab'].instance) {
-    //         data.__prefab__.instance = encodeObject(node['_prefab'].instance, { default: null }, node);
-    //     }
-
-    //     const removedComponents = prefabUtils.getRemovedComponents(node);
-    //     if (removedComponents.length > 0) {
-    //         data.removedComponents = removedComponents.map((comp: Component) => {
-    //             return { name: js.getClassName(comp), fileID: comp.__prefab!.fileId };
-    //         });
-    //     }
-    // }
-
-    // 根据 flag 调整 readyonly
-    _checkObjFlags(node, data);
-
-    return data;
-}
 
 /**
  * 编码一个 component
@@ -176,10 +30,10 @@ export function encodeComponent(component: any): IComponent {
     //     }
     // }
     const data: IComponent = {
-        value: {},
         properties: {
             value: {}
         },
+        path: '',
         uuid: component.uuid,
         name: component.name,
         enabled: component.enabled,
@@ -266,27 +120,6 @@ export function encodeComponent(component: any): IComponent {
 function _checkConstructorRewriteType(data: IProperty, object: any, attributes: any) {
     if (object && typeof object === 'object' && !Array.isArray(object) && object.constructor && attributes && attributes.ctor && !(object instanceof attributes.ctor)) {
         data.type = 'Unknown';
-    }
-}
-
-function _checkFuncAttribute(attributeName: string, attributes: any, owner: any): any {
-    const attribute = attributes[attributeName];
-    if (attribute === undefined) return;
-
-    if (typeof attribute === 'function') {
-        if (!owner) {
-            console.warn(`try to use ${attributeName} function without owner`);
-        } else {
-            const value = attribute.call(owner);
-            if (typeof value === 'boolean') {
-                return !!value;
-            }
-            return value;
-        }
-    } else if (typeof attribute === 'boolean') {
-        return !!attribute;
-    } else {
-        return attribute;
     }
 }
 
@@ -377,71 +210,6 @@ function _encodeByType(type: string | undefined, object: any, data: IProperty, o
     return false;
 }
 
-/**
- * hack：处理 component 的 .objFlags 设置，需要传递给 node
- * 比如 Canvas 的 IsPositionLocked 要传给 node，position.readonly = true
- * 比如 Canvas 的 IsSizeLocked 要传给 UITransform, contentsize = true
- * 暂时处理以下逻辑，后续可增删
- */
-function _checkObjFlags(node: any, data: INode) {
-    let IsPositionLocked = false;
-    let IsSizeLocked = false;
-    let IsAnchorLocked = false;
-    let IsScaleLocked = false;
-    let IsRotationLocked = false;
-    node['_components'].forEach((component: any) => {
-        if (component.objFlags & cc.Object.Flags.IsPositionLocked) {
-            IsPositionLocked = true;
-        }
-
-        if (component.objFlags & cc.Object.Flags.IsSizeLocked) {
-            IsSizeLocked = true;
-        }
-
-        if (component.objFlags & cc.Object.Flags.IsAnchorLocked) {
-            IsAnchorLocked = true;
-        }
-
-        if (component.objFlags & cc.Object.Flags.IsScaleLocked) {
-            IsScaleLocked = true;
-        }
-
-        if (component.objFlags & cc.Object.Flags.IsRotationLocked) {
-            IsRotationLocked = true;
-        }
-    });
-
-    if (IsPositionLocked) {
-        data.position.readonly = true;
-    }
-    if (IsScaleLocked) {
-        data.scale.readonly = true;
-    }
-
-    if (IsRotationLocked) {
-        data.rotation.readonly = true;
-    }
-
-    const uiTransformComponents: any = [];
-    data.__comps__.forEach((comp: any) => {
-        if (comp.cid === 'cc.UITransform') {
-            uiTransformComponents.push(comp);
-        }
-    });
-
-    if (uiTransformComponents.length) {
-        if (IsSizeLocked) {
-            uiTransformComponents.forEach((comp: any) => {
-                comp.value.contentSize.readonly = true;
-            });
-        }
-        if (IsAnchorLocked) {
-            uiTransformComponents.forEach((comp: any) => {
-                comp.value.anchorPoint.readonly = true;
-            });
-        }
-    }
-}
 
 /**
  * 编码一个对象
@@ -608,7 +376,6 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
 
 // export * as default from './encode';
 export default {
-    encodeNode,
     encodeComponent,
     encodeObject,
 };

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { globalComponentType } from '../../core/scene';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
@@ -10,17 +9,22 @@ export const SchemaAddComponentInfo = z.object({
 
 // 当前组件信息
 export const SchemaComponentIdentify = z.object({
-    path: z.string().describe('返回组件的路径，不包含节点路径'),
-}).describe('当前组件的信息');
+    cid: z.string().describe('组件标识符'),
+    path: z.string().describe('返回组件的路径，包含节点路径'),
+    uuid: z.string().describe('组件的uuid'),
+    name: z.string().describe('组件名称'),
+    type: z.string().describe('组件类型'),
+    enabled: z.boolean().describe('组件是否使能'),
+}).describe('组件的标识');
 
 // 移除组件
 export const SchemaRemoveComponent = z.object({
-    path: z.string().optional().describe('组件的路径，不包含节点路径'),
+    path: z.string().optional().describe('组件的路径，包含节点路径'),
 }).describe('移除组件需要的信息');
 
 // 查询组件
 export const SchemaQueryComponent = z.object({
-    path: z.string().optional().describe('组件的路径，不包含节点路径'),
+    path: z.string().optional().describe('组件的路径，包含节点路径'),
 }).describe('查询组件需要的信息');
 
 /**
