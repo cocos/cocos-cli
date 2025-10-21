@@ -77,7 +77,7 @@ export class CompManager extends EventEmitter {
         return CompMgr.getComponentFromPath(path) || null;
     }
 
-    getComponentIdentify(component: Component): IComponentIdentifier {
+    getComponentIdentifier(component: Component): IComponentIdentifier {
         const path = this.getPathFromUuid(component.uuid);
         return {
             cid: (component as any).__cid__,

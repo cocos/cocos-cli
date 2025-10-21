@@ -1,6 +1,6 @@
 import type { IAddComponentOptions, ISetPropertyOptions, IComponentIdentifier, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './dump'
-import { IComponentMenu, IProperty } from '../../@types/public';
+import { IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
 import compMgr from './component/index';
 
@@ -52,7 +52,7 @@ export class ComponentService implements IComponentService {
                 console.log(`ctor with name ${componentName} is not child class of Component `);
                 throw new Error(`ctor with name ${componentName} is not child class of Component `);
             }
-            return compMgr.getComponentIdentify(comp);
+            return compMgr.getComponentIdentifier(comp);
         } catch (error) {
             throw error;
         }
@@ -81,30 +81,6 @@ export class ComponentService implements IComponentService {
             return null;
         }
         return (dumpUtil.dumpComponent(comp as Component));
-    }
-
-    @expose()
-    async queryComponents(): Promise<IComponentMenu[]> {
-        let menus = EditorExtends.Component.getMenus();
-        const res = menus.map((item: any) => {
-            const name = cc.js.getClassName(item.component);
-            const cid = cc.js.getClassId(item.component);
-
-            const isCustom = item.menuPath.indexOf('i18n:menu.custom_script') !== -1;
-
-            let assetUuid;
-            if (isCustom) {
-                assetUuid = item.component.prototype.__scriptUuid;
-            }
-
-            return {
-                name,
-                cid,
-                path: item.menuPath,
-                assetUuid,
-            };
-        });
-        return res;
     }
 
     @expose()

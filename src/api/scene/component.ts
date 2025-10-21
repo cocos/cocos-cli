@@ -7,9 +7,9 @@ import {
     SchemaComponentResult,
     SchemaBooleanResult,
     SchemaBuildinComponentTypes,
-    SchemaComponentIdentify,
+    SchemaComponentIdentifier,
     TAddComponentInfo,
-    TComponentIdentify,
+    TComponentIdentifier,
     TSetPropertyOptions,
     TComponentResult,
     TBuildinComponentTypes
@@ -34,8 +34,8 @@ export class ComponentApi extends ApiBase {
     @tool('scene-add-component')
     @title('添加组件')
     @description('添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件')
-    @result(SchemaComponentIdentify)
-    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentIdentify>> {
+    @result(SchemaComponentIdentifier)
+    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentIdentifier>> {
         try {
             let componentName = globalComponentType[addComponentInfo.component as keyof typeof globalComponentType];
             if (!componentName) {
@@ -61,7 +61,7 @@ export class ComponentApi extends ApiBase {
     @title('删除组件')
     @description('删除节点组件，如果组件不存在，删除则会返回false')
     @result(SchemaBooleanResult)
-    async removeComponent(@param(SchemaComponent) component: TComponentIdentify): Promise<CommonResultType<boolean>> {
+    async removeComponent(@param(SchemaComponent) component: TComponentIdentifier): Promise<CommonResultType<boolean>> {
         try {
             const result = await Scene.removeComponent(component);
             return {
@@ -83,7 +83,7 @@ export class ComponentApi extends ApiBase {
     @title('查询组件')
     @description('查询组件信息，返回所有组件的属性')
     @result(SchemaComponentResult)
-    async queryComponent(@param(SchemaComponent) component: TComponentIdentify): Promise<CommonResultType<TComponentResult | null>> {
+    async queryComponent(@param(SchemaComponent) component: TComponentIdentifier): Promise<CommonResultType<TComponentResult | null>> {
         try {
             const componentInfo = await Scene.queryComponent(component);
             if (!componentInfo) {

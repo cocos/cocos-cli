@@ -54,7 +54,7 @@ class SceneUtil {
      * @param component
      */
     getComponentDump(component: cc.Component): IComponentIdentifier {
-        return compMgr.getComponentIdentify(component);
+        return compMgr.getComponentIdentifier(component);
     };
 
     /**

@@ -8,7 +8,7 @@ export const SchemaAddComponentInfo = z.object({
 }).describe('添加组件的信息');
 
 // 当前组件信息
-export const SchemaComponentIdentify = z.object({
+export const SchemaComponentIdentifier = z.object({
     cid: z.string().describe('组件标识符'),
     path: z.string().describe('返回组件的路径，包含节点路径'),
     uuid: z.string().describe('组件的uuid'),
@@ -66,7 +66,7 @@ export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
 // 类型导出
 export type TAddComponentInfo = z.infer<typeof SchemaAddComponentInfo>;
-export type TComponentIdentify = z.infer<typeof SchemaComponentIdentify>;
+export type TComponentIdentifier = z.infer<typeof SchemaComponentIdentifier>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
 export type TBuildinComponentTypes = z.infer<typeof SchemaBuildinComponentTypes>;
