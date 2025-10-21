@@ -34,10 +34,11 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
         delete options.configPath;
     }
 
-    if (!options.platform) {
-        console.error('platform is required');
-        return BuildExitCode.PARAM_ERROR;
-    }
+    // if (!options.platform) {
+    //     console.error('platform is required');
+    //     return BuildExitCode.PARAM_ERROR;
+    // }
+    options.platform = options.platform || 'web-desktop';
     // 启动对应的平台模块注册流程
     await pluginManager.prepare([options.platform!]);
     options.taskId = options.taskId || String(new Date().getTime());

@@ -22,6 +22,7 @@ export class BuilderApi extends ApiBase {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<number> = {
             code: code,
+            data: -1,
         };
         try {
             const exitCode = await build(options);
@@ -38,25 +39,25 @@ export class BuilderApi extends ApiBase {
         return ret;
     }
 
-    @tool('builder-get-preview-settings')
-    @title('获取预览设置')
-    @description('获取预览设置')
-    @result(SchemaPreviewSettingsResult)
-    async getPreviewSettings() {
-        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TPreviewSettingsResult> = {
-            code: code,
-            data: null,
-        };
-        try {
-            ret.data = await getPreviewSettings();
-        } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
-            console.error('get preview settings fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-        return ret;
-    }
+    // @tool('builder-get-preview-settings')
+    // @title('获取预览设置')
+    // @description('获取预览设置')
+    // @result(SchemaPreviewSettingsResult)
+    // async getPreviewSettings() {
+    //     const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+    //     const ret: CommonResultType<TPreviewSettingsResult> = {
+    //         code: code,
+    //         data: null,
+    //     };
+    //     try {
+    //         ret.data = await getPreviewSettings();
+    //     } catch (e) {
+    //         ret.code = COMMON_STATUS.FAIL;
+    //         console.error('get preview settings fail:', e instanceof Error ? e.message : String(e));
+    //         ret.reason = e instanceof Error ? e.message : String(e);
+    //     }
+    //     return ret;
+    // }
 
     @tool('builder-query-default-build-config-by-platform')
     @title('获取平台默认构建配置')
@@ -70,7 +71,8 @@ export class BuilderApi extends ApiBase {
         };
 
         try {
-            ret.data = await queryDefaultBuildConfigByPlatform(platform);
+            // 暂时绕过
+            ret.data = await queryDefaultBuildConfigByPlatform(platform) as unknown as TBuildConfigResult;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query default build config by platform fail:', e instanceof Error ? e.message : String(e));

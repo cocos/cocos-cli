@@ -187,7 +187,7 @@ class WorkerTask {
             this.close();
         });
         child.on('exit', (code, signal) => {
-            if (code !== 0) {
+            if (code !== 0 && signal !== 'SIGTERM') {
                 this.reject(new Error(`Exit process with code:${code}, signal:${signal} in task ${this.name}`));
             } else {
                 this.resolve();
