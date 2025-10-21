@@ -3,7 +3,7 @@
  */
 
 import { INode } from './node';
-import { IComponent } from './component';
+import { IComponent, IComponentIdentifier } from './component';
 
 /**
  * 场景模板类型
@@ -29,7 +29,7 @@ export interface ISceneProperties extends ISceneIdentifier {
  */
 export interface IScene extends ISceneProperties {
     children: INode[];
-    components: IComponent[];
+    components: IComponentIdentifier[];
 }
 
 /**

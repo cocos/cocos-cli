@@ -10,7 +10,7 @@ import { DumpDefines } from './dump-defines';
 import { assetManager, Component, editorExtrasTag, Node, Prefab, Vec3, MobilityMode, Quat, Animation, AnimationState } from 'cc';
 import { promisify } from 'util';
 import { INode, IProperty } from '../../../@types/public';
-import { IComponent, IComponentInfo } from '../../../common'
+import { IComponent, IComponentIdentifier } from '../../../common'
 import ComponentManager from '../component/index';
 import {
     MissingScript,
@@ -187,7 +187,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
     node['_components'].length = 0; // 先清空节点上的组件
 
     for (let i = 0; i < dumpComps.length; i++) {
-        const dumpComp: IComponentInfo = dumpComps[i];
+        const dumpComp: IComponent = dumpComps[i];
 
         if (!dumpComp.properties || !dumpComp.properties.value.uuid) {
             continue;

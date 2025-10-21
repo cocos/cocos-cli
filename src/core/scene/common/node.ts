@@ -1,4 +1,4 @@
-import { IComponent } from './component';
+import { IComponent, IComponentIdentifier } from './component';
 import { IVec3, IQuat, IMat4 } from './value-types';
 
 export enum NodeType {
@@ -100,7 +100,7 @@ export interface IQueryNodeParams {
 // 节点查询结果项接口
 export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
-    components?: IComponent[]; // 节点上的组件列表
+    components?: IComponentIdentifier[]; // 节点上的组件列表
     children?: INode[]; // 子节点列表
 }
 

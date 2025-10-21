@@ -5,7 +5,7 @@ import { parsingPath } from './utils';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeNode, encodeComponent } from './encode';
-import { IComponentInfo } from '../../../common';
+import { IComponent } from '../../../common';
 
 // import * as dumpDecode from './decode';
 const { get, set } = require('lodash');
@@ -38,7 +38,7 @@ class DumpUtil {
 
     }
     // 生成一个component的dump数据
-    dumpComponent(comp: Component): IComponentInfo;
+    dumpComponent(comp: Component): IComponent;
     dumpComponent(comp: null | undefined): null;
     dumpComponent(comp: Component | null | undefined) {
         if (!comp) {

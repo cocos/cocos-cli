@@ -1,8 +1,8 @@
-import type { IComponentInfo, IComponent, IAddComponentOptions, IRemoveComponentOptions, IQueryComponentOptions, ISetPropertyOptions, IComponentService } from '../../common';
+import type { IComponentIdentifier, IComponent, IAddComponentOptions, IRemoveComponentOptions, IQueryComponentOptions, ISetPropertyOptions, IComponentService } from '../../common';
 import { Rpc } from '../rpc';
 
 export const ComponentProxy: IComponentService = {
-    addComponent(params: IAddComponentOptions): Promise<IComponent> {
+    addComponent(params: IAddComponentOptions): Promise<IComponentIdentifier> {
         return Rpc.request('Component', 'addComponent', [params]);
     },
 
@@ -10,7 +10,7 @@ export const ComponentProxy: IComponentService = {
         return Rpc.request('Component', 'removeComponent', [params]);
     },
 
-    queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null> {
+    queryComponent(params: IQueryComponentOptions): Promise<IComponent | null> {
         return Rpc.request('Component', 'queryComponent', [params]);
     },
 

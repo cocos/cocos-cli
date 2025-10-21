@@ -6,7 +6,7 @@ import type {
     IRemoveComponentOptions,
     IQueryComponentOptions,
     ISetPropertyOptions,
-    IComponentInfo,
+    IComponentIdentifier,
     IComponent
 } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
@@ -51,7 +51,7 @@ describe('Component Proxy 测试', () => {
 
     describe('1. 基础组件操作- 添加，查询，设置属性，移除', () => {
         let componentPath = '';
-        let componentInfo: IComponentInfo | null;
+        let componentInfo: IComponent | null;
         it('addComponent - 添加节点', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
@@ -126,7 +126,7 @@ describe('Component Proxy 测试', () => {
 
     describe('2. 组合测试 - 添加多个不同节点', () => {
         let testComponents: string[] = ['cc.Label', 'cc.Mask', 'cc.AudioSource'];
-        let components: IComponent[] = [];
+        let components: IComponentIdentifier[] = [];
         // 确保测试了中，没有其他的组件
         beforeAll(async () => {
             try {
@@ -180,7 +180,7 @@ describe('Component Proxy 测试', () => {
     describe('3. 组合测试 - 添加多个相同节点', () => {
         const testCount = 10;
         let testComponent: string = 'cc.Label';
-        let components: IComponent[] = [];
+        let components: IComponentIdentifier[] = [];
         // 确保测试了中，没有其他的组件
         beforeAll(async () => {
             try {
@@ -234,7 +234,7 @@ describe('Component Proxy 测试', () => {
     });
     describe('4. 设置组件属性测试 - 设置不同类型的属性', () => {
         let testComponent: string = 'cc.Label';
-        let componentInfo: IComponentInfo | null;
+        let componentInfo: IComponent | null;
         let componentPath: string = '';
         const queryComponent: IQueryComponentOptions = { path: '' };
         // 确保测试了中，没有其他的组件

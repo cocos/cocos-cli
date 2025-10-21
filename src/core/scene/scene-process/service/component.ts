@@ -1,4 +1,4 @@
-import type { IAddComponentOptions, ISetPropertyOptions, IComponentInfo, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
+import type { IAddComponentOptions, ISetPropertyOptions, IComponentIdentifier, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './dump'
 import { IComponentMenu, IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
@@ -18,7 +18,7 @@ import {
  */
 @register('Component')
 export class ComponentService implements IComponentService {
-    private addComponentImpl(path: string, componentName: string): IComponent {
+    private addComponentImpl(path: string, componentName: string): IComponentIdentifier {
         if (Array.isArray(path)) {
             path.forEach((p) => {
                 this.addComponentImpl(p, componentName);
@@ -59,7 +59,7 @@ export class ComponentService implements IComponentService {
     }
 
     @expose()
-    async addComponent(params: IAddComponentOptions): Promise<IComponent> {
+    async addComponent(params: IAddComponentOptions): Promise<IComponentIdentifier> {
         const component = await this.addComponentImpl(params.nodePath, params.component);
         return component;
     }
@@ -74,7 +74,7 @@ export class ComponentService implements IComponentService {
     }
 
     @expose()
-    async queryComponent(params: IQueryComponentOptions): Promise<IComponentInfo | null> {
+    async queryComponent(params: IQueryComponentOptions): Promise<IComponent | null> {
         const comp = compMgr.query(params.path);
         if (!comp) {
             console.warn(`Query component failed: ${params.path} does not exist`);

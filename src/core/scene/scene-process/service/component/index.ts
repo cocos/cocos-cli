@@ -7,7 +7,7 @@ import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { ICompInfo } from '../../../../builder/@types/protected';
-import { IComponent } from '../../../common';
+import { IComponentIdentifier } from '../../../common';
 
 export class CompManager extends EventEmitter {
     init() {
@@ -77,7 +77,7 @@ export class CompManager extends EventEmitter {
         return CompMgr.getComponentFromPath(path) || null;
     }
 
-    getPathFromUuid(uuid: string): IComponent {
+    getPathFromUuid(uuid: string): IComponentIdentifier {
         return { path: CompMgr.getPathFromUuid(uuid) };
     }
     /**

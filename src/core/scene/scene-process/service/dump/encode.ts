@@ -8,7 +8,7 @@ import { DumpDefines } from './dump-defines';
 
 import { Node, Component, js, Prefab, MobilityMode } from 'cc';
 import { INode, IProperty } from '../../../@types/public';
-import { IComponentInfo } from '../../../common';
+import { IComponent } from '../../../common';
 /**
  * 编码一个 node 数据
  * @param node
@@ -160,7 +160,7 @@ export function encodeNode(node: Node): INode {
  * 编码一个 component
  * @param component
  */
-export function encodeComponent(component: any): IComponentInfo {
+export function encodeComponent(component: any): IComponent {
     const ctor = component.constructor;
     // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
     // const mountedRootNode = prefabUtils.getMountedRoot(component);
@@ -175,7 +175,7 @@ export function encodeComponent(component: any): IComponentInfo {
     //         }
     //     }
     // }
-    const data: IComponentInfo = {
+    const data: IComponent = {
         value: {},
         properties: {
             value: {}
