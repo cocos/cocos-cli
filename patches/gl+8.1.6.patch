@@ -1,0 +1,33 @@
+diff --git a/node_modules/gl/bin/win32-x64-136/gl.node b/node_modules/gl/bin/win32-x64-136/gl.node
+new file mode 100644
+index 0000000..0eb1958
+Binary files /dev/null and b/node_modules/gl/bin/win32-x64-136/gl.node differ
+diff --git a/node_modules/gl/binding.gyp b/node_modules/gl/binding.gyp
+index ab60fbf..e3c319b 100644
+--- a/node_modules/gl/binding.gyp
++++ b/node_modules/gl/binding.gyp
+@@ -42,7 +42,7 @@
+               'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+               'MACOSX_DEPLOYMENT_TARGET':'10.8',
+               'CLANG_CXX_LIBRARY': 'libc++',
+-              'CLANG_CXX_LANGUAGE_STANDARD':'c++17',
++              'CLANG_CXX_LANGUAGE_STANDARD':'c++20',
+               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0'
+             },
+         }],
+diff --git a/node_modules/gl/build/Release/d3dcompiler_47.dll b/node_modules/gl/build/Release/d3dcompiler_47.dll
+deleted file mode 100644
+index 56512f5..0000000
+Binary files a/node_modules/gl/build/Release/d3dcompiler_47.dll and /dev/null differ
+diff --git a/node_modules/gl/build/Release/libEGL.dll b/node_modules/gl/build/Release/libEGL.dll
+deleted file mode 100644
+index e278566..0000000
+Binary files a/node_modules/gl/build/Release/libEGL.dll and /dev/null differ
+diff --git a/node_modules/gl/build/Release/libGLESv2.dll b/node_modules/gl/build/Release/libGLESv2.dll
+deleted file mode 100644
+index d51782e..0000000
+Binary files a/node_modules/gl/build/Release/libGLESv2.dll and /dev/null differ
+diff --git a/node_modules/gl/build/Release/webgl.node b/node_modules/gl/build/Release/webgl.node
+deleted file mode 100644
+index a82e4e1..0000000
+Binary files a/node_modules/gl/build/Release/webgl.node and /dev/null differ

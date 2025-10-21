@@ -46,7 +46,8 @@
         "release": "node workflow/release.js",
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
-        "cli": "node ./dist/cli.js"
+        "cli": "node ./dist/cli.js",
+        "rebuild": "patch-package && npx @electron/rebuild --force --version 37.3.1"
     },
     "author": "cocos",
     "files": [
@@ -88,6 +89,7 @@
         "globals": "^16.3.0",
         "jest": "^29.7.0",
         "jiti": "^2.5.1",
+        "patch-package": "^8.0.1",
         "ts-jest": "^29.1.2",
         "ts-node": "^10.9.2",
         "typescript": "^5.4.5",
