@@ -6,9 +6,9 @@ import EventEmitter from 'events';
 import { Vec3, Node, Prefab, CCObject, Quat, Mat4 } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, getUITransformParentNode, setLayer } from './node/node-utils';
+import compMgr from './component/index';
 
 const NodeMgr = EditorExtends.Node;
-const ComponentMgr = EditorExtends.Component;
 
 /**
  * 场景事件类型
@@ -117,7 +117,6 @@ export class NodeService extends EventEmitter implements INodeService {
         this.emit('before-change', parent);
 
         resultNode.setParent(parent, params.keepWorldTransform);
-        NodeMgr.add(resultNode.uuid, resultNode);
         this.ensureUITransformComponent(resultNode);
 
         // 发送添加节点事件，添加节点中的根节点
@@ -280,7 +279,7 @@ export class NodeService extends EventEmitter implements INodeService {
                 if (!nodeInfo.components) {
                     nodeInfo.components = [];
                 }
-                // nodeInfo.components.push(ComponentMgr.get);
+                nodeInfo.components.push(compMgr.getPathFromUuid(comp.uuid));
             }
         });
 

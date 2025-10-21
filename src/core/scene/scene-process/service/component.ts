@@ -52,7 +52,7 @@ export class ComponentService implements IComponentService {
                 console.log(`ctor with name ${componentName} is not child class of Component `);
                 throw new Error(`ctor with name ${componentName} is not child class of Component `);
             }
-            return { path: compMgr.getPathFromUuid(comp.uuid) };
+            return compMgr.getPathFromUuid(comp.uuid);
         } catch (error) {
             throw error;
         }

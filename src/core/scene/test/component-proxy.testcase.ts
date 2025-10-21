@@ -41,7 +41,12 @@ describe('Component Proxy 测试', () => {
                 keepWorldTransform: false
             };
             await NodeProxy.deleteNode(params);
-        } catch (e) { }
+            expect(params).toBeDefined();
+            expect(params?.path).toBe(nodePath);
+        } catch (e) {
+            console.log(`删除节点失败 ${e}`);
+            throw e;
+        }
     });
 
     describe('1. 基础组件操作- 添加，查询，设置属性，移除', () => {
@@ -59,6 +64,7 @@ describe('Component Proxy 测试', () => {
                 expect(component.path).toBe('cc.Label_1');
             } catch (e) {
                 console.log(`addComponent test error: ${e}`);
+                throw e;
             }
         });
         it('queryComponent - 查询组件', async () => {
@@ -79,6 +85,7 @@ describe('Component Proxy 测试', () => {
                 }
             } catch (e) {
                 console.log(`queryComponent test error:  ${e}`);
+                throw e;
             }
         });
         it('setComponentProperty - 查询组件 - string类型', async () => {
@@ -99,6 +106,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['string'].value).toBe('abc');
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
 
@@ -111,6 +119,7 @@ describe('Component Proxy 测试', () => {
                 expect(result).toBe(true);
             } catch (e) {
                 console.log(`removeComponent test error:  ${e}`);
+                throw e;
             }
         });
     });
@@ -128,6 +137,7 @@ describe('Component Proxy 测试', () => {
                 console.log('组合测试 - 添加多个不同节点 - 开始');
             } catch (e) {
                 console.log(`组合测试 - 添加多个不同节点 - 异常 : ${e}`);
+                throw e;
             }
         });
         afterAll(async () => {
@@ -138,6 +148,7 @@ describe('Component Proxy 测试', () => {
                 };
             } catch (e) {
                 console.log(`组合测试 - 添加多个相同节点 - 错误 ${e}`);
+                throw e;
             }
             console.log('组合测试 - 添加多个不同节点 - 结束');
         });
@@ -162,6 +173,7 @@ describe('Component Proxy 测试', () => {
                 expect(components.length).toBe(testComponents.length);
             } catch (e) {
                 console.log(`添加多个不同的节点失败，原因：${e}`);
+                throw e;
             }
         });
     });
@@ -179,6 +191,7 @@ describe('Component Proxy 测试', () => {
                 console.log('组合测试 - 添加多个相同节点 - 开始');
             } catch (e) {
                 console.log(`组合测试 - 添加多个相同节点 - 异常 : ${e}`);
+                throw e;
             }
         });
         afterAll(async () => {
@@ -190,6 +203,7 @@ describe('Component Proxy 测试', () => {
                 };
             } catch (e) {
                 console.log(`组合测试 - 添加多个相同节点 - 错误 ${e}`);
+                throw e;
             }
             console.log('组合测试 - 添加多个相同节点 - 结束');
         });
@@ -214,6 +228,7 @@ describe('Component Proxy 测试', () => {
                 expect(components.length).toBe(testCount);
             } catch (e) {
                 console.log(`添加多个不同的节点失败，原因：${e}`);
+                throw e;
             }
         });
     });
@@ -247,6 +262,7 @@ describe('Component Proxy 测试', () => {
                 expect(result).toBe(true);
             } catch (e) {
                 console.log(`组合测试 - 添加多个相同节点 - 错误 ${e}`);
+                throw e;
             }
             console.log('组合测试 - 添加多个相同节点 - 结束');
         });
@@ -265,6 +281,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['fontSize'].value).toBe(80);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
         it('setComponentProperty - 查询组件 - enum类型', async () => {
@@ -282,6 +299,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['overflow'].value).toBe(1);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
         it('setComponentProperty - 查询组件 - boolean类型', async () => {
@@ -299,6 +317,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['enableOutline'].value).toBe(true);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
         it('setComponentProperty - 查询组件 - color类型', async () => {
@@ -325,6 +344,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(200);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
         it('setComponentProperty - 查询组件 - 设置枚举类型之外的值', async () => {
@@ -342,6 +362,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['overflow'].value).toBe(100000);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
         it('setComponentProperty - 查询组件 - 设置不同类型的值', async () => {
@@ -366,6 +387,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(200);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
             }
         });
     });

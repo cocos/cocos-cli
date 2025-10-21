@@ -6,6 +6,8 @@ const CompMgr = EditorExtends.Component;
 import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
+import { ICompInfo } from '../../../../builder/@types/protected';
+import { IComponent } from '../../../common';
 
 export class CompManager extends EventEmitter {
     init() {
@@ -75,8 +77,8 @@ export class CompManager extends EventEmitter {
         return CompMgr.getComponentFromPath(path) || null;
     }
 
-    getPathFromUuid(uuid: string): string {
-        return CompMgr.getPathFromUuid(uuid);
+    getPathFromUuid(uuid: string): IComponent {
+        return { path: CompMgr.getPathFromUuid(uuid) };
     }
     /**
      * 获取所有在用的组件

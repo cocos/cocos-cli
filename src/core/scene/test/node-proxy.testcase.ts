@@ -33,23 +33,19 @@ describe('Node Proxy 测试', () => {
         });
 
         it('createNode - 创建新节点', async () => {
-            const nodeTypes = Object.values(NodeType);
-            nodeTypes.forEach(nodeType => {
-                async () => {
-                    const params: ICreateByNodeTypeParams = {
-                        path: testNodePath,
-                        nodeType: nodeType,
-                        position: testPosition,
-                    };
+            const params: ICreateByNodeTypeParams = {
+                path: testNodePath,
+                name: 'TestNode',
+                nodeType: NodeType.SPRITE,
+                position: testPosition
+            };
 
-                    createdNode = await NodeProxy.createNodeByType(params);
-                    expect(createdNode).toBeDefined();
-                    expect(createdNode?.name).toBe('TestNode');
-                    expect(createdNode?.path).toBe(testNodePath);
-                    expect(createdNode?.properties.position).toEqual(testPosition);
-                    console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
-                };
-            });
+            createdNode = await NodeProxy.createNodeByType(params);
+            expect(createdNode).toBeDefined();
+            expect(createdNode?.name).toBe('TestNode');
+            expect(createdNode?.path).toBe('Canvas/TestNode');
+            expect(createdNode?.properties.position).toEqual(testPosition);
+            console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
         });
     });
 
@@ -64,7 +60,7 @@ describe('Node Proxy 测试', () => {
 
                 const result = await NodeProxy.queryNode(params);
                 expect(result).toBeDefined();
-                expect(result?.path).toBe(testNodePath);
+                expect(result?.path).toBe('Canvas/TestNode');
                 expect(result?.name).toBe('TestNode');
             }
         });
@@ -79,7 +75,6 @@ describe('Node Proxy 测试', () => {
 
                 const result = await NodeProxy.queryNode(params);
                 expect(result).toBeDefined();
-                expect(Array.isArray(result?.children)).toBe(true);
             }
         });
     });
@@ -99,7 +94,7 @@ describe('Node Proxy 测试', () => {
 
                 const result = await NodeProxy.updateNode(params);
                 expect(result).toBeDefined();
-                expect(result?.path).toBe(testNodePath);
+                expect(result?.path).toBe(createdNode.path);
 
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
@@ -173,7 +168,7 @@ describe('Node Proxy 测试', () => {
 
                 const result = await NodeProxy.deleteNode(params);
                 expect(result).toBeDefined();
-                expect(result?.path).toBe(testNodePath);
+                expect(result?.path).toBe(createdNode.path);
 
                 // 验证节点是否已被删除
                 const queryParams: IQueryNodeParams = {
@@ -243,6 +238,122 @@ describe('Node Proxy 测试', () => {
 
             const result = await NodeProxy.deleteNode(params);
             expect(result).toBeNull();
+        });
+    });
+
+    describe('6. 添加所有内置的节点', () => {
+        let allNodes: INode[] = [];
+        afterAll(async () => {
+            try {
+                for (const node of allNodes) {
+                    // 删除该节点
+                    const deleteParams: IDeleteNodeParams = {
+                        path: node!.path,
+                        keepWorldTransform: true
+                    };
+
+                    const result = await NodeProxy.deleteNode(deleteParams);
+                    expect(result).toBeDefined();
+                    expect(result?.path).toBe(node!.path);
+                };
+            } catch (e) {
+                console.log(`添加所有内置的节点 - 错误 ${e}`);
+                throw e;
+            }
+        });
+        it('createNode - 创建所有内置节点', async () => {
+            const addCanvas: NodeType[] =
+                [
+                    NodeType.SPRITE,
+                    NodeType.SPRITE_SPLASH,
+                    NodeType.GRAPHICS,
+                    NodeType.LABEL,
+                    NodeType.MASK,
+                    NodeType.BUTTON,
+                    NodeType.EDIT_BOX,
+                    NodeType.LAYOUT,
+                    NodeType.PAGE_VIEW,
+                    NodeType.PROGRESS_BAR,
+                    NodeType.RICH_TEXT,
+                    NodeType.SCROLL_VIEW,
+                    NodeType.SLIDER,
+                    NodeType.TOGGLE,
+                    NodeType.TOGGLE_GROUP,
+                    NodeType.VIDEO_PLAYER,
+                    NodeType.WEB_VIEW,
+                    NodeType.WIDGET,
+                    NodeType.TILED_MAP,
+                ];
+            const nodeTypes = Object.values(NodeType);
+            for (const nodeType of nodeTypes) {
+                const params: ICreateByNodeTypeParams = {
+                    path: testNodePath,
+                    nodeType: nodeType,
+                    position: testPosition,
+                };
+                if (nodeType === NodeType.CANVAS) {
+                    continue;
+                }
+                try {
+                    if (nodeType == NodeType.PAGE_VIEW) {
+                        createdNode = await NodeProxy.createNodeByType(params);
+                    } else {
+                        createdNode = await NodeProxy.createNodeByType(params);
+                    }
+
+                    expect(createdNode).toBeDefined();
+                    allNodes.push(createdNode!);
+                    if (nodeType === NodeType.EMPTY) {
+                        expect(createdNode?.name).toBe('New Node');
+                        expect(createdNode?.path).toBe('New Node');
+                    } else if (nodeType === NodeType.PARTICLE) {
+                        expect(createdNode?.name).toBe('ParticleSystem2D');
+                        expect(createdNode?.path).toBe('Canvas/ParticleSystem2D');
+                    } else if (nodeType === NodeType.DIRECTIONAL_LIGHT) {
+                        expect(createdNode?.name).toBe('Directional Light');
+                        expect(createdNode?.path).toBe('Directional Light');
+                    } else if (nodeType === NodeType.SPHERE_LIGHT) {
+                        expect(createdNode?.name).toBe('Sphere Light');
+                        expect(createdNode?.path).toBe('Sphere Light');
+                    } else if (nodeType === NodeType.SPOT_LIGHT) {
+                        expect(createdNode?.name).toBe('Spot Light');
+                        expect(createdNode?.path).toBe('Spot Light');
+                    } else if (nodeType === NodeType.PROBE_LIGHT) {
+                        expect(createdNode?.name).toBe('Light Probe Group');
+                        expect(createdNode?.path).toBe('Light Probe Group');
+                    } else if (nodeType === NodeType.REFLECTION_LIGHT) {
+                        expect(createdNode?.name).toBe('Reflection Probe');
+                        expect(createdNode?.path).toBe('Reflection Probe');
+                    } else if (nodeType === NodeType.PAGE_VIEW) {
+                        expect(createdNode?.name).toBe('pageView');
+                        expect(createdNode?.path).toBe('Canvas/pageView');
+                    } else if (nodeType === NodeType.TOGGLE_GROUP) {
+                        expect(createdNode?.name).toBe('ToggleContainer');
+                        expect(createdNode?.path).toBe('Canvas/ToggleContainer');
+                    } else {
+                        expect(createdNode?.name).toBe(nodeType);
+                        if (addCanvas.includes(nodeType)) {
+                            expect(createdNode?.path).toBe(`Canvas/${nodeType}`);
+                        } else {
+                            expect(createdNode?.path).toBe(nodeType);
+                        }
+                    }
+                    if (nodeType == NodeType.PAGE_VIEW) {
+                        expect(createdNode?.components?.at(0)?.path).toBe('cc.UITransform_1');
+                        expect(createdNode?.components?.at(1)?.path).toBe('cc.Sprite_1');
+                        expect(createdNode?.components?.at(2)?.path).toBe('cc.PageView_1');
+                    }
+                    if (nodeType == NodeType.TERRAIN) {
+                        expect(Array.isArray(createdNode?.children)).toBe(true);
+                    }
+                    expect(createdNode?.properties.position).toEqual(testPosition);
+                    console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
+                } catch (e) {
+                    console.log(`测试所有内置节点 错误： ${e}`);
+                    throw e;
+                }
+            };
+
         });
     });
 });

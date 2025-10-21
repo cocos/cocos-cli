@@ -12,7 +12,7 @@ export enum NodeType {
     LABEL = 'Label', // 文本节点
     MASK = 'Mask', // 遮罩节点
     PARTICLE = 'Particle', // 粒子节点(需要用过 TWorkMode 来区分 2D 和 3D)
-    TILE_MAP = 'TileMap', // 瓦片地图节点
+    TILED_MAP = 'TiledMap', // 瓦片地图节点
 
     CAPSULE = 'Capsule', // 胶囊体节点
     CONE = 'Cone', // 圆锥体节点
