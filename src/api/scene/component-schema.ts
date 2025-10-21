@@ -57,8 +57,6 @@ export const SchemaSetPropertyOptions = z.object({
 
 export const SchemaComponent = SchemaProperty.extend({
     properties: SchemaProperty.describe('组件的值对象'),
-    enabled: z.any().describe('组件是否启用'),
-    uuid: z.string().describe('组件的唯一标识符'),
 }).describe('组件dump出来的信息');
 
 export const SchemaBuildinComponentTypes = z.array(z.string()).describe('所有内置组件的集合');
