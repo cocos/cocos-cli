@@ -7,7 +7,7 @@ import { Engine } from '../engine';
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
     flagReimportCheck: boolean;
-    globList: string[];
+    globList?: string[];
     /**
      * 资源 userData 的默认值
      */
@@ -41,16 +41,6 @@ class AssetConfig {
     private _assetConfig: AssetDBConfig = {
         restoreAssetDBFromCache: false,
         flagReimportCheck: true,
-        globList: [
-            '**/.DS_Store',
-            '**/Thumbs.db',
-            '**/desktop.ini',
-            '**/node_modules/**',
-            '**/package.json',
-            '**/package-lock.json',
-            '**/yarn.lock',
-            '**/pnpm-lock.yaml',
-        ],
         assetDBList: [],
         root: '',
         libraryRoot: '',

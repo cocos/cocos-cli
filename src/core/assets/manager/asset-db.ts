@@ -660,7 +660,7 @@ function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {
 
         level: 4,
         globList: assetConfig.data.globList,
-        ignoreFiles: ['.DS_Store', '.rename_temp'],
+        ignoreFiles: [],
         visible: config.visible,
         state: 'none',
         preImportExtList: config.preImportExtList || [],
