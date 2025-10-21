@@ -1,6 +1,6 @@
 import { IProperty } from '../@types/public';
 
-export const ComponentType = {
+export const globalComponentType = {
     Component: 'cc.Component',
     MissingScript: 'cc.MissingScript',
     PostProcess: 'cc.PostProcess',
@@ -173,7 +173,6 @@ export const ComponentType = {
     BuiltinPipelinePassBuilder: 'BuiltinPipelinePassBuilder',
     BuiltinDepthOfFieldPass: 'BuiltinDepthOfFieldPass',
     DebugViewRuntimeControl: 'internal.DebugViewRuntimeControl',
-    ControllerShapeCollider: 'ControllerShapeCollider',
 }
 
 /**

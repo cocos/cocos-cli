@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { ComponentType } from '../../core/scene';
+import { globalComponentType } from '../../core/scene';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
     nodePath: z.string().describe('节点路径'),
-    component: z.enum(Object.keys(ComponentType) as [string, ...string[]]).describe('组件类型'),
+    //component: z.enum(Object.keys(globalComponentType) as [string, ...string[]]).describe('组件类型'),
+    component: z.string().describe('组件类型'),
 }).describe('添加组件的信息');
 
 // 当前组件信息
@@ -56,6 +57,8 @@ export const SchemaComponent = SchemaProperty.extend({
     uuid: z.string().describe('组件的唯一标识符'),
 }).describe('组件dump出来的信息');
 
+export const SchemaBuildinComponentTypes = z.array(z.string()).describe('所有内置组件的集合');
+
 export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).describe('获取当前组件信息返回的接口');
 export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
@@ -64,3 +67,4 @@ export type TAddComponentInfo = z.infer<typeof SchemaAddComponentInfo>;
 export type TComponentIdentify = z.infer<typeof SchemaComponentIdentify>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
+export type TBuildinComponentTypes = z.infer<typeof SchemaBuildinComponentTypes>;

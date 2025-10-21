@@ -189,7 +189,6 @@ export class Project implements IProject {
             await safeOutputJSON(this.pkgPath, this._info);
             return true;
         } catch (error) {
-            console.error('Failed to update project info:', error);
             return false;
         }
     }
@@ -211,7 +210,6 @@ export class Project implements IProject {
             await this.updateInfo(this.generateProjectInfo(projectPath, type));
             return true;
         } catch (error) {
-            console.error('Failed to create project.', error);
             return false;
         }
     }

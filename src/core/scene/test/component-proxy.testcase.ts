@@ -1,13 +1,16 @@
 import { Component, Prefab } from 'cc';
-import type {
-    ICreateByAssetParams,
+import {
+    ICreateByNodeTypeParams,
     IDeleteNodeParams,
+    IQueryNodeParams,
     IAddComponentOptions,
     IRemoveComponentOptions,
     IQueryComponentOptions,
     ISetPropertyOptions,
     IComponentIdentifier,
-    IComponent
+    IComponent,
+    globalComponentType,
+    NodeType
 } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -19,20 +22,26 @@ describe('Component Proxy 测试', () => {
     let nodePath = '';
     let nodeId = '';
     beforeAll(async () => {
-        const params: ICreateByAssetParams = {
-            dbURL: 'db://internal/default_prefab/ui/Sprite.prefab',
-            path: '/PrefabNode',
-            name: 'PrefabNode',
-        };
+        // const params: ICreateByAssetParams = {
+        //     dbURL: 'db://internal/default_prefab/ui/Sprite.prefab',
+        //     path: '/PrefabNode',
+        //     name: 'PrefabNode',
+        // };
 
-        const prefabNode = await NodeProxy.createNodeByAsset(params);
-        expect(prefabNode).toBeDefined();
-        expect(prefabNode?.name).toBe('PrefabNode');
-        if (!prefabNode) {
+        // const prefabNode = await NodeProxy.createNodeByAsset(params);
+        const params: ICreateByNodeTypeParams = {
+            path: 'TestNode',
+            nodeType: NodeType.EMPTY,
+            position: { x: 1, y: 2, z: 0 },
+        };
+        const testNode = await NodeProxy.createNodeByType(params);
+        expect(testNode).toBeDefined();
+        expect(testNode?.name).toBe('New Node');
+        if (!testNode) {
             return;
         }
-        nodePath = prefabNode.path;
-        nodeId = prefabNode?.nodeId;
+        nodePath = testNode.path;
+        nodeId = testNode?.nodeId;
     });
     afterAll(async () => {
         try {
@@ -78,7 +87,7 @@ describe('Component Proxy 测试', () => {
                     expect(componentInfo!.cid).toBe('cc.Label');
                 }
                 if (componentInfo!.name) {
-                    expect(componentInfo!.name).toBe('PrefabNode<Label>');
+                    expect(componentInfo!.name).toBe('New Node<Label>');
                 }
                 if (componentInfo!.type) {
                     expect(componentInfo!.type).toBe('cc.Label');
@@ -387,6 +396,102 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(200);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
+                throw e;
+            }
+        });
+    });
+    describe('5. 创建内置的组件', () => {
+        const componentTypes = Object.values(globalComponentType);
+        let components: IComponentIdentifier[] = [];
+
+        beforeAll(async () => {
+            const params: IQueryNodeParams = {
+                path: nodePath,
+                queryChildren: false
+            };
+
+            const result = await NodeProxy.queryNode(params);
+            expect(result).toBeDefined();
+            expect(result?.components?.length == 0);
+        });
+
+        it('addComponent - 添加内置组件测试', async () => {
+            try {
+                // 这些组件都需要父组件的，因此先排除
+                const excludeComponent = [
+                    //'cc.Component',
+                    'cc.PostProcess',
+                    'cc.MissingScript',
+                    'cc.RigidBody',
+                    'cc.Collider',
+                    'cc.BoxCollider',
+                    'cc.SphereCollider',
+                    'cc.CapsuleCollider',
+                    'cc.CylinderCollider',
+                    'cc.ConeCollider',
+                    'cc.MeshCollider',
+                    'cc.ConstantForce',
+                    'cc.TerrainCollider',
+                    'cc.SimplexCollider',
+                    'cc.PlaneCollider',
+                    'cc.Constraint',
+                    'cc.HingeConstraint',
+                    'cc.FixedConstraint',
+                    'cc.ConfigurableConstraint',
+                    'cc.PointToPointConstraint',
+                    'cc.CharacterController',
+                    'cc.BoxCharacterController',
+                    'cc.CapsuleCharacterController',
+                    'cc.RigidBodyComponent',
+                    'cc.ColliderComponent',
+                    'cc.BoxColliderComponent',
+                    'cc.SphereColliderComponent',
+                    'cc.CapsuleColliderComponent',
+                    'cc.MeshColliderComponent',
+                    'cc.CylinderColliderComponent',
+                    'cc.RigidBody2D',
+                    'cc.Collider2D',
+                    'cc.BoxCollider2D',
+                    'cc.CircleCollider2D',
+                    'cc.PolygonCollider2D',
+                    'cc.Joint2D',
+                    'cc.DistanceJoint2D',
+                    'cc.SpringJoint2D',
+                    'cc.MouseJoint2D',
+                    'cc.RelativeJoint2D',
+                    'cc.SliderJoint2D',
+                    'cc.FixedJoint2D',
+                    'cc.WheelJoint2D',
+                    'cc.HingeJoint2D',
+                    'cc.TiledTile'
+                ];
+                for (const componentType of componentTypes) {
+                    if (excludeComponent.includes(componentType)) {
+                        continue;
+                    }
+
+                    const componentInfo1: IAddComponentOptions = {
+                        nodePath: nodePath,
+                        component: componentType
+                    }
+                    const component = await ComponentProxy.addComponent(componentInfo1);
+
+                    //expect(component.path).toBe(`${componentType}_${1}`);
+                    components.push(component);
+                    const queryComponentInfo = await ComponentProxy.queryComponent(component);
+                    console.log(`qqqqqqqqqqqqqqqqqqqqqqqq   ${component.path} ${queryComponentInfo!.cid} ${queryComponentInfo!.type}`);
+                    const result = await ComponentProxy.removeComponent({ path: component.path });
+                    console.log('qqqqqqqqqqqqq   ' + componentType + '  ' + component.path);
+                    if (componentType == 'cc.UITransform' || componentType == 'cc.UITransformComponent') {
+                        // 依赖组件无法删除
+                        expect(result).toBe(false);
+                    } else {
+                        expect(result).toBe(true);
+                    }
+                }
+                expect(components.length).toBe(componentTypes.length - excludeComponent.length);
+            } catch (e) {
+                console.log(`添加多个不同的节点失败，原因：${e}`);
                 throw e;
             }
         });

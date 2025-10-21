@@ -1,21 +1,24 @@
 import { ApiBase } from '../base/api-base';
-import { ComponentType } from '../../core/scene';
+import { globalComponentType } from '../../core/scene';
 import {
     SchemaAddComponentInfo,
     SchemaComponent,
     SchemaSetPropertyOptions,
     SchemaComponentResult,
     SchemaBooleanResult,
+    SchemaBuildinComponentTypes,
+    SchemaComponentIdentify,
     TAddComponentInfo,
     TComponentIdentify,
     TSetPropertyOptions,
     TComponentResult,
-    SchemaComponentIdentify,
+    TBuildinComponentTypes
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, ISetPropertyOptions } from '../../core/scene';
+import { json } from 'stream/consumers';
 
 export class ComponentApi extends ApiBase {
 
@@ -31,13 +34,13 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-add-component')
     @title('添加组件')
-    @description('添加组件到节点中')
+    @description('添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件')
     @result(SchemaComponentIdentify)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentIdentify>> {
         try {
-            const componentName = ComponentType[addComponentInfo.component as keyof typeof ComponentType];
+            let componentName = globalComponentType[addComponentInfo.component as keyof typeof globalComponentType];
             if (!componentName) {
-                throw new Error('Parameter type incorrect');
+                componentName = addComponentInfo.component;
             }
             const componentInfo = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: componentName });
             return {
@@ -57,7 +60,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-delete-component')
     @title('删除组件')
-    @description('删除节点组件')
+    @description('删除节点组件，如果组件不存在，删除则会返回false')
     @result(SchemaBooleanResult)
     async removeComponent(@param(SchemaComponent) component: TComponentIdentify): Promise<CommonResultType<boolean>> {
         try {
@@ -79,7 +82,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-query-component')
     @title('查询组件')
-    @description('查询组件信息')
+    @description('查询组件信息，返回所有组件的属性')
     @result(SchemaComponentResult)
     async queryComponent(@param(SchemaComponent) component: TComponentIdentify): Promise<CommonResultType<TComponentResult | null>> {
         try {
@@ -104,7 +107,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-set-component-property')
     @title('设置组件属性')
-    @description('设置组件属性')
+    @description('设置组件属性，输入组件path（唯一索引的组件），属性类型、属性名称、属性值，包括不同类型的值：boolean，string等')
     @result(SchemaBooleanResult)
     async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         try {
@@ -112,6 +115,27 @@ export class ComponentApi extends ApiBase {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result
+            };
+        } catch (e) {
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
+
+    /**
+     * 获取所有内置组件类型
+     */
+    @tool('scene-get-buildin-component-types')
+    @title('获取所有内置组件类型')
+    @description('获取所有内置组件类型，用于创建组件输入的组件名称')
+    @result(SchemaBuildinComponentTypes)
+    async getBuiltinComponentTypes(): Promise<CommonResultType<TBuildinComponentTypes>> {
+        try {
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: Object.keys(globalComponentType) as [string, ...string[]],
             };
         } catch (e) {
             return {
