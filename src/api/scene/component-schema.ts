@@ -8,7 +8,7 @@ export const SchemaAddComponentInfo = z.object({
 }).describe('添加组件的信息');
 
 // 当前组件信息
-export const SchemaComponent = z.object({
+export const SchemaComponentIdentify = z.object({
     path: z.string().describe('返回组件的路径，不包含节点路径'),
 }).describe('当前组件的信息');
 
@@ -50,17 +50,17 @@ export const SchemaSetPropertyOptions = z.object({
 }).describe('设置组件属性的信息');
 
 
-export const SchemaComponentInfo = SchemaProperty.extend({
+export const SchemaComponent = SchemaProperty.extend({
     properties: SchemaProperty.describe('组件的值对象'),
     enabled: z.any().describe('组件是否启用'),
     uuid: z.string().describe('组件的唯一标识符'),
 }).describe('组件dump出来的信息');
 
-export const SchemaComponentInfoResult = z.union([SchemaComponentInfo, z.null()]).describe('获取当前组件信息返回的接口');
+export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).describe('获取当前组件信息返回的接口');
 export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
 // 类型导出
 export type TAddComponentInfo = z.infer<typeof SchemaAddComponentInfo>;
-export type TComponent = z.infer<typeof SchemaComponent>;
+export type TComponent = z.infer<typeof SchemaComponentIdentify>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
-export type TComponentInfoResult = z.infer<typeof SchemaComponentInfoResult>;
+export type TComponentResult = z.infer<typeof SchemaComponentResult>;

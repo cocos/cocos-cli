@@ -3,12 +3,12 @@ import {
     SchemaAddComponentInfo,
     SchemaComponent,
     SchemaSetPropertyOptions,
-    SchemaComponentInfoResult,
+    SchemaComponentResult,
     SchemaBooleanResult,
     TAddComponentInfo,
     TComponent,
     TSetPropertyOptions,
-    TComponentInfoResult,
+    TComponentResult,
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -74,8 +74,8 @@ export class ComponentApi extends ApiBase {
     @tool('scene-query-component')
     @title('查询组件')
     @description('查询组件信息')
-    @result(SchemaComponentInfoResult)
-    async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentInfoResult | null>> {
+    @result(SchemaComponentResult)
+    async queryComponent(@param(SchemaComponent) component: TComponent): Promise<CommonResultType<TComponentResult | null>> {
         try {
             const componentInfo = await Scene.queryComponent(component);
             if (!componentInfo) {
