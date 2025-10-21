@@ -7,12 +7,15 @@ import {
     SchemaComponentResult,
     SchemaBooleanResult,
     SchemaBuildinComponentTypes,
-    SchemaComponentIdentifier,
+    SchemaQueryComponent,
+    SchemaRemoveComponent,
     TAddComponentInfo,
     TComponentIdentifier,
     TSetPropertyOptions,
     TComponentResult,
-    TBuildinComponentTypes
+    TBuildinComponentTypes,
+    TRemoveComponentOptions,
+    TQueryComponentOptions,
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -33,18 +36,18 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-add-component')
     @title('添加组件')
-    @description('添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件')
-    @result(SchemaComponentIdentifier)
-    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentIdentifier>> {
+    @description('添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件, 返回所有的组件操作')
+    @result(SchemaComponentResult)
+    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
             let componentName = globalComponentType[addComponentInfo.component as keyof typeof globalComponentType];
             if (!componentName) {
                 componentName = addComponentInfo.component;
             }
-            const componentInfo = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: componentName });
+            const component = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: componentName });
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: componentInfo
+                data: component
             };
         } catch (e) {
             return {
@@ -61,7 +64,7 @@ export class ComponentApi extends ApiBase {
     @title('删除组件')
     @description('删除节点组件，如果组件不存在，删除则会返回false')
     @result(SchemaBooleanResult)
-    async removeComponent(@param(SchemaComponent) component: TComponentIdentifier): Promise<CommonResultType<boolean>> {
+    async removeComponent(@param(SchemaRemoveComponent) component: TRemoveComponentOptions): Promise<CommonResultType<boolean>> {
         try {
             const result = await Scene.removeComponent(component);
             return {
@@ -83,7 +86,7 @@ export class ComponentApi extends ApiBase {
     @title('查询组件')
     @description('查询组件信息，返回所有组件的属性')
     @result(SchemaComponentResult)
-    async queryComponent(@param(SchemaComponent) component: TComponentIdentifier): Promise<CommonResultType<TComponentResult | null>> {
+    async queryComponent(@param(SchemaQueryComponent) component: TQueryComponentOptions): Promise<CommonResultType<TComponentResult | null>> {
         try {
             const componentInfo = await Scene.queryComponent(component);
             if (!componentInfo) {

@@ -19,12 +19,12 @@ export const SchemaComponentIdentifier = z.object({
 
 // 移除组件
 export const SchemaRemoveComponent = z.object({
-    path: z.string().optional().describe('组件的路径，包含节点路径'),
+    path: z.string().describe('组件的路径，包含节点路径'),
 }).describe('移除组件需要的信息');
 
 // 查询组件
 export const SchemaQueryComponent = z.object({
-    path: z.string().optional().describe('组件的路径，包含节点路径'),
+    path: z.string().describe('组件的路径，包含节点路径'),
 }).describe('查询组件需要的信息');
 
 /**
@@ -67,6 +67,8 @@ export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 // 类型导出
 export type TAddComponentInfo = z.infer<typeof SchemaAddComponentInfo>;
 export type TComponentIdentifier = z.infer<typeof SchemaComponentIdentifier>;
+export type TRemoveComponentOptions = z.infer<typeof SchemaRemoveComponent>;
+export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponent>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
 export type TBuildinComponentTypes = z.infer<typeof SchemaBuildinComponentTypes>;
