@@ -65,10 +65,14 @@ export const SchemaBuildRuntimeOptions = z.object({
 });
 
 // 对外暴露：完整的构建入参选项
-export const SchemaBuildOption = SchemaBuildRuntimeOptions.merge(SchemaBuildConfig);
+export const SchemaBuildOption = SchemaBuildRuntimeOptions.merge(SchemaBuildConfig).optional();
 export type SchemaBuildOptionType = z.infer<typeof SchemaBuildOption>;
 
-export const SchemaBuildResult = z.number().describe('构建的退出码').describe('构建项目后的结果');
+export const SchemaBuildResult = z.object({
+    code: z.number().int().describe('构建的退出码, 0 表示成功, 其他表示失败'),
+    dest: z.string().optional().describe('构建后的游戏生成文件夹'),
+    reason: z.string().optional().describe('构建失败的原因'),
+}).nullable().describe('构建项目后的结果');
 
 export const SchemaPreviewSettingsResult = z.object({
     settings: z.object({
@@ -109,3 +113,12 @@ export const SchemaBuildConfigResult = SchemaBuildConfig.nullable().describe('�
 export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;
 
 export type SchemaPlatformType = z.infer<typeof SchemaPlatform>;
+
+export type TBuildResultData = z.infer<typeof SchemaBuildResult>;
+
+// Run API 相关 Schema
+export const SchemaRunDest = z.string().min(1).describe('构建输出目录路径');
+export type TRunDest = z.infer<typeof SchemaRunDest>;
+
+export const SchemaRunResult = z.string().describe('运行 URL');
+export type TRunResult = z.infer<typeof SchemaRunResult>;

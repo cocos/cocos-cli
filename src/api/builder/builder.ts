@@ -1,10 +1,9 @@
 import { ApiBase } from '../base/api-base';
-import { build, getPreviewSettings, queryDefaultBuildConfigByPlatform } from '../../core/builder';
+import { build, queryDefaultBuildConfigByPlatform, run } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { BuildExitCode, IBuildTaskOption } from '../../core/builder/@types/protected';
-import BuildErrorMap from '../../core/builder/error-map';
+import { BuildExitCode } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildOptionType, SchemaBuildResult, SchemaPlatform, SchemaPlatformType, SchemaPreviewSettingsResult, TBuildConfigResult, TPreviewSettingsResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildOptionType, SchemaBuildResult, SchemaPlatform, SchemaPlatformType, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildResultData, TRunDest, TRunResult } from './schema';
 
 export class BuilderApi extends ApiBase {
     constructor() {
@@ -20,16 +19,16 @@ export class BuilderApi extends ApiBase {
     @result(SchemaBuildResult)
     async build(@param(SchemaBuildOption) options?: SchemaBuildOptionType) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<number> = {
+        const ret: CommonResultType<TBuildResultData> = {
             code: code,
-            data: -1,
+            data: null,
         };
         try {
-            const exitCode = await build(options);
-            ret.data = exitCode;
-            if (exitCode !== BuildExitCode.BUILD_SUCCESS) {
+            const res = await build(options);
+            ret.data = res;
+            if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;
-                ret.reason = BuildErrorMap[exitCode];
+                ret.reason = res.reason || 'Build failed!';
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -76,6 +75,26 @@ export class BuilderApi extends ApiBase {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query default build config by platform fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+        return ret;
+    }
+
+    @tool('builder-run')
+    @title('运行构建结果')
+    @description('运行构建后的游戏，不同平台的效果不同，目前 web 平台支持启动构建结果的预览服务器，返回运行 URL')
+    @result(SchemaRunResult)
+    async run(@param(SchemaRunDest) dest: TRunDest): Promise<CommonResultType<TRunResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TRunResult> = {
+            code: code,
+            data: '',
+        };
+        try {
+            ret.data = await run(dest);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('run build result failed:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
         return ret;

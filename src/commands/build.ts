@@ -42,11 +42,11 @@ export class BuildCommand extends BaseCommand {
 
                     const result = await projectManager.build(resolvedPath, buildOptions);
 
-                    if (result === BuildExitCode.BUILD_SUCCESS) {
+                    if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Build completed successfully!'));
                     } else {
                         console.error(chalk.red('✗ Build failed!'));
-                        process.exit(result);
+                        process.exit(result.code);
                     }
                 } catch (error) {
                     console.error(chalk.red('Failed to build project:'), error);

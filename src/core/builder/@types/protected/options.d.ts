@@ -372,6 +372,18 @@ export const enum BuildExitCode {
     UNKNOWN_ERROR = 50,
 }
 
+export interface IBuildResultSuccess {
+    code: BuildExitCode.BUILD_SUCCESS;
+    dest: string;
+    // TODO 更多的构建结果信息
+}
+
+export interface IBuildResultFailed {
+    code: Exclude<BuildExitCode, BuildExitCode.BUILD_SUCCESS>;
+    reason?: string;
+}
+export type IBuildResultData = IBuildResultSuccess | IBuildResultFailed;
+
 export interface ExecuteHookTaskOption {
     pkgName: string;
     hook: string;

@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
-import { BuildExitCode, IBuildCommandOption, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IInternalBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
+import { BuildExitCode, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { PLATFORMS } from './share/platforms-options';
 import { pluginManager } from './manager/plugin';
 import { formatMSTime, getTaskLogDest } from './share/utils';
@@ -12,8 +12,9 @@ import { removeDbHeader } from './worker/builder/utils';
 import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { Engine } from '../engine';
 import { BuildConfiguration } from './@types/config-export';
+import utils from '../base/utils';
 
-export async function build(options?: IBuildCommandOption): Promise<BuildExitCode> {
+export async function build(options?: IBuildCommandOption): Promise<IBuildResultData> {
     await builderConfig.init();
     if (!options) {
         options = await pluginManager.getOptionsByPlatform('web-desktop');
@@ -22,7 +23,7 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
     if (options.configPath) {
         if (!existsSync(options.configPath)) {
             console.error(`${options.configPath} is not exist!`);
-            return BuildExitCode.BUILD_FAILED;
+            return { code: BuildExitCode.BUILD_FAILED, reason: `${options.configPath} is not exist!` };
         }
         console.debug(`Read config from path ${options.configPath}...`);
         let data = readJSONSync(options.configPath);
@@ -59,7 +60,7 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
         console.error(i18n.t('builder.tips.disablePlatformForBuildCommand', {
             platform: options.platform,
         }));
-        return BuildExitCode.BUILD_FAILED;
+        return { code: BuildExitCode.BUILD_FAILED, reason: `Unsupported platform ${options.platform} for build command!` };
     }
 
     // 命令行构建前，补全项目配置数据
@@ -72,12 +73,12 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
             const rightOptions = await pluginManager.checkOptions(options);
             if (!rightOptions) {
                 console.error(i18n.t('builder.error.check_options_failed'));
-                return BuildExitCode.PARAM_ERROR;
+                return { code: BuildExitCode.PARAM_ERROR, reason: 'Check options failed!' };
             }
             res = rightOptions;
         } catch (error) {
             console.error(error);
-            return BuildExitCode.PARAM_ERROR;
+            return { code: BuildExitCode.PARAM_ERROR, reason: 'Check options failed! ' + String(error) };
         }
     } else {
         // @ts-ignore
@@ -89,7 +90,6 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
 
     // 显示构建开始信息
     newConsole.buildStart(options.platform);
-
     try {
         const { BuildTask } = await import('./worker/builder');
         const builder = new BuildTask(options.taskId, res);
@@ -101,19 +101,20 @@ export async function build(options?: IBuildCommandOption): Promise<BuildExitCod
 
         await builder.run();
         buildSuccess = !builder.error;
-
         const duration = formatMSTime(Date.now() - startTime);
         newConsole.buildComplete(options.platform, duration, buildSuccess);
+        const dest = utils.Path.resolveToUrl(builder.result.paths.dir, 'project');
+        return buildSuccess ? { code: BuildExitCode.BUILD_SUCCESS, dest } : { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed!' };
     } catch (error: any) {
         buildSuccess = false;
         const duration = formatMSTime(Date.now() - startTime);
         newConsole.error(error);
         newConsole.buildComplete(options.platform, duration, false);
+        return { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed! ' + String(error) };
     }
-    return buildSuccess ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
 }
 
-export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<BuildExitCode> {
+export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData> {
     const { BundleManager } = await import('./worker/builder/asset-handler/bundle');
     const optionsList = bundleOptions.optionList;
     const buildTaskId = 'buildBundle';
@@ -158,17 +159,17 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
     }
     const totalDuration = formatMSTime(Date.now() - startTime);
     newConsole.taskComplete('Bundle Build', success, totalDuration);
-    return success ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
+    return success ? { code: BuildExitCode.BUILD_SUCCESS, dest: bundleOptions.dest } : { code: BuildExitCode.BUILD_FAILED, reason: 'Bundle build failed!' };
 }
 
-export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<BuildExitCode> {
+export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<IBuildResultData> {
     if (!options.taskName) {
         options.taskName = stageName + ' build';
     }
 
     const buildOptions = readBuildTaskOptions(options.root);
     if (!buildOptions) {
-        return BuildExitCode.PARAM_ERROR;
+        return { code: BuildExitCode.PARAM_ERROR, reason: 'Build options is not exist!' };
     }
 
     const stages = options.nextStages ? [stageName, ...options.nextStages] : [stageName];
@@ -184,7 +185,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         stageWeight = stageWeight * (index + 1);
         if (!stageConfig) {
             console.error(`No Build stage ${stageName}`);
-            return BuildExitCode.BUILD_FAILED;
+            return { code: BuildExitCode.BUILD_FAILED, reason: `No Build stage ${stageName}!` };
         }
 
         newConsole.trackMemoryStart(`builder:build-stage-total ${stageName}`);
@@ -210,7 +211,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             break;
         }
     }
-    return buildSuccess ? BuildExitCode.BUILD_SUCCESS : BuildExitCode.BUILD_FAILED;
+    return buildSuccess ? { code: BuildExitCode.BUILD_SUCCESS, dest: options.root } : { code: BuildExitCode.BUILD_FAILED, reason: 'Build stage task failed!' };
 }
 
 function readBuildTaskOptions(root: string): IBuildTaskOption<any> | null {
@@ -264,5 +265,11 @@ export function queryBuildConfig() {
 
 export async function queryDefaultBuildConfigByPlatform(platform: Platform) {
     return await pluginManager.getOptionsByPlatform(platform);
+}
 
+export async function run(dest: string) {
+    // const path = utils.Path.resolveToRaw(dest);
+    // TODO 目前仅支持 web 平台，先这样用
+    const { run } = await import('./platforms/web-desktop/hooks');
+    return await run(dest);
 }
