@@ -11,7 +11,6 @@ export async function startServer(folder: string, port?: number) {
     await cocosAPI.startup();
 
     const middleware = new McpMiddleware();
-    middleware.registerDecoratorTools();
     register('mcp', middleware.getMiddlewareContribution());
     const mcpUrl = `${serverService.url}/mcp`;
     console.log(chalk.green('✓ MCP Server started successfully!'));

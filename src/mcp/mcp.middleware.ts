@@ -5,17 +5,71 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { toolRegistry } from '../api/decorator/decorator';
 import { z } from 'zod';
 import * as pkgJson from '../../package.json';
+import { join } from 'path';
+import { ResourceManager } from './resources';
+
 export class McpMiddleware {
     private server: McpServer;
+    private resourceManager: ResourceManager;
+
     constructor() {
         // 创建 MCP server
         this.server = new McpServer({
             name: 'cocos-cli-mcp-server',
             version: pkgJson.version || '0.0.0',
+        }, {
+            capabilities: {
+                resources: {
+                    subscribe: true,
+                    listChanged: true,
+                    templates: false
+                },
+                tools: {},
+                // 日志能力（调试用）
+                logging: {},
+            }
+        });
+
+        // 初始化资源管理器
+        const docsPath = join(process.cwd(), 'docs');
+        this.resourceManager = new ResourceManager(docsPath);
+
+        // 注册资源和工具
+        this.registerDecoratorTools();
+        this.registerResourcesList();
+    }
+
+    private registerResourcesList() {
+        // 使用资源管理器加载所有资源
+        const resources = this.resourceManager.loadAllResources();
+
+        // 批量注册资源
+        resources.forEach((resource) => {
+            this.server.resource(resource.name, resource.uri, {
+                title: resource.title,
+                mimeType: resource.mimeType
+            }, async (_uri: URL, extra) => {
+                // 根据客户端地区选择语言
+                const preferredLanguage = this.resourceManager.detectClientLanguage(extra);
+
+                // 动态读取文件内容
+                const textContent = this.resourceManager.readFileContent(resource, preferredLanguage);
+
+                return {
+                    contents: [{
+                        uri: resource.uri,
+                        text: textContent,
+                        mimeType: resource.mimeType
+                    }]
+                };
+            });
         });
     }
 
-    public registerDecoratorTools() {
+    /**
+     * 注册 mcp tools
+     */
+    private registerDecoratorTools() {
         Array.from(toolRegistry.entries()).forEach(([toolName, { target, meta }]) => {
             try {
                 // 构建输入 schema
@@ -63,7 +117,7 @@ export class McpMiddleware {
                                 try {
                                     const validatedResult = meta.returnSchema.parse(result);
                                     structuredContent = { result: validatedResult };
-                                } catch (error) {
+                                } catch {
                                     structuredContent = { result: result };
                                 }
                             } else {
