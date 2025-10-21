@@ -102,7 +102,7 @@
         "@cocos/fbx-gltf-conv": "^1.0.0-alpha.49.editor.1",
         "@cocos/fbx2gltf": "^1.0.8",
         "@cocos/module-system": "^0.0.21",
-        "@editor/asset-db": "^3.0.0-alpha.3",
+        "@editor/asset-db": "^3.0.0-alpha.4",
         "@editor/build-polyfills": "2.0.0",
         "@editor/lib-programming": "3.8.1",
         "@editor/quick-compiler": "^4.2.20",

@@ -40,7 +40,7 @@ class AssetConfig {
      */
     private _assetConfig: AssetDBConfig = {
         restoreAssetDBFromCache: false,
-        flagReimportCheck: true,
+        flagReimportCheck: false,
         assetDBList: [],
         root: '',
         libraryRoot: '',
