@@ -18,7 +18,7 @@ import {
  */
 @register('Component')
 export class ComponentService implements IComponentService {
-    private addComponentImpl(path: string, componentName: string): IComponentIdentifier {
+    private addComponentImpl(path: string, componentName: string): IComponent {
         if (Array.isArray(path)) {
             path.forEach((p) => {
                 this.addComponentImpl(p, componentName);
@@ -52,14 +52,14 @@ export class ComponentService implements IComponentService {
                 console.log(`ctor with name ${componentName} is not child class of Component `);
                 throw new Error(`ctor with name ${componentName} is not child class of Component `);
             }
-            return compMgr.getComponentIdentifier(comp);
+            return (dumpUtil.dumpComponent(comp as Component));
         } catch (error) {
             throw error;
         }
     }
 
     @expose()
-    async addComponent(params: IAddComponentOptions): Promise<IComponentIdentifier> {
+    async addComponent(params: IAddComponentOptions): Promise<IComponent> {
         const component = await this.addComponentImpl(params.nodePath, params.component);
         return component;
     }

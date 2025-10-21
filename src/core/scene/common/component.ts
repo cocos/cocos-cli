@@ -235,7 +235,7 @@ export interface IComponentService {
      * 创建组件
      * @param params
      */
-    addComponent(params: IAddComponentOptions): Promise<IComponentIdentifier>;
+    addComponent(params: IAddComponentOptions): Promise<IComponent>;
     /**
      * 删除组件
      * @param params 

@@ -9,6 +9,7 @@ import { DumpDefines } from './dump-defines';
 import { js } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { IComponent } from '../../../common';
+import compMgr from '../component/index';
 
 /**
  * 编码一个 component
@@ -33,7 +34,7 @@ export function encodeComponent(component: any): IComponent {
         properties: {
             value: {}
         },
-        path: '',
+        path: compMgr.getPathFromUuid(component.uuid) || "",
         uuid: component.uuid,
         name: component.name,
         enabled: component.enabled,

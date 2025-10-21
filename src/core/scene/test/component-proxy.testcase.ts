@@ -70,7 +70,7 @@ describe('Component Proxy 测试', () => {
             try {
                 const component = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = component.path;
-                expect(component.path).toBe('cc.Label_1');
+                expect(component.path).toBe(`${nodePath}/cc.Label_1`);
             } catch (e) {
                 console.log(`addComponent test error: ${e}`);
                 throw e;
@@ -140,7 +140,7 @@ describe('Component Proxy 测试', () => {
         beforeAll(async () => {
             try {
                 for (const componentName of testComponents) {
-                    const queryComponent = await ComponentProxy.queryComponent({ path: `${componentName}_1` });
+                    const queryComponent = await ComponentProxy.queryComponent({ path: `${nodePath}/${componentName}_1` });
                     expect(queryComponent).toBeNull();
                 };
                 console.log('组合测试 - 添加多个不同节点 - 开始');
@@ -169,7 +169,7 @@ describe('Component Proxy 测试', () => {
                         component: componentName
                     }
                     const component = await ComponentProxy.addComponent(componentInfo);
-                    expect(component.path).toBe(`${componentName}_1`);
+                    expect(component.path).toBe(`${nodePath}/${componentName}_1`);
                     components.push(component);
                     const queryComponentInfo = await ComponentProxy.queryComponent(component);
                     if (queryComponentInfo!.cid) {
@@ -194,7 +194,7 @@ describe('Component Proxy 测试', () => {
         beforeAll(async () => {
             try {
                 for (let i = 0; i < testCount; i++) {
-                    const queryComponent = await ComponentProxy.queryComponent({ path: `${testComponent}_${i + 1}` });
+                    const queryComponent = await ComponentProxy.queryComponent({ path: `${nodePath}/${testComponent}_${i + 1}` });
                     expect(queryComponent).toBeNull();
                 }
                 console.log('组合测试 - 添加多个相同节点 - 开始');
@@ -224,7 +224,7 @@ describe('Component Proxy 测试', () => {
                         component: testComponent
                     }
                     const component = await ComponentProxy.addComponent(componentInfo1);
-                    expect(component.path).toBe(`${testComponent}_${i + 1}`);
+                    expect(component.path).toBe(`${nodePath}/${testComponent}_${i + 1}`);
                     components.push(component);
                     const queryComponentInfo = await ComponentProxy.queryComponent(component);
                     if (queryComponentInfo!.cid) {
@@ -257,7 +257,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo).toBeNull();
                 const component = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = component.path;
-                expect(component.path).toBe('cc.Label_1');
+                expect(component.path).toBe(`${nodePath}/cc.Label_1`);
                 componentInfo = await ComponentProxy.queryComponent({ path: componentPath });
                 expect(componentInfo).toBeDefined();
                 queryComponent.path = componentPath;
@@ -475,13 +475,8 @@ describe('Component Proxy 测试', () => {
                         component: componentType
                     }
                     const component = await ComponentProxy.addComponent(componentInfo1);
-
-                    //expect(component.path).toBe(`${componentType}_${1}`);
                     components.push(component);
-                    const queryComponentInfo = await ComponentProxy.queryComponent(component);
-                    console.log(`qqqqqqqqqqqqqqqqqqqqqqqq   ${component.path} ${queryComponentInfo!.cid} ${queryComponentInfo!.type}`);
                     const result = await ComponentProxy.removeComponent({ path: component.path });
-                    console.log('qqqqqqqqqqqqq   ' + componentType + '  ' + component.path);
                     if (componentType == 'cc.UITransform' || componentType == 'cc.UITransformComponent') {
                         // 依赖组件无法删除
                         expect(result).toBe(false);

@@ -42,7 +42,6 @@ export default {
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 const filePath = assetInfo && assetInfo.library[`${nativeName}.${ext}`];
-                console.log('nativeName: ' + req.url + ' -> ' + filePath);
                 res.status(200).send(filePath || req.url);
             },
         },
@@ -53,7 +52,6 @@ export default {
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 const filePath = assetInfo && assetInfo.library[`.${ext}`];
-                console.log(req.url + ' -> ' + filePath);
                 res.status(200).send(filePath || req.url);
             },
         }
@@ -61,7 +59,7 @@ export default {
     post: [],
     staticFiles: [],
     socket: {
-        connection: (socket: any) => {},
-        disconnect: (socket: any) => {}
+        connection: (socket: any) => { },
+        disconnect: (socket: any) => { }
     },
 } as IMiddlewareContribution;

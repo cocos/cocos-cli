@@ -295,11 +295,7 @@ describe('Node Proxy 测试', () => {
                     continue;
                 }
                 try {
-                    if (nodeType == NodeType.PAGE_VIEW) {
-                        createdNode = await NodeProxy.createNodeByType(params);
-                    } else {
-                        createdNode = await NodeProxy.createNodeByType(params);
-                    }
+                    createdNode = await NodeProxy.createNodeByType(params);
 
                     expect(createdNode).toBeDefined();
                     allNodes.push(createdNode!);
@@ -339,9 +335,9 @@ describe('Node Proxy 测试', () => {
                         }
                     }
                     if (nodeType == NodeType.PAGE_VIEW) {
-                        expect(createdNode?.components?.at(0)?.path).toBe('cc.UITransform_1');
-                        expect(createdNode?.components?.at(1)?.path).toBe('cc.Sprite_1');
-                        expect(createdNode?.components?.at(2)?.path).toBe('cc.PageView_1');
+                        expect(createdNode?.components?.at(0)?.path).toBe('Canvas/pageView/cc.UITransform_1');
+                        expect(createdNode?.components?.at(1)?.path).toBe('Canvas/pageView/cc.Sprite_1');
+                        expect(createdNode?.components?.at(2)?.path).toBe('Canvas/pageView/cc.PageView_1');
                     }
                     if (nodeType == NodeType.TERRAIN) {
                         expect(Array.isArray(createdNode?.children)).toBe(true);
