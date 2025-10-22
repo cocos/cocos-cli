@@ -66,22 +66,22 @@ export enum MobilityMode {
 // 节点基础属性接口
 export interface INodeProperties {
     position: IVec3; // 节点位置
-    worldPosition: IVec3; // 节点世界位置
+    // worldPosition: IVec3; // 节点世界位置
     rotation: IQuat; // 节点旋转, 四元数
-    worldRotation: IQuat; // 节点世界旋转, 四元数
+    // worldRotation: IQuat; // 节点世界旋转, 四元数
     eulerAngles: IVec3; // 节点旋转，欧拉角
-    angle: number; // 本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上
+    // angle: number; // 本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上
     scale: IVec3; // 节点缩放
-    worldScale: IVec3; // 节点世界缩放
-    worldMatrix: IMat4; // 节点的世界变换矩阵
-    forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
-    up: IVec3; // 当前节点在世界空间中朝上的方向向量
-    right: IVec3; // 当前节点在世界空间中朝右的方向向量
+    // worldScale: IVec3; // 节点世界缩放
+    // worldMatrix: IMat4; // 节点的世界变换矩阵
+    // forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
+    // up: IVec3; // 当前节点在世界空间中朝上的方向向量
+    // right: IVec3; // 当前节点在世界空间中朝右的方向向量
     mobility: MobilityMode; // 节点的移动性
     layer: number; // 节点所在的层级
-    hasChangedFlags: number; // 这个节点的空间变换信息在当前帧内是否有变过？
+    // hasChangedFlags: number; // 这个节点的空间变换信息在当前帧内是否有变过？
     active: boolean; // 节点是否激活
-    readonly activeInHierarchy: boolean; // 节点在场景中是否激活
+    // readonly activeInHierarchy: boolean; // 节点在场景中是否激活
 }
 
 // 节点标识符接口

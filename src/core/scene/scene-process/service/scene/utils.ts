@@ -43,30 +43,16 @@ class SceneUtil {
     /**
      * 生成组件信息
      */
-    generateComponentInfo(component: cc.Component): { uuid: string } {
-        return {
-            uuid: component.uuid
-        };
-    }
-
-    /**
-     * 获取组件 dump 数据
-     * @param component
-     */
-    getComponentDump(component: cc.Component): IComponentIdentifier {
+    generateComponentInfo(component: cc.Component): IComponentIdentifier {
         return compMgr.getComponentIdentifier(component);
-    };
+    }
 
     /**
      * 节点 dump 数据
      * @param node
      */
-    getNodeDump(node: cc.Node): INode | null {
-        if (node.objFlags & cc.CCObject.Flags.HideInHierarchy) {
-            return null;
-        }
-
-        return {
+    generateNodeInfo(node: cc.Node, generateChildren: boolean): INode {
+        const nodeInfo: INode = {
             nodeId: node.uuid,
             path: EditorExtends.Node.getNodePath(node),
             name: node.name,
@@ -76,35 +62,39 @@ class SceneUtil {
                 rotation: node.rotation,
                 scale: node.scale,
                 layer: node.layer,
-                worldPosition: node.worldPosition,
-                worldRotation: node.worldRotation,
+                // worldPosition: node.worldPosition,
+                // worldRotation: node.worldRotation,
                 eulerAngles: node.eulerAngles,
-                angle: node.angle,
-                worldScale: node.worldScale,
-                worldMatrix: node.worldMatrix,
-                forward: node.forward,
-                up: node.up,
-                right: node.right,
+                // angle: node.angle,
+                // worldScale: node.worldScale,
+                // worldMatrix: node.worldMatrix,
+                // forward: node.forward,
+                // up: node.up,
+                // right: node.right,
                 mobility: node.mobility,
-                hasChangedFlags: node.hasChangedFlags,
-                activeInHierarchy: node.activeInHierarchy,
+                // hasChangedFlags: node.hasChangedFlags,
+                // activeInHierarchy: node.activeInHierarchy,
             },
-            children: node.children
-                .map((node: cc.Node) => {
-                    return this.getNodeDump(node);
-                })
-                .filter(child => child !== null) as INode[],
             components: node.components
                 .map((component: cc.Component) => {
-                    return this.getComponentDump(component);
+                    return this.generateComponentInfo(component);
                 })
         };
+        if (generateChildren) {
+            node.children.forEach((child) => {
+                if (!nodeInfo.children) {
+                    nodeInfo.children = [];
+                }
+                nodeInfo.children.push(this.generateNodeInfo(child, true));
+            });
+        }
+        return nodeInfo;
     }
 
     /**
      * 请求某个路径的节点树，不传路径为当前场景
      */
-    getSceneDump(identifier: ISceneIdentifier): IScene | null {
+    generateSceneInfo(identifier: ISceneIdentifier): IScene | null {
         const scene = cc.director.getScene();
         if (!scene) {
             return null;
@@ -116,12 +106,12 @@ class SceneUtil {
             //
             children: scene.children
                 .map((node: cc.Node) => {
-                    return this.getNodeDump(node);
+                    return this.generateNodeInfo(node, true);
                 })
                 .filter(child => child !== null) as INode[],
             components: scene.components
                 .map((component: cc.Component) => {
-                    return this.getComponentDump(component);
+                    return this.generateComponentInfo(component);
                 })
         };
     }

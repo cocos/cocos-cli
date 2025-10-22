@@ -9,22 +9,22 @@ import { SchemaComponentIdentifier } from './component-schema';
 // 节点属性的 schema，
 export const NodePropertySchema = z.object({
     position: Vec3Schema.describe('节点位置'),
-    worldPosition: Vec3Schema.describe('节点位置'),
+    // worldPosition: Vec3Schema.describe('节点位置'),
     rotation: QuatSchema.describe('节点旋转, 四元数'),
-    worldRotation: QuatSchema.describe('节点旋转, 四元数'),
+    // worldRotation: QuatSchema.describe('节点旋转, 四元数'),
     eulerAngles: Vec3Schema.describe('节点旋转，欧拉角'),
-    angle: z.number().describe('本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上'),
+    // angle: z.number().describe('本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上'),
     scale: Vec3Schema.describe('节点缩放'),
-    worldScale: Vec3Schema.describe('节点缩放'),
-    worldMatrix: Mat4Schema.describe('节点的世界变换矩阵'),
-    forward: Vec3Schema.describe('节点的前方向向量, 默认前方为 -z 方向'),
-    up: Vec3Schema.describe('当前节点在世界空间中朝上的方向向量'),
-    right: Vec3Schema.describe('当前节点在世界空间中朝右的方向向量'),
+    // worldScale: Vec3Schema.describe('节点缩放'),
+    // worldMatrix: Mat4Schema.describe('节点的世界变换矩阵'),
+    // forward: Vec3Schema.describe('节点的前方向向量, 默认前方为 -z 方向'),
+    // up: Vec3Schema.describe('当前节点在世界空间中朝上的方向向量'),
+    // right: Vec3Schema.describe('当前节点在世界空间中朝右的方向向量'),
     mobility: z.nativeEnum(MobilityMode).describe('节点的移动性，static 表示静态节点，movable 表示可移动节点, Stationary 固定节点'),
     layer: z.number().describe('节点所在的层级'),
-    hasChangedFlags: z.number().describe('这个节点的空间变换信息在当前帧内是否有变过？'),
+    // hasChangedFlags: z.number().describe('这个节点的空间变换信息在当前帧内是否有变过？'),
     active: z.boolean().describe('节点是否激活'),
-    activeInHierarchy: z.boolean().readonly().describe('节点在场景中是否激活'),
+    // activeInHierarchy: z.boolean().readonly().describe('节点在场景中是否激活'),
 });
 
 

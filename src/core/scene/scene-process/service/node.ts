@@ -3,10 +3,10 @@ import type { ICreateByNodeTypeParams, ICreateByAssetParams, IDeleteNodeParams, 
 import { Rpc } from '../rpc';
 import { readFile } from 'fs-extra';
 import EventEmitter from 'events';
-import { Vec3, Node, Prefab, CCObject, Quat, Mat4 } from 'cc';
+import { Vec3, Node, Prefab, CCObject, Quat } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
-import { getUICanvasNode, getUITransformParentNode, setLayer } from './node/node-utils';
-import compMgr from './component/index';
+import { getUICanvasNode, setLayer } from './node/node-utils';
+import sceneUtil from './scene/utils';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -59,11 +59,11 @@ export class NodeService extends EventEmitter implements INodeService {
 
     @expose()
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
-        let assetUuid = await Rpc.request('assetManager', 'queryUUID', [params.dbURL]);
+        const assetUuid = await Rpc.request('assetManager', 'queryUUID', [params.dbURL]);
         if (!assetUuid) {
             throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
         }
-        let canvasNeeded = params.canvasRequired || false;
+        const canvasNeeded = params.canvasRequired || false;
         return this._createNode(assetUuid, canvasNeeded, params);
     }
 
@@ -73,7 +73,7 @@ export class NodeService extends EventEmitter implements INodeService {
             throw new Error('Failed to create node: the scene is not opened.');
         }
 
-        let workMode = params.workMode || '2d';
+        const workMode = params.workMode || '2d';
         if (params.path && params.path.startsWith("Canvas/")) {
             canvasNeeded = true;
         }
@@ -127,7 +127,7 @@ export class NodeService extends EventEmitter implements INodeService {
             // this.emit('change', parent, { type: cc.NodeEventType.CHILD_CHANGED });
         }
 
-        return this._generateNodeInfo(resultNode, true);
+        return sceneUtil.generateNodeInfo(resultNode, true);
     }
 
     @expose()
@@ -190,39 +190,39 @@ export class NodeService extends EventEmitter implements INodeService {
             if (options.position) {
                 node.setPosition(options.position as Vec3);
             }
-            if (options.worldPosition) {
-                node.setWorldPosition(options.worldPosition as Vec3);
-            }
+            // if (options.worldPosition) {
+            //     node.setWorldPosition(options.worldPosition as Vec3);
+            // }
             if (options.rotation) {
                 node.rotation = options.rotation as Quat;
             }
-            if (options.worldRotation) {
-                node.worldRotation = options.worldRotation as Quat;
-            }
+            // if (options.worldRotation) {
+            //     node.worldRotation = options.worldRotation as Quat;
+            // }
             if (options.eulerAngles) {
                 node.eulerAngles = options.eulerAngles as Vec3;
             }
-            if (options.angle) {
-                node.angle = options.angle;
-            }
+            // if (options.angle) {
+            //     node.angle = options.angle;
+            // }
             if (options.scale) {
                 node.scale = options.scale as Vec3;
             }
-            if (options.worldScale) {
-                node.worldScale = options.worldScale as Vec3;
-            }
-            if (options.forward) {
-                node.forward = options.forward as Vec3;
-            }
+            // if (options.worldScale) {
+            //     node.worldScale = options.worldScale as Vec3;
+            // }
+            // if (options.forward) {
+            //     node.forward = options.forward as Vec3;
+            // }
             if (options.mobility) {
                 node.mobility = options.mobility;
             }
             if (options.layer) {
                 node.layer = options.layer;
             }
-            if (options.hasChangedFlags) {
-                node.hasChangedFlags = options.hasChangedFlags;
-            }
+            // if (options.hasChangedFlags) {
+            //     node.hasChangedFlags = options.hasChangedFlags;
+            // }
         }
 
         return {
@@ -236,56 +236,8 @@ export class NodeService extends EventEmitter implements INodeService {
         if (!node) {
             return null;
         }
-        return this._generateNodeInfo(node, params.queryChildren || false);
+        return sceneUtil.generateNodeInfo(node, params.queryChildren || false);
     }
-
-    private _generateNodeInfo(node: Node, generateChildren: boolean): INode {
-        const info = {
-            nodeId: node.uuid,
-            path: NodeMgr.getNodePath(node),
-            name: node.name,
-            properties: {
-                active: node.active,
-                position: node.position,
-                rotation: node.rotation,
-                scale: node.scale,
-                layer: node.layer,
-                worldPosition: node.worldPosition,
-                worldRotation: node.worldRotation,
-                eulerAngles: node.eulerAngles,
-                angle: node.angle,
-                worldScale: node.worldScale,
-                matrix: node.matrix,
-                worldMatrix: node.worldMatrix,
-                forward: node.forward,
-                up: node.up,
-                right: node.right,
-                mobility: node.mobility,
-                hasChangedFlags: node.hasChangedFlags,
-                activeInHierarchy: node.activeInHierarchy,
-            },
-        };
-        let nodeInfo = info as INode;
-        if (generateChildren) {
-            node.children.forEach((child) => {
-                if (!nodeInfo.children) {
-                    nodeInfo.children = [];
-                }
-                nodeInfo.children.push(this._generateNodeInfo(child, true));
-            });
-        }
-        node.components.forEach((comp) => {
-            if (comp) {
-                if (!nodeInfo.components) {
-                    nodeInfo.components = [];
-                }
-                nodeInfo.components.push(compMgr.getComponentIdentifier(comp));
-            }
-        });
-
-        return info;
-    }
-
 
     /**
      * 确保节点有 UITransform 组件

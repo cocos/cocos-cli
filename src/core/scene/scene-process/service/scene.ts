@@ -322,7 +322,7 @@ export class SceneService extends EventEmitter implements ISceneService {
         if (typeof identifier === 'string') {
             identifier = await this.createSceneIdentifier(identifier);
         }
-        const scene = sceneUtil.getSceneDump(identifier);
+        const scene = sceneUtil.generateSceneInfo(identifier);
         if (!scene) {
             throw new Error('更新场景信息失败，当前没有场景');
         }
