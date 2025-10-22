@@ -53,11 +53,8 @@ describe('CocosMigrationManager', () => {
     });
 
     describe('migrate', () => {
-        it('无注册迁移器时返回空对象并给出提示', async () => {
-            const res = await CocosMigrationManager.migrate('/path');
-            expect(res).toEqual({
-                project: {},
-            });
+        it('无注册迁移器时直接抛异常', async () => {
+            await expect(CocosMigrationManager.migrate('/path')).rejects.toThrow('[Migration] 没有注册任何迁移器');
         });
 
         it('应按 scope 执行迁移并深度合并结果', async () => {
@@ -93,7 +90,7 @@ describe('CocosMigrationManager', () => {
             });
         });
 
-        it('单个迁移器失败不影响整体，错误被记录', async () => {
+        it('单个迁移器失败直接抛异常', async () => {
             const t1: IMigrationTarget = {
                 sourceScope: 'project',
                 pluginName: 'ok',
@@ -110,10 +107,7 @@ describe('CocosMigrationManager', () => {
                 .mockResolvedValueOnce({ v: 1 })
                 .mockRejectedValueOnce(new Error('boom'));
 
-            const res = await CocosMigrationManager.migrate('/proj');
-            expect(res).toEqual({
-                project: { v: 1 },
-            });
+            await expect(CocosMigrationManager.migrate('/proj')).rejects.toThrow('boom');
         });
     });
 });
