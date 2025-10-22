@@ -67,7 +67,7 @@ export class ConfigurationManager implements IConfigurationManager {
         this.projectPath = projectPath;
         this.configPath = path.join(projectPath, ConfigurationManager.name);
         await this.load();
-        // await this.migrate();
+        await this.migrate();
         this.initialized = true;
     }
 

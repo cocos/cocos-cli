@@ -32,7 +32,7 @@ describe('ConfigurationManager', () => {
     beforeEach(() => {
         manager = new ConfigurationManager();
         jest.clearAllMocks();
-        
+
         // Reset static properties
         (ConfigurationManager as any).VERSION = '1.0.0';
     });
@@ -71,7 +71,7 @@ describe('ConfigurationManager', () => {
             const existingConfig = { version: '1.0.0', module1: { key: 'value' } };
             mockFse.pathExists.mockResolvedValue(true);
             mockFse.readJSON.mockResolvedValue(existingConfig);
-            
+
             const newManager = new ConfigurationManager();
             await newManager.initialize(projectPath);
             expect(newManager['projectConfig']).toEqual(existingConfig);
@@ -428,7 +428,7 @@ describe('ConfigurationManager', () => {
             )?.[1] as Function;
 
             expect(onRegistryHandler).toBeDefined();
-            
+
             // 执行注册事件处理器
             await onRegistryHandler(mockInstance);
 
@@ -440,19 +440,19 @@ describe('ConfigurationManager', () => {
                     existingNestedKey: 'existingNestedValue'
                 }
             });
-            
+
             // 模拟 Save 事件触发（当配置被修改时）
             const saveHandler = mockInstance.on.mock.calls.find(
                 call => call[0] === MessageType.Save
             )?.[1] as Function;
-            
+
             expect(saveHandler).toBeDefined();
-            
+
             // 更新 getAll 返回值以反映初始化后的配置
             mockInstance.getAll.mockReturnValue(mockInstance.configs);
-            
+
             await saveHandler(mockInstance);
-            
+
             // 验证修复：Save 时应该保存正确的配置，而不是空对象
             expect(mockInstance.getAll).toHaveBeenCalled();
             expect(mockFse.writeJSON).toHaveBeenCalledWith(
@@ -494,7 +494,7 @@ describe('ConfigurationManager', () => {
             )?.[1] as Function;
 
             expect(onRegistryHandler).toBeDefined();
-            
+
             // 执行注册事件处理器应该抛出错误
             try {
                 await onRegistryHandler(mockInstance);
