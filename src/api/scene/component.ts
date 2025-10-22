@@ -34,7 +34,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-add-component')
     @title('添加组件')
-    @description('添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件, 返回所有的组件操作')
+    @description('添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件, 成功返回所有的组件详细信息，可以通过 scene-query-all-component 查询到所有组件的名称')
     @result(SchemaComponentResult)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
@@ -56,7 +56,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-delete-component')
     @title('删除组件')
-    @description('删除节点组件，如果组件不存在，删除则会返回false')
+    @description('删除节点组件，如果组件不存在，删除则会返回 false')
     @result(SchemaBooleanResult)
     async removeComponent(@param(SchemaRemoveComponent) component: TRemoveComponentOptions): Promise<CommonResultType<boolean>> {
         try {
@@ -103,7 +103,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-set-component-property')
     @title('设置组件属性')
-    @description('设置组件属性，输入组件path（唯一索引的组件），属性类型、属性名称、属性值，包括不同类型的值：boolean，string等')
+    @description('设置组件属性，输入组件path（唯一索引的组件）、属性名称、属性值，修改对应属性的信息，属性的类型可以通过 scene-query-component 查询到')
     @result(SchemaBooleanResult)
     async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         try {
@@ -125,7 +125,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-query-all-component')
     @title('查询所有组件')
-    @description('查询所有组件，用于创建组件输入的组件名称')
+    @description('查询所有组件，可以查询到所有组件的信息的组件名称')
     @result(SchemaQueryAllComponentResult)
     async queryAllComponent(): Promise<CommonResultType<TQueryAllComponentResult>> {
         try {

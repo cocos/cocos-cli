@@ -39,7 +39,7 @@ export class NodeApi extends ApiBase {
      */
     @tool('scene-create-node-by-type')
     @title('创建节点')
-    @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的。')
+    @description('在当前打开的场景中，创建一个新的带内置组件的节点，节点的路径必须是唯一的。')
     @result(NodeQueryResultSchema)
     async createNodeByType(@param(NodeCreateByTypeSchema) options: TCreateNodeByTypeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -66,7 +66,8 @@ export class NodeApi extends ApiBase {
      */
     @tool('scene-create-node-by-asset')
     @title('创建节点')
-    @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的。')
+    @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的，需要传入资源的 dbURL，比如：db://assets/sample.prefab')
+    @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的，需要传入资源的 dbURL，比如：db://assets/sample.prefab')
     @result(NodeQueryResultSchema)
     async createNodeByAsset(@param(NodeCreateByAssetSchema) options: TCreateNodeByAssetOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -93,7 +94,7 @@ export class NodeApi extends ApiBase {
      */
     @tool('scene-delete-node')
     @title('删除节点')
-    @description('在 Cocos Creator 项目中删除节点。')
+    @description('在当前打开的场景中删除节点，需要传入节点的路径，比如：Canvas/Node1')
     @result(NodeDeleteResultSchema)
     async deleteNode(@param(NodeDeleteSchema) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDeleteResult>> {
         const ret: CommonResultType<TNodeDeleteResult> = {
@@ -122,20 +123,18 @@ export class NodeApi extends ApiBase {
      */
     @tool('scene-update-node')
     @title('更新节点')
-    @description('在 Cocos Creator 项目中修改节点。')
+    @description('在当前打开的场景中更新节点，需要传入节点的路径，比如：Canvas/Node1')
     @result(NodeUpdateResultSchema)
     async updateNode(@param(NodeUpdateSchema) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
         const ret: CommonResultType<TNodeUpdateResult> = {
             code: COMMON_STATUS.SUCCESS,
-            data: {
-                path: '',
-            },
+            data: undefined,
         };
 
         try {
             const result = await Scene.updateNode(options);
-            if (ret.data && result?.path) {
-                ret.data.path = result.path;
+            if (result?.path) {
+                ret.data = {path: result.path};
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -152,7 +151,7 @@ export class NodeApi extends ApiBase {
     */
     @tool('scene-query-node')
     @title('查询节点')
-    @description('在 Cocos Creator 项目中查询节点。')
+    @description('在当前打开的场景中查询节点，需要传入节点的路径，比如：Canvas/Node1')
     @result(NodeQueryResultSchema)
     async queryNode(@param(NodeQuerySchema) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {

@@ -66,9 +66,9 @@ export const HttpStatusCodeSchema = z.union([
 
 export function createCommonResult<T extends z.ZodTypeAny>(dataSchema: T) {
     return z.object({
-        code: HttpStatusCodeSchema,
-        data: z.union([dataSchema, z.undefined()]),
-        reason: z.union([z.string(), z.undefined()])
+        code: HttpStatusCodeSchema.describe('200 表示成功，其他值表示失败'),
+        data: z.union([dataSchema, z.undefined()]).describe('当成功的时候，data 字段返回的是结果'),
+        reason: z.union([z.string(), z.undefined()]).describe('当失败的时候 reason 的字段提示错误信息'),
     });
 }
 
