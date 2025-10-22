@@ -37,7 +37,7 @@ export class NodeApi extends ApiBase {
     /**
      * 创建节点
      */
-    @tool('create-node-by-type')
+    @tool('scene-create-node-by-type')
     @title('创建节点')
     @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的。')
     @result(NodeQueryResultSchema)
@@ -64,7 +64,7 @@ export class NodeApi extends ApiBase {
     /**
      * 创建节点
      */
-    @tool('create-node-by-asset')
+    @tool('scene-create-node-by-asset')
     @title('创建节点')
     @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的。')
     @result(NodeQueryResultSchema)

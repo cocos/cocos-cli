@@ -38,27 +38,28 @@ export const COMMON_STATUS = {
 
 // 导出状态码的类型
 export type HttpStatusCode = typeof HTTP_STATUS[keyof typeof HTTP_STATUS];
+export type CommonStatus = typeof COMMON_STATUS[keyof typeof COMMON_STATUS];
 
 // 创建 Zod 枚举类型来限制 code 字段的值
 export const HttpStatusCodeSchema = z.union([
     z.literal(HTTP_STATUS.OK),
-    z.literal(HTTP_STATUS.CREATED),
-    z.literal(HTTP_STATUS.ACCEPTED),
-    z.literal(HTTP_STATUS.NO_CONTENT),
-    z.literal(HTTP_STATUS.NOT_MODIFIED),
-    z.literal(HTTP_STATUS.BAD_REQUEST),
-    z.literal(HTTP_STATUS.UNAUTHORIZED),
-    z.literal(HTTP_STATUS.FORBIDDEN),
-    z.literal(HTTP_STATUS.NOT_FOUND),
-    z.literal(HTTP_STATUS.METHOD_NOT_ALLOWED),
-    z.literal(HTTP_STATUS.CONFLICT),
-    z.literal(HTTP_STATUS.UNPROCESSABLE_ENTITY),
-    z.literal(HTTP_STATUS.TOO_MANY_REQUESTS),
+    // z.literal(HTTP_STATUS.CREATED),
+    // z.literal(HTTP_STATUS.ACCEPTED),
+    // z.literal(HTTP_STATUS.NO_CONTENT),
+    // z.literal(HTTP_STATUS.NOT_MODIFIED),
+    // z.literal(HTTP_STATUS.BAD_REQUEST),
+    // z.literal(HTTP_STATUS.UNAUTHORIZED),
+    // z.literal(HTTP_STATUS.FORBIDDEN),
+    // z.literal(HTTP_STATUS.NOT_FOUND),
+    // z.literal(HTTP_STATUS.METHOD_NOT_ALLOWED),
+    // z.literal(HTTP_STATUS.CONFLICT),
+    // z.literal(HTTP_STATUS.UNPROCESSABLE_ENTITY),
+    // z.literal(HTTP_STATUS.TOO_MANY_REQUESTS),
     z.literal(HTTP_STATUS.INTERNAL_SERVER_ERROR),
-    z.literal(HTTP_STATUS.NOT_IMPLEMENTED),
-    z.literal(HTTP_STATUS.BAD_GATEWAY),
-    z.literal(HTTP_STATUS.SERVICE_UNAVAILABLE),
-    z.literal(HTTP_STATUS.GATEWAY_TIMEOUT),
+    // z.literal(HTTP_STATUS.NOT_IMPLEMENTED),
+    // z.literal(HTTP_STATUS.BAD_GATEWAY),
+    // z.literal(HTTP_STATUS.SERVICE_UNAVAILABLE),
+    // z.literal(HTTP_STATUS.GATEWAY_TIMEOUT),
 ]);
 
 // ===== CommonResult 定义 =====
@@ -73,7 +74,7 @@ export function createCommonResult<T extends z.ZodTypeAny>(dataSchema: T) {
 
 // 类型推导辅助
 export type CommonResultType<T> = {
-    code: HttpStatusCode;
+    code: CommonStatus;
     data?: T;
     reason?: string;//当失败的时候，需要带上 reason 的字段提示错误信息
 };
