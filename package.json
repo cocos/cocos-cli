@@ -110,6 +110,7 @@
         "@editor/quick-compiler": "^4.2.20",
         "@ffprobe-installer/ffprobe": "^1.4.1",
         "@modelcontextprotocol/sdk": "^1.18.0",
+        "@sentry/node": "^10.21.0",
         "@types/semver": "^7.7.1",
         "@types/xxhashjs": "^0.2.4",
         "cc": "file:./packages/cc-module",

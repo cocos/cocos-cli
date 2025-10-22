@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { initSentry } from './core/base/sentry';
+initSentry();
 
 import { Command } from 'commander';
 import { ImportCommand, BuildCommand, InfoCommand, McpServerCommand, WizardCommand, CommandRegistry, CreateCommand } from './commands';
