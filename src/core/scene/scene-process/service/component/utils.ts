@@ -204,6 +204,23 @@ class ComponentUtils {
             // }
         },
     };
+
+    /**
+     * 检测一个字符串是否是合法的 UUID（支持 v1 ~ v5）
+     * @param value 要检测的字符串
+     * @returns 是否为 UUID
+     */
+    isUUID(value: unknown): value is string {
+        if (typeof value !== 'string') {
+            return false;
+        }
+
+        // UUID 正则匹配 (v1-v5)
+        const uuidReg =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+        return uuidReg.test(value);
+    }
 }
 
 export default new ComponentUtils();

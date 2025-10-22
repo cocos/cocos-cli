@@ -303,5 +303,3 @@ export class ScriptService extends EventEmitter implements IScriptService {
         console.error(`{hidden(${importExceptionLogTag})}`, err);
     }
 }
-
-export const Script = new ScriptService();

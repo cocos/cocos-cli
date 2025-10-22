@@ -1,16 +1,13 @@
-import type { IAddComponentOptions, ISetPropertyOptions, IComponentIdentifier, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
-import dumpUtil from './dump'
+import type { IAddComponentOptions, ISetPropertyOptions, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
+import dumpUtil from './dump';
 import { IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
 import compMgr from './component/index';
+import { Component, Constructor } from 'cc';
+import componentUtils from './component/utils';
+import { Rpc } from '../rpc';
 
 const NodeMgr = EditorExtends.Node;
-
-import {
-    js,
-    Component,
-    Constructor
-} from 'cc';
 
 /**
  * 子进程节点处理器
@@ -18,44 +15,48 @@ import {
  */
 @register('Component')
 export class ComponentService implements IComponentService {
-    private addComponentImpl(path: string, componentName: string): IComponent {
-        if (Array.isArray(path)) {
-            path.forEach((p) => {
-                this.addComponentImpl(p, componentName);
-            });
-            throw new Error('don\'t add component to more than one node at one time');
-        }
+    private async addComponentImpl(path: string, componentNameOrUUIDOrURL: string): Promise<IComponent> {
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
             throw new Error(`create component failed: ${path} does not exist`);
         }
-        if (!componentName || componentName.length <= 0) {
-            throw new Error(`create component failed: ${componentName} does not exist`);
+        if (!componentNameOrUUIDOrURL || componentNameOrUUIDOrURL.length <= 0) {
+            throw new Error(`create component failed: ${componentNameOrUUIDOrURL} does not exist`);
         }
         // 需要单独处理 missing script
-        if (componentName === 'MissingScript' || componentName === 'cc.MissingScript') {
+        if (componentNameOrUUIDOrURL === 'MissingScript' || componentNameOrUUIDOrURL === 'cc.MissingScript') {
             throw new Error('Reset Component failed: MissingScript does not exist');
         }
-        let comp = null;
-        try {
-            /**
-             * 增加编辑器对外 create-component 接口的兼容性
-             * getClassById(string) 查不到的时候，再查一次 getClassByName(string)
-             */
-            let ctor = cc.js.getClassById(componentName);
-            if (!ctor) {
-                ctor = cc.js.getClassByName(componentName);
-            }
-            if (cc.js.isChildClassOf(ctor, Component)) {
-                comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
-            } else {
-                console.log(`ctor with name ${componentName} is not child class of Component `);
-                throw new Error(`ctor with name ${componentName} is not child class of Component `);
-            }
-            return (dumpUtil.dumpComponent(comp as Component));
-        } catch (error) {
-            throw error;
+
+        // 处理 URL 与 Uuid
+        const isURL = componentNameOrUUIDOrURL.startsWith('db://');
+        const isUuid = componentUtils.isUUID(componentNameOrUUIDOrURL);
+        let uuid;
+        if (isUuid) {
+            uuid = componentNameOrUUIDOrURL;
+        } else if (isURL) {
+            uuid = await Rpc.request('assetManager', 'queryUUID', [componentNameOrUUIDOrURL]);
         }
+        if (uuid) {
+            // @ts-ignore hack 后续需要正常的去调用 decorator 里面的 Script
+            const cid = await (globalThis.cce as any).Script.queryScriptCid(uuid);
+            if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
+                componentNameOrUUIDOrURL = cid;
+            }
+        }
+
+        let comp = null;
+        let ctor = cc.js.getClassById(componentNameOrUUIDOrURL);
+        if (!ctor) {
+            ctor = cc.js.getClassByName(componentNameOrUUIDOrURL);
+        }
+        if (cc.js.isChildClassOf(ctor, Component)) {
+            comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
+        } else {
+            console.error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
+            throw new Error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
+        }
+        return (dumpUtil.dumpComponent(comp as Component));
     }
 
     @expose()
@@ -85,15 +86,15 @@ export class ComponentService implements IComponentService {
 
     @expose()
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
-        return await this.setPropertyImp(options.componentPath, options.mountPath, options.properties);
+        return this.setPropertyImp(options.componentPath, options.mountPath, options.properties);
     }
 
-    private setPropertyImp(componentPath: string, path: string, properties: IProperty, record: boolean = true): boolean {
+    private async setPropertyImp(componentPath: string, path: string, properties: IProperty, record: boolean = true): Promise<boolean> {
         // 多个节点更新值
         if (Array.isArray(componentPath)) {
             try {
                 for (let i = 0; i < componentPath.length; i++) {
-                    this.setPropertyImp(componentPath[i], path, properties);
+                    await this.setPropertyImp(componentPath[i], path, properties);
                 }
                 return true;
             } catch (e) {
@@ -107,8 +108,24 @@ export class ComponentService implements IComponentService {
         }
 
         // 恢复数据
-        dumpUtil.restoreProperty(node, path, properties);
+        await dumpUtil.restoreProperty(node, path, properties);
 
         return true;
+    }
+
+    @expose()
+    async queryAllComponent() {
+        const keys = Object.keys(cc.js._registeredClassNames);
+        const components: string[] = [];
+        keys.forEach((key) => {
+            try {
+                const cclass = new cc.js._registeredClassNames[key];
+                if (cclass instanceof cc.Component) {
+                    components.push(cc.js.getClassName(cclass));
+                }
+            } catch (e) {}
+
+        });
+        return components;
     }
 }

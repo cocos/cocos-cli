@@ -1,19 +1,18 @@
 import { ApiBase } from '../base/api-base';
-import { globalComponentType } from '../../core/scene';
 import {
     SchemaAddComponentInfo,
     SchemaComponent,
     SchemaSetPropertyOptions,
     SchemaComponentResult,
     SchemaBooleanResult,
-    SchemaBuildinComponentTypes,
+    SchemaQueryAllComponentResult,
     SchemaQueryComponent,
     SchemaRemoveComponent,
     TAddComponentInfo,
     TComponentIdentifier,
     TSetPropertyOptions,
     TComponentResult,
-    TBuildinComponentTypes,
+    TQueryAllComponentResult,
     TRemoveComponentOptions,
     TQueryComponentOptions,
 } from './component-schema';
@@ -40,11 +39,7 @@ export class ComponentApi extends ApiBase {
     @result(SchemaComponentResult)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
-            let componentName = globalComponentType[addComponentInfo.component as keyof typeof globalComponentType];
-            if (!componentName) {
-                componentName = addComponentInfo.component;
-            }
-            const component = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: componentName });
+            const component = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: component
@@ -127,17 +122,18 @@ export class ComponentApi extends ApiBase {
     }
 
     /**
-     * 获取所有内置组件类型
+     * 查询所有组件
      */
-    @tool('scene-get-buildin-component-types')
-    @title('获取所有内置组件类型')
-    @description('获取所有内置组件类型，用于创建组件输入的组件名称')
-    @result(SchemaBuildinComponentTypes)
-    async getBuiltinComponentTypes(): Promise<CommonResultType<TBuildinComponentTypes>> {
+    @tool('scene-query-all-component')
+    @title('查询所有组件')
+    @description('查询所有组件，用于创建组件输入的组件名称')
+    @result(SchemaQueryAllComponentResult)
+    async queryAllComponent(): Promise<CommonResultType<TQueryAllComponentResult>> {
         try {
+            const components = await Scene.queryAllComponent();
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: Object.keys(globalComponentType) as [string, ...string[]],
+                data: components,
             };
         } catch (e) {
             return {

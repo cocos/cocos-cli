@@ -250,4 +250,8 @@ export interface IComponentService {
      * 查询组件
      */
     queryComponent(params: IQueryComponentOptions): Promise<IComponent | null>;
+    /**
+     * 获取所有组件名，包含内置与自定义组件
+     */
+    queryAllComponent(): Promise<string[]>
 }

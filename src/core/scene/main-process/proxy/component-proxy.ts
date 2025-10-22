@@ -16,6 +16,9 @@ export const ComponentProxy: IComponentService = {
 
     setProperty(params: ISetPropertyOptions): Promise<boolean> {
         return Rpc.request('Component', 'setProperty', [params]);
-    }
+    },
 
-}
+    queryAllComponent(): Promise<string[]> {
+        return Rpc.request('Component', 'queryAllComponent');
+    }
+};

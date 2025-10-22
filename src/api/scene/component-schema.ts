@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const SchemaAddComponentInfo = z.object({
     nodePath: z.string().describe('节点路径'),
     //component: z.enum(Object.keys(globalComponentType) as [string, ...string[]]).describe('组件类型'),
-    component: z.string().describe('组件名称'),
+    component: z.string().describe('组件名称，支持组件名称、组件资源的 URL 与 UUID'),
 }).describe('添加组件的信息');
 
 // 当前组件信息
@@ -67,8 +67,7 @@ export const SchemaComponent = SchemaProperty.extend({
     )
 }).describe('组件dump出来的信息');
 
-export const SchemaBuildinComponentTypes = z.array(z.string()).describe('所有内置组件的集合');
-
+export const SchemaQueryAllComponentResult = z.array(z.string()).describe('所有组件集合，包含内置与自定义组件');
 export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).describe('获取当前组件信息返回的接口');
 export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
@@ -79,4 +78,4 @@ export type TRemoveComponentOptions = z.infer<typeof SchemaRemoveComponent>;
 export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponent>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
-export type TBuildinComponentTypes = z.infer<typeof SchemaBuildinComponentTypes>;
+export type TQueryAllComponentResult = z.infer<typeof SchemaQueryAllComponentResult>;
