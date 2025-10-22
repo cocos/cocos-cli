@@ -104,15 +104,15 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['string'].name,
-                    properties: componentInfo?.properties.value['string'],
+                    mountPath: componentInfo?.properties['string'].name,
+                    properties: componentInfo?.properties['string'],
                 }
-                expect(componentInfo?.properties.value['string'].value).toBe('label');
+                expect(componentInfo?.properties['string'].value).toBe('label');
                 setComponentProperty.properties.value = 'abc';
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['string'].value).toBe('abc');
+                expect(componentInfo?.properties['string'].value).toBe('abc');
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -279,15 +279,15 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['fontSize'].name,
-                    properties: componentInfo?.properties.value['fontSize'],
+                    mountPath: componentInfo?.properties['fontSize'].name,
+                    properties: componentInfo?.properties['fontSize'],
                 }
-                expect(componentInfo?.properties.value['fontSize'].value).toBe(40);
+                expect(componentInfo?.properties['fontSize'].value).toBe(40);
                 setComponentProperty.properties.value = 80;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['fontSize'].value).toBe(80);
+                expect(componentInfo?.properties['fontSize'].value).toBe(80);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -297,15 +297,15 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['overflow'].name,
-                    properties: componentInfo?.properties.value['overflow'],
+                    mountPath: componentInfo?.properties['overflow'].name,
+                    properties: componentInfo?.properties['overflow'],
                 }
-                expect(componentInfo?.properties.value['overflow'].value).toBe(0);
+                expect(componentInfo?.properties['overflow'].value).toBe(0);
                 setComponentProperty.properties.value = 1;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['overflow'].value).toBe(1);
+                expect(componentInfo?.properties['overflow'].value).toBe(1);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -315,15 +315,15 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['enableOutline'].name,
-                    properties: componentInfo?.properties.value['enableOutline'],
+                    mountPath: componentInfo?.properties['enableOutline'].name,
+                    properties: componentInfo?.properties['enableOutline'],
                 }
-                expect(componentInfo?.properties.value['enableOutline'].value).toBe(false);
+                expect(componentInfo?.properties['enableOutline'].value).toBe(false);
                 setComponentProperty.properties.value = true;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['enableOutline'].value).toBe(true);
+                expect(componentInfo?.properties['enableOutline'].value).toBe(true);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -333,13 +333,13 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['outlineColor'].name,
-                    properties: componentInfo?.properties.value['outlineColor'],
+                    mountPath: componentInfo?.properties['outlineColor'].name,
+                    properties: componentInfo?.properties['outlineColor'],
                 }
-                expect(componentInfo?.properties.value['outlineColor'].value.r).toBe(0);
-                expect(componentInfo?.properties.value['outlineColor'].value.g).toBe(0);
-                expect(componentInfo?.properties.value['outlineColor'].value.b).toBe(0);
-                expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(255);
+                expect(componentInfo?.properties['outlineColor'].value.r).toBe(0);
+                expect(componentInfo?.properties['outlineColor'].value.g).toBe(0);
+                expect(componentInfo?.properties['outlineColor'].value.b).toBe(0);
+                expect(componentInfo?.properties['outlineColor'].value.a).toBe(255);
                 setComponentProperty.properties.value.r = 50;
                 setComponentProperty.properties.value.g = 100;
                 setComponentProperty.properties.value.b = 150;
@@ -347,10 +347,10 @@ describe('Component Proxy 测试', () => {
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['outlineColor'].value.r).toBe(50);
-                expect(componentInfo?.properties.value['outlineColor'].value.g).toBe(100);
-                expect(componentInfo?.properties.value['outlineColor'].value.b).toBe(150);
-                expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(200);
+                expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
+                expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
+                expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
+                expect(componentInfo?.properties['outlineColor'].value.a).toBe(200);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -360,15 +360,15 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['overflow'].name,
-                    properties: componentInfo?.properties.value['overflow'],
+                    mountPath: componentInfo?.properties['overflow'].name,
+                    properties: componentInfo?.properties['overflow'],
                 }
-                expect(componentInfo?.properties.value['overflow'].value).toBe(1);
+                expect(componentInfo?.properties['overflow'].value).toBe(1);
                 setComponentProperty.properties.value = 100000;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['overflow'].value).toBe(100000);
+                expect(componentInfo?.properties['overflow'].value).toBe(100000);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -379,21 +379,21 @@ describe('Component Proxy 测试', () => {
                 // 对错误的值 类型 会修改失败，但是返回还是true
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties.value['outlineColor'].name,
-                    properties: componentInfo?.properties.value['outlineColor'],
+                    mountPath: componentInfo?.properties['outlineColor'].name,
+                    properties: componentInfo?.properties['outlineColor'],
                 }
-                expect(componentInfo?.properties.value['outlineColor'].value.r).toBe(50);
-                expect(componentInfo?.properties.value['outlineColor'].value.g).toBe(100);
-                expect(componentInfo?.properties.value['outlineColor'].value.b).toBe(150);
-                expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(200);
+                expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
+                expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
+                expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
+                expect(componentInfo?.properties['outlineColor'].value.a).toBe(200);
                 setComponentProperty.properties.value = 50;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties.value['outlineColor'].value.r).toBe(50);
-                expect(componentInfo?.properties.value['outlineColor'].value.g).toBe(100);
-                expect(componentInfo?.properties.value['outlineColor'].value.b).toBe(150);
-                expect(componentInfo?.properties.value['outlineColor'].value.a).toBe(200);
+                expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
+                expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
+                expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
+                expect(componentInfo?.properties['outlineColor'].value.a).toBe(200);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -401,7 +401,7 @@ describe('Component Proxy 测试', () => {
         });
     });
     describe('5. 创建内置的组件', () => {
-        const componentTypes = Object.values(globalComponentType);
+        //
         let components: IComponentIdentifier[] = [];
 
         beforeAll(async () => {
