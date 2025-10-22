@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const SchemaAddComponentInfo = z.object({
     nodePath: z.string().describe('节点路径'),
     //component: z.enum(Object.keys(globalComponentType) as [string, ...string[]]).describe('组件类型'),
-    component: z.string().describe('组件类型'),
+    component: z.string().describe('组件名称'),
 }).describe('添加组件的信息');
 
 // 当前组件信息
@@ -34,6 +34,11 @@ export const SchemaQueryComponent = z.object({
 export const SchemaProperty = z.object({
     value: z.union([
         z.record(z.string(), z.any()),
+        z.array(z.any()),
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.null(),
         z.any()
     ]).describe('属性的当前值，可以是键值对对象或基础类型值'),
 
@@ -56,7 +61,10 @@ export const SchemaSetPropertyOptions = z.object({
 
 
 export const SchemaComponent = SchemaProperty.extend({
-    properties: SchemaProperty.describe('组件的值对象'),
+    properties: z.record(
+        z.string().describe('属性名称'),
+        SchemaProperty,
+    )
 }).describe('组件dump出来的信息');
 
 export const SchemaBuildinComponentTypes = z.array(z.string()).describe('所有内置组件的集合');

@@ -31,9 +31,7 @@ export function encodeComponent(component: any): IComponent {
     //     }
     // }
     const data: IComponent = {
-        properties: {
-            value: {}
-        },
+        properties: {},
         path: compMgr.getPathFromUuid(component.uuid) || "",
         uuid: component.uuid,
         name: component.name,
@@ -60,7 +58,7 @@ export function encodeComponent(component: any): IComponent {
                 const attrs = cc.Class.attr(component, key);
                 const dumpData = encodeObject(component[key], attrs, component, key);
                 if (dumpData.type !== 'Unknown') {
-                    data.properties.value[key] = dumpData;
+                    data.properties[key] = dumpData;
                 }
                 _checkConstructorRewriteType(dumpData, component[key], attrs);
             }
@@ -70,7 +68,7 @@ export function encodeComponent(component: any): IComponent {
                 `Component property dump failed:\n  Node: ${component.node.name}(${component.node.uuid})\n Component: ${data.type}(${component.uuid})\n Property: ${key}`,
             );
             console.warn(error);
-            delete data.properties.value[key];
+            delete data.properties[key];
         }
     });
 

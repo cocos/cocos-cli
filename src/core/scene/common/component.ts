@@ -1,4 +1,4 @@
-import { IProperty } from '../@types/public';
+import { IProperty, IPropertyValueType } from '../@types/public';
 
 export const globalComponentType = {
     Component: 'cc.Component',
@@ -191,7 +191,7 @@ export interface IComponentIdentifier {
  * 代表组件属性信息
  */
 export interface IComponent extends IComponentIdentifier {
-    properties: IProperty;
+    properties: { [key: string]: IPropertyValueType };
 }
 
 /**
