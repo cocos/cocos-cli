@@ -221,9 +221,10 @@ export interface IQueryComponentOptions {
  */
 export interface ISetPropertyOptions {
     componentPath: string; // 修改属性的对象的 uuid
-    mountPath: string;     // 属性挂载对象的搜索路径
     // key: string; // 属性的 key
-    properties: IProperty; // 属性 dump 出来的数据
+    properties: {
+        [key: string]: null | undefined | number | boolean | string | Object | Array<unknown>;
+    }; // 属性 dump 出来的数据
     record?: boolean;// 是否记录undo
 }
 

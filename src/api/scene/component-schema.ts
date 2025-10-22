@@ -33,13 +33,13 @@ export const SchemaQueryComponent = z.object({
  */
 export const SchemaProperty = z.object({
     value: z.union([
-        z.record(z.string(), z.any()),
-        z.array(z.any()),
-        z.string(),
-        z.number(),
-        z.boolean(),
-        z.null(),
-        z.any()
+        z.record(z.string(), z.any()).describe('任意类型Object'),
+        z.array(z.any()).describe('任意类型数组'),
+        z.string().describe('字符串类型'),
+        z.number().describe('数字类型'),
+        z.boolean().describe('boolean类型'),
+        z.null().describe('null类型'),
+        z.any().describe('任意类型')
     ]).describe('属性的当前值，可以是键值对对象或基础类型值'),
 
     cid: z.string().optional().describe('组件标识符'),
@@ -53,12 +53,20 @@ export const SchemaProperty = z.object({
 
 // 设置属性选项
 export const SchemaSetPropertyOptions = z.object({
-    componentPath: z.string().describe('组件路径名'),
-    mountPath: z.string().describe('属性名称'),
-    properties: SchemaProperty.describe('需要修改的属性'),
-    record: z.boolean().optional().default(true).describe('是否记录undo'),
-}).describe('设置组件属性的信息');
-
+    componentPath: z.string().describe('组件路径'),
+    properties: z.record(
+        z.string().describe('属性名称'),
+        z.union([
+            z.record(z.string(), z.any()).describe('任意类型Object'),
+            z.array(z.any()).describe('任意类型数组'),
+            z.string().describe('字符串类型'),
+            z.number().describe('数字类型'),
+            z.boolean().describe('boolean类型'),
+            z.null().describe('空类型'),
+            z.any().describe('any类型')
+        ]).describe('属性类型，可以是联合中的任意类型'),
+    )
+}).describe('组件dump出来的信息');
 
 export const SchemaComponent = SchemaProperty.extend({
     properties: z.record(
@@ -68,6 +76,10 @@ export const SchemaComponent = SchemaProperty.extend({
 }).describe('组件dump出来的信息');
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('所有组件集合，包含内置与自定义组件');
+
+
+export const SchemaBuildinComponentTypes = z.array(z.string()).describe('所有内置组件的集合');
+
 export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).describe('获取当前组件信息返回的接口');
 export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
 
