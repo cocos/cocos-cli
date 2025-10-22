@@ -1,8 +1,8 @@
-import { Request, Response, RequestHandler } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 export interface IGetPostConfig {
     url: string;
-    handler: (req: Request, res: Response) => Promise<void>;
+    handler: (req: Request, res: Response, next?: NextFunction) => Promise<void>;
 }
 
 export interface IStaticFileConfig {

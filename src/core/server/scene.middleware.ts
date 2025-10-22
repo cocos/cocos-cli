@@ -1,5 +1,5 @@
 import type { IMiddlewareContribution } from '../../server/interfaces';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fse from 'fs-extra';
 
@@ -37,7 +37,10 @@ export default {
         },
         {
             url: '/:dir/:uuid/:nativeName.:ext',
-            async handler(req: Request, res: Response) {
+            async handler(req: Request, res: Response, next: NextFunction) {
+                if (req.params.dir === 'build' || req.params.dir === 'mcp') {
+                    return next();
+                }
                 const { uuid, ext, nativeName } = req.params;
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
