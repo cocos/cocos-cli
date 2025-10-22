@@ -1,5 +1,5 @@
 import { register, expose } from './decorator';
-import type { ICreateByNodeTypeParams, ICreateByAssetParams, IDeleteNodeParams, INodeService, IUpdateNodeParams, IUpdateNodeResult, IQueryNodeParams, INode, IDeleteNodeResult } from '../../common';
+import { type ICreateByNodeTypeParams, type ICreateByAssetParams, type IDeleteNodeParams, type INodeService, type IUpdateNodeParams, type IUpdateNodeResult, type IQueryNodeParams, type INode, type IDeleteNodeResult, NodeType } from '../../common';
 import { Rpc } from '../rpc';
 import { readFile } from 'fs-extra';
 import EventEmitter from 'events';
@@ -54,7 +54,7 @@ export class NodeService extends EventEmitter implements INodeService {
             }
         }
 
-        return this._createNode(assetUuid, canvasNeeded, params);
+        return this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
     }
 
     @expose()
@@ -64,23 +64,22 @@ export class NodeService extends EventEmitter implements INodeService {
             throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
         }
         const canvasNeeded = params.canvasRequired || false;
-        return this._createNode(assetUuid, canvasNeeded, params);
+        return this._createNode(assetUuid, canvasNeeded, false, params);
     }
 
-    async _createNode(assetUuid: string | null, canvasNeeded: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
+    async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
         const currentScene = cc.director.getScene();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
         }
 
         const workMode = params.workMode || '2d';
-        if (params.path && params.path.startsWith("Canvas/")) {
-            canvasNeeded = true;
-        }
-        let parent = NodeMgr.getNodeByPath(params.path);
+        // 使用增强的路径处理方法
+        let parent = await this._getOrCreateNodeByPath(params.path);
         if (!parent) {
             parent = currentScene;
         }
+
         let resultNode;
         if (assetUuid) {
             const { node, canvasRequired } = await createNodeByAsset({
@@ -101,9 +100,15 @@ export class NodeService extends EventEmitter implements INodeService {
         if (params.name) {
             resultNode.name = params.name;
         }
-        if (params.position) {
-            resultNode.setPosition(params.position as Vec3);
-        }
+
+        this.emit('before-add', resultNode);
+        this.emit('before-change', parent);
+
+        /**
+         * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
+         * 是否要 unlink 为普通节点
+         */
+        this._removePrefabInfoFromNode(resultNode, true);
 
         /**
          * 新节点的 layer 跟随父级节点，但父级节点为场景根节点除外
@@ -113,11 +118,14 @@ export class NodeService extends EventEmitter implements INodeService {
             setLayer(resultNode, parent.layer, true);
         }
 
-        this.emit('before-add', resultNode);
-        this.emit('before-change', parent);
+        if (params.position) {
+            resultNode.setWorldPosition(params.position);
+        }
 
         resultNode.setParent(parent, params.keepWorldTransform);
-        this.ensureUITransformComponent(resultNode);
+        if (checkUITransform) {
+            this.ensureUITransformComponent(resultNode);
+        }
 
         // 发送添加节点事件，添加节点中的根节点
         this.emit('add', resultNode);
@@ -130,6 +138,97 @@ export class NodeService extends EventEmitter implements INodeService {
         return sceneUtil.generateNodeInfo(resultNode, true);
     }
 
+    /**
+     * 获取或创建路径节点
+     */
+    private async _getOrCreateNodeByPath(path: string | undefined): Promise<Node | null> {
+        if (!path) {
+            return null;
+        }
+
+        // 先尝试获取现有节点
+        let parent = NodeMgr.getNodeByPath(path);
+        if (parent) {
+            return parent;
+        }
+
+        // 如果不存在，则创建路径
+        return await this._ensurePathExists(path);
+    }
+
+    /**
+ * 确保路径存在，如果不存在则创建空节点
+ */
+    private async _ensurePathExists(path: string | undefined): Promise<Node | null> {
+        if (!path) {
+            return null;
+        }
+
+        const currentScene = cc.director.getScene();
+        if (!currentScene) {
+            return null;
+        }
+
+        // 分割路径
+        const pathParts = path.split('/').filter(part => part.trim() !== '');
+        if (pathParts.length === 0) {
+            return null;
+        }
+
+        let currentParent: Node = currentScene;
+
+        // 逐级检查并创建路径
+        for (let i = 0; i < pathParts.length; i++) {
+            const pathPart = pathParts[i];
+            let nextNode = currentParent.getChildByName(pathPart);
+
+            if (!nextNode) {
+                if (pathPart === "Canvas") {
+                    let newParent = await this.checkCanvasRequired("2d", true, currentParent, undefined);
+                    if (newParent) {
+                        currentParent = newParent;
+                    }
+                } else {
+                    // 创建空节点
+                    nextNode = new Node(pathPart);
+                    // 设置父级
+                    nextNode.setParent(currentParent);
+                    // 确保新创建的节点有必要的组件
+                    this.ensureUITransformComponent(nextNode);
+
+                    currentParent = nextNode;
+                }
+
+                // 发送节点创建事件
+                this.emit('add', nextNode);
+            }
+        }
+
+        return currentParent;
+    }
+
+    private _removePrefabInfoFromNode(node: Node, removeNested?: boolean) {
+        node.children.forEach((child: Node) => {
+            // @ts-ignore
+            const childPrefabInstance = child['_prefab']?.instance;
+            if (childPrefabInstance) {
+                // 判断嵌套的 PrefabInstance 是否需要移除
+                if (removeNested) {
+                    this._removePrefabInfoFromNode(child, removeNested);
+                }
+            } else {
+                this._removePrefabInfoFromNode(child, removeNested);
+            }
+        });
+
+        // @ts-ignore member access
+        node['_prefab'] = null;
+
+        // remove component prefabInfo
+        node.components.forEach((comp) => {
+            comp.__prefab = null;
+        });
+    }
     @expose()
     async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
         const path = params.path;
