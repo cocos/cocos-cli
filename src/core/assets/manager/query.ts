@@ -318,7 +318,7 @@ class AssetQueryManager {
      * @param asset
      * @param invalid 是否是无效的资源，例如已被删除的资源
      */
-    encodeAsset(asset: IAsset, dataKeys: (keyof IAssetInfo)[] = ['subAssets'], invalid = false) {
+    encodeAsset(asset: IAsset, dataKeys: (keyof IAssetInfo)[] = ['subAssets', 'displayName'], invalid = false) {
         let name = '';
         let source = '';
         let file = '';
@@ -698,7 +698,6 @@ class AssetQueryManager {
             isDirectory: false,
             library: {},
             subAssets: {},
-            visible: dbInfo.visible,
             readonly: dbInfo.readonly,
         };
 

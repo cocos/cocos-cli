@@ -51,7 +51,7 @@ describe('测试 db 的操作接口', function () {
 
         it('创建普通的文本文件 overwrite', async function () {
             const dest = join(databasePath, `${name}-create-asset-overwrite.txt`);
-            outputFile(dest, 'original content');
+            await outputFile(dest, 'original content');
             const asset = await assetOperation.createAsset({
                 target: dest,
                 content: 'createAssetOverwrite',

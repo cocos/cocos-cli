@@ -228,6 +228,7 @@ describe('测试 db 的查询接口', function () {
 
     describe('query-asset-info 消息接口测试', function () {
         const values = {
+            displayName: 'string',
             file: 'string',
             imported: 'boolean',
             importer: 'string',
@@ -260,12 +261,12 @@ describe('测试 db 的查询接口', function () {
         it('查询 assets 数据库里测试生成的临时资源', async function () {
             const info = await assetManager.queryAssetInfo(uuid);
             expect(info).not.toBeNull();
-            expect(info && Object.keys(info).sort()).toEqual([...keys, 'extends'].sort());
+            expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
         it('查询 assets 数据库里测试生成的临时资源', async function () {
             const info = await assetManager.queryAssetInfo(`db://assets/${name}`);
             expect(info).not.toBeNull();
-            expect(info && Object.keys(info).sort()).toEqual([...keys, 'extends'].sort());
+            expect(info && Object.keys(info).sort()).toEqual(keys.sort());
         });
         it('查询 assets 数据库里不存在的资源', async function () {
             const info = await assetManager.queryAssetInfo(uuid + '@xxx');
