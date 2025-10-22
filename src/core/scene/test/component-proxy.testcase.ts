@@ -464,6 +464,8 @@ describe('Component Proxy 测试', () => {
                     'cc.WheelJoint2D',
                     'cc.HingeJoint2D',
                     'BuiltinPipelineSettings',
+                    'BuiltinPipelinePassBuilder',
+                    'BuiltinDepthOfFieldPass',
                     'cc.TiledTile'
                 ];
                 for (const componentType of componentTypes) {
