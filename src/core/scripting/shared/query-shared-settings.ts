@@ -7,6 +7,7 @@ import type { Logger } from '@cocos/creator-programming-common/lib/logger';
 import { existsSync } from 'fs';
 import { configurationManager, configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../../configuration';
 import Utils from '../../base/utils';
+import { ScriptProjectConfig } from '../@types/config-export';
 
 export interface SharedSettings extends Pick<ScriptProjectConfig, 'useDefineForClassFields' | 'allowDeclareFields' | 'loose' | 'guessCommonJsExports' | 'exportsConditions'> {
     useDefineForClassFields: boolean;
@@ -19,18 +20,6 @@ export interface SharedSettings extends Pick<ScriptProjectConfig, 'useDefineForC
         url: string;
     };
     preserveSymlinks: boolean;
-}
-
-interface ScriptProjectConfig {
-    useDefineForClassFields: boolean;
-    allowDeclareFields: boolean;
-    loose: boolean;
-    guessCommonJsExports: boolean;
-    exportsConditions: string[];
-    preserveSymlinks: boolean;
-
-    importMap: string;
-    previewBrowserslistConfigFile?: string;
 }
 
 export function getDefaultSharedSettings(): ScriptProjectConfig {
@@ -65,7 +54,7 @@ class ScriptConfig {
     }
 
     getProject<T>(path?: string, scope?: ConfigurationScope) {
-        return this._configInstance.get<T>(path);
+        return this._configInstance.get<T>(path, scope);
     }
 
     setProject(path: string, value: any, scope?: ConfigurationScope) {

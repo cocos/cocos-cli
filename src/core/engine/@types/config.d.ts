@@ -1,3 +1,5 @@
+import { extend } from 'lodash';
+
 type IFlags = Record<string, boolean | number>;
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
 
@@ -87,16 +89,18 @@ export interface IDesignResolution {
     policy?: number;
 }
 
-/**
- * TODO 引擎配置文件
- */
-export interface IEngineConfig {
+export interface IEngineModuleConfig {
+    // ---- 模块配置相关 ----
     includeModules: string[];
+    flags?: IFlags;
+    noDeprecatedFeatures?: { value: boolean, version: string };
+}
+
+export interface IEngineConfig extends IEngineModuleConfig {
     physicsConfig: IPhysicsConfig;
     macroConfig?: Record<string, string | number | boolean>;
     sortingLayers: { id: number, name: string, value: number }[];
     customLayers: { name: string, value: number }[];
-    flags?: IFlags;
     renderPipeline?: string;
     // 是否使用自定义管线，如与其他模块配置不匹配将会以当前选项为准
     customPipeline?: boolean;
@@ -108,6 +112,11 @@ export interface IEngineConfig {
     designResolution: IDesignResolution;
     splashScreen: ISplashSetting;
     downloadMaxConcurrency: number;
+}
+
+export interface IEngineProjectConfig extends Exclude<IEngineConfig, 'includeModules' | 'flags' | 'noDeprecatedFeatures'> {
+    configs?: Record<string, IEngineModuleConfig>;
+    globalConfigKey?: string;
 }
 
 export interface IInitEngineInfo {

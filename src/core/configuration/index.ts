@@ -10,4 +10,4 @@ export {
     IBaseConfiguration,
     configurationRegistry,
     configurationManager,
-}
+};

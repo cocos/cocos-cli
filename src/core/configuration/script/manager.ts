@@ -43,6 +43,7 @@ export class ConfigurationManager implements IConfigurationManager {
     static name = 'cocos.config.json';
 
     private initialized: boolean = false;
+    private projectPath: string = '';
     private configPath: string = '';
     private projectConfig: IConfiguration = {
         version: '0.0.0',
@@ -63,9 +64,10 @@ export class ConfigurationManager implements IConfigurationManager {
         configurationRegistry.on(MessageType.Registry, this.onRegistryConfigurationBind);
         configurationRegistry.on(MessageType.UnRegistry, this.onUnRegistryConfigurationBind);
 
+        this.projectPath = projectPath;
         this.configPath = path.join(projectPath, ConfigurationManager.name);
         await this.load();
-        await this.migrate(projectPath);
+        // await this.migrate();
         this.initialized = true;
     }
 
@@ -114,19 +116,30 @@ export class ConfigurationManager implements IConfigurationManager {
 
 
     /**
-     * 迁移，包含了 3x 迁移
-     * @param projectPath
-     * @private
+     * 迁移，包含了 3x 迁移，允许外部单独触发
      */
-    private async migrate(projectPath: string): Promise<void> {
+    public async migrate(): Promise<void> {
         const currentVersion = this.projectConfig.version || '0.0.0';
         const upgrade = gt(ConfigurationManager.VERSION, currentVersion);
         if (upgrade) {
-            const list = await CocosMigrationManager.migrate(projectPath);
-            this.projectConfig = utils.deepMerge(this.projectConfig, list.project);
-            this.projectConfig.version = ConfigurationManager.VERSION;
-            await this.save();
+            // TODO 新版本迁移
+            // 3.x 迁移
+            await this.migrateFromProject(this.projectPath);
+        } else {
+            console.debug('[Configuration] 项目配置已是最新版本，无需迁移');
         }
+    }
+
+    /**
+     * 从指定项目路径迁移配置到当前项目
+     * @param projectPath 项目路径
+     * @returns 迁移后的项目配置
+     */
+    public async migrateFromProject(projectPath: string): Promise<IConfiguration> {
+        const list = await CocosMigrationManager.migrate(projectPath);
+        this.projectConfig = utils.deepMerge(this.projectConfig, list.project);
+        await this.save();
+        return this.projectConfig;
     }
 
     /**

@@ -1,9 +1,9 @@
 import fse from 'fs-extra';
 import { EngineInfo } from './@types/public';
-import { IEngineConfig, IInitEngineInfo } from './@types/config';
+import { IEngineConfig, IEngineProjectConfig, IInitEngineInfo } from './@types/config';
 import { IModuleConfig } from './@types/modules';
 import { join } from 'path';
-import { configurationRegistry } from '../configuration';
+import { configurationRegistry, IBaseConfiguration } from '../configuration';
 import { assetManager } from '../assets';
 
 /**
@@ -57,7 +57,7 @@ class EngineManager implements IEngine {
         }
     };
     private _config: IEngineConfig = this.defaultConfig;
-    // private _configInstance!: IBaseConfiguration;
+    private _configInstance!: IBaseConfiguration;
 
     private get defaultConfig(): IEngineConfig {
         return {
@@ -218,12 +218,26 @@ class EngineManager implements IEngine {
         this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
         const configInstance = await configurationRegistry.register('engine', this.defaultConfig);
+        this._configInstance = configInstance;
         this._init = true;
-        this._config = await configInstance.get();
+        await this.updateConfig();
         return this;
     }
 
+    async updateConfig() {
+        const projectConfig = await this._configInstance.get<IEngineProjectConfig>();
+        this._config = projectConfig;
+        if (!projectConfig.configs || Object.keys(projectConfig.configs).length === 0) {
+            return this;
+        }
+        const globalConfigKey = projectConfig.globalConfigKey || Object.keys(projectConfig.configs)[0];
+        this._config.includeModules = projectConfig.configs[globalConfigKey].includeModules;
+        this._config.flags = projectConfig.configs[globalConfigKey].flags;
+        this._config.noDeprecatedFeatures = projectConfig.configs[globalConfigKey].noDeprecatedFeatures;
+    }
+
     async importEditorExtensions() {
+
         // @ts-ignore
         globalThis.EditorExtends = await import('./editor-extends');
         // 注意：目前 utils 用的是 UUID，EditorExtends 用的是 Uuid 

@@ -15,23 +15,18 @@ export class CocosMigration {
      * @returns 迁移后的新配置
      */
     public static async migrate(projectPath: string, target: IMigrationTarget): Promise<any> {
-        try {
-            CocosMigration.loader.initialize(projectPath);
-            const oldPluginConfig = await CocosMigration.loader.loadConfig(target.sourceScope, target.pluginName);
-            if (!oldPluginConfig) return {};
+        CocosMigration.loader.initialize(projectPath);
+        const oldPluginConfig = await CocosMigration.loader.loadConfig(target.sourceScope, target.pluginName);
+        if (!oldPluginConfig) return {};
 
-            let migratedConfig: any = await target.migrate(oldPluginConfig);
+        let migratedConfig: any = await target.migrate(oldPluginConfig);
 
-            // 应用目标路径
-            if (target.targetPath) {
-                migratedConfig = CocosMigration.applyTargetPath(migratedConfig, target.targetPath);
-            }
-
-            return migratedConfig;
-        } catch (error) {
-            newConsole.warn(`[Migration] 迁移目标失败: ${target.pluginName} - ${error}`);
-            return {};
+        // 应用目标路径
+        if (target.targetPath) {
+            migratedConfig = CocosMigration.applyTargetPath(migratedConfig, target.targetPath);
         }
+
+        return migratedConfig;
     }
 
     /**

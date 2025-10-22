@@ -25,16 +25,38 @@ function mergeConfigs(target: any, source: any): any {
 }
 
 /**
- * CocosCreator 配置迁移管理器
+ * CocosCreator 3.x 配置迁移管理器
  */
 export class CocosMigrationManager {
     private static _targets: Map<CocosCLIConfigScope, IMigrationTarget[]> = new Map();
+    private static _initialized: boolean = false;
 
     /**
      * 迁移器列表
      */
     public static get migrationTargets(): Map<CocosCLIConfigScope, IMigrationTarget[]> {
         return this._targets;
+    }
+
+    /**
+     * 注册所有迁移器
+     */
+    private static async registerMigration(): Promise<void> {
+        if (this._initialized) {
+            return;
+        }
+
+        const { getMigrationList } = await import('./register-migration');
+        const migrationList = getMigrationList();
+
+        // 清空现有迁移器
+        this.clear();
+
+        // 注册所有迁移器
+        this.register(migrationList);
+
+        this._initialized = true;
+        newConsole.log(`[Migration] 已注册 ${migrationList.length} 个迁移器`);
     }
 
     /**
@@ -58,14 +80,14 @@ export class CocosMigrationManager {
      * @returns 迁移后的新配置
      */
     public static async migrate(projectPath: string): Promise<Record<CocosCLIConfigScope, Record<string, any>>> {
-        const result: Record<CocosCLIConfigScope, Record<string, any>> = CocosMigrationManager.createConfigList();
+        await this.registerMigration();
         if (this._targets.size === 0) {
-            newConsole.warn('[Migration] 没有注册任何迁移器');
-            return result;
+            throw new Error('[Migration] 没有注册任何迁移器');
         }
+        const result: Record<CocosCLIConfigScope, Record<string, any>> = CocosMigrationManager.createConfigList();
 
         newConsole.log(`[Migration] 开始执行迁移`);
-
+        let success = true;
         // 执行所有注册的迁移
         for (const items of this._targets.values()) {
             for (const target of items) {
@@ -75,12 +97,17 @@ export class CocosMigrationManager {
                     result[targetScope] = mergeConfigs(result[targetScope], migratedConfig);
                     newConsole.debug(`[Migration] 迁移完成: ${target.pluginName}`);
                 } catch (error) {
-                    newConsole.error(`[Migration] 迁移失败: ${target.pluginName} - ${error}`);
+                    success = false;
+                    console.error(error);
+                    newConsole.error(`[Migration] 迁移失败: ${target.pluginName}`);
                 }
             }
         }
+        if (!success) {
+            throw new Error('[Migration] 迁移失败, 详情请查看日志');
+        }
 
-        newConsole.log('[Migration] 所有迁移执行完成');
+        newConsole.log('[Migration] 所有迁移执行成功');
         return result;
     }
 

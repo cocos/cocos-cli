@@ -17,6 +17,7 @@ import script from '../../../../../scripting';
 import { Engine } from '../../../../../engine';
 import { MacroItem } from '../../../../../engine/@types/config';
 import { compressUuid } from '../../utils';
+import project from '../../../../../project';
 type PlatformType = StatsQuery.ConstantManager.PlatformType;
 
 interface IScriptProjectOption extends SharedSettings {
@@ -142,6 +143,9 @@ export class ScriptBuilder {
         await workerManager.registerTask({
             name: 'build-script',
             path: join(__dirname, './build-script'),
+            options: {
+                cwd: project.path,
+            }
         });
         const res = await workerManager.runTask('build-script', 'buildScriptCommand', [buildScriptOptions]);
         if (res) {

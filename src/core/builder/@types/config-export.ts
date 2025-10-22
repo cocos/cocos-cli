@@ -1,4 +1,4 @@
-import { IBuildCommonOptions, WebMobileBuildOptions, IBuildCacheUseConfig, OverwriteProjectSettings, IBundleOptions, UserCompressConfig, WebDesktopBuildOptions } from './public'
+import { IBuildCommonOptions, WebMobileBuildOptions, IBuildCacheUseConfig, OverwriteProjectSettings, IBundleOptions, UserCompressConfig, WebDesktopBuildOptions } from './public';
 
 export interface BuildConfiguration {
     common: IBuildCommonOptions;
