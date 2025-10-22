@@ -463,6 +463,7 @@ describe('Component Proxy 测试', () => {
                     'cc.FixedJoint2D',
                     'cc.WheelJoint2D',
                     'cc.HingeJoint2D',
+                    'BuiltinPipelineSettings',
                     'cc.TiledTile'
                 ];
                 for (const componentType of componentTypes) {
