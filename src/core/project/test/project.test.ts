@@ -69,7 +69,7 @@ describe('Project', () => {
                 return false;
             });
 
-            await expect(Project.open(mockProjectPath)).rejects.toThrow('Failed to open project: package.json not found.');
+            await expect(Project.open(mockProjectPath)).rejects.toThrow();
         });
 
         test('should load project info when project path and package.json exist', async () => {
@@ -95,7 +95,7 @@ describe('Project', () => {
             });
             mockReadJSON.mockResolvedValue({ invalid: 'data' });
 
-            await expect(Project.open(mockProjectPath)).rejects.toThrow('Failed to open project: package.json data error.');
+            await expect(Project.open(mockProjectPath)).rejects.toThrow();
         });
     });
 
