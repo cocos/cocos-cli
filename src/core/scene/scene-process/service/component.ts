@@ -86,30 +86,25 @@ export class ComponentService implements IComponentService {
 
     @expose()
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
-        return this.setPropertyImp(options.componentPath, options.mountPath, options.properties);
+        return this.setPropertyImp(options);
     }
 
-    private async setPropertyImp(componentPath: string, path: string, properties: IProperty, record: boolean = true): Promise<boolean> {
-        // 多个节点更新值
-        if (Array.isArray(componentPath)) {
-            try {
-                for (let i = 0; i < componentPath.length; i++) {
-                    await this.setPropertyImp(componentPath[i], path, properties);
-                }
-                return true;
-            } catch (e) {
-                console.error(e);
-                throw e;
+    private async setPropertyImp(options: ISetPropertyOptions): Promise<boolean> {
+        const component = compMgr.query(options.componentPath);
+        if (!component) {
+            throw new Error(`Set property failed: ${options.componentPath} does not exist`);
+        }
+        const compProperties = (dumpUtil.dumpComponent(component as Component));
+        const properties = Object.entries(options.properties);
+        for (const [key, value] of properties) {
+            if (!compProperties.properties[key]) {
+                continue;
             }
+            const compProperty = compProperties.properties[key];
+            compProperty.value = value;
+            // 恢复数据
+            await dumpUtil.restoreProperty(component, key, compProperty);
         }
-        const node = compMgr.query(componentPath);
-        if (!node) {
-            throw new Error(`Set property failed: ${componentPath} does not exist`);
-        }
-
-        // 恢复数据
-        await dumpUtil.restoreProperty(node, path, properties);
-
         return true;
     }
 
@@ -123,7 +118,7 @@ export class ComponentService implements IComponentService {
                 if (cclass instanceof cc.Component) {
                     components.push(cc.js.getClassName(cclass));
                 }
-            } catch (e) {}
+            } catch (e) { }
 
         });
         return components;

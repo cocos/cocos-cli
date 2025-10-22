@@ -1,15 +1,14 @@
 import { ApiBase } from '../base/api-base';
 import {
     SchemaAddComponentInfo,
-    SchemaComponent,
     SchemaSetPropertyOptions,
     SchemaComponentResult,
     SchemaBooleanResult,
     SchemaQueryAllComponentResult,
     SchemaQueryComponent,
     SchemaRemoveComponent,
+
     TAddComponentInfo,
-    TComponentIdentifier,
     TSetPropertyOptions,
     TComponentResult,
     TQueryAllComponentResult,

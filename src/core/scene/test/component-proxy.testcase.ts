@@ -10,7 +10,8 @@ import {
     IComponentIdentifier,
     IComponent,
     globalComponentType,
-    NodeType
+    NodeType,
+    INode
 } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -104,11 +105,11 @@ describe('Component Proxy 测试', () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['string'].name,
-                    properties: componentInfo?.properties['string'],
+                    properties: {
+                        string: 'abc',
+                    }
                 }
                 expect(componentInfo?.properties['string'].value).toBe('label');
-                setComponentProperty.properties.value = 'abc';
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
@@ -275,15 +276,16 @@ describe('Component Proxy 测试', () => {
             }
             console.log('组合测试 - 添加多个相同节点 - 结束');
         });
-        it('setComponentProperty - 查询组件 - number类型', async () => {
+        it('setComponentProperty - 设置组件属性 - number类型', async () => {
             try {
+                expect(componentInfo?.properties['fontSize'].value).toBe(40);
+
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['fontSize'].name,
-                    properties: componentInfo?.properties['fontSize'],
+                    properties: {
+                        fontSize: 80,
+                    }
                 }
-                expect(componentInfo?.properties['fontSize'].value).toBe(40);
-                setComponentProperty.properties.value = 80;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
@@ -293,15 +295,13 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 查询组件 - enum类型', async () => {
+        it('setComponentProperty - 设置组件属性 - enum类型', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['overflow'].name,
-                    properties: componentInfo?.properties['overflow'],
+                    properties: { overflow: 1 },
                 }
                 expect(componentInfo?.properties['overflow'].value).toBe(0);
-                setComponentProperty.properties.value = 1;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
@@ -311,12 +311,11 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 查询组件 - boolean类型', async () => {
+        it('setComponentProperty - 设置组件属性 - boolean类型', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['enableOutline'].name,
-                    properties: componentInfo?.properties['enableOutline'],
+                    properties: { enableOutline: true },
                 }
                 expect(componentInfo?.properties['enableOutline'].value).toBe(false);
                 setComponentProperty.properties.value = true;
@@ -329,21 +328,23 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 查询组件 - color类型', async () => {
+        it('setComponentProperty - 设置组件属性 - color类型', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['outlineColor'].name,
-                    properties: componentInfo?.properties['outlineColor'],
+                    properties: {
+                        outlineColor: {
+                            r: 50,
+                            g: 100,
+                            b: 150,
+                            a: 200,
+                        }
+                    },
                 }
                 expect(componentInfo?.properties['outlineColor'].value.r).toBe(0);
                 expect(componentInfo?.properties['outlineColor'].value.g).toBe(0);
                 expect(componentInfo?.properties['outlineColor'].value.b).toBe(0);
                 expect(componentInfo?.properties['outlineColor'].value.a).toBe(255);
-                setComponentProperty.properties.value.r = 50;
-                setComponentProperty.properties.value.g = 100;
-                setComponentProperty.properties.value.b = 150;
-                setComponentProperty.properties.value.a = 200;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
@@ -356,15 +357,15 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 查询组件 - 设置枚举类型之外的值', async () => {
+        it('setComponentProperty - 设置组件属性 - 设置枚举类型之外的值', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['overflow'].name,
-                    properties: componentInfo?.properties['overflow'],
+                    properties: {
+                        overflow: 100000
+                    }
                 }
                 expect(componentInfo?.properties['overflow'].value).toBe(1);
-                setComponentProperty.properties.value = 100000;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
@@ -374,32 +375,64 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 查询组件 - 设置不同类型的值', async () => {
+    });
+    describe('4.1 设置Sprite属性测试', () => {
+        let testComponent: string = 'cc.Sprite';
+        let componentInfo: IComponent | null;
+        let componentPath: string = '';
+        const queryComponent: IQueryComponentOptions = { path: '' };
+        // 确保测试了中，没有其他的组件
+        beforeAll(async () => {
+            const addComponentInfo: IAddComponentOptions = {
+                nodePath: nodePath,
+                component: testComponent
+            }
+            try {
+                componentInfo = await ComponentProxy.queryComponent(queryComponent);
+                expect(componentInfo).toBeNull();
+                const component = await ComponentProxy.addComponent(addComponentInfo);
+                componentPath = component.path;
+                expect(component.path).toBe(`${nodePath}/cc.Sprite_1`);
+                componentInfo = await ComponentProxy.queryComponent({ path: componentPath });
+                expect(componentInfo).toBeDefined();
+                queryComponent.path = componentPath;
+            } catch (e) {
+                console.log(`设置组件属性测试 - 设置不同类型的属性 - 异常 : ${e}`);
+                throw e;
+            }
+        });
+        afterAll(async () => {
+            try {
+                const result = await ComponentProxy.removeComponent({ path: componentPath });
+                expect(result).toBe(true);
+            } catch (e) {
+                console.log(`组合测试 - 添加多个相同节点 - 错误 ${e}`);
+                throw e;
+            }
+        });
+        it('setComponentProperty - 设置组件属性 - 设置SpriteFrame', async () => {
             try {
                 // 对错误的值 类型 会修改失败，但是返回还是true
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
-                    mountPath: componentInfo?.properties['outlineColor'].name,
-                    properties: componentInfo?.properties['outlineColor'],
+                    properties: {
+                        spriteFrame: {
+                            uuid: '20835ba4-6145-4fbc-a58a-051ce700aa3e@f9941'
+                        }
+                    },
                 }
-                expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
-                expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
-                expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
-                expect(componentInfo?.properties['outlineColor'].value.a).toBe(200);
-                setComponentProperty.properties.value = 50;
+                expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe('');
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
-                expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
-                expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
-                expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
-                expect(componentInfo?.properties['outlineColor'].value.a).toBe(200);
+                expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe('20835ba4-6145-4fbc-a58a-051ce700aa3e@f9941');
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
             }
         });
     });
+
     describe('5. 创建内置的组件', () => {
         const componentTypes = Object.values(globalComponentType);
         let components: IComponentIdentifier[] = [];
@@ -488,6 +521,62 @@ describe('Component Proxy 测试', () => {
                     }
                 }
                 expect(components.length).toBe(componentTypes.length - excludeComponent.length);
+            } catch (e) {
+                console.log(`添加多个不同的节点失败，原因：${e}`);
+                throw e;
+            }
+        });
+    });
+    describe('6. 多节点添加同组件-组件不冲突', () => {
+        let testCount = 10;
+        let nodes: INode[] = [];
+        let components: IComponentIdentifier[] = [];
+        beforeAll(async () => {
+            for (let i = 0; i < testCount; ++i) {
+                const params: ICreateByNodeTypeParams = {
+                    path: 'TestNode',
+                    nodeType: NodeType.EMPTY,
+                    position: { x: 1, y: 2, z: 0 },
+                };
+                const testNode = await NodeProxy.createNodeByType(params);
+                expect(testNode).toBeDefined();
+                if (!testNode) {
+                    return;
+                }
+                nodes.push(testNode);
+            }
+        });
+        afterAll(async () => {
+            for (let i = 0; i < nodes.length; ++i) {
+                const params: IDeleteNodeParams = {
+                    path: nodes[i].path,
+                    keepWorldTransform: false
+                };
+                await NodeProxy.deleteNode(params);
+                expect(params).toBeDefined();
+            }
+        });
+
+        it('addComponent - 每个组件添加同一个组件，但是最后的组件名是一样的，只是节点名称不一样', async () => {
+            try {
+                for (let i = 0; i < nodes.length; ++i) {
+                    const componentInfo1: IAddComponentOptions = {
+                        nodePath: nodes[i].path,
+                        component: 'cc.Label',
+                    }
+                    const component = await ComponentProxy.addComponent(componentInfo1);
+                    expect(component).toBeDefined();
+                    expect(component.path).toBe(`${nodes[i].path}/cc.Label_1`);
+                }
+                for (let i = 0; i < nodes.length; ++i) {
+                    const componentInfo1: IAddComponentOptions = {
+                        nodePath: nodes[i].path,
+                        component: 'cc.Label',
+                    }
+                    const component = await ComponentProxy.addComponent(componentInfo1);
+                    expect(component).toBeDefined();
+                    expect(component.path).toBe(`${nodes[i].path}/cc.Label_2`);
+                }
             } catch (e) {
                 console.log(`添加多个不同的节点失败，原因：${e}`);
                 throw e;
