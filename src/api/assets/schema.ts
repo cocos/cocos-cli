@@ -228,3 +228,51 @@ export type TPluginScriptInfo = z.infer<typeof SchemaPluginScriptInfo>;
 export type TAssetMoveOptions = z.infer<typeof SchemaAssetMoveOptions>;
 export type TAssetRenameOptions = z.infer<typeof SchemaAssetRenameOptions>;
 export type TUpdateUserDataOptions = z.infer<typeof SchemaUpdateUserDataOptions>;
+
+// Update Asset User Data 相关 Schema
+export const SchemaUpdateAssetUserDataPath = z.string().min(1).describe('用户数据路径，使用点号分隔，如 "texture.wrapMode"');
+export type TUpdateAssetUserDataPath = z.infer<typeof SchemaUpdateAssetUserDataPath>;
+
+export const SchemaUpdateAssetUserDataValue = z.any().describe('要设置的用户数据值');
+export type TUpdateAssetUserDataValue = z.infer<typeof SchemaUpdateAssetUserDataValue>;
+
+export const SchemaUpdateAssetUserDataResult = z.any().describe('更新后的用户数据对象');
+export type TUpdateAssetUserDataResult = z.infer<typeof SchemaUpdateAssetUserDataResult>;
+
+// Asset Config Map 相关 Schema
+export const SchemaThumbnailInfo = z.object({
+    type: z.enum(['icon', 'image']).describe('缩略图类型：icon 或 image'),
+    value: z.string().describe('具体 icon 名字或者 image 路径，支持绝对路径、db://、project://、packages:// 下的路径'),
+}).describe('缩略图信息');
+
+// 递归定义用户数据配置项
+const SchemaUserDataConfigItem: z.ZodType<any> = z.lazy(() => z.object({
+    key: z.string().optional().describe('唯一标识符'),
+    label: z.string().optional().describe('配置显示的名字，如果需要翻译，则传入 i18n:${key}'),
+    description: z.string().optional().describe('设置的简单说明'),
+    default: z.any().optional().describe('默认值'),
+    type: z.enum(['array', 'object']).optional().describe('配置的类型'),
+    itemConfigs: z.union([
+        z.array(SchemaUserDataConfigItem),
+        z.record(z.string(), SchemaUserDataConfigItem)
+    ]).optional().describe('子配置项'),
+    render: z.object({
+        ui: z.string().describe('UI 类型'),
+        attributes: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional().describe('UI 属性'),
+        items: z.array(z.object({
+            label: z.string().describe('选项标签'),
+            value: z.string().describe('选项值'),
+        })).optional().describe('选项列表'),
+    }).optional().describe('渲染配置'),
+})).describe('用户数据配置项');
+
+export const SchemaAssetConfig = z.object({
+    displayName: z.string().optional().describe('资源显示名称'),
+    description: z.string().optional().describe('资源描述'),
+    docURL: z.string().optional().describe('文档 URL'),
+    userDataConfig: z.record(z.string(), SchemaUserDataConfigItem).optional().describe('用户数据配置'),
+    iconInfo: SchemaThumbnailInfo.optional().describe('图标信息'),
+}).describe('资源配置信息');
+
+export const SchemaAssetConfigMapResult = z.record(z.string(), SchemaAssetConfig).describe('资源配置映射表，键为资源处理器名称，值为对应的配置信息');
+export type TAssetConfigMapResult = z.infer<typeof SchemaAssetConfigMapResult>;

@@ -16,9 +16,7 @@ import {
     TDataKeys,
     TQueryAssetsOption,
     TSupportCreateType,
-    TTargetPath,
     TAssetOperationOption,
-    TSourcePath,
     TAssetData,
     SchemaAssetInfoResult,
     SchemaAssetMetaResult,
@@ -63,7 +61,15 @@ import {
     TPluginScriptInfo,
     TAssetMoveOptions,
     TAssetRenameOptions,
-    TUpdateUserDataOptions
+    TUpdateUserDataOptions,
+    SchemaUpdateAssetUserDataPath,
+    SchemaUpdateAssetUserDataValue,
+    SchemaUpdateAssetUserDataResult,
+    TUpdateAssetUserDataPath,
+    TUpdateAssetUserDataValue,
+    TUpdateAssetUserDataResult,
+    SchemaAssetConfigMapResult,
+    TAssetConfigMapResult
 } from './schema';
 import { z } from 'zod';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -666,6 +672,60 @@ export class AssetsApi extends ApiBase {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset user data config fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 更新资源用户数据
+     */
+    @tool('assets-update-asset-user-data')
+    @title('更新资源用户数据')
+    @description('更新指定资源的用户数据配置。通过路径和值来精确更新资源的用户数据，支持嵌套路径访问。')
+    @result(SchemaUpdateAssetUserDataResult)
+    async updateAssetUserData(
+        @param(SchemaUrlOrUUIDOrPath) urlOrUuidOrPath: TUrlOrUUIDOrPath,
+        @param(SchemaUpdateAssetUserDataPath) path: TUpdateAssetUserDataPath,
+        @param(SchemaUpdateAssetUserDataValue) value: TUpdateAssetUserDataValue
+    ): Promise<CommonResultType<TUpdateAssetUserDataResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TUpdateAssetUserDataResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            ret.data = await assetManager.updateUserData(urlOrUuidOrPath, path, value);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('update asset user data fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
+     * 查询资源配置映射表
+     */
+    @tool('assets-query-asset-config-map')
+    @title('查询资源配置映射表')
+    @description('查询各个资源处理器的基本配置映射表。返回包含资源显示名称、描述、文档URL、用户数据配置、图标信息等配置信息的映射表。')
+    @result(SchemaAssetConfigMapResult)
+    async queryAssetConfigMap(): Promise<CommonResultType<TAssetConfigMapResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TAssetConfigMapResult> = {
+            code: code,
+            data: {},
+        };
+
+        try {
+            ret.data = await assetManager.queryAssetConfigMap();
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('query asset config map fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 

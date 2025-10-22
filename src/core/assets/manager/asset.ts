@@ -2,7 +2,7 @@ import { AssetDB, VirtualAsset } from '@editor/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { IAsset, AssetManager as IAssetManager } from '../@types/private';
+import { IAsset } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
@@ -11,7 +11,7 @@ import assetHandlerManager from './asset-handler';
  * 对外暴露一系列的资源查询、操作接口等
  * 对外暴露资源的一些变动广播消息、事件消息
  */
-class AssetManager extends EventEmitter implements IAssetManager {
+class AssetManager extends EventEmitter {
     // --------- query ---------
     queryAssets = assetQuery.queryAssets.bind(assetQuery);
     queryAssetDependencies = assetQuery.queryAssetDependencies.bind(assetQuery);
@@ -43,6 +43,7 @@ class AssetManager extends EventEmitter implements IAssetManager {
     generateExportData = assetOperation.generateExportData.bind(assetOperation);
     outputExportData = assetOperation.outputExportData.bind(assetOperation);
     createAssetByType = assetOperation.createAssetByType.bind(assetOperation);
+    updateUserData = assetOperation.updateUserData.bind(assetOperation);
 
     // ----------- assetHandlerManager ------------
     queryIconConfigMap = assetHandlerManager.queryIconConfigMap.bind(assetHandlerManager);

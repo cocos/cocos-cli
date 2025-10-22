@@ -5,7 +5,7 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
 import { Asset } from '@editor/asset-db';
-import { Meta } from '@editor/asset-db/libs/meta';
+import { IAssetMeta } from '../@types/private';
 declare const cc: any;
 
 export function i18nTranslate<Key extends string>(
@@ -274,12 +274,12 @@ export async function openCode(asset: Asset): Promise<boolean> {
  * @param a 
  * @param b 
  */
-export function mergeMeta(a: Meta, b: Meta) {
+export function mergeMeta(a: IAssetMeta, b: IAssetMeta) {
     Object.keys(b).map((key) => {
         if (key === 'subMetas') {
             Object.keys(b.subMetas).forEach((id) => {
                 if (!a.subMetas[id]) {
-                    a.subMetas[id] = {} as Meta;
+                    a.subMetas[id] = {} as IAssetMeta;
                 }
                 mergeMeta(a.subMetas[id], b.subMetas[id]);
             });

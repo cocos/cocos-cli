@@ -1,8 +1,7 @@
 import { queryUUID, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach, queryPath } from '@editor/asset-db';
-import { Meta } from '@editor/asset-db/libs/meta';
 import { isAbsolute, basename, extname } from 'path';
 import { QueryAssetType, IAsset } from '../@types/protected';
-import { AssetHandlerType, IAssetInfo, QueryAssetsOption } from '../@types/public';
+import { AssetHandlerType, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/public';
 import { FilterPluginOptions, IPluginScriptInfo } from '../../scripting/interface';
 import { url2uuid, libArr2Obj, getExtendsFromCCType } from '../utils';
 import assetDBManager from './asset-db';
@@ -591,7 +590,7 @@ class AssetQueryManager {
      * 查询指定的资源的 meta
      * @param uuidOrURLOrPath 资源的唯一标识符
      */
-    queryAssetMeta(uuidOrURLOrPath: string): Meta | null {
+    queryAssetMeta(uuidOrURLOrPath: string): IAssetMeta | null {
         if (!uuidOrURLOrPath || typeof uuidOrURLOrPath !== 'string') {
             return null;
         }

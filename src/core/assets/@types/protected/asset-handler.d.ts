@@ -272,6 +272,8 @@ export interface ICONConfig extends ThumbnailInfo {
     thumbnail?: boolean;
 }
 
+export type UIType = 'ui-select' | 'ui-checkbox' | 'ui-input' | 'ui-textarea' | 'ui-number-input' | 'ui-checkbox';
+
 export interface IUerDataConfigItem {
     key?: string; // 唯一标识符
     // 配置显示的名字，如果需要翻译，则传入 i18n:${key}
@@ -301,10 +303,4 @@ export interface IAssetConfig {
     docURL?: string;
     userDataConfig?: Record<string, IUerDataConfigItem>;
     iconInfo?: ThumbnailInfo;
-
-    // 记录此资源的来源信息
-    from?: {
-        pkgName: string;
-        internal: boolean;
-    }
 }

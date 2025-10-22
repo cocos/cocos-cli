@@ -3,13 +3,12 @@
  */
 
 import { queryUUID, refresh, reimport, queryUrl, Utils, Asset } from '@editor/asset-db';
-import { Meta } from '@editor/asset-db/libs/meta';
 import { copy, move, remove, rename, existsSync } from 'fs-extra';
 import { isAbsolute, dirname, basename, join, relative, extname } from 'path';
 import { newConsole } from '../../base/console';
 import { IMoveOptions } from '../@types/private';
 import { IAsset, CreateAssetOptions, IExportOptions, IExportData, CreateAssetByTypeOptions, ICreateMenuInfo } from '../@types/protected';
-import { AssetOperationOption, IAssetInfo, ISupportCreateType } from '../@types/public';
+import { AssetOperationOption, AssetUserDataMap, IAssetInfo, IAssetMeta, ISupportCreateType } from '../@types/public';
 import assetConfig from '../asset-config';
 import { url2path, ensureOutputData, url2uuid, removeFile } from '../utils';
 import assetDBManager from './asset-db';
@@ -23,7 +22,7 @@ import * as lodash from 'lodash';
 
 class AssetOperation extends EventEmitter {
 
-    async saveAssetMeta(uuid: string, meta: Meta, info?: IAsset) {
+    async saveAssetMeta(uuid: string, meta: IAssetMeta, info?: IAsset) {
         // 不能为数组
         if (
             typeof meta !== 'object'
@@ -36,7 +35,7 @@ class AssetOperation extends EventEmitter {
         await info.save(); // 这里才是将数据保存到 .meta 文件
     }
 
-    async updateUserData(uuidOrURLOrPath: string, path: string, value: any) {
+    async updateUserData<T extends keyof AssetUserDataMap = 'unknown'>(uuidOrURLOrPath: string, path: string, value: any): Promise<AssetUserDataMap[T]> {
         const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
         if (!asset) {
             console.error(`can not find asset ${uuidOrURLOrPath}`);
@@ -44,6 +43,7 @@ class AssetOperation extends EventEmitter {
         }
         lodash.set(asset?.meta.userData, path, value);
         await asset.save();
+        return asset?.meta.userData;
     }
 
     async saveAsset(uuidOrURLOrPath: string, content: string | Buffer) {

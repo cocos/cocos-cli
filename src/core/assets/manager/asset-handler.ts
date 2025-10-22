@@ -552,18 +552,11 @@ class AssetHandlerManager {
         const result: Record<string, IAssetConfig> = {};
         for (const importer of Object.keys(this.name2handler)) {
             const handler = this.name2handler[importer];
-            const registerInfo = this.name2registerInfo[importer];
             const config: IAssetConfig = {
                 displayName: handler.displayName,
                 description: handler.description,
                 docURL: handler.docURL,
             };
-            if (registerInfo) {
-                config.from = {
-                    pkgName: registerInfo.pkgName,
-                    internal: registerInfo.internal,
-                };
-            }
             if (handler.iconInfo) {
                 config.iconInfo = handler.iconInfo.default;
             }

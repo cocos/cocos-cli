@@ -8,7 +8,7 @@ export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'
     subMetas: {
         [index: string]: IAssetMeta<'unknown'>;
     };
-    userData: AssetUserDataMap[T];
+    userData: AssetUserDataMap[T extends keyof AssetUserDataMap ? T : 'unknown'];
     displayName: string;
     id: string;
     name: string;
