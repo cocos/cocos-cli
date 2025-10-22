@@ -11,6 +11,10 @@ import { newConsole } from '../../base/console';
 function mergeConfigs(target: any, source: any): any {
     const result = { ...target };
 
+    if (!source || typeof source !== 'object') {
+        return result;
+    }
+
     for (const [key, value] of Object.entries(source)) {
         if (value && typeof value === 'object' && !Array.isArray(value)) {
             // 递归合并对象

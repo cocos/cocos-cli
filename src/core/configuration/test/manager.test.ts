@@ -293,17 +293,18 @@ describe('ConfigurationManager', () => {
 
             await manager.initialize(projectPath);
             expect(CocosMigrationManager.migrate).toHaveBeenCalledWith(projectPath);
-            console.log(manager['projectConfig']);
             expect(manager['projectConfig']).toEqual({
                 version: '1.0.0',
                 migratedKey: 'migratedValue'
             });
 
-            // Same version - should not migrate
+            // Same version - should not migrate (migrate method checks version)
             const newManager = new ConfigurationManager();
             mockFse.readJSON.mockResolvedValue({ version: '1.0.0' });
             await newManager.initialize(projectPath);
-            expect(CocosMigrationManager.migrate).toHaveBeenCalledTimes(1); // Still only called once
+            // migrate is called but returns early due to same version
+            // Note: CocosMigrationManager is a singleton, so it's only called once
+            expect(CocosMigrationManager.migrate).toHaveBeenCalledTimes(1);
         });
     });
 
