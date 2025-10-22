@@ -185,7 +185,7 @@ describe('Node Proxy 测试', () => {
         it('deleteNode - 删除节点（保持世界变换）', async () => {
             // 先创建一个新节点用于删除测试
             const createParams: ICreateByNodeTypeParams = {
-                path: '/NodeToDelete',
+                path: 'NodeToDelete',
                 name: 'NodeToDelete',
                 nodeType: NodeType.SPHERE,
                 workMode: '3d'
@@ -202,7 +202,7 @@ describe('Node Proxy 测试', () => {
 
             const result = await NodeProxy.deleteNode(deleteParams);
             expect(result).toBeDefined();
-            expect(result?.path).toBe('NodeToDelete');
+            expect(result?.path).toBe('NodeToDelete/NodeToDelete');
         });
     });
 
