@@ -401,7 +401,7 @@ describe('Component Proxy 测试', () => {
         });
     });
     describe('5. 创建内置的组件', () => {
-        //
+        const componentTypes = Object.values(globalComponentType);
         let components: IComponentIdentifier[] = [];
 
         beforeAll(async () => {
