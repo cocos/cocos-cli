@@ -67,7 +67,12 @@ export class ConfigurationManager implements IConfigurationManager {
         this.projectPath = projectPath;
         this.configPath = path.join(projectPath, ConfigurationManager.name);
         await this.load();
-        await this.migrate();
+        try {
+            // 迁移不能影响正常的配置初始化流程
+            await this.migrate();
+        } catch (error) {
+            console.error(error);
+        }
         this.initialized = true;
     }
 
