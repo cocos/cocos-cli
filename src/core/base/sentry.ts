@@ -39,7 +39,6 @@ class SentryInitializer {
      */
     public static init(): void {
         if (this.initialized) {
-            newConsole.warn('[Sentry] 已经初始化，跳过重复初始化');
             return;
         }
 
@@ -58,7 +57,6 @@ class SentryInitializer {
 
         // 如果没有 DSN，跳过初始化
         if (!sentryConfig.dsn) {
-            newConsole.debug('[Sentry] 未配置 DSN，跳过初始化');
             return;
         }
 
@@ -107,10 +105,7 @@ class SentryInitializer {
             setupGlobalErrorHandlers();
 
             this.initialized = true;
-            newConsole.log(`[Sentry] 初始化成功 (环境: ${sentryConfig.environment})`);
-
         } catch (error) {
-            newConsole.error(`[Sentry] 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
@@ -121,7 +116,6 @@ class SentryInitializer {
      */
     public static captureException(error: Error, context?: Record<string, any>): void {
         if (!this.initialized) {
-            newConsole.debug('[Sentry] 未初始化，跳过异常捕获');
             return;
         }
 
@@ -137,7 +131,6 @@ class SentryInitializer {
                 Sentry.captureException(error);
             }
         } catch (e) {
-            newConsole.error(`[Sentry] 捕获异常失败: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
 
@@ -183,8 +176,6 @@ export function initSentry(): void {
     try {
         SentryInitializer.init();
     } catch (error) {
-        console.debug(error);
-        newConsole.error(`[Sentry] 初始化失败`);
     }
 }
 
