@@ -37,7 +37,6 @@ export async function startMCPServer(folder: string) {
     await cocosAPI.startup();
 
     const middleware = new McpMiddleware();
-    middleware.registerDecoratorTools();
     register('mcp', middleware.getMiddlewareContribution());
     const url = getServerUrl();
     return { cocosAPI, middleware, url };
