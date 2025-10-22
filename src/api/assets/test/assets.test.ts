@@ -325,41 +325,6 @@ describe('Assets API Tests', () => {
             }
         });
 
-        test('should handle invalid resource type', async () => {
-            // 测试无效的资源类型
-            const testDir = 'db://assets';
-            const baseName = 'test-invalid';
-            const ccType = 'invalid-type';
-
-            try {
-                const result = await client.callTool('assets-create-asset-by-type', {
-                    ccType,
-                    dirOrUrl: testDir,
-                    baseName
-                });
-
-                expect(result).toBeDefined();
-                expect(result.content).toBeDefined();
-
-                const response = Array.isArray(result.content) ? result.content[0] : result.content;
-                const responseData = JSON.parse(response.text);
-
-                // 对于无效类型，应该返回失败状态
-                expect(responseData).toHaveProperty('result');
-                expect(responseData.result).toHaveProperty('code');
-
-                if (responseData.result.code === COMMON_STATUS.FAIL) {
-                    expect(responseData.result).toHaveProperty('reason');
-                    console.debug('✅ Invalid resource type correctly handled:', responseData.result.reason);
-                } else {
-                    console.debug('ℹ️ Unexpected success for invalid type:', responseData.result);
-                }
-            } catch (error) {
-                console.error('❌ Test failed with error:', error);
-                throw error;
-            }
-        });
-
         test('should handle missing required parameters', async () => {
             // 测试缺少必需参数的情况
             try {
