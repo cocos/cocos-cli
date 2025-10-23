@@ -82,7 +82,7 @@ async function getProjectVersion(rootDir) {
  */
 function generateReleaseDirectoryName(type, version) {
 
-    const platformSuffix = process.platform === 'darwin' ? 'darwin' : 'win';
+    const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
 
     if (type === 'nodejs') {
         return `cocos-cli-${platformSuffix}-${version}`;
@@ -202,6 +202,172 @@ async function installProductionDependencies(extensionDir) {
         console.error('❌ 发布目录 npm install 失败:', error.message);
         throw error;
     }
+}
+
+/**
+ * 查找目录中的原生二进制文件 (.node, .dylib, ffprobe 和 static/tools 下的工具)
+ */
+async function findNativeBinaries(extensionDir) {
+    const binaryFiles = [];
+    
+    try {
+        // 1. 查找 node_modules 中的 .node 和 .dylib 文件
+        const nodeModulesPath = path.join(extensionDir, 'node_modules');
+        if (await fs.pathExists(nodeModulesPath)) {
+            const nodeModulesBinaries = await globby([
+                '**/*.node',
+                '**/*.dylib',
+                '**/ffprobe',
+                '@cocos/fbx2gltf/bin/Darwin/FBX2glTF'
+            ], {
+                cwd: nodeModulesPath,
+                absolute: true,
+                onlyFiles: true
+            });
+            binaryFiles.push(...nodeModulesBinaries);
+        }
+        
+        // 2. 查找 static/tools 目录下的特定二进制工具
+        const staticToolsPath = path.join(extensionDir, 'static', 'tools');
+        if (await fs.pathExists(staticToolsPath)) {
+            const toolBinaries = await globby([
+                'astc-encoder/astcenc',
+                'cmft/cmftRelease64',
+                'lightmap-tools/LightFX',
+                'mali_darwin/astcenc',
+                'mali_darwin/composite',
+                'mali_darwin/convert',
+                'mali_darwin/etcpack',
+                'PVRTexTool_darwin/PVRTexToolCLI',
+                'PVRTexTool_darwin/compare'
+            ], {
+                cwd: staticToolsPath,
+                absolute: true,
+                onlyFiles: true
+            });
+            binaryFiles.push(...toolBinaries);
+        }
+        
+        console.log(`🔍 找到 ${binaryFiles.length} 个原生二进制文件需要签名`);
+        
+        return binaryFiles;
+    } catch (error) {
+        console.error('❌ 查找原生二进制文件失败:', error.message);
+        return [];
+    }
+}
+
+/**
+ * 对单个原生二进制文件进行签名 (.node 或 .dylib)
+ */
+async function signBinaryFile(filePath, identity) {
+    try {
+        console.log(`🔐 正在签名: ${path.basename(filePath)}`);
+        execSync(`codesign --force --sign "${identity}" "${filePath}"`, {
+            stdio: 'pipe'
+        });
+        console.log(`✅ 签名完成: ${path.basename(filePath)}`);
+    } catch (error) {
+        console.error(`❌ 签名失败 ${path.basename(filePath)}:`, error.message);
+        throw error;
+    }
+}
+
+/**
+ * 对原生二进制文件进行签名和公证（仅限 macOS）
+ * 支持 .node 和 .dylib 文件
+ */
+async function signAndNotarizeNativeBinaries(extensionDir) {
+    // 只在 macOS 上执行
+    if (process.platform !== 'darwin') {
+        console.log('ℹ️  非 macOS 系统，跳过签名和公证');
+        return;
+    }
+
+    console.log('🔐 开始对原生二进制文件进行签名和公证...');
+
+    // 检查是否设置了签名身份
+    const identity = process.env.CODESIGN_IDENTITY || process.env.APPLE_DEVELOPER_ID;
+    if (!identity) {
+        console.log('⚠️  未设置签名身份 (CODESIGN_IDENTITY 或 APPLE_DEVELOPER_ID)，跳过签名');
+        return;
+    }
+
+    // 查找所有原生二进制文件 (.node 和 .dylib)
+    const binaryFiles = await findNativeBinaries(extensionDir);
+    if (binaryFiles.length === 0) {
+        console.log('ℹ️  未找到原生二进制文件，跳过签名');
+        return;
+    }
+
+    // 首先为所有二进制文件设置可执行权限
+    console.log('🔧 设置二进制文件可执行权限...');
+    for (const binaryFile of binaryFiles) {
+        try {
+            // 添加可执行权限 (chmod +x)
+            execSync(`chmod +x "${binaryFile}"`, { stdio: 'pipe' });
+            console.log(`✅ 已设置权限: ${path.relative(extensionDir, binaryFile)}`);
+        } catch (error) {
+            console.warn(`⚠️  设置权限失败: ${path.relative(extensionDir, binaryFile)} - ${error.message}`);
+        }
+    }
+
+    // 对每个原生二进制文件进行签名
+    for (const binaryFile of binaryFiles) {
+        await signBinaryFile(binaryFile, identity);
+    }
+
+    // 检查是否需要公证
+    const shouldNotarize = true;
+    const appleId = process.env.APPLE_ID;
+    const appPassword = process.env.APPLE_PASSWORD;
+    const teamId = process.env.APPLE_TEAM_ID;
+
+    if (shouldNotarize && appleId && appPassword && teamId) {
+        console.log('📋 开始公证原生二进制文件...');
+        
+        // 创建临时 ZIP 文件用于公证
+        const tempZipPath = path.join(extensionDir, '..', 'temp-notarize.zip');
+        try {
+            // 将所有原生二进制文件打包
+            const zip = new JSZip();
+            for (const binaryFile of binaryFiles) {
+                const relativePath = path.relative(extensionDir, binaryFile);
+                const fileContent = await fs.readFile(binaryFile);
+                zip.file(relativePath, fileContent);
+            }
+            
+            const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+            await fs.writeFile(tempZipPath, zipContent);
+
+            // 提交公证
+            console.log('📤 提交公证请求...');
+            const notarizeCommand = `xcrun notarytool submit "${tempZipPath}" --apple-id "${appleId}" --password "${appPassword}" --team-id "${teamId}" --wait`;
+            execSync(notarizeCommand, {
+                stdio: 'inherit',
+                timeout: 6000000 // 10分钟超时
+            });
+
+            console.log('✅ 原生二进制文件公证完成');
+        } catch (error) {
+            console.error('❌ 公证失败:', error.message);
+            // 公证失败不应该阻止发布流程
+        } finally {
+            // 清理临时文件
+            if (await fs.pathExists(tempZipPath)) {
+                await fs.remove(tempZipPath);
+            }
+        }
+    } else {
+        console.log('ℹ️  跳过公证（未配置公证参数或未启用）');
+        console.log('   设置以下环境变量以启用公证:');
+        console.log('   - NOTARIZE_ENABLED=true');
+        console.log('   - APPLE_ID=your-apple-id');
+        console.log('   - APPLE_APP_PASSWORD=your-app-password');
+        console.log('   - APPLE_TEAM_ID=your-team-id');
+    }
+
+    console.log('🎉 原生二进制文件签名和公证流程完成');
 }
 
 /**
@@ -385,7 +551,7 @@ async function release() {
         const ignorePatterns = await readIgnorePatterns(rootDir);
 
         // 执行根目录的 npm install（只需要执行一次）
-        await installRootDependencies(rootDir);
+        // await installRootDependencies(rootDir);
 
         // 扫描项目文件（只需要扫描一次）
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
@@ -424,6 +590,9 @@ async function releaseForType(options, rootDir, publishDir, version, ignorePatte
     if (options.type === 'electron') {
         await rebuildElectronModules(extensionDir);
     }
+
+    // 步骤 5: 对原生二进制文件进行签名和公证（仅限 macOS）
+    await signAndNotarizeNativeBinaries(extensionDir);
 
     console.log('🎉 发布完成！');
     console.log(`📁 发布目录: ${extensionDir}`);
