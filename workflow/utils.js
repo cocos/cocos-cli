@@ -1,3 +1,6 @@
+/**
+ * 注意：这里不要使用不是 nodejs 原生的模块
+ */
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
