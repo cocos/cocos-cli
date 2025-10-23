@@ -598,7 +598,7 @@ async function release() {
         const ignorePatterns = await readIgnorePatterns(rootDir);
 
         // 执行根目录的 npm install（只需要执行一次）
-        // await installRootDependencies(rootDir);
+        await installRootDependencies(rootDir);
 
         // 扫描项目文件（只需要扫描一次）
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
