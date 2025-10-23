@@ -11,6 +11,7 @@ import assetConfig from '../../../asset-config';
 import { createFbxConverter } from '../utils/fbx-converter';
 import { modelConvertRoutine } from '../utils/model-convert-routine';
 import { fbxToGlTf } from './fbx-to-gltf';
+import { I18nKeys } from '../../../../../i18n/types/generated';
 
 class GlTfReaderManager {
     private _map = new Map<string, GltfConverter>();
@@ -277,7 +278,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
         if (!Array.isArray(glTF[group])) {
             return '';
         } else {
-            let groupNameI18NKey: string;
+            let groupNameI18NKey: I18nKeys;
             switch (group) {
                 case 'meshes':
                     groupNameI18NKey = 'importer.glTF.glTF_asset_group_mesh';
@@ -295,7 +296,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
                     groupNameI18NKey = 'importer.glTF.glTF_asset_group_sampler';
                     break;
                 default:
-                    groupNameI18NKey = group;
+                    groupNameI18NKey = group as I18nKeys;
                     break;
             }
             const asset = glTF[group][index];
@@ -332,10 +333,10 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
                     texture: getRepOfGlTFResource('textures', tArgs.texture),
                     type: i18nTranslate(
                         tArgs.type === 'minFilter'
-                            ? 'importer.glTF.min_filter'
+                            ? 'importer.glTF.texture_parameter_min_filter'
                             : tArgs.type === 'magFilter'
-                                ? 'importer.glTF.mag_filter'
-                                : 'importer.glTF.wrapMode',
+                                ? 'importer.glTF.texture_parameter_mag_filter'
+                                : 'importer.texture.wrapMode',
                     ),
                     value: '',
                 });

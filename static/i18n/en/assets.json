@@ -23,6 +23,9 @@
             "readonly": "Failed to save asset META: cannot operate on readonly asset"
         }
     },
+    "init": {
+        "noAssetDBList": "Asset database list is empty, please check the asset configuration"
+    },
     "operation": {
         "invalid_url": "Invalid URL: input URL must be a string and start with db://",
         "exists_url": "Invalid URL: URL points to non-existent asset",

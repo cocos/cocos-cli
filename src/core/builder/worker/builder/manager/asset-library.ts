@@ -12,8 +12,8 @@ import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../..
 import assetManager from '../../../../assets/manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../assets/@types/protected';
 import assetDBManager from '../../../../assets/manager/asset-db';
-import { transI18n } from '../../../share/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
+import i18n from '../../../../base/i18n';
 
 // 版本号记录
 const CACHE_VERSION = '1.0.1';
@@ -260,7 +260,7 @@ class BuildAssetLibrary {
 
         const result: any = await this.getRawInstance(asset);
         if (!result.asset) {
-            console.error(transI18n('builder.error.get_asset_json_failed', {
+            console.error(i18n.t('builder.error.get_asset_json_failed', {
                 url: asset.url,
                 type: assetManager.queryAssetProperty(asset, 'type'),
             }));
@@ -399,7 +399,7 @@ class BuildAssetLibrary {
         };
         if (asset.invalid) {
             console.error(
-                transI18n('builder.error.asset_import_failed', {
+                i18n.t('builder.error.asset_import_failed', {
                     url: `{asset(${asset.url})}`,
                     type: assetManager.queryAssetProperty(asset, 'type'),
                 }),
@@ -412,7 +412,7 @@ class BuildAssetLibrary {
         if (!jsonSrc && !cconbSrc) {
             // TODO 由于目前无法确认，.json 不存在是由于资源本身如此还是因为导入器 bug，只能先 debug 打印
             console.debug(
-                transI18n('builder.warn.no_serialized_json', {
+                i18n.t('builder.warn.no_serialized_json', {
                     url: `{asset(${asset.url})}`,
                     type: assetManager.queryAssetProperty(asset, 'type'),
                 }),
@@ -444,7 +444,7 @@ class BuildAssetLibrary {
         }) as CCAsset;
         if (!deserializedAsset) {
             console.error(
-                transI18n('builder.error.deserialize_failed', {
+                i18n.t('builder.error.deserialize_failed', {
                     url: `{asset(${asset.url})}`,
                 }),
             );
@@ -488,7 +488,7 @@ class BuildAssetLibrary {
         }
         // if (missingAssets.length > 0) {
         //     console.warn(
-        //         transI18n('builder.error.required_asset_missing', {
+        //         i18n.t('builder.error.required_asset_missing', {
         //             url: `{asset(${asset.url})}`,
         //             uuid: missingAssets.join('\n '),
         //         }),

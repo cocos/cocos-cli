@@ -1,9 +1,9 @@
 import { existsSync } from 'fs';
 import { appendFile, outputFileSync, readdir, remove } from 'fs-extra';
 import { basename } from 'path';
-import { transI18nName } from '../assets/utils';
 import { consola, type ConsolaInstance } from 'consola';
 import ora, { type Ora } from 'ora';
+import i18n from './i18n';
 export type IConsoleType = 'log' | 'warn' | 'error' | 'debug' | 'info' | 'success' | 'ready' | 'start';
 
 interface IConsoleMessage {
@@ -389,7 +389,7 @@ export class NewConsole {
         }
         time = time || Date.now();
         const durTime = time - recordTime;
-        const label = typeof options.label === 'string' ? transI18nName(options.label) : message;
+        const label = typeof options.label === 'string' ? i18n.transI18nName(options.label) : message;
         this.debug(label + ` (${durTime}ms)`);
         this.trackTimeStartMap.delete(message);
         return durTime;

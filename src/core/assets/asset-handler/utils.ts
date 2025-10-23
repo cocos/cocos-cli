@@ -6,9 +6,10 @@ import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
 import { Asset } from '@editor/asset-db';
 import { IAssetMeta } from '../@types/private';
+import type { I18nKeys } from '../../../i18n/types/generated';
 declare const cc: any;
 
-export function i18nTranslate<Key extends string>(
+export function i18nTranslate<Key extends I18nKeys>(
     key: Key,
     ...args: any[]
 ): string {

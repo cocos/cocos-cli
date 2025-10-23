@@ -4,6 +4,7 @@ import ps from 'path';
 import fs, { pathExists } from 'fs-extra';
 import cp from 'child_process';
 import { i18nTranslate, linkToAssetTarget } from '../../utils';
+import { I18nKeys } from '../../../../../i18n/types/generated';
 
 export function createFbxConverter(options: {
     unitConversion?: 'geometry-level' | 'hierarchy-level' | 'disabled';
@@ -208,7 +209,7 @@ export function createFbxConverter(options: {
     }
 
     function getI18nMessage(code: string, message?: any) {
-        return i18nTranslate(`engine-extends.importers.fbx.fbxGlTfConv.${code}`, message);
+        return i18nTranslate(`importer.fbx.fbxGlTfConv.${code}` as I18nKeys, message);
     }
 
     function addAssetMark(text: string, asset: Asset) {

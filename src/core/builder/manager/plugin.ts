@@ -265,7 +265,7 @@ export class PluginManager extends EventEmitter {
                 console.warn(i18n.t('builder.warn.checkFailedWithNewValue', {
                     key: 'mainBundleCompressionType',
                     value: options.mainBundleCompressionType,
-                    error: i18n.t(compressionTypeResult.error.replace('i18n:', '')) || compressionTypeResult.error,
+                    error: i18n.transI18nName(compressionTypeResult.error) || compressionTypeResult.error,
                     newValue: JSON.stringify(compressionTypeResult.newValue),
                 }));
             }
@@ -289,7 +289,7 @@ export class PluginManager extends EventEmitter {
             // @ts-ignore
             const res = await this.checkCommonOptionByKey(key as keyof IBuildTaskOption, rightOptions[key], rightOptions);
             if (res && res.error && res.level === 'error') {
-                const errMsg = i18n.t(res.error.replace('i18n:', '')) || res.error;
+                const errMsg = i18n.transI18nName(res.error) || res.error;
                 if (!validator.checkWithInternalRule('valid', res.newValue)) {
                     checkRes = false;
                     console.error(i18n.t('builder.error.checkFailed', {
@@ -406,7 +406,7 @@ export class PluginManager extends EventEmitter {
                     ));
                 }
                 const verifyLevel: IConsoleType = buildConfig.options[key].verifyLevel || 'error';
-                const errMsg = (typeof error === 'string' && i18n.t(error.replace('i18n:', ''))) || error;
+                const errMsg = (typeof error === 'string' && i18n.transI18nName(error)) || error;
 
                 if (!useDefault && verifyLevel === 'error') {
                     console.error(i18n.t('builder.error.checkFailed', {

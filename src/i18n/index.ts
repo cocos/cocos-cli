@@ -2,6 +2,9 @@ import i18n from 'i18next';
 import fs from 'fs';
 import path from 'path';
 
+// 导入生成的类型定义
+import './types/generated';
+
 // 加载指定语言下的所有 JSON 文件并合并为扁平结构
 function loadLanguageResources(language: string): Record<string, any> {
     const localesDir = path.join(__dirname, '../../static/i18n', language);
@@ -23,7 +26,7 @@ function loadLanguageResources(language: string): Record<string, any> {
                 // 递归合并对象，添加命名空间前缀
                 function mergeWithPrefix(obj: any, prefix: string) {
                     for (const key in obj) {
-                        if (obj.hasOwnProperty(key)) {
+                        if (Object.prototype.hasOwnProperty.call(obj, key)) {
                             const newKey = prefix ? `${prefix}.${key}` : key;
                             if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
                                 mergeWithPrefix(obj[key], newKey);

@@ -23,6 +23,9 @@
             "readonly": "保存资源 META 失败: 不能在只读资源上操作"
         }
     },
+    "init": {
+        "noAssetDBList": "资源数据库列表为空，请检查资源配置"
+    },
     "operation": {
         "invalid_url": "无效的 URL: 传入 URL 必须是字符串, 且以 db:// 开头",
         "exists_url": "无效的 URL: URL 指向资源不存在",

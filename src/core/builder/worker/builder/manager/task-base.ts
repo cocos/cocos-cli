@@ -1,9 +1,9 @@
 import EventEmitter from 'events';
-import { transI18n } from '../../../share/utils';
 import { newConsole } from '../../../../base/console';
 import { IBuildOptionBase, IConsoleType } from '../../../@types';
 import { IBuildHooksInfo } from '../../../@types/protected';
 import Utils from '../../../../base/utils';
+import i18n from '../../../../base/i18n';
 
 export abstract class BuildTaskBase extends EventEmitter {
     // break 原因
@@ -82,7 +82,7 @@ export abstract class BuildTaskBase extends EventEmitter {
                     this.updateProcess(`${pkgName}:${funcName} completed ✓`, increment, 'success');
                 }
             } catch (error) {
-                const errorMsg = transI18n('builder.error.run_hooks_failed', {
+                const errorMsg = i18n.t('builder.error.run_hooks_failed', {
                     pkgName,
                     funcName,
                 });

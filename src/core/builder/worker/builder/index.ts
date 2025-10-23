@@ -21,6 +21,7 @@ import Utils from '../../../base/utils';
 import { pluginManager } from '../../manager/plugin';
 import i18n from '../../../base/i18n';
 import { checkProjectSetting } from '../../share/common-options-validator';
+import { I18nKeys } from '../../../../i18n/types/generated';
 
 export class BuildTask extends BuildTaskBase implements IBuilder {
     public cache: BuilderAssetCache;
@@ -558,7 +559,7 @@ function transTitle(title: string): string {
     }
     if (title.startsWith('i18n:')) {
         title = title.replace('i18n:', '');
-        const res = i18n.t(title);
+        const res = i18n.t(title as I18nKeys);
         if (res === title) {
             console.debug(`${title} is not defined in i18n`);
         }
