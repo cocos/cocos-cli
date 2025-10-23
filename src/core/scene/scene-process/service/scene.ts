@@ -91,6 +91,7 @@ export class SceneService extends EventEmitter implements ISceneService {
 
             // 清空节点 path 缓存（重要，否则会出现数据重复的问题）
             EditorExtends.Node.clear();
+            EditorExtends.Component.clear();
 
             console.log('运行场景');
             const sceneInstance = await new Promise<cc.Scene>((resolve, reject) => {
@@ -152,7 +153,6 @@ export class SceneService extends EventEmitter implements ISceneService {
             console.log(`场景映射表移除: ${uuid}`);
             this.emit('close', closedScene.instance);
             console.log('发出关闭事件');
-
             console.log(`场景关闭成功: ${closedScene.identifier.assetUrl}`);
             return true;
         } catch (error) {

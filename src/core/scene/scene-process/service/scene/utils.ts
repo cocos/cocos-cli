@@ -27,6 +27,9 @@ class SceneUtil {
                 cc.assetManager.loadWithJson(serializeJSON, null, (error: Error | null, scene: cc.SceneAsset) => {
                     if (error) return reject(error);
                     try {
+                        // 清空节点 path 缓存（重要，否则会出现数据重复的问题）
+                        EditorExtends.Node.clear();
+                        EditorExtends.Component.clear();
                         cc.director.runSceneImmediate(scene, undefined, () => {
                             resolve(cc.director.getScene()!);
                         });

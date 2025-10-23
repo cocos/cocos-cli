@@ -7,6 +7,7 @@ import { Vec3, Node, Prefab, CCObject, Quat } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, setLayer } from './node/node-utils';
 import sceneUtil from './scene/utils';
+import NodeConfig from './node-type-config';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -27,31 +28,22 @@ export class NodeService extends EventEmitter implements INodeService {
     once(type: NodeEventType, listener: (arg: any) => void): this { return super.once(type, listener); }
     emit(type: NodeEventType, ...args: any[]): boolean { return super.emit(type, ...args); }
 
-    _nodeConfigJson: Record<string, Array<{ assetUuid: string, name: string, canvasRequired: boolean }>> | null = null;
 
     @expose()
     async createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
-        if (!this._nodeConfigJson) {
-            const serializeJSON = await readFile("src/core/scene/common/node-config.json", 'utf8');
-            this._nodeConfigJson = JSON.parse(serializeJSON);
-        }
-        if (!this._nodeConfigJson) {
-            throw new Error('NodeService.createNode load node-config.json failed .');
-        }
-
         let canvasNeeded = params.canvasRequired || false;
         const nodeType = params.nodeType as string;
-        const paramsArray = this._nodeConfigJson![nodeType];
+        const paramsArray = NodeConfig[nodeType];
         if (!paramsArray || paramsArray.length < 0) {
             throw new Error(`Node type '${nodeType}' is not implemented`);
         }
-        let assetUuid = paramsArray[0].assetUuid;
+        let assetUuid = paramsArray[0].assetUuid || null;
         canvasNeeded = paramsArray[0].canvasRequired ? true : false;
-        if (paramsArray.length > 1) {
-            if (params.workMode === '3d') {
-                assetUuid = paramsArray[1]['assetUuid'];
-                canvasNeeded = paramsArray[1].canvasRequired ? true : false;
-            }
+        const projectType = paramsArray[0]['project-type'];
+        const workMode = params.workMode;
+        if (projectType && workMode && projectType !== workMode && paramsArray.length > 1) {
+            assetUuid = paramsArray[1]['assetUuid'] || null;
+            canvasNeeded = paramsArray[1].canvasRequired ? true : false;
         }
 
         return this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
