@@ -45,8 +45,6 @@ async function mockNpmModules() {
     const forceFlag = forceUpdate ? '--force' : '';
     
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
-    // build web-adapter
-    await utils.runCommand('node', ['./workflow/build-adapter.js', forceFlag].filter(Boolean));
     // compiler engine
     await utils.runCommand('node', ['./workflow/compiler-engine.js', forceFlag].filter(Boolean));
     // build cc module
