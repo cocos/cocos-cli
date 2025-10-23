@@ -1,5 +1,5 @@
 const { spawn, spawnSync } = require('child_process');
-const fse = require('fs-extra');
+const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
 
@@ -7,7 +7,7 @@ const chalk = require('chalk');
  * 是否是开发环境
  */
 function hasDevelopmentEnvironment() {
-    return fse.existsSync(path.join(__dirname, '../repo.json'));
+    return fs.existsSync(path.join(__dirname, '../repo.json'));
 }
 
 /**
