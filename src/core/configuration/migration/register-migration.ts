@@ -28,7 +28,11 @@ export function getMigrationList(): IMigrationTarget[] {
         pluginName: 'builder',
         targetPath: 'builder.common',
         migrate: async (oldConfig: Record<string, any>) => {
+            if (!oldConfig?.common) {
+                return;
+            }
             delete oldConfig.common.platform;
+            delete oldConfig.common.outputName;
             return oldConfig.common;
         }
     });
@@ -39,11 +43,18 @@ export function getMigrationList(): IMigrationTarget[] {
         pluginName: 'builder',
         targetPath: 'builder',
         migrate: async (oldConfig: Record<string, any>) => {
-            return {
-                bundleConfig: oldConfig.bundleConfig,
-                textureCompressConfig: oldConfig.textureCompressConfig,
-                splashScreen: oldConfig['splash-setting'],
-            };
+            const res: any = {};
+
+            if (oldConfig.bundleConfig) {
+                res.bundleConfig = oldConfig.bundleConfig;
+            }
+            if (oldConfig.textureCompressConfig) {
+                res.textureCompressConfig = oldConfig.textureCompressConfig;
+            }
+            if (oldConfig['splash-setting']) {
+                res.splashScreen = oldConfig['splash-setting'];
+            }
+            return res;
         }
     });
 
@@ -53,10 +64,14 @@ export function getMigrationList(): IMigrationTarget[] {
         pluginName: 'builder',
         targetPath: 'builder',
         migrate: async (oldConfig: Record<string, any>) => {
-            return {
-                bundleConfig: oldConfig.bundleConfig,
-                textureCompressConfig: oldConfig.textureCompressConfig,
-            };
+            const res: any = {};
+            if (oldConfig.bundleConfig) {
+                res.bundleConfig = oldConfig.bundleConfig;
+            }
+            if (oldConfig.textureCompressConfig) {
+                res.textureCompressConfig = oldConfig.textureCompressConfig;
+            }
+            return res;
         }
     });
 
@@ -72,12 +87,19 @@ export function getMigrationList(): IMigrationTarget[] {
                     delete oldConfig.modules.configs[key].cache;
                 });
             }
-            return {
-                macroConfig: oldConfig.macroConfig,
-                configs: oldConfig.modules.configs,
-                globalConfigKey: oldConfig.modules.globalConfigKey,
-                graphics: oldConfig.modules.graphics,
-            };
+            const res: any = {};
+            if (oldConfig.macroConfig) {
+                res.macroConfig = oldConfig.macroConfig;
+            }
+            if (oldConfig.modules.configs) {
+                res.configs = oldConfig.modules.configs;
+            }
+            if (oldConfig.modules.globalConfigKey) {
+                res.globalConfigKey = oldConfig.modules.globalConfigKey;
+            }
+            if (oldConfig.modules.graphics) {
+                return res;
+            }
         }
     });
 
@@ -86,23 +108,43 @@ export function getMigrationList(): IMigrationTarget[] {
         sourceScope: 'project',
         pluginName: 'project',
         migrate: async (oldConfig: Record<string, any>) => {
-            return {
-                engine: {
+            const res: any = {};
+            if (oldConfig.general) {
+                res.engine = {
                     designResolution: oldConfig.general.designResolution,
                     downloadMaxConcurrency: oldConfig.general.downloadMaxConcurrency,
-                    physicsConfig: oldConfig.physics,
-                    macroConfig: oldConfig.macroConfig,
-                    sortingLayers: oldConfig['sorting-layer'],
-                    customLayers: oldConfig.layer,
-                    graphics: oldConfig.graphics,
-                    highQuality: oldConfig.highQuality,
-                    renderPipeline: oldConfig.general.renderPipeline,
-                },
-                script: oldConfig.script,
-                import: {
-                    fbx: oldConfig.fbx,
-                }
-            };
+                };
+            }
+            if (oldConfig.physics) {
+                res.engine.physicsConfig = oldConfig.physics;
+            }
+            if (oldConfig.macroConfig) {
+                res.engine.macroConfig = oldConfig.macroConfig;
+            }
+            if (oldConfig['sorting-layer']) {
+                res.engine.sortingLayers = oldConfig['sorting-layer'];
+            }
+            if (oldConfig.layer) {
+                res.engine.customLayers = oldConfig.layer;
+            }
+            if (oldConfig.graphics) {
+                res.engine.graphics = oldConfig.graphics;
+            }
+            if (oldConfig.highQuality) {
+                res.engine.highQuality = oldConfig.highQuality;
+            }
+            if (oldConfig.general?.renderPipeline) {
+                res.engine.renderPipeline = oldConfig.general.renderPipeline;
+            }
+            if (oldConfig.script) {
+                res.script = oldConfig.script;
+            }
+            if (oldConfig.import) {
+                res.import = {
+                    fbx: oldConfig.import.fbx,
+                };
+            }
+            return res;
         }
     });
 

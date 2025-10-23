@@ -14,10 +14,6 @@ export const MessageType = {
  * 配置的格式
  */
 export interface IConfiguration {
-    /**
-     * 版本号
-     */
-    version: string;
 
     /**
      * 其他配置

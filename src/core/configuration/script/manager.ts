@@ -45,9 +45,15 @@ export class ConfigurationManager implements IConfigurationManager {
     private initialized: boolean = false;
     private projectPath: string = '';
     private configPath: string = '';
-    private projectConfig: IConfiguration = {
-        version: '0.0.0',
-    };
+    private projectConfig: IConfiguration = {};
+
+    private _version: string = '0.0.0';
+    get version(): string {
+        return this._version;
+    }
+    set version(value: string) {
+        this._version = value;
+    }
 
     private configurationMap: Map<string, (...args: any[]) => void> = new Map();
     private onRegistryConfigurationBind = this.onRegistryConfiguration.bind(this);
@@ -74,6 +80,12 @@ export class ConfigurationManager implements IConfigurationManager {
             console.error(error);
         }
         this.initialized = true;
+    }
+
+    public async reload(): Promise<void> {
+        await this.load();
+        // 迁移不能影响正常的配置初始化流程
+        await this.migrate();
     }
 
     private onRegistryConfiguration(instance: IBaseConfiguration): void {
@@ -124,8 +136,7 @@ export class ConfigurationManager implements IConfigurationManager {
      * 迁移，包含了 3x 迁移，允许外部单独触发
      */
     public async migrate(): Promise<void> {
-        const currentVersion = this.projectConfig.version || '0.0.0';
-        const upgrade = gt(ConfigurationManager.VERSION, currentVersion);
+        const upgrade = gt(ConfigurationManager.VERSION, this.version);
         if (upgrade) {
             // TODO 新版本迁移
             // 3.x 迁移
@@ -142,7 +153,7 @@ export class ConfigurationManager implements IConfigurationManager {
      */
     public async migrateFromProject(projectPath: string): Promise<IConfiguration> {
         const list = await CocosMigrationManager.migrate(projectPath);
-        this.projectConfig = utils.deepMerge(this.projectConfig, list.project);
+        this.projectConfig = utils.deepMerge(this.projectConfig, list.project) as IConfiguration;
         await this.save();
         return this.projectConfig;
     }
@@ -249,6 +260,7 @@ export class ConfigurationManager implements IConfigurationManager {
         try {
             if (await fse.pathExists(this.configPath)) {
                 this.projectConfig = await fse.readJSON(this.configPath);
+                this.projectConfig.version && (this.version = this.projectConfig.version);
                 newConsole.debug(`[Configuration] 已加载项目配置: ${this.configPath}`, this.projectConfig);
             } else {
                 newConsole.debug(`[Configuration] 项目配置文件不存在，将创建新文件: ${this.configPath}`);
@@ -264,16 +276,19 @@ export class ConfigurationManager implements IConfigurationManager {
      * 保存项目配置
      */
     private async save(): Promise<void> {
-        if (!Object.keys(this.projectConfig).length) {
+        if (!this.projectConfig) {
             return;
         }
         try {
-            this.projectConfig.version = ConfigurationManager.VERSION;
+            this.version = ConfigurationManager.VERSION;
             // 确保目录存在
             await fse.ensureDir(path.dirname(this.configPath));
 
             // 保存配置文件
-            await fse.writeJSON(this.configPath, this.projectConfig, { spaces: 4 });
+            await fse.writeJSON(this.configPath, {
+                version: this._version,
+                ...this.projectConfig,
+            }, { spaces: 4 });
             newConsole.debug(`[Configuration] 已保存项目配置: ${this.configPath}`);
         } catch (error) {
             newConsole.error(`[Configuration] 保存项目配置失败: ${this.configPath} - ${error}`);
