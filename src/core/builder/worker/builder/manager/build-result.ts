@@ -265,7 +265,7 @@ export class BuildResult implements IBuildResult {
      * @param uuid 
      */
     public getJsonPathInfo(uuid: string): IImportAssetPathInfo[] {
-        console.warn(i18n.t('builder.warn.deprecatedTip', {
+        console.warn(i18n.t('builder.warn.deprecated_tip', {
             oldName: 'result.getJsonPathInfo',
             newName: 'result.getImportAssetPaths',
         }));

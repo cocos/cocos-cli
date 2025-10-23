@@ -108,7 +108,7 @@ export async function warnModuleFallBack(moduleToFallBack: Record<string, string
         }
         return prev + `, ${changeFallbackStr(curr, moduleToFallBack[curr])}`;
     });
-    return console.warn(i18n.t('builder.warn.engineModulesFallBackTip', {
+    return console.warn(i18n.t('builder.warn.engine_modules_fall_back_tip', {
         platform,
         fallbackMsg,
     }));

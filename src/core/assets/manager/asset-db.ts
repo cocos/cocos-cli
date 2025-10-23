@@ -83,7 +83,7 @@ class AssetDBManager extends EventEmitter {
     async init() {
         const { assetDBList, flagReimportCheck, libraryRoot, tempRoot, restoreAssetDBFromCache } = assetConfig.data;
         if (!assetDBList.length) {
-            throw new Error(i18n.t('assets.init.noAssetDBList'));
+            throw new Error(i18n.t('assets.init.no_asset_db_list'));
         }
         AssetDBManager.libraryRoot = libraryRoot;
         AssetDBManager.tempRoot = tempRoot;
@@ -99,7 +99,7 @@ class AssetDBManager extends EventEmitter {
 
         if (AssetDBManager.useCache && !existsSync(AssetDBManager.libraryRoot)) {
             AssetDBManager.useCache = false;
-            console.log(i18n.t('assets.restoreAssetDBFromCacheInValid.noLibraryPath'));
+            console.log(i18n.t('assets.restore_asset_d_b_from_cache_in_valid.no_library_path'));
         }
         await this.pluginManager.init();
         await this.assetHandlerManager.init();
@@ -378,7 +378,7 @@ class AssetDBManager extends EventEmitter {
      */
     async removeDB(name: string) {
         if (this.isPause) {
-            console.log(i18n.t('assets.assetDBPauseTips',
+            console.log(i18n.t('assets.asset_d_b_pause_tips',
                 { operate: 'removeDB' }
             ));
             return new Promise((resolve) => {
@@ -431,7 +431,7 @@ class AssetDBManager extends EventEmitter {
         }
         if (this.state !== 'free' || this.isPause || this.assetBusy) {
             if (this.isPause) {
-                console.log(i18n.t('assets.assetDBPauseTips',
+                console.log(i18n.t('assets.asset_d_b_pause_tips',
                     { operate: 'refresh' }
                 ));
             }
@@ -513,7 +513,7 @@ class AssetDBManager extends EventEmitter {
 
     async addTask(func: Function, args: any[]): Promise<any> {
         if (this.isPause || this.state === 'busy') {
-            console.log(i18n.t('assets.assetDBPauseTips',
+            console.log(i18n.t('assets.asset_d_b_pause_tips',
                 { operate: func.name }
             ));
             return new Promise((resolve) => {

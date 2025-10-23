@@ -63,7 +63,7 @@ export class BuildTemplate implements IBuildTemplate {
             this._versionUser = this._versionUser || '1.0.0';
             // 用户构建模板版本小于默认构建模板版本，警告建议更新
             if (utils.Parse.compareVersion(this.config.version, this._versionUser)) {
-                console.warn(i18n.t('builder.tips.templateVersionWarning', {
+                console.warn(i18n.t('builder.tips.template_version_warning', {
                     version: this._versionUser,
                     internalConfig: this.config.version,
                     platform,

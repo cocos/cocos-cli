@@ -41,7 +41,7 @@ export async function handle(this: IBuilder, options: IInternalBuildOptions, res
         Object.assign(options.appTemplateData, {
             settingsJsonPath,
             hasPhysicsAmmo: options.buildEngineParam.includeModules.includes('physics-ammo'),
-            versionTips: i18n.t('builder.tips.applicationEjsVersion'),
+            versionTips: i18n.t('builder.tips.application_ejs_version'),
             customVersion: APPLICATION_EJS_VERSION,
             versionCheckTemplate: join(templateDir, 'version-check.ejs'),
         }),

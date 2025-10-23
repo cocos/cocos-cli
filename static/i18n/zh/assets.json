@@ -1,12 +1,12 @@
 {
     "title": "资源数据库",
     "description": "Cocos Creator 资源管理器",
-    "deprecatedTip": "{oldName} 已在 {version} 版本废弃，请更换为 {newName}",
-    "globalReadonlyTip": "全局变量 {name} 字段已被资源进程使用，不可重写，请更换其他字段",
-    "debug-mode": "打开资源(构建)调试工具",
-    "assetDBPauseTips": "资源数据库已锁定，资源操作({operate})将会延迟响应，请稍侯",
-    "assetDBInitError": "资源进程启动失败！",
-    "saveAsset": {
+    "deprecated_tip": "{oldName} 已在 {version} 版本废弃，请更换为 {newName}",
+    "global_readonly_tip": "全局变量 {name} 字段已被资源进程使用，不可重写，请更换其他字段",
+    "debug_mode": "打开资源(构建)调试工具",
+    "asset_d_b_pause_tips": "资源数据库已锁定，资源操作({operate})将会延迟响应，请稍侯",
+    "asset_d_b_init_error": "资源进程启动失败！",
+    "save_asset": {
         "fail": {
             "unknown": "保存资源失败: 未知错误",
             "uuid": "保存资源失败: 无法识别 UUID",
@@ -15,7 +15,7 @@
             "readonly": "保存资源失败: 不能在只读资源上操作"
         }
     },
-    "saveAssetMeta": {
+    "save_asset_meta": {
         "fail": {
             "unknown": "保存资源 META 失败: 未知错误",
             "uuid": "保存资源 META 失败: 无法识别 UUID",
@@ -24,7 +24,7 @@
         }
     },
     "init": {
-        "noAssetDBList": "资源数据库列表为空，请检查资源配置"
+        "no_asset_db_list": "资源数据库列表为空，请检查资源配置"
     },
     "operation": {
         "invalid_url": "无效的 URL: 传入 URL 必须是字符串, 且以 db:// 开头",
@@ -32,7 +32,7 @@
         "readonly": "目标路径不合法: 目标为只读文件夹",
         "overwrite": "文件已存在，是否覆盖？"
     },
-    "deleteAsset": {
+    "delete_asset": {
         "fail": {
             "unknown": "删除资源失败: 未知错误",
             "url": "删除资源失败: 参数不合法",
@@ -40,7 +40,7 @@
             "readonly": "删除资源失败: 只读文件不可删除"
         }
     },
-    "createAsset": {
+    "create_asset": {
         "title": "创建资源",
         "fail": {
             "unknown": "创建资源 ({target}) 失败: 未知错误",
@@ -48,28 +48,28 @@
             "url": "创建资源失败: 传入的地址 ({url}) 无法识别",
             "exist": "创建资源失败: 文件已经存在",
             "drop": "创建资源失败: 导入的资源地址 ({target}) 不存在",
-            "toUrl": "创建资源失败: 文件路径 ({target}) 可能超出项目范围，无法转为项目内的 URL",
+            "to_url": "创建资源失败: 文件路径 ({target}) 可能超出项目范围，无法转为项目内的 URL",
             "uuid": "创建资源失败: 无法转换为项目 URL 的参数 ({target})"
         }
     },
-    "importAsset": {
-        "metaExists": "{name} 资源 meta 文件已存在，跳过 meta 导入，如果需要请在偏好设置内开启"
+    "import_asset": {
+        "meta_exists": "{name} 资源 meta 文件已存在，跳过 meta 导入，如果需要请在偏好设置内开启"
     },
-    "openAsset": {
-        "preferenceProgramWarning": "为更好地打开脚本，请在 {preferences} -> {program} -> {scriptEditor} 里配置打开脚本的应用程序",
+    "open_asset": {
+        "preference_program_warning": "为更好地打开脚本，请在 {preferences} -> {program} -> {scriptEditor} 里配置打开脚本的应用程序",
         "fail": {
-            "noAsset": "打开资源失败：无法找到资源"
+            "no_asset": "打开资源失败：无法找到资源"
         }
     },
-    "copyAsset": {
+    "copy_asset": {
         "fail": {
             "unknown": "复制资源失败: 未知错误",
             "url": "复制资源失败: 参数不合法"
         }
     },
-    "restoreAssetDBFromCacheInValid": {
+    "restore_asset_d_b_from_cache_in_valid": {
         "upgrade": "项目升级过程中，资源启动复用缓存机制无效",
-        "noLibraryPath": "library 文件夹不存在，资源启动复用缓存机制无效"
+        "no_library_path": "library 文件夹不存在，资源启动复用缓存机制无效"
     },
     "preferences": {
         "log_level": "日志等级",

@@ -27,28 +27,28 @@ describe('i18n 功能测试', () => {
     test('带参数的翻译 - 英文模式', () => {
         i18n.setLanguage('en');
 
-        const deprecatedTip = i18n.t('assets.deprecatedTip', {
+        const deprecatedTip = i18n.t('assets.deprecated_tip', {
             oldName: 'oldAPI',
             version: '3.0',
             newName: 'newAPI'
         });
         expect(deprecatedTip).toBe('oldAPI has been deprecated in version 3.0, please replace with newAPI');
 
-        const globalReadonlyTip = i18n.t('assets.globalReadonlyTip', { name: 'globalVar' });
+        const globalReadonlyTip = i18n.t('assets.global_readonly_tip', { name: 'globalVar' });
         expect(globalReadonlyTip).toBe('Global variable globalVar field is already used by asset process and cannot be overwritten, please use other field');
     });
 
     test('带参数的翻译 - 中文模式', () => {
         i18n.setLanguage('zh');
 
-        const deprecatedTip = i18n.t('assets.deprecatedTip', {
+        const deprecatedTip = i18n.t('assets.deprecated_tip', {
             oldName: 'oldAPI',
             version: '3.0',
             newName: 'newAPI'
         });
         expect(deprecatedTip).toBe('oldAPI 已在 3.0 版本废弃，请更换为 newAPI');
 
-        const globalReadonlyTip = i18n.t('assets.globalReadonlyTip', { name: 'globalVar' });
+        const globalReadonlyTip = i18n.t('assets.global_readonly_tip', { name: 'globalVar' });
         expect(globalReadonlyTip).toBe('全局变量 globalVar 字段已被资源进程使用，不可重写，请更换其他字段');
     });
 
@@ -62,8 +62,9 @@ describe('i18n 功能测试', () => {
     });
 
     test('不存在的 key 处理', () => {
-        expect(i18n.t('nonexistent.key')).toBe('nonexistent.key');
-        expect(i18n.t('nonexistent.loading')).toBe('nonexistent.loading');
+        // 测试不存在的键会返回原键名
+        expect(i18n.t('nonexistent.key' as any)).toBe('nonexistent.key');
+        expect(i18n.t('nonexistent.loading' as any)).toBe('nonexistent.loading');
     });
 
     test('语言切换功能', () => {

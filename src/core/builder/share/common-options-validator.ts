@@ -56,13 +56,13 @@ async function checkScenes(scenes: IBuildSceneItem[]): Promise<boolean | Error> 
     }
     const validScenes = scenes.filter((scene) => scene && scene.uuid);
     if (validScenes.length !== scenes.length) {
-        return new Error(i18n.t('builder.error.missingScenes'));
+        return new Error(i18n.t('builder.error.missing_scenes'));
     }
 
     const res = validScenes.map((scene) => assetManager.queryUrl(scene.uuid));
     const invalidIndex = res.findIndex((url) => !url);
     if (invalidIndex !== -1) {
-        return new Error(i18n.t('builder.error.missingScenes', {
+        return new Error(i18n.t('builder.error.missing_scenes', {
             url: validScenes[invalidIndex].url,
         }));
     }

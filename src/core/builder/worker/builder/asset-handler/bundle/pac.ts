@@ -149,7 +149,7 @@ export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: 
     }
 
     if (firstBundleContainAtlasImage && bundlesWithSamePriority.length) {
-        console.warn(i18n.t('builder.warn.repeatAtlasInBundle', {
+        console.warn(i18n.t('builder.warn.repeat_atlas_in_bundle', {
             Atlas: pacInfo.path,
             bundle1: firstBundleContainAtlasImage.root,
             bundle2: bundlesWithSamePriority.toString(),

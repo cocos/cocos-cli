@@ -25,5 +25,5 @@
     "stop": "停止",
     "pause": "暂停",
     "resume": "继续",
-    "deprecatedTip": "此功能已废弃"
+    "deprecated_tip": "此功能已废弃"
 }

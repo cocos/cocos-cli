@@ -369,7 +369,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
                 const isRemote = this.options.mainBundleIsRemote;
                 // 如未配置远程服务器地址，取消主包的远程包配置，需要导出的 bundle 才警告
                 if (customConfig.output && isRemote && !this.options.server && !this.options.preview) {
-                    console.warn(i18n.t('builder.warn.assetBundleIsRemoteInvalid', {
+                    console.warn(i18n.t('builder.warn.asset_bundle_is_remote_invalid', {
                         directoryName: 'main',
                     }));
                 }
@@ -439,7 +439,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         }
         // 未配置远程服务器地址，给用户警告提示
         if (config.isRemote && !this.options.server && !this.options.preview) {
-            console.warn(i18n.t('builder.warn.assetBundleIsRemoteInvalid', {
+            console.warn(i18n.t('builder.warn.asset_bundle_is_remote_invalid', {
                 directoryName: name,
             }));
         }
@@ -960,7 +960,7 @@ async function checkEffectTextureMipmap(asset: IAsset, uuid: string) {
                             // @ts-ignore
                             const meta = await buildAssetLibrary.getMeta(prop.mainTexture._uuid);
                             if (!['nearest', 'linear'].includes(meta.userData.mipfilter)) {
-                                console.warn(i18n.t('builder.warn.requireMipmaps', {
+                                console.warn(i18n.t('builder.warn.require_mipmaps', {
                                     effectUUID: effect._uuid,
                                     // @ts-ignore
                                     textureUUID: prop.mainTexture._uuid,

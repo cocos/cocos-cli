@@ -25,7 +25,7 @@ export async function genMipmapFiles(file: string, destDir?: string, forceChange
     const sharpResult = Sharp(file);
     const metaData = await sharpResult.metadata();
     if (!isPowerOfTwo(metaData.width) || !isPowerOfTwo(metaData.height)) {
-        throw new Error(i18n.t('builder.project.texture_compress.mipmap.noPowerOfTwo'));
+        throw new Error(i18n.t('builder.project.texture_compress.mipmap.no_power_of_two'));
         // TODO forceChangeToPowerOfTwo
     }
     let width = metaData.width;

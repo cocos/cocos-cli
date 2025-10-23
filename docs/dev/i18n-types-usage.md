@@ -138,3 +138,22 @@ node workflow/generate-i18n-types.js
 6. 所有翻译键在联合类型中都用引号包围，避免语法错误
 7. core 模块中的 `src/core/base/i18n.ts` 已经集成了类型支持，可以直接使用
 8. 两个 i18n 实例（`src/i18n` 和 `src/core/base/i18n`）都支持相同的类型提示
+
+## 键名规范
+
+为了保持一致性，所有 i18n 键名都遵循以下规范：
+
+- **使用下划线命名**：所有键名都使用下划线分隔，如 `debug_mode`、`save_asset`
+- **驼峰转下划线**：原来的驼峰命名已转换为下划线，如 `deprecatedTip` → `deprecated_tip`
+- **中划线转下划线**：原来的中划线命名已转换为下划线，如 `debug-mode` → `debug_mode`
+- **嵌套键使用点号**：嵌套结构使用点号分隔，如 `assets.save_asset.fail.unknown`
+
+### 键名变更示例
+
+| 旧键名 | 新键名 |
+|--------|--------|
+| `assets.debug-mode` | `assets.debug_mode` |
+| `assets.deprecatedTip` | `assets.deprecated_tip` |
+| `assets.saveAsset` | `assets.save_asset` |
+| `builder.bundleCommonChunk` | `builder.bundle_common_chunk` |
+| `importer.sharpError` | `importer.sharp_error` |

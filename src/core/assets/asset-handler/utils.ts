@@ -201,7 +201,7 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
                     nodeData._children.splice(i, 1);
                     hasNull = true;
                     console.warn(
-                        i18n.t('importer.invalidNodeData', {
+                        i18n.t('importer.invalid_node_data', {
                             assetUuid,
                             type: i18n.t('importer.node'),
                             value: String(el),
@@ -219,7 +219,7 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
                 if (!el) {
                     nodeData._components.splice(i, 1);
                     console.warn(
-                        i18n.t('importer.invalidNodeData', {
+                        i18n.t('importer.invalid_node_data', {
                             assetUuid,
                             type: i18n.t('importer.component'),
                             value: String(el),
