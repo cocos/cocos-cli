@@ -222,8 +222,9 @@ async function findNativeBinaries(extensionDir) {
                 'mali_darwin/composite',
                 'mali_darwin/convert',
                 'mali_darwin/etcpack',
-                'PVRTexTool_darwin/PVRTexToolCLI',
-                'PVRTexTool_darwin/compare'
+                //todo:纹理压缩的暂时屏蔽掉，因为它使用了过旧的 SDK，无法通过公证
+                // 'PVRTexTool_darwin/PVRTexToolCLI',
+                // 'PVRTexTool_darwin/compare'
             ], {
                 cwd: staticToolsPath,
                 absolute: true,
@@ -247,7 +248,8 @@ async function findNativeBinaries(extensionDir) {
 async function signBinaryFile(filePath, identity) {
     try {
         console.log(`🔐 正在签名: ${path.basename(filePath)}`);
-        execSync(`codesign --force --sign "${identity}" "${filePath}"`, {
+        // 添加 --options runtime 以启用 hardened runtime，这是公证的要求
+        execSync(`codesign --force --options runtime --sign "${identity}" "${filePath}"`, {
             stdio: 'pipe'
         });
         console.log(`✅ 签名完成: ${path.basename(filePath)}`);

@@ -62,10 +62,11 @@ const tools = {
         // }
     ],
     'darwin': [
-        {
+        //todo:纹理压缩的暂时屏蔽掉，因为它使用了过旧的 SDK，无法通过公证
+        /* {
             url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexTool_darwin.zip',
             dist: 'PVRTexTool_darwin',
-        },
+        }, */
         {
             url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/mali_darwin.zip',
             dist: 'mali_darwin',
@@ -245,7 +246,7 @@ class ToolDownloader {
                 // 增加缓冲区大小
                 options = {
                     maxBuffer: 1024 * 1024 * 50 // 增加到 50MB，防止解压失败
-                }
+                };
             }
 
             execSync(command, { stdio: 'pipe', ...options });
