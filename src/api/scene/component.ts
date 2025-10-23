@@ -54,9 +54,9 @@ export class ComponentApi extends ApiBase {
     /**
      * 移除组件
      */
-    @tool('scene-delete-component')
-    @title('删除组件')
-    @description('删除节点组件，如果组件不存在，删除则会返回 false')
+    @tool('scene-remove-component')
+    @title('移除组件')
+    @description('移除节点组件，移除成功返回true，否则返回false')
     @result(SchemaBooleanResult)
     async removeComponent(@param(SchemaRemoveComponent) component: TRemoveComponentOptions): Promise<CommonResultType<boolean>> {
         try {
@@ -78,7 +78,7 @@ export class ComponentApi extends ApiBase {
      */
     @tool('scene-query-component')
     @title('查询组件')
-    @description('查询组件信息，返回所有组件的属性')
+    @description('查询组件信息，返回组件的所有属性')
     @result(SchemaComponentResult)
     async queryComponent(@param(SchemaQueryComponent) component: TQueryComponentOptions): Promise<CommonResultType<TComponentResult | null>> {
         try {
