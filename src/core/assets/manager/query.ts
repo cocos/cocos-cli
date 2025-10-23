@@ -304,7 +304,7 @@ class AssetQueryManager {
         return plugins.map((asset) => {
             return {
                 uuid: asset.uuid,
-                file: asset.library + '.js',
+                file: asset.library['.js'],
                 url: asset.url,
             };
         });
