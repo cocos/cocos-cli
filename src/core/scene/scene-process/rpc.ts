@@ -5,6 +5,6 @@ export const Rpc: ProcessRPC<IMainModule> = new ProcessRPC<IMainModule>();
 
 export async function startupRpc() {
     Rpc.attach(process);
-    const { Service } = await import('./service/decorator');
+    const { Service } = await import('./service/core/decorator');
     Rpc.register(Service);
 }

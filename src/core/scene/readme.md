@@ -24,7 +24,7 @@
 - 在 [common](common) 里面定义接口，可参考 node.ts[node.ts](common/node.ts) 与 scene.ts[scene.ts](common/scene.ts) 定义
 - [proxy](main-process/proxy) 新增 proxy 可参考 [node-proxy.ts](main-process/proxy/node-proxy.ts) 与 [scene.ts](common/scene.ts) 定义
 - [service](scene-process/service) 新增 service 可参考 [node.ts](scene-process/service/node.ts) 与 [scene.ts](scene-process/service/scene.ts)
-    - 需要让 Rpc 识别需要，通过 @register('Scene') + @expose() 去注册，否则 Rpc 是无法识别
+    - 需要让 Rpc 识别需要，通过 @register('Scene') 去注册，否则 Rpc 是无法识别
     - 需要调用主进程模块
       - 需要在主进程的 [rpc.ts](main-process/rpc.ts) 里面进行添加模块注册，例如 **assetManager** 的注册。
       - 在主进程的 [index.ts](main-process/index.ts)，**IMainModule** 加入注册模块定义。

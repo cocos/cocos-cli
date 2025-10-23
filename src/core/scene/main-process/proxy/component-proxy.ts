@@ -1,4 +1,11 @@
-import type { IComponent, IAddComponentOptions, IRemoveComponentOptions, IQueryComponentOptions, ISetPropertyOptions, IComponentService } from '../../common';
+import {
+    IComponent,
+    IAddComponentOptions,
+    IRemoveComponentOptions,
+    IQueryComponentOptions,
+    ISetPropertyOptions,
+    IComponentService
+} from '../../common';
 import { Rpc } from '../rpc';
 
 export const ComponentProxy: IComponentService = {

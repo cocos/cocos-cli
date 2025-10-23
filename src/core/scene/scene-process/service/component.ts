@@ -1,10 +1,18 @@
-import type { IAddComponentOptions, ISetPropertyOptions, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
-import dumpUtil from './dump';
-import { register, expose } from './decorator';
-import compMgr from './component/index';
 import { Component, Constructor } from 'cc';
-import componentUtils from './component/utils';
 import { Rpc } from '../rpc';
+import { register, Service, BaseService } from './core';
+import {
+    IComponentEvents,
+    IAddComponentOptions,
+    IComponent,
+    IComponentService,
+    IQueryComponentOptions,
+    IRemoveComponentOptions,
+    ISetPropertyOptions
+} from '../../common';
+import dumpUtil from './dump';
+import compMgr from './component/index';
+import componentUtils from './component/utils';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -13,7 +21,7 @@ const NodeMgr = EditorExtends.Node;
  * 在子进程中处理所有节点相关操作
  */
 @register('Component')
-export class ComponentService implements IComponentService {
+export class ComponentService extends BaseService<IComponentEvents> implements IComponentService {
     private async addComponentImpl(path: string, componentNameOrUUIDOrURL: string): Promise<IComponent> {
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
@@ -37,8 +45,7 @@ export class ComponentService implements IComponentService {
             uuid = await Rpc.request('assetManager', 'queryUUID', [componentNameOrUUIDOrURL]);
         }
         if (uuid) {
-            // @ts-ignore hack 后续需要正常的去调用 decorator 里面的 Script
-            const cid = await (globalThis.cce as any).Script.queryScriptCid(uuid);
+            const cid = await Service.Script.queryScriptCid(uuid);
             if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
                 componentNameOrUUIDOrURL = cid;
             }
@@ -55,25 +62,29 @@ export class ComponentService implements IComponentService {
             console.error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
             throw new Error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
         }
+
+        this.events.emit('component:add', comp);
+
         return (dumpUtil.dumpComponent(comp as Component));
     }
 
-    @expose()
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
-        const component = await this.addComponentImpl(params.nodePath, params.component);
-        return component;
+        return await this.addComponentImpl(params.nodePath, params.component);
     }
 
-    @expose()
     async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
         const comp = compMgr.query(params.path);
         if (!comp) {
             throw new Error(`Remove component failed: ${params.path} does not exist`);
         }
-        return compMgr.removeComponent(comp);
+
+        this.events.emit('component:before-remove', comp);
+        const result = compMgr.removeComponent(comp);
+        this.events.emit('component:remove', comp);
+
+        return result;
     }
 
-    @expose()
     async queryComponent(params: IQueryComponentOptions): Promise<IComponent | null> {
         const comp = compMgr.query(params.path);
         if (!comp) {
@@ -83,7 +94,6 @@ export class ComponentService implements IComponentService {
         return (dumpUtil.dumpComponent(comp as Component));
     }
 
-    @expose()
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
         return this.setPropertyImp(options);
     }
@@ -108,10 +118,10 @@ export class ComponentService implements IComponentService {
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
         }
+        this.events.emit('component:set-property', component);
         return true;
     }
 
-    @expose()
     async queryAllComponent() {
         const keys = Object.keys(cc.js._registeredClassNames);
         const components: string[] = [];
@@ -122,7 +132,6 @@ export class ComponentService implements IComponentService {
                     components.push(cc.js.getClassName(cclass));
                 }
             } catch (e) { }
-
         });
         return components;
     }

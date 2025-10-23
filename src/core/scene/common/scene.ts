@@ -1,9 +1,9 @@
 /**
  * 场景
  */
-
+import type { Scene } from 'cc';
 import { INode } from './node';
-import { IComponent, IComponentIdentifier } from './component';
+import { IComponentIdentifier } from './component';
 
 /**
  * 场景模板类型
@@ -67,6 +67,25 @@ export interface ISoftReloadSceneOptions {
  */
 export interface ICloseSceneOptions {
     urlOrUUID?: string;
+}
+
+/**
+ * 存储场景基础信息以及实例
+ */
+export interface ISceneEntry {
+    identifier: ISceneIdentifier;
+    instance: Scene,
+}
+
+/**
+ * 场景事件类型
+ */
+export interface ISceneEvents {
+    'scene:create': ISceneEntry;
+    'scene:open': ISceneEntry;
+    'scene:close': ISceneEntry;
+    'scene:save': ISceneEntry;
+    'scene:soft-reload': ISceneEntry;
 }
 
 /**

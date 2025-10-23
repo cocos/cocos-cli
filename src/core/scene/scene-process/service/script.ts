@@ -5,7 +5,7 @@ import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/li
 import utils from '../../../base/utils';
 import type { IAssetInfo } from '../../../assets/@types/public';
 import { Rpc } from '../rpc';
-import { register, expose } from './decorator';
+import { register } from './core/decorator';
 import { IScriptService } from '../../common';
 
 /**
@@ -125,7 +125,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
         this._suspendPromise = condition;
     }
 
-    @expose()
     async init() {
         EditorExtends.on('class-registered', (classConstructor: Function, metadata: any, className: string) => {
             console.log('classRegistered', className);
@@ -182,7 +181,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
         await this._reloadScripts.nextIteration();
     }
 
-    @expose()
     async investigatePackerDriver() {
         void this._executeAsync();
     }
@@ -191,7 +189,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
      * 传入一个 uuid 返回这个 uuid 对应的脚本组件名字
      * @param uuid
      */
-    @expose()
     async queryScriptName(uuid: string) {
         const compressUuid = utils.UUID.compressUUID(uuid, false);
         const list = this._executor.queryClassesInModule(compressUuid);
@@ -206,7 +203,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
      * 传入一个 uuid 返回这个 uuid 对应的脚本的 cid
      * @param uuid
      */
-    @expose()
     async queryScriptCid(uuid: string) {
         const compressUuid = utils.UUID.compressUUID(uuid, false);
         const list = this._executor.queryClassesInModule(compressUuid);
@@ -221,8 +217,7 @@ export class ScriptService extends EventEmitter implements IScriptService {
      * 是否是自定义脚本（不是引擎定义的组件）
      * @param classConstructor
      */
-    @expose()
-    public isCustomComponent(classConstructor: Function) {
+    public async isCustomComponent(classConstructor: Function) {
         return this.customComponents.has(classConstructor);
     }
 

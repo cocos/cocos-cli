@@ -4,7 +4,7 @@ import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
 
-async function startup () {
+async function startup() {
     // 监听进程退出事件
     process.on('message', (msg) => {
         if (msg === 'scene-process:exit') {
@@ -36,7 +36,7 @@ async function startup () {
         console.log('[Scene] startup Rpc');
 
         // TODO hack 后续可能要思考一下如何正确的初始化引擎
-        const { Service } = await import('./service/decorator');
+        const { Service } = await import('./service/core/decorator');
         (globalThis.cce as any) = {
             Script: Service.Script
         };

@@ -1,4 +1,14 @@
-import type { INodeService, INode, ICreateByNodeTypeParams, ICreateByAssetParams, IQueryNodeParams, IUpdateNodeParams, IDeleteNodeParams, IUpdateNodeResult, IDeleteNodeResult } from '../../common';
+import {
+    INode,
+    ICreateByNodeTypeParams,
+    ICreateByAssetParams,
+    IQueryNodeParams,
+    IUpdateNodeParams,
+    IDeleteNodeParams,
+    IUpdateNodeResult,
+    IDeleteNodeResult,
+    INodeService
+} from '../../common';
 import { Rpc } from '../rpc';
 
 export const NodeProxy: INodeService = {

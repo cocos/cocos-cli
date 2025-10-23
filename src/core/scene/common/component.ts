@@ -1,3 +1,4 @@
+import type { Component } from 'cc';
 import { IPropertyValueType } from '../@types/public';
 
 /**
@@ -54,7 +55,17 @@ export interface ISetPropertyOptions {
 }
 
 /**
- * 节点的相关处理接口
+ * 场景事件类型
+ */
+export interface IComponentEvents {
+    'component:add': Component;
+    'component:before-remove': Component;
+    'component:remove': Component;
+    'component:set-property': Component;
+}
+
+/**
+ * 组件的相关处理接口
  */
 export interface IComponentService {
     /**
