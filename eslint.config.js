@@ -37,22 +37,27 @@ export default [
         },
         rules: {
             // 引号规则 - 强制使用单引号
-            'quotes': ['error', 'single', { 
-                'avoidEscape': true,
-                'allowTemplateLiterals': true 
+            quotes: ['error', 'single', { 
+                avoidEscape: true,
+                allowTemplateLiterals: true,
             }],
+            'quote-props': ['error', 'as-needed', {
+                keywords: false,
+                unnecessary: true,
+                numbers: false
+              }],
             // 其他常用规则
-            'semi': ['error', 'always'],
+            semi: ['error', 'always'],
             'no-unused-vars': 'off', // 关闭基础规则，使用 TypeScript 版本
             '@typescript-eslint/no-unused-vars': ['warn', { 
-                'argsIgnorePattern': '^_',
-                'varsIgnorePattern': '^_' 
+                argsIgnorePattern: '^_',
+                varsIgnorePattern: '^_' 
             }],
             'no-console': 'off',
             'prefer-const': 'error',
             'no-var': 'error',
             'no-empty': ['warn', { 
-                'allowEmptyCatch': true 
+                allowEmptyCatch: true 
             }], // 允许空的 catch 块
             
             // TypeScript 特定规则，确保语言服务正常工作

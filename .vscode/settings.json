@@ -15,9 +15,9 @@
     "editor.tabSize": 4,
     "eslint.alwaysShowStatus": true,
     "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": "explicit",
-        "source.fixAll.stylelint": "explicit",
-        "source.fixAll.markdownlint": "explicit"
+        "source.fixAll.eslint": "always",
+        "source.fixAll.stylelint": "always",
+        "source.fixAll.markdownlint": "always"
     },
     "[json]": {
         "editor.defaultFormatter": "vscode.json-language-features"
