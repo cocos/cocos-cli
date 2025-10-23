@@ -407,23 +407,23 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
         }
 
         const isWindows = process.platform === 'win32';
-        
+
         if (isWindows) {
             // Windows: 直接使用 JSZip 方法（已验证可用）
             console.log('🔧 Windows 系统，使用 JSZip 方式压缩...');
             return await createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath);
         }
-        
+
         // Unix/Linux/macOS: 使用 zip 命令来保持文件权限
         // -r: 递归压缩目录
         // -x: 排除 .DS_Store 文件
         const zipCommand = `cd "${parentDir}" && zip -r "${zipFileName}" "${dirName}" -x "*.DS_Store"`;
-        
+
         console.log(`🔧 执行压缩命令 (${isWindows ? 'Windows' : 'Unix'})...`);
         console.log(`📁 压缩目录: ${dirName}`);
         console.log(`⏱️  大文件压缩中，请耐心等待...`);
-        
-        execSync(zipCommand, { 
+
+        execSync(zipCommand, {
             stdio: 'pipe',
             timeout: 1800000, // 30分钟超时（大文件需要更长时间）
             maxBuffer: 1024 * 1024 * 100 // 100MB buffer
@@ -436,12 +436,12 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
         return zipFilePath;
     } catch (error) {
         console.error('❌ ZIP压缩包创建失败:', error.message);
-        
+
         // 检查是否是超时错误
         if (error.message.includes('timeout') || error.code === 'ETIMEDOUT') {
             console.error('⏰ 压缩超时，可能是文件太大。建议手动压缩或减少文件大小。');
         }
-        
+
         // 如果系统命令失败，回退到 JSZip
         console.log('⚠️  回退到 JSZip 方式（注意：在非 Windows 系统上会丢失文件权限）');
         return await createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath);
@@ -598,7 +598,7 @@ async function release() {
         const ignorePatterns = await readIgnorePatterns(rootDir);
 
         // 执行根目录的 npm install（只需要执行一次）
-        await installRootDependencies(rootDir);
+        // await installRootDependencies(rootDir);
 
         // 扫描项目文件（只需要扫描一次）
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
