@@ -30,7 +30,7 @@ class PluginManager extends EventEmitter {
     private ready = false;
 
     async init() {
-        newConsole.trackMemoryStart('asset-db:worker-init: initPlugin');
+        newConsole.trackMemoryStart('assets:worker-init: initPlugin');
         this.ready = true;
         this.emit('ready');
     }

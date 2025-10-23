@@ -49,17 +49,17 @@ class AssetOperation extends EventEmitter {
     async saveAsset(uuidOrURLOrPath: string, content: string | Buffer) {
         const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
         if (!asset) {
-            throw new Error(`${i18n.t('asset-db.saveAsset.fail.asset')}`);
+            throw new Error(`${i18n.t('assets.saveAsset.fail.asset')}`);
         }
         if (asset._assetDB.options.readonly) {
-            throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
         }
         if (content === undefined) {
-            throw new Error(`${i18n.t('asset-db.saveAsset.fail.content')}`);
+            throw new Error(`${i18n.t('assets.saveAsset.fail.content')}`);
         }
         if (!asset.source) {
             // 不存在源文件的资源无法保存
-            throw new Error(`${i18n.t('asset-db.saveAsset.fail.uuid')}`);
+            throw new Error(`${i18n.t('assets.saveAsset.fail.uuid')}`);
         }
 
         const res = await assetHandlerManager.saveAsset(asset, content);
@@ -69,14 +69,11 @@ class AssetOperation extends EventEmitter {
         return assetQueryManager.encodeAsset(asset);
     }
 
-    async copyAsset(urlOrPath: string, target: string, options?: IMoveOptions) {
-    }
-
     checkValidUrl(urlOrPath: string) {
         if (!urlOrPath.startsWith('db://')) {
             urlOrPath = assetQueryManager.queryUrl(urlOrPath);
             if (!urlOrPath) {
-                throw new Error(`${i18n.t('asset-db.operation.invalid_url')} \n  url: ${urlOrPath}`);
+                throw new Error(`${i18n.t('assets.operation.invalid_url')} \n  url: ${urlOrPath}`);
             }
         }
 
@@ -84,7 +81,7 @@ class AssetOperation extends EventEmitter {
         const dbInfo = assetDBManager.assetDBInfo[dbName];
 
         if (!dbInfo || dbInfo.readonly) {
-            throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${urlOrPath}`);
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${urlOrPath}`);
         }
 
         return true;
@@ -356,10 +353,10 @@ class AssetOperation extends EventEmitter {
     async removeAsset(uuidOrURLOrPath: string): Promise<IAssetInfo | null> {
         const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
         if (!asset) {
-            throw new Error(`${i18n.t('asset-db.deleteAsset.fail.unexist')} \nsource: ${uuidOrURLOrPath}`);
+            throw new Error(`${i18n.t('assets.deleteAsset.fail.unexist')} \nsource: ${uuidOrURLOrPath}`);
         }
         if (asset._assetDB.options.readonly) {
-            throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
         }
 
         if (asset._parent) {

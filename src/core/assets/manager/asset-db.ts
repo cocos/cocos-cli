@@ -83,7 +83,7 @@ class AssetDBManager extends EventEmitter {
     async init() {
         const { assetDBList, flagReimportCheck, libraryRoot, tempRoot, restoreAssetDBFromCache } = assetConfig.data;
         if (!assetDBList.length) {
-            throw new Error(i18n.t('asset-db.init.noAssetDBList'));
+            throw new Error(i18n.t('assets.init.noAssetDBList'));
         }
         AssetDBManager.libraryRoot = libraryRoot;
         AssetDBManager.tempRoot = tempRoot;
@@ -94,12 +94,12 @@ class AssetDBManager extends EventEmitter {
         // TODO 版本升级资源应该只认自身记录的版本号
         // if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
         //     AssetDBManager.useCache = false;
-        //     console.log(i18n.t('asset-db.restoreAssetDBFromCacheInValid.upgrade'));
+        //     console.log(i18n.t('assets.restoreAssetDBFromCacheInValid.upgrade'));
         // }
 
         if (AssetDBManager.useCache && !existsSync(AssetDBManager.libraryRoot)) {
             AssetDBManager.useCache = false;
-            console.log(i18n.t('asset-db.restoreAssetDBFromCacheInValid.noLibraryPath'));
+            console.log(i18n.t('assets.restoreAssetDBFromCacheInValid.noLibraryPath'));
         }
         await this.pluginManager.init();
         await this.assetHandlerManager.init();
@@ -111,7 +111,7 @@ class AssetDBManager extends EventEmitter {
      * 启动数据库入口
      */
     async start() {
-        newConsole.trackTimeStart('asset-db:start-database');
+        newConsole.trackTimeStart('assets:start-database');
 
         if (AssetDBManager.useCache) {
             await this._startFromCache();
@@ -123,7 +123,7 @@ class AssetDBManager extends EventEmitter {
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
         // 性能测试: 资源冷导入
         newConsole.trackTimeEnd('asset-db:ready', { output: true });
-        this.emit('asset-db:ready');
+        this.emit('assets:ready');
         // TODO 不是常驻模式，则无需开启，启动成功后，开始加载尚未注册的资源处理器
         // this.assetHandlerManager.activateRegisterAll();
 
@@ -135,7 +135,7 @@ class AssetDBManager extends EventEmitter {
      * 首次启动数据库
      */
     private async _start() {
-        newConsole.trackMemoryStart('asset-db:worker-init: preStart');
+        newConsole.trackMemoryStart('assets:worker-init: preStart');
         const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
         const startupDatabaseQueue: IStartupDatabaseHandleInfo[] = [];
         for (const assetDBName of assetDBNames) {
@@ -146,7 +146,7 @@ class AssetDBManager extends EventEmitter {
         newConsole.trackMemoryEnd('asset-db:worker-init: preStart');
 
         await afterStartDB();
-        newConsole.trackMemoryStart('asset-db:worker-init: startup');
+        newConsole.trackMemoryStart('assets:worker-init: startup');
         for (let i = 0; i < startupDatabaseQueue.length; i++) {
             const startupDatabase = startupDatabaseQueue[i];
             await this._startupDB(startupDatabase);
@@ -178,7 +178,7 @@ class AssetDBManager extends EventEmitter {
                     this.assetDBInfo[assetDBName].state = 'startup';
                     this.emit('db-started', db);
                     console.debug(`start db ${assetDBName} with cache success`);
-                    this.emit('asset-db:db-ready', assetDBName);
+                    this.emit('assets:db-ready', assetDBName);
                     continue;
                 } catch (error) {
                     console.error(error);
@@ -216,7 +216,7 @@ class AssetDBManager extends EventEmitter {
         }
         await this._createDB(info);
         await this._startDB(info.name);
-        this.emit('asset-db:db-ready', info.name);
+        this.emit('assets:db-ready', info.name);
     }
 
     /**
@@ -378,7 +378,7 @@ class AssetDBManager extends EventEmitter {
      */
     async removeDB(name: string) {
         if (this.isPause) {
-            console.log(i18n.t('asset-db.assetDBPauseTips',
+            console.log(i18n.t('assets.assetDBPauseTips',
                 { operate: 'removeDB' }
             ));
             return new Promise((resolve) => {
@@ -418,7 +418,7 @@ class AssetDBManager extends EventEmitter {
         this.emit('db-removed', db);
         delete this.assetDBMap[name];
         delete this.assetDBInfo[name];
-        this.emit('asset-db:db-close', name);
+        this.emit('assets:db-close', name);
     }
 
     /**
@@ -431,7 +431,7 @@ class AssetDBManager extends EventEmitter {
         }
         if (this.state !== 'free' || this.isPause || this.assetBusy) {
             if (this.isPause) {
-                console.log(i18n.t('asset-db.assetDBPauseTips',
+                console.log(i18n.t('assets.assetDBPauseTips',
                     { operate: 'refresh' }
                 ));
             }
@@ -448,7 +448,7 @@ class AssetDBManager extends EventEmitter {
 
     private async _refresh() {
         this.state = 'busy';
-        newConsole.trackTimeStart('asset-db:refresh-all-database');
+        newConsole.trackTimeStart('assets:refresh-all-database');
         for (const name in this.assetDBMap) {
             if (!this.assetDBMap[name]) {
                 console.debug(`Get assetDB ${name} form manager failed!`);
@@ -467,7 +467,7 @@ class AssetDBManager extends EventEmitter {
             console.debug(`refresh db ${name} success`);
         }
         newConsole.trackTimeEnd('asset-db:refresh-all-database', { output: true });
-        this.emit('asset-db:refresh-finish');
+        this.emit('assets:refresh-finish');
         this.state = 'free';
         this.step();
     }
@@ -506,14 +506,14 @@ class AssetDBManager extends EventEmitter {
         }
         this.hasPause = false;
         this.startPause = false;
-        this.emit('asset-db:resume');
+        this.emit('assets:resume');
         await this.step();
         return true;
     }
 
     async addTask(func: Function, args: any[]): Promise<any> {
         if (this.isPause || this.state === 'busy') {
-            console.log(i18n.t('asset-db.assetDBPauseTips',
+            console.log(i18n.t('assets.assetDBPauseTips',
                 { operate: func.name }
             ));
             return new Promise((resolve) => {
@@ -614,7 +614,7 @@ class AssetDBManager extends EventEmitter {
         // 只要当前底层没有正在处理的资源都视为资源进入可暂停状态
         if (!this.isBusy()) {
             this.hasPause = true;
-            this.emit('asset-db:pause', source);
+            this.emit('assets:pause', source);
             console.log(`Asset DB is paused with ${source}!`);
             return true;
         }
@@ -624,7 +624,7 @@ class AssetDBManager extends EventEmitter {
         this.waitPausePromiseTask = new Promise((resolve) => {
             this.waitPauseHandle = () => {
                 this.waitPausePromiseTask = undefined;
-                this.emit('asset-db:pause', source);
+                this.emit('assets:pause', source);
                 console.log(`Asset DB is paused with ${source}!`);
                 this.hasPause = true;
                 resolve(true);
@@ -635,7 +635,7 @@ class AssetDBManager extends EventEmitter {
             this.waitPausePromiseTask && decidePromiseState(this.waitPausePromiseTask).then(state => {
                 if (state === PROMISE_STATE.PENDING) {
                     this.hasPause = true;
-                    this.emit('asset-db:pause', source);
+                    this.emit('assets:pause', source);
                     this.waitPauseHandle!();
                     console.debug('Pause asset db time out');
                 }

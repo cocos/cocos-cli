@@ -48,13 +48,13 @@ export const DragonBonesAtlasHandler: AssetHandler = {
             }
             if (!texAsset || !texAsset.imported) {
                 console.warn(
-                    i18nTranslate('engine-extends.importers.dragonbones_atlas.texture_not_imported', { texture: imgPath }) +
+                    i18nTranslate('importer.dragonbones_atlas.texture_not_imported', { texture: imgPath }) +
                     ` {asset(${asset.uuid})}`,
                 );
                 return false;
             } else if (!fs.existsSync(imgPath)) {
                 throw new Error(
-                    i18nTranslate('engine-extends.importers.dragonbones_atlas.texture_not_found', {
+                    i18nTranslate('importer.dragonbones_atlas.texture_not_found', {
                         atlas: fspath,
                         texture: json.imagePath,
                     }) + ` {asset(${asset.uuid})}`,

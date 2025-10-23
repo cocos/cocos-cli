@@ -58,11 +58,11 @@ export class BuilderApi extends ApiBase {
     //     return ret;
     // }
 
-    @tool('builder-query-default-build-config-by-platform')
+    @tool('builder-query-default-build-config')
     @title('获取平台默认构建配置')
     @description('获取平台默认构建配置')
     @result(SchemaBuildConfigResult)
-    async queryDefaultBuildConfigByPlatform(@param(SchemaPlatform) platform: SchemaPlatformType) {
+    async queryDefaultBuildConfig(@param(SchemaPlatform) platform: SchemaPlatformType) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TBuildConfigResult> = {
             code: code,

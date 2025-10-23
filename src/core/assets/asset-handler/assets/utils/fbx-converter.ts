@@ -136,9 +136,9 @@ export function createFbxConverter(options: {
                         // Error happened, the convert result may not complete.
                         // But errors are logged.
                     } else if (code === 3221225781) {
-                        console.error(i18nTranslate('engine-extends.importers.fbx.fbxGlTfConv.missing_dll'));
+                        console.error(i18nTranslate('importer.fbx.fbxGlTfConv.missing_dll'));
                     } else if (code === 126 && process.platform === 'darwin') {
-                        console.error(i18nTranslate('engine-extends.importers.fbx.fbxGlTfConv.badCPU'));
+                        console.error(i18nTranslate('importer.fbx.fbxGlTfConv.badCPU'));
                     } else {
                         console.error(`FBX-glTF-conv existed with unexpected non-zero code ${code}`);
                     }

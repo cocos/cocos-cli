@@ -280,19 +280,19 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             let groupNameI18NKey: string;
             switch (group) {
                 case 'meshes':
-                    groupNameI18NKey = 'engine-extends.importers.glTF.glTF_asset_group_mesh';
+                    groupNameI18NKey = 'importer.glTF.glTF_asset_group_mesh';
                     break;
                 case 'animations':
-                    groupNameI18NKey = 'engine-extends.importers.glTF.glTF_asset_group_animation';
+                    groupNameI18NKey = 'importer.glTF.glTF_asset_group_animation';
                     break;
                 case 'nodes':
-                    groupNameI18NKey = 'engine-extends.importers.glTF.glTF_asset_group_node';
+                    groupNameI18NKey = 'importer.glTF.glTF_asset_group_node';
                     break;
                 case 'skins':
-                    groupNameI18NKey = 'engine-extends.importers.glTF.glTF_asset_group_skin';
+                    groupNameI18NKey = 'importer.glTF.glTF_asset_group_skin';
                     break;
                 case 'samplers':
-                    groupNameI18NKey = 'engine-extends.importers.glTF.glTF_asset_group_sampler';
+                    groupNameI18NKey = 'importer.glTF.glTF_asset_group_sampler';
                     break;
                 default:
                     groupNameI18NKey = group;
@@ -300,13 +300,13 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             }
             const asset = glTF[group][index];
             if (typeof asset.name === 'string' && asset.name) {
-                return i18nTranslate('engine-extends.importers.glTF.glTF_asset', {
+                return i18nTranslate('importer.glTF.glTF_asset', {
                     group: i18nTranslate(groupNameI18NKey),
                     name: asset.name,
                     index,
                 });
             } else {
-                return i18nTranslate('engine-extends.importers.glTF.glTF_asset_no_name', {
+                return i18nTranslate('importer.glTF.glTF_asset_no_name', {
                     group: i18nTranslate(groupNameI18NKey),
                     index,
                 });
@@ -319,7 +319,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
         switch (error) {
             case GltfConverter.ConverterError.UnsupportedAlphaMode: {
                 const tArgs = args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.UnsupportedAlphaMode];
-                message = i18nTranslate('engine-extends.importers.glTF.unsupported_alpha_mode', {
+                message = i18nTranslate('importer.glTF.unsupported_alpha_mode', {
                     material: getRepOfGlTFResource('materials', tArgs.material),
                     mode: tArgs.mode,
                 });
@@ -327,15 +327,15 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             }
             case GltfConverter.ConverterError.UnsupportedTextureParameter: {
                 const tArgs = args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.UnsupportedTextureParameter];
-                message = i18nTranslate('engine-extends.importers.glTF.unsupported_texture_parameter', {
+                message = i18nTranslate('importer.glTF.unsupported_texture_parameter', {
                     sampler: '',
                     texture: getRepOfGlTFResource('textures', tArgs.texture),
                     type: i18nTranslate(
                         tArgs.type === 'minFilter'
-                            ? 'engine-extends.importers.glTF.min_filter'
+                            ? 'importer.glTF.min_filter'
                             : tArgs.type === 'magFilter'
-                                ? 'engine-extends.importers.glTF.mag_filter'
-                                : 'engine-extends.importers.glTF.wrapMode',
+                                ? 'importer.glTF.mag_filter'
+                                : 'importer.glTF.wrapMode',
                     ),
                     value: '',
                 });
@@ -343,7 +343,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             }
             case GltfConverter.ConverterError.UnsupportedChannelPath: {
                 const tArgs = args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.UnsupportedChannelPath];
-                message = i18nTranslate('engine-extends.importers.glTF.unsupported_channel_path', {
+                message = i18nTranslate('importer.glTF.unsupported_channel_path', {
                     animation: getRepOfGlTFResource('animations', tArgs.animation),
                     channel: tArgs.channel,
                     path: tArgs.path,
@@ -353,7 +353,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             case GltfConverter.ConverterError.ReferenceSkinInDifferentScene: {
                 const tArgs =
                     args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.ReferenceSkinInDifferentScene];
-                message = i18nTranslate('engine-extends.importers.glTF.reference_skin_in_different_scene', {
+                message = i18nTranslate('importer.glTF.reference_skin_in_different_scene', {
                     node: getRepOfGlTFResource('nodes', tArgs.node),
                     skin: getRepOfGlTFResource('skins', tArgs.skin),
                 });
@@ -362,7 +362,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             case GltfConverter.ConverterError.DisallowCubicSplineChannelSplit: {
                 const tArgs =
                     args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.DisallowCubicSplineChannelSplit];
-                message = i18nTranslate('engine-extends.importers.glTF.disallow_cubic_spline_channel_split', {
+                message = i18nTranslate('importer.glTF.disallow_cubic_spline_channel_split', {
                     animation: getRepOfGlTFResource('animations', tArgs.animation),
                     channel: tArgs.channel,
                 });
@@ -372,8 +372,8 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
                 const tArgs = args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.FailedToCalculateTangents];
                 message = i18nTranslate(
                     tArgs.reason === 'normal'
-                        ? 'engine-extends.importers.glTF.failed_to_calculate_tangents_due_to_lack_of_normals'
-                        : 'engine-extends.importers.glTF.failed_to_calculate_tangents_due_to_lack_of_uvs',
+                        ? 'importer.glTF.failed_to_calculate_tangents_due_to_lack_of_normals'
+                        : 'importer.glTF.failed_to_calculate_tangents_due_to_lack_of_uvs',
                     {
                         mesh: getRepOfGlTFResource('meshes', tArgs.mesh),
                         primitive: tArgs.primitive,
@@ -383,7 +383,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             }
             case GltfConverter.ConverterError.EmptyMorph: {
                 const tArgs = args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.EmptyMorph];
-                message = i18nTranslate('engine-extends.importers.glTF.empty_morph', {
+                message = i18nTranslate('importer.glTF.empty_morph', {
                     mesh: getRepOfGlTFResource('meshes', tArgs.mesh),
                     primitive: tArgs.primitive,
                 });
@@ -391,7 +391,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
             }
             case GltfConverter.ConverterError.UnsupportedExtension: {
                 const tArgs = args as GltfConverter.ConverterErrorArgumentFormat[GltfConverter.ConverterError.UnsupportedExtension];
-                message = i18nTranslate('engine-extends.importers.glTF.unsupported_extension', {
+                message = i18nTranslate('importer.glTF.unsupported_extension', {
                     name: tArgs.name,
                     // required, // 是否在 glTF 里被标记为“必需”
                 });
