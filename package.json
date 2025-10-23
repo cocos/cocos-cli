@@ -107,7 +107,7 @@
         "@cocos/asset-db": "^3.0.0-alpha.4",
         "@cocos/build-polyfills": "2.0.0",
         "@cocos/lib-programming": "3.8.2",
-        "@cocos/quick-compiler": "^4.2.20",
+        "@cocos/quick-compiler": "^4.2.22",
         "@ffprobe-installer/ffprobe": "^1.4.1",
         "@modelcontextprotocol/sdk": "^1.18.0",
         "@sentry/node": "^10.21.0",
