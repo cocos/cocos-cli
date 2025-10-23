@@ -329,12 +329,12 @@ async function uploadToFTP(filePath, ftpConfig) {
  * 从环境变量获取FTP配置
  */
 function getFTPConfig() {
-    const ftpUser = process.env.FTP_USER;
-    const ftpPass = process.env.FTP_PASS;
-    const ftpHost = process.env.FTP_HOST || 'localhost';
+    const ftpUser = process.env.ORG_FTP_USER;
+    const ftpPass = process.env.ORG_FTP_PASS;
+    const ftpHost = process.env.FTP_HOST || 'ctc.upload.new1cloud.com';
     const ftpPort = process.env.FTP_PORT ? parseInt(process.env.FTP_PORT) : 21;
     const ftpSecure = process.env.FTP_SECURE === 'true';
-    const ftpRemoteDir = process.env.FTP_REMOTE_DIR;
+    const ftpRemoteDir = process.env.FTP_REMOTE_DIR || '/CocosSDK/v1.0.0';
 
     if (!ftpUser || !ftpPass) {
         throw new Error('❌ 缺少FTP凭据: 请设置环境变量 FTP_USER 和 FTP_PASS');
