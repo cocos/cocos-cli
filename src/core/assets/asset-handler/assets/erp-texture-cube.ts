@@ -1,6 +1,6 @@
 'use strict';
 
-import { queryAsset, VirtualAsset } from '@editor/asset-db';
+import { queryAsset, VirtualAsset } from '@cocos/asset-db';
 import { applyTextureBaseAssetUserData } from './texture-base';
 import { equirectToCubemapFaces, nearestPowerOfTwo } from './utils/equirect-cubemap-faces';
 import * as cc from 'cc';

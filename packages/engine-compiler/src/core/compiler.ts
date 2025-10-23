@@ -1,6 +1,6 @@
-import { QuickCompiler } from '@editor/quick-compiler';
+import { QuickCompiler } from '@cocos/quick-compiler';
 import { StatsQuery } from '@cocos/ccbuild';
-import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
+import { editorBrowserslistQuery } from '@cocos/lib-programming/dist/utils';
 import { dirname, join } from 'path';
 import { emptyDir, ensureDir, outputFile, readFile, readJSONSync, remove, existsSync, mkdirSync, copyFileSync } from 'fs-extra';
 import { IFeatureItem, IModuleItem, ModuleRenderConfig } from './modules';
@@ -386,12 +386,12 @@ export class EngineCompiler {
         const configurableFlags = await this.getConfigurableFlagsOfFeatures(features);
         await compiler.buildImportMap(
             targetIndex, features, {
-                mode,
-                platform,
-                out,
-                features,
-                configurableFlags,
-            },
+            mode,
+            platform,
+            out,
+            features,
+            configurableFlags,
+        },
         );
     }
 

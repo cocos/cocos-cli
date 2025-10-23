@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as fse from 'fs-extra';

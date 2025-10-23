@@ -1,6 +1,6 @@
 import cc from 'cc';
 import { EventEmitter } from 'events';
-import { Executor } from '@editor/lib-programming/dist/executor';
+import { Executor } from '@cocos/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
 import utils from '../../../base/utils';
 import type { IAssetInfo } from '../../../assets/@types/public';
@@ -175,7 +175,7 @@ export class ScriptService extends EventEmitter implements IScriptService {
             cceModuleMap,
         });
         globalThis.self = window;
-        this._executor.addPolyfillFile(require.resolve('@editor/build-polyfills/prebuilt/editor/bundle'));
+        this._executor.addPolyfillFile(require.resolve('@cocos/build-polyfills/prebuilt/editor/bundle'));
         // 同步插件脚本列表
         await this._syncPluginScripts.nextIteration();
         // 重载项目与插件脚本

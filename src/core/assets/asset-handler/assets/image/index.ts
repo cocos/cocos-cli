@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { existsSync, readFile } from 'fs-extra';
 import { checkSize } from '../erp-texture-cube';
 import { convertTGA, convertPSD, convertTIFF, convertHDROrEXR, convertHDR } from './image-mics';

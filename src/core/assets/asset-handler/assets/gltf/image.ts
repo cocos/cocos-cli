@@ -1,5 +1,5 @@
 import * as DataURI from '@cocos/data-uri';
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import fs, { outputFile } from 'fs-extra';
 import ps, { join } from 'path';
 import URI from 'urijs';

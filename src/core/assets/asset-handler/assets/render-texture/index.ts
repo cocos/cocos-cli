@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { readJSON } from 'fs-extra';
 import { applyTextureBaseAssetUserData, getWrapModeString, getFilterString } from '../texture-base';
 import { RenderTexture } from 'cc';

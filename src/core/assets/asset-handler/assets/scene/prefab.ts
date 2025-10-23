@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { version, versionCode } from './index';
 import { readJSON, writeFile } from 'fs-extra';
 

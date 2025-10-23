@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
 import { MigrateStep, i18nTranslate, linkToAssetTarget, openCode } from '../utils';

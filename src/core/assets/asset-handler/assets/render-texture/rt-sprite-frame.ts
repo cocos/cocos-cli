@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, VirtualAsset, queryPath, queryUUID } from '@editor/asset-db';
+import { Asset, VirtualAsset, queryPath, queryUUID } from '@cocos/asset-db';
 import { AssetHandler } from '../../../@types/protected';
 import { SpriteFrame } from 'cc';
 

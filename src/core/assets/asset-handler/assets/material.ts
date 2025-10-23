@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, queryAsset, queryPath, VirtualAsset } from '@editor/asset-db';
+import { Asset, queryAsset, queryPath, VirtualAsset } from '@cocos/asset-db';
 import { outputJSON, outputJSONSync, readJSON, readJSONSync, writeJSONSync } from 'fs-extra';
 import { upgradeProperties } from './utils/material-upgrader';
 

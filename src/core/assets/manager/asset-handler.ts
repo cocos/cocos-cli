@@ -1,4 +1,4 @@
-import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@editor/asset-db';
+import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@cocos/asset-db';
 import { copy, copyFile, ensureDir, existsSync, outputFile, outputFileSync, outputJSON, outputJSONSync, readJSONSync } from 'fs-extra';
 import { basename, dirname, extname, isAbsolute, join } from 'path';
 import { url2path } from '../utils';

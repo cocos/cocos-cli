@@ -1,4 +1,4 @@
-import { Asset, queryAsset } from '@editor/asset-db';
+import { Asset, queryAsset } from '@cocos/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
 import { SpriteFrame, LabelAtlas } from 'cc';
 import { basename } from 'path';

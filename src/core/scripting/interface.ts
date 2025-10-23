@@ -1,4 +1,4 @@
-import { PluginScriptInfo } from '@editor/lib-programming/dist/executor'
+import { PluginScriptInfo } from '@cocos/lib-programming/dist/executor'
 
 export interface SharedSettings {
     useDefineForClassFields: boolean;

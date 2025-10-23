@@ -1,4 +1,4 @@
-import { Asset, queryAsset } from '@editor/asset-db';
+import { Asset, queryAsset } from '@cocos/asset-db';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DOMParser } from 'xmldom';

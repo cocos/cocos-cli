@@ -1,4 +1,4 @@
-import { Asset, queryPath, queryUrl, queryUUID } from '@editor/asset-db';
+import { Asset, queryPath, queryUrl, queryUUID } from '@cocos/asset-db';
 import { AssertionError } from 'assert';
 import * as fs from 'fs-extra';
 import * as path from 'path';

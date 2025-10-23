@@ -2,7 +2,7 @@
 ## 文件夹结构说明
 
 @types - 类型定义
-[compiler](compiler) 调用 **@editor/quick-compiler** 与 **@cocos/ccbuild** 去编译引擎 
+[compiler](compiler) 调用 **@cocos/quick-compiler** 与 **@cocos/ccbuild** 去编译引擎 
 [modules](modules) 之前适配编辑器的模块，关键是 preload，preload 去加载引擎
 
 ## 目前需求：

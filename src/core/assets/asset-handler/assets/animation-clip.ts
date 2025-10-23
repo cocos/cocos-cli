@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { AnimationClip } from 'cc';
 import { readFile } from 'fs-extra';
 import { basename } from 'path';

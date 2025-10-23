@@ -1,4 +1,4 @@
-import { AssetDB, VirtualAsset } from '@editor/asset-db';
+import { AssetDB, VirtualAsset } from '@cocos/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';

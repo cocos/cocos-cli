@@ -1,6 +1,6 @@
 import { IAssetInfo } from '../../../../assets/@types/protected';
 import minimatch from 'minimatch';
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { BundleFilterConfig } from '../../../@types';
 
 export function checkAssetWithFilterConfig(assetInfo: Asset | VirtualAsset | IAssetInfo, bundleFilterConfig?: BundleFilterConfig[]): boolean {

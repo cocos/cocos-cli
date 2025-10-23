@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { emptyDirSync, existsSync, outputJSONSync, readJSONSync } from 'fs-extra';
 import lodash from 'lodash';
 import { dirname, join } from 'path';

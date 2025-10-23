@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { existsSync, readFile } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 import { SpriteFrame, Vec2, Size, Rect, SpriteAtlas } from 'cc';
@@ -69,7 +69,7 @@ export const TexturePackerHandler: AssetHandler = {
                     return false;
                 }
 
-                userData.textureUuid = uuid + '@' + require('@editor/asset-db/libs/utils').nameToId('texture');
+                userData.textureUuid = uuid + '@' + require('@cocos/asset-db/libs/utils').nameToId('texture');
             }
 
             // 如果依赖的资源已经导入完成了，则生成对应的数据

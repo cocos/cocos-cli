@@ -1,6 +1,6 @@
 /* eslint-disable no-useless-escape */
 
-import { Asset, AssetDB, forEach } from '@editor/asset-db';
+import { Asset, AssetDB, forEach } from '@cocos/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
 import { EffectAsset } from 'cc';
 import {

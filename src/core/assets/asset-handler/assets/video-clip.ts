@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { AssetHandler } from '../../@types/protected';
 import { VideoClip } from 'cc';
 import { getMediaDuration } from '../utils';

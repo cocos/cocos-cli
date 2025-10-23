@@ -1,4 +1,4 @@
-import { Asset, AssetDB } from '@editor/asset-db';
+import { Asset, AssetDB } from '@cocos/asset-db';
 import fs from 'fs-extra';
 import { dirname, join } from 'path';
 import { convert } from '../utils/fbx2glTf';

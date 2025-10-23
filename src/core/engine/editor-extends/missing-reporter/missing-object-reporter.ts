@@ -4,7 +4,7 @@ import { MissingReporter } from './missing-reporter';
 import * as _ from 'lodash';
 import * as ps from 'path';
 import * as ObjectWalker from './object-walker';
-import * as assetdb from '@editor/asset-db';
+import * as assetdb from '@cocos/asset-db';
 
 export class MissingObjectReporter extends MissingReporter {
 

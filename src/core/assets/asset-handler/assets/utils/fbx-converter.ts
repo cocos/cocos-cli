@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { IAbstractConverter } from './model-convert-routine';
 import ps from 'path';
 import fs, { pathExists } from 'fs-extra';

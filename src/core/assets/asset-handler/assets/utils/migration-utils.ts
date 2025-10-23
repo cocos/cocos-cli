@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import fs from 'fs-extra';
 
 type TypedObjectVisitor = (serialized: any) => void;
@@ -104,7 +104,7 @@ function deIndex(value: unknown, file: unknown) {
             deIndex(element, file);
         });
     } else if (value && typeof value === 'object') {
-        const ref = value as { __id__?: number; [refTag]: object };
+        const ref = value as { __id__?: number;[refTag]: object };
         if (typeof ref.__id__ === 'number') {
             const id = ref.__id__;
             ref[refTag] = (file as object[])[id];
@@ -120,7 +120,7 @@ function reIndex(value: unknown, objects: unknown[]) {
             reIndex(element, objects);
         });
     } else if (value && typeof value === 'object') {
-        const ref = value as { __id__: number; [refTag]?: object };
+        const ref = value as { __id__: number;[refTag]?: object };
         const object = ref[refTag];
         if (object) {
             const id = objects.indexOf(object);

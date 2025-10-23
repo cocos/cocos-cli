@@ -1,4 +1,4 @@
-import { Asset, queryAsset } from '@editor/asset-db';
+import { Asset, queryAsset } from '@cocos/asset-db';
 import { readJSONSync } from 'fs-extra';
 import assetQuery from '../../../manager/query';
 import utils from '../../../../base/utils';

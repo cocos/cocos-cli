@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { AssetHandler } from '../../@types/protected';
 import { readFileSync, readdirSync, statSync } from 'fs-extra';
 import { basename, dirname, extname, join, relative } from 'path';

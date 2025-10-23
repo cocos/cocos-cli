@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { js } from 'cc';
 import { AnimationGraph } from 'cc/editor/new-gen-anim';
 import { readFile } from 'fs-extra';

@@ -2,7 +2,7 @@
  * 资源操作类，会调用 assetManager/assetDB/assetHandler 等模块
  */
 
-import { queryUUID, refresh, reimport, queryUrl, Utils, Asset } from '@editor/asset-db';
+import { queryUUID, refresh, reimport, queryUrl, Utils, Asset } from '@cocos/asset-db';
 import { copy, move, remove, rename, existsSync } from 'fs-extra';
 import { isAbsolute, dirname, basename, join, relative, extname } from 'path';
 import { newConsole } from '../../base/console';

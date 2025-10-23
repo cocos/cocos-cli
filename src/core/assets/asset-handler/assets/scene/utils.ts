@@ -1,7 +1,7 @@
 'use strict';
 
 import { IBaseNode, IObjectRef } from './defines';
-import { queryAsset } from '@editor/asset-db';
+import { queryAsset } from '@cocos/asset-db';
 import { readJSON, readJSONSync } from 'fs-extra';
 import { existsSync } from 'fs';
 
@@ -131,7 +131,7 @@ export function isNestedPrefab(node: any, json: any[], prefabUuid: string) {
     return false;
 }
 
-const walkPrefabInstanceChildren = async function(children: any[], json: any[], sceneAsset: any, callback: Function, prefabUuid: string) {
+const walkPrefabInstanceChildren = async function (children: any[], json: any[], sceneAsset: any, callback: Function, prefabUuid: string) {
     for (let index = 0; index < children.length; index++) {
         const childRef = children[index];
         await walkNodeAsync(json, childRef, async (childJson, _) => {

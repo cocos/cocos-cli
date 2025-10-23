@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { Asset as ccAsset } from 'cc';
 
 import { getDependUUIDList } from '../utils';

@@ -1,7 +1,7 @@
 import { AssetInfo, AssetDBOptions, ExecuteAssetDBScriptMethodOptions, IAssetInfo } from '../public';
 import { message as publicMessage } from '../message';
-import { IData } from '@editor/asset-db/libs/data';
-import { MissingAssetInfo } from '@editor/asset-db/libs/info';
+import { IData } from '@cocos/asset-db/libs/data';
+import { MissingAssetInfo } from '@cocos/asset-db/libs/info';
 import { CreateAssetDialogOptions, CreateAssetOptions, IAssetConfig, ICONConfig, ICreateMenuInfo, ThumbnailInfo, ThumbnailSize } from './asset-handler';
 import { IMessage } from '../protected';
 

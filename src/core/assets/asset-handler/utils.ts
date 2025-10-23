@@ -4,7 +4,7 @@ import type { CCON } from 'cc/editor/serialization';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { IAssetMeta } from '../@types/private';
 declare const cc: any;
 

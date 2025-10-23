@@ -1,4 +1,4 @@
-import { Asset, queryUrl } from '@editor/asset-db';
+import { Asset, queryUrl } from '@cocos/asset-db';
 import { ensureDirSync, existsSync, outputFileSync, readdirSync, readFile, statSync } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 import { i18nTranslate, openCode } from '../utils';

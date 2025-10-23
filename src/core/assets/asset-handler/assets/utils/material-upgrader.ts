@@ -1,4 +1,4 @@
-import { queryAsset, Asset } from '@editor/asset-db';
+import { queryAsset, Asset } from '@cocos/asset-db';
 import { EffectAsset } from 'cc';
 import { readJSONSync, existsSync } from 'fs-extra';
 

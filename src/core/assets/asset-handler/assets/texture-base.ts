@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { Filter, SpriteFrameBaseAssetUserData, TextureBaseAssetUserData, WrapMode } from '../../@types/userDatas';
 
 export const defaultMinFilter: Filter = 'linear';

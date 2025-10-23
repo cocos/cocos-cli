@@ -208,7 +208,7 @@ export class AtlasInfo {
         // 这里使用碎图 uuid 来计算大图的 uuid
         const uuids = spriteFrameInfos.map((spriteFrameInfo) => spriteFrameInfo.uuid);
         this.imageUuid = HashUuid.calculate([uuids], HashUuid.BuiltinHashType.AutoAtlasImage)[0];
-        this.textureUuid = this.imageUuid + '@' + require('@editor/asset-db/libs/utils').nameToId('texture');
+        this.textureUuid = this.imageUuid + '@' + require('@cocos/asset-db/libs/utils').nameToId('texture');
         this.spriteFrameInfos = spriteFrameInfos;
         this.width = width;
         this.height = height;

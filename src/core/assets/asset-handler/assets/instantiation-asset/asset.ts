@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { AssetHandlerBase } from '../../../@types/protected';
 import { createReadStream, createWriteStream, ensureDirSync, existsSync, readdirSync, removeSync } from 'fs-extra';
 import { dirname, join, parse } from 'path';

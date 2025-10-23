@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { AssetHandler, ThumbnailInfo } from '../../../@types/protected';
 import { defaultIconConfig, handleImageUserData, importWithType, isCapableToFixAlphaTransparencyArtifacts, saveImageAsset } from './utils';
 import utils from '../../../../base/utils';

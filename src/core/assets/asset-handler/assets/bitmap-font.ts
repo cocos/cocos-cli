@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, queryAsset } from '@editor/asset-db';
+import { Asset, queryAsset } from '@cocos/asset-db';
 import { SpriteFrame } from 'cc';
 import { existsSync, readFile } from 'fs-extra';
 import { basename, dirname, join } from 'path';

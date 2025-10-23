@@ -7,7 +7,7 @@ import { buildAssetLibrary } from '../../manager/asset-library';
 import { changeInfoToLabel, getSuffix } from './utils';
 import { EventEmitter } from 'stream';
 
-import { Asset, VirtualAsset } from '@editor/asset-db/libs/asset';
+import { Asset, VirtualAsset } from '@cocos/asset-db/libs/asset';
 import { cpus } from 'os';
 const numCPUs = cpus().length;
 import Sharp from 'sharp';

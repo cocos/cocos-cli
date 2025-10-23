@@ -1,4 +1,4 @@
-import { VirtualAsset, Asset, queryUUID } from '@editor/asset-db';
+import { VirtualAsset, Asset, queryUUID } from '@cocos/asset-db';
 import * as cc from 'cc';
 
 import { AssetHandler } from '../../@types/protected';

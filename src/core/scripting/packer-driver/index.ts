@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { fileURLToPath, pathToFileURL, URL } from 'url';
 import { performance } from 'perf_hooks';
 import { makePrerequisiteImportsMod, makeTentativePrerequisiteImports, prerequisiteImportsModURL } from './prerequisite-imports';
-import { editorBrowserslistQuery } from '@editor/lib-programming/dist/utils';
+import { editorBrowserslistQuery } from '@cocos/lib-programming/dist/utils';
 import { StatsQuery } from '@cocos/ccbuild';
 import { asserts } from '../utils/asserts';
 import { querySharedSettings, scriptConfig, SharedSettings } from '../shared/query-shared-settings';

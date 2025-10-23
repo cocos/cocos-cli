@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { makeDefaultTextureBaseAssetUserData } from './texture-base';
 
 import { getDependUUIDList } from '../utils';

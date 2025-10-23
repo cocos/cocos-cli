@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { changeImageDefaultType } from './utils/image-utils';
 import { existsSync, readFile } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';

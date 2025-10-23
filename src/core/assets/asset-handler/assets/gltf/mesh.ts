@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { glTfReaderManager } from './reader-manager';
 import { getDependUUIDList } from '../../utils';
 import { GlTFUserData, IVirtualAssetUserData } from '../../../@types/userDatas';

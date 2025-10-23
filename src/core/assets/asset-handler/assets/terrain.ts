@@ -1,7 +1,7 @@
 'use strict';
 
 import * as fs from 'fs-extra';
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { version } from './scene/index';
 import { TerrainAsset, TerrainLayerInfo, Texture2D } from 'cc';
 

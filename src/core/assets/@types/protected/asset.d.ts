@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { CCON } from 'cc/editor/serialization';
 
 export interface IExportData {

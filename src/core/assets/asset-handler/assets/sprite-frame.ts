@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, VirtualAsset, queryPath, queryUUID, queryAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset, queryPath, queryUUID, queryAsset } from '@cocos/asset-db';
 import * as cc from 'cc';
 
 import { AssetHandler } from '../../@types/protected';

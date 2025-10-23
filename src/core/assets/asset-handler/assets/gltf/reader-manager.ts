@@ -1,4 +1,4 @@
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { GltfpackOptions, GlTFUserData, MeshOptimizerOption } from '../../../@types/userDatas';
 import { i18nTranslate, linkToAssetTarget } from '../../utils';
 import { GltfConverter, readGltf } from '../utils/gltf-converter';

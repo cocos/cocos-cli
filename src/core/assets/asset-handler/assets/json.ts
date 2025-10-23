@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { readFile, readJSON } from 'fs-extra';
 import * as JSON5 from 'json5';
 

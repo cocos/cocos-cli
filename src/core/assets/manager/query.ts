@@ -1,4 +1,4 @@
-import { queryUUID, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach, queryPath } from '@editor/asset-db';
+import { queryUUID, queryAsset, VirtualAsset, AssetDB, queryUrl, Asset, forEach, queryPath } from '@cocos/asset-db';
 import { isAbsolute, basename, extname } from 'path';
 import { QueryAssetType, IAsset } from '../@types/protected';
 import { AssetHandlerType, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/public';

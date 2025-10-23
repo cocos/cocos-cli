@@ -1,4 +1,4 @@
-import { Asset, queryPath, queryUrl, queryUUID, VirtualAsset } from '@editor/asset-db';
+import { Asset, queryPath, queryUrl, queryUUID, VirtualAsset } from '@cocos/asset-db';
 import * as cc from 'cc';
 import fs from 'fs-extra';
 import path from 'path';

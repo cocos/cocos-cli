@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { readFileSync, renameSync, outputFileSync, existsSync, emptyDir } from 'fs-extra';
 import { basename, dirname, extname, join, parse } from 'path';
 import { BuiltinBundleName, BundleCompressionTypes } from '../../../../share/bundle-utils';

@@ -1,7 +1,7 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
-import { nameToId } from '@editor/asset-db/libs/utils';
+import { Asset } from '@cocos/asset-db';
+import { nameToId } from '@cocos/asset-db/libs/utils';
 
 export function migrate(asset: Asset) {
     Object.keys(asset.subAssets).forEach((name) => {

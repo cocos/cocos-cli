@@ -1,4 +1,4 @@
-export { Asset, Importer, VirtualAsset } from '@editor/asset-db';
+export { Asset, Importer, VirtualAsset } from '@cocos/asset-db';
 export interface MessageResult {
     error: Error | null;
     result: any;

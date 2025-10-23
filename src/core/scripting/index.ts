@@ -1,7 +1,7 @@
 import { CCEModuleMap } from '../engine/@types/config';
 import { IPluginScriptInfo, SharedSettings } from './interface';
 import { PackerDriver } from './packer-driver';
-import { Executor } from '@editor/lib-programming/dist/executor';
+import { Executor } from '@cocos/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { CustomEvent, EventType, eventEmitter } from './event-emitter';
 
@@ -97,7 +97,7 @@ class ScriptManager {
                 });
                 // eslint-disable-next-line no-undef
                 globalThis.self = window;
-                executor.addPolyfillFile(require.resolve('@editor/build-polyfills/prebuilt/editor/bundle'));
+                executor.addPolyfillFile(require.resolve('@cocos/build-polyfills/prebuilt/editor/bundle'));
             }
 
             if (!executor) {

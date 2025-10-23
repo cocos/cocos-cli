@@ -1,7 +1,7 @@
 'use strict';
 
 import { AssetDBRegisterInfo, IAsset, IAssetDBInfo } from '../@types/private';
-import * as assetdb from '@editor/asset-db';
+import * as assetdb from '@cocos/asset-db';
 import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import { extname, join, relative } from 'path';

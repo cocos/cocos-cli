@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, queryUrl, VirtualAsset } from '@editor/asset-db';
+import { Asset, queryUrl, VirtualAsset } from '@cocos/asset-db';
 import { AssetHandler } from '../../@types/protected';
 import { DirectoryAssetUserData } from '../../@types/userDatas';
 import { ensureDirSync } from 'fs-extra';

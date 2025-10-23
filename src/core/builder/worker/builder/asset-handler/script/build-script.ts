@@ -13,7 +13,7 @@ import { packMods } from '../../utils/pack-mods';
 import { CCEnvConstants } from './build-time-constants';
 import { isCjsInteropUrl, getCjsInteropTarget } from '@cocos/creator-programming-common';
 import { build as buildSystemJs } from '@cocos/module-system';
-import buildPolyfills from '@editor/build-polyfills';
+import buildPolyfills from '@cocos/build-polyfills';
 import { IBuildSystemJsOption, IPolyFills } from '../../../../@types';
 import { IAssetInfo, ModulePreservation, ITransformTarget } from '../../../../@types/protected';
 import minimatch from 'minimatch';

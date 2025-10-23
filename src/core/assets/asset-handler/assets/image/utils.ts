@@ -1,4 +1,4 @@
-import { Asset, VirtualAsset } from '@editor/asset-db';
+import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { IAsset, ThumbnailInfo } from '../../../@types/protected';
 import { ImageAsset, Rect } from 'cc';
 import { existsSync, readFile } from 'fs-extra';

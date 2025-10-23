@@ -1,4 +1,4 @@
-import { VirtualAsset } from '@editor/asset-db';
+import { VirtualAsset } from '@cocos/asset-db';
 
 export async function changeImageDefaultType(imageAsset: VirtualAsset | null, type: string) {
     if (!imageAsset) {

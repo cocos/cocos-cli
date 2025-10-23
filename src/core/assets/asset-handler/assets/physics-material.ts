@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset } from '@editor/asset-db';
+import { Asset } from '@cocos/asset-db';
 import { AssetHandler } from '../../@types/protected';
 
 export const PhysicsMaterialHandler: AssetHandler = {

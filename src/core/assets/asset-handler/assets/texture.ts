@@ -1,4 +1,4 @@
-import { VirtualAsset, Asset, queryAsset } from '@editor/asset-db';
+import { VirtualAsset, Asset, queryAsset } from '@cocos/asset-db';
 
 import { ImageAsset } from 'cc';
 

@@ -1,6 +1,6 @@
 import { type } from 'os';
 import { IAsset, IAssetInfo, VirtualAsset, Asset, IExportData } from './asset';
-import { Migrate } from '@editor/asset-db/libs/importer';
+import { Migrate } from '@cocos/asset-db/libs/importer';
 
 export interface CustomOperator {
     label?: string; // 处理方法名，displayName 将会出现在一些文档定义上
