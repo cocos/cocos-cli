@@ -4,7 +4,6 @@
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const chalk = require('chalk');
 
 /**
  * 是否是开发环境
@@ -72,6 +71,7 @@ function runTscCommand(sourceDir) {
  * @param title
  */
 function logTitle(title) {
+    const chalk = require('chalk');
     const prefix = ''.padStart(20, '=');
     console.log(chalk.magenta(`${prefix} ${title} ${prefix}`));
 }
