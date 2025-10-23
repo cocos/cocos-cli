@@ -15,7 +15,7 @@ jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
 
 describe('Node Proxy 测试', () => {
     let createdNode: INode | null = null;
-    let testNodePath = '/TestNode';
+    const testNodePath = '/TestNode';
     const testPosition: IVec3 = { x: 1, y: 2, z: 0 };
 
     describe('1. 基础节点操作', () => {
@@ -29,7 +29,7 @@ describe('Node Proxy 测试', () => {
             const prefabNode = await NodeProxy.createNodeByAsset(params);
             expect(prefabNode).toBeDefined();
             expect(prefabNode?.name).toBe('PrefabNode');
-            console.log("Created prefab node path=", prefabNode?.path);
+            console.log('Created prefab node path=', prefabNode?.path);
         });
 
         it('createNode - 创建新节点', async () => {
@@ -45,7 +45,7 @@ describe('Node Proxy 测试', () => {
             expect(createdNode?.name).toBe('TestNode');
             expect(createdNode?.path).toBe('Canvas/TestNode');
             expect(createdNode?.properties.position).toEqual(testPosition);
-            console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
+            console.log('Created node original path=', testNodePath, ' dest path=', createdNode?.path);
         });
     });
 
@@ -242,7 +242,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('6. 添加所有内置的节点', () => {
-        let allNodes: INode[] = [];
+        const allNodes: INode[] = [];
         afterAll(async () => {
             try {
                 for (const node of allNodes) {
@@ -343,7 +343,7 @@ describe('Node Proxy 测试', () => {
                         expect(Array.isArray(createdNode?.children)).toBe(true);
                     }
                     expect(createdNode?.properties.position).toEqual(testPosition);
-                    console.log("Created node original path=", testNodePath, " dest path=", createdNode?.path);
+                    console.log('Created node original path=', testNodePath, ' dest path=', createdNode?.path);
                 } catch (e) {
                     console.log(`测试所有内置节点 错误： ${e}`);
                     throw e;

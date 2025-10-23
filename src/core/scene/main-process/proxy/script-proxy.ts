@@ -17,4 +17,4 @@ export const ScriptProxy: IScriptService = {
     loadScript(uuid: string): Promise<void> {
         return Rpc.request('Script', 'loadScript', [uuid]);
     },
-}
+};

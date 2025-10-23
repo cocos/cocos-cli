@@ -35,4 +35,4 @@ export const SceneProxy: ISceneService = {
     queryScenes(): Promise<IScene[]> {
         return Rpc.request('Scene', 'queryScenes');
     }
-}
+};

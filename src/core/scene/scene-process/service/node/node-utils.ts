@@ -15,7 +15,7 @@ export function getUICanvasNode(node: Node | null, prefabLimitRoot = true): Node
         return node;
     }
 
-    let stopAtRootNode: Node | Scene | null = director.getScene();
+    const stopAtRootNode: Node | Scene | null = director.getScene();
     if (node !== stopAtRootNode) {
         // 先检查该节点所在的祖父节点是否满足
         let parentNode = node.parent;
@@ -59,7 +59,7 @@ export function getUITransformParentNode(node: Node | null): Node | null {
         return node;
     }
 
-    let stopAtRootNode: Node | Scene | null = director.getScene();
+    const stopAtRootNode: Node | Scene | null = director.getScene();
     if (node === stopAtRootNode) {
         return null;
     }

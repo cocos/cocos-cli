@@ -19,7 +19,7 @@ export const Scene = {
 
     // 场景进程
     worker: sceneWorker,
-}
+};
 
 //
 scriptManager.on('pack-build-end', (targetName: string) => {

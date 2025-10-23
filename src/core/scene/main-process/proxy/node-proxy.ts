@@ -17,4 +17,4 @@ export const NodeProxy: INodeService = {
     queryNode(params: IQueryNodeParams): Promise<INode | null> {
         return Rpc.request('Node', 'queryNode', [params]);
     }
-}
+};

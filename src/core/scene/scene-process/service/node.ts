@@ -1,7 +1,6 @@
 import { register, expose } from './decorator';
 import { type ICreateByNodeTypeParams, type ICreateByAssetParams, type IDeleteNodeParams, type INodeService, type IUpdateNodeParams, type IUpdateNodeResult, type IQueryNodeParams, type INode, type IDeleteNodeResult, NodeType } from '../../common';
 import { Rpc } from '../rpc';
-import { readFile } from 'fs-extra';
 import EventEmitter from 'events';
 import { Vec3, Node, Prefab, CCObject, Quat } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
@@ -139,7 +138,7 @@ export class NodeService extends EventEmitter implements INodeService {
         }
 
         // 先尝试获取现有节点
-        let parent = NodeMgr.getNodeByPath(path);
+        const parent = NodeMgr.getNodeByPath(path);
         if (parent) {
             return parent;
         }
@@ -175,8 +174,8 @@ export class NodeService extends EventEmitter implements INodeService {
             let nextNode = currentParent.getChildByName(pathPart);
 
             if (!nextNode) {
-                if (pathPart === "Canvas") {
-                    let newParent = await this.checkCanvasRequired("2d", true, currentParent, undefined);
+                if (pathPart === 'Canvas') {
+                    const newParent = await this.checkCanvasRequired('2d', true, currentParent, undefined);
                     if (newParent) {
                         currentParent = newParent;
                     }
@@ -254,7 +253,7 @@ export class NodeService extends EventEmitter implements INodeService {
 
         return {
             path: path,
-        }
+        };
     }
 
     private _walkNode(node: Node, func: Function) {
@@ -318,7 +317,7 @@ export class NodeService extends EventEmitter implements INodeService {
 
         return {
             path: NodeMgr.getNodePath(node),
-        }
+        };
     }
 
     @expose()
