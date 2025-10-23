@@ -205,29 +205,13 @@ async function installProductionDependencies(extensionDir) {
 }
 
 /**
- * 查找目录中的原生二进制文件 (.node, .dylib, ffprobe 和 static/tools 下的工具)
+ * 查找目录中的原生二进制文件 (仅 static/tools 下的工具)
  */
 async function findNativeBinaries(extensionDir) {
     const binaryFiles = [];
-    
+
     try {
-        // 1. 查找 node_modules 中的 .node 和 .dylib 文件
-        const nodeModulesPath = path.join(extensionDir, 'node_modules');
-        if (await fs.pathExists(nodeModulesPath)) {
-            const nodeModulesBinaries = await globby([
-                '**/*.node',
-                '**/*.dylib',
-                '**/ffprobe',
-                '@cocos/fbx2gltf/bin/Darwin/FBX2glTF'
-            ], {
-                cwd: nodeModulesPath,
-                absolute: true,
-                onlyFiles: true
-            });
-            binaryFiles.push(...nodeModulesBinaries);
-        }
-        
-        // 2. 查找 static/tools 目录下的特定二进制工具
+        // 1. 查找 static/tools 目录下的特定二进制工具
         const staticToolsPath = path.join(extensionDir, 'static', 'tools');
         if (await fs.pathExists(staticToolsPath)) {
             const toolBinaries = await globby([
@@ -247,9 +231,9 @@ async function findNativeBinaries(extensionDir) {
             });
             binaryFiles.push(...toolBinaries);
         }
-        
+
         console.log(`🔍 找到 ${binaryFiles.length} 个原生二进制文件需要签名`);
-        
+
         return binaryFiles;
     } catch (error) {
         console.error('❌ 查找原生二进制文件失败:', error.message);
@@ -293,7 +277,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
         return;
     }
 
-    // 查找所有原生二进制文件 (.node 和 .dylib)
+    // 查找所有原生二进制文件 (static/tools 下的工具)
     const binaryFiles = await findNativeBinaries(extensionDir);
     if (binaryFiles.length === 0) {
         console.log('ℹ️  未找到原生二进制文件，跳过签名');
@@ -301,15 +285,20 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
     }
 
     // 首先为所有二进制文件设置可执行权限
-    console.log('🔧 设置二进制文件可执行权限...');
-    for (const binaryFile of binaryFiles) {
-        try {
-            // 添加可执行权限 (chmod +x)
-            execSync(`chmod +x "${binaryFile}"`, { stdio: 'pipe' });
-            console.log(`✅ 已设置权限: ${path.relative(extensionDir, binaryFile)}`);
-        } catch (error) {
-            console.warn(`⚠️  设置权限失败: ${path.relative(extensionDir, binaryFile)} - ${error.message}`);
+    const isWindows = process.platform === 'win32';
+    if (!isWindows) {
+        console.log('🔧 设置二进制文件可执行权限...');
+        for (const binaryFile of binaryFiles) {
+            try {
+                // 添加可执行权限 (chmod +x)
+                execSync(`chmod +x "${binaryFile}"`, { stdio: 'pipe' });
+                console.log(`✅ 已设置权限: ${path.relative(extensionDir, binaryFile)}`);
+            } catch (error) {
+                console.warn(`⚠️  设置权限失败: ${path.relative(extensionDir, binaryFile)} - ${error.message}`);
+            }
         }
+    } else {
+        console.log('ℹ️  Windows 系统，跳过权限设置');
     }
 
     // 对每个原生二进制文件进行签名
@@ -325,7 +314,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
 
     if (shouldNotarize && appleId && appPassword && teamId) {
         console.log('📋 开始公证原生二进制文件...');
-        
+
         // 创建临时 ZIP 文件用于公证
         const tempZipPath = path.join(extensionDir, '..', 'temp-notarize.zip');
         try {
@@ -336,7 +325,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
                 const fileContent = await fs.readFile(binaryFile);
                 zip.file(relativePath, fileContent);
             }
-            
+
             const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
             await fs.writeFile(tempZipPath, zipContent);
 
@@ -403,9 +392,65 @@ async function showReleaseStats(extensionDir) {
 async function createZipPackage(extensionDir, releaseDirectoryName) {
     console.log('📦 创建ZIP压缩包...');
 
-    const zip = new JSZip();
     const zipFileName = `${releaseDirectoryName}.zip`;
     const zipFilePath = path.join(path.dirname(extensionDir), zipFileName);
+    const parentDir = path.dirname(extensionDir);
+    const dirName = path.basename(extensionDir);
+
+    try {
+        // 删除现有的ZIP文件（如果存在）
+        if (await fs.pathExists(zipFilePath)) {
+            console.log(`删除现有ZIP文件: ${zipFileName}`);
+            await fs.remove(zipFilePath);
+        }
+
+        const isWindows = process.platform === 'win32';
+        
+        if (isWindows) {
+            // Windows: 直接使用 JSZip 方法（已验证可用）
+            console.log('🔧 Windows 系统，使用 JSZip 方式压缩...');
+            return await createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath);
+        }
+        
+        // Unix/Linux/macOS: 使用 zip 命令来保持文件权限
+        // -r: 递归压缩目录
+        // -x: 排除 .DS_Store 文件
+        const zipCommand = `cd "${parentDir}" && zip -r "${zipFileName}" "${dirName}" -x "*.DS_Store"`;
+        
+        console.log(`🔧 执行压缩命令 (${isWindows ? 'Windows' : 'Unix'})...`);
+        console.log(`📁 压缩目录: ${dirName}`);
+        console.log(`⏱️  大文件压缩中，请耐心等待...`);
+        
+        execSync(zipCommand, { 
+            stdio: 'pipe',
+            timeout: 1800000, // 30分钟超时（大文件需要更长时间）
+            maxBuffer: 1024 * 1024 * 100 // 100MB buffer
+        });
+
+        const zipStats = await fs.stat(zipFilePath);
+        console.log(`✅ ZIP压缩包创建完成: ${zipFileName}`);
+        console.log(`📦 压缩包大小: ${formatBytes(zipStats.size)}`);
+
+        return zipFilePath;
+    } catch (error) {
+        console.error('❌ ZIP压缩包创建失败:', error.message);
+        
+        // 检查是否是超时错误
+        if (error.message.includes('timeout') || error.code === 'ETIMEDOUT') {
+            console.error('⏰ 压缩超时，可能是文件太大。建议手动压缩或减少文件大小。');
+        }
+        
+        // 如果系统命令失败，回退到 JSZip
+        console.log('⚠️  回退到 JSZip 方式（注意：在非 Windows 系统上会丢失文件权限）');
+        return await createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath);
+    }
+}
+
+/**
+ * 使用 JSZip 创建压缩包（备用方案，会丢失文件权限）
+ */
+async function createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath) {
+    const zip = new JSZip();
 
     // 递归添加文件到ZIP，排除.DS_Store文件
     async function addDirectoryToZip(dirPath, zipFolder = zip) {
@@ -444,7 +489,7 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
     await fs.writeFile(zipFilePath, zipContent);
 
     const zipStats = await fs.stat(zipFilePath);
-    console.log(`✅ ZIP压缩包创建完成: ${zipFileName}`);
+    console.log(`✅ ZIP压缩包创建完成: ${path.basename(zipFilePath)}`);
     console.log(`📦 压缩包大小: ${formatBytes(zipStats.size)}`);
 
     return zipFilePath;
@@ -551,7 +596,7 @@ async function release() {
         const ignorePatterns = await readIgnorePatterns(rootDir);
 
         // 执行根目录的 npm install（只需要执行一次）
-        // await installRootDependencies(rootDir);
+        await installRootDependencies(rootDir);
 
         // 扫描项目文件（只需要扫描一次）
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
@@ -584,7 +629,7 @@ async function releaseForType(options, rootDir, publishDir, version, ignorePatte
     await copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles);
 
     // 步骤 3: 安装生产依赖
-    await installProductionDependencies(extensionDir);
+    // await installProductionDependencies(extensionDir);
 
     // 步骤 4: 如果是 electron 版本，执行 electron rebuild
     if (options.type === 'electron') {
