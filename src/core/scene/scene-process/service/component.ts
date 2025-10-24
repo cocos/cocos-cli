@@ -1,6 +1,5 @@
 import type { IAddComponentOptions, ISetPropertyOptions, IComponent, IComponentService, IRemoveComponentOptions, IQueryComponentOptions } from '../../common';
 import dumpUtil from './dump';
-import { IProperty } from '../../@types/public';
 import { register, expose } from './decorator';
 import compMgr from './component/index';
 import { Component, Constructor } from 'cc';
@@ -101,7 +100,11 @@ export class ComponentService implements IComponentService {
                 continue;
             }
             const compProperty = compProperties.properties[key];
-            compProperty.value = value;
+            if (compProperty.type === 'array') {
+                compProperty.items = value;
+            } else {
+                compProperty.value = value;
+            }
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
         }
