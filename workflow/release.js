@@ -451,9 +451,6 @@ async function showReleaseStats(extensionDir) {
 async function createZipPackage(extensionDir, releaseDirectoryName) {
     console.log('📦 创建ZIP压缩包...');
 
-    // 在创建ZIP包之前，设置CLI可执行文件权限
-    await setCliExecutablePermissions(extensionDir);
-
     const zipFileName = `${releaseDirectoryName}.zip`;
     const zipFilePath = path.join(path.dirname(extensionDir), zipFileName);
     const parentDir = path.dirname(extensionDir);
@@ -719,6 +716,8 @@ async function releaseForType(options, rootDir, publishDir, version, ignorePatte
     // 显示发布目录的大小信息
     await showReleaseStats(extensionDir);
 
+    // 在创建ZIP包之前，设置CLI可执行文件权限
+    await setCliExecutablePermissions(extensionDir);
     let zipFilePath = null;
 
     // 如果指定了--zip参数，创建ZIP压缩包
