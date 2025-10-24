@@ -192,7 +192,7 @@ async function copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles) {
 async function installProductionDependencies(extensionDir) {
     console.log('📦 在发布目录执行 npm install --production ...');
     try {
-        execSync('npm install --production', {
+        execSync('npm install', {
             cwd: extensionDir,
             stdio: 'inherit',
             timeout: 300000 // 5分钟超时
@@ -205,15 +205,41 @@ async function installProductionDependencies(extensionDir) {
 }
 
 /**
- * 查找目录中的原生二进制文件 (仅 static/tools 下的工具)
+ * 查找目录中的原生二进制文件 (递归搜索)
  */
 async function findNativeBinaries(extensionDir) {
     const binaryFiles = [];
 
     try {
-        // 1. 查找 static/tools 目录下的特定二进制工具
+        // 1. 查找 node_modules 中的二进制文件（递归搜索）
+        const nodeModulesPath = path.join(extensionDir, 'node_modules');
+        if (await fs.pathExists(nodeModulesPath)) {
+            console.log('🔍 递归扫描 node_modules 中的二进制文件...');
+            const nodeModulesBinaries = await globby([
+                '**/*.node',
+                '**/*.dylib',
+                '**/ffprobe',
+                '**/ffmpeg',
+                '**/FBX-glTF-conv',
+            ], {
+                cwd: nodeModulesPath,
+                absolute: true,
+                onlyFiles: true
+            });
+
+            binaryFiles.push(...nodeModulesBinaries);
+            console.log(`  ✓ 在 node_modules 中找到 ${nodeModulesBinaries.length} 个二进制文件`);
+
+            // 显示找到的文件
+            nodeModulesBinaries.forEach(file => {
+                console.log(`    - ${path.relative(extensionDir, file)}`);
+            });
+        }
+
+        // 2. 查找 static/tools 目录下的特定二进制工具
         const staticToolsPath = path.join(extensionDir, 'static', 'tools');
         if (await fs.pathExists(staticToolsPath)) {
+            console.log('🔍 扫描 static/tools 中的二进制文件...');
             const toolBinaries = await globby([
                 'astc-encoder/astcenc',
                 'cmft/cmftRelease64',
@@ -222,7 +248,7 @@ async function findNativeBinaries(extensionDir) {
                 'mali_darwin/composite',
                 'mali_darwin/convert',
                 'mali_darwin/etcpack',
-                //todo:纹理压缩的暂时屏蔽掉，因为它使用了过旧的 SDK，无法通过公证
+                // 暂时排除 PVRTexTool，因为它使用了过旧的 SDK，无法通过公证
                 // 'PVRTexTool_darwin/PVRTexToolCLI',
                 // 'PVRTexTool_darwin/compare'
             ], {
@@ -230,10 +256,17 @@ async function findNativeBinaries(extensionDir) {
                 absolute: true,
                 onlyFiles: true
             });
+
             binaryFiles.push(...toolBinaries);
+            console.log(`  ✓ 在 static/tools 中找到 ${toolBinaries.length} 个工具二进制文件`);
+
+            // 显示找到的文件
+            toolBinaries.forEach(file => {
+                console.log(`    - ${path.relative(extensionDir, file)}`);
+            });
         }
 
-        console.log(`🔍 找到 ${binaryFiles.length} 个原生二进制文件需要签名`);
+        console.log(`🔍 总共找到 ${binaryFiles.length} 个原生二进制文件需要签名`);
 
         return binaryFiles;
     } catch (error) {
@@ -256,6 +289,30 @@ async function signBinaryFile(filePath, identity) {
     } catch (error) {
         console.error(`❌ 签名失败 ${path.basename(filePath)}:`, error.message);
         throw error;
+    }
+}
+
+/**
+ * 为 CLI 可执行文件设置执行权限
+ */
+async function setCliExecutablePermissions(extensionDir) {
+    const isWindows = process.platform === 'win32';
+    if (isWindows) {
+        console.log('ℹ️  Windows 系统，跳过 CLI 文件权限设置');
+        return;
+    }
+
+    const cliJsPath = path.join(extensionDir, 'dist', 'cli.js');
+    if (await fs.pathExists(cliJsPath)) {
+        try {
+            console.log('🔧 设置 CLI 可执行文件权限...');
+            execSync(`chmod +x "${cliJsPath}"`, { stdio: 'pipe' });
+            console.log(`✅ 已设置权限: ${path.relative(extensionDir, cliJsPath)}`);
+        } catch (error) {
+            console.warn(`⚠️  设置 CLI 文件权限失败: ${error.message}`);
+        }
+    } else {
+        console.log('ℹ️  未找到 dist/cli.js 文件，跳过权限设置');
     }
 }
 
@@ -367,7 +424,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
 async function rebuildElectronModules(extensionDir) {
     console.log('🔧 执行 Electron rebuild...');
     try {
-        execSync('npx electron@37.3.1 rebuild', {
+        execSync('npm run rebuild', {
             cwd: extensionDir,
             stdio: 'inherit',
             timeout: 600000 // 10分钟超时
@@ -394,6 +451,9 @@ async function showReleaseStats(extensionDir) {
 async function createZipPackage(extensionDir, releaseDirectoryName) {
     console.log('📦 创建ZIP压缩包...');
 
+    // 在创建ZIP包之前，设置CLI可执行文件权限
+    await setCliExecutablePermissions(extensionDir);
+
     const zipFileName = `${releaseDirectoryName}.zip`;
     const zipFilePath = path.join(path.dirname(extensionDir), zipFileName);
     const parentDir = path.dirname(extensionDir);
@@ -414,10 +474,11 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
             return await createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath);
         }
 
-        // Unix/Linux/macOS: 使用 zip 命令来保持文件权限
+        // Unix/Linux/macOS: 使用 zip 命令来保持文件权限和软链接
         // -r: 递归压缩目录
+        // -y: 保留软链接（symlinks）
         // -x: 排除 .DS_Store 文件
-        const zipCommand = `cd "${parentDir}" && zip -r "${zipFileName}" "${dirName}" -x "*.DS_Store"`;
+        const zipCommand = `cd "${parentDir}" && zip -ry "${zipFileName}" "${dirName}" -x "*.DS_Store"`;
 
         console.log(`🔧 执行压缩命令 (${isWindows ? 'Windows' : 'Unix'})...`);
         console.log(`📁 压缩目录: ${dirName}`);
@@ -454,7 +515,7 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
 async function createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zipFilePath) {
     const zip = new JSZip();
 
-    // 递归添加文件到ZIP，排除.DS_Store文件
+    // 递归添加文件到ZIP，排除.DS_Store文件，正确处理软链接
     async function addDirectoryToZip(dirPath, zipFolder = zip) {
         const items = await fs.readdir(dirPath);
 
@@ -465,14 +526,25 @@ async function createZipPackageWithJSZip(extensionDir, releaseDirectoryName, zip
             }
 
             const itemPath = path.join(dirPath, item);
-            const stats = await fs.stat(itemPath);
+            // 使用 lstat 而不是 stat 来正确检测软链接
+            const stats = await fs.lstat(itemPath);
 
-            if (stats.isDirectory()) {
+            if (stats.isSymbolicLink()) {
+                // 处理软链接：读取链接目标并保存为软链接
+                const linkTarget = await fs.readlink(itemPath);
+                const file = zipFolder.file(item, linkTarget);
+                // 设置软链接权限 (0o120000 | 0o755)
+                file.unixPermissions = 0o120755;
+                console.log(`📎 添加软链接: ${item} -> ${linkTarget}`);
+            } else if (stats.isDirectory()) {
                 const folder = zipFolder.folder(item);
                 await addDirectoryToZip(itemPath, folder);
             } else {
+                // 普通文件：保留文件权限
                 const content = await fs.readFile(itemPath);
-                zipFolder.file(item, content);
+                const file = zipFolder.file(item, content);
+                // 保留原始文件权限
+                file.unixPermissions = stats.mode;
             }
         }
     }
@@ -630,7 +702,7 @@ async function releaseForType(options, rootDir, publishDir, version, ignorePatte
     // 步骤 2: 拷贝文件
     await copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles);
 
-    // 步骤 3: 安装生产依赖
+    // 步骤 3: 安装生产依赖(现在因为直接拷贝了 node_modules 所以暂时注释掉)
     // await installProductionDependencies(extensionDir);
 
     // 步骤 4: 如果是 electron 版本，执行 electron rebuild

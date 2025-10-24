@@ -40,7 +40,7 @@
         "compile": "npm run build:clear && tsc -b && node workflow/generate-schema.js",
         "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
-        "postinstall": "npm run install:engine && node workflow/postinstall.js",
+        "postinstall": "node workflow/postinstall.js",
         "download-tools": "node workflow/download-tools.js",
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
