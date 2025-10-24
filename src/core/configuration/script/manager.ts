@@ -1,5 +1,5 @@
 import { gt } from 'semver';
-import path from 'path';
+import path, { join, relative } from 'path';
 import fse from 'fs-extra';
 import { newConsole } from '../../base/console';
 import * as utils from './utils';
@@ -7,6 +7,7 @@ import { IConfiguration, ConfigurationScope, MessageType } from './interface';
 import { CocosMigrationManager } from '../migration';
 import { configurationRegistry } from './registry';
 import { IBaseConfiguration } from './config';
+import EventEmitter from 'events';
 
 export interface IConfigurationManager {
     /**
@@ -37,10 +38,12 @@ export interface IConfigurationManager {
     remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 }
 
-export class ConfigurationManager implements IConfigurationManager {
+export class ConfigurationManager extends EventEmitter implements IConfigurationManager {
 
     static VERSION: string = '1.0.0';
     static name = 'cocos.config.json';
+    static SchemaPathSource = join(__dirname, '../../../../dist/cocos.config.schema.json');
+    static relativeSchemaPath = `./temp/${path.basename(ConfigurationManager.SchemaPathSource)}`;
 
     private initialized: boolean = false;
     private projectPath: string = '';
@@ -72,6 +75,8 @@ export class ConfigurationManager implements IConfigurationManager {
 
         this.projectPath = projectPath;
         this.configPath = path.join(projectPath, ConfigurationManager.name);
+        const schemaPath = path.join(projectPath, ConfigurationManager.relativeSchemaPath);
+        await fse.copy(ConfigurationManager.SchemaPathSource, schemaPath);
         await this.load();
         try {
             // 迁移不能影响正常的配置初始化流程
@@ -82,10 +87,12 @@ export class ConfigurationManager implements IConfigurationManager {
         this.initialized = true;
     }
 
+    /**
+     * 从硬盘重新加载项目配置，将会丢弃内存中现有的配置
+     */
     public async reload(): Promise<void> {
         await this.load();
-        // 迁移不能影响正常的配置初始化流程
-        await this.migrate();
+        this.emit(MessageType.Reload, this.projectConfig);
     }
 
     private onRegistryConfiguration(instance: IBaseConfiguration): void {
@@ -130,7 +137,6 @@ export class ConfigurationManager implements IConfigurationManager {
         // 直接设置 configs 属性
         instance.configs = utils.deepMerge({}, existingConfig);
     }
-
 
     /**
      * 迁移，包含了 3x 迁移，允许外部单独触发
@@ -223,6 +229,7 @@ export class ConfigurationManager implements IConfigurationManager {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
             await this.getInstance(moduleName).set(actualKey, value, scope);
+            this.emit(MessageType.Update, key, value, scope);
             return true;
         } catch (error) {
             throw new Error(`[Configuration] 更新配置失败：${error}`);
@@ -238,6 +245,7 @@ export class ConfigurationManager implements IConfigurationManager {
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
+            this.emit(MessageType.Remove, key, scope);
             return await this.getInstance(moduleName).remove(actualKey, scope);
         } catch (error) {
             throw new Error(`[Configuration] 移除配置失败：${error}`);
@@ -275,8 +283,8 @@ export class ConfigurationManager implements IConfigurationManager {
     /**
      * 保存项目配置
      */
-    private async save(): Promise<void> {
-        if (!this.projectConfig) {
+    private async save(force: boolean = false): Promise<void> {
+        if (!force && !Object.keys(this.projectConfig).length) {
             return;
         }
         try {
@@ -284,11 +292,10 @@ export class ConfigurationManager implements IConfigurationManager {
             // 确保目录存在
             await fse.ensureDir(path.dirname(this.configPath));
             this.projectConfig.version = this.version;
+            this.projectConfig.$schema = ConfigurationManager.relativeSchemaPath;
             // 保存配置文件
-            await fse.writeJSON(this.configPath, {
-                version: this._version,
-                ...this.projectConfig,
-            }, { spaces: 4 });
+            await fse.writeJSON(this.configPath, this.projectConfig, { spaces: 4 });
+            this.emit(MessageType.Save, this.projectConfig);
             newConsole.debug(`[Configuration] 已保存项目配置: ${this.configPath}`);
         } catch (error) {
             newConsole.error(`[Configuration] 保存项目配置失败: ${this.configPath} - ${error}`);

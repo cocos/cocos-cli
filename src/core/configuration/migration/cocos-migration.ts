@@ -1,6 +1,5 @@
 import { IMigrationTarget } from './types';
 import { CocosConfigLoader } from './cocos-config-loader';
-import { newConsole } from '../../base/console';
 
 /**
  * CocosCreator 配置迁移器实现

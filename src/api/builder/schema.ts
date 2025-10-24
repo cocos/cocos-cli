@@ -117,7 +117,7 @@ export type SchemaPlatformType = z.infer<typeof SchemaPlatform>;
 export type TBuildResultData = z.infer<typeof SchemaBuildResult>;
 
 // Run API 相关 Schema
-export const SchemaRunDest = z.string().min(1).describe('构建输出目录路径');
+export const SchemaRunDest = z.string().min(1).describe('构建输出目录路径，支持 project:// 协议，构建成功后会自动打印对应的目录地址');
 export type TRunDest = z.infer<typeof SchemaRunDest>;
 
 export const SchemaRunResult = z.string().describe('运行 URL');
