@@ -296,8 +296,8 @@ describe('ConfigurationManager', () => {
             await manager.initialize(projectPath);
             expect(CocosMigrationManager.migrate).toHaveBeenCalledWith(projectPath);
             expect(manager['projectConfig']).toEqual({
-                migratedKey: 'migratedValue',
-                version: '1.0.0'
+                version: '1.0.0',
+                migratedKey: 'migratedValue'
             });
             expect(manager['version']).toBe('1.0.0');
             // Same version - should not migrate (migrate method checks version)
