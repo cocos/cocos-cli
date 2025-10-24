@@ -5,6 +5,7 @@ import Utils from '../../base/utils';
 import { IBuildTaskOption, IConfigItem, IDisplayOptions } from '../@types';
 import lodash from 'lodash';
 import { BuildGlobalInfo } from './builder-config';
+import { I18nKeys } from '../../../i18n/types/generated';
 export function compareNumeric(lhs: string, rhs: string): number {
     return lhs.localeCompare(rhs, 'en', { numeric: true });
 }
@@ -107,7 +108,7 @@ export async function warnModuleFallBack(moduleToFallBack: Record<string, string
         }
         return prev + `, ${changeFallbackStr(curr, moduleToFallBack[curr])}`;
     });
-    return console.warn(i18n.t('builder.warn.engineModulesFallBackTip', {
+    return console.warn(i18n.t('builder.warn.engine_modules_fall_back_tip', {
         platform,
         fallbackMsg,
     }));
@@ -269,30 +270,6 @@ export function defaultMerge(target: Record<string, any>, ...sources: Record<str
     }
     // 返回合并后的目标对象
     return target;
-}
-
-/**
- * 翻译 title
- * @param title 原始 title 或者带有 i18n 开头的 title
- */
-export function transI18nName(name: string): string {
-    if (typeof name !== 'string') {
-        return '';
-    }
-    if (name.startsWith('i18n:')) {
-        name = name.replace('i18n:', '');
-        if (!i18n.t(name)) {
-            console.debug(`${name} is not defined in i18n`);
-        }
-        return i18n.t(name) || name;
-    }
-    return name;
-}
-
-export function transI18n(key: string, obj?: {
-    [key: string]: string;
-}) {
-    return i18n.t(key, obj);
 }
 
 export function getBuildPath(options: IBuildTaskOption) {

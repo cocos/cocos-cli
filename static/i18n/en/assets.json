@@ -1,0 +1,83 @@
+{
+    "title": "Asset Database",
+    "description": "Cocos Creator Asset Manager",
+    "deprecated_tip": "{oldName} has been deprecated in version {version}, please replace with {newName}",
+    "global_readonly_tip": "Global variable {name} field is already used by asset process and cannot be overwritten, please use other field",
+    "debug_mode": "Open asset (build) debug tools",
+    "asset_d_b_pause_tips": "Asset database is locked, asset operations ({operate}) will be delayed, please wait",
+    "asset_d_b_init_error": "Asset process startup failed!",
+    "save_asset": {
+        "fail": {
+            "unknown": "Failed to save asset: unknown error",
+            "uuid": "Failed to save asset: cannot identify UUID",
+            "asset": "Failed to save asset: cannot find asset {asset}",
+            "content": "Failed to save asset: file content format is incorrect",
+            "readonly": "Failed to save asset: cannot operate on readonly asset"
+        }
+    },
+    "save_asset_meta": {
+        "fail": {
+            "unknown": "Failed to save asset META: unknown error",
+            "uuid": "Failed to save asset META: cannot identify UUID",
+            "content": "Failed to save asset META: file content format is incorrect",
+            "readonly": "Failed to save asset META: cannot operate on readonly asset"
+        }
+    },
+    "init": {
+        "no_asset_db_list": "Asset database list is empty, please check the asset configuration"
+    },
+    "operation": {
+        "invalid_url": "Invalid URL: input URL must be a string and start with db://",
+        "exists_url": "Invalid URL: URL points to non-existent asset",
+        "readonly": "Invalid target path: target is a readonly folder",
+        "overwrite": "File already exists, overwrite?"
+    },
+    "delete_asset": {
+        "fail": {
+            "unknown": "Failed to delete asset: unknown error",
+            "url": "Failed to delete asset: invalid parameter",
+            "unexist": "Failed to delete asset: file does not exist",
+            "readonly": "Failed to delete asset: readonly file cannot be deleted"
+        }
+    },
+    "create_asset": {
+        "title": "Create Asset",
+        "fail": {
+            "unknown": "Failed to create asset ({target}): unknown error",
+            "type": "Failed to create asset: unrecognized asset type ({type})",
+            "url": "Failed to create asset: invalid address ({url})",
+            "exist": "Failed to create asset: file already exists",
+            "drop": "Failed to create asset: imported asset address ({target}) does not exist",
+            "to_url": "Failed to create asset: file path ({target}) may be outside project scope, cannot convert to project URL",
+            "uuid": "Failed to create asset: cannot convert parameter ({target}) to project URL"
+        }
+    },
+    "import_asset": {
+        "meta_exists": "{name} asset meta file already exists, skip meta import, enable in preferences if needed"
+    },
+    "open_asset": {
+        "preference_program_warning": "For better script opening, please configure script opening application in {preferences} -> {program} -> {scriptEditor}",
+        "fail": {
+            "no_asset": "Failed to open asset: cannot find asset"
+        }
+    },
+    "copy_asset": {
+        "fail": {
+            "unknown": "Failed to copy asset: unknown error",
+            "url": "Failed to copy asset: invalid parameter"
+        }
+    },
+    "restore_asset_d_b_from_cache_in_valid": {
+        "upgrade": "Asset startup cache reuse mechanism is invalid during project upgrade",
+        "no_library_path": "Library folder does not exist, asset startup cache reuse mechanism is invalid"
+    },
+    "preferences": {
+        "log_level": "Log level",
+        "log_level_debug": "Output all information",
+        "log_level_log": "Output errors, warnings and logs",
+        "log_level_warn": "Output errors and warnings only",
+        "log_level_error": "Output errors only",
+        "ignore_glob": "Ignore files (using Glob pattern)",
+        "ignore_changed": "Ignore configuration changes"
+    }
+}

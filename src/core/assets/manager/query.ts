@@ -880,7 +880,7 @@ const FilterHandlerInfos: FilterHandlerInfo[] = [{
         if (!types) {
             return;
         }
-        console.warn(i18n.t('asset-db.deprecatedTip', {
+        console.warn(i18n.t('assets.deprecated_tip', {
             oldName: 'options.type',
             newName: 'options.ccType',
             version: '3.8.0',

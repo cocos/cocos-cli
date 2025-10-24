@@ -61,7 +61,7 @@ export async function getSplashSettings(useSplashScreen: boolean, preview: boole
             return formatSplashScreen(splashScreen);
         } catch (error) {
             console.error(error);
-            console.error(i18n.t('builder.error.missingSplashTips', {
+            console.error(i18n.t('builder.error.missing_splash_tips', {
                 splashScreen: JSON.stringify(splashScreen),
             }));
             return formatSplashScreen(defaultSplashScreen!);

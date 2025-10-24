@@ -43,7 +43,7 @@ export const JavascriptHandler: AssetHandlerBase = {
                 }
             } catch (error) {
                 console.error(
-                    i18nTranslate('engine-extends.importers.script.transform_failure', {
+                    i18nTranslate('importer.script.transform_failure', {
                         path: asset.source,
                         reason: error,
                     }),

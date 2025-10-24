@@ -38,7 +38,7 @@ export async function build(options?: IBuildCommandOption): Promise<IBuildResult
     }
     // 不支持的构建平台不执行构建
     if (!PLATFORMS.includes(options.platform)) {
-        console.error(i18n.t('builder.tips.disablePlatformForBuildCommand', {
+        console.error(i18n.t('builder.tips.disable_platform_for_build_command', {
             platform: options.platform,
         }));
         return { code: BuildExitCode.BUILD_FAILED, reason: `Unsupported platform ${options.platform} for build command!` };

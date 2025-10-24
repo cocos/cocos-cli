@@ -13,7 +13,7 @@ try {
     require('sharp');
 } catch (error) {
     console.error(error);
-    console.error(i18n.t('engine-extends.importers.sharpError'));
+    console.error(i18n.t('importer.sharp_error'));
 }
 
 const Sharp = require('sharp');

@@ -69,7 +69,7 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
 
     // 调试模式下，加密脚本功能无效
     if (options.debug && params.encrypted) {
-        console.warn(i18n.t('native.encrypt.disable_tips'));
+        console.warn(i18n.t('builder.platforms.native.encrypt.disable_tips'));
         params.encrypted = false;
     }
 
@@ -110,7 +110,7 @@ async function getBrowserslistQuery(repo: string) {
         return;
     }
 
-    // eslint-disable-next-line consistent-return
+
     return queries.join(' or ');
 
     function parseBrowserslistQueries(source: string) {
@@ -135,7 +135,7 @@ export function onBeforeBuild(options: ITaskOption) {
 export async function onAfterInit(options: ITaskOption, result: InternalBuildResult) {
     // 3.4 在 m1 支持了 physx，这部分代码保留一个版本，3.5 后再移除这部分代码和对应 i18n
     // if (options.platform === 'mac' && options.packages.mac!.supportM1 && options.includeModules.includes('physics-physx')) {
-    //     throw new Error(i18n.t('mac.error.m1_with_physic_x'));
+    //     throw new Error(i18n.t('builder.platforms.mac.error.m1_with_physic_x'));
     // }
     if (options.server && !options.server.endsWith('/')) {
         options.server += '/';

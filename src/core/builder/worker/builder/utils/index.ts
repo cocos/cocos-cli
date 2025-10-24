@@ -7,11 +7,11 @@ import { copy, ensureDirSync, readFile, rename } from 'fs-extra';
 import * as babel from '@babel/core';
 import babelPresetEnv from '@babel/preset-env';
 import { workerManager } from '../../worker-pools/sub-process-manager';
-import { transI18n, transI18nName as transI18nNameShare } from '../../../share/utils';
 import { IAsset } from '../../../../assets/@types/protected';
 import { IModules, ITransformOptions, IBuildTaskOption } from '../../../@types';
 import utils from '../../../../base/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
+import i18n from '../../../../base/i18n';
 
 export { getBuildPath } from '../../../share/utils';
 
@@ -151,11 +151,6 @@ export function isInstallNodeJs(): Promise<boolean> {
                     return;
                 }
                 console.error(error);
-                if (process.platform === 'win32') {
-                    console.error(new Error(transI18n('builder.window_default_npm_path_error')));
-                } else {
-                    console.error(new Error(transI18n('builder.mac_default_npm_path_error')));
-                }
                 resolve(false);
             },
         );
@@ -205,12 +200,6 @@ export function copyDirSync(path: string, dest: string) {
         copyDirSync(file, fileDest);
     });
 }
-
-/**
- * 翻译 title
- * @param title 原始 title 或者带有 i18n 开头的 title
- */
-export const transI18nName = transI18nNameShare;
 
 // 注意：目前 utils 用的是 UUID，EditorExtends 用的是 Uuid 
 export function compressUuid(uuid: string, min = true) {

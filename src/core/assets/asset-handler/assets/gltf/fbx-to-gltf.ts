@@ -56,7 +56,7 @@ export async function fbxToGlTf(asset: Asset, assetDB: AssetDB, version: string)
         }
     }
     if (!fbxTempDir) {
-        throw new Error(i18nTranslate('engine-extends.importers.fbx.no_available_fbx_temp_dir'));
+        throw new Error(i18nTranslate('importer.fbx.no_available_fbx_temp_dir'));
     }
     await fs.ensureDir(fbxTempDir);
 
@@ -72,7 +72,7 @@ export async function fbxToGlTf(asset: Asset, assetDB: AssetDB, version: string)
     }
 
     throw new Error(
-        i18nTranslate('engine-extends.importers.fbx.failed_to_convert_fbx_file', {
+        i18nTranslate('importer.fbx.failed_to_convert_fbx_file', {
             path: asset.source,
         }),
     );

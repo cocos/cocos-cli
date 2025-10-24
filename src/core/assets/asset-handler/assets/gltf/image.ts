@@ -72,7 +72,7 @@ export const GltfImageHandler: AssetHandler = {
                     image = { data: imageData, mimeType, extName: ps.extname(imagePath) };
                 } catch (error) {
                     console.error(
-                        i18nTranslate('engine-extends.importers.glTF.failed_to_load_image', {
+                        i18nTranslate('importer.gltf.failed_to_load_image', {
                             url: fileURL,
                             reason: error,
                         }),
@@ -125,7 +125,7 @@ export const GltfImageHandler: AssetHandler = {
                         if (imageURI) {
                             if (!imageURI.startsWith('file://')) {
                                 console.error(
-                                    i18nTranslate('engine-extends.importers.glTF.image_uri_should_be_file_url'),
+                                    i18nTranslate('importer.gltf.image_uri_should_be_file_url'),
                                     linkToAssetTarget(asset.uuid),
                                 );
                             } else {
@@ -158,7 +158,7 @@ export const GltfImageHandler: AssetHandler = {
                 if (extName.toLowerCase() === '.tga') {
                     const converted = await convertTGA(imageData);
                     if (converted instanceof Error || !converted) {
-                        console.error(i18nTranslate('engine-extends.importers.glTF.failed_to_convert_tga'), linkToAssetTarget(asset.uuid));
+                        console.error(i18nTranslate('importer.gltf.failed_to_convert_tga'), linkToAssetTarget(asset.uuid));
                         return false;
                     }
                     extName = converted.extName;
@@ -172,7 +172,7 @@ export const GltfImageHandler: AssetHandler = {
                     // TODO 需要与 image/index 整合复用 https://github.com/cocos/3d-tasks/issues/19092
                     const converted = await convertHDROrEXR(extName, tempFile, asset.uuid, asset.temp);
                     if (converted instanceof Error || !converted) {
-                        console.error(i18nTranslate('engine-extends.importers.glTF.failed_to_convert_tga'), linkToAssetTarget(asset.uuid));
+                        console.error(i18nTranslate('importer.gltf.failed_to_convert_tga'), linkToAssetTarget(asset.uuid));
                         return false;
                     }
                     extName = converted.extName;

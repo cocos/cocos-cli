@@ -122,7 +122,7 @@ export const TypeScriptHandler: AssetHandler = {
                     className = replaceContents.DefaultCamelCaseClassName;
                     !replaceContents.CamelCaseClassName &&
                         console.warn(
-                            i18n.t('engine-extends.importers.script.findClassNameFromFileNameFailed', {
+                            i18n.t('importer.script.find_class_name_from_file_name_failed', {
                                 fileBasename: FileBasenameNoExtension,
                                 className,
                             }),

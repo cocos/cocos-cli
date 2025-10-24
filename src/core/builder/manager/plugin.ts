@@ -262,10 +262,10 @@ export class PluginManager extends EventEmitter {
             }
             // 有报错信息，也有修复值，只发报错不中断，使用新值
             if (compressionTypeResult.error && isValid) {
-                console.warn(i18n.t('builder.warn.checkFailedWithNewValue', {
+                console.warn(i18n.t('builder.warn.check_failed_with_new_value', {
                     key: 'mainBundleCompressionType',
                     value: options.mainBundleCompressionType,
-                    error: i18n.t(compressionTypeResult.error.replace('i18n:', '')) || compressionTypeResult.error,
+                    error: i18n.transI18nName(compressionTypeResult.error) || compressionTypeResult.error,
                     newValue: JSON.stringify(compressionTypeResult.newValue),
                 }));
             }
@@ -289,10 +289,10 @@ export class PluginManager extends EventEmitter {
             // @ts-ignore
             const res = await this.checkCommonOptionByKey(key as keyof IBuildTaskOption, rightOptions[key], rightOptions);
             if (res && res.error && res.level === 'error') {
-                const errMsg = i18n.t(res.error.replace('i18n:', '')) || res.error;
+                const errMsg = i18n.transI18nName(res.error) || res.error;
                 if (!validator.checkWithInternalRule('valid', res.newValue)) {
                     checkRes = false;
-                    console.error(i18n.t('builder.error.checkFailed', {
+                    console.error(i18n.t('builder.error.check_failed', {
                         key,
                         value: JSON.stringify(rightOptions[key]),
                         error: errMsg,
@@ -301,7 +301,7 @@ export class PluginManager extends EventEmitter {
                     return;
                 } else {
                     // 常规构建如果新的值可用，不中断，只警告
-                    console.warn(i18n.t('builder.warn.checkFailedWithNewValue', {
+                    console.warn(i18n.t('builder.warn.check_failed_with_new_value', {
                         key,
                         value: JSON.stringify(rightOptions[key]),
                         error: errMsg,
@@ -406,10 +406,10 @@ export class PluginManager extends EventEmitter {
                     ));
                 }
                 const verifyLevel: IConsoleType = buildConfig.options[key].verifyLevel || 'error';
-                const errMsg = (typeof error === 'string' && i18n.t(error.replace('i18n:', ''))) || error;
+                const errMsg = (typeof error === 'string' && i18n.transI18nName(error)) || error;
 
                 if (!useDefault && verifyLevel === 'error') {
-                    console.error(i18n.t('builder.error.checkFailed', {
+                    console.error(i18n.t('builder.error.check_failed', {
                         key: `options.packages.${pkgName}.${key}`,
                         value: JSON.stringify(value),
                         error: errMsg,
@@ -419,7 +419,7 @@ export class PluginManager extends EventEmitter {
                 } else {
                     const consoleType = (verifyLevel !== 'error' && newConsole[verifyLevel]) ? verifyLevel : 'warn';
                     // 有报错信息，但有默认值，报错后填充默认值
-                    newConsole[consoleType](i18n.t('builder.warn.checkFailedWithNewValue', {
+                    newConsole[consoleType](i18n.t('builder.warn.check_failed_with_new_value', {
                         key: `options.packages.${pkgName}.${key}`,
                         value: JSON.stringify(value),
                         error: errMsg,

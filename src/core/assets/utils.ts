@@ -336,20 +336,3 @@ export function ensureOutputData(asset: IAsset) {
     asset.setData('output', outputData);
     return outputData;
 }
-
-/**
- * 翻译带有 i18n:xxx 的 Label
- */
-export function transI18nName(name: string): string {
-    if (typeof name !== 'string') {
-        return '';
-    }
-    if (name.startsWith('i18n:')) {
-        name = name.replace('i18n:', '');
-        if (!i18n.t(name)) {
-            console.debug(`${name} is not defined in i18n`);
-        }
-        return i18n.t(name) || name;
-    }
-    return name;
-}

@@ -786,7 +786,7 @@ async function afterCreateAsset(paths: string | string[], options: CreateAssetOp
     for (const file of paths) {
         // 文件不存在，nodejs 没有成功创建文件
         if (!existsSync(file)) {
-            throw new Error(`${i18n.t('asset-db.createAsset.fail.drop', {
+            throw new Error(`${i18n.t('assets.create_asset.fail.drop', {
                 target: file,
             })}`);
         }

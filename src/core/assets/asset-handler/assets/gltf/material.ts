@@ -84,7 +84,7 @@ export const GltfMaterialHandler: AssetHandler = {
         async save(asset, content) {
             const materialUuid = asset.uuid;
             if (!content || Buffer.isBuffer(content)) {
-                throw new Error(`${i18nTranslate('asset-db.saveAssetMeta.fail.content')}`);
+                throw new Error(`${i18nTranslate('assets.save_asset_meta.fail.content')}`);
             }
 
             if (!asset.parent) {

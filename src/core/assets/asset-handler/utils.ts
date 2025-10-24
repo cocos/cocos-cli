@@ -6,9 +6,10 @@ import Utils from '../../base/utils';
 import { MissingClass } from '../../engine/editor-extends/missing-reporter/missing-class-reporter';
 import { Asset } from '@cocos/asset-db';
 import { IAssetMeta } from '../@types/private';
+import type { I18nKeys } from '../../../i18n/types/generated';
 declare const cc: any;
 
-export function i18nTranslate<Key extends string>(
+export function i18nTranslate<Key extends I18nKeys>(
     key: Key,
     ...args: any[]
 ): string {
@@ -200,9 +201,9 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
                     nodeData._children.splice(i, 1);
                     hasNull = true;
                     console.warn(
-                        i18n.t('engine-extends.importers.invalidNodeData', {
+                        i18n.t('importer.invalid_node_data', {
                             assetUuid,
-                            type: i18n.t('engine-extends.importers.node'),
+                            type: i18n.t('importer.node'),
                             value: String(el),
                         }),
                     );
@@ -218,9 +219,9 @@ export function removeNull(sceneData: any, assetUuid: string): boolean {
                 if (!el) {
                     nodeData._components.splice(i, 1);
                     console.warn(
-                        i18n.t('engine-extends.importers.invalidNodeData', {
+                        i18n.t('importer.invalid_node_data', {
                             assetUuid,
-                            type: i18n.t('engine-extends.importers.component'),
+                            type: i18n.t('importer.component'),
                             value: String(el),
                         }),
                     );

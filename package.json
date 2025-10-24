@@ -131,6 +131,7 @@
         "gltf-validator": "^2.0.0-dev.2.7",
         "gltfpack": "^0.14.0",
         "gradient-string": "^3.0.0",
+        "i18next": "^25.6.0",
         "inquirer": "^12.10.0",
         "js-yaml": "^4.1.0",
         "jszip": "^3.10.1",

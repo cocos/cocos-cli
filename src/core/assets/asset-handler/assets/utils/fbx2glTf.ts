@@ -86,7 +86,7 @@ export function convert(srcFile: string, destFile: string, opts: string[] = []) 
                     // See https://docs.microsoft.com/en-us/previous-versions/k089yyh0(v%3Dvs.140)
                     reject(
                         new Error(
-                            i18nTranslate('engine-extends.importers.fbx.fbx2glTF_exists_with_non_zero_code', {
+                            i18nTranslate('importer.fbx.fbx2gltf_exists_with_non_zero_code', {
                                 code,
                                 output: output.length ? output : '<none>',
                             }),

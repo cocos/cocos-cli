@@ -5,8 +5,8 @@ import EventEmitter from 'events';
 import { getBuildPath } from '../utils';
 import { IBuildPaths, ISettings, IBuildTaskOption, IBuildResult, IRawAssetPathInfo, IAssetPathInfo, IImportAssetPathInfo } from '../../../@types';
 import { ICompressImageResult, ImportMapWithImports, IBuilder, IBuildSeparateEngineResult } from '../../../@types/protected';
-import { transI18n } from '../../../share/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
+import i18n from '../../../../base/i18n';
 
 class Paths implements IBuildPaths {
     dir: string;
@@ -265,7 +265,7 @@ export class BuildResult implements IBuildResult {
      * @param uuid 
      */
     public getJsonPathInfo(uuid: string): IImportAssetPathInfo[] {
-        console.warn(transI18n('builder.warn.deprecatedTip', {
+        console.warn(i18n.t('builder.warn.deprecated_tip', {
             oldName: 'result.getJsonPathInfo',
             newName: 'result.getImportAssetPaths',
         }));

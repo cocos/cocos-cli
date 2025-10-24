@@ -14,7 +14,7 @@ export async function startupAssetDB() {
         // @ts-ignore HACK 目前引擎有在一些资源序列化会调用的接口里使用这个变量，没有合理的传参之前需要临时设置兼容
         globalThis.Build = true;
         await assetConfig.init();
-        newConsole.trackMemoryStart('asset-db:worker-init');
+        newConsole.trackMemoryStart('assets:worker-init');
         await assetManager.init();
         await assetDBManager.init();
         newConsole.trackMemoryEnd('asset-db:worker-init');
