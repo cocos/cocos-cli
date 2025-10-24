@@ -71,132 +71,132 @@ export function getDefaultConfig(): BuildConfiguration {
         textureCompressConfig: {
             userPreset: {},
             defaultConfig: {
-                'default': {
-                    'name': 'Default Opaque',
-                    'options': {
-                        'miniGame': {
-                            'etc1_rgb': {
-                                'quality': 'fast'
+                default: {
+                    name: 'Default Opaque',
+                    options: {
+                        miniGame: {
+                            etc1_rgb: {
+                                quality: 'fast'
                             },
-                            'pvrtc_4bits_rgb': {
-                                'quality': 'fast'
+                            pvrtc_4bits_rgb: {
+                                quality: 'fast'
                             },
-                            'jpg': {
-                                'quality': 80
+                            jpg: {
+                                quality: 80
                             }
                         },
-                        'android': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                        android: {
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'etc1_rgb': {
-                                'quality': 'fast'
+                            etc1_rgb: {
+                                quality: 'fast'
                             },
-                            'jpg': {
-                                'quality': 80
+                            jpg: {
+                                quality: 80
                             }
                         },
                         'harmonyos-next': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'etc1_rgb': {
-                                'quality': 'fast'
+                            etc1_rgb: {
+                                quality: 'fast'
                             },
-                            'jpg': {
-                                'quality': 80
+                            jpg: {
+                                quality: 80
                             }
                         },
-                        'ios': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                        ios: {
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'pvrtc_4bits_rgb': {
-                                'quality': 'fast'
+                            pvrtc_4bits_rgb: {
+                                quality: 'fast'
                             },
-                            'jpg': {
-                                'quality': 80
+                            jpg: {
+                                quality: 80
                             }
                         },
-                        'web': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                        web: {
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'etc1_rgb': {
-                                'quality': 'fast'
+                            etc1_rgb: {
+                                quality: 'fast'
                             },
-                            'pvrtc_4bits_rgb': {
-                                'quality': 'fast'
+                            pvrtc_4bits_rgb: {
+                                quality: 'fast'
                             },
-                            'png': {
-                                'quality': 80
+                            png: {
+                                quality: 80
                             }
                         },
-                        'pc': {}
+                        pc: {}
                     }
                 },
-                'transparent': {
-                    'name': 'Default Transparent',
-                    'options': {
-                        'miniGame': {
-                            'etc1_rgb_a': {
-                                'quality': 'fast'
+                transparent: {
+                    name: 'Default Transparent',
+                    options: {
+                        miniGame: {
+                            etc1_rgb_a: {
+                                quality: 'fast'
                             },
-                            'pvrtc_4bits_rgb_a': {
-                                'quality': 'fast'
+                            pvrtc_4bits_rgb_a: {
+                                quality: 'fast'
                             },
-                            'png': {
-                                'quality': 80
+                            png: {
+                                quality: 80
                             }
                         },
-                        'android': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                        android: {
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'etc1_rgb_a': {
-                                'quality': 'fast'
+                            etc1_rgb_a: {
+                                quality: 'fast'
                             },
-                            'png': {
-                                'quality': 80
+                            png: {
+                                quality: 80
                             }
                         },
                         'harmonyos-next': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'etc1_rgb_a': {
-                                'quality': 'fast'
+                            etc1_rgb_a: {
+                                quality: 'fast'
                             },
-                            'png': {
-                                'quality': 80
+                            png: {
+                                quality: 80
                             }
                         },
-                        'ios': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                        ios: {
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'pvrtc_4bits_rgb_a': {
-                                'quality': 'fast'
+                            pvrtc_4bits_rgb_a: {
+                                quality: 'fast'
                             },
-                            'png': {
-                                'quality': 80
+                            png: {
+                                quality: 80
                             }
                         },
-                        'web': {
-                            'astc_8x8': {
-                                'quality': 'medium'
+                        web: {
+                            astc_8x8: {
+                                quality: 'medium'
                             },
-                            'etc1_rgb_a': {
-                                'quality': 'fast'
+                            etc1_rgb_a: {
+                                quality: 'fast'
                             },
-                            'pvrtc_4bits_rgb_a': {
-                                'quality': 'fast'
+                            pvrtc_4bits_rgb_a: {
+                                quality: 'fast'
                             },
-                            'png': {
-                                'quality': 80
+                            png: {
+                                quality: 80
                             }
                         },
-                        'pc': {}
+                        pc: {}
                     }
                 }
             },
@@ -238,8 +238,7 @@ class BuilderConfig {
         // BuildGlobalInfo.globalTempDir = join(projectInfo.path, 'builder', 'temp', 'global');
         this._init = true;
         this._configInstance = await configurationRegistry.register('builder', getDefaultConfig());
-        const data = await this.getProject<Record<string, any>>();
-        console.log('builderConfig', data);
+        await this.getProject<Record<string, any>>();
     }
 }
 

@@ -22,6 +22,30 @@ import * as lodash from 'lodash';
 
 class AssetOperation extends EventEmitter {
 
+    /**
+     * 检查一个资源文件夹是否为只读
+     */
+    _checkReadonly(asset: IAsset) {
+        if (asset._assetDB.options.readonly) {
+            throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
+        }
+    }
+
+    _checkExists(path: string) {
+        if (!existsSync(path)) {
+            throw new Error(`file ${path} not exists`);
+        }
+    }
+
+    _checkOverwrite(path: string, option?: AssetOperationOption) {
+        if (existsSync(path) && !option?.overwrite) {
+            throw new Error(`file ${path} already exists, please use overwrite option to overwrite it or delete file first.`);
+        } else if (existsSync(path) && option?.rename) {
+            return utils.File.getName(path);
+        }
+        return path;
+    }
+
     async saveAssetMeta(uuid: string, meta: IAssetMeta, info?: IAsset) {
         // 不能为数组
         if (
@@ -276,8 +300,8 @@ class AssetOperation extends EventEmitter {
 
     /**
      * 移动资源
-     * @param source 源文件的 url db://assets/abc.txt
-     * @param target 目标 url db://assets/a.txt
+     * @param source 源文件的 url 或者绝对路径 db://assets/abc.txt
+     * @param target 目标 url 或者绝对路径 db://assets/a.txt
      * @param option 导入资源的参数 { overwrite, xxx, rename }
      * @returns {Promise<IAssetInfo | null>}
      */
@@ -287,18 +311,16 @@ class AssetOperation extends EventEmitter {
 
     private async _moveAsset(source: string, target: string, option?: AssetOperationOption) {
         console.debug(`start move asset from ${source} -> ${target}...`);
-        const overwrite = existsSync(target) && option?.overwrite;
-        if (overwrite) {
-            // 要覆盖目标文件时，需要先删除目标文件
-            await this._removeAsset(target);
-        }
-
         if (target.startsWith('db://')) {
             target = url2path(target);
         }
-        if (source.startsWith('db://')) {
-            source = url2path(source);
+        const asset = assetQueryManager.queryAsset(source);
+        if (!asset) {
+            throw new Error(`asset in source file ${source} not exists`);
         }
+        this._checkReadonly(asset);
+        source = asset.source;
+        this._checkOverwrite(target, option);
 
         await moveFile(source, target, option);
 
@@ -329,6 +351,26 @@ class AssetOperation extends EventEmitter {
 
     private async _renameAsset(source: string, target: string, option?: AssetOperationOption) {
         console.debug(`start rename asset from ${source} -> ${target}...`);
+        const asset = assetQueryManager.queryAsset(source);
+        if (!asset) {
+            throw new Error(`asset in source file ${source} not exists`);
+        }
+        this._checkReadonly(asset);
+        source = asset.source;
+        if (target.startsWith('db://')) {
+            target = url2path(target);
+        }
+        this._checkExists(source);
+        target = this._checkOverwrite(target, option);
+        // 源地址不能被目标地址包含，也不能相等
+        if (target.startsWith(join(source, '/'))) {
+            throw new Error(`${i18n.t('asset-db.renameAsset.fail.parent')} \nsource: ${source}\ntarget: ${target}`);
+        }
+        // TODO 传递路径不在同一个文件夹内，视为移动文件
+        // if (dirname(target) !== dirname(source)) {
+        //     await moveFile(source, target, option);
+        // }
+
         const uri = {
             basename: basename(target),
             dirname: dirname(target),
@@ -358,9 +400,7 @@ class AssetOperation extends EventEmitter {
         if (!asset) {
             throw new Error(`${i18n.t('asset-db.deleteAsset.fail.unexist')} \nsource: ${uuidOrURLOrPath}`);
         }
-        if (asset._assetDB.options.readonly) {
-            throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
-        }
+        this._checkReadonly(asset);
 
         if (asset._parent) {
             throw new Error(`子资源无法单独删除，请传递父资源的 URL 地址`);
@@ -388,15 +428,8 @@ export default assetOperation;
  * @param file
  */
 export async function moveFile(source: string, target: string, options?: IMoveOptions) {
-    if (!existsSync(source)) {
-        throw new Error(`source file ${source} not exists`);
-    }
 
-    if (!options) {
-        if (existsSync(target)) {
-            throw new Error(`target file ${target} already exists`);
-        }
-
+    if (!options || !options.overwrite) {
         options = { overwrite: false }; // fs move 要求实参 options 要有值
     }
     const tempDir = join(assetConfig.data.tempRoot, 'asset-db', 'move-temp');

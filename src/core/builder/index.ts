@@ -20,25 +20,6 @@ export async function build(options?: IBuildCommandOption): Promise<IBuildResult
         options = await pluginManager.getOptionsByPlatform('web-desktop');
     }
 
-    if (options.configPath) {
-        if (!existsSync(options.configPath)) {
-            console.error(`${options.configPath} is not exist!`);
-            return { code: BuildExitCode.BUILD_FAILED, reason: `${options.configPath} is not exist!` };
-        }
-        console.debug(`Read config from path ${options.configPath}...`);
-        let data = readJSONSync(options.configPath);
-        // 功能点：options 传递的值，允许覆盖配置文件内的同属性值
-        data = Object.assign(data, options);
-        // 避免修改原始 options
-        Object.assign(options, data);
-        // 移除旧的 key 方便和 configPath 未读取的情况做区分
-        delete options.configPath;
-    }
-
-    // if (!options.platform) {
-    //     console.error('platform is required');
-    //     return BuildExitCode.PARAM_ERROR;
-    // }
     options.platform = options.platform || 'web-desktop';
     // 启动对应的平台模块注册流程
     await pluginManager.prepare([options.platform!]);
