@@ -14,6 +14,6 @@ export async function startServer(folder: string, port?: number) {
     register('mcp', middleware.getMiddlewareContribution());
     const mcpUrl = `${serverService.url}/mcp`;
     console.log(chalk.green('✓ MCP Server started successfully!'));
-    console.log(chalk.blue(`Server is running on: ${mcpUrl}`));
+    console.log(`${chalk.blueBright(`Server is running on: `)}${chalk.underline.cyan(`${mcpUrl}`)}`);
     console.log(chalk.yellow('Press Ctrl+C to stop the server'));
 }

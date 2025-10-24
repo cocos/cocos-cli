@@ -35,13 +35,7 @@
    npm install
    ```
 
-3. **下载开发工具**（首次运行）
-
-   ```bash
-   npm run download-tools
-   ```
-
-4. **构建并链接到全局**
+3. **构建并链接到全局**
 
    ```bash
    npm run build

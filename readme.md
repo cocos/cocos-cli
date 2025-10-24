@@ -35,13 +35,7 @@
    npm install
    ```
 
-3. **Download development tools** (first time only)
-
-   ```bash
-   npm run download-tools
-   ```
-
-4. **Build and link globally**
+3. **Build and link globally**
 
    ```bash
    npm run build
