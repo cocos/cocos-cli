@@ -41,7 +41,8 @@ describe('ConfigurationManager', () => {
         it('should initialize with default values', () => {
             expect(manager['initialized']).toBe(false);
             expect(manager['configPath']).toBe('');
-            expect(manager['projectConfig']).toEqual({ version: '0.0.0' });
+            expect(manager['projectConfig']).toEqual({});
+            expect(manager['version']).toBe('0.0.0');
             expect(manager['configurationMap']).toBeInstanceOf(Map);
         });
     });
@@ -276,6 +277,7 @@ describe('ConfigurationManager', () => {
     describe('migration', () => {
         it('should perform migration when version is lower and not when same or higher', async () => {
             const { CocosMigrationManager } = require('../migration');
+            manager.reset();
             const migratedConfig = {
                 project: {
                     migratedKey: 'migratedValue'
@@ -294,10 +296,10 @@ describe('ConfigurationManager', () => {
             await manager.initialize(projectPath);
             expect(CocosMigrationManager.migrate).toHaveBeenCalledWith(projectPath);
             expect(manager['projectConfig']).toEqual({
-                version: '1.0.0',
-                migratedKey: 'migratedValue'
+                migratedKey: 'migratedValue',
+                version: '1.0.0'
             });
-
+            expect(manager['version']).toBe('1.0.0');
             // Same version - should not migrate (migrate method checks version)
             const newManager = new ConfigurationManager();
             mockFse.readJSON.mockResolvedValue({ version: '1.0.0' });

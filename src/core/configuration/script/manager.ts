@@ -283,7 +283,7 @@ export class ConfigurationManager implements IConfigurationManager {
             this.version = ConfigurationManager.VERSION;
             // 确保目录存在
             await fse.ensureDir(path.dirname(this.configPath));
-
+            this.projectConfig.version = this.version;
             // 保存配置文件
             await fse.writeJSON(this.configPath, {
                 version: this._version,
@@ -294,6 +294,15 @@ export class ConfigurationManager implements IConfigurationManager {
             newConsole.error(`[Configuration] 保存项目配置失败: ${this.configPath} - ${error}`);
             throw error;
         }
+    }
+
+    reset() {
+        this.initialized = false;
+        this.projectPath = '';
+        this.configPath = '';
+        this.projectConfig = {};
+        this.version = '0.0.0';
+        this.configurationMap.clear();
     }
 }
 
