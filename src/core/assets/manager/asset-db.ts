@@ -50,7 +50,8 @@ class AssetDBManager extends EventEmitter {
     private hasPause = false;
     private startPause = false;
     public get isPause() {
-        return this.hasPause || this.startPause;
+        // return this.hasPause || this.startPause;
+        return false;
     }
     public ready = false;
     private waitPauseHandle?: Function;
