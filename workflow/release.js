@@ -83,11 +83,20 @@ async function getProjectVersion(rootDir) {
 function generateReleaseDirectoryName(type, version) {
 
     const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
+    
+    // 生成时间戳 (格式: YYMMDDHHMMSS)
+    const now = new Date();
+    const timestamp = now.getFullYear().toString().slice(-2) + 
+                     (now.getMonth() + 1).toString().padStart(2, '0') + 
+                     now.getDate().toString().padStart(2, '0') + 
+                     now.getHours().toString().padStart(2, '0') + 
+                     now.getMinutes().toString().padStart(2, '0') + 
+                     now.getSeconds().toString().padStart(2, '0');
 
     if (type === 'nodejs') {
-        return `cocos-cli-${platformSuffix}-${version}`;
+        return `cocos-cli-${timestamp}-${version}`;
     } else if (type === 'electron') {
-        return `cocos-sdk-${platformSuffix}-${version}`;
+        return `cocos-sdk-${timestamp}-${version}`;
     }
     throw new Error(`未知的发布类型: ${type}`);
 }
