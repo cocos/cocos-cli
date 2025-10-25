@@ -248,7 +248,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 查询所有资源数据库信息
      */
-    @tool('assets-query-asset-db-infos')
+    // @tool('assets-query-asset-db-infos')
     @title('查询所有资源数据库信息')
     @description('获取项目中所有资源数据库的信息，包括内置数据库（internal）、资源数据库（assets）等。返回数据库的配置、路径、选项等信息。')
     @result(SchemaAssetDBInfosResult)
@@ -459,7 +459,7 @@ export class AssetsApi extends ApiBase {
      * 查询资源 URL
      */
     @tool('assets-query-url')
-    @title('查询资源数据库 URL')
+    @title('查询资源 URL')
     @description('根据资源的文件路径或 UUID 查询资源在数据库中的 URL 地址。返回 db:// 协议格式的 URL。')
     @result(SchemaUrlResult)
     async queryUrl(@param(SchemaUrlOrUUIDOrPath) uuidOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TUrlResult>> {
@@ -483,7 +483,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 查询资源依赖
      */
-    @tool('assets-query-asset-dependencies')
+    // @tool('assets-query-asset-dependencies')
     @title('查询资源依赖')
     @description('查询指定资源所依赖的其他资源列表。支持查询普通资源依赖、脚本依赖或全部依赖。')
     @result(z.array(z.string()).describe('依赖资源的 UUID 列表'))
@@ -511,7 +511,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 查询资源使用者
      */
-    @tool('assets-query-asset-users')
+    // @tool('assets-query-asset-users')
     @title('查询资源使用者')
     @description('查询使用指定资源的其他资源列表。支持查询普通资源使用者、脚本使用者或全部使用者。')
     @result(z.array(z.string()).describe('使用该资源的资源 UUID 列表'))
@@ -539,7 +539,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 查询排序后的插件脚本
      */
-    @tool('assets-query-sorted-plugins')
+    // @tool('assets-query-sorted-plugins')
     @title('查询排序后的插件脚本')
     @description('查询项目中所有插件脚本的排序列表。支持按平台筛选插件脚本。')
     @result(z.array(SchemaPluginScriptInfo).describe('插件脚本信息列表'))
@@ -710,7 +710,7 @@ export class AssetsApi extends ApiBase {
     /**
      * 查询资源配置映射表
      */
-    @tool('assets-query-asset-config-map')
+    // @tool('assets-query-asset-config-map')
     @title('查询资源配置映射表')
     @description('查询各个资源处理器的基本配置映射表。返回包含资源显示名称、描述、文档URL、用户数据配置、图标信息等配置信息的映射表。')
     @result(SchemaAssetConfigMapResult)
