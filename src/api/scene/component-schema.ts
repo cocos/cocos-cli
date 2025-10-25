@@ -58,7 +58,7 @@ export const SchemaSetPropertyOptions = z.object({
         z.string().describe('属性名称'),
         z.union([
             z.record(z.string(), z.any()).describe('任意类型Object'),
-            z.array(z.any()).describe('任意类型数组'),
+            z.array(z.unknown()).describe('任意类型数组'),
             z.string().describe('字符串类型'),
             z.number().describe('数字类型'),
             z.boolean().describe('boolean类型'),
