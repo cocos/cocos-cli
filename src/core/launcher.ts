@@ -6,6 +6,9 @@ import { getCurrentLocalTime } from './assets/utils';
 import { PackerDriver } from './scripting/packer-driver';
 import { startServer } from '../server';
 import { GlobalPaths } from '../global';
+import assetManager from './assets/manager/asset';
+import { AssetInfo, IAsset } from './assets/@types/protected/asset';
+import { AssetChangeType } from './scripting/packer-driver/asset-db-interop';
 
 class ProjectManager {
 
@@ -43,6 +46,15 @@ class ProjectManager {
         await packDriver.init(Engine.getConfig().includeModules);
         await packDriver.resetDatabases();
         await packDriver.build();
+
+        const onAssetChange = (type: AssetChangeType, asset: IAsset) => {
+            const assetInfo = assetManager.queryAssetInfo(asset.uuid);
+            packDriver.onAssetChange(AssetChangeType.modified, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
+        };
+
+        assetManager.on('asset-change', (asset: IAsset) => onAssetChange(AssetChangeType.modified, asset));
+        assetManager.on('asset-add', (asset: IAsset) => onAssetChange(AssetChangeType.add, asset));
+        assetManager.on('asset-delete', (asset: IAsset) => onAssetChange(AssetChangeType.remove, asset));
     }
 
     /**
