@@ -43,8 +43,8 @@ export class BuildCommand extends BaseCommand {
                         console.log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));
                     } else {
                         console.error(chalk.red('✗ Build failed!'));
-                        process.exit(result.code);
                     }
+                    process.exit(result.code);
                 } catch (error) {
                     console.error(chalk.red('Failed to build project:'), error);
                     process.exit(1);
