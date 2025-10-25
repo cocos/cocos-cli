@@ -30,7 +30,7 @@ export const NodePropertySchema = z.object({
 
 const NodeIdentifierSchema = z.object({
     nodeId: z.string().describe('节点的 id'),
-    path: z.string().describe('节点路径'),
+    path: z.string().describe('父节点路径，完整节点路径为父路径+节点名；根节点路径为 "/"'),
     name: z.string().describe('节点名称'),
 }).describe('节点标识符');
 

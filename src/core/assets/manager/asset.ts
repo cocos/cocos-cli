@@ -99,21 +99,21 @@ class AssetManager extends EventEmitter {
 
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
-            this.emit('asset-add', asset);
+            this.emit('asset-add', this.encodeAsset(asset));
             console.log(`asset-add ${asset.url}`);
             return;
         }
     }
     async _onAssetChanged(asset: IAsset) {
         if (assetDBManager.ready) {
-            this.emit('asset-change', asset);
+            this.emit('asset-change', this.encodeAsset(asset));
             console.log(`asset-change ${asset.url}`);
             return;
         }
     }
     async _onAssetDeleted(asset: IAsset) {
         if (assetDBManager.ready) {
-            this.emit('asset-delete', asset);
+            this.emit('asset-delete', this.encodeAsset(asset));
             console.log(`asset-delete ${asset.url}`);
             return;
         }
