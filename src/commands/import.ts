@@ -27,6 +27,8 @@ export class ImportCommand extends BaseCommand {
                         console.log(chalk.blue('Process is running. Press Ctrl+C to exit.'));
                         // 保持进程运行
                         process.stdin.resume();
+                    } else {
+                        process.exit(0);
                     }
                 } catch (error) {
                     console.error(chalk.red('Failed to import project:'), error);
