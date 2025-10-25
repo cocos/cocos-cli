@@ -52,7 +52,7 @@ class SceneUtil {
      * @param sceneAsset
      */
     runScene(sceneAsset: cc.SceneAsset): Promise<cc.Scene> {
-        // 清空节点 path 缓存（重要，否则会出现数据重复的问题）
+        // 重要：清空节点与组件的 path 缓存，否则会出现数据重复的问题
         EditorExtends.Node.clear();
         EditorExtends.Component.clear();
 

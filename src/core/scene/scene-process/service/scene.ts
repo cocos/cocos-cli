@@ -61,6 +61,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
                 });
             });
 
+            // 运行场景
             const sceneInstance = await sceneUtil.runScene(sceneAsset);
             this.currentSceneAssetUuid = identifier.assetUuid;
             const sceneInfo: ISceneEntry = { identifier: identifier, instance: sceneInstance };
