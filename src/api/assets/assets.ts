@@ -275,7 +275,7 @@ export class AssetsApi extends ApiBase {
      */
     @tool('assets-create-asset-by-type')
     @title('按类型创建资源')
-    @description('根据指定的资源处理器类型在目标路径创建新资源。支持创建动画、脚本、材质、场景、预制体等各类资源。可通过 options 参数控制是否覆盖或自动重命名。')
+    @description('根据指定的资源处理器类型在目标路径创建新资源。支持创建动画、脚本、材质、场景、预制体等各类资源。可通过 options 参数自定义文件内容、模板名称或者控制是否覆盖、自动重命名，未指定文件内容时将使用对应类型的内置默认模板创建。')
     @result(SchemaCreatedAssetResult)
     async createAssetByType(
         @param(SchemaSupportCreateType) ccType: TSupportCreateType,
