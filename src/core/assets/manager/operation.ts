@@ -27,7 +27,7 @@ class AssetOperation extends EventEmitter {
      */
     _checkReadonly(asset: IAsset) {
         if (asset._assetDB.options.readonly) {
-            throw new Error(`${i18n.t('asset-db.operation.readonly')} \n  url: ${asset.url}`);
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
         }
     }
 
@@ -361,7 +361,7 @@ class AssetOperation extends EventEmitter {
         target = this._checkOverwrite(target, option);
         // 源地址不能被目标地址包含，也不能相等
         if (target.startsWith(join(source, '/'))) {
-            throw new Error(`${i18n.t('asset-db.renameAsset.fail.parent')} \nsource: ${source}\ntarget: ${target}`);
+            throw new Error(`${i18n.t('assets.rename_asset.fail.parent')} \nsource: ${source}\ntarget: ${target}`);
         }
         // TODO 传递路径不在同一个文件夹内，视为移动文件
         // if (dirname(target) !== dirname(source)) {

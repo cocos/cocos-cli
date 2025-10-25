@@ -49,6 +49,8 @@ async function mockNpmModules() {
     await utils.runCommand('node', ['./workflow/compiler-engine.js', forceFlag].filter(Boolean));
     // build cc module
     await utils.runCommand('node', ['./workflow/build-cc-module.js', forceFlag].filter(Boolean));
+    // generate i18n types
+    await utils.runCommand('node', ['./workflow/generate-i18n-types.js', forceFlag].filter(Boolean));
     // tsc cli
     await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
     //download tools

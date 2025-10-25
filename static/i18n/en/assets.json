@@ -23,6 +23,16 @@
             "readonly": "Failed to save asset META: cannot operate on readonly asset"
         }
     },
+    "rename_asset": {
+        "fail": {
+            "source": "Failed to rename asset: source file does not exist",
+            "include": "Failed to rename asset: source file cannot be included in target file",
+            "parent": "Failed to rename asset: target file parent directory is incorrect"
+        },
+        "warn": {
+            "overwrite": "File already exists, overwrite?"
+        }
+    },
     "init": {
         "no_asset_db_list": "Asset database list is empty, please check the asset configuration"
     },
