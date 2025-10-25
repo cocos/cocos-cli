@@ -6,7 +6,7 @@
 
 ## 生成类型定义
 
-运行以下命令生成类型定义：
+运行以下命令生成类型定义（已经集成在 npm i 里）：
 
 ```bash
 node workflow/generate-i18n-types.js
