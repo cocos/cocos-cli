@@ -75,43 +75,46 @@ class AssetManager extends EventEmitter {
 
     _onAssetDBCreated(db: AssetDB) {
         db.on('unresponsive', onUnResponsive);
-        db.on('added', assetManager._onAssetAdded);
-        db.on('changed', assetManager._onAssetChanged);
-        db.on('deleted', assetManager._onAssetDeleted);
+        db.on('added', assetManager._onAssetAdded.bind(assetManager));
+        db.on('changed', assetManager._onAssetChanged.bind(assetManager));
+        db.on('deleted', assetManager._onAssetDeleted.bind(assetManager));
 
-        db.on('add', assetManager._onAssetAdded);
-        db.on('delete', assetManager._onAssetDeleted);
-        db.on('change', assetManager._onAssetChanged);
+        db.on('add', assetManager._onAssetAdded.bind(assetManager));
+        db.on('delete', assetManager._onAssetDeleted.bind(assetManager));
+        db.on('change', assetManager._onAssetChanged.bind(assetManager));
     }
 
     _onAssetDBStarted(db: AssetDB) {
         // 移除一些仅进度条使用的监听
-        db.removeListener('add', assetManager._onAssetAdded);
-        db.removeListener('change', assetManager._onAssetChanged);
-        db.removeListener('delete', assetManager._onAssetDeleted);
+        db.removeListener('add', assetManager._onAssetAdded.bind(assetManager));
+        db.removeListener('change', assetManager._onAssetChanged.bind(assetManager));
+        db.removeListener('delete', assetManager._onAssetDeleted.bind(assetManager));
     }
     _onAssetDBRemoved(db: AssetDB) {
         db.removeListener('unresponsive', onUnResponsive);
-        db.removeListener('added', assetManager._onAssetAdded);
-        db.removeListener('changed', assetManager._onAssetChanged);
-        db.removeListener('deleted', assetManager._onAssetDeleted);
+        db.removeListener('added', assetManager._onAssetAdded.bind(assetManager));
+        db.removeListener('changed', assetManager._onAssetChanged.bind(assetManager));
+        db.removeListener('deleted', assetManager._onAssetDeleted.bind(assetManager));
     }
 
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-add', asset);
+            console.log(`asset-add ${asset.url}`);
             return;
         }
     }
     async _onAssetChanged(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-change', asset);
+            console.log(`asset-change ${asset.url}`);
             return;
         }
     }
     async _onAssetDeleted(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-delete', asset);
+            console.log(`asset-delete ${asset.url}`);
             return;
         }
     }
