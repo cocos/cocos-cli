@@ -26,7 +26,7 @@ import ts from 'typescript';
 import JSON5 from 'json5';
 import minimatch from 'minimatch';
 import { existsSync } from 'fs';
-import { AssetInfo, IAssetDBInfo, IAssetMeta } from '../../assets/@types/protected';
+import { IAssetDBInfo } from '../../assets/@types/protected';
 import { url2path } from '../../assets/utils';
 import { compressUuid } from '../../builder/worker/builder/utils';
 import { TypeScriptConfigBuilder } from '../intelligence';
@@ -343,12 +343,6 @@ export class PackerDriver {
         }
     }
 
-    public onAssetChange(type: AssetChangeType,
-        uuid: string,
-        assetInfo: Readonly<AssetInfo>,
-        meta: Readonly<IAssetMeta>) {
-        this._assetDbInterop.onAssetChange(type, uuid, assetInfo, meta);
-    }
     /**
      * 从 asset-db 获取所有数据并构建。
      */
