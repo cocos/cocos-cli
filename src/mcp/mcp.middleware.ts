@@ -31,7 +31,7 @@ export class McpMiddleware {
         });
 
         // 初始化资源管理器
-        const docsPath = join(process.cwd(), 'docs');
+        const docsPath = join(__dirname, '../../docs');
         this.resourceManager = new ResourceManager(docsPath);
 
         // 注册资源和工具

@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename } from 'path';
+import { GlobalPaths } from '../global';
 
 export interface ResourceInfo {
     uri: string;
@@ -43,7 +44,7 @@ export class ResourceManager {
                 name: 'Readme',
                 title: 'Readme',
                 description: 'Cocos CLI Readme',
-                filePath: join(process.cwd(), 'README.md'), // 存储完整文件路径
+                filePath: join(GlobalPaths.workspace, 'readme.md'), // 存储完整文件路径
                 mimeType: 'text/markdown'
             });
             const items = readdirSync(this.docsPath);
@@ -91,7 +92,7 @@ export class ResourceManager {
                         const description = `Cocos CLI ${title} - ${language}`;
 
                         // 生成相对路径（不包含语言前缀）
-                        const relativePath = fullPath.replace(join(process.cwd(), 'docs', language), '').replace(/^[\\/]/, '');
+                        const relativePath = fullPath.replace(join(GlobalPaths.workspace, 'docs', language), '').replace(/^[\\/]/, '');
                         const cleanPath = relativePath.replace(/\.md$/, '');
                         const uri = `cli://docs/${cleanPath}`;
 
@@ -191,7 +192,7 @@ export class ResourceManager {
      */
     public getLanguageSpecificPath(originalPath: string, preferredLanguage: string): string {
         // 如果原始路径已经包含语言目录，替换为偏好语言
-        const docsPath = join(process.cwd(), 'docs');
+        const docsPath = join(GlobalPaths.workspace, 'docs');
         const relativePath = originalPath.replace(docsPath, '').replace(/^[\\/]/, '');
 
         // 移除现有的语言前缀
