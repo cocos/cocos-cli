@@ -230,28 +230,25 @@ export class ScriptService extends EventEmitter implements IScriptService {
 
     /**
      * 加载脚本时触发
-     * @param uuid
      */
     @expose()
-    async loadScript(uuid: string) {
+    async loadScript() {
         this._syncPluginScriptListAsync();
     }
 
     /**
      * 删除脚本时触发
-     * @param info
      */
     @expose()
-    async removeScript(info: IAssetInfo) {
+    async removeScript() {
         this._syncPluginScriptListAsync();
     }
 
     /**
      * 脚本发生变化时触发
-     * @param info
      */
     @expose()
-    async scriptChange(info: IAssetInfo) {
+    async scriptChange() {
         this._syncPluginScriptListAsync();
     }
 

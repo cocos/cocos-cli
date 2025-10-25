@@ -21,37 +21,3 @@ export const Scene = {
     worker: sceneWorker,
 };
 
-//
-scriptManager.on('pack-build-end', (targetName: string) => {
-    if (targetName === 'editor') {
-        void ScriptProxy.investigatePackerDriver();
-    }
-});
-
-assetManager.on('asset-db:asset-add', (uuid: string, info: any, meta: any) => {
-    switch (info && info.importer) {
-        case 'typescript':
-        case 'javascript':
-            void ScriptProxy.loadScript(uuid);
-            break;
-    }
-});
-
-assetManager.on('asset-db:asset-change', (uuid: string, info: any, meta: any) => {
-    switch (info && info.importer) {
-        case 'typescript':
-        case 'javascript':
-            void ScriptProxy.scriptChange(info);
-            break;
-    }
-});
-
-assetManager.on('asset-db:asset-delete', (uuid: string, info: any, meta: any) => {
-    switch (info && info.importer) {
-        case 'typescript':
-        case 'javascript':
-            void ScriptProxy.removeScript(info);
-            break;
-    }
-});
-
