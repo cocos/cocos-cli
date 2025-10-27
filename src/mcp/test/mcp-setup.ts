@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { EngineLoader } from 'cc/loader';
 import { TestGlobalEnv } from '../../tests/global-env';
+import { log } from '../../core/base/utils/log';
 
 [
     'cc',
@@ -69,7 +70,7 @@ export class MCPClient {
             const toolsResult = await this.mcp.listTools();
             this.tools = toolsResult.tools || [];
 
-            console.log(`Connected to MCP server. Available tools: ${this.tools.length}`);
+            log(`Connected to MCP server. Available tools: ${this.tools.length}`);
         } catch (error) {
             console.error('Failed to connect to MCP server:', error);
             throw error;

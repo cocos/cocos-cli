@@ -12,6 +12,7 @@ import { createFbxConverter } from '../utils/fbx-converter';
 import { modelConvertRoutine } from '../utils/model-convert-routine';
 import { fbxToGlTf } from './fbx-to-gltf';
 import { I18nKeys } from '../../../../../i18n/types/generated';
+import { log } from '../../../../base/utils/log';
 
 class GlTfReaderManager {
     private _map = new Map<string, GltfConverter>();
@@ -226,7 +227,7 @@ async function _getOptimizerPath(asset: Asset, source: string, importerVersion: 
             child.on('exit', async (code) => {
                 // if (error) { console.error(`Error: ${error}`); }
                 // if (stderr) { console.error(`Error: ${stderr}`); }
-                // if (stdout) { console.log(`${stdout}`); }
+                // if (stdout) { log(`${stdout}`); }
 
                 await fs.writeFile(statusPath, JSON.stringify(expectedStatus, undefined, 2));
                 resolve(out);
@@ -333,7 +334,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
                     texture: getRepOfGlTFResource('textures', tArgs.texture),
                     type: i18nTranslate(
                         tArgs.type === 'minFilter'
-                            ? 'importer.gltf.texture_parameter_min_filter'  
+                            ? 'importer.gltf.texture_parameter_min_filter'
                             : tArgs.type === 'magFilter'
                                 ? 'importer.gltf.texture_parameter_mag_filter'
                                 : 'importer.texture.wrap_mode',
@@ -404,7 +405,7 @@ async function createGlTfReader(asset: Asset, importVersion: string) {
         switch (level) {
             case GltfConverter.LogLevel.Info:
             default:
-                console.log(message, link);
+                log(`${message} ${link}`);
                 break;
             case GltfConverter.LogLevel.Warning:
                 console.warn(message, link);

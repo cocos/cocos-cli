@@ -4,13 +4,14 @@ import { MeshCompressOptions, MeshOptimizeOptions, MeshSimplifyOptions, MeshClus
 import { mergeMeshes } from './meshUtils';
 import zlib from 'zlib';
 import { BufferBlob } from '../utils/gltf-converter';
+import { log } from '../../../../base/utils/log';
 
 let inited = false;
 
 async function tryInitMeshOpt(): Promise<void> {
     if (!inited) {
         return encoder.init().then(() => {
-            console.log('MeshOpt init success');
+            log('MeshOpt init success');
             inited = true;
         });
     } else {
@@ -827,7 +828,7 @@ function quantizeSize(attributes: gfx.Attribute[]): number | undefined {
             }
             attribute.format = conf.format;
         } else {
-            console.log(`Attribute ${name} is not supported for quantization.`);
+            log(`Attribute ${name} is not supported for quantization.`);
             return undefined;
         }
     }

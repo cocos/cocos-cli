@@ -1,3 +1,4 @@
+import { log } from '../../base/utils/log';
 import {
     type ICreateByAssetParams,
     type ICreateByNodeTypeParams,
@@ -29,7 +30,7 @@ describe('Node Proxy 测试', () => {
             const prefabNode = await NodeProxy.createNodeByAsset(params);
             expect(prefabNode).toBeDefined();
             expect(prefabNode?.name).toBe('PrefabNode');
-            console.log('Created prefab node path=', prefabNode?.path);
+            log(`Created prefab node path= ${prefabNode?.path}`);
         });
 
         it('createNode - 创建新节点', async () => {
@@ -45,7 +46,7 @@ describe('Node Proxy 测试', () => {
             expect(createdNode?.name).toBe('TestNode');
             expect(createdNode?.path).toBe('Canvas/TestNode');
             expect(createdNode?.properties.position).toEqual(testPosition);
-            console.log('Created node original path=', testNodePath, ' dest path=', createdNode?.path);
+            log(`Created node original path= ${testNodePath} dest path= ${createdNode?.path}`);
         });
     });
 
@@ -257,7 +258,7 @@ describe('Node Proxy 测试', () => {
                     expect(result?.path).toBe(node!.path);
                 };
             } catch (e) {
-                console.log(`添加所有内置的节点 - 错误 ${e}`);
+                log(`添加所有内置的节点 - 错误 ${e}`);
                 throw e;
             }
         });
@@ -343,9 +344,9 @@ describe('Node Proxy 测试', () => {
                         expect(Array.isArray(createdNode?.children)).toBe(true);
                     }
                     expect(createdNode?.properties.position).toEqual(testPosition);
-                    console.log('Created node original path=', testNodePath, ' dest path=', createdNode?.path);
+                    log(`Created node original path= ${testNodePath} dest path= ${createdNode?.path}`);
                 } catch (e) {
-                    console.log(`测试所有内置节点 错误： ${e}`);
+                    log(`测试所有内置节点 错误： ${e}`);
                     throw e;
                 }
             };

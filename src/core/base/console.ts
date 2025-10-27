@@ -4,6 +4,7 @@ import { basename } from 'path';
 import { consola, type ConsolaInstance } from 'consola';
 import ora, { type Ora } from 'ora';
 import i18n from './i18n';
+import { log } from './utils/log';
 export type IConsoleType = 'log' | 'warn' | 'error' | 'debug' | 'info' | 'success' | 'ready' | 'start';
 
 interface IConsoleMessage {
@@ -278,7 +279,7 @@ export class NewConsole {
         //     }).start();
         // } catch (error) {
         //     // 如果 ora 导入失败，回退到简单的文本显示
-        //     console.log(`⏳ ${initialMessage}`);
+        //     log(`⏳ ${initialMessage}`);
         //     console.error(error);
         // }
     }
@@ -309,9 +310,9 @@ export class NewConsole {
             // 如果没有 spinner，使用简单的文本显示
             const message = finalMessage || this.lastProgressMessage;
             if (success) {
-                console.log(`✅ ${message}`);
+                log(`✅ ${message}`);
             } else {
-                console.log(`❌ ${message}`);
+                log(`❌ ${message}`);
             }
         }
         this.progressMode = false;

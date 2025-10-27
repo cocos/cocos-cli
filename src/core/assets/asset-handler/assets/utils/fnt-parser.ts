@@ -1,5 +1,6 @@
 // 类型定义
 
+import { log } from '../../../../base/utils/log';
 import { FntData, FontDefDictionary, KerningDict } from '../../../@types/userDatas';
 
 export interface ParsedObj {
@@ -73,11 +74,11 @@ class FntLoader {
         if (cc.game.renderType === cc.game.RENDER_TYPE_WEBGL) {
             const texSize = cc.configuration.getMaxTextureSize();
             if ((commonObj['scaleW'] as number) > texSize.width || (commonObj['scaleH'] as number) > texSize.height) {
-                console.log('cc.LabelBMFont._parseCommonArguments(): page can\'t be larger than supported');
+                log('cc.LabelBMFont._parseCommonArguments(): page can\'t be larger than supported');
             }
         }
         if (commonObj['pages'] !== 1) {
-            console.log('cc.LabelBMFont._parseCommonArguments(): only supports 1 page');
+            log('cc.LabelBMFont._parseCommonArguments(): only supports 1 page');
         }
 
         // page
@@ -87,7 +88,7 @@ class FntLoader {
         }
         const pageObj = this._parseStrToObj(pageMatch[0]);
         if (pageObj['id'] !== 0) {
-            console.log('cc.LabelBMFont._parseImageFileName() : file could not be found');
+            log('cc.LabelBMFont._parseImageFileName() : file could not be found');
         }
         fnt.atlasName = pageObj['file'] as string;
 

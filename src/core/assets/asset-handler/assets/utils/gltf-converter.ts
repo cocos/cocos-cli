@@ -54,6 +54,7 @@ import { MaxPhysicalMaterial, MayaStandardSurface } from './material-interface';
 import { DocumentExtra, FbxSurfaceLambertProperties, FbxSurfacePhongProperties } from '@cocos/fbx-gltf-conv/types/FBX-glTF-conv-extras';
 import { linearToSrgb8Bit } from 'cc/editor/color-utils';
 import { Filter, TextureBaseAssetUserData, WrapMode } from '../../../@types/userDatas';
+import { log } from '../../../../base/utils/log';
 
 type FloatArray = Float32Array | Float64Array;
 
@@ -399,7 +400,7 @@ export class GltfConverter {
         const message = JSON.stringify({ error, arguments: args }, undefined, 4);
         switch (level) {
             case GltfConverter.LogLevel.Info:
-                console.log(message);
+                log(message);
                 break;
             case GltfConverter.LogLevel.Warning:
                 console.warn(message);

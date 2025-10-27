@@ -5,6 +5,7 @@ import fs, { pathExists } from 'fs-extra';
 import cp from 'child_process';
 import { i18nTranslate, linkToAssetTarget } from '../../utils';
 import { I18nKeys } from '../../../../../i18n/types/generated';
+import { log } from '../../../../base/utils/log';
 
 export function createFbxConverter(options: {
     unitConversion?: 'geometry-level' | 'hierarchy-level' | 'disabled';
@@ -123,7 +124,7 @@ export function createFbxConverter(options: {
             child.on('error', reject);
             child.on('close', (code) => {
                 if (output) {
-                    console.log(output);
+                    log(output);
                 }
                 if (errOutput) {
                     console.error(errOutput);
@@ -161,7 +162,7 @@ export function createFbxConverter(options: {
                     logger = console.debug;
                     break;
                 case FbxGlTfConvLogLevel.info:
-                    logger = console.log;
+                    logger = log;
                     break;
                 case FbxGlTfConvLogLevel.warning:
                     logger = console.warn;

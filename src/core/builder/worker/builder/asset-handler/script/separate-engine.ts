@@ -11,6 +11,7 @@ import { buildEngine, StatsQuery } from '@cocos/ccbuild';
 import { compareOptions } from '../../utils';
 import { IBuildSeparateEngineCacheOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult, IEngineCachePaths, IEnvLimitModule, ISignatureConfig } from '../../../../@types/private';
 import { ModuleRenderConfig, IFeatureItem, IModuleItem } from '../../../../../engine/@types/modules';
+import { log } from '../../../../../base/utils/log';
 
 class EngineCachePaths implements IEngineCachePaths {
     dir: string;
@@ -380,11 +381,11 @@ export async function buildCocos(options: IBuildSeparateEngineCacheOptions): Pro
     if (existsSync(cacheOptionsPath)) {
         const cacheOptions = readJSONSync(cacheOptionsPath);
         if (compareOptions(cacheOptions, buildOptions)) {
-            console.log(`use cache engine in ${enginePaths.dir}`);
+            log(`use cache engine in ${enginePaths.dir}`);
             return enginePaths;
         }
     } else {
-        console.log(`Can not find options cache in ${cacheOptionsPath}`);
+        log(`Can not find options cache in ${cacheOptionsPath}`);
     }
     emptyDirSync(outDir);
     // 立马缓存构建选项，否则可能会被后续流程修改

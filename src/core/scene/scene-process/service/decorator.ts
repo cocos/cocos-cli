@@ -1,21 +1,22 @@
 import 'reflect-metadata';
 import type { ISceneModule } from './interfaces';
+import { log } from '../../../base/utils/log';
 
 /**
  * @register('Scene')
  * class SceneManager {
  *   @expose()
  *   loadScene(name: string) {
- *     console.log(`loading scene: ${name}`);
+ *     log(`loading scene: ${name}`);
  *   }
  *
  *   @expose()
  *   unloadScene(name: string) {
- *     console.log(`unloading scene: ${name}`);
+ *     log(`unloading scene: ${name}`);
  *   }
  *
  *   private internal() {
- *     console.log('private logic');
+ *     log('private logic');
  *   }
  * }
  */
@@ -54,6 +55,6 @@ export function register(name?: string): ClassDecorator {
         }
 
         Service[managerName] = map;
-        console.log(`[Manager] Registered: ${managerName} -> [${Object.keys(map).join(', ')}]`);
+        log(`[Manager] Registered: ${managerName} -> [${Object.keys(map).join(', ')}]`);
     };
 }

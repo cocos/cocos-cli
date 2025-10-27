@@ -76,6 +76,7 @@ import { description, param, result, title, tool } from '../decorator/decorator.
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { assetDBManager, assetManager } from '../../core/assets';
 import { IAssetInfo } from '../../core/assets/@types/public';
+import { log } from '../../core/base/utils/log';
 
 export class AssetsApi extends ApiBase {
 
@@ -88,7 +89,7 @@ export class AssetsApi extends ApiBase {
     async init(): Promise<void> {
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('../../core/assets');
-        console.log('startupAssetDB', this.projectPath);
+        log(`startupAssetDB ${this.projectPath}`);
         await startupAssetDB();
     }
 

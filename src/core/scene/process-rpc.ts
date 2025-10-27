@@ -56,7 +56,7 @@ interface RequestOptions {
  * // 注册对象实例
  * rpc.register('scene', {
  *   async loadScene(id: string) {
- *     console.log('Scene loaded:', id);
+ *     log('Scene loaded:', id);
  *     return true;
  *   }
  * });
@@ -67,7 +67,7 @@ interface RequestOptions {
  *     return `Node:${name}`;
  *   }
  *   async deleteNode(id: string) {
- *     console.log('Node deleted:', id);
+ *     log('Node deleted:', id);
  *   }
  * }
  * rpc.register('node', new NodeService());

@@ -36,6 +36,7 @@ SOFTWARE.
 import { Vec3, Vec2, Vec4, Color, math, assert, view } from 'cc';
 import { gfx, Mesh, utils } from 'cc';
 import { SimplifyOptions } from '../../meta-schemas/glTF.meta';
+import { log } from '../../../../base/utils/log';
 
 const _tempVec2 = new Vec2();
 const _tempVec3 = new Vec3();
@@ -231,7 +232,7 @@ export class MeshSimplify {
      * @param origFaces
      * @param info
      */
-    public init(origVertices: Vec3[], origFaces: any[], info: { normals?; uvs?; tangents?; colors?; joints?; weights? }) {
+    public init(origVertices: Vec3[], origFaces: any[], info: { normals?; uvs?; tangents?; colors?; joints?; weights?}) {
         this._vertices = origVertices.map((p, index) => {
             const vert = new Vertex();
             vert.index = index;
@@ -306,7 +307,7 @@ export class MeshSimplify {
 
         if (count > array.length) {
             // in JS, arrays need not be expanded
-            // console.log('more');
+            // log('more');
         }
     }
 
@@ -329,7 +330,7 @@ export class MeshSimplify {
      * 合并网格
      */
     public compactMesh() {
-        //	console.log('compact_mesh');
+        //	log('compact_mesh');
         let /*int */ dst = 0;
         for (let i = 0; i < this._vertices.length; i++) {
             this._vertices[i].tcount = 0;
@@ -391,9 +392,9 @@ export class MeshSimplify {
             const /*Triangle &*/ t = this._triangles[i];
             for (let j = 0; j < 3; j++) t.v[j] = this._vertices[t.v[j]].tstart;
         }
-        //	console.log('%cCompact Mesh', 'background:#f00', this._vertices.length, dst);
+        //	log('%cCompact Mesh', 'background:#f00', this._vertices.length, dst);
         this._resize(this._vertices, dst);
-        //	console.log('%cCompact Mesh ok', 'background:#f00', this._vertices.length, dst);
+        //	log('%cCompact Mesh ok', 'background:#f00', this._vertices.length, dst);
     }
 
     /**
@@ -423,7 +424,7 @@ export class MeshSimplify {
         const triangle_count = this._triangles.length;
 
         for (let iteration = 0; iteration < this.simplificationOptions.maxIterationCount; iteration++) {
-            // 	console.log("iteration %d - triangles %d, tris\n", iteration, triangle_count - deleted_triangles, this._triangles.length);
+            // 	log("iteration %d - triangles %d, tris\n", iteration, triangle_count - deleted_triangles, this._triangles.length);
 
             if (triangle_count - deleted_triangles <= target_count) break;
 
@@ -471,7 +472,7 @@ export class MeshSimplify {
                         // Compute vertex to collapse to
                         const p = new Vec3();
                         this._calculateError(i0, i1, p);
-                        // console.log('Compute vertex to collapse to', p);
+                        // log('Compute vertex to collapse to', p);
 
                         this._resize(deleted0, v0.tcount); // normals temporarily
                         this._resize(deleted1, v1.tcount); // normals temporarily
@@ -504,14 +505,14 @@ export class MeshSimplify {
 
                         // CONTINUE
                         deleted_triangles = this._updateTriangles(i0, ia0, v0, deleted0, deleted_triangles);
-                        // console.log('deleted triangle v0', deleted_triangles);
+                        // log('deleted triangle v0', deleted_triangles);
                         deleted_triangles = this._updateTriangles(i0, ia0, v1, deleted1, deleted_triangles);
-                        // console.log('deleted triangle v1', deleted_triangles);
+                        // log('deleted triangle v1', deleted_triangles);
 
                         const tcount = this._refs.length - tstart;
 
                         if (tcount <= v0.tcount) {
-                            // console.log('save ram?');
+                            // log('save ram?');
                             if (tcount) this._move(this._refs, v0.tstart, tstart, tcount);
                         }
                         // append
@@ -597,7 +598,7 @@ export class MeshSimplify {
         /*std::vector<int> & */ deleted: any[],
         /*int &*/ deleted_triangles: number,
     ) {
-        // console.log('_updateTriangles');
+        // log('_updateTriangles');
         // vec3f p;
         const p = new Vec3();
         for (let k = 0; k < v.tcount; k++) {
@@ -629,7 +630,7 @@ export class MeshSimplify {
 
     // compact triangles, compute edge error and build reference list
     private _updateMesh(iteration: number) /*int*/ {
-        // console.log('_updateMesh', iteration, this._triangles.length);
+        // log('_updateMesh', iteration, this._triangles.length);
         if (iteration > 0) {
             // compact triangles
             let dst = 0;
@@ -640,7 +641,7 @@ export class MeshSimplify {
                 }
             }
 
-            // console.log('not deleted dst', this._triangles.length, dst);
+            // log('not deleted dst', this._triangles.length, dst);
             this._triangles.splice(dst);
         }
 
@@ -917,7 +918,7 @@ export class MeshSimplify {
 
         // Write References
         // _resize(refs, triangles.length * 3)
-        // console.log('pre ref', this._refs.length, this._triangles.length * 3);
+        // log('pre ref', this._refs.length, this._triangles.length * 3);
         for (let i = this._refs.length; i < this._triangles.length * 3; i++) {
             this._refs[i] = new Ref();
         }
@@ -1000,8 +1001,8 @@ export class MeshSimplify {
             this._simplifyMesh(target_count, agressiveness);
             console.timeEnd('simplify');
 
-            //	console.log('old vertices ' + geometry.vertices.length, 'old faces ' + geometry.faces.length);
-            console.log('new vertices ' + this._vertices.length, 'old faces ' + this._triangles.length);
+            //	log('old vertices ' + geometry.vertices.length, 'old faces ' + geometry.faces.length);
+            log('new vertices ' + this._vertices.length, 'old faces ' + this._triangles.length);
 
             // TODO convert to buffer geometry.
             const newGeo: { positions; indices; normals?: number[]; uvs?; tangents?; colors?; attrs } = {
@@ -1157,7 +1158,7 @@ export class MeshSimplify {
 
         this._geometricInfo = JSON.stringify(geometry);
         // this.init(geometry.vertices, geometry.faces, geometry);
-        // console.log('old vertices ' + geometry.vertices.length, 'old faces ' + geometry.faces.length);
+        // log('old vertices ' + geometry.vertices.length, 'old faces ' + geometry.faces.length);
 
         // simplify!
         // simplify_mesh(geometry.faces.length * 0.5 | 0, 7);

@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import { readJSONSync, remove } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
+import { log } from '../../base/utils/log';
 
 describe('Import Project', () => {
     beforeAll(async () => {
@@ -19,7 +20,7 @@ describe('Import Project', () => {
         importer: 'audio-clip',
         library: ['.json', '.mp3']
     }];
-    console.log(`test assets in project ${TestGlobalEnv.projectRoot}, engine root ${TestGlobalEnv.engineRoot}`);
+    log(`test assets in project ${TestGlobalEnv.projectRoot}, engine root ${TestGlobalEnv.engineRoot}`);
     testAssets.forEach((asset) => {
         const assetPath = join(TestGlobalEnv.projectRoot, asset.url);
         const metaPath = assetPath + '.meta';

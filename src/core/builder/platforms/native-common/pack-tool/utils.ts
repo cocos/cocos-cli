@@ -3,6 +3,7 @@ import * as fs from 'fs-extra';
 import { execSync, spawn } from 'child_process';
 import * as os from 'os';
 import type { CocosParams } from './default';
+import { log } from '../../../../base/utils/log';
 const iconv = require('iconv-lite');
 
 
@@ -46,7 +47,7 @@ export class cchelper {
 
     static copyFileSync(srcRoot: string, srcFile: string, dstRoot: string, dstFile: string) {
 
-        // console.log(`copyFileSync args: ${JSON.stringify(arguments)}`);
+        // log(`copyFileSync args: ${JSON.stringify(arguments)}`);
         srcRoot = this.replaceEnvVariables(srcRoot);
         srcFile = this.replaceEnvVariables(srcFile);
         dstRoot = this.replaceEnvVariables(dstRoot);
@@ -59,7 +60,7 @@ export class cchelper {
     }
 
     static async copyFileAsync(src: string, dst: string) {
-        // console.log(`[async] copyFile ${src} -> ${dst}`);
+        // log(`[async] copyFile ${src} -> ${dst}`);
         this.makeDirectoryRecursive(ps.parse(dst).dir);
         await fs.copyFile(src, dst);
     }
@@ -90,7 +91,7 @@ export class cchelper {
                 await this.copyFileAsync(srcDir, dst);
             } catch (e) {
                 await this.delay(10);
-                // console.log(`error: retry copying ${srcDir} -> to ${dst} ... ${e}`);
+                // log(`error: retry copying ${srcDir} -> to ${dst} ... ${e}`);
                 await this.copyFileAsync(srcDir, dst);
             }
         }
@@ -114,7 +115,7 @@ export class cchelper {
             const srcStat = fs.statSync(srcDir);
             if (!srcStat.isDirectory()) { return; }
             if (!fs.existsSync(dstDir)) {
-                // console.log(`prepereDir ${dstDir}`);
+                // log(`prepereDir ${dstDir}`);
                 fs.mkdirSync(dstDir);
             }
             for (const i in attrs) {
@@ -146,7 +147,7 @@ export class cchelper {
                     if (fs.existsSync(srcFile)) {
                         copyAsync(srcFile, ps.join(dstDir, f));
                     } else {
-                        console.log(`warning: copyFile: ${srcFile} not exists!`);
+                        log(`warning: copyFile: ${srcFile} not exists!`);
                     }
                 }
                 if (files.length === 0 && runningTasks === 0) {
@@ -210,7 +211,7 @@ export class cchelper {
         }
 
 
-        // console.log(`copy ${JSON.stringify(cfg)}, ${from} -> ${to} from ${srcRoot} -> ${dstRoot}`);
+        // log(`copy ${JSON.stringify(cfg)}, ${from} -> ${to} from ${srcRoot} -> ${dstRoot}`);
 
         const buildPrefixTree = (list0: string[]) => {
             const tree: any = {};
@@ -259,7 +260,7 @@ export class cchelper {
                         if (includePrefix && matchPrefixTree(pathInSrcRoot, includePrefix)) {
                             // include
                         } else {
-                            console.log(` - skip copy ${srcRoot} ${pathInSrcRoot} to ${dstRoot}`);
+                            log(` - skip copy ${srcRoot} ${pathInSrcRoot} to ${dstRoot}`);
                             continue;
                         }
                     }
@@ -280,10 +281,10 @@ export class cchelper {
     static async replaceInFile(patterns: { reg: string | RegExp, text: string }[], filepath: string) {
         filepath = this.replaceEnvVariables(filepath);
         if (!fs.existsSync(filepath)) {
-            console.log(`While replace template content, file ${filepath}`);
+            log(`While replace template content, file ${filepath}`);
             return;
         }
-        // console.log(`replace ${filepath} with ${JSON.stringify(patterns)}`);
+        // log(`replace ${filepath} with ${JSON.stringify(patterns)}`);
         const lines = (await fs.readFile(filepath)).toString('utf8').split('\n');
 
         const newContent = lines.map((l) => {
@@ -313,7 +314,7 @@ export class cchelper {
 
     static async runCmd(cmd: string, args: string[], slient: boolean, cwd?: string) {
         return new Promise<void>((resolve, reject) => {
-            console.log(`[runCmd]: ${cmd} ${args.join(' ')}`);
+            log(`[runCmd]: ${cmd} ${args.join(' ')}`);
             const cp = spawn(cmd, args, {
                 shell: true,
                 env: process.env,
@@ -321,10 +322,10 @@ export class cchelper {
             });
             if (!slient) {
                 cp.stdout.on(`data`, (chunk) => {
-                    console.log(`[runCmd ${cmd}] ${chunk}`);
+                    log(`[runCmd ${cmd}] ${chunk}`);
                 });
                 cp.stderr.on(`data`, (chunk) => {
-                    console.log(`[runCmd ${cmd} - error] ${chunk}`);
+                    log(`[runCmd ${cmd} - error] ${chunk}`);
                 });
             }
             cp.on('exit', (code, signal) => {
@@ -359,7 +360,7 @@ export class cchelper {
 
     static checkJavaHome(): boolean {
         if (!process.env.JAVA_HOME) {
-            console.log('warning: $JAVA_HOME is not set!');
+            log('warning: $JAVA_HOME is not set!');
         }
         const javaPath = cchelper.which('java');
         if (!javaPath) {
@@ -453,10 +454,10 @@ export const toolHelper = {
         // Delete environment variables start with `npm_`, which may cause compile error on windows
         const newEnv: any = {};
         Object.assign(newEnv, process.env);
-        Object.keys(newEnv).filter(x => x.toLowerCase().startsWith("npm_")).forEach(e => delete newEnv[e]);
+        Object.keys(newEnv).filter(x => x.toLowerCase().startsWith('npm_')).forEach(e => delete newEnv[e]);
 
         return new Promise<void>((resolve, reject) => {
-            console.log(`run ${cmakePath} ${args.join(' ')}`);
+            log(`run ${cmakePath} ${args.join(' ')}`);
             const cp = spawn(cmakePath, args, {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: newEnv,
@@ -466,15 +467,15 @@ export const toolHelper = {
             cp.stdout.on('data', (data: any) => {
                 const msg = iconv.decode(data, 'gbk').toString();
                 if (/warning/i.test(msg)) {
-                    console.log(`[cmake-warn] ${msg}`);
+                    log(`[cmake-warn] ${msg}`);
                 } else {
-                    console.log(`[cmake] ${msg}`);
+                    log(`[cmake] ${msg}`);
                 }
             });
             cp.stderr.on('data', (data: any) => {
                 const msg = iconv.decode(data, 'gbk').toString();
                 if (/CMake Warning/.test(msg) || /warning/i.test(msg)) {
-                    console.log(`[cmake-warn] ${msg}`);
+                    log(`[cmake-warn] ${msg}`);
                 } else {
                     console.error(`[cmake-err] ${msg}`);
                 }
@@ -497,19 +498,19 @@ export const toolHelper = {
         Object.keys(newEnv).filter(x => x.toLowerCase().startsWith('npm_')).forEach(e => delete newEnv[e]);
 
         return new Promise<void>((resolve, reject) => {
-            console.log(`run xcodebuild with ${args.join(' ')}`);
+            log(`run xcodebuild with ${args.join(' ')}`);
             const xcodebuildPath = cchelper.which('xcodebuild');
             if (!xcodebuildPath) {
                 console.error(`'xcodebuild' is not in the path`);
             } else {
-                console.log(`run xcodebuild with ${args.join(' ')}`);
+                log(`run xcodebuild with ${args.join(' ')}`);
                 const cp = spawn(xcodebuildPath, args, {
                     stdio: ['pipe', 'pipe', 'pipe'],
                     env: newEnv,
                     shell: true,
                 });
                 cp.stdout.on('data', (data: any) => {
-                    console.log(`[xcodebuild] ${iconv.decode(data, 'gbk').toString()}`);
+                    log(`[xcodebuild] ${iconv.decode(data, 'gbk').toString()}`);
                 });
                 cp.stderr.on('data', (data: any) => {
                     console.error(`[xcodebuild] ${iconv.decode(data, 'gbk').toString()}`);
@@ -524,7 +525,7 @@ export const toolHelper = {
             }
         });
     }
-}
+};
 
 export class Paths {
     public static enginePath: string; // [engine]
@@ -558,7 +559,7 @@ export class Paths {
         this.buildDir = params.buildDir;
         this.buildAssetsDir = params.buildAssetsDir;
         if (params.platform === 'windows') {
-            this.platformTemplateDirName = (params.platformParams as any).targetPlatform === "win32" ? "win32" : "win64";
+            this.platformTemplateDirName = (params.platformParams as any).targetPlatform === 'win32' ? 'win32' : 'win64';
         } else {
             this.platformTemplateDirName = params.platformName ? params.platformName : this.platform;
         }

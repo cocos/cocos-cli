@@ -6,6 +6,7 @@ import { AssetManagerEvents, IAsset } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
+import { log } from '../../base/utils/log';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -100,21 +101,21 @@ class AssetManager extends EventEmitter {
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-add', asset);
-            console.log(`asset-add ${asset.url}`);
+            log(`asset-add ${asset.url}`);
             return;
         }
     }
     async _onAssetChanged(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-change', asset);
-            console.log(`asset-change ${asset.url}`);
+            log(`asset-change ${asset.url}`);
             return;
         }
     }
     async _onAssetDeleted(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-delete', asset);
-            console.log(`asset-delete ${asset.url}`);
+            log(`asset-delete ${asset.url}`);
             return;
         }
     }

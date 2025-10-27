@@ -6,6 +6,7 @@ import Ejs from 'ejs';
 import { InternalBuildResult, BuilderAssetCache, IBuilder, IBuildTaskOption, IInternalBuildOptions } from '../../@types/protected';
 import { IBuildResult } from '../../@types/platforms/web-desktop';
 import { relativeUrl, transformCode } from '../../worker/builder/utils';
+import { log } from '../../../base/utils/log';
 
 export const throwError = true;
 
@@ -125,21 +126,21 @@ export async function run(dest: string) {
                 command = `xdg-open ${url}`;
                 break;
             default:
-                console.log(`请手动打开浏览器访问: ${url}`);
+                log(`请手动打开浏览器访问: ${url}`);
                 return url;
         }
 
         exec(command, (error: any) => {
             if (error) {
                 console.error('打开浏览器失败:', error.message);
-                console.log(`请手动打开浏览器访问: ${url}`);
+                log(`请手动打开浏览器访问: ${url}`);
             } else {
-                console.log(`正在浏览器中打开: ${url}`);
+                log(`正在浏览器中打开: ${url}`);
             }
         });
     } catch (error) {
         console.error('打开浏览器时发生错误:', error);
-        console.log(`请手动打开浏览器访问: ${url}`);
+        log(`请手动打开浏览器访问: ${url}`);
     }
     return url;
 }

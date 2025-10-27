@@ -4,6 +4,7 @@ import { dirname, join } from 'path';
 import { IQuickSpawnOption } from '../../@types/protected';
 import project from '../../../project';
 import { GlobalPaths } from '../../../../global';
+import { log } from '../../../base/utils/log';
 
 // 获取 CPU 数量，有几个 CPU 就创建几个子进程，这样就可以最大化的利用机器性能
 const workerPath = join(__dirname, './sub-process');
@@ -195,7 +196,7 @@ class WorkerTask {
             this.close();
         });
         child.stdout?.on('data', (data: Buffer) => {
-            console.log(`[${this.name}]` + data.toString());
+            log(`[${this.name}]` + data.toString());
         });
         child.stderr?.on('data', (data) => {
             const info: string = data.toString();
@@ -328,7 +329,7 @@ export class WorkerManager {
                     if (options?.downGradeLog) {
                         console.debug(options.prefix + data.toString());
                     } else {
-                        console.log(options.prefix + data.toString());
+                        log(options.prefix + data.toString());
                     }
                 });
             }

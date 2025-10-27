@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 import { projectManager } from '../core/launcher';
 import { GlobalPaths } from '../global';
+import { log } from '../core/base/utils/log';
 
 /**
  * Import 命令类
@@ -21,10 +22,10 @@ export class ImportCommand extends BaseCommand {
 
                     await projectManager.open(resolvedPath);
 
-                    console.log(chalk.green('✓ Project imported successfully!'));
+                    log(chalk.green('✓ Project imported successfully!'));
 
                     if (options.wait) {
-                        console.log(chalk.blue('Process is running. Press Ctrl+C to exit.'));
+                        log(chalk.blue('Process is running. Press Ctrl+C to exit.'));
                         // 保持进程运行
                         process.stdin.resume();
                     } else {

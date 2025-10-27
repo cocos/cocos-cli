@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import { createBanner, createWelcomeMessage, createStartupMessage, createStatusBar } from './banner';
 import { config } from './config';
+import { log } from '../core/base/utils/log';
 
 /**
  * 交互式 CLI 界面
@@ -21,8 +22,8 @@ export class InteractiveCLI {
         }
 
         console.clear();
-        console.log(createBanner());
-        console.log(createWelcomeMessage());
+        log(createBanner());
+        log(createWelcomeMessage());
     }
 
     /**
@@ -34,8 +35,8 @@ export class InteractiveCLI {
         }
 
         console.clear();
-        console.log(createStartupMessage());
-        console.log(createStatusBar());
+        log(createStartupMessage());
+        log(createStatusBar());
     }
 
     /**
@@ -43,7 +44,7 @@ export class InteractiveCLI {
      */
     startSpinner(message: string): void {
         if (!config.shouldUseSpinner()) {
-            console.log(chalk.cyan(`⏳ ${message}`));
+            log(chalk.cyan(`⏳ ${message}`));
             return;
         }
 
@@ -69,7 +70,7 @@ export class InteractiveCLI {
     stopSpinner(success: boolean = true, message?: string): void {
         if (!config.shouldUseSpinner()) {
             const status = success ? '✅' : '❌';
-            console.log(chalk.cyan(`${status} ${message || (success ? '完成' : '失败')}`));
+            log(chalk.cyan(`${status} ${message || (success ? '完成' : '失败')}`));
             return;
         }
 
@@ -88,7 +89,7 @@ export class InteractiveCLI {
      */
     startProgress(total: number, message: string = '处理中...'): void {
         if (!config.shouldUseProgressBar()) {
-            console.log(chalk.cyan(`📊 ${message} (0/${total})`));
+            log(chalk.cyan(`📊 ${message} (0/${total})`));
             return;
         }
 
@@ -108,7 +109,7 @@ export class InteractiveCLI {
         if (!config.shouldUseProgressBar()) {
             // 在非交互模式下，每 10% 显示一次进度
             if (value % 10 === 0) {
-                console.log(chalk.cyan(`📊 进度: ${value}%`));
+                log(chalk.cyan(`📊 进度: ${value}%`));
             }
             return;
         }
@@ -123,7 +124,7 @@ export class InteractiveCLI {
      */
     stopProgress(): void {
         if (!config.shouldUseProgressBar()) {
-            console.log(chalk.cyan('📊 进度: 100% 完成'));
+            log(chalk.cyan('📊 进度: 100% 完成'));
             return;
         }
 
@@ -138,7 +139,7 @@ export class InteractiveCLI {
      */
     async confirm(message: string, defaultValue: boolean = true): Promise<boolean> {
         if (!config.shouldUseInteractive()) {
-            console.log(chalk.cyan(`❓ ${message} (默认: ${defaultValue ? '是' : '否'})`));
+            log(chalk.cyan(`❓ ${message} (默认: ${defaultValue ? '是' : '否'})`));
             return defaultValue;
         }
 
@@ -161,10 +162,10 @@ export class InteractiveCLI {
         choices: Array<{ name: string; value: T; disabled?: boolean }>
     ): Promise<T> {
         if (!config.shouldUseInteractive()) {
-            console.log(chalk.cyan(`📋 ${message}`));
+            log(chalk.cyan(`📋 ${message}`));
             choices.forEach((choice, index) => {
                 const status = choice.disabled ? '❌' : '✅';
-                console.log(chalk.gray(`  ${index + 1}. ${status} ${choice.name}`));
+                log(chalk.gray(`  ${index + 1}. ${status} ${choice.name}`));
             });
             // 返回第一个可用选项
             const availableChoice = choices.find(choice => !choice.disabled);
@@ -190,7 +191,7 @@ export class InteractiveCLI {
      */
     async input(message: string, defaultValue?: string): Promise<string> {
         if (!config.shouldUseInteractive()) {
-            console.log(chalk.cyan(`✏️  ${message} (默认: ${defaultValue || '无'})`));
+            log(chalk.cyan(`✏️  ${message} (默认: ${defaultValue || '无'})`));
             return defaultValue || '';
         }
 
@@ -251,35 +252,35 @@ export class InteractiveCLI {
      * 显示成功消息
      */
     success(message: string): void {
-        console.log(chalk.green(`✅ ${message}`));
+        log(chalk.green(`✅ ${message}`));
     }
 
     /**
      * 显示错误消息
      */
     error(message: string): void {
-        console.log(chalk.red(`❌ ${message}`));
+        log(chalk.red(`❌ ${message}`));
     }
 
     /**
      * 显示警告消息
      */
     warning(message: string): void {
-        console.log(chalk.yellow(`⚠️  ${message}`));
+        log(chalk.yellow(`⚠️  ${message}`));
     }
 
     /**
      * 显示信息消息
      */
     info(message: string): void {
-        console.log(chalk.cyan(`ℹ️  ${message}`));
+        log(chalk.cyan(`ℹ️  ${message}`));
     }
 
     /**
      * 显示分隔线
      */
     separator(char: string = '─', length: number = 60): void {
-        console.log(chalk.gray(char.repeat(length)));
+        log(chalk.gray(char.repeat(length)));
     }
 
     /**
@@ -299,20 +300,20 @@ export class InteractiveCLI {
         const headerRow = headers.map((header, i) =>
             header.padEnd(maxWidths[i])
         ).join(' | ');
-        console.log(chalk.bold(headerRow));
+        log(chalk.bold(headerRow));
 
         // 打印分隔线
         const separatorRow = maxWidths.map(width =>
             '─'.repeat(width)
         ).join('─┼─');
-        console.log(chalk.gray(separatorRow));
+        log(chalk.gray(separatorRow));
 
         // 打印数据行
         rows.forEach(row => {
             const dataRow = row.map((cell, i) =>
                 (cell || '').padEnd(maxWidths[i])
             ).join(' | ');
-            console.log(dataRow);
+            log(dataRow);
         });
     }
 }

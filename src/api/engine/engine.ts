@@ -1,3 +1,4 @@
+import { log } from '../../core/base/utils/log';
 import { ApiBase } from '../base/api-base';
 
 export class EngineApi extends ApiBase {
@@ -12,6 +13,6 @@ export class EngineApi extends ApiBase {
     async init(): Promise<void> {
         const { initEngine } = await import('../../core/engine');
         await initEngine(this.enginePath, this.projectPath);
-        console.log('initEngine success');
+        log('initEngine success');
     }
 }

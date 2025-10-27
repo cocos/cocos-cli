@@ -18,9 +18,9 @@ export function serialize(obj: Exclude<any, null | undefined>, options?: IOption
     //     if (typeof res === 'string') {
     //         if (res !== expectedRes) {
     //             console.warn('Different serialize result, new:');
-    //             console.log(res);
+    //             log(res);
     //             console.warn('Old:');
-    //             console.log(expectedRes);
+    //             log(expectedRes);
     //             return expectedRes;
     //         }
     //     }

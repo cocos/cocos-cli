@@ -7,6 +7,7 @@ import type { IAssetInfo } from '../../../assets/@types/public';
 import { Rpc } from '../rpc';
 import { register, expose } from './decorator';
 import { IScriptService } from '../../common';
+import { log } from '../../../base/utils/log';
 
 /**
  * 异步迭代。有以下特点：
@@ -128,8 +129,8 @@ export class ScriptService extends EventEmitter implements IScriptService {
     @expose()
     async init() {
         EditorExtends.on('class-registered', (classConstructor: Function, metadata: any, className: string) => {
-            console.log('classRegistered', className);
-            console.log('class-registered ' + cc.js.isChildClassOf(classConstructor, cc.Component));
+            log(`classRegistered: ${className}`);
+            log('class-registered ' + cc.js.isChildClassOf(classConstructor, cc.Component));
             if (metadata && // Only project scripts
                 cc.js.isChildClassOf(classConstructor, cc.Component) // Only components
             ) {

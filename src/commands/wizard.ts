@@ -4,6 +4,7 @@ import { interactive } from '../display/interactive';
 // import { projectManager } from '../core/launcher';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
+import { log } from '../core/base/utils/log';
 
 /**
  * 交互式向导命令
@@ -239,9 +240,9 @@ export class WizardCommand extends BaseCommand {
 
         interactive.separator();
         interactive.info('更多帮助信息：');
-        console.log(chalk.gray('  • 使用 --help 查看特定命令的详细帮助'));
-        console.log(chalk.gray('  • 使用 --version 查看版本信息'));
-        console.log(chalk.gray('  • 使用 wizard 命令启动交互式向导'));
+        log(chalk.gray('  • 使用 --help 查看特定命令的详细帮助'));
+        log(chalk.gray('  • 使用 --version 查看版本信息'));
+        log(chalk.gray('  • 使用 wizard 命令启动交互式向导'));
     }
 
     /**

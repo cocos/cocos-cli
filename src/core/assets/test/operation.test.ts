@@ -6,6 +6,7 @@ import { TestGlobalEnv } from '../../../tests/global-env';
 import assetOperation from '../manager/operation';
 import { assetManager } from '..';
 import { IAsset } from '../@types/private';
+import { log } from '../../base/utils/log';
 
 
 describe('测试 db 的操作接口', function () {
@@ -39,7 +40,7 @@ describe('测试 db 的操作接口', function () {
             });
             expect(asset).not.toBeNull();
             const exists = existsSync(join(databasePath, `${name}.directory`));
-            console.log(join(databasePath, `${name}.directory`));
+            log(join(databasePath, `${name}.directory`));
             expect(exists).toBeTruthy();
 
             const stat = statSync(join(databasePath, `${name}.directory`));
@@ -218,7 +219,7 @@ describe('测试 db 的操作接口', function () {
                 const exists = existsSync(join(databasePath, `${testName}`));
                 expect(exists).toStrictEqual(false);
                 const metaExists = existsSync(join(databasePath, `${testName}`));
-                console.log(Date.now());
+                log(Date.now());
                 expect(metaExists).toStrictEqual(false);
             });
         });
@@ -427,12 +428,12 @@ describe('测试 db 的操作接口', function () {
 
         it('创建 TypeScript 脚本 并传递 content', async () => {
             const assetInfo = await assetManager.createAssetByType('typescript', databasePath, `${name}.ts`, {
-                content: 'console.log("Hello, World!");',
+                content: 'log("Hello, World!");',
             });
             expect(assetInfo).not.toBeNull();
             expect(assetInfo!.type).toEqual('cc.Script');
             const content = readFileSync(assetInfo!.file, 'utf8');
-            expect(content).toEqual('console.log("Hello, World!");');
+            expect(content).toEqual('log("Hello, World!");');
         });
 
     });

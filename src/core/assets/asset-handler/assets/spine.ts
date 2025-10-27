@@ -9,6 +9,7 @@ import { sp, Texture2D } from 'cc';
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
 import { SpineAssetUserData } from '../../@types/userDatas';
+import { log } from '../../../base/utils/log';
 
 interface ISpineAtlas {
     path: string;
@@ -90,7 +91,7 @@ class TextureParser {
         if (asset) {
             const uuid = asset.uuid + '@6c48a';
             this.asset.depend(uuid);
-            console.log(`UUID is initialized for ${filePath}.`);
+            log(`UUID is initialized for ${filePath}.`);
             this.texturesUUID.push(uuid);
             this.textureNames.push(line);
         } else if (!fs.existsSync(filePath)) {

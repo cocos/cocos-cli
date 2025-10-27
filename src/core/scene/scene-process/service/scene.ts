@@ -14,6 +14,7 @@ import { Rpc } from '../rpc';
 import { EventEmitter } from 'events';
 import sceneUtil from './scene/utils';
 import type { IAssetInfo } from '../../../assets/@types/public';
+import { log } from '../../../base/utils/log';
 
 /**
  * 场景事件类型
@@ -42,9 +43,9 @@ export class SceneService extends EventEmitter implements ISceneService {
     async open(params: IOpenSceneOptions): Promise<IScene> {
         const { urlOrUUID } = params;
 
-        console.log(`打开场景 [${urlOrUUID}]`);
+        log(`打开场景 [${urlOrUUID}]`);
         try {
-            console.log('场景信息验证');
+            log('场景信息验证');
             const identifier: ISceneIdentifier = await this.createSceneIdentifier(urlOrUUID);
 
             if (!identifier.assetUuid) {
@@ -56,7 +57,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                 console.error('无效的场景资源类型');
                 throw new Error(`指定路径不是有效的场景资源，urlOrUUID: ${urlOrUUID}, ${identifier.assetType}`);
             }
-            console.log('场景信息验证通过');
+            log('场景信息验证通过');
 
             if (this.currentSceneAssetUuid === identifier.assetUuid) {
                 const instance = cc.director.getScene();
@@ -65,7 +66,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                     this.currentSceneAssetUuid = '';
                     throw new Error('打开场景失败，当前场景没有实例，请重新打开场景');
                 }
-                console.log('场景已打开');
+                log('场景已打开');
                 return await this.getSceneDump(identifier);
             }
 
@@ -75,7 +76,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                 console.warn('关闭当前场景时发生错误:', error);
             }
 
-            console.log('加载场景资源');
+            log('加载场景资源');
             const sceneAsset = await new Promise<cc.SceneAsset>((resolve, reject) => {
                 cc.assetManager.assets.remove(identifier.assetUuid);
                 cc.assetManager.loadAny(identifier.assetUuid, (err: Error | null, asset: cc.SceneAsset) => {
@@ -84,7 +85,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                         reject(err);
                         return;
                     }
-                    console.log('场景资源加载完成');
+                    log('场景资源加载完成');
                     resolve(asset);
                 });
             });
@@ -93,7 +94,7 @@ export class SceneService extends EventEmitter implements ISceneService {
             EditorExtends.Node.clear();
             EditorExtends.Component.clear();
 
-            console.log('运行场景');
+            log('运行场景');
             const sceneInstance = await new Promise<cc.Scene>((resolve, reject) => {
                 cc.director.runSceneImmediate(sceneAsset,
                     () => { },
@@ -103,7 +104,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                             reject(`打开场景失败，urlOrUuid：${urlOrUUID}`);
                             return;
                         }
-                        console.log('场景运行成功');
+                        log('场景运行成功');
                         resolve(instance);
                     }
                 );
@@ -116,7 +117,7 @@ export class SceneService extends EventEmitter implements ISceneService {
             // 发送打开消息
             this.emit('open', sceneInfo);
 
-            console.log(`场景打开成功`);
+            log(`场景打开成功`);
             return info;
         } catch (error) {
             console.error(`打开场景失败: ${error}`);
@@ -130,16 +131,16 @@ export class SceneService extends EventEmitter implements ISceneService {
             // 无需关闭
             return true;
         }
-        console.log(`关闭场景 [${params.urlOrUUID || '当前场景'}]`);
+        log(`关闭场景 [${params.urlOrUUID || '当前场景'}]`);
         try {
-            console.log('场景是否存在');
+            log('场景是否存在');
             const uuid = await sceneUtil.queryUUID(params.urlOrUUID) ?? this.currentSceneAssetUuid;
             const closedScene = this.sceneMap.get(uuid);
             if (!closedScene) {
                 console.error(`场景不存在于场景映射表中`);
                 throw new Error(`关闭场景失败，uuid: ${uuid}`);
             }
-            console.log(`找到场景: ${closedScene.identifier.assetName}`);
+            log(`找到场景: ${closedScene.identifier.assetName}`);
 
             if (this.currentSceneAssetUuid === uuid) {
                 cc.director.runSceneImmediate(new cc.Scene(''));
@@ -147,13 +148,13 @@ export class SceneService extends EventEmitter implements ISceneService {
             } else {
                 closedScene.instance.destroy();
             }
-            console.log('关闭当前打开场景');
+            log('关闭当前打开场景');
 
             this.sceneMap.delete(uuid);
-            console.log(`场景映射表移除: ${uuid}`);
+            log(`场景映射表移除: ${uuid}`);
             this.emit('close', closedScene.instance);
-            console.log('发出关闭事件');
-            console.log(`场景关闭成功: ${closedScene.identifier.assetUrl}`);
+            log('发出关闭事件');
+            log(`场景关闭成功: ${closedScene.identifier.assetUrl}`);
             return true;
         } catch (error) {
             console.error(`关闭场景失败: ${error}`);
@@ -163,7 +164,7 @@ export class SceneService extends EventEmitter implements ISceneService {
 
     @expose()
     async save(params: ISaveSceneOptions): Promise<boolean> {
-        console.log(`保存场景 [${params.urlOrUUID || '当前场景'}]`);
+        log(`保存场景 [${params.urlOrUUID || '当前场景'}]`);
 
         try {
             const uuid = params.urlOrUUID ?? this.currentSceneAssetUuid;
@@ -206,7 +207,7 @@ export class SceneService extends EventEmitter implements ISceneService {
 
     @expose()
     async create(params: ICreateSceneOptions): Promise<ISceneIdentifier> {
-        console.log(`创建场景 ${params.baseName} 到 ${params.targetDirectory} 目录下，使用模版：${params.templateType}`);
+        log(`创建场景 ${params.baseName} 到 ${params.targetDirectory} 目录下，使用模版：${params.templateType}`);
         try {
             let assetInfo;
             try {
@@ -220,7 +221,7 @@ export class SceneService extends EventEmitter implements ISceneService {
                     console.error('创建场景资源失败 createAsset 返回值无效', result);
                     throw new Error(`创建场景资源失败\n${JSON.stringify(params, null, 2)}`);
                 }
-                console.log('场景资源创建成功');
+                log('场景资源创建成功');
             } catch (e) {
                 console.error(e);
                 throw e;

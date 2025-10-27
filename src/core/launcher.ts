@@ -6,6 +6,7 @@ import { getCurrentLocalTime } from './assets/utils';
 import { PackerDriver } from './scripting/packer-driver';
 import { startServer } from '../server';
 import { GlobalPaths } from '../global';
+import { log } from './base/utils/log';
 
 class ProjectManager {
 
@@ -34,10 +35,10 @@ class ProjectManager {
         // 初始化引擎
         const { Engine, initEngine } = await import('./engine');
         await initEngine(GlobalPaths.enginePath, path);
-        console.log('initEngine success');
+        log('initEngine success');
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
-        console.log('startupAssetDB', path);
+        log(`startupAssetDB ${path}`);
         await startupAssetDB();
         const packDriver = await PackerDriver.create(path, GlobalPaths.enginePath);
         await packDriver.init(Engine.getConfig().includeModules);

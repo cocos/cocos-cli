@@ -32,7 +32,7 @@ export function fastRemove<T>(array: T[], value: T) {
  * ad.add(() => {
  *     return new Promise((resolve, reject) => {
  *        setTimeout(() => {
- *            console.log('hello world');
+ *            log('hello world');
  *            resolve();
  *        }, 1000);
  *     })

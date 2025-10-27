@@ -12,6 +12,7 @@ import { IModules, ITransformOptions, IBuildTaskOption } from '../../../@types';
 import utils from '../../../../base/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
+import { log } from '../../../../base/utils/log';
 
 export { getBuildPath } from '../../../share/utils';
 
@@ -30,7 +31,7 @@ export function compareOptions(oldOptions: Record<string, any>, newOptions: Reco
     if (res.isEqual) {
         return true;
     }
-    console.log(`different options: ${Object.keys(res.diff).map((key) => `${key}: ${res.diff[key].old} -> ${res.diff[key].new}`)}`);
+    log(`different options: ${Object.keys(res.diff).map((key) => `${key}: ${res.diff[key].old} -> ${res.diff[key].new}`)}`);
     return false;
 }
 

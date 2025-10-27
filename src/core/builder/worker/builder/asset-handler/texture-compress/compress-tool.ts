@@ -8,6 +8,7 @@ import { ICompressConfig, ITextureCompressType } from '../../../../@types';
 import { GlobalPaths } from '../../../../../../global';
 import utils from '../../../../../base/utils';
 import { BuildGlobalInfo } from '../../../../share/builder-config';
+import { log } from '../../../../../base/utils/log';
 const Sharp = require('sharp');
 
 /**
@@ -58,7 +59,7 @@ export async function compressWebp(option: ICompressConfig) {
     await quickSpawn(webpTool, args, {
         prefix: '[compress webp]',
     });
-    console.log('compress webp success ' + `{link(${dest})}`);
+    log('compress webp success ' + `{link(${dest})}`);
 }
 
 /**
@@ -137,7 +138,7 @@ export async function compressPVR(option: ICompressConfig) {
         prefix: '[compress pvrtc]',
     });
     if (existsSync(dest)) {
-        console.log('compress pvrtc success ' + `{link(${dest})}`);
+        log('compress pvrtc success ' + `{link(${dest})}`);
     } else {
         console.error(i18n.t('builder.error.texture_compress_failed', {
             type: format,
@@ -221,7 +222,7 @@ export async function compressEtc(option: ICompressConfig) {
     console.debug(`etc compress command :  ${etcTool} ${args.join(' ')}`);
     await quickSpawn(etcTool, args, opts);
     if (existsSync(dest)) {
-        console.log('compress etc success ' + `{link(${dest})}`);
+        log('compress etc success ' + `{link(${dest})}`);
     } else {
         console.error(i18n.t('builder.error.texture_compress_failed', {
             type: format,
@@ -274,7 +275,7 @@ export async function compressAstc(option: ICompressConfig) {
     });
     // 目前有遇到偶现的在机子上生成 astc 失败，但是没有错误输出的情况，需要做一次检查错误提示
     if (existsSync(dest)) {
-        console.log('Compress astc success ' + `{link(${dest})}`);
+        log('Compress astc success ' + `{link(${dest})}`);
     } else {
         console.error(i18n.t('builder.error.texture_compress_failed', {
             type: format,

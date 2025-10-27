@@ -6,6 +6,7 @@ import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import assetOperation from '../manager/operation';
 import { ICreateMenuInfo } from '../@types/protected';
+import { log } from '../../base/utils/log';
 
 const { join, extname } = require('path');
 const { existsSync, remove } = require('fs-extra');
@@ -90,7 +91,7 @@ describe('测试 db 的查询接口', function () {
                 return;
             }
             const label = info.label;
-            console.log(info.label);
+            log(info.label);
             it(`测试创建 ${label || info.label}(${info.fullFileName})`, async () => {
                 const target = join(assetTestRoot, info.fullFileName);
                 try {

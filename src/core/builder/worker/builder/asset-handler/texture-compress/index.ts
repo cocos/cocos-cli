@@ -20,6 +20,7 @@ import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected
 import { pluginManager } from '../../../../manager/plugin';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';
 import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
+import { log } from '../../../../../base/utils/log';
 interface CompressCacheInfo {
     option: {
         mtime: number | string;
@@ -527,7 +528,7 @@ export class TextureCompress extends EventEmitter {
 
         try {
             if (optionItem.compressOptions.quality === 100 && extname(optionItem.src).endsWith(optionItem.format)) {
-                console.log(`${optionItem.format} with quality is 100, will copy the image from ${optionItem.src} to ${optionItem.dest}`);
+                log(`${optionItem.format} with quality is 100, will copy the image from ${optionItem.src} to ${optionItem.dest}`);
                 await copy(optionItem.src, optionItem.dest, { overwrite: true });
                 return;
             }
@@ -598,7 +599,7 @@ export class TextureCompress extends EventEmitter {
                 const srcState = await stat(optionItem.src);
                 const destState = await stat(optionItem.dest);
                 if (destState.size > srcState.size) {
-                    console.log(`The compressed image(${optionItem.dest}) size(${destState.size}) is larger than the original image(${optionItem.src}) size(${srcState.size}), and the original image will be used. To ignore this protection mechanism, please configure it in Project Settings -> Texture Compression Configuration.`);
+                    log(`The compressed image(${optionItem.dest}) size(${destState.size}) is larger than the original image(${optionItem.src}) size(${srcState.size}), and the original image will be used. To ignore this protection mechanism, please configure it in Project Settings -> Texture Compression Configuration.`);
                     await copy(optionItem.src, optionItem.dest, { overwrite: true });
                 }
             }

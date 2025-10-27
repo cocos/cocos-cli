@@ -4,6 +4,7 @@ import * as os from 'os';
 import { NativePackTool, CocosParams } from '../native-common/pack-tool/default';
 import { cocosConfig } from '../native-common/pack-tool/cocosConfig';
 import { cchelper, toolHelper } from '../native-common/pack-tool/utils';
+import { log } from '../../../base/utils/log';
 
 export interface IWindowsParam {
     targetPlatform: 'x64';
@@ -70,7 +71,7 @@ export class WindowsPackTool extends NativePackTool {
 
     async windowsSelectCmakeGeneratorArgs(): Promise<string[]> {
 
-        console.log(`selecting visual studio generator ...`);
+        log(`selecting visual studio generator ...`);
         const visualstudioGenerators = cocosConfig.cmake.windows.generators;
 
         const testProjDir = await fs.mkdtemp(ps.join(os.tmpdir(), 'cmakeTest_'));
@@ -119,7 +120,7 @@ export class WindowsPackTool extends NativePackTool {
         }
         const opt = visualstudioGenerators.filter((x) => x.G === availableGenerators[0])[0];
         ret.push('-A', this.params.platformParams.targetPlatform);
-        console.log(` using ${opt.G}`);
+        log(` using ${opt.G}`);
         return ret;
     }
 
@@ -128,7 +129,7 @@ export class WindowsPackTool extends NativePackTool {
     }
 
     async run(): Promise<boolean> {
-        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release')
+        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release');
         const targetFile = this.getExecutableNameOrDefault();
         const executableFile = ps.join(executableDir, targetFile + '.exe');
         if (!executableFile || !fs.existsSync(executableFile)) {

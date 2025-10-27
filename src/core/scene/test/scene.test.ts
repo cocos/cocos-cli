@@ -1,9 +1,10 @@
 import * as fse from 'fs-extra';
 import { SceneTestEnv } from './scene-test-env';
+import { log } from '../../base/utils/log';
 
 beforeAll(async () => {
     fse.ensureDirSync(SceneTestEnv.CacheDirectory);
-    console.log('创建场景测试目录:', SceneTestEnv.CacheDirectory);
+    log(`创建场景测试目录: ${SceneTestEnv.CacheDirectory}`);
     const TestUtils = await import('../../test/global-setup');
     await TestUtils.globalSetup();
 });
@@ -11,7 +12,7 @@ beforeAll(async () => {
 afterAll(() => {
     try {
         fse.removeSync(SceneTestEnv.CacheDirectory);
-        console.log('删除场景测试目录:', SceneTestEnv.CacheDirectory);
+        log(`删除场景测试目录: ${SceneTestEnv.CacheDirectory}`);
     } catch (e) { }
 });
 

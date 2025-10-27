@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { BaseCommand } from './base';
 import project from '../core/project';
+import { log } from '../core/base/utils/log';
 
 /**
  * Create 命令类
@@ -19,21 +20,21 @@ export class CreateCommand extends BaseCommand {
                     const targetPath = resolve(options.project);
                     const type = (options.type === '2d' ? '2d' : '3d');
 
-                    console.log(chalk.blue('Creating project...'));
-                    console.log(chalk.gray(`Path: ${targetPath}`));
-                    console.log(chalk.gray(`Type: ${type}`));
+                    log(chalk.blue('Creating project...'));
+                    log(chalk.gray(`Path: ${targetPath}`));
+                    log(chalk.gray(`Type: ${type}`));
 
                     // 如果目标路径已存在，仅提示，不强制失败（交由底层处理器决定）
                     if (existsSync(targetPath)) {
-                        console.log(chalk.yellow('Warning: target path already exists, will try to create inside it.'));
+                        log(chalk.yellow('Warning: target path already exists, will try to create inside it.'));
                     }
 
                     const ok = await project.create(targetPath, type as '2d' | '3d');
                     if (ok) {
-                        console.log(chalk.green('✓ Project created successfully!'));
-                        console.log(chalk.gray('Next steps:'));
-                        console.log(`  cd ${targetPath}`);
-                        console.log('  cocos import --project .');
+                        log(chalk.green('✓ Project created successfully!'));
+                        log(chalk.gray('Next steps:'));
+                        log(`  cd ${targetPath}`);
+                        log('  cocos import --project .');
                     } else {
                         console.error(chalk.red('✗ Failed to create project.'));
                         process.exit(1);

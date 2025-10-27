@@ -6,6 +6,7 @@ import { mkdtemp, writeFile } from 'fs-extra';
 import { spawn } from 'child_process';
 import * as os from 'os';
 import { getCmakePath } from '../native-common/native-utils';
+import { log } from '../../../base/utils/log';
 
 /**
  * 查询当前设备上安装的 visual studio
@@ -36,7 +37,7 @@ export async function queryVisualStudioVersion() {
 
     const dir = await mkdtemp(join(tmpDir, 'cmake-vs'));
 
-    console.log(`Create temp dir ${dir}`);
+    log(`Create temp dir ${dir}`);
 
     const cmakeListFile = join(dir, 'CMakeLists.txt');
     const helloFile = join(dir, 'hello.cpp');

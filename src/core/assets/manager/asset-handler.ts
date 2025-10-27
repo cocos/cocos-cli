@@ -11,6 +11,7 @@ import { AssetOperationOption, IAsset, IExportData, ISupportCreateCCType, ISuppo
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
+import { log } from '../../base/utils/log';
 
 interface HandlerInfo extends AssetHandlerInfo {
     pkgName: string;
@@ -209,7 +210,7 @@ class AssetHandlerManager {
                 }
             }
             // 上面的逻辑走完还没有找到导入器，则说明以往标记的导入器已经无法找到，需要报错，之后重新寻找合适的导入器
-            console.log(`Can not find the importer ${asset.meta.importer} in editor`);
+            log(`Can not find the importer ${asset.meta.importer} in editor`);
         }
 
         // 尝试通过后缀找到适合这个资源的导入器

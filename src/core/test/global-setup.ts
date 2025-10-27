@@ -2,6 +2,7 @@ import { EngineLoader } from 'cc/loader.js';
 import { existsSync, remove } from 'fs-extra';
 import { TestGlobalEnv } from '../../tests/global-env';
 import { projectManager } from '../launcher';
+import { log } from '../base/utils/log';
 let hasInit = false;
 
 export async function globalSetup() {
@@ -12,7 +13,7 @@ export async function globalSetup() {
     if (existsSync(TestGlobalEnv.libraryPath)) {
         try {
             await remove(TestGlobalEnv.libraryPath);
-            console.log('remove project library cache success');
+            log('remove project library cache success');
         } catch (error) {
             console.error(error);
             console.error('remove project library cache fail');
@@ -21,7 +22,7 @@ export async function globalSetup() {
     if (existsSync(TestGlobalEnv.testRoot)) {
         try {
             await remove(TestGlobalEnv.testRoot);
-            console.log('remove project test root cache success');
+            log('remove project test root cache success');
         } catch (error) {
             console.error(error);
             console.error('remove project test root cache fail');

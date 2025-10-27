@@ -14,6 +14,7 @@ import { AssetHandler } from '../../../@types/protected';
 import assetDBManager from '../../../manager/asset-db';
 import FbxHandler from '../fbx';
 import GltfHandler from '../gltf';
+import { log } from '../../../../base/utils/log';
 
 export const GltfMaterialHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
@@ -46,7 +47,7 @@ export const GltfMaterialHandler: AssetHandler = {
             if (asset.parent.meta?.userData?.materials) {
                 const previousEditedData = asset.parent.meta.userData.materials[asset.uuid];
                 if (previousEditedData) {
-                    console.log(`importer: Reuse previously edited material data. ${asset.uuid}`);
+                    log(`importer: Reuse previously edited material data. ${asset.uuid}`);
 
                     const serializeJSON = JSON.stringify(previousEditedData);
                     await asset.saveToLibrary('.json', serializeJSON);

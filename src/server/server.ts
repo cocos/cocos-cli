@@ -10,6 +10,7 @@ import { middlewareService } from './middleware';
 import { cors } from './utils/cors';
 import path from 'path';
 import { IMiddlewareContribution } from './interfaces';
+import { log } from '../core/base/utils/log';
 
 interface ServerOptions {
     port: number,// 端口
@@ -43,7 +44,7 @@ export class ServerService {
     }
 
     async start(port?: number) {
-        console.log('🚀 开始启动服务器...');
+        log('🚀 开始启动服务器...');
         this.init();
         this._port = await getAvailablePort(port || this._port);
         this.server = await this.createServer({
@@ -65,7 +66,7 @@ export class ServerService {
                     reject(err);
                     return;
                 }
-                console.log('关闭服务器');
+                log('关闭服务器');
                 this.server = undefined;
                 resolve();
             });
@@ -131,7 +132,7 @@ export class ServerService {
             console.warn('⚠️ 服务器未开启或未监听端口');
             return;
         }
-        console.log(`\n🚀 服务器已启动: ${this.url}`);
+        log(`\n🚀 服务器已启动: ${this.url}`);
     }
 
     init() {

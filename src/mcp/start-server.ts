@@ -4,6 +4,7 @@ import { register } from '../server';
 import { McpMiddleware } from './mcp.middleware';
 import { serverService } from '../server/server';
 import chalk from 'chalk';
+import { log } from '../core/base/utils/log';
 
 export async function startServer(folder: string, port?: number) {
     const enginePath = join(__dirname, '../../packages/engine');
@@ -13,7 +14,7 @@ export async function startServer(folder: string, port?: number) {
     const middleware = new McpMiddleware();
     register('mcp', middleware.getMiddlewareContribution());
     const mcpUrl = `${serverService.url}/mcp`;
-    console.log(chalk.green('✓ MCP Server started successfully!'));
-    console.log(`${chalk.blueBright(`Server is running on: `)}${chalk.underline.cyan(`${mcpUrl}`)}`);
-    console.log(chalk.yellow('Press Ctrl+C to stop the server'));
+    log(chalk.green('✓ MCP Server started successfully!'));
+    log(`${chalk.blueBright(`Server is running on: `)}${chalk.underline.cyan(`${mcpUrl}`)}`);
+    log(chalk.yellow('Press Ctrl+C to stop the server'));
 }

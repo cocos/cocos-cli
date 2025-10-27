@@ -222,7 +222,7 @@ export const TypeScriptHandler: AssetHandler = {
     //             case ts.DiagnosticCategory.Message:
     //             case ts.DiagnosticCategory.Suggestion:
     //             default:
-    //                 printer = console.log;
+    //                 printer = log;
     //                 break;
     //         }
     //         printer(text);

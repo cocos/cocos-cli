@@ -3,6 +3,7 @@ import { BaseCommand, CommandUtils } from './base';
 import { projectManager } from '../core/launcher';
 import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 import { existsSync, readJSONSync } from 'fs-extra';
+import { log } from '../core/base/utils/log';
 
 /**
  * Build 命令类
@@ -40,7 +41,7 @@ export class BuildCommand extends BaseCommand {
                     const result = await projectManager.build(resolvedPath, options);
 
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
-                        console.log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));
+                        log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));
                     } else {
                         console.error(chalk.red('✗ Build failed!'));
                     }

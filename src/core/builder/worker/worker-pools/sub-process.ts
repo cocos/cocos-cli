@@ -1,5 +1,7 @@
 'use strict';
 
+import { log } from '../../../base/utils/log';
+
 interface IMessageInfo {
     type: string;
     path: string;
@@ -37,7 +39,7 @@ console.warn = function warning(...args: any[]) {
     RawWarning(...args);
 };
 
-console.log(`enter sub process ${process.pid}, ${process.debugPort}, see: chrome://inspect/#devices`);
+log(`enter sub process ${process.pid}, ${process.debugPort}, see: chrome://inspect/#devices`);
 
 async function executeScript(path: string, method = 'handler', args: any[] = []): Promise<any> {
     try {

@@ -13,6 +13,7 @@ import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { Engine } from '../engine';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
+import { log } from '../base/utils/log';
 
 export async function build(options?: IBuildCommandOption): Promise<IBuildResultData> {
     await builderConfig.init();
@@ -184,10 +185,10 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             if (stageWeight === 1) {
                 stageLabel = stages.join(' -> ');
             }
-            console.log(`[task:${stageLabel}]: success!`);
+            log(`[task:${stageLabel}]: success!`);
         } else {
             console.error(`${stageLabel} package ${options.root} failed!`);
-            console.log(`[task:${stageLabel}]: failed!`);
+            log(`[task:${stageLabel}]: failed!`);
             buildSuccess = false;
             break;
         }

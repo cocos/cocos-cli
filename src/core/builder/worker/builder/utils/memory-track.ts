@@ -1,3 +1,4 @@
+import { log } from '../../../../base/utils/log';
 
 /**
  * 内存统计 构建内存性能测试 A022
@@ -59,7 +60,7 @@ export class MemoryTrack {
         if (!MemoryTrack.enabled) {
             return;
         }
-        console.log(`memory track usage: ${formateBytes(this.memoryUsage)}`);
+        log(`memory track usage: ${formateBytes(this.memoryUsage)}`);
     }
 }
 

@@ -14,6 +14,7 @@ import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
 import { PackerDriver } from '../../scripting/packer-driver';
+import { log } from '../../base/utils/log';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -95,12 +96,12 @@ class AssetDBManager extends EventEmitter {
         // TODO 版本升级资源应该只认自身记录的版本号
         // if (AssetDBManager.useCache && Project.info.version !== Project.info.lastVersion) {
         //     AssetDBManager.useCache = false;
-        //     console.log(i18n.t('assets.restoreAssetDBFromCacheInValid.upgrade'));
+        //     log(i18n.t('assets.restoreAssetDBFromCacheInValid.upgrade'));
         // }
 
         if (AssetDBManager.useCache && !existsSync(AssetDBManager.libraryRoot)) {
             AssetDBManager.useCache = false;
-            console.log(i18n.t('assets.restore_asset_d_b_from_cache_in_valid.no_library_path'));
+            log(i18n.t('assets.restore_asset_d_b_from_cache_in_valid.no_library_path'));
         }
         await this.pluginManager.init();
         await this.assetHandlerManager.init();
@@ -379,7 +380,7 @@ class AssetDBManager extends EventEmitter {
      */
     async removeDB(name: string) {
         if (this.isPause) {
-            console.log(i18n.t('assets.asset_d_b_pause_tips',
+            log(i18n.t('assets.asset_d_b_pause_tips',
                 { operate: 'removeDB' }
             ));
             return new Promise((resolve) => {
@@ -432,7 +433,7 @@ class AssetDBManager extends EventEmitter {
         }
         if (this.state !== 'free' || this.isPause || this.assetBusy) {
             if (this.isPause) {
-                console.log(i18n.t('assets.asset_d_b_pause_tips',
+                log(i18n.t('assets.asset_d_b_pause_tips',
                     { operate: 'refresh' }
                 ));
             }
@@ -514,7 +515,7 @@ class AssetDBManager extends EventEmitter {
 
     async addTask(func: Function, args: any[]): Promise<any> {
         if (this.isPause || this.state === 'busy') {
-            console.log(i18n.t('assets.asset_d_b_pause_tips',
+            log(i18n.t('assets.asset_d_b_pause_tips',
                 { operate: func.name }
             ));
             return new Promise((resolve) => {
@@ -616,7 +617,7 @@ class AssetDBManager extends EventEmitter {
         if (!this.isBusy()) {
             this.hasPause = true;
             this.emit('assets:pause', source);
-            console.log(`Asset DB is paused with ${source}!`);
+            log(`Asset DB is paused with ${source}!`);
             return true;
         }
         if (!this.hasPause) {
@@ -626,7 +627,7 @@ class AssetDBManager extends EventEmitter {
             this.waitPauseHandle = () => {
                 this.waitPausePromiseTask = undefined;
                 this.emit('assets:pause', source);
-                console.log(`Asset DB is paused with ${source}!`);
+                log(`Asset DB is paused with ${source}!`);
                 this.hasPause = true;
                 resolve(true);
             };

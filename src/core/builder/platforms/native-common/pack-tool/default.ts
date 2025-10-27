@@ -5,6 +5,7 @@ import { CocosProjectTasks } from './cocosProjectTypes';
 import { gzipSync } from 'zlib';
 import { ICMakeConfig } from '../../../@types/platforms/native';
 import { globby } from 'globby';
+import { log } from '../../../../base/utils/log';
 const xxtea = require('xxtea-node');
 
 const PackageNewConfig = 'cocos-project-template.json';
@@ -87,7 +88,7 @@ export abstract class NativePackTool {
      * Debug / Release
      */
     protected get buildType(): string {
-        return this.params.debug ? "Debug" : "Release";
+        return this.params.debug ? 'Debug' : 'Release';
     }
 
     /**
@@ -96,7 +97,7 @@ export abstract class NativePackTool {
     protected tryReadProjectTemplateVersion(): { version: string, skipCheck: boolean | undefined } | null {
         const versionJsonPath = this.projEngineVersionPath;
         if (!fs.existsSync(versionJsonPath)) {
-            console.log(`warning: ${versionJsonPath} not exists`);
+            log(`warning: ${versionJsonPath} not exists`);
             return null;
         }
         try {
@@ -122,7 +123,7 @@ export abstract class NativePackTool {
             console.error(`Failed to read file ${pkgJSON}`);
             return null;
         }
-        return fs.readJsonSync(pkgJSON).version || "3.6.0";
+        return fs.readJsonSync(pkgJSON).version || '3.6.0';
     }
 
     /**
@@ -153,15 +154,15 @@ export abstract class NativePackTool {
     }
 
     private commonDirAreIdentical(): boolean {
-        let commonSrc = this.paths.commonDirInCocos;
-        let commonDst = this.paths.commonDirInPrj;
+        const commonSrc = this.paths.commonDirInCocos;
+        const commonDst = this.paths.commonDirInPrj;
         const compFile = (src: string, dst: string): boolean => {
-            const linesSrc: string[] = fs.readFileSync(src).toString("utf8").split("\n").map((line) => line.trim());
-            const linesDst: string[] = fs.readFileSync(dst).toString("utf8").split("\n").map((line) => line.trim());
+            const linesSrc: string[] = fs.readFileSync(src).toString('utf8').split('\n').map((line) => line.trim());
+            const linesDst: string[] = fs.readFileSync(dst).toString('utf8').split('\n').map((line) => line.trim());
             return linesSrc.length === linesDst.length && linesSrc.every((line, index) => line === linesDst[index]);
         };
-        let compFiles = ["Classes/Game.h", "Classes/Game.cpp"];
-        for (let f of compFiles) {
+        const compFiles = ['Classes/Game.h', 'Classes/Game.cpp'];
+        for (const f of compFiles) {
             const srcFile = ps.join(commonSrc, f);
             const dstFile = ps.join(commonDst, f);
             if (!fs.existsSync(dstFile)) {
@@ -174,7 +175,7 @@ export abstract class NativePackTool {
             }
 
             if (!compFile(srcFile, dstFile)) {
-                console.log(`File ${dstFile} differs from ${srcFile}`);
+                log(`File ${dstFile} differs from ${srcFile}`);
                 return false;
             }
         }
@@ -187,30 +188,30 @@ export abstract class NativePackTool {
      * condition written in the 'compatibility-info.json' file.
      */
     private validateTemplateVersion(): boolean {
-        console.log(`Checking template version...`);
+        log(`Checking template version...`);
         const engineVersion = this.tryGetEngineVersion();
         const projEngineVersionObj = this.tryReadProjectTemplateVersion();
         if (projEngineVersionObj === null) {
             if (this.commonDirAreIdentical()) {
-                console.log(`The files under common/Classes directory are identical with the ones in the template. Append version file to the project.`);
+                log(`The files under common/Classes directory are identical with the ones in the template. Append version file to the project.`);
                 this.writeEngineVersion();
                 return true;
             }
-            console.error(`Error code ${ErrorCodeIncompatible}, ${this.DebugInfos[ErrorCodeIncompatible]}`)
+            console.error(`Error code ${ErrorCodeIncompatible}, ${this.DebugInfos[ErrorCodeIncompatible]}`);
             return false;
         }
-        let versionRange = this.tryGetCompatibilityInfo();
+        const versionRange = this.tryGetCompatibilityInfo();
         const projEngineVersion = projEngineVersionObj?.version;
         if (!versionRange) {
             console.warn(`Ignore version range check`);
             return true;
         }
         if (projEngineVersionObj.skipCheck === true) {
-            console.log(`Skip version range check by project`);
+            log(`Skip version range check by project`);
             this.skipVersionCheck = true;
             return true;
         }
-        let cond = this.versionParser.parse(versionRange);
+        const cond = this.versionParser.parse(versionRange);
         if (!cond) {
             return true;
         }
@@ -218,12 +219,12 @@ export abstract class NativePackTool {
 
             const newerThanEngineVersion = this.versionParser.parse(`>${engineVersion}`);
             if (newerThanEngineVersion.match(projEngineVersion)) {
-                console.log(`warning: ${projEngineVersion} is newer than engine version ${engineVersion}`);
+                log(`warning: ${projEngineVersion} is newer than engine version ${engineVersion}`);
             }
             return true;
         }
         console.error(`'native/' folder was generated by ${projEngineVersion} which is incompatible with ${engineVersion}, condition: '${versionRange}'`);
-        console.error(`${this.DebugInfos[ErrorCodeIncompatible]}`)
+        console.error(`${this.DebugInfos[ErrorCodeIncompatible]}`);
         return false;
     }
 
@@ -239,8 +240,8 @@ export abstract class NativePackTool {
         if (!st.isDirectory()) {
             return;
         }
-        let list = fs.readdirSync(src);
-        for (let f of list) {
+        const list = fs.readdirSync(src);
+        for (const f of list) {
             if (f.startsWith('.')) continue;
             this.validateDirectory(ps.join(src, f), ps.join(dst, f), missingDirs);
         }
@@ -250,30 +251,30 @@ export abstract class NativePackTool {
      *  Check files under `native/engine/platform` folder
      */
     protected validatePlatformDirectory(missing: string[]): void {
-        console.log(`Validating platform source code directories...`);
+        log(`Validating platform source code directories...`);
         const srcDir = ps.join(this.paths.nativeTemplateDirInCocos, this.params.platform);
         const dstDir = this.paths.platformTemplateDirInPrj;
-        this.validateDirectory(srcDir, dstDir, missing)
+        this.validateDirectory(srcDir, dstDir, missing);
     }
 
     /**
      * Check if any file removed from the 'native/' folder
      */
     private validateTemplateConsistency() {
-        console.log(`Validating template consistency...`);
-        let commonSrc = this.paths.commonDirInCocos;
-        let commonDst = this.paths.commonDirInPrj;
-        let missingDirs: string[] = [];
+        log(`Validating template consistency...`);
+        const commonSrc = this.paths.commonDirInCocos;
+        const commonDst = this.paths.commonDirInPrj;
+        const missingDirs: string[] = [];
         // validate common directory
         this.validateDirectory(commonSrc, commonDst, missingDirs);
         this.validatePlatformDirectory(missingDirs);
         if (missingDirs.length > 0) {
-            console.log(`Following files are missing`);
-            for (let f of missingDirs) {
-                console.log(`  ${f}`);
+            log(`Following files are missing`);
+            for (const f of missingDirs) {
+                log(`  ${f}`);
             }
-            console.log(`Consider fix the problem or remove the directory`);
-            console.log(`To avoid this warning, set field \'skipCheck\' in cocos-version.json to true.`);
+            log(`Consider fix the problem or remove the directory`);
+            log(`To avoid this warning, set field 'skipCheck' in cocos-version.json to true.`);
             return false;
         }
         return true;
@@ -288,7 +289,7 @@ export abstract class NativePackTool {
         try {
             if (this.validateTemplateVersion()) {
                 if (!this.skipVersionCheck && !this.validateTemplateConsistency()) {
-                    console.log(`Failed to validate "native" directory`);
+                    log(`Failed to validate "native" directory`);
                 }
             }
         } catch (e) {
@@ -334,7 +335,7 @@ export abstract class NativePackTool {
                 const dest = cchelper.replaceEnvVariables(task.to);
                 fs.ensureDirSync(ps.dirname(dest));
                 return fs.copy(ps.join(Paths.nativeRoot, task.from), dest);
-            }))
+            }));
             delete tasks.appendFile;
         }
 
@@ -560,7 +561,7 @@ export class CocosParams<T> {
         NET_MODE: 'set(NET_MODE 0)',
         XXTEAKEY: '',
         CC_ENABLE_SWAPPY: false,
-    }
+    };
 
     constructor(params: CocosParams<T>) {
         this.buildAssetsDir = params.buildAssetsDir;

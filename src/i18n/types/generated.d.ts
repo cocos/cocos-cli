@@ -1,5 +1,5 @@
 // Auto-generated i18n types for Node.js - DO NOT EDIT MANUALLY
-// Generated at: 2025-10-25T06:04:16.630Z
+// Generated at: 2025-10-27T11:14:50.964Z
 
 export interface I18nResources {
   assets: {

@@ -5,6 +5,7 @@ import { SceneReadyChannel } from '../common';
 import { startupRpc } from './rpc';
 import { getServerUrl } from '../../../server';
 import type { AssetInfo, IAsset } from '../../assets/@types/protected/asset';
+import { log } from '../../base/utils/log';
 
 export class SceneWorker extends EventEmitter {
 
@@ -40,7 +41,7 @@ export class SceneWorker extends EventEmitter {
             this.registerListener();
             const onReady = (msg: any) => {
                 if (msg === SceneReadyChannel) {
-                    console.log('Scene process start.');
+                    log('Scene process start.');
                     this.process.off('message', onReady);
                     resolve(true);
                 }
@@ -53,7 +54,7 @@ export class SceneWorker extends EventEmitter {
         if (!this.process) return true;
         return new Promise<boolean>((resolve) => {
             this.process.once('exit', () => {
-                console.log('Scene process stopped.');
+                log('Scene process stopped.');
                 resolve(true);
             });
             this.process.once('error', () => resolve(false));
@@ -63,15 +64,15 @@ export class SceneWorker extends EventEmitter {
 
     async registerListener() {
         this.process.stdout?.on('data', (chunk) => {
-            console.log(chunk.toString());
+            log(chunk.toString());
         });
 
         this.process.stderr?.on('data', (chunk) => {
             const str = chunk.toString();
             if (str.startsWith('[Scene]')) {
-                console.log(chunk.toString());
+                log(chunk.toString());
             } else {
-                console.log('[Scene]', chunk.toString());
+                log('[Scene]', chunk.toString());
             }
         });
 
@@ -88,7 +89,7 @@ export class SceneWorker extends EventEmitter {
             if (code !== 0) {
                 console.error(`场景进程退出异常 code:${code}, signal:${signal}`);
             } else {
-                console.log('场景进程退出');
+                log('场景进程退出');
             }
         });
 

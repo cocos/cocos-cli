@@ -4,6 +4,7 @@ import { PackerDriver } from './packer-driver';
 import { Executor } from '@cocos/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { CustomEvent, EventType, eventEmitter } from './event-emitter';
+import { log } from '../base/utils/log';
 
 export const title = 'i18n:builder.tasks.load_script';
 
@@ -80,7 +81,7 @@ class ScriptManager {
         // TODO 需要支持按入参按需加载脚本
         await globalEnv.record(async () => {
             if (!executor) {
-                console.log(`creating executor ...`);
+                log(`creating executor ...`);
                 const packerDriver = PackerDriver.getInstance();
                 const serializedPackLoaderContext = packerDriver.getQuickPackLoaderContext('editor')!.serialize();
                 const quickPackLoaderContext = QuickPackLoaderContext.deserialize(serializedPackLoaderContext);
