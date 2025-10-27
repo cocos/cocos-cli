@@ -1,6 +1,6 @@
 {
     "name": "cocos-cli",
-    "version": "1.0.0-alpha.2",
+    "version": "1.0.0-alpha.3",
     "displayName": "Cocos CLI Extension",
     "icon": "static/logo/logo.png",
     "description": "Cocos Creator CLI tool for project management and building",
