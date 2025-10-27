@@ -1,4 +1,4 @@
-import { ServiceEvents } from '../../scene-process/service/core/global-events';
+import { ServiceEvents } from '../../scene-process/service/core';
 
 // 定义测试用的事件接口
 interface TestEvents {

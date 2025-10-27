@@ -6,7 +6,9 @@ import {
     ISceneService,
     INodeService,
     IComponentService,
-    IScriptService
+    IScriptService,
+    IPublicAssetService,
+    IAssetService
 } from '../../common';
 
 /**
@@ -17,6 +19,7 @@ export interface IPublicServiceManager {
     Node: IPublicNodeService;
     Component: IPublicComponentService;
     Script: IPublicScriptService,
+    Asset: IPublicAssetService,
 }
 
 export interface IServiceManager {
@@ -24,4 +27,5 @@ export interface IServiceManager {
     Node: INodeService;
     Component: IComponentService;
     Script: IScriptService,
+    Asset: IAssetService,
 }

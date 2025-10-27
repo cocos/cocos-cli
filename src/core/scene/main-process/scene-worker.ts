@@ -5,6 +5,7 @@ import { SceneProcessEventTag, SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
 import type { IAsset } from '../../assets/@types/protected/asset';
+import { listenModuleMessages } from './manager';
 
 export class SceneWorker {
 
@@ -100,44 +101,8 @@ export class SceneWorker {
                 console.log('场景进程退出');
             }
         });
-
-        //
-        const { default: scriptManager } = await import('../../scripting');
-        const { ScriptProxy } = await import('./proxy/script-proxy');
-        scriptManager.on('pack-build-end', (targetName: string) => {
-            if (targetName === 'editor') {
-                void ScriptProxy.investigatePackerDriver();
-            }
-        });
-
-        const { assetManager } = await import('../../assets');
-        assetManager.on('asset-add', async (asset: IAsset) => {
-            switch (asset.meta.importer) {
-                case 'typescript':
-                case 'javascript':
-                    void ScriptProxy.loadScript();
-                    break;
-            }
-        });
-        assetManager.on('asset-change', (asset: IAsset) => {
-            switch (asset.meta.importer) {
-                case 'typescript':
-                case 'javascript': {
-                    void ScriptProxy.scriptChange();
-                    break;
-                }
-            }
-        });
-
-        assetManager.on('asset-delete', (asset: IAsset) => {
-            switch (asset.meta.importer) {
-                case 'typescript':
-                case 'javascript': {
-                    void ScriptProxy.removeScript();
-                    break;
-                }
-            }
-        });
+        // 监听主进程模块的事件
+        await listenModuleMessages();
     }
 
     /**
