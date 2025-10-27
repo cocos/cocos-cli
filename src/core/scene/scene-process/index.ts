@@ -1,2 +1,2 @@
 
-export { ISceneModule } from './service/interfaces';
+export { IPublicServiceManager } from './service/interfaces';

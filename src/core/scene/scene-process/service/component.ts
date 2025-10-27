@@ -63,7 +63,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw new Error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
         }
 
-        this.events.emit('component:add', comp);
+        this.emit('component:add', comp);
 
         return (dumpUtil.dumpComponent(comp as Component));
     }
@@ -78,9 +78,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw new Error(`Remove component failed: ${params.path} does not exist`);
         }
 
-        this.events.emit('component:before-remove', comp);
+        this.emit('component:before-remove', comp);
         const result = compMgr.removeComponent(comp);
-        this.events.emit('component:remove', comp);
+        this.emit('component:remove', comp);
 
         return result;
     }
@@ -118,7 +118,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
         }
-        this.events.emit('component:set-property', component);
+        this.emit('component:set-property', component);
         return true;
     }
 

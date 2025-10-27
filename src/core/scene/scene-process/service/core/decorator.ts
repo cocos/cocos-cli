@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { ISceneModule } from '../interfaces';
+import type { IServiceManager } from '../interfaces';
 
 /**
  * 范例
@@ -23,7 +23,7 @@ import type { ISceneModule } from '../interfaces';
  * Service.Scene.loadScene('Main');
  */
 
-export type ServiceName = keyof ISceneModule; // 'Scene' | 'Node' | 'Script' ...
+export type ServiceName = keyof IServiceManager; // 'Scene' | 'Node' | 'Script' ...
 
 // 真正的存储容器
 const _serviceRegistry: Record<string, any> = {};
@@ -42,7 +42,7 @@ export function register(name?: string): ClassDecorator {
 /**
  * 全局代理：通过 Service.Scene.xxx() 访问
  */
-export const Service = new Proxy({} as ISceneModule, {
+export const Service = new Proxy({} as IServiceManager, {
     get(_, prop: string) {
         const svc = _serviceRegistry[prop as ServiceName];
         if (!svc) {

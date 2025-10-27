@@ -1,8 +1,7 @@
-import type { IAssetInfo } from '../../../assets/@types/public';
-import { IScriptService, } from '../../common';
+import { IPublicScriptService } from '../../common';
 import { Rpc } from '../rpc';
 
-export const ScriptProxy: IScriptService = {
+export const ScriptProxy: IPublicScriptService = {
     removeScript(): Promise<void> {
         return Rpc.request('Script', 'removeScript');
     },

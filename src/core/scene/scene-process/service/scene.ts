@@ -68,7 +68,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             this.sceneInstanceMap.set(identifier.assetUuid, sceneInfo);
             const info: IScene = await sceneUtil.generateScene(identifier);
 
-            this.events.emit('scene:open', sceneInfo);
+            this.emit('scene:open', sceneInfo);
 
             return info;
         } catch (error) {
@@ -98,7 +98,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             }
             this.sceneInstanceMap.delete(uuid);
 
-            this.events.emit('scene:close', closedScene);
+            this.emit('scene:close', closedScene);
 
             return true;
         } catch (error) {
@@ -147,7 +147,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             scene.identifier.assetType = assetInfo.type;
             this.sceneInstanceMap.set(uuid, scene);
 
-            this.events.emit('scene:save', scene);
+            this.emit('scene:save', scene);
 
             return true;
         } catch (error) {
@@ -231,7 +231,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             };
             this.sceneInstanceMap.set(newScene.assetUuid, sceneInfo);
 
-            this.events.emit('scene:soft-reload', sceneInfo);
+            this.emit('scene:soft-reload', sceneInfo);
             return newScene;
         } catch (error) {
             console.error('重新加载场景失败');

@@ -1,12 +1,10 @@
 import cc from 'cc';
-import { EventEmitter } from 'events';
 import { Executor } from '@cocos/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
-import utils from '../../../base/utils';
-import type { IAssetInfo } from '../../../assets/@types/public';
 import { Rpc } from '../rpc';
-import { register } from './core/decorator';
-import { IScriptService } from '../../common';
+import { BaseService, register } from './core';
+import { IScriptEvents, IScriptService } from '../../common';
+import utils from '../../../base/utils';
 
 /**
  * 异步迭代。有以下特点：
@@ -92,12 +90,7 @@ class GlobalEnv {
 const globalEnv = new GlobalEnv();
 
 @register('Script')
-export class ScriptService extends EventEmitter implements IScriptService {
-    /**
-     * 当脚本刷新并执行完成时触发。
-     */
-    public readonly EXECUTION_FINISHED = 'execution-finished';
-
+export class ScriptService extends BaseService<IScriptEvents> implements IScriptService {
     private _executor!: Executor;
 
     private _suspendPromise: Promise<void> | null = null;
@@ -173,6 +166,7 @@ export class ScriptService extends EventEmitter implements IScriptService {
             importExceptionHandler: (...args) => this._handleImportException(...args),
             cceModuleMap,
         });
+        // eslint-disable-next-line no-undef
         globalThis.self = window;
         this._executor.addPolyfillFile(require.resolve('@cocos/build-polyfills/prebuilt/editor/bundle'));
         // 同步插件脚本列表
@@ -226,7 +220,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
     /**
      * 加载脚本时触发
      */
-    @expose()
     async loadScript() {
         this._syncPluginScriptListAsync();
     }
@@ -234,7 +227,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
     /**
      * 删除脚本时触发
      */
-    @expose()
     async removeScript() {
         this._syncPluginScriptListAsync();
     }
@@ -242,7 +234,6 @@ export class ScriptService extends EventEmitter implements IScriptService {
     /**
      * 脚本发生变化时触发
      */
-    @expose()
     async scriptChange() {
         this._syncPluginScriptListAsync();
     }
@@ -260,7 +251,7 @@ export class ScriptService extends EventEmitter implements IScriptService {
 
             return globalEnv.record(
                 () => this._executor.reload().finally(() => {
-                    this.emit(this.EXECUTION_FINISHED);
+                    this.emit('script:execution-finished');
                 }),
             );
         });

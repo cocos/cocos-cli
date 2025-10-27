@@ -7,11 +7,11 @@ import {
     IDeleteNodeParams,
     IUpdateNodeResult,
     IDeleteNodeResult,
-    INodeService
+    IPublicNodeService,
 } from '../../common';
 import { Rpc } from '../rpc';
 
-export const NodeProxy: INodeService = {
+export const NodeProxy: IPublicNodeService = {
     createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
         return Rpc.request('Node', 'createNodeByType', [params]);
     },

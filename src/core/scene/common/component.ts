@@ -64,6 +64,8 @@ export interface IComponentEvents {
     'component:set-property': Component;
 }
 
+export interface IPublicComponentService extends IComponentService {}
+
 /**
  * 组件的相关处理接口
  */

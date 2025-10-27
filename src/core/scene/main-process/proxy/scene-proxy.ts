@@ -1,16 +1,15 @@
 import {
     ICloseSceneOptions,
     ICreateSceneOptions,
-    IOpenSceneOptions,
+    IOpenSceneOptions, IPublicSceneService,
     ISaveSceneOptions,
     IScene,
     ISceneIdentifier,
-    ISceneService,
     ISoftReloadSceneOptions
 } from '../../common';
 import { Rpc } from '../rpc';
 
-export const SceneProxy: ISceneService = {
+export const SceneProxy: IPublicSceneService = {
     open(params: IOpenSceneOptions): Promise<IScene> {
         return Rpc.request('Scene', 'open', [params]);
     },

@@ -17,7 +17,7 @@ import { CCObject, Node, Prefab, Quat, Vec3 } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, setLayer } from './node/node-utils';
 import sceneUtil from './scene/utils';
-import NodeConfig from './node-type-config';
+import NodeConfig from './node/node-type-config';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -90,9 +90,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             resultNode.name = params.name;
         }
 
-        this.events.emit('node:before-add', resultNode);
+        this.emit('node:before-add', resultNode);
         if (parent) {
-            this.events.emit('node:before-change', parent);
+            this.emit('node:before-change', parent);
         }
 
         /**
@@ -119,7 +119,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         // 发送添加节点事件，添加节点中的根节点
-        this.events.emit('node:add', resultNode);
+        this.emit('node:add', resultNode);
 
         // 发送节点修改消息
         if (parent) {
@@ -190,7 +190,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     currentParent = nextNode;
 
                     // 发送节点创建事件
-                    this.events.emit('node:add', nextNode);
+                    this.emit('node:add', nextNode);
                 }
             }
         }
@@ -230,9 +230,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
         // 发送节点修改消息
         const parent = node.parent;
-        this.events.emit('node:before-remove', node);
+        this.emit('node:before-remove', node);
         if (parent) {
-            this.events.emit('node:before-change', parent);
+            this.emit('node:before-change', parent);
         }
 
         node.setParent(null, params.keepWorldTransform);
@@ -248,7 +248,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             console.warn(error);
         }
 
-        this.events.emit('node:remove', node);
+        this.emit('node:remove', node);
 
         return {
             path: path,
@@ -317,7 +317,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             path: NodeMgr.getNodePath(node),
         };
 
-        this.events.emit('node:update', node);
+        this.emit('node:update', node);
 
         return info;
     }

@@ -1,13 +1,15 @@
-import { SceneReadyChannel } from '../common';
+import { IScriptEvents, SceneReadyChannel } from '../common';
 import { startupRpc } from './rpc';
 import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
+import { ServiceEvents } from './service/core';
 
 async function startup() {
     // 监听进程退出事件
     process.on('message', (msg) => {
         if (msg === 'scene-process:exit') {
+            ServiceEvents.clear();
             process.disconnect?.(); // 关闭 IPC
             process.exit(0);// 退出进程
         }
@@ -35,11 +37,16 @@ async function startup() {
         await startupRpc();
         console.log('[Scene] startup Rpc');
 
-        // TODO hack 后续可能要思考一下如何正确的初始化引擎
         const { Service } = await import('./service/core/decorator');
         (globalThis.cce as any) = {
             Script: Service.Script
         };
+        // 脚本变动后，需要刷新场景
+        ServiceEvents.on<IScriptEvents>('script:execution-finished', () => {
+            console.log('[Scene] script execution-finished');
+            Service.Script.suspend(Promise.resolve(Service.Scene.softReload({})));
+        });
+
     }, async () => {
         await cc.game.run();
     });

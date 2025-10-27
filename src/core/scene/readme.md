@@ -32,7 +32,6 @@ Scene 模块采用**双进程架构**：
 - 脚本加载和卸载
 - 脚本变更监听
 
-
 ### 2. 服务扩展
 
 如需添加新的服务模块，请按以下步骤操作：
@@ -45,24 +44,50 @@ Scene 模块采用**双进程架构**：
 // common/my-service.ts
 export interface IMyService {
     doSomething(params: any): Promise<any>;
+    doAnotherThing(id: string): Promise<string>;
+    // 内部方法，不对主进程暴露
+    internalMethod(): void;
 }
+
+// 主进程使用的公开接口，剔除内部方法
+export interface IPublicMyService extends Omit<IMyService, 'internalMethod'> {
+}
+
+// 如果需要剔除多个方法，可以这样写：
+// export interface IPublicMyService extends Omit<IMyService, 'internalMethod' | 'anotherInternalMethod'> {
+// }
 
 export interface IMyServiceEvents {
     'my-event': (data: any) => void;
 }
 ```
 
+**接口设计说明：**
+- `IMyService`: 完整的服务接口，包含所有方法
+- `IPublicMyService`: 主进程使用的公开接口，通过 `Omit` 剔除内部方法
+- 使用 `Omit<IMyService, 'methodName'>` 可以排除指定的方法
+- 支持排除多个方法：`Omit<IMyService, 'method1' | 'method2'>`
+
 #### 步骤 2: 更新模块接口
 
 在 `scene-process/service/interfaces.ts` 中添加新服务：
 
 ```typescript
-export interface ISceneModule {
+/**
+ * 场景进程开放出去的模块与接口
+ */
+export interface IPublicServiceManager {
+    Scene: IPublicSceneService;
+    Node: IPublicNodeService;
+    Component: IPublicComponentService;
+    Script: IPublicScriptService,
+}
+
+export interface IServiceManager {
     Scene: ISceneService;
     Node: INodeService;
     Component: IComponentService;
-    Script: IScriptService;
-    MyService: IMyService; // 新增
+    Script: IScriptService,
 }
 ```
 
@@ -92,7 +117,7 @@ export class MyService extends BaseService<IMyServiceEvents> implements IMyServi
 // main-process/proxy/my-service-proxy.ts
 import { Rpc } from '../rpc';
 
-export const MyServiceProxy = {
+export const MyServiceProxy: IPublicMyService = {
     async doSomething(params: any) {
         return await Rpc.request('MyService', 'doSomething', params);
     }
@@ -133,5 +158,5 @@ describe('MyService', () => {
 运行测试：
 
 ```bash
-npm run test engine
+npm run test:core engine
 ```

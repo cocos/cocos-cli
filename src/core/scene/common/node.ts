@@ -170,6 +170,8 @@ export interface INodeEvents {
     'node:change': Node;
 }
 
+export interface IPublicNodeService extends INodeService {}
+
 /**
  * 节点的相关处理接口
  */

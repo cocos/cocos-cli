@@ -4,11 +4,11 @@ import {
     IRemoveComponentOptions,
     IQueryComponentOptions,
     ISetPropertyOptions,
-    IComponentService
+    IPublicComponentService,
 } from '../../common';
 import { Rpc } from '../rpc';
 
-export const ComponentProxy: IComponentService = {
+export const ComponentProxy: IPublicComponentService = {
     addComponent(params: IAddComponentOptions): Promise<IComponent> {
         return Rpc.request('Component', 'addComponent', [params]);
     },

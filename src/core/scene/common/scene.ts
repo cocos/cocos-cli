@@ -88,6 +88,8 @@ export interface ISceneEvents {
     'scene:soft-reload': ISceneEntry;
 }
 
+export interface IPublicSceneService extends ISceneService {}
+
 /**
  * 场景相关处理接口
  */
@@ -135,3 +137,4 @@ export interface ISceneService {
      */
     queryScenes(): Promise<IScene[]>;
 }
+
