@@ -1,6 +1,7 @@
 import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { CCON } from 'cc/editor/serialization';
-
+export type IAssetEvent = 'asset-add' | 'asset-change' | 'asset-delete';
+export type IAssetEventCallback = (asset: IAsset) => void;
 export interface IExportData {
     import: {
         type: 'buffer' | 'json';
@@ -8,6 +9,15 @@ export interface IExportData {
     };
     // 例如 { 'test.font': 'test.font' }
     native?: Record<string, string>;
+}
+
+/**
+ * AssetManager 事件类型定义
+ */
+export interface AssetManagerEvents {
+    'asset-add': (asset: IAsset) => void;
+    'asset-change': (asset: IAsset) => void;
+    'asset-delete': (asset: IAsset) => void;
 }
 
 export * from '../public';

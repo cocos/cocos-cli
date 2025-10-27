@@ -36,13 +36,14 @@ export class AssetDbInterop {
 
         this._hasInit = true;
 
-        const onAssetChange = (type: AssetChangeType, assetInfo: AssetInfo) => {
+        const onAssetChange = (type: AssetChangeType, asset: IAsset) => {
+            const assetInfo = (globalThis as any).assetManager.encodeAsset(asset);
             this._onAssetChange(AssetChangeType.modified, assetInfo.uuid, assetInfo, assetInfo.meta as Readonly<IAssetMeta>);
         };
 
-        (globalThis as any).assetManager.on('asset-change', (asset: AssetInfo) => onAssetChange(AssetChangeType.modified, asset));
-        (globalThis as any).assetManager.on('asset-add', (asset: AssetInfo) => onAssetChange(AssetChangeType.add, asset));
-        (globalThis as any).assetManager.on('asset-delete', (asset: AssetInfo) => onAssetChange(AssetChangeType.remove, asset));
+        (globalThis as any).assetManager.on('asset-change', (asset: IAsset) => onAssetChange(AssetChangeType.modified, asset));
+        (globalThis as any).assetManager.on('asset-add', (asset: IAsset) => onAssetChange(AssetChangeType.add, asset));
+        (globalThis as any).assetManager.on('asset-delete', (asset: IAsset) => onAssetChange(AssetChangeType.remove, asset));
     }
 
     async destroyed() {

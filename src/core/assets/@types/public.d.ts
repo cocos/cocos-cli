@@ -1,4 +1,5 @@
 import { AssetHandlerType, ISupportCreateType, AssetUserDataMap } from './asset-types';
+
 export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'> {
     ver: string;
     importer: AssetHandlerType;

@@ -5,6 +5,7 @@ import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import assetOperation from '../manager/operation';
 import { assetManager } from '..';
+import { IAsset } from '../@types/private';
 
 
 describe('测试 db 的操作接口', function () {
@@ -26,6 +27,13 @@ describe('测试 db 的操作接口', function () {
 
     describe('create-asset', function () {
         it('创建文件夹', async function () {
+            // 监听 asset-add 事件
+            let receivedAsset: IAsset | null = null;
+            const assetAddListener = (asset: IAsset) => {
+                receivedAsset = asset;
+            };
+            assetManager.on('asset-add', assetAddListener);
+
             const asset = await assetOperation.createAsset({
                 target: join(databasePath, `${name}.directory`),
             });
@@ -39,6 +47,15 @@ describe('测试 db 的操作接口', function () {
 
             const meta = readJSONSync(join(databasePath, `${name}.directory.meta`));
             expect(meta.uuid).toEqual(asset!.uuid);
+
+            // 验证 asset-add 事件被触发
+            expect(receivedAsset).not.toBeNull();
+            expect(receivedAsset!.uuid).toEqual(asset!.uuid);
+            expect(receivedAsset!.url).toEqual(asset!.url);
+            expect(receivedAsset!.isDirectory).toBeTruthy();
+
+            // 清理监听器
+            assetManager.removeListener('asset-add', assetAddListener);
         });
 
         it('创建普通的文本文件', async function () {
@@ -207,6 +224,13 @@ describe('测试 db 的操作接口', function () {
         });
 
         it('使用 url 删除普通资源', async function () {
+            // 监听 asset-delete 事件
+            let receivedAsset: IAsset | null = null;
+            const assetDeleteListener = (asset: IAsset) => {
+                receivedAsset = asset;
+            };
+            assetManager.on('asset-delete', assetDeleteListener);
+
             await assetManager.removeAsset(`${TestGlobalEnv.testRootUrl}/${testName}`);
 
             const exists = existsSync(join(databasePath, `${testName}`));
@@ -214,6 +238,13 @@ describe('测试 db 的操作接口', function () {
 
             const metaExists = existsSync(join(databasePath, `${testName}.meta`));
             expect(metaExists).toStrictEqual(false);
+
+            // 验证 asset-delete 事件被触发
+            expect(receivedAsset).not.toBeNull();
+            expect(receivedAsset!.url).toEqual(`${TestGlobalEnv.testRootUrl}/${testName}`);
+
+            // 清理监听器
+            assetManager.removeListener('asset-delete', assetDeleteListener);
         });
 
         it('使用 uuid 删除普通资源', async function () {
@@ -222,6 +253,14 @@ describe('测试 db 的操作接口', function () {
                 target: join(databasePath, testName),
                 content: 'test',
             });
+
+            // 监听 asset-delete 事件
+            let receivedAsset: IAsset | null = null;
+            const assetDeleteListener = (deletedAsset: IAsset) => {
+                receivedAsset = deletedAsset;
+            };
+            assetManager.on('asset-delete', assetDeleteListener);
+
             await assetManager.removeAsset(asset!.uuid);
 
             const exists = existsSync(join(databasePath, `${testName}`));
@@ -229,11 +268,25 @@ describe('测试 db 的操作接口', function () {
 
             const metaExists = existsSync(join(databasePath, `${testName}.meta`));
             expect(metaExists).toStrictEqual(false);
+
+            // 验证 asset-delete 事件被触发
+            expect(receivedAsset).not.toBeNull();
+            expect(receivedAsset!.uuid).toEqual(asset!.uuid);
+
+            // 清理监听器
+            assetManager.removeListener('asset-delete', assetDeleteListener);
         });
     });
 
     describe('save-asset', () => {
         it('保存普通资源', async function () {
+            // 监听 asset-change 事件
+            let receivedAsset: IAsset | null = null;
+            const assetChangeListener = (asset: IAsset) => {
+                receivedAsset = asset;
+            };
+            assetManager.on('asset-change', assetChangeListener);
+
             await assetManager.saveAsset(`${TestGlobalEnv.testRootUrl}/${testName}`, 'test2');
 
             const filePath = join(TestGlobalEnv.testRoot, testName);
@@ -241,6 +294,13 @@ describe('测试 db 的操作接口', function () {
 
             const content = readFileSync(filePath, 'utf8');
             expect(content).toStrictEqual('test2');
+
+            // 验证 asset-change 事件被触发
+            expect(receivedAsset).not.toBeNull();
+            expect(receivedAsset!.url).toEqual(`${TestGlobalEnv.testRootUrl}/${testName}`);
+
+            // 清理监听器
+            assetManager.removeListener('asset-change', assetChangeListener);
         });
         // 保存场景、prefab、材质、动画
     });
@@ -269,6 +329,13 @@ describe('测试 db 的操作接口', function () {
         it('保存资源的 meta', async function () {
             const uuid = await assetManager.queryUUID(`${TestGlobalEnv.testRootUrl}/${testName}`);
 
+            // 监听 asset-change 事件
+            let receivedAsset: IAsset | null = null;
+            const assetChangeListener = (asset: IAsset) => {
+                receivedAsset = asset;
+            };
+            assetManager.on('asset-change', assetChangeListener);
+
             const metaJson = readJSONSync(join(databasePath, `${testName}.meta`));
             metaJson.userData.test = true;
 
@@ -276,6 +343,13 @@ describe('测试 db 的操作接口', function () {
             const meta = await assetManager.queryAssetMeta(uuid!);
 
             expect(meta!.userData.test).toStrictEqual(true);
+
+            // 验证 asset-change 事件被触发
+            expect(receivedAsset).not.toBeNull();
+            expect(receivedAsset!.uuid).toEqual(uuid);
+
+            // 清理监听器
+            assetManager.removeListener('asset-change', assetChangeListener);
         });
     });
 
@@ -306,6 +380,13 @@ describe('测试 db 的操作接口', function () {
         test.each(createTestCases)(
             '创建 $description ($type)',
             async ({ type, ext, ccType, skipTypeCheck, templateName }) => {
+                // 监听 asset-add 事件
+                let receivedAsset: IAsset | null = null;
+                const assetAddListener = (asset: IAsset) => {
+                    receivedAsset = asset;
+                };
+                assetManager.on('asset-add', assetAddListener);
+
                 const baseName = type;
                 const fileName = `${baseName}.${ext}`;
                 const assetInfo = await assetManager.createAssetByType(
@@ -332,6 +413,14 @@ describe('测试 db 的操作接口', function () {
                 // 验证 meta 文件存在
                 const metaExists = existsSync(join(databasePath, `${fileName}.meta`));
                 expect(metaExists).toBeTruthy();
+
+                // 验证 asset-add 事件被触发
+                expect(receivedAsset).not.toBeNull();
+                expect(receivedAsset!.uuid).toEqual(assetInfo!.uuid);
+                expect(receivedAsset!.url).toEqual(assetInfo!.url);
+
+                // 清理监听器
+                assetManager.removeListener('asset-add', assetAddListener);
             }
         );
 
@@ -353,6 +442,13 @@ describe('测试 db 的操作接口', function () {
             const tempFilePath = join(databasePath, `${name}_temp.txt`);
             await outputFile(tempFilePath, 'import test content');
 
+            // 监听 asset-add 事件
+            const receivedAssets: IAsset[] = [];
+            const assetAddListener = (asset: IAsset) => {
+                receivedAssets.push(asset);
+            };
+            assetManager.on('asset-add', assetAddListener);
+
             const targetName = `${name}_imported.txt`;
             const assets = await assetManager.importAsset(tempFilePath, join(databasePath, targetName));
 
@@ -370,8 +466,15 @@ describe('测试 db 的操作接口', function () {
             const content = readFileSync(targetPath, 'utf8');
             expect(content).toEqual('import test content');
 
-            // 清理临时文件
+            // 验证 asset-add 事件被触发
+            expect(receivedAssets.length).toBeGreaterThan(0);
+            const receivedAsset = receivedAssets.find(a => a.uuid === asset.uuid);
+            expect(receivedAsset).not.toBeNull();
+            expect(receivedAsset!.url).toEqual(asset.url);
+
+            // 清理临时文件和监听器
             await remove(tempFilePath);
+            assetManager.removeListener('asset-add', assetAddListener);
         });
 
         it('导入文件并覆盖已存在的资源', async function () {

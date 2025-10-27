@@ -2,7 +2,7 @@ import { AssetDB, VirtualAsset } from '@cocos/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { IAsset } from '../@types/private';
+import { AssetManagerEvents, IAsset } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
@@ -99,21 +99,21 @@ class AssetManager extends EventEmitter {
 
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
-            this.emit('asset-add', this.encodeAsset(asset));
+            this.emit('asset-add', asset);
             console.log(`asset-add ${asset.url}`);
             return;
         }
     }
     async _onAssetChanged(asset: IAsset) {
         if (assetDBManager.ready) {
-            this.emit('asset-change', this.encodeAsset(asset));
+            this.emit('asset-change', asset);
             console.log(`asset-change ${asset.url}`);
             return;
         }
     }
     async _onAssetDeleted(asset: IAsset) {
         if (assetDBManager.ready) {
-            this.emit('asset-delete', this.encodeAsset(asset));
+            this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
             return;
         }
@@ -121,8 +121,70 @@ class AssetManager extends EventEmitter {
 }
 
 const assetManager = new AssetManager();
-export default assetManager;
-(globalThis as any).assetManager = assetManager;
+
+// 创建带有事件类型约束的 AssetManager 类型
+export interface TypedAssetManager extends EventEmitter {
+    // 事件监听方法（带类型约束）
+    on<K extends keyof AssetManagerEvents>(event: K, listener: AssetManagerEvents[K]): this;
+    once<K extends keyof AssetManagerEvents>(event: K, listener: AssetManagerEvents[K]): this;
+    emit<K extends keyof AssetManagerEvents>(event: K, ...args: Parameters<AssetManagerEvents[K]>): boolean;
+    removeListener<K extends keyof AssetManagerEvents>(event: K, listener: AssetManagerEvents[K]): this;
+    removeAllListeners<K extends keyof AssetManagerEvents>(event?: K): this;
+    listeners<K extends keyof AssetManagerEvents>(event: K): Function[];
+    listenerCount<K extends keyof AssetManagerEvents>(event: K): number;
+
+    // 原有的方法
+    queryAssets: typeof assetQuery.queryAssets;
+    queryAssetDependencies: typeof assetQuery.queryAssetDependencies;
+    queryAssetUsers: typeof assetQuery.queryAssetUsers;
+    queryAsset: typeof assetQuery.queryAsset;
+    queryAssetInfo: typeof assetQuery.queryAssetInfo;
+    queryAssetInfoByUUID: typeof assetQuery.queryAssetInfoByUUID;
+    queryAssetInfos: typeof assetQuery.queryAssetInfos;
+    querySortedPlugins: typeof assetQuery.querySortedPlugins;
+    queryUUID: typeof assetQuery.queryUUID;
+    queryPath: typeof assetQuery.queryPath;
+    queryUrl: typeof assetQuery.queryUrl;
+    generateAvailableURL: typeof assetQuery.generateAvailableURL;
+    queryDBAssetInfo: typeof assetQuery.queryDBAssetInfo;
+    encodeAsset: typeof assetQuery.encodeAsset;
+    queryAssetProperty: typeof assetQuery.queryAssetProperty;
+    queryAssetMeta: typeof assetQuery.queryAssetMeta;
+    queryAssetMtime: typeof assetQuery.queryAssetMtime;
+
+    importAsset: typeof assetOperation.importAsset;
+    saveAssetMeta: typeof assetOperation.saveAssetMeta;
+    saveAsset: typeof assetOperation.saveAsset;
+    createAsset: typeof assetOperation.createAsset;
+    refreshAsset: typeof assetOperation.refreshAsset;
+    reimportAsset: typeof assetOperation.reimportAsset;
+    renameAsset: typeof assetOperation.renameAsset;
+    removeAsset: typeof assetOperation.removeAsset;
+    moveAsset: typeof assetOperation.moveAsset;
+    generateExportData: typeof assetOperation.generateExportData;
+    outputExportData: typeof assetOperation.outputExportData;
+    createAssetByType: typeof assetOperation.createAssetByType;
+    updateUserData: typeof assetOperation.updateUserData;
+
+    queryIconConfigMap: typeof assetHandlerManager.queryIconConfigMap;
+    queryAssetConfigMap: typeof assetHandlerManager.queryAssetConfigMap;
+    updateDefaultUserData: typeof assetHandlerManager.updateDefaultUserData;
+    getCreateMap: typeof assetHandlerManager.getCreateMap;
+    queryAssetUserDataConfig: typeof assetHandlerManager.queryUserDataConfig;
+
+    url2uuid(url: string): string;
+    url2path(url: string): string;
+    path2url(url: string, dbName?: string): string;
+
+    init(): Promise<void>;
+    destroyed(): void;
+}
+
+// 类型断言，将实例转换为带类型约束的接口
+const typedAssetManager = assetManager as TypedAssetManager;
+
+export default typedAssetManager;
+(globalThis as any).assetManager = typedAssetManager;
 // --------------- event handler -------------------
 
 async function onUnResponsive(asset: VirtualAsset) {

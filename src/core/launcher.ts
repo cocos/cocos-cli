@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { IBuildCommandOption } from './builder/@types/protected';
+import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
 import { getCurrentLocalTime } from './assets/utils';
@@ -50,7 +50,7 @@ class ProjectManager {
      * @param projectPath
      * @param options
      */
-    async build(projectPath: string, options: Partial<IBuildCommandOption>) {
+    async build(projectPath: string, platform: Platform, options: Partial<IBuildCommandOption>) {
         if (!options.logDest) {
             options.logDest = join(projectPath, 'temp/build', getCurrentLocalTime() + '.log');
         }
@@ -62,7 +62,7 @@ class ProjectManager {
         await this.open(projectPath);
         // 执行构建流程
         const { build } = await import('./builder');
-        return await build(options);
+        return await build(platform, options);
     }
 }
 

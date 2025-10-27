@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 import { SceneReadyChannel } from '../common';
 import { startupRpc } from './rpc';
 import { getServerUrl } from '../../../server';
-import type { AssetInfo } from '../../assets/@types/protected/asset';
+import type { AssetInfo, IAsset } from '../../assets/@types/protected/asset';
 
 export class SceneWorker extends EventEmitter {
 
@@ -102,17 +102,16 @@ export class SceneWorker extends EventEmitter {
         });
 
         const { assetManager } = await import('../../assets');
-        assetManager.on('asset-add', async (asset: AssetInfo) => {
-            switch (asset.importer) {
+        assetManager.on('asset-add', async (asset: IAsset) => {
+            switch (asset.meta.importer) {
                 case 'typescript':
                 case 'javascript':
                     void ScriptProxy.loadScript();
                     break;
             }
         });
-
-        assetManager.on('asset-change', (asset: AssetInfo) => {
-            switch (asset.importer) {
+        assetManager.on('asset-change', (asset: IAsset) => {
+            switch (asset.meta.importer) {
                 case 'typescript':
                 case 'javascript': {
                     void ScriptProxy.scriptChange();
@@ -121,8 +120,8 @@ export class SceneWorker extends EventEmitter {
             }
         });
 
-        assetManager.on('asset-delete', (asset: AssetInfo) => {
-            switch (asset.importer) {
+        assetManager.on('asset-delete', (asset: IAsset) => {
+            switch (asset.meta.importer) {
                 case 'typescript':
                 case 'javascript': {
                     void ScriptProxy.removeScript();

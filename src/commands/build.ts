@@ -37,7 +37,7 @@ export class BuildCommand extends BaseCommand {
                         delete options.buildConfig;
                     }
 
-                    const result = await projectManager.build(resolvedPath, options);
+                    const result = await projectManager.build(resolvedPath, options.platform, options);
 
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));
