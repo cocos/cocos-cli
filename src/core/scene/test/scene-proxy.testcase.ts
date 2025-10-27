@@ -2,18 +2,16 @@ import type {
     ICreateSceneOptions,
     IOpenSceneOptions,
     ISaveSceneOptions,
-    IScene, ISceneIdentifier,
+    ISceneIdentifier,
     ISoftReloadSceneOptions
 } from '../common';
 import { SceneProxy } from '../main-process/proxy/scene-proxy';
 import { SceneTestEnv } from './scene-test-env';
 
-// 单个测试文件生效
-jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
+jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
 
 describe('Scene Proxy 测试', () => {
     let createdSceneIdentifier: ISceneIdentifier | null = null;
-    // let openSceneInfo: IScene | null = null;
 
     describe('基础场景操作（无依赖）', () => {
         it('getScenes - 获取所有场景', async () => {

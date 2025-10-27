@@ -58,10 +58,10 @@ export interface ISetPropertyOptions {
  * 场景事件类型
  */
 export interface IComponentEvents {
-    'component:add': Component;
-    'component:before-remove': Component;
-    'component:remove': Component;
-    'component:set-property': Component;
+    'component:add': IComponent;
+    'component:before-remove': IComponent;
+    'component:remove': IComponent;
+    'component:set-property': IComponent;
 }
 
 export interface IPublicComponentService extends IComponentService {}

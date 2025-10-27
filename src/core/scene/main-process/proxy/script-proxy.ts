@@ -3,24 +3,21 @@ import { Rpc } from '../rpc';
 
 export const ScriptProxy: IPublicScriptService = {
     removeScript(): Promise<void> {
-        return Rpc.request('Script', 'removeScript');
+        return Rpc.getInstance().request('Script', 'removeScript');
     },
     scriptChange(): Promise<void> {
-        return Rpc.request('Script', 'scriptChange');
+        return Rpc.getInstance().request('Script', 'scriptChange');
     },
     investigatePackerDriver(): Promise<void> {
-        return Rpc.request('Script', 'investigatePackerDriver');
+        return Rpc.getInstance().request('Script', 'investigatePackerDriver');
     },
     loadScript(): Promise<void> {
-        return Rpc.request('Script', 'loadScript');
+        return Rpc.getInstance().request('Script', 'loadScript');
     },
     queryScriptCid(uuid: string): Promise<string | null> {
-        return Rpc.request('Script', 'queryScriptCid', [uuid]);
+        return Rpc.getInstance().request('Script', 'queryScriptCid', [uuid]);
     },
     queryScriptName(uuid: string): Promise<string | null> {
-        return Rpc.request('Script', 'queryScriptName', [uuid]);
-    },
-    isCustomComponent(classConstructor: Function): Promise<boolean> {
-        return Rpc.request('Script', 'isCustomComponent', [classConstructor]);
+        return Rpc.getInstance().request('Script', 'queryScriptName', [uuid]);
     }
 };

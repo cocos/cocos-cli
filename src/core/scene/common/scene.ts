@@ -81,11 +81,10 @@ export interface ISceneEntry {
  * 场景事件类型
  */
 export interface ISceneEvents {
-    'scene:create': ISceneEntry;
-    'scene:open': ISceneEntry;
-    'scene:close': ISceneEntry;
-    'scene:save': ISceneEntry;
-    'scene:soft-reload': ISceneEntry;
+    'scene:open': IScene;
+    'scene:close': void;
+    'scene:save': void;
+    'scene:soft-reload': void;
 }
 
 export interface IPublicSceneService extends ISceneService {}

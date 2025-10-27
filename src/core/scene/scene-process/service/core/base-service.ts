@@ -2,7 +2,7 @@ import { ServiceEvents } from './global-events';
 
 export class BaseService<TEvents extends Record<string, any>> {
     /**
-     * 触发事件（类型安全）
+     * 触发事件
      * @param event 事件名称
      * @param args 事件参数（根据事件类型自动推断）
      */
@@ -14,7 +14,17 @@ export class BaseService<TEvents extends Record<string, any>> {
     }
 
     /**
-     * 监听事件（类型安全）
+     * 跨进程广播事件
+     */
+    broadcast<K extends keyof TEvents>(
+        event: K,
+        ...args: TEvents[K] extends void ? [] : [TEvents[K]]
+    ): void {
+        ServiceEvents.broadcast(event as string, ...args);
+    }
+
+    /**
+     * 监听事件
      * @param event 事件名称
      * @param listener 事件监听器
      */
@@ -28,7 +38,7 @@ export class BaseService<TEvents extends Record<string, any>> {
     }
 
     /**
-     * 一次性监听事件（类型安全）
+     * 一次性监听事件
      * @param event 事件名称
      * @param listener 事件监听器
      */
@@ -42,7 +52,7 @@ export class BaseService<TEvents extends Record<string, any>> {
     }
 
     /**
-     * 移除事件监听器（类型安全）
+     * 移除事件监听器
      * @param event 事件名称
      * @param listener 事件监听器
      */

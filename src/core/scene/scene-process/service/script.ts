@@ -130,14 +130,14 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
                     classConstructor, 'i18n:menu.custom_script/' + className, -1);
             }
         });
-        const serializedPackLoaderContext = await Rpc.request('programming', 'getPackerDriverLoaderContext', ['editor']);
+        const serializedPackLoaderContext = await Rpc.getInstance().request('programming', 'getPackerDriverLoaderContext', ['editor']);
         if (!serializedPackLoaderContext) {
             throw new Error('packer-driver/get-loader-context is not defined');
         }
         const quickPackLoaderContext = QuickPackLoaderContext.deserialize(serializedPackLoaderContext);
 
         const { loadDynamic } = await import('cc/preload');
-        const cceModuleMap = await Rpc.request('programming', 'queryCCEModuleMap');
+        const cceModuleMap = await Rpc.getInstance().request('programming', 'queryCCEModuleMap');
         this._executor = await Executor.create({
             // @ts-ignore
             importEngineMod: async (id) => {
@@ -271,7 +271,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
      * @private
      */
     private async _syncPluginScriptList() {
-        return Promise.resolve(Rpc.request('assetManager', 'querySortedPlugins', [{
+        return Promise.resolve(Rpc.getInstance().request('assetManager', 'querySortedPlugins', [{
             loadPluginInEditor: true,
         }]))
             .then((pluginScripts) => {

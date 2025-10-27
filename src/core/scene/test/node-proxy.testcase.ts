@@ -10,8 +10,7 @@ import {
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 
-// 设置测试超时时间
-jest.setTimeout(24 * 60 * 60 * 1000); // 24 小时，单位毫秒
+jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
 
 describe('Node Proxy 测试', () => {
     let createdNode: INode | null = null;

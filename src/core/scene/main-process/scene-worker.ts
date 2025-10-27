@@ -1,12 +1,12 @@
 import { fork, ChildProcess } from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { SceneReadyChannel } from '../common';
-import { startupRpc } from './rpc';
+import { SceneProcessEventTag, SceneReadyChannel } from '../common';
+import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
-import type { AssetInfo, IAsset } from '../../assets/@types/protected/asset';
+import type { IAsset } from '../../assets/@types/protected/asset';
 
-export class SceneWorker extends EventEmitter {
+export class SceneWorker {
 
     static ExitWorkerEvent = 'scene-process:exit';
 
@@ -17,6 +17,8 @@ export class SceneWorker extends EventEmitter {
         }
         return this._process;
     }
+
+    private eventEmitter = new EventEmitter();
 
     async start(enginePath: string, projectPath: string): Promise<boolean> {
         if (this._process) {
@@ -36,7 +38,7 @@ export class SceneWorker extends EventEmitter {
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 execArgv: [`--inspect=${inspectPort}`],
             });
-            startupRpc(this._process);
+            Rpc.startup(this._process);
             this.registerListener();
             const onReady = (msg: any) => {
                 if (msg === SceneReadyChannel) {
@@ -54,6 +56,7 @@ export class SceneWorker extends EventEmitter {
         return new Promise<boolean>((resolve) => {
             this.process.once('exit', () => {
                 console.log('Scene process stopped.');
+                this.clear();
                 resolve(true);
             });
             this.process.once('error', () => resolve(false));
@@ -62,6 +65,13 @@ export class SceneWorker extends EventEmitter {
     }
 
     async registerListener() {
+
+        this.process.on('message', (msg: { type: string, event: string, args: any[] }) => {
+            if (msg && msg.type === SceneProcessEventTag) {
+                this.emit(msg.event, ...msg.args);
+            }
+        });
+
         this.process.stdout?.on('data', (chunk) => {
             console.log(chunk.toString());
         });
@@ -76,7 +86,6 @@ export class SceneWorker extends EventEmitter {
         });
 
         this.process.on('error', (err) => {
-            const str = err.message.toString();
             if (err.message.startsWith('[Scene]')) {
                 console.error(err);
             } else {
@@ -129,6 +138,95 @@ export class SceneWorker extends EventEmitter {
                 }
             }
         });
+    }
+
+    /**
+     * 监听指定类型的事件（类型安全版本）
+     * @param event 事件名称
+     * @param listener 事件监听器
+     */
+    on<TEvents extends Record<string, any>>(
+        event: keyof TEvents,
+        listener: TEvents[keyof TEvents] extends void
+            ? () => void
+            : (payload: TEvents[keyof TEvents]) => void
+    ): void;
+    /**
+     * 监听指定类型的事件（通用版本）
+     * @param event 事件名称
+     * @param listener 事件监听器
+     */
+    on(event: string, listener: (...args: any[]) => void): void;
+    on(event: any, listener: any): void {
+        this.eventEmitter.on(event as string, listener);
+    }
+
+    /**
+     * 监听指定类型的事件（一次性，类型安全版本）
+     * @param event 事件名称
+     * @param listener 事件监听器
+     */
+    once<TEvents extends Record<string, any>>(
+        event: keyof TEvents,
+        listener: TEvents[keyof TEvents] extends void
+            ? () => void
+            : (payload: TEvents[keyof TEvents]) => void
+    ): void;
+    /**
+     * 监听指定类型的事件（一次性，通用版本）
+     * @param event 事件名称
+     * @param listener 事件监听器
+     */
+    once(event: string, listener: (...args: any[]) => void): void;
+    once(event: any, listener: any): void {
+        this.eventEmitter.once(event as string, listener);
+    }
+
+    /**
+     * 移除指定类型的事件监听器（类型安全版本）
+     * @param event 事件名称
+     * @param listener 事件监听器
+     */
+    off<TEvents extends Record<string, any>>(
+        event: keyof TEvents,
+        listener: TEvents[keyof TEvents] extends void
+            ? () => void
+            : (payload: TEvents[keyof TEvents]) => void
+    ): void;
+    off(event: string, listener: (...args: any[]) => void): void;
+    off(event: any, listener: any): void {
+        this.eventEmitter.off(event as string, listener);
+    }
+
+    /**
+     * 发射指定类型的事件（类型安全版本）
+     * @param event 事件名称
+     * @param args 事件参数
+     */
+    emit<TEvents extends Record<string, any>>(
+        event: keyof TEvents,
+        ...args: TEvents[keyof TEvents] extends void ? [] : [TEvents[keyof TEvents]]
+    ): void;
+    /**
+     * 触发事件（通用版本）
+     * @param event 事件名称
+     * @param args 事件参数
+     */
+    emit(event: string, ...args: any[]): void;
+    emit(event: any, ...args: any[]): void {
+        this.eventEmitter.emit(event, ...args);
+    }
+
+    /**
+     * 清除事件监听器
+     * @param event 事件名称，如果不提供则清除所有
+     */
+    clear(event?: string): void {
+        if (event) {
+            this.eventEmitter.removeAllListeners(event);
+        } else {
+            this.eventEmitter.removeAllListeners();
+        }
     }
 }
 

@@ -43,6 +43,9 @@ class ProjectManager {
         await packDriver.init(Engine.getConfig().includeModules);
         await packDriver.resetDatabases();
         await packDriver.build();
+        // 启动场景进程
+        const { sceneWorker } = await import('./scene/main-process/scene-worker');
+        await sceneWorker.start(GlobalPaths.enginePath, path);
     }
 
     /**

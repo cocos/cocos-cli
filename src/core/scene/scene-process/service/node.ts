@@ -48,7 +48,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
-        const assetUuid = await Rpc.request('assetManager', 'queryUUID', [params.dbURL]);
+        const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
         if (!assetUuid) {
             throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
         }
@@ -90,9 +90,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             resultNode.name = params.name;
         }
 
-        this.emit('node:before-add', resultNode);
+        this.emit('node:before-add', sceneUtil.generateNodeInfo(resultNode, false));
         if (parent) {
-            this.emit('node:before-change', parent);
+            this.emit('node:before-change', sceneUtil.generateNodeInfo(parent, false));
         }
 
         /**
@@ -119,11 +119,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         // 发送添加节点事件，添加节点中的根节点
-        this.emit('node:add', resultNode);
+        this.emit('node:add', sceneUtil.generateNodeInfo(resultNode, false));
 
         // 发送节点修改消息
         if (parent) {
-            // this.events.emit('node:change', parent, { type: cc.NodeEventType.CHILD_CHANGED });
+            // this.emit('node:change', sceneUtil.generateNodeInfo(parent, false), { type: cc.NodeEventType.CHILD_CHANGED });
         }
 
         return sceneUtil.generateNodeInfo(resultNode, true);
@@ -190,7 +190,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     currentParent = nextNode;
 
                     // 发送节点创建事件
-                    this.emit('node:add', nextNode);
+                    this.emit('node:add', sceneUtil.generateNodeInfo(nextNode, false));
                 }
             }
         }
@@ -230,9 +230,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
         // 发送节点修改消息
         const parent = node.parent;
-        this.emit('node:before-remove', node);
+        this.emit('node:before-remove', sceneUtil.generateNodeInfo(node,false));
         if (parent) {
-            this.emit('node:before-change', parent);
+            this.emit('node:before-change', sceneUtil.generateNodeInfo(parent, false));
         }
 
         node.setParent(null, params.keepWorldTransform);
@@ -248,7 +248,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             console.warn(error);
         }
 
-        this.emit('node:remove', node);
+        this.emit('node:remove', sceneUtil.generateNodeInfo(node, false));
 
         return {
             path: path,
@@ -317,7 +317,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             path: NodeMgr.getNodePath(node),
         };
 
-        this.emit('node:update', node);
+        this.emit('node:update', sceneUtil.generateNodeInfo(node, false));
 
         return info;
     }

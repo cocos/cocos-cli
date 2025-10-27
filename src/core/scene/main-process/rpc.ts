@@ -7,14 +7,25 @@ import type { IPublicServiceManager } from '../scene-process';
 
 export { ProcessRPC };
 
-export const Rpc: ProcessRPC<IPublicServiceManager> = new ProcessRPC<IPublicServiceManager>();
+export class RpcProxy {
+    private rpcInstance: ProcessRPC<IPublicServiceManager> | null = null;
 
-export function startupRpc(prc: ChildProcess | NodeJS.Process) {
-    Rpc.attach(prc);
-    // 注册场景进程需要用到主进程的模块
-    Rpc.register({
-        assetManager: assetManager,
-        programming: scriptManager,
-    });
-    return Rpc;
+    public getInstance() {
+        if (!this.rpcInstance) {
+            throw new Error('[Node] Rpc instance is not started!');
+        }
+        return this.rpcInstance;
+    }
+
+    async startup(prc: ChildProcess | NodeJS.Process) {
+        this.rpcInstance = new ProcessRPC<IPublicServiceManager>();
+        this.rpcInstance.attach(prc);
+        this.rpcInstance.register({
+            assetManager: assetManager,
+            programming: scriptManager,
+        });
+        console.log('[Node] Scene Process RPC ready');
+    }
 }
+
+export const Rpc = new RpcProxy();

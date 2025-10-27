@@ -12,10 +12,14 @@ class SceneUtil {
      * 获取资源 UUID
      * @param urlOrUUIDOrPath
      */
-    async queryUUID(urlOrUUIDOrPath?: string): Promise<string | undefined> {
-        if (!urlOrUUIDOrPath) return undefined;
-        const uuid = await Rpc.request('assetManager', 'queryUUID', [urlOrUUIDOrPath]);
-        return uuid ?? urlOrUUIDOrPath;
+    async queryUUID(urlOrUUIDOrPath?: string): Promise<string | null> {
+        if (!urlOrUUIDOrPath) return null;
+        try {
+            return await Rpc.getInstance().request('assetManager', 'queryUUID', [urlOrUUIDOrPath]);
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
     }
 
     /**
@@ -34,7 +38,7 @@ class SceneUtil {
         if (!source) return identifier;
 
         const isString = typeof source === 'string';
-        const assetInfo: IAssetInfo | null = isString ? await Rpc.request('assetManager', 'queryAssetInfo', [source]) : source;
+        const assetInfo: IAssetInfo | null = isString ? await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [source]) : source;
         if (!assetInfo) {
             console.error('无法请求场景资源');
             return identifier;

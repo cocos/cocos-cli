@@ -68,7 +68,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             this.sceneInstanceMap.set(identifier.assetUuid, sceneInfo);
             const info: IScene = await sceneUtil.generateScene(identifier);
 
-            this.emit('scene:open', sceneInfo);
+            this.emit('scene:open', info);
 
             return info;
         } catch (error) {
@@ -98,7 +98,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             }
             this.sceneInstanceMap.delete(uuid);
 
-            this.emit('scene:close', closedScene);
+            this.emit('scene:close');
 
             return true;
         } catch (error) {
@@ -115,7 +115,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
                 throw new Error('保存失败，当前没有打开的场景');
             }
 
-            let assetInfo = await Rpc.request('assetManager', 'queryAssetInfo', [uuid]);
+            let assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
             if (!assetInfo) {
                 throw new Error(`场景资源不存在: ${uuid}`);
             }
@@ -134,7 +134,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             }
 
             try {
-                assetInfo = await Rpc.request('assetManager', 'saveAsset', [assetInfo.uuid, json]);
+                assetInfo = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetInfo.uuid, json]);
             } catch (e) {
                 console.error(e);
                 throw new Error('保存场景资源失败');
@@ -147,7 +147,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             scene.identifier.assetType = assetInfo.type;
             this.sceneInstanceMap.set(uuid, scene);
 
-            this.emit('scene:save', scene);
+            this.emit('scene:save');
 
             return true;
         } catch (error) {
@@ -159,7 +159,7 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
     async create(params: ICreateSceneOptions): Promise<ISceneIdentifier> {
         console.log(`使用模版：${params.templateType}，创建场景 ${params.baseName} 到 ${params.targetDirectory} 目录下`);
         try {
-            const result = await Rpc.request('assetManager', 'createAssetByType', ['scene', params.targetDirectory, params.baseName, {
+            const result = await Rpc.getInstance().request('assetManager', 'createAssetByType', ['scene', params.targetDirectory, params.baseName, {
                 templateName: params.templateType,
                 overwrite: true,
             }]);
@@ -231,7 +231,8 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             };
             this.sceneInstanceMap.set(newScene.assetUuid, sceneInfo);
 
-            this.emit('scene:soft-reload', sceneInfo);
+            this.emit('scene:soft-reload');
+            this.broadcast('scene:soft-reload');
             return newScene;
         } catch (error) {
             console.error('重新加载场景失败');

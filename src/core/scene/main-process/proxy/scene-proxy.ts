@@ -11,27 +11,27 @@ import { Rpc } from '../rpc';
 
 export const SceneProxy: IPublicSceneService = {
     open(params: IOpenSceneOptions): Promise<IScene> {
-        return Rpc.request('Scene', 'open', [params]);
+        return Rpc.getInstance().request('Scene', 'open', [params]);
     },
     close(params: ICloseSceneOptions): Promise<boolean> {
-        return Rpc.request('Scene', 'close', [params]);
+        return Rpc.getInstance().request('Scene', 'close', [params]);
     },
     save(params: ISaveSceneOptions): Promise<boolean> {
-        return Rpc.request('Scene', 'save', [params]);
+        return Rpc.getInstance().request('Scene', 'save', [params]);
     },
     reload(): Promise<boolean> {
-        return Rpc.request('Scene', 'reload');
+        return Rpc.getInstance().request('Scene', 'reload');
     },
     softReload(params: ISoftReloadSceneOptions): Promise<IScene> {
-        return Rpc.request('Scene', 'softReload', [params]);
+        return Rpc.getInstance().request('Scene', 'softReload', [params]);
     },
     create(params: ICreateSceneOptions): Promise<ISceneIdentifier> {
-        return Rpc.request('Scene', 'create', [params]);
+        return Rpc.getInstance().request('Scene', 'create', [params]);
     },
     queryCurrentScene(): Promise<IScene | null> {
-        return Rpc.request('Scene', 'queryCurrentScene', []);
+        return Rpc.getInstance().request('Scene', 'queryCurrentScene', []);
     },
     queryScenes(): Promise<IScene[]> {
-        return Rpc.request('Scene', 'queryScenes');
+        return Rpc.getInstance().request('Scene', 'queryScenes');
     }
 };

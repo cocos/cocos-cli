@@ -42,7 +42,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         if (isUuid) {
             uuid = componentNameOrUUIDOrURL;
         } else if (isURL) {
-            uuid = await Rpc.request('assetManager', 'queryUUID', [componentNameOrUUIDOrURL]);
+            uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [componentNameOrUUIDOrURL]);
         }
         if (uuid) {
             const cid = await Service.Script.queryScriptCid(uuid);
@@ -63,9 +63,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw new Error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
         }
 
-        this.emit('component:add', comp);
+        const encodeComponent = dumpUtil.dumpComponent(comp as Component);
+        this.emit('component:add', encodeComponent);
 
-        return (dumpUtil.dumpComponent(comp as Component));
+        return encodeComponent;
     }
 
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
@@ -78,9 +79,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw new Error(`Remove component failed: ${params.path} does not exist`);
         }
 
-        this.emit('component:before-remove', comp);
+        const encodeComponent = dumpUtil.dumpComponent(comp as Component);
+        this.emit('component:before-remove', encodeComponent);
         const result = compMgr.removeComponent(comp);
-        this.emit('component:remove', comp);
+        this.emit('component:remove', encodeComponent);
 
         return result;
     }
@@ -118,7 +120,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
         }
-        this.emit('component:set-property', component);
+
+        const encodeComponent = dumpUtil.dumpComponent(component as Component);
+        this.emit('component:set-property', encodeComponent);
         return true;
     }
 

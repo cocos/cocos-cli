@@ -1,6 +1,6 @@
 import { fork } from 'child_process';
 import { ProcessRPC } from '../process-rpc';
-import path from 'path';
+import * as path from 'path';
 
 interface INodeService {
     createNode(name: string): Promise<string>;
@@ -43,7 +43,7 @@ describe('ProcessRPC 双向调用测试', () => {
     test('子进程调用主进程方法', async () => {
         // 主进程注册模块供子进程调用
         rpc.register({
-            'scene': {
+            scene: {
                 loadScene: async (id: string) => {
                     return id === 'Level01';
                 },

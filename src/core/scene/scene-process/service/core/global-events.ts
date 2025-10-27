@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { SceneProcessEventTag } from '../../../common';
 
 // 全局共享的 EventEmitter 实例（内部使用，不对外暴露）
 const globalEventEmitter = new EventEmitter();
@@ -15,8 +16,8 @@ class GlobalEventManager {
      */
     on<TEvents extends Record<string, any>>(
         event: keyof TEvents,
-        listener: TEvents[keyof TEvents] extends void 
-            ? () => void 
+        listener: TEvents[keyof TEvents] extends void
+            ? () => void
             : (payload: TEvents[keyof TEvents]) => void
     ): void;
     /**
@@ -36,8 +37,8 @@ class GlobalEventManager {
      */
     once<TEvents extends Record<string, any>>(
         event: keyof TEvents,
-        listener: TEvents[keyof TEvents] extends void 
-            ? () => void 
+        listener: TEvents[keyof TEvents] extends void
+            ? () => void
             : (payload: TEvents[keyof TEvents]) => void
     ): void;
     /**
@@ -57,8 +58,8 @@ class GlobalEventManager {
      */
     off<TEvents extends Record<string, any>>(
         event: keyof TEvents,
-        listener: TEvents[keyof TEvents] extends void 
-            ? () => void 
+        listener: TEvents[keyof TEvents] extends void
+            ? () => void
             : (payload: TEvents[keyof TEvents]) => void
     ): void;
     /**
@@ -87,7 +88,26 @@ class GlobalEventManager {
      */
     emit(event: string, ...args: any[]): void;
     emit(event: any, ...args: any[]): void {
-        globalEventEmitter.emit(event as string, ...args);
+        globalEventEmitter.emit(event, ...args);
+    }
+
+    /**
+     * 跨进程广播，传的参数需要能被序列化
+     * @param event 事件名称
+     * @param args 事件参数
+     */
+    broadcast<TEvents extends Record<string, any>>(
+        event: keyof TEvents,
+        ...args: TEvents[keyof TEvents] extends void ? [] : [TEvents[keyof TEvents]]
+    ): void;
+    broadcast(event: string, ...args: any[]): void;
+    broadcast(event: any, ...args: any[]): void {
+        const message = {
+            type: SceneProcessEventTag,
+            event: event as string,
+            args: [...args]
+        };
+        process.send?.(message);
     }
 
     /**

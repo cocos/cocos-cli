@@ -161,13 +161,13 @@ export interface ICreateByAssetParams extends IBaseCreateNodeParams {
  * 节点事件类型
  */
 export interface INodeEvents {
-    'node:before-add': Node;
-    'node:add': Node;
-    'node:before-remove': Node;
-    'node:remove': Node;
-    'node:update': Node;
-    'node:before-change': Node;
-    'node:change': Node;
+    'node:before-add': INode;
+    'node:add': INode;
+    'node:before-remove': INode;
+    'node:remove': INode;
+    'node:update': INode;
+    'node:before-change': INode;
+    'node:change': INode;
 }
 
 export interface IPublicNodeService extends INodeService {}

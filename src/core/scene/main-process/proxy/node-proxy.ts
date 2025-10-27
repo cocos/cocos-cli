@@ -13,18 +13,18 @@ import { Rpc } from '../rpc';
 
 export const NodeProxy: IPublicNodeService = {
     createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
-        return Rpc.request('Node', 'createNodeByType', [params]);
+        return Rpc.getInstance().request('Node', 'createNodeByType', [params]);
     },
     createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
-        return Rpc.request('Node', 'createNodeByAsset', [params]);
+        return Rpc.getInstance().request('Node', 'createNodeByAsset', [params]);
     },
     deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
-        return Rpc.request('Node', 'deleteNode', [params]);
+        return Rpc.getInstance().request('Node', 'deleteNode', [params]);
     },
     updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null> {
-        return Rpc.request('Node', 'updateNode', [params]);
+        return Rpc.getInstance().request('Node', 'updateNode', [params]);
     },
     queryNode(params: IQueryNodeParams): Promise<INode | null> {
-        return Rpc.request('Node', 'queryNode', [params]);
+        return Rpc.getInstance().request('Node', 'queryNode', [params]);
     }
 };

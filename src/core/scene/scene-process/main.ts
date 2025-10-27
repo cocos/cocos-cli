@@ -1,5 +1,5 @@
 import { IScriptEvents, SceneReadyChannel } from '../common';
-import { startupRpc } from './rpc';
+import { Rpc } from './rpc';
 import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
@@ -34,7 +34,7 @@ async function startup() {
         // 导入 service，处理装饰器，捕获开发的 api
         await import('./service');
         console.log('[Scene] import service');
-        await startupRpc();
+        await Rpc.startup();
         console.log('[Scene] startup Rpc');
 
         const { Service } = await import('./service/core/decorator');
@@ -43,8 +43,13 @@ async function startup() {
         };
         // 脚本变动后，需要刷新场景
         ServiceEvents.on<IScriptEvents>('script:execution-finished', () => {
-            console.log('[Scene] script execution-finished');
-            Service.Script.suspend(Promise.resolve(Service.Scene.softReload({})));
+            console.log('[Scene] Script execution-finished');
+            Service.Scene.queryCurrentScene().then((scene) => {
+                if (scene) {
+                    console.log('[Scene] Script suspend soft reload');
+                    Service.Script.suspend(Promise.resolve(Service.Scene.softReload({})));
+                }
+            });
         });
 
     }, async () => {

@@ -2,12 +2,12 @@ import * as path from 'path';
 import { TestGlobalEnv } from '../../../tests/global-env';
 
 export const SceneTestEnv = {
-    RootName: 'scene-test-directory',
-    get CacheDirectory() {
-        return path.join(TestGlobalEnv.projectRoot, 'assets', SceneTestEnv.RootName);
+    rootName: 'scene-test-directory',
+    get cacheDirectory() {
+        return path.join(TestGlobalEnv.projectRoot, 'assets', SceneTestEnv.rootName);
     },
     get targetDirectoryURL() {
-        return `db://assets/${SceneTestEnv.RootName}`;
+        return `db://assets/${SceneTestEnv.rootName}`;
     },
     get sceneName() {
         return 'TestScene';

@@ -17,4 +17,4 @@ export interface IScriptService {
     suspend(condition: Promise<any>): void;
 }
 
-export interface IPublicScriptService extends Omit<IScriptService, 'suspend'> { }
+export interface IPublicScriptService extends Omit<IScriptService, 'suspend' | 'isCustomComponent'> { }
