@@ -46,7 +46,8 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             try {
                 await this.close();
             } catch (error) {
-                console.warn(`关闭当前场景失败: `, error);
+                console.error(error);
+                throw new Error(`关闭当前场景失败`);
             }
 
             const sceneAsset = await new Promise<cc.SceneAsset>((resolve, reject) => {
@@ -82,13 +83,25 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
             // 无需关闭
             return true;
         }
+
         console.log(`关闭场景 [${params.urlOrUUID || '当前场景'}]`);
+
         try {
             const uuid = await sceneUtil.queryUUID(params.urlOrUUID) ?? this.currentSceneAssetUuid;
             const closedScene = this.sceneInstanceMap.get(uuid);
             if (!closedScene) {
                 throw new Error(`通过 uuid: ${uuid}，查询不到场景，是否没有打开场景`);
             }
+
+            try {
+                await this.save({
+                    urlOrUUID: uuid,
+                });
+            } catch (error) {
+                console.error(error);
+                throw new Error(`保存当前场景失败`);
+            }
+
             // 如果是当前场景就跳到空场景
             if (this.currentSceneAssetUuid === uuid) {
                 cc.director.runSceneImmediate(new cc.Scene(''));
