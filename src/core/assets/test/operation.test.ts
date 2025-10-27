@@ -337,12 +337,13 @@ describe('测试 db 的操作接口', function () {
             assetManager.on('asset-change', assetChangeListener);
 
             const metaJson = readJSONSync(join(databasePath, `${testName}.meta`));
-            metaJson.userData.test = true;
+            const time = new Date().getTime();
+            metaJson.userData.date = time;
 
-            await await assetManager.saveAssetMeta(uuid!, metaJson);
+            await assetManager.saveAssetMeta(uuid!, metaJson);
             const meta = await assetManager.queryAssetMeta(uuid!);
 
-            expect(meta!.userData.test).toStrictEqual(true);
+            expect(meta!.userData.date).toStrictEqual(time);
 
             // 验证 asset-change 事件被触发
             expect(receivedAsset).not.toBeNull();
@@ -387,7 +388,7 @@ describe('测试 db 的操作接口', function () {
                 };
                 assetManager.on('asset-add', assetAddListener);
 
-                const baseName = type;
+                const baseName = templateName ? (templateName + type) : type;
                 const fileName = `${baseName}.${ext}`;
                 const assetInfo = await assetManager.createAssetByType(
                     type as any,

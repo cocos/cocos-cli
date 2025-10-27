@@ -46,7 +46,7 @@ class AssetOperation extends EventEmitter {
         return path;
     }
 
-    async saveAssetMeta(uuid: string, meta: IAssetMeta, info?: IAsset) {
+    async saveAssetMeta(uuid: string, meta: IAssetMeta, asset?: IAsset) {
         // 不能为数组
         if (
             typeof meta !== 'object'
@@ -54,9 +54,10 @@ class AssetOperation extends EventEmitter {
         ) {
             throw new Error(`Save meta failed(${uuid}): The meta must be an Object string`);
         }
-        info = info || assetQueryManager.queryAsset(uuid)!;
-        mergeMeta(info.meta, meta);
-        await info.save(); // 这里才是将数据保存到 .meta 文件
+        asset = asset || assetQueryManager.queryAsset(uuid)!;
+        mergeMeta(asset.meta, meta);
+        await asset.save(); // 这里才是将数据保存到 .meta 文件
+        await asset._assetDB.reimport(asset.uuid);
     }
 
     async updateUserData<T extends keyof AssetUserDataMap = 'unknown'>(uuidOrURLOrPath: string, path: string, value: any): Promise<AssetUserDataMap[T]> {
@@ -88,7 +89,7 @@ class AssetOperation extends EventEmitter {
 
         const res = await assetHandlerManager.saveAsset(asset, content);
         if (res) {
-            await this.reimportAsset(asset.uuid);
+            await asset._assetDB.reimport(asset.uuid);
         }
         return assetQueryManager.encodeAsset(asset);
     }
