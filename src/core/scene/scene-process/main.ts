@@ -4,6 +4,7 @@ import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
 import { ServiceEvents } from './service/core';
+import { assetManager, Prefab } from 'cc';
 
 async function startup() {
     // 监听进程退出事件
@@ -44,6 +45,14 @@ async function startup() {
         // 脚本变动后，需要刷新场景
         ServiceEvents.on<IScriptEvents>('script:execution-finished', () => {
             console.log('[Scene] Script execution-finished');
+
+            // releaseAsset 资源，为了让 Prefab 资源能够加载到新的脚本，在脚本更新后需要遍历释放所有的 prefab 资源
+            assetManager.assets.forEach((asset) => {
+                if (asset instanceof Prefab) {
+                    assetManager.releaseAsset(asset);
+                }
+            });
+
             Service.Scene.queryCurrentScene().then((scene) => {
                 if (scene) {
                     console.log('[Scene] Script suspend soft reload');
