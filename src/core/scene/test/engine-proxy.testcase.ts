@@ -6,6 +6,8 @@ import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { sceneWorker } from '../main-process/scene-worker';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { EngineProxy } from '../main-process/proxy/engine-proxy';
+import { SceneProxy } from '../main-process/proxy/scene-proxy';
+import { SceneTestEnv } from './scene-test-env';
 
 jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
 
@@ -109,6 +111,35 @@ describe('Engine Proxy 测试', () => {
                 path: nodePath,
                 keepWorldTransform: false
             });
+
+            await eventSceneUpdatePromise;
+            await eventSceneTickedPromise;
+            expect(true).toBe(true);
+        }, 10000);
+
+        it('open Scene', async () => {
+            const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
+            const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
+
+            await SceneProxy.create({
+                baseName: 'abc',
+                templateType: '2d',
+                targetDirectory: SceneTestEnv.targetDirectoryURL,
+            });
+            await SceneProxy.open({
+                urlOrUUID: `${SceneTestEnv.targetDirectoryURL}/abc.scene`,
+            });
+
+            await eventSceneUpdatePromise;
+            await eventSceneTickedPromise;
+            expect(true).toBe(true);
+        }, 10000);
+
+        it('softReload Scene', async () => {
+            const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
+            const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
+
+            await SceneProxy.softReload({});
 
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
