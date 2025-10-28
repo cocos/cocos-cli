@@ -5,6 +5,7 @@ const { globby } = require('globby');
 const JSZip = require('jszip');
 const { Client } = require('basic-ftp');
 const { Command } = require('commander');
+const { runCommand } = require('./utils');
 
 /**
  * 解析命令行参数
@@ -83,12 +84,12 @@ async function getProjectVersion(rootDir) {
 function generateReleaseDirectoryName(type, version) {
 
     const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
-    
+
     // 生成时间戳 (格式: YYMMDDHH)
     const now = new Date();
-    const timestamp = now.getFullYear().toString().slice(-2) + 
-                     (now.getMonth() + 1).toString().padStart(2, '0') + 
-                     now.getDate().toString().padStart(2, '0') + 
+    const timestamp = now.getFullYear().toString().slice(-2) +
+                     (now.getMonth() + 1).toString().padStart(2, '0') +
+                     now.getDate().toString().padStart(2, '0') +
                      now.getHours().toString().padStart(2, '0');
 
     if (type === 'nodejs') {
@@ -135,24 +136,6 @@ async function createReleaseDirectory(extensionDir) {
 }
 
 /**
- * 执行根目录的 npm install
- */
-async function installRootDependencies(rootDir) {
-    console.log('📦 在根目录执行 npm install...');
-    try {
-        execSync('npm install', {
-            cwd: rootDir,
-            stdio: 'inherit',
-            timeout: 300000 // 5分钟超时
-        });
-        console.log('✅ 根目录 npm install 完成');
-    } catch (error) {
-        console.error('❌ 根目录 npm install 失败:', error.message);
-        throw error;
-    }
-}
-
-/**
  * 扫描并获取需要拷贝的文件
  */
 async function scanProjectFiles(rootDir, ignorePatterns) {
@@ -193,23 +176,7 @@ async function copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles) {
     console.log(`✅ 成功拷贝 ${copiedCount} 个文件`);
 }
 
-/**
- * 在发布目录中安装生产依赖
- */
-async function installProductionDependencies(extensionDir) {
-    console.log('📦 在发布目录执行 npm install --production ...');
-    try {
-        execSync('npm install', {
-            cwd: extensionDir,
-            stdio: 'inherit',
-            timeout: 300000 // 5分钟超时
-        });
-        console.log('✅ 发布目录 npm install 完成');
-    } catch (error) {
-        console.error('❌ 发布目录 npm install 失败:', error.message);
-        throw error;
-    }
-}
+
 
 /**
  * 查找目录中的原生二进制文件 (递归搜索)
@@ -255,8 +222,8 @@ async function findNativeBinaries(extensionDir) {
                 'mali_darwin/composite',
                 'mali_darwin/convert',
                 'mali_darwin/etcpack',
-                // 暂时排除 PVRTexTool，因为它使用了过旧的 SDK，无法通过公证
-                // 'PVRTexTool_darwin/PVRTexToolCLI',
+                'PVRTexTool_darwin/PVRTexToolCLI',
+                //todo:代码在中暂时不需要这个工具，先删掉
                 // 'PVRTexTool_darwin/compare'
             ], {
                 cwd: staticToolsPath,
@@ -357,7 +324,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
         for (const binaryFile of binaryFiles) {
             try {
                 // 添加可执行权限 (chmod +x)
-                execSync(`chmod +x "${binaryFile}"`, { stdio: 'pipe' });
+                await runCommand('chmod', ['+x', binaryFile], { stdio: 'pipe' });
                 console.log(`✅ 已设置权限: ${path.relative(extensionDir, binaryFile)}`);
             } catch (error) {
                 console.warn(`⚠️  设置权限失败: ${path.relative(extensionDir, binaryFile)} - ${error.message}`);
@@ -431,7 +398,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
 async function rebuildElectronModules(extensionDir) {
     console.log('🔧 执行 Electron rebuild...');
     try {
-        execSync('npm run rebuild', {
+        await runCommand('npm', ['run', 'rebuild'], {
             cwd: extensionDir,
             stdio: 'inherit',
             timeout: 600000 // 10分钟超时
@@ -670,11 +637,14 @@ async function release() {
         // 获取项目版本号
         const version = await getProjectVersion(rootDir);
 
+        // 拉取最新的 engine 代码（只需要执行一次）
+        await runCommand('npm', ['run', 'update:repos'], { cwd: rootDir });
+
         // 读取忽略模式（只需要读取一次）
         const ignorePatterns = await readIgnorePatterns(rootDir);
 
         // 执行根目录的 npm install（只需要执行一次）
-        await installRootDependencies(rootDir);
+        await runCommand('npm', ['install'], { cwd: rootDir });
 
         // 扫描项目文件（只需要扫描一次）
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
@@ -706,13 +676,12 @@ async function releaseForType(options, rootDir, publishDir, version, ignorePatte
     // 步骤 2: 拷贝文件
     await copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles);
 
-    // 步骤 3: 安装生产依赖(现在因为直接拷贝了 node_modules 所以暂时注释掉)
-    // await installProductionDependencies(extensionDir);
+    // 步骤 3: 安装生产依赖
+    await runCommand('npm', ['install', '--production', '--ignore-scripts'], { cwd: extensionDir });
+    await runCommand('npm', ['install', '--production', '--ignore-scripts'], { cwd: path.join(extensionDir, 'packages/engine') });
 
     // 步骤 4: 如果是 electron 版本，执行 electron rebuild
-    if (options.type === 'electron') {
-        await rebuildElectronModules(extensionDir);
-    }
+    options.type === 'electron' && (await runCommand('npm', ['run', 'electron-rebuild'], { cwd: extensionDir }));
 
     // 步骤 5: 对原生二进制文件进行签名和公证（仅限 macOS）
     await signAndNotarizeNativeBinaries(extensionDir);

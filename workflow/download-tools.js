@@ -6,13 +6,13 @@ const { execSync } = require('child_process');
 
 // 工具配置
 const tools = {
-    'win32': [
+    win32: [
         {
             url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/unzip.exe',
             dist: 'unzip.exe',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexTool_win32.zip',
+            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexToolCLI_win32_20251028.zip',
             dist: 'PVRTexTool_win32',
         },
         {
@@ -61,12 +61,11 @@ const tools = {
         //     dist: 'windows-process-tree',
         // }
     ],
-    'darwin': [
-        //todo:纹理压缩的暂时屏蔽掉，因为它使用了过旧的 SDK，无法通过公证
-        /* {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexTool_darwin.zip',
+    darwin: [
+        {
+            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexToolCLI_darwin_20251028.zip',
             dist: 'PVRTexTool_darwin',
-        }, */
+        },
         {
             url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/mali_darwin.zip',
             dist: 'mali_darwin',
@@ -104,7 +103,7 @@ const tools = {
             dist: 'process-info'
         }
     ],
-    'common': [
+    common: [
         {
             url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/quickgame-toolkit.zip',
             dist: 'quickgame-toolkit',
