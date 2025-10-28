@@ -20,6 +20,7 @@ import './scene-proxy.testcase';
 import './node-proxy.testcase';
 import './component-proxy.testcase';
 import './script-proxy.testcase';
+import './engine-proxy.testcase';
 import './scene-exit.testcase';
 
 

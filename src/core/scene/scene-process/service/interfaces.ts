@@ -8,7 +8,9 @@ import {
     IComponentService,
     IScriptService,
     IPublicAssetService,
-    IAssetService
+    IAssetService,
+    IEngineService,
+    IPublicEngineService
 } from '../../common';
 
 /**
@@ -20,6 +22,7 @@ export interface IPublicServiceManager {
     Component: IPublicComponentService;
     Script: IPublicScriptService,
     Asset: IPublicAssetService,
+    Engine: IPublicEngineService,
 }
 
 export interface IServiceManager {
@@ -28,4 +31,5 @@ export interface IServiceManager {
     Component: IComponentService;
     Script: IScriptService,
     Asset: IAssetService,
+    Engine: IEngineService,
 }

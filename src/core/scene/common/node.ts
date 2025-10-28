@@ -167,7 +167,6 @@ export interface INodeEvents {
     'node:remove': INode;
     'node:update': INode;
     'node:before-change': INode;
-    'node:change': INode;
 }
 
 export interface IPublicNodeService extends INodeService {}

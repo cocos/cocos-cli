@@ -1,4 +1,4 @@
-import { IScriptEvents, SceneReadyChannel } from '../common';
+import { SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
@@ -41,26 +41,16 @@ async function startup() {
         (globalThis.cce as any) = {
             Script: Service.Script
         };
-        // 脚本变动后，需要刷新场景
-        ServiceEvents.on<IScriptEvents>('script:execution-finished', () => {
-            console.log('[Scene] Script execution-finished');
-            Service.Scene.queryCurrentScene().then((scene) => {
-                if (scene) {
-                    // releaseAsset 资源，为了让 Prefab 资源能够加载到新的脚本，在脚本更新后需要遍历释放所有的 prefab 资源
-                    cc.assetManager.assets.forEach((asset: any) => {
-                        if (asset instanceof cc.Prefab) {
-                            cc.assetManager.releaseAsset(asset);
-                        }
-                    });
-                    console.log('[Scene] Script suspend soft reload');
-                    Service.Script.suspend(Promise.resolve(Service.Scene.softReload({})));
-                }
-            });
-        });
-
     }, async () => {
         await cc.game.run();
+        // 初始化 engine 服务
+        const { Service } = await import('./service/core/decorator');
+        await Service.Engine.init();
     });
+
+    const { startupListener } = await import('./listener');
+    startupListener();
+
     console.log('[Scene] initEngine success');
 
     // 发送消息给父进程
