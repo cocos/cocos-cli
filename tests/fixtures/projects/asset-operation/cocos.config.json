@@ -1,5 +1,5 @@
 {
-    "$schema": "../../../../dist/cocos.config.schema.json",
+    "$schema": "./temp/cocos.config.schema.json",
     "version": "1.0.0",
     "builder": {
         "platforms": {
