@@ -123,9 +123,49 @@ npm run update:repos
 
 ## 🧪 测试
 
+### 单元测试
+
 ```bash
+# 运行所有单元测试（核心）
 npm test
+
+# 仅运行核心测试
+npm run test:core
+
+# 监听模式运行测试
+npm run test:watch
+
+# 生成覆盖率报告
+npm run test:coverage
 ```
+
+### E2E 测试
+
+```bash
+# 运行 E2E 测试
+npm run test:e2e
+
+# 调试模式运行 E2E 测试（保留测试项目）
+npm run test:e2e:debug
+
+# 检查 E2E 测试覆盖率
+npm run check:e2e-coverage
+
+# 生成 E2E 覆盖率 HTML 报告
+npm run check:e2e-coverage:report
+```
+
+### 运行所有测试
+
+```bash
+# 运行所有测试（单元 + E2E）
+npm run test:all
+```
+
+查看更多测试详情：
+
+- [单元测试文档](tests/README.md)
+- [E2E 测试文档](e2e/README.md)
 
 ## 📖 文档
 

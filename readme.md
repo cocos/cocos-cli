@@ -73,59 +73,51 @@ cocos --help
 
 For detailed command documentation, see [Commands Documentation](docs/en/commands.md).
 
-## 🛠️ Development
-
-### Development Mode
-
-```bash
-# Build project
-npm run build
-
-# Link globally
-npm link
-
-# Test command
-cocos --help
-```
-
-### Troubleshooting
-
-1. **Command not found**
-
-   ```bash
-   npm list -g --depth=0
-   npm unlink -g cocos-cli
-   npm link
-   ```
-
-2. **Compilation errors**
-
-   ```bash
-   npm run build:clear
-   npm run build
-   ```
-
-3. **Debug mode**
-
-   ```bash
-   cocos --debug build --project ./my-project
-   ```
-
-## 🔧 Development Tools
-
-```bash
-# Download development tools
-npm run download-tools
-
-# Update repository dependencies
-npm run update:repos
-```
-
 ## 🧪 Testing
 
+### Unit Tests
+
 ```bash
+# Run all unit tests (core)
 npm test
+
+# Run only core tests
+npm run test:core
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
 ```
+
+### E2E Tests
+
+```bash
+# Run E2E tests
+npm run test:e2e
+
+# Run E2E tests in debug mode (preserves test projects)
+npm run test:e2e:debug
+
+# Check E2E test coverage
+npm run check:e2e-coverage
+
+# Generate E2E coverage HTML report
+npm run check:e2e-coverage:report
+```
+
+### Run All Tests
+
+```bash
+# Run all tests (unit + E2E)
+npm run test:all
+```
+
+For more testing details, see:
+
+- [Unit Tests Documentation](tests/README.md)
+- [E2E Tests Documentation](e2e/README.md)
 
 ## 📖 Documentation
 
