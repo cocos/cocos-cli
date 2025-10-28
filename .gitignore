@@ -32,4 +32,4 @@ coverage
 bin
 
 # test project
-tests/fixtures/projects/asset-operation/cocos.config.json
+e2e/.workspace/

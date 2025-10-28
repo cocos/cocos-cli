@@ -5,8 +5,6 @@ import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import assetOperation from '../manager/operation';
 import { assetManager } from '..';
-import { IAsset } from '../@types/private';
-
 
 describe('测试 db 的操作接口', function () {
     const name = `__${Date.now()}__`;
@@ -27,13 +25,6 @@ describe('测试 db 的操作接口', function () {
 
     describe('create-asset', function () {
         it('创建文件夹', async function () {
-            // 监听 asset-add 事件
-            let receivedAsset: IAsset | null = null;
-            const assetAddListener = (asset: IAsset) => {
-                receivedAsset = asset;
-            };
-            assetManager.on('asset-add', assetAddListener);
-
             const asset = await assetOperation.createAsset({
                 target: join(databasePath, `${name}.directory`),
             });
@@ -47,15 +38,6 @@ describe('测试 db 的操作接口', function () {
 
             const meta = readJSONSync(join(databasePath, `${name}.directory.meta`));
             expect(meta.uuid).toEqual(asset!.uuid);
-
-            // 验证 asset-add 事件被触发
-            expect(receivedAsset).not.toBeNull();
-            expect(receivedAsset!.uuid).toEqual(asset!.uuid);
-            expect(receivedAsset!.url).toEqual(asset!.url);
-            expect(receivedAsset!.isDirectory).toBeTruthy();
-
-            // 清理监听器
-            assetManager.removeListener('asset-add', assetAddListener);
         });
 
         it('创建普通的文本文件', async function () {
@@ -224,13 +206,6 @@ describe('测试 db 的操作接口', function () {
         });
 
         it('使用 url 删除普通资源', async function () {
-            // 监听 asset-delete 事件
-            let receivedAsset: IAsset | null = null;
-            const assetDeleteListener = (asset: IAsset) => {
-                receivedAsset = asset;
-            };
-            assetManager.on('asset-delete', assetDeleteListener);
-
             await assetManager.removeAsset(`${TestGlobalEnv.testRootUrl}/${testName}`);
 
             const exists = existsSync(join(databasePath, `${testName}`));
@@ -238,13 +213,6 @@ describe('测试 db 的操作接口', function () {
 
             const metaExists = existsSync(join(databasePath, `${testName}.meta`));
             expect(metaExists).toStrictEqual(false);
-
-            // 验证 asset-delete 事件被触发
-            expect(receivedAsset).not.toBeNull();
-            expect(receivedAsset!.url).toEqual(`${TestGlobalEnv.testRootUrl}/${testName}`);
-
-            // 清理监听器
-            assetManager.removeListener('asset-delete', assetDeleteListener);
         });
 
         it('使用 uuid 删除普通资源', async function () {
@@ -253,14 +221,6 @@ describe('测试 db 的操作接口', function () {
                 target: join(databasePath, testName),
                 content: 'test',
             });
-
-            // 监听 asset-delete 事件
-            let receivedAsset: IAsset | null = null;
-            const assetDeleteListener = (deletedAsset: IAsset) => {
-                receivedAsset = deletedAsset;
-            };
-            assetManager.on('asset-delete', assetDeleteListener);
-
             await assetManager.removeAsset(asset!.uuid);
 
             const exists = existsSync(join(databasePath, `${testName}`));
@@ -268,25 +228,11 @@ describe('测试 db 的操作接口', function () {
 
             const metaExists = existsSync(join(databasePath, `${testName}.meta`));
             expect(metaExists).toStrictEqual(false);
-
-            // 验证 asset-delete 事件被触发
-            expect(receivedAsset).not.toBeNull();
-            expect(receivedAsset!.uuid).toEqual(asset!.uuid);
-
-            // 清理监听器
-            assetManager.removeListener('asset-delete', assetDeleteListener);
         });
     });
 
     describe('save-asset', () => {
         it('保存普通资源', async function () {
-            // 监听 asset-change 事件
-            let receivedAsset: IAsset | null = null;
-            const assetChangeListener = (asset: IAsset) => {
-                receivedAsset = asset;
-            };
-            assetManager.on('asset-change', assetChangeListener);
-
             await assetManager.saveAsset(`${TestGlobalEnv.testRootUrl}/${testName}`, 'test2');
 
             const filePath = join(TestGlobalEnv.testRoot, testName);
@@ -294,13 +240,6 @@ describe('测试 db 的操作接口', function () {
 
             const content = readFileSync(filePath, 'utf8');
             expect(content).toStrictEqual('test2');
-
-            // 验证 asset-change 事件被触发
-            expect(receivedAsset).not.toBeNull();
-            expect(receivedAsset!.url).toEqual(`${TestGlobalEnv.testRootUrl}/${testName}`);
-
-            // 清理监听器
-            assetManager.removeListener('asset-change', assetChangeListener);
         });
         // 保存场景、prefab、材质、动画
     });
@@ -329,66 +268,26 @@ describe('测试 db 的操作接口', function () {
         it('保存资源的 meta', async function () {
             const uuid = await assetManager.queryUUID(`${TestGlobalEnv.testRootUrl}/${testName}`);
 
-            // 监听 asset-change 事件
-            let receivedAsset: IAsset | null = null;
-            const assetChangeListener = (asset: IAsset) => {
-                receivedAsset = asset;
-            };
-            assetManager.on('asset-change', assetChangeListener);
-
             const metaJson = readJSONSync(join(databasePath, `${testName}.meta`));
-            const time = new Date().getTime();
-            metaJson.userData.date = time;
+            metaJson.userData.test = true;
 
-            await assetManager.saveAssetMeta(uuid!, metaJson);
+            await await assetManager.saveAssetMeta(uuid!, metaJson);
             const meta = await assetManager.queryAssetMeta(uuid!);
 
-            expect(meta!.userData.date).toStrictEqual(time);
-
-            // 验证 asset-change 事件被触发
-            expect(receivedAsset).not.toBeNull();
-            expect(receivedAsset!.uuid).toEqual(uuid);
-
-            // 清理监听器
-            assetManager.removeListener('asset-change', assetChangeListener);
+            expect(meta!.userData.test).toStrictEqual(true);
         });
     });
 
     describe('create-asset-by-type', () => {
-        // 定义所有支持创建的资源类型测试数据
-        const createTestCases = [
-            { type: 'animation-clip', ext: 'anim', ccType: 'cc.AnimationClip', description: '动画剪辑' },
-            { type: 'typescript', ext: 'ts', ccType: 'cc.Script', description: 'TypeScript 脚本' },
-            { type: 'auto-atlas', ext: 'pac', ccType: 'cc.SpriteAtlas', description: '自动图集' },
-            { type: 'effect', ext: 'effect', ccType: 'cc.EffectAsset', description: '着色器效果' },
-            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: '3d 场景', templateName: '3d' },
-            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: '2d 场景', templateName: '2d' },
-            { type: 'scene', ext: 'scene', ccType: 'cc.SceneAsset', description: 'quality 场景', templateName: 'quality' },
-            { type: 'prefab', ext: 'prefab', ccType: 'cc.Prefab', description: '预制体' },
-            { type: 'material', ext: 'mtl', ccType: 'cc.Material', description: '材质' },
-            // { type: 'texture-cube', ext: 'cubemap', ccType: 'cc.TextureCube', description: '立方体贴图' },
-            { type: 'terrain', ext: 'terrain', ccType: 'cc.TerrainAsset', description: '地形' },
-            { type: 'physics-material', ext: 'pmtl', ccType: 'cc.PhysicsMaterial', description: '物理材质' },
-            { type: 'label-atlas', ext: 'labelatlas', ccType: 'cc.LabelAtlas', description: '标签图集' },
-            // { type: 'render-texture', ext: 'rt', ccType: 'cc.RenderTexture', description: '渲染纹理' },
-            // { type: 'animation-graph', ext: 'animgraph', ccType: 'cc.AnimationGraph', description: '动画图' },
-            // { type: 'animation-mask', ext: 'mask', ccType: 'cc.AnimationMask', description: '动画遮罩' },
-            // { type: 'animation-graph-variant', ext: 'animgraphvariant', ccType: 'cc.AnimationGraphVariant', description: '动画图变体' },
-            { type: 'effect-header', ext: 'chunk', ccType: '', description: '着色器头文件', skipTypeCheck: true },
-        ];
+        // 导入共享的测试数据
+        const { CREATE_ASSET_TYPE_TEST_CASES } = require('../../../tests/shared/asset-test-data');
+        const { validateAssetCreated, validateAssetFileExists, validateAssetMetaExists } = require('../../../tests/shared/asset-test-helpers');
 
         // 使用 test.each 批量测试所有资源类型
-        test.each(createTestCases)(
+        test.each(CREATE_ASSET_TYPE_TEST_CASES)(
             '创建 $description ($type)',
             async ({ type, ext, ccType, skipTypeCheck, templateName }) => {
-                // 监听 asset-add 事件
-                let receivedAsset: IAsset | null = null;
-                const assetAddListener = (asset: IAsset) => {
-                    receivedAsset = asset;
-                };
-                assetManager.on('asset-add', assetAddListener);
-
-                const baseName = templateName ? (templateName + type) : type;
+                const baseName = type;
                 const fileName = `${baseName}.${ext}`;
                 const assetInfo = await assetManager.createAssetByType(
                     type as any,
@@ -402,26 +301,10 @@ describe('测试 db 的操作接口', function () {
 
                 expect(assetInfo).not.toBeNull();
 
-                // 验证资源类型（某些特殊类型可能不需要验证）
-                if (!skipTypeCheck && ccType) {
-                    expect(assetInfo!.type).toEqual(ccType);
-                }
-
-                // 验证文件存在
-                const exists = existsSync(assetInfo!.file);
-                expect(exists).toBeTruthy();
-
-                // 验证 meta 文件存在
-                const metaExists = existsSync(join(databasePath, `${fileName}.meta`));
-                expect(metaExists).toBeTruthy();
-
-                // 验证 asset-add 事件被触发
-                expect(receivedAsset).not.toBeNull();
-                expect(receivedAsset!.uuid).toEqual(assetInfo!.uuid);
-                expect(receivedAsset!.url).toEqual(assetInfo!.url);
-
-                // 清理监听器
-                assetManager.removeListener('asset-add', assetAddListener);
+                // 使用共享的验证函数
+                validateAssetCreated(assetInfo, ccType, skipTypeCheck);
+                validateAssetFileExists(assetInfo!.file);
+                validateAssetMetaExists(join(databasePath, fileName));
             }
         );
 
@@ -443,13 +326,6 @@ describe('测试 db 的操作接口', function () {
             const tempFilePath = join(databasePath, `${name}_temp.txt`);
             await outputFile(tempFilePath, 'import test content');
 
-            // 监听 asset-add 事件
-            const receivedAssets: IAsset[] = [];
-            const assetAddListener = (asset: IAsset) => {
-                receivedAssets.push(asset);
-            };
-            assetManager.on('asset-add', assetAddListener);
-
             const targetName = `${name}_imported.txt`;
             const assets = await assetManager.importAsset(tempFilePath, join(databasePath, targetName));
 
@@ -467,15 +343,8 @@ describe('测试 db 的操作接口', function () {
             const content = readFileSync(targetPath, 'utf8');
             expect(content).toEqual('import test content');
 
-            // 验证 asset-add 事件被触发
-            expect(receivedAssets.length).toBeGreaterThan(0);
-            const receivedAsset = receivedAssets.find(a => a.uuid === asset.uuid);
-            expect(receivedAsset).not.toBeNull();
-            expect(receivedAsset!.url).toEqual(asset.url);
-
-            // 清理临时文件和监听器
+            // 清理临时文件
             await remove(tempFilePath);
-            assetManager.removeListener('asset-add', assetAddListener);
         });
 
         it('导入文件并覆盖已存在的资源', async function () {

@@ -38,3 +38,6 @@ jobs:
 
       - name: Run tests
         run: npm run test:quiet
+
+      - name: Run tests
+        run: npm run test:e2e

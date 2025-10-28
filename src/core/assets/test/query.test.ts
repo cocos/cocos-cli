@@ -10,21 +10,6 @@ import { ICreateMenuInfo } from '../@types/protected';
 const { join, extname } = require('path');
 const { existsSync, remove } = require('fs-extra');
 
-const invalidParams = [
-    { name: 'undefined', value: undefined },
-    { name: 'null', value: null },
-    { name: 'number - 0', value: 0 },
-    { name: 'number - 2', value: 2 },
-    { name: 'string - empty', value: '' },
-    { name: 'string - str', value: 'str' },
-    { name: 'boolean - true', value: true },
-    { name: 'boolean- false', value: false },
-    { name: 'array', value: [] },
-    { name: 'object', value: {} },
-];
-
-const internalSpriteUuid = '951249e0-9f16-456d-8b85-a6ca954da16b@f9941';
-const internalSpriteImageUuid = '951249e0-9f16-456d-8b85-a6ca954da16b';
 const assetTestRoot = TestGlobalEnv.testRoot;
 
 describe('测试 db 的查询接口', function () {

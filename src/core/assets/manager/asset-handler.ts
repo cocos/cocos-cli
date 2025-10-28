@@ -401,18 +401,6 @@ class AssetHandlerManager {
             options.handler = registerInfos && registerInfos.length ? registerInfos[0].name : undefined;
         }
 
-        const newTarget = Utils.File.getName(options.target);
-        if (newTarget !== options.target) {
-            if (options.overwrite) {
-                // 如果设置了覆盖，直接使用原文件名
-                // 不需要重命名，直接覆盖原文件
-            } else if (options.rename) {
-                options.target = newTarget;
-            } else {
-                throw new Error(`Target file already exists: ${options.target}`);
-            }
-        }
-
         if (options.handler) {
             const assetHandler = this.name2handler[options.handler];
             if (assetHandler && assetHandler.createInfo && assetHandler.createInfo.create) {

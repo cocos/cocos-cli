@@ -16,7 +16,6 @@ export class BuildCommand extends BaseCommand {
             .option('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
             .option('--build-config <path>', 'Specify build config file path')
             .option('--log-dest <path>', 'Specify log file path')
-            .option('--skip-check', 'Skip option validation')
             .option('--stage <stage>', 'Build stage (compile, bundle, etc.)')
             .action(async (options: any) => {
                 try {

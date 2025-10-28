@@ -52,8 +52,18 @@ try {
     if (error.code === 'commander.helpDisplayed' || error.code === 'commander.version') {
         process.exit(0);
     }
-    // 其他错误正常抛出
-    throw error;
+
+    // Commander.js 参数错误（如缺少 requiredOption）
+    if (error.code === 'commander.missingMandatoryOptionValue' ||
+        error.code === 'commander.missingArgument' ||
+        error.exitCode) {
+        console.error(error.message);
+        process.exit(error.exitCode || 1);
+    }
+
+    // 其他错误
+    console.error('Error:', error.message || error);
+    process.exit(1);
 }
 
 // 如果没有提供命令，显示帮助

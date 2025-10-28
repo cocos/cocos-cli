@@ -40,7 +40,7 @@ class AssetOperation extends EventEmitter {
     _checkOverwrite(path: string, option?: AssetOperationOption) {
         if (existsSync(path) && !option?.overwrite) {
             throw new Error(`file ${path} already exists, please use overwrite option to overwrite it or delete file first.`);
-        } else if (existsSync(path) && option?.rename) {
+        } else if (existsSync(path) && option && option.rename) {
             return utils.File.getName(path);
         }
         return path;
@@ -118,6 +118,7 @@ class AssetOperation extends EventEmitter {
         }
         // 判断目标路径是否为只读
         this.checkValidUrl(options.target);
+        this._checkOverwrite(options.target, options);
         if (!isAbsolute(options.target)) {
             options.target = url2path(options.target);
         }

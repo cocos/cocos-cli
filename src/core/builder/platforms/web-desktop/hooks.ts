@@ -1,11 +1,12 @@
 'use-strict';
 
-import { copyFileSync, outputFileSync } from 'fs-extra';
+import { copyFileSync, existsSync, outputFileSync } from 'fs-extra';
 import { basename, join } from 'path';
 import Ejs from 'ejs';
 import { InternalBuildResult, BuilderAssetCache, IBuilder, IBuildTaskOption, IInternalBuildOptions } from '../../@types/protected';
 import { IBuildResult } from '../../@types/platforms/web-desktop';
 import { relativeUrl, transformCode } from '../../worker/builder/utils';
+import utils from '../../../base/utils';
 
 export const throwError = true;
 
@@ -105,6 +106,10 @@ export async function onAfterBuild(options: IInternalBuildOptions<'web-desktop'>
 }
 
 export async function run(dest: string) {
+    const rawPath = utils.Path.resolveToRaw(dest);
+    if (!existsSync(rawPath)) {
+        throw new Error(`Build path not found: ${dest}`);
+    }
     const serverService = (await import('../../../../server/server')).serverService;
     const url = serverService.url + '/build/' + basename(dest) + '/index.html';
 
