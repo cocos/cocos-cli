@@ -15,13 +15,13 @@ export interface IPublicAssetService extends IAssetService {}
 export interface IAssetService {
     /**
      * 资源发生变化时，进行处理
-     * @param asset
+     * @param uuid
      */
-    assetChanged(asset: IAsset): void;
+    assetChanged(uuid: string): void;
 
     /**
      * 资源删除时，进行处理
-     * @param asset
+     * @param uuid
      */
-    assetDeleted(asset: IAsset): void;
+    assetDeleted(uuid: string): void;
 }

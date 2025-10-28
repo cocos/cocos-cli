@@ -29,7 +29,7 @@ export const SceneProxy: IPublicSceneService = {
         return Rpc.getInstance().request('Scene', 'create', [params]);
     },
     queryCurrentScene(): Promise<IScene | null> {
-        return Rpc.getInstance().request('Scene', 'queryCurrentScene', []);
+        return Rpc.getInstance().request('Scene', 'queryCurrentScene');
     },
     queryScenes(): Promise<IScene[]> {
         return Rpc.getInstance().request('Scene', 'queryScenes');

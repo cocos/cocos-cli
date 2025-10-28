@@ -1,4 +1,4 @@
-import { IAsset } from '../../assets/@types/protected/asset';
+import type { IAsset } from '../../assets/@types/protected/asset';
 
 export async function listenModuleMessages() {
     const { default: scriptManager } = await import('../../scripting');
@@ -29,7 +29,7 @@ export async function listenModuleMessages() {
                 break;
             }
         }
-        void AssetProxy.assetChanged(asset);
+        void AssetProxy.assetChanged(asset.uuid);
     });
 
     assetManager.on('asset-delete', (asset: IAsset) => {
@@ -40,6 +40,6 @@ export async function listenModuleMessages() {
                 break;
             }
         }
-        void AssetProxy.assetDeleted(asset);
+        void AssetProxy.assetDeleted(asset.uuid);
     });
 }

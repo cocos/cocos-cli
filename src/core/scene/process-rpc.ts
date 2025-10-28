@@ -155,18 +155,19 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     }
 
     /**
-     * 发起 RPC 请求
+     * 发送请求并等待响应
      * @param module 模块名
      * @param method 方法名
-     * @param args 参数数组
-     * @param options 额外选项，如 timeout
+     * @param rest
      */
     request<K extends keyof TModules, M extends keyof TModules[K]>(
         module: K,
         method: M,
-        args?: Parameters<TModules[K][M]>,
-        options?: RequestOptions
+        ...rest: Parameters<TModules[K][M]> extends []
+            ? [args?: [], options?: RequestOptions]
+            : [args: Parameters<TModules[K][M]>, options?: RequestOptions]
     ): Promise<Awaited<ReturnType<TModules[K][M]>>> {
+        const [args, options] = rest;
         return new Promise((resolve, reject) => {
             const id = ++this.msgId;
 

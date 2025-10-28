@@ -4,8 +4,7 @@ import { EventEmitter } from 'events';
 import { SceneProcessEventTag, SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
-import type { IAsset } from '../../assets/@types/protected/asset';
-import { listenModuleMessages } from './manager';
+import { listenModuleMessages } from './messages';
 
 export class SceneWorker {
 
