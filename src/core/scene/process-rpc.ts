@@ -83,11 +83,13 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private callbacks = new Map<number, (msg: RpcResponse) => void>();
     private msgId = 0;
     private process: NodeJS.Process | ChildProcess | undefined;
+    private onMessageBind = this.onMessage.bind(this);
 
     /**
      * @param proc - NodeJS.Process 或 ChildProcess 实例
      */
     attach(proc: NodeJS.Process | ChildProcess) {
+        this.resetListen();
         this.process = proc;
         this.listen();
     }
@@ -101,52 +103,71 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     }
 
     /**
+     * 重置消息注册
+     * @private
+     */
+    private resetListen() {
+        this.msgId = 0;
+        this.callbacks.clear();
+        this.process?.off('message', this.onMessageBind);
+        this.process = undefined;
+    }
+
+    /**
      * 监听 incoming 消息
      */
     private listen() {
         if (!this.process) {
             throw new Error('未挂载进程');
         }
-        this.process.on('message', async (msg: RpcMessage) => {
-            if (!msg || typeof msg !== 'object') return;
-
-            // 远程请求
-            if (msg.type === 'request') {
-                const { id, module, method, args } = msg;
-                const target = this.handlers[module];
-                if (!target || typeof target[method] !== 'function') {
-                    this.reply({ id, type: 'response', error: `Method not found: ${module}.${method}` });
-                    return;
-                }
-
-                try {
-                    const result = await target[method](...(args || []));
-                    this.reply({ id, type: 'response', result });
-                } catch (e: any) {
-                    this.reply({ id, type: 'response', error: e?.message || String(e) });
-                }
-            }
-
-            // 响应
-            if (msg.type === 'response') {
-                const callback = this.callbacks.get(msg.id);
-                if (callback) {
-                    callback(msg);
-                    this.callbacks.delete(msg.id);
-                }
-            }
-
-            // 单向消息
-            if (msg.type === 'send') {
-                const { module, method, args } = msg;
-                const target = this.handlers[module];
-                if (target && typeof target[method] === 'function') {
-                    target[method](...(args || []));
-                }
-            }
-        });
+        this.resetListen();
+        this.process.on('message', this.onMessageBind);
     }
 
+    private async onMessage(msg: RpcMessage) {
+        if (!msg || typeof msg !== 'object') return;
+
+        // 远程请求
+        if (msg.type === 'request') {
+            const { id, module, method, args } = msg;
+            const target = this.handlers[module];
+            if (!target || typeof target[method] !== 'function') {
+                this.reply({ id, type: 'response', error: `Method not found: ${module}.${method}` });
+                return;
+            }
+
+            try {
+                const result = await target[method](...(args || []));
+                this.reply({ id, type: 'response', result });
+            } catch (e: any) {
+                this.reply({ id, type: 'response', error: e?.message || String(e) });
+            }
+        }
+
+        // 响应
+        if (msg.type === 'response') {
+            const callback = this.callbacks.get(msg.id);
+            if (callback) {
+                callback(msg);
+                this.callbacks.delete(msg.id);
+            }
+        }
+
+        // 单向消息
+        if (msg.type === 'send') {
+            const { module, method, args } = msg;
+            const target = this.handlers[module];
+            if (target && typeof target[method] === 'function') {
+                target[method](...(args || []));
+            }
+        }
+    }
+
+    /**
+     * 回复
+     * @param msg
+     * @private
+     */
     private reply(msg: RpcResponse) {
         if (!this.process) {
             throw new Error('未挂载进程');
