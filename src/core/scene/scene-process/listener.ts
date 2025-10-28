@@ -1,5 +1,5 @@
 import { Service, ServiceEvents } from './service/core';
-import type { IScriptEvents, INodeEvents, IComponentEvents } from '../common';
+import type { IScriptEvents, INodeEvents, IComponentEvents, ISceneEvents } from '../common';
 
 function onScriptExecutionFinished () {
     console.log('[Scene] Script execution-finished');
@@ -26,6 +26,8 @@ export function startupListener () {
     unregisterListener();
     //
     ServiceEvents.on<IScriptEvents>('script:execution-finished', onScriptExecutionFinished);
+    ServiceEvents.on<ISceneEvents>('scene:open', onRepaintInEditMode);
+    ServiceEvents.on<ISceneEvents>('scene:soft-reload', onRepaintInEditMode);
     ServiceEvents.on<INodeEvents>('node:add', onRepaintInEditMode);
     ServiceEvents.on<INodeEvents>('node:remove', onRepaintInEditMode);
     ServiceEvents.on<INodeEvents>('node:update', onRepaintInEditMode);
@@ -36,6 +38,8 @@ export function startupListener () {
 
 function unregisterListener () {
     ServiceEvents.off<IScriptEvents>('script:execution-finished', onScriptExecutionFinished);
+    ServiceEvents.off<ISceneEvents>('scene:open', onRepaintInEditMode);
+    ServiceEvents.off<ISceneEvents>('scene:soft-reload', onRepaintInEditMode);
     ServiceEvents.off<INodeEvents>('node:add', onRepaintInEditMode);
     ServiceEvents.off<INodeEvents>('node:remove', onRepaintInEditMode);
     ServiceEvents.off<INodeEvents>('node:update', onRepaintInEditMode);
