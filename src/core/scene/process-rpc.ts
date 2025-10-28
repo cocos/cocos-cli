@@ -120,7 +120,6 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         if (!this.process) {
             throw new Error('未挂载进程');
         }
-        this.resetListen();
         this.process.on('message', this.onMessageBind);
     }
 
