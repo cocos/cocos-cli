@@ -431,16 +431,17 @@ describe('Component Proxy 测试', () => {
     });
 
     describe('5. 创建内置的组件', () => {
-        let componentTypes: string[] = [];
-        const components: IComponentIdentifier[] = [];
-        const componentPath: string[] = [];
+        let buildinComponentTypes: string[] = [];
+        let createdComponents: IComponentIdentifier[] = [];
+        let exceptionalComponentTypes: string[] = [];
+        let actuallyExcludedTypes: string[] = [];
 
         beforeAll(async () => {
             const params: IQueryNodeParams = {
                 path: nodePath,
                 queryChildren: false
             };
-            componentTypes = await ComponentProxy.queryAllComponent();
+            buildinComponentTypes = await ComponentProxy.queryAllComponent();
             const result = await NodeProxy.queryNode(params);
             expect(result).toBeDefined();
             expect(result?.components?.length == 0);
@@ -452,59 +453,20 @@ describe('Component Proxy 测试', () => {
              * 这样导致很难排除哪些有依赖，哪些有冲突等，因此，只能通过日志的方式输出，查看哪些组件是冲突的。
              * 这个测试目的是，能够测试能够单独构建成功的组件，预估了下，也有100多个（components.length），因此保留了这个测试例。
              */
-            //这些组件都需要开启物理，因此先排除
-            const excludeComponent = [
+            const presetExcludedComponents = [
                 //'cc.Component',
+                'cc.Collider',
+                'cc.Constraint',
                 'cc.PostProcess',
                 'cc.MissingScript',
-                'cc.RigidBody',
-                'cc.Collider',
-                'cc.BoxCollider',
-                'cc.SphereCollider',
-                'cc.CapsuleCollider',
-                'cc.CylinderCollider',
-                'cc.ConeCollider',
-                'cc.MeshCollider',
-                'cc.ConstantForce',
-                'cc.TerrainCollider',
-                'cc.SimplexCollider',
-                'cc.PlaneCollider',
-                'cc.Constraint',
-                'cc.HingeConstraint',
-                'cc.FixedConstraint',
-                'cc.ConfigurableConstraint',
-                'cc.PointToPointConstraint',
                 'cc.CharacterController',
-                'cc.BoxCharacterController',
-                'cc.CapsuleCharacterController',
-                'cc.RigidBodyComponent',
                 'cc.ColliderComponent',
-                'cc.BoxColliderComponent',
-                'cc.SphereColliderComponent',
-                'cc.CapsuleColliderComponent',
-                'cc.MeshColliderComponent',
-                'cc.CylinderColliderComponent',
-                'cc.RigidBody2D',
                 'cc.Collider2D',
-                'cc.BoxCollider2D',
-                'cc.CircleCollider2D',
-                'cc.PolygonCollider2D',
-                'cc.Joint2D',
-                'cc.DistanceJoint2D',
-                'cc.SpringJoint2D',
-                'cc.MouseJoint2D',
-                'cc.RelativeJoint2D',
-                'cc.SliderJoint2D',
-                'cc.FixedJoint2D',
-                'cc.WheelJoint2D',
-                'cc.HingeJoint2D',
-                'BuiltinPipelineSettings',
-                'BuiltinPipelinePassBuilder',
-                'BuiltinDepthOfFieldPass',
-                'cc.TiledTile'
+                'cc.Joint2D'
             ];
-            for (const componentType of componentTypes) {
-                if (excludeComponent.includes(componentType)) {
+            for (const componentType of buildinComponentTypes) {
+                if (presetExcludedComponents.includes(componentType)) {
+                    actuallyExcludedTypes.push(componentType);
                     continue;
                 }
 
@@ -512,14 +474,13 @@ describe('Component Proxy 测试', () => {
                     nodePath: nodePath,
                     component: componentType
                 };
-                //componentPath = componentType;
                 try {
                     const component = await ComponentProxy.addComponent(componentInfo1);
-                    components.push(component);
+                    createdComponents.push(component);
                 } catch (e) {
                     // 这里会产生冲突、重复组件(因为依赖会创建一些重复组件，导致测试会异常), 这是正常的异常
-                    console.log(e);
-                    componentPath.push(componentType);
+                    console.log(`添加组件异常：${componentType} , 异常原因 ${e}`);
+                    exceptionalComponentTypes.push(componentType);
                 }
 
                 try {
@@ -536,7 +497,12 @@ describe('Component Proxy 测试', () => {
                     console.log(e);
                 }
             }
-            expect(components.length).toBe(componentTypes.length - excludeComponent.length - componentPath.length);
+            console.log(`内置组件总数：${buildinComponentTypes.length}  
+                         固定排除组件总数（这个是固定的，有些引擎可能没有）：${presetExcludedComponents.length} 
+                         实际排除组件总数：${actuallyExcludedTypes.length} 
+                         添加异常组件总数 ${exceptionalComponentTypes.length} 
+                         成功添加的组件：${createdComponents.length}`);
+            expect(createdComponents.length).toBe(buildinComponentTypes.length - actuallyExcludedTypes.length - exceptionalComponentTypes.length);
         });
     });
     describe('6. 多节点添加同组件-组件不冲突', () => {

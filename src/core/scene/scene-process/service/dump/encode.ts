@@ -173,31 +173,6 @@ function _checkAttributes(data: IProperty, attributes: any, owner: any) {
     // }
 }
 
-/**
- * 查询指定类名，如果自身没有就向上查询
- * @param ccClassObject
- */
-const MAX_RECURSION_DEPTH = 10;// 递归中增加最大递归深度限制，避免无限循环或性能问题
-const TARGET_CLASS_NAME = ['cc.', 'sp.'];
-function findClassName(ccClassObject: any, property: string): string {
-    let depth = 0;
-    let proto = ccClassObject;
-    while (proto && depth < MAX_RECURSION_DEPTH) {
-        const className = js.getClassName(proto);
-
-        if (className &&
-            TARGET_CLASS_NAME.find(key => className.startsWith(key)) &&
-            Object.prototype.hasOwnProperty.call(proto, property)) {
-            return className;
-        }
-        // 通过原型链向上查找
-        proto = Object.getPrototypeOf(proto);
-        depth++;
-    }
-
-    return '';
-}
-
 function _encodeByType(type: string | undefined, object: any, data: IProperty, opts?: any) {
     type = type || '';
     const dumpType = DumpDefines[type];

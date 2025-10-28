@@ -35,18 +35,18 @@ export class EngineLoader {
         await this.requiredModules(modules);
 
         const vendorResolveFilename = ModuleInternal._resolveFilename;
-        ModuleInternal._resolveFilename = function(request: string) {
+        ModuleInternal._resolveFilename = function (request: string) {
             if (EngineLoader.isEngineModule(request)) {
                 return request;
             } else {
                 // @ts-ignore
-                 
+
                 return vendorResolveFilename.apply(this, arguments);
             }
         };
 
         const vendorLoad = ModuleInternal._load;
-        ModuleInternal._load = function(request: string) {
+        ModuleInternal._load = function (request: string) {
             if (EngineLoader.isEngineModule(request)) {
                 const module = EngineLoader.getEngineModuleById(request);
                 if (module) {
@@ -58,7 +58,7 @@ export class EngineLoader {
                 }
             } else {
                 // @ts-ignore
-                 
+
                 return vendorLoad.apply(this, arguments);
             }
         };
@@ -69,19 +69,13 @@ export class EngineLoader {
             throw new Error(`Failed to load engine module ${modules.join(',')}. ` + 'Loader has not been initialized. engineLoader.init.');
         }
 
-        const results: PromiseSettledResult<unknown>[] = await Promise.allSettled(
-            modules.map(module => {
-                return this.loader!.import(module);
-            })
-        );
-
-        results.forEach((result, index: number) => {
-            if (result.status === 'fulfilled') {
-                EngineLoader.engineModules[modules[index]] = result.value;
-            } else {
-                console.error(`Failed to load engine module: ${modules[index]}`, result.reason);
+        for (const module of modules) {
+            try {
+                EngineLoader.engineModules[module] = await this.loader!.import(module);
+            } catch (e) {
+                console.error(`Failed to load engine module: ${module}  e: ${e}`);
             }
-        });
+        }
     }
 
     public static async importModule(module: string) {

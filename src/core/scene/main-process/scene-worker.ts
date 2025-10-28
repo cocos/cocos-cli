@@ -23,7 +23,7 @@ export class SceneWorker {
     }
 
     private eventEmitter = new EventEmitter();
-    
+
     // 重启相关属性
     private maxRestartAttempts = 3; // 最大重启次数
     private currentRestartCount = 0; // 当前重启次数
@@ -37,22 +37,22 @@ export class SceneWorker {
             console.warn('重复启动场景进程，请 stop 进程在 start');
             return false;
         }
-        
+
         // 保存启动参数以便重启时使用
         this.enginePath = enginePath;
         this.projectPath = projectPath;
-        
+
         return new Promise((resolve) => {
             let isResolved = false;
             let startupTimer: NodeJS.Timeout | null = null;
-            
+
             const cleanup = () => {
                 if (startupTimer) {
                     clearTimeout(startupTimer);
                     startupTimer = null;
                 }
             };
-            
+
             const resolveOnce = (result: boolean) => {
                 if (!isResolved) {
                     isResolved = true;
@@ -60,7 +60,7 @@ export class SceneWorker {
                     resolve(result);
                 }
             };
-            
+
             try {
                 const args = [
                     `--enginePath=${enginePath}`,
@@ -69,13 +69,13 @@ export class SceneWorker {
                 ];
                 const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
                 const inspectPort = '9230';
-                
+
                 this._process = fork(precessPath, args, {
                     detached: false,
                     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                     execArgv: [`--inspect=${inspectPort}`],
                 });
-                
+
                 // 监听进程启动错误
                 const onError = (error: Error) => {
                     console.error('场景进程启动失败:', error);
@@ -84,7 +84,7 @@ export class SceneWorker {
                     this._process = null;
                     resolveOnce(false);
                 };
-                
+
                 // 监听进程早期退出（启动失败）
                 const onEarlyExit = (code: number, signal: string | null) => {
                     console.error(`场景进程启动时退出 code:${code}, signal:${signal}`);
@@ -93,7 +93,7 @@ export class SceneWorker {
                     this._process = null;
                     resolveOnce(false);
                 };
-                
+
                 // 监听就绪消息
                 const onReady = (msg: any) => {
                     if (msg === SceneReadyChannel) {
@@ -104,7 +104,7 @@ export class SceneWorker {
                         resolveOnce(true);
                     }
                 };
-                
+
                 // 设置启动超时（30秒）
                 startupTimer = setTimeout(() => {
                     console.error('场景进程启动超时');
@@ -117,16 +117,16 @@ export class SceneWorker {
                     }
                     resolveOnce(false);
                 }, 30000);
-                
+
                 // 注册事件监听器
                 this._process.on('error', onError);
                 this._process.on('exit', onEarlyExit);
                 this._process.on('message', onReady);
-                
+
                 // 启动RPC和注册监听器
                 Rpc.startup(this._process);
                 this.registerListener();
-                
+
             } catch (error) {
                 console.error('创建场景进程失败:', error);
                 this._process = null;
@@ -158,13 +158,8 @@ export class SceneWorker {
         if (this.isManualStop) {
             return false;
         }
-        
-        // 常见的手动终止信号，不算崩溃
-        const manualKillSignals = ['SIGTERM', 'SIGINT', 'SIGKILL'];
-        if (signal && manualKillSignals.includes(signal)) {
-            return false;
-        }
-        
+
+
         // 其他非零退出码且非手动终止信号的情况，认为是崩溃
         return code !== 0;
     }
@@ -187,21 +182,21 @@ export class SceneWorker {
 
         this.isRestarting = true;
         this.currentRestartCount++;
-        
+
         console.log(`开始重启场景进程 (第 ${this.currentRestartCount}/${this.maxRestartAttempts} 次)`);
 
         try {
             // 清理当前进程
             this._process = null;
-            
+
             // 固定重启间隔
             const delay = 2000; // 固定2秒间隔
             console.log(`等待 ${delay}ms 后重启...`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            
+
             // 重新启动进程
             const success = await this.start(this.enginePath, this.projectPath);
-            
+
             if (success) {
                 console.log('场景进程重启成功');
                 // 重启成功后重置重启计数
@@ -209,7 +204,7 @@ export class SceneWorker {
                 this.emit<ISceneWorkerEvents>('restart', true);
             } else {
                 console.error(`场景进程重启失败 (第 ${this.currentRestartCount}/${this.maxRestartAttempts} 次)`);
-                
+
                 // 如果达到最大重试次数，发出事件通知
                 if (this.currentRestartCount >= this.maxRestartAttempts) {
                     console.error('已达到最大重启次数，场景进程无法恢复');
@@ -218,7 +213,7 @@ export class SceneWorker {
             }
         } catch (error) {
             console.error('场景进程重启过程中发生错误:', error);
-            
+
             // 发出重启错误事件
             this.emit<ISceneWorkerEvents>('restart', false);
 
@@ -263,10 +258,10 @@ export class SceneWorker {
         this.process.on('exit', (code: number, signal) => {
             if (code !== 0) {
                 console.error(`场景进程退出异常 code:${code}, signal:${signal}`);
-                
+
                 // 判断是否为真正的崩溃（排除手动kill的情况）
                 const isCrash = this.isCrashExit(code, signal);
-                
+
                 if (isCrash && !this.isManualStop && !this.isRestarting && this.enginePath && this.projectPath) {
                     console.log('检测到场景进程崩溃，准备重启...');
                     this.restart().catch(error => {
@@ -280,7 +275,7 @@ export class SceneWorker {
             } else {
                 console.log('场景进程正常退出');
             }
-            
+
             // 重置手动停止标志
             this.isManualStop = false;
         });

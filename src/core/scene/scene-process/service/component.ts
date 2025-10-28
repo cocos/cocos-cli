@@ -25,10 +25,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     private async addComponentImpl(path: string, componentNameOrUUIDOrURL: string): Promise<IComponent> {
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
-            throw new Error(`create component failed: ${path} does not exist`);
+            throw new Error(`add component failed: ${path} does not exist`);
         }
         if (!componentNameOrUUIDOrURL || componentNameOrUUIDOrURL.length <= 0) {
-            throw new Error(`create component failed: ${componentNameOrUUIDOrURL} does not exist`);
+            throw new Error(`add component failed: ${componentNameOrUUIDOrURL} does not exist`);
         }
         // 需要单独处理 missing script
         if (componentNameOrUUIDOrURL === 'MissingScript' || componentNameOrUUIDOrURL === 'cc.MissingScript') {

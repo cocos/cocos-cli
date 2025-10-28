@@ -323,7 +323,7 @@ class EngineManager implements IEngine {
                 physics: {
                     ...physicsConfig,
                     physicsEngine,
-                    enabled: false,
+                    enabled: info.serverURL && true,
                 },
                 assets: {
                     importBase: info.importBase,
