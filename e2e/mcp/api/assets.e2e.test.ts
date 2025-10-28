@@ -45,7 +45,9 @@ describe('MCP Assets API', () => {
 
         // 创建测试根目录
         await mcpClient.callTool('assets-create-asset', {
-            target: testRootUrl,
+            options: {
+                target: testRootUrl,
+            },
         });
     });
 

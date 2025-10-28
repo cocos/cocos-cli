@@ -4,6 +4,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { E2E_TIMEOUTS } from '../config';
+import type { MCPToolsMap, MCPResponse } from '../types/mcp-tools.generated';
 
 export interface MCPServerOptions {
     projectPath: string;
@@ -189,16 +190,23 @@ export class MCPTestClient {
     }
 
     /**
-     * 调用工具
-     * @param name 工具名称
-     * @param args 工具参数
-     * @param timeout 请求超时时间（毫秒），默认使用 E2E_TIMEOUTS.MCP_REQUEST
+     * 调用工具（类型安全版本）
+     * 
+     * @example
+     * ```typescript
+     * // ✅ 自动推断参数类型和返回值类型
+     * const result = await mcpClient.callTool('assets-create-asset', {
+     *   options: { target: 'db://assets/test.txt', content: 'hello' }
+     * });
+     * // result 的类型会自动推断为 MCPResponse<TCreatedAssetResult>
+     * ```
      */
-    async callTool(
-        name: string,
-        args: Record<string, any> = {},
-        timeout: number = E2E_TIMEOUTS.MCP_REQUEST
-    ): Promise<MCPToolResult> {
+    async callTool<TName extends keyof MCPToolsMap>(
+        name: TName,
+        args: MCPToolsMap[TName]['params'],
+        timeout?: number
+    ): Promise<MCPResponse<MCPToolsMap[TName]['result']>> {
+        timeout = timeout ?? E2E_TIMEOUTS.MCP_REQUEST;
         if (!this.client) {
             throw new Error('Client not connected. Call start() first.');
         }
@@ -210,7 +218,7 @@ export class MCPTestClient {
             const result = await this.client.callTool(
                 {
                     name,
-                    arguments: args,
+                    arguments: args as Record<string, unknown>,
                 },
                 undefined, // resultSchema - 使用默认的
                 {
@@ -239,13 +247,13 @@ export class MCPTestClient {
             return {
                 code: 500,
                 reason: 'Invalid response format',
-            };
+            } as any;
         } catch (error) {
             console.error(`[MCP callTool] ${name} error:`, error);
             return {
                 code: 500,
                 reason: error instanceof Error ? error.message : String(error),
-            };
+            } as any;
         }
     }
 

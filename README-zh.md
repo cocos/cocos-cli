@@ -126,17 +126,17 @@ npm run update:repos
 ### 单元测试
 
 ```bash
-# 运行所有单元测试（核心）
+# 运行所有单元测试
 npm test
-
-# 仅运行核心测试
-npm run test:core
 
 # 监听模式运行测试
 npm run test:watch
 
 # 生成覆盖率报告
 npm run test:coverage
+
+# 静默运行测试
+npm run test:quiet
 ```
 
 ### E2E 测试
@@ -172,6 +172,18 @@ npm run test:all
 - [快速开始指南](docs/zh/quick-start.md)
 - [工具下载指南](docs/zh/download-tools.md)
 - [Commands 文档](docs/zh/commands.md)
+
+## 🤝 贡献代码
+
+我们欢迎贡献！请查看我们的[贡献指南](CONTRIBUTING.md)开始参与。
+
+该指南涵盖：
+
+- 开发工作流和项目构建
+- 运行和编写测试
+- 代码风格和格式化
+- 调试技巧
+- 提交 Pull Request
 
 ## 📄 许可证
 

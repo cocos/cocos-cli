@@ -22,6 +22,7 @@ export const SchemaBundleConfig = z.object({
     dest: z.string().optional().describe('指定 bundle 的输出目录'),
 });
 export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile']);
+export type TPlatform = z.infer<typeof SchemaPlatform>;
 
 // 构建配置（可导出到配置文件/结果中）
 export const SchemaBuildConfig = z.object({
@@ -67,6 +68,7 @@ export const SchemaBuildRuntimeOptions = z.object({
 // 对外暴露：完整的构建入参选项
 export const SchemaBuildOption = SchemaBuildRuntimeOptions.merge(SchemaBuildConfig).optional();
 export type SchemaBuildOptionType = z.infer<typeof SchemaBuildOption>;
+export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaBuildResult = z.object({
     code: z.number().int().describe('构建的退出码, 0 表示成功, 其他表示失败'),

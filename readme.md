@@ -125,6 +125,18 @@ For more testing details, see:
 - [Tool Download Guide](docs/en/download-tools.md)
 - [Commands Documentation](docs/en/commands.md)
 
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+The guide covers:
+
+- Development workflow and building the project
+- Running and writing tests
+- Code style and formatting
+- Debugging techniques
+- Submitting pull requests
+
 ## 📄 License
 
 MIT License - see the [LICENSE](LICENSE) file for details.

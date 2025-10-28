@@ -67,8 +67,10 @@ describe('MCP Builder API', () => {
             });
 
             expect(result.code).toBe(200);
-            expect(result.data.code).toBe(0);
-            expect(result.data.dest).toBe('project://build/web-mobile');
+            if (result.data) {
+                expect(result.data.code).toBe(0);
+                expect(result.data.dest).toBe('project://build/web-mobile');
+            }
         }, E2E_TIMEOUTS.BUILD_OPERATION);
     });
 

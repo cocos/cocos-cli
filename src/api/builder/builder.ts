@@ -3,7 +3,7 @@ import { build, queryDefaultBuildConfigByPlatform, run } from '../../core/builde
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildOptionType, SchemaBuildResult, SchemaPlatform, SchemaPlatformType, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildResultData, TRunDest, TRunResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaPlatformType, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TRunDest, TRunResult } from './schema';
 
 export class BuilderApi extends ApiBase {
     constructor() {
@@ -17,7 +17,7 @@ export class BuilderApi extends ApiBase {
     @title('构建项目')
     @description('根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数')
     @result(SchemaBuildResult)
-    async build(@param(SchemaBuildOption) options?: SchemaBuildOptionType) {
+    async build(@param(SchemaBuildOption) options?: TBuildOption) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TBuildResultData> = {
             code: code,
@@ -62,7 +62,7 @@ export class BuilderApi extends ApiBase {
     @title('获取平台默认构建配置')
     @description('获取平台默认构建配置')
     @result(SchemaBuildConfigResult)
-    async queryDefaultBuildConfig(@param(SchemaPlatform) platform: SchemaPlatformType) {
+    async queryDefaultBuildConfig(@param(SchemaPlatform) platform: TPlatform) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TBuildConfigResult> = {
             code: code,

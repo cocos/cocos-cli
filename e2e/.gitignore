@@ -17,3 +17,5 @@ build-*
 # 测试报告
 reports/
 
+# auto generated files
+types/mcp-tools.generated.ts
