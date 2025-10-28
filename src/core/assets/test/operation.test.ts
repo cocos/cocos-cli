@@ -286,7 +286,8 @@ describe('测试 db 的操作接口', function () {
         // 使用 test.each 批量测试所有资源类型
         test.each(CREATE_ASSET_TYPE_TEST_CASES)(
             '创建 $description ($type)',
-            async ({ type, ext, ccType, skipTypeCheck, templateName }) => {
+            async (...args: any[]) => {
+                const { type, ext, ccType, skipTypeCheck, templateName } = args[0];
                 const baseName = type;
                 const fileName = `${baseName}.${ext}`;
                 const assetInfo = await assetManager.createAssetByType(

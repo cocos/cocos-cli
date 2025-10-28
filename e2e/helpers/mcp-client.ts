@@ -29,6 +29,7 @@ export class MCPTestClient {
     private client: Client | null = null;
     private transport: StreamableHTTPClientTransport | null = null;
     private serverProcess: ChildProcess | null = null;
+    private forceKillTimer: NodeJS.Timeout | null = null;
     private projectPath: string;
     private port: number;
     private cliPath: string;
@@ -292,6 +293,11 @@ export class MCPTestClient {
         if (this.serverProcess) {
             return new Promise((resolve) => {
                 this.serverProcess!.on('exit', () => {
+                    // 清理强制杀死定时器
+                    if (this.forceKillTimer) {
+                        clearTimeout(this.forceKillTimer);
+                        this.forceKillTimer = null;
+                    }
                     console.log(`   Server process exited`);
                     resolve();
                 });
@@ -300,11 +306,12 @@ export class MCPTestClient {
                 this.serverProcess!.kill('SIGTERM');
 
                 // 超时后如果还没退出，强制杀死
-                setTimeout(() => {
+                this.forceKillTimer = setTimeout(() => {
                     if (this.serverProcess && this.serverProcess.exitCode === null) {
                         console.log(`   Force killing server process`);
                         this.serverProcess.kill('SIGKILL');
                     }
+                    this.forceKillTimer = null;
                 }, E2E_TIMEOUTS.FORCE_KILL);
             });
         }

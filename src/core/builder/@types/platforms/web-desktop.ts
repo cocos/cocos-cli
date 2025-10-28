@@ -1,5 +1,5 @@
-import { IBuildPaths } from "..";
-import { IInternalBuildOptions, appTemplateData, InternalBuildResult } from "../protected";
+import { IBuildPaths } from '..';
+import { IInternalBuildOptions, appTemplateData, InternalBuildResult } from '../protected';
 
 
 export interface IOptions {

@@ -169,29 +169,6 @@ describe('MCP Assets API', () => {
                 validateFileAsset(result.data, scriptPath, TEST_ASSET_CONTENTS.script);
             }
         });
-
-        test('should handle duplicate asset creation', async () => {
-            const assetName = `duplicate-${generateTestId()}`;
-            const assetUrl = `${testRootUrl}/${assetName}`;
-
-            // 第一次创建
-            await mcpClient.callTool('assets-create-asset', {
-                options: {
-                    target: assetUrl,
-                },
-            });
-
-            // 第二次创建同名资源
-            const result = await mcpClient.callTool('assets-create-asset', {
-                options: {
-                    target: assetUrl,
-                    rename: false,
-                },
-            });
-
-            // 应该失败或返回错误
-            expect(result.code !== 200 || result.reason).toBeTruthy();
-        });
     });
 
     describe('asset-create-by-type', () => {

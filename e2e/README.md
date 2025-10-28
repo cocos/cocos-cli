@@ -35,6 +35,55 @@ npm run test:e2e -- --preserve
 npm run test:all
 ```
 
+### 查看测试报告
+
+测试完成后会自动生成可视化的 HTML 报告：
+
+```bash
+# 测试报告位置（包含本地时间戳）
+e2e/reports/test-report-2024-01-15-10-30.html
+```
+
+**✨ 自动打印报告路径**
+
+测试完成后，会在控制台自动打印报告的完整路径和快速打开命令：
+
+```
+============================================================
+📊 测试报告已生成
+============================================================
+
+✅ HTML 测试报告路径:
+   F:\code\cocos-cli\e2e\reports\test-report-2025-10-28-15-30-00.html
+
+💡 快速打开报告:
+   start F:\code\cocos-cli\e2e\reports\test-report-2025-10-28-15-30-00.html
+============================================================
+```
+
+直接复制快速打开命令即可在浏览器中查看！
+
+**手动打开报告**
+
+```bash
+# Windows
+start e2e/reports/test-report-*.html
+
+# macOS
+open $(ls -t e2e/reports/test-report-*.html | head -1)
+
+# Linux
+xdg-open $(ls -t e2e/reports/test-report-*.html | head -1)
+```
+
+报告包含：
+
+- ✅ 测试通过/失败统计
+- ⏱️ 每个测试的执行时间
+- 📋 详细的错误信息和堆栈跟踪
+- 📊 按状态排序的测试列表
+- 💬 控制台日志输出
+
 ### 指定 CLI 路径
 
 ```bash
@@ -73,7 +122,11 @@ e2e/
 ├── docs/                         # 📚 文档
 │   ├── CLI-PATH-GUIDE.md        # CLI 路径配置指南
 │   ├── USAGE.md                 # 详细使用指南
-│   └── PROJECT-MANAGER-GUIDE.md # 测试项目管理器指南
+│   ├── PROJECT-MANAGER-GUIDE.md # 测试项目管理器指南
+│   ├── E2E-COVERAGE-CHECK.md    # E2E 测试覆盖率检查
+│   └── WIZARD-TESTING-LIMITATIONS.md # Wizard 测试限制说明
+├── scripts/                     # 🛠️ 辅助脚本
+│   └── check-coverage.ts        # E2E 测试覆盖率检查脚本
 ├── config.ts                    # ⚙️ 全局配置（超时、端口等）
 ├── jest.config.e2e.ts           # E2E 测试配置
 ├── tsconfig.json                # TypeScript 配置（仅类型检查）
@@ -309,7 +362,7 @@ E2E 测试可以集成到 CI/CD 流程中：
 
 ### 配置与开发
 
-- **[全局配置说明](./README-TSCONFIG.md)** - E2E 测试的配置文档 ⭐ 推荐阅读
+- **[全局配置说明](./docs/README-TSCONFIG.md)** - E2E 测试的配置文档 ⭐ 推荐阅读
   - **全局配置** (`config.ts`) - 统一管理超时时间、端口号
   - **TypeScript 配置** (`tsconfig.json`) - 类型检查、不参与编译
   - 共享测试工具
@@ -343,6 +396,18 @@ E2E 测试可以集成到 CI/CD 流程中：
   - 可测试的场景
   - 推荐的测试策略
   - 替代方案
+
+- **[E2E 测试覆盖率检查](./docs/E2E-COVERAGE-CHECK.md)** - 确保所有 API 都有 E2E 测试 ⭐ 推荐
+  - 自动检测缺失的测试
+  - CI 自动报告
+  - 覆盖率统计和分析
+  - 测试编写指南
+
+- **[测试报告使用指南](./docs/TEST-REPORTS.md)** - 查看和分析可视化测试报告 ⭐ 推荐
+  - HTML 报告生成和查看
+  - 报告内容和配置
+  - CI/CD 中的报告
+  - 性能分析和问题定位
 
 ### 相关资源
 

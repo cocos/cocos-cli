@@ -22,6 +22,34 @@ const config: Config.InitialOptions = {
     // 确保测试前已经构建
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     setupFilesAfterEnv: ['<rootDir>/e2e/jest.setup.ts'],
+
+    // 测试报告配置
+    reporters: [
+        'default', // 保留默认的控制台输出
+        [
+            'jest-html-reporter',
+            {
+                pageTitle: 'Cocos CLI E2E Test Report',
+                // 使用本地时间生成唯一的报告文件名（精确到分钟）
+                // 格式：test-report-2024-01-15-10-30.html
+                outputPath: (() => {
+                    const now = new Date();
+                    // 使用本地时间，格式化为 YYYY-MM-DD-HH-mm
+                    const timestamp = now.toLocaleString().replace(/\//g, '-').replace(/\s/g, '-').replace(/:/g, '-');
+                    return `e2e/reports/test-report-${timestamp}.html`;
+                })(),
+                includeFailureMsg: true,
+                includeConsoleLog: true,
+                sort: 'status', // 按状态排序（失败的在前）
+                executionTimeWarningThreshold: 5, // 执行时间警告阈值（秒）
+                dateFormat: 'yyyy-mm-dd HH:MM:ss',
+                theme: 'darkTheme', // 或 'lightTheme' / 'darkTheme'
+                logo: '../../static/image.png', // 可选：添加 logo
+            },
+        ],
+        // 自定义 reporter：打印测试报告路径
+        '<rootDir>/e2e/helpers/report-printer.js',
+    ],
 };
 
 export default config;

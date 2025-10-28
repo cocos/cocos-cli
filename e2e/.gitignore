@@ -14,3 +14,6 @@ build-*
 # Jest 缓存
 .jest/
 
+# 测试报告
+reports/
+

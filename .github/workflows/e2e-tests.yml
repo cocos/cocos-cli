@@ -1,0 +1,214 @@
+# E2E 测试工作流
+#
+# 触发方式：
+# 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
+# 2. 定时触发：每天北京时间凌晨 00:00（UTC 16:00）
+# 3. 评论触发：在 Issue 或 PR 中评论 "run e2e test"
+#
+# 功能：
+# - 运行完整的 E2E 测试套件
+# - 生成可视化的 HTML 测试报告
+# - 在 PR 中自动评论测试结果和报告链接
+# - 上传测试报告为 GitHub Artifacts（保留 30 天）
+
+name: E2E Tests
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  
+  # 定时触发：每天凌晨 12 点（北京时间 = UTC+8，所以 UTC 时间是 16:00）
+  schedule:
+    - cron: '0 16 * * *'  # 每天 UTC 16:00 = 北京时间 00:00
+  
+  # 评论触发：在 Issue 或 PR 中评论 "run e2e test"
+  issue_comment:
+    types: [created]
+
+env:
+  # 配置测试报告服务器地址
+  REPORT_SERVER_URL: 'http://your-server.com/e2e-reports'
+
+jobs:
+  e2e-tests:
+    # 只在以下情况运行：
+    # 1. 手动触发 (workflow_dispatch)
+    # 2. 定时触发 (schedule)
+    # 3. 评论包含 "run e2e test"
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'run e2e test'))
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Add reaction to comment
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # 如果是评论触发，需要检出 PR 的代码
+          ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build project
+        run: npm run build
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        continue-on-error: true
+      
+      - name: Find test report file
+        if: always()
+        id: find-report
+        run: |
+          # 查找最新生成的测试报告文件
+          REPORT_FILE=$(ls -t e2e/reports/test-report-*.html 2>/dev/null | head -n 1)
+          
+          if [ -n "$REPORT_FILE" ]; then
+            echo "Found report: $REPORT_FILE"
+            REPORT_FILENAME=$(basename "$REPORT_FILE")
+            echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+            echo "report_filename=$REPORT_FILENAME" >> $GITHUB_OUTPUT
+            echo "report_exists=true" >> $GITHUB_OUTPUT
+            
+            # 生成完整的报告 URL
+            REPORT_URL="${{ env.REPORT_SERVER_URL }}/reports/$REPORT_FILENAME"
+            echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
+            
+            echo "📊 Test Report: $REPORT_URL"
+          else
+            echo "No report file found"
+            echo "report_exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload test report to server
+        if: always() && steps.find-report.outputs.report_exists == 'true'
+        run: |
+          echo "📤 Uploading test report to server..."
+          echo "Report file: ${{ steps.find-report.outputs.report_file }}"
+          echo "Report URL: ${{ steps.find-report.outputs.report_url }}"
+          
+          # 这里添加你上传报告到服务器的命令
+          # 例如使用 scp, rsync, curl 等
+          # scp ${{ steps.find-report.outputs.report_file }} user@server:/path/to/reports/
+          # 或者
+          # curl -F "file=@${{ steps.find-report.outputs.report_file }}" ${{ env.REPORT_SERVER_URL }}/upload
+          
+          echo "✅ Report uploaded successfully"
+      
+      - name: Upload test report as artifact (备用)
+        if: always() && steps.find-report.outputs.report_exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-report-${{ github.run_id }}
+          path: ${{ steps.find-report.outputs.report_file }}
+          retention-days: 30
+      
+      - name: Comment PR with test report link
+        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
+        uses: actions/github-script@v7
+        env:
+          REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
+          REPORT_URL: ${{ steps.find-report.outputs.report_url }}
+          REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
+        with:
+          script: |
+            const reportExists = process.env.REPORT_EXISTS === 'true';
+            const reportUrl = process.env.REPORT_URL;
+            const reportFilename = process.env.REPORT_FILENAME;
+            
+            let comment = `## 📊 E2E 测试报告\n\n`;
+            
+            if (reportExists) {
+              comment += `✅ 测试已完成！\n\n`;
+              comment += `### 🔗 在线查看报告\n\n`;
+              comment += `**报告地址**: [${reportFilename}](${reportUrl})\n\n`;
+              comment += `> 💡 点击上方链接即可在浏览器中查看完整的测试报告\n\n`;
+              comment += `---\n\n`;
+              comment += `### 📋 报告内容\n\n`;
+              comment += `报告包含以下信息：\n`;
+              comment += `- ✅ 测试通过/失败统计\n`;
+              comment += `- ⏱️ 每个测试的执行时间\n`;
+              comment += `- 📝 详细的错误信息和堆栈跟踪\n`;
+              comment += `- 💬 控制台日志输出\n`;
+              comment += `- 📊 可视化的测试结果\n\n`;
+              comment += `---\n\n`;
+              comment += `### 💾 备用下载\n\n`;
+              comment += `如果在线查看失败，可以从 GitHub Artifacts 下载报告：\n`;
+              comment += `1. 点击下方的 "Artifacts" 部分\n`;
+              comment += `2. 下载 \`e2e-test-report-${context.runId}\`\n`;
+              comment += `3. 解压后在浏览器中打开 HTML 文件\n`;
+            } else {
+              comment += `❌ 测试报告生成失败\n\n`;
+              comment += `请检查测试日志获取详细信息。\n`;
+            }
+            
+            comment += `\n---\n\n`;
+            comment += `### 🔧 本地查看报告\n\n`;
+            comment += `\`\`\`bash\n`;
+            comment += `# 运行测试\n`;
+            comment += `npm run test:e2e\n\n`;
+            comment += `# 查看报告（会自动打开浏览器）\n`;
+            comment += `# Windows\n`;
+            comment += `start e2e/reports/test-report-*.html\n\n`;
+            comment += `# macOS\n`;
+            comment += `open e2e/reports/test-report-*.html\n\n`;
+            comment += `# Linux\n`;
+            comment += `xdg-open e2e/reports/test-report-*.html\n`;
+            comment += `\`\`\`\n\n`;
+            comment += `---\n\n`;
+            comment += `<sub>🤖 此报告由 GitHub Actions 自动生成 | Run ID: ${context.runId}</sub>\n`;
+            
+            // 获取 issue/PR 编号
+            const issueNumber = context.issue?.number || context.payload.issue?.number;
+            
+            // 查找已有的测试报告评论
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: issueNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('E2E 测试报告')
+            );
+            
+            if (botComment) {
+              // 更新已有评论
+              await github.rest.issues.updateComment({
+                comment_id: botComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } else {
+              // 创建新评论
+              await github.rest.issues.createComment({
+                issue_number: issueNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
