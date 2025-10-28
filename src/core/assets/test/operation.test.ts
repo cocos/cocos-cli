@@ -280,8 +280,8 @@ describe('测试 db 的操作接口', function () {
 
     describe('create-asset-by-type', () => {
         // 导入共享的测试数据
-        const { CREATE_ASSET_TYPE_TEST_CASES } = require('../../../tests/shared/asset-test-data');
-        const { validateAssetCreated, validateAssetFileExists, validateAssetMetaExists } = require('../../../tests/shared/asset-test-helpers');
+        const { CREATE_ASSET_TYPE_TEST_CASES } = require('../../../../tests/shared/asset-test-data');
+        const { validateAssetCreated, validateAssetFileExists, validateAssetMetaExists } = require('../../../../tests/shared/asset-test-helpers');
 
         // 使用 test.each 批量测试所有资源类型
         test.each(CREATE_ASSET_TYPE_TEST_CASES)(
