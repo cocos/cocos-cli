@@ -1,0 +1,148 @@
+# E2E 测试覆盖率检查工作流
+#
+# 触发方式：
+# 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
+# 2. 评论触发：在 Issue 或 PR 中评论 "check e2e coverage"
+#
+# 功能：
+# - 检查 E2E 测试覆盖率
+# - 生成覆盖率报告
+# - 在 PR 中自动评论覆盖率结果
+
+name: E2E Coverage Check
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  
+  # 评论触发：在 Issue 或 PR 中评论 "check e2e coverage"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read          # 读取代码
+  issues: write          # 评论 Issue
+  pull-requests: write   # 评论 PR
+
+jobs:
+  coverage-check:
+    # 运行条件：
+    # 1. 手动触发 (workflow_dispatch) - 直接运行
+    # 2. 评论触发 (issue_comment) - 评论包含 "check e2e coverage"
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'check e2e coverage'))
+    
+    runs-on: [ self-hosted, macOS ]
+
+    steps:
+      - name: Add reaction to comment
+        if: github.event_name == 'issue_comment'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            try {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'eyes'
+              });
+              console.log('✅ Reaction added');
+            } catch (error) {
+              console.log('⚠️ Could not add reaction:', error.message);
+            }
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: true
+          fetch-depth: 0
+          # 如果是评论触发，需要检出 PR 的代码
+          ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
+      
+      - name: Check E2E test coverage
+        id: coverage
+        run: node .github/scripts/check-e2e-coverage.js
+      
+      - name: Generate coverage report HTML
+        id: coverage-report
+        run: npm run check:e2e-coverage:report
+      
+      - name: Generate message content
+        id: message
+        run: |
+          # 生成覆盖率消息
+          MESSAGE="## 📊 E2E 测试覆盖率报告\n\n"
+          MESSAGE+="${{ steps.coverage.outputs.coverage_report }}\n\n"
+          MESSAGE+="---\n\n"
+          MESSAGE+="<sub>🤖 此报告由 GitHub Actions 自动生成 | Run ID: ${{ github.run_id }}</sub>"
+          
+          # 保存到 GitHub Output
+          {
+            echo 'content<<EOF'
+            echo -e "$MESSAGE"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+      
+      - name: Comment on PR or Issue
+        if: github.event_name == 'issue_comment'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            const comment = process.env.MESSAGE_CONTENT;
+            const issueNumber = context.payload.issue.number;
+            
+            if (!issueNumber) {
+              console.log('⚠️ Could not determine issue number');
+              return;
+            }
+            
+            console.log(`📝 Commenting on issue/PR #${issueNumber}`);
+            
+            try {
+              // 查找已有的覆盖率报告评论
+              const { data: comments } = await github.rest.issues.listComments({
+                issue_number: issueNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              
+              const botComment = comments.find(c => 
+                c.user.type === 'Bot' && 
+                c.body.includes('E2E 测试覆盖率报告')
+              );
+              
+              if (botComment) {
+                // 更新已有评论
+                await github.rest.issues.updateComment({
+                  comment_id: botComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                console.log('✅ Coverage comment updated');
+              } else {
+                // 创建新评论
+                await github.rest.issues.createComment({
+                  issue_number: issueNumber,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                console.log('✅ Coverage comment created');
+              }
+            } catch (error) {
+              console.log('❌ Failed to comment:', error.message);
+              console.log('Response status:', error.status);
+              console.log('Response data:', JSON.stringify(error.response?.data, null, 2));
+              throw error;
+            }
+        env:
+          MESSAGE_CONTENT: ${{ steps.message.outputs.content }}
+

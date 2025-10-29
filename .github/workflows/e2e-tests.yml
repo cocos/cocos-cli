@@ -1,27 +1,20 @@
-# E2E 测试工作流
+# E2E 测试工作流 - PR 测试
 #
 # 触发方式：
-# 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
-# 2. 定时触发：每天北京时间凌晨 00:00（UTC 16:00）
-# 3. 评论触发：在 Issue 或 PR 中评论 "run e2e test"
-# 4. PR 触发：在 PR 描述中包含 "run e2e test"
+# 1. 评论触发：在 Issue 或 PR 中评论 "run e2e test"
+# 2. PR 触发：在 PR 描述中包含 "run e2e test"
 #
 # 功能：
 # - 运行完整的 E2E 测试套件
 # - 生成可视化的 HTML 测试报告
 # - 在 PR 中自动评论测试结果和报告链接
 # - 上传测试报告为 GitHub Artifacts（保留 30 天）
+#
+# 注意：此工作流不包含覆盖率检查，如需检查覆盖率请使用 e2e-coverage.yml
 
-name: E2E Tests
+name: E2E Tests (PR)
 
 on:
-  # 手动触发
-  workflow_dispatch:
-  
-  # 定时触发：每天凌晨 12 点（北京时间 = UTC+8，所以 UTC 时间是 16:00）
-  schedule:
-    - cron: '0 16 * * *'  # 每天 UTC 16:00 = 北京时间 00:00
-  
   # 评论触发：在 Issue 或 PR 中评论 "run e2e test"
   issue_comment:
     types: [created]
@@ -33,8 +26,6 @@ on:
 env:
   # 配置测试报告服务器地址
   REPORT_SERVER_URL: 'http://192.168.52.77:8080'
-  # 飞书 Webhook URL（从 Secrets 中读取）
-  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
 
 permissions:
   contents: read          # 读取代码
@@ -46,13 +37,9 @@ permissions:
 jobs:
   e2e-tests:
     # 运行条件：
-    # 1. 手动触发 (workflow_dispatch) - 直接运行
-    # 2. 定时触发 (schedule) - 直接运行
-    # 3. 评论触发 (issue_comment) - 评论包含 "run e2e test"
-    # 4. PR 触发 (pull_request) - PR 描述包含 "run e2e test"
+    # 1. 评论触发 (issue_comment) - 评论包含 "run e2e test"
+    # 2. PR 触发 (pull_request) - PR 描述包含 "run e2e test"
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'run e2e test')) ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'run e2e test'))
     
@@ -60,18 +47,23 @@ jobs:
 
     steps:
       - name: Add reaction to comment
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
         continue-on-error: true
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PAT_TOKEN }}
           script: |
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'rocket'
-            });
+            try {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'rocket'
+              });
+              console.log('✅ Reaction added');
+            } catch (error) {
+              console.log('⚠️ Could not add reaction:', error.message);
+            }
       
       - name: Checkout code
         uses: actions/checkout@v4
@@ -92,11 +84,6 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
         continue-on-error: true
-      
-      - name: Check E2E test coverage
-        id: coverage
-        if: always()
-        run: node .github/scripts/check-e2e-coverage.js
       
       - name: Find test report file
         if: always()
@@ -143,8 +130,6 @@ jobs:
           REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
           REPORT_URL: ${{ steps.find-report.outputs.report_url }}
           REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
-          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
-          COVERAGE_REPORT: ${{ steps.coverage.outputs.coverage_report }}
           GITHUB_RUN_ID: ${{ github.run_id }}
       
       - name: Comment on PR
@@ -152,55 +137,58 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PAT_TOKEN }}
           script: |
             const comment = process.env.MESSAGE_CONTENT;
             
             // 获取 issue/PR 编号
             const issueNumber = context.issue?.number || context.payload.issue?.number;
             
-            // 查找已有的测试报告评论
-            const { data: comments } = await github.rest.issues.listComments({
-              issue_number: issueNumber,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
+            if (!issueNumber) {
+              console.log('⚠️ Could not determine issue number');
+              return;
+            }
             
-            const botComment = comments.find(c => 
-              c.user.type === 'Bot' && 
-              c.body.includes('E2E 测试报告')
-            );
+            console.log(`📝 Commenting on issue/PR #${issueNumber}`);
             
-            if (botComment) {
-              // 更新已有评论
-              await github.rest.issues.updateComment({
-                comment_id: botComment.id,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-              console.log('✅ Comment updated');
-            } else {
-              // 创建新评论
-              await github.rest.issues.createComment({
+            try {
+              // 查找已有的测试报告评论
+              const { data: comments } = await github.rest.issues.listComments({
                 issue_number: issueNumber,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: comment
               });
-              console.log('✅ Comment created');
+              
+              const botComment = comments.find(c => 
+                c.user.type === 'Bot' && 
+                c.body.includes('E2E 测试报告')
+              );
+              
+              if (botComment) {
+                // 更新已有评论
+                await github.rest.issues.updateComment({
+                  comment_id: botComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                console.log('✅ Comment updated');
+              } else {
+                // 创建新评论
+                await github.rest.issues.createComment({
+                  issue_number: issueNumber,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                console.log('✅ Comment created');
+              }
+            } catch (error) {
+              console.log('❌ Failed to comment:', error.message);
+              console.log('Response status:', error.status);
+              console.log('Response data:', JSON.stringify(error.response?.data, null, 2));
+              throw error;
             }
         env:
           MESSAGE_CONTENT: ${{ steps.message.outputs.content }}
-      
-      - name: Send to Feishu
-        if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
-        continue-on-error: true
-        run: node .github/scripts/send-to-feishu.js
-        env:
-          REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
-          REPORT_URL: ${{ steps.find-report.outputs.report_url }}
-          REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
-          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
-          COVERAGE_REPORT: ${{ steps.coverage.outputs.coverage_report }}
 

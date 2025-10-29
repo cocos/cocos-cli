@@ -18,14 +18,15 @@ function generateGitHubMarkdown(data) {
         coverageReport,
         runId,
     } = data;
-
-    const coverageIcon = parseFloat(coveragePercent) >= 80 ? '✅' : 
-                         parseFloat(coveragePercent) >= 60 ? '⚠️' : '❌';
     
     let comment = `## 📊 E2E 测试报告\n\n`;
     
-    // 添加覆盖率摘要
-    comment += `### ${coverageIcon} 测试覆盖率: ${coveragePercent}%\n\n`;
+    // 添加覆盖率摘要（可选）
+    if (coveragePercent && coveragePercent !== '0.00') {
+        const coverageIcon = parseFloat(coveragePercent) >= 80 ? '✅' : 
+                             parseFloat(coveragePercent) >= 60 ? '⚠️' : '❌';
+        comment += `### ${coverageIcon} 测试覆盖率: ${coveragePercent}%\n\n`;
+    }
     
     if (reportExists) {
         comment += `✅ 测试已完成！\n\n`;
@@ -100,10 +101,12 @@ function generateFeishuCard(data) {
         author,
     } = data;
 
-    const coverageIcon = parseFloat(coveragePercent) >= 80 ? '✅' : 
-                         parseFloat(coveragePercent) >= 60 ? '⚠️' : '❌';
-    const coverageColor = parseFloat(coveragePercent) >= 80 ? 'green' : 
-                          parseFloat(coveragePercent) >= 60 ? 'orange' : 'red';
+    // 根据是否有覆盖率决定颜色
+    let coverageColor = 'blue'; // 默认蓝色
+    if (coveragePercent && coveragePercent !== '0.00') {
+        const percent = parseFloat(coveragePercent);
+        coverageColor = percent >= 80 ? 'green' : percent >= 60 ? 'orange' : 'red';
+    }
     
     // 构建飞书卡片消息
     const card = {
@@ -119,34 +122,49 @@ function generateFeishuCard(data) {
                 },
                 template: coverageColor,
             },
-            elements: [
-                // 覆盖率摘要
-                {
-                    tag: 'div',
-                    fields: [
-                        {
-                            is_short: true,
-                            text: {
-                                tag: 'lark_md',
-                                content: `**测试覆盖率**\n${coverageIcon} ${coveragePercent}%`,
-                            },
-                        },
-                        {
-                            is_short: true,
-                            text: {
-                                tag: 'lark_md',
-                                content: `**触发方式**\n${getTriggerTypeText(triggerType)}`,
-                            },
-                        },
-                    ],
-                },
-                // 分隔线
-                {
-                    tag: 'hr',
-                },
-            ],
+            elements: [],
         },
     };
+
+    // 覆盖率摘要（可选）
+    if (coveragePercent && coveragePercent !== '0.00') {
+        const coverageIcon = parseFloat(coveragePercent) >= 80 ? '✅' : 
+                             parseFloat(coveragePercent) >= 60 ? '⚠️' : '❌';
+        card.card.elements.push({
+            tag: 'div',
+            fields: [
+                {
+                    is_short: true,
+                    text: {
+                        tag: 'lark_md',
+                        content: `**测试覆盖率**\n${coverageIcon} ${coveragePercent}%`,
+                    },
+                },
+                {
+                    is_short: true,
+                    text: {
+                        tag: 'lark_md',
+                        content: `**触发方式**\n${getTriggerTypeText(triggerType)}`,
+                    },
+                },
+            ],
+        });
+        card.card.elements.push({
+            tag: 'hr',
+        });
+    } else {
+        // 没有覆盖率信息时，只显示触发方式
+        card.card.elements.push({
+            tag: 'div',
+            text: {
+                tag: 'lark_md',
+                content: `**触发方式**\n${getTriggerTypeText(triggerType)}`,
+            },
+        });
+        card.card.elements.push({
+            tag: 'hr',
+        });
+    }
 
     // 添加基本信息
     if (branch || commit || author) {

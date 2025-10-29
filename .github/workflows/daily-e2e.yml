@@ -1,0 +1,113 @@
+# 每日 E2E 测试与覆盖率检查工作流
+#
+# 触发方式：
+# 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
+# 2. 定时触发：每天北京时间凌晨 00:00（UTC 16:00）
+#
+# 功能：
+# - 运行完整的 E2E 测试套件
+# - 生成可视化的 HTML 测试报告
+# - 检查 E2E 测试覆盖率
+# - 生成覆盖率报告
+# - 发送测试结果和覆盖率到飞书群聊
+# - 上传测试报告为 GitHub Artifacts（保留 30 天）
+
+name: Daily E2E Check
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  
+  # 定时触发：每天凌晨 12 点（北京时间 = UTC+8，所以 UTC 时间是 16:00）
+  schedule:
+    - cron: '0 16 * * *'  # 每天 UTC 16:00 = 北京时间 00:00
+
+env:
+  # 配置测试报告服务器地址
+  REPORT_SERVER_URL: 'http://192.168.52.77:8080'
+  # 飞书 Webhook URL（从 Secrets 中读取）
+  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+
+permissions:
+  contents: read          # 读取代码
+  actions: read          # 读取 Actions
+
+jobs:
+  daily-check:
+    runs-on: [ self-hosted, macOS ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: true
+          fetch-depth: 0
+      
+      - name: Init
+        run: npm run init
+
+      - name: Install dependencies
+        run: npm i
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        continue-on-error: true
+      
+      - name: Check E2E test coverage
+        id: coverage
+        if: always()
+        run: node .github/scripts/check-e2e-coverage.js
+      
+      - name: Find test report file
+        if: always()
+        id: find-report
+        run: node .github/scripts/find-test-report.js
+      
+      - name: Upload test report to server
+        if: always() && steps.find-report.outputs.report_exists == 'true'
+        run: |
+          echo "📤 Uploading test report to server..."
+          echo "Report file: ${{ steps.find-report.outputs.report_file }}"
+          echo "Report URL: ${{ steps.find-report.outputs.report_url }}"
+          
+          # 这里添加你上传报告到服务器的命令
+          # 例如使用 scp, rsync, curl 等
+          # scp ${{ steps.find-report.outputs.report_file }} user@server:/path/to/reports/
+          # 或者
+          # curl -F "file=@${{ steps.find-report.outputs.report_file }}" ${{ env.REPORT_SERVER_URL }}/upload
+
+          echo "✅ Report uploaded successfully"
+      
+      - name: Upload test report as artifact
+        if: always() && steps.find-report.outputs.report_exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-e2e-report-${{ github.run_id }}
+          path: ${{ steps.find-report.outputs.report_file }}
+          retention-days: 30
+      
+      - name: Generate coverage report HTML
+        id: coverage-report
+        if: always()
+        run: npm run check:e2e-coverage:report
+      
+      - name: Upload coverage report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-coverage-report-${{ github.run_id }}
+          path: e2e/reports/coverage-report-*.html
+          retention-days: 30
+      
+      - name: Send to Feishu
+        if: always()
+        continue-on-error: true
+        run: node .github/scripts/send-to-feishu.js
+        env:
+          REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
+          REPORT_URL: ${{ steps.find-report.outputs.report_url }}
+          REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
+          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
+          COVERAGE_REPORT: ${{ steps.coverage.outputs.coverage_report }}
+
