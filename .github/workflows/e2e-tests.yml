@@ -143,7 +143,7 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
       
       - name: Comment on PR
-        if: always() && secrets.PAT_TOKEN != '' && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
+        if: always() && env.HAS_PAT_TOKEN == 'true' && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
         continue-on-error: true
         uses: actions/github-script@v7
         with:
