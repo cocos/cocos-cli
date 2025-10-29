@@ -28,7 +28,7 @@ on:
   
   # PR 触发：当 PR 打开、更新或同步时检查描述
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
 
 env:
   # 配置测试报告服务器地址
@@ -71,10 +71,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          clean: false
+          persist-credentials: true
+          fetch-depth: 0
           # 如果是评论触发，需要检出 PR 的代码
           # pull_request 事件会自动检出 PR 的 head
           ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
       
+      - name: Init
+        run: npm run init
+
       - name: Install dependencies
         run: npm i
       
