@@ -1,15 +1,9 @@
 # E2E 测试生成的临时文件
 *.log
 coverage/
-.nyc_output/
 
 # 测试工作区（统一的测试项目目录）
 .workspace/
-
-# 测试生成的临时目录（会自动清理，但以防万一）
-test-*
-temp-*
-build-*
 
 # Jest 缓存
 .jest/
