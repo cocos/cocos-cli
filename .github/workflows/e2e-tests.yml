@@ -32,13 +32,16 @@ on:
 
 env:
   # 配置测试报告服务器地址
-  REPORT_SERVER_URL: 'http://your-server.com/e2e-reports'
+  REPORT_SERVER_URL: 'http://192.168.52.77:8080'
+  # 飞书 Webhook URL（从 Secrets 中读取）
+  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+
 permissions:
-    contents: read          # 读取代码
-    issues: write          # 评论 Issue
-    pull-requests: write   # 评论 PR
-    actions: read          # 读取 Actions
-    checks: write          # 写入检查结果
+  contents: read          # 读取代码
+  issues: write          # 评论 Issue
+  pull-requests: write   # 评论 PR
+  actions: read          # 读取 Actions
+  checks: write          # 写入检查结果
 
 jobs:
   e2e-tests:
@@ -60,6 +63,7 @@ jobs:
         if: github.event_name == 'issue_comment'
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.reactions.createForIssueComment({
               owner: context.repo.owner,
@@ -88,29 +92,15 @@ jobs:
         run: npm run test:e2e
         continue-on-error: true
       
+      - name: Check E2E test coverage
+        id: coverage
+        if: always()
+        run: node .github/scripts/check-e2e-coverage.js
+      
       - name: Find test report file
         if: always()
         id: find-report
-        run: |
-          # 查找最新生成的测试报告文件
-          REPORT_FILE=$(ls -t e2e/reports/test-report-*.html 2>/dev/null | head -n 1)
-          
-          if [ -n "$REPORT_FILE" ]; then
-            echo "Found report: $REPORT_FILE"
-            REPORT_FILENAME=$(basename "$REPORT_FILE")
-            echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
-            echo "report_filename=$REPORT_FILENAME" >> $GITHUB_OUTPUT
-            echo "report_exists=true" >> $GITHUB_OUTPUT
-            
-            # 生成完整的报告 URL
-            REPORT_URL="${{ env.REPORT_SERVER_URL }}/reports/$REPORT_FILENAME"
-            echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
-            
-            echo "📊 Test Report: $REPORT_URL"
-          else
-            echo "No report file found"
-            echo "report_exists=false" >> $GITHUB_OUTPUT
-          fi
+        run: node .github/scripts/find-test-report.js
       
       - name: Upload test report to server
         if: always() && steps.find-report.outputs.report_exists == 'true'
@@ -124,7 +114,7 @@ jobs:
           # scp ${{ steps.find-report.outputs.report_file }} user@server:/path/to/reports/
           # 或者
           # curl -F "file=@${{ steps.find-report.outputs.report_file }}" ${{ env.REPORT_SERVER_URL }}/upload
-          
+
           echo "✅ Report uploaded successfully"
       
       - name: Upload test report as artifact (备用)
@@ -135,60 +125,34 @@ jobs:
           path: ${{ steps.find-report.outputs.report_file }}
           retention-days: 30
       
-      - name: Comment PR with test report link
-        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
-        uses: actions/github-script@v7
+      - name: Generate message content
+        if: always()
+        id: message
+        run: |
+          # 生成消息内容并保存到文件
+          MESSAGE=$(node .github/scripts/generate-message.js)
+          
+          # 保存到 GitHub Output（处理多行）
+          {
+            echo 'content<<EOF'
+            echo "$MESSAGE"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
         env:
           REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
           REPORT_URL: ${{ steps.find-report.outputs.report_url }}
           REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
+          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
+          COVERAGE_REPORT: ${{ steps.coverage.outputs.coverage_report }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+      
+      - name: Comment on PR
+        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
+        uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const reportExists = process.env.REPORT_EXISTS === 'true';
-            const reportUrl = process.env.REPORT_URL;
-            const reportFilename = process.env.REPORT_FILENAME;
-            
-            let comment = `## 📊 E2E 测试报告\n\n`;
-            
-            if (reportExists) {
-              comment += `✅ 测试已完成！\n\n`;
-              comment += `### 🔗 在线查看报告\n\n`;
-              comment += `**报告地址**: [${reportFilename}](${reportUrl})\n\n`;
-              comment += `> 💡 点击上方链接即可在浏览器中查看完整的测试报告\n\n`;
-              comment += `---\n\n`;
-              comment += `### 📋 报告内容\n\n`;
-              comment += `报告包含以下信息：\n`;
-              comment += `- ✅ 测试通过/失败统计\n`;
-              comment += `- ⏱️ 每个测试的执行时间\n`;
-              comment += `- 📝 详细的错误信息和堆栈跟踪\n`;
-              comment += `- 💬 控制台日志输出\n`;
-              comment += `- 📊 可视化的测试结果\n\n`;
-              comment += `---\n\n`;
-              comment += `### 💾 备用下载\n\n`;
-              comment += `如果在线查看失败，可以从 GitHub Artifacts 下载报告：\n`;
-              comment += `1. 点击下方的 "Artifacts" 部分\n`;
-              comment += `2. 下载 \`e2e-test-report-${context.runId}\`\n`;
-              comment += `3. 解压后在浏览器中打开 HTML 文件\n`;
-            } else {
-              comment += `❌ 测试报告生成失败\n\n`;
-              comment += `请检查测试日志获取详细信息。\n`;
-            }
-            
-            comment += `\n---\n\n`;
-            comment += `### 🔧 本地查看报告\n\n`;
-            comment += `\`\`\`bash\n`;
-            comment += `# 运行测试\n`;
-            comment += `npm run test:e2e\n\n`;
-            comment += `# 查看报告（会自动打开浏览器）\n`;
-            comment += `# Windows\n`;
-            comment += `start e2e/reports/test-report-*.html\n\n`;
-            comment += `# macOS\n`;
-            comment += `open e2e/reports/test-report-*.html\n\n`;
-            comment += `# Linux\n`;
-            comment += `xdg-open e2e/reports/test-report-*.html\n`;
-            comment += `\`\`\`\n\n`;
-            comment += `---\n\n`;
-            comment += `<sub>🤖 此报告由 GitHub Actions 自动生成 | Run ID: ${context.runId}</sub>\n`;
+            const comment = process.env.MESSAGE_CONTENT;
             
             // 获取 issue/PR 编号
             const issueNumber = context.issue?.number || context.payload.issue?.number;
@@ -200,9 +164,9 @@ jobs:
               repo: context.repo.repo,
             });
             
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('E2E 测试报告')
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('E2E 测试报告')
             );
             
             if (botComment) {
@@ -213,6 +177,7 @@ jobs:
                 repo: context.repo.repo,
                 body: comment
               });
+              console.log('✅ Comment updated');
             } else {
               // 创建新评论
               await github.rest.issues.createComment({
@@ -221,5 +186,18 @@ jobs:
                 repo: context.repo.repo,
                 body: comment
               });
+              console.log('✅ Comment created');
             }
+        env:
+          MESSAGE_CONTENT: ${{ steps.message.outputs.content }}
+      
+      - name: Send to Feishu
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+        run: node .github/scripts/send-to-feishu.js
+        env:
+          REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
+          REPORT_URL: ${{ steps.find-report.outputs.report_url }}
+          REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
+          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
+          COVERAGE_REPORT: ${{ steps.coverage.outputs.coverage_report }}
 

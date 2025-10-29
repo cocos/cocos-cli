@@ -656,11 +656,69 @@ function saveHtmlReport(content: string): string {
 }
 
 /**
+ * 生成 JSON 输出（用于自动化工具）
+ */
+function generateJsonOutput(tools: ApiTool[], references: TestReference[], htmlReportPath?: string): string {
+    const testCounts = new Map<string, TestReference[]>();
+    for (const ref of references) {
+        if (!testCounts.has(ref.toolName)) {
+            testCounts.set(ref.toolName, []);
+        }
+        testCounts.get(ref.toolName)!.push(ref);
+    }
+
+    const testedTools: ApiTool[] = [];
+    const untestedTools: ApiTool[] = [];
+
+    for (const tool of tools) {
+        if (testCounts.has(tool.name)) {
+            testedTools.push(tool);
+        } else {
+            untestedTools.push(tool);
+        }
+    }
+
+    const untestedByCategory = new Map<string, ApiTool[]>();
+    for (const tool of untestedTools) {
+        if (!untestedByCategory.has(tool.category)) {
+            untestedByCategory.set(tool.category, []);
+        }
+        untestedByCategory.get(tool.category)!.push(tool);
+    }
+
+    const totalTools = tools.length;
+    const testedCount = testedTools.length;
+    const coveragePercent = totalTools > 0 ? ((testedCount / totalTools) * 100).toFixed(2) : '0.00';
+
+    const output = {
+        summary: {
+            totalTools,
+            testedCount,
+            untestedCount: untestedTools.length,
+            coveragePercent: parseFloat(coveragePercent),
+        },
+        untestedTools: Array.from(untestedByCategory.entries()).map(([category, tools]) => ({
+            category,
+            tools: tools.map(tool => ({
+                name: tool.name,
+                filePath: path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/'),
+                methodName: tool.methodName,
+            })),
+        })),
+        htmlReportPath: htmlReportPath || null,
+        markdownReport: generateMarkdownReport(tools, references),
+    };
+
+    return JSON.stringify(output, null, 2);
+}
+
+/**
  * 主函数
  */
 function main() {
     const args = process.argv.slice(2);
     const outputMarkdown = args.includes('--markdown');
+    const outputJson = args.includes('--json');
     const shouldSaveReport = args.includes('--save') || args.includes('--report') || args.includes('--html');
 
     console.log('🔍 扫描 MCP API 工具定义...\n');
@@ -693,9 +751,17 @@ function main() {
         }
     }
 
+    // JSON 输出（用于 CI/CD）
+    if (outputJson) {
+        const json = generateJsonOutput(tools, references, savedReportPath || undefined);
+        console.log('\n--- JSON_OUTPUT_START ---');
+        console.log(json);
+        console.log('--- JSON_OUTPUT_END ---\n');
+    }
+
+    // Markdown 输出（用于 GitHub Actions 评论）
     if (outputMarkdown) {
         const markdown = generateMarkdownReport(tools, references);
-        // 输出到 stdout，供 GitHub Actions 使用
         console.log('\n--- MARKDOWN_REPORT_START ---');
         console.log(markdown);
         console.log('--- MARKDOWN_REPORT_END ---\n');
