@@ -15,9 +15,18 @@ export function getMigrationList(): IMigrationTarget[] {
         migrationList.push({
             sourceScope: 'local',
             pluginName: platform,
-            targetPath: `builder.platforms.${platform}.packages.${platform}`,
+            targetPath: `builder.platforms.${platform}`,
             migrate: async (oldConfig: Record<string, any>) => {
-                return oldConfig.builder.common;
+                if (!oldConfig.builder) {
+                    return;
+                }
+                delete oldConfig.builder.options[platform].__version__;
+                return {
+                    ...oldConfig.builder.common,
+                    packages: {
+                        [platform]: oldConfig.builder.options[platform],
+                    },
+                };
             }
         });
     });

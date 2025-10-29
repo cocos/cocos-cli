@@ -130,13 +130,13 @@ export const SchemaCreateAssetByTypeOptions = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
     templateName: z.string().min(1).optional().describe('指定的模板名称，默认为 default'),
-    content: z.union([z.string().min(1), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    content: z.string().min(1).optional().describe('资源内容，支持字符串和 Buffer 类型，当 content 与 template 都传递时，优先使用 content 创建文件'),
 }).optional().describe('按类型创建资源选项');
 
 export const SchemaCreateAssetOptions = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
-    content: z.union([z.string().min(1), z.instanceof(Buffer)]).optional().describe('资源内容，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    content: z.string().min(1).optional().describe('资源内容，支持字符串和 Buffer 类型，当 content 与 template 都传递时，优先使用 content 创建文件'),
     target: z.string().min(1).describe('资源创建的输出地址，支持绝对路径和 url'),
     template: z.string().min(1).optional().describe('资源文件模板地址，例如 db://xxx/ani，支持 url 与绝对路径'),
     uuid: z.string().min(1).optional().describe('指定 uuid ，由于 uuid 也有概率冲突，uuid 冲突时会自动重新分配 uuid'),
@@ -242,7 +242,7 @@ export type TUpdateAssetUserDataResult = z.infer<typeof SchemaUpdateAssetUserDat
 // Asset Config Map 相关 Schema
 export const SchemaThumbnailInfo = z.object({
     type: z.enum(['icon', 'image']).describe('缩略图类型：icon 或 image'),
-    value: z.string().describe('具体 icon 名字或者 image 路径，支持绝对路径、db://、project://、packages:// 下的路径'),
+    value: z.string().describe('具体 icon 名字或者 image 路径，支持绝对路径、db://、project:// 下的路径'),
 }).describe('缩略图信息');
 
 // 递归定义用户数据配置项
