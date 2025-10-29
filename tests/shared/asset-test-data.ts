@@ -64,5 +64,43 @@ export class TestComponent extends Component {
     }
 }`,
     json: JSON.stringify({ test: true, value: 123 }, null, 2),
+    updatedText: 'updated test content',
+} as const;
+
+/**
+ * 常用的查询选项
+ */
+export const COMMON_QUERY_OPTIONS = {
+    // 查询所有资源
+    all: {},
+    // 查询 assets 数据库资源
+    assetsDb: { pattern: 'db://assets/**/*' },
+    // 查询 internal 数据库资源
+    internalDb: { pattern: 'db://internal/**/*' },
+    // 查询场景资源
+    scenes: { ccType: 'cc.SceneAsset' },
+    // 查询脚本资源
+    scripts: { ccType: 'cc.Script' },
+    // 查询图片资源
+    images: { ccType: 'cc.ImageAsset' },
+} as const;
+
+/**
+ * 测试用户数据
+ */
+export const TEST_USER_DATA = {
+    simple: { testKey: 'testValue' },
+    nested: {
+        level1: {
+            level2: 'nestedValue'
+        }
+    },
+    array: { items: ['item1', 'item2'] },
+    mixed: {
+        string: 'value',
+        number: 123,
+        boolean: true,
+        nested: { key: 'value' }
+    }
 } as const;
 

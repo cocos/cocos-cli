@@ -198,3 +198,125 @@ export function getTestAssetPath(basePath: string, fileName: string): string {
     return join(basePath, fileName);
 }
 
+/**
+ * 验证资源重命名结果
+ */
+export function validateAssetRenamed(
+    sourceUrl: string,
+    targetUrl: string,
+    resultAsset: any
+): void {
+    expect(resultAsset).not.toBeNull();
+    expect(resultAsset.url).toContain(targetUrl.split('/').pop());
+    expect(resultAsset.url).not.toBe(sourceUrl);
+}
+
+/**
+ * 验证查询 UUID 结果
+ */
+export function validateQueryUUIDResult(uuid: string | null): void {
+    if (uuid === null) {
+        expect(uuid).toBeNull();
+    } else {
+        expect(uuid).toBeDefined();
+        expect(typeof uuid).toBe('string');
+        expect(uuid.length).toBeGreaterThan(0);
+    }
+}
+
+/**
+ * 验证查询路径结果
+ */
+export function validateQueryPathResult(path: string | null, shouldExist = true): void {
+    if (shouldExist) {
+        expect(path).toBeDefined();
+        expect(typeof path).toBe('string');
+        expect(path).not.toBe('');
+    } else {
+        expect(path).toEqual('');
+    }
+}
+
+/**
+ * 验证查询 URL 结果
+ */
+export function validateQueryUrlResult(url: string | null, expectedPrefix = 'db://'): void {
+    if (url) {
+        expect(url).toBeDefined();
+        expect(url.startsWith(expectedPrefix)).toBe(true);
+    }
+}
+
+/**
+ * 验证资源元数据结构
+ */
+export function validateAssetMetaStructure(meta: any): void {
+    expect(meta).not.toBeNull();
+    expect(meta).toHaveProperty('uuid');
+    expect(meta).toHaveProperty('importer');
+    expect(meta).toHaveProperty('ver');
+}
+
+/**
+ * 验证批量查询资源结果
+ */
+export function validateQueryAssetsResult(assets: any[], minCount = 0): void {
+    expect(Array.isArray(assets)).toBe(true);
+    expect(assets.length).toBeGreaterThanOrEqual(minCount);
+
+    if (assets.length > 0) {
+        assets.forEach(asset => {
+            expect(asset).toHaveProperty('uuid');
+            expect(asset).toHaveProperty('url');
+            expect(asset).toHaveProperty('type');
+        });
+    }
+}
+
+/**
+ * 验证创建资源映射表结果
+ */
+export function validateCreateMapResult(createMap: any[]): void {
+    expect(Array.isArray(createMap)).toBe(true);
+    expect(createMap.length).toBeGreaterThan(0);
+
+    createMap.forEach(item => {
+        if (item.submenu) {
+            // 有子菜单的情况
+            expect(item).toHaveProperty('label');
+            expect(Array.isArray(item.submenu)).toBe(true);
+        } else {
+            // 没有子菜单的情况
+            expect(item).toHaveProperty('handler');
+            expect(item).toHaveProperty('fullFileName');
+        }
+    });
+}
+
+/**
+ * 验证刷新资源结果
+ */
+export function validateRefreshResult(code: number): void {
+    expect(code).toBe(200);
+}
+
+/**
+ * 验证资源用户数据更新结果
+ */
+export function validateUserDataUpdated(
+    meta: any,
+    path: string,
+    expectedValue: any
+): void {
+    expect(meta).not.toBeNull();
+    expect(meta.userData).toBeDefined();
+
+    // 支持嵌套路径（如 'test.nested.value'）
+    const keys = path.split('.');
+    let current = meta.userData;
+    for (const key of keys) {
+        current = current[key];
+    }
+    expect(current).toEqual(expectedValue);
+}
+

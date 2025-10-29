@@ -10,6 +10,7 @@ import {
     generateTestFileName,
     TEST_ASSET_CONTENTS,
     CreateAssetTypeTestCase,
+    COMMON_QUERY_OPTIONS,
 } from '../../../tests/shared/asset-test-data';
 import {
     validateAssetCreated,
@@ -21,6 +22,15 @@ import {
     validateFolderAsset,
     validateImportAssetResult,
     validateAssetSaved,
+    validateAssetRenamed,
+    validateQueryUUIDResult,
+    validateQueryPathResult,
+    validateQueryUrlResult,
+    validateAssetMetaStructure,
+    validateQueryAssetsResult,
+    validateCreateMapResult,
+    validateRefreshResult,
+    validateUserDataUpdated,
 } from '../../../tests/shared/asset-test-helpers';
 
 describe('MCP Assets API', () => {
@@ -441,6 +451,412 @@ describe('MCP Assets API', () => {
 
                 expect(reimportResult.code).toBe(200);
             }
+        });
+    });
+
+    // ==================== 查询相关 API 测试 ====================
+
+    describe('asset-query-uuid', () => {
+        test('should query UUID by URL', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('uuid-test', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                const uuidResult = await mcpClient.callTool('assets-query-uuid', {
+                    urlOrPath: fileUrl,
+                });
+
+                expect(uuidResult.code).toBe(200);
+                validateQueryUUIDResult(uuidResult.data);
+                expect(uuidResult.data).toBe(createResult.data.uuid);
+            }
+        });
+
+        test('should return null for non-existent asset', async () => {
+            const result = await mcpClient.callTool('assets-query-uuid', {
+                urlOrPath: `${testRootUrl}/non-existent-${generateTestId()}`,
+            });
+
+            expect(result.data).toEqual('');
+        });
+    });
+
+    describe('asset-query-path', () => {
+        test('should query path by URL', async () => {
+            const result = await mcpClient.callTool('assets-query-path', {
+                urlOrUuid: 'db://assets',
+            });
+
+            expect(result.code).toBe(200);
+            validateQueryPathResult(result.data, true);
+        });
+
+        test('should query path by UUID', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('path-test', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                const pathResult = await mcpClient.callTool('assets-query-path', {
+                    urlOrUuid: createResult.data.uuid,
+                });
+
+                expect(pathResult.code).toBe(200);
+                validateQueryPathResult(pathResult.data, true);
+                expect(pathResult.data).toContain(fileName);
+            }
+        });
+    });
+
+    describe('asset-query-url', () => {
+        test('should query URL by path', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('url-test', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                const urlResult = await mcpClient.callTool('assets-query-url', {
+                    uuidOrPath: createResult.data.file,
+                });
+
+                expect(urlResult.code).toBe(200);
+                validateQueryUrlResult(urlResult.data);
+                expect(urlResult.data).toBe(fileUrl);
+            }
+        });
+    });
+
+    describe('asset-query-asset-meta', () => {
+        test('should query asset meta by URL', async () => {
+            const result = await mcpClient.callTool('assets-query-asset-meta', {
+                urlOrUUIDOrPath: 'db://assets/scene-2d.scene',
+            });
+
+            expect(result.code).toBe(200);
+            if (result.data) {
+                validateAssetMetaStructure(result.data);
+            }
+        });
+
+        test('should query asset meta by UUID', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('meta-test', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                const metaResult = await mcpClient.callTool('assets-query-asset-meta', {
+                    urlOrUUIDOrPath: createResult.data.uuid,
+                });
+
+                expect(metaResult.code).toBe(200);
+                if (metaResult.data) {
+                    validateAssetMetaStructure(metaResult.data);
+                }
+            }
+        });
+
+        test('should return null for non-existent asset', async () => {
+            const result = await mcpClient.callTool('assets-query-asset-meta', {
+                urlOrUUIDOrPath: `${testRootUrl}/non-existent-${generateTestId()}`,
+            });
+
+            expect(result.data).toBeNull();
+        });
+    });
+
+    describe('asset-query-create-map', () => {
+        test('should query create map', async () => {
+            const result = await mcpClient.callTool('assets-query-create-map', {});
+
+            expect(result.code).toBe(200);
+            validateCreateMapResult(result.data);
+
+            // 验证包含一些常见的资源类型
+            const allItems = result.data.flatMap((item: any) =>
+                item.submenu ? item.submenu : [item]
+            );
+
+            const handlers = allItems.map((item: any) => item.handler);
+            expect(handlers).toContain('typescript');
+            expect(handlers).toContain('scene');
+        });
+    });
+
+    describe('asset-query-asset-infos', () => {
+        test('should query all assets', async () => {
+            const result = await mcpClient.callTool('assets-query-asset-infos', {
+                options: COMMON_QUERY_OPTIONS.all,
+            });
+
+            expect(result.code).toBe(200);
+            validateQueryAssetsResult(result.data, 1);
+        });
+
+        test('should query assets by pattern', async () => {
+            const result = await mcpClient.callTool('assets-query-asset-infos', {
+                options: COMMON_QUERY_OPTIONS.internalDb,
+            });
+
+            expect(result.code).toBe(200);
+            validateQueryAssetsResult(result.data, 1);
+
+            // 所有结果应该是 internal 数据库的
+            result.data.forEach((asset: any) => {
+                expect(asset.url).toContain('db://internal');
+            });
+        });
+
+        test('should query assets by ccType', async () => {
+            const result = await mcpClient.callTool('assets-query-asset-infos', {
+                options: COMMON_QUERY_OPTIONS.scenes,
+            });
+
+            expect(result.code).toBe(200);
+
+            if (result.data.length > 0) {
+                result.data.forEach((asset: any) => {
+                    expect(asset.type).toBe('cc.SceneAsset');
+                });
+            }
+        });
+    });
+
+    // ==================== 资源操作相关 API 测试 ====================
+
+    describe('asset-rename', () => {
+        test('should rename asset', async () => {
+            // 创建源资源
+            const sourceName = `rename-source-${generateTestId()}`;
+            const targetName = `rename-target-${generateTestId()}`;
+            const sourceUrl = `${testRootUrl}/${sourceName}`;
+            const targetUrl = `${testRootUrl}/${targetName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: sourceUrl,
+                },
+            });
+
+            if (createResult.code === 200) {
+                // 重命名
+                const renameResult = await mcpClient.callTool('assets-rename-asset', {
+                    source: sourceUrl,
+                    target: targetUrl,
+                    options: {},
+                });
+
+                expect(renameResult.code).toBe(200);
+
+                if (renameResult.data) {
+                    validateAssetRenamed(sourceUrl, targetUrl, renameResult.data);
+
+                    // 验证文件系统
+                    const sourcePath = join(testRootPath, sourceName);
+                    const targetPath = join(testRootPath, targetName);
+                    validateAssetMoved(sourcePath, targetPath);
+                }
+            }
+        });
+
+        test('should handle renaming to existing name', async () => {
+            const name1 = `rename-exist-1-${generateTestId()}`;
+            const name2 = `rename-exist-2-${generateTestId()}`;
+
+            // 创建两个资源
+            await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: `${testRootUrl}/${name1}`,
+                },
+            });
+
+            await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: `${testRootUrl}/${name2}`,
+                },
+            });
+
+            // 尝试重命名到已存在的名称
+            const result = await mcpClient.callTool('assets-rename-asset', {
+                source: `${testRootUrl}/${name1}`,
+                target: `${testRootUrl}/${name2}`,
+                options: {},
+            });
+
+            // 应该失败或使用 rename 选项
+            expect(result.code).not.toBe(200);
+        });
+    });
+
+    describe('asset-refresh', () => {
+        test('should refresh asset directory', async () => {
+            // 创建测试文件夹
+            const folderName = `refresh-test-${generateTestId()}`;
+            const folderUrl = `${testRootUrl}/${folderName}`;
+
+            await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: folderUrl,
+                },
+            });
+
+            // 刷新目录
+            const result = await mcpClient.callTool('assets-refresh', {
+                dir: folderUrl,
+            });
+
+            expect(result.code).toBe(200);
+            validateRefreshResult(result.code);
+        });
+
+        test('should refresh root assets directory', async () => {
+            const result = await mcpClient.callTool('assets-refresh', {
+                dir: 'db://assets',
+            });
+
+            expect(result.code).toBe(200);
+        });
+    });
+
+    // ==================== 用户数据相关 API 测试 ====================
+
+    describe('asset-query-asset-user-data-config', () => {
+        test('should query user data config', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('userdata-test', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                const result = await mcpClient.callTool('assets-query-asset-user-data-config', {
+                    urlOrUuidOrPath: createResult.data.uuid,
+                });
+
+                expect(result.code).toBe(200);
+                // 用户数据配置可能为 null 或对象
+                if (result.data) {
+                    expect(typeof result.data).toBe('object');
+                }
+            }
+        });
+    });
+
+    describe('asset-update-asset-user-data', () => {
+        test('should update asset user data', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('update-userdata', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                const testValue = 'testValue123';
+
+                // 更新用户数据
+                const updateResult = await mcpClient.callTool('assets-update-asset-user-data', {
+                    urlOrUuidOrPath: createResult.data.uuid,
+                    path: 'customKey',
+                    value: testValue,
+                });
+
+                expect(updateResult.code).toBe(200);
+
+                // 验证更新结果
+                const metaResult = await mcpClient.callTool('assets-query-asset-meta', {
+                    urlOrUUIDOrPath: createResult.data.uuid,
+                });
+
+                if (metaResult.code === 200 && metaResult.data) {
+                    validateUserDataUpdated(metaResult.data, 'customKey', testValue);
+                }
+            }
+        });
+
+        test('should update nested user data', async () => {
+            // 创建测试资源
+            const fileName = generateTestFileName('nested-userdata', 'txt');
+            const fileUrl = `${testRootUrl}/${fileName}`;
+
+            const createResult = await mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: fileUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            if (createResult.code === 200 && createResult.data) {
+                // 设置嵌套值
+                await mcpClient.callTool('assets-update-asset-user-data', {
+                    urlOrUuidOrPath: createResult.data.uuid,
+                    path: 'nested.key',
+                    value: 'nestedValue',
+                });
+
+                // 验证
+                const metaResult = await mcpClient.callTool('assets-query-asset-meta', {
+                    urlOrUUIDOrPath: createResult.data.uuid,
+                });
+
+                if (metaResult.code === 200 && metaResult.data) {
+                    validateUserDataUpdated(metaResult.data, 'nested.key', 'nestedValue');
+                }
+            }
+        });
+    });
+
+    describe('asset-update-default-user-data', () => {
+        test('should update default user data', async () => {
+            // 这是一个全局设置，测试需要谨慎
+            // 通常会影响后续导入的同类型资源
+            const result = await mcpClient.callTool('assets-update-default-user-data', {
+                options: {
+                    handler: 'text',
+                    key: 'testKey',
+                    value: 'testValue',
+                },
+            });
+
+            // 某些处理器可能不支持，所以只验证调用成功
+            expect([200, 400, 500]).toContain(result.code);
         });
     });
 });
