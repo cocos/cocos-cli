@@ -34,10 +34,20 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'check e2e coverage'))
     
     runs-on: [ self-hosted, macOS ]
+    
+    env:
+      HAS_PAT_TOKEN: ${{ secrets.PAT_TOKEN != '' }}
 
     steps:
+      - name: Check PAT_TOKEN configuration
+        if: env.HAS_PAT_TOKEN == 'false'
+        run: |
+          echo "⚠️  PAT_TOKEN is not configured"
+          echo "Comment features will be disabled"
+          echo "See: .github/workflows/PAT-TOKEN-SETUP.md for setup instructions"
+      
       - name: Add reaction to comment
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' && env.HAS_PAT_TOKEN == 'true'
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -89,7 +99,7 @@ jobs:
           } >> $GITHUB_OUTPUT
       
       - name: Comment on PR or Issue
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' && env.HAS_PAT_TOKEN == 'true'
         continue-on-error: true
         uses: actions/github-script@v7
         with:

@@ -44,10 +44,20 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'run e2e test'))
     
     runs-on: [ self-hosted, macOS ]
+    
+    env:
+      HAS_PAT_TOKEN: ${{ secrets.PAT_TOKEN != '' }}
 
     steps:
+      - name: Check PAT_TOKEN configuration
+        if: env.HAS_PAT_TOKEN == 'false'
+        run: |
+          echo "⚠️  PAT_TOKEN is not configured"
+          echo "Comment features will be disabled"
+          echo "See: .github/workflows/PAT-TOKEN-SETUP.md for setup instructions"
+      
       - name: Add reaction to comment
-        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request && env.HAS_PAT_TOKEN == 'true'
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -133,7 +143,7 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
       
       - name: Comment on PR
-        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
+        if: always() && secrets.PAT_TOKEN != '' && (github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request))
         continue-on-error: true
         uses: actions/github-script@v7
         with:
