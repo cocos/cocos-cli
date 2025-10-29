@@ -4,6 +4,7 @@
 # 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
 # 2. 定时触发：每天北京时间凌晨 00:00（UTC 16:00）
 # 3. 评论触发：在 Issue 或 PR 中评论 "run e2e test"
+# 4. PR 触发：在 PR 描述中包含 "run e2e test"
 #
 # 功能：
 # - 运行完整的 E2E 测试套件
@@ -24,32 +25,36 @@ on:
   # 评论触发：在 Issue 或 PR 中评论 "run e2e test"
   issue_comment:
     types: [created]
+  
+  # PR 触发：当 PR 打开、更新或同步时检查描述
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 env:
   # 配置测试报告服务器地址
   REPORT_SERVER_URL: 'http://your-server.com/e2e-reports'
+permissions:
+    contents: read          # 读取代码
+    issues: write          # 评论 Issue
+    pull-requests: write   # 评论 PR
+    actions: read          # 读取 Actions
+    checks: write          # 写入检查结果
 
 jobs:
   e2e-tests:
-    # 只在以下情况运行：
-    # 1. 手动触发 (workflow_dispatch)
-    # 2. 定时触发 (schedule)
-    # 3. 评论包含 "run e2e test"
+    # 运行条件：
+    # 1. 手动触发 (workflow_dispatch) - 直接运行
+    # 2. 定时触发 (schedule) - 直接运行
+    # 3. 评论触发 (issue_comment) - 评论包含 "run e2e test"
+    # 4. PR 触发 (pull_request) - PR 描述包含 "run e2e test"
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'run e2e test'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'run e2e test')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'run e2e test'))
     
-    runs-on: ubuntu-latest
-    
-    # 授予必要的权限
-    permissions:
-      contents: read          # 读取代码
-      issues: write          # 评论 Issue
-      pull-requests: write   # 评论 PR
-      actions: read          # 读取 Actions
-      checks: write          # 写入检查结果
-    
+    runs-on: [ self-hosted, macOS ]
+
     steps:
       - name: Add reaction to comment
         if: github.event_name == 'issue_comment'
@@ -67,6 +72,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # 如果是评论触发，需要检出 PR 的代码
+          # pull_request 事件会自动检出 PR 的 head
           ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
       
       - name: Setup Node.js
