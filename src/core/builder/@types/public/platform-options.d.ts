@@ -6,19 +6,12 @@ import { IOptions as webMobileOptions } from './../platforms/web-mobile';
 export { webMobileOptions };
 import { IOptions as windowsOptions, IExtraOptions as windowsExtraOptions } from './../platforms/windows';
 export { windowsOptions };
-export interface IPlatformBuildOption<P extends Platform = any> extends IBuildOptionBase {
-    platform: P;
-    packages: Record<P, PlatformPackageOptionMap[P]>;
-    __version__?: string;
-}
-
 /**
  * 构建所需的完整参数
  */
-export interface IBuildTaskOption<P extends Platform = Platform> extends IBuildOptionBase, PlatformExtraOptionsMap[P] {
+export interface IBuildTaskOption<P extends Platform = Platform> extends IBuildOptionBase {
     platform: P;
     packages: Record<P, PlatformPackageOptionMap[P]>;
-    __version__?: string;
 }
 
 export interface PlatformPackageOptionMap {
