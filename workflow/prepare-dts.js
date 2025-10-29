@@ -1,5 +1,9 @@
 /**
- * 复制源码中的 .d.ts 文件到 dist 目录
+ * 准备 DTS 文件
+ * 
+ * 包括两个步骤：
+ * 1. 生成 i18n 类型定义（自动生成的类型文件）
+ * 2. 复制源码中的 .d.ts 文件到 dist 目录
  * 
  * TypeScript 编译器只生成新的 .d.ts，不会复制源码中已存在的 .d.ts 文件
  * 这个脚本确保所有类型定义文件都能正确复制到输出目录
@@ -8,12 +12,31 @@
 const fs = require('fs-extra');
 const path = require('path');
 const glob = require('glob');
+const { generateI18nTypes } = require('./generate-i18n-types');
 
 const SRC_DIR = path.resolve(__dirname, '../src');
 const DIST_DIR = path.resolve(__dirname, '../dist');
 
+/**
+ * 步骤 1: 生成 i18n 类型定义
+ */
+async function generateI18nTypeDefinitions() {
+    console.log('📝 步骤 1: 生成 i18n 类型定义...\n');
+    
+    try {
+        generateI18nTypes();
+        console.log('✅ i18n 类型定义生成完成\n');
+    } catch (error) {
+        console.error('❌ 生成 i18n 类型定义时出错:', error);
+        throw error;
+    }
+}
+
+/**
+ * 步骤 2: 复制 .d.ts 文件到 dist 目录
+ */
 async function copyDtsFiles() {
-    console.log('📋 开始复制 .d.ts 文件...\n');
+    console.log('📋 步骤 2: 复制 .d.ts 文件到 dist 目录...\n');
     
     // 查找所有 .d.ts 文件（排除 node_modules）
     const dtsFiles = glob.sync('**/*.d.ts', {
@@ -71,12 +94,38 @@ async function copyDtsFiles() {
     if (skippedCount > 0) {
         console.log(`   ⚠️  跳过: ${skippedCount} 个文件`);
     }
-    console.log(`\n🎉 .d.ts 文件复制完成！\n`);
+    console.log(`\n✅ .d.ts 文件复制完成！\n`);
 }
 
-// 执行复制
-copyDtsFiles().catch(error => {
-    console.error('❌ 复制 .d.ts 文件时出错:', error);
-    process.exit(1);
-});
+/**
+ * 主函数：按顺序执行所有步骤
+ */
+async function prepareDts() {
+    console.log('🚀 开始准备 DTS 文件...\n');
+    console.log('='.repeat(60) + '\n');
+    
+    try {
+        // 步骤 1: 生成 i18n 类型定义
+        await generateI18nTypeDefinitions();
+        
+        console.log('='.repeat(60) + '\n');
+        
+        // 步骤 2: 复制 .d.ts 文件
+        await copyDtsFiles();
+        
+        console.log('='.repeat(60));
+        console.log('🎉 所有 DTS 文件准备完成！\n');
+    } catch (error) {
+        console.error('\n' + '='.repeat(60));
+        console.error('❌ 准备 DTS 文件时出错:', error);
+        console.error('='.repeat(60) + '\n');
+        process.exit(1);
+    }
+}
 
+// 执行准备流程
+if (require.main === module) {
+    prepareDts();
+}
+
+module.exports = { prepareDts, generateI18nTypeDefinitions, copyDtsFiles };
