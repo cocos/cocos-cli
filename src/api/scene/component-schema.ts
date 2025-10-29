@@ -15,7 +15,7 @@ export const SchemaComponentIdentifier = z.object({
     name: z.string().describe('组件名称'),
     type: z.string().describe('组件类型'),
     enabled: z.boolean().describe('组件是否使能'),
-}).describe('组件的标识');
+}).describe('组件的基本信息');
 
 // 移除组件
 export const SchemaRemoveComponent = z.object({
@@ -66,14 +66,14 @@ export const SchemaSetPropertyOptions = z.object({
             z.any().describe('any类型')
         ]).describe('属性类型，可以是联合中的任意类型'),
     )
-}).describe('组件dump出来的信息');
+}).describe('设置组件属性所需要的信息');
 
 export const SchemaComponent = SchemaProperty.extend({
     properties: z.record(
         z.string().describe('属性名称'),
         SchemaProperty,
     )
-}).describe('组件dump出来的信息');
+}).describe('查询到的组件信息');
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('所有组件集合，包含内置与自定义组件');
 
