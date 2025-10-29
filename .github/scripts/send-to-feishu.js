@@ -119,8 +119,9 @@ async function main() {
         reportExists: process.env.REPORT_EXISTS === 'true',
         reportUrl: process.env.REPORT_URL || '',
         reportFilename: process.env.REPORT_FILENAME || '',
-        coveragePercent: process.env.COVERAGE_PERCENT || '0.00',
-        coverageReport: process.env.COVERAGE_REPORT || '',
+        coverageReportUrl: process.env.COVERAGE_REPORT_URL || '',
+        coverageReportFilename: process.env.COVERAGE_REPORT_FILENAME || '',
+        coverageMarkdown: process.env.COVERAGE_MARKDOWN || '',
         runId: process.env.GITHUB_RUN_ID || '',
         triggerType: process.env.GITHUB_EVENT_NAME || '',
         branch: process.env.GITHUB_REF_NAME || '',
@@ -129,8 +130,8 @@ async function main() {
     };
 
     console.log('📊 Test Report Data:');
-    console.log(`   Coverage: ${data.coveragePercent}%`);
-    console.log(`   Report: ${data.reportExists ? data.reportUrl : 'N/A'}`);
+    console.log(`   E2E Test Report: ${data.reportExists ? data.reportUrl : 'N/A'}`);
+    console.log(`   Coverage Report: ${data.coverageReportUrl || 'N/A'}`);
     console.log(`   Trigger: ${data.triggerType}`);
     console.log(`   Branch: ${data.branch}`);
     console.log('');

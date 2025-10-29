@@ -54,30 +54,10 @@ jobs:
         run: npm run test:e2e
         continue-on-error: true
       
-      - name: Check E2E test coverage
-        id: coverage
-        if: always()
-        run: node .github/scripts/check-e2e-coverage.js
-      
       - name: Find test report file
         if: always()
         id: find-report
         run: node .github/scripts/find-test-report.js
-      
-      - name: Upload test report to server
-        if: always() && steps.find-report.outputs.report_exists == 'true'
-        run: |
-          echo "📤 Uploading test report to server..."
-          echo "Report file: ${{ steps.find-report.outputs.report_file }}"
-          echo "Report URL: ${{ steps.find-report.outputs.report_url }}"
-          
-          # 这里添加你上传报告到服务器的命令
-          # 例如使用 scp, rsync, curl 等
-          # scp ${{ steps.find-report.outputs.report_file }} user@server:/path/to/reports/
-          # 或者
-          # curl -F "file=@${{ steps.find-report.outputs.report_file }}" ${{ env.REPORT_SERVER_URL }}/upload
-
-          echo "✅ Report uploaded successfully"
       
       - name: Upload test report as artifact
         if: always() && steps.find-report.outputs.report_exists == 'true'
@@ -87,17 +67,33 @@ jobs:
           path: ${{ steps.find-report.outputs.report_file }}
           retention-days: 30
       
-      - name: Generate coverage report HTML
+      - name: Generate coverage report with Markdown
         id: coverage-report
         if: always()
-        run: npm run check:e2e-coverage:report
+        run: npm run check:e2e-coverage:report -- --markdown
+        continue-on-error: true
       
-      - name: Upload coverage report as artifact
-        if: always()
+      - name: Generate coverage report URL
+        if: always() && steps.coverage-report.outputs.report_path != ''
+        id: report-url
+        run: |
+          REPORT_FILE="${{ steps.coverage-report.outputs.report_path }}"
+          REPORT_FILENAME=$(basename "$REPORT_FILE")
+          
+          # 生成报告 URL（CI 机器上的 http-server 已在运行）
+          REPORT_URL="${{ env.REPORT_SERVER_URL }}/e2e/reports/$REPORT_FILENAME"
+          echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
+          echo "report_filename=$REPORT_FILENAME" >> $GITHUB_OUTPUT
+          
+          echo "📊 Coverage Report URL: $REPORT_URL"
+          echo "📄 Report file: $REPORT_FILE"
+      
+      - name: Upload coverage report as artifact (备用)
+        if: always() && steps.coverage-report.outputs.report_path != ''
         uses: actions/upload-artifact@v4
         with:
           name: daily-coverage-report-${{ github.run_id }}
-          path: e2e/reports/coverage-report-*.html
+          path: ${{ steps.coverage-report.outputs.report_path }}
           retention-days: 30
       
       - name: Send to Feishu
@@ -108,6 +104,7 @@ jobs:
           REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
           REPORT_URL: ${{ steps.find-report.outputs.report_url }}
           REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
-          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
-          COVERAGE_REPORT: ${{ steps.coverage.outputs.coverage_report }}
+          COVERAGE_REPORT_URL: ${{ steps.report-url.outputs.report_url }}
+          COVERAGE_REPORT_FILENAME: ${{ steps.report-url.outputs.report_filename }}
+          COVERAGE_MARKDOWN: ${{ steps.coverage-report.outputs.markdown }}
 

@@ -21,7 +21,7 @@ on:
   
   # PR 触发：当 PR 打开、更新或同步时检查描述
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
 
 env:
   # 配置测试报告服务器地址

@@ -18,6 +18,12 @@ on:
   # 评论触发：在 Issue 或 PR 中评论 "check e2e coverage"
   issue_comment:
     types: [created]
+  # PR 触发：当 PR 打开、更新或同步时检查描述
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+env:
+  # 配置覆盖率报告服务器地址
+  REPORT_SERVER_URL: 'http://192.168.52.77:8080'
 
 permissions:
   contents: read          # 读取代码
@@ -29,10 +35,12 @@ jobs:
     # 运行条件：
     # 1. 手动触发 (workflow_dispatch) - 直接运行
     # 2. 评论触发 (issue_comment) - 评论包含 "check e2e coverage"
+    # 3. PR 触发 (pull_request) - PR 描述包含 "check e2e coverage"
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'check e2e coverage'))
-    
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'check e2e coverage')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'check e2e coverage'))
+      
     runs-on: [ self-hosted, macOS ]
     
     env:
@@ -46,25 +54,6 @@ jobs:
           echo "Comment features will be disabled"
           echo "See: .github/workflows/PAT-TOKEN-SETUP.md for setup instructions"
       
-      - name: Add reaction to comment
-        if: github.event_name == 'issue_comment' && env.HAS_PAT_TOKEN == 'true'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.PAT_TOKEN }}
-          script: |
-            try {
-              await github.rest.reactions.createForIssueComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: context.payload.comment.id,
-                content: 'eyes'
-              });
-              console.log('✅ Reaction added');
-            } catch (error) {
-              console.log('⚠️ Could not add reaction:', error.message);
-            }
-      
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -74,85 +63,33 @@ jobs:
           # 如果是评论触发，需要检出 PR 的代码
           ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
       
-      - name: Check E2E test coverage
-        id: coverage
-        run: node .github/scripts/check-e2e-coverage.js
+      - name: Install dependencies
+        run: npm i
       
-      - name: Generate coverage report HTML
+      - name: Generate coverage report with Markdown
         id: coverage-report
-        run: npm run check:e2e-coverage:report
+        run: npm run check:e2e-coverage:report -- --markdown
       
-      - name: Generate message content
-        id: message
+      - name: Generate report URL
+        if: always() && steps.coverage-report.outputs.report_path != ''
         run: |
-          # 生成覆盖率消息
-          MESSAGE="## 📊 E2E 测试覆盖率报告\n\n"
-          MESSAGE+="${{ steps.coverage.outputs.coverage_report }}\n\n"
-          MESSAGE+="---\n\n"
-          MESSAGE+="<sub>🤖 此报告由 GitHub Actions 自动生成 | Run ID: ${{ github.run_id }}</sub>"
+          REPORT_FILE="${{ steps.coverage-report.outputs.report_path }}"
+          REPORT_FILENAME=$(basename "$REPORT_FILE")
           
-          # 保存到 GitHub Output
-          {
-            echo 'content<<EOF'
-            echo -e "$MESSAGE"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          # 生成报告 URL（CI 机器上的 http-server 已在运行）
+          REPORT_URL="${{ env.REPORT_SERVER_URL }}/reports/$REPORT_FILENAME"
+          echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
+          echo "report_filename=$REPORT_FILENAME" >> $GITHUB_OUTPUT
+          
+          echo "📊 Coverage Report URL: $REPORT_URL"
+          echo "📄 Report file: $REPORT_FILE"
+        id: report-url
       
-      - name: Comment on PR or Issue
-        if: github.event_name == 'issue_comment' && env.HAS_PAT_TOKEN == 'true'
-        continue-on-error: true
-        uses: actions/github-script@v7
+      - name: Upload coverage report as artifact (备用)
+        if: always() && steps.coverage-report.outputs.report_path != ''
+        uses: actions/upload-artifact@v4
         with:
-          github-token: ${{ secrets.PAT_TOKEN }}
-          script: |
-            const comment = process.env.MESSAGE_CONTENT;
-            const issueNumber = context.payload.issue.number;
-            
-            if (!issueNumber) {
-              console.log('⚠️ Could not determine issue number');
-              return;
-            }
-            
-            console.log(`📝 Commenting on issue/PR #${issueNumber}`);
-            
-            try {
-              // 查找已有的覆盖率报告评论
-              const { data: comments } = await github.rest.issues.listComments({
-                issue_number: issueNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              });
-              
-              const botComment = comments.find(c => 
-                c.user.type === 'Bot' && 
-                c.body.includes('E2E 测试覆盖率报告')
-              );
-              
-              if (botComment) {
-                // 更新已有评论
-                await github.rest.issues.updateComment({
-                  comment_id: botComment.id,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: comment
-                });
-                console.log('✅ Coverage comment updated');
-              } else {
-                // 创建新评论
-                await github.rest.issues.createComment({
-                  issue_number: issueNumber,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: comment
-                });
-                console.log('✅ Coverage comment created');
-              }
-            } catch (error) {
-              console.log('❌ Failed to comment:', error.message);
-              console.log('Response status:', error.status);
-              console.log('Response data:', JSON.stringify(error.response?.data, null, 2));
-              throw error;
-            }
-        env:
-          MESSAGE_CONTENT: ${{ steps.message.outputs.content }}
+          name: e2e-coverage-report-${{ github.run_id }}
+          path: ${{ steps.coverage-report.outputs.report_path }}
+          retention-days: 30
 

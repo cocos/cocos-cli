@@ -1,10 +1,10 @@
 /**
  * 检查 E2E 测试覆盖率
  * 
- * 扫描所有 MCP API 工具和 E2E 测试文件，检查哪些 API 缺少 E2E 测试。
+ * 通过 toolRegistry 扫描所有已注册的 MCP 工具和 E2E 测试文件，检查哪些 API 缺少 E2E 测试。
  * 
  * 用法：
- *   npx tsx workflow/check-e2e-coverage.ts
+ *   npx tsx e2e/scripts/check-coverage.ts
  */
 
 import * as fs from 'fs';
@@ -16,6 +16,8 @@ interface ApiTool {
     category: string;
     filePath: string;
     methodName: string;
+    title?: string;
+    description?: string;
 }
 
 interface TestReference {
@@ -24,36 +26,91 @@ interface TestReference {
     lineNumber: number;
 }
 
-const API_DIRS = ['src/api'];
 const E2E_TEST_DIRS = ['e2e'];
 
 /**
- * 扫描所有 MCP 工具定义
+ * 扫描所有 MCP 工具定义 (通过 toolRegistry)
+ * 
+ * 这个方法与 mcp.middleware.ts 中的实现保持一致，
+ * 确保统计的工具数量与实际注册的 MCP 工具一致。
  */
-function scanApiTools(): ApiTool[] {
+async function scanApiTools(): Promise<ApiTool[]> {
     const tools: ApiTool[] = [];
 
-    for (const dir of API_DIRS) {
-        const files = glob.sync(`${dir}/**/*.ts`, {
-            ignore: ['**/*.d.ts', '**/*.test.ts', '**/schema.ts'],
-        });
+    try {
+        // 先导入 API 入口，触发所有装饰器的执行
+        await import('../../dist/api/index');
 
-        for (const file of files) {
-            const content = fs.readFileSync(file, 'utf-8');
-            const matches = content.matchAll(/@tool\(['"]([^'"]+)['"]\)[\s\S]*?async\s+(\w+)\s*\(/g);
+        // 然后导入 toolRegistry (与 mcp.middleware.ts 使用相同的注册表)
+        const { toolRegistry } = await import('../../dist/api/decorator/decorator');
 
-            for (const match of matches) {
-                tools.push({
-                    name: match[1],
-                    category: inferCategory(file),
-                    filePath: file,
-                    methodName: match[2],
-                });
+        // 遍历 toolRegistry，获取所有已注册的工具
+        for (const [toolName, { target, meta }] of toolRegistry.entries()) {
+            // toolName 可能是 string 或 symbol，只处理 string 类型
+            if (typeof toolName !== 'string') {
+                continue;
+            }
+
+            // 推断文件路径和类别
+            const toolInfo = inferToolInfo(target, meta);
+
+            tools.push({
+                name: toolName,
+                category: toolInfo.category,
+                filePath: toolInfo.filePath,
+                methodName: meta.methodName as string,
+                title: meta.title,
+                description: meta.description,
+            });
+        }
+    } catch (error) {
+        console.error('❌ 无法加载 toolRegistry:', error);
+        console.error('   请确保项目已经构建 (npm run build)');
+        console.error('   错误详情:', error);
+        throw error;
+    }
+
+    return tools.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * 从 target 推断工具信息
+ */
+function inferToolInfo(target: any, _meta: any): { category: string; filePath: string } {
+    // 尝试从 target 的构造函数名推断类别
+    let category = 'Unknown';
+    let filePath = 'unknown';
+
+    if (target && target.constructor) {
+        const className = target.constructor.name;
+        // 例如: AssetsApi -> Assets, BuilderApi -> Builder
+        category = className.replace(/Api$/, '');
+
+        // 尝试推断文件路径
+        const categoryLower = category.toLowerCase();
+        const possiblePaths = [
+            `src/api/${categoryLower}/${categoryLower}.ts`,
+            `src/api/${categoryLower}/index.ts`,
+        ];
+
+        for (const possiblePath of possiblePaths) {
+            if (fs.existsSync(possiblePath)) {
+                filePath = possiblePath;
+                break;
+            }
+        }
+
+        // 特殊处理: Scene 相关的 API
+        if (['Node', 'Component', 'Scene'].includes(category)) {
+            const sceneSubModule = category.toLowerCase();
+            const scenePath = `src/api/scene/${sceneSubModule}.ts`;
+            if (fs.existsSync(scenePath)) {
+                filePath = scenePath;
             }
         }
     }
 
-    return tools.sort((a, b) => a.name.localeCompare(b.name));
+    return { category, filePath };
 }
 
 /**
@@ -131,30 +188,6 @@ function scanApiModules(): Map<string, { moduleName: string; importPath: string;
     }
 
     return modules;
-}
-
-/**
- * 从文件路径推断类别
- */
-function inferCategory(filePath: string): string {
-    const normalized = filePath.replace(/\\/g, '/');
-
-    // 动态匹配所有已知的 API 模块
-    const apiModules = scanApiModules();
-
-    for (const [category, info] of apiModules.entries()) {
-        const modulePath = `/${info.moduleName}/`;
-        if (normalized.includes(modulePath)) {
-            return category;
-        }
-    }
-
-    // 特殊处理: scene 下的 node 和 component
-    if (normalized.includes('/scene/node.ts')) return 'Node';
-    if (normalized.includes('/scene/component.ts')) return 'Component';
-    if (normalized.includes('/scene/scene.ts')) return 'Scene';
-
-    return 'Unknown';
 }
 
 /**
@@ -645,7 +678,8 @@ function saveHtmlReport(content: string): string {
 
     // 生成文件名（带时间戳）
     const now = new Date();
-    const timestamp = now.toLocaleString().replace(/[:.]/g, '-').split('.')[0];
+    // 替换所有可能导致路径问题的字符：/, :, 空格
+    const timestamp = now.toLocaleString().replace(/[/:.\s]/g, '-');
     const filename = `coverage-report-${timestamp}.html`;
     const filepath = path.join(reportsDir, filename);
 
@@ -715,14 +749,14 @@ function generateJsonOutput(tools: ApiTool[], references: TestReference[], htmlR
 /**
  * 主函数
  */
-function main() {
+async function main() {
     const args = process.argv.slice(2);
     const outputMarkdown = args.includes('--markdown');
     const outputJson = args.includes('--json');
     const shouldSaveReport = args.includes('--save') || args.includes('--report') || args.includes('--html');
 
-    console.log('🔍 扫描 MCP API 工具定义...\n');
-    const tools = scanApiTools();
+    console.log('🔍 扫描 MCP API 工具定义 (通过 toolRegistry)...\n');
+    const tools = await scanApiTools();
     console.log(`✅ 找到 ${tools.length} 个 MCP 工具\n`);
 
     console.log('🔍 扫描 E2E 测试文件...\n');
@@ -731,12 +765,14 @@ function main() {
 
     // 保存报告路径，用于最后打印
     let savedReportPath: string | null = null;
+    let relativeReportPath: string | null = null;
 
     // 生成并保存 HTML 报告文件
     if (shouldSaveReport) {
         const htmlContent = generateHtmlReport(tools, references);
         const htmlPath = saveHtmlReport(htmlContent);
         savedReportPath = htmlPath;
+        relativeReportPath = path.relative(process.cwd(), htmlPath).replace(/\\/g, '/');
 
         console.log('\n✅ HTML 报告已保存:\n');
         console.log(`   📄 ${htmlPath}\n`);
@@ -760,10 +796,11 @@ function main() {
     }
 
     // Markdown 输出（用于 GitHub Actions 评论）
+    let markdownReport = '';
     if (outputMarkdown) {
-        const markdown = generateMarkdownReport(tools, references);
+        markdownReport = generateMarkdownReport(tools, references);
         console.log('\n--- MARKDOWN_REPORT_START ---');
-        console.log(markdown);
+        console.log(markdownReport);
         console.log('--- MARKDOWN_REPORT_END ---\n');
     }
 
@@ -772,6 +809,25 @@ function main() {
     // 在最后一行打印报告地址
     if (savedReportPath) {
         console.log(`\n📊 报告地址: ${savedReportPath}`);
+    }
+
+    // 如果是 GitHub Actions 环境，输出到 GITHUB_OUTPUT
+    if (process.env.GITHUB_OUTPUT) {
+        const outputs: string[] = [];
+
+        if (relativeReportPath) {
+            outputs.push(`report_path=${relativeReportPath}`);
+        }
+
+        if (markdownReport) {
+            // 使用 heredoc 格式输出多行 Markdown 内容
+            outputs.push(`markdown<<EOF\n${markdownReport}\nEOF`);
+        }
+
+        if (outputs.length > 0) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, outputs.join('\n') + '\n', 'utf-8');
+            console.log(`\n✅ GitHub Actions Output 已设置: ${outputs.map(o => o.split('=')[0]).join(', ')}`);
+        }
     }
 
     process.exit(exitCode);
