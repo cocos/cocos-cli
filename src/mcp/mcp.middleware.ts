@@ -236,8 +236,51 @@ export class McpMiddleware {
         }
     }
 
+    private async handleSseRequest(req: Request, res: Response): Promise<void> {
+        try {
+            // 设置 SSE 响应头
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+
+            // 为 SSE 连接创建传输层
+            const transport = new StreamableHTTPServerTransport({
+                sessionIdGenerator: undefined,
+                enableJsonResponse: false // SSE 不需要 JSON 响应
+            });
+
+            // 处理连接关闭
+            res.on('close', () => {
+                transport.close();
+            });
+
+            req.on('close', () => {
+                transport.close();
+            });
+
+            // 连接到 MCP 服务器
+            await this.server.connect(transport);
+            
+            // 处理 SSE 请求
+            await transport.handleRequest(req, res, req.body);
+        } catch (error) {
+            console.error('MCP SSE request handling error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        }
+    }
+
     public getMiddlewareContribution(): IMiddlewareContribution {
         return {
+            get: [
+                {
+                    url: '/mcp',
+                    handler: this.handleSseRequest.bind(this)
+                }
+            ],
             post: [
                 {
                     url: '/mcp',
