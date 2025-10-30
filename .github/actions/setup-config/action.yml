@@ -18,14 +18,18 @@ inputs:
     description: 'GitHub Token (默认使用 GITHUB_TOKEN)'
     required: false
     default: ${{ github.token }}
+  feishu-webhook-url:
+    description: '飞书 Webhook URL'
+    required: false
+    default: ''
 
 outputs:
   FEISHU_WEBHOOK_URL:
     description: '飞书 Webhook URL'
-    value: ${{ steps.get-feishu-url.outputs.FEISHU_WEBHOOK_URL }}
+    value: ${{ steps.resolve-feishu-url.outputs.url }}
   PAT_TOKEN:
     description: 'GitHub Token (用于评论 PR)'
-    value: ${{ inputs.github-token }}
+    value: ${{ steps.resolve-token.outputs.token }}
   HTTP_PROXY:
     description: 'HTTP 代理地址'
     value: ${{ inputs.http-proxy }}
@@ -50,11 +54,45 @@ runs:
         echo "   HTTPS_PROXY: ${{ inputs.https-proxy }}"
         echo "   REPORT_SERVER_URL: ${{ inputs.report-server-url }}"
     
-    - name: Get FEISHU_WEBHOOK_URL
-      id: get-feishu-url
+    - name: Resolve Feishu Webhook URL
+      id: resolve-feishu-url
       shell: bash
-      continue-on-error: true
-      run: node .github/scripts/get-config.js FEISHU_WEBHOOK_URL
-      env:
-        FEISHU_WEBHOOK_URL: ${{ env.FEISHU_WEBHOOK_URL }}
+      run: |
+        # 优先使用传入的 feishu-webhook-url (通常来自 secrets)
+        if [ -n "${{ inputs.feishu-webhook-url }}" ]; then
+          echo "✅ 使用传入的飞书 Webhook URL"
+          echo "url=${{ inputs.feishu-webhook-url }}" >> $GITHUB_OUTPUT
+        else
+          # 如果没有传入，尝试从 .user.json 读取 (本地开发场景)
+          echo "⚠️  Feishu Webhook URL 未提供，尝试从 .user.json 读取"
+          FEISHU_URL=$(node .github/scripts/get-config.js FEISHU_WEBHOOK_URL 2>/dev/null | grep "FEISHU_WEBHOOK_URL=" | cut -d'=' -f2-)
+          if [ -n "$FEISHU_URL" ]; then
+            echo "✅ 从 .user.json 读取到 FEISHU_WEBHOOK_URL"
+            echo "url=$FEISHU_URL" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  未找到飞书 Webhook URL，飞书通知功能将被跳过"
+            echo "url=" >> $GITHUB_OUTPUT
+          fi
+        fi
+    
+    - name: Resolve GitHub Token
+      id: resolve-token
+      shell: bash
+      run: |
+        # 优先使用传入的 github-token (通常是 github.token)
+        if [ -n "${{ inputs.github-token }}" ]; then
+          echo "✅ 使用 GitHub Actions token"
+          echo "token=${{ inputs.github-token }}" >> $GITHUB_OUTPUT
+        else
+          # 如果没有传入，尝试从 .user.json 读取 PAT_TOKEN (本地开发场景)
+          echo "⚠️  GitHub token 未提供，尝试从 .user.json 读取 PAT_TOKEN"
+          PAT_TOKEN=$(node .github/scripts/get-config.js PAT_TOKEN 2>/dev/null | grep "PAT_TOKEN=" | cut -d'=' -f2-)
+          if [ -n "$PAT_TOKEN" ]; then
+            echo "✅ 从 .user.json 读取到 PAT_TOKEN"
+            echo "token=$PAT_TOKEN" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  未找到任何可用 token，评论功能将被跳过"
+            echo "token=" >> $GITHUB_OUTPUT
+          fi
+        fi
 
