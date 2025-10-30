@@ -543,6 +543,9 @@ export class NewConsole {
     }
 
     // --------------------- Query logs -------------------------
+    /**
+     * 获取最近的日志信息
+     */
     public queryLogs(count: number, type?: IConsoleType): string {
         const messages: string[] = [];
         for (let i = this.messages.length - 1; i >= 0 && count > 0; --i) {
