@@ -1,7 +1,7 @@
 import { ApiBase } from '../base/api-base';
 import { build, queryDefaultBuildConfigByPlatform, run } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { BuildExitCode } from '../../core/builder/@types/protected';
+import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TRunDest, TRunResult } from './schema';
 
@@ -24,7 +24,7 @@ export class BuilderApi extends ApiBase {
             data: null,
         };
         try {
-            const res = await build(platform, options);
+            const res = await build(platform, options as unknown as IBuildCommandOption<TPlatform>);
             ret.data = res;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;

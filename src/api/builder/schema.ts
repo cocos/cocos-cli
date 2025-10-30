@@ -135,17 +135,7 @@ export const SchemaWebMobileBuildOption = SchemaBuildRuntimeOptions
     .describe('Web Mobile 完整构建选项');
 
 // 通用构建选项（用于向后兼容）
-export const SchemaBuildOption = SchemaBuildRuntimeOptions
-    .merge(SchemaBuildBaseConfig)
-    .extend({
-        packages: z.record(z.any()).optional().describe('平台特定配置')
-    })
-    .optional()
-    .describe('通用构建选项');
-
-// 类型导出
-export type TWebDesktopBuildOption = z.infer<typeof SchemaWebDesktopBuildOption>;
-export type TWebMobileBuildOption = z.infer<typeof SchemaWebMobileBuildOption>;
+export const SchemaBuildOption = z.union([SchemaWebDesktopBuildOption, SchemaWebMobileBuildOption]);
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaBuildResult = z.object({
