@@ -1,7 +1,7 @@
 import { EngineLoader } from 'cc/loader.js';
 import { existsSync, remove } from 'fs-extra';
 import { TestGlobalEnv } from '../../tests/global-env';
-import { projectManager } from '../launcher';
+import { projectManager } from '../project-mamager';
 let hasInit = false;
 
 export async function globalSetup() {
