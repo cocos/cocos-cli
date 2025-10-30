@@ -184,21 +184,21 @@ export type TPreviewSettingsResult = z.infer<typeof SchemaPreviewSettingsResult>
 // ==================== 构建配置查询结果 ====================
 
 // Web Desktop 构建配置查询结果（所有字段必填，包含 packages，不包含运行时选项）
-const SchemaWebDesktopBuildConfigResult = BuildConfigCoreFields.required()
+const SchemaWebDesktopBuildConfigResult = BuildConfigCoreFields.partial()
     .extend({
         platform: z.literal('web-desktop').describe('构建平台'),
         packages: z.object({
-            'web-desktop': SchemaWebDesktopPackages.required()
+            'web-desktop': SchemaWebDesktopPackages
         }).describe('Web Desktop 平台特定配置')
     })
     .describe('Web Desktop 构建配置查询结果');
 
 // Web Mobile 构建配置查询结果（所有字段必填，包含 packages，不包含运行时选项）
-const SchemaWebMobileBuildConfigResult = BuildConfigCoreFields.required()
+const SchemaWebMobileBuildConfigResult = BuildConfigCoreFields.partial()
     .extend({
         platform: z.literal('web-mobile').describe('构建平台'),
         packages: z.object({
-            'web-mobile': SchemaWebMobilePackages.required()
+            'web-mobile': SchemaWebMobilePackages
         }).describe('Web Mobile 平台特定配置')
     })
     .describe('Web Mobile 构建配置查询结果');

@@ -24,7 +24,7 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
     if (!options) {
         options = await pluginManager.getOptionsByPlatform(platform);
     }
-
+    options.platform = platform;
     options.taskId = options.taskId || String(new Date().getTime());
     options.logDest = options.logDest || getTaskLogDest(platform, options.taskId);
     options.taskName = options.taskName || platform;

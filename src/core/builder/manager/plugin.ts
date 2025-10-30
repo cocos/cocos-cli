@@ -440,6 +440,7 @@ export class PluginManager extends EventEmitter {
     public async getOptionsByPlatform<P extends Platform>(platform: P): Promise<IBuildTaskOption<P>> {
         const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
         const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
+        commonOptions.platform = platform;
         return Object.assign(commonOptions, options) as unknown as IBuildTaskOption<P>;
     }
 
