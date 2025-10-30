@@ -12,7 +12,7 @@ export class ProjectApi {
     async open(@param(ProjectPathSchema) projectPath: string): Promise<CommonResultType<boolean>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
-            const { projectManager } = await import('../../core/project-mamager');
+            const { projectManager } = await import('../../core/project-manager');
             await projectManager.open(projectPath);
         } catch (e) {
             code = COMMON_STATUS.FAIL;
@@ -33,7 +33,7 @@ export class ProjectApi {
     async close() {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
-            const { projectManager } = await import('../../core/project-mamager');
+            const { projectManager } = await import('../../core/project-manager');
             await projectManager.close();
         } catch (e) {
             code = COMMON_STATUS.FAIL;

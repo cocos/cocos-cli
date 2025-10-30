@@ -34,7 +34,7 @@ export class CocosAPI {
      * @param type 
      */
     public async create(projectPath: string, type: ProjectType) {
-        const { projectManager } = await import('../core/project-mamager');
+        const { projectManager } = await import('../core/project-manager');
         return await projectManager.create(projectPath, type);
     }
 

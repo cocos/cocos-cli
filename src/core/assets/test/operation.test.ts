@@ -3,7 +3,6 @@ import { join } from 'path';
 import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, remove, outputFile } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
-import assetOperation from '../manager/operation';
 import { assetManager } from '..';
 
 describe('测试 db 的操作接口', function () {
@@ -16,7 +15,7 @@ describe('测试 db 的操作接口', function () {
         await globalSetup();
     });
     beforeEach(async () => {
-        await assetOperation.createAsset({
+        await assetManager.createAsset({
             target: join(databasePath, testName),
             content: 'test',
             overwrite: true,
@@ -25,7 +24,7 @@ describe('测试 db 的操作接口', function () {
 
     describe('create-asset', function () {
         it('创建文件夹', async function () {
-            const asset = await assetOperation.createAsset({
+            const asset = await assetManager.createAsset({
                 target: join(databasePath, `${name}.directory`),
             });
             expect(asset).not.toBeNull();
@@ -41,7 +40,7 @@ describe('测试 db 的操作接口', function () {
         });
 
         it('创建普通的文本文件', async function () {
-            const asset = await assetOperation.createAsset({
+            const asset = await assetManager.createAsset({
                 target: join(databasePath, `${name}-create-asset-normal.txt`),
                 content: 'test',
             });
@@ -51,7 +50,7 @@ describe('测试 db 的操作接口', function () {
         it('创建普通的文本文件 overwrite', async function () {
             const dest = join(databasePath, `${name}-create-asset-overwrite.txt`);
             await outputFile(dest, 'original content');
-            const asset = await assetOperation.createAsset({
+            const asset = await assetManager.createAsset({
                 target: dest,
                 content: 'createAssetOverwrite',
                 overwrite: true,
@@ -63,7 +62,7 @@ describe('测试 db 的操作接口', function () {
 
     // describe('copy-asset', () => {
     //     it('复制文件夹', async function() {
-    //         await assetOperation.copyAsset(
+    //         await assetManager.copyAsset(
     //             `${TestGlobalEnv.testRootUrl}/${name}.directory`,
     //             `${TestGlobalEnv.testRootUrl}/${name}.directory2`,
     //         );
@@ -84,7 +83,7 @@ describe('测试 db 的操作接口', function () {
     //     });
 
     //     it('复制普通资源', async function() {
-    //         await assetOperation.copyAsset(
+    //         await assetManager.copyAsset(
     //             `${TestGlobalEnv.testRootUrl}/${name}.normal`,
     //             `${TestGlobalEnv.testRootUrl}/${name}.normal2`,
     //         );
@@ -110,7 +109,7 @@ describe('测试 db 的操作接口', function () {
 
     // describe('move-asset', () => {
     //     it('移动文件夹', async function() {
-    //         await assetOperation.moveAsset(
+    //         await assetManager.moveAsset(
     //             `${TestGlobalEnv.testRootUrl}/${name}.directory2`,
     //             `${TestGlobalEnv.testRootUrl}/${name}.directory3`,
     //         );
@@ -130,7 +129,7 @@ describe('测试 db 的操作接口', function () {
     //     });
 
     //     it('移动普通资源', async function() {
-    //         await assetOperation.moveAsset(
+    //         await assetManager.moveAsset(
     //             `${TestGlobalEnv.testRootUrl}/${name}.normal2`,
     //             `${TestGlobalEnv.testRootUrl}/${name}.normal3`,
     //         );
@@ -155,7 +154,7 @@ describe('测试 db 的操作接口', function () {
     //     it('普通的移动重命名资源', async function() {
     //         const testName1 = name;
     //         const testName2 = name + 'A';
-    //         await assetOperation.moveAsset(
+    //         await assetManager.moveAsset(
     //             `${TestGlobalEnv.testRootUrl}/${testName1}.normal3`,
     //             `${TestGlobalEnv.testRootUrl}/${testName2}.normal3`,
     //         );
@@ -173,7 +172,7 @@ describe('测试 db 的操作接口', function () {
     //     it('大小写差异的重命名资源', async function() {
     //         const testName1 = name + 'A';
     //         const testName2 = name + 'a';
-    //         await assetOperation.moveAsset(
+    //         await assetManager.moveAsset(
     //             `${TestGlobalEnv.testRootUrl}/${testName1}.normal3`,
     //             `${TestGlobalEnv.testRootUrl}/${testName2}.normal3`,
     //         );
@@ -217,7 +216,7 @@ describe('测试 db 的操作接口', function () {
 
         it('使用 uuid 删除普通资源', async function () {
             const testName = `${name}_delete.normal`;
-            const asset = await assetOperation.createAsset({
+            const asset = await assetManager.createAsset({
                 target: join(databasePath, testName),
                 content: 'test',
             });
@@ -252,7 +251,7 @@ describe('测试 db 的操作接口', function () {
             metaJson.userData.testReimport = true;
             writeJSONSync(join(databasePath, `${testName}.meta`), metaJson);
 
-            await assetOperation.reimportAsset(uuid!);
+            await assetManager.reimportAsset(uuid!);
             const assetMeta = await assetManager.queryAssetMeta(uuid!);
             expect(assetMeta!.userData.testReimport).toStrictEqual(true);
         });
@@ -260,7 +259,7 @@ describe('测试 db 的操作接口', function () {
         it('子资源 url 的 reimport', async () => {
             const parentUrl = 'db://internal/default_ui/default_toggle_disabled.png';
             const subAssetUrl = `${parentUrl}/texture`;
-            await assetOperation.reimportAsset(subAssetUrl);
+            await assetManager.reimportAsset(subAssetUrl);
             expect(true).toBeTruthy();
         });
     });
@@ -351,7 +350,7 @@ describe('测试 db 的操作接口', function () {
         it('导入文件并覆盖已存在的资源', async function () {
             // 先创建一个资源
             const targetName = `${name}_overwrite.txt`;
-            await assetOperation.createAsset({
+            await assetManager.createAsset({
                 target: join(databasePath, targetName),
                 content: 'original content',
                 overwrite: true,
@@ -530,7 +529,7 @@ describe('测试 db 的操作接口', function () {
     //     it('创建普通资源 overwrite', async function() {
     //         const uuid = utils.UUID.generate(false);
     //         const assetUrl = `${TestGlobalEnv.testRootUrl}/${name}.normal`;
-    //         const asset = await assetOperation.createAsset({
+    //         const asset = await assetManager.createAsset({
     //             target: assetUrl,
     //             content: 'new-asset',
     //             overwrite: true,
@@ -554,7 +553,7 @@ describe('测试 db 的操作接口', function () {
 
     //     it('创建空文件 cubemap', async () => {
     //         const assetUrl = `${TestGlobalEnv.testRootUrl}/${name}.cubemap`;
-    //         const asset = await assetOperation.createAsset({
+    //         const asset = await assetManager.createAsset({
     //             target: assetUrl,
     //             content: '',
     //         });
@@ -564,7 +563,7 @@ describe('测试 db 的操作接口', function () {
 
     //     it('创建空文件夹', async () => {
     //         const assetUrl = `${TestGlobalEnv.testRootUrl}/${name}_folder`;
-    //         const asset = await assetOperation.createAsset({
+    //         const asset = await assetManager.createAsset({
     //             target: assetUrl,
     //         });
     //         expect(asset && asset.isDirectory).toBeTruthy();
@@ -572,7 +571,7 @@ describe('测试 db 的操作接口', function () {
 
     //     it('同时传递 content 与 template 时，优先使用 content', async () => {
     //         const assetUrl = `${TestGlobalEnv.testRootUrl}/${name}.custom`;
-    //         const asset = await assetOperation.createAsset({
+    //         const asset = await assetManager.createAsset({
     //             target: assetUrl,
     //             content: 'test',
     //             template: 'db://internal/default_file_content/auto-atlas/default.pac',
@@ -638,7 +637,7 @@ describe('测试 db 的操作接口', function () {
     //                 const testImage = await assetManager.url2path('db://internal/default_ui/default_btn_disabled.png');
     //                 const testImageDest = join(databasePath, 'testImage.png');
     //                 await copy(testImage, testImageDest);
-    //                 await assetOperation.refreshAsset(testImageDest);
+    //                 await assetManager.refreshAsset(testImageDest);
     //                 const assetMeta = await assetManager.queryAssetMeta(testImageDest);
     //                 expect(assetMeta!.userData.type).toEqual(testImageType);
     //             }, 
