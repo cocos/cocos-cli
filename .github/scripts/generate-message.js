@@ -92,6 +92,9 @@ function generateFeishuCard(data) {
         reportExists,
         reportUrl,
         coverageReportUrl,
+        coveragePercent,
+        testedCount,
+        totalCount,
         runId,
         triggerType,
         branch,
@@ -146,6 +149,14 @@ function generateFeishuCard(data) {
                         content: `**Commit**: ${commit ? commit.substring(0, 8) : 'N/A'}`,
                     },
                 },
+                // 显示覆盖率信息（如果有）
+                ...(coveragePercent ? [{
+                    tag: 'div',
+                    text: {
+                        tag: 'lark_md',
+                        content: `**覆盖率**: ${coveragePercent}% (${testedCount}/${totalCount})`,
+                    },
+                }] : []),
                 {
                     tag: 'hr',
                 },

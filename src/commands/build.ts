@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
-import { projectManager } from '../core/launcher';
 import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 import { existsSync, readJSONSync } from 'fs-extra';
 
@@ -35,8 +34,9 @@ export class BuildCommand extends BaseCommand {
                         // 移除旧的 key 方便和 configPath 未读取的情况做区分
                         delete options.buildConfig;
                     }
-
-                    const result = await projectManager.build(resolvedPath, options);
+                    const { CocosAPI } = await import('../api/index');
+                    const cocos = new CocosAPI();
+                    const result = await cocos.build(resolvedPath, options.platform, options);
 
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));

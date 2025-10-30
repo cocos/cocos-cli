@@ -1,4 +1,3 @@
-import { ApiBase } from '../base/api-base';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { z } from 'zod';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
@@ -17,16 +16,7 @@ const SchemaReloadResult = z.object({
 }).describe('重新加载配置结果');
 export type TReloadResult = z.infer<typeof SchemaReloadResult>;
 
-export class ConfigurationApi extends ApiBase {
-    constructor(
-        private projectPath: string,
-    ) {
-        super();
-    }
-    async init(): Promise<void> {
-        const { configurationManager } = await import('../../core/configuration');
-        await configurationManager.initialize(this.projectPath);
-    }
+export class ConfigurationApi {
 
     @tool('configuration-migrate-from-project')
     @title('配置迁移')

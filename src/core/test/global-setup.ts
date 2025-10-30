@@ -1,7 +1,6 @@
 import { EngineLoader } from 'cc/loader.js';
 import { existsSync, remove } from 'fs-extra';
 import { TestGlobalEnv } from '../../tests/global-env';
-import { projectManager } from '../launcher';
 let hasInit = false;
 
 export async function globalSetup() {
@@ -47,8 +46,7 @@ export async function globalSetup() {
             return EngineLoader.getEngineModuleById(module);
         }, { virtual: true });
     });
+    const { projectManager } = await import('../project-manager');
     await projectManager.open(TestGlobalEnv.projectRoot);
-
     hasInit = true;
 }
-

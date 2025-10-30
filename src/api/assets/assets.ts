@@ -1,4 +1,3 @@
-import { ApiBase } from '../base/api-base';
 import {
     SchemaDbDirResult,
     SchemaDirOrDbPath,
@@ -77,20 +76,7 @@ import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-
 import { assetDBManager, assetManager } from '../../core/assets';
 import { IAssetInfo } from '../../core/assets/@types/public';
 
-export class AssetsApi extends ApiBase {
-
-    constructor(
-        private projectPath: string
-    ) {
-        super();
-    }
-
-    async init(): Promise<void> {
-        // 启动以及初始化资源数据库
-        const { startupAssetDB } = await import('../../core/assets');
-        console.log('startupAssetDB', this.projectPath);
-        await startupAssetDB();
-    }
+export class AssetsApi {
 
     /**
      * 删除资源

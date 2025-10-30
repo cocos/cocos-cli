@@ -1,30 +1,23 @@
-import { ApiBase } from '../base/api-base';
 import { build, queryDefaultBuildConfigByPlatform, run } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { BuildExitCode } from '../../core/builder/@types/protected';
+import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaPlatformType, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TRunDest, TRunResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TRunDest, TRunResult } from './schema';
 
-export class BuilderApi extends ApiBase {
-    constructor() {
-        super();
-    }
-    async init() {
-
-    }
+export class BuilderApi {
 
     @tool('builder-build')
     @title('构建项目')
     @description('根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数')
     @result(SchemaBuildResult)
-    async build(@param(SchemaBuildOption) options?: TBuildOption) {
+    async build(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildOption) options?: TBuildOption) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TBuildResultData> = {
             code: code,
             data: null,
         };
         try {
-            const res = await build(options);
+            const res = await build(platform, options as unknown as IBuildCommandOption<TPlatform>);
             ret.data = res;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;

@@ -32,9 +32,8 @@ import { TestGlobalEnv } from '../../tests/global-env';
 });
 // MCP Server 启动函数
 export async function startMCPServer(folder: string) {
-    const tempEnginePath = join(__dirname, '../../../packages/engine');
-    const cocosAPI = new CocosAPI(folder, tempEnginePath);
-    await cocosAPI.startup();
+    const cocosAPI = new CocosAPI();
+    await cocosAPI.startup(folder);
 
     const middleware = new McpMiddleware();
     register('mcp', middleware.getMiddlewareContribution());

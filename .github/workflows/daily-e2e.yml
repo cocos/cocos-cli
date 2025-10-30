@@ -41,9 +41,8 @@ jobs:
       - name: Setup configuration
         id: setup-config
         uses: ./.github/actions/setup-config
-        env:
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        with:
+          feishu-webhook-url: ${{ secrets.FEISHU_WEBHOOK_URL }}
       
       - name: Setup environment
         uses: ./.github/actions/setup-env
@@ -88,5 +87,8 @@ jobs:
           REPORT_FILENAME: ${{ steps.e2e-tests.outputs.report_filename }}
           COVERAGE_REPORT_URL: ${{ steps.coverage.outputs.report_url }}
           COVERAGE_REPORT_FILENAME: ${{ steps.coverage.outputs.report_filename }}
+          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
+          TESTED_COUNT: ${{ steps.coverage.outputs.tested_count }}
+          TOTAL_COUNT: ${{ steps.coverage.outputs.total_count }}
           COVERAGE_MARKDOWN: ${{ steps.coverage.outputs.markdown }}
 

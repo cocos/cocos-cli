@@ -1,4 +1,3 @@
-import { ApiBase } from '../base/api-base';
 import {
     NodeCreateByAssetSchema,
     NodeCreateByTypeSchema,
@@ -21,25 +20,14 @@ import { description, param, result, title, tool } from '../decorator/decorator.
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { ICreateByNodeTypeParams, Scene } from '../../core/scene';
 
-
-
-export class NodeApi extends ApiBase {
-
-    constructor() {
-        super();
-    }
-
-    async init(): Promise<void> {
-        // 节点 API 依赖场景，确保在 场景Api 初始化后调用
-        console.log('初始化 节点 API');
-    }
+export class NodeApi {
 
     /**
      * 创建节点
      */
     @tool('scene-create-node-by-type')
-    @title('创建节点')
-    @description('在当前打开的场景中，创建一个新的带内置组件的节点，节点的路径必须是唯一的。')
+    @title('根据类型创建节点')
+    @description('在当前打开的场景中的 path 路径下创建一个名字为 name，类型为 nodeType 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点。')
     @result(NodeQueryResultSchema)
     async createNodeByType(@param(NodeCreateByTypeSchema) options: TCreateNodeByTypeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -47,7 +35,7 @@ export class NodeApi extends ApiBase {
             data: undefined,
         };
         try {
-            let resultNode = await Scene.createNodeByType(options as ICreateByNodeTypeParams);
+            const resultNode = await Scene.createNodeByType(options as ICreateByNodeTypeParams);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -65,9 +53,8 @@ export class NodeApi extends ApiBase {
      * 创建节点
      */
     @tool('scene-create-node-by-asset')
-    @title('创建节点')
-    @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的，需要传入资源的 dbURL，比如：db://assets/sample.prefab')
-    @description('在当前打开的场景中，创建一个新的节点，节点的路径必须是唯一的，需要传入资源的 dbURL，比如：db://assets/sample.prefab')
+    @title('根据资源创建节点')
+    @description('在当前打开的场景中的 path 路径下使用 dbURL 资源，创建一个名字为 name 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点，资源的 dbURL 格式举例：db://assets/sample.prefab')
     @result(NodeQueryResultSchema)
     async createNodeByAsset(@param(NodeCreateByAssetSchema) options: TCreateNodeByAssetOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -75,7 +62,7 @@ export class NodeApi extends ApiBase {
             data: undefined,
         };
         try {
-            let resultNode = await Scene.createNodeByAsset(options);
+            const resultNode = await Scene.createNodeByAsset(options);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -134,7 +121,7 @@ export class NodeApi extends ApiBase {
         try {
             const result = await Scene.updateNode(options);
             if (result?.path) {
-                ret.data = {path: result.path};
+                ret.data = { path: result.path };
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;

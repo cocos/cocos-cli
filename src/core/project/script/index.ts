@@ -41,13 +41,6 @@ export interface IProject {
     get libraryDir(): string;
 
     /**
-     * Create the project
-     * @param projectPath
-     * @param type
-     */
-    create(projectPath: string, type: ProjectType): Promise<boolean>
-
-    /**
      * Opens the project and loads project information
      *
      * @returns {Promise<boolean>} Returns true if the project was opened successfully, false otherwise
@@ -123,9 +116,13 @@ export class Project implements IProject {
         return this._type;
     }
 
+    static getPackageJsonPath(projectPath: string): string {
+        return join(projectPath, 'package.json');
+    }
+
     get pkgPath(): string {
         if (!this._pkgPath) {
-            this._pkgPath = join(this._projectPath, 'package.json');
+            this._pkgPath = Project.getPackageJsonPath(this._projectPath);
         }
         return this._pkgPath;
     }
@@ -142,6 +139,26 @@ export class Project implements IProject {
             this._libraryDir = join(this._projectPath, 'library');
         }
         return this._libraryDir;
+    }
+
+    public static async create(projectPath: string, type: ProjectType = '3d'): Promise<boolean> {
+        try {
+            const packageJSONPath = Project.getPackageJsonPath(projectPath);
+            if (existsSync(projectPath) || existsSync(packageJSONPath)) {
+                throw new Error('Failed to create project, project exist');
+            }
+            await mkdir(projectPath, { recursive: true });
+            const requiredDirs = [
+                join(projectPath, 'temp'),
+                join(projectPath, 'library')
+            ].map(dir => !existsSync(dir) ? mkdir(dir, { recursive: true }) : Promise.resolve());
+
+            await Promise.all(requiredDirs);
+            await safeOutputJSON(packageJSONPath, Project.generateProjectInfo(projectPath, type));
+            return true;
+        } catch (error) {
+            return false;
+        }
     }
 
     public getInfo(): ProjectInfo;
@@ -193,27 +210,6 @@ export class Project implements IProject {
         }
     }
 
-    public async create(projectPath: string, type: ProjectType = '3d'): Promise<boolean> {
-        try {
-            this._type = type;
-            this._projectPath = projectPath;
-            if (existsSync(projectPath) || existsSync(this.pkgPath)) {
-                throw new Error('Failed to create project, project exist');
-            }
-            await mkdir(projectPath, { recursive: true });
-            const requiredDirs = [
-                join(projectPath, 'temp'),
-                join(projectPath, 'library')
-            ].map(dir => !existsSync(dir) ? mkdir(dir, { recursive: true }) : Promise.resolve());
-
-            await Promise.all(requiredDirs);
-            await this.updateInfo(this.generateProjectInfo(projectPath, type));
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
     public async open(projectPath: string): Promise<boolean> {
         this._projectPath = projectPath;
         if (!existsSync(projectPath) || !existsSync(this.pkgPath)) {
@@ -239,7 +235,7 @@ export class Project implements IProject {
      * @param {ProjectType} type - The project type (2d or 3d)
      * @returns {ProjectInfo} Generated project information
      */
-    private generateProjectInfo(projectPath: string, type: ProjectType): ProjectInfo {
+    private static generateProjectInfo(projectPath: string, type: ProjectType): ProjectInfo {
         return {
             name: basename(projectPath),
             type: type,

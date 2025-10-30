@@ -61,20 +61,6 @@ cocos build --project ./my-game --platform web-mobile
 cocos build --project ./my-game --platform web-desktop --debug
 ```
 
-### 📂 导入项目
-
-```bash
-# 导入现有项目
-cocos import --project ./my-game
-```
-
-### ℹ️ 查看项目信息
-
-```bash
-# 显示项目详细信息
-cocos info --project ./my-game
-```
-
 ## 🎨 交互式向导
 
 使用交互式向导可以更轻松地完成各种操作：
@@ -87,9 +73,8 @@ cocos wizard
 向导将引导您完成：
 
 - 项目构建
-- 项目导入
-- 查看项目信息
 - 启动 MCP 服务器
+- 查看帮助信息
 
 ## 🔌 MCP 服务器
 

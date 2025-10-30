@@ -437,10 +437,11 @@ export class PluginManager extends EventEmitter {
      * 获取平台默认值
      * @param platform
      */
-    public async getOptionsByPlatform(platform: Platform) {
+    public async getOptionsByPlatform<P extends Platform>(platform: P): Promise<IBuildTaskOption<P>> {
         const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
         const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
-        return Object.assign(commonOptions, options);
+        commonOptions.platform = platform;
+        return Object.assign(commonOptions, options) as unknown as IBuildTaskOption<P>;
     }
 
     public getTexturePlatformConfigs(): Record<string, ITextureCompressConfig> {

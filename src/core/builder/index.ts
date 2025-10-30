@@ -14,18 +14,20 @@ import { Engine } from '../engine';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
 
-export async function build(options?: IBuildCommandOption): Promise<IBuildResultData> {
+export async function init() {
     await builderConfig.init();
-    if (!options) {
-        options = await pluginManager.getOptionsByPlatform('web-desktop');
-    }
+    // TODO 看后续是否需要按需启动
+    await pluginManager.prepare(['web-desktop', 'web-mobile']);
+}
 
-    options.platform = options.platform || 'web-desktop';
-    // 启动对应的平台模块注册流程
-    await pluginManager.prepare([options.platform!]);
+export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption<P>): Promise<IBuildResultData> {
+    if (!options) {
+        options = await pluginManager.getOptionsByPlatform(platform);
+    }
+    options.platform = platform;
     options.taskId = options.taskId || String(new Date().getTime());
-    options.logDest = options.logDest || getTaskLogDest(options.platform, options.taskId);
-    options.taskName = options.taskName || options.platform;
+    options.logDest = options.logDest || getTaskLogDest(platform, options.taskId);
+    options.taskName = options.taskName || platform;
     options.engineInfo = options.engineInfo || Engine.getInfo();
 
     if (options.stage === 'bundle') {
@@ -34,14 +36,14 @@ export async function build(options?: IBuildCommandOption): Promise<IBuildResult
 
     // 单独的编译、生成流程
     if (options.stage && (options.stage !== 'build')) {
-        return await executeBuildStageTask(options.taskId, options.stage, options as IBuildStageOptions);
+        return await executeBuildStageTask(options.taskId, options.stage, options as unknown as IBuildStageOptions);
     }
     // 不支持的构建平台不执行构建
-    if (!PLATFORMS.includes(options.platform)) {
+    if (!PLATFORMS.includes(platform)) {
         console.error(i18n.t('builder.tips.disable_platform_for_build_command', {
-            platform: options.platform,
+            platform: platform,
         }));
-        return { code: BuildExitCode.BUILD_FAILED, reason: `Unsupported platform ${options.platform} for build command!` };
+        return { code: BuildExitCode.BUILD_FAILED, reason: `Unsupported platform ${platform} for build command!` };
     }
 
     // 命令行构建前，补全项目配置数据
@@ -70,7 +72,7 @@ export async function build(options?: IBuildCommandOption): Promise<IBuildResult
     const startTime = Date.now();
 
     // 显示构建开始信息
-    newConsole.buildStart(options.platform);
+    newConsole.buildStart(platform);
     try {
         const { BuildTask } = await import('./worker/builder');
         const builder = new BuildTask(options.taskId, res);
@@ -83,14 +85,14 @@ export async function build(options?: IBuildCommandOption): Promise<IBuildResult
         await builder.run();
         buildSuccess = !builder.error;
         const duration = formatMSTime(Date.now() - startTime);
-        newConsole.buildComplete(options.platform, duration, buildSuccess);
+        newConsole.buildComplete(platform, duration, buildSuccess);
         const dest = utils.Path.resolveToUrl(builder.result.paths.dir, 'project');
         return buildSuccess ? { code: BuildExitCode.BUILD_SUCCESS, dest } : { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed!' };
     } catch (error: any) {
         buildSuccess = false;
         const duration = formatMSTime(Date.now() - startTime);
         newConsole.error(error);
-        newConsole.buildComplete(options.platform, duration, false);
+        newConsole.buildComplete(platform, duration, false);
         return { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed! ' + String(error) };
     }
 }
@@ -107,7 +109,7 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
         const options = optionsList[i];
         const tasksLabel = options.taskName || 'bundle Build';
         const taskStartTime = Date.now();
-        const logDest = getTaskLogDest(options.platform, buildTaskId);
+        const _logDest = getTaskLogDest(options.platform, buildTaskId);
 
         try {
             newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
@@ -208,14 +210,12 @@ function readBuildTaskOptions(root: string): IBuildTaskOption<any> | null {
     return null;
 }
 
-export async function getPreviewSettings(options?: IBuildTaskOption): Promise<IPreviewSettingsResult> {
-    if (!options) {
-        options = await pluginManager.getOptionsByPlatform('web-desktop');
-    }
-    options.preview = true;
+export async function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult> {
+    const buildOptions = options || (await pluginManager.getOptionsByPlatform('web-desktop'));
+    buildOptions.preview = true;
     // TODO 预览 settings 的排队之类的
     const { BuildTask } = await import('./worker/builder/index');
-    const buildTask = new BuildTask(options.taskId || 'v', options);
+    const buildTask = new BuildTask(buildOptions.taskId || 'v', buildOptions as unknown as IBuildTaskOption<Platform>);
     console.time('Get settings.js in preview');
 
     // 拿出 settings 信息

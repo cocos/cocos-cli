@@ -18,6 +18,22 @@ describe('Node Proxy 测试', () => {
     const testPosition: IVec3 = { x: 1, y: 2, z: 0 };
 
     describe('1. 基础节点操作', () => {
+        it('createNode - 创建多级父节点的节点', async () => {
+            const multiParentPath = 'Canvas/TestNode/TestNode2/TestNode3';
+            const params: ICreateByNodeTypeParams = {
+                path: multiParentPath,
+                name: 'TestNode',
+                nodeType: NodeType.SPRITE,
+                position: testPosition
+            };
+
+            createdNode = await NodeProxy.createNodeByType(params);
+            expect(createdNode).toBeDefined();
+            expect(createdNode?.name).toBe('TestNode');
+            expect(createdNode?.path).toBe(multiParentPath + '/TestNode');
+        });
+
+
         it('createNode - 创建带预制体的节点', async () => {
             const params: ICreateByAssetParams = {
                 dbURL: 'db://internal/default_prefab/ui/Label.prefab',
@@ -42,7 +58,8 @@ describe('Node Proxy 测试', () => {
             createdNode = await NodeProxy.createNodeByType(params);
             expect(createdNode).toBeDefined();
             expect(createdNode?.name).toBe('TestNode');
-            expect(createdNode?.path).toBe('Canvas/TestNode');
+            // 会在根节点下先创建 TestNode 再创建 Canvas/TestNode (SPRITE 节点会在 Canvas 下创建， 节点重名为 ‘TestNode’)
+            expect(createdNode?.path).toBe('TestNode/Canvas/TestNode');
             expect(createdNode?.properties.position).toEqual(testPosition);
             console.log('Created node original path=', testNodePath, ' dest path=', createdNode?.path);
         });
@@ -59,7 +76,7 @@ describe('Node Proxy 测试', () => {
 
                 const result = await NodeProxy.queryNode(params);
                 expect(result).toBeDefined();
-                expect(result?.path).toBe('Canvas/TestNode');
+                expect(result?.path).toBe('TestNode/Canvas/TestNode');
                 expect(result?.name).toBe('TestNode');
             }
         });
@@ -286,7 +303,7 @@ describe('Node Proxy 测试', () => {
             const nodeTypes = Object.values(NodeType);
             for (const nodeType of nodeTypes) {
                 const params: ICreateByNodeTypeParams = {
-                    path: testNodePath,
+                    path: '/',
                     nodeType: nodeType,
                     position: testPosition,
                 };

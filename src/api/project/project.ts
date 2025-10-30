@@ -1,20 +1,8 @@
-import { ApiBase } from '../base/api-base';
 import { tool, param, title, description, result } from '../decorator/decorator';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode, ProjectPathSchema } from '../base/schema-base';
 import z from 'zod';
 
-export class ProjectApi extends ApiBase {
-
-    constructor(
-        private projectPath: string
-    ) {
-        super();
-    }
-
-    async init(): Promise<void> {
-        const { default: Project } = await import('../../core/project');
-        await Project.open(this.projectPath);
-    }
+export class ProjectApi {
 
     //todo: 实现关闭项目的功能，目前启动 mcp 会默认打开项目
     // @tool('project-open')
@@ -24,8 +12,8 @@ export class ProjectApi extends ApiBase {
     async open(@param(ProjectPathSchema) projectPath: string): Promise<CommonResultType<boolean>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
-            const { default: Project } = await import('../../core/project');
-            await Project.open(projectPath);
+            const { projectManager } = await import('../../core/project-manager');
+            await projectManager.open(projectPath);
         } catch (e) {
             code = COMMON_STATUS.FAIL;
             console.error('open project fail:', e instanceof Error ? e.message : String(e) + ' path: ' + projectPath);
@@ -45,8 +33,8 @@ export class ProjectApi extends ApiBase {
     async close() {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
-            const { default: Project } = await import('../../core/project');
-            await Project.close();
+            const { projectManager } = await import('../../core/project-manager');
+            await projectManager.close();
         } catch (e) {
             code = COMMON_STATUS.FAIL;
             console.error('close project fail:', e instanceof Error ? e.message : String(e));

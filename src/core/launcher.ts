@@ -1,5 +1,5 @@
-import { join } from 'path';
-import { IBuildCommandOption } from './builder/@types/protected';
+import path, { join } from 'path';
+import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
 import { getCurrentLocalTime } from './assets/utils';
@@ -7,66 +7,102 @@ import { PackerDriver } from './scripting/packer-driver';
 import { startServer } from '../server';
 import { GlobalPaths } from '../global';
 
-class ProjectManager {
+/**
+ * 启动器，主要用于整合各个模块的初始化和关闭流程
+ * 默认支持几种启动方式：单独导入项目、单独启动项目、单独构建项目
+ */
+export default class Launcher {
+    private projectPath: string;
 
-    create() {
+    private _init = false;
+    private _import = false;
 
+    constructor(projectPath: string) {
+        this.projectPath = projectPath;
     }
 
-    /**
-     * 打开某个项目
-     * @param path
-     */
-    async open(path: string) {
+    private async init() {
+        if (this._init) {
+            return;
+        }
+        this._init = true;
         /**
          * 初始化一些基础模块信息
          */
         utils.Path.register('project', {
             label: '项目',
-            path,
+            path: this.projectPath,
         });
-        await startServer();
         const { configurationManager } = await import('./configuration');
-        await configurationManager.initialize(path);
+        await configurationManager.initialize(this.projectPath);
         // 初始化项目信息
         const { default: Project } = await import('./project');
-        await Project.open(path);
+        await Project.open(this.projectPath);
         // 初始化引擎
-        const { Engine, initEngine } = await import('./engine');
-        await initEngine(GlobalPaths.enginePath, path);
+        const { initEngine } = await import('./engine');
+        await initEngine(GlobalPaths.enginePath, this.projectPath);
         console.log('initEngine success');
-        // 启动以及初始化资源数据库
-        const { startupAssetDB } = await import('./assets');
-        console.log('startupAssetDB', path);
-        await startupAssetDB();
-        const packDriver = await PackerDriver.create(path, GlobalPaths.enginePath);
-        await packDriver.init(Engine.getConfig().includeModules);
-        await packDriver.resetDatabases();
-        await packDriver.build();
-        // 启动场景进程
-        const { sceneWorker } = await import('./scene/main-process/scene-worker');
-        await sceneWorker.start(GlobalPaths.enginePath, path);
     }
 
     /**
-     * 构建某个项目
-     * @param projectPath
+     * 导入资源
+     */
+    async import() {
+        if (this._import) {
+            return;
+        }
+        this._import = true;
+        await this.init();
+        // 启动以及初始化资源数据库
+        const { startupAssetDB } = await import('./assets');
+        await startupAssetDB();
+        const packDriver = await PackerDriver.create(this.projectPath, GlobalPaths.enginePath);
+        const { Engine } = await import('./engine');
+        await packDriver.init(Engine.getConfig().includeModules);
+        await packDriver.resetDatabases();
+        await packDriver.build();
+    }
+
+    /**
+     * 启动项目
+     */
+    async startup(port?: number) {
+        await this.import();
+        await startServer(port);
+        // 启动场景进程
+        const { sceneWorker } = await import('./scene/main-process/scene-worker');
+        await sceneWorker.start(GlobalPaths.enginePath, this.projectPath);
+        // 初始化构建
+        const { init: initBuilder } = await import('./builder');
+        await initBuilder();
+    }
+
+    /**
+     * 构建，主要是作为命令行构建的入口
+     * @param platform
      * @param options
      */
-    async build(projectPath: string, options: Partial<IBuildCommandOption>) {
+    async build(platform: Platform, options: Partial<IBuildCommandOption>) {
+        await this.import();
         if (!options.logDest) {
-            options.logDest = join(projectPath, 'temp/build', getCurrentLocalTime() + '.log');
+            options.logDest = join(this.projectPath, 'temp/build', getCurrentLocalTime() + '.log');
         }
         await newConsole.init(options.logDest);
         await newConsole.record();
         await newConsole.startProgress('Start build project...');
 
-        // 先打开项目
-        await this.open(projectPath);
+        // 先导入项目
+        await this.import();
         // 执行构建流程
-        const { build } = await import('./builder');
-        return await build(options);
+        const { init, build } = await import('./builder');
+        await init();
+        return await build(platform, options);
+    }
+
+    async close() {
+        // 保存项目配置
+        const { default: Project } = await import('./project');
+        await Project.close();
+        // ----- TODO 可能有的更多其他模块的保存销毁操作 ----
     }
 }
-
-export const projectManager = new ProjectManager();

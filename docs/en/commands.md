@@ -57,50 +57,6 @@ cocos build --project <project-path> [options]
 cocos build --project /path/to/project --platform web-desktop
 ```
 
-### `cocos import`
-
-Import/open Cocos project
-
-**Usage:**
-
-```bash
-cocos import --project <project-path> [options]
-```
-
-**Required Parameters:**
-
-- `--project <path>` - Cocos project path
-
-**Optional Parameters:**
-
-- `--wait` - Keep process running after import (for development)
-
-**Examples:**
-
-```bash
-cocos import --project /path/to/project --wait
-```
-
-### `cocos info`
-
-Display project information
-
-**Usage:**
-
-```bash
-cocos info --project <project-path>
-```
-
-**Required Parameters:**
-
-- `--project <path>` - Cocos project path
-
-**Examples:**
-
-```bash
-cocos info --project /path/to/project
-```
-
 ### `cocos start-mcp-server`
 
 Start MCP (Model Context Protocol) server
@@ -141,8 +97,6 @@ Start interactive wizard to guide you through project setup and operations. Prov
 **Features:**
 
 - 🏗️ Build project wizard
-- 📂 Import project wizard
-- ℹ️ View project information wizard
 - 🚀 Start MCP server wizard
 - ❓ Help information viewer
 
