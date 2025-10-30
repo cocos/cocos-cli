@@ -45,7 +45,7 @@ export class CocosAPI {
 
     private init() {
         // 初始化日志系统
-        newConsole.init(join(this.projectPath, 'temp', 'logs'));
+        newConsole.init(join(this.projectPath, 'temp', 'logs'), true);
         newConsole.record();
 
         //todo: 初始化一些基础模块信息,这边应该归纳到每个模块的 init 吧？

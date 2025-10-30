@@ -33,6 +33,7 @@ export class NewConsole {
         level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
             ? 'debug' : 'info', // Set log level
     });
+    private cacheLogs = true;
     private isVerbose: boolean = false;
 
     // 进度管理相关
@@ -64,7 +65,7 @@ export class NewConsole {
         this.isVerbose = process.env.DEBUG === 'true' || process.argv.includes('--debug');
     }
 
-    public init(logDest: string) {
+    public init(logDest: string, cacheLogs = false) {
         if (this._init) {
             return;
         }
@@ -80,6 +81,7 @@ export class NewConsole {
         this.__proto__.__proto__ = rawConsole;
 
         this.logDest = logDest;
+        this.cacheLogs = cacheLogs;
 
         this._init = true;
     }
@@ -391,8 +393,9 @@ export class NewConsole {
         if (!this._start || !this.messages.length) {
             return;
         }
-
-        this.messages.shift(); // pop first message
+        if (!this.cacheLogs) {
+            this.messages.shift(); // pop first message
+        }
     }
 
     trackMemoryStart(name: string) {
@@ -537,6 +540,23 @@ export class NewConsole {
         } else {
             this.error(`❌ ${taskName} failed`);
         }
+    }
+
+    // --------------------- Query logs -------------------------
+    public queryLogs(count: number, type?: IConsoleType): string {
+        let result = '';
+        for (let i = this.messages.length - 1; i >= 0 && count > 0; --i) {
+            const msg = this.messages[i];
+            if (!type || msg.type === type) {
+                if (type) {
+                    result += `${translate(msg.value)}\n`;
+                } else {
+                    result += `[${msg.type.toUpperCase()}] ${translate(msg.value)}\n`;
+                }
+                --count;
+            }
+        }
+        return result;
     }
 }
 
