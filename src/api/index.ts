@@ -9,6 +9,8 @@ import { BuilderApi } from './builder/builder';
 import { startServer } from '../server';
 import { ComponentApi } from './scene/component';
 import { NodeApi } from './scene/node';
+import { newConsole } from '../core/base/console';
+import { join } from 'path';
 
 export class CocosAPI {
     public assets: AssetsApi;
@@ -42,6 +44,10 @@ export class CocosAPI {
     }
 
     private init() {
+        // 初始化日志系统
+        newConsole.init(join(this.projectPath, 'temp', 'logs'));
+        newConsole.record();
+
         //todo: 初始化一些基础模块信息,这边应该归纳到每个模块的 init 吧？
         utils.Path.register('project', {
             label: '项目',
