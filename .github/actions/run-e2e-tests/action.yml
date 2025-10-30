@@ -25,11 +25,22 @@ runs:
   using: 'composite'
   steps:
     - name: Run E2E tests
+      id: run-tests
       shell: bash
+      # 即使测试失败也继续执行后续步骤（查找报告）
+      continue-on-error: true
       run: npm run test:e2e
     
     - name: Find test report file
       id: find-report
       shell: bash
+      # 无论测试成功或失败，都查找报告
+      if: always()
       run: node .github/scripts/find-test-report.js
+    
+    - name: Check test result
+      shell: bash
+      # 如果测试失败，在找到报告后再标记失败
+      if: steps.run-tests.outcome == 'failure'
+      run: exit 1
 

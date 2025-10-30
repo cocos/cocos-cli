@@ -35,8 +35,8 @@ describe('MCP Builder API', () => {
     describe('builder-build', () => {
         test('should build with custom options', async () => {
             const result = await mcpClient.callTool('builder-build', {
+                platform: 'web-desktop',
                 options: {
-                    platform: 'web-desktop',
                     debug: true,
                     md5Cache: false,
                     sourceMaps: true,
@@ -58,8 +58,8 @@ describe('MCP Builder API', () => {
 
         test('should build web-mobile project', async () => {
             const result = await mcpClient.callTool('builder-build', {
+                platform: 'web-mobile',
                 options: {
-                    platform: 'web-mobile',
                     outputName: 'web-mobile',
                     debug: true,
                     buildPath: 'project://build',
@@ -139,8 +139,8 @@ describe('MCP Builder API', () => {
                     expect(typeof result.data.packAutoAtlas).toBe('boolean');
                 }
 
-                // 验证 packages 数据（重要）
-                if (result.data.packages !== undefined) {
+                // 验证 packages 数据（使用类型收窄）
+                if (result.data.platform === 'web-desktop' && result.data.packages) {
                     expect(typeof result.data.packages['web-desktop']).toBe('object');
                     expect(typeof result.data.packages['web-desktop'].resolution).toBe('object');
                     expect(typeof result.data.packages['web-desktop'].resolution.designHeight).toBe('number');

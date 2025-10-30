@@ -17,6 +17,15 @@ outputs:
   report_filename:
     description: '覆盖率报告文件名'
     value: ${{ steps.report-url.outputs.report_filename }}
+  coverage_percent:
+    description: '覆盖率百分比'
+    value: ${{ steps.coverage-report.outputs.coverage_percent }}
+  tested_count:
+    description: '已测试的 API 数量'
+    value: ${{ steps.coverage-report.outputs.tested_count }}
+  total_count:
+    description: 'API 总数'
+    value: ${{ steps.coverage-report.outputs.total_count }}
   markdown:
     description: 'Markdown 格式的覆盖率摘要'
     value: ${{ steps.coverage-report.outputs.markdown }}
@@ -27,13 +36,14 @@ runs:
     - name: Generate coverage report with Markdown
       id: coverage-report
       shell: bash
+      # 覆盖率检查仅作为信息展示，不会导致流程失败
       run: npm run check:e2e-coverage:report -- --markdown
-      continue-on-error: true
     
     - name: Generate coverage report URL
-      if: always() && steps.coverage-report.outputs.report_path != ''
       id: report-url
       shell: bash
+      # 只要有报告就生成 URL
+      if: steps.coverage-report.outputs.report_path != ''
       run: |
         REPORT_FILE="${{ steps.coverage-report.outputs.report_path }}"
         REPORT_FILENAME=$(basename "$REPORT_FILE")

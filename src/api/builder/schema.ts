@@ -51,53 +51,55 @@ export const SchemaWebMobilePackages = z.object({
 
 // ==================== 基础构建配置 ====================
 
-// 通用构建配置（IBuildCommonOptions + 部分 IBuildOptionBase）
-export const SchemaBuildBaseConfig = z.object({
+// 核心构建字段定义（不包含 platform 和 packages，这些在平台特定配置中定义）
+const BuildConfigCoreFields = z.object({
     // 基础信息
-    name: z.string().optional().describe('游戏名称，默认为项目名称'),
-    outputName: z.string().optional().describe('构建输出名称，默认为平台名称'),
-    buildPath: z.string().optional().default('project://build').describe('构建后的游戏生成文件夹，项目下的地址请使用 project:// 协议'),
-    platform: SchemaPlatform.describe('构建平台'),
+    name: z.string().describe('游戏名称，默认为项目名称'),
+    outputName: z.string().describe('构建输出名称，默认为平台名称'),
+    buildPath: z.string().describe('构建后的游戏生成文件夹，项目下的地址请使用 project:// 协议'),
 
     // 场景配置
-    scenes: z.array(SchemaSceneRef).optional().describe('构建场景列表，默认为全部场景'),
-    startScene: z.string().optional().describe('打开游戏后进入的第一个场景，db url 格式'),
+    scenes: z.array(SchemaSceneRef).describe('构建场景列表，默认为全部场景'),
+    startScene: z.string().describe('打开游戏后进入的第一个场景，db url 格式'),
 
     // 构建模式
-    debug: z.boolean().default(false).optional().describe('是否是调试模式'),
-    md5Cache: z.boolean().default(false).optional().describe('给构建后的所有资源文件名将加上 MD5 信息，解决 CDN 资源缓存问题'),
+    debug: z.boolean().describe('是否是调试模式'),
+    md5Cache: z.boolean().describe('给构建后的所有资源文件名将加上 MD5 信息，解决 CDN 资源缓存问题'),
 
     // Polyfills 和脚本配置
-    polyfills: SchemaPolyfills.optional().describe('实现运行环境并不支持的 JavaScript 标准库'),
-    buildScriptTargets: z.string().optional().describe('项目需要支持的目标环境信息，可以传递一个和 browserslist 兼容的查询字符串，例如：> 0.4%'),
+    polyfills: SchemaPolyfills.describe('实现运行环境并不支持的 JavaScript 标准库'),
+    buildScriptTargets: z.string().describe('项目需要支持的目标环境信息，可以传递一个和 browserslist 兼容的查询字符串，例如：> 0.4%'),
 
     // Bundle 配置
-    mainBundleCompressionType: z.enum(['none', 'merge_dep', 'merge_all_json', 'subpackage', 'zip']).default('merge_dep').optional().describe('指定主 bundle 的压缩类型'),
-    mainBundleIsRemote: z.boolean().default(false).optional().describe('main Bundle 是否是远程包'),
-    server: z.string().optional().describe('远程资源服务器地址'),
-    startSceneAssetBundle: z.boolean().default(false).optional().describe('指定初始场景为远程 Bundle 包'),
-    bundleConfigs: z.array(SchemaBundleConfig).optional().describe('构建 Bundle 的指定包含传参，未传递时按照项目内所有 Bundle 的原始配置打包'),
-    moveRemoteBundleScript: z.boolean().default(false).optional().describe('移除远程包 Bundle 的脚本，小游戏平台将会自动勾选'),
+    mainBundleCompressionType: z.enum(['none', 'merge_dep', 'merge_all_json', 'subpackage', 'zip']).describe('指定主 bundle 的压缩类型'),
+    mainBundleIsRemote: z.boolean().describe('main Bundle 是否是远程包'),
+    server: z.string().describe('远程资源服务器地址'),
+    startSceneAssetBundle: z.boolean().describe('指定初始场景为远程 Bundle 包'),
+    bundleConfigs: z.array(SchemaBundleConfig).describe('构建 Bundle 的指定包含传参，未传递时按照项目内所有 Bundle 的原始配置打包'),
+    moveRemoteBundleScript: z.boolean().describe('移除远程包 Bundle 的脚本，小游戏平台将会自动勾选'),
 
     // 代码处理
-    nativeCodeBundleMode: z.enum(['wasm', 'asmjs', 'both']).default('asmjs').optional().describe('指定构建的 Native Code 的模式'),
-    sourceMaps: z.union([z.boolean(), z.literal('inline')]).default(false).optional().describe('是否生成 sourceMap。false: 关闭；true: 启用(独立文件)；inline: 启用(内联)'),
-    experimentalEraseModules: z.boolean().default(false).optional().describe('是否使用实验性 eraseModules'),
-    bundleCommonChunk: z.boolean().default(false).optional().describe('是否在 Bundle 中嵌入公共脚本'),
-    mangleProperties: z.boolean().default(false).optional().describe('是否混淆属性'),
-    inlineEnum: z.boolean().default(false).optional().describe('是否内联枚举'),
+    nativeCodeBundleMode: z.enum(['wasm', 'asmjs', 'both']).describe('指定构建的 Native Code 的模式'),
+    sourceMaps: z.union([z.boolean(), z.literal('inline')]).describe('是否生成 sourceMap。false: 关闭；true: 启用(独立文件)；inline: 启用(内联)'),
+    experimentalEraseModules: z.boolean().describe('是否使用实验性 eraseModules'),
+    bundleCommonChunk: z.boolean().describe('是否在 Bundle 中嵌入公共脚本'),
+    mangleProperties: z.boolean().describe('是否混淆属性'),
+    inlineEnum: z.boolean().describe('是否内联枚举'),
 
     // 资源处理
-    skipCompressTexture: z.boolean().default(false).optional().describe('是否跳过纹理压缩'),
-    packAutoAtlas: z.boolean().default(true).optional().describe('是否自动合图'),
+    skipCompressTexture: z.boolean().describe('是否跳过纹理压缩'),
+    packAutoAtlas: z.boolean().describe('是否自动合图'),
 
     // 其他选项
-    useSplashScreen: z.boolean().default(false).optional().describe('是否使用自定义启动画面'),
+    useSplashScreen: z.boolean().describe('是否使用自定义启动画面'),
 
     // 构建阶段
-    stage: z.enum(['build', 'make', 'run', 'bundle']).default('build').optional().describe('构建阶段指定，默认为 build 可指定为 make/run/bundle 等'),
-    nextStages: z.array(z.enum(['make', 'run'])).optional().describe('指定后续联合的构建阶段，可指定多个'),
-}).describe('基础构建配置');
+    stage: z.enum(['build', 'make', 'run', 'bundle']).describe('构建阶段指定，默认为 build 可指定为 make/run/bundle 等'),
+    nextStages: z.array(z.enum(['make', 'run'])).describe('指定后续联合的构建阶段，可指定多个'),
+});
+
+// 构建配置基类：所有字段可选（用于 API 入参，不包含 platform 和 packages）
+export const SchemaBuildBaseConfig = BuildConfigCoreFields.partial().describe('基础构建配置（所有字段可选）');
 
 // 运行时/一次性选项（不进入配置结果）
 export const SchemaBuildRuntimeOptions = z.object({
@@ -110,32 +112,33 @@ export const SchemaBuildRuntimeOptions = z.object({
 
 // ==================== 平台特定的完整构建选项 ====================
 
-// Web Desktop 完整构建选项（包含 packages）
+// Web Desktop 完整构建选项（入参，所有字段可选）
 export const SchemaWebDesktopBuildOption = SchemaBuildRuntimeOptions
     .merge(SchemaBuildBaseConfig)
     .extend({
-        platform: z.literal('web-desktop').describe('构建平台'),
+        platform: z.literal('web-desktop').describe('构建平台').optional(),
         packages: z.object({
-            'web-desktop': SchemaWebDesktopPackages
-        }).describe('平台特定配置')
+            'web-desktop': SchemaWebDesktopPackages.partial()
+        }).optional().describe('Web Desktop 平台特定配置')
     })
-    .optional()
-    .describe('Web Desktop 完整构建选项');
+    .describe('Web Desktop 完整构建选项（所有字段可选）');
 
-// Web Mobile 完整构建选项（包含 packages）
+// Web Mobile 完整构建选项（入参，所有字段可选）
 export const SchemaWebMobileBuildOption = SchemaBuildRuntimeOptions
     .merge(SchemaBuildBaseConfig)
     .extend({
-        platform: z.literal('web-mobile').describe('构建平台'),
+        platform: z.literal('web-mobile').describe('构建平台').optional(),
         packages: z.object({
-            'web-mobile': SchemaWebMobilePackages
-        }).describe('平台特定配置')
+            'web-mobile': SchemaWebMobilePackages.partial()
+        }).optional().describe('Web Mobile 平台特定配置')
     })
-    .optional()
-    .describe('Web Mobile 完整构建选项');
+    .describe('Web Mobile 完整构建选项（所有字段可选）');
 
-// 通用构建选项（用于向后兼容）
-export const SchemaBuildOption = z.union([SchemaWebDesktopBuildOption, SchemaWebMobileBuildOption]);
+// 通用构建选项（用于 API 入参）
+export const SchemaBuildOption = z.union([
+    SchemaWebDesktopBuildOption,
+    SchemaWebMobileBuildOption
+]).optional();
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaBuildResult = z.object({
@@ -178,8 +181,34 @@ export const SchemaPreviewSettingsResult = z.object({
 
 export type TPreviewSettingsResult = z.infer<typeof SchemaPreviewSettingsResult>;
 
-// 让配置查询/输出结果与入参配置复用同一套定义
-export const SchemaBuildConfigResult = SchemaBuildBaseConfig.nullable().describe('构建配置结果');
+// ==================== 构建配置查询结果 ====================
+
+// Web Desktop 构建配置查询结果（所有字段必填，包含 packages，不包含运行时选项）
+const SchemaWebDesktopBuildConfigResult = BuildConfigCoreFields.required()
+    .extend({
+        platform: z.literal('web-desktop').describe('构建平台'),
+        packages: z.object({
+            'web-desktop': SchemaWebDesktopPackages.required()
+        }).describe('Web Desktop 平台特定配置')
+    })
+    .describe('Web Desktop 构建配置查询结果');
+
+// Web Mobile 构建配置查询结果（所有字段必填，包含 packages，不包含运行时选项）
+const SchemaWebMobileBuildConfigResult = BuildConfigCoreFields.required()
+    .extend({
+        platform: z.literal('web-mobile').describe('构建平台'),
+        packages: z.object({
+            'web-mobile': SchemaWebMobilePackages.required()
+        }).describe('Web Mobile 平台特定配置')
+    })
+    .describe('Web Mobile 构建配置查询结果');
+
+// 构建配置查询结果：union 类型，所有字段必填，包含 packages，不包含运行时选项
+export const SchemaBuildConfigResult = z.union([
+    SchemaWebDesktopBuildConfigResult,
+    SchemaWebMobileBuildConfigResult
+]).nullable().describe('构建配置查询结果（所有字段必填，包含 packages）');
+
 export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;
 
 // 导出更多类型

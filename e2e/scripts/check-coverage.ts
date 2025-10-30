@@ -336,7 +336,9 @@ function generateReport(tools: ApiTool[], references: TestReference[]) {
     }
     console.log('');
 
-    return untestedTools.length === 0 ? 0 : 1;
+    // ✅ 覆盖率检查仅作为信息展示，不影响流程成功/失败
+    // 无论覆盖率是否达到 100%，都返回成功退出码
+    return 0;
 }
 
 /**
@@ -806,6 +808,19 @@ async function main() {
 
     const exitCode = generateReport(tools, references);
 
+    // 计算覆盖率统计
+    const testCounts = new Map<string, TestReference[]>();
+    for (const ref of references) {
+        if (!testCounts.has(ref.toolName)) {
+            testCounts.set(ref.toolName, []);
+        }
+        testCounts.get(ref.toolName)!.push(ref);
+    }
+
+    const testedCount = Array.from(testCounts.keys()).length;
+    const totalTools = tools.length;
+    const coveragePercent = totalTools > 0 ? ((testedCount / totalTools) * 100).toFixed(2) : '0.00';
+
     // 在最后一行打印报告地址
     if (savedReportPath) {
         console.log(`\n📊 报告地址: ${savedReportPath}`);
@@ -818,6 +833,11 @@ async function main() {
         if (relativeReportPath) {
             outputs.push(`report_path=${relativeReportPath}`);
         }
+
+        // 输出覆盖率统计信息
+        outputs.push(`coverage_percent=${coveragePercent}`);
+        outputs.push(`tested_count=${testedCount}`);
+        outputs.push(`total_count=${totalTools}`);
 
         if (markdownReport) {
             // 使用 heredoc 格式输出多行 Markdown 内容

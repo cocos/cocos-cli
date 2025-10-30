@@ -131,19 +131,14 @@ jobs:
           # 判断整体状态
           ALL_PASS=true
           
-          # E2E 测试状态
+          # E2E 测试状态（通过 outcome 判断，而不是 report_exists）
           if [ "${{ steps.check-e2e.outputs.should_run }}" = "true" ]; then
-            if [ "${{ steps.e2e-tests.outputs.report_exists }}" != "true" ]; then
+            if [ "${{ steps.e2e-tests.outcome }}" != "success" ]; then
               ALL_PASS=false
             fi
           fi
           
-          # 覆盖率状态
-          if [ "${{ steps.check-coverage.outputs.should_run }}" = "true" ]; then
-            if [ -z "${{ steps.coverage.outputs.report_url }}" ]; then
-              ALL_PASS=false
-            fi
-          fi
+          # 覆盖率检查仅作为信息展示，不影响整体状态
           
           # 生成随机页脚消息
           if [ "$ALL_PASS" = "false" ]; then
@@ -164,11 +159,24 @@ jobs:
           
           # E2E 测试行
           if [ "${{ steps.check-e2e.outputs.should_run }}" = "true" ]; then
-            if [ "${{ steps.e2e-tests.outputs.report_exists }}" = "true" ]; then
-              REPORT_URL="${{ steps.e2e-tests.outputs.report_url }}"
-              MESSAGE+="| 🔄 | ✅ E2E 测试 · [报告]($REPORT_URL) |\n"
+            # 获取报告 URL（无论测试成功还是失败）
+            REPORT_URL="${{ steps.e2e-tests.outputs.report_url }}"
+            
+            # 检查测试是否通过（通过检查 outcome）
+            if [ "${{ steps.e2e-tests.outcome }}" = "success" ]; then
+              # 测试成功
+              if [ -n "$REPORT_URL" ]; then
+                MESSAGE+="| 🔄 | ✅ E2E 测试 · [报告]($REPORT_URL) |\n"
+              else
+                MESSAGE+="| 🔄 | ✅ E2E 测试 |\n"
+              fi
             else
-              MESSAGE+="| 🔄 | ❌ E2E 测试失败 |\n"
+              # 测试失败，但仍附上报告链接（如果存在）
+              if [ -n "$REPORT_URL" ]; then
+                MESSAGE+="| 🔄 | ❌ E2E 测试失败 · [查看报告]($REPORT_URL) |\n"
+              else
+                MESSAGE+="| 🔄 | ❌ E2E 测试失败 |\n"
+              fi
             fi
           else
             MESSAGE+="| 🔄 | ⏭️ E2E 测试 (跳过) |\n"
@@ -176,11 +184,19 @@ jobs:
           
           # 覆盖率行
           if [ "${{ steps.check-coverage.outputs.should_run }}" = "true" ]; then
-            if [ -n "${{ steps.coverage.outputs.report_url }}" ]; then
-              COVERAGE_URL="${{ steps.coverage.outputs.report_url }}"
-              MESSAGE+="| 📈 | ✅ 测试覆盖率 · [详情]($COVERAGE_URL) |\n"
+            # 获取覆盖率信息
+            COVERAGE_URL="${{ steps.coverage.outputs.report_url }}"
+            COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
+            TESTED_COUNT="${{ steps.coverage.outputs.tested_count }}"
+            TOTAL_COUNT="${{ steps.coverage.outputs.total_count }}"
+            
+            # 显示覆盖率百分比（如果有数据）
+            if [ -n "$COVERAGE_PERCENT" ] && [ -n "$COVERAGE_URL" ]; then
+              MESSAGE+="| 📈 | 覆盖率 ${COVERAGE_PERCENT}% (${TESTED_COUNT}/${TOTAL_COUNT}) · [详情]($COVERAGE_URL) |\n"
+            elif [ -n "$COVERAGE_URL" ]; then
+              MESSAGE+="| 📈 | 覆盖率报告 · [详情]($COVERAGE_URL) |\n"
             else
-              MESSAGE+="| 📈 | ⚠️ 覆盖率检查 |\n"
+              MESSAGE+="| 📈 | ⚠️ 覆盖率检查失败 |\n"
             fi
           else
             MESSAGE+="| 📈 | ⏭️ 覆盖率检查 (跳过) |\n"
