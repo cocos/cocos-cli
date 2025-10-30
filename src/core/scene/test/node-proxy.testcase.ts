@@ -18,6 +18,22 @@ describe('Node Proxy 测试', () => {
     const testPosition: IVec3 = { x: 1, y: 2, z: 0 };
 
     describe('1. 基础节点操作', () => {
+        it('createNode - 创建多级父节点的节点', async () => {
+            const multiParentPath = 'Canvas/TestNode/TestNode2/TestNode3';
+            const params: ICreateByNodeTypeParams = {
+                path: multiParentPath,
+                name: 'TestNode',
+                nodeType: NodeType.SPRITE,
+                position: testPosition
+            };
+
+            createdNode = await NodeProxy.createNodeByType(params);
+            expect(createdNode).toBeDefined();
+            expect(createdNode?.name).toBe('TestNode');
+            expect(createdNode?.path).toBe(multiParentPath + '/TestNode');
+        });
+
+
         it('createNode - 创建带预制体的节点', async () => {
             const params: ICreateByAssetParams = {
                 dbURL: 'db://internal/default_prefab/ui/Label.prefab',
