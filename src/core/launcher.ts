@@ -19,6 +19,9 @@ export default class Launcher {
 
     constructor(projectPath: string) {
         this.projectPath = projectPath;
+        // 初始化日志系统
+        newConsole.init(join(this.projectPath, 'temp', 'logs'), true);
+        newConsole.record();
     }
 
     private async init() {
