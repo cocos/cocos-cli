@@ -175,10 +175,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
             if (!nextNode) {
                 if (pathPart === 'Canvas') {
-                    const newParent = await this.checkCanvasRequired('2d', true, currentParent, undefined);
-                    if (newParent) {
-                        currentParent = newParent;
-                    }
+                    nextNode = await this.checkCanvasRequired('2d', true, currentParent, undefined);
                 } else {
                     // 创建空节点
                     nextNode = new Node(pathPart);
@@ -187,12 +184,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     // 确保新创建的节点有必要的组件
                     this.ensureUITransformComponent(nextNode);
 
-                    currentParent = nextNode;
-
                     // 发送节点创建事件
                     this.emit('node:add', sceneUtil.generateNodeInfo(nextNode, false));
                 }
             }
+            if (!nextNode) {
+                throw new Error(`Failed to create node: the path ${path} is not valid.`);
+            }
+            currentParent = nextNode;
         }
 
         return currentParent;
@@ -230,7 +229,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
         // 发送节点修改消息
         const parent = node.parent;
-        this.emit('node:before-remove', sceneUtil.generateNodeInfo(node,false));
+        this.emit('node:before-remove', sceneUtil.generateNodeInfo(node, false));
         if (parent) {
             this.emit('node:before-change', sceneUtil.generateNodeInfo(parent, false));
         }
