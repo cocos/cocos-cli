@@ -849,14 +849,13 @@ describe('MCP Assets API', () => {
             // 通常会影响后续导入的同类型资源
             const result = await mcpClient.callTool('assets-update-default-user-data', {
                 options: {
-                    handler: 'text',
-                    key: 'testKey',
-                    value: 'testValue',
+                    handler: 'image',
+                    key: 'type',
+                    value: 'texture',
                 },
             });
 
-            // 某些处理器可能不支持，所以只验证调用成功
-            expect([200, 400, 500]).toContain(result.code);
+            expect(result.code).toBe(200);
         });
     });
 });
