@@ -1,0 +1,35 @@
+name: 'Run E2E Tests'
+description: '运行 E2E 测试并生成报告'
+
+inputs:
+  report-server-url:
+    description: '报告服务器地址'
+    required: true
+    default: 'http://192.168.52.77:8080'
+
+outputs:
+  report_exists:
+    description: '测试报告是否存在'
+    value: ${{ steps.find-report.outputs.report_exists }}
+  report_url:
+    description: '测试报告 URL'
+    value: ${{ steps.find-report.outputs.report_url }}
+  report_filename:
+    description: '测试报告文件名'
+    value: ${{ steps.find-report.outputs.report_filename }}
+  report_file:
+    description: '测试报告文件路径'
+    value: ${{ steps.find-report.outputs.report_file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run E2E tests
+      shell: bash
+      run: npm run test:e2e
+    
+    - name: Find test report file
+      id: find-report
+      shell: bash
+      run: node .github/scripts/find-test-report.js
+

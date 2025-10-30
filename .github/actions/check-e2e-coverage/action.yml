@@ -1,0 +1,48 @@
+name: 'Check E2E Coverage'
+description: '检查 E2E 测试覆盖率并生成报告'
+
+inputs:
+  report-server-url:
+    description: '报告服务器地址'
+    required: true
+    default: 'http://192.168.52.77:8080'
+
+outputs:
+  report_path:
+    description: '覆盖率报告文件路径'
+    value: ${{ steps.coverage-report.outputs.report_path }}
+  report_url:
+    description: '覆盖率报告 URL'
+    value: ${{ steps.report-url.outputs.report_url }}
+  report_filename:
+    description: '覆盖率报告文件名'
+    value: ${{ steps.report-url.outputs.report_filename }}
+  markdown:
+    description: 'Markdown 格式的覆盖率摘要'
+    value: ${{ steps.coverage-report.outputs.markdown }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate coverage report with Markdown
+      id: coverage-report
+      shell: bash
+      run: npm run check:e2e-coverage:report -- --markdown
+      continue-on-error: true
+    
+    - name: Generate coverage report URL
+      if: always() && steps.coverage-report.outputs.report_path != ''
+      id: report-url
+      shell: bash
+      run: |
+        REPORT_FILE="${{ steps.coverage-report.outputs.report_path }}"
+        REPORT_FILENAME=$(basename "$REPORT_FILE")
+        
+        # 生成报告 URL（CI 机器上的 http-server 已在运行）
+        REPORT_URL="${{ inputs.report-server-url }}/reports/$REPORT_FILENAME"
+        echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
+        echo "report_filename=$REPORT_FILENAME" >> $GITHUB_OUTPUT
+        
+        echo "📊 Coverage Report URL: $REPORT_URL"
+        echo "📄 Report file: $REPORT_FILE"
+

@@ -22,12 +22,6 @@ on:
   schedule:
     - cron: '0 16 * * *'  # 每天 UTC 16:00 = 北京时间 00:00
 
-env:
-  # 配置测试报告服务器地址
-  REPORT_SERVER_URL: 'http://192.168.52.77:8080'
-  # 飞书 Webhook URL（从 Secrets 中读取）
-  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-
 permissions:
   contents: read          # 读取代码
   actions: read          # 读取 Actions
@@ -44,56 +38,43 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
       
-      - name: Init
-        run: npm run init
-
-      - name: Install dependencies
-        run: npm i
+      - name: Setup configuration
+        id: setup-config
+        uses: ./.github/actions/setup-config
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+      
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
       
       - name: Run E2E tests
-        run: npm run test:e2e
-        continue-on-error: true
-      
-      - name: Find test report file
-        if: always()
-        id: find-report
-        run: node .github/scripts/find-test-report.js
+        id: e2e-tests
+        uses: ./.github/actions/run-e2e-tests
+        with:
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
       - name: Upload test report as artifact
-        if: always() && steps.find-report.outputs.report_exists == 'true'
+        if: always() && steps.e2e-tests.outputs.report_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: daily-e2e-report-${{ github.run_id }}
-          path: ${{ steps.find-report.outputs.report_file }}
+          path: ${{ steps.e2e-tests.outputs.report_file }}
           retention-days: 30
       
-      - name: Generate coverage report with Markdown
-        id: coverage-report
+      - name: Check E2E coverage
+        id: coverage
         if: always()
-        run: npm run check:e2e-coverage:report -- --markdown
-        continue-on-error: true
-      
-      - name: Generate coverage report URL
-        if: always() && steps.coverage-report.outputs.report_path != ''
-        id: report-url
-        run: |
-          REPORT_FILE="${{ steps.coverage-report.outputs.report_path }}"
-          REPORT_FILENAME=$(basename "$REPORT_FILE")
-          
-          # 生成报告 URL（CI 机器上的 http-server 已在运行）
-          REPORT_URL="${{ env.REPORT_SERVER_URL }}/e2e/reports/$REPORT_FILENAME"
-          echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
-          echo "report_filename=$REPORT_FILENAME" >> $GITHUB_OUTPUT
-          
-          echo "📊 Coverage Report URL: $REPORT_URL"
-          echo "📄 Report file: $REPORT_FILE"
+        uses: ./.github/actions/check-e2e-coverage
+        with:
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
       - name: Upload coverage report as artifact (备用)
-        if: always() && steps.coverage-report.outputs.report_path != ''
+        if: always() && steps.coverage.outputs.report_path != ''
         uses: actions/upload-artifact@v4
         with:
           name: daily-coverage-report-${{ github.run_id }}
-          path: ${{ steps.coverage-report.outputs.report_path }}
+          path: ${{ steps.coverage.outputs.report_path }}
           retention-days: 30
       
       - name: Send to Feishu
@@ -101,10 +82,11 @@ jobs:
         continue-on-error: true
         run: node .github/scripts/send-to-feishu.js
         env:
-          REPORT_EXISTS: ${{ steps.find-report.outputs.report_exists }}
-          REPORT_URL: ${{ steps.find-report.outputs.report_url }}
-          REPORT_FILENAME: ${{ steps.find-report.outputs.report_filename }}
-          COVERAGE_REPORT_URL: ${{ steps.report-url.outputs.report_url }}
-          COVERAGE_REPORT_FILENAME: ${{ steps.report-url.outputs.report_filename }}
-          COVERAGE_MARKDOWN: ${{ steps.coverage-report.outputs.markdown }}
+          FEISHU_WEBHOOK_URL: ${{ steps.setup-config.outputs.FEISHU_WEBHOOK_URL }}
+          REPORT_EXISTS: ${{ steps.e2e-tests.outputs.report_exists }}
+          REPORT_URL: ${{ steps.e2e-tests.outputs.report_url }}
+          REPORT_FILENAME: ${{ steps.e2e-tests.outputs.report_filename }}
+          COVERAGE_REPORT_URL: ${{ steps.coverage.outputs.report_url }}
+          COVERAGE_REPORT_FILENAME: ${{ steps.coverage.outputs.report_filename }}
+          COVERAGE_MARKDOWN: ${{ steps.coverage.outputs.markdown }}
 

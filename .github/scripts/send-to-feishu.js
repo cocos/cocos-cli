@@ -126,7 +126,8 @@ async function main() {
         triggerType: process.env.GITHUB_EVENT_NAME || '',
         branch: process.env.GITHUB_REF_NAME || '',
         commit: process.env.GITHUB_SHA || '',
-        author: process.env.GITHUB_ACTOR || '',
+        // Daily 测试不需要显示提交者
+        // author: process.env.GITHUB_ACTOR || '',
     };
 
     console.log('📊 Test Report Data:');

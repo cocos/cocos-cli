@@ -72,11 +72,11 @@ function generateGitHubMarkdown(data) {
     comment += `npm run test:e2e\n\n`;
     comment += `# 查看报告（会自动打开浏览器）\n`;
     comment += `# Windows\n`;
-    comment += `start e2e/reports/test-report-*.html\n\n`;
+    comment += `start reports/test-report-*.html\n\n`;
     comment += `# macOS\n`;
-    comment += `open e2e/reports/test-report-*.html\n\n`;
+    comment += `open reports/test-report-*.html\n\n`;
     comment += `# Linux\n`;
-    comment += `xdg-open e2e/reports/test-report-*.html\n`;
+    comment += `xdg-open reports/test-report-*.html\n`;
     comment += `\`\`\`\n\n`;
     comment += `---\n\n`;
     comment += `<sub>🤖 此报告由 GitHub Actions 自动生成 | Run ID: ${runId}</sub>\n`;
@@ -85,30 +85,26 @@ function generateGitHubMarkdown(data) {
 }
 
 /**
- * 生成飞书消息卡片格式
+ * 生成飞书消息卡片格式（紧凑型）
  */
 function generateFeishuCard(data) {
     const {
         reportExists,
         reportUrl,
-        reportFilename,
-        coveragePercent,
-        coverageReport,
+        coverageReportUrl,
         runId,
         triggerType,
         branch,
         commit,
-        author,
     } = data;
 
-    // 根据是否有覆盖率决定颜色
-    let coverageColor = 'blue'; // 默认蓝色
-    if (coveragePercent && coveragePercent !== '0.00') {
-        const percent = parseFloat(coveragePercent);
-        coverageColor = percent >= 80 ? 'green' : percent >= 60 ? 'orange' : 'red';
-    }
+    // 判断测试状态和颜色
+    const testPassed = reportExists;
+    const cardColor = testPassed ? 'green' : 'red';
+    const statusIcon = testPassed ? '✅' : '❌';
+    const statusText = testPassed ? '测试通过' : '测试失败';
     
-    // 构建飞书卡片消息
+    // 构建飞书卡片消息（紧凑型）
     const card = {
         msg_type: 'interactive',
         card: {
@@ -118,173 +114,112 @@ function generateFeishuCard(data) {
             header: {
                 title: {
                     tag: 'plain_text',
-                    content: '📊 E2E 测试报告',
+                    content: `${statusIcon} Daily E2E ${statusText}`,
                 },
-                template: coverageColor,
+                template: cardColor,
             },
-            elements: [],
+            elements: [
+                // 基本信息（一行显示）
+                {
+                    tag: 'div',
+                    fields: [
+                        {
+                            is_short: true,
+                            text: {
+                                tag: 'lark_md',
+                                content: `**分支**\n${branch || 'N/A'}`,
+                            },
+                        },
+                        {
+                            is_short: true,
+                            text: {
+                                tag: 'lark_md',
+                                content: `**触发**\n${getTriggerTypeText(triggerType)}`,
+                            },
+                        },
+                    ],
+                },
+                {
+                    tag: 'div',
+                    text: {
+                        tag: 'lark_md',
+                        content: `**Commit**: ${commit ? commit.substring(0, 8) : 'N/A'}`,
+                    },
+                },
+                {
+                    tag: 'hr',
+                },
+                // 快速链接（紧凑型按钮）
+                {
+                    tag: 'action',
+                    actions: buildActions(reportExists, reportUrl, coverageReportUrl),
+                },
+                {
+                    tag: 'hr',
+                },
+                // 页脚
+                {
+                    tag: 'note',
+                    elements: [
+                        {
+                            tag: 'plain_text',
+                            content: `Run #${runId}`,
+                        },
+                    ],
+                },
+            ],
         },
     };
 
-    // 覆盖率摘要（可选）
-    if (coveragePercent && coveragePercent !== '0.00') {
-        const coverageIcon = parseFloat(coveragePercent) >= 80 ? '✅' : 
-                             parseFloat(coveragePercent) >= 60 ? '⚠️' : '❌';
-        card.card.elements.push({
-            tag: 'div',
-            fields: [
-                {
-                    is_short: true,
-                    text: {
-                        tag: 'lark_md',
-                        content: `**测试覆盖率**\n${coverageIcon} ${coveragePercent}%`,
-                    },
-                },
-                {
-                    is_short: true,
-                    text: {
-                        tag: 'lark_md',
-                        content: `**触发方式**\n${getTriggerTypeText(triggerType)}`,
-                    },
-                },
-            ],
-        });
-        card.card.elements.push({
-            tag: 'hr',
-        });
-    } else {
-        // 没有覆盖率信息时，只显示触发方式
-        card.card.elements.push({
-            tag: 'div',
-            text: {
-                tag: 'lark_md',
-                content: `**触发方式**\n${getTriggerTypeText(triggerType)}`,
-            },
-        });
-        card.card.elements.push({
-            tag: 'hr',
-        });
-    }
-
-    // 添加基本信息
-    if (branch || commit || author) {
-        const fields = [];
-        if (branch) {
-            fields.push({
-                is_short: true,
-                text: {
-                    tag: 'lark_md',
-                    content: `**分支**\n${branch}`,
-                },
-            });
-        }
-        if (author) {
-            fields.push({
-                is_short: true,
-                text: {
-                    tag: 'lark_md',
-                    content: `**提交者**\n${author}`,
-                },
-            });
-        }
-        if (commit) {
-            fields.push({
-                is_short: false,
-                text: {
-                    tag: 'lark_md',
-                    content: `**Commit**\n${commit.substring(0, 8)}`,
-                },
-            });
-        }
-        
-        card.card.elements.push({
-            tag: 'div',
-            fields: fields,
-        });
-        
-        card.card.elements.push({
-            tag: 'hr',
-        });
-    }
-
-    // 测试报告链接
-    if (reportExists) {
-        card.card.elements.push({
-            tag: 'div',
-            text: {
-                tag: 'lark_md',
-                content: `✅ **测试已完成**`,
-            },
-        });
-        
-        card.card.elements.push({
-            tag: 'action',
-            actions: [
-                {
-                    tag: 'button',
-                    text: {
-                        tag: 'plain_text',
-                        content: '📊 查看完整报告',
-                    },
-                    type: 'primary',
-                    url: reportUrl,
-                },
-            ],
-        });
-    } else {
-        card.card.elements.push({
-            tag: 'div',
-            text: {
-                tag: 'lark_md',
-                content: `❌ **测试报告生成失败**\n请检查 GitHub Actions 日志获取详细信息。`,
-            },
-        });
-    }
-
-    // 添加覆盖率详情（如果有）
-    if (coverageReport) {
-        card.card.elements.push({
-            tag: 'hr',
-        });
-        
-        // 解析覆盖率报告，提取关键信息
-        const untestedMatch = coverageReport.match(/缺失 E2E 测试的 API 接口 \((\d+) 个\)/);
-        const untestedCount = untestedMatch ? untestedMatch[1] : '0';
-        
-        if (parseInt(untestedCount) > 0) {
-            card.card.elements.push({
-                tag: 'div',
-                text: {
-                    tag: 'lark_md',
-                    content: `⚠️ **发现 ${untestedCount} 个 API 缺少测试**\n点击查看详细报告了解具体接口。`,
-                },
-            });
-        } else {
-            card.card.elements.push({
-                tag: 'div',
-                text: {
-                    tag: 'lark_md',
-                    content: `🎉 **所有 API 都有 E2E 测试覆盖！**`,
-                },
-            });
-        }
-    }
-
-    // 页脚信息
-    card.card.elements.push({
-        tag: 'hr',
-    });
-    card.card.elements.push({
-        tag: 'note',
-        elements: [
-            {
-                tag: 'plain_text',
-                content: `🤖 GitHub Actions 自动触发 | Run ID: ${runId}`,
-            },
-        ],
-    });
-
     return card;
+}
+
+/**
+ * 构建操作按钮
+ */
+function buildActions(reportExists, reportUrl, coverageReportUrl) {
+    const actions = [];
+    
+    // E2E 测试报告按钮
+    if (reportExists && reportUrl) {
+        actions.push({
+            tag: 'button',
+            text: {
+                tag: 'plain_text',
+                content: '📊 E2E 报告',
+            },
+            type: 'primary',
+            url: reportUrl,
+        });
+    }
+    
+    // 覆盖率报告按钮
+    if (coverageReportUrl) {
+        actions.push({
+            tag: 'button',
+            text: {
+                tag: 'plain_text',
+                content: '📈 覆盖率报告',
+            },
+            type: 'default',
+            url: coverageReportUrl,
+        });
+    }
+    
+    // 如果都没有，显示失败提示
+    if (actions.length === 0) {
+        actions.push({
+            tag: 'button',
+            text: {
+                tag: 'plain_text',
+                content: '🔍 查看日志',
+            },
+            type: 'danger',
+            url: `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+        });
+    }
+    
+    return actions;
 }
 
 /**

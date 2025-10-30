@@ -226,32 +226,58 @@ export class MCPTestClient {
                 }
             );
 
-            console.log(`[MCP callTool] ${name} response:`, JSON.stringify(result, null, 2));
+            console.log(`[MCP callTool] ${name} raw response:`, JSON.stringify(result, null, 2));
 
-            // 解析结果
+            // MCP 服务器返回格式：{ content: [{ type: 'text', text: '...' }] }
+            // text 内容是序列化的 JSON: { result: { code, data?, reason? } }
             if (result.content && Array.isArray(result.content) && result.content.length > 0) {
                 const content = result.content[0];
                 if (content.type === 'text') {
-                    const data = JSON.parse(content.text);
+                    try {
+                        // 解析 JSON 字符串
+                        const parsed = JSON.parse(content.text);
+                        console.log(`[MCP callTool] ${name} parsed response:`, JSON.stringify(parsed, null, 2));
 
-                    // ✅ MCP 中间件会将结果包装在 { result: ... } 中
-                    // 如果存在 result 字段，解包它
-                    if (data && typeof data === 'object' && 'result' in data) {
-                        return data.result;
+                        // MCP 中间件用 { result: ... } 包装了 API 返回值
+                        if (parsed && typeof parsed === 'object' && 'result' in parsed) {
+                            const apiResult = parsed.result;
+
+                            // 验证 API 返回值格式 { code, data?, reason? }
+                            if (apiResult && typeof apiResult === 'object' && typeof apiResult.code === 'number') {
+                                return apiResult as MCPResponse<MCPToolsMap[TName]['result']>;
+                            }
+                        }
+
+                        // 如果格式不对，返回错误
+                        console.warn(`[MCP callTool] ${name} unexpected response format:`, parsed);
+                        return {
+                            code: 500,
+                            data: undefined,
+                            reason: 'Unexpected response format from MCP server',
+                        } as any;
+                    } catch {
+                        // JSON 解析失败
+                        console.error(`[MCP callTool] ${name} failed to parse response:`, content.text);
+                        return {
+                            code: 500,
+                            data: undefined,
+                            reason: `Failed to parse response: ${content.text}`,
+                        } as any;
                     }
-
-                    return data;
                 }
             }
 
+            // 返回格式不符合预期
             return {
                 code: 500,
-                reason: 'Invalid response format',
+                data: undefined,
+                reason: 'Invalid MCP response format',
             } as any;
         } catch (error) {
             console.error(`[MCP callTool] ${name} error:`, error);
             return {
                 code: 500,
+                data: undefined,
                 reason: error instanceof Error ? error.message : String(error),
             } as any;
         }

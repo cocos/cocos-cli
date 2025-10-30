@@ -30,8 +30,8 @@ const SchemaAssetMeta: z.ZodType<any> = z.lazy(() => z.object({
     subMetas: z.record(z.string(), SchemaAssetMeta).describe('子资源元数据映射'),
     userData: z.record(z.string(), SchemaJsonValue).describe('用户自定义数据'),
     displayName: z.string().describe('显示名称').optional(),
-    id: z.string().describe('资源 ID'),
-    name: z.string().describe('资源名称'),
+    id: z.string().describe('资源 ID , 子资源才有此字段').optional(),
+    name: z.string().describe('资源名称').optional(),
 }));
 
 // 重定向信息 Schema

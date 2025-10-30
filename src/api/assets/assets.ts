@@ -293,6 +293,7 @@ export class AssetsApi extends ApiBase {
             ret.data = await assetManager.createAssetByType(ccType, dirOrUrl, baseName, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
+            ret.data = null; // ✅ 显式设置为 null，确保符合 schema
             console.error('create asset by type fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
@@ -317,6 +318,7 @@ export class AssetsApi extends ApiBase {
             ret.data = await assetManager.createAsset(options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
+            ret.data = null; // ✅ 显式设置为 null，确保符合 schema
             console.error('create asset fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
@@ -398,6 +400,7 @@ export class AssetsApi extends ApiBase {
             ret.data = await assetManager.saveAsset(pathOrUrlOrUUID, data);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
+            ret.data = null; // ✅ 显式设置为 null，确保符合 schema
             console.error('save asset fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
@@ -423,6 +426,7 @@ export class AssetsApi extends ApiBase {
             ret.data = assetManager.queryUUID(urlOrPath);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
+            ret.data = null; // ✅ 显式设置为 null，确保符合 schema
             console.error('query UUID fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
@@ -448,6 +452,7 @@ export class AssetsApi extends ApiBase {
             ret.data = assetManager.queryPath(urlOrUuid);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
+            ret.data = null; // ✅ 显式设置为 null，确保符合 schema
             console.error('query path fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
@@ -473,6 +478,7 @@ export class AssetsApi extends ApiBase {
             ret.data = assetManager.queryUrl(uuidOrPath);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
+            ret.data = null; // ✅ 显式设置为 null，确保符合 schema
             console.error('query URL fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }

@@ -10,9 +10,9 @@ export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'
         [index: string]: IAssetMeta<'unknown'>;
     };
     userData: AssetUserDataMap[T extends keyof AssetUserDataMap ? T : 'unknown'];
-    displayName: string;
-    id: string;
-    name: string;
+    displayName?: string;
+    id?: string;
+    name?: string;
 }
 
 // 如果使用了 datakeys 过滤，请使用此接口定义
