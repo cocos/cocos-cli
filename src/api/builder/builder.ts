@@ -1,17 +1,10 @@
-import { ApiBase } from '../base/api-base';
 import { build, queryDefaultBuildConfigByPlatform, run } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaRunDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TRunDest, TRunResult } from './schema';
 
-export class BuilderApi extends ApiBase {
-    constructor() {
-        super();
-    }
-    async init() {
-
-    }
+export class BuilderApi {
 
     @tool('builder-build')
     @title('构建项目')

@@ -1,71 +1,51 @@
-import { ProjectApi } from './project/project';
-import utils from '../core/base/utils';
-import { ConfigurationApi } from './configuration/configuration';
-import { EngineApi } from './engine/engine';
-import { AssetsApi } from './assets/assets';
-import { PackDriverApi } from './pack-driver/pack-driver';
-import { SceneApi } from './scene/scene';
-import { BuilderApi } from './builder/builder';
-import { startServer } from '../server';
-import { ComponentApi } from './scene/component';
-import { NodeApi } from './scene/node';
+import { IBuildCommandOption, Platform } from '../core/builder/@types/private';
+import { ProjectType } from '../core/project/@types/public';
 
 export class CocosAPI {
-    public assets: AssetsApi;
-    public engine: EngineApi;
-    public project: ProjectApi;
-    public builder: BuilderApi;
 
-    private packDriver: PackDriverApi;
-    private configuration: ConfigurationApi;
-
-    private scene: SceneApi;
-
-    private component: ComponentApi;
-
-    private node: NodeApi;
-
-    constructor(
-        private projectPath: string,
-        private enginePath: string
-    ) {
-        this.init();
-        this.project = new ProjectApi(projectPath);
-        this.configuration = new ConfigurationApi(projectPath);
-        this.assets = new AssetsApi(projectPath);
-        this.packDriver = new PackDriverApi(projectPath, enginePath);
-        this.engine = new EngineApi(projectPath, enginePath);
-        this.scene = new SceneApi(projectPath, enginePath);
-        this.component = new ComponentApi();
-        this.node = new NodeApi();
-        this.builder = new BuilderApi();
-    }
-
-    private init() {
-        //todo: 初始化一些基础模块信息,这边应该归纳到每个模块的 init 吧？
-        utils.Path.register('project', {
-            label: '项目',
-            path: this.projectPath,
-        });
+    /**
+     * 启动 MCP 服务器
+     * @param projectPath 
+     * @param port 
+     */
+    public startupMcpServer(projectPath: string, port?: number) {
+        this.startup(projectPath, port);
     }
 
     /**
-     * 初始化 Cocos API
+     * 启动工程
      */
-    public async startup(port?: number) {
-        try {
-            await startServer(port);
-            await this.configuration.init();
-            await this.project.init();
-            await this.engine.init();
-            await this.assets.init();
-            await this.packDriver.init();
-            await this.builder.init();
-            await this.scene.init();
-            await this.node.init();
-            await this.component.init();
-        } catch (e) {
-            console.error('startup failed', e);
-        }
+    public async startup(projectPath: string, port?: number) {
+        const { default: Launcher } = await import('../core/launcher');
+        const launcher = new Launcher(projectPath);
+        import('../api/assets/assets');
+        import('../api/engine/engine');
+        import('../api/project/project');
+        import('../api/builder/builder');
+        import('../api/configuration/configuration');
+        import('../api/scene/scene');
+        await launcher.startup(port);
+    }
+
+    /**
+     * 命令行创建入口
+     * 创建一个项目
+     * @param projectPath 
+     * @param type 
+     */
+    public async create(projectPath: string, type: ProjectType) {
+        const { projectManager } = await import('../core/project-mamager');
+        return await projectManager.create(projectPath, type);
+    }
+
+    /**
+     * 命令行构建入口
+     * @param platform 
+     * @param options 
+     */
+    public async build(projectPath: string, platform: Platform, options: Partial<IBuildCommandOption>) {
+        const { default: Launcher } = await import('../core/launcher');
+        const launcher = new Launcher(projectPath);
+        return await launcher.build(platform, options);
     }
 }

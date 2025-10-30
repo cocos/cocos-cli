@@ -3,16 +3,12 @@
  */
 
 import { BuildCommand } from './build';
-import { ImportCommand } from './import';
-import { InfoCommand } from './info';
 import { McpServerCommand } from './mcp-server';
 import { WizardCommand } from './wizard';
 import { CreateCommand } from './create';
 
 export { BaseCommand, CommandUtils } from './base';
-export { ImportCommand } from './import';
 export { BuildCommand } from './build';
-export { InfoCommand } from './info';
 export { McpServerCommand } from './mcp-server';
 export { WizardCommand } from './wizard';
 export { CreateCommand } from './create';
@@ -20,7 +16,7 @@ export { CreateCommand } from './create';
 /**
  * 所有命令类的类型
  */
-export type CommandClass = ImportCommand | BuildCommand | InfoCommand | McpServerCommand | WizardCommand | CreateCommand;
+export type CommandClass = BuildCommand | McpServerCommand | WizardCommand | CreateCommand;
 
 /**
  * 命令注册器

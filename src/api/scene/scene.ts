@@ -1,4 +1,3 @@
-import { ApiBase } from '../base/api-base';
 import {
     SchemaOpenSceneResult,
     SchemaCloseSceneResult,
@@ -19,20 +18,16 @@ import {
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
+import { ComponentApi } from './component';
+import { NodeApi } from './node';
 
-export class SceneApi extends ApiBase {
+export class SceneApi {
+    public component: ComponentApi;
+    public node: NodeApi;
 
-    constructor(
-        private projectPath: string,
-        private enginePath: string
-    ) {
-        super();
-    }
-
-    async init(): Promise<void> {
-        // 场景 API 依赖资源数据库，确保在 AssetsApi 初始化后调用
-        console.log('初始化场景 API，项目路径:', this.projectPath);
-        await Scene.worker.start(this.enginePath, this.projectPath);
+    constructor() {
+        this.component = new ComponentApi();
+        this.node = new NodeApi();
     }
 
     /**

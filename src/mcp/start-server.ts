@@ -1,4 +1,3 @@
-import { join } from 'path';
 import { CocosAPI } from '../api';
 import { register } from '../server';
 import { McpMiddleware } from './mcp.middleware';
@@ -6,10 +5,8 @@ import { serverService } from '../server/server';
 import chalk from 'chalk';
 
 export async function startServer(folder: string, port?: number) {
-    const enginePath = join(__dirname, '../../packages/engine');
-    const cocosAPI = new CocosAPI(folder, enginePath);
-    await cocosAPI.startup(port);
-
+    const cocosAPI = new CocosAPI();
+    await cocosAPI.startup(folder, port);
     const middleware = new McpMiddleware();
     register('mcp', middleware.getMiddlewareContribution());
     const mcpUrl = `${serverService.url}/mcp`;

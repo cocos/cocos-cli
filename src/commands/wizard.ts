@@ -35,8 +35,6 @@ export class WizardCommand extends BaseCommand {
         // 选择操作类型
         const action = await interactive.select('你想要做什么？', [
             { name: '🏗️  构建项目', value: 'build' },
-            { name: '📂 导入项目', value: 'import' },
-            { name: 'ℹ️  查看项目信息', value: 'info' },
             { name: '🚀 启动 MCP 服务器', value: 'mcp' },
             { name: '❓ 查看帮助', value: 'help' }
         ]);
@@ -44,12 +42,6 @@ export class WizardCommand extends BaseCommand {
         switch (action) {
             case 'build':
                 await this.buildWizard();
-                break;
-            case 'import':
-                await this.importWizard();
-                break;
-            case 'info':
-                await this.infoWizard();
                 break;
             case 'mcp':
                 await this.mcpWizard();
@@ -114,72 +106,6 @@ export class WizardCommand extends BaseCommand {
     }
 
     /**
-     * 导入向导
-     */
-    private async importWizard(): Promise<void> {
-        interactive.info('开始导入向导...');
-
-        const projectPath = await this.selectProjectPath();
-        if (!projectPath) return;
-
-        const confirmed = await interactive.confirm(
-            `确认导入项目 ${projectPath}？`
-        );
-
-        if (!confirmed) {
-            interactive.warning('导入已取消');
-            return;
-        }
-
-        interactive.startSpinner('正在导入项目...');
-
-        try {
-            // 模拟导入过程
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            interactive.stopSpinner(true, '导入完成！');
-            interactive.success('项目导入成功');
-        } catch (error) {
-            interactive.stopSpinner(false, '导入失败');
-            interactive.error(`导入失败: ${error}`);
-        }
-    }
-
-    /**
-     * 信息向导
-     */
-    private async infoWizard(): Promise<void> {
-        interactive.info('开始信息查看向导...');
-
-        const projectPath = await this.selectProjectPath();
-        if (!projectPath) return;
-
-        interactive.startSpinner('正在获取项目信息...');
-
-        try {
-            // 模拟获取信息过程
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            interactive.stopSpinner(true, '信息获取完成！');
-
-            // 显示项目信息表格
-            interactive.table(
-                ['属性', '值'],
-                [
-                    ['项目名称', 'My Cocos Project'],
-                    ['项目路径', projectPath],
-                    ['引擎版本', '3.8.8'],
-                    ['平台支持', 'Web, Android, iOS'],
-                    ['资源数量', '156 个文件']
-                ]
-            );
-        } catch (error) {
-            interactive.stopSpinner(false, '信息获取失败');
-            interactive.error(`获取信息失败: ${error}`);
-        }
-    }
-
-    /**
      * MCP 服务器向导
      */
     private async mcpWizard(): Promise<void> {
@@ -229,9 +155,8 @@ export class WizardCommand extends BaseCommand {
         interactive.table(
             ['命令', '描述', '示例'],
             [
+                ['create', '创建项目', 'cocos create --path ./my-project --type 3d'],
                 ['build', '构建项目', 'cocos build --project ./my-project --platform web-desktop'],
-                ['import', '导入项目', 'cocos import --project ./my-project'],
-                ['info', '查看项目信息', 'cocos info --project ./my-project'],
                 ['start-mcp-server', '启动 MCP 服务器', 'cocos start-mcp-server --project ./my-project --port 9527'],
                 ['wizard', '启动交互式向导', 'cocos wizard']
             ]

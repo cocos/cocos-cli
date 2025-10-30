@@ -57,50 +57,6 @@ cocos build --project <project-path> [options]
 cocos build --project /path/to/project --platform web-desktop
 ```
 
-### `cocos import`
-
-导入/打开 Cocos 项目
-
-**用法:**
-
-```bash
-cocos import --project <project-path> [options]
-```
-
-**必需参数:**
-
-- `--project <path>` - Cocos 项目路径
-
-**可选参数:**
-
-- `--wait` - 导入后保持进程运行（用于开发）
-
-**示例:**
-
-```bash
-cocos import --project /path/to/project --wait
-```
-
-### `cocos info`
-
-显示项目信息
-
-**用法:**
-
-```bash
-cocos info --project <project-path>
-```
-
-**必需参数:**
-
-- `--project <path>` - Cocos 项目路径
-
-**示例:**
-
-```bash
-cocos info --project /path/to/project
-```
-
 ### `cocos start-mcp-server`
 
 启动 MCP (Model Context Protocol) 服务器
@@ -141,8 +97,6 @@ cocos wizard
 **功能:**
 
 - 🏗️ 构建项目向导
-- 📂 导入项目向导
-- ℹ️ 查看项目信息向导
 - 🚀 启动 MCP 服务器向导
 - ❓ 帮助信息查看
 

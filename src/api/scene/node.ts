@@ -1,4 +1,3 @@
-import { ApiBase } from '../base/api-base';
 import {
     NodeCreateByAssetSchema,
     NodeCreateByTypeSchema,
@@ -21,18 +20,7 @@ import { description, param, result, title, tool } from '../decorator/decorator.
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { ICreateByNodeTypeParams, Scene } from '../../core/scene';
 
-
-
-export class NodeApi extends ApiBase {
-
-    constructor() {
-        super();
-    }
-
-    async init(): Promise<void> {
-        // 节点 API 依赖场景，确保在 场景Api 初始化后调用
-        console.log('初始化 节点 API');
-    }
+export class NodeApi {
 
     /**
      * 创建节点
@@ -47,7 +35,7 @@ export class NodeApi extends ApiBase {
             data: undefined,
         };
         try {
-            let resultNode = await Scene.createNodeByType(options as ICreateByNodeTypeParams);
+            const resultNode = await Scene.createNodeByType(options as ICreateByNodeTypeParams);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -75,7 +63,7 @@ export class NodeApi extends ApiBase {
             data: undefined,
         };
         try {
-            let resultNode = await Scene.createNodeByAsset(options);
+            const resultNode = await Scene.createNodeByAsset(options);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -134,7 +122,7 @@ export class NodeApi extends ApiBase {
         try {
             const result = await Scene.updateNode(options);
             if (result?.path) {
-                ret.data = {path: result.path};
+                ret.data = { path: result.path };
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;

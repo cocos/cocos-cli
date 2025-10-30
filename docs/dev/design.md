@@ -66,12 +66,10 @@
 
 - cli 名称：cocos-cli
 - 基础命令：
-  - cocos open <project-dir> [--cwd]
-  - cocos import <source> [--dest <dir>] [--template <tpl>] [--force]
-    - 支持 git 模板 (user/repo)、本地文件夹或 zip。
-  - cocos info <project-dir>：输出 package.json / project.json / 编辑器版本等
+  - cocos create --path <project-dir> --type <2d|3d>
   - cocos build <project-dir> --platform <web|android|ios> [--release]
-  - cocos plugin install <name> / plugin list / plugin remove <name>
+  - cocos start-mcp-server --project <project-dir> --port <port>
+  - cocos wizard：交互式向导
   - ......
 - 全局选项：
   - -v, --version

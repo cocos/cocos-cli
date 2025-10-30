@@ -107,7 +107,7 @@ class EngineManager implements IEngine {
                 maxSubSteps: 1,
                 defaultMaterial: '',
                 useNodeChains: true,
-                collisionMatrix: { '0': 1 },
+                collisionMatrix: { 0: 1 },
                 physicsEngine: '',
                 physX: {
                     notPackPhysXLibs: false,
@@ -144,10 +144,10 @@ class EngineManager implements IEngine {
                 background: {
                     type: 'default',
                     color: {
-                        'x': 0.0156862745098039,
-                        'y': 0.0352941176470588,
-                        'z': 0.0392156862745098,
-                        'w': 1
+                        x: 0.0156862745098039,
+                        y: 0.0352941176470588,
+                        z: 0.0392156862745098,
+                        w: 1
                     },
                     image: ''
                 },

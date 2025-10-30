@@ -1,4 +1,3 @@
-import { ApiBase } from '../base/api-base';
 import {
     SchemaAddComponentInfo,
     SchemaSetPropertyOptions,
@@ -20,14 +19,7 @@ import { description, param, result, title, tool } from '../decorator/decorator.
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, ISetPropertyOptions } from '../../core/scene';
 
-export class ComponentApi extends ApiBase {
-
-    constructor() {
-        super();
-    }
-
-    async init(): Promise<void> {
-    }
+export class ComponentApi {
 
     /**
      * 添加组件

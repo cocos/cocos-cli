@@ -53,39 +53,12 @@ export abstract class BaseCommand {
  */
 export class CommandUtils {
     /**
-     * 显示项目信息
-     */
-    static showProjectInfo(projectPath: string): void {
-        console.log(chalk.blue('Project Information:'));
-        console.log(chalk.gray(`Path: ${projectPath}`));
-
-        // 读取项目配置
-        const packageJsonPath = join(projectPath, 'package.json');
-
-        if (existsSync(packageJsonPath)) {
-            const packageConfig = require(packageJsonPath);
-            console.log(chalk.green('Package Config:'));
-            console.log(`Name: ${packageConfig.name || 'N/A'}`);
-            console.log(`Version: ${packageConfig.version || 'N/A'}`);
-            console.log(`Description: ${packageConfig.description || 'N/A'}`);
-        }
-    }
-
-    /**
      * 显示构建信息
      */
     static showBuildInfo(projectPath: string, platform: string): void {
         console.log(chalk.blue('Building project...'));
         console.log(chalk.gray(`Project: ${projectPath}`));
         console.log(chalk.gray(`Platform: ${platform}`));
-    }
-
-    /**
-     * 显示导入信息
-     */
-    static showImportInfo(projectPath: string): void {
-        console.log(chalk.blue('Importing project...'));
-        console.log(chalk.gray(`Project: ${projectPath}`));
     }
 
     /**

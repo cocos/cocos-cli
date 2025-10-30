@@ -61,20 +61,6 @@ cocos build --project ./my-game --platform web-mobile
 cocos build --project ./my-game --platform web-desktop --debug
 ```
 
-### 📂 Import Project
-
-```bash
-# Import existing project
-cocos import --project ./my-game
-```
-
-### ℹ️ View Project Information
-
-```bash
-# Display project details
-cocos info --project ./my-game
-```
-
 ## 🎨 Interactive Wizard
 
 Use the interactive wizard to easily complete various operations:
@@ -87,9 +73,8 @@ cocos wizard
 The wizard will guide you through:
 
 - Project building
-- Project importing
-- Viewing project information
 - Starting MCP server
+- Viewing help information
 
 ## 🔌 MCP Server
 

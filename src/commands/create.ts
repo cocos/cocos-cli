@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { BaseCommand } from './base';
-import project from '../core/project';
+import { ProjectType } from '../core/project/@types/public';
 
 /**
  * Create 命令类
@@ -28,7 +28,9 @@ export class CreateCommand extends BaseCommand {
                         console.log(chalk.yellow('Warning: target path already exists, will try to create inside it.'));
                     }
 
-                    const ok = await project.create(targetPath, type as '2d' | '3d');
+                    const { CocosAPI } = await import('../api/index');
+                    const cocos = new CocosAPI();
+                    const ok = await cocos.create(targetPath, type as ProjectType);
                     if (ok) {
                         console.log(chalk.green('✓ Project created successfully!'));
                         console.log(chalk.gray('Next steps:'));
