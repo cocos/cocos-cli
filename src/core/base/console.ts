@@ -544,17 +544,21 @@ export class NewConsole {
 
     // --------------------- Query logs -------------------------
     public queryLogs(count: number, type?: IConsoleType): string {
-        let result = '';
+        const messages: string[] = [];
         for (let i = this.messages.length - 1; i >= 0 && count > 0; --i) {
             const msg = this.messages[i];
             if (!type || msg.type === type) {
                 if (type) {
-                    result += `${translate(msg.value)}\n`;
+                    messages.push(`${translate(msg.value)}\n`);
                 } else {
-                    result += `[${msg.type.toUpperCase()}] ${translate(msg.value)}\n`;
+                    messages.push(`[${msg.type.toUpperCase()}] ${translate(msg.value)}\n`);
                 }
                 --count;
             }
+        }
+        let result = '';
+        for (let j = messages.length - 1; j >= 0; --j) {
+            result += messages[j];
         }
         return result;
     }
