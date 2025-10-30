@@ -2,7 +2,8 @@ import { existsSync } from 'fs';
 import { appendFile, outputFileSync, readdir, remove } from 'fs-extra';
 import { basename } from 'path';
 import { consola, type ConsolaInstance } from 'consola';
-import ora, { type Ora } from 'ora';
+import type { Ora } from 'ora';
+import pino from 'pino';
 import i18n from './i18n';
 export type IConsoleType = 'log' | 'warn' | 'error' | 'debug' | 'info' | 'success' | 'ready' | 'start';
 
@@ -30,6 +31,7 @@ export class NewConsole {
     private memoryTrackMap: Map<string, number> = new Map();
     private trackTimeStartMap: Map<string, number> = new Map();
     private consola: ConsolaInstance;
+    private pino: pino.Logger = pino();
     private isVerbose: boolean = false;
 
     // 进度管理相关
