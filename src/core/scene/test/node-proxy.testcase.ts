@@ -58,7 +58,8 @@ describe('Node Proxy 测试', () => {
             createdNode = await NodeProxy.createNodeByType(params);
             expect(createdNode).toBeDefined();
             expect(createdNode?.name).toBe('TestNode');
-            expect(createdNode?.path).toBe('Canvas/TestNode');
+            // 会在根节点下先创建 TestNode 再创建 Canvas/TestNode (SPRITE 节点会在 Canvas 下创建， 节点重名为 ‘TestNode’)
+            expect(createdNode?.path).toBe('TestNode/Canvas/TestNode');
             expect(createdNode?.properties.position).toEqual(testPosition);
             console.log('Created node original path=', testNodePath, ' dest path=', createdNode?.path);
         });
@@ -75,7 +76,7 @@ describe('Node Proxy 测试', () => {
 
                 const result = await NodeProxy.queryNode(params);
                 expect(result).toBeDefined();
-                expect(result?.path).toBe('Canvas/TestNode');
+                expect(result?.path).toBe('TestNode/Canvas/TestNode');
                 expect(result?.name).toBe('TestNode');
             }
         });
@@ -302,7 +303,7 @@ describe('Node Proxy 测试', () => {
             const nodeTypes = Object.values(NodeType);
             for (const nodeType of nodeTypes) {
                 const params: ICreateByNodeTypeParams = {
-                    path: testNodePath,
+                    path: '/',
                     nodeType: nodeType,
                     position: testPosition,
                 };
