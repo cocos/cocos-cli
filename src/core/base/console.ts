@@ -596,8 +596,9 @@ function translate(msg: any): string {
                 return translate(msg.stack);
             }
             return JSON.stringify(msg);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (error) {
-
+            // noop
         }
     }
     return msg && msg.toString && msg.toString();
