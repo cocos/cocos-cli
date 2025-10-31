@@ -1,4 +1,4 @@
-import { Node, Canvas, UITransformComponent, Scene, director } from 'cc';
+import { Node, Canvas, UITransformComponent, Scene, director, Layers, CCObject } from 'cc';
 
 
 /**
@@ -106,4 +106,44 @@ export function setLayer(node: Node, layer: number, deep: boolean) {
     for (const child of node.children) {
         setLayer(child, layer, deep);
     }
+}
+
+/**
+ * 是否是编辑节点
+ * @param node
+ */
+export function isEditorNode(node: Node) {
+    if (node.layer & Layers.Enum.GIZMOS) {
+        return true;
+    }
+
+    let iterNode: Node | null = node;
+    while (iterNode) {
+        if (iterNode.objFlags & CCObject.Flags.HideInHierarchy) {
+            return true;
+        }
+
+        iterNode = iterNode.parent;
+    }
+
+    return false;
+}
+
+/**
+ * 检测一个节点是否是某个节点的一部分
+ * @param testNode 测试节点
+ * @param rootNode 根节点
+ */
+export function isPartOfNode(testNode: Node, rootNode: Node) {
+    let checkNode: Node | null = testNode;
+
+    while (checkNode) {
+        if (checkNode === rootNode) {
+            return true;
+        }
+
+        checkNode = checkNode.parent;
+    }
+
+    return false;
 }

@@ -2,10 +2,10 @@ import { ServiceEvents } from '../../scene-process/service/core';
 
 // 定义测试用的事件接口
 interface TestEvents {
-    'test:void-event': void;
-    'test:string-event': string;
-    'test:object-event': { id: number; name: string };
-    'test:number-event': number;
+    'test:void-event': [];
+    'test:string-event': [string];
+    'test:object-event': [{ id: number; name: string }];
+    'test:number-event': [number];
 }
 
 describe('ServiceEvents', () => {

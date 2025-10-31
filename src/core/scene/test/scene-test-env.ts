@@ -10,7 +10,16 @@ export const SceneTestEnv = {
         return `db://assets/${SceneTestEnv.rootName}`;
     },
     get sceneName() {
-        return 'TestScene';
+        return 'TestAbcScene';
+    },
+    get prefabName() {
+        return 'TestAbcPrefab';
+    },
+    get sceneURL() {
+        return `${this.targetDirectoryURL}/${this.sceneName}.scene`;
+    },
+    get prefabURL() {
+        return `${this.targetDirectoryURL}/${this.prefabName}.prefab`;
     },
     get enginePath() {
         return TestGlobalEnv.engineRoot;

@@ -1,5 +1,5 @@
 import { BaseService, register } from './core';
-import { IAssetService } from '../../common';
+import { IAssetEvents, IAssetService } from '../../common';
 import { Asset, assetManager, Constructor } from 'cc';
 
 function removeCache(uuid: string) {
@@ -9,8 +9,11 @@ function removeCache(uuid: string) {
 }
 
 @register('Asset')
-export class AssetService extends BaseService<any> implements IAssetService {
-
+export class AssetService extends BaseService<IAssetEvents> implements IAssetService {
+    /**
+     * 主进程监听 asset 事件，所触发事件
+     * @param uuid
+     */
     assetChanged(uuid: string) {
         // 如果是 texture，则 release 掉所依赖的 ImageAsset
         // TODO: 目前这是个 Hack 方式， 在此 issue 讨论：https://github.com/cocos-creator/3d-tasks/issues/4503
@@ -19,8 +22,13 @@ export class AssetService extends BaseService<any> implements IAssetService {
             const imageAssetUuid = uuid.substring(0, end);
             removeCache(imageAssetUuid);
         }
+        this.emit('asset:change', uuid);
     }
 
+    /**
+     * 主进程监听 asset 事件，所触发事件
+     * @param uuid
+     */
     assetDeleted(uuid: string) {
         const oldAsset = assetManager.assets.get(uuid);
         if (oldAsset) {
@@ -29,5 +37,6 @@ export class AssetService extends BaseService<any> implements IAssetService {
             // assetListener.emit(uuid, placeHolder);
         }
         removeCache(uuid);
+        this.emit('asset:deleted', uuid);
     }
 }

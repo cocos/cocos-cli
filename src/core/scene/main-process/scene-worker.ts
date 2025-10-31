@@ -150,16 +150,15 @@ export class SceneWorker {
     }
 
     /**
-     * 判断是否为真正的崩溃（排除手动kill等情况）
+     * 判断是否崩溃
      * @private
      */
-    private isCrashExit(code: number, signal: string | null): boolean {
+    private isCrashExit(code: number): boolean {
         // 如果是手动停止，不算崩溃
         if (this.isManualStop) {
             return false;
         }
-
-
+        
         // 其他非零退出码且非手动终止信号的情况，认为是崩溃
         return code !== 0;
     }
@@ -258,10 +257,10 @@ export class SceneWorker {
         this.process.on('exit', (code: number, signal) => {
             if (code !== 0) {
                 console.error(`场景进程退出异常 code:${code}, signal:${signal}`);
-
-                // 判断是否为真正的崩溃（排除手动kill的情况）
-                const isCrash = this.isCrashExit(code, signal);
-
+                
+                // 判断是否为真正的崩溃（排除手动 kill 的情况）
+                const isCrash = this.isCrashExit(code);
+                
                 if (isCrash && !this.isManualStop && !this.isRestarting && this.enginePath && this.projectPath) {
                     console.log('检测到场景进程崩溃，准备重启...');
                     this.restart().catch(error => {

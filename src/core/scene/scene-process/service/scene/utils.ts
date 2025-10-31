@@ -1,6 +1,6 @@
 import cc from 'cc';
 import { Rpc } from '../../rpc';
-import { IComponentIdentifier, INode, IScene, ISceneIdentifier } from '../../../common';
+import { IComponentIdentifier, INode, IScene } from '../../../common';
 import compMgr from '../component/index';
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
@@ -9,53 +9,24 @@ class SceneUtil {
     static readonly Timeout = 60 * 1000;
 
     /**
-     * 获取资源 UUID
+     * 根据路径、UUID、URL 查询是什么类型的资源
      * @param urlOrUUIDOrPath
      */
-    async queryUUID(urlOrUUIDOrPath?: string): Promise<string | null> {
-        if (!urlOrUUIDOrPath) return null;
-        try {
-            return await Rpc.getInstance().request('assetManager', 'queryUUID', [urlOrUUIDOrPath]);
-        } catch (error) {
-            console.error(error);
-            return null;
+    async queryAssetType(urlOrUUIDOrPath: string): Promise<'cc.SceneAsset' | 'cc.Prefab' | 'unknown'> {
+        const assetInfo: IAssetInfo | null = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUIDOrPath]);
+        switch (assetInfo?.type) {
+            case 'cc.SceneAsset':
+            case 'cc.Prefab':
+                return assetInfo?.type;
         }
-    }
-
-    /**
-     * 获取场景标识信息
-     * @param source
-     * @private
-     */
-    async getSceneIdentifier(source?: string | IAssetInfo): Promise<ISceneIdentifier> {
-        const identifier: ISceneIdentifier = {
-            assetType: 'unknown',
-            assetName: 'unknown',
-            assetUuid: 'unknown',
-            assetUrl: 'unknown',
-        };
-
-        if (!source) return identifier;
-
-        const isString = typeof source === 'string';
-        const assetInfo: IAssetInfo | null = isString ? await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [source]) : source;
-        if (!assetInfo) {
-            console.error('无法请求场景资源');
-            return identifier;
-        }
-        return {
-            assetType: assetInfo.type,
-            assetName: assetInfo.name,
-            assetUuid: assetInfo.uuid,
-            assetUrl: assetInfo.url,
-        };
+        return 'unknown';
     }
 
     /**
      * 立即运行场景，清除节点与组件缓存
      * @param sceneAsset
      */
-    runScene(sceneAsset: cc.SceneAsset): Promise<cc.Scene> {
+    runScene(sceneAsset: cc.SceneAsset | cc.Scene): Promise<cc.Scene> {
         // 重要：清空节点与组件的 path 缓存，否则会出现数据重复的问题
         EditorExtends.Node.clear();
         EditorExtends.Component.clear();
@@ -145,31 +116,6 @@ class SceneUtil {
     }
 
     /**
-     * 请求某个路径的节点树，不传路径为当前场景
-     */
-    generateSceneInfo(identifier: ISceneIdentifier): IScene | null {
-        const scene = cc.director.getScene();
-        if (!scene) {
-            return null;
-        }
-        return {
-            ...identifier,
-            // Properties
-            name: scene.name,
-            //
-            children: scene.children
-                .map((node: cc.Node) => {
-                    return this.generateNodeInfo(node, true);
-                })
-                .filter(child => child !== null) as INode[],
-            components: scene.components
-                .map((component: cc.Component) => {
-                    return this.generateComponentInfo(component);
-                })
-        };
-    }
-
-    /**
      * 序列化场景
      * @private
      */
@@ -180,18 +126,20 @@ class SceneUtil {
     }
 
     /**
-     * 生成场景信息
-     * @param identifier 标识
+     * 根据资源 uuid 加载资源
+     * @param uuid
      */
-    async generateScene(identifier: ISceneIdentifier | string): Promise<IScene> {
-        if (typeof identifier === 'string') {
-            identifier = await this.getSceneIdentifier(identifier);
-        }
-        const scene = this.generateSceneInfo(identifier);
-        if (!scene) {
-            throw new Error('生成场景信息失败，当前没有场景');
-        }
-        return scene;
+    async loadAny<TAsset extends cc.Asset>(uuid: string): Promise<TAsset> {
+        return new Promise<TAsset>((resolve, reject) => {
+            cc.assetManager.assets.remove(uuid);
+            cc.assetManager.loadAny<TAsset>(uuid, (error: Error | null, asset: TAsset) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(asset);
+                }
+            });
+        });
     }
 }
 
@@ -215,4 +163,4 @@ export async function withTimeout<T>(
     ]).finally(() => clearTimeout(timer));
 }
 
-export default new SceneUtil();
+export const sceneUtils = new SceneUtil();

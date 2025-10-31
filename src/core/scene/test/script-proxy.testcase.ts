@@ -5,32 +5,53 @@ import { SceneTestEnv } from './scene-test-env';
 
 import * as utils from './utils';
 
-import type { ISceneEvents } from '../common';
+import type { IEditorEvents } from '../common';
 import type { IAssetInfo } from '../../assets/@types/public';
-
-// 单个测试文件生效
-jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
+import { EditorProxy } from '../main-process/proxy/editor-proxy';
 
 describe('Script Proxy 测试', () => {
     let assetInfo: IAssetInfo | null = null;
+
     it('创建脚本会触发场景刷新', async () => {
-        const eventSceneReloadPromise = utils.once<ISceneEvents>(sceneWorker, 'scene:soft-reload');
-        assetInfo = await assetManager.createAssetByType('typescript', SceneTestEnv.targetDirectoryURL, 'abc');
+        const scene = await EditorProxy.queryCurrent();
+        if (!scene) {
+            await EditorProxy.open({
+                urlOrUUID: SceneTestEnv.sceneURL
+            });
+        }
+        const eventSceneReloadPromise = utils.once<IEditorEvents>(sceneWorker, 'editor:reload');
+        assetInfo = await assetManager.createAssetByType('typescript', SceneTestEnv.targetDirectoryURL, 'abc1');
         await eventSceneReloadPromise; // 等待事件触发
         expect(true).toBe(true);
-    }, 10000);
+    });
+
+    it('创建脚本会触发预制体刷新', async () => {
+        const scene = await EditorProxy.queryCurrent();
+        if (!scene) {
+            await EditorProxy.open({
+                urlOrUUID: SceneTestEnv.prefabURL
+            });
+        }
+        const eventSceneReloadPromise = utils.once<IEditorEvents>(sceneWorker, 'editor:reload');
+        assetInfo = await assetManager.createAssetByType('typescript', SceneTestEnv.targetDirectoryURL, 'abc2');
+        expect(assetInfo).not.toBeNull();
+        await eventSceneReloadPromise; // 等待事件触发
+        expect(true).toBe(true);
+    });
 
     it('queryScriptName', async () => {
+        let scriptName: string | null = null;
         if (assetInfo) {
-            const scriptName = await ScriptProxy.queryScriptName(assetInfo.uuid);
-            expect(scriptName).toBeTruthy();
+            scriptName = await ScriptProxy.queryScriptName(assetInfo.uuid);
         }
+        expect(scriptName).toBeTruthy();
     });
 
     it('queryScriptCid', async () => {
+        let scriptCid: string | null = null;
         if (assetInfo) {
-            const scriptCid = await ScriptProxy.queryScriptCid(assetInfo.uuid);
-            expect(scriptCid).toBeTruthy();
+            scriptCid = await ScriptProxy.queryScriptCid(assetInfo.uuid);
         }
+        expect(scriptCid).toBeTruthy();
     });
 });

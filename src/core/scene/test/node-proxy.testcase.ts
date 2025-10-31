@@ -5,17 +5,29 @@ import {
     type IQueryNodeParams,
     type IUpdateNodeParams,
     type INode,
-    NodeType,
+    NodeType, ICreateOptions,
 } from '../common';
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
-
-jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
+import { SceneTestEnv } from './scene-test-env';
+import { EditorProxy } from '../main-process/proxy/editor-proxy';
 
 describe('Node Proxy 测试', () => {
     let createdNode: INode | null = null;
     const testNodePath = '/TestNode';
     const testPosition: IVec3 = { x: 1, y: 2, z: 0 };
+
+    beforeAll(async () => {
+        await EditorProxy.open({
+            urlOrUUID: SceneTestEnv.sceneURL
+        });
+    });
+
+    afterAll(async () => {
+        await EditorProxy.close({
+            urlOrUUID: SceneTestEnv.sceneURL
+        });
+    });
 
     describe('1. 基础节点操作', () => {
         it('createNode - 创建多级父节点的节点', async () => {
@@ -35,6 +47,7 @@ describe('Node Proxy 测试', () => {
 
 
         it('createNode - 创建带预制体的节点', async () => {
+
             const params: ICreateByAssetParams = {
                 dbURL: 'db://internal/default_prefab/ui/Label.prefab',
                 path: testNodePath,
