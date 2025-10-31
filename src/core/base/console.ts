@@ -546,7 +546,7 @@ export class NewConsole {
     /**
      * 获取最近的日志信息
      */
-    public queryLogs(count: number, type?: IConsoleType): string {
+    public queryLogs(count: number, type?: IConsoleType): string[] {
         const messages: string[] = [];
         for (let i = this.messages.length - 1; i >= 0 && count > 0; --i) {
             const msg = this.messages[i];
@@ -559,11 +559,7 @@ export class NewConsole {
                 --count;
             }
         }
-        let result = '';
-        for (let j = messages.length - 1; j >= 0; --j) {
-            result += messages[j];
-        }
-        return result;
+        return messages;
     }
 }
 
