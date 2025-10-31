@@ -24,6 +24,7 @@ export class CocosAPI {
         import('../api/builder/builder');
         import('../api/configuration/configuration');
         import('../api/scene/scene');
+        import('../api/system/system');
         await launcher.startup(port);
     }
 
