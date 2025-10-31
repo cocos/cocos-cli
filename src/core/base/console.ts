@@ -552,13 +552,14 @@ export class NewConsole {
             const msg = this.messages[i];
             if (!type || msg.type === type) {
                 if (type) {
-                    messages.push(`${translate(msg.value)}\n`);
+                    messages.push(`${translate(msg.value)}`);
                 } else {
-                    messages.push(`[${msg.type.toUpperCase()}] ${translate(msg.value)}\n`);
+                    messages.push(`[${msg.type.toUpperCase()}] ${translate(msg.value)}`);
                 }
                 --count;
             }
         }
+        messages.reverse();
         return messages;
     }
 }
