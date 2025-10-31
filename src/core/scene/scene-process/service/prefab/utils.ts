@@ -1,11 +1,9 @@
 'use strict';
 
-// import { NodeEventType } from '../../../../script/public/event-enum';
 import { Component, editorExtrasTag, instantiate, Node, Prefab, CCClass, Scene } from 'cc';
 import { isEditorNode } from '../node/node-utils';
 import { ServiceEvents, Service } from '../core';
-import type { INodeEvents } from '../../../common';
-import { sceneUtils } from '../scene/utils';
+import { INodeEvents, NodeEventType } from '../../../common';
 
 type PrefabInfo = Prefab._utils.PrefabInfo;
 const PrefabInfo = Prefab._utils.PrefabInfo;
@@ -85,7 +83,7 @@ class PrefabUtil {
 
     // 发送节点修改消息
     public fireChangeMsg(node: Node | Scene, opts: any = {}) {
-        // opts.type = NodeEventType.PREFAB_INFO_CHANGED;
+        opts.type = NodeEventType.PREFAB_INFO_CHANGED;
         ServiceEvents.emit<INodeEvents>('node:change', node);
     }
 

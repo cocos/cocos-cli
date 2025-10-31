@@ -87,6 +87,46 @@ interface IApplyPrefabInfo {
     targetOverrides: IAppliedTargetOverrideInfo[];
 }
 
+// class ApplyPrefabCommand extends SceneUndoCommand {
+//     public applyPrefabInfo: IApplyPrefabInfo | null = null;
+//     private _undoFunc: Function;
+//     private _redoFunc: Function;
+//     constructor(undoFunc: Function, redoFunc: Function) {
+//         super();
+//         this._undoFunc = undoFunc;
+//         this._redoFunc = redoFunc;
+//     }
+//
+//     public async undo() {
+//         if (this.applyPrefabInfo) {
+//             await this._undoFunc(this.applyPrefabInfo);
+//         }
+//     }
+//
+//     public async redo() {
+//         if (this.applyPrefabInfo) {
+//             await this._redoFunc(this.applyPrefabInfo.nodeUUID);
+//         }
+//     }
+// }
+//
+// // 创建预制体的自定义 undo
+// // 创建前的节点 uuid 和创建后的节点 uuid 数据不一样
+// class CreatePrefabCommand extends SceneUndoCommand {
+//     public async undo() {
+//         await this.applyData(this.undoData);
+//     }
+//
+//     public async redo() {
+//         await this.applyData(this.redoData);
+//     }
+// }
+//
+// class RevertPrefabCommand extends CreatePrefabCommand {
+//     tag = 'RevertPrefabCommand';
+// }
+
+
 class NodeOperation {
     public assetToNodesMap: Map<string, Node[]> = new Map(); // 存储 prefab 资源和场景节点的关系表
     public isRemovingMountedChildren = false;
