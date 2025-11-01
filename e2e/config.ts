@@ -5,6 +5,12 @@
  */
 
 /**
+ * 调试模式配置
+ * 通过环境变量 E2E_DEBUG=true 或 --preserve 参数启用
+ */
+export const E2E_DEBUG = process.env.E2E_DEBUG === 'true' || process.argv.includes('--preserve');
+
+/**
  * E2E 测试超时配置（毫秒）
  */
 export const E2E_TIMEOUTS = {

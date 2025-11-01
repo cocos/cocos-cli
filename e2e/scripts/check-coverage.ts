@@ -38,8 +38,9 @@ async function scanApiTools(): Promise<ApiTool[]> {
     const tools: ApiTool[] = [];
 
     try {
-        // 先导入 API 入口，触发所有装饰器的执行
-        await import('../../dist/api/index');
+        const { CocosAPI } = await import('../../dist/api/index');
+        // 先创建 API 实例，触发所有装饰器的执行
+        const cocosAPI = await CocosAPI.create();
 
         // 然后导入 toolRegistry (与 mcp.middleware.ts 使用相同的注册表)
         const { toolRegistry } = await import('../../dist/api/decorator/decorator');

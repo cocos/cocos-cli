@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { spawn, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
-import { E2E_TIMEOUTS } from '../config';
+import { E2E_TIMEOUTS, E2E_DEBUG } from '../config';
 import type { MCPToolsMap, MCPResponse } from '../types/mcp-tools.generated';
 
 export interface MCPServerOptions {
@@ -79,7 +79,9 @@ export class MCPTestClient {
      */
     async start(): Promise<void> {
         return new Promise((resolve, reject) => {
-            console.log(`🚀 Starting MCP server for project: ${this.projectPath}`);
+            if (E2E_DEBUG) {
+                console.log(`🚀 Starting MCP server for project: ${this.projectPath}`);
+            }
 
             const args = [
                 this.cliPath,
@@ -91,9 +93,13 @@ export class MCPTestClient {
             // 只在显式指定端口时才传递 --port 参数
             if (this.port > 0) {
                 args.push('--port', this.port.toString());
-                console.log(`   Using specified port: ${this.port}`);
+                if (E2E_DEBUG) {
+                    console.log(`   Using specified port: ${this.port}`);
+                }
             } else {
-                console.log(`   Using auto-assigned port`);
+                if (E2E_DEBUG) {
+                    console.log(`   Using auto-assigned port`);
+                }
             }
 
             // 启动服务器进程
@@ -112,8 +118,9 @@ export class MCPTestClient {
             this.serverProcess.stdout?.on('data', (data) => {
                 const output = data.toString();
 
-                // 🔍 DEBUG: 输出所有服务器日志
-                console.log('[MCP Server stdout]:', output);
+                if (E2E_DEBUG) {
+                    console.log('[MCP Server stdout]:', output);
+                }
 
                 // 从日志中解析端口号："Server is running on: http://localhost:PORT"
                 const portMatch = output.match(/Server is running on:.*:(\d+)/);
@@ -122,7 +129,9 @@ export class MCPTestClient {
                     if (this.port === 0) {
                         // 如果是自动选择端口，更新端口号
                         this.port = actualPort;
-                        console.log(`✅ MCP server started on auto-assigned port: ${actualPort}`);
+                        if (E2E_DEBUG) {
+                            console.log(`✅ MCP server started on auto-assigned port: ${actualPort}`);
+                        }
                     }
                 }
 
@@ -145,8 +154,9 @@ export class MCPTestClient {
                 if (output.includes('Debugger')) {
                     return;
                 }
-                // 🔍 DEBUG: 输出所有错误日志（包括调试信息和警告）
-                console.error('[MCP Server stderr]:', output);
+                if (E2E_DEBUG) {
+                    console.error('[MCP Server stderr]:', output);
+                }
             });
 
             this.serverProcess.on('error', (error) => {
@@ -167,7 +177,9 @@ export class MCPTestClient {
      * 连接客户端到服务器（通过 HTTP）
      */
     private async connectClient(): Promise<void> {
-        console.log(`📡 Connecting MCP client via HTTP to port ${this.port}...`);
+        if (E2E_DEBUG) {
+            console.log(`📡 Connecting MCP client via HTTP to port ${this.port}...`);
+        }
 
         // 创建 HTTP 传输层（构造函数接受 URL 对象）
         const mcpUrl = new URL(`http://localhost:${this.port}/mcp`);
@@ -186,7 +198,9 @@ export class MCPTestClient {
         // 连接客户端到服务器
         await this.client.connect(this.transport);
 
-        console.log(`✅ MCP client connected successfully!`);
+        if (E2E_DEBUG) {
+            console.log(`✅ MCP client connected successfully!`);
+        }
     }
 
     /**
@@ -212,7 +226,9 @@ export class MCPTestClient {
         }
 
         try {
-            console.log(`[MCP callTool] ${name} with timeout=${timeout}ms, args:`, JSON.stringify(args, null, 2));
+            if (E2E_DEBUG) {
+                console.log(`[MCP callTool] ${name} with timeout=${timeout}ms, args:`, JSON.stringify(args, null, 2));
+            }
 
             // 注意：callTool 的参数顺序是 (params, resultSchema, options)
             const result = await this.client.callTool(
@@ -226,7 +242,9 @@ export class MCPTestClient {
                 }
             );
 
-            console.log(`[MCP callTool] ${name} raw response:`, JSON.stringify(result, null, 2));
+            if (E2E_DEBUG) {
+                console.log(`[MCP callTool] ${name} raw response:`, JSON.stringify(result, null, 2));
+            }
 
             // MCP 服务器返回格式：{ content: [{ type: 'text', text: '...' }] }
             // text 内容是序列化的 JSON: { result: { code, data?, reason? } }
@@ -236,7 +254,9 @@ export class MCPTestClient {
                     try {
                         // 解析 JSON 字符串
                         const parsed = JSON.parse(content.text);
-                        console.log(`[MCP callTool] ${name} parsed response:`, JSON.stringify(parsed, null, 2));
+                        if (E2E_DEBUG) {
+                            console.log(`[MCP callTool] ${name} parsed response:`, JSON.stringify(parsed, null, 2));
+                        }
 
                         // MCP 中间件用 { result: ... } 包装了 API 返回值
                         if (parsed && typeof parsed === 'object' && 'result' in parsed) {
@@ -249,7 +269,9 @@ export class MCPTestClient {
                         }
 
                         // 如果格式不对，返回错误
-                        console.warn(`[MCP callTool] ${name} unexpected response format:`, parsed);
+                        if (E2E_DEBUG) {
+                            console.warn(`[MCP callTool] ${name} unexpected response format:`, parsed);
+                        }
                         return {
                             code: 500,
                             data: undefined,
@@ -257,7 +279,9 @@ export class MCPTestClient {
                         } as any;
                     } catch {
                         // JSON 解析失败
-                        console.error(`[MCP callTool] ${name} failed to parse response:`, content.text);
+                        if (E2E_DEBUG) {
+                            console.error(`[MCP callTool] ${name} failed to parse response:`, content.text);
+                        }
                         return {
                             code: 500,
                             data: undefined,
@@ -274,7 +298,9 @@ export class MCPTestClient {
                 reason: 'Invalid MCP response format',
             } as any;
         } catch (error) {
-            console.error(`[MCP callTool] ${name} error:`, error);
+            if (E2E_DEBUG) {
+                console.error(`[MCP callTool] ${name} error:`, error);
+            }
             return {
                 code: 500,
                 data: undefined,
@@ -302,14 +328,16 @@ export class MCPTestClient {
      * 关闭客户端和服务器
      */
     async close(): Promise<void> {
-        console.log(`🛑 Closing MCP client...`);
-
         if (this.client) {
             try {
                 await this.client.close();
-                console.log(`   Client closed`);
+                if (E2E_DEBUG) {
+                    console.log(`   Client closed`);
+                }
             } catch (error) {
-                console.error(`   Error closing client:`, error);
+                if (E2E_DEBUG) {
+                    console.error(`   Error closing client:`, error);
+                }
             }
             this.client = null;
         }
@@ -317,9 +345,13 @@ export class MCPTestClient {
         if (this.transport) {
             try {
                 await this.transport.close();
-                console.log(`   Transport closed`);
+                if (E2E_DEBUG) {
+                    console.log(`   Transport closed`);
+                }
             } catch (error) {
-                console.error(`   Error closing transport:`, error);
+                if (E2E_DEBUG) {
+                    console.error(`   Error closing transport:`, error);
+                }
             }
             this.transport = null;
         }
@@ -332,7 +364,9 @@ export class MCPTestClient {
                         clearTimeout(this.forceKillTimer);
                         this.forceKillTimer = null;
                     }
-                    console.log(`   Server process exited`);
+                    if (E2E_DEBUG) {
+                        console.log(`   Server process exited`);
+                    }
                     resolve();
                 });
 
@@ -342,7 +376,9 @@ export class MCPTestClient {
                 // 超时后如果还没退出，强制杀死
                 this.forceKillTimer = setTimeout(() => {
                     if (this.serverProcess && this.serverProcess.exitCode === null) {
-                        console.log(`   Force killing server process`);
+                        if (E2E_DEBUG) {
+                            console.log(`   Force killing server process`);
+                        }
                         this.serverProcess.kill('SIGKILL');
                     }
                     this.forceKillTimer = null;
@@ -350,7 +386,9 @@ export class MCPTestClient {
             });
         }
 
-        console.log(`✅ MCP client closed`);
+        if (E2E_DEBUG) {
+            console.log(`✅ MCP client closed`);
+        }
     }
 }
 
