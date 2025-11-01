@@ -1,13 +1,6 @@
 /// 这个模块存放公用的缓存
 
-import { AssetInfo, IAssetMeta } from '../../assets/@types/public';
-
-export interface TypescriptAssetInfo{
-    assetInfo: AssetInfo;
-    meta: IAssetMeta;
-}
-
-export interface AssetInfoCache {
+export interface TypeScriptAssetInfoCache {
     version?: MTime,
     content?: string,
 
@@ -25,5 +18,5 @@ export interface FileInfo {
 }
 
 /** 与脚本解析相关的所有资源的缓存*/
-export const assetInfoCache: Map<FilePath, AssetInfoCache> = new Map();
+export const tsScriptAssetCache: Map<FilePath, TypeScriptAssetInfoCache> = new Map();
 export const blockAssetUUIDSet = new Set<UUID>();

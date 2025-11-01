@@ -17,7 +17,7 @@ import {
     ModLoOptions,
     ImportMap,
 } from '@cocos/creator-programming-mod-lo/lib/mod-lo';
-import { AssetChange, AssetChangeType, AssetDatabaseDomain, AssetDbInterop, ModifiedAssetChange } from './asset-db-interop';
+import { AssetChange, AssetChangeType, AssetDatabaseDomain, AssetDbInterop, DBChangeType, ModifiedAssetChange } from './asset-db-interop';
 import { PackerDriverLogger } from './logger';
 import { LanguageServiceAdapter } from '../language-service';
 import { DbURLInfo } from '../intelligence';
@@ -26,11 +26,13 @@ import ts from 'typescript';
 import JSON5 from 'json5';
 import minimatch from 'minimatch';
 import { existsSync } from 'fs';
-import { IAssetDBInfo } from '../../assets/@types/protected';
 import { url2path } from '../../assets/utils';
 import { compressUuid } from '../../builder/worker/builder/utils';
 import { TypeScriptConfigBuilder } from '../intelligence';
 import { eventEmitter } from '../event-emitter';
+import { TypeScriptAssetInfoCache } from '../shared/cache';
+import { DBInfo } from '../../builder/worker/builder/asset-handler/script/build-script';
+import { AssetInfo, IAssetMeta } from '../../assets/@types/public';
 
 const VERSION = '20';
 
@@ -38,16 +40,10 @@ const featureUnitModulePrefix = 'cce:/internal/x/cc-fu/';
 
 const useEditorFolderFeature = false; // TODO: 之后正式接入编辑器 Editor 目录后移除这个开关
 
-function matchPattern(path: string, pattern: string): boolean {
-    return minimatch(path.replace(/\\/g, '/'), pattern.replace(/\\/g, '/'));
-}
-
-async function getEditorPatterns() {
-    const dbList: string[] = Object.keys((globalThis as any).assetDBManager.assetDBMap);
+function getEditorPatterns(dbInfos: DBInfo[]) {
     const editorPatterns = [];
-    for (const dbID of dbList) {
-        const dbInfo = (globalThis as any).assetDBManager.assetDBInfo[dbID] || null;
-        const dbEditorPattern = ps.join(dbInfo.target, '**', 'editor', '**/*');
+    for (const info of dbInfos) {
+        const dbEditorPattern = ps.join(info.target, '**', 'editor', '**/*');
         editorPatterns.push(dbEditorPattern);
     }
     return editorPatterns;
@@ -97,7 +93,7 @@ type CCEModuleMap = {
  * - 产出是可以进行加载的模块资源，包括模块、Source map等；需要使用 QuickPackLoader 对这些模块资源进行加载和访问。
  */
 export class PackerDriver {
-    public languageService: LanguageServiceAdapter;
+    public languageService: LanguageServiceAdapter | null = null;
     private static _instance: PackerDriver | null = null;
 
     public static getInstance(): PackerDriver {
@@ -109,7 +105,6 @@ export class PackerDriver {
      * 创建 Packer 驱动器。
      */
     public static async create(projectPath: string, engineTsPath: string) {
-
         await scriptConfig.init();
         const tsBuilder = new TypeScriptConfigBuilder(projectPath, engineTsPath);
         PackerDriver._cceModuleMap = PackerDriver.queryCCEModuleMap();
@@ -250,29 +245,26 @@ export class PackerDriver {
             tsBuilder,
             targets,
             statsQuery,
-            logger,
-            await tsBuilder.getCompilerOptions(),
-            await tsBuilder.getInternalDbURLInfos()
+            logger
         );
         PackerDriver._instance = packer;
         return packer;
     }
 
-    public static async updateImportRestrictions() {
+    private static async _updateImportRestrictions(dbInfos: DBInfo[]) {
         if (!useEditorFolderFeature) {
             return;
         }
 
-        const dbInfos = Object.values((globalThis as any).assetDBManager.assetDBInfo as Record<string, IAssetDBInfo>);
         const restrictions = PackerDriver._importRestrictions;
         restrictions.length = 0;
-        const banSourcePatterns = await getEditorPatterns();
+        const banSourcePatterns = await getEditorPatterns(dbInfos);
         banSourcePatterns.push(...getCCEModuleIDs(PackerDriver._cceModuleMap)); // 禁止从这些模块里导入
 
         for (let i = 0; i < dbInfos.length; ++i) {
-            const dbInfo = dbInfos[i];
-            const dbPattern = ps.join(dbInfo.target, '**/*');
-            const dbEditorPattern = ps.join(dbInfo.target, '**', 'editor', '**/*');
+            const targetPath = dbInfos[i].target;
+            const dbPattern = ps.join(targetPath, '**/*');
+            const dbEditorPattern = ps.join(targetPath, '**', 'editor', '**/*');
             restrictions[i] = {
                 importerPatterns: [dbPattern, '!' + dbEditorPattern], // TODO: 如果需要兼容就项目，则路径不能这么配置，等编辑器提供查询接口
                 banSourcePatterns,
@@ -290,74 +282,100 @@ export class PackerDriver {
     /**构建任务的委托，在构建之前会把委托里面的所有内容执行 */
     public readonly beforeEditorBuildDelegate: AsyncDelegate<(changes: ModifiedAssetChange[]) => Promise<void>> = new AsyncDelegate();
     public busy() {
-        return this._asyncIteration.busy();
+        return this._building;
     }
 
-    public async mountDatabase(dbInfo: IAssetDBInfo) {
-        const assetInfos = await this._assetDbInterop.onMountDatabase(dbInfo);
-        assetInfos.forEach((info) => {
-            this._assetChangeQueue.push({
-                type: AssetChangeType.add,
-                filePath: info.filePath,
-                uuid: info.uuid,
-                isPluginScript: info.isPluginScript,
-                url: info.url,
+    /**
+     * 
+     * @param tsScriptCaches 调用方根据业务需求，更新所有 db 数据库的 ts 脚本信息缓存或某个 db 数据库的 ts 脚本信息缓存
+     */
+    public setTsScriptInfoCache(tsScriptCaches: TypeScriptAssetInfoCache[]) {
+        this._assetDbInterop.setTsScriptInfoCache(tsScriptCaches);
+    }
+
+    public setAssetChange(assetChanges: AssetChange[]) {
+        this._assetChangeQueue.push(...assetChanges);
+    }
+
+    public async updateDbInfos(dbInfo: DBInfo, dbChangeType: DBChangeType) {
+        const oldDbInfoSize = this._dbInfos.length;
+        if (dbChangeType === DBChangeType.add) {
+            if (!this._dbInfos.some(item => item.dbID === dbInfo.dbID)) {
+                this._dbInfos.push(dbInfo);
+            }
+        } else if (dbChangeType === DBChangeType.remove) {
+            this._dbInfos = this._dbInfos.filter(item => item.dbID !== dbInfo.dbID);
+            const scriptInfos = this._assetDbInterop.removeTsScriptInfoCache(dbInfo.target);
+            scriptInfos.forEach((info) => {
+                this._assetChangeQueue.push({
+                    type: AssetChangeType.remove,
+                    filePath: info.filePath,
+                    uuid: info.uuid,
+                    isPluginScript: info.isPluginScript,
+                    url: info.url,
+                });
             });
-        });
-        // TODO 应该新增缓存即可，不需要全部重新查询
-        await PackerDriver.updateImportRestrictions();
-    }
+        }
+        if (oldDbInfoSize === this._dbInfos.length) {
+            return;
+        }
+        const self = this;
+        const update = async () => {
+            PackerDriver._updateImportRestrictions(this._dbInfos);
+            const assetDatabaseDomains = await this._assetDbInterop.queryAssetDomains(this._dbInfos);
+            self._logger.debug(
+                'Reset databases. ' +
+                `Enumerated domains: ${JSON.stringify(assetDatabaseDomains, undefined, 2)}`);
 
-    public async unmountDatabase(dbInfo: IAssetDBInfo) {
-        const assetInfos = await this._assetDbInterop.onUnmountDatabase(dbInfo);
-        assetInfos.forEach((info) => {
-            this._assetChangeQueue.push({
-                type: AssetChangeType.remove,
-                filePath: info.filePath,
-                uuid: info.uuid,
-                isPluginScript: info.isPluginScript,
-                url: info.url,
-            });
-        });
 
-        // TODO 应该删除缓存即可，不需要全部重新查询
-        await PackerDriver.updateImportRestrictions();
-    }
-
-    public async resetDatabases(build = true) {
-        const assetDatabaseDomains = await this._assetDbInterop.queryAssetDomains();
-        this._logger.debug(
-            'Reset databases. ' +
-            `Enumerated domains: ${JSON.stringify(assetDatabaseDomains, undefined, 2)}`);
-
-        const setTargets = () => {
+            const tsBuilder = self._tsBuilder;
+            tsBuilder.setDbURLInfos(this._dbInfos);
+            const realTsConfigPath = tsBuilder.getRealTsConfigPath();
+            const projectPath = tsBuilder.getProjectPath();
+            const compilerOptions = await tsBuilder.getCompilerOptions();
+            const internalDbURLInfos = await tsBuilder.getInternalDbURLInfos();
+            self.languageService = new LanguageServiceAdapter(realTsConfigPath, projectPath, self.beforeEditorBuildDelegate, compilerOptions, internalDbURLInfos);
             for (const target of Object.values(this._targets)) {
+                target.updateDbInfos(this._dbInfos);
                 target.setAssetDatabaseDomains(assetDatabaseDomains);
             }
         };
-
-        if (build) {
-            this._triggerNextBuild(setTargets);
+        if (this.busy()) {
+            this._beforeBuildTasks.push(() => {
+                update();
+            });
         } else {
-            setTargets();
+            await update();
         }
     }
 
     /**
-     * 从 asset-db 获取所有数据并构建。
+     * 从 asset-db 获取所有数据并构建，包含 ts 和 js 脚本。
+     * AssetChange format:
+     *  {
+     *      type: AssetChangeType.add,
+            uuid: assetInfo.uuid,
+            filePath: assetInfo.file,
+            url: getURL(assetInfo),
+            isPluginScript: isPluginScript(meta || assetInfo.meta!),
+     *  }
+     * @param assetChanges 资源变更列表
+     * @param taskId 任务ID，用于跟踪任务状态
      */
-    public async build() {
+    public async build(assetChanges?: AssetChange[], taskId?: string) {
         const logger = this._logger;
 
         logger.debug('Pulling asset-db.');
 
         const t1 = performance.now();
-        await this._fetchAll();
+        if (assetChanges && assetChanges.length > 0) {
+            this._assetChangeQueue.push(...assetChanges);
+        }
         const t2 = performance.now();
 
         logger.debug(`Fetch asset-db cost: ${t2 - t1}ms.`);
 
-        await this._waitForBuild();
+        await this._startBuild(taskId);
         return;
     }
 
@@ -376,7 +394,7 @@ export class PackerDriver {
             await target.clearCache();
         }
         this._logger.debug('Request build after clearing...');
-        this._dispatchBuildRequest();
+        this.build([]);
         this._clearing = false;
     }
 
@@ -398,6 +416,14 @@ export class PackerDriver {
         }
     }
 
+    /**
+     * 获取当前正在执行的编译任务ID
+     * @returns 任务ID，如果没有正在执行的任务则返回null
+     */
+    public getCurrentTaskId(): string | null {
+        return this._currentTaskId;
+    }
+
     public queryScriptDeps(scriptPath: string): string[] {
         this._transformDepsGraph();
         if (this._depsGraphCache[scriptPath]) {
@@ -417,14 +443,15 @@ export class PackerDriver {
         await this.destroyed();
     }
 
+    private _dbInfos: DBInfo[] = [];
     private _tsBuilder: TypeScriptConfigBuilder;
     private _clearing = false;
     private _targets: Record<TargetName, PackTarget> = {};
     private _logger: PackerDriverLogger;
     private _statsQuery: StatsQuery;
-    private _asyncIteration: AsyncIterationConcurrency1;
     private readonly _assetDbInterop: AssetDbInterop;
     private _assetChangeQueue: AssetChange[] = [];
+    private _building = false;
     private _featureChanged = false;
     private _beforeBuildTasks: (() => void)[] = [];
     private _depsGraph: Record<string, string[]> = {};
@@ -435,22 +462,19 @@ export class PackerDriver {
     private static _importRestrictions: any[] = [];
     private _init = false;
     private _features: string[] = [];
+    private _currentTaskId: string | null = null;
 
-    private constructor(builder: TypeScriptConfigBuilder, targets: PackerDriver['_targets'], statsQuery: StatsQuery, logger: PackerDriverLogger, compilerOptions: Readonly<ts.CompilerOptions>, dbURLInfos: readonly DbURLInfo[]) {
+    private constructor(builder: TypeScriptConfigBuilder, targets: PackerDriver['_targets'], statsQuery: StatsQuery, logger: PackerDriverLogger) {
         this._tsBuilder = builder;
         this._targets = targets;
         this._statsQuery = statsQuery;
         this._logger = logger;
-        this.languageService = new LanguageServiceAdapter(builder.getRealTsConfigPath(), builder.getProjectPath(), this.beforeEditorBuildDelegate, compilerOptions, dbURLInfos);
-        this._assetDbInterop = new AssetDbInterop(this._onSomeAssetChangesWereMade.bind(this));
-
-        this._asyncIteration = new AsyncIterationConcurrency1(async () => {
-            return await this._startBuildIteration();
-        });
+        this._assetDbInterop = new AssetDbInterop();
     }
 
     public set features(features: string[]) {
         this._features = features;
+        this._featureChanged = true;
     }
 
     public async init(features: string[]) {
@@ -459,7 +483,6 @@ export class PackerDriver {
         }
         this._init = true;
         this._features = features;
-        await this._assetDbInterop.init();
         await this._syncEngineFeatures(features);
     }
 
@@ -478,28 +501,34 @@ export class PackerDriver {
         }
     }
 
-    /**
-     * 当资源更改计时器的时间到了之后，我们发起一次构建请求。
-     */
-    private _onSomeAssetChangesWereMade(changes: ReadonlyArray<AssetChange>) {
-        this._logger.debug(
-            `Dispatch build request for time accumulated ${changes.length} asset changes.`);
-        this._assetChangeQueue.push(...changes);
-        this._dispatchBuildRequest();
+    public dispatchAssetChanges(type: AssetChangeType,
+        uuid: string,
+        assetInfo: Readonly<AssetInfo>,
+        meta: Readonly<IAssetMeta>) {
+        this._assetDbInterop.onAssetChange(type, uuid, assetInfo, meta);
+        const assetChanges = this._assetDbInterop.getAssetChangeQueue();
+        this._assetChangeQueue.push(...assetChanges);
     }
 
     /**
      * 开始一次构建。
+     * @param taskId 任务ID，用于跟踪任务状态
      */
-    private async _startBuildIteration() {
-
-        eventEmitter.emit('compile-start', 'project');
+    private async _startBuild(taskId?: string) {
+        if (this._building) {
+            this._logger.debug('Build iteration already started, skip.');
+            return;
+        }
+        this._building = true;
+        this._currentTaskId = taskId || null;
+        eventEmitter.emit('compile-start', 'project', taskId);
 
         this._logger.clear();
         this._logger.debug(
             'Build iteration starts.\n' +
             `Number of accumulated asset changes: ${this._assetChangeQueue.length}\n` +
-            `Feature changed: ${this._featureChanged}`,
+            `Feature changed: ${this._featureChanged}` +
+            (taskId ? `\nTask ID: ${taskId}` : ''),
         );
         if (this._featureChanged) {
             this._featureChanged = false;
@@ -512,12 +541,7 @@ export class PackerDriver {
         for (const beforeTask of beforeTasks) {
             beforeTask();
         }
-        try {
-            await this.beforeEditorBuildDelegate.dispatch(assetChanges.filter(item => item.type === AssetChangeType.modified) as ModifiedAssetChange[]);
-        } catch (error) {
-            console.debug(error);
-        }
-
+        await this.beforeEditorBuildDelegate.dispatch(assetChanges.filter(item => item.type === AssetChangeType.modified) as ModifiedAssetChange[]);
         const nonDTSChanges = assetChanges.filter(item => !item.filePath.endsWith('.d.ts'));
         for (const [, target] of Object.entries(this._targets)) {
             if (assetChanges.length !== 0) {
@@ -527,23 +551,11 @@ export class PackerDriver {
             this._depsGraph = buildResult.depsGraph; // 更新依赖图
             this._needUpdateDepsCache = true;
         }
+        this._building = false;
+        this._currentTaskId = null;
 
-        eventEmitter.emit('compiled', 'project');
+        eventEmitter.emit('compiled', 'project', taskId);
 
-    }
-
-    /**
-     * 请求一次构建，如果正在构建，会和之前的请求合并。
-     */
-    private async _waitForBuild() {
-        return this._asyncIteration.nextIteration();
-    }
-
-    /**
-     * 请求一次构建，如果正在构建，会和之前的请求合并。
-     */
-    private _dispatchBuildRequest() {
-        void this._asyncIteration.nextIteration();
     }
 
     private static async _createIncrementalRecord(logger: Logger): Promise<IncrementalRecord> {
@@ -608,12 +620,6 @@ export class PackerDriver {
         return matched;
     }
 
-    private async _fetchAll() {
-        const assetChanges = await this._assetDbInterop.fetchAll();
-        this._assetChangeQueue.push(...assetChanges);
-
-    }
-
     private static async _getEngineFeaturesShippedInEditor(statsQuery: StatsQuery) {
         // 从 v3.8.5 开始，支持手动加载 WASM 模块，提供了 loadWasmModuleBox2D, loadWasmModuleBullet 等方法，这些方法是在 feature 入口 ( exports 目录下的文件导出的)
         // 之前剔除这些后端 feature 入口，应该是在 https://github.com/cocos/3d-tasks/issues/5747 中的建议。
@@ -655,11 +661,6 @@ export class PackerDriver {
             (featureUnit) => `${featureUnitModulePrefix}${featureUnit}`,
         );
         return engineIndexModuleSource;
-    }
-
-    private async _triggerNextBuild(beforeBuildTask: () => void) {
-        this._beforeBuildTasks.push(beforeBuildTask);
-        this._dispatchBuildRequest();
     }
 
     /**
@@ -819,6 +820,10 @@ class PackTarget {
         return this._respectToFeatureSetting;
     }
 
+    public updateDbInfos(dbInfos: DBInfo[]) {
+        this._dbInfos = dbInfos;
+    }
+
     public async build(): Promise<BuildResult> {
         this._ensureIdle();
         this._buildStarted = true;
@@ -856,6 +861,7 @@ class PackTarget {
             this._firstBuild = false;
         } catch (err: any) {
             this._logger.error(`${err}, stack: ${err.stack}`);
+            throw err;
         }
         const t2 = performance.now();
         this._logger.debug(`Target(${targetName}) ends with cost ${t2 - t1}ms.`);
@@ -988,6 +994,7 @@ class PackTarget {
         this._cleanResolutionNextTime = true;
     }
 
+    private _dbInfos: DBInfo[] = [];
     private _buildStarted = false;
     private _ready = false;
     private _name: string;
@@ -1011,7 +1018,7 @@ class PackTarget {
         let prerequisiteAssetMods = Array.from(this._prerequisiteAssetMods).sort();
         if (useEditorFolderFeature && this._name !== 'editor') {
             // preview 编译需要剔除 Editor 目录下的脚本
-            const editorPatterns = await getEditorPatterns();
+            const editorPatterns = await getEditorPatterns(this._dbInfos);
             prerequisiteAssetMods = Array.from(prerequisiteAssetMods).filter(mods => {
                 const filePath = mods.startsWith('file:') ? fileURLToPath(mods) : mods;
                 return !editorPatterns.some(pattern => minimatch(filePath, pattern));
@@ -1022,42 +1029,6 @@ class PackTarget {
 
     private _ensureIdle() {
         asserts(!this._buildStarted, 'Build is in progress, but a status change request is filed');
-    }
-}
-
-class AsyncIterationConcurrency1 {
-    private _iterate: () => Promise<void>;
-
-    private _executionPromise: Promise<void> | null = null;
-
-    private _pendingPromise: Promise<void> | null = null;
-
-    constructor(iterate: () => Promise<void>) {
-        this._iterate = iterate;
-    }
-
-    public busy() {
-        return !!this._executionPromise || !!this._pendingPromise;
-    }
-
-    public nextIteration(): Promise<any> {
-        if (!this._executionPromise) {
-            // 如果未在执行，那就去执行
-            // assert(!this._pendingPromise)
-            return this._executionPromise = Promise.resolve(this._iterate()).finally(() => {
-                this._executionPromise = null;
-            });
-        } else if (!this._pendingPromise) {
-            // 如果没有等待队列，创建等待 promise，在 执行 promise 完成后执行
-            return this._pendingPromise = this._executionPromise.finally(() => {
-                this._pendingPromise = null;
-                // 等待 promise 将等待执行 promise，并在完成后重新入队
-                return this.nextIteration();
-            });
-        } else {
-            // 如果已经有等待队列，那就等待现有的队列
-            return this._pendingPromise;
-        }
     }
 }
 

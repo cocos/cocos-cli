@@ -3,9 +3,10 @@ import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
 import { getCurrentLocalTime } from './assets/utils';
-import { PackerDriver } from './scripting/packer-driver';
 import { startServer } from '../server';
 import { GlobalPaths } from '../global';
+import scripting from './scripting';
+
 
 /**
  * 启动器，主要用于整合各个模块的初始化和关闭流程
@@ -42,9 +43,11 @@ export default class Launcher {
         const { default: Project } = await import('./project');
         await Project.open(this.projectPath);
         // 初始化引擎
-        const { initEngine } = await import('./engine');
+        const { initEngine, Engine } = await import('./engine');
         await initEngine(GlobalPaths.enginePath, this.projectPath);
         console.log('initEngine success');
+
+        await scripting.initialize(this.projectPath, GlobalPaths.enginePath, Engine.getConfig().includeModules);
     }
 
     /**
@@ -59,11 +62,6 @@ export default class Launcher {
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
         await startupAssetDB();
-        const packDriver = await PackerDriver.create(this.projectPath, GlobalPaths.enginePath);
-        const { Engine } = await import('./engine');
-        await packDriver.init(Engine.getConfig().includeModules);
-        await packDriver.resetDatabases();
-        await packDriver.build();
     }
 
     /**

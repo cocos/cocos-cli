@@ -13,7 +13,6 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
-import { PackerDriver } from '../../scripting/packer-driver';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -745,6 +744,6 @@ async function afterStartDB() {
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
     await startAutoGenEffectBin();
 
-    await PackerDriver.getInstance().resetDatabases();
-    await PackerDriver.getInstance().build();
+    const scripting = (await import('../../scripting')).default;
+    await scripting.compileScripts([]);
 }

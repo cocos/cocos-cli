@@ -41,7 +41,7 @@ function matchPattern(path: string, pattern: string): boolean {
     return minimatch(path.replace(/\\/g, '/'), pattern.replace(/\\/g, '/'));
 }
 
-interface DBInfo {
+export interface DBInfo {
     dbID: string;
     target: string
 }

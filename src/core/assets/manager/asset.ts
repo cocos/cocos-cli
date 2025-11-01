@@ -2,10 +2,14 @@ import { AssetDB, VirtualAsset } from '@cocos/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { AssetManagerEvents, IAsset } from '../@types/private';
+import { AssetInfo, AssetManagerEvents, IAsset, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
+import scripting, { AssetChangeType, TypeScriptAssetInfoCache } from '../../scripting';
+import { AssetChange, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
+import { pathToFileURL } from 'url';
+import { resolveFileName } from '../../scripting/utils/path';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -66,11 +70,13 @@ class AssetManager extends EventEmitter {
     async init() {
         assetDBManager.on('db-created', this._onAssetDBCreated);
         assetDBManager.on('db-removed', this._onAssetDBRemoved);
+        assetDBManager.on('db-ready', this._onAssetDBReady);
     }
 
     destroyed() {
         assetDBManager.removeListener('db-created', this._onAssetDBCreated);
         assetDBManager.removeListener('db-removed', this._onAssetDBRemoved);
+        assetDBManager.removeListener('db-ready', this._onAssetDBReady);
     }
 
     _onAssetDBCreated(db: AssetDB) {
@@ -91,16 +97,76 @@ class AssetManager extends EventEmitter {
         db.removeListener('delete', assetManager._onAssetDeleted.bind(assetManager));
     }
     _onAssetDBRemoved(db: AssetDB) {
+        this._onDbChange(db, DBChangeType.remove);
         db.removeListener('unresponsive', onUnResponsive);
         db.removeListener('added', assetManager._onAssetAdded.bind(assetManager));
         db.removeListener('changed', assetManager._onAssetChanged.bind(assetManager));
         db.removeListener('deleted', assetManager._onAssetDeleted.bind(assetManager));
+    }
+    _onAssetDBReady(db: AssetDB) {
+        this._onDbChange(db, DBChangeType.add);
+        const tsAssetChanges: TypeScriptAssetInfoCache[] = this._fetchAssetInfo<TypeScriptAssetInfoCache>({
+            importer: 'typescript',
+            pattern: `db://${db.options.name}/**/*.ts`
+        }, (assetInfo: AssetInfo) => {
+            assetInfo.file = resolveFileName(assetInfo.file);
+            const url = pathToFileURL(assetInfo.file);
+            return {
+                uuid: assetInfo.uuid,
+                filePath: assetInfo.file,
+                url: url,
+                isPluginScript: assetInfo.meta && assetInfo.meta.userData?.isPlugin,
+            };
+        }, undefined);
+        scripting.setScriptInfoCache(tsAssetChanges);
+
+
+        const assetChanges: AssetChange[] = this._fetchAssetInfo<AssetChange>({
+            ccType: 'cc.Script',
+        }, (assetInfo: AssetInfo) => {
+            assetInfo.file = resolveFileName(assetInfo.file);
+            const url = pathToFileURL(assetInfo.file);
+            return {
+                type: AssetChangeType.add,
+                uuid: assetInfo.uuid,
+                filePath: assetInfo.file,
+                url: url,
+                isPluginScript: assetInfo.meta && assetInfo.meta.userData?.isPlugin,
+            };
+        }, undefined);
+        scripting.setAssetChange(assetChanges);
+    }
+
+    private _onDbChange(db: AssetDB, changeType: DBChangeType) {
+        const dbInfo = {
+            dbID: db.options.name,
+            target: db.options.target,
+        };
+        scripting.updateDatabases(dbInfo, changeType);
+    }
+
+    private _fetchAssetInfo<T = { assetInfo: AssetInfo }>(options: QueryAssetsOption, mapper: (assetInfo: AssetInfo) => T, filter?: (assetInfo: AssetInfo) => boolean): T[] {
+        const results: T[] = [];
+        const assetInfos = assetManager.queryAssetInfos(options, ['meta', 'url', 'file', 'importer', 'type']) as IAssetInfo[];
+        if (!assetInfos || !assetInfos.length) {
+            return results;
+        }
+        assetInfos.map((scriptAssetInfo) => {
+            if (!filter || filter(scriptAssetInfo as AssetInfo)) {
+                const result = mapper(scriptAssetInfo as AssetInfo);
+                results.push(result);
+            }
+        });
+        return results;
     }
 
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-add', asset);
             console.log(`asset-add ${asset.url}`);
+            const assetInfo = assetQuery.encodeAsset(asset);
+            scripting.dispatchAssetChange(AssetChangeType.add, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
+            scripting.postCompileScripts(10);
             return;
         }
     }
@@ -108,6 +174,9 @@ class AssetManager extends EventEmitter {
         if (assetDBManager.ready) {
             this.emit('asset-change', asset);
             console.log(`asset-change ${asset.url}`);
+            const assetInfo = assetQuery.encodeAsset(asset);
+            scripting.dispatchAssetChange(AssetChangeType.modified, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
+            scripting.postCompileScripts(10);
             return;
         }
     }
@@ -115,6 +184,9 @@ class AssetManager extends EventEmitter {
         if (assetDBManager.ready) {
             this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
+            const assetInfo = assetQuery.encodeAsset(asset);
+            scripting.dispatchAssetChange(AssetChangeType.remove, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
+            scripting.postCompileScripts(10);
             return;
         }
     }
