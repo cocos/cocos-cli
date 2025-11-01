@@ -35,9 +35,7 @@ export class BuildCommand extends BaseCommand {
                         delete options.buildConfig;
                     }
                     const { CocosAPI } = await import('../api/index');
-                    const cocos = new CocosAPI();
-                    const result = await cocos.build(resolvedPath, options.platform, options);
-
+                    const result = await CocosAPI.buildProject(resolvedPath, options.platform, options);
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));
                     } else {

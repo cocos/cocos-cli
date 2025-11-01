@@ -5,7 +5,7 @@ import { serverService } from '../server/server';
 import chalk from 'chalk';
 
 export async function startServer(folder: string, port?: number) {
-    const cocosAPI = new CocosAPI();
+    const cocosAPI = await CocosAPI.create();
     await cocosAPI.startup(folder, port);
     const middleware = new McpMiddleware();
     register('mcp', middleware.getMiddlewareContribution());
