@@ -6,13 +6,6 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read          # 读取代码
-  pull-requests: write   # 评论 PR
-  issues: write          # 评论 Issue
-  actions: read          # 读取 Actions
-  checks: write          # 写入检查结果
-
 jobs:
   pr-test:
     # 运行条件：
