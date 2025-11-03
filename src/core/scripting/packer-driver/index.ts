@@ -20,9 +20,7 @@ import {
 import { AssetChange, AssetChangeType, AssetDatabaseDomain, AssetDbInterop, DBChangeType, ModifiedAssetChange } from './asset-db-interop';
 import { PackerDriverLogger } from './logger';
 import { LanguageServiceAdapter } from '../language-service';
-import { DbURLInfo } from '../intelligence';
 import { AsyncDelegate } from '../utils/delegate';
-import ts from 'typescript';
 import JSON5 from 'json5';
 import minimatch from 'minimatch';
 import { existsSync } from 'fs';
@@ -376,7 +374,6 @@ export class PackerDriver {
         logger.debug(`Fetch asset-db cost: ${t2 - t1}ms.`);
 
         await this._startBuild(taskId);
-        return;
     }
 
     public async clearCache() {
@@ -394,7 +391,7 @@ export class PackerDriver {
             await target.clearCache();
         }
         this._logger.debug('Request build after clearing...');
-        this.build([]);
+        await this.build([]);
         this._clearing = false;
     }
 

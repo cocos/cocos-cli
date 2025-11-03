@@ -118,7 +118,7 @@ class ScriptManager {
      * @param delay 延迟时间，单位为毫秒, 同一时间只能有一个延迟编译任务，如果存在则返回已有的任务ID
      * @returns 延迟编译任务的ID，如果存在则返回已有的任务ID
      */
-    async postCompileScripts(delay: number): Promise<string> {
+     postCompileScripts(delay: number): string {
         // 如果已经有待执行的延迟任务，取消它
         if (this._pendingCompileTimer) {
             clearTimeout(this._pendingCompileTimer);
@@ -129,7 +129,12 @@ class ScriptManager {
         this._pendingCompileTaskId = taskId;
         
         // 创建新的延迟任务
-        this._pendingCompileTimer = setTimeout(() => {
+        this._pendingCompileTimer = setTimeout(async () => {
+            if (this.isCompiling()) {
+                this.postCompileScripts(delay);
+                return taskId;
+            }
+
             this._pendingCompileTimer = null;
             const currentTaskId = this._pendingCompileTaskId;
             this._pendingCompileTaskId = null;
@@ -260,7 +265,7 @@ class ScriptManager {
      * @param tsScriptCaches 脚本信息缓存列表
      * @param changeType 变更类型
      */
-    async setScriptInfoCache(tsScriptCaches: TypeScriptAssetInfoCache[]): Promise<void> {
+    setScriptInfoCache(tsScriptCaches: TypeScriptAssetInfoCache[]) {
         PackerDriver.getInstance().setTsScriptInfoCache(tsScriptCaches);
     }
 

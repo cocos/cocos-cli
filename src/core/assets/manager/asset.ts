@@ -166,9 +166,6 @@ class AssetManager extends EventEmitter {
         if (assetDBManager.ready) {
             this.emit('asset-add', asset);
             console.log(`asset-add ${asset.url}`);
-            const assetInfo = assetQuery.encodeAsset(asset);
-            scripting.dispatchAssetChange(AssetChangeType.add, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            await scripting.postCompileScripts(10);
             return;
         }
     }
@@ -176,9 +173,6 @@ class AssetManager extends EventEmitter {
         if (assetDBManager.ready) {
             this.emit('asset-change', asset);
             console.log(`asset-change ${asset.url}`);
-            const assetInfo = assetQuery.encodeAsset(asset);
-            scripting.dispatchAssetChange(AssetChangeType.modified, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            await scripting.postCompileScripts(10);
             return;
         }
     }
@@ -188,7 +182,7 @@ class AssetManager extends EventEmitter {
             console.log(`asset-delete ${asset.url}`);
             const assetInfo = assetQuery.encodeAsset(asset);
             scripting.dispatchAssetChange(AssetChangeType.remove, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            await scripting.postCompileScripts(10);
+            scripting.postCompileScripts(15);
             return;
         }
     }

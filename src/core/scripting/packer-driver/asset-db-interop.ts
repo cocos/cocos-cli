@@ -78,7 +78,7 @@ export class AssetDbInterop {
      * 当收到资源更改消息后触发。我们会更新资源更改计时器。
      */
     
-    async onAssetChange(
+    onAssetChange(
         type: AssetChangeType,
         uuid: string,
         assetInfo: Readonly<AssetInfo>,

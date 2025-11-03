@@ -2,8 +2,10 @@ import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
 import { MigrateStep, i18nTranslate, linkToAssetTarget, openCode } from '../utils';
-import { AssetHandlerBase } from '../../@types/protected';
+import { AssetHandlerBase, AssetInfo } from '../../@types/protected';
 import { JavaScriptAssetUserData, PluginScriptUserData } from '../../@types/userDatas';
+import scripting, { AssetChangeType } from '../../../scripting';
+import assetQuery from '../../manager/query';
 const migrateStep = new MigrateStep();
 
 export const JavascriptHandler: AssetHandlerBase = {
@@ -39,6 +41,9 @@ export const JavascriptHandler: AssetHandlerBase = {
                 if (userData.isPlugin) {
                     return await _importPluginScript(asset);
                 } else {
+                    const assetInfo = assetQuery.encodeAsset(asset);
+                    scripting.dispatchAssetChange(AssetChangeType.modified, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
+                    scripting.postCompileScripts(5);
                     return true;
                 }
             } catch (error) {
