@@ -12,7 +12,8 @@ export default async function globalTeardown() {
     // 检查是否有 --preserve 参数（调试模式）
     const args = process.argv.slice(2);
     const preserveIndex = args.indexOf('--preserve');
-    const preserveWorkspace = preserveIndex !== -1;
+    const preserveWorkspace = true;
+    // const preserveWorkspace = preserveIndex !== -1;
 
     if (preserveWorkspace) {
         console.log(chalk.yellow('⚠️  调试模式：跳过清理，保留测试工作区'));

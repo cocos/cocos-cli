@@ -5,7 +5,6 @@
 import { queryUUID, refresh, reimport, queryUrl, Utils, Asset } from '@cocos/asset-db';
 import { copy, move, remove, rename, existsSync } from 'fs-extra';
 import { isAbsolute, dirname, basename, join, relative, extname } from 'path';
-import { newConsole } from '../../base/console';
 import { IMoveOptions } from '../@types/private';
 import { IAsset, CreateAssetOptions, IExportOptions, IExportData, CreateAssetByTypeOptions, ICreateMenuInfo } from '../@types/protected';
 import { AssetOperationOption, AssetUserDataMap, IAssetInfo, IAssetMeta, ISupportCreateType } from '../@types/public';
