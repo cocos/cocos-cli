@@ -1,4 +1,4 @@
-import { AssetHandlerType, ISupportCreateType, AssetUserDataMap } from './asset-types';
+import { AssetHandlerType, ISupportCreateType, AssetUserDataMap, IAssetType } from './asset-types';
 
 export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'> {
     ver: string;
@@ -26,7 +26,7 @@ export interface IAssetInfo {
     importer: AssetHandlerType; // 使用的导入器名字
     imported: boolean; // 是否结束导入过程
     invalid: boolean; // 是否导入成功
-    type: string; // 类型
+    type: IAssetType; // 类型
     isDirectory: boolean; // 是否是文件夹
     library: { [key: string]: string }; // 导入资源的 map
 

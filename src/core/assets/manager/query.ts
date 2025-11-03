@@ -693,7 +693,7 @@ class AssetQueryManager {
             importer: 'database',
             imported: true,
             invalid: false,
-            type: 'database',
+            type: 'cce.Database',
             isDirectory: false,
             library: {},
             subAssets: {},

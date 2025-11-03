@@ -25,6 +25,7 @@ import {
     RtSpriteFrameAssetUserData,
 } from './userDatas';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from './interface';
+
 // 支持创建的资源类型（引擎类型）
 export type ISupportCreateCCType =
     | 'cc.AnimationClip'        // 动画剪辑
@@ -43,6 +44,32 @@ export type ISupportCreateCCType =
     | 'cc.AnimationMask'        // 动画遮罩
     | 'cc.AnimationGraphVariant'; // 动画图变体
 
+
+export type IAssetType =
+    | ISupportCreateCCType
+    | 'cc.Asset'               // 基础资源类型（instantiation-asset）
+    | 'cce.Database'           // 数据库资源
+    | 'cce.EffectHeader'       // 着色器头文件
+    | 'cc.VideoClip'           // 视频剪辑
+    | 'cc.TiledMapAsset'       // 瓦片地图
+    | 'cc.TTFFont'             // TTF 字体
+    | 'cc.Texture2D'           // 2D 纹理
+    | 'cc.SpriteFrame'         // 精灵帧（sprite-frame、rt-sprite-frame）
+    | 'cc.ImageAsset'          // 图片资源（image、gltf/image、image/alpha、image/sign、texture-cube-face）
+    | 'cc.TextAsset'           // 文本资源
+    | 'cc.JsonAsset'           // JSON 资源
+    | 'cc.AudioClip'           // 音频剪辑
+    | 'cc.BitmapFont'          // 位图字体
+    | 'cc.BufferAsset'         // 缓冲区资源
+    | 'cc.ParticleAsset'       // 粒子资源
+    | 'cc.RenderPipeline'     // 渲染管线
+    | 'cc.Skeleton'            // 骨骼（gltf/skeleton、instantiation-asset/skeleton）
+    | 'cc.Mesh'                // 网格（gltf/mesh、instantiation-asset/mesh）
+    | 'sp.SkeletonData'        // Spine 骨骼数据
+    | 'dragonBones.DragonBonesAsset'      // DragonBones 资源
+    | 'dragonBones.DragonBonesAtlasAsset' // DragonBones 图集资源
+    | 'RenderStage'            // 渲染阶段
+    | 'RenderFlow';            // 渲染流程
 
 /** 支持创建的资源类型（从常量数组派生） */
 export type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
