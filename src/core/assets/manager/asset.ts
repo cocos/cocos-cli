@@ -2,7 +2,7 @@ import { AssetDB, VirtualAsset } from '@cocos/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { AssetInfo, AssetManagerEvents, IAsset, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/private';
+import { AssetInfo, AssetManagerEvents, IAsset, IAssetDBInfo, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
@@ -70,13 +70,13 @@ class AssetManager extends EventEmitter {
     async init() {
         assetDBManager.on('db-created', this._onAssetDBCreated);
         assetDBManager.on('db-removed', this._onAssetDBRemoved);
-        assetDBManager.on('db-ready', this._onAssetDBReady);
+        assetDBManager.on('assets:db-ready', this._onAssetDBReady.bind(this));
     }
 
     destroyed() {
         assetDBManager.removeListener('db-created', this._onAssetDBCreated);
         assetDBManager.removeListener('db-removed', this._onAssetDBRemoved);
-        assetDBManager.removeListener('db-ready', this._onAssetDBReady);
+        assetDBManager.removeListener('assets:db-ready', this._onAssetDBReady);
     }
 
     _onAssetDBCreated(db: AssetDB) {
@@ -97,17 +97,19 @@ class AssetManager extends EventEmitter {
         db.removeListener('delete', assetManager._onAssetDeleted.bind(assetManager));
     }
     _onAssetDBRemoved(db: AssetDB) {
-        this._onDbChange(db, DBChangeType.remove);
+        const dbInfo = assetDBManager.assetDBInfo[db.options.name];
+        assetManager._onDbChange(dbInfo, DBChangeType.remove);
         db.removeListener('unresponsive', onUnResponsive);
         db.removeListener('added', assetManager._onAssetAdded.bind(assetManager));
         db.removeListener('changed', assetManager._onAssetChanged.bind(assetManager));
         db.removeListener('deleted', assetManager._onAssetDeleted.bind(assetManager));
     }
-    _onAssetDBReady(db: AssetDB) {
-        this._onDbChange(db, DBChangeType.add);
+    _onAssetDBReady(dbName: string) {
+        const dbInfo = assetDBManager.assetDBInfo[dbName];
+        assetManager._onDbChange(dbInfo, DBChangeType.add);
         const tsAssetChanges: TypeScriptAssetInfoCache[] = this._fetchAssetInfo<TypeScriptAssetInfoCache>({
             importer: 'typescript',
-            pattern: `db://${db.options.name}/**/*.ts`
+            pattern: `db://${dbName}/**/*.ts`
         }, (assetInfo: AssetInfo) => {
             assetInfo.file = resolveFileName(assetInfo.file);
             const url = pathToFileURL(assetInfo.file);
@@ -137,10 +139,10 @@ class AssetManager extends EventEmitter {
         scripting.setAssetChange(assetChanges);
     }
 
-    private _onDbChange(db: AssetDB, changeType: DBChangeType) {
+    private _onDbChange(info: IAssetDBInfo, changeType: DBChangeType) {
         const dbInfo = {
-            dbID: db.options.name,
-            target: db.options.target,
+            dbID: info.name,
+            target: info.target,
         };
         scripting.updateDatabases(dbInfo, changeType);
     }
@@ -166,7 +168,7 @@ class AssetManager extends EventEmitter {
             console.log(`asset-add ${asset.url}`);
             const assetInfo = assetQuery.encodeAsset(asset);
             scripting.dispatchAssetChange(AssetChangeType.add, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            scripting.postCompileScripts(10);
+            await scripting.postCompileScripts(10);
             return;
         }
     }
@@ -176,7 +178,7 @@ class AssetManager extends EventEmitter {
             console.log(`asset-change ${asset.url}`);
             const assetInfo = assetQuery.encodeAsset(asset);
             scripting.dispatchAssetChange(AssetChangeType.modified, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            scripting.postCompileScripts(10);
+            await scripting.postCompileScripts(10);
             return;
         }
     }
@@ -186,7 +188,7 @@ class AssetManager extends EventEmitter {
             console.log(`asset-delete ${asset.url}`);
             const assetInfo = assetQuery.encodeAsset(asset);
             scripting.dispatchAssetChange(AssetChangeType.remove, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            scripting.postCompileScripts(10);
+            await scripting.postCompileScripts(10);
             return;
         }
     }
