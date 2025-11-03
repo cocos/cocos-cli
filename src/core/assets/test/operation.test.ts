@@ -4,6 +4,7 @@ import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, remove
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import { assetManager } from '..';
+import { ISupportCreateType } from '../@types/asset-types';
 
 describe('测试 db 的操作接口', function () {
     const name = `__${Date.now()}__`;
@@ -317,7 +318,87 @@ describe('测试 db 的操作接口', function () {
             const content = readFileSync(assetInfo!.file, 'utf8');
             expect(content).toEqual('console.log("Hello, World!");');
         });
+    });
 
+    describe('concurrent-create-asset', () => {
+        it('并发创建资源（createAsset）- 10次并发', async function () {
+            const concurrentCount = 10;
+            
+            // 使用 map 创建10个并发的 createAsset 操作
+            const promises = Array.from({ length: concurrentCount }, (_, i) => {
+                const fileName = `${name}_concurrent_${i}.txt`;
+                return assetManager.createAsset({
+                    target: join(databasePath, fileName),
+                    content: `test content ${i}`,
+                    overwrite: true,
+                });
+            });
+
+            // 等待所有并发操作完成（使用 allSettled 可以捕获所有结果，包括失败）
+            const results = await Promise.allSettled(promises);
+
+            // 验证所有操作都成功
+            expect(results.length).toBe(concurrentCount);
+            results.forEach((result, index) => {
+                // 检查操作是否成功
+                expect(result.status).toBe('fulfilled');
+                
+                const asset = (result as PromiseFulfilledResult<any>).value;
+                expect(asset).not.toBeNull();
+                
+                const fileName = `${name}_concurrent_${index}.txt`;
+                expect(existsSync(join(databasePath, fileName))).toBeTruthy();
+                
+                // 验证内容
+                const content = readFileSync(join(databasePath, fileName), 'utf8');
+                expect(content).toEqual(`test content ${index}`);
+                
+                // 验证 meta 文件存在
+                expect(existsSync(join(databasePath, `${fileName}.meta`))).toBeTruthy();
+            });
+        });
+    });
+
+    describe('concurrent-create-asset-by-type', () => {
+        it('并发创建资源（createAssetByType）- 10次并发', async function () {
+            const concurrentCount = 10;
+            const testTypes: ISupportCreateType[] = ['typescript', 'animation-clip', 'directory', 'scene', 'prefab'];
+
+            // 使用 map 创建10个并发的 createAssetByType 操作
+            const promises = Array.from({ length: concurrentCount }, (_, i) => {
+                const type = testTypes[i % testTypes.length];
+                const baseName = `${name}_concurrent_by_type_${i}`;
+                
+                return assetManager.createAssetByType(
+                    type,
+                    databasePath,
+                    baseName,
+                    {
+                        overwrite: true,
+                    }
+                );
+            });
+
+            // 等待所有并发操作完成（使用 allSettled 可以捕获所有结果，包括失败）
+            const results = await Promise.allSettled(promises);
+
+            // 验证所有操作都成功
+            expect(results.length).toBe(concurrentCount);
+            results.forEach((result) => {
+                // 检查操作是否成功
+                expect(result.status).toBe('fulfilled');
+                
+                const assetInfo = (result as PromiseFulfilledResult<any>).value;
+                expect(assetInfo).not.toBeNull();
+                
+                // 验证文件存在
+                expect(existsSync(assetInfo!.file)).toBeTruthy();
+                
+                // 验证 meta 文件存在
+                const metaPath = `${assetInfo!.file}.meta`;
+                expect(existsSync(metaPath)).toBeTruthy();
+            });
+        });
     });
 
     describe('import-asset', () => {

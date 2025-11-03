@@ -1,6 +1,4 @@
 import { Asset } from '@cocos/asset-db';
-import { js } from 'cc';
-import { AnimationGraphVariant } from 'cc/editor/new-gen-anim';
 import { readFile } from 'fs-extra';
 
 import { getDependUUIDList } from '../utils';
@@ -9,7 +7,7 @@ import { AssetHandler } from '../../@types/protected';
 const AnimationGraphVariantHandler: AssetHandler = {
     name: 'animation-graph-variant',
     // 引擎内对应的类型
-    assetType: js.getClassName(AnimationGraphVariant),
+    assetType: 'cc.AnimationGraphVariant',
     createInfo: {
         generateMenuInfo() {
             return [

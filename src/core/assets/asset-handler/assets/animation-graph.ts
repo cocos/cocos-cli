@@ -9,7 +9,7 @@ import { AssetHandler } from '../../@types/protected';
 const AnimationGraphHandler: AssetHandler = {
     name: 'animation-graph',
     // 引擎内对应的类型
-    assetType: js.getClassName(AnimationGraph),
+    assetType: 'cc.AnimationGraph',
     open(asset) {
         // TODO: 实现打开动画图资产
         return false;

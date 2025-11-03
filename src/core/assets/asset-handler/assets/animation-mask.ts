@@ -1,6 +1,4 @@
 import { Asset } from '@cocos/asset-db';
-import { js } from 'cc';
-import { AnimationMask } from 'cc/editor/new-gen-anim';
 import { readFile } from 'fs-extra';
 
 import { getDependUUIDList } from '../utils';
@@ -10,7 +8,7 @@ const AnimationMaskHandler: AssetHandler = {
     name: 'animation-mask',
 
     // 引擎内对应的类型
-    assetType: js.getClassName(AnimationMask),
+    assetType: 'cc.AnimationMask',
     createInfo: {
         generateMenuInfo() {
             return [

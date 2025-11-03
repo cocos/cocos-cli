@@ -263,8 +263,8 @@ class AssetOperation extends EventEmitter {
 
     private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<number> {
         const result = await refresh(pathOrUrlOrUUID);
-        if (!result) {
-            throw new Error(`无法在项目内找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+        if (result === undefined) {
+            throw new Error(`can not find asset ${pathOrUrlOrUUID}`);
         }
         if (autoRefreshDir) {
             // HACK 某些情况下导入原始资源后，文件夹的 mtime 会发生变化，导致资源量大的情况下下次获得焦点自动刷新时会有第二次的文件夹大批量刷新

@@ -79,7 +79,8 @@ export const SUPPORT_CREATE_TYPES = [
     // 'animation-graph-variant', // 动画图变体
     'directory',               // 文件夹
     'effect-header',           // 着色器头文件（chunk）
-];
+] as const;
+
 export enum NormalImportSetting {
     /**
      * 如果模型文件中包含法线信息则导出法线，否则不导出法线。

@@ -1,5 +1,5 @@
 import { type } from 'os';
-import { IAsset, IAssetInfo, VirtualAsset, Asset, IExportData } from './asset';
+import { IAsset, IAssetInfo, VirtualAsset, Asset, IExportData, IAssetType } from './asset';
 import { Migrate } from '@cocos/asset-db/libs/importer';
 
 export interface CustomOperator {
@@ -84,7 +84,7 @@ export interface AssetHandlerBase extends CustomHandlerBase {
     exporter?: Exporter;
 
     // 对应导入资源在导入后的资源类型信息，未传递默认为 cc.Asset
-    assetType?: string;
+    assetType?: IAssetType;
 
     // 指定资源的 userData 配置
     userDataConfig?: {

@@ -34,7 +34,7 @@ export const EffectHeaderHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
     name: 'effect-header',
     // 引擎内对应的类型
-    assetType: '',
+    assetType: 'cce.EffectHeader',
     createInfo: {
         generateMenuInfo() {
             return [
