@@ -206,7 +206,8 @@ jobs:
           fi
           
           MESSAGE+="\n$FOOTER\n\n"
-          MESSAGE+="<sub>Run #${{ github.run_id }}</sub>"
+          MESSAGE+="<sub>Run #${{ github.run_id }}</sub>\n"
+          MESSAGE+="<!-- PR_TEST_COMMENT -->"
           
           # 保存到 GitHub Output
           {
