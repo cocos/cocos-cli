@@ -826,17 +826,17 @@ describe('MCP Assets API', () => {
         });
     });
 
-    // describe('asset-update-default-user-data', () => {
-    //     test('should update default user data', async () => {
-    //         // 这是一个全局设置，测试需要谨慎
-    //         // 通常会影响后续导入的同类型资源
-    //         const result = await mcpClient.callTool('assets-update-default-user-data', {
-    //             handler: 'image',
-    //             path: 'type',
-    //             value: 'texture',
-    //         });
+    describe('asset-update-default-user-data', () => {
+        test('should update default user data', async () => {
+            // 这是一个全局设置，测试需要谨慎
+            // 通常会影响后续导入的同类型资源
+            const result = await mcpClient.callTool('assets-update-default-user-data', {
+                handler: 'image',
+                path: 'type',
+                value: 'texture',
+            });
 
-    //         expect(result.code).toBe(200);
-    //     });
-    // });
+            expect(result.code).toBe(200);
+        });
+    });
 });
