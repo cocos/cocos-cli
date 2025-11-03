@@ -1,9 +1,8 @@
 import { Scene, SceneAsset, Component, Node } from 'cc';
-import { ICreateOptions, IEditorTarget, INode, IPrefab, IScene } from '../../../common';
+import { ICreateOptions, IEditorTarget, INode, IScene } from '../../../common';
 import { Rpc } from '../../rpc';
 import { sceneUtils } from '../scene/utils';
 import { BaseEditor } from './base-editor';
-import { Service } from '../core';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
@@ -69,7 +68,7 @@ export class SceneEditor extends BaseEditor {
         return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
     }
 
-    async reload(): Promise<IPrefab> {
+    async reload(): Promise<IScene> {
         if (!this.entity) {
             throw new Error('没有打开场景');
         }

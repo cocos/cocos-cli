@@ -4,7 +4,6 @@ import { Rpc } from '../../rpc';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
 import { sceneUtils } from '../scene/utils';
-import { Service } from '../core';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
