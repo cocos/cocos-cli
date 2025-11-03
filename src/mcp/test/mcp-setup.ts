@@ -32,7 +32,7 @@ import { TestGlobalEnv } from '../../tests/global-env';
 });
 // MCP Server 启动函数
 export async function startMCPServer(folder: string) {
-    const cocosAPI = new CocosAPI();
+    const cocosAPI = await CocosAPI.create();
     await cocosAPI.startup(folder);
 
     const middleware = new McpMiddleware();

@@ -17,7 +17,7 @@ export function getMigrationList(): IMigrationTarget[] {
             pluginName: platform,
             targetPath: `builder.platforms.${platform}`,
             migrate: async (oldConfig: Record<string, any>) => {
-                if (!oldConfig.builder) {
+                if (!oldConfig?.builder || !oldConfig?.builder.options) {
                     return;
                 }
                 delete oldConfig.builder.options[platform].__version__;
@@ -52,6 +52,9 @@ export function getMigrationList(): IMigrationTarget[] {
         pluginName: 'builder',
         targetPath: 'builder',
         migrate: async (oldConfig: Record<string, any>) => {
+            if (!oldConfig) {
+                return;
+            }
             const res: any = {};
 
             if (oldConfig.bundleConfig) {
@@ -73,6 +76,9 @@ export function getMigrationList(): IMigrationTarget[] {
         pluginName: 'builder',
         targetPath: 'builder',
         migrate: async (oldConfig: Record<string, any>) => {
+            if (!oldConfig) {
+                return;
+            }
             const res: any = {};
             if (oldConfig.bundleConfig) {
                 res.bundleConfig = oldConfig.bundleConfig;
@@ -90,6 +96,9 @@ export function getMigrationList(): IMigrationTarget[] {
         pluginName: 'engine',
         targetPath: 'engine',
         migrate: async (oldConfig: Record<string, any>) => {
+            if (!oldConfig || !oldConfig.modules) {
+                return;
+            }
             const configKeys = Object.keys(oldConfig.modules.configs);
             if (configKeys.length > 0) {
                 configKeys.forEach(key => {

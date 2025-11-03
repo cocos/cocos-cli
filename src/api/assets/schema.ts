@@ -196,6 +196,9 @@ export const SchemaUpdateUserDataOptions = z.object({
     value: z.any().describe('要设置的配置值'),
 }).describe('更新用户数据选项');
 
+// 更新默认用户数据的独立参数 Schema
+export const SchemaUserDataHandler = z.string().min(1).describe('资源处理器名称');
+
 export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
@@ -228,6 +231,7 @@ export type TPluginScriptInfo = z.infer<typeof SchemaPluginScriptInfo>;
 export type TAssetMoveOptions = z.infer<typeof SchemaAssetMoveOptions>;
 export type TAssetRenameOptions = z.infer<typeof SchemaAssetRenameOptions>;
 export type TUpdateUserDataOptions = z.infer<typeof SchemaUpdateUserDataOptions>;
+export type TUserDataHandler = z.infer<typeof SchemaUserDataHandler>;
 
 // Update Asset User Data 相关 Schema
 export const SchemaUpdateAssetUserDataPath = z.string().min(1).describe('用户数据路径，使用点号分隔，如 "texture.wrapMode"');

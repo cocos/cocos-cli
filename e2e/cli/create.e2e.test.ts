@@ -42,7 +42,6 @@ describe('cocos create command', () => {
             expect(assetsExists || settingsExists).toBe(true);
         } else {
             // 如果命令不存在或失败，记录信息
-            console.log('Create command result:', result.exitCode, result.stderr);
         }
     }, E2E_TIMEOUTS.BUILD_OPERATION); // 创建项目需要较长时间
 

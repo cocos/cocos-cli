@@ -54,13 +54,13 @@ import {
     SchemaPluginScriptInfo,
     SchemaAssetMoveOptions,
     SchemaAssetRenameOptions,
-    SchemaUpdateUserDataOptions,
+    SchemaUserDataHandler,
     TQueryAssetType,
     TFilterPluginOptions,
     TPluginScriptInfo,
     TAssetMoveOptions,
     TAssetRenameOptions,
-    TUpdateUserDataOptions,
+    TUserDataHandler,
     SchemaUpdateAssetUserDataPath,
     SchemaUpdateAssetUserDataValue,
     SchemaUpdateAssetUserDataResult,
@@ -615,7 +615,9 @@ export class AssetsApi {
     @description('更新指定资源处理器的默认用户数据配置。用于修改资源的默认导入设置。')
     @result(z.null().describe('更新操作结果（无返回值）'))
     async updateDefaultUserData(
-        @param(SchemaUpdateUserDataOptions) options: TUpdateUserDataOptions
+        @param(SchemaUserDataHandler) handler: TUserDataHandler,
+        @param(SchemaUpdateAssetUserDataPath) path: TUpdateAssetUserDataPath,
+        @param(SchemaUpdateAssetUserDataValue) value: TUpdateAssetUserDataValue
     ): Promise<CommonResultType<null>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<null> = {
@@ -624,7 +626,7 @@ export class AssetsApi {
         };
 
         try {
-            await assetManager.updateDefaultUserData(options.handler, options.key, options.value);
+            await assetManager.updateDefaultUserData(handler, path, value);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('update default user data fail:', e instanceof Error ? e.message : String(e));

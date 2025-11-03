@@ -42,7 +42,7 @@ runs:
           console.log(`📝 Commenting on #${issueNumber}`);
           
           try {
-            if (shouldUpdate && identifier) {
+            if (shouldUpdate) {
               // 查找已有的评论并更新
               const { data: comments } = await github.rest.issues.listComments({
                 issue_number: issueNumber,
@@ -50,10 +50,33 @@ runs:
                 repo: context.repo.repo,
               });
               
-              const botComment = comments.find(c => 
+              // 优先使用 HTML 注释标记查找（最可靠）
+              let botComment = comments.find(c => 
                 c.user.type === 'Bot' && 
-                c.body.includes(identifier)
+                c.body.includes('<!-- PR_TEST_COMMENT -->')
               );
+              
+              // 如果没有找到 HTML 注释标记，则使用 identifier（向后兼容）
+              if (!botComment && identifier) {
+                // 找到所有匹配的评论，选择最早创建的那个（避免多个评论）
+                const matchingComments = comments.filter(c => 
+                  c.user.type === 'Bot' && 
+                  c.body.includes(identifier)
+                );
+                
+                if (matchingComments.length > 0) {
+                  // 按创建时间排序，选择最早的那个
+                  matchingComments.sort((a, b) => 
+                    new Date(a.created_at) - new Date(b.created_at)
+                  );
+                  botComment = matchingComments[0];
+                  
+                  // 如果找到多个匹配的评论，记录警告
+                  if (matchingComments.length > 1) {
+                    console.log(`⚠️ Found ${matchingComments.length} matching comments, updating the earliest one (ID: ${botComment.id})`);
+                  }
+                }
+              }
               
               if (botComment) {
                 // 更新已有评论

@@ -29,8 +29,7 @@ export class CreateCommand extends BaseCommand {
                     }
 
                     const { CocosAPI } = await import('../api/index');
-                    const cocos = new CocosAPI();
-                    const ok = await cocos.create(targetPath, type as ProjectType);
+                    const ok = await CocosAPI.createProject(targetPath, type as ProjectType);
                     if (ok) {
                         console.log(chalk.green('✓ Project created successfully!'));
                         console.log(chalk.gray('Next steps:'));

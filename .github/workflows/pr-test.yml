@@ -6,13 +6,6 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read          # 读取代码
-  pull-requests: write   # 评论 PR
-  issues: write          # 评论 Issue
-  actions: read          # 读取 Actions
-  checks: write          # 写入检查结果
-
 jobs:
   pr-test:
     # 运行条件：
@@ -22,7 +15,7 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test'))
     
-    runs-on: [ self-hosted, macOS ]
+    runs-on: [ self-hosted, pr-test ]
     
     steps:
       - name: Checkout code
@@ -44,6 +37,7 @@ jobs:
         uses: ./.github/actions/setup-env
       
       - name: Run unit tests
+        id: unit-tests
         run: npm run test:quiet
       
       - name: Check if E2E tests should run
@@ -125,11 +119,16 @@ jobs:
           retention-days: 30
       
       - name: Generate PR comment
-        if: always() && (steps.check-e2e.outputs.should_run == 'true' || steps.check-coverage.outputs.should_run == 'true')
+        if: always()
         id: message
         run: |
           # 判断整体状态
           ALL_PASS=true
+          
+          # 检查单元测试状态（通过检查 unit-tests 步骤的 outcome）
+          if [ "${{ steps.unit-tests.outcome }}" != "success" ]; then
+            ALL_PASS=false
+          fi
           
           # E2E 测试状态（通过 outcome 判断，而不是 report_exists）
           if [ "${{ steps.check-e2e.outputs.should_run }}" = "true" ]; then
@@ -154,8 +153,12 @@ jobs:
           MESSAGE+="| 类型 | 结果 |\n"
           MESSAGE+="|:----:|------|\n"
           
-          # 单元测试行
-          MESSAGE+="| 🧪 | ✅ 单元测试 |\n"
+          # 单元测试行（总是显示）
+          if [ "${{ steps.unit-tests.outcome }}" = "success" ]; then
+            MESSAGE+="| 🧪 | ✅ 单元测试 |\n"
+          else
+            MESSAGE+="| 🧪 | ❌ 单元测试失败 |\n"
+          fi
           
           # E2E 测试行
           if [ "${{ steps.check-e2e.outputs.should_run }}" = "true" ]; then
@@ -203,7 +206,8 @@ jobs:
           fi
           
           MESSAGE+="\n$FOOTER\n\n"
-          MESSAGE+="<sub>Run #${{ github.run_id }}</sub>"
+          MESSAGE+="<sub>Run #${{ github.run_id }}</sub>\n"
+          MESSAGE+="<!-- PR_TEST_COMMENT -->"
           
           # 保存到 GitHub Output
           {
@@ -213,7 +217,7 @@ jobs:
           } >> $GITHUB_OUTPUT
       
       - name: Comment on PR
-        if: always() && (steps.check-e2e.outputs.should_run == 'true' || steps.check-coverage.outputs.should_run == 'true')
+        if: always()
         uses: ./.github/actions/comment-on-pr
         with:
           pat-token: ${{ steps.setup-config.outputs.PAT_TOKEN }}

@@ -19,7 +19,6 @@ describe('MCP Builder API', () => {
         });
 
         await mcpClient.start();
-        console.log(`MCP server started on port: ${mcpClient.getPort()}`);
     });
 
     afterAll(async () => {

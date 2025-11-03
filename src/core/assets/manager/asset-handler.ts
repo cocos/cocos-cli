@@ -675,7 +675,7 @@ class AssetHandlerManager {
     /**
      * 更新默认配置数据并保存（偏好设置的用户操作修改入口）
      */
-    public updateDefaultUserData(handler: string, key: string, value: any) {
+    public async updateDefaultUserData(handler: string, key: string, value: any): Promise<void> {
         lodash.set(this._userDataCache, `${handler}.${key}`, value);
         this._updateDefaultUserDataToHandler(handler, key, value);
         const combineUserData = {
@@ -683,7 +683,9 @@ class AssetHandlerManager {
             ...this._userDataCache[handler],
         };
         setDefaultUserData(handler, combineUserData);
-        outputJSONSync(join(assetConfig.data.root, '.creator', 'default-meta.json'), this._userDataCache);
+
+        const defaultMetaPath = join(assetConfig.data.root, '.creator', 'default-meta.json');
+        await outputJSON(defaultMetaPath, this._userDataCache);
     }
 
     /**

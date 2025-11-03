@@ -10,7 +10,7 @@ import { description, param, result, title, tool } from '../decorator/decorator.
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { newConsole } from '../../core/base/console';
 
-export class systemApi {
+export class SystemApi {
     /**
      * 查询 cli 日志信息
      */
@@ -24,7 +24,7 @@ export class systemApi {
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: logs,
-            }
+            };
         } catch (e) {
             return {
                 code: COMMON_STATUS.FAIL,

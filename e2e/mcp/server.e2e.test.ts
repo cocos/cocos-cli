@@ -19,7 +19,6 @@ describe('MCP Server', () => {
         });
 
         await mcpClient.start();
-        console.log(`MCP server started on port: ${mcpClient.getPort()}`);
     });
 
     afterAll(async () => {
@@ -71,7 +70,6 @@ describe('MCP Server', () => {
 
             // 验证服务器在指定端口上启动
             expect(customClient.getPort()).toBe(customPort);
-            console.log(`✅ MCP server successfully started on custom port: ${customPort}`);
 
             // 验证服务器功能正常
             const tools = await customClient.listTools();

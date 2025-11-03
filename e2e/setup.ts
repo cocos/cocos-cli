@@ -73,28 +73,54 @@ export default async function globalSetup() {
     let source: string;
     let preserveWorkspace = false;
 
-    // 1. 尝试从命令行参数读取 --cli 和 --preserve
+    // 解析命令行参数（统一处理，避免重复代码）
     const args = process.argv.slice(2);
     const cliIndex = args.indexOf('--cli');
     const preserveIndex = args.indexOf('--preserve');
-
-    if (cliIndex !== -1 && args[cliIndex + 1]) {
-        const argPath = args[cliIndex + 1];
-        cliPath = isAbsolute(argPath) ? argPath : resolve(process.cwd(), argPath);
-        source = 'command line argument';
-        console.log(chalk.cyan(`📋 CLI 路径来源: ${source}`));
-        console.log(chalk.cyan(`   参数值: ${argPath}`));
-    } else {
-        // 2. 使用默认路径
-        cliPath = resolve(__dirname, '../dist/cli.js');
-        source = 'default path';
-        console.log(chalk.cyan(`📋 CLI 路径来源: ${source}`));
-    }
 
     // 检查是否有 --preserve 参数（调试模式）
     if (preserveIndex !== -1) {
         preserveWorkspace = true;
         console.log(chalk.yellow('🔍 调试模式：--preserve 参数已设置'));
+    }
+
+    // 调试：输出所有参数（用于排查问题）
+    if (process.env.E2E_DEBUG === 'true' || preserveWorkspace) {
+        console.log(chalk.gray(`🔍 调试：process.argv = ${JSON.stringify(process.argv)}`));
+        console.log(chalk.gray(`🔍 调试：解析的参数 = ${JSON.stringify(args)}`));
+    }
+
+    // 1. 优先从环境变量读取（支持 CI/CD 场景）
+    if (process.env.E2E_CLI_PATH) {
+        cliPath = process.env.E2E_CLI_PATH;
+        source = 'environment variable (E2E_CLI_PATH)';
+        console.log(chalk.cyan(`📋 CLI 路径来源: ${source}`));
+        console.log(chalk.cyan(`   环境变量值: ${cliPath}`));
+    } else if (cliIndex !== -1 && cliIndex + 1 < args.length) {
+        // 2. 尝试从命令行参数读取 --cli
+        // Jest 会将 `--` 后面的参数保留在 process.argv 中
+        const argPath = args[cliIndex + 1];
+        // 检查参数值是否又是一个选项（防止参数解析错误）
+        if (argPath && !argPath.startsWith('--')) {
+            cliPath = isAbsolute(argPath) ? argPath : resolve(process.cwd(), argPath);
+            source = 'command line argument (--cli)';
+            console.log(chalk.cyan(`📋 CLI 路径来源: ${source}`));
+            console.log(chalk.cyan(`   参数值: ${argPath}`));
+            console.log(chalk.cyan(`   解析后路径: ${cliPath}`));
+        } else {
+            console.log(chalk.yellow(`⚠️  --cli 参数后缺少路径值，使用默认路径`));
+            cliPath = resolve(__dirname, '../dist/cli.js');
+            source = 'default path (--cli 参数无效)';
+        }
+    } else {
+        // 3. 使用默认路径
+        cliPath = resolve(__dirname, '../dist/cli.js');
+        source = 'default path';
+        console.log(chalk.cyan(`📋 CLI 路径来源: ${source}`));
+        if (cliIndex !== -1) {
+            console.log(chalk.yellow(`⚠️  检测到 --cli 参数，但未找到路径值`));
+            console.log(chalk.yellow(`   提示：请确保 --cli 后面紧跟路径，例如: --cli ./dist/cli.js`));
+        }
     }
 
     console.log(chalk.cyan(`📍 最终 CLI 路径: ${cliPath}\n`));
