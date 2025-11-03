@@ -551,7 +551,7 @@ export class PackerDriver {
         this._building = false;
         this._currentTaskId = null;
 
-        eventEmitter.emit('compiled', 'project', taskId);
+        eventEmitter.emit('compiled', 'project');
 
     }
 

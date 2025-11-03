@@ -63,7 +63,11 @@ export default class Launcher {
         const { startupAssetDB } = await import('./assets');
         await startupAssetDB();
         //第一次启动工程，需要编译所有脚本
-        await scripting.compileScripts([]);
+        try {
+            await scripting.compileScripts();
+        } catch(error) {
+            console.error(error);
+        }
     }
 
     /**

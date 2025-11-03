@@ -43,8 +43,13 @@ export const JavascriptHandler: AssetHandlerBase = {
                 } else {
                     const assetInfo = assetQuery.encodeAsset(asset);
                     scripting.dispatchAssetChange(AssetChangeType.modified, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-                    scripting.postCompileScripts(5);
-                    return true;
+                    try {
+                        await scripting.compileScripts();
+                        return true;
+                    } catch (error) {
+                        console.error(error);
+                        return false;
+                    }
                 }
             } catch (error) {
                 console.error(
