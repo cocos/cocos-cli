@@ -34,6 +34,7 @@ export class NewConsole {
             ? 'debug' : 'info', // Set log level
     });
     private cacheLogs = true;
+    private filterRule: RegExp | null = null;
     private isVerbose: boolean = false;
 
     // 进度管理相关
@@ -84,6 +85,10 @@ export class NewConsole {
         this.cacheLogs = cacheLogs;
 
         this._init = true;
+    }
+
+    public filter(filterRule: RegExp) {
+        this.filterRule = filterRule;
     }
 
     /**
@@ -295,7 +300,9 @@ export class NewConsole {
         this.lastPrintType = type;
         this.lastPrintMessage = message;
         this.lastPrintTime = now;
-        this.consola[type](message);
+        if (this.filterRule && !this.filterRule.test(message)) {
+            this.consola[type](message);
+        }
         switch (type) {
             case 'debug':
                 this.pino.debug(message);
