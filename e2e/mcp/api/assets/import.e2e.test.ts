@@ -31,7 +31,6 @@ describe('MCP Assets API - Import', () => {
 
             const targetName = `imported-${generateTestId()}.txt`;
             const targetPath = join(context.testRootPath, targetName);
-
             const result = await context.mcpClient.callTool('assets-import-asset', {
                 source: tempFilePath,
                 target: targetPath,

@@ -198,4 +198,3 @@ class SharedMCPServerManager {
 export function getSharedMCPServer(): SharedMCPServerManager {
     return SharedMCPServerManager.getInstance();
 }
-

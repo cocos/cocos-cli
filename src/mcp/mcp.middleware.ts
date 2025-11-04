@@ -98,46 +98,9 @@ export class McpMiddleware {
                     },
                     async (params: any) => {
                         try {
-                            // 使用输入 schema 验证参数（如果存在）
-                            if (Object.keys(inputSchemaFields).length > 0) {
-                                const inputSchema = z.object(inputSchemaFields);
-                                try {
-                                    params = inputSchema.parse(params);
-                                } catch (validationError) {
-                                    // 处理 Zod 验证错误，返回标准错误格式
-                                    if (validationError instanceof z.ZodError) {
-                                        const errorDetails = validationError.errors.map(err => {
-                                            const path = err.path.join('.');
-                                            return `  - ${path}: ${err.message}${err.code ? ` (code: ${err.code})` : ''}`;
-                                        }).join('\n');
-                                        
-                                        const expectedFields = Object.keys(inputSchemaFields).join(', ');
-                                        const receivedFields = params ? Object.keys(params).join(', ') : 'none';
-                                        
-                                        const errorMessage = `参数验证失败 (${toolName}):\n` +
-                                            `期望的字段: ${expectedFields}\n` +
-                                            `接收到的字段: ${receivedFields}\n` +
-                                            `详细错误:\n${errorDetails}`;
-                                        
-                                        console.error(`[MCP] ${errorMessage}`);
-                                        
-                                        // 返回标准错误格式，使用 400 表示参数错误
-                                        const errorResult: { code: HttpStatusCode; data?: any; reason?: string } = {
-                                            code: HTTP_STATUS.BAD_REQUEST,
-                                            data: undefined,
-                                            reason: errorMessage,
-                                        };
-                                        
-                                        const formattedResult = JSON.stringify({ result: errorResult }, null, 2);
-                                        return {
-                                            content: [{ type: 'text', text: formattedResult }],
-                                            structuredContent: { result: errorResult }
-                                        };
-                                    }
-                                    throw validationError;
-                                }
-                            }
-
+                            // 注意：参数验证已经由 MCP SDK 在调用回调之前完成
+                            // 如果到达这里，说明参数已经通过了 inputSchema 验证
+                            
                             // 准备方法参数
                             const methodArgs = this.prepareMethodArguments(meta, params);
 
