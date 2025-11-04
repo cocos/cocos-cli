@@ -30,9 +30,8 @@ import { compressUuid } from '../../builder/worker/builder/utils';
 import { TypeScriptConfigBuilder } from '../intelligence';
 import { eventEmitter } from '../event-emitter';
 import { TypeScriptAssetInfoCache } from '../shared/cache';
-import { DBInfo } from '../../builder/worker/builder/asset-handler/script/build-script';
-import { AssetInfo, IAssetMeta } from '../../assets/@types/public';
 import { IAsset } from '../../assets/@types/private';
+import { DBInfo } from '../@types/config-export';
 
 const VERSION = '20';
 

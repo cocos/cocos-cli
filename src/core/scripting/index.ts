@@ -5,10 +5,10 @@ import { Executor } from '@cocos/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { CustomEvent, EventType, eventEmitter } from './event-emitter';
 import { AssetChange, AssetChangeType, DBChangeType } from './packer-driver/asset-db-interop';
-import { DBInfo } from '../builder/worker/builder/asset-handler/script/build-script';
 import { TypeScriptAssetInfoCache } from './shared/cache';
 import { v4 as uuid } from 'node-uuid';
 import { IAsset } from '../assets/@types/private';
+import { DBInfo } from './@types/config-export';
 
 export const title = 'i18n:builder.tasks.load_script';
 

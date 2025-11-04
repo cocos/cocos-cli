@@ -9,3 +9,8 @@ export interface ScriptProjectConfig {
     importMap: string;
     previewBrowserslistConfigFile?: string;
 }
+
+export interface DBInfo {
+    dbID: string;
+    target: string
+}

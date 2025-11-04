@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { StatsQuery } from '@cocos/ccbuild';
 import { Engine } from '../../engine';
-import { DBInfo } from '../../builder/worker/builder/asset-handler/script/build-script';
+import { DBInfo } from '../@types/config-export';
 
 export interface DbURLInfo { dbURL: string, target: string }
 

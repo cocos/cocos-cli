@@ -4,10 +4,10 @@ import { pathToFileURL } from 'url';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { blockAssetUUIDSet, tsScriptAssetCache, TypeScriptAssetInfoCache } from '../shared/cache';
 import { resolveFileName } from '../utils/path';
-import { DBInfo } from '../../builder/worker/builder/asset-handler/script/build-script';
 import { normalize } from 'path';
 import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 import { IAsset } from '../../assets/@types/private';
+import { DBInfo } from '../@types/config-export';
 
 export interface QueryAllAssetOption<T = { assetInfo: AssetInfo }> {
     assetDbOptions?: QueryAssetsOption,
