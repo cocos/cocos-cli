@@ -2,14 +2,13 @@ import { AssetDB, VirtualAsset } from '@cocos/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { AssetInfo, AssetManagerEvents, IAsset, IAssetDBInfo, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/private';
+import { AssetInfo, AssetManagerEvents, IAsset, IAssetDBInfo, IAssetInfo,  QueryAssetsOption } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
-import scripting, { AssetChangeType, TypeScriptAssetInfoCache } from '../../scripting';
-import { AssetChange, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
-import { pathToFileURL } from 'url';
-import { resolveFileName } from '../../scripting/utils/path';
+import scripting from '../../scripting';
+import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -107,36 +106,6 @@ class AssetManager extends EventEmitter {
     _onAssetDBReady(dbName: string) {
         const dbInfo = assetDBManager.assetDBInfo[dbName];
         assetManager._onDbChange(dbInfo, DBChangeType.add);
-        const tsAssetChanges: TypeScriptAssetInfoCache[] = this._fetchAssetInfo<TypeScriptAssetInfoCache>({
-            importer: 'typescript',
-            pattern: `db://${dbName}/**/*.ts`
-        }, (assetInfo: AssetInfo) => {
-            assetInfo.file = resolveFileName(assetInfo.file);
-            const url = pathToFileURL(assetInfo.file);
-            return {
-                uuid: assetInfo.uuid,
-                filePath: assetInfo.file,
-                url: url,
-                isPluginScript: assetInfo.meta && assetInfo.meta.userData?.isPlugin,
-            };
-        }, undefined);
-        scripting.setScriptInfoCache(tsAssetChanges);
-
-
-        const assetChanges: AssetChange[] = this._fetchAssetInfo<AssetChange>({
-            ccType: 'cc.Script',
-        }, (assetInfo: AssetInfo) => {
-            assetInfo.file = resolveFileName(assetInfo.file);
-            const url = pathToFileURL(assetInfo.file);
-            return {
-                type: AssetChangeType.add,
-                uuid: assetInfo.uuid,
-                filePath: assetInfo.file,
-                url: url,
-                isPluginScript: assetInfo.meta && assetInfo.meta.userData?.isPlugin,
-            };
-        }, undefined);
-        scripting.setAssetChange(assetChanges);
     }
 
     private _onDbChange(info: IAssetDBInfo, changeType: DBChangeType) {
@@ -180,9 +149,7 @@ class AssetManager extends EventEmitter {
         if (assetDBManager.ready) {
             this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
-            const assetInfo = assetQuery.encodeAsset(asset);
-            scripting.dispatchAssetChange(AssetChangeType.remove, asset.uuid, assetInfo as Readonly<AssetInfo>, asset.meta);
-            scripting.postCompileScripts(15);
+            scripting.dispatchAssetChange(AssetActionEnum.delete, asset);
             return;
         }
     }

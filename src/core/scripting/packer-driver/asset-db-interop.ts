@@ -1,4 +1,4 @@
-import type { AssetInfo, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../../assets/@types/public';
+import type { AssetInfo, IAssetMeta, QueryAssetsOption } from '../../assets/@types/public';
 
 import { pathToFileURL } from 'url';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
@@ -6,6 +6,8 @@ import { blockAssetUUIDSet, tsScriptAssetCache, TypeScriptAssetInfoCache } from 
 import { resolveFileName } from '../utils/path';
 import { DBInfo } from '../../builder/worker/builder/asset-handler/script/build-script';
 import { normalize } from 'path';
+import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { IAsset } from '../../assets/@types/private';
 
 export interface QueryAllAssetOption<T = { assetInfo: AssetInfo }> {
     assetDbOptions?: QueryAssetsOption,
@@ -80,22 +82,22 @@ export class AssetDbInterop {
     
     onAssetChange(
         type: AssetChangeType,
-        uuid: string,
-        assetInfo: Readonly<AssetInfo>,
-        meta: Readonly<IAssetMeta>,
+        asset: IAsset
     ) {
+        const filePath = resolveFileName(asset.source);
+        const uuid = asset.uuid;
         const assetChange: AssetChange = {
-            url: getURL(assetInfo),
-            uuid,
-            filePath: assetInfo.file,
+            url: pathToFileURL(filePath),
+            uuid: asset.uuid,
+            filePath: filePath,
             type,
-            isPluginScript: isPluginScript(meta),
+            isPluginScript: isPluginScript(asset.meta),
         };
-        const info = mapperForTypeScriptAssetInfoCache(assetInfo, meta);
-        if (type === AssetChangeType.modified) {
-            if (!this._tsScriptInfoCache.has(assetInfo.file)) {
+        const info = mapperForTypeScriptAssetInfoCache(asset, asset.meta);
+        if (type === AssetActionEnum.change) {
+            if (!this._tsScriptInfoCache.has(filePath)) {
                 for (const iterator of this._tsScriptInfoCache.values()) {
-                    if (iterator.uuid === uuid) {
+                    if (iterator.uuid === asset.uuid) {
 
                         this._tsScriptInfoCache.delete(iterator.filePath);
                         this._tsScriptInfoCache.set(info.filePath, info);
@@ -106,31 +108,33 @@ export class AssetDbInterop {
                 }
             }
         }
-        if (type === AssetChangeType.add) {
+        if (type === AssetActionEnum.add) {
+            const importer = asset.meta.importer;
+            const isDirectory = asset.isDirectory();
 
-            if (assetInfo.importer === 'typescript' || assetInfo.isDirectory) {
-                const deletedItemIndex = this._changeQueue.findIndex(item => item.type === AssetChangeType.remove && item.uuid === uuid);
+            if (importer === 'typescript' || isDirectory) {
+                const deletedItemIndex = this._changeQueue.findIndex(item => item.type === AssetActionEnum.delete && item.uuid === uuid);
                 if (deletedItemIndex !== -1) {
 
-                    assetChange.type = AssetChangeType.modified;
+                    assetChange.type = AssetActionEnum.change;
                     (assetChange as ModifiedAssetChange).oldFilePath = resolveFileName(this._changeQueue[deletedItemIndex].filePath);
                     (assetChange as ModifiedAssetChange).newFilePath = info.filePath;
                     this._changeQueue.splice(deletedItemIndex, 1);
                 }
-                if (assetInfo.importer === 'typescript') {
+                if (importer === 'typescript') {
                     this._tsScriptInfoCache.set(info.filePath, info);
                 }
             }
 
         }
-        if (type === AssetChangeType.remove) {
-            this._tsScriptInfoCache.delete(assetInfo.file);
+        if (type === AssetActionEnum.delete) {
+            this._tsScriptInfoCache.delete(filePath);
         }
         if (this._blockScriptUUIDSet.has(uuid)) {
             this._blockScriptUUIDSet.delete(uuid);
             return;
         }
-        if (!filterForAssetChange(assetInfo)) {
+        if (!filterForAssetChange(asset)) {
             return;
         }
 
@@ -146,7 +150,9 @@ export class AssetDbInterop {
     }
 }
 
-export enum AssetChangeType { add, remove, modified }
+
+export type AssetChangeType = AssetActionEnum;
+
 export enum DBChangeType { add, remove }
 
 export interface AssetChange {
@@ -158,37 +164,27 @@ export interface AssetChange {
 }
 
 export interface ModifiedAssetChange extends AssetChange {
-    type: AssetChangeType.modified;
+    type: AssetActionEnum.change;
     oldFilePath?: FilePath;
     newFilePath?: FilePath;
 }
 
-function filterForAssetChange(assetInfo: AssetInfo): boolean {
-    if (!(assetInfo.importer === 'javascript' ||
-        assetInfo.importer === 'typescript')) {
+function filterForAssetChange(asset: IAsset): boolean {
+    const importer = asset.meta.importer;
+    if (!(importer === 'javascript' || importer === 'typescript')) {
         return false;
     }
 
     return true;
 }
 
-function mapperForAssetChange(assetInfo: AssetInfo, meta?: IAssetMeta): AssetChange {
+function mapperForTypeScriptAssetInfoCache(asset: IAsset, meta?: IAssetMeta): TypeScriptAssetInfoCache {
+    const filePath = resolveFileName(asset.source);
     return {
-        type: AssetChangeType.add,
-        uuid: assetInfo.uuid,
-        filePath: assetInfo.file,
-        url: getURL(assetInfo),
-        isPluginScript: isPluginScript(meta || assetInfo.meta!),
-    };
-}
-
-function mapperForTypeScriptAssetInfoCache(assetInfo: AssetInfo, meta?: IAssetMeta): TypeScriptAssetInfoCache {
-    assetInfo.file = resolveFileName(assetInfo.file);
-    return {
-        uuid: assetInfo.uuid,
-        filePath: assetInfo.file,
-        url: getURL(assetInfo),
-        isPluginScript: isPluginScript(meta || assetInfo.meta!),
+        uuid: asset.uuid,
+        filePath: filePath,
+        url: pathToFileURL(filePath),
+        isPluginScript: isPluginScript(meta || asset.meta!),
     };
 }
 
@@ -198,10 +194,6 @@ function isPluginScript(meta: IAssetMeta) {
     } else {
         return false;
     }
-}
-
-function getURL(assetInfo: AssetInfo) {
-    return pathToFileURL(assetInfo.file);
 }
 
 export interface AssetDatabaseDomain {

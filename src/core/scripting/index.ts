@@ -6,9 +6,9 @@ import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/li
 import { CustomEvent, EventType, eventEmitter } from './event-emitter';
 import { AssetChange, AssetChangeType, DBChangeType } from './packer-driver/asset-db-interop';
 import { DBInfo } from '../builder/worker/builder/asset-handler/script/build-script';
-import { AssetInfo, IAssetMeta } from '../assets/@types/public';
 import { TypeScriptAssetInfoCache } from './shared/cache';
 import { v4 as uuid } from 'node-uuid';
+import { IAsset } from '../assets/@types/private';
 
 export const title = 'i18n:builder.tasks.load_script';
 
@@ -153,11 +153,9 @@ class ScriptManager {
      */
     dispatchAssetChange(
         type: AssetChangeType,
-        uuid: string,
-        assetInfo: Readonly<AssetInfo>,
-        meta: Readonly<IAssetMeta>,
+        asset: IAsset
     ): void {
-        PackerDriver.getInstance().dispatchAssetChanges(type, uuid, assetInfo, meta);
+        PackerDriver.getInstance().dispatchAssetChanges(type, asset);
     }
 
     /**

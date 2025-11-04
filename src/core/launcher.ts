@@ -1,4 +1,4 @@
-import path, { join } from 'path';
+import { join } from 'path';
 import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
@@ -62,12 +62,6 @@ export default class Launcher {
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
         await startupAssetDB();
-        //第一次启动工程，需要编译所有脚本
-        try {
-            await scripting.compileScripts();
-        } catch(error) {
-            console.error(error);
-        }
     }
 
     /**

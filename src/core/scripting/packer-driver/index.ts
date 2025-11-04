@@ -18,6 +18,7 @@ import {
     ImportMap,
 } from '@cocos/creator-programming-mod-lo/lib/mod-lo';
 import { AssetChange, AssetChangeType, AssetDatabaseDomain, AssetDbInterop, DBChangeType, ModifiedAssetChange } from './asset-db-interop';
+import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 import { PackerDriverLogger } from './logger';
 import { LanguageServiceAdapter } from '../language-service';
 import { AsyncDelegate } from '../utils/delegate';
@@ -31,6 +32,7 @@ import { eventEmitter } from '../event-emitter';
 import { TypeScriptAssetInfoCache } from '../shared/cache';
 import { DBInfo } from '../../builder/worker/builder/asset-handler/script/build-script';
 import { AssetInfo, IAssetMeta } from '../../assets/@types/public';
+import { IAsset } from '../../assets/@types/private';
 
 const VERSION = '20';
 
@@ -306,7 +308,7 @@ export class PackerDriver {
             const scriptInfos = this._assetDbInterop.removeTsScriptInfoCache(dbInfo.target);
             scriptInfos.forEach((info) => {
                 this._assetChangeQueue.push({
-                    type: AssetChangeType.remove,
+                    type: AssetActionEnum.delete,
                     filePath: info.filePath,
                     uuid: info.uuid,
                     isPluginScript: info.isPluginScript,
@@ -499,10 +501,9 @@ export class PackerDriver {
     }
 
     public dispatchAssetChanges(type: AssetChangeType,
-        uuid: string,
-        assetInfo: Readonly<AssetInfo>,
-        meta: Readonly<IAssetMeta>) {
-        this._assetDbInterop.onAssetChange(type, uuid, assetInfo, meta);
+        asset: IAsset
+        ) {
+        this._assetDbInterop.onAssetChange(type, asset);
         const assetChanges = this._assetDbInterop.getAssetChangeQueue();
         this._assetChangeQueue.push(...assetChanges);
     }
@@ -538,7 +539,7 @@ export class PackerDriver {
         for (const beforeTask of beforeTasks) {
             beforeTask();
         }
-        await this.beforeEditorBuildDelegate.dispatch(assetChanges.filter(item => item.type === AssetChangeType.modified) as ModifiedAssetChange[]);
+        await this.beforeEditorBuildDelegate.dispatch(assetChanges.filter(item => item.type === AssetActionEnum.change) as ModifiedAssetChange[]);
         const nonDTSChanges = assetChanges.filter(item => !item.filePath.endsWith('.d.ts'));
         for (const [, target] of Object.entries(this._targets)) {
             if (assetChanges.length !== 0) {
@@ -887,8 +888,8 @@ class PackTarget {
         for (const change of changes) {
             const uuid = change.uuid;
             // Note: "modified" directive is decomposed as "remove" and "add".
-            if (change.type === AssetChangeType.modified ||
-                change.type === AssetChangeType.remove) {
+            if (change.type === AssetActionEnum.change ||
+                change.type === AssetActionEnum.delete) {
                 const oldURL = this._uuidURLMap.get(uuid);
                 if (!oldURL) {
                     // As of now, we receive an asset modifying or changing directive
@@ -910,8 +911,8 @@ class PackTarget {
                     }
                 }
             }
-            if (change.type === AssetChangeType.modified ||
-                change.type === AssetChangeType.add) {
+            if (change.type === AssetActionEnum.change ||
+                change.type === AssetActionEnum.add) {
                 if (change.isPluginScript) {
                     continue;
                 }
