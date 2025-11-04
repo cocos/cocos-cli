@@ -35,12 +35,18 @@ class AssetOperation extends EventEmitter {
             throw new Error(`file ${path} not exists`);
         }
     }
-
+    /**
+     * 检查是否存在文件，如果存在则根据选项决定是否覆盖或重命名
+     * @param path 
+     * @param option 
+     * @returns 返回新的文件路径
+     */
     _checkOverwrite(path: string, option?: AssetOperationOption) {
         if (existsSync(path) && !option?.overwrite) {
-            throw new Error(`file ${path} already exists, please use overwrite option to overwrite it or delete file first.`);
-        } else if (existsSync(path) && option && option.rename) {
-            return utils.File.getName(path);
+            if (option?.rename) {
+                return utils.File.getName(path);
+            }
+            throw new Error(`file ${path} already exists, please use overwrite option to overwrite it or use rename option to auto rename it first.`);
         }
         return path;
     }
@@ -117,11 +123,10 @@ class AssetOperation extends EventEmitter {
         }
         // 判断目标路径是否为只读
         this.checkValidUrl(options.target);
-        this._checkOverwrite(options.target, options);
         if (!isAbsolute(options.target)) {
             options.target = url2path(options.target);
         }
-
+        options.target = this._checkOverwrite(options.target, options);
         const assetPath = await assetHandlerManager.createAsset(options);
         await this.refreshAsset(assetPath);
         return assetQueryManager.queryAssetInfo(queryUUID(assetPath));
@@ -318,8 +323,7 @@ class AssetOperation extends EventEmitter {
         }
         this._checkReadonly(asset);
         source = asset.source;
-        this._checkOverwrite(target, option);
-
+        target = this._checkOverwrite(target, option);
         await moveFile(source, target, option);
 
         const url = queryUrl(target);
@@ -355,19 +359,15 @@ class AssetOperation extends EventEmitter {
         }
         this._checkReadonly(asset);
         source = asset.source;
+        this._checkExists(source);
         if (target.startsWith('db://')) {
             target = url2path(target);
         }
-        this._checkExists(source);
         target = this._checkOverwrite(target, option);
         // 源地址不能被目标地址包含，也不能相等
         if (target.startsWith(join(source, '/'))) {
             throw new Error(`${i18n.t('assets.rename_asset.fail.parent')} \nsource: ${source}\ntarget: ${target}`);
         }
-        // TODO 传递路径不在同一个文件夹内，视为移动文件
-        // if (dirname(target) !== dirname(source)) {
-        //     await moveFile(source, target, option);
-        // }
 
         const uri = {
             basename: basename(target),

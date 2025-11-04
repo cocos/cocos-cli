@@ -7,6 +7,8 @@ import { z } from 'zod';
 import * as pkgJson from '../../package.json';
 import { join } from 'path';
 import { ResourceManager } from './resources';
+import { HTTP_STATUS } from '../api/base/schema-base';
+import type { HttpStatusCode } from '../api/base/schema-base';
 
 export class McpMiddleware {
     private server: McpServer;
@@ -99,7 +101,41 @@ export class McpMiddleware {
                             // 使用输入 schema 验证参数（如果存在）
                             if (Object.keys(inputSchemaFields).length > 0) {
                                 const inputSchema = z.object(inputSchemaFields);
-                                params = inputSchema.parse(params);
+                                try {
+                                    params = inputSchema.parse(params);
+                                } catch (validationError) {
+                                    // 处理 Zod 验证错误，返回标准错误格式
+                                    if (validationError instanceof z.ZodError) {
+                                        const errorDetails = validationError.errors.map(err => {
+                                            const path = err.path.join('.');
+                                            return `  - ${path}: ${err.message}${err.code ? ` (code: ${err.code})` : ''}`;
+                                        }).join('\n');
+                                        
+                                        const expectedFields = Object.keys(inputSchemaFields).join(', ');
+                                        const receivedFields = params ? Object.keys(params).join(', ') : 'none';
+                                        
+                                        const errorMessage = `参数验证失败 (${toolName}):\n` +
+                                            `期望的字段: ${expectedFields}\n` +
+                                            `接收到的字段: ${receivedFields}\n` +
+                                            `详细错误:\n${errorDetails}`;
+                                        
+                                        console.error(`[MCP] ${errorMessage}`);
+                                        
+                                        // 返回标准错误格式，使用 400 表示参数错误
+                                        const errorResult: { code: HttpStatusCode; data?: any; reason?: string } = {
+                                            code: HTTP_STATUS.BAD_REQUEST,
+                                            data: undefined,
+                                            reason: errorMessage,
+                                        };
+                                        
+                                        const formattedResult = JSON.stringify({ result: errorResult }, null, 2);
+                                        return {
+                                            content: [{ type: 'text', text: formattedResult }],
+                                            structuredContent: { result: errorResult }
+                                        };
+                                    }
+                                    throw validationError;
+                                }
                             }
 
                             // 准备方法参数
@@ -129,8 +165,31 @@ export class McpMiddleware {
                                 structuredContent: structuredContent
                             };
                         } catch (error) {
+                            // 捕获所有错误，返回标准错误格式
                             const errorMessage = error instanceof Error ? error.message : String(error);
-                            throw new Error(`Tool execution failed: ${errorMessage}`);
+                            const errorStack = error instanceof Error ? error.stack : undefined;
+                            
+                            // 构建详细的错误信息
+                            let detailedReason = `工具执行失败 (${toolName}): ${errorMessage}`;
+                            if (errorStack && process.env.NODE_ENV === 'development') {
+                                detailedReason += `\n\n堆栈跟踪:\n${errorStack}`;
+                            }
+                            detailedReason += `\n\n传入的参数:\n${JSON.stringify(params, null, 2)}`;
+                            
+                            console.error(`[MCP] ${detailedReason}`);
+                            
+                            // 返回标准错误格式，使用 500 表示服务器错误
+                            const errorResult: { code: HttpStatusCode; data?: any; reason?: string } = {
+                                code: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                                data: undefined,
+                                reason: detailedReason,
+                            };
+                            
+                            const formattedResult = JSON.stringify({ result: errorResult }, null, 2);
+                            return {
+                                content: [{ type: 'text', text: formattedResult }],
+                                structuredContent: { result: errorResult }
+                            };
                         }
                     }
                 );

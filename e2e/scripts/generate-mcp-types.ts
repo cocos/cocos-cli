@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as glob from 'glob';
+import { scanToolsFromRegistry } from './tool-utils';
 
 interface ToolInfo {
     toolName: string;
@@ -48,7 +49,6 @@ function scanSchemaFiles(): Map<string, SchemaTypeMapping> {
 
     for (const schemaFile of schemaFiles) {
         const content = fs.readFileSync(schemaFile, 'utf-8');
-        const fileName = path.basename(schemaFile, '.ts');
 
         // 方法 1: 直接匹配 export type TXxx = z.infer<typeof SchemaXxx>
         const inferPattern = /export\s+type\s+(T\w+)\s*=\s*z\.infer<typeof\s+(Schema\w+)>/g;
@@ -117,21 +117,6 @@ function scanSchemaFiles(): Map<string, SchemaTypeMapping> {
     return mappings;
 }
 
-/**
- * 解析装饰器中的 Schema 名称
- */
-function extractSchemaName(decoratorText: string): string | null {
-    const match = decoratorText.match(/@param\((\w+)\)/);
-    return match ? match[1] : null;
-}
-
-/**
- * 解析返回类型的 Schema 名称
- */
-function extractReturnSchema(decoratorText: string): string | null {
-    const match = decoratorText.match(/@result\((\w+)\)/);
-    return match ? match[1] : null;
-}
 
 /**
  * 从方法签名中提取参数信息（名称和是否可选）
@@ -166,80 +151,6 @@ function extractParamInfo(methodBlock: string): Array<{ name: string; optional: 
     }
 
     return params;
-}
-
-/**
- * 解析单个 API 文件，提取工具信息
- */
-function parseApiFile(filePath: string, schemaMap: Map<string, SchemaTypeMapping>): ToolInfo[] {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const tools: ToolInfo[] = [];
-
-    // 匹配 @tool 装饰器开始的方法
-    const toolPattern = /@tool\(['"]([^'"]+)['"]\)([\s\S]*?)(?=@tool\(|export class|$)/g;
-
-    let match;
-    while ((match = toolPattern.exec(content)) !== null) {
-        const toolName = match[1];
-        const methodBlock = match[2];
-
-        // 提取 title
-        const titleMatch = methodBlock.match(/@title\(['"]([^'"]+)['"]\)/);
-        const title = titleMatch ? titleMatch[1] : undefined;
-
-        // 提取 description
-        const descMatch = methodBlock.match(/@description\(['"]([^'"]+)['"]\)/);
-        const description = descMatch ? descMatch[1] : undefined;
-
-        // 提取方法签名
-        const methodMatch = methodBlock.match(/async\s+(\w+)\s*\(([^)]*)\)/);
-        if (!methodMatch) continue;
-
-        const methodName = methodMatch[1];
-        const paramsStr = methodMatch[2];
-
-        // 提取参数
-        const params: ParamInfo[] = [];
-        const paramMatches = [...methodBlock.matchAll(/@param\((\w+)\)/g)];
-        const paramInfoList = extractParamInfo(methodBlock);
-
-        paramMatches.forEach((paramMatch, index) => {
-            const schemaName = paramMatch[1];
-            const paramInfo = paramInfoList[index];
-            const paramName = paramInfo?.name || `param${index}`;
-            const optional = paramInfo?.optional || false;
-            const mapping = schemaMap.get(schemaName);
-            const typeName = mapping ? mapping.typeName : 'any';
-
-            params.push({
-                name: paramName,
-                type: typeName,
-                schemaName: schemaName,
-                optional: optional,
-            });
-        });
-
-        // 提取返回类型
-        const returnMatch = methodBlock.match(/@result\((\w+)\)/);
-        const returnSchemaName = returnMatch ? returnMatch[1] : undefined;
-        let returnType: string | undefined;
-        if (returnSchemaName) {
-            const mapping = schemaMap.get(returnSchemaName);
-            returnType = mapping ? mapping.typeName : 'any';
-        }
-
-        tools.push({
-            toolName,
-            methodName,
-            title,
-            description,
-            params,
-            returnType,
-            filePath: path.relative(process.cwd(), filePath),
-        });
-    }
-
-    return tools;
 }
 
 /**
@@ -405,6 +316,96 @@ function toPascalCase(str: string): string {
 }
 
 /**
+ * 使用 toolRegistry 扫描已注册的工具（使用共享工具函数）
+ * 这是最可靠的方式，因为只扫描实际注册的工具
+ */
+async function scanApiToolsFromRegistry(): Promise<ToolInfo[]> {
+    // 使用共享的工具扫描函数
+    const baseTools = await scanToolsFromRegistry();
+
+    // 转换为 ToolInfo 格式，添加参数和返回类型字段（初始为空，需要从源码解析）
+    return baseTools.map(tool => ({
+        toolName: tool.toolName,
+        methodName: tool.methodName,
+        title: tool.title,
+        description: tool.description,
+        params: [], // 参数信息需要从源码解析
+        returnType: undefined, // 返回类型需要从源码解析
+        filePath: tool.filePath,
+    }));
+}
+
+/**
+ * 从源码中补充工具的参数和返回类型信息
+ */
+function enrichToolInfoFromSource(tools: ToolInfo[], schemaMap: Map<string, SchemaTypeMapping>): ToolInfo[] {
+    // 按文件路径分组工具
+    const toolsByFile = new Map<string, ToolInfo[]>();
+    for (const tool of tools) {
+        if (!toolsByFile.has(tool.filePath)) {
+            toolsByFile.set(tool.filePath, []);
+        }
+        toolsByFile.get(tool.filePath)!.push(tool);
+    }
+
+    // 解析每个文件，补充参数和返回类型信息
+    for (const [filePath, fileTools] of toolsByFile.entries()) {
+        if (!fs.existsSync(filePath) || filePath === 'unknown') {
+            continue;
+        }
+
+        const content = fs.readFileSync(filePath, 'utf-8');
+
+        // 为每个工具查找对应的方法定义
+        for (const tool of fileTools) {
+            // 查找方法定义：@tool('tool-name') ... async methodName(...)
+            const methodPattern = new RegExp(
+                `@tool\\(['"]${tool.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]\\)([\\s\\S]*?)(?=@tool\\(|export class|$)`,
+                'i'
+            );
+            const methodMatch = content.match(methodPattern);
+            
+            if (methodMatch) {
+                const methodBlock = methodMatch[1];
+
+                // 提取参数
+                const params: ParamInfo[] = [];
+                const paramMatches = [...methodBlock.matchAll(/@param\((\w+)\)/g)];
+                const paramInfoList = extractParamInfo(methodBlock);
+
+                paramMatches.forEach((paramMatch, index) => {
+                    const schemaName = paramMatch[1];
+                    const paramInfo = paramInfoList[index];
+                    const paramName = paramInfo?.name || `param${index}`;
+                    const optional = paramInfo?.optional || false;
+                    const mapping = schemaMap.get(schemaName);
+                    const typeName = mapping ? mapping.typeName : 'any';
+
+                    params.push({
+                        name: paramName,
+                        type: typeName,
+                        schemaName: schemaName,
+                        optional: optional,
+                    });
+                });
+
+                tool.params = params;
+
+                // 提取返回类型
+                const returnMatch = methodBlock.match(/@result\((\w+)\)/);
+                if (returnMatch) {
+                    const returnSchemaName = returnMatch[1];
+                    const mapping = schemaMap.get(returnSchemaName);
+                    tool.returnType = mapping ? mapping.typeName : 'any';
+                }
+            }
+        }
+    }
+
+    return tools;
+}
+
+/**
  * 主函数
  */
 async function main() {
@@ -413,29 +414,13 @@ async function main() {
     // 步骤 1: 扫描所有 schema 文件，建立映射
     const schemaMap = scanSchemaFiles();
 
-    // 步骤 2: 查找所有 API 文件
-    const apiFiles = glob.sync('src/api/**/*.ts', {
-        ignore: ['**/*.d.ts', '**/schema.ts', '**/decorator.ts', '**/index.ts'],
-        absolute: true,
-    });
+    // 步骤 2: 使用 toolRegistry 扫描已注册的工具（参考 check-coverage.ts）
+    console.log('🔍 扫描 MCP API 工具定义 (通过 toolRegistry)...\n');
+    const toolsFromRegistry = await scanApiToolsFromRegistry();
+    console.log(`✅ 找到 ${toolsFromRegistry.length} 个 MCP 工具\n`);
 
-    console.log(`📁 发现 ${apiFiles.length} 个 API 文件:\n`);
-    apiFiles.forEach(file => {
-        console.log(`   - ${path.relative(process.cwd(), file)}`);
-    });
-    console.log('');
-
-    // 步骤 3: 解析所有工具
-    const allTools: ToolInfo[] = [];
-    for (const file of apiFiles) {
-        const tools = parseApiFile(file, schemaMap);
-        allTools.push(...tools);
-        if (tools.length > 0) {
-            console.log(`✅ ${path.basename(file)}: 发现 ${tools.length} 个工具`);
-        }
-    }
-
-    console.log(`\n📊 总计发现 ${allTools.length} 个 MCP 工具\n`);
+    // 步骤 3: 从源码中补充参数和返回类型信息
+    const allTools = enrichToolInfoFromSource(toolsFromRegistry, schemaMap);
 
     // 步骤 4: 生成类型定义
     const typeDefinitions = generateTypeDefinitions(allTools, schemaMap);
@@ -449,14 +434,7 @@ async function main() {
     }
 
     fs.writeFileSync(outputPath, typeDefinitions, 'utf-8');
-
     console.log(`✨ 类型定义已生成: ${path.relative(process.cwd(), outputPath)}`);
-    console.log(`\n📝 包含:`);
-    console.log(`   - ${allTools.length} 个工具定义`);
-    console.log(`   - ${allTools.filter(t => t.params.length > 0).length} 个参数类型`);
-    console.log(`   - 1 个 MCPToolsMap 接口`);
-    console.log(`   - ${schemaMap.size} 个自动导入的 Schema 类型`);
-    console.log(`\n🎉 完成！\n`);
 }
 
 // 运行脚本

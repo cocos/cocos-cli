@@ -52,9 +52,9 @@ export interface IAssetInfo {
 }
 
 export interface AssetOperationOption {
-    // 是否强制覆盖已经存在的文件，默认 false
+    // 是否强制覆盖已经存在的文件，默认 false，传递后会直接覆盖文件，未传递时有冲突会直接抛异常
     overwrite?: boolean;
-    // 是否自动重命名冲突文件，默认 false
+    // 是否自动重命名冲突文件，默认 false ，传递后会以内部规则自动重命名冲突文件，新的文件名可以在返回值中获取
     rename?: boolean;
 }
 

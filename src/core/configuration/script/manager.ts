@@ -76,9 +76,9 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
         this.projectPath = projectPath;
         this.configPath = path.join(projectPath, ConfigurationManager.name);
         const schemaPath = path.join(projectPath, ConfigurationManager.relativeSchemaPath);
-        await fse.copy(ConfigurationManager.SchemaPathSource, schemaPath);
         await this.load();
         try {
+            await fse.copy(ConfigurationManager.SchemaPathSource, schemaPath);
             // 迁移不能影响正常的配置初始化流程
             await this.migrate();
         } catch (error) {

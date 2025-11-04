@@ -13,13 +13,11 @@ describe('cocos build command', () => {
     let testProject: TestProject;
 
     beforeAll(async () => {
-        // 创建测试项目（使用新的推荐 API）
         const fixtureProject = resolve(__dirname, '../../tests/fixtures/projects/asset-operation');
         testProject = await createTestProject(fixtureProject);
     });
 
     afterAll(async () => {
-        // 清理测试项目（使用新的推荐 API）
         await testProject.cleanup();
     });
 

@@ -1,43 +1,27 @@
+import { setupMCPTestEnvironment, teardownMCPTestEnvironment, MCPTestContext } from '../helpers/test-utils';
 import { MCPTestClient } from '../helpers/mcp-client';
-import { getSharedTestProject } from '../helpers/test-utils';
-import { TestProject } from '../helpers/project-manager';
-import { resolve } from 'path';
 import { E2E_PORTS } from '../config';
 
 describe('MCP Server', () => {
-    let testProject: TestProject;
-    let mcpClient: MCPTestClient;
+    let context: MCPTestContext;
 
     beforeAll(async () => {
-        // 使用共享项目（只读测试，可以与其他测试复用）
-        const fixtureProject = resolve(__dirname, '../../tests/fixtures/projects/asset-operation');
-        testProject = await getSharedTestProject(fixtureProject, 'readonly-common');
-
-        // 创建并启动 MCP 客户端（端口自动分配）
-        mcpClient = new MCPTestClient({
-            projectPath: testProject.path,
-        });
-
-        await mcpClient.start();
+        // 使用共享的 MCP 服务器
+        context = await setupMCPTestEnvironment();
     });
 
     afterAll(async () => {
-        // 关闭客户端和服务器
-        if (mcpClient) {
-            await mcpClient.close();
-        }
-
-        // 共享项目不需要立即清理，由测试框架统一清理
-        await testProject.cleanup();
+        // 注意：不关闭共享的 MCP 服务器，由全局 teardown 统一清理
+        await teardownMCPTestEnvironment(context);
     });
 
     test('should start MCP server successfully', async () => {
         // 服务器启动在 beforeAll 中，如果到这里说明启动成功
-        expect(mcpClient).toBeDefined();
+        expect(context.mcpClient).toBeDefined();
     });
 
     test('should list available tools', async () => {
-        const tools = await mcpClient.listTools();
+        const tools = await context.mcpClient.listTools();
 
         expect(tools).toBeDefined();
         expect(Array.isArray(tools)).toBe(true);
@@ -51,7 +35,7 @@ describe('MCP Server', () => {
 
     test('should handle client connection', async () => {
         // 测试客户端连接
-        const tools = await mcpClient.listTools();
+        const tools = await context.mcpClient.listTools();
         expect(tools).toBeDefined();
     });
 
@@ -59,9 +43,9 @@ describe('MCP Server', () => {
         // 使用配置的测试端口
         const customPort = E2E_PORTS.TEST_PORT;
 
-        // 创建新的客户端实例，指定端口
+        // 创建新的客户端实例，指定端口（用于测试自定义端口功能）
         const customClient = new MCPTestClient({
-            projectPath: testProject.path,
+            projectPath: context.testProject.path,
             port: customPort,
         });
 
@@ -77,7 +61,7 @@ describe('MCP Server', () => {
             expect(Array.isArray(tools)).toBe(true);
             expect(tools.length).toBeGreaterThan(0);
         } finally {
-            // 清理：关闭自定义端口的服务器
+            // 清理：关闭自定义端口的服务器（这是独立的测试服务器，需要关闭）
             await customClient.close();
         }
     });

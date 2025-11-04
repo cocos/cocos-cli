@@ -10,6 +10,7 @@
 import * as fs from 'fs';
 import * as glob from 'glob';
 import * as path from 'path';
+import { scanToolsFromRegistry, extendToolInfo } from './tool-utils';
 
 interface ApiTool {
     name: string;
@@ -35,83 +36,21 @@ const E2E_TEST_DIRS = ['e2e'];
  * 确保统计的工具数量与实际注册的 MCP 工具一致。
  */
 async function scanApiTools(): Promise<ApiTool[]> {
-    const tools: ApiTool[] = [];
+    // 使用共享的工具扫描函数
+    const baseTools = await scanToolsFromRegistry();
 
-    try {
-        const { CocosAPI } = await import('../../dist/api/index');
-        // 先创建 API 实例，触发所有装饰器的执行
-        const cocosAPI = await CocosAPI.create();
-
-        // 然后导入 toolRegistry (与 mcp.middleware.ts 使用相同的注册表)
-        const { toolRegistry } = await import('../../dist/api/decorator/decorator');
-
-        // 遍历 toolRegistry，获取所有已注册的工具
-        for (const [toolName, { target, meta }] of toolRegistry.entries()) {
-            // toolName 可能是 string 或 symbol，只处理 string 类型
-            if (typeof toolName !== 'string') {
-                continue;
-            }
-
-            // 推断文件路径和类别
-            const toolInfo = inferToolInfo(target, meta);
-
-            tools.push({
-                name: toolName,
-                category: toolInfo.category,
-                filePath: toolInfo.filePath,
-                methodName: meta.methodName as string,
-                title: meta.title,
-                description: meta.description,
-            });
-        }
-    } catch (error) {
-        console.error('❌ 无法加载 toolRegistry:', error);
-        console.error('   请确保项目已经构建 (npm run build)');
-        console.error('   错误详情:', error);
-        throw error;
-    }
-
-    return tools.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/**
- * 从 target 推断工具信息
- */
-function inferToolInfo(target: any, _meta: any): { category: string; filePath: string } {
-    // 尝试从 target 的构造函数名推断类别
-    let category = 'Unknown';
-    let filePath = 'unknown';
-
-    if (target && target.constructor) {
-        const className = target.constructor.name;
-        // 例如: AssetsApi -> Assets, BuilderApi -> Builder
-        category = className.replace(/Api$/, '');
-
-        // 尝试推断文件路径
-        const categoryLower = category.toLowerCase();
-        const possiblePaths = [
-            `src/api/${categoryLower}/${categoryLower}.ts`,
-            `src/api/${categoryLower}/index.ts`,
-        ];
-
-        for (const possiblePath of possiblePaths) {
-            if (fs.existsSync(possiblePath)) {
-                filePath = possiblePath;
-                break;
-            }
-        }
-
-        // 特殊处理: Scene 相关的 API
-        if (['Node', 'Component', 'Scene'].includes(category)) {
-            const sceneSubModule = category.toLowerCase();
-            const scenePath = `src/api/scene/${sceneSubModule}.ts`;
-            if (fs.existsSync(scenePath)) {
-                filePath = scenePath;
-            }
-        }
-    }
-
-    return { category, filePath };
+    // 转换为 ApiTool 格式，添加类别字段
+    return baseTools.map(tool => {
+        const extended = extendToolInfo(tool);
+        return {
+            name: extended.toolName,
+            category: extended.category,
+            filePath: extended.filePath,
+            methodName: extended.methodName,
+            title: extended.title,
+            description: extended.description,
+        };
+    });
 }
 
 /**

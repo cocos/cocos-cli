@@ -234,3 +234,140 @@ export async function retry<T>(
     throw lastError!;
 }
 
+// ==================== MCP 测试相关工具函数 ====================
+
+import { MCPTestClient } from './mcp-client';
+import { getSharedMCPServer } from './shared-mcp-server';
+import { resolve as resolvePath } from 'path';
+
+/**
+ * MCP 测试上下文接口
+ */
+export interface MCPTestContext {
+    testProject: TestProject;
+    mcpClient: MCPTestClient;
+}
+
+/**
+ * Assets 测试上下文接口（扩展 MCPTestContext）
+ */
+export interface AssetsTestContext extends MCPTestContext {
+    testRootUrl: string;
+    testRootPath: string;
+}
+
+/**
+ * 设置 MCP 测试环境（使用共享服务器）
+ * 所有测试共享同一个 MCP 服务器实例
+ * 
+ * @param fixtureProject 测试项目 fixture 路径（可选，默认使用 asset-operation）
+ * @param projectName 共享项目名称（可选）
+ * @returns MCP 测试上下文
+ * 
+ * @example
+ * ```typescript
+ * const context = await setupMCPTestEnvironment();
+ * // 使用 context.mcpClient 和 context.testProject
+ * ```
+ */
+export async function setupMCPTestEnvironment(
+    fixtureProject?: string,
+    projectName?: string
+): Promise<MCPTestContext> {
+    // 获取全局共享的 MCP 服务器管理器
+    const sharedServer = getSharedMCPServer();
+
+    // 初始化共享服务器（如果还没有初始化）
+    if (!fixtureProject) {
+        // 默认使用 asset-operation fixture
+        fixtureProject = resolvePath(__dirname, '../../tests/fixtures/projects/asset-operation');
+    }
+    await sharedServer.initialize(fixtureProject, projectName);
+
+    // 获取共享的客户端和项目
+    const mcpClient = sharedServer.getClient();
+    const testProject = sharedServer.getTestProject();
+
+    return {
+        testProject,
+        mcpClient,
+    };
+}
+
+/**
+ * 设置 Assets 测试环境（使用共享服务器）
+ * 扩展 MCPTestContext，添加 assets 特定的测试根路径配置
+ * 
+ * @param fixtureProject 测试项目 fixture 路径（可选）
+ * @param projectName 共享项目名称（可选）
+ * @returns Assets 测试上下文
+ * 
+ * @example
+ * ```typescript
+ * const context = await setupAssetsTestEnvironment();
+ * // 使用 context.mcpClient, context.testProject, context.testRootUrl, context.testRootPath
+ * ```
+ */
+export async function setupAssetsTestEnvironment(
+    fixtureProject?: string,
+    projectName?: string
+): Promise<AssetsTestContext> {
+    // 获取全局共享的 MCP 服务器管理器
+    const sharedServer = getSharedMCPServer();
+
+    // 初始化共享服务器（如果还没有初始化）
+    if (!fixtureProject) {
+        fixtureProject = resolvePath(__dirname, '../../tests/fixtures/projects/asset-operation');
+    }
+    await sharedServer.initialize(fixtureProject, projectName);
+
+    // 获取共享的客户端和项目
+    const mcpClient = sharedServer.getClient();
+    const testProject = sharedServer.getTestProject();
+
+    // 获取测试根路径配置
+    const { testRootUrl, testRootPath } = sharedServer.getAssetsTestRootConfig();
+
+    // 确保测试根目录存在
+    await sharedServer.ensureAssetsTestRoot();
+
+    return {
+        testProject,
+        mcpClient,
+        testRootUrl,
+        testRootPath,
+    };
+}
+
+/**
+ * 清理 MCP 测试环境
+ * 注意：不清理共享的 MCP 服务器，由全局 teardown 统一清理
+ * 
+ * @param context 测试上下文
+ */
+export async function teardownMCPTestEnvironment(_context: MCPTestContext): Promise<void> {
+    // 注意：不关闭客户端和服务器，因为其他测试可能还在使用
+    // 服务器会在全局 teardown 时统一清理
+    // 如果需要清理特定资源，可以在这里添加
+}
+
+/**
+ * 清理 Assets 测试环境
+ * 清理测试根目录，但不关闭服务器
+ * 
+ * @param context Assets 测试上下文
+ */
+export async function teardownAssetsTestEnvironment(context: AssetsTestContext): Promise<void> {
+    // 清理测试资源（但不关闭服务器）
+    try {
+        await context.mcpClient.callTool('assets-delete-asset', {
+            dbPath: context.testRootUrl,
+        });
+    } catch {
+        // 忽略清理失败的错误
+    }
+
+    // 注意：不关闭客户端和服务器，因为其他测试可能还在使用
+    // 服务器会在全局 teardown 时统一清理
+}
+

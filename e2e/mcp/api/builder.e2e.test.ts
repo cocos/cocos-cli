@@ -1,39 +1,23 @@
-import { MCPTestClient } from '../../helpers/mcp-client';
-import { createTestProject, E2E_TIMEOUTS } from '../../helpers/test-utils';
-import { TestProject } from '../../helpers/project-manager';
-import { resolve, join } from 'path';
+import { setupMCPTestEnvironment, teardownMCPTestEnvironment, MCPTestContext, E2E_TIMEOUTS } from '../../helpers/test-utils';
+import { join } from 'path';
 import { pathExists } from 'fs-extra';
 
 describe('MCP Builder API', () => {
-    let testProject: TestProject;
-    let mcpClient: MCPTestClient;
+    let context: MCPTestContext;
 
     beforeAll(async () => {
-        // 创建测试项目（使用新的推荐 API）
-        const fixtureProject = resolve(__dirname, '../../../tests/fixtures/projects/asset-operation');
-        testProject = await createTestProject(fixtureProject);
-
-        // 创建并启动 MCP 客户端（端口自动分配）
-        mcpClient = new MCPTestClient({
-            projectPath: testProject.path,
-        });
-
-        await mcpClient.start();
+        // 使用共享的 MCP 服务器
+        context = await setupMCPTestEnvironment();
     });
 
     afterAll(async () => {
-        // 关闭客户端和服务器
-        if (mcpClient) {
-            await mcpClient.close();
-        }
-
-        // 清理测试项目（使用新的推荐 API）
-        await testProject.cleanup();
+        // 注意：不关闭共享的 MCP 服务器，由全局 teardown 统一清理
+        await teardownMCPTestEnvironment(context);
     });
 
     describe('builder-build', () => {
         test('should build with custom options', async () => {
-            const result = await mcpClient.callTool('builder-build', {
+            const result = await context.mcpClient.callTool('builder-build', {
                 platform: 'web-desktop',
                 options: {
                     debug: true,
@@ -46,7 +30,7 @@ describe('MCP Builder API', () => {
 
             expect(result.code).toBe(200);
             // 验证构建输出
-            const buildPath = join(testProject.path, 'build-mcp-test', 'web-desktop');
+            const buildPath = join(context.testProject.path, 'build-mcp-test', 'web-desktop');
             const buildExists = await pathExists(buildPath);
             expect(buildExists).toBe(true);
             if (result.data) {
@@ -56,7 +40,7 @@ describe('MCP Builder API', () => {
         }, E2E_TIMEOUTS.BUILD_OPERATION);
 
         test('should build web-mobile project', async () => {
-            const result = await mcpClient.callTool('builder-build', {
+            const result = await context.mcpClient.callTool('builder-build', {
                 platform: 'web-mobile',
                 options: {
                     outputName: 'web-mobile',
@@ -75,7 +59,7 @@ describe('MCP Builder API', () => {
 
     describe('builder-query-default-build-config', () => {
         test('should query web-desktop default config', async () => {
-            const result = await mcpClient.callTool('builder-query-default-build-config', {
+            const result = await context.mcpClient.callTool('builder-query-default-build-config', {
                 platform: 'web-desktop',
             });
 
@@ -99,7 +83,7 @@ describe('MCP Builder API', () => {
         });
 
         test('should query web-mobile default config', async () => {
-            const result = await mcpClient.callTool('builder-query-default-build-config', {
+            const result = await context.mcpClient.callTool('builder-query-default-build-config', {
                 platform: 'web-mobile',
             });
 
@@ -116,7 +100,7 @@ describe('MCP Builder API', () => {
         });
 
         test('should return valid config fields', async () => {
-            const result = await mcpClient.callTool('builder-query-default-build-config', {
+            const result = await context.mcpClient.callTool('builder-query-default-build-config', {
                 platform: 'web-desktop',
             });
 
@@ -175,7 +159,7 @@ describe('MCP Builder API', () => {
         // }, E2E_TIMEOUTS.BUILD_OPERATION);
 
         test('should handle invalid build path', async () => {
-            const result = await mcpClient.callTool('builder-run', {
+            const result = await context.mcpClient.callTool('builder-run', {
                 dest: '/invalid/path/that/does/not/exist',
             });
 

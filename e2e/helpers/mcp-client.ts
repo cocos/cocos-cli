@@ -154,9 +154,9 @@ export class MCPTestClient {
                 if (output.includes('Debugger')) {
                     return;
                 }
-                if (E2E_DEBUG) {
+                // if (E2E_DEBUG) {
                     console.error('[MCP Server stderr]:', output);
-                }
+                // }
             });
 
             this.serverProcess.on('error', (error) => {
@@ -298,13 +298,42 @@ export class MCPTestClient {
                 reason: 'Invalid MCP response format',
             } as any;
         } catch (error) {
+            // 处理错误，提供更详细的错误信息
             if (E2E_DEBUG) {
                 console.error(`[MCP callTool] ${name} error:`, error);
             }
+
+            // 尝试从错误中提取有用信息
+            let errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+
+            // 处理常见的网络错误，提供更友好的提示
+            if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED')) {
+                // 检查是否是参数验证错误导致的
+                // 如果参数验证失败，服务器可能返回 400 或 500，导致 fetch failed
+                const paramsStr = JSON.stringify(args, null, 2);
+                errorMessage = `网络请求失败 (${name}):\n` +
+                    `可能的原因：\n` +
+                    `  1. 参数验证失败：请检查传入的参数是否与 inputSchema 匹配\n` +
+                    `  2. 服务器连接失败：请确保 MCP 服务器正在运行\n` +
+                    `  3. 参数格式错误：请检查参数类型和必需字段\n` +
+                    `\n传入的参数:\n${paramsStr}\n` +
+                    `\n原始错误: ${errorMessage}`;
+                
+                if (errorStack) {
+                    errorMessage += `\n\n堆栈跟踪:\n${errorStack}`;
+                }
+            }
+
+            // 如果错误信息已经包含详细的验证错误，直接使用
+            if (errorMessage.includes('参数验证失败')) {
+                // 保持原有的详细错误信息
+            }
+
             return {
                 code: 500,
                 data: undefined,
-                reason: error instanceof Error ? error.message : String(error),
+                reason: errorMessage,
             } as any;
         }
     }
