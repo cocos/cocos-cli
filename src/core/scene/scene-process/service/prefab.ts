@@ -1,9 +1,24 @@
-import { BaseService, register, Service, ServiceEvents } from './core';
+import { BaseService, register, ServiceEvents } from './core';
 import { Component, instantiate, Node, Scene } from 'cc';
 import { componentOperation } from './prefab/component';
 import { nodeOperation } from './prefab/node';
 import { prefabUtils } from './prefab/utils';
-import type { IPrefabEvents, IPrefabService, IChangeNodeOptions } from '../../common';
+import type {
+    IApplyPrefabChangesParams,
+    IChangeNodeOptions,
+    ICreatePrefabFromNodeParams,
+    IGetPrefabInfoParams,
+    IIsPrefabInstanceParams,
+    INode,
+    IPrefabEvents,
+    IPrefabInfo,
+    IPrefabService,
+    IRevertToPrefabParams,
+    IUnpackPrefabInstanceParams,
+} from '../../common';
+import { validateCreatePrefabParams, validateNodePathParams } from './prefab/validate-params';
+import { sceneUtils } from './scene/utils';
+import { encode } from './prefab/class-serializer';
 
 @register('Prefab')
 export class PrefabService extends BaseService<IPrefabEvents> implements IPrefabService {
@@ -12,6 +27,110 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     private _utils = prefabUtils;
 
     public init() { }
+
+    /**
+     * 将节点转换为预制体资源
+     */
+    async createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode> {
+        try {
+
+            validateCreatePrefabParams(params);
+
+            const nodeUuid = EditorExtends.Node.getNodeUuidByPathOrThrow(params.nodePath);
+            const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.assetURL, {
+                overwrite: !!params.overwrite,
+                undo: true,
+            });
+
+            if (!node) {
+                throw new Error('创建预制体资源失败，返回结果为 null');
+            }
+            return sceneUtils.generateNodeInfo(node, false);
+        } catch (e) {
+            console.error(`创建预制体失败: 节点路径: ${params.nodePath} 资源 URL: ${params.assetURL} 错误信息:`, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 将节点的修改应用回预制体资源
+     */
+    async applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean> {
+        try {
+            validateNodePathParams(params);
+
+            const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+            const prefabInfo = prefabUtils.getPrefab(node);
+            if (!prefabInfo) {
+                throw new Error(`该节点 '${params.nodePath}' 不是预制体`);
+            }
+
+            await this.applyPrefab(node.uuid);
+            return true;
+        } catch (e) {
+            console.error(`应用回预制体资源失败: 节点路径: ${params.nodePath} 错误信息:`, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 重置节点到预制体原始状态
+     */
+    async revertToPrefab(params: IRevertToPrefabParams): Promise<boolean> {
+        try {
+            validateNodePathParams(params);
+            const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+            return await this.revertPrefab(node);
+        } catch (e) {
+            console.error(`重置节点到预制体原始状态失败：节点路径 ${params.nodePath} 错误信息:`, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 解耦预制体实例，使其成为普通节点
+     */
+    async unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode> {
+        try {
+            validateNodePathParams(params);
+            const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+            this.unWrapPrefabInstance(node.uuid, !!params.recursive);
+            return sceneUtils.generateNodeInfo(node, true);
+        } catch (e) {
+            console.error(`解耦为普通节点失败：节点路径 ${params.nodePath} 是否递归: ${params.recursive} 错误信息:`, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 检查节点是否为预制体实例
+     */
+    async isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean> {
+        try {
+            const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+            return !!prefabUtils.getPrefab(node)?.instance;
+        } catch (e) {
+            console.error(`检查节点是否预制体实例失败：节点路径 ${params.nodePath} 错误信息:`, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 获取节点的预制体信息
+     */
+    async getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefabInfo | null> {
+        try {
+            const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+            const prefabInfo = prefabUtils.getPrefab(node);
+            if (!prefabInfo) {
+                return null;
+            }
+            return encode.serializeInstance(prefabInfo) as IPrefabInfo;
+        } catch (e) {
+            console.error(`获取节点的预制体信息失败：节点路径 ${params.nodePath} 错误信息:`, e);
+            throw e;
+        }
+    }
 
     /////////////////////////
     // node operation
@@ -48,9 +167,10 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * 从一个节点生成一个PrefabAsset
      * @param nodeUUID
      * @param url
+     * @param options
      */
-    public async createPrefabAssetFromNode(nodeUUID: string, url: string) {
-        return await nodeOperation.createPrefabAssetFromNode(nodeUUID, url);
+    public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { undo: true, overwrite: true }): Promise<Node | null> {
+        return await nodeOperation.createPrefabAssetFromNode(nodeUUID, url, options);
     }
 
     /**

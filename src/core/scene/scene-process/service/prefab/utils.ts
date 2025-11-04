@@ -57,7 +57,7 @@ function isSameNode(src: Node, dst: Node) {
     return src.getPathInHierarchy() === dst.getPathInHierarchy() && src.getSiblingIndex() === dst.getSiblingIndex();
 }
 
-function pushNestedPrefab(nestedPrefabNode: Node, root: Node, paths: string[]){
+function pushNestedPrefab(nestedPrefabNode: Node, root: Node, paths: string[]) {
     let parent = nestedPrefabNode.parent as Node;
     while (parent && parent !== root) {
         if (parent['_prefab']?.instance) {
@@ -140,7 +140,7 @@ class PrefabUtil {
     }
 
     // 通过localID获取节点node上的节点
-    public getTarget(localID: string[], node: Node, useCache = false): Node|Component|null {
+    public getTarget(localID: string[], node: Node, useCache = false): Node | Component | null {
         const targetMap = this.getTargetMap(node, useCache);
         return Prefab._utils.getTarget(localID, targetMap);
     }
@@ -392,7 +392,7 @@ class PrefabUtil {
         // 拖拽生成prefab时要清理instance中对外部节点的引用，否则会把场景保存到prefab中
         this.removeInvalidPropertyOverrideReference(prefab.data);
 
-        const data = EditorExtends.serialize.serialize(prefab);
+        const data = EditorExtends.serialize(prefab);
 
         // 恢复clearedReference
         return {
@@ -924,14 +924,14 @@ class PrefabUtil {
         let nodeIter: Node | null = node;
 
         while (nodeIter) {
-            const prefabInstance: Prefab._utils.PrefabInstance|undefined = nodeIter['_prefab']?.instance;
+            const prefabInstance: Prefab._utils.PrefabInstance | undefined = nodeIter['_prefab']?.instance;
             // 向上查找到第一个预制体实例节点，判断改实例是否有prefabRootNode(嵌套预制体)
             // 当预制体实例不存在prefabRootNode时,或者prefabRootNode指向了当前根节点时，说明找到了最外层预制体实例
             if (prefabInstance) {
                 targetPath.unshift(prefabInstance.fileId);
                 outMostPrefabInstanceNode = nodeIter;
                 // 非嵌套预制体，直接返回
-                if (!prefabInstance.prefabRootNode ) {
+                if (!prefabInstance.prefabRootNode) {
                     break;
                 }
                 const prefabRoot = prefabInstance.prefabRootNode;

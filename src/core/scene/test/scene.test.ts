@@ -25,7 +25,7 @@ import './editor-proxy-scene.testcase';
 import './editor-proxy-prefab.testcase';
 import './node-proxy.testcase';
 import './component-proxy.testcase';
-// import './prefab-proxy.testcase';
+import './prefab-proxy.testcase';
 import './script-proxy.testcase';
 import './engine-proxy.testcase';
 import './scene-exit.testcase';

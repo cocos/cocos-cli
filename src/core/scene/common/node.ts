@@ -2,6 +2,7 @@ import type { Node } from 'cc';
 import { IComponentIdentifier } from './component';
 import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
+import { IPrefabInfo } from './prefab';
 
 export enum NodeType {
     EMPTY = 'Empty', // 空节点
@@ -104,6 +105,7 @@ export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
     components?: IComponentIdentifier[]; // 节点上的组件列表
     children?: INode[]; // 子节点列表
+    prefab: IPrefabInfo | null;// 是否是预制体
 }
 
 // 节点更新参数接口

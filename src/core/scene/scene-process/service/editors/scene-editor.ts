@@ -3,6 +3,7 @@ import { ICreateOptions, IEditorTarget, INode, IScene } from '../../../common';
 import { Rpc } from '../../rpc';
 import { sceneUtils } from '../scene/utils';
 import { BaseEditor } from './base-editor';
+import { encode } from '../prefab/class-serializer';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
@@ -20,9 +21,10 @@ export class SceneEditor extends BaseEditor {
         return {
             ...entity.identifier,
             name: entity.instance.name,
+            prefab: encode.serializeInstance(entity.instance['_prefab'], false),
             children: entity.instance.children
                 .map((node: Node) => {
-                    return sceneUtils.generateNodeInfo(node, true);
+                    return sceneUtils.generateNodeInfo(node, false);
                 })
                 .filter(child => child !== null) as INode[],
             components: entity.instance.components

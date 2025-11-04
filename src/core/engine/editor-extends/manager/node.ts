@@ -62,13 +62,14 @@ export default class NodeManager extends EventEmitter {
             return;
         }
         const node = this._map[uuid];
-        // this._recycle[uuid] = this._map[uuid];
-        delete this._map[uuid];
 
         pathManager.remove(uuid);
 
         // 清理父子关系
         this._cleanupParentRelations(uuid);
+
+        // this._recycle[uuid] = this._map[uuid];
+        delete this._map[uuid];
         try {
             this.emit('remove', uuid, node);
         } catch (error) {
@@ -130,6 +131,28 @@ export default class NodeManager extends EventEmitter {
 
     getNodePath(node: Node): string {
         return pathManager.getNodePath(node.uuid);
+    }
+
+    getNodeUuidByPath(path: string): string | null {
+        const uuid = pathManager.getNodeUuid(path);
+        const node = uuid && this.getNode(uuid);
+        return node ? node.uuid : null;
+    }
+
+    getNodeByPathOrThrow(path: string): Node {
+        const node = this.getNodeByPath(path);
+        if (!node) {
+            throw new Error(`找不到路径为 '${path}' 的节点`);
+        }
+        return node;
+    }
+
+    getNodeUuidByPathOrThrow(nodePath: string): string {
+        const nodeUuid = this.getNodeUuidByPath(nodePath);
+        if (!nodeUuid) {
+            throw new Error(`找不到路径为 "${nodePath}" 的节点`);
+        }
+        return nodeUuid;
     }
 
     /**

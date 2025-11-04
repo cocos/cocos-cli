@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { NodeQueryResultSchema } from './node-schema';
 import { SchemaComponentIdentifier } from './component-schema';
 import { SchemaSaveAssetResult } from '../assets/schema';
+import { SchemaPrefabInfo } from './prefa-info-schema';
 
 export const SchemaAssetUUID = z.string().describe('场景/预制体资源唯一标识符 UUID');
 
@@ -19,6 +20,7 @@ const SchemaIdentifier = z.object({
 
 const SchemaEntity = SchemaIdentifier.extend({
     name: z.string().describe('场景/预制体名称'),
+    prefab: z.union([SchemaPrefabInfo, z.null()]).describe('预制体信息'),
     children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
     components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
 }).describe('场景/预制体信息');
@@ -34,7 +36,6 @@ export const SchemaSaveResult = SchemaSaveAssetResult.describe('保存场景/预
 export const SchemaReload = SchemaEntity.describe('重载场景/预制体结果');
 
 export const SchemaCreateOptions = z.object({
-    type: z.enum(CREATE_TYPES).describe('可创建资源类型，目前只支持场景与预制体'),
     baseName: z.string().describe('资源名称'),
     templateType: z.enum(SCENE_TEMPLATE_TYPE).optional().describe('场景模板类型（可选，资源类型为场景才生效）'),
     dbURL: z.string().describe('目标目录用于存放资源文件，例如 db://assets'),

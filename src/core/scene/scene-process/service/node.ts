@@ -10,8 +10,10 @@ import {
     type INodeEvents,
     type IUpdateNodeParams,
     type IUpdateNodeResult,
-    NodeType, NodeEventType,
-    EventSourceType, IChangeNodeOptions
+    NodeType,
+    NodeEventType,
+    EventSourceType,
+    IChangeNodeOptions
 } from '../../common';
 import { Rpc } from '../rpc';
 import { CCObject, Node, Prefab, Quat, Vec3, TransformBit, UITransform, LODGroup } from 'cc';
@@ -98,8 +100,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         /**
          * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
          * 是否要 unlink 为普通节点
+         * 有 nodeType 说明是内置资源创建的，需要移除 prefab info
          */
-        this._removePrefabInfoFromNode(resultNode, true);
+        if ('nodeType' in params) {
+            Service.Prefab.removePrefabInfoFromNode(resultNode, true);
+        }
 
         /**
          * 新节点的 layer 跟随父级节点，但父级节点为场景根节点除外
@@ -195,29 +200,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         return currentParent;
-    }
-
-    private _removePrefabInfoFromNode(node: Node, removeNested?: boolean) {
-        node.children.forEach((child: Node) => {
-            // @ts-ignore
-            const childPrefabInstance = child['_prefab']?.instance;
-            if (childPrefabInstance) {
-                // 判断嵌套的 PrefabInstance 是否需要移除
-                if (removeNested) {
-                    this._removePrefabInfoFromNode(child, removeNested);
-                }
-            } else {
-                this._removePrefabInfoFromNode(child, removeNested);
-            }
-        });
-
-        // @ts-ignore member access
-        node['_prefab'] = null;
-
-        // remove component prefabInfo
-        node.components.forEach((comp) => {
-            comp.__prefab = null;
-        });
     }
 
     async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
@@ -399,6 +381,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
                 const canvasAsset = await loadAny<Prefab>(canvasAssetUuid);
                 canvasNode = cc.instantiate(canvasAsset) as Node;
+                Service.Prefab.removePrefabInfoFromNode(canvasNode);
 
                 if (parent) {
                     parent.addChild(canvasNode);

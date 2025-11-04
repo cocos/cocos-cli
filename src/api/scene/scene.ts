@@ -18,7 +18,7 @@ import {
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { Scene, TSceneTemplateType } from '../../core/scene';
+import { Scene, TSceneTemplateType, ICreateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
 
@@ -39,7 +39,7 @@ export class SceneApi {
         try {
             const data = await Scene.queryCurrent();
             return {
-                data,
+                data: data as TCurrentEntryResult,
                 code: COMMON_STATUS.SUCCESS,
             };
         } catch (e) { 
@@ -59,7 +59,7 @@ export class SceneApi {
         try {
             const data = await Scene.open({ urlOrUUID: dbURLOrUUID });
             return {
-                data,
+                data: data as TOpenResult,
                 code: COMMON_STATUS.SUCCESS,
             };
         } catch (e) {
@@ -117,8 +117,9 @@ export class SceneApi {
     @result(SchemaCreateResult)
     async createScene(@param(SchemaCreateOptions) options: TCreateOptions): Promise<CommonResultType<TCreateResult>> {
         try {
+            const type: ICreateType = options.dbURL.endsWith('.scene') ? 'scene' : 'prefab';
             const data = await Scene.create({
-                type: options.type,
+                type: type,
                 baseName: options.baseName,
                 targetDirectory: options.dbURL,
                 templateType: options.templateType as TSceneTemplateType,
@@ -127,7 +128,7 @@ export class SceneApi {
             
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: data,
+                data: data as TCreateResult,
             };
         } catch (e) {
             console.error(e);
@@ -147,7 +148,7 @@ export class SceneApi {
             const data = await Scene.reload({});
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: data,
+                data: data as TReload,
             };
         } catch (e) {
             console.error(e);

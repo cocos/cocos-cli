@@ -36,6 +36,17 @@ interface RequestOptions {
 }
 
 /**
+ * 待处理的消息
+ */
+interface PendingMessage {
+    type: 'request' | 'send';
+    data: RpcRequest | RpcSend;
+    resolve?: (value: any) => void;
+    reject?: (error: any) => void;
+    timeout?: NodeJS.Timeout;
+}
+
+/**
  * 双向 RPC 类
  * TModules 为注册模块接口集合
  *
@@ -85,6 +96,11 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private process: NodeJS.Process | ChildProcess | undefined;
     private onMessageBind = this.onMessage.bind(this);
 
+    // 新增：待处理消息队列
+    private pendingMessages: PendingMessage[] = [];
+    // 新增：连接状态监听器
+    private connectionListeners: Array<() => void> = [];
+
     /**
      * @param proc - NodeJS.Process 或 ChildProcess 实例
      */
@@ -92,6 +108,11 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         this.resetListen();
         this.process = proc;
         this.listen();
+
+        // 监听连接事件
+        if ('connected' in proc) {
+            this.setupConnectionListeners(proc);
+        }
     }
 
     /**
@@ -109,8 +130,91 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private resetListen() {
         this.msgId = 0;
         this.callbacks.clear();
+        this.pendingMessages = [];
+        this.connectionListeners = [];
         this.process?.off('message', this.onMessageBind);
         this.process = undefined;
+    }
+
+    /**
+     * 设置连接状态监听
+     * @private
+     */
+    private setupConnectionListeners(proc: NodeJS.Process | ChildProcess) {
+        if ('connected' in proc) {
+            // 监听连接事件
+            const onConnect = () => {
+                this.flushPendingMessages();
+                this.notifyConnectionListeners();
+            };
+
+            // 如果已经连接，立即处理待处理消息
+            if (proc.connected) {
+                onConnect();
+            } else {
+                // 监听连接事件
+                proc.once('connect', onConnect);
+                this.connectionListeners.push(() => proc.off('connect', onConnect));
+            }
+
+            // 监听断开连接事件
+            const onDisconnect = () => {
+                // 清除所有等待中的请求
+                this.pendingMessages.forEach(msg => {
+                    if (msg.timeout) clearTimeout(msg.timeout);
+                    msg.reject?.(new Error('Process disconnected'));
+                });
+                this.pendingMessages = [];
+            };
+
+            proc.once('disconnect', onDisconnect);
+            this.connectionListeners.push(() => proc.off('disconnect', onDisconnect));
+        }
+    }
+
+    /**
+     * 通知连接监听器进行清理
+     * @private
+     */
+    private notifyConnectionListeners() {
+        this.connectionListeners.forEach(cleanup => cleanup());
+        this.connectionListeners = [];
+    }
+
+    /**
+     * 发送所有待处理的消息
+     * @private
+     */
+    private flushPendingMessages() {
+        if (!this.process || !this.isConnected()) {
+            return;
+        }
+
+        const messages = this.pendingMessages;
+        this.pendingMessages = [];
+
+        for (const msg of messages) {
+            if (msg.type === 'request') {
+                // 重新发送请求
+                this.process.send?.(msg.data);
+            } else if (msg.type === 'send') {
+                // 重新发送单向消息
+                this.process.send?.(msg.data);
+            }
+        }
+    }
+
+    /**
+     * 检查进程是否已连接
+     * @private
+     */
+    private isConnected(): boolean {
+        if (!this.process) return false;
+        if ('connected' in this.process) {
+            return this.process.connected;
+        }
+        // 对于 NodeJS.Process，默认认为是连接的
+        return true;
     }
 
     /**
@@ -157,7 +261,11 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             const { module, method, args } = msg;
             const target = this.handlers[module];
             if (target && typeof target[method] === 'function') {
-                target[method](...(args || []));
+                try {
+                    target[method](...(args || []));
+                } catch (e: any) {
+                    console.error(e);
+                }
             }
         }
     }
@@ -171,7 +279,9 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         if (!this.process) {
             throw new Error('未挂载进程');
         }
-        this.process.send?.(msg);
+        if (this.isConnected()) {
+            this.process.send?.(msg);
+        }
     }
 
     /**
@@ -202,6 +312,12 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             const timer = options?.timeout
                 ? setTimeout(() => {
                     this.callbacks.delete(id);
+                    const pendingIndex = this.pendingMessages.findIndex(
+                        msg => msg.type === 'request' && (msg.data as RpcRequest).id === id
+                    );
+                    if (pendingIndex !== -1) {
+                        this.pendingMessages.splice(pendingIndex, 1);
+                    }
                     reject(new Error(`RPC request timeout: ${String(module)}.${String(method)}`));
                 }, options.timeout)
                 : null;
@@ -213,8 +329,24 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             });
 
             if (!this.process) {
-                throw new Error('未挂载进程');
+                reject(new Error('未挂载进程'));
+                return;
             }
+
+            if (!this.isConnected()) {
+                // 进程未连接，将请求加入待处理队列
+                const pendingMsg: PendingMessage = {
+                    type: 'request',
+                    data: req,
+                    resolve,
+                    reject,
+                    timeout: timer || undefined,
+                };
+                this.pendingMessages.push(pendingMsg);
+                return;
+            }
+
+            // 进程已连接，直接发送
             this.process.send?.(req);
         });
     }
@@ -230,12 +362,43 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         if (!this.process) {
             throw new Error('未挂载进程');
         }
+
         const msg: RpcSend = {
             type: 'send',
             module: module as string,
             method: method as string,
             args: args || [],
         };
+
+        if (!this.isConnected()) {
+            // 进程未连接，将消息加入待处理队列
+            const pendingMsg: PendingMessage = {
+                type: 'send',
+                data: msg,
+            };
+            this.pendingMessages.push(pendingMsg);
+            return;
+        }
+
+        // 进程已连接，直接发送
         this.process.send?.(msg);
+    }
+
+    /**
+     * 获取待处理消息数量（用于调试）
+     */
+    getPendingMessageCount(): number {
+        return this.pendingMessages.length;
+    }
+
+    /**
+     * 清空待处理消息（用于清理）
+     */
+    clearPendingMessages() {
+        this.pendingMessages.forEach(msg => {
+            if (msg.timeout) clearTimeout(msg.timeout);
+            msg.reject?.(new Error('Pending messages cleared'));
+        });
+        this.pendingMessages = [];
     }
 }

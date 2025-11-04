@@ -1116,7 +1116,7 @@ class NodeOperation {
     }
     protected async waitForSceneLoaded() {
         return new Promise<boolean>((r, _) => {
-            ServiceEvents.once<IEditorEvents>('editor:reload', () => {
+            Service.Editor.reload({}).then(() => {
                 r(true);
             });
         });
@@ -1514,9 +1514,9 @@ class NodeOperation {
      * 从一个节点生成一个 PrefabAsset
      * @param nodeUUID
      * @param url
-     * @param undo
+     * @param options
      */
-    public async createPrefabAssetFromNode(nodeUUID: string, url: string, undo = true) {
+    public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { undo: true, overwrite: true }) {
         const node = nodeMgr.getNode(nodeUUID);
         if (!node) {
             return null;
@@ -1549,16 +1549,18 @@ class NodeOperation {
             this.assetToNodesMap.delete(prefabInfo.asset._uuid);
         }
 
-        // 不传 overwrite 参数，显示询问框
         const asset = await Rpc.getInstance().request('assetManager', 'createAsset', [{
             target: url,
             content: ret.prefabData,
+            overwrite: options.overwrite,
+            rename: !options.overwrite,
         }]);
+        let assetRootNode: Node | null = null;
         if (asset) {
             let undoID;
             let command;
             const parent = node.parent;
-            if (undo && parent) {
+            if (options.undo && parent) {
                 // command = new CreatePrefabCommand();
                 // undoID = cce.SceneFacadeManager.beginRecording(nodeUUID, { customCommand: command });
                 // command.undoData = new Map();
@@ -1566,7 +1568,7 @@ class NodeOperation {
                 // command.undoData.set(nodeUUID, cce.Dump.encode.encodeNode(node));
             }
 
-            const assetRootNode = await this.replaceNewPrefabAssetWithClearedReference(node, asset.uuid, ret.clearedReference);
+            assetRootNode = await this.replaceNewPrefabAssetWithClearedReference(node, asset.uuid, ret.clearedReference);
 
             if (undoID && command && parent) {
                 // command.redoData = new Map();
@@ -1575,8 +1577,8 @@ class NodeOperation {
                 // cce.SceneFacadeManager.endRecording(undoID);
             }
         }
-        // await this.linkNodeWithPrefabAsset(node, asset?.uuid);
-        return asset?.uuid;
+
+        return assetRootNode;
     }
 
     /**
@@ -2066,7 +2068,7 @@ class NodeOperation {
         prefabUtils.fireChangeMsg(node);
 
         // 因为现在恢复的是私有变量，没有触发 setter，所以暂时只能 softReload 来保证效果正确
-        // await cce.SceneFacadeManager.softReloadScene();
+        await Service.Editor.reload({});
 
         return true;
     }

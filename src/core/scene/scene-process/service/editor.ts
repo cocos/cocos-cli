@@ -5,8 +5,8 @@ import {
     ICreateOptions,
     IEditorEvents,
     IEditorService,
+    INode,
     IOpenOptions,
-    IPrefab,
     IReloadOptions,
     ISaveOptions,
     IScene,
@@ -53,7 +53,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
     }
 
-    async queryCurrent(): Promise<IScene | IPrefab | null> {
+    async queryCurrent(): Promise<IScene | INode | null> {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         return editor ? await editor.encode() : null;
     }
@@ -63,7 +63,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? editor.getRootNode() : null;
     }
 
-    async open(params: IOpenOptions): Promise<IScene | IPrefab> {
+    async open(params: IOpenOptions): Promise<IScene | INode> {
         const { urlOrUUID } = params;
 
         const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
@@ -156,7 +156,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
     }
 
-    async reload(params: IReloadOptions): Promise<IScene | IPrefab> {
+    async reload(params: IReloadOptions): Promise<IScene | INode> {
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
             if (!urlOrUUID) {
@@ -185,7 +185,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
     }
 
-    async create(params: ICreateOptions): Promise<IScene | IPrefab> {
+    async create(params: ICreateOptions): Promise<IScene | INode> {
         const editor = this.createEditor(params.type);
         if (!editor) {
             throw new Error('不支持该类型资源创建');

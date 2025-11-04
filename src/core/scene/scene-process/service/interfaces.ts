@@ -11,6 +11,8 @@ import {
     IAssetService,
     IEngineService,
     IPublicEngineService,
+    IPublicPrefabService,
+    IPrefabService,
 } from '../../common';
 
 /**
@@ -23,7 +25,7 @@ export interface IPublicServiceManager {
     Script: IPublicScriptService,
     Asset: IPublicAssetService,
     Engine: IPublicEngineService,
-    // Prefab: IPublicPrefabService,
+    Prefab: IPublicPrefabService,
 }
 
 export interface IServiceManager {
@@ -33,5 +35,5 @@ export interface IServiceManager {
     Script: IScriptService,
     Asset: IAssetService,
     Engine: IEngineService,
-    // Prefab: IPrefabService,
+    Prefab: IPrefabService,
 }

@@ -1,73 +1,9 @@
-import type { INode, IPrefab, IBaseIdentifier } from '../../../common';
-import type { IAssetInfo } from '../../../../assets/@types/public';
-import { Rpc } from '../../rpc';
-import { sceneUtils } from '../scene/utils';
-import { Component, Node, Scene, SceneAsset } from 'cc';
+import { Node, Scene, SceneAsset } from 'cc';
 import { prefabUtils } from './utils';
 
 type UUIDMap = Map<string, string | UUIDMap>;
 
 class EditorPrefabUtils {
-    /**
-     * 获取预制体标识信息
-     * @param source
-     * @private
-     */
-    async getIdentifier(source?: string | IAssetInfo): Promise<IBaseIdentifier> {
-        const identifier: IBaseIdentifier = {
-            assetType: 'unknown',
-            assetName: 'unknown',
-            assetUuid: 'unknown',
-            assetUrl: 'unknown',
-        };
-
-        if (!source) return identifier;
-
-        const isString = typeof source === 'string';
-        const assetInfo: IAssetInfo | null = isString ? await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [source]) : source;
-        if (!assetInfo) {
-            console.error(`无法获取到预制体资源 ${source}`);
-            return identifier;
-        }
-        return {
-            assetType: assetInfo.type,
-            assetName: assetInfo.name,
-            assetUuid: assetInfo.uuid,
-            assetUrl: assetInfo.url,
-        };
-    }
-
-    /**
-     * 生成 prefab 信息
-     */
-    generatePrefabInfo(identifier: IBaseIdentifier, instance: Node): IPrefab {
-        return {
-            ...identifier,
-            name: instance.name,
-            children: instance.children
-                .map((node: Node) => {
-                    return sceneUtils.generateNodeInfo(node, true);
-                })
-                .filter(child => child !== null) as INode[],
-            components: instance.components
-                .map((component: Component) => {
-                    return sceneUtils.generateComponentInfo(component);
-                })
-        };
-    }
-
-    /**
-     * 生成场景信息
-     * @param identifier
-     * @param instance 具体的实力
-     */
-    async generatePrefab(identifier: IBaseIdentifier | string, instance: Node): Promise<IPrefab> {
-        if (typeof identifier === 'string') {
-            identifier = await this.getIdentifier(identifier);
-        }
-        return this.generatePrefabInfo(identifier, instance);
-    }
-
     serialize(node: Node) {
         // 校验数据
         prefabUtils.checkMountedRootData(node, true);

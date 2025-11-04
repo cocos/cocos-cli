@@ -1,26 +1,11 @@
 import cc from 'cc';
-import { Rpc } from '../../rpc';
-import { IComponentIdentifier, INode, IScene } from '../../../common';
+import { IComponentIdentifier, INode, } from '../../../common';
 import compMgr from '../component/index';
-import type { IAssetInfo } from '../../../../assets/@types/public';
+import { encode } from '../prefab/class-serializer';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
     static readonly Timeout = 60 * 1000;
-
-    /**
-     * 根据路径、UUID、URL 查询是什么类型的资源
-     * @param urlOrUUIDOrPath
-     */
-    async queryAssetType(urlOrUUIDOrPath: string): Promise<'cc.SceneAsset' | 'cc.Prefab' | 'unknown'> {
-        const assetInfo: IAssetInfo | null = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUIDOrPath]);
-        switch (assetInfo?.type) {
-            case 'cc.SceneAsset':
-            case 'cc.Prefab':
-                return assetInfo?.type;
-        }
-        return 'unknown';
-    }
 
     /**
      * 立即运行场景，清除节点与组件缓存
@@ -80,6 +65,7 @@ class SceneUtil {
             nodeId: node.uuid,
             path: EditorExtends.Node.getNodePath(node),
             name: node.name,
+            prefab: encode.serializeInstance(node['_prefab']),
             properties: {
                 active: node.active,
                 position: node.position,

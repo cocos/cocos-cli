@@ -1,5 +1,5 @@
-import { Scene, Component, Node, Prefab, instantiate, find } from 'cc';
-import { ICreateOptions, IEditorTarget, type INode, IPrefab } from '../../../common';
+import { find, instantiate, Node, Prefab, Scene } from 'cc';
+import { ICreateOptions, IEditorTarget, INode } from '../../../common';
 import { Rpc } from '../../rpc';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
@@ -15,27 +15,15 @@ export class PrefabEditor extends BaseEditor {
 
     private virtualScene: Scene | null = null;
 
-    async encode(entity?: IEditorTarget | null): Promise<IPrefab> {
+    async encode(entity?: IEditorTarget | null): Promise<INode> {
         entity = entity ?? this.entity;
         if (!entity) {
             throw new Error('encode 失败，没有打开预制体');
         }
-        return {
-            ...entity.identifier,
-            name: entity.instance.name,
-            children: entity.instance.children
-                .map((node: Node) => {
-                    return sceneUtils.generateNodeInfo(node, true);
-                })
-                .filter(child => child !== null) as INode[],
-            components: entity.instance.components
-                .map((component: Component) => {
-                    return sceneUtils.generateComponentInfo(component);
-                })
-        };
+        return sceneUtils.generateNodeInfo(entity.instance, true);
     }
 
-    async open(asset: IAssetInfo): Promise<IPrefab> {
+    async open(asset: IAssetInfo): Promise<INode> {
         // 获取预制体标识符
         const identifier = this.getIdentifier(asset);
         // 加载预制体资源
@@ -75,7 +63,7 @@ export class PrefabEditor extends BaseEditor {
         return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
     }
 
-    async reload(): Promise<IPrefab> {
+    async reload(): Promise<INode> {
         if (!this.entity || !this.virtualScene) {
             throw new Error('没有打开预制体');
         }
@@ -93,7 +81,7 @@ export class PrefabEditor extends BaseEditor {
         return this.encode();
     }
 
-    async create(params: ICreateOptions): Promise<IPrefab> {
+    async create(params: ICreateOptions): Promise<INode> {
         const { targetDirectory, baseName, hasOpen } = params;
         try {
             const assetInfo = await Rpc.getInstance().request('assetManager', 'createAssetByType', [

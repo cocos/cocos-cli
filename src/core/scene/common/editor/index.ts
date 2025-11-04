@@ -1,18 +1,17 @@
 import { IScene } from './scene';
-import { IPrefab } from './prefab';
 import type { Node, Scene } from 'cc';
+import type { INode } from '../node';
 import type { ICloseOptions, ICreateOptions, IOpenOptions, IReloadOptions, ISaveOptions } from './options';
 import { IAssetInfo } from '../../../assets/@types/public';
 import { IBaseIdentifier } from './base';
 import { IServiceEvents } from '../../scene-process/service/core';
 
-export type TEditorEntity = IScene | IPrefab;
+export type TEditorEntity = IScene | INode;
 export type TEditorInstance = Scene | Node;
 
 export * from './type';
 export * from './base';
 export * from './options';
-export * from './prefab';
 export * from './scene';
 
 /**

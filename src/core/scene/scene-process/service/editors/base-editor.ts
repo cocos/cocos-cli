@@ -4,7 +4,7 @@ import type { IAssetInfo } from '../../../../assets/@types/public';
 /**
  * 编辑器基类
  * 提供通用的编辑器功能和状态管理
- * @template TEditorAsset 编辑器处理的资产类型，如 IScene、IPrefab 等
+ * @template TEditorAsset 编辑器处理的资产类型，如 IScene、INode 等
  * @template TEvents 事件类型
  */
 export abstract class BaseEditor {
