@@ -6,6 +6,7 @@ import { getCurrentLocalTime } from './assets/utils';
 import { startServer } from '../server';
 import { GlobalPaths } from '../global';
 import scripting from './scripting';
+import { startupScene } from './scene';
 
 
 /**
@@ -72,8 +73,7 @@ export default class Launcher {
         await this.import();
         await startServer(port);
         // 启动场景进程
-        const { sceneWorker } = await import('./scene/main-process/scene-worker');
-        await sceneWorker.start(GlobalPaths.enginePath, this.projectPath);
+        await startupScene(GlobalPaths.enginePath, this.projectPath);
         // 初始化构建
         const { init: initBuilder } = await import('./builder');
         await initBuilder();

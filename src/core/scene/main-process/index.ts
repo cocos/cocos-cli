@@ -9,10 +9,12 @@ import { PrefabProxy } from './proxy/prefab-proxy';
 
 import { assetManager } from '../../assets';
 import scriptManager from '../../scripting';
+import { sceneConfigInstance } from '../scene-configs';
 
 export interface IMainModule {
     'assetManager': typeof assetManager;
     'programming': typeof scriptManager;
+    'sceneConfigInstance': typeof sceneConfigInstance;
 }
 
 export const Scene = {

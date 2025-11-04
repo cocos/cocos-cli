@@ -2,6 +2,7 @@ import { ProcessRPC } from '../process-rpc';
 import { ChildProcess } from 'child_process';
 import { assetManager } from '../../assets';
 import scriptManager from '../../scripting';
+import { sceneConfigInstance } from '../scene-configs';
 
 import type { IPublicServiceManager } from '../scene-process';
 
@@ -23,6 +24,7 @@ export class RpcProxy {
         this.rpcInstance.register({
             assetManager: assetManager,
             programming: scriptManager,
+            sceneConfigInstance: sceneConfigInstance,
         });
         console.log('[Node] Scene Process RPC ready');
     }

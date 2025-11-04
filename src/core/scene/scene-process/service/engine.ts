@@ -5,6 +5,7 @@ import { director, GeometryRenderer as CCGeometryRenderer } from 'cc';
 import { GeometryRenderer, methods as GeometryMethods } from './engine/geometry_renderer';
 import { BaseService, register } from './core';
 import { IEngineEvents, IEngineService } from '../../common';
+import { Rpc } from '../rpc';
 
 const tickTime = 1000 / 60;
 
@@ -30,7 +31,8 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         cc.game.pause(); // 暂停引擎的 mainLoop
         this.geometryRenderer = new GeometryRenderer() as GeometryRenderer & Pick<CCGeometryRenderer, typeof GeometryMethods[number]>;
         this.startTick();
-        // this._sceneTick = await Editor.Profile.getConfig('scene', 'scene.tick');
+        this._sceneTick = await Rpc.getInstance().request('sceneConfigInstance', 'get', ['tick']) as boolean;
+        console.log('sceneTick: ' + this._sceneTick);
     }
 
     public setTimeout(callback: any, time: number) {

@@ -37,7 +37,7 @@ export const SchemaMountedComponentsInfo = z.object({
 
 export const SchemaPrefabInstance = z.object({
     fileId: z.string(),
-    prefabRootNode: SchemaNode.optional(),
+    prefabRootNode: z.lazy(() => SchemaNode).optional(),
     mountedChildren: z.array(SchemaMountedChildrenInfo).default([]),
     mountedComponents: z.array(SchemaMountedComponentsInfo).default([]),
     propertyOverrides: z.array(SchemaPropertyOverrideInfo).default([]),
@@ -53,12 +53,12 @@ export const SchemaTargetOverrideInfo = z.object({
     source: z.union([SchemaComponent, SchemaNode, z.null()]),
     sourceInfo: SchemaTargetInfo.nullable(),
     propertyPath: z.array(z.string()),
-    target: SchemaNode.nullable(),
+    target: z.lazy(() => SchemaNode).nullable(),
     targetInfo: SchemaTargetInfo.nullable(),
 }).describe('目标重写信息');
 
 export const SchemaPrefab = z.object({
-    data: SchemaNode.describe('预制体中的根节点'),
+    data: z.lazy(() => SchemaNode).describe('预制体中的根节点'),
     optimizationPolicy: SchemaOptimizationPolicy,
     persistent: z.boolean(),
 }).describe('预制体');
@@ -66,7 +66,7 @@ export const SchemaPrefab = z.object({
 export const SchemaPrefabInfo = z.object({
     /** 关联的预制体资源信息 */
     asset: SchemaPrefab.optional(),
-    root: SchemaNode.optional(),
+    root: z.lazy(() => SchemaNode).optional(),
     instance: SchemaPrefabInstance.optional(),
     fileId: z.string(),
     targetOverrides: z.array(SchemaTargetOverrideInfo).optional().default([]),
