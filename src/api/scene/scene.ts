@@ -21,14 +21,17 @@ import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType, ICreateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
+import { PrefabApi } from './prefab';
 
 export class SceneApi {
     public component: ComponentApi;
     public node: NodeApi;
+    public prefab: PrefabApi;
 
     constructor() {
         this.component = new ComponentApi();
         this.node = new NodeApi();
+        this.prefab = new PrefabApi();
     }
 
     @tool('scene-query-current')

@@ -67,6 +67,6 @@ export interface IPrefabInfo {
     root?: INode;
     instance?: IPrefabInstance;
     fileId: string;
-    targetOverrides?: ITargetOverrideInfo[];
-    nestedPrefabInstanceRoots?: INode[];
+    targetOverrides: ITargetOverrideInfo[];
+    nestedPrefabInstanceRoots: INode[];
 }

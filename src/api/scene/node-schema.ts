@@ -106,3 +106,4 @@ export type TQueryNodeOptions = z.infer<typeof NodeQuerySchema>;
 export type TNodeDetail = z.infer<typeof NodeQueryResultSchema>;
 export type TNodeUpdateResult = z.infer<typeof NodeUpdateResultSchema>;
 export type TNodeDeleteResult = z.infer<typeof NodeDeleteResultSchema>;
+export type TNode = z.infer<typeof SchemaNode>;
