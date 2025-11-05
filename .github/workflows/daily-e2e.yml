@@ -82,6 +82,7 @@ jobs:
         run: node .github/scripts/send-to-feishu.js
         env:
           FEISHU_WEBHOOK_URL: ${{ steps.setup-config.outputs.FEISHU_WEBHOOK_URL }}
+          E2E_TEST_OUTCOME: ${{ steps.e2e-tests.outcome }}
           REPORT_EXISTS: ${{ steps.e2e-tests.outputs.report_exists }}
           REPORT_URL: ${{ steps.e2e-tests.outputs.report_url }}
           REPORT_FILENAME: ${{ steps.e2e-tests.outputs.report_filename }}

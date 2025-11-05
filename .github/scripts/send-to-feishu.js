@@ -116,6 +116,7 @@ async function main() {
 
     // 收集数据
     const data = {
+        e2eTestOutcome: process.env.E2E_TEST_OUTCOME || '',
         reportExists: process.env.REPORT_EXISTS === 'true',
         reportUrl: process.env.REPORT_URL || '',
         reportFilename: process.env.REPORT_FILENAME || '',
