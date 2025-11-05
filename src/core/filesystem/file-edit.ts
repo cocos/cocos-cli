@@ -2,6 +2,8 @@ import fs from 'fs';
 import { EOL } from 'os';
 import readline from 'readline';
 import { replaceInFile } from 'replace-in-file';
+import path from 'path';
+import { resolveToRaw, contains } from '../base/utils/path';
 
 function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     let succeeded = true;
@@ -15,11 +17,28 @@ function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     return succeeded;
 }
 
-export async function insertTextAtLine(filename: string, lineNumber: number, textToInsert: string): Promise<boolean> {
+function getScriptFilename(filename: string): string {
+    const projectDir = resolveToRaw('project://assets');
+    const rawPath = resolveToRaw('project://' + filename);
+    // Check if the rawPath is within the projectDir/assets
+    if (!contains(projectDir, rawPath)) {
+        throw new Error('Unsafe file path detected.');
+    }
+    const ext = path.extname(rawPath);
+    if (ext !== '.js' && ext !== '.ts' && ext !== '.jsx' && ext !== '.tsx' && ext !== '.json') {
+        throw new Error('Unsupported file type. Only .js, .ts, .jsx, .tsx, and .json files are allowed.');
+    }
+    return rawPath;
+}
+
+export async function insertTextAtLine(
+    scriptPath: string, lineNumber: number, textToInsert: string): Promise<boolean> {
     if (textToInsert.length === 0) {
         console.warn('No text to insert.');
         return false;
     }
+
+    const filename = getScriptFilename(scriptPath);
     const fileStream = fs.createReadStream(filename);
 
     const rl = readline.createInterface({
@@ -85,12 +104,14 @@ export async function insertTextAtLine(filename: string, lineNumber: number, tex
 }
 
 // End line is inclusive
-export async function eraseLinesInRange(filename: string, startLine: number, endLine: number): Promise<boolean> {
+export async function eraseLinesInRange(scriptPath: string, startLine: number, endLine: number): Promise<boolean> {
     // End line must be greater than or equal to start line
     if (startLine > endLine) {
         console.warn('Invalid line range.');
         return false;
     }
+
+    const filename = getScriptFilename(scriptPath);
     const fileStream = fs.createReadStream(filename);
     const rl = readline.createInterface({
         input: fileStream,
@@ -139,7 +160,8 @@ export async function eraseLinesInRange(filename: string, startLine: number, end
 }
 
 export async function replaceTextInFile(
-    filename: string, targetText: string, replacementText: string): Promise<boolean> {
+    scriptPath: string, targetText: string, replacementText: string): Promise<boolean> {
+    const filename = getScriptFilename(scriptPath);
     try {
         const results = await replaceInFile({
             files: filename,
@@ -154,7 +176,8 @@ export async function replaceTextInFile(
 }
 
 export async function replaceTextWithRegexInFile(
-    filename: string, targetRegex: string, replacementText: string): Promise<boolean> {
+    scriptPath: string, targetRegex: string, replacementText: string): Promise<boolean> {
+    const filename = getScriptFilename(scriptPath);
     try {
         const results = await replaceInFile({
             files: filename,
