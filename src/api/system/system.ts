@@ -9,8 +9,15 @@ import {
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { newConsole } from '../../core/base/console';
+import { FileEditorApi } from './file-editor';
 
 export class SystemApi {
+    public fileEditor: FileEditorApi;
+    
+    constructor() {
+        this.fileEditor = new FileEditorApi();
+    }
+
     /**
      * 查询 cli 日志信息
      */
