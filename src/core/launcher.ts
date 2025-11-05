@@ -62,6 +62,8 @@ export default class Launcher {
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
         await startupAssetDB();
+        //场景进程: open project 会调用 startup； build 流程也依赖脚本编译
+        await scripting.compileScripts();
     }
 
     /**
