@@ -2,7 +2,7 @@
 import {
     SchemaQueryLogParamInfo,
     SchemaQueryLogResult,
-    TQueryLogParamnfo,
+    TQueryLogParamInfo,
     TQueryLogResult
 } from './system-schema';
 
@@ -18,7 +18,7 @@ export class SystemApi {
     @title('查询 cli 日志')
     @description('返回执行 cli 后产生的日志信息。第一个参数是指返回最后前 n 行的日志信息，loglevel需要查询的日志级别，例如Error，Warning，Info，Debug等')
     @result(SchemaQueryLogResult)
-    async queryLogs(@param(SchemaQueryLogParamInfo) queryParam: TQueryLogParamnfo): Promise<CommonResultType<TQueryLogResult>> {
+    async queryLogs(@param(SchemaQueryLogParamInfo) queryParam: TQueryLogParamInfo): Promise<CommonResultType<TQueryLogResult>> {
         try {
             const logs = newConsole.queryLogs(queryParam.number, queryParam.logLevel);
             return {

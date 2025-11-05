@@ -89,6 +89,7 @@ function generateGitHubMarkdown(data) {
  */
 function generateFeishuCard(data) {
     const {
+        e2eTestOutcome,
         reportExists,
         reportUrl,
         coverageReportUrl,
@@ -101,8 +102,8 @@ function generateFeishuCard(data) {
         commit,
     } = data;
 
-    // 判断测试状态和颜色
-    const testPassed = reportExists;
+    // 判断测试状态和颜色（优先使用 outcome，如果没有则回退到 reportExists）
+    const testPassed = e2eTestOutcome === 'success' || (e2eTestOutcome === '' && reportExists);
     const cardColor = testPassed ? 'green' : 'red';
     const statusIcon = testPassed ? '✅' : '❌';
     const statusText = testPassed ? '测试通过' : '测试失败';

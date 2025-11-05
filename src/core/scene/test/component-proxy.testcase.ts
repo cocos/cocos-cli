@@ -432,9 +432,9 @@ describe('Component Proxy 测试', () => {
 
     describe('5. 创建内置的组件', () => {
         let buildinComponentTypes: string[] = [];
-        let createdComponents: IComponentIdentifier[] = [];
-        let exceptionalComponentTypes: string[] = [];
-        let actuallyExcludedTypes: string[] = [];
+        const createdComponents: IComponentIdentifier[] = [];
+        const exceptionalComponentTypes: string[] = [];
+        const actuallyExcludedTypes: string[] = [];
 
         beforeAll(async () => {
             const params: IQueryNodeParams = {
@@ -602,7 +602,7 @@ describe('Component Proxy 测试', () => {
                 component = await ComponentProxy.addComponent(componentInfo);
             } catch (e) {
                 // 添加接受相同组件添加的错误
-                expect(e instanceof Error ? e.message : String(e)).toBe(`Can\'t add component '${testComponent}' because ${nodeName} already contains the same component.`);
+                expect(e instanceof Error ? e.message : String(e)).toBe(`Can't add component '${testComponent}' because ${nodeName} already contains the same component.`);
                 expect(component.path).toBe(`${nodePath}/${testComponent}_1`);
             }
             const result = await ComponentProxy.removeComponent({ path: component.path });

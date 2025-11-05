@@ -1,5 +1,5 @@
 
-import { number, z } from 'zod';
+import { z } from 'zod';
 import { IConsoleType } from '../../core/base/console';
 
 const consoleTypeValues: IConsoleType[] = [
@@ -16,5 +16,5 @@ export const SchemaQueryLogParamInfo = z.object({
 export const SchemaQueryLogResult = z.array(z.string()).describe('日志信息');
 
 // 类型导出
-export type TQueryLogParamnfo = z.infer<typeof SchemaQueryLogParamInfo>;
+export type TQueryLogParamInfo = z.infer<typeof SchemaQueryLogParamInfo>;
 export type TQueryLogResult = z.infer<typeof SchemaQueryLogResult>;
