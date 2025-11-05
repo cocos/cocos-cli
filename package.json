@@ -31,7 +31,7 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:e2e": "node e2e/scripts/prepare-test.js",
-        "test:e2e:debug": "node e2e/scripts/prepare-test.js --preserve",
+        "test:e2e:debug": "node e2e/scripts/prepare-test.js --preserve --verbose --no-cache",
         "test:all": "npm run test && npm run test:e2e",
         "check:e2e-coverage": "tsx e2e/scripts/check-coverage.ts",
         "check:e2e-coverage:report": "tsx e2e/scripts/check-coverage.ts --save",
