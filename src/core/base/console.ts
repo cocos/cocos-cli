@@ -31,7 +31,7 @@ export class NewConsole {
     private consola: ConsolaInstance;
     private pino: pino.Logger = pino({
         level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
-            ? 'debug' : 'info', // Set log level
+            ? 'debug' : 'trace', // 暂时全部记录
     });
     private cacheLogs = true;
     private isVerbose: boolean = false;
@@ -111,14 +111,14 @@ export class NewConsole {
         // Reset pino using new log destination
         this.pino = pino({
             level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
-                ? 'debug' : 'info', // Set log level
+                ? 'debug' : 'trace', // 暂时全部记录
             transport: {
                 targets: [
                     {
                         target: 'pino-transport-rotating-file',
                         options: {
                             dir: this.logDest,
-                            filename: 'app',
+                            filename: 'cocos',
                             enabled: true,
                             size: '1M',
                             interval: '1d',
