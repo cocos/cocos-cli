@@ -39,10 +39,9 @@ export const SchemaCreateOptions = z.object({
     baseName: z.string().describe('资源名称'),
     templateType: z.enum(SCENE_TEMPLATE_TYPE).optional().describe('场景模板类型（可选，资源类型为场景才生效）'),
     dbURL: z.string().describe('目标目录用于存放资源文件，例如 db://assets'),
-    hasOpen: z.boolean().describe('是否打开')
 }).describe('创建场景/预制体参数');
 
-export const SchemaCreateResult = SchemaEntity.describe('创建场景/预制体操作的结果信息');
+export const SchemaCreateResult = SchemaIdentifier.describe('创建场景/预制体操作的结果信息');
 
 export type TAssetUrlOrUUID = z.infer<typeof SchemaAssetUrlOrUUID>;
 export type TCurrentEntryResult = z.infer<typeof SchemaCurrentEntryResult>;

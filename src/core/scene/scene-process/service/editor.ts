@@ -1,6 +1,7 @@
 import cc from 'cc';
 import { BaseService, register, Service } from './core';
 import {
+    IBaseIdentifier,
     ICloseOptions,
     ICreateOptions,
     IEditorEvents,
@@ -68,7 +69,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
         const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
         if (!assetInfo) {
-            throw new Error(`通过 ${urlOrUUID} 无法打开`);
+            throw new Error(`通过 ${urlOrUUID} 无法打开，查询不到该资源信息`);
         }
 
         const uuid = assetInfo.uuid;
@@ -94,9 +95,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     async close(params: ICloseOptions): Promise<boolean> {
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
-            if (!urlOrUUID) {
-                throw new Error('当前没有打开任何编辑器');
-            }
+            if (!urlOrUUID) return true;
 
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
             if (!assetInfo) {
@@ -105,9 +104,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
             const uuid = assetInfo.uuid;
             const editor = this.editorMap.get(uuid);
-            if (!editor) {
-                throw new Error(`当前没有打开任何编辑器`);
-            }
+            if (!editor) return true;
 
             const result = await editor.close();
 
@@ -185,7 +182,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
     }
 
-    async create(params: ICreateOptions): Promise<IScene | INode> {
+    async create(params: ICreateOptions): Promise<IBaseIdentifier> {
         const editor = this.createEditor(params.type);
         if (!editor) {
             throw new Error('不支持该类型资源创建');

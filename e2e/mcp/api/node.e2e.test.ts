@@ -23,7 +23,7 @@ describe('MCP Node API', () => {
 
         // 创建并打开 2D 场景（若已存在则忽略创建）
         try {
-            await mcpClient.callTool('scene-create-scene', {
+            await mcpClient.callTool('scene-create', {
                 options: {
                     dbURL: testFolderPath,
                     baseName: 'scene-2d',
@@ -34,7 +34,7 @@ describe('MCP Node API', () => {
             // 场景可能已存在，忽略
         }
 
-        await mcpClient.callTool('scene-open-scene', {
+        await mcpClient.callTool('scene-open', {
             dbURLOrUUID: testSceneUrl,
         });
     });

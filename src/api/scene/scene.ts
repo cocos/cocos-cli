@@ -115,18 +115,16 @@ export class SceneApi {
     }
 
     @tool('scene-create')
-    @title('创建场景/预制体')
-    @description('在项目中创建新的场景/预制体资源。')
+    @title('创建场景')
+    @description('在项目中创建新的场景资源')
     @result(SchemaCreateResult)
     async createScene(@param(SchemaCreateOptions) options: TCreateOptions): Promise<CommonResultType<TCreateResult>> {
         try {
-            const type: ICreateType = options.dbURL.endsWith('.scene') ? 'scene' : 'prefab';
             const data = await Scene.create({
-                type: type,
+                type: 'scene',
                 baseName: options.baseName,
                 targetDirectory: options.dbURL,
                 templateType: options.templateType as TSceneTemplateType,
-                hasOpen: options.hasOpen,
             });
             
             return {

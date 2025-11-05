@@ -73,7 +73,7 @@ export interface IEditorService extends IServiceEvents {
      * 创建新资产
      * @param params
      */
-    create(params: ICreateOptions): Promise<TEditorEntity>;
+    create(params: ICreateOptions): Promise<IBaseIdentifier>;
 
     /**
      * 获取当前打开的资产

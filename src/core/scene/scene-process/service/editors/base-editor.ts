@@ -1,4 +1,4 @@
-import type { ICreateOptions, IEditorTarget, TEditorEntity, TEditorInstance } from '../../../common';
+import type { IBaseIdentifier, ICreateOptions, IEditorTarget, TEditorEntity, TEditorInstance } from '../../../common';
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
 /**
@@ -36,5 +36,5 @@ export abstract class BaseEditor {
     abstract close(): Promise<boolean>;
     abstract save(): Promise<IAssetInfo>;
     abstract reload(): Promise<TEditorEntity>;
-    abstract create(params: ICreateOptions): Promise<TEditorEntity>;
+    abstract create(params: ICreateOptions): Promise<IBaseIdentifier>;
 }

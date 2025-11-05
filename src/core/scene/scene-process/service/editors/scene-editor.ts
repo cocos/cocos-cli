@@ -1,5 +1,5 @@
 import { Scene, SceneAsset, Component, Node } from 'cc';
-import { ICreateOptions, IEditorTarget, INode, IScene } from '../../../common';
+import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode, IScene } from '../../../common';
 import { Rpc } from '../../rpc';
 import { sceneUtils } from '../scene/utils';
 import { BaseEditor } from './base-editor';
@@ -80,8 +80,8 @@ export class SceneEditor extends BaseEditor {
         return this.encode();
     }
 
-    async create(params: ICreateOptions): Promise<IScene> {
-        const { baseName, targetDirectory, templateType = '2d', hasOpen } = params;
+    async create(params: ICreateOptions): Promise<IBaseIdentifier> {
+        const { baseName, targetDirectory, templateType = '2d' } = params;
 
         try {
             // 创建场景资源
@@ -96,11 +96,7 @@ export class SceneEditor extends BaseEditor {
                 throw new Error('创建场景资源失败');
             }
 
-            if (hasOpen) {
-                return await this.open(assetInfo);
-            } else {
-                return this.getIdentifier(assetInfo) as IScene;
-            }
+            return this.getIdentifier(assetInfo) as IBaseIdentifier;
         } catch (error) {
             console.error('创建场景失败:', error);
             throw error;

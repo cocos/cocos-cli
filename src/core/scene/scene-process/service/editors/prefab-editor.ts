@@ -1,5 +1,5 @@
 import { find, instantiate, Node, Prefab, Scene } from 'cc';
-import { ICreateOptions, IEditorTarget, INode } from '../../../common';
+import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode } from '../../../common';
 import { Rpc } from '../../rpc';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
@@ -81,8 +81,8 @@ export class PrefabEditor extends BaseEditor {
         return this.encode();
     }
 
-    async create(params: ICreateOptions): Promise<INode> {
-        const { targetDirectory, baseName, hasOpen } = params;
+    async create(params: ICreateOptions): Promise<IBaseIdentifier> {
+        const { targetDirectory, baseName } = params;
         try {
             const assetInfo = await Rpc.getInstance().request('assetManager', 'createAssetByType', [
                 'prefab',
@@ -93,15 +93,7 @@ export class PrefabEditor extends BaseEditor {
                 throw new Error('创建预制体资源失败');
             }
 
-            if (hasOpen) {
-                return await this.open(assetInfo);
-            } else {
-                const prefabAsset = await sceneUtils.loadAny<Prefab>(assetInfo.uuid);
-                return this.encode({
-                    identifier: this.getIdentifier(assetInfo),
-                    instance: instantiate(prefabAsset),
-                });
-            }
+            return this.getIdentifier(assetInfo);
         } catch (error) {
             console.error('创建预制体失败:', error);
             throw error;

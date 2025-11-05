@@ -8,7 +8,6 @@ export interface ICreateOptions {
     baseName: string;
     targetDirectory: string;
     templateType?: TSceneTemplateType;
-    hasOpen?: boolean; // 是否打开
 }
 
 /**

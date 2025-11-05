@@ -24,7 +24,7 @@ describe('MCP Component API', () => {
 
         // 创建并打开 2D 场景（若已存在则忽略创建）
         try {
-            await mcpClient.callTool('scene-create-scene', {
+            await mcpClient.callTool('scene-create', {
                 options: {
                     dbURL: testFolderPath,
                     baseName: 'scene-2d',
@@ -36,7 +36,7 @@ describe('MCP Component API', () => {
             console.warn('Scene creation failed (ignored if exists):', error);
         }
 
-        await mcpClient.callTool('scene-open-scene', {
+        await mcpClient.callTool('scene-open', {
             dbURLOrUUID: testSceneUrl,
         });
     });
