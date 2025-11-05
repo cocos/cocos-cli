@@ -29,8 +29,6 @@ import { url2path } from '../../assets/utils';
 import { compressUuid } from '../../builder/worker/builder/utils';
 import { TypeScriptConfigBuilder } from '../intelligence';
 import { eventEmitter } from '../event-emitter';
-import { TypeScriptAssetInfoCache } from '../shared/cache';
-import { IAsset } from '../../assets/@types/private';
 import { DBInfo } from '../@types/config-export';
 
 const VERSION = '20';
