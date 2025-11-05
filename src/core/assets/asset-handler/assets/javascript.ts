@@ -58,7 +58,13 @@ export const JavascriptHandler: AssetHandlerBase = {
     },
 
     async destroy(asset: Asset | VirtualAsset) {
-        scripting.dispatchAssetChange(AssetActionEnum.delete, asset);
+        scripting.dispatchAssetChange({
+            type: AssetActionEnum.delete,
+            uuid: asset.uuid,
+            filePath: asset.source,
+            importer: asset.meta.importer,
+            userData: asset.meta.userData,
+        });
     },
 };
 

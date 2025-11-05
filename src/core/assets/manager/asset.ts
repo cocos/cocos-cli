@@ -6,8 +6,6 @@ import { AssetManagerEvents, IAsset } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
-import scripting from '../../scripting';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -120,13 +118,6 @@ class AssetManager extends EventEmitter {
             await assetHandlerManager.destroyAsset(asset);
             this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
-            await scripting.compileScripts([{
-                type: AssetActionEnum.delete,
-                uuid: asset.uuid,
-                filePath: asset.source,
-                importer: asset.meta.importer,
-                userData: asset.meta.userData,
-            }]);
             return;
         }
     }

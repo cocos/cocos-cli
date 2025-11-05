@@ -103,6 +103,16 @@ class ScriptManager {
     }
 
     /**
+     * @param type 变更类型
+     * @param uuid 资源UUID
+     * @param assetInfo 资源信息
+     * @param meta 元数据
+     */
+    dispatchAssetChange(assetChange: AssetChangeInfo): void {
+        PackerDriver.getInstance().dispatchAssetChanges(assetChange);
+    }
+
+    /**
      * 调用方需要捕获异常，无异常则编译成功
      * 编译脚本文件
      * @param assetChanges 资源变更列表，如果未提供，则编译上一次缓存的资源变更列表

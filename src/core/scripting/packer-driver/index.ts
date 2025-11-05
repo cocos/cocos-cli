@@ -337,6 +337,10 @@ export class PackerDriver {
         }
     }
 
+    dispatchAssetChanges(assetChange: AssetChangeInfo) {
+        this._assetDbInterop.onAssetChange(assetChange);
+    }
+
     /**
      * 从 asset-db 获取所有数据并构建，包含 ts 和 js 脚本。
      * AssetChange format:
