@@ -151,7 +151,13 @@ class AssetManager extends EventEmitter {
             await assetHandlerManager.destroyAsset(asset);
             this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
-            scripting.dispatchAssetChange(AssetActionEnum.delete, asset);
+            scripting.compileScripts([{
+                type: AssetActionEnum.delete,
+                uuid: asset.uuid,
+                filePath: asset.source,
+                importer: asset.meta.importer,
+                userData: asset.meta.userData,
+            }]);
             return;
         }
     }

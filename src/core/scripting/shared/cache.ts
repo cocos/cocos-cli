@@ -19,4 +19,3 @@ export interface FileInfo {
 
 /** 与脚本解析相关的所有资源的缓存*/
 export const tsScriptAssetCache: Map<FilePath, TypeScriptAssetInfoCache> = new Map();
-export const blockAssetUUIDSet = new Set<UUID>();

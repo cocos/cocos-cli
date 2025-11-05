@@ -4,10 +4,8 @@ import { PackerDriver } from './packer-driver';
 import { Executor } from '@cocos/lib-programming/dist/executor';
 import { QuickPackLoaderContext } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { CustomEvent, EventType, eventEmitter } from './event-emitter';
-import { AssetChange, AssetChangeType, DBChangeType } from './packer-driver/asset-db-interop';
-import { TypeScriptAssetInfoCache } from './shared/cache';
+import { AssetChangeInfo, DBChangeType } from './packer-driver/asset-db-interop';
 import { v4 as uuid } from 'node-uuid';
-import { IAsset } from '../assets/@types/private';
 import { DBInfo } from './@types/config-export';
 
 export const title = 'i18n:builder.tasks.load_script';
@@ -109,7 +107,7 @@ class ScriptManager {
      * 编译脚本文件
      * @param assetChanges 资源变更列表，如果未提供，则编译上一次缓存的资源变更列表
      */
-    async compileScripts(assetChanges?: AssetChange[]): Promise<void> {
+    async compileScripts(assetChanges?: AssetChangeInfo[]): Promise<void> {
         await PackerDriver.getInstance().build(assetChanges);
     }
 
@@ -142,20 +140,6 @@ class ScriptManager {
         }, delay);
         
         return taskId;
-    }
-
-    /**
-     * 通知文件变更并触发增量编译
-     * @param type 变更类型
-     * @param uuid 资源UUID
-     * @param assetInfo 资源信息
-     * @param meta 元数据
-     */
-    dispatchAssetChange(
-        type: AssetChangeType,
-        asset: IAsset
-    ): void {
-        PackerDriver.getInstance().dispatchAssetChanges(type, asset);
     }
 
     /**
@@ -258,25 +242,12 @@ class ScriptManager {
         await PackerDriver.getInstance().updateDbInfos(dbInfo, dbChangeType);
     }
 
-    /**
-     * 批量更新TypeScript脚本信息缓存并触发编译
-     * @param tsScriptCaches 脚本信息缓存列表
-     * @param changeType 变更类型
-     */
-    setScriptInfoCache(tsScriptCaches: TypeScriptAssetInfoCache[]) {
-        PackerDriver.getInstance().setTsScriptInfoCache(tsScriptCaches);
-    }
-
-    setAssetChange(assetChanges: AssetChange[]) {
-        PackerDriver.getInstance().setAssetChange(assetChanges);
-    }
-
 }
 
 export default new ScriptManager();
 
 // 导出类型供外部使用
-export { AssetChange, AssetChangeType } from './packer-driver/asset-db-interop';
+export { AssetChangeInfo, AssetChangeType } from './packer-driver/asset-db-interop';
 export type { SharedSettings, IPluginScriptInfo } from './interface';
 export type { CCEModuleMap } from '../engine/@types/config';
 export type { EventType } from './event-emitter';

@@ -40,9 +40,14 @@ export const JavascriptHandler: AssetHandlerBase = {
                 if (userData.isPlugin) {
                     return await _importPluginScript(asset);
                 } else {
-                    scripting.dispatchAssetChange(asset.action, asset);
                     try {
-                        await scripting.compileScripts();
+                        await scripting.compileScripts([{
+                            type: asset.action,
+                            uuid: asset.uuid,
+                            filePath: asset.source,
+                            importer: asset.meta.importer,
+                            userData: asset.meta.userData,
+                        }]);
                         return true;
                     } catch (error) {
                         console.error(error);

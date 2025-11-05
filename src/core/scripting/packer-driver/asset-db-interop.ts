@@ -2,11 +2,10 @@ import type { AssetInfo, IAssetMeta, QueryAssetsOption } from '../../assets/@typ
 
 import { pathToFileURL } from 'url';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
-import { blockAssetUUIDSet, tsScriptAssetCache, TypeScriptAssetInfoCache } from '../shared/cache';
+import { tsScriptAssetCache, TypeScriptAssetInfoCache } from '../shared/cache';
 import { resolveFileName } from '../utils/path';
 import { normalize } from 'path';
 import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
-import { IAsset } from '../../assets/@types/private';
 import { DBInfo } from '../@types/config-export';
 
 export interface QueryAllAssetOption<T = { assetInfo: AssetInfo }> {
@@ -17,7 +16,6 @@ export interface QueryAllAssetOption<T = { assetInfo: AssetInfo }> {
 export class AssetDbInterop {
 
     protected readonly _tsScriptInfoCache = tsScriptAssetCache;
-    protected readonly _blockScriptUUIDSet = blockAssetUUIDSet;
 
 
     removeTsScriptInfoCache(dbTarget: string) {
@@ -32,24 +30,6 @@ export class AssetDbInterop {
         return scriptInfos;
     }
 
-    /**
-     * cache ts script info
-     * cache format:
-     * 
-     * const filePath = resolveFileName(assetInfo.file);
-     * {
-     *     uuid: assetInfo.uuid,
-     *     filePath: filePath,
-     *     url: getURL(assetInfo),
-     *     isPluginScript: isPluginScript(meta || assetInfo.meta!),
-     * }
-     * */
-    setTsScriptInfoCache(tsScriptCaches: TypeScriptAssetInfoCache[]) {
-        for (let index = 0; index < tsScriptCaches.length; index++) {
-            const info = tsScriptCaches[index];
-            this._tsScriptInfoCache.set(info.filePath, info);
-        }
-    }
 
     async destroyed() {
         this._tsScriptInfoCache.clear();
@@ -81,23 +61,36 @@ export class AssetDbInterop {
      */
     
     onAssetChange(
-        type: AssetChangeType,
-        asset: IAsset
+        changeInfo: AssetChangeInfo
     ) {
-        const filePath = resolveFileName(asset.source);
-        const uuid = asset.uuid;
+        const filePath = resolveFileName(changeInfo.filePath);
+        const uuid = changeInfo.uuid;
         const assetChange: AssetChange = {
             url: pathToFileURL(filePath),
-            uuid: asset.uuid,
+            importer: changeInfo.importer,
+            uuid: uuid,
             filePath: filePath,
-            type,
-            isPluginScript: isPluginScript(asset.meta),
+            type: changeInfo.type,
+            isPluginScript: isPluginScript(changeInfo.userData),
         };
-        const info = mapperForTypeScriptAssetInfoCache(asset, asset.meta);
-        if (type === AssetActionEnum.change) {
+        
+        const importer = changeInfo.importer;
+        if (!(importer === 'javascript' || importer === 'typescript')) {
+            return;
+        }
+        let info : TypeScriptAssetInfoCache | null = null;
+        if (importer === 'typescript') {
+            info = mapperForTypeScriptAssetInfoCache(changeInfo);
+        }
+        if (!info) {
+            this._changeQueue.push(assetChange);
+            return;
+        }
+         
+        if (changeInfo.type === AssetActionEnum.change) {
             if (!this._tsScriptInfoCache.has(filePath)) {
                 for (const iterator of this._tsScriptInfoCache.values()) {
-                    if (iterator.uuid === asset.uuid) {
+                    if (iterator.uuid === uuid) {
 
                         this._tsScriptInfoCache.delete(iterator.filePath);
                         this._tsScriptInfoCache.set(info.filePath, info);
@@ -108,11 +101,8 @@ export class AssetDbInterop {
                 }
             }
         }
-        if (type === AssetActionEnum.add) {
-            const importer = asset.meta.importer;
-            const isDirectory = asset.isDirectory();
-
-            if (importer === 'typescript' || isDirectory) {
+        if (changeInfo.type === AssetActionEnum.add) {
+            if (importer === 'typescript') {
                 const deletedItemIndex = this._changeQueue.findIndex(item => item.type === AssetActionEnum.delete && item.uuid === uuid);
                 if (deletedItemIndex !== -1) {
 
@@ -127,15 +117,8 @@ export class AssetDbInterop {
             }
 
         }
-        if (type === AssetActionEnum.delete) {
+        if (changeInfo.type === AssetActionEnum.delete) {
             this._tsScriptInfoCache.delete(filePath);
-        }
-        if (this._blockScriptUUIDSet.has(uuid)) {
-            this._blockScriptUUIDSet.delete(uuid);
-            return;
-        }
-        if (!filterForAssetChange(asset)) {
-            return;
         }
 
         this._changeQueue.push(assetChange);
@@ -155,10 +138,19 @@ export type AssetChangeType = AssetActionEnum;
 
 export enum DBChangeType { add, remove }
 
+export interface AssetChangeInfo {
+    type: AssetChangeType;
+    uuid: string;
+    filePath: string;
+    importer: string;
+    userData: Object;
+}
+
 export interface AssetChange {
     type: AssetChangeType;
     uuid: UUID;
     filePath: FilePath;
+    importer: string;
     url: URL;
     isPluginScript: boolean;
 }
@@ -169,27 +161,18 @@ export interface ModifiedAssetChange extends AssetChange {
     newFilePath?: FilePath;
 }
 
-function filterForAssetChange(asset: IAsset): boolean {
-    const importer = asset.meta.importer;
-    if (!(importer === 'javascript' || importer === 'typescript')) {
-        return false;
-    }
-
-    return true;
-}
-
-function mapperForTypeScriptAssetInfoCache(asset: IAsset, meta?: IAssetMeta): TypeScriptAssetInfoCache {
-    const filePath = resolveFileName(asset.source);
+function mapperForTypeScriptAssetInfoCache(changeInfo: AssetChangeInfo): TypeScriptAssetInfoCache {
+    const filePath = resolveFileName(changeInfo.filePath);
     return {
-        uuid: asset.uuid,
+        uuid: changeInfo.uuid,
         filePath: filePath,
         url: pathToFileURL(filePath),
-        isPluginScript: isPluginScript(meta || asset.meta!),
+        isPluginScript: isPluginScript(changeInfo.userData),
     };
 }
 
-function isPluginScript(meta: IAssetMeta) {
-    if (meta?.userData?.isPlugin) {
+function isPluginScript(userData: any) {
+    if (userData?.isPlugin) {
         return true;
     } else {
         return false;
