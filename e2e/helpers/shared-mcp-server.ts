@@ -152,18 +152,15 @@ class SharedMCPServerManager {
         // 清理测试资源（如果有 assets 测试根目录）
         if (this.mcpClient) {
 
-            await this.mcpClient.callTool('scene-close-scene', {});
-
             // 关闭客户端和服务器
             await this.mcpClient.close();
             this.mcpClient = null;
         }
 
         // 清理测试项目（共享项目由测试框架统一清理）
-        if (this.testProject) {
-            await this.testProject.cleanup();
-            this.testProject = null;
-        }
+        // 注意：不在这里调用 cleanup()，因为共享项目可能还在被其他测试使用
+        // 由 teardown.ts 中的 projectManager.cleanupAll() 统一清理
+        this.testProject = null;
 
         this.isInitialized = false;
         this.initializationPromise = null;

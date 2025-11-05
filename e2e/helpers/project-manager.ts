@@ -370,8 +370,15 @@ export class E2EProjectManager {
      */
     private async cleanupProject(projectPath: string): Promise<void> {
         if (!this.preserveAfterTest && await pathExists(projectPath)) {
-            await remove(projectPath);
-            this.createdProjects.delete(projectPath);
+            try {
+                await this.removeWithRetry(projectPath);
+                this.createdProjects.delete(projectPath);
+            } catch (error: any) {
+                // 如果删除失败，记录警告但不中断清理流程
+                console.warn(`⚠️  无法删除项目目录 ${projectPath}: ${error.message}`);
+                // 仍然从记录中移除，避免重复尝试
+                this.createdProjects.delete(projectPath);
+            }
         }
     }
 
@@ -394,7 +401,50 @@ export class E2EProjectManager {
 
         // 清理整个工作区
         if (await pathExists(this.workspaceRoot)) {
-            await remove(this.workspaceRoot);
+            try {
+                await this.removeWithRetry(this.workspaceRoot);
+            } catch (error: any) {
+                // 如果删除失败，记录警告但不中断清理流程
+                console.warn(`⚠️  无法删除工作区目录 ${this.workspaceRoot}: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * 带重试的删除方法
+     * 处理 Windows 上文件被锁定或目录非空的情况
+     * 
+     * @param path 要删除的路径
+     * @param maxRetries 最大重试次数
+     * @param retryDelay 重试延迟（毫秒）
+     */
+    private async removeWithRetry(
+        path: string,
+        maxRetries: number = 3,
+        retryDelay: number = 500
+    ): Promise<void> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                await remove(path);
+                return; // 成功删除，退出
+            } catch (error: any) {
+                const isLastAttempt = attempt === maxRetries;
+                const isRetryableError = 
+                    error.code === 'ENOTEMPTY' ||
+                    error.code === 'EBUSY' ||
+                    error.code === 'EPERM' ||
+                    error.message?.includes('directory not empty');
+
+                if (isLastAttempt || !isRetryableError) {
+                    // 最后一次尝试或非可重试错误，抛出异常
+                    throw error;
+                }
+
+                // 等待后重试
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+                }
+            }
         }
     }
 
