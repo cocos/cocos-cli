@@ -1,87 +1,46 @@
 import { MCPTestClient } from '../../helpers/mcp-client';
-import { createTestProject, generateTestId } from '../../helpers/test-utils';
-import { TestProject } from '../../helpers/project-manager';
-import { resolve } from 'path';
+import {
+  AssetsTestContext,
+  generateTestId,
+  setupAssetsTestEnvironment,
+  teardownAssetsTestEnvironment,
+} from '../../helpers/test-utils';
 
 describe('MCP Node API', () => {
-    let testProject: TestProject;
+    let context: AssetsTestContext;
     let mcpClient: MCPTestClient;
     let testSceneUrl: string;
     let testFolderPath: string;
 
     beforeAll(async () => {
-        // 创建测试项目（使用asset-operation项目，因为它包含场景文件）
-        const fixtureProject = resolve(__dirname, '../../../tests/fixtures/projects/asset-operation');
-        testProject = await createTestProject(fixtureProject);
+        // 使用共享的 Assets 测试环境（与 scene/import 测试一致）
+        context = await setupAssetsTestEnvironment();
+        mcpClient = context.mcpClient;
 
-        // 创建并启动 MCP 客户端
-        mcpClient = new MCPTestClient({
-            projectPath: testProject.path,
-        });
-
-        await mcpClient.start();
-        console.log(`MCP server started on port: ${mcpClient.getPort()}`);
-
-        // 设置测试场景路径
-        
-        // 设置统一的测试文件夹路径
-        testFolderPath = 'db://assets/__test__';
-        
+        // 统一的测试文件夹路径与场景 URL
+        testFolderPath = context.testRootUrl;
         testSceneUrl = `${testFolderPath}/scene-2d.scene`;
-        // 创建测试文件夹
+
+        // 创建并打开 2D 场景（若已存在则忽略创建）
         try {
-            await mcpClient.callTool('assets-create-asset-by-type', {
-                ccType: 'directory',
-                dirOrUrl: 'db://assets',
-                baseName: '__test__',
+            await mcpClient.callTool('scene-create-scene', {
                 options: {
-                    overwrite: false,
-                    rename: true,
+                    dbURL: testFolderPath,
+                    baseName: 'scene-2d',
+                    templateType: '2d',
                 },
             });
-        
+        } catch (error) {
+            // 场景可能已存在，忽略
+        }
 
-        // 打开创建测试
-        await mcpClient.callTool('scene-create-scene', {
-            options: {
-                dbURL: testFolderPath,
-                baseName: 'scene-2d',
-                templateType: '2d',
-            },
-        });
-
-        // 打开测试场景
         await mcpClient.callTool('scene-open-scene', {
             dbURLOrUUID: testSceneUrl,
         });
-
-        } catch (error) {
-            // 文件夹可能已存在，忽略错误
-            console.log('Test folder may already exist, continuing...');
-            throw error;
-        }
     });
 
     afterAll(async () => {
-        // 清理测试文件夹 - 使用Cocos资源API
-        if (testFolderPath && mcpClient) {
-            try {
-                await mcpClient.callTool('assets-delete-asset', {
-                    dbPath: testFolderPath,
-                });
-                console.log(`Cleaned up test folder: ${testFolderPath}`);
-            } catch (error) {
-                console.warn(`Failed to clean up test folder: ${error}`);
-            }
-        }
-
-        // 关闭客户端和服务器
-        if (mcpClient) {
-            await mcpClient.close();
-        }
-
-        // 清理测试项目
-        await testProject.cleanup();
+        await teardownAssetsTestEnvironment(context);
     });
 
     describe('scene-create-node-by-type', () => {
