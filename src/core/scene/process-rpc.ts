@@ -269,30 +269,4 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         this.pendingMessages = [];
     }
 
-    /**
-     * ✅ 新增：代理式 API 调用
-     * 用法：
-     *   rpc.api.node.createNode('Player')
-     *   rpc.api.scene.loadScene('Level01')
-     */
-    get api(): { [K in keyof TModules]: TModules[K] } {
-        const self = this;
-        return new Proxy({} as any, {
-            get(_, moduleName: string) {
-                return new Proxy({}, {
-                    get(_, methodName: string) {
-                        return (...args: any[]) => {
-                            // 自动判断返回值类型：如果方法名以 "on" 或 "emit" 开头，则默认使用 send
-                            const isFireAndForget = methodName.startsWith('on') || methodName.startsWith('emit') || methodName.startsWith('send');
-                            if (isFireAndForget) {
-                                self.send(moduleName as any, methodName as any, args);
-                                return;
-                            }
-                            return self.request(moduleName as any, methodName as any, args);
-                        };
-                    }
-                });
-            }
-        });
-    }
 }
