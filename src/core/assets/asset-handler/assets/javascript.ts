@@ -1,11 +1,11 @@
 import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
-import { MigrateStep, i18nTranslate, linkToAssetTarget, openCode } from '../utils';
+import { openCode } from '../utils';
 import { AssetHandlerBase } from '../../@types/protected';
 import { JavaScriptAssetUserData, PluginScriptUserData } from '../../@types/userDatas';
 import scripting from '../../../scripting';
-const migrateStep = new MigrateStep();
+import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 
 export const JavascriptHandler: AssetHandlerBase = {
     // Handler 的名字，用于指定 Handler as 等
@@ -40,31 +40,25 @@ export const JavascriptHandler: AssetHandlerBase = {
                 if (userData.isPlugin) {
                     return await _importPluginScript(asset);
                 } else {
-                    try {
-                        await scripting.compileScripts([{
-                            type: asset.action,
-                            uuid: asset.uuid,
-                            filePath: asset.source,
-                            importer: asset.meta.importer,
-                            userData: asset.meta.userData,
-                        }]);
-                        return true;
-                    } catch (error) {
-                        console.error(error);
-                        return false;
-                    }
+                    await scripting.compileScripts([{
+                        type: asset.action,
+                        uuid: asset.uuid,
+                        filePath: asset.source,
+                        importer: asset.meta.importer,
+                        userData: asset.meta.userData,
+                    }]);
+                    return true;
                 }
             } catch (error) {
-                console.error(
-                    i18nTranslate('importer.script.transform_failure', {
-                        path: asset.source,
-                        reason: error,
-                    }),
-                    linkToAssetTarget(asset.uuid),
+                throw new Error (
+                    `Failed to import script ${asset.source}: ${error}`,
                 );
-                return false;
             }
         },
+    },
+
+    async destroy(asset: Asset | VirtualAsset) {
+        scripting.dispatchAssetChange(AssetActionEnum.delete, asset);
     },
 };
 

@@ -35,8 +35,13 @@ export default async function globalTeardown() {
     }
 
     // 清理所有测试项目
-    const projectManager = getProjectManager();
-    await projectManager.cleanupAll();
+    try {
+        const projectManager = getProjectManager();
+        await projectManager.cleanupAll();
+    } catch (error: any) {
+        // 清理失败不影响测试结果，只记录警告
+        console.log(chalk.yellow('⚠️  清理测试项目时出错（忽略）:'), error.message || error);
+    }
 
     console.log(chalk.green('✅ 测试环境清理完成\n'));
 }

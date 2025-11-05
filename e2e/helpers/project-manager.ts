@@ -79,6 +79,14 @@ export class E2EProjectManager {
         'packages',   // 插件包（如果是动态生成的）
     ];
 
+    /**
+     * 需要清理的 CLI 引擎特定目录（测试前必须清理）
+     */
+    private static readonly ENGINE_SPECIFIC_DIRS = [
+        'packages/engine/editor/library',
+        'packages/engine/temp',
+    ];
+
     constructor(config: E2EWorkspaceConfig = {}) {
         this.workspaceRoot = config.workspaceRoot || resolve(__dirname, '../.workspace');
         this.cleanBeforeTest = config.cleanBeforeTest !== false;
@@ -122,13 +130,16 @@ export class E2EProjectManager {
         const name = projectName || this.generateProjectName();
         const projectPath = join(this.workspaceRoot, name);
 
-        // 清理目标项目的缓存（如果已存在）
+        // 清理源项目的缓存（如果已存在）
         await this.cleanProjectCache(sourceProject);
 
         // 复制项目
         await copy(sourceProject, projectPath, {
             filter: (src) => this.shouldCopyFile(src, sourceProject),
         });
+
+        // 清理目标项目中的 CLI 引擎特定目录（测试前必须清理）
+        await this.cleanEngineSpecificDirs(projectPath);
 
         // 记录创建的项目
         this.createdProjects.add(projectPath);
@@ -186,6 +197,9 @@ export class E2EProjectManager {
             filter: (src) => this.shouldCopyFile(src, sourceProject),
         });
 
+        // 清理目标项目中的 CLI 引擎特定目录（测试前必须清理）
+        await this.cleanEngineSpecificDirs(projectPath);
+
         // 记录共享项目
         this.sharedProjects.set(name, projectPath);
         this.createdProjects.add(projectPath);
@@ -218,6 +232,9 @@ export class E2EProjectManager {
             filter: (src) => this.shouldCopyFile(src, sourceProject),
         });
 
+        // 清理目标项目中的 CLI 引擎特定目录（测试前必须清理）
+        await this.cleanEngineSpecificDirs(tempDir);
+
         return {
             path: tempDir,
             name: tempDir.split(/[/\\]/).pop() || 'temp',
@@ -246,8 +263,34 @@ export class E2EProjectManager {
             }
         }
 
-        // 2. 清理 .gitignore 忽略的文件
+        // 2. 清理 CLI 引擎特定目录（测试前必须清理）
+        for (const engineDir of E2EProjectManager.ENGINE_SPECIFIC_DIRS) {
+            const enginePath = join(projectPath, engineDir);
+            if (await pathExists(enginePath)) {
+                await remove(enginePath);
+            }
+        }
+
+        // 3. 清理 .gitignore 忽略的文件
         await this.cleanGitIgnoredFiles(projectPath);
+    }
+
+    /**
+     * 清理 CLI 引擎特定目录（测试前必须清理）
+     * 
+     * @param projectPath 项目路径
+     */
+    private async cleanEngineSpecificDirs(projectPath: string): Promise<void> {
+        if (!await pathExists(projectPath)) {
+            return;
+        }
+
+        for (const engineDir of E2EProjectManager.ENGINE_SPECIFIC_DIRS) {
+            const enginePath = join(projectPath, engineDir);
+            if (await pathExists(enginePath)) {
+                await remove(enginePath);
+            }
+        }
     }
 
     /**
@@ -327,8 +370,15 @@ export class E2EProjectManager {
      */
     private async cleanupProject(projectPath: string): Promise<void> {
         if (!this.preserveAfterTest && await pathExists(projectPath)) {
-            await remove(projectPath);
-            this.createdProjects.delete(projectPath);
+            try {
+                await this.removeWithRetry(projectPath);
+                this.createdProjects.delete(projectPath);
+            } catch (error: any) {
+                // 如果删除失败，记录警告但不中断清理流程
+                console.warn(`⚠️  无法删除项目目录 ${projectPath}: ${error.message}`);
+                // 仍然从记录中移除，避免重复尝试
+                this.createdProjects.delete(projectPath);
+            }
         }
     }
 
@@ -351,7 +401,50 @@ export class E2EProjectManager {
 
         // 清理整个工作区
         if (await pathExists(this.workspaceRoot)) {
-            await remove(this.workspaceRoot);
+            try {
+                await this.removeWithRetry(this.workspaceRoot);
+            } catch (error: any) {
+                // 如果删除失败，记录警告但不中断清理流程
+                console.warn(`⚠️  无法删除工作区目录 ${this.workspaceRoot}: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * 带重试的删除方法
+     * 处理 Windows 上文件被锁定或目录非空的情况
+     * 
+     * @param path 要删除的路径
+     * @param maxRetries 最大重试次数
+     * @param retryDelay 重试延迟（毫秒）
+     */
+    private async removeWithRetry(
+        path: string,
+        maxRetries: number = 3,
+        retryDelay: number = 500
+    ): Promise<void> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                await remove(path);
+                return; // 成功删除，退出
+            } catch (error: any) {
+                const isLastAttempt = attempt === maxRetries;
+                const isRetryableError = 
+                    error.code === 'ENOTEMPTY' ||
+                    error.code === 'EBUSY' ||
+                    error.code === 'EPERM' ||
+                    error.message?.includes('directory not empty');
+
+                if (isLastAttempt || !isRetryableError) {
+                    // 最后一次尝试或非可重试错误，抛出异常
+                    throw error;
+                }
+
+                // 等待后重试
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+                }
+            }
         }
     }
 

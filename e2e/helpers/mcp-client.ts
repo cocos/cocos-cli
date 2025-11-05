@@ -459,7 +459,7 @@ export class MCPTestClient {
                             }
                             this.serverProcess = null;
                             resolve();
-                        }, 100);
+                        }, 1000);
                     } else {
                         if (this.forceKillTimer) {
                             clearTimeout(this.forceKillTimer);

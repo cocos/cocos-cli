@@ -43,11 +43,9 @@ export default class Launcher {
         const { default: Project } = await import('./project');
         await Project.open(this.projectPath);
         // 初始化引擎
-        const { initEngine, Engine } = await import('./engine');
+        const { initEngine } = await import('./engine');
         await initEngine(GlobalPaths.enginePath, this.projectPath);
         console.log('initEngine success');
-
-        await scripting.initialize(this.projectPath, GlobalPaths.enginePath, Engine.getConfig().includeModules);
     }
 
     /**
@@ -59,6 +57,9 @@ export default class Launcher {
         }
         this._import = true;
         await this.init();
+        // 在导入资源之前，初始化 scripting 模块，才能正常导入编译脚本
+        const { Engine } = await import('./engine');
+        await scripting.initialize(this.projectPath, GlobalPaths.enginePath, Engine.getConfig().includeModules);
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
         await startupAssetDB();

@@ -151,17 +151,6 @@ class SharedMCPServerManager {
 
         // 清理测试资源（如果有 assets 测试根目录）
         if (this.mcpClient) {
-            try {
-                const { testRootUrl } = this.getAssetsTestRootConfig();
-                await this.mcpClient.callTool('assets-delete-asset', {
-                    dbPath: testRootUrl,
-                });
-            } catch {
-                // 忽略清理失败的错误
-                if (E2E_DEBUG) {
-                    console.warn('清理测试资源失败（忽略）');
-                }
-            }
 
             // 关闭客户端和服务器
             await this.mcpClient.close();
@@ -169,10 +158,9 @@ class SharedMCPServerManager {
         }
 
         // 清理测试项目（共享项目由测试框架统一清理）
-        if (this.testProject) {
-            await this.testProject.cleanup();
-            this.testProject = null;
-        }
+        // 注意：不在这里调用 cleanup()，因为共享项目可能还在被其他测试使用
+        // 由 teardown.ts 中的 projectManager.cleanupAll() 统一清理
+        this.testProject = null;
 
         this.isInitialized = false;
         this.initializationPromise = null;

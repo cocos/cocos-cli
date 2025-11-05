@@ -13,6 +13,8 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
+import scripting from '../../scripting';
+import { DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -119,6 +121,7 @@ class AssetDBManager extends EventEmitter {
             // await this._start();
             await this._startDirectly();
         }
+        await afterStartDB(this.assetDBInfo);
         this.ready = true;
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
         // 性能测试: 资源冷导入
@@ -145,7 +148,6 @@ class AssetDBManager extends EventEmitter {
         }
         newConsole.trackMemoryEnd('asset-db:worker-init: preStart');
 
-        await afterStartDB();
         newConsole.trackMemoryStart('assets:worker-init: startup');
         for (let i = 0; i < startupDatabaseQueue.length; i++) {
             const startupDatabase = startupDatabaseQueue[i];
@@ -190,7 +192,6 @@ class AssetDBManager extends EventEmitter {
             const waitingStartupDBInfo = await this._preStartDB(db);
             await this._startupDB(waitingStartupDBInfo);
         }
-        await afterStartDB();
     }
 
     public isBusy() {
@@ -739,9 +740,23 @@ async function afterPreImport(db: assetdb.AssetDB) {
     db.taskManager.stop();
 }
 
-async function afterStartDB() {
+async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
     await compileEffect();
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
     await startAutoGenEffectBin();
 
+    // 初始化一些脚本需要的数据库信息
+    for (const info of Object.values(dbInfoMap)) {
+        const dbInfo = {
+            dbID: info.name,
+            target: info.target,
+        };
+        scripting.updateDatabases(dbInfo, DBChangeType.add);
+    }
+
+    // 如果 temp 目录不存在
+    if (!existsSync(AssetDBManager.tempRoot)) {
+        
+    }
+    // 目前结构里，没有关闭数据库的逻辑
 }
