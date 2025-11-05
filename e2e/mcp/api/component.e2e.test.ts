@@ -208,4 +208,15 @@ describe('MCP Component API', () => {
             }
         });
     });
+
+    describe('组件集合查询', () => {
+        it('should query all components successfully', async () => {
+            const allResult = await mcpClient.callTool('scene-query-all-component', {});
+            expect(allResult.code).toBe(200);
+            expect(Array.isArray(allResult.data)).toBe(true);
+            expect(allResult.data.length).toBeGreaterThan(0);
+            // 常见内置组件应存在于集合中
+            expect(allResult.data).toEqual(expect.arrayContaining(['cc.Label']));
+        });
+    });
 });
