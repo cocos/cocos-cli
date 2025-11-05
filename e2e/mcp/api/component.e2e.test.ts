@@ -97,7 +97,7 @@ describe('MCP Component API', () => {
                 },
             });
             expect(addResult.code).toBe(200);
-            
+
             const componentPath = addResult.data.path;
 
             // 查询组件
@@ -119,7 +119,7 @@ describe('MCP Component API', () => {
                 },
             });
             expect(addResult.code).toBe(200);
-            
+
             const componentPath = addResult.data.path;
 
             // 查询组件初始属性
@@ -157,7 +157,7 @@ describe('MCP Component API', () => {
                 },
             });
             expect(addResult.code).toBe(200);
-            
+
             const componentPath = addResult.data.path;
 
             // 删除组件
