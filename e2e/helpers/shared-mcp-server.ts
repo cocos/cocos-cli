@@ -152,6 +152,8 @@ class SharedMCPServerManager {
         // 清理测试资源（如果有 assets 测试根目录）
         if (this.mcpClient) {
 
+            await this.mcpClient.callTool('scene-close-scene', {});
+
             // 关闭客户端和服务器
             await this.mcpClient.close();
             this.mcpClient = null;
