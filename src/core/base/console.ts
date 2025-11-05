@@ -295,7 +295,7 @@ export class NewConsole {
         this.lastPrintType = type;
         this.lastPrintMessage = message;
         this.lastPrintTime = now;
-        this.consola[type](message);
+        rawConsole[type](message);
         switch (type) {
             case 'debug':
                 this.pino.debug(message);

@@ -79,6 +79,14 @@ export class E2EProjectManager {
         'packages',   // 插件包（如果是动态生成的）
     ];
 
+    /**
+     * 需要清理的 CLI 引擎特定目录（测试前必须清理）
+     */
+    private static readonly ENGINE_SPECIFIC_DIRS = [
+        'packages/engine/editor/library',
+        'packages/engine/temp',
+    ];
+
     constructor(config: E2EWorkspaceConfig = {}) {
         this.workspaceRoot = config.workspaceRoot || resolve(__dirname, '../.workspace');
         this.cleanBeforeTest = config.cleanBeforeTest !== false;
@@ -122,13 +130,16 @@ export class E2EProjectManager {
         const name = projectName || this.generateProjectName();
         const projectPath = join(this.workspaceRoot, name);
 
-        // 清理目标项目的缓存（如果已存在）
+        // 清理源项目的缓存（如果已存在）
         await this.cleanProjectCache(sourceProject);
 
         // 复制项目
         await copy(sourceProject, projectPath, {
             filter: (src) => this.shouldCopyFile(src, sourceProject),
         });
+
+        // 清理目标项目中的 CLI 引擎特定目录（测试前必须清理）
+        await this.cleanEngineSpecificDirs(projectPath);
 
         // 记录创建的项目
         this.createdProjects.add(projectPath);
@@ -186,6 +197,9 @@ export class E2EProjectManager {
             filter: (src) => this.shouldCopyFile(src, sourceProject),
         });
 
+        // 清理目标项目中的 CLI 引擎特定目录（测试前必须清理）
+        await this.cleanEngineSpecificDirs(projectPath);
+
         // 记录共享项目
         this.sharedProjects.set(name, projectPath);
         this.createdProjects.add(projectPath);
@@ -218,6 +232,9 @@ export class E2EProjectManager {
             filter: (src) => this.shouldCopyFile(src, sourceProject),
         });
 
+        // 清理目标项目中的 CLI 引擎特定目录（测试前必须清理）
+        await this.cleanEngineSpecificDirs(tempDir);
+
         return {
             path: tempDir,
             name: tempDir.split(/[/\\]/).pop() || 'temp',
@@ -246,8 +263,34 @@ export class E2EProjectManager {
             }
         }
 
-        // 2. 清理 .gitignore 忽略的文件
+        // 2. 清理 CLI 引擎特定目录（测试前必须清理）
+        for (const engineDir of E2EProjectManager.ENGINE_SPECIFIC_DIRS) {
+            const enginePath = join(projectPath, engineDir);
+            if (await pathExists(enginePath)) {
+                await remove(enginePath);
+            }
+        }
+
+        // 3. 清理 .gitignore 忽略的文件
         await this.cleanGitIgnoredFiles(projectPath);
+    }
+
+    /**
+     * 清理 CLI 引擎特定目录（测试前必须清理）
+     * 
+     * @param projectPath 项目路径
+     */
+    private async cleanEngineSpecificDirs(projectPath: string): Promise<void> {
+        if (!await pathExists(projectPath)) {
+            return;
+        }
+
+        for (const engineDir of E2EProjectManager.ENGINE_SPECIFIC_DIRS) {
+            const enginePath = join(projectPath, engineDir);
+            if (await pathExists(enginePath)) {
+                await remove(enginePath);
+            }
+        }
     }
 
     /**

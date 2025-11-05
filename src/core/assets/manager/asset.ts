@@ -2,13 +2,10 @@ import { AssetDB, VirtualAsset } from '@cocos/asset-db';
 import assetDBManager from './asset-db';
 import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
-import { AssetInfo, AssetManagerEvents, IAsset, IAssetDBInfo, IAssetInfo,  QueryAssetsOption } from '../@types/private';
+import { AssetManagerEvents, IAsset } from '../@types/private';
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
-import scripting from '../../scripting';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
-import { DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -69,13 +66,11 @@ class AssetManager extends EventEmitter {
     async init() {
         assetDBManager.on('db-created', this._onAssetDBCreated);
         assetDBManager.on('db-removed', this._onAssetDBRemoved);
-        assetDBManager.on('assets:db-ready', this._onAssetDBReady.bind(this));
     }
 
     destroyed() {
         assetDBManager.removeListener('db-created', this._onAssetDBCreated);
         assetDBManager.removeListener('db-removed', this._onAssetDBRemoved);
-        assetDBManager.removeListener('assets:db-ready', this._onAssetDBReady);
     }
 
     _onAssetDBCreated(db: AssetDB) {
@@ -96,40 +91,12 @@ class AssetManager extends EventEmitter {
         db.removeListener('delete', assetManager._onAssetDeleted.bind(assetManager));
     }
     _onAssetDBRemoved(db: AssetDB) {
-        const dbInfo = assetDBManager.assetDBInfo[db.options.name];
-        assetManager._onDbChange(dbInfo, DBChangeType.remove);
         db.removeListener('unresponsive', onUnResponsive);
         db.removeListener('added', assetManager._onAssetAdded.bind(assetManager));
         db.removeListener('changed', assetManager._onAssetChanged.bind(assetManager));
         db.removeListener('deleted', assetManager._onAssetDeleted.bind(assetManager));
     }
-    _onAssetDBReady(dbName: string) {
-        const dbInfo = assetDBManager.assetDBInfo[dbName];
-        assetManager._onDbChange(dbInfo, DBChangeType.add);
-    }
 
-    private _onDbChange(info: IAssetDBInfo, changeType: DBChangeType) {
-        const dbInfo = {
-            dbID: info.name,
-            target: info.target,
-        };
-        scripting.updateDatabases(dbInfo, changeType);
-    }
-
-    private _fetchAssetInfo<T = { assetInfo: AssetInfo }>(options: QueryAssetsOption, mapper: (assetInfo: AssetInfo) => T, filter?: (assetInfo: AssetInfo) => boolean): T[] {
-        const results: T[] = [];
-        const assetInfos = assetManager.queryAssetInfos(options, ['meta', 'url', 'file', 'importer', 'type']) as IAssetInfo[];
-        if (!assetInfos || !assetInfos.length) {
-            return results;
-        }
-        assetInfos.map((scriptAssetInfo) => {
-            if (!filter || filter(scriptAssetInfo as AssetInfo)) {
-                const result = mapper(scriptAssetInfo as AssetInfo);
-                results.push(result);
-            }
-        });
-        return results;
-    }
 
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
@@ -151,7 +118,6 @@ class AssetManager extends EventEmitter {
             await assetHandlerManager.destroyAsset(asset);
             this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
-            scripting.dispatchAssetChange(AssetActionEnum.delete, asset);
             return;
         }
     }

@@ -151,17 +151,6 @@ class SharedMCPServerManager {
 
         // 清理测试资源（如果有 assets 测试根目录）
         if (this.mcpClient) {
-            try {
-                const { testRootUrl } = this.getAssetsTestRootConfig();
-                await this.mcpClient.callTool('assets-delete-asset', {
-                    dbPath: testRootUrl,
-                });
-            } catch {
-                // 忽略清理失败的错误
-                if (E2E_DEBUG) {
-                    console.warn('清理测试资源失败（忽略）');
-                }
-            }
 
             // 关闭客户端和服务器
             await this.mcpClient.close();
