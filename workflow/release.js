@@ -578,7 +578,8 @@ async function releaseForType(options, rootDir, publishDir, version, allFiles) {
 
     // 步骤 4: 如果是 electron 版本，执行 electron rebuild
     options.type === 'electron' && (await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir }));
-
+    //如果是 nodejs 版本，执行e2e测试，electron 版本暂时忽略
+    options.type === 'nodejs' && (await runCommand('npm', ['run',` test:e2e -- --cli ${extensionDir}/dist/cli.js` ], { cwd: rootDir }));
     // 步骤 5: 对原生二进制文件进行签名和公证（仅限 macOS）
     await signAndNotarizeNativeBinaries(extensionDir);
 
