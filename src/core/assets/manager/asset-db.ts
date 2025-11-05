@@ -756,8 +756,8 @@ async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
         scripting.updateDatabases(dbInfo, DBChangeType.add);
     }
 
-    // 如果 temp 目录不存在
-    if (!existsSync(AssetDBManager.tempRoot)) {
+    // 脚本系统未触发构建，启动脚本构建流程
+    if (!scripting.isTargetReady('editor')) {
         const assetChanges: AssetChangeInfo[] = [];
         const options: QueryAssetsOption = {
             ccType: 'cc.Script',
