@@ -18,17 +18,19 @@ function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
 }
 
 function getScriptFilename(filename: string): string {
+    if (filename === '') {
+        throw new Error('Filename cannot be empty.');
+    }
     const projectDir = resolveToRaw('project://assets');
-    const rawPath = resolveToRaw('project://' + filename);
     // Check if the rawPath is within the projectDir/assets
-    if (!contains(projectDir, rawPath)) {
+    if (!contains(projectDir, filename)) {
         throw new Error('Unsafe file path detected.');
     }
-    const ext = path.extname(rawPath);
+    const ext = path.extname(filename);
     if (ext !== '.js' && ext !== '.ts' && ext !== '.jsx' && ext !== '.tsx' && ext !== '.json') {
         throw new Error('Unsupported file type. Only .js, .ts, .jsx, .tsx, and .json files are allowed.');
     }
-    return rawPath;
+    return filename;
 }
 
 export async function insertTextAtLine(

@@ -14,6 +14,7 @@ import {
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { insertTextAtLine, eraseLinesInRange, replaceTextInFile } from '../../core/filesystem/file-edit';
+import { queryPath } from '@cocos/asset-db/libs/manager';
 
 export class FileEditorApi {
     @tool('file-insert-text')
@@ -22,7 +23,8 @@ export class FileEditorApi {
     @result(SchemaFileEditorResult)
     async insertTextAtLine(@param(SchemaInsertTextAtLineInfo) param: TInsertTextAtLineInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await insertTextAtLine(param.filename, param.lineNumber, param.text);
+            const filename = queryPath(param.dbURL);
+            const result = await insertTextAtLine(filename, param.lineNumber, param.text);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
@@ -41,7 +43,8 @@ export class FileEditorApi {
     @result(SchemaFileEditorResult)
     async eraseLinesInRange(@param(SchemaEraseLinesInRangeInfo) param: TEraseLinesInRangeInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await eraseLinesInRange(param.filename, param.startLine, param.endLine);
+            const filename = queryPath(param.dbURL);
+            const result = await eraseLinesInRange(filename, param.startLine, param.endLine);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
@@ -60,7 +63,8 @@ export class FileEditorApi {
     @result(SchemaFileEditorResult)
     async replaceTextInFile(@param(SchemaReplaceTextInFileInfo) param: TReplaceTextInFileInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await replaceTextInFile(param.filename, param.targetText, param.replacementText);
+            const filename = queryPath(param.dbURL);
+            const result = await replaceTextInFile(filename, param.targetText, param.replacementText);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
