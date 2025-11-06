@@ -18,7 +18,7 @@ import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { insertTextAtLine, eraseLinesInRange, replaceTextInFile, replaceTextWithRegexInFile } from '../../core/filesystem/file-edit';
 
 export class FileEditorApi {
-    @tool('file-editor-insert-text-at-line')
+    @tool('file-insert-text')
     @title('在文件第n行后插入内容')
     @description('在文件第 n 行后插入内容，返回成功或者失败')
     @result(SchemaFileEditorResult)
@@ -37,7 +37,7 @@ export class FileEditorApi {
         }
     }
 
-    @tool('file-editor-erase-lines-in-range')
+    @tool('file-delete-text')
     @title('删除文件第 startLine 到 endLine 之间的内容')
     @description('删除文件第 startLine 到 endLine 之间的内容，返回成功或者失败')
     @result(SchemaFileEditorResult)
@@ -56,7 +56,7 @@ export class FileEditorApi {
         }
     }
 
-    @tool('file-editor-replace-text-in-file')
+    @tool('file-replace-text')
     @title('替换文件中的 目标文本 为 替换文本')
     @description('替换文件中的 目标文本 为 替换文本，只会替换首次出现的目标版本，返回成功或者失败')
     @result(SchemaFileEditorResult)
