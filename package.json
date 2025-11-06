@@ -48,7 +48,7 @@
         "download-tools": "node workflow/download-tools.js",
         "pack:script": "node workflow/pack-scripts.js",
         "release": "node workflow/release.js",
-        "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./test/fixtures/projects/asset-operation",
+        "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
         "rebuild": "patch-package && npx @electron/rebuild --force --version 37.6.0"
