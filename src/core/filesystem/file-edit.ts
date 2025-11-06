@@ -36,8 +36,10 @@ function getScriptFilename(filename: string): string {
 export async function insertTextAtLine(
     scriptPath: string, lineNumber: number, textToInsert: string): Promise<boolean> {
     if (textToInsert.length === 0) {
-        console.warn('No text to insert.');
-        return false;
+        throw new Error('Text to insert cannot be empty.');
+    }
+    if (lineNumber < 0) {
+        throw new Error('Line number must be non-negative.');
     }
 
     const filename = getScriptFilename(scriptPath);
@@ -93,24 +95,22 @@ export async function insertTextAtLine(
     // If an error occurred, delete the temporary file
     if (errorOccurred || !modified) {
         fs.unlinkSync(filename + '.tmp');
-        return false;
+        throw new Error('Failed to insert text at the specified line.');
     }
 
     // Replace the original file with the modified temporary file
-    if (modified) {
-        fs.renameSync(filename + '.tmp', filename);
-        return true;
-    }
-
-    return false;
+    fs.renameSync(filename + '.tmp', filename);
+    return true;
 }
 
 // End line is inclusive
 export async function eraseLinesInRange(scriptPath: string, startLine: number, endLine: number): Promise<boolean> {
     // End line must be greater than or equal to start line
     if (startLine > endLine) {
-        console.warn('Invalid line range.');
-        return false;
+        throw new Error('End line must be greater than or equal to start line.');
+    }
+    if (startLine < 0 || endLine < 0) {
+        throw new Error('Line numbers must be non-negative.');
     }
 
     const filename = getScriptFilename(scriptPath);
@@ -149,7 +149,7 @@ export async function eraseLinesInRange(scriptPath: string, startLine: number, e
     // If an error occurred, delete the temporary file
     if (errorOccurred) {
         fs.unlinkSync(filename + '.tmp');
-        return false;
+        throw new Error('Failed to erase lines in the specified range.');
     }
     // Replace the original file with the modified temporary file
     if (modified) {
@@ -157,42 +157,37 @@ export async function eraseLinesInRange(scriptPath: string, startLine: number, e
         return true;
     } else {
         fs.unlinkSync(filename + '.tmp');
-        return false;
+        throw new Error('No lines were erased. Please check the specified range.');
     }
 }
 
 export async function replaceTextInFile(
     scriptPath: string, targetRegex: string, replacementText: string): Promise<boolean> {
     const filename = getScriptFilename(scriptPath);
-    try {
+
+    const results = await replaceInFile({
+        files: filename,
+        from: new RegExp(targetRegex, 'g'), // Global replace
+        to: replacementText,
+        countMatches: true,
+        dry: true, // Dry run to count matches first
+    });
+    let count = 0;
+    for (const result of results) {
+        if (result.numMatches) {
+            count += result.numMatches;
+        }
+    }
+    if (count > 1) {
+        throw new Error(`Multiple (${count}) occurrences found. File is not changed.`);
+    }
+    if (count == 1) {
         const results = await replaceInFile({
             files: filename,
             from: new RegExp(targetRegex, 'g'), // Global replace
             to: replacementText,
-            dry: true, // Dry run to count matches first
         });
-        let count = 0;
-        for (const result of results) {
-            if (result.numMatches) {
-                count += result.numMatches;
-            }
-        }
-        if (count > 1) {
-            console.warn(`Multiple (${count}) occurrences found. File is not changed.`);
-            return false;
-        }
-        if (count == 1) {
-            const results = await replaceInFile({
-                files: filename,
-                from: new RegExp(targetRegex, 'g'), // Global replace
-                to: replacementText,
-            });
-            return results.some(result => result.hasChanged);
-        }
-        console.warn('No occurrences found. File is not changed.');
-        return false;
-    } catch (error) {
-        console.error('Error occurred while replacing text:', error);
-        return false;
+        return results.some(result => result.hasChanged);
     }
+    throw new Error('No occurrences found. File is not changed.');
 }

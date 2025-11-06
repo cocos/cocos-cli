@@ -12,8 +12,8 @@ export const SchemaInsertTextAtLineInfo = z.object({
 export const SchemaEraseLinesInRangeInfo = z.object({
     dbURL: z.string().describe('需要修改文件名'),
     startLine: z.number().default(0).describe('从第 startLine 行开始删除'),
-    endLine: z.number().default(1).describe('从第 endLine 行开始结束删除'),
-}).describe('删除文件的第 startLine 行到 endLine 的信息');
+    endLine: z.number().default(1).describe('从第 endLine 行结束删除(endLine也删除)'),
+}).describe('删除文件的第 startLine 行到 endLine 的信息(endLine也删除)');
 
 // 替换文件的 目标文本 为 替换文本
 export const SchemaReplaceTextInFileInfo = z.object({
