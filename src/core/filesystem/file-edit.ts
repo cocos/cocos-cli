@@ -4,6 +4,8 @@ import readline from 'readline';
 import { replaceInFile } from 'replace-in-file';
 import path from 'path';
 import { resolveToRaw, contains } from '../base/utils/path';
+import { assetManager } from '../../core/assets';
+import { queryPath } from '@cocos/asset-db/libs/manager';
 
 const SUPPORTED_EXTENSIONS = [
     '.js', '.ts', '.jsx', '.tsx', '.json',
@@ -22,7 +24,8 @@ function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     return succeeded;
 }
 
-function getScriptFilename(filename: string): string {
+function getScriptFilename(dbURL: string): string {
+    const filename = queryPath(dbURL);
     if (filename === '') {
         throw new Error('Filename cannot be empty.');
     }
@@ -43,7 +46,7 @@ export async function listTextEditFileExtensions(): Promise<string[]> {
 }
 
 export async function insertTextAtLine(
-    scriptPath: string, lineNumber: number, textToInsert: string): Promise<boolean> {
+    dbURL: string, lineNumber: number, textToInsert: string): Promise<boolean> {
     if (textToInsert.length === 0) {
         throw new Error('Text to insert cannot be empty.');
     }
@@ -51,7 +54,7 @@ export async function insertTextAtLine(
         throw new Error('Line number must be non-negative.');
     }
 
-    const filename = getScriptFilename(scriptPath);
+    const filename = getScriptFilename(dbURL);
     const fileStream = fs.createReadStream(filename);
 
     const rl = readline.createInterface({
@@ -109,11 +112,15 @@ export async function insertTextAtLine(
 
     // Replace the original file with the modified temporary file
     fs.renameSync(filename + '.tmp', filename);
+
+    // Reimport script
+    await assetManager.reimportAsset(dbURL);
+
     return true;
 }
 
 // End line is inclusive
-export async function eraseLinesInRange(scriptPath: string, startLine: number, endLine: number): Promise<boolean> {
+export async function eraseLinesInRange(dbURL: string, startLine: number, endLine: number): Promise<boolean> {
     // End line must be greater than or equal to start line
     if (startLine > endLine) {
         throw new Error('End line must be greater than or equal to start line.');
@@ -122,7 +129,7 @@ export async function eraseLinesInRange(scriptPath: string, startLine: number, e
         throw new Error('Line numbers must be non-negative.');
     }
 
-    const filename = getScriptFilename(scriptPath);
+    const filename = getScriptFilename(dbURL);
     const fileStream = fs.createReadStream(filename);
     const rl = readline.createInterface({
         input: fileStream,
@@ -163,6 +170,9 @@ export async function eraseLinesInRange(scriptPath: string, startLine: number, e
     // Replace the original file with the modified temporary file
     if (modified) {
         fs.renameSync(filename + '.tmp', filename);
+
+        await assetManager.reimportAsset(dbURL);
+
         return true;
     } else {
         fs.unlinkSync(filename + '.tmp');
@@ -171,8 +181,8 @@ export async function eraseLinesInRange(scriptPath: string, startLine: number, e
 }
 
 export async function replaceTextInFile(
-    scriptPath: string, targetRegex: string, replacementText: string): Promise<boolean> {
-    const filename = getScriptFilename(scriptPath);
+    dbURL: string, targetRegex: string, replacementText: string): Promise<boolean> {
+    const filename = getScriptFilename(dbURL);
 
     const results = await replaceInFile({
         files: filename,
@@ -196,6 +206,9 @@ export async function replaceTextInFile(
             from: new RegExp(targetRegex, 'g'), // Global replace
             to: replacementText,
         });
+
+        await assetManager.reimportAsset(dbURL);
+
         return results.some(result => result.hasChanged);
     }
     throw new Error('No occurrences found. File is not changed.');
