@@ -2,21 +2,42 @@
 import {
     SchemaInsertTextAtLineInfo,
     SchemaEraseLinesInRangeInfo,
-    SchemaFileEditorResult,
     SchemaReplaceTextInFileInfo,
+    SchemaFileEditorResult,
+    SchemaTextEditFileExtensionsResult,
 
     TInsertTextAtLineInfo,
     TFileEditorResult,
     TEraseLinesInRangeInfo,
     TReplaceTextInFileInfo,
+    TTextEditFileExtensionsResult,
 } from './file-editor-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { insertTextAtLine, eraseLinesInRange, replaceTextInFile } from '../../core/filesystem/file-edit';
+import { insertTextAtLine, eraseLinesInRange, replaceTextInFile, listTextEditFileExtensions } from '../../core/filesystem/file-edit';
 import { queryPath } from '@cocos/asset-db/libs/manager';
 
 export class FileEditorApi {
+    @tool('file-query-extensions')
+    @title('列举文件编辑支持的文件后缀类型')
+    @description('列举文件编辑支持的文件后缀类型')
+    @result(SchemaTextEditFileExtensionsResult)
+    async listTextEditFileExtensions(): Promise<CommonResultType<TTextEditFileExtensionsResult>> {
+        try {
+            const result = await listTextEditFileExtensions();
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: result,
+            };
+        } catch (e) {
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
+
     @tool('file-insert-text')
     @title('在文件第n行后插入内容')
     @description('在文件第 n 行后插入内容，返回成功或者失败')

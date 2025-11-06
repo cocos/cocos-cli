@@ -5,6 +5,8 @@ import { replaceInFile } from 'replace-in-file';
 import path from 'path';
 import { resolveToRaw, contains } from '../base/utils/path';
 
+const SUPPORTED_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.json'];
+
 function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     let succeeded = true;
     // Append EOL to maintain line breaks
@@ -26,11 +28,15 @@ function getScriptFilename(filename: string): string {
     if (!contains(projectDir, filename)) {
         throw new Error('Unsafe file path detected.');
     }
-    const ext = path.extname(filename);
-    if (ext !== '.js' && ext !== '.ts' && ext !== '.jsx' && ext !== '.tsx' && ext !== '.json') {
-        throw new Error('Unsupported file type. Only .js, .ts, .jsx, .tsx, and .json files are allowed.');
+    const ext = path.extname(filename).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+        throw new Error('Unsupported file type.');
     }
     return filename;
+}
+
+export async function listTextEditFileExtensions(): Promise<string[]> {
+    return SUPPORTED_EXTENSIONS;
 }
 
 export async function insertTextAtLine(

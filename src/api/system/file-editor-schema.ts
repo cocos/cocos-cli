@@ -22,10 +22,17 @@ export const SchemaReplaceTextInFileInfo = z.object({
     replacementText: z.string().describe('替换文本'),
 }).describe('替换文件的 目标文本（正则表达式） 为 替换文本');
 
+// 列举支持的文件后缀类型
+export const SchemaTextEditFileExtensionsInfo = z.object({
+}).describe('列举支持的文件后缀类型');
+
 export const SchemaFileEditorResult = z.boolean().describe('文件编辑的结果');
+export const SchemaTextEditFileExtensionsResult = z.array(z.string()).describe('支持的文本编辑文件后缀类型列表');
 
 export type TInsertTextAtLineInfo = z.infer<typeof SchemaInsertTextAtLineInfo>;
 export type TEraseLinesInRangeInfo = z.infer<typeof SchemaEraseLinesInRangeInfo>;
 export type TReplaceTextInFileInfo = z.infer<typeof SchemaReplaceTextInFileInfo>;
+export type TTextEditFileExtensionsInfo = z.infer<typeof SchemaTextEditFileExtensionsInfo>;
 
 export type TFileEditorResult = z.infer<typeof SchemaFileEditorResult>;
+export type TTextEditFileExtensionsResult = z.infer<typeof SchemaTextEditFileExtensionsResult>;
