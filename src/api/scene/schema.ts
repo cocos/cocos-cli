@@ -1,27 +1,15 @@
 import { SCENE_TEMPLATE_TYPE } from '../../core/scene';
 import { z } from 'zod';
-import { NodeQueryResultSchema } from './node-schema';
-import { SchemaComponentIdentifier } from './component-schema';
+import { SchemaNodeQueryResult } from './node-schema';
+import { SchemaSceneIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaSaveAssetResult } from '../assets/schema';
-import { SchemaPrefabInfo } from './prefa-info-schema';
+import { SchemaPrefabInfo } from './prefab-info-schema';
+import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
 
-export const SchemaAssetUUID = z.string().describe('场景/预制体资源唯一标识符 UUID');
-
-export const SchemaAssetURL = z.string().describe('场景/预制体资源使用 db:// 协议格式');
-
-export const SchemaAssetUrlOrUUID = z.union([SchemaAssetUUID, SchemaAssetURL]).describe('使用 db:// 协议格式或者 UUID');
-
-const SchemaIdentifier = z.object({
-    assetUuid: SchemaAssetUUID,
-    assetUrl: SchemaAssetURL,
-    assetName: z.string().describe('场景/预制体资源名称'),
-    assetType: z.string().describe('场景/预制体资源类型'),
-}).describe('场景/预制体基础信息');
-
-const SchemaEntity = SchemaIdentifier.extend({
+const SchemaEntity = SchemaSceneIdentifier.extend({
     name: z.string().describe('场景/预制体名称'),
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('预制体信息'),
-    children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
+    children: z.array(z.lazy(() => SchemaNodeQueryResult)).optional().default([]).describe('子节点列表'),
     components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
 }).describe('场景/预制体信息');
 
@@ -41,7 +29,7 @@ export const SchemaCreateOptions = z.object({
     dbURL: z.string().describe('目标目录用于存放资源文件，例如 db://assets'),
 }).describe('创建场景/预制体参数');
 
-export const SchemaCreateResult = SchemaIdentifier.describe('创建场景/预制体操作的结果信息');
+export const SchemaCreateResult = SchemaSceneIdentifier.describe('创建场景/预制体操作的结果信息');
 
 export type TAssetUrlOrUUID = z.infer<typeof SchemaAssetUrlOrUUID>;
 export type TCurrentEntryResult = z.infer<typeof SchemaCurrentEntryResult>;

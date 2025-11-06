@@ -1,5 +1,5 @@
 import { tool, param, title, description, result } from '../decorator/decorator';
-import { COMMON_STATUS, CommonResultType, HttpStatusCode, ProjectPathSchema } from '../base/schema-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode, SchemaProjectPath } from '../base/schema-base';
 import z from 'zod';
 
 export class ProjectApi {
@@ -9,7 +9,7 @@ export class ProjectApi {
     @title('打开 Cocos Creator 项目')
     @description('打开指定路径的 Cocos Creator 项目，初始化项目环境并加载项目配置。项目路径必须是绝对路径，指向包含 project.json 的项目根目录。成功打开后可以进行后续的资源管理、构建等操作。')
     @result(z.boolean().describe('项目打开结果，true 表示成功，false 表示失败'))
-    async open(@param(ProjectPathSchema) projectPath: string): Promise<CommonResultType<boolean>> {
+    async open(@param(SchemaProjectPath) projectPath: string): Promise<CommonResultType<boolean>> {
         let code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         try {
             const { projectManager } = await import('../../core/project-manager');

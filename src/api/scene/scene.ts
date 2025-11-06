@@ -1,5 +1,4 @@
 import {
-    SchemaAssetUrlOrUUID,
     SchemaCloseResult,
     SchemaCreateOptions,
     SchemaCreateResult,
@@ -16,6 +15,7 @@ import {
     TReload,
     TSaveResult,
 } from './schema';
+import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';

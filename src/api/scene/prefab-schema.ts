@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SchemaPrefabInfo } from './prefa-info-schema';
+import { SchemaPrefabInfo } from './prefab-info-schema';
 
 // 创建预制体参数
 export const SchemaCreatePrefabFromNodeOptions = z.object({

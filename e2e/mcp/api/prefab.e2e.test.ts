@@ -37,7 +37,7 @@ describe('MCP Prefab API', () => {
             options: {
                 path: `Canvas/${nodeName}`,
                 name: nodeName,
-                nodeType: 'Empty'
+                nodeType: 'Empty',
             }
         });
         expect(createNodeResult.code).toBe(200);
