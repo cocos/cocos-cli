@@ -44,7 +44,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             canvasNeeded = paramsArray[1].canvasRequired ? true : false;
         }
 
-        return this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+        return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
     }
 
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
@@ -53,7 +53,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
         }
         const canvasNeeded = params.canvasRequired || false;
-        return this._createNode(assetUuid, canvasNeeded, false, params);
+        return await this._createNode(assetUuid, canvasNeeded, false, params);
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
@@ -368,7 +368,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
      */
     async checkCanvasRequired(workMode: string, canvasRequiredParam: boolean | undefined, parent: Node | null, position: Vec3 | undefined): Promise<Node | null> {
 
-        if (canvasRequiredParam) {
+        if (canvasRequiredParam && parent?.isValid) {
             let canvasNode: Node | null;
 
             canvasNode = getUICanvasNode(parent);

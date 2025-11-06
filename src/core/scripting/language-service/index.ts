@@ -1,20 +1,19 @@
-import { exists, existsSync, readFileSync, statSync, writeFile } from 'fs-extra';
+import { existsSync, readFileSync, statSync, writeFile } from 'fs-extra';
 import { extname } from 'path';
 import ts, { CompilerOptions, IScriptSnapshot, LanguageServiceHost, ParseConfigFileHost } from 'typescript';
 import { DbURLInfo } from '../intelligence';
 import { ModifiedAssetChange } from '../packer-driver/asset-db-interop';
-import { assetInfoCache, FileInfo } from '../shared/cache';
+import { tsScriptAssetCache, FileInfo } from '../shared/cache';
 import { AsyncDelegate } from '../utils/delegate';
 import { AwaitCommand, Command, RenameCommand } from './command';
 import { asserts } from '../utils/asserts';
-import { configurationManager } from '../../configuration';
 import { scriptConfig } from '../shared/query-shared-settings';
 
 /**
  * 这个类用来处理内存中的文件
  */
 export class VirtualIOAdapter {
-    protected readonly _fileCache: Map<string, FileInfo> = assetInfoCache;
+    protected readonly _fileCache: Map<string, FileInfo> = tsScriptAssetCache;
     constructor(
 
     ) {
@@ -59,7 +58,7 @@ export class VirtualIOAdapter {
         return existsSync(path);
     }
     getFileNames() {
-        return Array.from(assetInfoCache.keys());
+        return Array.from(tsScriptAssetCache.keys());
     }
 }
 export class ParseConfigFileHostAdapter extends VirtualIOAdapter implements ParseConfigFileHost {
@@ -252,7 +251,7 @@ export class LanguageServiceAdapter {
     }
 
     protected clearCache() {
-        assetInfoCache.forEach(item => item.content = undefined);
+        tsScriptAssetCache.forEach(item => item.content = undefined);
     }
     protected textSpanEnd(span: ts.TextSpan) {
         return span.start + span.length;

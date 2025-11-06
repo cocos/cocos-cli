@@ -1,11 +1,12 @@
-import path, { join } from 'path';
+import { join } from 'path';
 import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
 import { getCurrentLocalTime } from './assets/utils';
-import { PackerDriver } from './scripting/packer-driver';
 import { startServer } from '../server';
 import { GlobalPaths } from '../global';
+import scripting from './scripting';
+
 
 /**
  * 启动器，主要用于整合各个模块的初始化和关闭流程
@@ -56,14 +57,12 @@ export default class Launcher {
         }
         this._import = true;
         await this.init();
+        // 在导入资源之前，初始化 scripting 模块，才能正常导入编译脚本
+        const { Engine } = await import('./engine');
+        await scripting.initialize(this.projectPath, GlobalPaths.enginePath, Engine.getConfig().includeModules);
         // 启动以及初始化资源数据库
         const { startupAssetDB } = await import('./assets');
         await startupAssetDB();
-        const packDriver = await PackerDriver.create(this.projectPath, GlobalPaths.enginePath);
-        const { Engine } = await import('./engine');
-        await packDriver.init(Engine.getConfig().includeModules);
-        await packDriver.resetDatabases();
-        await packDriver.build();
     }
 
     /**

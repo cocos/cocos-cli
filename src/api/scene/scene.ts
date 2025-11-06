@@ -44,7 +44,7 @@ export class SceneApi {
                 data,
                 code: COMMON_STATUS.SUCCESS,
             };
-        } catch (e) {
+        } catch (e) { 
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,

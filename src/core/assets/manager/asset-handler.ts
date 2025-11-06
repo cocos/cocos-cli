@@ -434,6 +434,18 @@ class AssetHandlerManager {
         return options.target;
     }
 
+    /**
+     * 调用自定义的销毁资源流程
+     * @param asset 
+     * @returns 
+     */
+    async destroyAsset(asset: IAsset) {
+        const assetHandler = this.name2handler[asset.meta.importer];
+        if (assetHandler && assetHandler.destroy) {
+            return await assetHandler.destroy(asset);
+        }
+    }
+
     async saveAsset(asset: IAsset, content: string | Buffer) {
         const assetHandler = this.name2handler[asset.meta.importer];
         if (assetHandler && assetHandler.createInfo && assetHandler.createInfo.save) {

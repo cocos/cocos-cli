@@ -17,6 +17,7 @@ const config: Config.InitialOptions = {
     testTimeout: E2E_TIMEOUTS.JEST_GLOBAL,
     verbose: true,
     maxWorkers: 1, // 串行执行，避免端口冲突
+    forceExit: true, // 强制退出，确保所有异步操作完成后退出
     globalSetup: '<rootDir>/e2e/setup.ts',
     globalTeardown: '<rootDir>/e2e/teardown.ts',
     // 确保测试前已经构建

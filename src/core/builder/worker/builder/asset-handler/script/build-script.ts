@@ -19,6 +19,7 @@ import { IAssetInfo, ModulePreservation, ITransformTarget } from '../../../../@t
 import minimatch from 'minimatch';
 import { SharedSettings } from '../../../../../scripting/interface';
 import { MacroItem } from '../../../../../engine/@types/config';
+import { DBInfo } from '../../../../../scripting/@types/config-export';
 
 interface buildRes {
     scriptPackages: string[];
@@ -39,11 +40,6 @@ let bundleIdToNameChunk: null | string;
 
 function matchPattern(path: string, pattern: string): boolean {
     return minimatch(path.replace(/\\/g, '/'), pattern.replace(/\\/g, '/'));
-}
-
-interface DBInfo {
-    dbID: string;
-    target: string
 }
 
 const useEditorFolderFeature = false; // TODO: 之后正式接入编辑器 Editor 目录后移除这个开关

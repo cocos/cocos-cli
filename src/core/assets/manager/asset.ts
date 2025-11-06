@@ -97,6 +97,7 @@ class AssetManager extends EventEmitter {
         db.removeListener('deleted', assetManager._onAssetDeleted.bind(assetManager));
     }
 
+
     async _onAssetAdded(asset: IAsset) {
         if (assetDBManager.ready) {
             this.emit('asset-add', asset);
@@ -113,6 +114,8 @@ class AssetManager extends EventEmitter {
     }
     async _onAssetDeleted(asset: IAsset) {
         if (assetDBManager.ready) {
+            // 暂时这样处理，需要调整整个 asset-db 流程才能合理化这段逻辑
+            await assetHandlerManager.destroyAsset(asset);
             this.emit('asset-delete', asset);
             console.log(`asset-delete ${asset.url}`);
             return;

@@ -130,13 +130,15 @@ export const SchemaCreateAssetByTypeOptions = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
     templateName: z.string().min(1).optional().describe('指定的模板名称，默认为 default'),
-    content: z.string().min(1).optional().describe('资源内容，支持字符串和 Buffer 类型，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    content: z.string().optional().describe('资源内容，支持字符串和 Buffer 类型，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    uuid: z.string().min(1).optional().describe('指定 uuid ，由于 uuid 也有概率冲突，uuid 冲突时会自动重新分配 uuid'),
+    userData: z.record(z.string().min(1), SchemaJsonValue).optional().describe('新建资源时指定的一些 userData 默认配置值'),
 }).optional().describe('按类型创建资源选项');
 
 export const SchemaCreateAssetOptions = z.object({
     overwrite: z.boolean().optional().describe('是否强制覆盖已存在的文件，默认 false'),
     rename: z.boolean().optional().describe('是否自动重命名冲突文件，默认 false'),
-    content: z.string().min(1).optional().describe('资源内容，支持字符串和 Buffer 类型，当 content 与 template 都传递时，优先使用 content 创建文件'),
+    content: z.string().optional().describe('资源内容，支持字符串和 Buffer 类型，当 content 与 template 都传递时，优先使用 content 创建文件，不传递时创建文件夹'),
     target: z.string().min(1).describe('资源创建的输出地址，支持绝对路径和 url'),
     template: z.string().min(1).optional().describe('资源文件模板地址，例如 db://xxx/ani，支持 url 与绝对路径'),
     uuid: z.string().min(1).optional().describe('指定 uuid ，由于 uuid 也有概率冲突，uuid 冲突时会自动重新分配 uuid'),

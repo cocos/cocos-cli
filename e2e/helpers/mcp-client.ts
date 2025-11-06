@@ -31,10 +31,13 @@ export class MCPTestClient {
     private transport: StreamableHTTPClientTransport | null = null;
     private serverProcess: ChildProcess | null = null;
     private forceKillTimer: NodeJS.Timeout | null = null;
+    private startTimeoutTimer: NodeJS.Timeout | null = null;
+    private connectTimer: NodeJS.Timeout | null = null;
     private projectPath: string;
     private port: number;
     private cliPath: string;
     private startTimeout: number;
+    private serverReady: boolean = false;
 
     constructor(options: MCPServerOptions) {
         this.projectPath = options.projectPath;
@@ -107,9 +110,10 @@ export class MCPTestClient {
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
 
-            let serverReady = false;
-            const timeout = setTimeout(() => {
-                if (!serverReady) {
+            this.serverReady = false;
+            this.startTimeoutTimer = setTimeout(() => {
+                if (!this.serverReady) {
+                    this.startTimeoutTimer = null;
                     reject(new Error(`MCP server start timeout after ${this.startTimeout}ms`));
                 }
             }, this.startTimeout);
@@ -137,15 +141,21 @@ export class MCPTestClient {
 
                 // 检查服务器启动成功的标志
                 if (output.includes('MCP Server started') || output.includes('Server listening') || output.includes('Server is running on:')) {
-                    serverReady = true;
-                    clearTimeout(timeout);
+                    if (!this.serverReady) {
+                        this.serverReady = true;
+                        if (this.startTimeoutTimer) {
+                            clearTimeout(this.startTimeoutTimer);
+                            this.startTimeoutTimer = null;
+                        }
 
-                    // 等待一小段时间确保服务器完全就绪，然后连接客户端
-                    setTimeout(() => {
-                        this.connectClient()
-                            .then(() => resolve())
-                            .catch(reject);
-                    }, 1000);
+                        // 等待一小段时间确保服务器完全就绪，然后连接客户端
+                        this.connectTimer = setTimeout(() => {
+                            this.connectTimer = null;
+                            this.connectClient()
+                                .then(() => resolve())
+                                .catch(reject);
+                        }, 1000);
+                    }
                 }
             });
 
@@ -160,13 +170,27 @@ export class MCPTestClient {
             });
 
             this.serverProcess.on('error', (error) => {
-                clearTimeout(timeout);
+                if (this.startTimeoutTimer) {
+                    clearTimeout(this.startTimeoutTimer);
+                    this.startTimeoutTimer = null;
+                }
+                if (this.connectTimer) {
+                    clearTimeout(this.connectTimer);
+                    this.connectTimer = null;
+                }
                 reject(error);
             });
 
             this.serverProcess.on('exit', (code) => {
-                if (!serverReady) {
-                    clearTimeout(timeout);
+                if (!this.serverReady) {
+                    if (this.startTimeoutTimer) {
+                        clearTimeout(this.startTimeoutTimer);
+                        this.startTimeoutTimer = null;
+                    }
+                    if (this.connectTimer) {
+                        clearTimeout(this.connectTimer);
+                        this.connectTimer = null;
+                    }
                     reject(new Error(`Server exited with code ${code} before ready`));
                 }
             });
@@ -298,13 +322,42 @@ export class MCPTestClient {
                 reason: 'Invalid MCP response format',
             } as any;
         } catch (error) {
+            // 处理错误，提供更详细的错误信息
             if (E2E_DEBUG) {
                 console.error(`[MCP callTool] ${name} error:`, error);
             }
+
+            // 尝试从错误中提取有用信息
+            let errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+
+            // 处理常见的网络错误，提供更友好的提示
+            if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED')) {
+                // 检查是否是参数验证错误导致的
+                // 如果参数验证失败，服务器可能返回 400 或 500，导致 fetch failed
+                const paramsStr = JSON.stringify(args, null, 2);
+                errorMessage = `网络请求失败 (${name}):\n` +
+                    `可能的原因：\n` +
+                    `  1. 参数验证失败：请检查传入的参数是否与 inputSchema 匹配\n` +
+                    `  2. 服务器连接失败：请确保 MCP 服务器正在运行\n` +
+                    `  3. 参数格式错误：请检查参数类型和必需字段\n` +
+                    `\n传入的参数:\n${paramsStr}\n` +
+                    `\n原始错误: ${errorMessage}`;
+                
+                if (errorStack) {
+                    errorMessage += `\n\n堆栈跟踪:\n${errorStack}`;
+                }
+            }
+
+            // 如果错误信息已经包含详细的验证错误，直接使用
+            if (errorMessage.includes('参数验证失败')) {
+                // 保持原有的详细错误信息
+            }
+
             return {
                 code: 500,
                 data: undefined,
-                reason: error instanceof Error ? error.message : String(error),
+                reason: errorMessage,
             } as any;
         }
     }
@@ -328,6 +381,16 @@ export class MCPTestClient {
      * 关闭客户端和服务器
      */
     async close(): Promise<void> {
+        // 清理所有定时器
+        if (this.startTimeoutTimer) {
+            clearTimeout(this.startTimeoutTimer);
+            this.startTimeoutTimer = null;
+        }
+        if (this.connectTimer) {
+            clearTimeout(this.connectTimer);
+            this.connectTimer = null;
+        }
+
         if (this.client) {
             try {
                 await this.client.close();
@@ -357,8 +420,13 @@ export class MCPTestClient {
         }
 
         if (this.serverProcess) {
+            // 移除所有事件监听器，避免内存泄漏
+            this.serverProcess.stdout?.removeAllListeners();
+            this.serverProcess.stderr?.removeAllListeners();
+            this.serverProcess.removeAllListeners();
+
             return new Promise((resolve) => {
-                this.serverProcess!.on('exit', () => {
+                const onExit = () => {
                     // 清理强制杀死定时器
                     if (this.forceKillTimer) {
                         clearTimeout(this.forceKillTimer);
@@ -367,8 +435,11 @@ export class MCPTestClient {
                     if (E2E_DEBUG) {
                         console.log(`   Server process exited`);
                     }
+                    this.serverProcess = null;
                     resolve();
-                });
+                };
+
+                this.serverProcess!.once('exit', onExit);
 
                 // 发送 SIGTERM
                 this.serverProcess!.kill('SIGTERM');
@@ -380,11 +451,26 @@ export class MCPTestClient {
                             console.log(`   Force killing server process`);
                         }
                         this.serverProcess.kill('SIGKILL');
+                        // 强制杀死后，等待进程退出
+                        setTimeout(() => {
+                            if (this.forceKillTimer) {
+                                clearTimeout(this.forceKillTimer);
+                                this.forceKillTimer = null;
+                            }
+                            this.serverProcess = null;
+                            resolve();
+                        }, 1000);
+                    } else {
+                        if (this.forceKillTimer) {
+                            clearTimeout(this.forceKillTimer);
+                            this.forceKillTimer = null;
+                        }
                     }
-                    this.forceKillTimer = null;
                 }, E2E_TIMEOUTS.FORCE_KILL);
             });
         }
+
+        this.serverReady = false;
 
         if (E2E_DEBUG) {
             console.log(`✅ MCP client closed`);

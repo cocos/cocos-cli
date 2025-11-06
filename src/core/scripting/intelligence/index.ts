@@ -3,8 +3,8 @@ import ps from 'path';
 import fs from 'fs-extra';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { StatsQuery } from '@cocos/ccbuild';
-import { IAssetDBInfo } from '../../assets/@types/private';
 import { Engine } from '../../engine';
+import { DBInfo } from '../@types/config-export';
 
 export interface DbURLInfo { dbURL: string, target: string }
 
@@ -16,6 +16,7 @@ export class TypeScriptConfigBuilder {
     private _declarationHomePath: string;
     private _engineTsPath: string;
     private _projectPath: string;
+    private _dbInfos: DBInfo[] = [];
 
     private internalTsConfig: ts.CompilerOptions = {};
     private internalDbURLInfos: DbURLInfo[] = [];
@@ -27,6 +28,10 @@ export class TypeScriptConfigBuilder {
         this._tempDirPath = ps.join(projectPath, 'temp');
         this._configFilePath = ps.join(this._tempDirPath, 'tsconfig.cocos.json');
         this._declarationHomePath = ps.join(this._tempDirPath, 'declarations');
+    }
+
+    setDbURLInfos(dbInfos: DBInfo[]) {
+        this._dbInfos = dbInfos;
     }
 
     getTempPath(): string {
@@ -223,10 +228,8 @@ export class TypeScriptConfigBuilder {
 
     async getDbURLInfos(): Promise<DbURLInfo[]> {
         const infos: DbURLInfo[] = [];
-        const dbInfos = (globalThis as any).assetDBManager.assetDBInfo as Record<string, IAssetDBInfo>;
-        const dbInfoValues = Object.values(dbInfos);
-        for (const dbInfo of dbInfoValues) {
-            const dbURL = getDatabaseModuleRootURL(dbInfo.name);
+        for (const dbInfo of this._dbInfos) {
+            const dbURL = getDatabaseModuleRootURL(dbInfo.dbID);
             infos.push({
                 dbURL,
                 target: dbInfo.target,

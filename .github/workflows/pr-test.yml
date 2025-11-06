@@ -40,83 +40,17 @@ jobs:
         id: unit-tests
         run: npm run test:quiet
       
-      - name: Check if E2E tests should run
-        id: check-e2e
-        run: |
-          SHOULD_RUN="false"
-          
-          # 检查 PR 描述是否包含 "run e2e test"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_BODY="${{ github.event.pull_request.body }}"
-            if echo "$PR_BODY" | grep -q "run e2e test"; then
-              SHOULD_RUN="true"
-            fi
-          fi
-          
-          # 检查评论是否包含 "run e2e test"
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            COMMENT_BODY="${{ github.event.comment.body }}"
-            if echo "$COMMENT_BODY" | grep -q "run e2e test"; then
-              SHOULD_RUN="true"
-            fi
-          fi
-          
-          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
-          echo "🔍 Should run E2E tests: $SHOULD_RUN"
-      
       - name: Run E2E tests
-        if: steps.check-e2e.outputs.should_run == 'true'
         id: e2e-tests
         uses: ./.github/actions/run-e2e-tests
         with:
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
-      - name: Upload E2E test report
-        if: always() && steps.check-e2e.outputs.should_run == 'true' && steps.e2e-tests.outputs.report_exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-e2e-test-report-${{ github.run_id }}
-          path: ${{ steps.e2e-tests.outputs.report_file }}
-          retention-days: 30
-      
-      - name: Check if coverage check should run
-        id: check-coverage
-        run: |
-          SHOULD_RUN="false"
-          
-          # 检查 PR 描述是否包含 "check e2e coverage"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_BODY="${{ github.event.pull_request.body }}"
-            if echo "$PR_BODY" | grep -q "check e2e coverage"; then
-              SHOULD_RUN="true"
-            fi
-          fi
-          
-          # 检查评论是否包含 "check e2e coverage"
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            COMMENT_BODY="${{ github.event.comment.body }}"
-            if echo "$COMMENT_BODY" | grep -q "check e2e coverage"; then
-              SHOULD_RUN="true"
-            fi
-          fi
-          
-          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
-          echo "🔍 Should check E2E coverage: $SHOULD_RUN"
-      
       - name: Check E2E coverage
-        if: steps.check-coverage.outputs.should_run == 'true'
         id: coverage
         uses: ./.github/actions/check-e2e-coverage
         with:
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
-      
-      - name: Upload coverage report
-        if: always() && steps.check-coverage.outputs.should_run == 'true' && steps.coverage.outputs.report_path != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-coverage-report-${{ github.run_id }}
-          path: ${{ steps.coverage.outputs.report_path }}
-          retention-days: 30
       
       - name: Generate PR comment
         if: always()
@@ -130,11 +64,9 @@ jobs:
             ALL_PASS=false
           fi
           
-          # E2E 测试状态（通过 outcome 判断，而不是 report_exists）
-          if [ "${{ steps.check-e2e.outputs.should_run }}" = "true" ]; then
-            if [ "${{ steps.e2e-tests.outcome }}" != "success" ]; then
-              ALL_PASS=false
-            fi
+          # E2E 测试状态（通过 outcome 判断）
+          if [ "${{ steps.e2e-tests.outcome }}" != "success" ]; then
+            ALL_PASS=false
           fi
           
           # 覆盖率检查仅作为信息展示，不影响整体状态
@@ -160,49 +92,41 @@ jobs:
             MESSAGE+="| 🧪 | ❌ 单元测试失败 |\n"
           fi
           
-          # E2E 测试行
-          if [ "${{ steps.check-e2e.outputs.should_run }}" = "true" ]; then
-            # 获取报告 URL（无论测试成功还是失败）
-            REPORT_URL="${{ steps.e2e-tests.outputs.report_url }}"
-            
-            # 检查测试是否通过（通过检查 outcome）
-            if [ "${{ steps.e2e-tests.outcome }}" = "success" ]; then
-              # 测试成功
-              if [ -n "$REPORT_URL" ]; then
-                MESSAGE+="| 🔄 | ✅ E2E 测试 · [报告]($REPORT_URL) |\n"
-              else
-                MESSAGE+="| 🔄 | ✅ E2E 测试 |\n"
-              fi
+          # E2E 测试行（总是显示）
+          # 获取报告 URL（无论测试成功还是失败）
+          REPORT_URL="${{ steps.e2e-tests.outputs.report_url }}"
+          
+          # 检查测试是否通过（通过检查 outcome）
+          if [ "${{ steps.e2e-tests.outcome }}" = "success" ]; then
+            # 测试成功
+            if [ -n "$REPORT_URL" ]; then
+              MESSAGE+="| 🔄 | ✅ E2E 测试 · [报告]($REPORT_URL) |\n"
             else
-              # 测试失败，但仍附上报告链接（如果存在）
-              if [ -n "$REPORT_URL" ]; then
-                MESSAGE+="| 🔄 | ❌ E2E 测试失败 · [查看报告]($REPORT_URL) |\n"
-              else
-                MESSAGE+="| 🔄 | ❌ E2E 测试失败 |\n"
-              fi
+              MESSAGE+="| 🔄 | ✅ E2E 测试 |\n"
             fi
           else
-            MESSAGE+="| 🔄 | ⏭️ E2E 测试 (跳过) |\n"
+            # 测试失败，但仍附上报告链接（如果存在）
+            if [ -n "$REPORT_URL" ]; then
+              MESSAGE+="| 🔄 | ❌ E2E 测试失败 · [查看报告]($REPORT_URL) |\n"
+            else
+              MESSAGE+="| 🔄 | ❌ E2E 测试失败 |\n"
+            fi
           fi
           
-          # 覆盖率行
-          if [ "${{ steps.check-coverage.outputs.should_run }}" = "true" ]; then
-            # 获取覆盖率信息
-            COVERAGE_URL="${{ steps.coverage.outputs.report_url }}"
-            COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
-            TESTED_COUNT="${{ steps.coverage.outputs.tested_count }}"
-            TOTAL_COUNT="${{ steps.coverage.outputs.total_count }}"
-            
-            # 显示覆盖率百分比（如果有数据）
-            if [ -n "$COVERAGE_PERCENT" ] && [ -n "$COVERAGE_URL" ]; then
-              MESSAGE+="| 📈 | 覆盖率 ${COVERAGE_PERCENT}% (${TESTED_COUNT}/${TOTAL_COUNT}) · [详情]($COVERAGE_URL) |\n"
-            elif [ -n "$COVERAGE_URL" ]; then
-              MESSAGE+="| 📈 | 覆盖率报告 · [详情]($COVERAGE_URL) |\n"
-            else
-              MESSAGE+="| 📈 | ⚠️ 覆盖率检查失败 |\n"
-            fi
+          # 覆盖率行（总是显示，但不影响测试结果）
+          # 获取覆盖率信息
+          COVERAGE_URL="${{ steps.coverage.outputs.report_url }}"
+          COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
+          TESTED_COUNT="${{ steps.coverage.outputs.tested_count }}"
+          TOTAL_COUNT="${{ steps.coverage.outputs.total_count }}"
+          
+          # 显示覆盖率百分比（如果有数据）
+          if [ -n "$COVERAGE_PERCENT" ] && [ -n "$COVERAGE_URL" ]; then
+            MESSAGE+="| 📈 | 覆盖率 ${COVERAGE_PERCENT}% (${TESTED_COUNT}/${TOTAL_COUNT}) · [详情]($COVERAGE_URL) |\n"
+          elif [ -n "$COVERAGE_URL" ]; then
+            MESSAGE+="| 📈 | 覆盖率报告 · [详情]($COVERAGE_URL) |\n"
           else
-            MESSAGE+="| 📈 | ⏭️ 覆盖率检查 (跳过) |\n"
+            MESSAGE+="| 📈 | ⚠️ 覆盖率检查失败 |\n"
           fi
           
           MESSAGE+="\n$FOOTER\n\n"

@@ -33,6 +33,13 @@ npm run test:e2e -- --preserve
 
 # 运行所有测试（单元测试 + E2E）
 npm run test:all
+
+# 运行指定测试文件
+npm run test:e2e -- tests/cli/build.e2e.test.ts
+npm run test:e2e:debug -- tests/cli/build.e2e.test.ts
+
+# 运行指定测试目录
+npm run test:e2e -- tests/mcp/api
 ```
 
 ### 查看测试报告
@@ -44,11 +51,11 @@ npm run test:all
 e2e/reports/test-report-2024-01-15-10-30.html
 ```
 
-**✨ 自动打印报告路径**
+### 自动打印报告路径
 
 测试完成后，会在控制台自动打印报告的完整路径和快速打开命令：
 
-```
+```text
 ============================================================
 📊 测试报告已生成
 ============================================================
@@ -63,7 +70,7 @@ e2e/reports/test-report-2024-01-15-10-30.html
 
 直接复制快速打开命令即可在浏览器中查看！
 
-**手动打开报告**
+### 手动打开报告
 
 ```bash
 # Windows
@@ -101,40 +108,53 @@ npm run test:e2e -- --cli $(which cocos)
 
 ## 📁 目录结构
 
-```
+```text
 e2e/
 ├── cli/                          # CLI 命令测试
 │   ├── build.e2e.test.ts        # 测试 cocos build 命令
-│   ├── create.e2e.test.ts       # 测试 cocos create 命令
-│   ├── info.e2e.test.ts         # 测试 cocos info 命令
-│   └── wizard.e2e.test.ts       # 测试 cocos wizard 命令
+│   └── create.e2e.test.ts       # 测试 cocos create 命令
 ├── mcp/                          # MCP 服务器测试
-│   ├── server.e2e.test.ts       # 测试 MCP 服务器启动
+│   ├── server.e2e.test.ts       # 测试 MCP 服务器启动和错误处理
 │   └── api/                      # API 接口测试
 │       ├── builder.e2e.test.ts  # 测试构建 API
-│       ├── assets.e2e.test.ts   # 测试资源 API
-│       ├── project.e2e.test.ts  # 测试项目 API
-│       └── scene.e2e.test.ts    # 测试场景 API
+│       └── assets/              # 资源 API 测试（按功能拆分）
+│           ├── operation.e2e.test.ts  # 资源操作（创建、删除、移动、保存、重命名、刷新）
+│           ├── query.e2e.test.ts      # 资源查询
+│           ├── import.e2e.test.ts     # 资源导入和重新导入
+│           └── user-data.e2e.test.ts  # 资源用户数据管理
 ├── helpers/                      # 测试辅助工具
 │   ├── cli-runner.ts            # CLI 命令执行器
 │   ├── mcp-client.ts            # MCP 客户端封装
-│   └── test-utils.ts            # 通用测试工具
+│   ├── project-manager.ts       # 测试项目管理器
+│   ├── shared-mcp-server.ts    # 共享 MCP 服务器管理
+│   ├── test-utils.ts            # 通用测试工具函数
+│   └── report-printer.js        # 测试报告打印工具
+├── scripts/                     # 🛠️ 辅助脚本
+│   ├── check-coverage.ts        # E2E 测试覆盖率检查脚本
+│   ├── generate-mcp-types.ts    # 自动生成 MCP 工具类型定义
+│   ├── tool-utils.ts            # MCP 工具扫描共享工具函数
+│   ├── prepare-test.js           # 测试准备脚本
+│   └── README.md                 # 脚本说明文档
 ├── docs/                         # 📚 文档
 │   ├── CLI-PATH-GUIDE.md        # CLI 路径配置指南
 │   ├── USAGE.md                 # 详细使用指南
 │   ├── PROJECT-MANAGER-GUIDE.md # 测试项目管理器指南
 │   ├── E2E-COVERAGE-CHECK.md    # E2E 测试覆盖率检查
-│   └── WIZARD-TESTING-LIMITATIONS.md # Wizard 测试限制说明
-├── scripts/                     # 🛠️ 辅助脚本
-│   └── check-coverage.ts        # E2E 测试覆盖率检查脚本
+│   ├── WIZARD-TESTING-LIMITATIONS.md # Wizard 测试限制说明
+│   ├── README-TSCONFIG.md       # TypeScript 配置说明
+│   ├── REPORT-SERVER-SETUP.md   # 测试报告服务器设置
+│   └── TYPE-INFERENCE-EXAMPLE.md # 类型推断示例
+├── types/                        # 类型定义
+│   └── mcp-tools.generated.ts    # 自动生成的 MCP 工具类型定义
+├── reports/                      # 测试报告（自动生成）
+│   └── test-report-*.html       # HTML 测试报告
 ├── config.ts                    # ⚙️ 全局配置（超时、端口等）
 ├── jest.config.e2e.ts           # E2E 测试配置
 ├── tsconfig.json                # TypeScript 配置（仅类型检查）
 ├── setup.ts                     # 全局测试前置
 ├── teardown.ts                  # 全局测试清理
 ├── jest.setup.ts                # Jest 环境配置
-├── README.md                    # 本文档
-└── README-TSCONFIG.md           # 配置说明（TS + 全局配置）
+└── README.md                    # 本文档
 ```
 
 ## 🔧 测试辅助工具
@@ -292,126 +312,20 @@ npm run test:e2e -- --verbose
 
 ```bash
 npm run test:e2e -- e2e/cli/build.e2e.test.ts
-
-# 或指定文件名模式
-npm run test:e2e -- --testPathPattern=build.e2e.test
-```
-
-### 运行单个测试用例
-
-```bash
-npm run test:e2e -- -t "should build web-desktop project"
-
-# 或使用正则表达式
-npm run test:e2e -- --testNamePattern="web-desktop"
 ```
 
 ### **只测试特定部分**
 
 ```bash
 # 只测试 CLI
-npm run test:e2e -- --testPathPattern=cli
+npm run test:e2e -- e2e/cli
 
 # 只测试 MCP
-npm run test:e2e -- --testPathPattern=**mcp**
-
-# 只测试某个 API
-npm run test:e2e -- --testPathPattern=mcp/api/assets
-```
-
-## 📊 测试覆盖
-
-### CLI 命令
-
-- ✅ `cocos build` - 各平台构建测试
-- ✅ `cocos create` - 项目创建测试
-- ✅ `cocos info` - 信息显示测试
-- ✅ `cocos wizard` - 向导模式测试
-- ✅ 错误处理和参数验证
-
-### MCP API
-
-- ✅ **Builder API**
-  - `builder-build`
-  - `builder-query-default-build-config`
-  - `builder-run`
-- ✅ **Assets API**
-  - `asset-create`
-  - `asset-query`
-  - `asset-delete`
-  - `asset-move`
-- ✅ **Project API**
-  - `project-query-info`
-- ✅ **Scene API**
-  - `scene-create-node`
-  - `scene-query-node`
-  - `scene-update-node`
-  - `scene-delete-node`
-
-## 🔄 持续集成
-
-E2E 测试可以集成到 CI/CD 流程中：
-
-```yaml
-# .github/workflows/test.yml
-- name: Run E2E tests
-  run: npm run test:e2e
+npm run test:e2e -- e2e/mcp
 ```
 
 ## 📚 文档
 
-### 配置与开发
-
-- **[全局配置说明](./docs/README-TSCONFIG.md)** - E2E 测试的配置文档 ⭐ 推荐阅读
-  - **全局配置** (`config.ts`) - 统一管理超时时间、端口号
-  - **TypeScript 配置** (`tsconfig.json`) - 类型检查、不参与编译
-  - 共享测试工具
-  - 路径别名支持
-
-### 使用指南
-
-- **[测试项目管理器指南](./docs/PROJECT-MANAGER-GUIDE.md)** - 统一管理测试项目和自动清理缓存 ⭐ 必读
-  - 自动清理 Cocos 缓存目录
-  - 自动清理 .gitignore 忽略的文件
-  - 统一的测试工作区
-  - 调试模式
-  - 迁移指南
-
-- **[CLI 路径配置指南](./docs/CLI-PATH-GUIDE.md)** - 如何在不同场景下指定 CLI 路径进行测试
-  - 开发阶段测试
-  - 测试本地打包
-  - 测试全局安装的包
-  - 测试已发布的 npm 包
-  - Smoke 测试
-
-- **[E2E 测试使用指南](./docs/USAGE.md)** - E2E 测试的详细使用说明
-  - 快速开始
-  - 测试配置
-  - 编写测试
-  - 调试技巧
-  - CI/CD 集成
-
-- **[Wizard 测试限制说明](./docs/WIZARD-TESTING-LIMITATIONS.md)** - 交互式命令的测试限制和解决方案
-  - 无法测试的场景（Ctrl+C 取消等）
-  - 可测试的场景
-  - 推荐的测试策略
-  - 替代方案
-
-- **[E2E 测试覆盖率检查](./docs/E2E-COVERAGE-CHECK.md)** - 确保所有 API 都有 E2E 测试 ⭐ 推荐
-  - 自动检测缺失的测试
-  - CI 自动报告
-  - 覆盖率统计和分析
-  - 测试编写指南
-
-- **[测试报告使用指南](./docs/TEST-REPORTS.md)** - 查看和分析可视化测试报告 ⭐ 推荐
-  - HTML 报告生成和查看
-  - 报告内容和配置
-  - CI/CD 中的报告
-  - 性能分析和问题定位
-
-### 相关资源
-
-- [单元测试配置](../tests/README.md) - 单元测试的 TypeScript 配置
-- [Jest 文档](https://jestjs.io/)
-- [MCP SDK 文档](https://github.com/modelcontextprotocol/sdk)
-- [Cocos CLI 文档](../docs/)
+- **[测试项目管理器指南](./docs/PROJECT-MANAGER-GUIDE.md)** - 统一管理测试项目和共享 MCP 服务器
+- **[CLI 路径配置指南](./docs/CLI-PATH-GUIDE.md)** - 指定 CLI 路径进行测试
+- **[配置说明](./docs/README-TSCONFIG.md)** - TypeScript 配置和全局配置

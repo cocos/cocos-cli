@@ -83,6 +83,13 @@ export interface AssetHandlerBase extends CustomHandlerBase {
     // 定义资源的导出行为，构建将会调用此处的方法
     exporter?: Exporter;
 
+    /**
+     * 自定义资源销毁行为，可选，无此方法时仅走 db 默认销毁资源的流程
+     * @param asset 
+     * @returns 
+     */
+    destroy?: (asset: IAsset) => Promise<void>;
+
     // 对应导入资源在导入后的资源类型信息，未传递默认为 cc.Asset
     assetType?: IAssetType;
 

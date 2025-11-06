@@ -30,7 +30,8 @@ export class McpServerCommand extends BaseCommand {
                     // 保持进程运行
                     process.stdin.resume();
                 } catch (error) {
-                    console.error(chalk.red('Failed to start MCP server:'), error);
+                    console.error(chalk.red('Failed to start MCP server'));
+                    console.error(error);
                     process.exit(1);
                 }
             });

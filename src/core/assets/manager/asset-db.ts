@@ -1,6 +1,6 @@
 'use strict';
 
-import { AssetDBRegisterInfo, IAsset, IAssetDBInfo } from '../@types/private';
+import { AssetDBRegisterInfo, IAsset, IAssetDBInfo, IAssetInfo, QueryAssetsOption } from '../@types/private';
 import * as assetdb from '@cocos/asset-db';
 import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
@@ -13,7 +13,10 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
-import { PackerDriver } from '../../scripting/packer-driver';
+import scripting from '../../scripting';
+import { AssetChangeInfo, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
+import assetQuery from './query';
+import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -120,6 +123,7 @@ class AssetDBManager extends EventEmitter {
             // await this._start();
             await this._startDirectly();
         }
+        await afterStartDB(this.assetDBInfo);
         this.ready = true;
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
         // 性能测试: 资源冷导入
@@ -146,7 +150,6 @@ class AssetDBManager extends EventEmitter {
         }
         newConsole.trackMemoryEnd('asset-db:worker-init: preStart');
 
-        await afterStartDB();
         newConsole.trackMemoryStart('assets:worker-init: startup');
         for (let i = 0; i < startupDatabaseQueue.length; i++) {
             const startupDatabase = startupDatabaseQueue[i];
@@ -191,7 +194,6 @@ class AssetDBManager extends EventEmitter {
             const waitingStartupDBInfo = await this._preStartDB(db);
             await this._startupDB(waitingStartupDBInfo);
         }
-        await afterStartDB();
     }
 
     public isBusy() {
@@ -740,11 +742,39 @@ async function afterPreImport(db: assetdb.AssetDB) {
     db.taskManager.stop();
 }
 
-async function afterStartDB() {
+async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
     await compileEffect();
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
     await startAutoGenEffectBin();
 
-    await PackerDriver.getInstance().resetDatabases();
-    await PackerDriver.getInstance().build();
+    // 初始化一些脚本需要的数据库信息
+    for (const info of Object.values(dbInfoMap)) {
+        const dbInfo = {
+            dbID: info.name,
+            target: info.target,
+        };
+        scripting.updateDatabases(dbInfo, DBChangeType.add);
+    }
+
+    // 脚本系统未触发构建，启动脚本构建流程
+    if (!scripting.isTargetReady('editor')) {
+        const assetChanges: AssetChangeInfo[] = [];
+        const options: QueryAssetsOption = {
+            ccType: 'cc.Script',
+        };
+        const assetInfos = assetQuery.queryAssetInfos(options, ['meta', 'url', 'file', 'importer', 'type']) as IAssetInfo[];
+        assetInfos.map((assetInfo) => {
+            if (assetInfo.importer === 'javascript' || assetInfo.importer === 'typescript') {
+                assetChanges.push({
+                    type: AssetActionEnum.add,
+                    uuid: assetInfo.uuid,
+                    filePath: assetInfo.file,
+                    importer: assetInfo.importer,
+                    userData: assetInfo.meta?.userData || {},
+                });
+            }
+        });
+        await scripting.compileScripts(assetChanges);
+    }
+    // 目前结构里，没有关闭数据库的逻辑
 }
