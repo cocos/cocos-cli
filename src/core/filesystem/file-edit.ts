@@ -160,22 +160,6 @@ export async function eraseLinesInRange(scriptPath: string, startLine: number, e
 }
 
 export async function replaceTextInFile(
-    scriptPath: string, targetText: string, replacementText: string): Promise<boolean> {
-    const filename = getScriptFilename(scriptPath);
-    try {
-        const results = await replaceInFile({
-            files: filename,
-            from: targetText, // First occurrence
-            to: replacementText,
-        });
-        return results.some(result => result.hasChanged);
-    } catch (error) {
-        console.error('Error occurred while replacing text:', error);
-        return false;
-    }
-}
-
-export async function replaceTextWithRegexInFile(
     scriptPath: string, targetRegex: string, replacementText: string): Promise<boolean> {
     const filename = getScriptFilename(scriptPath);
     try {
@@ -183,10 +167,30 @@ export async function replaceTextWithRegexInFile(
             files: filename,
             from: new RegExp(targetRegex, 'g'), // Global replace
             to: replacementText,
+            dry: true, // Dry run to count matches first
         });
-        return results.some(result => result.hasChanged);
+        let count = 0;
+        for (const result of results) {
+            if (result.numMatches) {
+                count += result.numMatches;
+            }
+        }
+        if (count > 1) {
+            console.warn(`Multiple (${count}) occurrences found. File is not changed.`);
+            return false;
+        }
+        if (count == 1) {
+            const results = await replaceInFile({
+                files: filename,
+                from: new RegExp(targetRegex, 'g'), // Global replace
+                to: replacementText,
+            });
+            return results.some(result => result.hasChanged);
+        }
+        console.warn('No occurrences found. File is not changed.');
+        return false;
     } catch (error) {
-        console.error('Error occurred while replacing text with regex:', error);
+        console.error('Error occurred while replacing text:', error);
         return false;
     }
 }
