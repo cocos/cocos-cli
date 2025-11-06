@@ -110,7 +110,7 @@
         "@cocos/asset-db": "^3.0.0-alpha.5",
         "@cocos/build-polyfills": "2.0.0",
         "@cocos/ccbuild": "2.3.17",
-        "@cocos/creator-programming-rollup-plugin-mod-lo": "^1.4.2",
+        "@cocos/creator-programming-rollup-plugin-mod-lo": "1.4.3",
         "@cocos/data-uri": "^1.0.6",
         "@cocos/fbx-gltf-conv": "^1.0.0-alpha.49.editor.1",
         "@cocos/fbx2gltf": "^1.0.8",
