@@ -5,7 +5,10 @@ import { replaceInFile } from 'replace-in-file';
 import path from 'path';
 import { resolveToRaw, contains } from '../base/utils/path';
 
-const SUPPORTED_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.json'];
+const SUPPORTED_EXTENSIONS = [
+    '.js', '.ts', '.jsx', '.tsx', '.json',
+    '.txt', '.md', '.xml', '.html', '.css',
+];
 
 function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     let succeeded = true;
