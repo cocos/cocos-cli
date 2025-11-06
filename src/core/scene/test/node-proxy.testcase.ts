@@ -246,7 +246,7 @@ describe('Node Proxy 测试', () => {
             expect(result).toBeNull();
         });
 
-        it('updateNode - 更新不存在的节点应返回null', async () => {
+        it('updateNode - 更新不存在的节点应抛异常', async () => {
             const params: IUpdateNodeParams = {
                 path: '/NonExistentNode',
                 name: 'NonExistentNode',
@@ -255,8 +255,7 @@ describe('Node Proxy 测试', () => {
                 }
             };
 
-            const result = await NodeProxy.updateNode(params);
-            expect(result).toBeNull();
+            await expect(NodeProxy.updateNode(params)).rejects.toThrow();
         });
 
         it('deleteNode - 删除不存在的节点应返回null', async () => {
