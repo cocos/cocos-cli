@@ -3,26 +3,26 @@ import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { SchemaNode, TNode } from './node-schema';
 import { Scene } from '../../core/scene';
 import {
-    SchemaApplyPrefabChangesParams,
+    SchemaApplyPrefabChangesOptions,
     SchemaApplyPrefabChangesResult,
-    SchemaCreatePrefabFromNodeParams,
-    SchemaGetPrefabInfoParams,
+    SchemaCreatePrefabFromNodeOptions,
+    SchemaGetPrefabInfoOptions,
     SchemaGetPrefabResult,
-    SchemaIsPrefabInstanceParams,
+    SchemaIsPrefabInstanceOptions,
     SchemaIsPrefabInstanceResult,
-    SchemaRevertToPrefabParams,
+    SchemaRevertToPrefabOptions,
     SchemaRevertToPrefabResult,
-    SchemaUnpackPrefabInstanceParams,
-    TApplyPrefabChangesParams,
+    SchemaUnpackPrefabInstanceOptions,
+    TApplyPrefabChangesOptions,
     TApplyPrefabChangesResult,
-    TCreatePrefabFromNodeParams,
+    TCreatePrefabFromNodeOptions,
     TGetPrefabInfoParams,
     TGetPrefabResult,
-    TIsPrefabInstanceParams,
+    TIsPrefabInstanceOptions,
     TIsPrefabInstanceResult,
-    TRevertToPrefabParams,
+    TRevertToPrefabOptions,
     TRevertToPrefabResult,
-    TUnpackPrefabInstanceParams
+    TUnpackPrefabInstanceOptions
 } from './prefab-schema';
 
 export class PrefabApi {
@@ -31,9 +31,9 @@ export class PrefabApi {
     @title('将节点转换为预制体资源')
     @description('将指定节点及其子节点转换为预制体资源，并保存到指定路径')
     @result(SchemaNode)
-    async createPrefabFromNode(@param(SchemaCreatePrefabFromNodeParams) params: TCreatePrefabFromNodeParams): Promise<CommonResultType<TNode>> {
+    async createPrefabFromNode(@param(SchemaCreatePrefabFromNodeOptions) options: TCreatePrefabFromNodeOptions): Promise<CommonResultType<TNode>> {
         try {
-            const data = await Scene.createPrefabFromNode(params);
+            const data = await Scene.createPrefabFromNode(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -51,9 +51,9 @@ export class PrefabApi {
     @title('应用预制体修改')
     @description('将预制体实例的修改应用回预制体资源')
     @result(SchemaApplyPrefabChangesResult)
-    async applyPrefabChanges(@param(SchemaApplyPrefabChangesParams) params: TApplyPrefabChangesParams): Promise<CommonResultType<TApplyPrefabChangesResult>> {
+    async applyPrefabChanges(@param(SchemaApplyPrefabChangesOptions) options: TApplyPrefabChangesOptions): Promise<CommonResultType<TApplyPrefabChangesResult>> {
         try {
-            const data = await Scene.applyPrefabChanges(params);
+            const data = await Scene.applyPrefabChanges(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -71,9 +71,9 @@ export class PrefabApi {
     @title('重置预制体实例')
     @description('将预制体实例重置到预制体资源的原始状态')
     @result(SchemaRevertToPrefabResult)
-    async revertToPrefab(@param(SchemaRevertToPrefabParams) params: TRevertToPrefabParams): Promise<CommonResultType<TRevertToPrefabResult>> {
+    async revertToPrefab(@param(SchemaRevertToPrefabOptions) options: TRevertToPrefabOptions): Promise<CommonResultType<TRevertToPrefabResult>> {
         try {
-            const data = await Scene.revertToPrefab(params);
+            const data = await Scene.revertToPrefab(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -91,9 +91,9 @@ export class PrefabApi {
     @title('解耦预制体实例')
     @description('将预制体实例解耦，使其成为普通节点，不再与预制体资源关联')
     @result(SchemaNode)
-    async unpackPrefabInstance(@param(SchemaUnpackPrefabInstanceParams) params: TUnpackPrefabInstanceParams): Promise<CommonResultType<TNode>> {
+    async unpackPrefabInstance(@param(SchemaUnpackPrefabInstanceOptions) options: TUnpackPrefabInstanceOptions): Promise<CommonResultType<TNode>> {
         try {
-            const data = await Scene.unpackPrefabInstance(params);
+            const data = await Scene.unpackPrefabInstance(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -111,9 +111,9 @@ export class PrefabApi {
     @title('检查是否为预制体实例')
     @description('检查指定节点是否为预制体实例')
     @result(SchemaIsPrefabInstanceResult)
-    async isPrefabInstance(@param(SchemaIsPrefabInstanceParams) params: TIsPrefabInstanceParams): Promise<CommonResultType<TIsPrefabInstanceResult>> {
+    async isPrefabInstance(@param(SchemaIsPrefabInstanceOptions) options: TIsPrefabInstanceOptions): Promise<CommonResultType<TIsPrefabInstanceResult>> {
         try {
-            const data = await Scene.isPrefabInstance(params);
+            const data = await Scene.isPrefabInstance(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -131,9 +131,9 @@ export class PrefabApi {
     @title('获取预制体信息')
     @description('获取指定节点的预制体相关信息')
     @result(SchemaGetPrefabResult)
-    async getPrefabInfo(@param(SchemaGetPrefabInfoParams) params: TGetPrefabInfoParams): Promise<CommonResultType<TGetPrefabResult>> {
+    async getPrefabInfo(@param(SchemaGetPrefabInfoOptions) options: TGetPrefabInfoParams): Promise<CommonResultType<TGetPrefabResult>> {
         try {
-            const data = await Scene.getPrefabInfo(params);
+            const data = await Scene.getPrefabInfo(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,

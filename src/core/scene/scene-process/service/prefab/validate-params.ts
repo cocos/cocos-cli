@@ -8,16 +8,16 @@ export function validateCreatePrefabParams(params: ICreatePrefabFromNodeParams):
         throw new Error('节点路径不能为空或纯空格');
     }
 
-    if (!params?.assetURL?.trim()) {
+    if (!params?.dbURL?.trim()) {
         throw new Error('资源URL不能为空或纯空格');
     }
 
     // URL 格式验证
-    if (!params.assetURL.startsWith(ASSET_URL_PREFIX)) {
+    if (!params.dbURL.startsWith(ASSET_URL_PREFIX)) {
         throw new Error(`资源 URL 必须以 '${ASSET_URL_PREFIX}' 开头`);
     }
 
-    if (!params.assetURL.endsWith(PREFAB_EXTENSION)) {
+    if (!params.dbURL.endsWith(PREFAB_EXTENSION)) {
         throw new Error(`资源 URL 必须以 '${PREFAB_EXTENSION}' 后缀`);
     }
 }

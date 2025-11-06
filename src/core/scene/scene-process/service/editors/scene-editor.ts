@@ -3,9 +3,9 @@ import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode, IScene } fr
 import { Rpc } from '../../rpc';
 import { sceneUtils } from '../scene/utils';
 import { BaseEditor } from './base-editor';
-import { encode } from '../prefab/class-serializer';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
+import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 
 /**
  * SceneEditor - 场景编辑器
@@ -21,7 +21,7 @@ export class SceneEditor extends BaseEditor {
         return {
             ...entity.identifier,
             name: entity.instance.name,
-            prefab: encode.serializeInstance(entity.instance['_prefab'], false),
+            prefab: sceneUtils.generatePrefabInfo(entity.instance['_prefab']),
             children: entity.instance.children
                 .map((node: Node) => {
                     return sceneUtils.generateNodeInfo(node, false);
@@ -74,9 +74,12 @@ export class SceneEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('没有打开场景');
         }
-
-        const serializeJSON = sceneUtils.serialize(this.entity.instance as Scene);
-        this.entity.instance = await sceneUtils.runSceneImmediateByJson(serializeJSON);
+        const scene = this.entity.instance as Scene;
+        const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(scene);
+        const serializeJSON = sceneUtils.serialize(scene);
+        const sceneAfterLoad = await sceneUtils.runSceneImmediateByJson(serializeJSON);
+        editorPrefabUtils.restorePrefabUUID(sceneAfterLoad, prefabUUIDMap);
+        this.entity.instance = sceneAfterLoad;
         return this.encode();
     }
 

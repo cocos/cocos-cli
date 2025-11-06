@@ -1,4 +1,4 @@
-import { CREATE_TYPES, SCENE_TEMPLATE_TYPE } from '../../core/scene';
+import { SCENE_TEMPLATE_TYPE } from '../../core/scene';
 import { z } from 'zod';
 import { NodeQueryResultSchema } from './node-schema';
 import { SchemaComponentIdentifier } from './component-schema';

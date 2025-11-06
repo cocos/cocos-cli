@@ -5,6 +5,7 @@ import { SceneProcessEventTag, SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
 import { listenModuleMessages } from './messages';
+import { getAvailablePort } from '../../../server/utils';
 
 export interface ISceneWorkerEvents {
     'restart': boolean,
@@ -42,7 +43,7 @@ export class SceneWorker {
         this.enginePath = enginePath;
         this.projectPath = projectPath;
 
-        return new Promise((resolve) => {
+        return new Promise(async (resolve) => {
             let isResolved = false;
             let startupTimer: NodeJS.Timeout | null = null;
 
@@ -68,8 +69,8 @@ export class SceneWorker {
                     `--serverURL=${getServerUrl()}`,
                 ];
                 const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-                const inspectPort = '9230';
-
+                const inspectPort = await getAvailablePort(9230);
+                console.log('--inspect= ' + inspectPort);
                 this._process = fork(precessPath, args, {
                     detached: false,
                     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],

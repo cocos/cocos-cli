@@ -18,7 +18,6 @@ import type {
 } from '../../common';
 import { validateCreatePrefabParams, validateNodePathParams } from './prefab/validate-params';
 import { sceneUtils } from './scene/utils';
-import { encode } from './prefab/class-serializer';
 
 @register('Prefab')
 export class PrefabService extends BaseService<IPrefabEvents> implements IPrefabService {
@@ -37,7 +36,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             validateCreatePrefabParams(params);
 
             const nodeUuid = EditorExtends.Node.getNodeUuidByPathOrThrow(params.nodePath);
-            const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.assetURL, {
+            const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.dbURL, {
                 overwrite: !!params.overwrite,
                 undo: true,
             });
@@ -47,7 +46,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             }
             return sceneUtils.generateNodeInfo(node, false);
         } catch (e) {
-            console.error(`创建预制体失败: 节点路径: ${params.nodePath} 资源 URL: ${params.assetURL} 错误信息:`, e);
+            console.error(`创建预制体失败: 节点路径: ${params.nodePath} 资源 URL: ${params.dbURL} 错误信息:`, e);
             throw e;
         }
     }
@@ -125,7 +124,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             if (!prefabInfo) {
                 return null;
             }
-            return encode.serializeInstance(prefabInfo) as IPrefabInfo;
+            return sceneUtils.generatePrefabInfo(prefabInfo) as IPrefabInfo;
         } catch (e) {
             console.error(`获取节点的预制体信息失败：节点路径 ${params.nodePath} 错误信息:`, e);
             throw e;

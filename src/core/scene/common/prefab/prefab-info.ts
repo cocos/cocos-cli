@@ -1,5 +1,5 @@
-import type { INode } from '../node';
-import type { IComponent } from '../component';
+import type { INodeIdentifier } from '../node';
+import type { IComponentIdentifier } from '../component';
 
 export enum OptimizationPolicy {
     AUTO = 0,
@@ -9,17 +9,16 @@ export enum OptimizationPolicy {
 
 export interface IPrefabInstance {
     fileId: string;
-    prefabRootNode?: INode;
+    prefabRootNode?: INodeIdentifier;
     mountedChildren: IMountedChildrenInfo[];
     mountedComponents: IMountedComponentsInfo[];
     propertyOverrides: IPropertyOverrideInfo[];
     removedComponents: ITargetInfo[];
-    targetMap: ITargetMap;
 }
 
 export interface IMountedChildrenInfo {
     targetInfo: ITargetInfo | null;
-    nodes: INode[];
+    nodes: INodeIdentifier[];
 }
 
 export interface IPropertyOverrideInfo {
@@ -36,27 +35,23 @@ export interface ICompPrefabInfo {
     fileId: string;
 }
 
-export interface ITargetMap {
-    [k: string]: ITargetMap | INode | IComponent;
-}
-
 export interface IMountedComponentsInfo {
     targetInfo: ITargetInfo | null;
-    components: IComponent[];
+    components: IComponentIdentifier[];
 }
 
 export interface ITargetOverrideInfo {
-    source: IComponent | INode | null;
+    source: IComponentIdentifier | INodeIdentifier | null;
     sourceInfo: ITargetInfo | null;
     propertyPath: string[];
-    target: INode | null;
+    target: INodeIdentifier | null;
     targetInfo: ITargetInfo | null;
 }
 
 export interface IPrefab {
     name: string;
     uuid: string;
-    data: INode,
+    data: INodeIdentifier,
     optimizationPolicy: OptimizationPolicy,
     persistent: boolean,
 }
@@ -64,9 +59,9 @@ export interface IPrefab {
 export interface IPrefabInfo {
     /** 关联的预制体资源信息 */
     asset?: IPrefab;
-    root?: INode;
+    root?: INodeIdentifier;
     instance?: IPrefabInstance;
     fileId: string;
     targetOverrides: ITargetOverrideInfo[];
-    nestedPrefabInstanceRoots: INode[];
+    nestedPrefabInstanceRoots: INodeIdentifier[];
 }

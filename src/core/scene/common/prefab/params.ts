@@ -4,7 +4,7 @@ export interface ICreatePrefabFromNodeParams {
     /** 要转换为预制体的源节点路径 */
     nodePath: string;
     /** 预制体资源保存 URL */
-    assetURL: string;
+    dbURL: string;
     /** 是否强制覆盖现有资源 */
     overwrite?: boolean;
 }

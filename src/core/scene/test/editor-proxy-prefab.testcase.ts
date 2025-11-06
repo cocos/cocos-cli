@@ -1,4 +1,4 @@
-import { INode, NodeType, TEditorEntity, } from '../common';
+import { IBaseIdentifier, INode, NodeType, TEditorEntity, } from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -8,45 +8,38 @@ import { assetManager } from '../../assets';
 
 describe('EditorProxy Prefab 测试', () => {
     describe('预制体操作', () => {
-        let instance: INode | null = null;
+        let identifier: IBaseIdentifier | null = null;
         let instanceAssetURL = '';
         let entity: TEditorEntity | null = null;
 
         it('create - 创建新预制体', async () => {
-            instance = await EditorProxy.create({
+            identifier = await EditorProxy.create({
                 type: 'prefab',
                 baseName: SceneTestEnv.prefabName,
                 targetDirectory: SceneTestEnv.targetDirectoryURL,
-            }) as INode;
+            });
 
-            expect(instance).toBeTruthy();
-            expect(instance?.prefab).toBeTruthy();
-            expect(instance?.prefab?.asset).toBeTruthy();
+            expect(identifier).toBeTruthy();
 
-            instanceAssetURL = assetManager.queryUrl(instance?.prefab?.asset?.uuid as string);
+            instanceAssetURL = assetManager.queryUrl(identifier.assetUuid);
 
-            expect(instance?.prefab).toBeTruthy();
             expect(instanceAssetURL).toBe(SceneTestEnv.prefabURL);
         });
 
         it('open - 通过 UUID 打开预制体', async () => {
             expect(instanceAssetURL).toBeTruthy();
-            expect(instance).toBeTruthy();
-            expect(instance?.prefab).toBeTruthy();
-            expect(instance?.prefab?.asset).toBeTruthy();
+            expect(identifier).toBeTruthy();
 
             const result = await EditorProxy.open({ urlOrUUID: instanceAssetURL }) as INode;
 
             expect(result).toBeTruthy();
             expect(result?.prefab).toBeTruthy();
             expect(result?.prefab?.asset).toBeTruthy();
-            expect(result.prefab?.asset?.uuid).toBe(instance?.prefab?.asset?.uuid);
+            expect(result.prefab?.asset?.uuid).toBe(identifier?.assetUuid);
         });
 
         it('save - 通过 UUID 保存预制体', async () => {
-            expect(instance).toBeTruthy();
-            expect(instance?.prefab).toBeTruthy();
-            expect(instance?.prefab?.asset).toBeTruthy();
+            expect(identifier).toBeTruthy();
 
             await NodeProxy.createNodeByType({
                 path: '',
@@ -55,7 +48,7 @@ describe('EditorProxy Prefab 测试', () => {
             });
 
             const result = await EditorProxy.save({
-                urlOrUUID: instance?.prefab?.asset?.uuid,
+                urlOrUUID: identifier?.assetUuid,
             });
 
             expect(result).not.toBeNull();
@@ -66,12 +59,10 @@ describe('EditorProxy Prefab 测试', () => {
         });
 
         it('reload - 通过 UUID 重载预制体', async () => {
-            expect(instance).toBeTruthy();
-            expect(instance?.prefab).toBeTruthy();
-            expect(instance?.prefab?.asset).toBeTruthy();
+            expect(identifier).toBeTruthy();
 
             const result = await EditorProxy.reload({
-                urlOrUUID: instance?.prefab?.asset?.uuid,
+                urlOrUUID: identifier?.assetUuid,
             }) as INode;
 
             expect(result).toBeDefined();
@@ -86,12 +77,10 @@ describe('EditorProxy Prefab 测试', () => {
         });
 
         it('close - 通过 UUID 关闭预制体', async () => {
-            expect(instance).toBeTruthy();
-            expect(instance?.prefab).toBeTruthy();
-            expect(instance?.prefab?.asset).toBeTruthy();
+            expect(identifier).toBeTruthy();
 
             const result = await EditorProxy.close({
-                urlOrUUID: instance?.prefab?.asset?.uuid,
+                urlOrUUID: identifier?.assetUuid,
             });
 
             expect(result).toBe(true);

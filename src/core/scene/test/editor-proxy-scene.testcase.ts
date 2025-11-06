@@ -1,4 +1,4 @@
-import { IScene, NodeType, TEditorEntity, } from '../common';
+import { IBaseIdentifier, IScene, NodeType, TEditorEntity, } from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -6,33 +6,33 @@ import { readFileSync } from 'fs-extra';
 
 describe('EditorProxy Scene 测试', () => {
     describe('场景操作', () => {
-        let instance: IScene | null = null;
+        let identifier: IBaseIdentifier | null = null;
         let entity: TEditorEntity | null = null;
 
         it('create - 创建新场景', async () => {
-            instance = await EditorProxy.create({
+            identifier = await EditorProxy.create({
                 type: 'scene',
                 baseName: SceneTestEnv.sceneName,
                 targetDirectory: SceneTestEnv.targetDirectoryURL,
-            }) as IScene;
-            expect(instance).toBeTruthy();
-            expect(instance?.assetName).toBe(`${SceneTestEnv.sceneName}.scene`);
+            });
+            expect(identifier).toBeTruthy();
+            expect(identifier?.assetName).toBe(`${SceneTestEnv.sceneName}.scene`);
         });
 
         it('open - 通过 UUID 打开场景', async () => {
-            expect(instance).toBeTruthy();
-            if (!instance) return;
+            expect(identifier).toBeTruthy();
+            if (!identifier) return;
 
             const result = await EditorProxy.open({
-                urlOrUUID: instance.assetUuid
+                urlOrUUID: identifier.assetUuid
             }) as IScene;
             expect(result).toBeDefined();
-            expect(result.assetUuid).toBe(instance.assetUuid);
+            expect(result.assetUuid).toBe(identifier.assetUuid);
         });
 
         it('save - 通过 UUID 保存场景', async () => {
-            expect(instance).toBeTruthy();
-            if (!instance) return;
+            expect(identifier).toBeTruthy();
+            if (!identifier) return;
 
             await NodeProxy.createNodeByType({
                 path: '',
@@ -40,7 +40,7 @@ describe('EditorProxy Scene 测试', () => {
                 name: 'scene-test-node-uuid',
             });
             const result = await EditorProxy.save({
-                urlOrUUID: instance.assetUuid,
+                urlOrUUID: identifier.assetUuid,
             });
             expect(result).not.toBeNull();
             const content = readFileSync(result.file, 'utf-8');
@@ -48,11 +48,11 @@ describe('EditorProxy Scene 测试', () => {
         });
 
         it('reload - 通过 UUID 重载场景', async () => {
-            expect(instance).toBeTruthy();
-            if (!instance) return;
+            expect(identifier).toBeTruthy();
+            if (!identifier) return;
 
             const result = await EditorProxy.reload({
-                urlOrUUID: instance.assetUuid,
+                urlOrUUID: identifier.assetUuid,
             }) as IScene;
             expect(result).toBeDefined();
             expect(JSON.stringify(result)).toContain('scene-test-node-uuid');
@@ -65,11 +65,11 @@ describe('EditorProxy Scene 测试', () => {
         });
 
         it('close - 通过 UUID 关闭场景', async () => {
-            expect(instance).toBeTruthy();
-            if (!instance) return;
+            expect(identifier).toBeTruthy();
+            if (!identifier) return;
 
             const result = await EditorProxy.close({
-                urlOrUUID: instance.assetUuid
+                urlOrUUID: identifier.assetUuid
             });
             expect(result).toBe(true);
         });
@@ -80,14 +80,14 @@ describe('EditorProxy Scene 测试', () => {
         });
 
         it('open - 通过 URL 打开场景', async () => {
-            expect(instance).toBeTruthy();
-            if (!instance) return;
+            expect(identifier).toBeTruthy();
+            if (!identifier) return;
 
             entity = await EditorProxy.open({
-                urlOrUUID: instance.assetUrl
+                urlOrUUID: identifier.assetUrl
             }) as IScene;
             expect(entity).toBeDefined();
-            expect(entity.assetUrl).toBe(instance.assetUrl);
+            expect(entity.assetUrl).toBe(identifier.assetUrl);
         });
 
         it('save - 通过 URL 保存场景', async () => {
@@ -108,11 +108,11 @@ describe('EditorProxy Scene 测试', () => {
         });
 
         it('reload - 通过 URL 重载场景', async () => {
-            expect(instance).toBeTruthy();
-            if (!instance) return;
+            expect(identifier).toBeTruthy();
+            if (!identifier) return;
 
             const result = await EditorProxy.reload({
-                urlOrUUID: instance.assetUrl,
+                urlOrUUID: identifier.assetUrl,
             });
             expect(result).toBeDefined();
             expect(JSON.stringify(result)).toContain('scene-test-node-url');

@@ -150,7 +150,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 const result = await target[method](...(args || []));
                 this.reply({ id, type: 'response', result });
             } catch (e: any) {
-                this.reply({ id, type: 'response', error: e?.message || String(e) });
+                console.error(`>>> ${module}.${method} args: `, args);
+                this.reply({ id, type: 'response', error: e?.message || String(e)});
             }
         }
 

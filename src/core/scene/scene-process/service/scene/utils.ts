@@ -1,7 +1,19 @@
 import cc from 'cc';
-import { IComponentIdentifier, INode, } from '../../../common';
+import {
+    IComponentIdentifier,
+    IMountedChildrenInfo,
+    IMountedComponentsInfo,
+    INode,
+    IPrefab,
+    IPrefabInfo,
+    IPrefabInstance,
+    IPropertyOverrideInfo,
+    ITargetInfo,
+    ITargetOverrideInfo,
+    OptimizationPolicy,
+} from '../../../common';
 import compMgr from '../component/index';
-import { encode } from '../prefab/class-serializer';
+import { prefabUtils } from '../prefab/utils';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -55,35 +67,120 @@ class SceneUtil {
         return compMgr.getComponentIdentifier(component);
     }
 
+    generatePrefabInfo(prefab: cc.Prefab._utils.PrefabInfo | null): IPrefabInfo | null {
+        if (!prefab) {
+            return null;
+        }
+
+        const generateTargetInfo = (info: any): ITargetInfo | null => {
+            if (!info) {
+                return null;
+            }
+            return {
+                localID: info.localID,
+            };
+        };
+
+        const generatePropertyOverrideInfo = (info: any): IPropertyOverrideInfo => {
+            return {
+                targetInfo: generateTargetInfo(info.targetInfo),
+                propertyPath: info.propertyPath,
+                value: info.value,
+            };
+        };
+
+        const generateMountedChildrenInfo = (info: any): IMountedChildrenInfo => {
+            return {
+                targetInfo: generateTargetInfo(info.targetInfo),
+                nodes: info.nodes.map((node: cc.Node) => this.generateNodeIdentifier(node))
+            };
+        };
+
+        const generateMountedComponentsInfo = (info: any): IMountedComponentsInfo => {
+            return {
+                targetInfo: generateTargetInfo(info.targetInfo),
+                components: info.components.map((comp: cc.Component) => this.generateComponentIdentifier(comp)),
+            };
+        };
+
+        const generatePrefabInstance = (instance: any): IPrefabInstance | undefined => {
+            if (!instance) {
+                return undefined;
+            }
+            return {
+                fileId: instance.fileId,
+                prefabRootNode: instance.prefabRootNode ? this.generateNodeIdentifier(instance.prefabRootNode) : undefined,
+                mountedChildren: instance.mountedChildren.map(generateMountedChildrenInfo),
+                mountedComponents: instance.mountedComponents.map(generateMountedComponentsInfo),
+                propertyOverrides: instance.propertyOverrides.map(generatePropertyOverrideInfo),
+                removedComponents: instance.removedComponents.map(generateTargetInfo),
+            };
+        };
+
+        const generatePrefabAsset = (asset: any): IPrefab | undefined => {
+            if (!asset) {
+                return undefined;
+            }
+            return {
+                name: asset.name,
+                uuid: asset._uuid,
+                data: this.generateNodeIdentifier(asset.data),
+                optimizationPolicy: asset.optimizationPolicy as OptimizationPolicy,
+                persistent: asset.persistent,
+            };
+        };
+
+        const generateTargetOverrideInfo = (info: any): ITargetOverrideInfo => {
+            return {
+                source: info.source ? (info.source.node ? this.generateNodeIdentifier(info.source.node) : this.generateComponentIdentifier(info.source)) : null,
+                sourceInfo: generateTargetInfo(info.sourceInfo),
+                propertyPath: info.propertyPath,
+                target: info.target ? this.generateNodeIdentifier(info.target) : null,
+                targetInfo: generateTargetInfo(info.targetInfo),
+            };
+        };
+
+        const root = prefab.root && this.generateNodeIdentifier(prefab.root);
+        return {
+            asset: generatePrefabAsset(prefab.asset),
+            root: root,
+            instance: generatePrefabInstance(prefab.instance),
+            fileId: prefab.fileId,
+            targetOverrides: prefab.targetOverrides ? prefab.targetOverrides.map(generateTargetOverrideInfo) : [],
+            nestedPrefabInstanceRoots: prefab.nestedPrefabInstanceRoots ? prefab.nestedPrefabInstanceRoots.map((node: cc.Node) => this.generateNodeIdentifier(node)) : [],
+        };
+    }
+
+    generateNodeIdentifier(node: cc.Node) {
+        return {
+            nodeId: node.uuid,
+            path: EditorExtends.Node.getNodePath(node),
+            name: node.name,
+        };
+    }
+
+    generateComponentIdentifier(component: cc.Component) {
+        return compMgr.getComponentIdentifier(component);
+    }
+
     /**
      * 节点 dump 数据
      * @param node
      * @param generateChildren
      */
     generateNodeInfo(node: cc.Node, generateChildren: boolean): INode {
+        const identifier = this.generateNodeIdentifier(node);
         const nodeInfo: INode = {
-            nodeId: node.uuid,
-            path: EditorExtends.Node.getNodePath(node),
-            name: node.name,
-            prefab: encode.serializeInstance(node['_prefab']),
+            ...identifier,
+            prefab: this.generatePrefabInfo(node['_prefab']),
             properties: {
                 active: node.active,
                 position: node.position,
                 rotation: node.rotation,
                 scale: node.scale,
                 layer: node.layer,
-                // worldPosition: node.worldPosition,
-                // worldRotation: node.worldRotation,
                 eulerAngles: node.eulerAngles,
-                // angle: node.angle,
-                // worldScale: node.worldScale,
-                // worldMatrix: node.worldMatrix,
-                // forward: node.forward,
-                // up: node.up,
-                // right: node.right,
                 mobility: node.mobility,
-                // hasChangedFlags: node.hasChangedFlags,
-                // activeInHierarchy: node.activeInHierarchy,
             },
             components: node.components
                 .map((component: cc.Component) => {
@@ -107,6 +204,8 @@ class SceneUtil {
      */
     serialize(scene: cc.Scene) {
         const asset = new cc.SceneAsset();
+        prefabUtils.gatherPrefabInstanceRoots(scene);
+        prefabUtils.removeInvalidPrefabData(scene);
         asset.scene = scene;
         return EditorExtends.serialize(asset);
     }
