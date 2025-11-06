@@ -140,6 +140,7 @@ describe('MCP Prefab API', () => {
         const queryNodeResult = await mcpClient.callTool('scene-query-node', {
             options: {
                 path: nodePath,
+                queryChildren: false,
             }
         });
         expect(queryNodeResult.data).not.toBeNull();

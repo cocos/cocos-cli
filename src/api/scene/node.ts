@@ -113,24 +113,19 @@ export class NodeApi {
     @description('在当前打开的场景中更新节点，需要传入节点的路径，比如：Canvas/Node1')
     @result(SchemaNodeUpdateResult)
     async updateNode(@param(SchemaNodeUpdate) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
-        const ret: CommonResultType<TNodeUpdateResult> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: undefined,
-        };
-
         try {
-            const result = await Scene.updateNode(options);
-            if (result?.path) {
-                ret.data = { path: result.path };
-            }
+            const data = await Scene.updateNode(options);
+            return {
+                data: data,
+                code: COMMON_STATUS.SUCCESS,
+            };
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
             console.error('更新节点失败:', e);
-            ret.reason = e instanceof Error ? e.message : String(e);
-            delete ret.data;
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e),
+            };
         }
-
-        return ret;
     }
 
     /**

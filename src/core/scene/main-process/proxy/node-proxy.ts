@@ -21,7 +21,7 @@ export const NodeProxy: IPublicNodeService = {
     deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
         return Rpc.getInstance().request('Node', 'deleteNode', [params]);
     },
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null> {
+    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
         return Rpc.getInstance().request('Node', 'updateNode', [params]);
     },
     queryNode(params: IQueryNodeParams): Promise<INode | null> {

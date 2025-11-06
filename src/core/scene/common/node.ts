@@ -112,7 +112,7 @@ export interface INode extends INodeIdentifier {
 export interface IUpdateNodeParams {
     path: string;
     name?: string;
-    properties: Partial<INodeProperties>; // 节点属性
+    properties?: Partial<INodeProperties>; // 节点属性
 }
 
 // 节点更新结果接口
@@ -213,7 +213,7 @@ export interface INodeService extends IServiceEvents {
      * 更新节点
      * @param params
      */
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null>;
+    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     /**
     * 查询节点
     */

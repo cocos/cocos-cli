@@ -242,10 +242,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         });
     }
 
-    async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null> {
+    async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
-            return null;
+            throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
         }
 
         this.emit('node:before-change', node);

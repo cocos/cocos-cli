@@ -53,7 +53,7 @@ export const SchemaNodeQueryResult: z.ZodType<INode> = SchemaNode;
 export const SchemaNodeUpdate = z.object({
     path: z.string().describe('节点相对路径'),
     name: z.string().optional().describe('更新的节点名称'),
-    properties: SchemaNodeProperty.partial().describe('要更新的节点属性，可以只更新部分属性'),
+    properties: SchemaNodeProperty.partial().optional().describe('要更新的节点属性，可以只更新部分属性'),
 }).describe('更新节点的选项参数');
 
 // 节点更新结果的 schema
@@ -77,7 +77,7 @@ const SchemaNodeCreateBase = z.object({
     name: z.string().optional().describe('节点的名称，不传，系统会默认一个名字'),
     workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
-    position: SchemaVec3.optional().default({ x: 0, y: 0, z: 0 }).describe('节点位置'),
+    position: SchemaVec3.optional().describe('节点位置'),
     canvasRequired: z.boolean().optional().describe('是否需要 Canvas'),
 });
 
