@@ -193,16 +193,16 @@ export class NewConsole {
         const message = this._formatMessage(...args);
         this._handleProgressMessage(type, message);
         
-        // if (!this._start) {
-        //     return;
-        // }
+        if (!this._start) {
+            return;
+        }
         
-        // // 保存消息：单个参数保存原值，多个参数保存数组
-        // this.messages.push({
-        //     type,
-        //     value: args.length === 1 ? args[0] : args,
-        // });
-        // this.save();
+        // 保存消息：单个参数保存原值，多个参数保存数组
+        this.messages.push({
+            type,
+            value: args.length === 1 ? args[0] : args,
+        });
+        this.save();
     }
 
     public log(...args: any[]) {

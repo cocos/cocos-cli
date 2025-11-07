@@ -133,11 +133,11 @@ export class McpMiddleware {
                             const errorStack = error instanceof Error ? error.stack : undefined;
                             
                             // 构建详细的错误信息
-                            let detailedReason = `工具执行失败 (${toolName}): ${errorMessage}`;
+                            let detailedReason = `Tool execution failed (${toolName}): ${errorMessage}`;
                             if (errorStack && process.env.NODE_ENV === 'development') {
-                                detailedReason += `\n\n堆栈跟踪:\n${errorStack}`;
+                                detailedReason += `\n\nStack trace:\n${errorStack}`;
                             }
-                            detailedReason += `\n\n传入的参数:\n${JSON.stringify(params, null, 2)}`;
+                            detailedReason += `\n\nParameters passed:\n${JSON.stringify(params, null, 2)}`;
                             
                             console.error(`[MCP] ${detailedReason}`);
                             
