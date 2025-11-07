@@ -1,6 +1,7 @@
 import type { Component } from 'cc';
 import { IPropertyValueType } from '../@types/public';
 import { IServiceEvents } from '../scene-process/service/core';
+import { ICompPrefabInfo } from './prefab';
 
 /**
  * 代表一个组件
@@ -19,6 +20,7 @@ export interface IComponentIdentifier {
  */
 export interface IComponent extends IComponentIdentifier {
     properties: { [key: string]: IPropertyValueType };
+    prefab: ICompPrefabInfo | null;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { IComponent } from '../../core/scene';
 import { SchemaComponentIdentifier } from '../base/schema-identifier';
+import { SchemaCompPrefabInfo } from './prefab-info-schema';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
@@ -64,7 +65,8 @@ export const SchemaComponent: z.ZodType<IComponent> = SchemaComponentIdentifier.
     properties: z.record(
         z.string().describe('属性名称'),
         SchemaProperty,
-    ).describe('组件属性')
+    ).describe('组件属性'),
+    prefab: SchemaCompPrefabInfo.nullable().describe('预制体中组件的信息')
 }).describe('组件信息');
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('所有组件集合，包含内置与自定义组件');
