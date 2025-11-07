@@ -7,11 +7,6 @@ import { resolveToRaw, contains } from '../base/utils/path';
 import { assetManager } from '../../core/assets';
 import { queryPath } from '@cocos/asset-db/libs/manager';
 
-const SUPPORTED_EXTENSIONS = [
-    '.js', '.ts', '.jsx', '.tsx', '.json',
-    '.txt', '.md', '.xml', '.html', '.css',
-];
-
 function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     let succeeded = true;
     // Append EOL to maintain line breaks
@@ -24,7 +19,7 @@ function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     return succeeded;
 }
 
-function getScriptFilename(dbURL: string): string {
+function getScriptFilename(dbURL: string, fileType: string): string {
     const filename = queryPath(dbURL);
     if (filename === '') {
         throw new Error('Filename cannot be empty.');
@@ -35,18 +30,15 @@ function getScriptFilename(dbURL: string): string {
         throw new Error('Unsafe file path detected.');
     }
     const ext = path.extname(filename).toLowerCase();
-    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-        throw new Error('Unsupported file type.');
+
+    if (ext != fileType.toLocaleLowerCase()) {
+        throw new Error(`File extension mismatch. Expected ${fileType}, but got ${ext}.`);
     }
     return filename;
 }
 
-export async function listTextEditFileExtensions(): Promise<string[]> {
-    return SUPPORTED_EXTENSIONS;
-}
-
 export async function insertTextAtLine(
-    dbURL: string, lineNumber: number, textToInsert: string): Promise<boolean> {
+    dbURL: string, fileType: string, lineNumber: number, textToInsert: string): Promise<boolean> {
     if (textToInsert.length === 0) {
         throw new Error('Text to insert cannot be empty.');
     }
@@ -54,7 +46,7 @@ export async function insertTextAtLine(
         throw new Error('Line number must be non-negative.');
     }
 
-    const filename = getScriptFilename(dbURL);
+    const filename = getScriptFilename(dbURL, fileType);
     const fileStream = fs.createReadStream(filename);
 
     const rl = readline.createInterface({
@@ -120,7 +112,8 @@ export async function insertTextAtLine(
 }
 
 // End line is inclusive
-export async function eraseLinesInRange(dbURL: string, startLine: number, endLine: number): Promise<boolean> {
+export async function eraseLinesInRange(
+    dbURL: string, fileType: string, startLine: number, endLine: number): Promise<boolean> {
     // End line must be greater than or equal to start line
     if (startLine > endLine) {
         throw new Error('End line must be greater than or equal to start line.');
@@ -129,7 +122,7 @@ export async function eraseLinesInRange(dbURL: string, startLine: number, endLin
         throw new Error('Line numbers must be non-negative.');
     }
 
-    const filename = getScriptFilename(dbURL);
+    const filename = getScriptFilename(dbURL, fileType);
     const fileStream = fs.createReadStream(filename);
     const rl = readline.createInterface({
         input: fileStream,
@@ -181,8 +174,8 @@ export async function eraseLinesInRange(dbURL: string, startLine: number, endLin
 }
 
 export async function replaceTextInFile(
-    dbURL: string, targetRegex: string, replacementText: string): Promise<boolean> {
-    const filename = getScriptFilename(dbURL);
+    dbURL: string, fileType: string, targetRegex: string, replacementText: string): Promise<boolean> {
+    const filename = getScriptFilename(dbURL, fileType);
 
     const results = await replaceInFile({
         files: filename,

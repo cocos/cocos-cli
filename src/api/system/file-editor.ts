@@ -4,46 +4,25 @@ import {
     SchemaEraseLinesInRangeInfo,
     SchemaReplaceTextInFileInfo,
     SchemaFileEditorResult,
-    SchemaTextEditFileExtensionsResult,
 
     TInsertTextAtLineInfo,
     TFileEditorResult,
     TEraseLinesInRangeInfo,
     TReplaceTextInFileInfo,
-    TTextEditFileExtensionsResult,
 } from './file-editor-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { insertTextAtLine, eraseLinesInRange, replaceTextInFile, listTextEditFileExtensions } from '../../core/filesystem/file-edit';
+import { insertTextAtLine, eraseLinesInRange, replaceTextInFile } from '../../core/filesystem/file-edit';
 
 export class FileEditorApi {
-    @tool('file-query-extensions')
-    @title('列举文件编辑支持的文件后缀类型')
-    @description('列举文件编辑支持的文件后缀类型')
-    @result(SchemaTextEditFileExtensionsResult)
-    async listTextEditFileExtensions(): Promise<CommonResultType<TTextEditFileExtensionsResult>> {
-        try {
-            const result = await listTextEditFileExtensions();
-            return {
-                code: COMMON_STATUS.SUCCESS,
-                data: result,
-            };
-        } catch (e) {
-            return {
-                code: COMMON_STATUS.FAIL,
-                reason: e instanceof Error ? e.message : String(e)
-            };
-        }
-    }
-
     @tool('file-insert-text')
     @title('在文件第n行后插入内容')
     @description('在文件第 n 行后插入内容，返回成功或者失败')
     @result(SchemaFileEditorResult)
     async insertTextAtLine(@param(SchemaInsertTextAtLineInfo) param: TInsertTextAtLineInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await insertTextAtLine(param.dbURL, param.lineNumber, param.text);
+            const result = await insertTextAtLine(param.dbURL, param.fileType, param.lineNumber, param.text);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
@@ -62,7 +41,7 @@ export class FileEditorApi {
     @result(SchemaFileEditorResult)
     async eraseLinesInRange(@param(SchemaEraseLinesInRangeInfo) param: TEraseLinesInRangeInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await eraseLinesInRange(param.dbURL, param.startLine, param.endLine);
+            const result = await eraseLinesInRange(param.dbURL, param.fileType, param.startLine, param.endLine);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
@@ -81,7 +60,7 @@ export class FileEditorApi {
     @result(SchemaFileEditorResult)
     async replaceTextInFile(@param(SchemaReplaceTextInFileInfo) param: TReplaceTextInFileInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await replaceTextInFile(param.dbURL, param.targetText, param.replacementText);
+            const result = await replaceTextInFile(param.dbURL, param.fileType, param.targetText, param.replacementText);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
