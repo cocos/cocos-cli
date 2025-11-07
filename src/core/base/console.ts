@@ -159,108 +159,82 @@ export class NewConsole {
 
     // --------------------- 重写 console 相关方法 -------------------------
 
-    public log(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('log', message);
-        if (!this._start) {
-            return;
+    /**
+     * 将参数数组格式化为消息字符串
+     * 支持 Error 对象、多个参数等
+     */
+    private _formatMessage(...args: any[]): string {
+        if (args.length === 0) {
+            return '';
         }
-        this.messages.push({
-            type: 'log',
-            value: args,
-        });
-        this.save();
+        
+        // 如果第一个参数是 Error，特殊处理
+        if (args[0] instanceof Error) {
+            const error = args[0];
+            const errorMessage = error.stack || error.message || String(error);
+            // 如果有其他参数，也包含进去
+            if (args.length > 1) {
+                const otherArgs = args.slice(1).map(arg => String(arg));
+                return [errorMessage, ...otherArgs].join(' ');
+            }
+            return errorMessage;
+        }
+        
+        // 所有参数都转换为字符串并连接
+        return args.map(arg => String(arg)).join(' ');
+    }
+
+    /**
+     * 通用的日志记录方法
+     * @param type 日志类型
+     * @param args 日志参数
+     */
+    private _logMessage(type: IConsoleType, ...args: any[]): void {
+        const message = this._formatMessage(...args);
+        this._handleProgressMessage(type, message);
+        
+        // if (!this._start) {
+        //     return;
+        // }
+        
+        // // 保存消息：单个参数保存原值，多个参数保存数组
+        // this.messages.push({
+        //     type,
+        //     value: args.length === 1 ? args[0] : args,
+        // });
+        // this.save();
+    }
+
+    public log(...args: any[]) {
+        this._logMessage('log', ...args);
     }
 
     public info(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('info', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'info',
-            value: args,
-        });
-        this.save();
+        this._logMessage('info', ...args);
     }
 
     public success(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('success', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'success',
-            value: args,
-        });
-        this.save();
+        this._logMessage('success', ...args);
     }
 
     public ready(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('ready', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'ready',
-            value: args,
-        });
-        this.save();
+        this._logMessage('ready', ...args);
     }
 
     public start(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('start', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'start',
-            value: args,
-        });
-        this.save();
+        this._logMessage('start', ...args);
     }
 
-    public error(error: Error | string) {
-        const message = (error instanceof Error) ? (error.stack || error.message || String(error)) : String(error);
-        this._handleProgressMessage('error', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'error',
-            value: error,
-        });
-        this.save();
+    public error(...args: any[]) {
+        this._logMessage('error', ...args);
     }
 
     public warn(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('warn', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'warn',
-            value: args,
-        });
-        this.save();
+        this._logMessage('warn', ...args);
     }
 
     public debug(...args: any[]) {
-        const message = args.join(' ');
-        this._handleProgressMessage('debug', message);
-        if (!this._start) {
-            return;
-        }
-        this.messages.push({
-            type: 'debug',
-            value: args,
-        });
-        this.save();
+        this._logMessage('debug', ...args);
     }
 
     /**
