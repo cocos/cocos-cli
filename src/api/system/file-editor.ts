@@ -17,8 +17,8 @@ import { insertTextAtLine, eraseLinesInRange, replaceTextInFile } from '../../co
 
 export class FileEditorApi {
     @tool('file-insert-text')
-    @title('在文件第n行后插入内容')
-    @description('在文件第 n 行后插入内容，返回成功或者失败')
+    @title('在文件第n行前插入内容')
+    @description('在文件第 n 行前插入内容，返回成功或者失败')
     @result(SchemaFileEditorResult)
     async insertTextAtLine(@param(SchemaInsertTextAtLineInfo) param: TInsertTextAtLineInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
