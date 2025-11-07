@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { IComponent } from '../../core/scene';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
@@ -68,17 +69,14 @@ export const SchemaSetPropertyOptions = z.object({
     )
 }).describe('设置组件属性所需要的信息');
 
-export const SchemaComponent = SchemaProperty.extend({
+export const SchemaComponent: z.ZodType<IComponent> = SchemaComponentIdentifier.extend({
     properties: z.record(
         z.string().describe('属性名称'),
         SchemaProperty,
-    )
-}).describe('查询到的组件信息');
+    ).describe('组件属性')
+}).describe('组件信息');
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('所有组件集合，包含内置与自定义组件');
-
-
-export const SchemaBuildinComponentTypes = z.array(z.string()).describe('所有内置组件的集合');
 
 export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).describe('获取当前组件信息返回的接口');
 export const SchemaBooleanResult = z.boolean().describe('接口返回结果');
@@ -91,3 +89,4 @@ export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponent>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
 export type TQueryAllComponentResult = z.infer<typeof SchemaQueryAllComponentResult>;
+export type TBooleanResult = z.infer<typeof SchemaBooleanResult>;

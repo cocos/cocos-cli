@@ -84,6 +84,8 @@ describe('MCP Component API', () => {
             });
             expect(addResult.code).toBe(200);
             expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
+
             expect(addResult.data.path).toContain(testNodePath);
             expect(addResult.data.path).toContain('cc.Label');
         });
@@ -97,6 +99,8 @@ describe('MCP Component API', () => {
                 },
             });
             expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
 
             const componentPath = addResult.data.path;
 
@@ -106,6 +110,9 @@ describe('MCP Component API', () => {
             });
             expect(queryResult.code).toBe(200);
             expect(queryResult.data).toBeDefined();
+
+            if (!queryResult.data) return;
+
             expect(queryResult.data.type).toBe('cc.Label');
             expect(queryResult.data.properties).toBeDefined();
         });
@@ -119,7 +126,9 @@ describe('MCP Component API', () => {
                 },
             });
             expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
 
+            if (!addResult.data) return;
             const componentPath = addResult.data.path;
 
             // 查询组件初始属性
@@ -127,6 +136,8 @@ describe('MCP Component API', () => {
                 component: { path: componentPath }
             });
             expect(queryResult.code).toBe(200);
+            expect(queryResult.data).toBeDefined();
+            if (!queryResult.data) return;
             expect(queryResult.data.properties.string.value).toBe('label');
 
             // 设置组件属性
@@ -145,6 +156,8 @@ describe('MCP Component API', () => {
                 component: { path: componentPath }
             });
             expect(queryAfterSet.code).toBe(200);
+            expect(queryAfterSet.data).toBeDefined();
+            if (!queryAfterSet.data) return;
             expect(queryAfterSet.data.properties.string.value).toBe('Hello World');
         });
 
@@ -157,7 +170,8 @@ describe('MCP Component API', () => {
                 },
             });
             expect(addResult.code).toBe(200);
-
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
             const componentPath = addResult.data.path;
 
             // 删除组件
@@ -189,6 +203,8 @@ describe('MCP Component API', () => {
                     },
                 });
                 expect(addResult.code).toBe(200);
+                expect(addResult.data).toBeDefined();
+                if (!addResult.data) return;
                 expect(addResult.data.path).toContain(componentType);
                 addedComponents.push(addResult.data.path);
 
@@ -197,6 +213,8 @@ describe('MCP Component API', () => {
                     component: { path: addResult.data.path }
                 });
                 expect(queryResult.code).toBe(200);
+                expect(queryResult.data).toBeDefined();
+                if (!queryResult.data) return;
                 expect(queryResult.data.type).toBe(componentType);
             }
 

@@ -237,7 +237,7 @@ describe('MCP Assets API - Operation', () => {
 
                 // ✅ 修正参数格式：MCP 工具参数是对象形式，对应装饰器定义的参数名
                 const result = await context.mcpClient.callTool('assets-create-asset-by-type', {
-                    ccType: type,           // ✅ 对应 @param(SchemaSupportCreateType) ccType
+                    ccType: type as any,           // ✅ 对应 @param(SchemaSupportCreateType) ccType
                     dirOrUrl: context.testRootPath, // ✅ 对应 @param(SchemaDirOrDbPath) dirOrUrl
                     baseName,               // ✅ 对应 @param(SchemaBaseName) baseName
                     options: {              // ✅ 对应 @param(SchemaCreateAssetByTypeOptions) options

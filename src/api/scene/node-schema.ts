@@ -2,9 +2,8 @@ import { z } from 'zod';
 
 import { NodeType } from '../../core/scene';
 import { INode, MobilityMode } from '../../core/scene';
-import { Mat4Schema, QuatSchema, Vec3Schema } from '../base/value-types';
+import { QuatSchema, Vec3Schema } from '../base/value-types';
 import { SchemaComponentIdentifier } from './component-schema';
-
 
 // 节点属性的 schema，
 export const NodePropertySchema = z.object({
@@ -27,19 +26,23 @@ export const NodePropertySchema = z.object({
     // activeInHierarchy: z.boolean().readonly().describe('节点在场景中是否激活'),
 });
 
-
-const NodeIdentifierSchema = z.object({
+export const NodeIdentifierSchema = z.object({
     nodeId: z.string().describe('节点的 id'),
     path: z.string().describe('父节点路径，完整节点路径为父路径+节点名；根节点路径为 "/"'),
     name: z.string().describe('节点名称'),
 }).describe('节点标识符');
+
+export const SchemaNode: z.ZodType<INode> = NodeIdentifierSchema.extend({
+    properties: NodePropertySchema.describe('节点属性'),
+    children: z.array(z.lazy(() => SchemaNode)).default([]).describe('子节点列表'),
+    components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
+});
 
 // 查询节点的参数
 export const NodeSearchSchema = NodeIdentifierSchema.extend({
     deeps: z.number().default(10).describe('查询的深度'),
     queryChildren: z.boolean().default(false).describe('是否查询子节点信息'),
 }).describe('查询节点的选项参数，查询结果是传入的信息的交集');
-
 
 // 查询节点的参数
 export const NodeQuerySchema = z.object({
@@ -48,11 +51,7 @@ export const NodeQuerySchema = z.object({
 }).describe('查询节点的选项参数，查询结果是传入的信息的交集');
 
 // 查询节点的结果
-export const NodeQueryResultSchema: z.ZodType<INode> = NodeIdentifierSchema.extend({
-    properties: NodePropertySchema.describe('节点属性'),
-    children: z.array(z.lazy(() => NodeQueryResultSchema)).default([]).describe('子节点列表'),
-    components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
-});
+export const NodeQueryResultSchema: z.ZodType<INode> = SchemaNode;
 
 //节点更新的参数
 export const NodeUpdateSchema = z.object({
@@ -105,3 +104,4 @@ export type TQueryNodeOptions = z.infer<typeof NodeQuerySchema>;
 export type TNodeDetail = z.infer<typeof NodeQueryResultSchema>;
 export type TNodeUpdateResult = z.infer<typeof NodeUpdateResultSchema>;
 export type TNodeDeleteResult = z.infer<typeof NodeDeleteResultSchema>;
+export type TNode = z.infer<typeof SchemaNode>;

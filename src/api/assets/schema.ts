@@ -75,7 +75,7 @@ const SchemaAssetDBInfo = z.object({
 }).describe('资源数据库信息');
 
 // 完整的资源信息 Schema
-const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
+export const SchemaAssetInfo: z.ZodType<any> = z.lazy(() => z.object({
     // 必需字段
     name: z.string().describe('资源名字'),
     source: z.string().describe('URL 地址'),

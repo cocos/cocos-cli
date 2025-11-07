@@ -258,7 +258,10 @@ describe('MCP Node API', () => {
             const result = await mcpClient.callTool('scene-update-node', {
                 options: {
                     path: `Canvas/NonExistentNode-${generateTestId()}`,
-                    name: 'NewName'
+                    name: 'NewName',
+                    properties: {
+                        position: { x: 100, y: 200, z: 0 }
+                    }
                 }
             });
 
@@ -639,7 +642,7 @@ describe('MCP Node API', () => {
                         options: {
                             path: nodePath,
                             name: nodeName,
-                            nodeType: nodeType
+                            nodeType: nodeType as any,
                         }
                     });
 
