@@ -283,14 +283,6 @@ class EngineManager implements IEngine {
         await this.initEditorExtensions();
 
         const modules = this.getConfig().includeModules || [];
-        let physicsEngine = '';
-        const engineList = ['physics-cannon', 'physics-ammo', 'physics-builtin', 'physics-physx'];
-        for (let i = 0; i < engineList.length; i++) {
-            if (modules.indexOf(engineList[i]) >= 0) {
-                physicsEngine = engineList[i];
-                break;
-            }
-        }
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
         const bundles = assetManager.queryAssets({ isBundle: true }).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
         const builtinAssets = info.serverURL && await this.queryInternalAssetList(this.getInfo().typescript.path);
@@ -322,7 +314,6 @@ class EngineManager implements IEngine {
                 },
                 physics: {
                     ...physicsConfig,
-                    physicsEngine,
                     // 物理引擎如果没有明确设置，默认是开启的，因此需要明确定义为false
                     enabled: !!info.serverURL ? true : false,
                 },
@@ -336,7 +327,6 @@ class EngineManager implements IEngine {
             exactFitScreen: true,
         };
         cc.physics.selector.runInEditor = true;
-        defaultConfig.overrideSettings.physics.physicsEngine = '';
         if (onBeforeGameInit) {
             await onBeforeGameInit();
         }
