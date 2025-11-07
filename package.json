@@ -110,7 +110,6 @@
         "@cocos/asset-db": "^3.0.0-alpha.5",
         "@cocos/build-polyfills": "2.0.0",
         "@cocos/ccbuild": "2.3.17",
-        "@cocos/creator-programming-quick-pack": "1.7.3",
         "@cocos/creator-programming-rollup-plugin-mod-lo": "1.4.3",
         "@cocos/data-uri": "^1.0.6",
         "@cocos/fbx-gltf-conv": "^1.0.0-alpha.49.editor.1",
@@ -176,8 +175,5 @@
         "xmldom": "^0.1.31",
         "xxhashjs": "^0.2.2",
         "zod": "^3.25.76"
-    },
-    "overrides": {
-        "@cocos/creator-programming-mod-lo": "1.12.1"
     }
 }
