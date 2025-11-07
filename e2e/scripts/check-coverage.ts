@@ -15,7 +15,7 @@ import { scanToolsFromRegistry, extendToolInfo } from './tool-utils';
 interface ApiTool {
     name: string;
     category: string;
-    filePath: string;
+    filePath?: string;  // 可选，因为运行时数据不包含文件路径
     methodName: string;
     title?: string;
     description?: string;
@@ -45,7 +45,8 @@ async function scanApiTools(): Promise<ApiTool[]> {
         return {
             name: extended.toolName,
             category: extended.category,
-            filePath: extended.filePath,
+            // filePath 不再可用，因为运行时数据不包含文件路径信息
+            filePath: undefined,
             methodName: extended.methodName,
             title: extended.title,
             description: extended.description,
@@ -190,7 +191,7 @@ function generateReport(tools: ApiTool[], references: TestReference[]) {
             console.log('');
 
             for (const tool of categoryTools) {
-                const relativePath = path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/');
+                const relativePath = tool.filePath ? path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/') : 'N/A';
                 console.log(`- [ ] \`${tool.name}\``);
                 console.log(`      文件: ${relativePath}`);
                 console.log(`      方法: ${tool.methodName}()`);
@@ -325,7 +326,7 @@ function generateMarkdownReport(tools: ApiTool[], references: TestReference[]): 
         for (const [category, categoryTools] of Array.from(untestedByCategory.entries()).sort()) {
             markdown += `#### ${category} API\n\n`;
             for (const tool of categoryTools) {
-                const relativePath = path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/');
+                const relativePath = tool.filePath ? path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/') : 'N/A';
                 markdown += `- [ ] \`${tool.name}\` (\`${relativePath}:${tool.methodName}()\`)\n`;
             }
             markdown += `\n`;
@@ -538,11 +539,11 @@ function generateHtmlReport(tools: ApiTool[], references: TestReference[]): stri
             <ul class="api-list">
 `;
             for (const tool of categoryTools) {
-                const relativePath = path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/');
+                const relativePath = tool.filePath ? path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/') : 'N/A';
                 html += `
                 <li class="api-item">
                     <div class="api-name">${tool.name}</div>
-                    <div class="api-meta">📁 文件: ${relativePath}</div>
+                    ${tool.filePath ? `<div class="api-meta">📁 文件: ${relativePath}</div>` : ''}
                     <div class="api-meta">🔧 方法: ${tool.methodName}()</div>
                 </li>
 `;
@@ -677,7 +678,7 @@ function generateJsonOutput(tools: ApiTool[], references: TestReference[], htmlR
             category,
             tools: tools.map(tool => ({
                 name: tool.name,
-                filePath: path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/'),
+                filePath: tool.filePath ? path.relative(process.cwd(), tool.filePath).replace(/\\/g, '/') : 'N/A',
                 methodName: tool.methodName,
             })),
         })),
