@@ -132,7 +132,9 @@ function generateTypeDefinitions(tools: ToolInfo[], typeBlocks: string[], import
             // 将 type 改为 export type，确保类型可以被导出使用
             // 使用多行匹配，处理可能的多行 type 定义
             // 匹配模式：行首的 "type " 替换为 "export type "
-            const exportedBlock = block.replace(/^type\s+/gm, 'export type ');
+            let exportedBlock = block.replace(/^type\s+/gm, 'export type ');
+            // 将双引号替换为单引号（zod-to-ts 默认使用双引号）
+            exportedBlock = exportedBlock.replace(/"/g, "'");
             lines.push(exportedBlock);
             lines.push('');
         });
