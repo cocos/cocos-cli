@@ -420,12 +420,15 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
     const zipFilePath = path.join(path.dirname(extensionDir), zipFileName);
 
     try {
-        // 使用 7zip-bin 创建压缩包，支持跨平台且保留文件权限和软链接
+        // 使用 7zip-bin 创建压缩包
+        // 注意：在 Windows 上保留符号链接（-snl）会导致解压后出现空目录/不可用的链接
+        // 因此在 Windows 平台关闭符号链接保留，改为打包实际内容
+        const preserveSymlinks = process.platform !== 'win32';
         return await create7ZipArchive(extensionDir, zipFilePath, {
             compressionLevel: 9,
             format: 'zip',
             exclude: ['*.DS_Store', '*.Thumbs.db'],
-            preserveSymlinks: true,
+            preserveSymlinks,
             timeout: 1800000 // 30分钟超时
         });
     } catch (error) {

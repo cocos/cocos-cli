@@ -51,7 +51,7 @@
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
-        "rebuild": "patch-package && npx @electron/rebuild --force --version 37.6.0"
+        "rebuild": "npx --yes patch-package && npx @electron/rebuild --force --version 37.6.0"
     },
     "author": "cocos",
     "files": [
