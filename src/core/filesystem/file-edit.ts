@@ -39,6 +39,8 @@ function getScriptFilename(dbURL: string, fileType: string): string {
 
 export async function insertTextAtLine(
     dbURL: string, fileType: string, lineNumber: number, textToInsert: string): Promise<boolean> {
+    --lineNumber; // Convert to zero-based index
+
     if (textToInsert.length === 0) {
         throw new Error('Text to insert cannot be empty.');
     }
@@ -114,6 +116,9 @@ export async function insertTextAtLine(
 // End line is inclusive
 export async function eraseLinesInRange(
     dbURL: string, fileType: string, startLine: number, endLine: number): Promise<boolean> {
+    --startLine; // Convert to zero-based index
+    --endLine;   // Convert to zero-based index
+
     // End line must be greater than or equal to start line
     if (startLine > endLine) {
         throw new Error('End line must be greater than or equal to start line.');

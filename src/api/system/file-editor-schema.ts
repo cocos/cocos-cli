@@ -8,7 +8,7 @@ const FILE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.json',
 export const SchemaInsertTextAtLineInfo = z.object({
     dbURL: z.string().describe('需要修改文件名'),
     fileType: z.enum(FILE_EXTENSIONS).describe('文件类型'),
-    lineNumber: z.number().default(0).describe('行号'),
+    lineNumber: z.number().default(1).describe('行号(从1开始)'),
     text: z.string().describe('需要插入的文本内容'),
 }).describe('从第 lineNumber 行插入内容的信息');
 
@@ -16,7 +16,7 @@ export const SchemaInsertTextAtLineInfo = z.object({
 export const SchemaEraseLinesInRangeInfo = z.object({
     dbURL: z.string().describe('需要修改文件名'),
     fileType: z.enum(FILE_EXTENSIONS).describe('文件类型'),
-    startLine: z.number().default(0).describe('从第 startLine 行开始删除'),
+    startLine: z.number().default(1).describe('从第 startLine 行开始删除'),
     endLine: z.number().default(1).describe('从第 endLine 行结束删除(endLine也删除)'),
 }).describe('删除文件的第 startLine 行到 endLine 的信息(endLine也删除)');
 
