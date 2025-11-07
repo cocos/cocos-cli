@@ -70,7 +70,7 @@ export class AssetDbInterop {
             importer: changeInfo.importer,
             uuid: uuid,
             filePath: filePath,
-            type: changeInfo.type,
+            type: changeInfo.type === AssetActionEnum.none ? AssetActionEnum.change : changeInfo.type,
             isPluginScript: isPluginScript(changeInfo.userData),
         };
         
