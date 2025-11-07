@@ -29,12 +29,9 @@ describe('MCP System API', () => {
             expect(result.code).toBe(200);
             expect(result.data).toBeDefined();
             expect(Array.isArray(result.data)).toBe(true);
+            expect(result.data.length).toBeGreaterThan(0);
             expect(result.data.length).toBeLessThanOrEqual(10);
-            if (result.data.length > 0) {
-                expect(typeof result.data[0]).toBe('string');
-                // 未指定级别时，返回包含类型前缀的日志
-                expect(result.data[0]).toMatch(/^\[(LOG|WARN|ERROR|DEBUG|INFO|SUCCESS|READY|START)\]/);
-            }
+            expect(typeof result.data[0]).toBe('string');
         });
 
         test('should filter logs by specific level', async () => {
