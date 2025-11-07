@@ -2,9 +2,9 @@
  * MCP 工具扫描共享工具函数
  * 
  * 用于 check-coverage.ts 和 generate-mcp-types.ts 等脚本
+ * 完全基于运行时数据，不读取源码
  */
 
-import * as fs from 'fs';
 
 /**
  * 基础工具信息接口
@@ -14,45 +14,15 @@ export interface BaseToolInfo {
     methodName: string;
     title?: string;
     description?: string;
-    filePath: string;
 }
 
 /**
- * 扩展工具信息接口（包含类别）
+ * 扩展工具信息接口（包含类别和运行时 schema 信息）
  */
 export interface ExtendedToolInfo extends BaseToolInfo {
     category: string;
-}
-
-/**
- * 从 target 推断文件路径
- */
-export function inferToolFilePath(target: any): string {
-    if (target && target.constructor) {
-        const className = target.constructor.name;
-        const category = className.replace(/Api$/, '').toLowerCase();
-        
-        const possiblePaths = [
-            `src/api/${category}/${category}.ts`,
-            `src/api/${category}/index.ts`,
-        ];
-
-        for (const possiblePath of possiblePaths) {
-            if (fs.existsSync(possiblePath)) {
-                return possiblePath;
-            }
-        }
-
-        // 特殊处理: Scene 相关的 API
-        if (['Node', 'Component', 'Scene'].includes(className.replace(/Api$/, ''))) {
-            const sceneSubModule = className.replace(/Api$/, '').toLowerCase();
-            const scenePath = `src/api/scene/${sceneSubModule}.ts`;
-            if (fs.existsSync(scenePath)) {
-                return scenePath;
-            }
-        }
-    }
-    return 'unknown';
+    paramSchemas?: Array<{ index: number; schema: any; name?: string }>;
+    returnSchema?: any;
 }
 
 /**
@@ -68,20 +38,11 @@ export function inferToolCategory(target: any): string {
 }
 
 /**
- * 从 target 推断工具信息（包含类别和文件路径）
+ * 使用 toolRegistry 扫描已注册的工具（包含完整的运行时信息）
+ * 参考 mcp.middleware.ts 的实现方式
  */
-export function inferToolInfo(target: any, _meta: any): { category: string; filePath: string } {
-    const category = inferToolCategory(target);
-    const filePath = inferToolFilePath(target);
-    return { category, filePath };
-}
-
-/**
- * 使用 toolRegistry 扫描已注册的工具
- * 这是最可靠的方式，因为只扫描实际注册的工具
- */
-export async function scanToolsFromRegistry(): Promise<BaseToolInfo[]> {
-    const tools: BaseToolInfo[] = [];
+export async function scanToolsFromRegistry(): Promise<ExtendedToolInfo[]> {
+    const tools: ExtendedToolInfo[] = [];
 
     try {
         const { CocosAPI } = await import('../../dist/api/index');
@@ -91,22 +52,25 @@ export async function scanToolsFromRegistry(): Promise<BaseToolInfo[]> {
         // 然后导入 toolRegistry (与 mcp.middleware.ts 使用相同的注册表)
         const { toolRegistry } = await import('../../dist/api/decorator/decorator');
 
-        // 遍历 toolRegistry，获取所有已注册的工具
+        // 遍历 toolRegistry，获取所有已注册的工具（参考 mcp.middleware.ts:75）
         for (const [toolName, { target, meta }] of toolRegistry.entries()) {
             // toolName 可能是 string 或 symbol，只处理 string 类型
             if (typeof toolName !== 'string') {
                 continue;
             }
 
-            // 推断文件路径
-            const filePath = inferToolFilePath(target);
+            // 推断类别
+            const category = inferToolCategory(target);
 
             tools.push({
                 toolName: toolName,
                 methodName: typeof meta.methodName === 'string' ? meta.methodName : meta.methodName.toString(),
                 title: meta.title,
                 description: meta.description,
-                filePath: filePath,
+                category: category,
+                // 直接使用运行时 schema 信息（参考 mcp.middleware.ts:79-85）
+                paramSchemas: meta.paramSchemas,
+                returnSchema: meta.returnSchema,
             });
         }
     } catch (error) {
@@ -120,28 +84,18 @@ export async function scanToolsFromRegistry(): Promise<BaseToolInfo[]> {
 }
 
 /**
- * 扩展工具信息，添加类别字段
+ * 扩展工具信息（保持向后兼容）
  */
 export function extendToolInfo(tool: BaseToolInfo): ExtendedToolInfo {
-    // 从文件路径推断类别
-    let category = 'Unknown';
-    if (tool.filePath !== 'unknown') {
-        const match = tool.filePath.match(/src\/api\/([^/]+)/);
-        if (match) {
-            const moduleName = match[1];
-            category = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
-            if (moduleName === 'scene') {
-                const subModuleMatch = tool.filePath.match(/scene\/([^/]+)\.ts$/);
-                if (subModuleMatch) {
-                    const subModule = subModuleMatch[1];
-                    category = subModule.charAt(0).toUpperCase() + subModule.slice(1);
-                }
-            }
-        }
+    // 如果已经是 ExtendedToolInfo，直接返回
+    if ('category' in tool) {
+        return tool as ExtendedToolInfo;
     }
+    
+    // 如果没有类别信息，返回默认值
     return {
         ...tool,
-        category,
+        category: 'Unknown',
     };
 }
 

@@ -2,64 +2,60 @@
 /**
  * 自动生成 MCP Tools 的 TypeScript 类型定义
  * 
- * 从 src/api 目录中的装饰器提取类型信息，生成强类型的 MCP 工具调用接口
+ * 完全基于运行时 toolRegistry 数据生成类型，不读取源码
+ * 参考 mcp.middleware.ts 的实现方式
+ * 
+ * 对于复杂的递归 schema（z.lazy），从 schema 文件中扫描并导入已定义的类型
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as glob from 'glob';
-import { scanToolsFromRegistry } from './tool-utils';
+import { scanToolsFromRegistry, ExtendedToolInfo } from './tool-utils';
 
 interface ToolInfo {
     toolName: string;
     methodName: string;
     title?: string;
     description?: string;
-    params: ParamInfo[];
-    returnType?: string;
-    filePath: string;
-}
-
-interface ParamInfo {
-    name: string;
-    type: string;
-    schemaName: string;
-    optional?: boolean;  // 参数是否可选
-}
-
-interface SchemaTypeMapping {
-    schemaName: string;
-    typeName: string;
-    sourceFile: string;
+    paramsTypeName: string;
+    resultTypeName: string;
 }
 
 /**
- * 扫描 schema 文件，自动提取 Schema 到 Type 的映射
- * 使用约定：SchemaXxx -> TXxx
+ * Schema 到 Type 的映射
+ * 从 schema 文件中扫描 SchemaXxx -> TXxx 的映射关系
  */
-function scanSchemaFiles(): Map<string, SchemaTypeMapping> {
-    const mappings = new Map<string, SchemaTypeMapping>();
+interface SchemaTypeMapping {
+    schemaName: string;  // 例如: SchemaCreatedAssetResult
+    typeName: string;    // 例如: TCreatedAssetResult
+    importPath: string;  // 例如: ../../dist/api/assets/schema
+}
 
-    // 查找所有 schema 文件
-    const schemaFiles = glob.sync('src/api/**/schema.ts', {
+/**
+ * 扫描所有 schema 文件，建立 Schema 到 Type 的映射
+ * 查找所有 export type TXxx = z.infer<typeof SchemaXxx> 的定义
+ */
+function scanSchemaTypeMappings(): Map<string, SchemaTypeMapping> {
+    const mappings = new Map<string, SchemaTypeMapping>();
+    
+    // 查找所有 schema 文件（以 schema 结尾的 ts 文件）
+    const schemaFiles = glob.sync('src/api/**/*schema*.ts', {
         absolute: true,
     });
 
-    console.log(`\n📋 扫描 Schema 文件...\n`);
-
     for (const schemaFile of schemaFiles) {
         const content = fs.readFileSync(schemaFile, 'utf-8');
-
-        // 方法 1: 直接匹配 export type TXxx = z.infer<typeof SchemaXxx>
+        
+        // 匹配 export type TXxx = z.infer<typeof SchemaXxx>
         const inferPattern = /export\s+type\s+(T\w+)\s*=\s*z\.infer<typeof\s+(Schema\w+)>/g;
         let match;
-        let count = 0;
-
+        
         while ((match = inferPattern.exec(content)) !== null) {
             const typeName = match[1];
             const schemaName = match[2];
-
-            // 计算导入路径（从 e2e/types 到 dist/api/xxx）
+            
+            // 计算导入路径（从 e2e/types 到 dist/api/xxx/schema）
             const distPath = schemaFile
                 .replace(/\\/g, '/')
                 .replace(/^.*\/src\//, 'dist/')
@@ -68,95 +64,22 @@ function scanSchemaFiles(): Map<string, SchemaTypeMapping> {
                 path.resolve(process.cwd(), 'e2e/types'),
                 path.resolve(process.cwd(), distPath)
             ).replace(/\\/g, '/');
-
+            
             mappings.set(schemaName, {
                 schemaName,
                 typeName,
-                sourceFile: importPath,
+                importPath,
             });
-            count++;
-        }
-
-        // 方法 2: 兜底 - 匹配所有 export const SchemaXxx 定义，按约定推断类型名
-        // 这样即使没有显式的 type 定义，也能自动推断
-        const schemaPattern = /export\s+const\s+(Schema\w+)\s*[:=]/g;
-        while ((match = schemaPattern.exec(content)) !== null) {
-            const schemaName = match[1];
-
-            // 如果已经通过 z.infer 找到了，跳过
-            if (mappings.has(schemaName)) continue;
-
-            // 按约定推断类型名：SchemaXxx -> TXxx
-            const typeName = 'T' + schemaName.substring(6); // 去掉 "Schema" 前缀
-
-            const distPath = schemaFile
-                .replace(/\\/g, '/')
-                .replace(/^.*\/src\//, 'dist/')
-                .replace(/\.ts$/, '');
-            const importPath = path.relative(
-                path.resolve(process.cwd(), 'e2e/types'),
-                path.resolve(process.cwd(), distPath)
-            ).replace(/\\/g, '/');
-
-            mappings.set(schemaName, {
-                schemaName,
-                typeName,
-                sourceFile: importPath,
-            });
-            count++;
-        }
-
-        if (count > 0) {
-            const relativePath = path.relative(process.cwd(), schemaFile);
-            console.log(`   ✅ ${relativePath}: 发现 ${count} 个 Schema`);
         }
     }
-
-    console.log(`\n📊 共扫描到 ${mappings.size} 个 Schema 映射\n`);
-
+    
     return mappings;
-}
-
-
-/**
- * 从方法签名中提取参数信息（名称和是否可选）
- * 例如: async methodName(@param(Schema) paramName: Type, @param(Schema2) param2?: Type2)
- */
-function extractParamInfo(methodBlock: string): Array<{ name: string; optional: boolean }> {
-    const params: Array<{ name: string; optional: boolean }> = [];
-
-    // 提取方法签名（包含所有参数）
-    // 支持多行方法签名，匹配到返回类型之前
-    const methodSigMatch = methodBlock.match(/async\s+\w+\s*\(([\s\S]*?)\)\s*[:{\n]/);
-    if (!methodSigMatch) {
-        return params;
-    }
-
-    const paramsString = methodSigMatch[1];
-
-    // 匹配每个参数：@param(...) paramName: Type 或 @param(...) paramName?: Type 或 @param(...) paramName: Type = defaultValue
-    // 捕获组: 1=参数名, 2=可选标记(?), 3=后续内容（用于检测默认值）
-    const paramPattern = /@param\([^)]+\)\s+(\w+)\s*(\?)?\s*:\s*[^,)=]+(=\s*[^,)]+)?/g;
-    let match;
-
-    while ((match = paramPattern.exec(paramsString)) !== null) {
-        const name = match[1];
-        const hasQuestionMark = !!match[2];  // 有 ? 标记
-        const hasDefaultValue = !!match[3];  // 有默认值
-
-        params.push({
-            name,
-            optional: hasQuestionMark || hasDefaultValue,
-        });
-    }
-
-    return params;
 }
 
 /**
  * 生成 TypeScript 类型定义
  */
-function generateTypeDefinitions(tools: ToolInfo[], schemaMap: Map<string, SchemaTypeMapping>): string {
+function generateTypeDefinitions(tools: ToolInfo[], typeBlocks: string[], importsByPath: Map<string, Set<string>>): string {
     const lines: string[] = [];
 
     // 文件头部
@@ -167,52 +90,10 @@ function generateTypeDefinitions(tools: ToolInfo[], schemaMap: Map<string, Schem
     lines.push(' * DO NOT EDIT MANUALLY');
     lines.push(' * ');
     lines.push(' * To regenerate: npm run generate:mcp-types');
+    lines.push(' * ');
+    lines.push(' * 基于运行时 toolRegistry 数据生成，完全使用 zod-to-ts 从 Zod Schema 转换');
     lines.push(' */');
     lines.push('');
-
-    // 收集所有实际使用的类型
-    const usedTypes = new Set<string>();
-    tools.forEach(tool => {
-        tool.params.forEach(param => {
-            if (param.type !== 'any') {
-                usedTypes.add(param.type);
-            }
-        });
-        if (tool.returnType && tool.returnType !== 'any') {
-            usedTypes.add(tool.returnType);
-        }
-    });
-
-    // 按源文件分组
-    const importsByFile = new Map<string, Set<string>>();
-    for (const typeName of usedTypes) {
-        // 在 schemaMap 中查找对应的源文件
-        const mapping = Array.from(schemaMap.values()).find(m => m.typeName === typeName);
-        if (mapping) {
-            if (!importsByFile.has(mapping.sourceFile)) {
-                importsByFile.set(mapping.sourceFile, new Set());
-            }
-            importsByFile.get(mapping.sourceFile)!.add(typeName);
-        }
-    }
-
-    // 生成导入语句
-    if (importsByFile.size > 0) {
-        lines.push('// Import types from dist (auto-generated from schema files)');
-        for (const [sourceFile, types] of importsByFile.entries()) {
-            const typeList = Array.from(types).sort();
-            if (typeList.length === 1) {
-                lines.push(`import type { ${typeList[0]} } from '${sourceFile}';`);
-            } else {
-                lines.push(`import type {`);
-                typeList.forEach(type => {
-                    lines.push(`    ${type},`);
-                });
-                lines.push(`} from '${sourceFile}';`);
-            }
-        }
-        lines.push('');
-    }
 
     // MCP Response 类型
     lines.push('// MCP Response wrapper');
@@ -223,20 +104,39 @@ function generateTypeDefinitions(tools: ToolInfo[], schemaMap: Map<string, Schem
     lines.push('}');
     lines.push('');
 
-    // 生成每个工具的参数类型
-    lines.push('// Tool parameter types');
-    tools.forEach(tool => {
-        if (tool.params.length > 0) {
-            lines.push(`export interface ${toPascalCase(tool.toolName)}Params {`);
-            tool.params.forEach(param => {
-                const comment = param.schemaName ? `  // Schema: ${param.schemaName}` : '';
-                const optional = param.optional ? '?' : '';
-                lines.push(`    ${param.name}${optional}: ${param.type};${comment}`);
-            });
-            lines.push('}');
-            lines.push('');
+    // 生成导入语句（如果有从 schema 文件导入的类型）
+    if (importsByPath && importsByPath.size > 0) {
+        lines.push('// Import types from schema files (for complex recursive schemas)');
+        for (const [importPath, types] of importsByPath.entries()) {
+            const typeList = Array.from(types).sort();
+            if (typeList.length === 1) {
+                lines.push(`import type { ${typeList[0]} } from '${importPath}';`);
+            } else {
+                lines.push(`import type {`);
+                typeList.forEach(type => {
+                    lines.push(`    ${type},`);
+                });
+                lines.push(`} from '${importPath}';`);
+            }
         }
-    });
+        lines.push('');
+    }
+
+    // 添加从 zod-to-ts 生成的类型块，并确保它们都是 export type
+    if (typeBlocks.length > 0) {
+        lines.push('// Tool parameter and result types (generated from Zod schemas)');
+        lines.push('// These types are automatically generated from runtime Zod schemas using zod-to-ts');
+        lines.push('// DO NOT manually edit these type definitions');
+        lines.push('');
+        typeBlocks.forEach(block => {
+            // 将 type 改为 export type，确保类型可以被导出使用
+            // 使用多行匹配，处理可能的多行 type 定义
+            // 匹配模式：行首的 "type " 替换为 "export type "
+            const exportedBlock = block.replace(/^type\s+/gm, 'export type ');
+            lines.push(exportedBlock);
+            lines.push('');
+        });
+    }
 
     // 生成工具映射表
     lines.push('/**');
@@ -247,7 +147,7 @@ function generateTypeDefinitions(tools: ToolInfo[], schemaMap: Map<string, Schem
     lines.push(' * const result = await mcpClient.callTool(\'assets-create-asset\', {');
     lines.push(' *   options: { target: \'db://assets/test.txt\' }');
     lines.push(' * });');
-    lines.push(' * // result 的类型会自动推断为 MCPResponse<IAssetInfo | null>');
+    lines.push(' * // result 的类型会自动推断为 MCPResponse<AssetsCreateAssetResult>');
     lines.push(' * ```');
     lines.push(' */');
     lines.push('export interface MCPToolsMap {');
@@ -262,14 +162,12 @@ function generateTypeDefinitions(tools: ToolInfo[], schemaMap: Map<string, Schem
             if (tool.description) {
                 lines.push(`     * ${tool.description}`);
             }
-            lines.push(`     * @source ${tool.filePath}`);
             lines.push('     */');
         }
 
-        const paramType = tool.params.length > 0
-            ? `${toPascalCase(tool.toolName)}Params`
-            : 'Record<string, never>';
-        const returnType = tool.returnType || 'any';
+        // 直接使用 zod-to-ts 生成的类型名称
+        const paramType = tool.paramsTypeName;
+        const returnType = tool.resultTypeName;
 
         lines.push(`    '${tool.toolName}': {`);
         lines.push(`        params: ${paramType};`);
@@ -298,7 +196,6 @@ function generateTypeDefinitions(tools: ToolInfo[], schemaMap: Map<string, Schem
     lines.push('/**');
     lines.push(' * 生成统计:');
     lines.push(` * - 总工具数: ${tools.length}`);
-    lines.push(` * - 总参数数: ${tools.reduce((sum, t) => sum + t.params.length, 0)}`);
     lines.push(` * - 生成时间: ${new Date().toISOString()}`);
     lines.push(' */');
 
@@ -316,116 +213,196 @@ function toPascalCase(str: string): string {
 }
 
 /**
- * 使用 toolRegistry 扫描已注册的工具（使用共享工具函数）
- * 这是最可靠的方式，因为只扫描实际注册的工具
+ * 基于运行时注册信息（Zod Schema）直接生成 TS 类型定义
+ * 完全参考 mcp.middleware.ts 的实现方式，使用 zod-to-ts 从 schema 生成类型
+ * 对于复杂的递归 schema，尝试从 schema 映射中查找对应的类型名称
  */
-async function scanApiToolsFromRegistry(): Promise<ToolInfo[]> {
-    // 使用共享的工具扫描函数
-    const baseTools = await scanToolsFromRegistry();
+async function generateTypesFromRuntimeSchemas(
+    tools: ExtendedToolInfo[],
+    schemaMappings: Map<string, SchemaTypeMapping>
+): Promise<{ tools: ToolInfo[]; typeBlocks: string[]; importsByPath: Map<string, Set<string>> }> {
+    const { z } = await import('zod');
+    // @ts-ignore - zod-to-ts v1.1.4 可能没有完整的类型定义
+    const { zodToTs, printNode, createTypeAlias } = await import('zod-to-ts');
+    
+    const resultTools: ToolInfo[] = [];
+    const allTypeBlocks: string[] = [];
+    const importsByPath = new Map<string, Set<string>>();
 
-    // 转换为 ToolInfo 格式，添加参数和返回类型字段（初始为空，需要从源码解析）
-    return baseTools.map(tool => ({
-        toolName: tool.toolName,
-        methodName: tool.methodName,
-        title: tool.title,
-        description: tool.description,
-        params: [], // 参数信息需要从源码解析
-        returnType: undefined, // 返回类型需要从源码解析
-        filePath: tool.filePath,
-    }));
-}
-
-/**
- * 从源码中补充工具的参数和返回类型信息
- */
-function enrichToolInfoFromSource(tools: ToolInfo[], schemaMap: Map<string, SchemaTypeMapping>): ToolInfo[] {
-    // 按文件路径分组工具
-    const toolsByFile = new Map<string, ToolInfo[]>();
     for (const tool of tools) {
-        if (!toolsByFile.has(tool.filePath)) {
-            toolsByFile.set(tool.filePath, []);
-        }
-        toolsByFile.get(tool.filePath)!.push(tool);
-    }
+        const typeBlocks: string[] = [];
+        let paramsTypeName = 'Record<string, never>';
+        let resultTypeName = 'any';
 
-    // 解析每个文件，补充参数和返回类型信息
-    for (const [filePath, fileTools] of toolsByFile.entries()) {
-        if (!fs.existsSync(filePath) || filePath === 'unknown') {
-            continue;
-        }
-
-        const content = fs.readFileSync(filePath, 'utf-8');
-
-        // 为每个工具查找对应的方法定义
-        for (const tool of fileTools) {
-            // 查找方法定义：@tool('tool-name') ... async methodName(...)
-            const methodPattern = new RegExp(
-                `@tool\\(['"]${tool.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]\\)([\\s\\S]*?)(?=@tool\\(|export class|$)`,
-                'i'
-            );
-            const methodMatch = content.match(methodPattern);
-            
-            if (methodMatch) {
-                const methodBlock = methodMatch[1];
-
-                // 提取参数
-                const params: ParamInfo[] = [];
-                const paramMatches = [...methodBlock.matchAll(/@param\((\w+)\)/g)];
-                const paramInfoList = extractParamInfo(methodBlock);
-
-                paramMatches.forEach((paramMatch, index) => {
-                    const schemaName = paramMatch[1];
-                    const paramInfo = paramInfoList[index];
-                    const paramName = paramInfo?.name || `param${index}`;
-                    const optional = paramInfo?.optional || false;
-                    const mapping = schemaMap.get(schemaName);
-                    const typeName = mapping ? mapping.typeName : 'any';
-
-                    params.push({
-                        name: paramName,
-                        type: typeName,
-                        schemaName: schemaName,
-                        optional: optional,
+        // 从 paramSchemas 构建输入 schema（参考 mcp.middleware.ts:78-85）
+        if (tool.paramSchemas && tool.paramSchemas.length > 0) {
+            try {
+                const typeName = toPascalCase(tool.toolName) + 'Params';
+                
+                // 构建输入对象 schema（与 mcp.middleware.ts 中的逻辑完全一致）
+                const inputSchemaFields: Record<string, any> = {};
+                tool.paramSchemas
+                    .sort((a, b) => a.index - b.index)
+                    .forEach((param) => {
+                        if (param.name) {
+                            inputSchemaFields[param.name] = param.schema;
+                        }
                     });
-                });
 
-                tool.params = params;
-
-                // 提取返回类型
-                const returnMatch = methodBlock.match(/@result\((\w+)\)/);
-                if (returnMatch) {
-                    const returnSchemaName = returnMatch[1];
-                    const mapping = schemaMap.get(returnSchemaName);
-                    tool.returnType = mapping ? mapping.typeName : 'any';
+                // 如果有字段，构建 z.object schema
+                if (Object.keys(inputSchemaFields).length > 0) {
+                    const inputSchema = z.object(inputSchemaFields);
+                    // zod-to-ts v1.1.4 API: zodToTs(schema, typeName) 返回 { node, store }
+                    const { node } = zodToTs(inputSchema, typeName);
+                    // 创建类型别名
+                    const typeAlias = createTypeAlias(node, typeName);
+                    typeBlocks.push(printNode(typeAlias));
+                    paramsTypeName = typeName;
                 }
+            } catch (error) {
+                console.warn(`⚠️  生成 ${tool.toolName} Params 类型失败:`, error);
+                paramsTypeName = 'Record<string, never>';
             }
         }
+
+        // 生成 Result 类型（参考 mcp.middleware.ts:88）
+        // 注意：returnSchema 已经被 createCommonResult 包装，包含 { code, data, reason }
+        // 但 MCPResponse 已经包装了这些字段，所以我们需要提取 data 字段的类型
+        if (tool.returnSchema) {
+            try {
+                const typeName = toPascalCase(tool.toolName) + 'Result';
+                
+                // 尝试从 returnSchema 中提取 data 字段的 schema
+                // returnSchema 是 createCommonResult(originalSchema) 的结果
+                // 结构是: { code: ..., data: originalSchema | undefined, reason: ... }
+                let dataSchema: any = tool.returnSchema;
+                
+                // 如果 returnSchema 是 z.object，尝试提取 data 字段
+                if (tool.returnSchema && typeof tool.returnSchema === 'object' && '_def' in tool.returnSchema) {
+                    const def = (tool.returnSchema as any)._def;
+                    // 检查是否是 z.object
+                    if (def && def.typeName === 'ZodObject') {
+                        const shape = def.shape();
+                        if (shape && shape.data) {
+                            // 提取 data 字段的 schema
+                            dataSchema = shape.data;
+                            // data 可能是 z.union([originalSchema, z.undefined()])
+                            // 需要提取 union 中的第一个元素（原始 schema）
+                            if (dataSchema && dataSchema._def && dataSchema._def.typeName === 'ZodUnion') {
+                                const options = dataSchema._def.options;
+                                if (options && options.length > 0) {
+                                    // 找到第一个不是 undefined 的选项
+                                    dataSchema = options.find((opt: any) => 
+                                        opt._def && opt._def.typeName !== 'ZodUndefined'
+                                    ) || options[0];
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 处理 z.lazy() schema：展开它
+                if (dataSchema && dataSchema._def && dataSchema._def.typeName === 'ZodLazy') {
+                    try {
+                        // 调用 getter 函数展开 lazy schema
+                        dataSchema = dataSchema._def.getter();
+                    } catch {
+                        // 如果展开失败，使用 any，但继续处理该工具
+                        console.warn(`⚠️  ${tool.toolName} Result 类型展开 lazy schema 失败，使用 any`);
+                        resultTypeName = 'any';
+                        // 不 continue，继续处理该工具
+                    }
+                }
+                
+                // 处理 z.nullable()：提取内部类型
+                if (dataSchema && dataSchema._def && dataSchema._def.typeName === 'ZodNullable') {
+                    dataSchema = dataSchema._def.innerType;
+                }
+                
+                // 只有在 resultTypeName 还是初始值 'any' 时才尝试生成类型
+                // 如果之前已经设置为 'any'（因为 lazy schema 展开失败），则跳过类型生成
+                if (resultTypeName === 'any' && dataSchema && dataSchema._def && dataSchema._def.typeName === 'ZodLazy') {
+                    // lazy schema 展开失败，已经设置为 any，跳过类型生成
+                } else if (resultTypeName !== 'any' || !dataSchema || !dataSchema._def || dataSchema._def.typeName !== 'ZodLazy') {
+                    // 使用提取的 dataSchema 生成类型
+                    try {
+                        const { node } = zodToTs(dataSchema, typeName);
+                        // 创建类型别名
+                        const typeAlias = createTypeAlias(node, typeName);
+                        const generatedType = printNode(typeAlias);
+                        
+                        // 检查是否有循环引用（类型名称出现在类型定义中）
+                        const typeDefMatch = generatedType.match(/type\s+(\w+)\s*=\s*(.+);/s);
+                        if (typeDefMatch) {
+                            const [, typeNameInDef, typeBody] = typeDefMatch;
+                            // 如果类型体只包含类型名称本身（循环引用），使用 any
+                            if (typeBody.trim() === typeNameInDef || 
+                                typeBody.trim() === `${typeNameInDef} | null` ||
+                                typeBody.trim() === `${typeNameInDef}[]`) {
+                                console.warn(`⚠️  ${tool.toolName} Result 类型存在循环引用，使用 any`);
+                                resultTypeName = 'any';
+                                // 不添加类型块，继续处理该工具，确保工具被添加到结果中
+                            } else {
+                                // 类型生成成功，添加到类型块中
+                                typeBlocks.push(generatedType);
+                                resultTypeName = typeName;
+                            }
+                        } else {
+                            // 无法解析类型定义，直接使用生成的类型
+                            typeBlocks.push(generatedType);
+                            resultTypeName = typeName;
+                        }
+                    } catch (genError) {
+                        console.warn(`⚠️  生成 ${tool.toolName} Result 类型失败:`, genError);
+                        resultTypeName = 'any';
+                    }
+                }
+            } catch (error) {
+                console.warn(`⚠️  生成 ${tool.toolName} Result 类型失败:`, error);
+                resultTypeName = 'any';
+            }
+        }
+
+        resultTools.push({
+            toolName: tool.toolName,
+            methodName: tool.methodName,
+            title: tool.title,
+            description: tool.description,
+            paramsTypeName,
+            resultTypeName,
+        });
+
+        allTypeBlocks.push(...typeBlocks);
     }
 
-    return tools;
+    return { tools: resultTools, typeBlocks: allTypeBlocks, importsByPath };
 }
 
 /**
  * 主函数
+ * 完全基于运行时 toolRegistry 数据生成类型，不读取源码
  */
 async function main() {
-    console.log('🤖 开始生成 MCP Tools 类型定义...\n');
+    console.log('🤖 开始生成 MCP Tools 类型定义（基于运行时数据）...\n');
 
-    // 步骤 1: 扫描所有 schema 文件，建立映射
-    const schemaMap = scanSchemaFiles();
-
-    // 步骤 2: 使用 toolRegistry 扫描已注册的工具（参考 check-coverage.ts）
+    // 步骤 1: 使用 toolRegistry 扫描已注册的工具（参考 mcp.middleware.ts）
     console.log('🔍 扫描 MCP API 工具定义 (通过 toolRegistry)...\n');
-    const toolsFromRegistry = await scanApiToolsFromRegistry();
+    const toolsFromRegistry = await scanToolsFromRegistry();
     console.log(`✅ 找到 ${toolsFromRegistry.length} 个 MCP 工具\n`);
 
-    // 步骤 3: 从源码中补充参数和返回类型信息
-    const allTools = enrichToolInfoFromSource(toolsFromRegistry, schemaMap);
+    // 步骤 2: 扫描 schema 文件，建立映射（用于处理循环引用）
+    const schemaMappings = scanSchemaTypeMappings();
 
-    // 步骤 4: 生成类型定义
-    const typeDefinitions = generateTypeDefinitions(allTools, schemaMap);
+    // 步骤 3: 基于运行时 Zod Schema 生成 TS 类型（参考 mcp.middleware.ts 的实现）
+    console.log('📝 从 Zod Schema 生成 TypeScript 类型...\n');
+    const { tools, typeBlocks, importsByPath } = await generateTypesFromRuntimeSchemas(toolsFromRegistry, schemaMappings);
+    console.log(`✅ 生成了 ${typeBlocks.length} 个类型定义块\n`);
 
-    // 步骤 5: 写入文件
+    // 步骤 4: 生成完整的类型定义文件
+    console.log('📄 生成类型定义文件...\n');
+    const typeDefinitions = generateTypeDefinitions(tools, typeBlocks, importsByPath);
+
+    // 步骤 4: 写入文件
     const outputPath = path.resolve(process.cwd(), 'e2e/types/mcp-tools.generated.ts');
     const outputDir = path.dirname(outputPath);
 
@@ -434,7 +411,7 @@ async function main() {
     }
 
     fs.writeFileSync(outputPath, typeDefinitions, 'utf-8');
-    console.log(`✨ 类型定义已生成: ${path.relative(process.cwd(), outputPath)}`);
+    console.log(`✨ 类型定义已生成: ${path.relative(process.cwd(), outputPath)}\n`);
 }
 
 // 运行脚本
