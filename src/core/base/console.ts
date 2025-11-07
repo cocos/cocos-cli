@@ -224,15 +224,33 @@ export class NewConsole {
         this.save();
     }
 
-    public error(error: Error | string) {
-        const message = (error instanceof Error) ? (error.stack || error.message || String(error)) : String(error);
+    public error(...args: any[]) {
+        // 处理所有参数，支持多个参数
+        let message: string;
+        if (args.length === 0) {
+            message = '';
+        } else if (args[0] instanceof Error) {
+            // 如果第一个参数是 Error，使用 stack 或 message
+            const error = args[0];
+            const errorMessage = error.stack || error.message || String(error);
+            // 如果有其他参数，也包含进去
+            if (args.length > 1) {
+                const otherArgs = args.slice(1).map(arg => String(arg));
+                message = [errorMessage, ...otherArgs].join(' ');
+            } else {
+                message = errorMessage;
+            }
+        } else {
+            // 所有参数都转换为字符串并连接
+            message = args.map(arg => String(arg)).join(' ');
+        }
         this._handleProgressMessage('error', message);
         if (!this._start) {
             return;
         }
         this.messages.push({
             type: 'error',
-            value: error,
+            value: args.length === 1 ? args[0] : args, // 单个参数保存原值，多个参数保存数组
         });
         this.save();
     }

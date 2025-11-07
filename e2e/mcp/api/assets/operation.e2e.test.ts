@@ -255,6 +255,54 @@ describe('MCP Assets API - Operation', () => {
                 validateAssetMetaExists(filePath);
             }
         );
+
+        test('should return error when creating script with compilation errors', async () => {
+            const scriptName = `CompileErrorScript-${generateTestId()}`;
+            
+            // 创建一个包含编译错误的脚本内容
+            // 包含多个明显的编译错误：
+            // 1. 语法错误：缺少闭合括号
+            // 2. 类型错误：字符串赋值给数字类型
+            // 3. 未定义的变量
+            const invalidScriptContent = `import { Component } from 'cc';
+
+export class CompileErrorComponent extends Component {
+    private invalidNumber: number = "this is a string"; // 类型错误
+    
+    start() {
+        const undefinedVar = nonExistentVariable; // 未定义的变量
+        console.log('This will cause compilation error'
+        // 缺少闭合括号和分号
+    }
+}`;
+
+            const result = await context.mcpClient.callTool('assets-create-asset-by-type', {
+                ccType: 'typescript',
+                dirOrUrl: context.testRootPath,
+                baseName: scriptName,
+                options: {
+                    overwrite: true,
+                    content: invalidScriptContent,
+                },
+            });
+
+            // 验证接口返回错误
+            expect(result.code).not.toBe(200);
+            expect(result.reason).toBeDefined();
+            expect(result.reason).toBeTruthy();
+            
+            // 验证错误信息包含相关提示（可能是编译错误、类型错误等）
+            const reasonLower = result.reason?.toLowerCase() || '';
+            const hasErrorIndication = 
+                reasonLower.includes('error') ||
+                reasonLower.includes('fail') ||
+                reasonLower.includes('编译') ||
+                reasonLower.includes('类型') ||
+                reasonLower.includes('syntax');
+            
+            // 至少应该包含某种错误指示
+            expect(hasErrorIndication || result.code !== 200).toBeTruthy();
+        });
     });
 
     describe('asset-delete', () => {

@@ -279,8 +279,8 @@ export class AssetsApi {
             ret.data = await assetManager.createAssetByType(ccType, dirOrUrl, baseName, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('create asset by type fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            ret.reason = e instanceof Error ? e.message + e.stack : String(e);
         }
 
         return ret;
@@ -303,8 +303,8 @@ export class AssetsApi {
             ret.data = await assetManager.createAsset(options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('create asset fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            ret.reason = e instanceof Error ? e.message + e.stack : String(e);
         }
         return ret;
     }
@@ -353,11 +353,12 @@ export class AssetsApi {
         };
 
         try {
-            await assetManager.reimportAsset(pathOrUrlOrUUID);
+            const assetInfo = await assetManager.reimportAsset(pathOrUrlOrUUID);
+            ret.data = assetInfo;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('reimport asset fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
+            console.error(e);
+            ret.reason = e instanceof Error ? e.message + e.stack : String(e);
         }
 
         return ret;

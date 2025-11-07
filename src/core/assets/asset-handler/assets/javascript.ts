@@ -50,9 +50,8 @@ export const JavascriptHandler: AssetHandlerBase = {
                     return true;
                 }
             } catch (error) {
-                throw new Error (
-                    `Failed to import script ${asset.source}: ${error}`,
-                );
+                console.error(`Failed to import script ${asset.source}`);
+                throw error;
             }
         },
     },
