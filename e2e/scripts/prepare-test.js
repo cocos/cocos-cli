@@ -25,8 +25,8 @@ if (preserveIndex !== -1) {
     console.log('🔍 检测到 --preserve 参数，启用调试模式');
 }
 
-// 1. 检查是否需要跳过 MCP types 生成（通过参数）
-let shouldSkipMcpTypes = skipMcpTypesIndex !== -1;
+// 1. 检查是否需要跳过 MCP types 生成（仅通过 --skip-mcp-types 参数）
+const shouldSkipMcpTypes = skipMcpTypesIndex !== -1;
 if (shouldSkipMcpTypes) {
     console.log(`📋 检测到 --skip-mcp-types 参数，跳过 MCP types 生成`);
 }
@@ -34,18 +34,10 @@ if (shouldSkipMcpTypes) {
 // 2. 检查 CLI 路径
 let cliPath = process.env.E2E_CLI_PATH;
 const defaultCliPath = path.resolve(__dirname, '../../dist/cli.js');
-const resolvedDefaultPath = path.resolve(defaultCliPath);
 
 if (cliPath) {
     // 从环境变量读取
-    const resolvedCliPath = path.resolve(cliPath);
-    // 检查是否是默认路径
-    if (resolvedCliPath !== resolvedDefaultPath) {
-        shouldSkipMcpTypes = true; // 自定义路径，跳过生成
-        console.log(`   路径与默认路径不同，跳过 MCP types 生成`);
-    } else {
-        console.log(`   路径为默认路径，将生成 MCP types`);
-    }
+    console.log(`📋 使用环境变量中的 CLI 路径: ${cliPath}`);
 } else if (cliIndex !== -1 && cliIndex + 1 < args.length) {
     // 从命令行参数读取
     const argPath = args[cliIndex + 1];
@@ -57,14 +49,6 @@ if (cliPath) {
         
         // 验证路径是否存在
         if (fs.existsSync(cliPath)) {
-            // 检查是否是默认路径
-            const resolvedCliPath = path.resolve(cliPath);
-            if (resolvedCliPath !== resolvedDefaultPath) {
-                shouldSkipMcpTypes = true; // 自定义路径，跳过生成
-                console.log(`   路径与默认路径不同，跳过 MCP types 生成`);
-            } else {
-                console.log(`   路径为默认路径，将生成 MCP types`);
-            }
             // 设置环境变量供 globalSetup 使用
             process.env.E2E_CLI_PATH = cliPath;
         } else {
@@ -81,10 +65,10 @@ if (cliPath) {
     console.log(`📋 未指定 CLI 路径，使用默认路径: ${defaultCliPath}`);
 }
 
-// 3. 决定是否生成 MCP types
+// 3. 决定是否生成 MCP types（默认全部生成，除非明确指定 --skip-mcp-types）
 if (!shouldSkipMcpTypes) {
-    // 使用默认路径，需要生成 MCP types
-    console.log(`📋 使用默认 CLI 路径，生成 MCP types...`);
+    // 默认生成 MCP types
+    console.log(`📋 生成 MCP types...`);
     const generateTypes = spawn('npm', ['run', 'generate:mcp-types'], {
         stdio: 'inherit',
         shell: true,
@@ -101,9 +85,7 @@ if (!shouldSkipMcpTypes) {
     });
 } else {
     // 跳过生成，直接运行 Jest
-    if (shouldSkipMcpTypes) {
-        console.log(`⏭️  跳过 MCP types 生成（${cliPath ? '使用自定义 CLI 路径' : '--skip-mcp-types 参数'}）`);
-    }
+    console.log(`⏭️  跳过 MCP types 生成（--skip-mcp-types 参数）`);
     runJest();
 }
 

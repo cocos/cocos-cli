@@ -96,6 +96,9 @@ class AssetOperation extends EventEmitter {
         if (res) {
             await asset._assetDB.reimport(asset.uuid);
         }
+        if (asset && (!asset.imported || asset.invalid)) {
+            throw asset.importError || new Error(`Save asset ${asset.source} failed`);
+        }
         return assetQueryManager.encodeAsset(asset);
     }
 
@@ -129,7 +132,14 @@ class AssetOperation extends EventEmitter {
         options.target = this._checkOverwrite(options.target, options);
         const assetPath = await assetHandlerManager.createAsset(options);
         await this.refreshAsset(assetPath);
-        return assetQueryManager.queryAssetInfo(queryUUID(assetPath));
+        const asset = assetQueryManager.queryAsset(assetPath);
+        if (!asset) {
+            throw new Error(`Create asset in ${options.target} failed`);
+        }
+        if (asset && (!asset.imported || asset.invalid)) {
+            throw asset.importError || new Error(`Create asset in ${options.target} failed`);
+        }
+        return assetQueryManager.encodeAsset(asset);
     }
 
     /**
@@ -286,11 +296,11 @@ class AssetOperation extends EventEmitter {
      * @param pathOrUrlOrUUID 
      * @returns 
      */
-    async reimportAsset(pathOrUrlOrUUID: string): Promise<void> {
+    async reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo> {
         return await assetDBManager.addTask(this._reimportAsset.bind(this), [pathOrUrlOrUUID]);
     }
 
-    private async _reimportAsset(pathOrUrlOrUUID: string): Promise<void> {
+    private async _reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo> {
         // 底层的 reimport 不支持子资源的 url 改为使用 uuid 重新导入
         if (pathOrUrlOrUUID.startsWith('db://')) {
             pathOrUrlOrUUID = url2uuid(pathOrUrlOrUUID);
@@ -299,6 +309,10 @@ class AssetOperation extends EventEmitter {
         if (!asset) {
             throw new Error(`无法找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
         }
+        if (asset && (!asset.imported || asset.invalid)) {
+            throw asset.importError || new Error(`Reimport asset ${asset.source} failed`);
+        }
+        return assetQueryManager.encodeAsset(asset);
     }
 
     /**
