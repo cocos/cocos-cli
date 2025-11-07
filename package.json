@@ -116,7 +116,7 @@
         "@cocos/fbx2gltf": "^1.0.8",
         "@cocos/lib-programming": "3.8.4",
         "@cocos/module-system": "^0.0.21",
-        "@cocos/quick-compiler": "^4.2.22",
+        "@cocos/quick-compiler": "^4.2.23",
         "@ffprobe-installer/ffprobe": "^1.4.1",
         "@modelcontextprotocol/sdk": "^1.18.0",
         "@sentry/node": "^10.21.0",
