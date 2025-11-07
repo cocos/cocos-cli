@@ -323,7 +323,8 @@ class EngineManager implements IEngine {
                 physics: {
                     ...physicsConfig,
                     physicsEngine,
-                    enabled: info.serverURL && true,
+                    // 物理引擎如果没有明确设置，默认是开启的，因此需要明确定义为false
+                    enabled: !!info.serverURL ? true : false,
                 },
                 assets: {
                     importBase: info.importBase,
@@ -335,7 +336,7 @@ class EngineManager implements IEngine {
             exactFitScreen: true,
         };
         cc.physics.selector.runInEditor = true;
-
+        defaultConfig.overrideSettings.physics.physicsEngine = '';
         if (onBeforeGameInit) {
             await onBeforeGameInit();
         }
@@ -357,7 +358,7 @@ class EngineManager implements IEngine {
         });
 
         // 切换物理引擎
-        // cc.physics.selector.switchTo(backend);
+        cc.physics.selector.switchTo(backend);
         // 禁用计算，避免刚体在tick的时候生效
         // cc.physics.PhysicsSystem.instance.enable = false;
 
