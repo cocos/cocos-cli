@@ -259,10 +259,7 @@ describe('MCP Node API', () => {
                 options: {
                     path: `Canvas/NonExistentNode-${generateTestId()}`,
                     name: 'NewName',
-                    properties: {
-                        position: { x: 100, y: 200, z: 0 }
-                    }
-                }
+                } as any,
             });
 
             expect(result.code).not.toBe(200);
