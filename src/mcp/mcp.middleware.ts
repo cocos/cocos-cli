@@ -9,6 +9,7 @@ import { join } from 'path';
 import { ResourceManager } from './resources';
 import { HTTP_STATUS } from '../api/base/schema-base';
 import type { HttpStatusCode } from '../api/base/schema-base';
+import stripAnsi from 'strip-ansi';
 
 export class McpMiddleware {
     private server: McpServer;
@@ -106,7 +107,6 @@ export class McpMiddleware {
 
                             // 调用实际的工具方法
                             const result = await this.callToolMethod(target, meta, methodArgs);
-
                             // 格式化返回结果
                             const formattedResult = this.formatToolResult(meta, result);
 
@@ -228,6 +228,9 @@ export class McpMiddleware {
         if (meta.returnSchema) {
             // 验证结果是否符合预期的 schema
             try {
+                if (result.reason) {
+                    result.reason = stripAnsi(result.reason);
+                }
                 const validatedResult = meta.returnSchema.parse(result);
                 return JSON.stringify({ result: validatedResult }, null, 2);
             } catch (error) {

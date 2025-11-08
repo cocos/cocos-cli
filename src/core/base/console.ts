@@ -3,6 +3,7 @@ import { consola, type ConsolaInstance } from 'consola';
 import type { Ora } from 'ora';
 import pino from 'pino';
 import i18n from './i18n';
+import stripAnsi from 'strip-ansi';
 export type IConsoleType = 'log' | 'warn' | 'error' | 'debug' | 'info' | 'success' | 'ready' | 'start';
 
 interface IConsoleMessage {
@@ -206,12 +207,6 @@ export class NewConsole {
         if (!this._start) {
             return;
         }
-
-        // 保存消息：单个参数保存原值，多个参数保存数组
-        this.messages.push({
-            type,
-            value: args.length === 1 ? args[0] : args,
-        });
         this.save();
     }
 
@@ -279,31 +274,39 @@ export class NewConsole {
         this.lastPrintType = type;
         this.lastPrintMessage = message;
         this.lastPrintTime = now;
+        // 控制台输出：保留 ANSI 转义码（用于彩色显示）
         this.consola[type](message);
+        // 文件日志：去除 ANSI 转义码（避免日志文件中出现乱码）
+        const cleanMessage = stripAnsi(message);
+        this.messages.push({
+            type,
+            value: cleanMessage,
+        });
+
         switch (type) {
             case 'debug':
-                this.pino.debug(message);
+                this.pino.debug(cleanMessage);
                 break;
             case 'log':
-                this.pino.info(message);
+                this.pino.info(cleanMessage);
                 break;
             case 'warn':
-                this.pino.warn(message);
+                this.pino.warn(cleanMessage);
                 break;
             case 'error':
-                this.pino.error(message);
+                this.pino.error(cleanMessage);
                 break;
             case 'info':
-                this.pino.info(message);
+                this.pino.info(cleanMessage);
                 break;
             case 'success':
-                this.pino.info(message);
+                this.pino.info(cleanMessage);
                 break;
             case 'ready':
-                this.pino.info(message);
+                this.pino.info(cleanMessage);
                 break;
             case 'start':
-                this.pino.info(message);
+                this.pino.info(cleanMessage);
                 break;
         }
     }

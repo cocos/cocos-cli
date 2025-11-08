@@ -168,6 +168,7 @@
         "sharp": "^0.32.6",
         "socket.io": "^4.8.1",
         "socket.io-client": "^4.8.1",
+        "strip-ansi": "^7.1.2",
         "tga-js": "^1.1.1",
         "tmp": "^0.0.33",
         "urijs": "^1.19.11",
