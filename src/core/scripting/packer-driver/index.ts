@@ -530,12 +530,16 @@ export class PackerDriver {
         }
         await this.beforeEditorBuildDelegate.dispatch(assetChanges.filter(item => item.type === AssetActionEnum.change) as ModifiedAssetChange[]);
         const nonDTSChanges = assetChanges.filter(item => !item.filePath.endsWith('.d.ts'));
+        // TODO 目前并不需要多个 targets 可以简化
         for (const [, target] of Object.entries(this._targets)) {
             if (assetChanges.length !== 0) {
                 await target.applyAssetChanges(nonDTSChanges);
             }
             const buildResult = await target.build();
             if (buildResult.err) {
+                this._building = false;
+                this._currentTaskId = null;
+                eventEmitter.emit('compiled', 'project');
                 throw buildResult.err;
             }
             buildResult.depsGraph && (this._depsGraph = buildResult.depsGraph); // 更新依赖图
