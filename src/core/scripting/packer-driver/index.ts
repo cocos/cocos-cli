@@ -66,7 +66,8 @@ async function wrapToSetImmediateQueue<Target, Args extends any[], Result>(thiz:
 }
 
 interface BuildResult {
-    depsGraph: Record<string, string[]>;
+    depsGraph?: Record<string, string[]>;
+    err?: null | Error;
 }
 
 interface CCEModuleConfig {
@@ -500,10 +501,11 @@ export class PackerDriver {
      * @param taskId 任务ID，用于跟踪任务状态
      */
     private async _startBuild(taskId?: string) {
-        if (this._building) {
-            this._logger.debug('Build iteration already started, skip.');
-            return;
-        }
+        // 目前不能直接跳过，因为调用编译接口时是期望立即执行的，如果跳过会导致编译任务无法执行。
+        // if (this._building) {
+        //     this._logger.debug('Build iteration already started, skip.');
+        //     return;
+        // }
         this._building = true;
         this._currentTaskId = taskId || null;
         eventEmitter.emit('compile-start', 'project', taskId);
@@ -533,7 +535,10 @@ export class PackerDriver {
                 await target.applyAssetChanges(nonDTSChanges);
             }
             const buildResult = await target.build();
-            this._depsGraph = buildResult.depsGraph; // 更新依赖图
+            if (buildResult.err) {
+                throw buildResult.err;
+            }
+            buildResult.depsGraph && (this._depsGraph = buildResult.depsGraph); // 更新依赖图
             this._needUpdateDepsCache = true;
         }
         this._building = false;
@@ -819,35 +824,16 @@ class PackTarget {
 
         this._logger.debug(`Target(${targetName}) build started.`);
 
-        let buildResult: BuildResult | undefined;
+        const buildResult: BuildResult = {};
         const t1 = performance.now();
         try {
-            const prerequisiteAssetMods = await this._getPrerequisiteAssetModsWithFilter();
-            const buildEntries = [
-                engineIndexModURL,
-                prerequisiteImportsModURL,
-                ...prerequisiteAssetMods,
-            ];
-            const cleanResolution = this._cleanResolutionNextTime;
-            if (cleanResolution) {
-                this._cleanResolutionNextTime = false;
-            }
-            if (cleanResolution) {
-                console.debug('This build will perform a clean module resolution.');
-            }
-
-            await wrapToSetImmediateQueue(this, async () => {
-                buildResult = await this._quickPack.build(buildEntries, {
-                    retryResolutionOnUnchangedModule: this._firstBuild,
-                    cleanResolution: cleanResolution,
-                });
-            });
-
-            this._firstBuild = false;
+            await this._build();
         } catch (err: any) {
             this._logger.error(`${err}, stack: ${err.stack}`);
+            buildResult.err = err;
             throw err;
         }
+        this._firstBuild = false;
         const t2 = performance.now();
         this._logger.debug(`Target(${targetName}) ends with cost ${t2 - t1}ms.`);
 
@@ -857,12 +843,33 @@ class PackTarget {
         eventEmitter.emit('pack-build-end', targetName);
 
         this._buildStarted = false;
-        if (buildResult) {
-            return buildResult;
-        } else {
-            console.warn('Cannot get build result from quick pack.');
-            return { depsGraph: {} };
+        return buildResult;
+    }
+
+    private async _build() {
+        const prerequisiteAssetMods = await this._getPrerequisiteAssetModsWithFilter();
+        const buildEntries = [
+            engineIndexModURL,
+            prerequisiteImportsModURL,
+            ...prerequisiteAssetMods,
+        ];
+        const cleanResolution = this._cleanResolutionNextTime;
+        if (cleanResolution) {
+            this._cleanResolutionNextTime = false;
         }
+        if (cleanResolution) {
+            console.debug('This build will perform a clean module resolution.');
+        }
+        let buildResult: BuildResult | undefined;
+        await wrapToSetImmediateQueue(this, async () => {
+            buildResult = await this._quickPack.build(buildEntries, {
+                retryResolutionOnUnchangedModule: this._firstBuild,
+                cleanResolution: cleanResolution,
+            });
+        });
+
+        return buildResult;
+
     }
 
     public async clearCache() {
