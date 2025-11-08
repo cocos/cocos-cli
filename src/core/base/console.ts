@@ -34,6 +34,7 @@ export class NewConsole {
             ? 'debug' : 'trace', // 暂时全部记录
     });
     private cacheLogs = true;
+    private isLogging = false;
     private isVerbose: boolean = false;
 
     // 进度管理相关
@@ -167,7 +168,7 @@ export class NewConsole {
         if (args.length === 0) {
             return '';
         }
-        
+
         // 如果第一个参数是 Error，特殊处理
         if (args[0] instanceof Error) {
             const error = args[0];
@@ -179,7 +180,7 @@ export class NewConsole {
             }
             return errorMessage;
         }
-        
+
         // 所有参数都转换为字符串并连接
         return args.map(arg => String(arg)).join(' ');
     }
@@ -190,13 +191,22 @@ export class NewConsole {
      * @param args 日志参数
      */
     private _logMessage(type: IConsoleType, ...args: any[]): void {
+        if (this.isLogging) {
+            return;
+        }
+        // 防止递归调用
+        this.isLogging = true;
+
         const message = this._formatMessage(...args);
         this._handleProgressMessage(type, message);
-        
+
+        // 重置标志
+        this.isLogging = false;
+
         if (!this._start) {
             return;
         }
-        
+
         // 保存消息：单个参数保存原值，多个参数保存数组
         this.messages.push({
             type,
