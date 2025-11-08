@@ -831,7 +831,6 @@ class PackTarget {
         } catch (err: any) {
             this._logger.error(`${err}, stack: ${err.stack}`);
             buildResult.err = err;
-            throw err;
         }
         this._firstBuild = false;
         const t2 = performance.now();
