@@ -146,5 +146,4 @@ jobs:
         with:
           pat-token: ${{ steps.setup-config.outputs.PAT_TOKEN }}
           message: ${{ steps.message.outputs.content }}
-          update-if-exists: 'true'
           comment-identifier: 'PR 测试报告'

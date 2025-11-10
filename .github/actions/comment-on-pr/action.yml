@@ -1,5 +1,5 @@
 name: 'Comment on PR'
-description: '在 PR 或 Issue 上发布评论，支持更新已有评论'
+description: '在 PR 或 Issue 上发布评论，自动查找并更新已有评论，避免创建重复评论'
 
 inputs:
   pat-token:
@@ -8,12 +8,8 @@ inputs:
   message:
     description: '要发布的评论内容'
     required: true
-  update-if-exists:
-    description: '如果已有评论则更新（默认 false）'
-    required: false
-    default: 'false'
   comment-identifier:
-    description: '用于识别已有评论的标识文本（用于更新时查找评论）'
+    description: '用于识别已有评论的标识文本（当找不到 HTML 标记时使用）'
     required: false
     default: ''
 
@@ -28,7 +24,6 @@ runs:
         github-token: ${{ inputs.pat-token }}
         script: |
           const comment = process.env.MESSAGE_CONTENT;
-          const shouldUpdate = '${{ inputs.update-if-exists }}' === 'true';
           const identifier = '${{ inputs.comment-identifier }}';
           
           // 获取 issue/PR 编号
@@ -42,63 +37,123 @@ runs:
           console.log(`📝 Commenting on #${issueNumber}`);
           
           try {
-            if (shouldUpdate) {
-              // 查找已有的评论并更新
-              const { data: comments } = await github.rest.issues.listComments({
-                issue_number: issueNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+            // 始终尝试查找已有的评论（优先更新，避免创建多个评论）
+            console.log('🔍 Searching for existing comments...');
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: issueNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            console.log(`   Found ${comments.length} total comments`);
+            
+            // 获取当前 bot 的用户信息（用于识别自己的评论）
+            const { data: botUser } = await github.rest.users.getAuthenticated();
+            console.log(`   Bot user: ${botUser.login} (type: ${botUser.type})`);
+            
+            // 检查消息内容是否包含 HTML 注释标记
+            const hasHtmlMarker = comment && comment.includes('<!-- PR_TEST_COMMENT -->');
+            console.log(`   Message contains HTML marker: ${hasHtmlMarker}`);
+            
+            // 优先使用 HTML 注释标记查找（最可靠）
+            let existingComment = null;
+            
+            if (hasHtmlMarker) {
+              // 查找包含 HTML 注释标记的评论
+              existingComment = comments.find(c => {
+                const isBotComment = c.user.type === 'Bot' || c.user.login === botUser.login;
+                const hasMarker = c.body && c.body.includes('<!-- PR_TEST_COMMENT -->');
+                if (isBotComment && hasMarker) {
+                  console.log(`   Found potential match: Comment ID ${c.id} by ${c.user.login}`);
+                  return true;
+                }
+                return false;
               });
               
-              // 优先使用 HTML 注释标记查找（最可靠）
-              let botComment = comments.find(c => 
-                c.user.type === 'Bot' && 
-                c.body.includes('<!-- PR_TEST_COMMENT -->')
-              );
+              if (existingComment) {
+                console.log(`   ✅ Found comment with HTML marker (ID: ${existingComment.id})`);
+              } else {
+                console.log(`   ❌ No comment found with HTML marker`);
+              }
+            }
+            
+            // 如果没有找到 HTML 注释标记的评论，则使用 identifier（向后兼容）
+            if (!existingComment && identifier) {
+              console.log(`   🔍 Searching by identifier: "${identifier}"`);
+              const matchingComments = comments.filter(c => {
+                const isBotComment = c.user.type === 'Bot' || c.user.login === botUser.login;
+                const hasIdentifier = c.body && c.body.includes(identifier);
+                if (isBotComment && hasIdentifier) {
+                  console.log(`   Found potential match: Comment ID ${c.id} by ${c.user.login}`);
+                  return true;
+                }
+                return false;
+              });
               
-              // 如果没有找到 HTML 注释标记，则使用 identifier（向后兼容）
-              if (!botComment && identifier) {
-                // 找到所有匹配的评论，选择最早创建的那个（避免多个评论）
-                const matchingComments = comments.filter(c => 
-                  c.user.type === 'Bot' && 
-                  c.body.includes(identifier)
+              console.log(`   Found ${matchingComments.length} matching comments by identifier`);
+              
+              if (matchingComments.length > 0) {
+                // 按创建时间排序，选择最早的那个
+                matchingComments.sort((a, b) => 
+                  new Date(a.created_at) - new Date(b.created_at)
                 );
+                existingComment = matchingComments[0];
+                console.log(`   ✅ Using earliest comment (ID: ${existingComment.id}, created: ${existingComment.created_at})`);
                 
-                if (matchingComments.length > 0) {
-                  // 按创建时间排序，选择最早的那个
-                  matchingComments.sort((a, b) => 
-                    new Date(a.created_at) - new Date(b.created_at)
-                  );
-                  botComment = matchingComments[0];
-                  
-                  // 如果找到多个匹配的评论，记录警告
-                  if (matchingComments.length > 1) {
-                    console.log(`⚠️ Found ${matchingComments.length} matching comments, updating the earliest one (ID: ${botComment.id})`);
-                  }
+                // 如果找到多个匹配的评论，记录警告
+                if (matchingComments.length > 1) {
+                  console.log(`   ⚠️ Found ${matchingComments.length} matching comments, will update the earliest one (ID: ${existingComment.id})`);
+                  console.log(`   💡 Note: Other duplicate comments will remain. Consider cleaning them up manually if needed.`);
                 }
               }
-              
-              if (botComment) {
-                // 更新已有评论
+            }
+            
+            if (existingComment) {
+              // 更新已有评论
+              console.log(`   ✏️ Updating existing comment (ID: ${existingComment.id})...`);
+              try {
                 await github.rest.issues.updateComment({
-                  comment_id: botComment.id,
+                  comment_id: existingComment.id,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   body: comment
                 });
-                console.log(`✅ Comment updated (ID: ${botComment.id})`);
-                return;
+                console.log(`✅ Comment updated (ID: ${existingComment.id})`);
+              } catch (updateError) {
+                console.error(`   ❌ Failed to update comment: ${updateError.message}`);
+                // 如果更新失败，尝试创建新评论（但这种情况应该很少见）
+                console.log('   📝 Falling back to creating new comment...');
+                await github.rest.issues.createComment({
+                  issue_number: issueNumber,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                console.log(`✅ Comment created on #${issueNumber} (update failed, created new one)`);
               }
+            } else {
+              // 没有找到已有评论，创建新评论
+              console.log('   📝 No existing comment found, creating new one...');
+              console.log(`   💡 Make sure your message includes '<!-- PR_TEST_COMMENT -->' marker for future updates`);
+              
+              // 确保消息内容包含 HTML 标记（如果还没有的话）
+              let commentBody = comment;
+              if (hasHtmlMarker || commentBody.includes('<!-- PR_TEST_COMMENT -->')) {
+                // 已经包含标记，不需要添加
+              } else {
+                // 添加标记到消息末尾
+                commentBody = commentBody + '\n\n<!-- PR_TEST_COMMENT -->';
+                console.log('   ✅ Added HTML marker to comment for future updates');
+              }
+              
+              await github.rest.issues.createComment({
+                issue_number: issueNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+              console.log(`✅ Comment created on #${issueNumber}`);
             }
-            
-            // 创建新评论
-            await github.rest.issues.createComment({
-              issue_number: issueNumber,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-            console.log(`✅ Comment created on #${issueNumber}`);
           } catch (error) {
             console.error('❌ Failed to comment:', error.message);
             if (error.status) {
