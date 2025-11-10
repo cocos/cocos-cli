@@ -833,11 +833,12 @@ class PackTarget {
         try {
             await this._build();
         } catch (err: any) {
-            if (err.message && this._prerequisiteAssetMods.size) {
-                this._prerequisiteAssetMods.forEach(mod => {
+            const mods = this._prerequisiteAssetMods;
+            if (err.message && mods.size) {
+                mods.forEach(mod => {
                     const modPath = mod.startsWith('file:') ? fileURLToPath(mod) : mod;
                     if (err.message.includes(modPath)) {
-                        this._prerequisiteAssetMods.delete(mod);
+                        mods.delete(mod);
                         return;
                     }
                 });
