@@ -211,3 +211,38 @@ export async function replaceTextInFile(
     }
     throw new Error('No occurrences found. File is not changed.');
 }
+
+export async function queryLinesInFile(
+    dbURL: string, fileType: string, startLine: number, lineCount: number): Promise<string> {
+    --startLine; // Convert to zero-based index
+
+    if (startLine < 0) {
+        throw new Error('Start line must be non-negative.');
+    }
+    if (lineCount === 0) {
+        throw new Error('Line count must be greater than zero or negative for all lines.');
+    }
+
+    const filename = getScriptFilename(dbURL, fileType);
+
+    const fileStream = fs.createReadStream(filename);
+    const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+    });
+
+    let content: string = '';
+    let currentLine = 0;
+    for await (const line of rl) {
+        if (currentLine >= startLine && (currentLine < startLine + lineCount || lineCount < 0)) {
+            content = content.concat(`${currentLine + 1}\t${line}` + EOL);
+        }
+        ++currentLine;
+    }
+
+    // Close the read stream
+    rl.close();
+    fileStream.close();
+
+    return content;
+}
