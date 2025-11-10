@@ -16,11 +16,8 @@ import {
     ImageMeta,
     LODsOption,
 } from '../../@types/userDatas';
-import * as migratesNameToId from './migrates/name2id';
 import { convertsEncodedSeparatorsInURI } from './utils/uri-utils';
 import { AnimationClip, MeshRenderer, Node } from 'cc';
-
-import { existsSync, readJSON, stat } from 'fs-extra';
 
 import { resolveGlTfImagePath } from './utils/resolve-glTF-image-path';
 import { serializeForLibrary } from './utils/serialize-library';
