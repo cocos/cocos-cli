@@ -33,7 +33,7 @@ export const SchemaQueryFileTextInfo = z.object({
     fileType: z.enum(FILE_EXTENSIONS).describe('文件类型'),
     startLine: z.number().min(1).default(1).describe('从第 startLine 行开始查询(默认从第1行开始)'),
     lineCount: z.number().default(-1).describe('从第 startLine 行开始查询的行数(负数为全部行，默认-1)'),
-}).describe('查询文件的第 startLine 行到 endLine 行的信息(endLine也查询)');
+}).describe('查询文件的第 startLine 开始, lineCount 行数的信息');
 
 // 列举支持的文件后缀类型
 export const SchemaFileEditorResult = z.boolean().describe('文件编辑的结果');
