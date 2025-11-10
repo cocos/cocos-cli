@@ -833,6 +833,15 @@ class PackTarget {
         try {
             await this._build();
         } catch (err: any) {
+            if (err.message && this._prerequisiteAssetMods.size) {
+                this._prerequisiteAssetMods.forEach(mod => {
+                    const modPath = mod.startsWith('file:') ? fileURLToPath(mod) : mod;
+                    if (err.message.includes(modPath)) {
+                        this._prerequisiteAssetMods.delete(mod);
+                        return;
+                    }
+                });
+            }
             this._logger.error(`${err}, stack: ${err.stack}`);
             buildResult.err = err;
         }
