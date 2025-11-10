@@ -71,17 +71,12 @@ jobs:
           
           # 覆盖率检查仅作为信息展示，不影响整体状态
           
-          # 生成随机页脚消息
-          if [ "$ALL_PASS" = "false" ]; then
-            TITLE="## ⚠️ 发现问题"
-            FOOTER=$(node .github/scripts/generate-footer.js fail)
-          else
-            TITLE="## ✅ 测试通过"
-            FOOTER=$(node .github/scripts/generate-footer.js pass)
-          fi
-          
           # 构建紧凑型消息
-          MESSAGE="$TITLE\n\n"
+          if [ "$ALL_PASS" = "false" ]; then
+            MESSAGE="## ⚠️ 发现问题\n\n"
+          else
+            MESSAGE="## ✅ 测试通过\n\n"
+          fi
           MESSAGE+="| 类型 | 结果 |\n"
           MESSAGE+="|:----:|------|\n"
           
@@ -129,8 +124,7 @@ jobs:
             MESSAGE+="| 📈 | ⚠️ 覆盖率检查失败 |\n"
           fi
           
-          MESSAGE+="\n$FOOTER\n\n"
-          MESSAGE+="<sub>Run #${{ github.run_id }}</sub>\n"
+          MESSAGE+="\n<sub>Run #${{ github.run_id }}</sub>\n"
           MESSAGE+="<!-- PR_TEST_COMMENT -->"
           
           # 保存到 GitHub Output
