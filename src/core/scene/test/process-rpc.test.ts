@@ -19,7 +19,10 @@ describe('ProcessRPC 双向调用测试', () => {
     let rpc: ProcessRPC<{ node: INodeService; scene: ISceneService }>;
 
     beforeAll(() => {
-        child = fork(workerPath, [], { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
+        child = fork(workerPath, [], {
+            detached: false,
+            stdio: ['pipe', 'pipe', 'pipe', 'ipc']
+        });
         child.stdout?.on('data', (chunk) => {
             console.log(chunk.toString());
         });

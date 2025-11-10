@@ -1,5 +1,7 @@
 const { ProcessRPC } = require('../../../../../dist/core/scene/process-rpc');
 
+console.log(`Test Process RPC worker pid: ${process.pid}`);
+
 class NodeService {
     async createNode(name) {
         return `Node:${name}`;
@@ -24,8 +26,8 @@ rpc.attach({
 
 // 注册对象实例
 rpc.register({
-    'node': new NodeService(),
-    'scene': {
+    node: new NodeService(),
+    scene: {
         async loadScene(id) {
             return id === 'Level01';
         },

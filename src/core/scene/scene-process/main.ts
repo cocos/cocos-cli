@@ -9,12 +9,13 @@ async function startup() {
     // 监听进程退出事件
     process.on('message', (msg) => {
         if (msg === 'scene-process:exit') {
+            Rpc.getInstance().dispose();
             process.disconnect?.(); // 关闭 IPC
             process.exit(0);// 退出进程
         }
     });
 
-    console.log('[Scene] startup worker');
+    console.log(`[Scene] startup worker pid: ${process.pid}`);
 
     console.log(`[Scene] parse args ${process.argv}`);
     const { enginePath, projectPath, serverURL } = parseCommandLineArgs(process.argv);
