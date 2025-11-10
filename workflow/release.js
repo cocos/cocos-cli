@@ -20,6 +20,7 @@ function parseArguments() {
         .option('--electron', '创建 Electron 版本发布包')
         .option('--zip', '创建 ZIP 压缩包')
         .option('--upload', '上传到 FTP 服务器')
+        .option('--publish-dir <dir>', '指定发布目录（默认为 .publish）')
         .parse();
 
     const options = program.opts();
@@ -30,10 +31,13 @@ function parseArguments() {
     // 如果没有任何参数，默认所有功能都启用
     if (!hasAnyArgs) {
         console.log('🚀 未指定参数，启用默认模式：构建所有平台 + ZIP打包 + FTP上传');
-        return [
-            { type: 'nodejs', zip: true, upload: true },
-            { type: 'electron', zip: true, upload: true }
-        ];
+        return {
+            configs: [
+                { type: 'nodejs', zip: true, upload: true },
+                { type: 'electron', zip: true, upload: true }
+            ],
+            publishDir: options.publishDir
+        };
     }
 
     // 确定发布类型
@@ -52,7 +56,7 @@ function parseArguments() {
     }
 
     // 为每个类型创建配置
-     return types.map(type => {
+     const configs = types.map(type => {
          let zip = !!options.zip;
          const upload = !!options.upload;
 
@@ -66,6 +70,11 @@ function parseArguments() {
              upload: upload
          };
      });
+
+     return {
+         configs,
+         publishDir: options.publishDir
+     };
 }
 
 /**
@@ -526,11 +535,40 @@ async function handleFTPUpload(zipFilePath) {
 
 /**
  * 主发布函数
+ * @param {object} [options] 发布选项
+ * @param {string} [options.publishDir] 发布目录（如果不提供，将从命令行参数或默认值获取）
+ * @param {Array<{type: string, zip: boolean, upload: boolean}>} [options.configs] 发布配置列表（如果不提供，将从命令行参数获取）
+ * @returns {Promise<object>} 返回发布过程中产生的文件地址 map，格式为: { nodejs: { releaseDir, zipFile }, electron: { releaseDir, zipFile } }
  */
-async function release() {
-    const configs = parseArguments();
+async function release(options = {}) {
     const rootDir = path.resolve(__dirname, '..');
-    const publishDir = path.join(rootDir, '.publish');
+    let configs;
+    
+    let parsedArgs = null;
+    
+    // 如果提供了完整的配置，使用它；否则解析命令行参数
+    if (options.configs && Array.isArray(options.configs) && options.configs.length > 0) {
+        // 作为模块调用，使用提供的配置
+        configs = options.configs;
+    } else {
+        // 从命令行参数解析（包括直接运行脚本的情况）
+        parsedArgs = parseArguments();
+        configs = parsedArgs.configs;
+    }
+    
+    // 确定发布目录：优先使用函数参数，其次是命令行参数，最后是默认值
+    const publishDirInput = options.publishDir || (parsedArgs && parsedArgs.publishDir) || '.publish';
+    
+    // 将发布目录转换为绝对路径
+    const publishDirAbs = path.isAbsolute(publishDirInput) 
+        ? publishDirInput 
+        : path.resolve(rootDir, publishDirInput);
+    
+    // 确保发布目录存在
+    await fs.ensureDir(publishDirAbs);
+    console.log(`📁 使用发布目录: ${publishDirAbs}`);
+
+    const result = {};
 
     try {
         // 获取项目版本号
@@ -549,18 +587,25 @@ async function release() {
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
 
         // 为每个配置执行发布流程
-        for (const options of configs) {
-            await releaseForType(options, rootDir, publishDir, version, allFiles);
+        for (const config of configs) {
+            const fileInfo = await releaseForType(config, rootDir, publishDirAbs, version, allFiles);
+            result[config.type] = fileInfo;
         }
 
+        return result;
     } catch (error) {
         console.error('❌ 发布失败:', error.message);
-        process.exit(1);
+        if (require.main === module) {
+            process.exit(1);
+        } else {
+            throw error;
+        }
     }
 }
 
 /**
  * 为特定类型执行发布流程
+ * @returns {Promise<{releaseDir: string, zipFile: string|null}>} 返回发布的文件路径信息
  */
 async function releaseForType(options, rootDir, publishDir, version, allFiles) {
     // 生成发布目录名称
@@ -609,6 +654,12 @@ async function releaseForType(options, rootDir, publishDir, version, allFiles) {
     if (zipFilePath) {
         console.log(`📦 ZIP文件: ${zipFilePath}`);
     }
+
+    // 返回发布的文件路径信息
+    return {
+        releaseDir: extensionDir,
+        zipFile: zipFilePath
+    };
 }
 
 /**
@@ -640,7 +691,13 @@ async function getDirectorySize(dirPath) {
 
 // 如果直接运行此脚本，则执行发布
 if (require.main === module) {
-    release().catch(console.error);
+    release().then(result => {
+        console.log('\n📋 发布文件路径汇总:');
+        console.log(JSON.stringify(result, null, 2));
+    }).catch(error => {
+        console.error('❌ 发布失败:', error.message);
+        process.exit(1);
+    });
 }
 
 module.exports = { release };

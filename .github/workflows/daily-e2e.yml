@@ -9,8 +9,9 @@
 # - 生成可视化的 HTML 测试报告
 # - 检查 E2E 测试覆盖率
 # - 生成覆盖率报告
-# - 发送测试结果和覆盖率到飞书群聊
-# - 上传测试报告为 GitHub Artifacts（保留 30 天）
+# - 在测试成功后自动构建发布包（Node.js 版本）
+# - 清理旧的发布文件（保留最新 6 个）
+# - 发送测试结果、覆盖率报告和发布包信息到飞书群聊
 
 name: Daily E2E Check
 
@@ -53,14 +54,6 @@ jobs:
         with:
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
-      - name: Upload test report as artifact
-        if: always() && steps.e2e-tests.outputs.report_exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-e2e-report-${{ github.run_id }}
-          path: ${{ steps.e2e-tests.outputs.report_file }}
-          retention-days: 30
-      
       - name: Check E2E coverage
         id: coverage
         if: always()
@@ -68,13 +61,17 @@ jobs:
         with:
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
-      - name: Upload coverage report as artifact (备用)
-        if: always() && steps.coverage.outputs.report_path != ''
-        uses: actions/upload-artifact@v4
+      - name: Release build
+        id: release
+        if: success() && steps.e2e-tests.outcome == 'success'
+        uses: ./.github/actions/release
         with:
-          name: daily-coverage-report-${{ github.run_id }}
-          path: ${{ steps.coverage.outputs.report_path }}
-          retention-days: 30
+          publish-dir: e2e/reports/.publish
+          nodejs: 'true'
+          electron: 'false'
+          create-zip: 'true'
+          upload: 'false'
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
       - name: Send to Feishu
         if: always()
@@ -92,4 +89,6 @@ jobs:
           TESTED_COUNT: ${{ steps.coverage.outputs.tested_count }}
           TOTAL_COUNT: ${{ steps.coverage.outputs.total_count }}
           COVERAGE_MARKDOWN: ${{ steps.coverage.outputs.markdown }}
+          RELEASE_SUCCESS: ${{ steps.release.outputs.release_success }}
+          RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
 

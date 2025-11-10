@@ -1,0 +1,72 @@
+name: 'Release Build'
+description: '构建发布包（Node.js 或 Electron 版本）'
+
+inputs:
+  publish-dir:
+    description: '发布目录路径'
+    required: false
+    default: '.publish'
+  nodejs:
+    description: '是否发布 Node.js 版本'
+    required: false
+    default: 'true'
+  electron:
+    description: '是否发布 Electron 版本'
+    required: false
+    default: 'false'
+  create-zip:
+    description: '是否创建 ZIP 压缩包'
+    required: false
+    default: 'true'
+  upload:
+    description: '是否上传到 FTP 服务器'
+    required: false
+    default: 'false'
+  report-server-url:
+    description: '报告服务器地址（用于生成下载链接）'
+    required: false
+    default: 'http://192.168.52.77:8080'
+
+outputs:
+  release_results:
+    description: '发布结果 JSON（包含所有类型的发布信息）'
+    value: ${{ steps.release.outputs.release_results }}
+  release_success:
+    description: '发布是否成功（所有类型都成功才为 true）'
+    value: ${{ steps.release.outputs.release_success }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cleanup old publish files
+      id: cleanup
+      shell: bash
+      run: |
+        PUBLISH_DIR="${{ inputs.publish-dir }}"
+        # 确保发布目录是绝对路径
+        if [[ ! "$PUBLISH_DIR" = /* ]]; then
+          PUBLISH_DIR="$GITHUB_WORKSPACE/$PUBLISH_DIR"
+        fi
+        echo "🧹 清理发布目录: $PUBLISH_DIR"
+        node "$GITHUB_WORKSPACE/.github/scripts/cleanup-publish-dir.js" "$PUBLISH_DIR" 6
+    
+    - name: Run release
+      id: release
+      shell: bash
+      continue-on-error: true
+      run: node "$GITHUB_WORKSPACE/.github/actions/release/release-build.js"
+      env:
+        PUBLISH_DIR: ${{ inputs.publish-dir }}
+        NODEJS: ${{ inputs.nodejs }}
+        ELECTRON: ${{ inputs.electron }}
+        CREATE_ZIP: ${{ inputs.create-zip }}
+        UPLOAD: ${{ inputs.upload }}
+        REPORT_SERVER_URL: ${{ inputs.report-server-url }}
+    
+    - name: Check release result
+      shell: bash
+      if: steps.release.outputs.release_success != 'true'
+      run: |
+        echo "⚠️  部分发布类型构建失败，继续执行"
+        # 不退出，让工作流继续执行以便显示详细结果
+

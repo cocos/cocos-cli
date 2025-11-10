@@ -1,0 +1,142 @@
+# 发布工作流
+#
+# 触发方式：
+# 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
+#
+# 功能：
+# - 构建 Node.js 或 Electron 版本的发布包
+# - 创建 ZIP 压缩包
+# - 上传发布包到 FTP 服务器（可选）
+
+name: Publish
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      nodejs:
+        description: '发布 Node.js 版本'
+        required: false
+        default: true
+        type: boolean
+      electron:
+        description: '发布 Electron 版本'
+        required: false
+        default: false
+        type: boolean
+      create-zip:
+        description: '创建 ZIP 压缩包'
+        required: true
+        default: true
+        type: boolean
+      upload-ftp:
+        description: '上传到 FTP 服务器'
+        required: true
+        default: false
+        type: boolean
+      send-feishu:
+        description: '发送发布结果到飞书'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read          # 读取代码
+  actions: read          # 读取 Actions
+
+jobs:
+  publish:
+    runs-on: [ self-hosted, macOS ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: true
+          fetch-depth: 0
+      
+      - name: Setup configuration
+        id: setup-config
+        uses: ./.github/actions/setup-config
+        with:
+          feishu-webhook-url: ${{ secrets.FEISHU_WEBHOOK_URL }}
+      
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
+      
+      - name: Release build
+        id: release
+        if: inputs.nodejs == true || inputs.electron == true
+        uses: ./.github/actions/release
+        with:
+          publish-dir: .publish
+          nodejs: ${{ inputs.nodejs == true && 'true' || 'false' }}
+          electron: ${{ inputs.electron == true && 'true' || 'false' }}
+          create-zip: ${{ inputs.create-zip == true && 'true' || 'false' }}
+          upload: ${{ inputs.upload-ftp == true && 'true' || 'false' }}
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+      
+      - name: Summary
+        if: always()
+        env:
+          RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
+        run: |
+          echo "## 📦 发布结果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -z "$RELEASE_RESULTS" ] || [ "$RELEASE_RESULTS" == "null" ]; then
+            echo "⚠️ **未执行发布流程或发布失败**" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          # 使用 Node.js 解析 JSON 并生成摘要
+          node -e "
+          const results = JSON.parse(process.env.RELEASE_RESULTS);
+          const fs = require('fs');
+          const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+          let summary = '';
+          
+          if (results.nodejs) {
+            if (results.nodejs.success) {
+              summary += '### ✅ Node.js 发布成功\\n';
+              summary += '- **发布目录**: ' + results.nodejs.releaseDir + '\\n';
+              if (results.nodejs.zipFile) {
+                summary += '- **ZIP 文件**: ' + results.nodejs.zipFile + '\\n';
+                summary += '- **ZIP URL**: ' + results.nodejs.zipUrl + '\\n';
+              }
+            } else {
+              summary += '### ❌ Node.js 发布失败\\n';
+            }
+            summary += '\\n';
+          }
+          
+          if (results.electron) {
+            if (results.electron.success) {
+              summary += '### ✅ Electron 发布成功\\n';
+              summary += '- **发布目录**: ' + results.electron.releaseDir + '\\n';
+              if (results.electron.zipFile) {
+                summary += '- **ZIP 文件**: ' + results.electron.zipFile + '\\n';
+                summary += '- **ZIP URL**: ' + results.electron.zipUrl + '\\n';
+              }
+            } else {
+              summary += '### ❌ Electron 发布失败\\n';
+            }
+            summary += '\\n';
+          }
+          
+          fs.appendFileSync(summaryFile, summary);
+          "
+      
+      - name: Send to Feishu
+        if: always() && inputs.send-feishu == true
+        continue-on-error: true
+        run: node .github/scripts/send-release-to-feishu.js
+        env:
+          FEISHU_WEBHOOK_URL: ${{ steps.setup-config.outputs.FEISHU_WEBHOOK_URL }}
+          RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
+          RUN_ID: ${{ github.run_id }}
+          TRIGGER_TYPE: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+
