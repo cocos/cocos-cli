@@ -70,7 +70,7 @@ const test = 'original';
             expect(insertResult.data).toBe(true);
 
             // 验证插入结果：查询文件内容
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -117,7 +117,7 @@ const test = 'original';
             expect(insertResult.data).toBe(true);
 
             // 验证插入结果：查询文件内容
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -155,7 +155,7 @@ const test = 'original';
 
         it('should insert text at the end when line number exceeds file length', async () => {
             // 先查询原始文件的行数
-            const initialQueryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const initialQueryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -183,7 +183,7 @@ const test = 'original';
             expect(insertResult.data).toBe(true);
 
             // 验证插入结果：查询所有行，验证文本被插入到文件末尾
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -216,7 +216,7 @@ const test = 'original';
     describe('file-query-text', () => {
         it('should query specific lines from file', async () => {
             // 注意：file-query-text 可能还没有类型定义，使用类型断言
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -233,7 +233,7 @@ const test = 'original';
         });
 
         it('should query all lines when lineCount is -1', async () => {
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -250,7 +250,7 @@ const test = 'original';
         });
 
         it('should query from middle of file', async () => {
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -280,7 +280,7 @@ const test = 'original';
             expect(replaceResult.code).toBe(200);
             expect(replaceResult.data).toBe(true);
             // 使用 file-query-text 验证替换结果
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -316,7 +316,7 @@ const test = 'original';
 
             expect(replaceResult.code).not.toBe(200);
             // 使用 file-query-text 验证未发生错误替换（应包含两个 original，且不包含 replaced）
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -345,7 +345,7 @@ const test = 'original';
             expect(replaceResult.code).toBe(200);
             expect(replaceResult.data).toBe(true);
             // 使用 file-query-text 验证正则替换结果
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -374,7 +374,7 @@ const test = 'original';
             expect(deleteResult.data).toBe(true);
 
             // 使用 file-query-text 验证删除结果：第2、3行应被删除
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -406,7 +406,7 @@ const test = 'original';
             expect(deleteResult.data).toBe(true);
 
             // 使用 file-query-text 验证删除结果：第4行（代码行）应被删除
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -438,7 +438,7 @@ const test = 'original';
             expect(deleteResult.data).toBe(true);
 
             // 使用 file-query-text 验证删除结果：第1-3行应被删除
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -493,7 +493,7 @@ const test = 'original';
             expect(deleteResult.code).toBe(200);
 
             // 4. 查询最终结果
-            const queryResult = await (mcpClient.callTool as any)('file-query-text', {
+            const queryResult = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
@@ -511,7 +511,7 @@ const test = 'original';
     describe('错误处理', () => {
         it('should fail when file does not exist', async () => {
             const nonExistentFile = `${context.testRootUrl}/non-existent-${generateTestId()}.ts`;
-            const result = await (mcpClient.callTool as any)('file-query-text', {
+            const result = await mcpClient.callTool('file-query-text', {
                 param: {
                     dbURL: nonExistentFile,
                     fileType: 'ts',
