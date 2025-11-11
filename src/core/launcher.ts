@@ -89,10 +89,6 @@ export default class Launcher {
         if (!options.logDest) {
             options.logDest = join(this.projectPath, 'temp/build', getCurrentLocalTime() + '.log');
         }
-        await newConsole.init(options.logDest);
-        await newConsole.record();
-        await newConsole.startProgress('Start build project...');
-
         // 先导入项目
         await this.import();
         // 执行构建流程

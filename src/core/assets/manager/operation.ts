@@ -2,7 +2,7 @@
  * 资源操作类，会调用 assetManager/assetDB/assetHandler 等模块
  */
 
-import { queryUUID, refresh, reimport, queryUrl, Utils, Asset } from '@cocos/asset-db';
+import { refresh, reimport, queryUrl, Asset } from '@cocos/asset-db';
 import { copy, move, remove, rename, existsSync } from 'fs-extra';
 import { isAbsolute, dirname, basename, join, relative, extname } from 'path';
 import { IMoveOptions } from '../@types/private';
@@ -13,7 +13,7 @@ import { url2path, ensureOutputData, url2uuid, removeFile } from '../utils';
 import assetDBManager from './asset-db';
 import assetHandlerManager from './asset-handler';
 import i18n from '../../base/i18n';
-import assetQueryManager, { assetQuery } from './query';
+import assetQuery from './query';
 import utils from '../../base/utils';
 import EventEmitter from 'events';
 import { mergeMeta } from '../asset-handler/utils';
@@ -59,14 +59,14 @@ class AssetOperation extends EventEmitter {
         ) {
             throw new Error(`Save meta failed(${uuid}): The meta must be an Object string`);
         }
-        asset = asset || assetQueryManager.queryAsset(uuid)!;
+        asset = asset || assetQuery.queryAsset(uuid)!;
         mergeMeta(asset.meta, meta);
         await asset.save(); // 这里才是将数据保存到 .meta 文件
         await asset._assetDB.reimport(asset.uuid);
     }
 
     async updateUserData<T extends keyof AssetUserDataMap = 'unknown'>(uuidOrURLOrPath: string, path: string, value: any): Promise<AssetUserDataMap[T]> {
-        const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
+        const asset = assetQuery.queryAsset(uuidOrURLOrPath);
         if (!asset) {
             console.error(`can not find asset ${uuidOrURLOrPath}`);
             return;
@@ -77,7 +77,7 @@ class AssetOperation extends EventEmitter {
     }
 
     async saveAsset(uuidOrURLOrPath: string, content: string | Buffer) {
-        const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
+        const asset = assetQuery.queryAsset(uuidOrURLOrPath);
         if (!asset) {
             throw new Error(`${i18n.t('assets.save_asset.fail.asset')}`);
         }
@@ -99,12 +99,12 @@ class AssetOperation extends EventEmitter {
         if (asset && (!asset.imported || asset.invalid)) {
             throw asset.importError || new Error(`Save asset ${asset.source} failed`);
         }
-        return assetQueryManager.encodeAsset(asset);
+        return assetQuery.encodeAsset(asset);
     }
 
     checkValidUrl(urlOrPath: string) {
         if (!urlOrPath.startsWith('db://')) {
-            urlOrPath = assetQueryManager.queryUrl(urlOrPath);
+            urlOrPath = assetQuery.queryUrl(urlOrPath);
             if (!urlOrPath) {
                 throw new Error(`${i18n.t('assets.operation.invalid_url')} \n  url: ${urlOrPath}`);
             }
@@ -132,14 +132,14 @@ class AssetOperation extends EventEmitter {
         options.target = this._checkOverwrite(options.target, options);
         const assetPath = await assetHandlerManager.createAsset(options);
         await this.refreshAsset(assetPath);
-        const asset = assetQueryManager.queryAsset(assetPath);
+        const asset = assetQuery.queryAsset(assetPath);
         if (!asset) {
             throw new Error(`Create asset in ${options.target} failed`);
         }
         if (asset && (!asset.imported || asset.invalid)) {
             throw asset.importError || new Error(`Create asset in ${options.target} failed`);
         }
-        return assetQueryManager.encodeAsset(asset);
+        return assetQuery.encodeAsset(asset);
     }
 
     /**
@@ -312,7 +312,7 @@ class AssetOperation extends EventEmitter {
         if (asset && (!asset.imported || asset.invalid)) {
             throw asset.importError || new Error(`Reimport asset ${asset.source} failed`);
         }
-        return assetQueryManager.encodeAsset(asset);
+        return assetQuery.encodeAsset(asset);
     }
 
     /**
@@ -331,7 +331,7 @@ class AssetOperation extends EventEmitter {
         if (target.startsWith('db://')) {
             target = url2path(target);
         }
-        const asset = assetQueryManager.queryAsset(source);
+        const asset = assetQuery.queryAsset(source);
         if (!asset) {
             throw new Error(`asset in source file ${source} not exists`);
         }
@@ -367,7 +367,7 @@ class AssetOperation extends EventEmitter {
 
     private async _renameAsset(source: string, target: string, option?: AssetOperationOption) {
         console.debug(`start rename asset from ${source} -> ${target}...`);
-        const asset = assetQueryManager.queryAsset(source);
+        const asset = assetQuery.queryAsset(source);
         if (!asset) {
             throw new Error(`asset in source file ${source} not exists`);
         }
@@ -408,7 +408,7 @@ class AssetOperation extends EventEmitter {
      * @returns 
      */
     async removeAsset(uuidOrURLOrPath: string): Promise<IAssetInfo | null> {
-        const asset = assetQueryManager.queryAsset(uuidOrURLOrPath);
+        const asset = assetQuery.queryAsset(uuidOrURLOrPath);
         if (!asset) {
             throw new Error(`${i18n.t('assets.delete_asset.fail.unexist')} \nsource: ${uuidOrURLOrPath}`);
         }
@@ -419,7 +419,7 @@ class AssetOperation extends EventEmitter {
         }
         const path = asset.source;
         const res = await assetDBManager.addTask(this._removeAsset.bind(this), [path]);
-        return res ? assetQueryManager.encodeAsset(asset) : null;
+        return res ? assetQuery.encodeAsset(asset) : null;
     }
 
     private async _removeAsset(path: string): Promise<boolean> {

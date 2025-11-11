@@ -15,7 +15,6 @@ import assetConfig from '../asset-config';
 import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
 import scripting from '../../scripting';
 import { AssetChangeInfo, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
-import assetQuery from './query';
 import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 
 const AssetDBPriority: Record<string, number> = {
@@ -761,7 +760,8 @@ async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
         const options: QueryAssetsOption = {
             ccType: 'cc.Script',
         };
-        const assetInfos = assetQuery.queryAssetInfos(options, ['meta', 'url', 'file', 'importer', 'type']) as IAssetInfo[];
+        // TODO 底层 assetDB 支持查询过滤后，就可以移除这里的 globalThis.assetQuery
+        const assetInfos = globalThis.assetQuery.queryAssetInfos(options, ['meta', 'url', 'file', 'importer', 'type']) as IAssetInfo[];
         for (const assetInfo of assetInfos) {
             const assetChange: AssetChangeInfo = {
                 type: AssetActionEnum.add,
