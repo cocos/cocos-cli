@@ -12,7 +12,7 @@ export default {
             url: '/build{/*path}',
             async handler(req: Request, res: Response) {
                 const { default: Project } = await import('../project');
-                const path = join(Project.path, req.url);
+                const path = join(Project.path, req.path);
                 if (existsSync(path)) {
                     res.sendFile(path);
                 } else {
