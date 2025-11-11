@@ -88,15 +88,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             return null;
         }
 
-        if (params.name) {
-            resultNode.name = params.name;
-        }
-
-        this.emit('node:before-add', resultNode);
-        if (parent) {
-            this.emit('node:before-change', parent);
-        }
-
         /**
          * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
          * 是否要 unlink 为普通节点
@@ -104,6 +95,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
          */
         if ('nodeType' in params) {
             Service.Prefab.removePrefabInfoFromNode(resultNode, true);
+        }
+
+        if (params.name) {
+            resultNode.name = params.name;
+        }
+
+        this.emit('node:before-add', resultNode);
+        if (parent) {
+            this.emit('node:before-change', parent);
         }
 
         /**
