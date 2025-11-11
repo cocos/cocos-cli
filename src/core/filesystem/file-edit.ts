@@ -20,6 +20,8 @@ function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
 }
 
 function getScriptFilename(dbURL: string, fileType: string): string {
+    fileType = '.' + fileType.toLowerCase(); // Ensure fileType starts with a dot
+
     const filename = queryPath(dbURL);
     if (filename === '') {
         throw new Error('Filename cannot be empty.');
@@ -31,7 +33,7 @@ function getScriptFilename(dbURL: string, fileType: string): string {
     }
     const ext = path.extname(filename).toLowerCase();
 
-    if (ext != fileType.toLocaleLowerCase()) {
+    if (ext != fileType) {
         throw new Error(`File extension mismatch. Expected ${fileType}, but got ${ext}.`);
     }
     return filename;

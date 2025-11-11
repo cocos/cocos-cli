@@ -1,8 +1,8 @@
 
 import { z } from 'zod';
 
-const FILE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.json',
-    '.txt', '.md', '.xml', '.html', '.css'] as const;
+const FILE_EXTENSIONS = ['js', 'ts', 'jsx', 'tsx', 'json',
+    'txt', 'md', 'xml', 'html', 'css'] as const;
 
 // 在文件第 n 行插入内容的信息
 export const SchemaInsertTextAtLineInfo = z.object({
