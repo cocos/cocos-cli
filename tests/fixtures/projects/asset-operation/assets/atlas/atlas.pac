@@ -1,0 +1,34 @@
+{
+  "__type__": "cc.SpriteAtlas",
+  "ver": "1.0.8",
+  "importer": "auto-atlas",
+  "userData": {
+    "maxWidth": 400,
+    "maxHeight": 400,
+    "padding": 2,
+    "allowRotation": true,
+    "forceSquared": false,
+    "powerOfTwo": false,
+    "algorithm": "MaxRects",
+    "format": "png",
+    "quality": 80,
+    "contourBleed": true,
+    "paddingBleed": true,
+    "filterUnused": false,
+    "platformSettings": {},
+    "textureSetting": {
+      "wrapModeS": "repeat",
+      "wrapModeT": "repeat",
+      "minfilter": "linear",
+      "magfilter": "linear",
+      "mipfilter": "none",
+      "premultiplyAlpha": false,
+      "anisotropy": 1
+    },
+    "compressSettings": {},
+    "removeTextureInBundle": true,
+    "removeImageInBundle": true,
+    "removeSpriteAtlasInBundle": false,
+    "mode": "preview"
+  }
+}
