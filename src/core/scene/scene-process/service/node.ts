@@ -499,14 +499,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     unregisterNodeMgrEvents() {
-        this.nodeMgrEventHandlers.keys().forEach((eventType: string) => {
+        for (const eventType of this.nodeMgrEventHandlers.keys()) {
             const handler = this.nodeMgrEventHandlers.get(eventType);
             if (handler) {
                 NodeMgr.off(eventType, handler);
                 this.nodeMgrEventHandlers.delete(eventType);
                 // console.log(`NodeMgr off ${eventType}`);
             }
-        });
+        }
     }
 
     onNodeTransformChanged (node: Node, transformBit: TransformBit) {
