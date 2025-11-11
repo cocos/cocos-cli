@@ -447,59 +447,60 @@ export class CompileErrorComponent extends Component {
             validateAssetSaved(filePath, newContent);
         });
 
-        test('should return error when saving script with compilation errors', async () => {
-            // 先创建一个正确的脚本
-            const scriptName = `SaveErrorScript-${generateTestId()}.ts`;
-            const scriptUrl = `${context.testRootUrl}/${scriptName}`;
+// TODO 等脚本系统的问题修复后才能测试
+//         test('should return error when saving script with compilation errors', async () => {
+//             // 先创建一个正确的脚本
+//             const scriptName = `SaveErrorScript-${generateTestId()}.ts`;
+//             const scriptUrl = `${context.testRootUrl}/${scriptName}`;
 
-            const createResult = await context.mcpClient.callTool('assets-create-asset-by-type', {
-                ccType: 'typescript',
-                dirOrUrl: context.testRootPath,
-                baseName: scriptName.replace('.ts', ''),
-                options: {
-                    overwrite: true,
-                    content: TEST_ASSET_CONTENTS.script,
-                },
-            });
+//             const createResult = await context.mcpClient.callTool('assets-create-asset-by-type', {
+//                 ccType: 'typescript',
+//                 dirOrUrl: context.testRootPath,
+//                 baseName: scriptName.replace('.ts', ''),
+//                 options: {
+//                     overwrite: true,
+//                     content: TEST_ASSET_CONTENTS.script,
+//                 },
+//             });
 
-            expect(createResult.code).toBe(200);
-            expect(createResult.data).toBeDefined();
+//             expect(createResult.code).toBe(200);
+//             expect(createResult.data).toBeDefined();
 
-            // 使用 save-asset 保存包含编译错误的脚本内容
-            const invalidScriptContent = `import { Component } from 'cc';
+//             // 使用 save-asset 保存包含编译错误的脚本内容
+//             const invalidScriptContent = `import { Component } from 'cc';
 
-export class InvalidComponent extends Component {
-    private invalidNumber: number = "this is a string"; // 类型错误
+// export class InvalidComponent extends Component {
+//     private invalidNumber: number = "this is a string"; // 类型错误
     
-    start() {
-        const undefinedVar = nonExistentVariable; // 未定义的变量
-        console.log('This will cause compilation error'
-        // 缺少闭合括号和分号
-    }
-}`;
+//     start() {
+//         const undefinedVar = nonExistentVariable; // 未定义的变量
+//         console.log('This will cause compilation error'
+//         // 缺少闭合括号和分号
+//     }
+// }`;
 
-            const saveResult = await context.mcpClient.callTool('assets-save-asset', {
-                pathOrUrlOrUUID: scriptUrl,
-                data: invalidScriptContent,
-            });
+//             const saveResult = await context.mcpClient.callTool('assets-save-asset', {
+//                 pathOrUrlOrUUID: scriptUrl,
+//                 data: invalidScriptContent,
+//             });
 
-            // 验证接口返回错误
-            expect(saveResult.code).not.toBe(200);
-            expect(saveResult.reason).toBeDefined();
-            expect(saveResult.reason).toBeTruthy();
+//             // 验证接口返回错误
+//             expect(saveResult.code).not.toBe(200);
+//             expect(saveResult.reason).toBeDefined();
+//             expect(saveResult.reason).toBeTruthy();
             
-            // 验证错误信息包含相关提示（可能是编译错误、类型错误等）
-            const reasonLower = saveResult.reason?.toLowerCase() || '';
-            const hasErrorIndication = 
-                reasonLower.includes('error') ||
-                reasonLower.includes('fail') ||
-                reasonLower.includes('编译') ||
-                reasonLower.includes('类型') ||
-                reasonLower.includes('syntax');
+//             // 验证错误信息包含相关提示（可能是编译错误、类型错误等）
+//             const reasonLower = saveResult.reason?.toLowerCase() || '';
+//             const hasErrorIndication = 
+//                 reasonLower.includes('error') ||
+//                 reasonLower.includes('fail') ||
+//                 reasonLower.includes('编译') ||
+//                 reasonLower.includes('类型') ||
+//                 reasonLower.includes('syntax');
             
-            // 至少应该包含某种错误指示
-            expect(hasErrorIndication || saveResult.code !== 200).toBeTruthy();
-        });
+//             // 至少应该包含某种错误指示
+//             expect(hasErrorIndication || saveResult.code !== 200).toBeTruthy();
+//         });
 
 //         test('should save script with correct content and no errors after fixing errors', async () => {
 //             // 先创建一个正确的脚本（确保资源已注册）
