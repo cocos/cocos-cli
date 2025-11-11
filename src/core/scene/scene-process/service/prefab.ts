@@ -292,7 +292,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             clearTimeout(this._softReloadTimer);
             this._softReloadTimer = setTimeout(async () => {
                 await Service.Editor.reload({});
-            }, 800);
+            }, 500);
         }
     }
 
@@ -301,7 +301,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             clearTimeout(this._softReloadTimer);
             this._softReloadTimer = setTimeout(async () => {
                 await Service.Editor.reload({});
-            }, 800);
+            }, 500);
         }
     }
 
