@@ -80,7 +80,12 @@ export abstract class Builder {
     private _dumpAsJson() {
         const mainJsonData = this.finalizeJsonPart();
         if (this.stringify) {
-            return JSON.stringify(mainJsonData, null, this.minify ? 0 : 2);
+            try {
+                return JSON.stringify(mainJsonData, null, this.minify ? 0 : 2);
+            } catch (e) {
+                console.error(mainJsonData);
+                return JSON.stringify(mainJsonData, null, this.minify ? 0 : 2);
+            }
         }
         else {
             return mainJsonData;
