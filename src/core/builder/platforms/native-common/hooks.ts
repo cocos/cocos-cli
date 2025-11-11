@@ -24,6 +24,7 @@ import { BuildGlobalInfo } from '../../share/builder-config';
 import { Engine } from '../../../engine';
 import { relativeUrl } from '../../worker/builder/utils';
 import { ITaskOption } from '../../@types/platforms/native';
+import type { NativePackTool } from './pack-tool/default';
 
 export const throwError = true;
 

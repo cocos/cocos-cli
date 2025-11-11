@@ -16,7 +16,7 @@ describe('MCP Builder API', () => {
     });
 
     describe('builder-build', () => {
-        test('should build with custom options', async () => {
+        test('should build with custom options & disable engine cache', async () => {
             const result = await context.mcpClient.callTool('builder-build', {
                 platform: 'web-desktop',
                 options: {
@@ -25,6 +25,9 @@ describe('MCP Builder API', () => {
                     sourceMaps: true,
                     buildPath: 'project://build-mcp-test',
                     outputName: 'web-desktop',
+                    useCacheConfig: {
+                        engine: false,
+                    },
                 },
             });
 
@@ -46,6 +49,11 @@ describe('MCP Builder API', () => {
                     outputName: 'web-mobile',
                     debug: true,
                     buildPath: 'project://build',
+                    useCacheConfig: {
+                        autoAtlas: false,
+                        textureCompress: false,
+                        serializeData: false,
+                    }
                 },
             });
 
