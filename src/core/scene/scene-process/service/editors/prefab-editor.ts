@@ -63,7 +63,7 @@ export class PrefabEditor extends BaseEditor {
         return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
     }
 
-    async reload(): Promise<INode> {
+    protected async _doReload(): Promise<INode> {
         if (!this.entity || !this.virtualScene) {
             throw new Error('没有打开预制体');
         }

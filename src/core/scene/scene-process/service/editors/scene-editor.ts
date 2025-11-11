@@ -70,7 +70,7 @@ export class SceneEditor extends BaseEditor {
         return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
     }
 
-    async reload(): Promise<IScene> {
+    protected async _doReload(): Promise<IScene> {
         if (!this.entity) {
             throw new Error('没有打开场景');
         }
