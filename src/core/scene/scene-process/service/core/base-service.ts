@@ -1,5 +1,6 @@
 import type { Node, Component } from 'cc';
 import { ServiceEvents } from './global-events';
+import type { IChangeNodeOptions } from '../../../common';
 
 export interface IServiceEvents {
     // Editor events
@@ -12,7 +13,7 @@ export interface IServiceEvents {
     onNodeBeforeChanged?(node: Node): void;
     onBeforeRemoveNode?(node: Node): void;
     onBeforeAddNode?(node: Node): void;
-    onNodeChanged?(node: Node): void;
+    onNodeChanged?(node: Node, opts: IChangeNodeOptions): void;
     onBeforeNodeAdded?(node: Node): void;
     onAddNode?(node: Node): void;
     onRemoveNode?(node: Node): void;

@@ -379,6 +379,145 @@ describe('Prefab Proxy In Scene 测试', () => {
                 expect(node.properties.position).toEqual(node2?.properties.position);
             }
         });
+
+        it('revertToPrefab - 还原 scale 但保留 position 和 rotation overrides', async () => {
+            // 创建新节点用于测试
+            const nodeName = 'PrefabRevertNode';
+            const createParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: nodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const testNode = await NodeProxy.createNodeByType(createParams);
+            expect(testNode).toBeTruthy();
+            if (!testNode) return;
+
+            // 创建预制体
+            const revertPrefabURL = getURL('prefab-revert', '.prefab');
+            const createPrefabParams: ICreatePrefabFromNodeParams = {
+                nodePath: testNode.path,
+                dbURL: revertPrefabURL,
+            };
+
+            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            expect(prefabNode).toBeTruthy();
+            if (!prefabNode) return;
+
+            const prefabNodePath = prefabNode.path;
+
+            // 获取初始属性
+            const initialQuery = await NodeProxy.queryNode({ path: prefabNodePath, queryChildren: false });
+            expect(initialQuery).toBeTruthy();
+            if (!initialQuery) return;
+
+            const initialProps = initialQuery.properties;
+            expect(initialProps).toBeTruthy();
+            if (!initialProps) return;
+
+            const originalName = initialQuery.name;
+
+            // 第一步：设置 scale 为 5，并应用更改到预制体资源
+            const appliedScale = {
+                x: 5,
+                y: 5,
+                z: 5,
+            };
+            const appliedPosition = {
+                x: 50,
+                y: 50,
+                z: 50,
+            };
+            const appliedRotation = {
+                x: 0,
+                y: 0,
+                z: 1,
+                w: 1,
+            };
+            const appliedName = `${originalName}-Renamed`;
+
+            const firstUpdateResult = await NodeProxy.updateNode({
+                path: prefabNodePath,
+                name: appliedName,
+                properties: {
+                    position: appliedPosition,
+                    rotation: appliedRotation,
+                    scale: appliedScale,
+                },
+            });
+            expect(firstUpdateResult).toBeTruthy();
+            if (!firstUpdateResult) return;
+
+            const updatedPrefabNodePath = firstUpdateResult.path;
+
+            // 应用更改到预制体资源
+            const applyParams: IApplyPrefabChangesParams = {
+                nodePath: updatedPrefabNodePath,
+            };
+
+            const applyResult = await PrefabProxy.applyPrefabChanges(applyParams);
+            expect(applyResult).toBe(true);
+
+            // 第二步：再次设置 scale 为 10（不应用）
+            const overriddenScale = {
+                x: 10,
+                y: 10,
+                z: 10,
+            };
+
+            const overriddenPos = {
+                x: 10,
+                y: 10,
+                z: 10,
+            };
+
+            const overriddenRotation = {
+                x: 0,
+                y: 0,
+                z: 1.2,
+                w: 1.2,
+            };
+
+            const secondUpdateResult = await NodeProxy.updateNode({
+                path: updatedPrefabNodePath,
+                properties: {
+                    scale: overriddenScale,
+                    position: overriddenPos,
+                    rotation: overriddenRotation,
+                },
+            });
+            expect(secondUpdateResult).toBeTruthy();
+            if (!secondUpdateResult) return;
+
+            // 还原更改
+            const revertParams: IRevertToPrefabParams = {
+                nodePath: updatedPrefabNodePath,
+            };
+
+            const queryNode = await NodeProxy.queryNode({ path: updatedPrefabNodePath, queryChildren: false });
+            queryNode && console.log(queryNode.properties);
+
+            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            expect(revertResult).toBe(true);
+
+            // 验证还原后的属性
+            const revertedQuery = await NodeProxy.queryNode({ path: updatedPrefabNodePath, queryChildren: false });
+            expect(revertedQuery).toBeTruthy();
+            if (!revertedQuery) return;
+
+            const revertedProps = revertedQuery.properties;
+            expect(revertedProps).toBeTruthy();
+            if (!revertedProps) return;
+
+            // scale 应该被还原到应用后的值（5），而不是当前值（10）或原始值（1）
+            expect(revertedProps.scale).toEqual(appliedScale);
+            // position 还是 revert 更新的数值
+            expect(revertedProps.position).toEqual(overriddenPos);
+            // rotation  还是 revert 更新的数值
+            expect(revertedProps.rotation).toEqual(overriddenRotation);
+            // name 应该保持不变（应用后的值）
+            expect(revertedQuery.name).toBe(appliedName);
+        });
     });
 
     describe('4. 预制体解耦测试', () => {
@@ -433,6 +572,260 @@ describe('Prefab Proxy In Scene 测试', () => {
                     expect(unpackedNode).toBeDefined();
                 }
             }
+        });
+
+        it('unpackPrefabInstance - 对非预制体节点进行解包操作', async () => {
+            // 创建普通节点（非预制体实例）
+            const nodeName = 'NonPrefabUnpackNode';
+            const createParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: nodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const normalNode = await NodeProxy.createNodeByType(createParams);
+            expect(normalNode).toBeTruthy();
+            if (!normalNode) return;
+
+            // 对非预制体节点进行解包操作（应该不会抛出异常，会返回节点）
+            const params: IUnpackPrefabInstanceParams = {
+                nodePath: normalNode.path,
+                recursive: false,
+            };
+
+            const result = await PrefabProxy.unpackPrefabInstance(params);
+            expect(result).toBeTruthy();
+            expect(result).toBeDefined();
+        });
+    });
+
+    describe('6. 预制体工作流集成测试', () => {
+        it('完整的预制体工作流测试', async () => {
+            // 1. 创建节点
+            const nodeName = 'WorkflowNode';
+            const createNodeParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: nodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const testNode = await NodeProxy.createNodeByType(createNodeParams);
+            expect(testNode).toBeTruthy();
+            if (!testNode) return;
+
+            let nodePath = testNode.path;
+            const basePos = testNode.properties.position;
+            const baseScale = testNode.properties.scale ?? { x: 1, y: 1, z: 1 };
+
+            // 2. 创建预制体
+            const workflowPrefabURL = getURL('workflow-prefab', '.prefab');
+            const createPrefabParams: ICreatePrefabFromNodeParams = {
+                nodePath: nodePath,
+                dbURL: workflowPrefabURL,
+            };
+
+            const createPrefabResult = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            expect(createPrefabResult).toBeTruthy();
+            if (!createPrefabResult) return;
+
+            nodePath = createPrefabResult.path;
+
+            // 3. 测试覆盖功能
+            const overwriteParams: ICreatePrefabFromNodeParams = {
+                nodePath: createPrefabResult.path,
+                dbURL: workflowPrefabURL,
+                overwrite: true,
+            };
+
+            const overwriteResult = await PrefabProxy.createPrefabFromNode(overwriteParams);
+            expect(overwriteResult).toBeTruthy();
+
+            // 4. 检查节点是否为预制体实例
+            const isInstanceParams: IIsPrefabInstanceParams = {
+                nodePath: nodePath,
+            };
+
+            const isInstanceResult = await PrefabProxy.isPrefabInstance(isInstanceParams);
+            expect(isInstanceResult).toBe(true);
+
+            // 5. 检查普通节点
+            const anotherNodeName = 'AnotherNode';
+            const anotherNodeParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: anotherNodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const anotherNode = await NodeProxy.createNodeByType(anotherNodeParams);
+            expect(anotherNode).toBeTruthy();
+            if (!anotherNode) return;
+
+            const isNotInstanceParams: IIsPrefabInstanceParams = {
+                nodePath: anotherNode.path,
+            };
+
+            const isNotInstanceResult = await PrefabProxy.isPrefabInstance(isNotInstanceParams);
+            expect(isNotInstanceResult).toBe(false);
+
+            // 6. 获取预制体信息
+            const getInfoParams: IGetPrefabInfoParams = {
+                nodePath: nodePath,
+            };
+
+            const getInfoResult = await PrefabProxy.getPrefabInfo(getInfoParams);
+            expect(getInfoResult).not.toBeNull();
+            if (getInfoResult) {
+                expect(typeof getInfoResult.fileId).toBe('string');
+            }
+
+            // 7. 修改预制体实例
+            const appliedScale = {
+                x: baseScale.x + 0.5,
+                y: baseScale.y + 0.5,
+                z: baseScale.z + 0.5,
+            };
+            const appliedRotation = {
+                x: 0,
+                y: 0,
+                z: 0.3826834,
+                w: 0.9238795,
+            };
+            const renamedNode = `${nodeName}-Renamed`;
+
+            const initialUpdateResult = await NodeProxy.updateNode({
+                path: nodePath,
+                name: renamedNode,
+                properties: {
+                    position: { x: 100, y: basePos.y, z: basePos.z },
+                    rotation: appliedRotation,
+                    scale: appliedScale,
+                },
+            });
+            expect(initialUpdateResult).toBeTruthy();
+            if (!initialUpdateResult) return;
+
+            nodePath = initialUpdateResult.path ?? nodePath;
+
+            // 8. 应用更改到预制体资源
+            const applyChangesParams: IApplyPrefabChangesParams = {
+                nodePath: nodePath,
+            };
+
+            const applyChangesResult = await PrefabProxy.applyPrefabChanges(applyChangesParams);
+            expect(applyChangesResult).toBe(true);
+
+            // 9. 再次修改预制体实例
+            const changedScale = {
+                x: appliedScale.x + 1,
+                y: appliedScale.y + 1,
+                z: appliedScale.z + 1,
+            };
+            const changedPosition = { x: 150, y: 200, z: (basePos.z ?? 0) + 25 };
+            const changedRotation = {
+                x: 0,
+                y: 0,
+                z: 0.7071068,
+                w: 0.7071068,
+            };
+
+            const secondUpdateResult = await NodeProxy.updateNode({
+                path: nodePath,
+                properties: {
+                    position: changedPosition,
+                    rotation: changedRotation,
+                    scale: changedScale,
+                },
+            });
+            expect(secondUpdateResult).toBeTruthy();
+            if (!secondUpdateResult) return;
+
+            nodePath = secondUpdateResult.path ?? nodePath;
+
+            // 10. 还原更改
+            const revertParams: IRevertToPrefabParams = {
+                nodePath: nodePath,
+            };
+
+            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            expect(revertResult).toBe(true);
+
+            // 验证还原后的属性
+            const queryNodeResult = await NodeProxy.queryNode({ path: nodePath, queryChildren: false });
+            expect(queryNodeResult).not.toBeNull();
+            if (queryNodeResult) {
+                const props = queryNodeResult.properties;
+                expect(props).toBeTruthy();
+                if (!props) return;
+
+                // scale 应该被还原为原始值（1）
+                expect(props.scale).toEqual(appliedScale);
+                // position 不会被 revert
+                expect(props.position).toEqual(changedPosition);
+                // rotation 不会被 revert
+                expect(props.rotation).toEqual(changedRotation);
+            }
+            expect(queryNodeResult?.name).toBe(renamedNode);
+
+            // 11. 解包预制体实例
+            const unpackParams: IUnpackPrefabInstanceParams = {
+                nodePath: nodePath,
+                recursive: false,
+            };
+
+            const unpackResult = await PrefabProxy.unpackPrefabInstance(unpackParams);
+            expect(unpackResult).toBeDefined();
+
+            // 12. 验证不再是预制体实例
+            const isUnpackedInstanceParams: IIsPrefabInstanceParams = {
+                nodePath: nodePath,
+            };
+
+            const isUnpackedInstanceResult = await PrefabProxy.isPrefabInstance(isUnpackedInstanceParams);
+            expect(isUnpackedInstanceResult).toBe(false);
+        });
+
+        it('嵌套预制体操作测试', async () => {
+            // 创建父节点
+            const parentNodeName = 'ParentNode';
+            const parentNodeParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: parentNodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const parentNode = await NodeProxy.createNodeByType(parentNodeParams);
+            expect(parentNode).toBeTruthy();
+            if (!parentNode) return;
+
+            // 创建子节点
+            const childNodeName = 'ChildNode';
+            const childNodeParams: ICreateByNodeTypeParams = {
+                path: parentNode.path,
+                name: childNodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const childNode = await NodeProxy.createNodeByType(childNodeParams);
+            expect(childNode).toBeTruthy();
+
+            // 从父节点创建预制体（包含子节点）
+            const nestedPrefabURL = getURL('nested-prefab', '.prefab');
+            const createPrefabParams: ICreatePrefabFromNodeParams = {
+                nodePath: parentNode.path,
+                dbURL: nestedPrefabURL,
+            };
+
+            const createPrefabResult = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            expect(createPrefabResult).toBeTruthy();
+            if (!createPrefabResult) return;
+
+            // 验证父节点是预制体实例
+            const isParentInstanceParams: IIsPrefabInstanceParams = {
+                nodePath: createPrefabResult.path,
+            };
+
+            const isParentInstanceResult = await PrefabProxy.isPrefabInstance(isParentInstanceParams);
+            expect(isParentInstanceResult).toBe(true);
         });
     });
 
@@ -513,6 +906,116 @@ describe('Prefab Proxy In Scene 测试', () => {
             if (!result2) return;
 
             expect(result2.name).toBe(`${result1.name}-001`);
+        });
+
+        it('测试对已解包的节点进行 applyChanges 操作', async () => {
+            // 创建节点
+            const nodeName = 'UnpackedNode';
+            const createNodeParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: nodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const testNode = await NodeProxy.createNodeByType(createNodeParams);
+            expect(testNode).toBeTruthy();
+            if (!testNode) return;
+
+            // 创建预制体
+            const unpackedPrefabURL = getURL('unpacked-prefab', '.prefab');
+            const createPrefabParams: ICreatePrefabFromNodeParams = {
+                nodePath: testNode.path,
+                dbURL: unpackedPrefabURL,
+            };
+
+            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            expect(prefabNode).toBeTruthy();
+            if (!prefabNode) return;
+
+            const prefabNodePath = prefabNode.path;
+
+            // 解包预制体
+            const unpackParams: IUnpackPrefabInstanceParams = {
+                nodePath: prefabNodePath,
+                recursive: false,
+            };
+
+            const unpackResult = await PrefabProxy.unpackPrefabInstance(unpackParams);
+            expect(unpackResult).toBeDefined();
+
+            // 尝试对已解包的节点应用更改（应该失败）
+            const applyParams: IApplyPrefabChangesParams = {
+                nodePath: prefabNodePath,
+            };
+
+            await expect(PrefabProxy.applyPrefabChanges(applyParams)).rejects.toThrow();
+        });
+
+        it('测试多次应用和还原操作', async () => {
+            // 创建节点
+            const nodeName = 'MultiOpNode';
+            const createNodeParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: nodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const testNode = await NodeProxy.createNodeByType(createNodeParams);
+            expect(testNode).toBeTruthy();
+            if (!testNode) return;
+
+            const basePos = testNode.properties.position;
+
+            // 创建预制体
+            const multiOpPrefabURL = getURL('multi-op-prefab', '.prefab');
+            const createPrefabParams: ICreatePrefabFromNodeParams = {
+                nodePath: testNode.path,
+                dbURL: multiOpPrefabURL,
+            };
+
+            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            expect(prefabNode).toBeTruthy();
+            if (!prefabNode) return;
+
+            const prefabNodePath = prefabNode.path;
+
+            // 多次修改和应用
+            for (let i = 0; i < 3; i++) {
+                const updateResult = await NodeProxy.updateNode({
+                    path: prefabNodePath,
+                    properties: {
+                        position: {
+                            x: (basePos.x ?? 0) + 100 + i * 10,
+                            y: (basePos.y ?? 0) + i * 10,
+                            z: basePos.z ?? 0
+                        },
+                    },
+                });
+                expect(updateResult).toBeTruthy();
+
+                const applyParams: IApplyPrefabChangesParams = {
+                    nodePath: prefabNodePath,
+                };
+
+                const applyResult = await PrefabProxy.applyPrefabChanges(applyParams);
+                expect(applyResult).toBe(true);
+            }
+
+            // 修改后还原
+            const finalUpdateResult = await NodeProxy.updateNode({
+                path: prefabNodePath,
+                properties: {
+                    position: { x: 999, y: 999, z: basePos.z ?? 0 },
+                },
+            });
+            expect(finalUpdateResult).toBeTruthy();
+
+            const revertParams: IRevertToPrefabParams = {
+                nodePath: prefabNodePath,
+            };
+
+            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            expect(revertResult).toBe(true);
         });
     });
 });

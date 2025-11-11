@@ -1,7 +1,8 @@
 import type { Component } from 'cc';
-import { IPropertyValueType } from '../@types/public';
-import { IServiceEvents } from '../scene-process/service/core';
-import { ICompPrefabInfo } from './prefab';
+import type { IPropertyValueType } from '../@types/public';
+import type { IServiceEvents } from '../scene-process/service/core';
+import type { ICompPrefabInfo } from './prefab';
+import type { IChangeNodeOptions } from './node';
 
 /**
  * 代表一个组件
@@ -64,7 +65,7 @@ export interface IComponentEvents {
     'component:add': [Component];
     'component:before-remove': [Component];
     'component:remove': [Component];
-    'component:set-property': [Component];
+    'component:set-property': [Component, IChangeNodeOptions];
     'component:added': [Component];
     'component:removed': [Component];
 }

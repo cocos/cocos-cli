@@ -1,4 +1,4 @@
-import { BaseService, register, ServiceEvents } from './core';
+import { BaseService, register, Service, ServiceEvents } from './core';
 import { Component, instantiate, Node, Scene } from 'cc';
 import { componentOperation } from './prefab/component';
 import { nodeOperation } from './prefab/node';
@@ -154,6 +154,14 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         nodeOperation.onNodeAdded(node);
     }
 
+    public onNodeChanged(node: Node, opts: IChangeNodeOptions = {}) {
+        this.onNodeChangedInGeneralMode(node, opts, Service.Editor.getRootNode());
+    }
+
+    public onSetPropertyComponent(comp: Component, opts: IChangeNodeOptions = {}) {
+        this.onNodeChangedInGeneralMode(comp.node, opts, Service.Editor.getRootNode());
+    }
+
     public removePrefabInfoFromNode(node: Node, removeNested?: boolean) {
         nodeOperation.removePrefabInfoFromNode(node, removeNested);
     }
@@ -281,19 +289,19 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     public async onAssetChanged(uuid: string) {
         // prefab 资源的变动，softReload场景
         if (nodeOperation.assetToNodesMap.has(uuid)) {
-            // clearTimeout(this._softReloadTimer);
-            // this._softReloadTimer = setTimeout(async () => {
-            // await Service.Editor.reload({});
-            // }, 1000);
+            clearTimeout(this._softReloadTimer);
+            this._softReloadTimer = setTimeout(async () => {
+                await Service.Editor.reload({});
+            }, 500);
         }
     }
 
     public async onAssetDeleted(uuid: string) {
         if (nodeOperation.assetToNodesMap.has(uuid)) {
-            // clearTimeout(this._softReloadTimer);
-            // this._softReloadTimer = setTimeout(async () => {
-            // await Service.Editor.reload({});
-            // }, 1000);
+            clearTimeout(this._softReloadTimer);
+            this._softReloadTimer = setTimeout(async () => {
+                await Service.Editor.reload({});
+            }, 500);
         }
     }
 

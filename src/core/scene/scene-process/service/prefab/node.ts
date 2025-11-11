@@ -13,6 +13,7 @@ import {
     Terrain,
     ValueType,
     Widget,
+    isValid,
 } from 'cc';
 import { prefabUtils } from './utils';
 import { componentOperation, IComponentPrefabData } from './component';
@@ -170,7 +171,8 @@ class NodeOperation {
 
     // 修改 PrefabInstance 中节点数据，要保存在最外层的 PrefabInstance中
     private checkToAddOverrides(node: Node, inPropPath: string, root: Node | null) {
-        if (!node) {
+        const prefabInfo = prefabUtils.getPrefab(node);
+        if (!node || !isValid(node) || (prefabInfo && !isValid(prefabInfo.asset))) {
             return;
         }
 
@@ -180,8 +182,6 @@ class NodeOperation {
 
         const propPath = inPropPath.replace(/^__comps__/, compKey);
         const pathKeys: string[] = (propPath || '').split('.');
-
-        const prefabInfo = prefabUtils.getPrefab(node);
 
         let comp: Component | null = null;
 
@@ -1136,8 +1136,7 @@ class NodeOperation {
             // cce.SceneFacadeManager.abortSnapshot();
             // 因为 apply prefab 后一定会触发 soft reload ,要等场景加载完成
             // 防止在切换到 prefab 编辑模式之后才触发 soft reload
-            await this.waitForSceneLoaded();
-            return false;
+            return true;
         } else {
             // cce.SceneFacadeManager.cancelRecording(undoID);
         }
@@ -1185,24 +1184,27 @@ class NodeOperation {
         if (ret.clearedReference) {
             this.restoreClearedReference(node, ret.clearedReference);
         }
-        // 场景中使用的 Prefab 节点的 PrefabAsset 变动会重新 load 场景，所以不需要单独去变动节点了。
-        await Rpc.getInstance().request('assetManager', 'createAsset', [{
-            target: info.source,
-            content: ret.prefabData,
-            overwrite: true
-        }]);
 
-        prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
+        return new Promise((resolve) => {
+            ServiceEvents.once<IEditorEvents>('editor:reload', () => {
+                resolve({
+                    nodeUUID,
+                    mountedChildrenInfoMap,
+                    mountedComponentsInfoMap,
+                    propertyOverrides,
+                    removedComponents,
+                    oldPrefabNodeData: oldNodeData,
+                    targetOverrides: appliedTargetOverrides,
+                });
+            });
 
-        return {
-            nodeUUID,
-            mountedChildrenInfoMap,
-            mountedComponentsInfoMap,
-            propertyOverrides,
-            removedComponents,
-            oldPrefabNodeData: oldNodeData,
-            targetOverrides: appliedTargetOverrides,
-        };
+            // 场景中使用的 Prefab 节点的 PrefabAsset 变动会重新 load 场景，所以不需要单独去变动节点了。
+            Rpc.getInstance().request('assetManager', 'saveAsset', [
+                info.source, ret.prefabData,
+            ]).then(() => {
+                prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
+            });
+        });
     }
 
     public async undoApplyPrefab(applyPrefabInfo: IApplyPrefabInfo) {

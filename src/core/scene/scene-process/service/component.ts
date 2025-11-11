@@ -8,7 +8,7 @@ import {
     IComponentService,
     IQueryComponentOptions,
     IRemoveComponentOptions,
-    ISetPropertyOptions
+    ISetPropertyOptions, NodeEventType
 } from '../../common';
 import dumpUtil from './dump';
 import compMgr from './component/index';
@@ -108,6 +108,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
         const compProperties = (dumpUtil.dumpComponent(component as Component));
         const properties = Object.entries(options.properties);
+
+        const idx = component.node.components.findIndex(comp => comp === component);
         for (const [key, value] of properties) {
             if (!compProperties.properties[key]) {
                 continue;
@@ -120,9 +122,12 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             }
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
-        }
 
-        this.emit('component:set-property', component);
+            this.emit('component:set-property', component, {
+                type: NodeEventType.SET_PROPERTY,
+                propPath: `__comps__.${idx}.${key}`,
+            });
+        }
         return true;
     }
 

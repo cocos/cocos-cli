@@ -258,31 +258,38 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (params.name && params.name !== node.name) {
             NodeMgr.updateNodeName(node.uuid, params.name);
         }
+        // TODO 这里需要按照 3x 用 setProperty 的方式去赋值，因为 prefab 那边需要 path
+        const paths: string[] = [];
         if (params.properties) {
             const options = params.properties;
             if (options.active !== undefined) {
                 node.active = options.active;
+                paths.push('active');
             }
             if (options.position) {
                 node.setPosition(options.position as Vec3);
+                paths.push('position');
             }
             // if (options.worldPosition) {
             //     node.setWorldPosition(options.worldPosition as Vec3);
             // }
             if (options.rotation) {
                 node.rotation = options.rotation as Quat;
+                paths.push('rotation');
             }
             // if (options.worldRotation) {
             //     node.worldRotation = options.worldRotation as Quat;
             // }
             if (options.eulerAngles) {
                 node.eulerAngles = options.eulerAngles as Vec3;
+                paths.push('eulerAngles');
             }
             // if (options.angle) {
             //     node.angle = options.angle;
             // }
             if (options.scale) {
                 node.scale = options.scale as Vec3;
+                paths.push('scale');
             }
             // if (options.worldScale) {
             //     node.worldScale = options.worldScale as Vec3;
@@ -292,9 +299,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             // }
             if (options.mobility) {
                 node.mobility = options.mobility;
+                paths.push('mobility');
             }
             if (options.layer) {
                 node.layer = options.layer;
+                paths.push('layer');
             }
             // if (options.hasChangedFlags) {
             //     node.hasChangedFlags = options.hasChangedFlags;
@@ -305,7 +314,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             path: NodeMgr.getNodePath(node),
         };
 
-        this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY });
+        for (const path of paths) {
+            this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: path });
+        }
+
         // TODO 少了 parent 属性的设置
         // 改变父子关系
         // if (path === 'parent' && node.parent) {
