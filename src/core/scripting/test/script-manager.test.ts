@@ -5,14 +5,15 @@ import { DBInfo } from '../@types/config-export';
 import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 import { DBChangeType } from '../packer-driver/asset-db-interop';
 import { Engine } from '../../engine';
-import path, { resolve } from 'path';
+import path from 'path';
 import { dbUrlToRawPath } from '../../builder/worker/builder/utils';
+import { TestGlobalEnv } from '../../../tests/global-env';
 
 // Use resolve to get absolute paths from project root
 // __dirname in test files points to dist/core/scripting/test after compilation
 // We need to go up to project root: dist/core/scripting/test -> dist/core/scripting -> dist/core -> dist -> project root
-const _ProjectRoot = resolve(__dirname, '../../../../tests/fixtures/projects/asset-operation');
-const _EngineRoot = resolve(__dirname, '../../../../packages/engine');
+const _ProjectRoot = TestGlobalEnv.projectRoot;
+const _EngineRoot = TestGlobalEnv.engineRoot;
 
 const _url2path = (url: string): string => {
     return path.join(_ProjectRoot, dbUrlToRawPath(url));
