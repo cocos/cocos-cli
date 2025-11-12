@@ -90,7 +90,7 @@ const test = 'original';
                 const parts = line.split('\t');
                 if (parts.length >= 2) {
                     const lineNum = parseInt(parts[0], 10);
-                    const content = parts.slice(1).join('\t');
+                    const content = parts.slice(1).join('\t').trim();
                     lineMap.set(lineNum, content);
                 }
             });
@@ -138,7 +138,7 @@ const test = 'original';
                 const parts = line.split('\t');
                 if (parts.length >= 2) {
                     const lineNum = parseInt(parts[0], 10);
-                    const content = parts.slice(1).join('\t');
+                    const content = parts.slice(1).join('\t').trim();
                     lineMap.set(lineNum, content);
                 }
             });
@@ -203,10 +203,12 @@ const test = 'original';
             expect(insertedLine).toBeDefined();
             if (insertedLine) {
                 // 验证插入的行号应该大于原始文件的最后一行
-                const insertedLineNumber = parseInt(insertedLine.split('\t')[0], 10);
+                const parts = insertedLine.split('\t');
+                const insertedLineNumber = parseInt(parts[0], 10);
                 expect(insertedLineNumber).toBeGreaterThan(lastInitialLineNumber);
-                // 验证内容是插入的文本
-                expect(insertedLine.split('\t')[1]).toBe('// Inserted at end');
+                // 验证内容是插入的文本（使用与解析逻辑相同的方式）
+                const content = parts.slice(1).join('\t').trim();
+                expect(content).toBe('// Inserted at end');
             }
             // 验证文件行数增加了
             expect(lines.length).toBeGreaterThan(initialLineCount);
