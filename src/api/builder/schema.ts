@@ -96,6 +96,14 @@ const BuildConfigCoreFields = z.object({
     // 构建阶段
     stage: z.enum(['build', 'make', 'run', 'bundle']).describe('构建阶段指定，默认为 build 可指定为 make/run/bundle 等'),
     nextStages: z.array(z.enum(['make', 'run'])).describe('指定后续联合的构建阶段，可指定多个'),
+
+    // 缓存配置
+    useCacheConfig: z.object({
+        engine: z.boolean().optional().describe('是否使用引擎缓存'),
+        textureCompress: z.boolean().optional().describe('是否使用纹理压缩缓存'),
+        autoAtlas: z.boolean().optional().describe('是否使用自动合图缓存'),
+        serializeData: z.boolean().optional().describe('是否使用序列化数据缓存'),
+    }).optional().describe('缓存配置'),
 });
 
 // 构建配置基类：所有字段可选（用于 API 入参，不包含 platform 和 packages）

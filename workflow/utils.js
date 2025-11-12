@@ -139,6 +139,24 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
     console.log(`📦 输出文件: ${outputPath}`);
     console.log(`⚙️  压缩格式: ${format}, 压缩级别: ${compressionLevel}`);
 
+    // 确保 7za 二进制文件有执行权限（非 Windows 系统）
+    if (process.platform !== 'win32' && fs.existsSync(sevenBin.path7za)) {
+        try {
+            const stats = fs.statSync(sevenBin.path7za);
+            // 检查是否有执行权限（检查所有者、组或其他用户的执行权限）
+            const mode = stats.mode;
+            const executePermission = 0o111; // 执行权限掩码 (rwx rwx rwx 中的 x)
+            if ((mode & executePermission) === 0) {
+                console.log(`🔧 为 7za 二进制文件设置执行权限...`);
+                // 添加执行权限：保留原有权限，添加执行权限
+                fs.chmodSync(sevenBin.path7za, mode | 0o111);
+            }
+        } catch (error) {
+            console.warn(`⚠️  设置 7za 执行权限失败: ${error.message}`);
+            // 即使设置权限失败，也继续尝试执行，可能会失败但至少会给出更明确的错误
+        }
+    }
+
     try {
         await runCommand(sevenBin.path7za, args, {
             stdio: 'pipe',

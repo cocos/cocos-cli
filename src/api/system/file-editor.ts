@@ -9,11 +9,15 @@ import {
     TFileEditorResult,
     TEraseLinesInRangeInfo,
     TReplaceTextInFileInfo,
+    SchemaQueryFileTextInfo,
+    TQueryFileTextInfo,
+    TFileQueryTextResult,
+    SchemaFileQueryTextResult,
 } from './file-editor-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { insertTextAtLine, eraseLinesInRange, replaceTextInFile } from '../../core/filesystem/file-edit';
+import { insertTextAtLine, eraseLinesInRange, replaceTextInFile, queryLinesInFile } from '../../core/filesystem/file-edit';
 
 export class FileEditorApi {
     @tool('file-insert-text')
@@ -61,6 +65,25 @@ export class FileEditorApi {
     async replaceTextInFile(@param(SchemaReplaceTextInFileInfo) param: TReplaceTextInFileInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
             const result = await replaceTextInFile(param.dbURL, param.fileType, param.targetText, param.replacementText);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: result,
+            };
+        } catch (e) {
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
+
+    @tool('file-query-text')
+    @title('查询文件指定行数的内容')
+    @description('查询文件从 startLine 行开始的指定行数内容，返回查询到的内容数组')
+    @result(SchemaFileQueryTextResult)
+    async queryFileText(@param(SchemaQueryFileTextInfo) param: TQueryFileTextInfo): Promise<CommonResultType<TFileQueryTextResult>> {
+        try {
+            const result = await queryLinesInFile(param.dbURL, param.fileType, param.startLine, param.lineCount);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,

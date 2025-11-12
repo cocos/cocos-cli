@@ -96,6 +96,10 @@ function generateFeishuCard(data) {
         coveragePercent,
         testedCount,
         totalCount,
+        releaseSuccess,
+        releaseResults,
+        releaseZipUrl,
+        releaseZipFilename,
         runId,
         triggerType,
         branch,
@@ -158,13 +162,36 @@ function generateFeishuCard(data) {
                         content: `**覆盖率**: ${coveragePercent}% (${testedCount}/${totalCount})`,
                     },
                 }] : []),
+                // 显示发布包信息（如果有）
+                ...(releaseResults ? [
+                    ...(releaseResults.nodejs ? [{
+                        tag: 'div',
+                        text: {
+                            tag: 'lark_md',
+                            content: `**Node.js 发布包**: ${releaseResults.nodejs.success ? '✅ ' + (releaseResults.nodejs.zipFilename || '已生成') : '❌ 失败'}`,
+                        },
+                    }] : []),
+                    ...(releaseResults.electron ? [{
+                        tag: 'div',
+                        text: {
+                            tag: 'lark_md',
+                            content: `**Electron 发布包**: ${releaseResults.electron.success ? '✅ ' + (releaseResults.electron.zipFilename || '已生成') : '❌ 失败'}`,
+                        },
+                    }] : []),
+                ] : releaseSuccess && releaseZipUrl ? [{
+                    tag: 'div',
+                    text: {
+                        tag: 'lark_md',
+                        content: `**发布包**: ${releaseZipFilename || '已生成'}`,
+                    },
+                }] : []),
                 {
                     tag: 'hr',
                 },
                 // 快速链接（紧凑型按钮）
                 {
                     tag: 'action',
-                    actions: buildActions(reportExists, reportUrl, coverageReportUrl),
+                    actions: buildActions(reportExists, reportUrl, coverageReportUrl, releaseResults, releaseSuccess, releaseZipUrl),
                 },
                 {
                     tag: 'hr',
@@ -189,7 +216,7 @@ function generateFeishuCard(data) {
 /**
  * 构建操作按钮
  */
-function buildActions(reportExists, reportUrl, coverageReportUrl) {
+function buildActions(reportExists, reportUrl, coverageReportUrl, releaseResults, releaseSuccess, releaseZipUrl) {
     const actions = [];
     
     // E2E 测试报告按钮
@@ -215,6 +242,43 @@ function buildActions(reportExists, reportUrl, coverageReportUrl) {
             },
             type: 'default',
             url: coverageReportUrl,
+        });
+    }
+    
+    // 发布包下载按钮（新格式：支持多个发布包）
+    if (releaseResults) {
+        if (releaseResults.nodejs?.success && releaseResults.nodejs?.zipUrl) {
+            actions.push({
+                tag: 'button',
+                text: {
+                    tag: 'plain_text',
+                    content: '📦 Node.js',
+                },
+                type: 'default',
+                url: releaseResults.nodejs.zipUrl,
+            });
+        }
+        if (releaseResults.electron?.success && releaseResults.electron?.zipUrl) {
+            actions.push({
+                tag: 'button',
+                text: {
+                    tag: 'plain_text',
+                    content: '📦 Electron',
+                },
+                type: 'default',
+                url: releaseResults.electron.zipUrl,
+            });
+        }
+    } else if (releaseSuccess && releaseZipUrl) {
+        // 兼容旧格式
+        actions.push({
+            tag: 'button',
+            text: {
+                tag: 'plain_text',
+                content: '📦 下载发布包',
+            },
+            type: 'default',
+            url: releaseZipUrl,
         });
     }
     

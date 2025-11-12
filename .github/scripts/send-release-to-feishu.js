@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /**
- * 发送消息到飞书群聊
- * 支持文本消息和卡片消息
+ * 发送发布结果到飞书群聊
  */
 
 const https = require('https');
-const { generateFeishuCard } = require('./generate-message');
+const { generateReleaseFeishuCard } = require('./generate-release-message');
 
 /**
  * 发送 HTTPS POST 请求
@@ -60,38 +59,15 @@ function sendRequest(url, data) {
  * 发送卡片消息到飞书
  */
 async function sendCardMessage(webhookUrl, data) {
-    console.log('📤 Sending message to Feishu...');
+    console.log('📤 Sending release message to Feishu...');
     
     // 生成飞书卡片
-    const card = generateFeishuCard(data);
+    const card = generateReleaseFeishuCard(data);
     
     try {
         const response = await sendRequest(webhookUrl, card);
         console.log('✅ Message sent successfully');
         console.log('Response:', JSON.stringify(response, null, 2));
-        return response;
-    } catch (error) {
-        console.error('❌ Failed to send message:', error.message);
-        throw error;
-    }
-}
-
-/**
- * 发送简单文本消息到飞书
- */
-async function sendTextMessage(webhookUrl, text) {
-    console.log('📤 Sending text message to Feishu...');
-    
-    const message = {
-        msg_type: 'text',
-        content: {
-            text: text,
-        },
-    };
-    
-    try {
-        const response = await sendRequest(webhookUrl, message);
-        console.log('✅ Message sent successfully');
         return response;
     } catch (error) {
         console.error('❌ Failed to send message:', error.message);
@@ -114,57 +90,30 @@ async function main() {
         process.exit(1);
     }
 
-    // 解析发布结果（如果存在）
-    let releaseResults = null;
-    if (process.env.RELEASE_RESULTS) {
-        try {
-            releaseResults = JSON.parse(process.env.RELEASE_RESULTS);
-        } catch (error) {
-            console.warn('⚠️  Failed to parse RELEASE_RESULTS:', error.message);
+    // 解析发布结果
+    let releaseResults = {};
+    try {
+        const releaseResultsStr = process.env.RELEASE_RESULTS;
+        if (releaseResultsStr) {
+            releaseResults = JSON.parse(releaseResultsStr);
         }
+    } catch (error) {
+        console.error('❌ Failed to parse release results:', error.message);
+        process.exit(1);
     }
 
     // 收集数据
     const data = {
-        e2eTestOutcome: process.env.E2E_TEST_OUTCOME || '',
-        reportExists: process.env.REPORT_EXISTS === 'true',
-        reportUrl: process.env.REPORT_URL || '',
-        reportFilename: process.env.REPORT_FILENAME || '',
-        coverageReportUrl: process.env.COVERAGE_REPORT_URL || '',
-        coverageReportFilename: process.env.COVERAGE_REPORT_FILENAME || '',
-        coveragePercent: process.env.COVERAGE_PERCENT || '',
-        testedCount: process.env.TESTED_COUNT || '',
-        totalCount: process.env.TOTAL_COUNT || '',
-        coverageMarkdown: process.env.COVERAGE_MARKDOWN || '',
-        releaseSuccess: process.env.RELEASE_SUCCESS === 'true',
-        releaseResults: releaseResults,
-        runId: process.env.GITHUB_RUN_ID || '',
-        triggerType: process.env.GITHUB_EVENT_NAME || '',
-        branch: process.env.GITHUB_REF_NAME || '',
-        commit: process.env.GITHUB_SHA || '',
-        // Daily 测试不需要显示提交者
-        // author: process.env.GITHUB_ACTOR || '',
+        releaseResults,
+        runId: process.env.RUN_ID || '',
+        triggerType: process.env.TRIGGER_TYPE || '',
+        branch: process.env.BRANCH || '',
+        commit: process.env.COMMIT || '',
     };
 
-    console.log('📊 Test Report Data:');
-    console.log(`   E2E Test Report: ${data.reportExists ? data.reportUrl : 'N/A'}`);
-    console.log(`   Coverage Report: ${data.coverageReportUrl || 'N/A'}`);
-    if (data.releaseResults) {
-        if (data.releaseResults.nodejs) {
-            console.log(`   Node.js Release: ${data.releaseResults.nodejs.success ? '✅' : '❌'}`);
-            if (data.releaseResults.nodejs.zipUrl) {
-                console.log(`     ZIP URL: ${data.releaseResults.nodejs.zipUrl}`);
-            }
-        }
-        if (data.releaseResults.electron) {
-            console.log(`   Electron Release: ${data.releaseResults.electron.success ? '✅' : '❌'}`);
-            if (data.releaseResults.electron.zipUrl) {
-                console.log(`     ZIP URL: ${data.releaseResults.electron.zipUrl}`);
-            }
-        }
-    } else if (data.releaseSuccess) {
-        console.log(`   Release Package: ✅ (legacy format)`);
-    }
+    console.log('📊 Release Data:');
+    console.log(`   Node.js: ${releaseResults.nodejs?.success ? '✅' : releaseResults.nodejs ? '❌' : 'N/A'}`);
+    console.log(`   Electron: ${releaseResults.electron?.success ? '✅' : releaseResults.electron ? '❌' : 'N/A'}`);
     console.log(`   Trigger: ${data.triggerType}`);
     console.log(`   Branch: ${data.branch}`);
     console.log('');
@@ -189,6 +138,5 @@ if (require.main === module) {
 
 module.exports = {
     sendCardMessage,
-    sendTextMessage,
 };
 

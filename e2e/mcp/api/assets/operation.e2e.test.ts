@@ -446,6 +446,124 @@ export class CompileErrorComponent extends Component {
             const filePath = join(context.testRootPath, fileName);
             validateAssetSaved(filePath, newContent);
         });
+
+// TODO 等脚本系统的问题修复后才能测试
+//         test('should return error when saving script with compilation errors', async () => {
+//             // 先创建一个正确的脚本
+//             const scriptName = `SaveErrorScript-${generateTestId()}.ts`;
+//             const scriptUrl = `${context.testRootUrl}/${scriptName}`;
+
+//             const createResult = await context.mcpClient.callTool('assets-create-asset-by-type', {
+//                 ccType: 'typescript',
+//                 dirOrUrl: context.testRootPath,
+//                 baseName: scriptName.replace('.ts', ''),
+//                 options: {
+//                     overwrite: true,
+//                     content: TEST_ASSET_CONTENTS.script,
+//                 },
+//             });
+
+//             expect(createResult.code).toBe(200);
+//             expect(createResult.data).toBeDefined();
+
+//             // 使用 save-asset 保存包含编译错误的脚本内容
+//             const invalidScriptContent = `import { Component } from 'cc';
+
+// export class InvalidComponent extends Component {
+//     private invalidNumber: number = "this is a string"; // 类型错误
+    
+//     start() {
+//         const undefinedVar = nonExistentVariable; // 未定义的变量
+//         console.log('This will cause compilation error'
+//         // 缺少闭合括号和分号
+//     }
+// }`;
+
+//             const saveResult = await context.mcpClient.callTool('assets-save-asset', {
+//                 pathOrUrlOrUUID: scriptUrl,
+//                 data: invalidScriptContent,
+//             });
+
+//             // 验证接口返回错误
+//             expect(saveResult.code).not.toBe(200);
+//             expect(saveResult.reason).toBeDefined();
+//             expect(saveResult.reason).toBeTruthy();
+            
+//             // 验证错误信息包含相关提示（可能是编译错误、类型错误等）
+//             const reasonLower = saveResult.reason?.toLowerCase() || '';
+//             const hasErrorIndication = 
+//                 reasonLower.includes('error') ||
+//                 reasonLower.includes('fail') ||
+//                 reasonLower.includes('编译') ||
+//                 reasonLower.includes('类型') ||
+//                 reasonLower.includes('syntax');
+            
+//             // 至少应该包含某种错误指示
+//             expect(hasErrorIndication || saveResult.code !== 200).toBeTruthy();
+//         });
+
+//         test('should save script with correct content and no errors after fixing errors', async () => {
+//             // 先创建一个正确的脚本（确保资源已注册）
+//             const scriptName = `SaveCorrectScript-${generateTestId()}.ts`;
+//             const scriptUrl = `${context.testRootUrl}/${scriptName}`;
+
+//             const createResult = await context.mcpClient.callTool('assets-create-asset-by-type', {
+//                 ccType: 'typescript',
+//                 dirOrUrl: context.testRootPath,
+//                 baseName: scriptName.replace('.ts', ''),
+//                 options: {
+//                     overwrite: true,
+//                     content: TEST_ASSET_CONTENTS.script,
+//                 },
+//             });
+
+//             expect(createResult.code).toBe(200);
+//             expect(createResult.data).toBeDefined();
+
+//             // 直接写入错误的脚本内容到文件（模拟脚本有错误的情况）
+//             const invalidScriptContent = `import { Component } from 'cc';
+
+// export class BrokenComponent extends Component {
+//     private invalidNumber: number = "this is a string"; // 类型错误
+    
+//     start() {
+//         const undefinedVar = nonExistentVariable; // 未定义的变量
+//         console.log('This will cause compilation error'
+//         // 缺少闭合括号和分号
+//     }
+// }`;
+
+//             const scriptPath = join(context.testRootPath, scriptName);
+//             await outputFile(scriptPath, invalidScriptContent);
+
+//             // 使用 save-asset 保存正确的脚本内容，修复错误
+//             const correctScriptContent = `import { Component } from 'cc';
+
+// export class CorrectComponent extends Component {
+//     private value: number = 100;
+    
+//     start() {
+//         console.log('Correct component started');
+//         this.value = 200;
+//     }
+
+//     update(deltaTime: number) {
+//         // 正确的方法实现
+//     }
+// }`;
+
+//             const saveResult = await context.mcpClient.callTool('assets-save-asset', {
+//                 pathOrUrlOrUUID: scriptUrl,
+//                 data: correctScriptContent,
+//             });
+
+//             // 验证接口返回成功（不再报错）
+//             expect(saveResult.code).toBe(200);
+
+//             // 验证文件内容已更新为正确的内容
+//             expect(existsSync(scriptPath)).toBeTruthy();
+//             expect(readFileSync(scriptPath, 'utf8')).toEqual(correctScriptContent);
+//         });
     });
 
     describe('asset-rename', () => {
@@ -477,6 +595,65 @@ export class CompileErrorComponent extends Component {
             expect(result.code).not.toBe(200);
         });
     });
+
+//     describe('asset-reimport', () => {
+//         test('should return error when reimporting script with compilation errors', async () => {
+//             // 先创建一个正确的脚本
+//             const scriptName = `ReimportErrorScript-${generateTestId()}.ts`;
+//             const scriptUrl = `${context.testRootUrl}/${scriptName}`;
+
+//             const createResult = await context.mcpClient.callTool('assets-create-asset-by-type', {
+//                 ccType: 'typescript',
+//                 dirOrUrl: context.testRootPath,
+//                 baseName: scriptName.replace('.ts', ''),
+//                 options: {
+//                     overwrite: true,
+//                     content: TEST_ASSET_CONTENTS.script,
+//                 },
+//             });
+
+//             expect(createResult.code).toBe(200);
+//             expect(createResult.data).toBeDefined();
+
+//             // 直接写入错误的脚本内容到文件（绕过保存时的验证）
+//             const invalidScriptContent = `import { Component } from 'cc';
+
+// export class ReimportErrorComponent extends Component {
+//     private invalidNumber: number = "this is a string"; // 类型错误
+
+//     start() {
+//         const undefinedVar = nonExistentVariable; // 未定义的变量
+//         console.log('This will cause compilation error'
+//         // 缺少闭合括号和分号
+//     }
+// }`;
+
+//             const scriptPath = join(context.testRootPath, scriptName);
+//             await outputFile(scriptPath, invalidScriptContent);
+
+//             // 使用 reimport 接口重导脚本，应该能获得错误信息
+//             const reimportResult = await context.mcpClient.callTool('assets-reimport-asset', {
+//                 pathOrUrlOrUUID: scriptUrl,
+//             });
+
+//             // 验证接口返回错误
+//             expect(reimportResult.code).not.toBe(200);
+//             expect(reimportResult.reason).toBeDefined();
+//             expect(reimportResult.reason).toBeTruthy();
+
+//             // 验证错误信息包含相关提示（可能是编译错误、类型错误等）
+//             const reasonLower = reimportResult.reason?.toLowerCase() || '';
+//             const hasErrorIndication = 
+//                 reasonLower.includes('error') ||
+//                 reasonLower.includes('fail') ||
+//                 reasonLower.includes('编译') ||
+//                 reasonLower.includes('类型') ||
+//                 reasonLower.includes('syntax') ||
+//                 reasonLower.includes('import');
+//                         // 至少应该包含某种错误指示
+//             expect(hasErrorIndication || reimportResult.code !== 200).toBeTruthy();
+//         });
+//     });
 
     describe('asset-refresh', () => {
         test('should refresh asset directory', async () => {

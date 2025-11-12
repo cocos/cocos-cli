@@ -20,6 +20,8 @@ function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
 }
 
 function getScriptFilename(dbURL: string, fileType: string): string {
+    fileType = '.' + fileType.toLowerCase(); // Ensure fileType starts with a dot
+
     const filename = queryPath(dbURL);
     if (filename === '') {
         throw new Error('Filename cannot be empty.');
@@ -31,7 +33,7 @@ function getScriptFilename(dbURL: string, fileType: string): string {
     }
     const ext = path.extname(filename).toLowerCase();
 
-    if (ext != fileType.toLocaleLowerCase()) {
+    if (ext != fileType) {
         throw new Error(`File extension mismatch. Expected ${fileType}, but got ${ext}.`);
     }
     return filename;
@@ -210,4 +212,39 @@ export async function replaceTextInFile(
         return results.some(result => result.hasChanged);
     }
     throw new Error('No occurrences found. File is not changed.');
+}
+
+export async function queryLinesInFile(
+    dbURL: string, fileType: string, startLine: number, lineCount: number): Promise<string> {
+    --startLine; // Convert to zero-based index
+
+    if (startLine < 0) {
+        throw new Error('Start line must be non-negative.');
+    }
+    if (lineCount === 0) {
+        throw new Error('Line count must be greater than zero or negative for all lines.');
+    }
+
+    const filename = getScriptFilename(dbURL, fileType);
+
+    const fileStream = fs.createReadStream(filename);
+    const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+    });
+
+    let content: string = '';
+    let currentLine = 0;
+    for await (const line of rl) {
+        if (currentLine >= startLine && (currentLine < startLine + lineCount || lineCount < 0)) {
+            content = content.concat(`${currentLine + 1}\t${line}` + EOL);
+        }
+        ++currentLine;
+    }
+
+    // Close the read stream
+    rl.close();
+    fileStream.close();
+
+    return content;
 }

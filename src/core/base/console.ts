@@ -142,7 +142,7 @@ export class NewConsole {
 
         // @ts-ignore 将处理过的继承自 console 的新对象赋给 windows
         globalThis.console = this;
-        rawConsole.debug(`Start record asset-db log in {file(${this.logDest})}`);
+        rawConsole.debug(`Start record log in {file(${this.logDest})}`);
     }
 
     /**

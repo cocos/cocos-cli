@@ -1,8 +1,8 @@
 
 import { z } from 'zod';
 
-const FILE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.json',
-    '.txt', '.md', '.xml', '.html', '.css'] as const;
+const FILE_EXTENSIONS = ['js', 'ts', 'jsx', 'tsx', 'json',
+    'txt', 'md', 'xml', 'html', 'css'] as const;
 
 // 在文件第 n 行插入内容的信息
 export const SchemaInsertTextAtLineInfo = z.object({
@@ -28,11 +28,21 @@ export const SchemaReplaceTextInFileInfo = z.object({
     replacementText: z.string().describe('替换文本'),
 }).describe('替换文件的 目标文本（正则表达式） 为 替换文本');
 
+export const SchemaQueryFileTextInfo = z.object({
+    dbURL: z.string().describe('需要查询文件名'),
+    fileType: z.enum(FILE_EXTENSIONS).describe('文件类型'),
+    startLine: z.number().min(1).default(1).describe('从第 startLine 行开始查询(默认从第1行开始)'),
+    lineCount: z.number().default(-1).describe('从第 startLine 行开始查询的行数(负数为全部行，默认-1)'),
+}).describe('查询文件的第 startLine 开始, lineCount 行数的信息');
+
 // 列举支持的文件后缀类型
 export const SchemaFileEditorResult = z.boolean().describe('文件编辑的结果');
+export const SchemaFileQueryTextResult = z.string().describe('查询到的文件内容');
 
 export type TInsertTextAtLineInfo = z.infer<typeof SchemaInsertTextAtLineInfo>;
 export type TEraseLinesInRangeInfo = z.infer<typeof SchemaEraseLinesInRangeInfo>;
 export type TReplaceTextInFileInfo = z.infer<typeof SchemaReplaceTextInFileInfo>;
+export type TQueryFileTextInfo = z.infer<typeof SchemaQueryFileTextInfo>;
 
 export type TFileEditorResult = z.infer<typeof SchemaFileEditorResult>;
+export type TFileQueryTextResult = z.infer<typeof SchemaFileQueryTextResult>;

@@ -13,6 +13,10 @@ import minimatch from 'minimatch';
 import utils from '../../base/utils';
 import { existsSync } from 'fs-extra';
 
+declare global {
+    var assetQuery: AssetQueryManager;
+}
+
 class AssetQueryManager {
 
     /**
@@ -748,7 +752,12 @@ class AssetQueryManager {
     }
 }
 
-export const assetQuery = new AssetQueryManager();
+const assetQuery = new AssetQueryManager();
+
+// 允许使用全局变量去查询 db 的一些数据信息
+if (!globalThis.assetQuery) {
+    globalThis.assetQuery = assetQuery;
+}
 
 export default assetQuery;
 

@@ -56,13 +56,7 @@ export function generateUniqueAssetUrl(baseUrl: string, name: string, ext?: stri
  */
 export const TEST_ASSET_CONTENTS = {
     text: 'test content for text file',
-    script: `import { Component } from 'cc';
-
-export class TestComponent extends Component {
-    start() {
-        console.log('Test component started');
-    }
-}`,
+    script: `console.log('test script')`,
     json: JSON.stringify({ test: true, value: 123 }, null, 2),
     updatedText: 'updated test content',
 } as const;
