@@ -8,12 +8,11 @@ import { Engine } from '../../engine';
 import path from 'path';
 import { dbUrlToRawPath } from '../../builder/worker/builder/utils';
 import { TestGlobalEnv } from '../../../tests/global-env';
+import { ensureDirSync, writeFileSync, unlinkSync, existsSync } from 'fs-extra';
 
-// Use resolve to get absolute paths from project root
-// __dirname in test files points to dist/core/scripting/test after compilation
-// We need to go up to project root: dist/core/scripting/test -> dist/core/scripting -> dist/core -> dist -> project root
 const _ProjectRoot = TestGlobalEnv.projectRoot;
 const _EngineRoot = TestGlobalEnv.engineRoot;
+const _ScriptsDir = path.join(_ProjectRoot, 'assets', 'scripts');
 
 const _url2path = (url: string): string => {
     return path.join(_ProjectRoot, dbUrlToRawPath(url));
@@ -49,11 +48,110 @@ async function waitFor(
 
 describe('ScriptManager', () => {
     let scriptManager: typeof scriptManagerDefault;
+    const testFiles: string[] = [];
 
     beforeAll(async () => {
         // Use the exported singleton instance
         scriptManager = scriptManagerDefault;
         await Engine.init(_EngineRoot);
+
+        // Ensure scripts directory exists
+        ensureDirSync(_ScriptsDir);
+
+        // Create test script files
+        const scriptFiles = {
+            'FirstFile.ts': `import { SecondFile } from './SecondFile.ts';
+                import { ThirdFile } from './ThirdFile';
+
+                export class FirstFile {
+                    private secondFile: SecondFile;
+                    private thirdFile: ThirdFile;
+
+                    constructor() {
+                        this.secondFile = new SecondFile();
+                        this.thirdFile = new ThirdFile();
+                    }
+                }`,
+            'SecondFile.ts': `import { ThirdFile } from './ThirdFile';
+                import { _decorator, Node } from 'cc';
+                const { ccclass, property } = _decorator;
+
+                @ccclass('SecondFile')
+                export class SecondFile extends ThirdFile {
+
+                    @property(Node)
+                    snakeBody: Node[] = [];
+
+                    public load(): void {
+                        console.log('SecondFile loaded');
+                    }
+                }`,
+                            'ThirdFile.ts': `export class ThirdFile {
+                    public load(): void {
+                        console.log('ThirdFile loaded');
+                    }
+                }`,
+            'TestChange.ts': `import { SecondFile } from './SecondFile';
+                import { ThirdFile } from './ThirdFile';
+
+                import { _decorator, Node } from 'cc';
+                const { ccclass, property } = _decorator;
+
+                @ccclass('TestChange')
+                export class TestChange {
+                    private secondFile: SecondFile;
+                    private thirdFile: ThirdFile;
+
+                    @property(Node)
+                    snakeBody: Node[] = [];
+
+                    constructor() {
+                        this.secondFile = new SecondFile();
+                        this.thirdFile = new ThirdFile();
+                    }
+                }`,
+            'TestError.ts': `import { SecondFile } from './SecondFile';
+                import { ThirdFile } from './ThirdFile';
+
+                import { _decorator, Node } from 'cc';
+                const { ccclass, property } = _decorator;
+
+                @ccclass('TestError')
+                export class TestError {
+                    private secondFile: SecondFile;
+                    private thirdFile: ThirdFile;
+
+                    @property(Node[])
+                    snakeBody: Node[] = [];
+
+                    constructor() {
+                        this.secondFile = new SecondFile();
+                        this.thirdFile = new ThirdFile();
+                    }
+                }`,
+            'testError.js': 'function testJs() {\n    console.log(\'testJs\n}\n\ntestJs();'
+        };
+
+        // Write all test files
+        for (const [filename, content] of Object.entries(scriptFiles)) {
+            const filePath = path.join(_ScriptsDir, filename);
+            writeFileSync(filePath, content, 'utf8');
+            testFiles.push(filePath);
+        }
+    });
+
+    afterAll(() => {
+        // Clean up test files
+        for (const filePath of testFiles) {
+            if (existsSync(filePath)) {
+                try {
+                    unlinkSync(filePath);
+                } catch (error) {
+                    console.warn(`Failed to delete test file: ${filePath}`, error);
+                }
+            }
+        }
+        testFiles.length = 0;
     });
 
     describe('initialize', () => {
