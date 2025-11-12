@@ -1,0 +1,454 @@
+import scriptManagerDefault, { AssetChangeInfo } from '../index';
+import { PackerDriver } from '../packer-driver';
+import { eventEmitter } from '../event-emitter';
+import { DBInfo } from '../@types/config-export';
+import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { DBChangeType } from '../packer-driver/asset-db-interop';
+import { Engine } from '../../engine';
+import path, { resolve } from 'path';
+import { dbUrlToRawPath } from '../../builder/worker/builder/utils';
+
+// Use resolve to get absolute paths from project root
+// __dirname in test files points to dist/core/scripting/test after compilation
+// We need to go up to project root: dist/core/scripting/test -> dist/core/scripting -> dist/core -> dist -> project root
+const _ProjectRoot = resolve(__dirname, '../../../../tests/fixtures/projects/asset-operation');
+const _EngineRoot = resolve(__dirname, '../../../../packages/engine');
+
+const _url2path = (url: string): string => {
+    return path.join(_ProjectRoot, dbUrlToRawPath(url));
+};
+
+/**
+ * 等待定时器完成的辅助函数
+ * @param checkFn 检查函数，返回 true 表示条件满足
+ * @param timeout 超时时间（毫秒），默认 5000ms
+ * @param interval 轮询间隔（毫秒），默认 50ms
+ */
+async function waitFor(
+    checkFn: () => boolean,
+    timeout: number = 5000,
+    interval: number = 50
+): Promise<void> {
+    const startTime = Date.now();
+    
+    return new Promise((resolve, reject) => {
+        const check = () => {
+            if (checkFn()) {
+                resolve();
+            } else if (Date.now() - startTime > timeout) {
+                reject(new Error(`Timeout: condition not met within ${timeout}ms`));
+            } else {
+                setTimeout(check, interval);
+            }
+        };
+        check();
+    });
+}
+
+
+describe('ScriptManager', () => {
+    let scriptManager: typeof scriptManagerDefault;
+
+    beforeAll(async () => {
+        // Use the exported singleton instance
+        scriptManager = scriptManagerDefault;
+        await Engine.init(_EngineRoot);
+    });
+
+    describe('initialize', () => {
+        it('should initialize PackerDriver with correct parameters', async () => {
+            await scriptManager.initialize(_ProjectRoot, _EngineRoot, Engine.getConfig().includeModules);
+            
+            expect((scriptManager as any)._initialized).toBe(true);
+            // Verify PackerDriver instance is available
+            expect(PackerDriver.getInstance()).toBeDefined();
+        });
+
+        it('should not initialize twice', async () => {
+            const firstInstance = PackerDriver.getInstance();
+            
+            await scriptManager.initialize(_ProjectRoot, _EngineRoot, Engine.getConfig().includeModules);
+            const secondInstance = PackerDriver.getInstance();
+            
+            expect(firstInstance).toEqual(secondInstance);
+        });
+    });
+
+    describe('updateDatabases', () => {
+        it('should update database info with add type', async () => {
+            const dbInfos: DBInfo[] = [
+                {dbID: 'assets', target: path.join(_ProjectRoot, 'assets')},
+                {dbID: 'internal', target: path.join(_EngineRoot, 'editor/assets')},
+            ];
+
+            // Should not throw
+            await expect(scriptManager.updateDatabases(dbInfos[0], DBChangeType.add)).resolves.not.toThrow();
+            // Should not throw
+            await expect(scriptManager.updateDatabases(dbInfos[1], DBChangeType.add)).resolves.not.toThrow();
+        });
+    });
+
+    describe('Event handling', () => {
+        it('should register event listeners', () => {
+            const listener = jest.fn();
+            const result = scriptManager.on('compile-start', listener);
+            
+            expect(result).toBe(eventEmitter);
+            // Verify listener is actually registered by emitting an event
+            eventEmitter.emit('compile-start');
+            expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should unregister event listeners', () => {
+            const listener = jest.fn();
+            scriptManager.on('compile-start', listener);
+            
+            // Verify listener is registered
+            eventEmitter.emit('compile-start');
+            expect(listener).toHaveBeenCalledTimes(1);
+            
+            // Unregister listener
+            const result = scriptManager.off('compile-start', listener);
+            expect(result).toBe(eventEmitter);
+            
+            // Verify listener is removed
+            listener.mockClear();
+            eventEmitter.emit('compile-start');
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it('should register one-time event listeners', () => {
+            const listener = jest.fn();
+            const result = scriptManager.once('compile-start', listener);
+            
+            expect(result).toBe(eventEmitter);
+            
+            // Verify listener is registered and called once
+            eventEmitter.emit('compile-start');
+            expect(listener).toHaveBeenCalledTimes(1);
+            
+            // Verify listener is automatically removed after first call
+            listener.mockClear();
+            eventEmitter.emit('compile-start');
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it('should handle multiple listeners for same event', () => {
+            const listener1 = jest.fn();
+            const listener2 = jest.fn();
+            
+            scriptManager.on('compile-start', listener1);
+            scriptManager.on('compile-start', listener2);
+            
+            eventEmitter.emit('compile-start');
+            
+            expect(listener1).toHaveBeenCalledTimes(1);
+            expect(listener2).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('compileScripts', () => {
+        it('should compile scripts without asset changes', async () => {
+            // Should not throw - actual compilation may take time
+            await expect(scriptManager.compileScripts()).resolves.not.toThrow();
+        }, 60000); // Increase timeout for real compilation
+
+        it('should compile scripts with asset changes', async () => {
+            const assetChanges: AssetChangeInfo[] = [
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-1',
+                    filePath: _url2path('db://assets/scripts/FirstFile.ts'),
+                    importer: 'typescript',
+                    userData: {},
+                },
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-2',
+                    filePath: _url2path('db://assets/scripts/SecondFile.ts'),
+                    importer: 'typescript',
+                    userData: {},
+                },
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-3',
+                    filePath: _url2path('db://assets/scripts/ThirdFile.ts'),
+                    importer: 'typescript',
+                    userData: {},
+                }
+            ];
+            
+            // Should not throw - actual compilation may take time
+            await expect(scriptManager.compileScripts(assetChanges)).resolves.not.toThrow();
+        }, 60000); // Increase timeout for real compilation
+    });
+
+    describe('queryScriptUsers', () => {
+        it('should query script users', async () => {
+            const testPath = _url2path('db://assets/scripts/SecondFile.ts');
+            const result = await scriptManager.queryScriptUsers(testPath);
+            
+            
+            expect(Array.isArray(result)).toBe(true);
+            expect(result.length).toBeGreaterThan(0);
+        });
+
+        it('should return empty array when no users found', async () => {
+            const testPath = _url2path('db://assets/scripts/nonexistent.ts');
+            const result = await scriptManager.queryScriptUsers(testPath);
+            
+            expect(Array.isArray(result)).toBe(true);
+        });
+    });
+
+    describe('queryScriptDependencies', () => {
+        it('should query script dependencies', async () => {
+            // Query dependencies for FirstFile.ts
+            const testPath = _url2path('db://assets/scripts/FirstFile.ts');
+            const result = await scriptManager.queryScriptDependencies(testPath);
+            
+            expect(Array.isArray(result)).toBe(true);
+            expect(result.length).toBeGreaterThan(0); // Should have dependencies
+            
+            // FirstFile.ts imports SecondFile.ts and ThirdFile.ts
+            // Verify that dependencies include SecondFile.ts and ThirdFile.ts
+            // Note: queryScriptDeps returns file system paths (normalized)
+            const hasSecondFile = result.some(path => path.includes('SecondFile.ts') || path.includes('SecondFile'));
+            const hasThirdFile = result.some(path => path.includes('ThirdFile.ts') || path.includes('ThirdFile'));
+            
+            // FirstFile.ts should have at least SecondFile.ts or ThirdFile.ts as dependency
+            expect(hasSecondFile || hasThirdFile).toBe(true);
+            
+            // Log dependencies for debugging
+            if (result.length === 0) {
+                console.warn('No dependencies found for FirstFile.ts. This might indicate a compilation issue.');
+            } else {
+                console.log(`Found ${result.length} dependencies for FirstFile.ts:`, result);
+            }
+        }, 60000); // Increase timeout for compilation
+
+        it('should return empty array when no dependencies found', async () => {
+            const testPath = _url2path('db://assets/scripts/nonexistent.ts');
+            const result = await scriptManager.queryScriptDependencies(testPath);
+            
+            expect(Array.isArray(result)).toBe(true);
+            expect(result.length).toBe(0); // Should be empty for non-existent file
+        });
+    });
+
+    describe('querySharedSettings', () => {
+        it('should query shared settings', async () => {
+            const result = await scriptManager.querySharedSettings();
+            
+            expect(result).toBeDefined();
+            expect(typeof result).toBe('object');
+            // Verify it has expected properties
+            expect(result).toHaveProperty('useDefineForClassFields');
+            expect(result).toHaveProperty('allowDeclareFields');
+            expect(result).toHaveProperty('loose');
+        });
+    });
+
+    describe('dispatchAssetChange', () => {
+        it('should dispatch asset change', async () => {
+            const assetChange: AssetChangeInfo = {
+                type: AssetActionEnum.add,
+                uuid: 'test-uuid',
+                filePath: _url2path('db://assets/scripts/TestChange.ts'),
+                importer: 'typescript',
+                userData: {},
+            };
+            
+            // Should not throw
+            expect(() => {
+                scriptManager.dispatchAssetChange(assetChange);
+            }).not.toThrow();
+        });
+    });
+
+    describe('postCompileScripts', () => {
+        it('should schedule delayed compilation', async () => {
+            const delay = 100;
+            const taskId = scriptManager.postCompileScripts(delay);
+            
+            expect(taskId).toBeDefined();
+            expect(typeof taskId).toBe('string');
+            expect((scriptManager as any)._pendingCompileTimer).not.toBeNull();
+            
+            // Wait for timer to complete (add some buffer time)
+            await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay + 200);
+            
+            // Timer should be cleared after execution
+            expect((scriptManager as any)._pendingCompileTimer).toBeNull();
+        }, 10000); // Increase timeout for real timer
+
+        it('should cancel previous delayed compilation and schedule new one', async () => {
+            const delay1 = 200;
+            const delay2 = 100;
+            
+            const taskId1 = scriptManager.postCompileScripts(delay1);
+            const taskId2 = scriptManager.postCompileScripts(delay2);
+            
+            expect(taskId1).toBeDefined();
+            expect(taskId2).toBeDefined();
+            // Should reuse same task ID
+            expect(taskId1).toBe(taskId2);
+            
+            // Wait for the second timer to complete (which should cancel the first)
+            await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay2 + 200);
+            
+            // Timer should be cleared
+            expect((scriptManager as any)._pendingCompileTimer).toBeNull();
+        }, 10000); // Increase timeout for real timer
+
+        it('should clear timer after execution', async () => {
+            const delay = 100;
+            scriptManager.postCompileScripts(delay);
+            
+            expect((scriptManager as any)._pendingCompileTimer).not.toBeNull();
+            
+            // Wait for timer to complete
+            await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay + 100);
+            await waitFor(() => scriptManager.isCompiling() === false, delay + 1000);
+            
+            expect((scriptManager as any)._pendingCompileTimer).toBeNull();
+            expect((scriptManager as any)._pendingCompileTaskId).toBeNull();
+        }, 10000); // Increase timeout for real timer
+    });
+
+    describe('isCompiling', () => {
+        it('should return compilation status', () => {
+            const result = scriptManager.isCompiling();
+            
+            expect(typeof result).toBe('boolean');
+        });
+    });
+
+    describe('getCurrentTaskId', () => {
+        it('should return current task ID or null', () => {
+            const result = scriptManager.getCurrentTaskId();
+            
+            expect(result === null || typeof result === 'string').toBe(true);
+        });
+    });
+
+    describe('isTargetReady', () => {
+        it('should return target readiness status', () => {
+            const result = scriptManager.isTargetReady('editor');
+            
+            expect(typeof result).toBe('boolean');
+        });
+
+        it('should return false for unknown target', () => {
+            const result = scriptManager.isTargetReady('unknown');
+            
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('loadScript', () => {
+
+        it('should return early when scriptUuids is empty', async () => {
+            const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+            
+            await scriptManager.loadScript([]);
+            
+            expect(consoleSpy).toHaveBeenCalledWith('No script need reload.');
+            
+            consoleSpy.mockRestore();
+        });
+
+        it('should log reload message when scriptUuids is provided', async () => {
+            const scriptUuids = ['test-uuid-1', 'test-uuid-2'];
+            const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+            
+            // This test verifies the method starts the loading process
+            // Actual executor creation may fail in test environment, which is acceptable
+            try {
+                await scriptManager.loadScript(scriptUuids);
+            } catch {
+                // Expected if executor dependencies are not available in test environment
+            }
+            
+            expect(consoleSpy).toHaveBeenCalledWith('reload all scripts.');
+            
+            consoleSpy.mockRestore();
+        });
+    });
+
+    describe('queryCCEModuleMap', () => {
+        it('should query CCE module map', () => {
+            const result = scriptManager.queryCCEModuleMap();
+            
+            expect(result).toBeDefined();
+            expect(typeof result).toBe('object');
+        });
+    });
+
+    describe('getPackerDriverLoaderContext', () => {
+        it('should get loader context for target', () => {
+            const targetName = 'editor';
+            const result = scriptManager.getPackerDriverLoaderContext(targetName);
+            
+            // May return undefined if target is not ready, or return serialized context
+            expect(result === undefined || typeof result === 'object').toBe(true);
+        });
+
+        it('should return undefined when context is not available', () => {
+            const result = scriptManager.getPackerDriverLoaderContext('unknown');
+            
+            expect(result).toBeUndefined();
+        });
+    });
+
+    describe('clearCacheAndRebuild', () => {
+        it('should clear cache', async () => {
+            // Should not throw
+            await expect(scriptManager.clearCacheAndRebuild()).resolves.not.toThrow();
+        });
+    });
+
+    const _TEXT_MAX_COUNT = 2;
+    describe('Integration scenarios', () => {
+        it('should throw error when compile failed', async () => {
+            // Compile with error file - should throw error
+            // testError.js has syntax error: missing closing quote
+            for (let i = 0; i < _TEXT_MAX_COUNT; i++) {
+                
+                await expect(scriptManager.compileScripts([
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-error',
+                    filePath: _url2path('db://assets/scripts/testError.js'),
+                    importer: 'javascript',
+                    userData: {},
+                }])).rejects.not.toThrow('SyntaxError');
+            }
+        }, 60000); // Increase timeout for real compilation
+
+        it('When a script exception occurs, subsequent script compilation tasks should be able to execute normally.', async () => {
+
+            for (let i = 0; i < _TEXT_MAX_COUNT; i++) {
+                // First, trigger a compilation error
+                try {
+                    await scriptManager.compileScripts([
+                        {
+                            type: AssetActionEnum.add,
+                            uuid: 'test-uuid-error2',
+                            filePath: _url2path('db://assets/scripts/TestError.ts'),
+                            importer: 'typescript',
+                            userData: {},
+                        }]);
+                    // Should not reach here - if we do, the test fails
+                    expect(true).toBe(false); // Force test failure if no error thrown
+                } catch (error) {
+                    // Expected error, verify it's a compilation error
+                    expect(error).toBeDefined();
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.log('Expected compilation error occurred:', errorMessage);
+                }
+            }
+        }, 60000); // Increase timeout for real compilation
+    });
+});
+

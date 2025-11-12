@@ -30,6 +30,7 @@ import { compressUuid } from '../../builder/worker/builder/utils';
 import { TypeScriptConfigBuilder } from '../intelligence';
 import { eventEmitter } from '../event-emitter';
 import { DBInfo } from '../@types/config-export';
+import path from 'path';
 
 const VERSION = '20';
 
@@ -419,14 +420,16 @@ export class PackerDriver {
         return this._currentTaskId;
     }
 
-    public queryScriptDeps(scriptPath: string): string[] {
+    public queryScriptDeps(queryPath: string): string[] {
+        const scriptPath: string = path.normalize(queryPath).replace(/\\/g, '/');
         this._transformDepsGraph();
         if (this._depsGraphCache[scriptPath]) {
             return Array.from(this._depsGraphCache[scriptPath]);
         }
         return [];
     }
-    public queryScriptUsers(scriptPath: string): string[] {
+    public queryScriptUsers(queryPath: string): string[] {
+        const scriptPath: string = path.normalize(queryPath).replace(/\\/g, '/');
         this._transformDepsGraph();
         if (this._usedGraphCache[scriptPath]) {
             return Array.from(this._usedGraphCache[scriptPath]);
@@ -672,7 +675,7 @@ export class PackerDriver {
             if (!scriptFilePath.startsWith('file://')) {
                 continue;
             }
-            const scriptPath = fileURLToPath(scriptFilePath);
+            const scriptPath = fileURLToPath(scriptFilePath).replace(/\\/g, '/');
             if (!_depsGraph[scriptPath]) {
                 _depsGraph[scriptPath] = new Set();
             }
@@ -680,7 +683,7 @@ export class PackerDriver {
                 if (!path.startsWith('file://')) {
                     continue;
                 }
-                const depPath = fileURLToPath(path);
+                const depPath = fileURLToPath(path).replace(/\\/g, '/');
                 _depsGraph[scriptPath].add(depPath);
                 if (!_usedGraph[depPath]) {
                     _usedGraph[depPath] = new Set();
@@ -697,7 +700,7 @@ const engineIndexModURL = 'cce:/internal/x/cc';
 
 type TargetName = string;
 
-type PredefinedTargetName = 'editor' | 'preview';
+type PredefinedTargetName = 'editor'; // | 'preview';
 
 const DEFAULT_PREVIEW_BROWSERS_LIST_TARGET = 'supports es6-module';
 
@@ -708,11 +711,11 @@ const predefinedTargets: Record<PredefinedTargetName, PredefinedTarget> = {
         sourceMaps: 'inline',
         isEditor: true,
     },
-    preview: {
-        name: 'Preview',
-        sourceMaps: true,
-        browsersListTargets: DEFAULT_PREVIEW_BROWSERS_LIST_TARGET,
-    },
+    // preview: {
+    //     name: 'Preview',
+    //     sourceMaps: true,
+    //     browsersListTargets: DEFAULT_PREVIEW_BROWSERS_LIST_TARGET,
+    // },
 } as const;
 
 async function readBrowserslistTarget(browserslistrcPath: string) {
@@ -828,20 +831,16 @@ class PackTarget {
 
         this._logger.debug(`Target(${targetName}) build started.`);
 
-        const buildResult: BuildResult = {};
+        let buildResult: BuildResult = {};
         const t1 = performance.now();
         try {
-            await this._build();
+            buildResult = await this._build();
         } catch (err: any) {
-            const mods = this._prerequisiteAssetMods;
-            if (err.message && mods.size) {
-                mods.forEach(mod => {
-                    const modPath = mod.startsWith('file:') ? fileURLToPath(mod) : mod;
-                    if (err.message.includes(modPath)) {
-                        mods.delete(mod);
-                        return;
-                    }
-                });
+            if (err.file) {
+                const mods = this._prerequisiteAssetMods;
+                if (err.file && mods.size) {
+                    mods.delete(err.file);
+                }
             }
             this._logger.error(`${err}, stack: ${err.stack}`);
             buildResult.err = err;
@@ -859,7 +858,7 @@ class PackTarget {
         return buildResult;
     }
 
-    private async _build() {
+    private async _build(): Promise<BuildResult> {
         const prerequisiteAssetMods = await this._getPrerequisiteAssetModsWithFilter();
         const buildEntries = [
             engineIndexModURL,
@@ -873,7 +872,7 @@ class PackTarget {
         if (cleanResolution) {
             console.debug('This build will perform a clean module resolution.');
         }
-        let buildResult: BuildResult | undefined;
+        let buildResult: BuildResult = {};
         await wrapToSetImmediateQueue(this, async () => {
             buildResult = await this._quickPack.build(buildEntries, {
                 retryResolutionOnUnchangedModule: this._firstBuild,

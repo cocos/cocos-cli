@@ -270,6 +270,9 @@ class AssetDBManager extends EventEmitter {
         };
         this.emit('db-created', db);
         console.debug(`create db ${info.name} success in ${info.library}`);
+
+         // 初始化一些脚本需要的数据库信息
+         scripting.updateDatabases({dbID: info.name, target: info.target}, DBChangeType.add);
         return db;
     }
 
@@ -747,14 +750,6 @@ async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
     await startAutoGenEffectBin();
 
-    // 初始化一些脚本需要的数据库信息
-    for (const info of Object.values(dbInfoMap)) {
-        const dbInfo = {
-            dbID: info.name,
-            target: info.target,
-        };
-        scripting.updateDatabases(dbInfo, DBChangeType.add);
-    }
 
     // 脚本系统未触发构建，启动脚本构建流程
     if (!scripting.isTargetReady('editor')) {
