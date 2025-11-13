@@ -5,10 +5,11 @@ import { DBInfo } from '../@types/config-export';
 import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 import { DBChangeType } from '../packer-driver/asset-db-interop';
 import { Engine } from '../../engine';
-import path from 'path';
+import path, { join } from 'path';
 import { dbUrlToRawPath } from '../../builder/worker/builder/utils';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import { ensureDirSync, writeFileSync, unlinkSync, existsSync } from 'fs-extra';
+import { EngineLoader } from 'cc/loader';
 
 const _ProjectRoot = TestGlobalEnv.projectRoot;
 const _EngineRoot = TestGlobalEnv.engineRoot;
@@ -45,6 +46,27 @@ async function waitFor(
     });
 }
 
+[
+    'cc',
+    'cc/editor/populate-internal-constants',
+    'cc/editor/serialization',
+    'cc/editor/new-gen-anim',
+    'cc/editor/embedded-player',
+    'cc/editor/reflection-probe',
+    'cc/editor/lod-group-utils',
+    'cc/editor/material',
+    'cc/editor/2d-misc',
+    'cc/editor/offline-mappings',
+    'cc/editor/custom-pipeline',
+    'cc/editor/animation-clip-migration',
+    'cc/editor/exotic-animation',
+    'cc/editor/color-utils',
+].forEach((module) => {
+    jest.mock(module, () => {
+        return EngineLoader.getEngineModuleById(module);
+    }, { virtual: true });
+});
+
 
 describe('ScriptManager', () => {
     let scriptManager: typeof scriptManagerDefault;
@@ -54,6 +76,12 @@ describe('ScriptManager', () => {
         // Use the exported singleton instance
         scriptManager = scriptManagerDefault;
         await Engine.init(_EngineRoot);
+        await Engine.initEngine({
+            serverURL: '',
+            importBase: join(_ProjectRoot, 'library'),
+            nativeBase: join(_ProjectRoot, 'library'),
+            writablePath: join(_ProjectRoot, 'temp'),
+        });
 
         // Ensure scripts directory exists
         ensureDirSync(_ScriptsDir);
@@ -252,6 +280,43 @@ describe('ScriptManager', () => {
             await expect(scriptManager.compileScripts()).resolves.not.toThrow();
         }, 60000); // Increase timeout for real compilation
 
+
+        it('should handle concurrent compileScripts calls', async () => {
+            const assetChanges1: AssetChangeInfo[] = [
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-concurrent-1',
+                    filePath: _url2path('db://assets/scripts/FirstFile.ts'),
+                    importer: 'typescript',
+                    userData: {},
+                },
+            ];
+
+            const assetChanges2: AssetChangeInfo[] = [
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-concurrent-2',
+                    filePath: _url2path('db://assets/scripts/SecondFile.ts'),
+                    importer: 'typescript',
+                    userData: {},
+                },
+            ];
+
+            const assetChanges3: AssetChangeInfo[] = [
+                {
+                    type: AssetActionEnum.add,
+                    uuid: 'test-uuid-concurrent-3',
+                    filePath: _url2path('db://assets/scripts/ThirdFile.ts'),
+                    importer: 'typescript',
+                    userData: {},
+                },
+            ];
+
+            scriptManager.compileScripts(assetChanges1);
+            scriptManager.compileScripts(assetChanges2);
+            scriptManager.compileScripts(assetChanges3);
+        }, 60000); // Increase timeout for real compilation
+    
         it('should compile scripts with asset changes', async () => {
             const assetChanges: AssetChangeInfo[] = [
                 {
