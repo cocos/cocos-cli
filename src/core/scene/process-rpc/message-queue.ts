@@ -50,6 +50,7 @@ export class MessageQueue {
      */
     pause(): void {
         this.paused = true;
+        this.sendBlocked = true; // 阻止新消息发送，强制进入队列
         console.log('[MessageQueue] Queue paused (process restarting)');
         
         // 设置暂停超时保护
@@ -69,6 +70,8 @@ export class MessageQueue {
     resume(): void {
         if (!this.paused) return;
         
+        // 先设置 paused 为 false，避免 scheduleFlush 中的检查失败
+        this.paused = false;
         this.clearPauseTimer();
         this.flushRetryCount = 0; // 重置重试计数
         console.log('[MessageQueue] Queue resumed (process restarted)');
@@ -83,6 +86,12 @@ export class MessageQueue {
      * 处理队列中的消息
      */
     private flush(): void {
+        // 如果队列为空，直接返回（可能在 flush 执行前被清空）
+        if (this.queue.length === 0) {
+            this.reset();
+            return;
+        }
+
         const batchSize = Math.min(this.batchSize, this.queue.length);
         let successCount = 0;
         let failCount = 0;
@@ -172,10 +181,18 @@ export class MessageQueue {
     }
 
     /**
-     * Reject 所有请求类型的消息
+     * Reject 所有请求类型的消息并清空队列
      */
     rejectAllRequests(reason: string, callbackManager: CallbackManager): void {
-        for (const msg of this.queue) {
+        // 复制队列以避免在遍历时修改
+        const queueCopy = [...this.queue];
+        
+        // 清空队列
+        this.queue = [];
+        this.reset();
+        
+        // 执行所有请求的回调
+        for (const msg of queueCopy) {
             if (msg.type === 'request') {
                 const req = msg.data as RpcRequest;
                 callbackManager.executeAndDelete(req.id, {
@@ -204,7 +221,7 @@ export class MessageQueue {
             clearTimeout(this.pauseTimer);
             this.pauseTimer = undefined;
         }
-        this.paused = false;
+        // 注意：不在这里设置 paused = false，由调用者控制
     }
 
     /**

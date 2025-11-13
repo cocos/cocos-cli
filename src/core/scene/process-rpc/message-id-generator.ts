@@ -5,7 +5,7 @@
 export class MessageIdGenerator {
     private msgId = 0;
     private readonly MAX_MSG_ID = Number.MAX_SAFE_INTEGER - 1;
-    private readonly MAX_ATTEMPTS = 100;
+    private readonly MAX_ATTEMPTS = 1000; // 提高到 1000 次，支持高并发场景
 
     /**
      * 检查 ID 是否已被使用
@@ -19,9 +19,10 @@ export class MessageIdGenerator {
      */
     generate(): number {
         const startId = this.msgId;
+        let attempts = 0;
         
         // 有限次重试
-        for (let attempts = 0; attempts < this.MAX_ATTEMPTS; attempts++) {
+        while (attempts < this.MAX_ATTEMPTS) {
             this.msgId = (this.msgId >= this.MAX_MSG_ID) ? 1 : this.msgId + 1;
             
             // 快速路径：大多数情况下 ID 不冲突
@@ -29,9 +30,11 @@ export class MessageIdGenerator {
                 return this.msgId;
             }
             
-            // 检查是否循环了一圈
-            if (this.msgId === startId) {
-                break;
+            attempts++;
+            
+            // 检查是否循环了一圈（所有 ID 都被占用）
+            if (this.msgId === startId && attempts > 1) {
+                throw new Error('All message IDs are in use. Cannot generate unique ID.');
             }
         }
         

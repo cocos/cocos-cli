@@ -109,17 +109,27 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             ? [args?: [], options?: RequestOptions]
             : [args: Parameters<TModules[K][M]>, options?: RequestOptions]
     ): Promise<Awaited<ReturnType<TModules[K][M]>>> {
+        // 提前检查 disposed 状态，避免创建 Promise
         if (this.isDisposed) {
             return Promise.reject(new Error(ProcessRPC.ERROR_DISPOSED));
         }
         if (!module || !method) {
             return Promise.reject(new Error(ProcessRPC.ERROR_MODULE_METHOD_REQUIRED));
         }
+        if (!this.processAdapter.getProcess()) {
+            return Promise.reject(new Error(ProcessRPC.ERROR_NO_PROCESS));
+        }
 
         const [args, options] = rest as any as [any, RequestOptions?];
         const callStack = new Error().stack;
 
         return new Promise((resolve, reject) => {
+            // 再次检查 disposed 状态（双重检查）
+            if (this.isDisposed) {
+                reject(new Error(ProcessRPC.ERROR_DISPOSED));
+                return;
+            }
+
             let id: number;
             try {
                 id = this.idGenerator.generate();
@@ -170,12 +180,6 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             }
 
             // 发送或排队
-            if (!this.processAdapter.getProcess()) {
-                this.cleanupCallback(id, timer);
-                reject(new Error(ProcessRPC.ERROR_NO_PROCESS));
-                return;
-            }
-
             if (!this.processAdapter.isConnected() || this.messageQueue.sendBlocked) {
                 this.queueRequest(req, timer, timeout);
             } else {
@@ -340,7 +344,9 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 清理所有资源
      */
     private cleanup(reason: string): void {
+        // 先清理所有回调（包括队列中的和正在处理的）
         this.callbackManager.clear(reason);
+        // 清空队列（队列中的请求回调已被上面清理）
         this.messageQueue.clear();
     }
 
@@ -424,13 +430,14 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     /**
      * 处理单向消息
      */
-    private handleSend(msg: RpcSend): void {
+    private async handleSend(msg: RpcSend): Promise<void> {
         const { module, method, args } = msg;
         const target = this.handlers[module];
         
         if (target && typeof target[method] === 'function') {
             try {
-                target[method](...(args || []));
+                // 支持异步方法，使用 await 捕获 Promise rejection
+                await target[method](...(args || []));
             } catch (e) {
                 const error = e instanceof Error ? e : new Error(String(e));
                 console.error('[ProcessRPC] Send handler error:', { module, method }, error);

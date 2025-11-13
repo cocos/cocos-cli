@@ -45,7 +45,12 @@ export class ProcessAdapter {
         
         try {
             const result = this.process.send(msg);
-            return result !== false;
+            // Node.js process.send() 返回值：
+            // - true: 消息已成功发送
+            // - false: 消息未发送（通道已关闭或缓冲区满）
+            // - undefined: 在某些 Node.js 版本中可能返回 undefined
+            // 只有明确返回 true 才认为发送成功
+            return result === true;
         } catch {
             return false;
         }

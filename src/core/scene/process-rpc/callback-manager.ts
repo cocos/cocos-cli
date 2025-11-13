@@ -47,17 +47,20 @@ export class CallbackManager {
         const entry = this.callbacks.get(id);
         if (!entry) return false;
 
+        // 先删除回调，避免定时器触发时重复执行
+        if (!this.callbacks.delete(id)) return false;
+
+        // 清理定时器
         if (entry.timer) clearTimeout(entry.timer);
         
-        if (this.callbacks.delete(id)) {
-            try {
-                entry.cb(response);
-                return true;
-            } catch {
-                // ignore callback errors
-            }
+        // 执行回调
+        try {
+            entry.cb(response);
+            return true;
+        } catch {
+            // ignore callback errors
+            return false;
         }
-        return false;
     }
 
     /**
@@ -78,13 +81,44 @@ export class CallbackManager {
         const entries = Array.from(this.callbacks.entries());
         this.callbacks.clear();
         
-        for (const [id, entry] of entries) {
-            if (entry.timer) clearTimeout(entry.timer);
-            try {
-                entry.cb({ id, type: 'response', error: reason });
-            } catch {
-                // ignore callback errors
+        // 使用 setImmediate 分批处理，避免阻塞事件循环
+        const BATCH_SIZE = 100;
+        let index = 0;
+        
+        const processBatch = () => {
+            const end = Math.min(index + BATCH_SIZE, entries.length);
+            
+            for (let i = index; i < end; i++) {
+                const [id, entry] = entries[i];
+                if (entry.timer) clearTimeout(entry.timer);
+                try {
+                    entry.cb({ id, type: 'response', error: reason });
+                } catch {
+                    // ignore callback errors
+                }
             }
+            
+            index = end;
+            
+            // 如果还有剩余，继续下一批
+            if (index < entries.length) {
+                setImmediate(processBatch);
+            }
+        };
+        
+        // 如果回调数量较少，直接同步处理
+        if (entries.length <= BATCH_SIZE) {
+            for (const [id, entry] of entries) {
+                if (entry.timer) clearTimeout(entry.timer);
+                try {
+                    entry.cb({ id, type: 'response', error: reason });
+                } catch {
+                    // ignore callback errors
+                }
+            }
+        } else {
+            // 回调数量较多，异步分批处理
+            setImmediate(processBatch);
         }
     }
 

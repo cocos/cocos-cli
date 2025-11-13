@@ -33,7 +33,12 @@ export class TimeoutManager {
      */
     setupTimer(id: number, module: string, method: string, timeout: number): void {
         const entry = this.callbackManager.get(id);
-        if (!entry || entry.timer) return;
+        if (!entry) return;
+
+        // 如果已有定时器，先清理旧的
+        if (entry.timer) {
+            clearTimeout(entry.timer);
+        }
 
         const timer = this.createTimeoutTimer(id, module, method, timeout);
         this.callbackManager.updateTimer(id, timer);
