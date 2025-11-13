@@ -15,6 +15,10 @@ class NodeService {
     async ping() {
         return 'pong';
     }
+
+    async throwError() {
+        throw new Error('Intentional error for testing');
+    }
 }
 
 const rpc = new ProcessRPC();
