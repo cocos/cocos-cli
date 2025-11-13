@@ -12,15 +12,20 @@ export class TimeoutManager {
     ) {}
 
     /**
+     * 生成超时错误消息
+     */
+    static getTimeoutError(module: string, method: string): string {
+        return `RPC request timeout: ${module}.${method}`;
+    }
+
+    /**
      * 创建超时定时器
      */
     createTimer(id: number, module: string, method: string, timeout: number): NodeJS.Timeout | undefined {
         const normalizedTimeout = this.normalizeTimeout(timeout);
         if (normalizedTimeout === 0) return undefined;
 
-        return setTimeout(() => {
-            this.triggerTimeout(id, module, method);
-        }, normalizedTimeout);
+        return this.createTimeoutTimer(id, module, method, normalizedTimeout);
     }
 
     /**
@@ -30,22 +35,21 @@ export class TimeoutManager {
         const entry = this.callbackManager.get(id);
         if (!entry || entry.timer) return;
 
-        const timer = setTimeout(() => {
-            this.triggerTimeout(id, module, method);
-        }, timeout);
-        
+        const timer = this.createTimeoutTimer(id, module, method, timeout);
         this.callbackManager.updateTimer(id, timer);
     }
 
     /**
-     * 触发超时回调
+     * 创建超时定时器（内部方法）
      */
-    private triggerTimeout(id: number, module: string, method: string): void {
-        this.callbackManager.executeAndDelete(id, {
-            id,
-            type: 'response',
-            error: `RPC request timeout: ${module}.${method}`
-        });
+    private createTimeoutTimer(id: number, module: string, method: string, timeout: number): NodeJS.Timeout {
+        return setTimeout(() => {
+            this.callbackManager.executeAndDelete(id, {
+                id,
+                type: 'response',
+                error: TimeoutManager.getTimeoutError(module, method)
+            });
+        }, timeout);
     }
 
     /**

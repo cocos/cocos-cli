@@ -61,9 +61,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 挂载进程
      */
     attach(proc: NodeJS.Process | ChildProcess): void {
-        if (this.isDisposed) {
-            throw new Error(ProcessRPC.ERROR_DISPOSED);
-        }
+        this.checkDisposed();
 
         // 检测是否是进程切换（无论队列是否为空）
         const oldProcess = this.processAdapter.getProcess();
@@ -94,9 +92,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 注册处理器
      */
     register(handler: Record<string, any>): void {
-        if (this.isDisposed) {
-            throw new Error(ProcessRPC.ERROR_DISPOSED);
-        }
+        this.checkDisposed();
         if (!handler || typeof handler !== 'object') {
             throw new Error('Handler must be a valid object');
         }
@@ -199,9 +195,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         method: M,
         args?: Parameters<TModules[K][M]>
     ): void {
-        if (this.isDisposed) {
-            throw new Error(ProcessRPC.ERROR_DISPOSED);
-        }
+        this.checkDisposed();
         if (!module || !method) {
             throw new Error(ProcessRPC.ERROR_MODULE_METHOD_REQUIRED);
         }
@@ -223,9 +217,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 清理待处理消息
      */
     clearPendingMessages(): void {
-        if (this.isDisposed) {
-            throw new Error(ProcessRPC.ERROR_DISPOSED);
-        }
+        this.checkDisposed();
         this.callbackManager.clear('Pending messages cleared');
         this.messageQueue.clear();
     }
@@ -241,9 +233,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * });
      */
     pauseQueue(): void {
-        if (this.isDisposed) {
-            throw new Error(ProcessRPC.ERROR_DISPOSED);
-        }
+        this.checkDisposed();
         this.messageQueue.pause();
     }
 
@@ -257,9 +247,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * rpc.resumeQueue();
      */
     resumeQueue(): void {
-        if (this.isDisposed) {
-            throw new Error(ProcessRPC.ERROR_DISPOSED);
-        }
+        this.checkDisposed();
         this.messageQueue.resume();
     }
 
@@ -275,6 +263,15 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         this.processAdapter.detach();
         this.handlers = {};
         this.idGenerator.reset();
+    }
+
+    /**
+     * 检查是否已释放
+     */
+    private checkDisposed(): void {
+        if (this.isDisposed) {
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
+        }
     }
 
     /**
@@ -302,15 +299,13 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 发送或排队消息（通用逻辑）
      */
     private sendOrEnqueue(msg: RpcRequest | RpcSend): void {
-        if (!this.processAdapter.isConnected() || this.messageQueue.sendBlocked) {
+        const shouldQueue = !this.processAdapter.isConnected() || 
+                           this.messageQueue.sendBlocked || 
+                           !this.sendMessage(msg);
+        
+        if (shouldQueue) {
             this.messageQueue.enqueue({ type: msg.type, data: msg });
             this.messageQueue.scheduleFlush();
-        } else {
-            const sent = this.sendMessage(msg);
-            if (!sent) {
-                this.messageQueue.enqueue({ type: msg.type, data: msg });
-                this.messageQueue.scheduleFlush();
-            }
         }
     }
 
@@ -322,11 +317,13 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         this.callbackManager.updateTimer(req.id, undefined);
 
         const normalizedTimeout = this.timeoutManager.normalizeTimeout(timeout);
+        const hasTimeout = normalizedTimeout > 0;
+        
         this.messageQueue.enqueue({
             type: 'request',
             data: req,
-            timeoutStartTime: normalizedTimeout > 0 ? Date.now() : undefined,
-            timeoutDuration: normalizedTimeout > 0 ? normalizedTimeout : undefined
+            timeoutStartTime: hasTimeout ? Date.now() : undefined,
+            timeoutDuration: hasTimeout ? normalizedTimeout : undefined
         });
         this.messageQueue.scheduleFlush();
     }
@@ -375,7 +372,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 this.callbackManager.executeAndDelete(req.id, {
                     id: req.id,
                     type: 'response',
-                    error: `RPC request timeout: ${req.module}.${req.method}`
+                    error: TimeoutManager.getTimeoutError(req.module, req.method)
                 });
             }
         }

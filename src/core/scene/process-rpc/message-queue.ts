@@ -69,13 +69,7 @@ export class MessageQueue {
     resume(): void {
         if (!this.paused) return;
         
-        // 清除暂停超时定时器
-        if (this.pauseTimer) {
-            clearTimeout(this.pauseTimer);
-            this.pauseTimer = undefined;
-        }
-        
-        this.paused = false;
+        this.clearPauseTimer();
         this.flushRetryCount = 0; // 重置重试计数
         console.log('[MessageQueue] Queue resumed (process restarted)');
         
@@ -199,8 +193,13 @@ export class MessageQueue {
     clear(): void {
         this.queue = [];
         this.reset();
-        
-        // 清除暂停定时器
+        this.clearPauseTimer();
+    }
+
+    /**
+     * 清除暂停定时器
+     */
+    private clearPauseTimer(): void {
         if (this.pauseTimer) {
             clearTimeout(this.pauseTimer);
             this.pauseTimer = undefined;
