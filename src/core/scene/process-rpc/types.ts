@@ -60,6 +60,8 @@ export interface ProcessRPCConfig {
     flushBatchSize?: number;
     /** 消息发送失败后的最大重试次数，默认 3 次（总时长约 0.7秒） */
     maxFlushRetries?: number;
+    /** 单向消息错误处理器 */
+    onSendError?: (error: Error, module: string, method: string) => void;
 }
 
 /**

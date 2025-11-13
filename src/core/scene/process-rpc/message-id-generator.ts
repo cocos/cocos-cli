@@ -19,20 +19,19 @@ export class MessageIdGenerator {
      */
     generate(): number {
         const startId = this.msgId;
-        this.msgId = (this.msgId >= this.MAX_MSG_ID) ? 1 : this.msgId + 1;
-        
-        // 快速路径：大多数情况下 ID 不冲突
-        if (!this.hasId(this.msgId)) {
-            return this.msgId;
-        }
         
         // 有限次重试
         for (let attempts = 0; attempts < this.MAX_ATTEMPTS; attempts++) {
             this.msgId = (this.msgId >= this.MAX_MSG_ID) ? 1 : this.msgId + 1;
             
-            if (this.msgId === startId) break;
+            // 快速路径：大多数情况下 ID 不冲突
             if (!this.hasId(this.msgId)) {
                 return this.msgId;
+            }
+            
+            // 检查是否循环了一圈
+            if (this.msgId === startId) {
+                break;
             }
         }
         

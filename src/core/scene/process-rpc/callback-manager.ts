@@ -94,12 +94,5 @@ export class CallbackManager {
     get size(): number {
         return this.callbacks.size;
     }
-
-    /**
-     * 获取所有条目（用于遍历）
-     */
-    entries(): IterableIterator<[number, CallbackEntry]> {
-        return this.callbacks.entries();
-    }
 }
 

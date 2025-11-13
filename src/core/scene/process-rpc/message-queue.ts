@@ -11,13 +11,16 @@ export class MessageQueue {
     private flushRetryCount = 0;
     public sendBlocked = false;
     private paused = false;
+    private pauseTimer?: NodeJS.Timeout;
+    private readonly PAUSE_TIMEOUT = 60000; // 60秒暂停超时
 
     constructor(
         private readonly maxSize: number,
         private readonly maxRetries: number,
         private readonly batchSize: number,
         private sendMessage: (msg: RpcRequest | any) => boolean,
-        private onRetryFailed: (reason: string) => void
+        private onRetryFailed: (reason: string) => void,
+        private onMessageSent?: (msg: PendingMessage) => void
     ) {}
 
     /**
@@ -48,6 +51,15 @@ export class MessageQueue {
     pause(): void {
         this.paused = true;
         console.log('[MessageQueue] Queue paused (process restarting)');
+        
+        // 设置暂停超时保护
+        if (this.pauseTimer) {
+            clearTimeout(this.pauseTimer);
+        }
+        this.pauseTimer = setTimeout(() => {
+            console.warn('[MessageQueue] Pause timeout reached, auto-resuming queue');
+            this.resume();
+        }, this.PAUSE_TIMEOUT);
     }
 
     /**
@@ -56,6 +68,12 @@ export class MessageQueue {
      */
     resume(): void {
         if (!this.paused) return;
+        
+        // 清除暂停超时定时器
+        if (this.pauseTimer) {
+            clearTimeout(this.pauseTimer);
+            this.pauseTimer = undefined;
+        }
         
         this.paused = false;
         this.flushRetryCount = 0; // 重置重试计数
@@ -72,29 +90,33 @@ export class MessageQueue {
      */
     private flush(): void {
         const batchSize = Math.min(this.batchSize, this.queue.length);
-        const newQueue: PendingMessage[] = [];
         let successCount = 0;
         let failCount = 0;
 
-        // 处理当前批次
-        for (let i = 0; i < batchSize; i++) {
-            const msg = this.queue[i];
+        // 从队列前端取出批次消息
+        const batch = this.queue.splice(0, batchSize);
+        
+        // 处理批次，失败的消息重新加入队列前端
+        const failedMessages: PendingMessage[] = [];
+        for (const msg of batch) {
             const sent = this.sendMessage(msg.data);
             
             if (sent) {
                 successCount++;
+                // 消息发送成功，通知恢复超时定时器
+                if (this.onMessageSent && msg.type === 'request') {
+                    this.onMessageSent(msg);
+                }
             } else {
                 failCount++;
-                newQueue.push(msg);
+                failedMessages.push(msg);
             }
         }
 
-        // 保留未处理的消息
-        for (let i = batchSize; i < this.queue.length; i++) {
-            newQueue.push(this.queue[i]);
+        // 将失败的消息放回队列前端
+        if (failedMessages.length > 0) {
+            this.queue.unshift(...failedMessages);
         }
-        
-        this.queue = newQueue;
 
         // 决定下一步
         if (this.queue.length > 0) {
@@ -121,17 +143,17 @@ export class MessageQueue {
                 return;
             }
             
-            // 指数退避
+            // 指数退避 - 先重置标志，再延迟调度
+            this.flushScheduled = false;
             const backoffDelay = Math.min(100 * Math.pow(2, this.flushRetryCount - 1), 5000);
             setTimeout(() => {
-                this.flushScheduled = false;
                 this.scheduleFlush();
             }, backoffDelay);
         } else {
-            // 有成功的消息
+            // 有成功的消息 - 先重置标志，再立即调度
             this.flushRetryCount = 0;
+            this.flushScheduled = false;
             setImmediate(() => {
-                this.flushScheduled = false;
                 this.scheduleFlush();
             });
         }
@@ -177,6 +199,13 @@ export class MessageQueue {
     clear(): void {
         this.queue = [];
         this.reset();
+        
+        // 清除暂停定时器
+        if (this.pauseTimer) {
+            clearTimeout(this.pauseTimer);
+            this.pauseTimer = undefined;
+        }
+        this.paused = false;
     }
 
     /**
@@ -184,13 +213,6 @@ export class MessageQueue {
      */
     get length(): number {
         return this.queue.length;
-    }
-
-    /**
-     * 获取所有消息（用于遍历）
-     */
-    get messages(): PendingMessage[] {
-        return this.queue;
     }
 }
 

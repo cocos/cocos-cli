@@ -22,11 +22,7 @@ class NodeService {
 }
 
 const rpc = new ProcessRPC();
-rpc.attach({
-    send: (msg) => process.send(msg),
-    on: (event, cb) => process.on(event, cb),
-    process,
-});
+rpc.attach(process);
 
 // 注册对象实例
 rpc.register({

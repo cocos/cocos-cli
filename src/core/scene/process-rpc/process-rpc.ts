@@ -1,5 +1,5 @@
 import { ChildProcess } from 'child_process';
-import { ProcessRPCConfig, RequestOptions, RpcMessage, RpcRequest, RpcResponse, RpcSend } from './types';
+import { ProcessRPCConfig, RequestOptions, RpcMessage, RpcRequest, RpcResponse, RpcSend, PendingMessage } from './types';
 import { MessageIdGenerator } from './message-id-generator';
 import { CallbackManager } from './callback-manager';
 import { MessageQueue } from './message-queue';
@@ -11,7 +11,12 @@ import { ProcessAdapter } from './process-adapter';
  * 简化版本，功能完整
  */
 export class ProcessRPC<TModules extends Record<string, any>> {
-    private readonly config: Required<ProcessRPCConfig>;
+    // 错误消息常量
+    private static readonly ERROR_DISPOSED = 'Cannot operate: RPC instance has been disposed';
+    private static readonly ERROR_NO_PROCESS = '未挂载进程';
+    private static readonly ERROR_MODULE_METHOD_REQUIRED = 'Module and method are required';
+
+    private readonly config: Required<Omit<ProcessRPCConfig, 'onSendError'>> & Pick<ProcessRPCConfig, 'onSendError'>;
     private handlers: Record<string, any> = {};
     private isDisposed = false;
 
@@ -30,7 +35,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             maxCallbacks: config?.maxCallbacks ?? 10000,
             defaultTimeout: config?.defaultTimeout ?? 30000,
             flushBatchSize: config?.flushBatchSize ?? 50,
-            maxFlushRetries: config?.maxFlushRetries ?? 3
+            maxFlushRetries: config?.maxFlushRetries ?? 3,
+            onSendError: config?.onSendError
         };
 
         // 初始化组件
@@ -44,7 +50,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             this.config.maxFlushRetries,
             this.config.flushBatchSize,
             (msg) => this.sendMessage(msg),
-            (reason) => this.onRetryFailed(reason)
+            (reason) => this.onRetryFailed(reason),
+            (msg) => this.onMessageSentFromQueue(msg)
         );
 
         if (proc) this.attach(proc);
@@ -55,28 +62,24 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     attach(proc: NodeJS.Process | ChildProcess): void {
         if (this.isDisposed) {
-            throw new Error('Cannot attach: RPC instance has been disposed');
-        }
-        if (!proc) {
-            throw new Error('Process parameter is required');
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
         }
 
-        // 检测是否是进程重启（有 pending 消息但进程切换）
-        const isProcessRestart = this.messageQueue.length > 0 && 
-                                 this.processAdapter.getProcess() && 
-                                 this.processAdapter.getProcess() !== proc;
+        // 检测是否是进程切换（无论队列是否为空）
+        const oldProcess = this.processAdapter.getProcess();
+        const isProcessSwitch = oldProcess && oldProcess !== proc;
 
         // 清理旧状态
-        if (this.processAdapter.getProcess()) {
+        if (oldProcess) {
             this.cleanup('RPC reset: process detached');
         }
 
         this.processAdapter.attach(proc);
         this.processAdapter.on('message', this.onMessageBind);
 
-        // 如果是进程重启，重置重试计数器，给新进程一个新机会
-        if (isProcessRestart) {
-            console.log('[ProcessRPC] Process restart detected, resetting retry counter');
+        // 如果是进程切换，重置重试计数器，给新进程一个新机会
+        if (isProcessSwitch) {
+            console.log('[ProcessRPC] Process switch detected, resetting retry counter');
             this.messageQueue.resetRetryCount();
         }
 
@@ -92,7 +95,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     register(handler: Record<string, any>): void {
         if (this.isDisposed) {
-            throw new Error('Cannot register: RPC instance has been disposed');
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
         }
         if (!handler || typeof handler !== 'object') {
             throw new Error('Handler must be a valid object');
@@ -111,10 +114,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             : [args: Parameters<TModules[K][M]>, options?: RequestOptions]
     ): Promise<Awaited<ReturnType<TModules[K][M]>>> {
         if (this.isDisposed) {
-            return Promise.reject(new Error('Cannot request: RPC instance has been disposed'));
+            return Promise.reject(new Error(ProcessRPC.ERROR_DISPOSED));
         }
         if (!module || !method) {
-            return Promise.reject(new Error('Module and method are required'));
+            return Promise.reject(new Error(ProcessRPC.ERROR_MODULE_METHOD_REQUIRED));
         }
 
         const [args, options] = rest as any as [any, RequestOptions?];
@@ -158,15 +161,22 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             try {
                 this.callbackManager.register(id, cb, timer);
             } catch (e) {
-                if (timer) clearTimeout(timer);
+                ProcessRPC.clearTimer(timer);
                 reject(e);
+                return;
+            }
+
+            // 关键点检查：注册回调后，发送前检查状态
+            if (this.isDisposed) {
+                this.cleanupCallback(id, timer);
+                reject(new Error(ProcessRPC.ERROR_DISPOSED));
                 return;
             }
 
             // 发送或排队
             if (!this.processAdapter.getProcess()) {
                 this.cleanupCallback(id, timer);
-                reject(new Error('未挂载进程'));
+                reject(new Error(ProcessRPC.ERROR_NO_PROCESS));
                 return;
             }
 
@@ -190,13 +200,13 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         args?: Parameters<TModules[K][M]>
     ): void {
         if (this.isDisposed) {
-            throw new Error('Cannot send: RPC instance has been disposed');
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
         }
         if (!module || !method) {
-            throw new Error('Module and method are required');
+            throw new Error(ProcessRPC.ERROR_MODULE_METHOD_REQUIRED);
         }
         if (!this.processAdapter.getProcess()) {
-            throw new Error('未挂载进程');
+            throw new Error(ProcessRPC.ERROR_NO_PROCESS);
         }
 
         const msg: RpcSend = {
@@ -206,16 +216,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             args: args || [],
         };
 
-        if (!this.processAdapter.isConnected() || this.messageQueue.sendBlocked) {
-            this.messageQueue.enqueue({ type: 'send', data: msg });
-            this.messageQueue.scheduleFlush();
-        } else {
-            const sent = this.sendMessage(msg);
-            if (!sent) {
-                this.messageQueue.enqueue({ type: 'send', data: msg });
-                this.messageQueue.scheduleFlush();
-            }
-        }
+        this.sendOrEnqueue(msg);
     }
 
     /**
@@ -223,7 +224,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     clearPendingMessages(): void {
         if (this.isDisposed) {
-            throw new Error('Cannot clear pending messages: RPC instance has been disposed');
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
         }
         this.callbackManager.clear('Pending messages cleared');
         this.messageQueue.clear();
@@ -241,7 +242,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     pauseQueue(): void {
         if (this.isDisposed) {
-            throw new Error('Cannot pause queue: RPC instance has been disposed');
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
         }
         this.messageQueue.pause();
     }
@@ -257,7 +258,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     resumeQueue(): void {
         if (this.isDisposed) {
-            throw new Error('Cannot resume queue: RPC instance has been disposed');
+            throw new Error(ProcessRPC.ERROR_DISPOSED);
         }
         this.messageQueue.resume();
     }
@@ -277,6 +278,13 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     }
 
     /**
+     * 清理定时器工具函数
+     */
+    private static clearTimer(timer?: NodeJS.Timeout): void {
+        if (timer) clearTimeout(timer);
+    }
+
+    /**
      * 发送消息
      */
     private sendMessage(msg: RpcMessage): boolean {
@@ -291,13 +299,27 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     }
 
     /**
+     * 发送或排队消息（通用逻辑）
+     */
+    private sendOrEnqueue(msg: RpcRequest | RpcSend): void {
+        if (!this.processAdapter.isConnected() || this.messageQueue.sendBlocked) {
+            this.messageQueue.enqueue({ type: msg.type, data: msg });
+            this.messageQueue.scheduleFlush();
+        } else {
+            const sent = this.sendMessage(msg);
+            if (!sent) {
+                this.messageQueue.enqueue({ type: msg.type, data: msg });
+                this.messageQueue.scheduleFlush();
+            }
+        }
+    }
+
+    /**
      * 将请求加入队列
      */
     private queueRequest(req: RpcRequest, timer: NodeJS.Timeout | undefined, timeout?: number): void {
-        if (timer) {
-            clearTimeout(timer);
-            this.callbackManager.updateTimer(req.id, undefined);
-        }
+        ProcessRPC.clearTimer(timer);
+        this.callbackManager.updateTimer(req.id, undefined);
 
         const normalizedTimeout = this.timeoutManager.normalizeTimeout(timeout);
         this.messageQueue.enqueue({
@@ -313,7 +335,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 清理回调
      */
     private cleanupCallback(id: number, timer?: NodeJS.Timeout): void {
-        if (timer) clearTimeout(timer);
+        ProcessRPC.clearTimer(timer);
         this.callbackManager.delete(id);
     }
 
@@ -331,6 +353,32 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private onRetryFailed(reason: string): void {
         console.error(`[ProcessRPC] ${reason}, rejecting ${this.messageQueue.length} pending messages`);
         this.messageQueue.rejectAllRequests(reason, this.callbackManager);
+    }
+
+    /**
+     * 队列消息发送成功回调
+     * 恢复请求的超时定时器
+     */
+    private onMessageSentFromQueue(msg: PendingMessage): void {
+        if (msg.type !== 'request') return;
+        
+        const req = msg.data as RpcRequest;
+        const { timeoutStartTime, timeoutDuration } = msg;
+        
+        // 如果有超时设置，计算剩余时间并设置定时器
+        if (timeoutStartTime && timeoutDuration) {
+            const remaining = this.timeoutManager.calculateRemaining(timeoutStartTime, timeoutDuration);
+            if (remaining > 0) {
+                this.timeoutManager.setupTimer(req.id, req.module, req.method, remaining);
+            } else {
+                // 已经超时，立即触发超时回调
+                this.callbackManager.executeAndDelete(req.id, {
+                    id: req.id,
+                    type: 'response',
+                    error: `RPC request timeout: ${req.module}.${req.method}`
+                });
+            }
+        }
     }
 
     /**
@@ -387,7 +435,17 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             try {
                 target[method](...(args || []));
             } catch (e) {
-                console.error('[ProcessRPC] Send handler error:', { module, method }, e);
+                const error = e instanceof Error ? e : new Error(String(e));
+                console.error('[ProcessRPC] Send handler error:', { module, method }, error);
+                
+                // 调用用户配置的错误处理器
+                if (this.config.onSendError) {
+                    try {
+                        this.config.onSendError(error, module, method);
+                    } catch (handlerError) {
+                        console.error('[ProcessRPC] Error in onSendError handler:', handlerError);
+                    }
+                }
             }
         }
     }

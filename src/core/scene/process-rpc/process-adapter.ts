@@ -8,6 +8,7 @@ import { RpcMessage } from './types';
 export class ProcessAdapter {
     private process?: NodeJS.Process | ChildProcess;
     private disconnectCleanups: Array<() => void> = [];
+    private messageListeners: Map<string, Set<(...args: any[]) => void>> = new Map();
 
     /**
      * 挂载进程
@@ -23,6 +24,7 @@ export class ProcessAdapter {
      */
     detach(): void {
         this.clearDisconnectListeners();
+        this.clearAllMessageListeners();
         this.process = undefined;
     }
 
@@ -53,15 +55,33 @@ export class ProcessAdapter {
      * 监听消息
      */
     on(event: string, handler: (...args: any[]) => void): void {
-        this.process?.on(event, handler);
+        if (!this.process) return;
+        
+        // 记录监听器以便后续清理
+        if (!this.messageListeners.has(event)) {
+            this.messageListeners.set(event, new Set());
+        }
+        this.messageListeners.get(event)!.add(handler);
+        
+        this.process.on(event, handler);
     }
 
     /**
      * 移除监听
      */
     off(event: string, handler: (...args: any[]) => void): void {
+        if (!this.process) return;
+        
         try {
-            this.process?.off(event, handler);
+            this.process.off(event, handler);
+            // 从记录中移除
+            const listeners = this.messageListeners.get(event);
+            if (listeners) {
+                listeners.delete(handler);
+                if (listeners.size === 0) {
+                    this.messageListeners.delete(event);
+                }
+            }
         } catch {
             // ignore
         }
@@ -117,6 +137,28 @@ export class ProcessAdapter {
             try { clean(); } catch {}
         });
         this.disconnectCleanups = [];
+    }
+
+    /**
+     * 清理所有消息监听器
+     */
+    private clearAllMessageListeners(): void {
+        if (!this.process) {
+            this.messageListeners.clear();
+            return;
+        }
+
+        // 移除所有记录的监听器
+        for (const [event, handlers] of this.messageListeners.entries()) {
+            for (const handler of handlers) {
+                try {
+                    this.process.off(event, handler);
+                } catch {
+                    // ignore
+                }
+            }
+        }
+        this.messageListeners.clear();
     }
 
     /**
