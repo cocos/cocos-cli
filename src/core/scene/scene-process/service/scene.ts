@@ -93,13 +93,17 @@ export class SceneService extends BaseService<ISceneEvents> implements ISceneSer
                 throw new Error(`通过 uuid: ${uuid}，查询不到场景，是否没有打开场景`);
             }
 
-            try {
-                await this.save({
-                    urlOrUUID: uuid,
-                });
-            } catch (error) {
-                console.error(error);
-                throw new Error(`保存当前场景失败`);
+            // 资源没被删掉才走保存
+            const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
+            if (assetInfo) {
+                try {
+                    await this.save({
+                        urlOrUUID: uuid,
+                    });
+                } catch (error) {
+                    console.error(error);
+                    throw new Error(`保存当前场景失败`);
+                }
             }
 
             // 如果是当前场景就跳到空场景
