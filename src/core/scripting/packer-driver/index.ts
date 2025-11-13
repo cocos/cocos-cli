@@ -992,48 +992,7 @@ class PackTarget {
             await this._buildPromise;
         }
         this._ensureIdle();
-
-        const { _userImportMap: userImportMap } = this;
-
-        const importMap: ImportMap = {};
-        const importMapURL = userImportMap ? userImportMap.url : new URL('foo:/bar');
-
-        // Integrates builtin mappings, since all of builtin mappings are absolute, we do not need parse.
-        importMap.imports = {};
-        importMap.imports['cc'] = engineIndexModURL;
-        const assetPrefixes: string[] = [];
-        for (const assetDatabaseDomain of assetDatabaseDomains) {
-            const assetDirURL = pathToFileURL(ps.join(assetDatabaseDomain.physical, ps.join(ps.sep))).href;
-            importMap.imports[assetDatabaseDomain.root.href] = assetDirURL;
-            assetPrefixes.push(assetDirURL);
-        }
-
-        if (userImportMap) {
-            if (userImportMap.json.imports) {
-                importMap.imports = {
-                    ...importMap.imports,
-                    ...userImportMap.json.imports,
-                };
-            }
-            if (userImportMap.json.scopes) {
-                for (const [scopeRep, specifierMap] of Object.entries(userImportMap.json.scopes)) {
-                    const scopes = importMap.scopes ??= {};
-                    scopes[scopeRep] = {
-                        ...(scopes[scopeRep] ?? {}),
-                        ...specifierMap,
-                    };
-                }
-            }
-        }
-
-        this._logger.debug(
-            `Our import map(${importMapURL}): ${JSON.stringify(importMap, undefined, 2)}`,
-        );
-
-        this._modLo.setImportMap(importMap, importMapURL);
-        this._modLo.setAssetPrefixes(assetPrefixes);
-
-        this._cleanResolutionNextTime = true;
+        this._setAssetDatabaseDomainsSync(assetDatabaseDomains);
     }
 
     private _setAssetDatabaseDomainsSync(assetDatabaseDomains: AssetDatabaseDomain[]): void {
