@@ -20,7 +20,7 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
      * 主进程监听 asset 事件，所触发事件
      * @param uuid
      */
-    public assetDeleted(uuid: string) {
+    public async assetDeleted(uuid: string) {
         assetWatcherManager.onAssetDeleted(uuid);
         this.emit('asset:deleted', uuid);
     }

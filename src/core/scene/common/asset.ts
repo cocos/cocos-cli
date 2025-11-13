@@ -19,11 +19,11 @@ export interface IAssetService extends IServiceEvents {
      * 资源发生变化时，进行处理
      * @param uuid
      */
-    assetChanged(uuid: string): void;
+    assetChanged(uuid: string): Promise<void>;
 
     /**
      * 资源删除时，进行处理
      * @param uuid
      */
-    assetDeleted(uuid: string): void;
+    assetDeleted(uuid: string): Promise<void>;
 }
