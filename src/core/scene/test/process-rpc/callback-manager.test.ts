@@ -244,11 +244,12 @@ describe('CallbackManager', () => {
             expect(manager.size).toBe(0);
         });
 
-        test('大量回调（≤100）应同步清理', () => {
+        test('大量回调应同步清理', () => {
+            const manager = new CallbackManager(200);
             const callbacks: jest.Mock[] = [];
             
-            // 创建 100 个回调
-            for (let i = 0; i < 100; i++) {
+            // 创建 150 个回调
+            for (let i = 0; i < 150; i++) {
                 const cb = jest.fn();
                 callbacks.push(cb);
                 manager.register(i + 1, cb);
@@ -261,35 +262,6 @@ describe('CallbackManager', () => {
                 expect(cb).toHaveBeenCalled();
             });
             expect(manager.size).toBe(0);
-        });
-
-        test('大量回调（>100）应异步分批清理', (done) => {
-            const manager = new CallbackManager(200);
-            const callbacks: jest.Mock[] = [];
-            const setImmediateSpy = jest.spyOn(global, 'setImmediate');
-            
-            // 创建 150 个回调
-            for (let i = 0; i < 150; i++) {
-                const cb = jest.fn();
-                callbacks.push(cb);
-                manager.register(i + 1, cb);
-            }
-            
-            manager.clear('Async cleanup');
-            
-            // 应该使用 setImmediate 进行分批处理
-            expect(setImmediateSpy).toHaveBeenCalled();
-            
-            // 等待异步清理完成
-            setTimeout(() => {
-                callbacks.forEach(cb => {
-                    expect(cb).toHaveBeenCalled();
-                });
-                expect(manager.size).toBe(0);
-                
-                setImmediateSpy.mockRestore();
-                done();
-            }, 100);
         });
     });
 
