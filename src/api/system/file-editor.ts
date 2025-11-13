@@ -64,7 +64,7 @@ export class FileEditorApi {
     @result(SchemaFileEditorResult)
     async replaceTextInFile(@param(SchemaReplaceTextInFileInfo) param: TReplaceTextInFileInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
-            const result = await replaceTextInFile(param.dbURL, param.fileType, param.targetText, param.replacementText);
+            const result = await replaceTextInFile(param.dbURL, param.fileType, param.targetText, param.replacementText, param.regex);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,

@@ -26,7 +26,8 @@ export const SchemaReplaceTextInFileInfo = z.object({
     fileType: z.enum(FILE_EXTENSIONS).describe('文件类型'),
     targetText: z.string().describe('目标文本'),
     replacementText: z.string().describe('替换文本'),
-}).describe('替换文件的 目标文本（正则表达式） 为 替换文本');
+    regex: z.boolean().describe('是否使用正则表达式')
+}).describe('替换文件的 目标文本（文本或者正则表达式） 为 替换文本');
 
 export const SchemaQueryFileTextInfo = z.object({
     dbURL: z.string().describe('需要查询文件名'),

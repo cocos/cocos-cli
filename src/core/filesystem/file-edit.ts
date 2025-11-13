@@ -180,30 +180,57 @@ export async function eraseLinesInRange(
     }
 }
 
+export function findTextOccurrencesInFile(
+    filename: string, targetText: string): number {
+    // Simple string search to count occurrences
+    const searchStrLen = targetText.length;
+
+    // Read the entire file content as a string
+    const str = fs.readFileSync(filename, 'utf8');
+
+    let index = -1;
+    let startIndex = 0;
+    let count = 0;
+    while ((index = str.indexOf(targetText, startIndex)) > -1) {
+        ++count;
+        startIndex = index + searchStrLen;
+    }
+    return count;
+}
+
 export async function replaceTextInFile(
-    dbURL: string, fileType: string, targetRegex: string, replacementText: string): Promise<boolean> {
+    dbURL: string, fileType: string, targetText: string, replacementText: string, regex: boolean): Promise<boolean> {
     const filename = getScriptFilename(dbURL, fileType);
 
-    const results = await replaceInFile({
-        files: filename,
-        from: new RegExp(targetRegex, 'g'), // Global replace
-        to: replacementText,
-        countMatches: true,
-        dry: true, // Dry run to count matches first
-    });
     let count = 0;
-    for (const result of results) {
-        if (result.numMatches) {
-            count += result.numMatches;
+    if (regex) {
+        // First, count occurrences
+        const results = await replaceInFile({
+            files: filename,
+            from: new RegExp(targetText, 'g'), // Global replace
+            to: replacementText,
+            countMatches: true,
+            dry: true, // Dry run to count matches first
+        });
+        for (const result of results) {
+            if (result.numMatches) {
+                count += result.numMatches;
+            }
         }
+    } else {
+        count = findTextOccurrencesInFile(filename, targetText);
     }
+
     if (count > 1) {
         throw new Error(`Multiple (${count}) occurrences found. File is not changed.`);
     }
+
     if (count == 1) {
         const results = await replaceInFile({
             files: filename,
-            from: new RegExp(targetRegex, 'g'), // Global replace
+            from: regex
+                ? new RegExp(targetText, 'g') // Global replace
+                : targetText, // First occurrence
             to: replacementText,
         });
 
