@@ -50,15 +50,18 @@ export class CallbackManager {
         // 先删除回调，避免定时器触发时重复执行
         if (!this.callbacks.delete(id)) return false;
 
-        // 清理定时器
-        if (entry.timer) clearTimeout(entry.timer);
+        // 清理定时器并显式置空引用
+        if (entry.timer) {
+            clearTimeout(entry.timer);
+            entry.timer = undefined;
+        }
         
         // 执行回调
         try {
             entry.cb(response);
             return true;
-        } catch {
-            // ignore callback errors
+        } catch (error) {
+            console.warn(`[CallbackManager] Callback execution error for id ${id}:`, error);
             return false;
         }
     }
@@ -78,15 +81,25 @@ export class CallbackManager {
      * 清理所有回调
      */
     clear(reason: string): void {
+        // 先复制条目，再清空 Map，确保即使回调中有异常也能完全清理
         const entries = Array.from(this.callbacks.entries());
         this.callbacks.clear();
         
+        // 先清理所有定时器，再执行回调，防止回调执行时间过长导致定时器泄漏
+        for (const [, entry] of entries) {
+            if (entry.timer) {
+                clearTimeout(entry.timer);
+                entry.timer = undefined; // 显式置空引用
+            }
+        }
+        
+        // 执行回调通知
         for (const [id, entry] of entries) {
-            if (entry.timer) clearTimeout(entry.timer);
             try {
                 entry.cb({ id, type: 'response', error: reason });
-            } catch {
-                // ignore callback errors
+            } catch (error) {
+                // 记录回调错误，便于调试
+                console.warn(`[CallbackManager] Callback execution error for id ${id}:`, error);
             }
         }
     }

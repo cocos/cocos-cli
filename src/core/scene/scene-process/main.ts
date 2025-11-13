@@ -9,7 +9,7 @@ async function startup() {
     // 监听进程退出事件
     process.on('message', (msg) => {
         if (msg === 'scene-process:exit') {
-            Rpc.getInstance().dispose();
+            Rpc.dispose();
             process.disconnect?.(); // 关闭 IPC
             process.exit(0);// 退出进程
         }

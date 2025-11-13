@@ -19,6 +19,8 @@ export class RpcProxy {
     }
 
     async startup(prc: ChildProcess | NodeJS.Process) {
+        // 在创建新实例前，先清理旧实例，防止内存泄漏
+        this.dispose();
         this.rpcInstance = new ProcessRPC<IPublicServiceManager>();
         this.rpcInstance.attach(prc);
         this.rpcInstance.register({
@@ -27,6 +29,22 @@ export class RpcProxy {
             sceneConfigInstance: sceneConfigInstance,
         });
         console.log('[Node] Scene Process RPC ready');
+    }
+
+    /**
+     * 清理 RPC 实例
+     */
+    dispose(): void {
+        if (this.rpcInstance) {
+            console.log('[Node] Disposing RPC instance');
+            try {
+                this.rpcInstance.dispose();
+            } catch (error) {
+                console.warn('[Node] Error disposing RPC instance:', error);
+            } finally {
+                this.rpcInstance = null;
+            }
+        }
     }
 }
 

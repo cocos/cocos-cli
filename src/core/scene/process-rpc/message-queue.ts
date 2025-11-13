@@ -13,6 +13,7 @@ export class MessageQueue {
     private paused = false;
     private pauseTimer?: NodeJS.Timeout;
     private readonly PAUSE_TIMEOUT = 60000; // 60秒暂停超时
+    private flushTimer?: NodeJS.Timeout; // 用于跟踪 flush 延迟定时器
 
     constructor(
         private readonly maxSize: number,
@@ -86,6 +87,12 @@ export class MessageQueue {
      * 处理队列中的消息
      */
     private flush(): void {
+        // 检查暂停状态，避免在暂停时继续 flush
+        if (this.paused) {
+            this.flushScheduled = false;
+            return;
+        }
+
         // 如果队列为空，直接返回（可能在 flush 执行前被清空）
         if (this.queue.length === 0) {
             this.reset();
@@ -146,10 +153,12 @@ export class MessageQueue {
                 return;
             }
             
-            // 指数退避 - 先重置标志，再延迟调度
+            // 指数退避 - 清理旧定时器，防止定时器泄漏
             this.flushScheduled = false;
+            this.clearFlushTimer();
             const backoffDelay = Math.min(100 * Math.pow(2, this.flushRetryCount - 1), 5000);
-            setTimeout(() => {
+            this.flushTimer = setTimeout(() => {
+                this.flushTimer = undefined;
                 this.scheduleFlush();
             }, backoffDelay);
         } else {
@@ -211,6 +220,8 @@ export class MessageQueue {
         this.queue = [];
         this.reset();
         this.clearPauseTimer();
+        this.clearFlushTimer();
+        this.paused = false;
     }
 
     /**
@@ -222,6 +233,16 @@ export class MessageQueue {
             this.pauseTimer = undefined;
         }
         // 注意：不在这里设置 paused = false，由调用者控制
+    }
+
+    /**
+     * 清除 flush 定时器
+     */
+    private clearFlushTimer(): void {
+        if (this.flushTimer) {
+            clearTimeout(this.flushTimer);
+            this.flushTimer = undefined;
+        }
     }
 
     /**

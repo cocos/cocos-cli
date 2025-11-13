@@ -14,7 +14,12 @@ export class ProcessAdapter {
      * 挂载进程
      */
     attach(proc: NodeJS.Process | ChildProcess): void {
-        if (this.process === proc) return;
+        if (this.process === proc) {
+            console.warn('[ProcessAdapter] Attaching same process, cleaning up old listeners');
+            this.clearAllMessageListeners();
+            this.clearDisconnectListeners();
+            return;
+        }
         this.detach();
         this.process = proc;
     }

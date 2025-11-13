@@ -262,9 +262,20 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         if (this.isDisposed) return;
         
         this.isDisposed = true;
+        
+        // 1. 先清理消息队列（停止 flush 调度，清理 pauseTimer）
+        this.messageQueue.clear();
+        
+        // 2. 清理所有回调和定时器
         this.cleanup('RPC disposed');
+        
+        // 3. 移除进程监听器
         this.processAdapter.off('message', this.onMessageBind);
+        
+        // 4. 分离进程（清理所有进程事件监听器）
         this.processAdapter.detach();
+        
+        // 5. 清理引用
         this.handlers = {};
         this.idGenerator.reset();
     }

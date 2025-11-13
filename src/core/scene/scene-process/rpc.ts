@@ -12,11 +12,29 @@ export class RpcProxy {
     }
 
     async startup() {
+        // 在创建新实例前，先清理旧实例，防止内存泄漏
+        this.dispose();
         this.rpcInstance = new ProcessRPC<IMainModule>();
         this.rpcInstance.attach(process);
         const { Service } = await import('./service/core/decorator');
         this.rpcInstance.register(Service);
         console.log('[Scene] Scene Process RPC ready');
+    }
+
+    /**
+     * 清理 RPC 实例
+     */
+    dispose(): void {
+        if (this.rpcInstance) {
+            console.log('[Node] Disposing RPC instance');
+            try {
+                this.rpcInstance.dispose();
+            } catch (error) {
+                console.warn('[Node] Error disposing RPC instance:', error);
+            } finally {
+                this.rpcInstance = null;
+            }
+        }
     }
 }
 
