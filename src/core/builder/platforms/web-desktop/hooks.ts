@@ -1,7 +1,7 @@
 'use-strict';
 
 import { copyFileSync, existsSync, outputFileSync } from 'fs-extra';
-import { basename, join } from 'path';
+import { basename, join, relative } from 'path';
 import Ejs from 'ejs';
 import { InternalBuildResult, BuilderAssetCache, IBuilder, IBuildTaskOption, IInternalBuildOptions } from '../../@types/protected';
 import { IBuildResult } from '../../@types/platforms/web-desktop';
@@ -111,7 +111,9 @@ export async function run(dest: string) {
         throw new Error(`Build path not found: ${dest}`);
     }
     const serverService = (await import('../../../../server/server')).serverService;
-    const url = serverService.url + '/build/' + basename(dest) + '/index.html';
+
+    const relativePath = relative(utils.Path.resolveToRaw('project://build'), rawPath);
+    const url = serverService.url + '/build/' + relativePath + '/index.html';
 
     // 打开浏览器
     try {
