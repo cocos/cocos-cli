@@ -27,7 +27,7 @@ import {
 
 export class PrefabApi {
 
-    @tool('scene-prefab-create-from-node')
+    @tool('create-prefab-from-node')
     @title('将节点转换为预制体资源')
     @description('将指定节点及其子节点转换为预制体资源，并保存到指定路径')
     @result(SchemaNode)
@@ -47,7 +47,7 @@ export class PrefabApi {
         }
     }
 
-    @tool('scene-prefab-apply-changes')
+    @tool('apply-prefab-changes')
     @title('应用预制体修改')
     @description('将预制体实例的修改应用回预制体资源')
     @result(SchemaApplyPrefabChangesResult)
@@ -67,7 +67,7 @@ export class PrefabApi {
         }
     }
 
-    @tool('scene-prefab-revert')
+    @tool('revert-prefab')
     @title('重置预制体实例')
     @description('将预制体实例重置到预制体资源的原始状态')
     @result(SchemaRevertToPrefabResult)
@@ -87,7 +87,7 @@ export class PrefabApi {
         }
     }
 
-    @tool('scene-prefab-unpack')
+    @tool('unpack-prefab')
     @title('解耦预制体实例')
     @description('将预制体实例解耦，使其成为普通节点，不再与预制体资源关联')
     @result(SchemaNode)
@@ -107,7 +107,7 @@ export class PrefabApi {
         }
     }
 
-    @tool('scene-prefab-is-instance')
+    @tool('is-prefab-instance')
     @title('检查是否为预制体实例')
     @description('检查指定节点是否为预制体实例')
     @result(SchemaIsPrefabInstanceResult)
@@ -127,7 +127,7 @@ export class PrefabApi {
         }
     }
 
-    @tool('scene-prefab-get-info')
+    // @tool('get-prefab-info')
     @title('获取预制体信息')
     @description('获取指定节点的预制体相关信息')
     @result(SchemaGetPrefabResult)

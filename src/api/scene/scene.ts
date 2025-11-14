@@ -2,7 +2,7 @@ import {
     SchemaCloseResult,
     SchemaCreateOptions,
     SchemaCreateResult,
-    SchemaCurrentEntryResult,
+    SchemaCurrentResult,
     SchemaOpenResult,
     SchemaReload,
     SchemaSaveResult,
@@ -10,7 +10,7 @@ import {
     TCloseResult,
     TCreateOptions,
     TCreateResult,
-    TCurrentEntryResult,
+    TCurrentResult,
     TOpenResult,
     TReload,
     TSaveResult,
@@ -37,12 +37,12 @@ export class SceneApi {
     @tool('scene-query-current')
     @title('获取当前打开的场景/预制体信息')
     @description('获取当前打开场景/预制体信息，如果没有打开，返回 null')
-    @result(SchemaCurrentEntryResult)
-    async queryCurrent(): Promise<CommonResultType<TCurrentEntryResult>> {
+    @result(SchemaCurrentResult)
+    async queryCurrent(): Promise<CommonResultType<TCurrentResult>> {
         try {
             const data = await Scene.queryCurrent();
             return {
-                data: data as TCurrentEntryResult,
+                data: data as TCurrentResult,
                 code: COMMON_STATUS.SUCCESS,
             };
         } catch (e) { 

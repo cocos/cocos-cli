@@ -1,15 +1,11 @@
 import { z } from 'zod';
 
-export const SchemaAssetUUID = z.string().describe('场景/预制体资源唯一标识符 UUID');
-
-export const SchemaAssetURL = z.string().describe('场景/预制体资源使用 db:// 协议格式');
-
-export const SchemaAssetUrlOrUUID = z.union([SchemaAssetUUID, SchemaAssetURL]).describe('使用 db:// 协议格式或者 UUID');
+export const SchemaAssetUrlOrUUID = z.string().describe('使用 db:// 协议格式或者 UUID');
 
 export const SchemaSceneIdentifier = z.object({
     assetName: z.string().describe('场景/预制体资源名称'),
-    assetUuid: SchemaAssetUUID,
-    assetUrl: SchemaAssetURL,
+    assetUuid: z.string().describe('场景/预制体资源唯一标识符 UUID'),
+    assetUrl: z.string().describe('场景/预制体资源使用 db:// 协议格式'),
     assetType: z.string().describe('场景/预制体资源类型'),
 }).describe('场景/预制体基础信息');
 
@@ -22,7 +18,6 @@ export const SchemaComponentIdentifier = z.object({
     type: z.string().describe('组件类型'),
     enabled: z.boolean().describe('组件是否使能'),
 }).describe('组件的基本信息');
-
 
 export const SchemaNodeIdentifier = z.object({
     nodeId: z.string().describe('节点的 id'),

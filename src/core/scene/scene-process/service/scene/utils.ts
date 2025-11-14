@@ -141,10 +141,11 @@ class SceneUtil {
         };
 
         const root = prefab.root && this.generateNodeIdentifier(prefab.root);
+
         return {
-            asset: generatePrefabAsset(prefab.asset),
-            root: root,
-            instance: generatePrefabInstance(prefab.instance),
+            asset: generatePrefabAsset(prefab.asset) ?? undefined,
+            root: root ?? undefined,
+            instance: generatePrefabInstance(prefab.instance) ?? undefined,
             fileId: prefab.fileId,
             targetOverrides: prefab.targetOverrides ? prefab.targetOverrides.map(generateTargetOverrideInfo) : [],
             nestedPrefabInstanceRoots: prefab.nestedPrefabInstanceRoots ? prefab.nestedPrefabInstanceRoots.map((node: cc.Node) => this.generateNodeIdentifier(node)) : [],

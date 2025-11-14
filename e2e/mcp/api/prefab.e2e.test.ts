@@ -30,7 +30,7 @@ describe('MCP Prefab API', () => {
         await teardownAssetsTestEnvironment(context);
     });
 
-    describe('scene-prefab-create-from-node', () => {
+    describe('create-prefab-from-node', () => {
         test('should create prefab from node', async () => {
             const nodeName = `PrefabNode-${generateTestId()}`;
             const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
@@ -43,7 +43,7 @@ describe('MCP Prefab API', () => {
             expect(createNodeResult.code).toBe(200);
     
             const prefabAssetURL = `${testDirURL}/prefab-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -68,7 +68,7 @@ describe('MCP Prefab API', () => {
             const prefabAssetURL = `${testDirURL}/prefab-overwrite-${generateTestId()}.prefab`;
     
             // 第一次创建
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -77,7 +77,7 @@ describe('MCP Prefab API', () => {
             expect(createPrefabResult.code).toBe(200);
     
             // 第二次创建，使用 overwrite
-            const overwriteResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const overwriteResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createPrefabResult.data.path,
                     dbURL: prefabAssetURL,
@@ -89,7 +89,7 @@ describe('MCP Prefab API', () => {
     
         test('should handle invalid node path', async () => {
             const prefabAssetURL = `${testDirURL}/prefab-invalid-${generateTestId()}.prefab`;
-            const result = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const result = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
                     dbURL: prefabAssetURL,
@@ -110,7 +110,7 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
     
-            const result = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const result = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: 'invalid-url',
@@ -121,7 +121,7 @@ describe('MCP Prefab API', () => {
         });
     });
     
-    describe('scene-prefab-is-instance', () => {
+    describe('is-prefab-instance', () => {
         test('should return true for prefab instance', async () => {
             const nodeName = `PrefabInstanceNode-${generateTestId()}`;
             const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
@@ -134,7 +134,7 @@ describe('MCP Prefab API', () => {
             expect(createNodeResult.code).toBe(200);
     
             const prefabAssetURL = `${testDirURL}/prefab-instance-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -142,7 +142,7 @@ describe('MCP Prefab API', () => {
             });
             expect(createPrefabResult.code).toBe(200);
     
-            const isInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: createPrefabResult.data.path,
                 }
@@ -162,7 +162,7 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
     
-            const isInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: createNodeResult.data.path,
                 }
@@ -172,7 +172,7 @@ describe('MCP Prefab API', () => {
         });
     
         test('should handle invalid node path', async () => {
-            const result = await mcpClient.callTool('scene-prefab-is-instance', {
+            const result = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
                 }
@@ -182,71 +182,71 @@ describe('MCP Prefab API', () => {
         });
     });
     
-    describe('scene-prefab-get-info', () => {
-        test('should get prefab info for prefab instance', async () => {
-            const nodeName = `PrefabInfoNode-${generateTestId()}`;
-            const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
-                options: {
-                    path: `Canvas`,
-                    name: nodeName,
-                    nodeType: 'Empty',
-                }
-            });
-            expect(createNodeResult.code).toBe(200);
+    // describe('get-prefab-info', () => {
+    //     test('should get prefab info for prefab instance', async () => {
+    //         const nodeName = `PrefabInfoNode-${generateTestId()}`;
+    //         const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
+    //             options: {
+    //                 path: `Canvas`,
+    //                 name: nodeName,
+    //                 nodeType: 'Empty',
+    //             }
+    //         });
+    //         expect(createNodeResult.code).toBe(200);
+    //
+    //         const prefabAssetURL = `${testDirURL}/prefab-info-${generateTestId()}.prefab`;
+    //         const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
+    //             options: {
+    //                 nodePath: createNodeResult.data.path,
+    //                 dbURL: prefabAssetURL,
+    //             }
+    //         });
+    //         expect(createPrefabResult.code).toBe(200);
+    //
+    //         const getInfoResult = await mcpClient.callTool('get-prefab-info', {
+    //             options: {
+    //                 nodePath: createPrefabResult.data.path,
+    //             }
+    //         });
+    //         expect(getInfoResult.code).toBe(200);
+    //         expect(getInfoResult.data).not.toBeNull();
+    //         if (getInfoResult.data) {
+    //             expect(typeof getInfoResult.data.fileId).toBe('string');
+    //         }
+    //     });
+    //
+    //     test('should return null for non-prefab node', async () => {
+    //         const nodeName = `NonPrefabInfoNode-${generateTestId()}`;
+    //         const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
+    //             options: {
+    //                 path: `Canvas`,
+    //                 name: nodeName,
+    //                 nodeType: 'Empty',
+    //             }
+    //         });
+    //         expect(createNodeResult.code).toBe(200);
+    //
+    //         const getInfoResult = await mcpClient.callTool('get-prefab-info', {
+    //             options: {
+    //                 nodePath: createNodeResult.data.path,
+    //             }
+    //         });
+    //         expect(getInfoResult.code).toBe(200);
+    //         expect(getInfoResult.data).toBeNull();
+    //     });
+    //
+    //     test('should handle invalid node path', async () => {
+    //         const result = await mcpClient.callTool('get-prefab-info', {
+    //             options: {
+    //                 nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
+    //             }
+    //         });
+    //         expect(result.code).not.toBe(200);
+    //         expect(result.reason).toBeDefined();
+    //     });
+    // });
     
-            const prefabAssetURL = `${testDirURL}/prefab-info-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
-                options: {
-                    nodePath: createNodeResult.data.path,
-                    dbURL: prefabAssetURL,
-                }
-            });
-            expect(createPrefabResult.code).toBe(200);
-    
-            const getInfoResult = await mcpClient.callTool('scene-prefab-get-info', {
-                options: {
-                    nodePath: createPrefabResult.data.path,
-                }
-            });
-            expect(getInfoResult.code).toBe(200);
-            expect(getInfoResult.data).not.toBeNull();
-            if (getInfoResult.data) {
-                expect(typeof getInfoResult.data.fileId).toBe('string');
-            }
-        });
-    
-        test('should return null for non-prefab node', async () => {
-            const nodeName = `NonPrefabInfoNode-${generateTestId()}`;
-            const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
-                options: {
-                    path: `Canvas`,
-                    name: nodeName,
-                    nodeType: 'Empty',
-                }
-            });
-            expect(createNodeResult.code).toBe(200);
-    
-            const getInfoResult = await mcpClient.callTool('scene-prefab-get-info', {
-                options: {
-                    nodePath: createNodeResult.data.path,
-                }
-            });
-            expect(getInfoResult.code).toBe(200);
-            expect(getInfoResult.data).toBeNull();
-        });
-    
-        test('should handle invalid node path', async () => {
-            const result = await mcpClient.callTool('scene-prefab-get-info', {
-                options: {
-                    nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
-                }
-            });
-            expect(result.code).not.toBe(200);
-            expect(result.reason).toBeDefined();
-        });
-    });
-    
-    describe('scene-prefab-apply-changes', () => {
+    describe('apply-prefab-changes', () => {
         test('should apply changes to prefab asset', async () => {
             const nodeName = `PrefabApplyNode-${generateTestId()}`;
             const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
@@ -260,7 +260,7 @@ describe('MCP Prefab API', () => {
             const basePos = createNodeResult.data.properties.position;
     
             const prefabAssetURL = `${testDirURL}/prefab-apply-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -280,7 +280,7 @@ describe('MCP Prefab API', () => {
             });
     
             // 应用更改
-            const applyChangesResult = await mcpClient.callTool('scene-prefab-apply-changes', {
+            const applyChangesResult = await mcpClient.callTool('apply-prefab-changes', {
                 options: {
                     nodePath: prefabNodePath,
                 }
@@ -300,7 +300,7 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
     
-            const result = await mcpClient.callTool('scene-prefab-apply-changes', {
+            const result = await mcpClient.callTool('apply-prefab-changes', {
                 options: {
                     nodePath: createNodeResult.data.path,
                 }
@@ -310,7 +310,7 @@ describe('MCP Prefab API', () => {
         });
     
         test('should handle invalid node path', async () => {
-            const result = await mcpClient.callTool('scene-prefab-apply-changes', {
+            const result = await mcpClient.callTool('apply-prefab-changes', {
                 options: {
                     nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
                 }
@@ -320,7 +320,7 @@ describe('MCP Prefab API', () => {
         });
     });
 
-    describe('scene-prefab-revert', () => {
+    describe('revert-prefab', () => {
         test('should revert scale but keep position and rotation overrides', async () => {
             const nodeName = `PrefabRevertNode-${generateTestId()}`;
             const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
@@ -332,8 +332,8 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
 
-            const prefabAssetURL = `${testDirURL}/prefab-revert-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const prefabAssetURL = `${testDirURL}/revert-prefab-${generateTestId()}.prefab`;
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -386,7 +386,7 @@ describe('MCP Prefab API', () => {
             expect(updateResult.code).toBe(200);
             const updatedPrefabNodePath = updateResult.data?.path ?? prefabNodePath;
 
-            const revertResult = await mcpClient.callTool('scene-prefab-revert', {
+            const revertResult = await mcpClient.callTool('revert-prefab', {
                 options: {
                     nodePath: updatedPrefabNodePath,
                 }
@@ -429,7 +429,7 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
 
-            const result = await mcpClient.callTool('scene-prefab-revert', {
+            const result = await mcpClient.callTool('revert-prefab', {
                 options: {
                     nodePath: createNodeResult.data.path,
                 }
@@ -439,7 +439,7 @@ describe('MCP Prefab API', () => {
         });
 
         test('should handle invalid node path', async () => {
-            const result = await mcpClient.callTool('scene-prefab-revert', {
+            const result = await mcpClient.callTool('revert-prefab', {
                 options: {
                     nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
                 }
@@ -449,7 +449,7 @@ describe('MCP Prefab API', () => {
         });
     });
 
-    describe('scene-prefab-unpack', () => {
+    describe('unpack-prefab', () => {
         test('should unpack prefab instance', async () => {
             const nodeName = `PrefabUnpackNode-${generateTestId()}`;
             const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
@@ -461,8 +461,8 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
     
-            const prefabAssetURL = `${testDirURL}/prefab-unpack-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const prefabAssetURL = `${testDirURL}/unpack-prefab-${generateTestId()}.prefab`;
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -472,7 +472,7 @@ describe('MCP Prefab API', () => {
             const prefabNodePath = createPrefabResult.data.path;
     
             // 解包预制体实例
-            const unpackResult = await mcpClient.callTool('scene-prefab-unpack', {
+            const unpackResult = await mcpClient.callTool('unpack-prefab', {
                 options: {
                     nodePath: prefabNodePath,
                     recursive: false,
@@ -482,7 +482,7 @@ describe('MCP Prefab API', () => {
             expect(unpackResult.data).toBeDefined();
     
             // 验证不再是预制体实例
-            const isInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: prefabNodePath,
                 }
@@ -502,8 +502,8 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
     
-            const prefabAssetURL = `${testDirURL}/prefab-unpack-recursive-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const prefabAssetURL = `${testDirURL}/unpack-prefab-recursive-${generateTestId()}.prefab`;
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -513,7 +513,7 @@ describe('MCP Prefab API', () => {
             const prefabNodePath = createPrefabResult.data.path;
     
             // 解包预制体实例（递归）
-            const unpackResult = await mcpClient.callTool('scene-prefab-unpack', {
+            const unpackResult = await mcpClient.callTool('unpack-prefab', {
                 options: {
                     nodePath: prefabNodePath,
                     recursive: true,
@@ -523,7 +523,7 @@ describe('MCP Prefab API', () => {
             expect(unpackResult.data).toBeDefined();
     
             // 验证不再是预制体实例
-            const isInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: prefabNodePath,
                 }
@@ -543,7 +543,7 @@ describe('MCP Prefab API', () => {
             });
             expect(createNodeResult.code).toBe(200);
     
-            const result = await mcpClient.callTool('scene-prefab-unpack', {
+            const result = await mcpClient.callTool('unpack-prefab', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     recursive: false,
@@ -554,7 +554,7 @@ describe('MCP Prefab API', () => {
         });
     
         test('should handle invalid node path', async () => {
-            const result = await mcpClient.callTool('scene-prefab-unpack', {
+            const result = await mcpClient.callTool('unpack-prefab', {
                 options: {
                     nodePath: `Canvas/NonExistentNode-${generateTestId()}`,
                     recursive: false,
@@ -583,7 +583,7 @@ describe('MCP Prefab API', () => {
     
             // 2. Create a prefab from the node
             const prefabAssetURL = `${testDirURL}/workflow-prefab-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: nodePath,
                     dbURL: prefabAssetURL,
@@ -593,7 +593,7 @@ describe('MCP Prefab API', () => {
             expect(createPrefabResult.code).toBe(200);
     
             // 3. Test overwrite functionality
-            const overwriteResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const overwriteResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createPrefabResult.data.path,
                     dbURL: prefabAssetURL,
@@ -603,7 +603,7 @@ describe('MCP Prefab API', () => {
             expect(overwriteResult.code).toBe(200);
     
             // 4. Check if the node is a prefab instance
-            const isInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: nodePath,
                 }
@@ -619,7 +619,7 @@ describe('MCP Prefab API', () => {
                     nodeType: 'Empty'
                 }
             });
-            const isNotInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isNotInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: anotherNodeResult.data.path,
                 }
@@ -627,16 +627,16 @@ describe('MCP Prefab API', () => {
             expect(isNotInstanceResult.data).toBe(false);
     
             // 6. Get prefab info
-            const getInfoResult = await mcpClient.callTool('scene-prefab-get-info', {
-                options: {
-                    nodePath: nodePath,
-                }
-            });
-            expect(getInfoResult.code).toBe(200);
-            expect(getInfoResult.data).not.toBeNull();
-            if (getInfoResult.data) {
-                expect(typeof getInfoResult.data.fileId).toBe('string');
-            }
+            // const getInfoResult = await mcpClient.callTool('get-prefab-info', {
+            //     options: {
+            //         nodePath: nodePath,
+            //     }
+            // });
+            // expect(getInfoResult.code).toBe(200);
+            // expect(getInfoResult.data).not.toBeNull();
+            // if (getInfoResult.data) {
+            //     expect(typeof getInfoResult.data.fileId).toBe('string');
+            // }
     
             // 7. Modify the prefab instance
             const appliedScale = {
@@ -666,7 +666,7 @@ describe('MCP Prefab API', () => {
             nodePath = initialUpdateResult.data?.path ?? nodePath;
     
             // 8. Apply changes to the prefab asset
-            const applyChangesResult = await mcpClient.callTool('scene-prefab-apply-changes', {
+            const applyChangesResult = await mcpClient.callTool('apply-prefab-changes', {
                 options: {
                     nodePath: nodePath,
                 }
@@ -701,7 +701,7 @@ describe('MCP Prefab API', () => {
             nodePath = secondUpdateResult.data?.path ?? nodePath;
     
             // 10. Revert changes
-            const revertResult = await mcpClient.callTool('scene-prefab-revert', {
+            const revertResult = await mcpClient.callTool('revert-prefab', {
                 options: {
                     nodePath: nodePath,
                 }
@@ -726,7 +726,7 @@ describe('MCP Prefab API', () => {
             expect(queryNodeResult.data?.name).toBe(renamedNode);
     
             // 11. Unpack the prefab instance
-            const unpackResult = await mcpClient.callTool('scene-prefab-unpack', {
+            const unpackResult = await mcpClient.callTool('unpack-prefab', {
                 options: {
                     nodePath: nodePath,
                     recursive: false,
@@ -736,7 +736,7 @@ describe('MCP Prefab API', () => {
             expect(unpackResult.data).toBeDefined();
     
             // 12. Verify it's no longer a prefab instance
-            const isUnpackedInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isUnpackedInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: nodePath,
                 }
@@ -769,7 +769,7 @@ describe('MCP Prefab API', () => {
     
             // 从父节点创建预制体（包含子节点）
             const prefabAssetURL = `${testDirURL}/nested-prefab-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: parentNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -778,7 +778,7 @@ describe('MCP Prefab API', () => {
             expect(createPrefabResult.code).toBe(200);
     
             // 验证父节点是预制体实例
-            const isParentInstanceResult = await mcpClient.callTool('scene-prefab-is-instance', {
+            const isParentInstanceResult = await mcpClient.callTool('is-prefab-instance', {
                 options: {
                     nodePath: createPrefabResult.data.path,
                 }
@@ -801,7 +801,7 @@ describe('MCP Prefab API', () => {
             expect(createNodeResult.code).toBe(200);
     
             const prefabAssetURL = `${testDirURL}/unpacked-prefab-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -811,7 +811,7 @@ describe('MCP Prefab API', () => {
             const prefabNodePath = createPrefabResult.data.path;
     
             // 解包预制体
-            const unpackResult = await mcpClient.callTool('scene-prefab-unpack', {
+            const unpackResult = await mcpClient.callTool('unpack-prefab', {
                 options: {
                     nodePath: prefabNodePath,
                     recursive: false,
@@ -820,7 +820,7 @@ describe('MCP Prefab API', () => {
             expect(unpackResult.code).toBe(200);
     
             // 尝试对已解包的节点应用更改（应该失败）
-            const applyResult = await mcpClient.callTool('scene-prefab-apply-changes', {
+            const applyResult = await mcpClient.callTool('apply-prefab-changes', {
                 options: {
                     nodePath: prefabNodePath,
                 }
@@ -841,7 +841,7 @@ describe('MCP Prefab API', () => {
             const basePos = createNodeResult.data.properties.position;
     
             const prefabAssetURL = `${testDirURL}/multi-op-prefab-${generateTestId()}.prefab`;
-            const createPrefabResult = await mcpClient.callTool('scene-prefab-create-from-node', {
+            const createPrefabResult = await mcpClient.callTool('create-prefab-from-node', {
                 options: {
                     nodePath: createNodeResult.data.path,
                     dbURL: prefabAssetURL,
@@ -861,13 +861,13 @@ describe('MCP Prefab API', () => {
                     },
                 });
     
-                const applyResult = await mcpClient.callTool('scene-prefab-apply-changes', {
+                const applyResult = await mcpClient.callTool('apply-prefab-changes', {
                     options: {
                         nodePath: prefabNodePath,
                     }
                 });
-                expect(applyResult.code).toBe(200);
                 expect(applyResult.reason).toBeUndefined();
+                expect(applyResult.code).toBe(200);
             }
     
             // 修改后还原
@@ -880,7 +880,7 @@ describe('MCP Prefab API', () => {
                 },
             });
     
-            const revertResult = await mcpClient.callTool('scene-prefab-revert', {
+            const revertResult = await mcpClient.callTool('revert-prefab', {
                 options: {
                     nodePath: prefabNodePath,
                 }

@@ -394,7 +394,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             if (!testNode) return;
 
             // 创建预制体
-            const revertPrefabURL = getURL('prefab-revert', '.prefab');
+            const revertPrefabURL = getURL('revert-prefab', '.prefab');
             const createPrefabParams: ICreatePrefabFromNodeParams = {
                 nodePath: testNode.path,
                 dbURL: revertPrefabURL,

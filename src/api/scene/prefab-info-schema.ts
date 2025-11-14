@@ -55,7 +55,7 @@ export const SchemaPrefab = z.object({
 /** 关联的预制体资源信息 */
 export const SchemaPrefabInfo = z.object({
     asset: SchemaPrefab.optional().describe('预制资源信息'),
-    root: SchemaNodeIdentifier.optional().describe('指向 Prefab 的根节点'),
+    root: SchemaNodeIdentifier.nullable().optional().describe('指向 Prefab 的根节点'),
     instance: SchemaPrefabInstance.optional().describe('预制体实例对象，有这个属性，说明这个节点是预制体实例'),
     fileId: z.string().describe('唯一标识一个Prefab中的Node节点，部分引用会通过该id来查找对应节点'),
     targetOverrides: z.array(SchemaTargetOverrideInfo).optional().default([]).describe('记录对其它预制体的子节点/组件的引用关系'),
