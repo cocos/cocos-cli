@@ -82,7 +82,7 @@ const test = 'original';
             expect(queryResult.data).toBeDefined();
             expect(queryResult.data).toContain('// Inserted at line 1');
             expect(queryResult.data).toContain('// Line 1');
-            
+
             // 解析查询结果（格式：行号\t内容）
             const lines = queryResult.data.split('\n').filter((line: string) => line.trim());
             const lineMap = new Map<number, string>();
@@ -94,7 +94,7 @@ const test = 'original';
                     lineMap.set(lineNum, content);
                 }
             });
-            
+
             // 验证插入的文本在第1行
             expect(lineMap.get(1)).toBe('// Inserted at line 1');
             // 验证原来的第1行现在在第2行
@@ -130,7 +130,7 @@ const test = 'original';
             expect(queryResult.data).toContain('// Inserted at line 3');
             expect(queryResult.data).toContain('// Line 2');
             expect(queryResult.data).toContain('// Line 3');
-            
+
             // 解析查询结果（格式：行号\t内容）
             const lines = queryResult.data.split('\n').filter((line: string) => line.trim());
             const lineMap = new Map<number, string>();
@@ -142,7 +142,7 @@ const test = 'original';
                     lineMap.set(lineNum, content);
                 }
             });
-            
+
             // 验证插入的文本在第3行
             expect(lineMap.get(3)).toBe('// Inserted at line 3');
             // 验证原来的第3行现在在第4行
@@ -196,7 +196,7 @@ const test = 'original';
             expect(queryResult.data).toContain('// Inserted at end');
             expect(queryResult.data).toContain('// Line 5');
             expect(queryResult.data).toContain('original');
-            
+
             // 验证插入的文本在文件末尾
             const lines = queryResult.data.split('\n').filter((line: string) => line.trim());
             const insertedLine = lines.find((line: string) => line.includes('// Inserted at end'));
@@ -276,6 +276,7 @@ const test = 'original';
                     fileType: 'ts',
                     targetText: 'original',
                     replacementText: 'replaced',
+                    regex: false,
                 },
             });
 
@@ -313,6 +314,7 @@ const test = 'original';
                     fileType: 'ts',
                     targetText: 'original',
                     replacementText: 'replaced',
+                    regex: false,
                 },
             });
 
@@ -341,6 +343,7 @@ const test = 'original';
                     fileType: 'ts',
                     targetText: 'const test = \'[^\']+\';',
                     replacementText: "const test = 'regex-replaced';",
+                    regex: true,
                 },
             });
 
@@ -479,6 +482,7 @@ const test = 'original';
                     fileType: 'ts',
                     targetText: 'original',
                     replacementText: 'modified',
+                    regex: false,
                 },
             });
             expect(replaceResult.code).toBe(200);

@@ -325,7 +325,7 @@ export class PackerDriver {
             self.languageService = new LanguageServiceAdapter(realTsConfigPath, projectPath, self.beforeEditorBuildDelegate, compilerOptions, internalDbURLInfos);
             for (const target of Object.values(this._targets)) {
                 target.updateDbInfos(this._dbInfos);
-                target.setAssetDatabaseDomains(assetDatabaseDomains);
+                await target.setAssetDatabaseDomains(assetDatabaseDomains);
             }
         };
         if (this.busy()) {
@@ -646,7 +646,7 @@ export class PackerDriver {
         const engineIndexModuleSource = PackerDriver._getEngineIndexModuleSource(this._statsQuery, features);
         for (const [, target] of Object.entries(this._targets)) {
             if (target.respectToEngineFeatureSetting) {
-                target.setEngineIndexModuleSource(engineIndexModuleSource);
+                await target.setEngineIndexModuleSource(engineIndexModuleSource);
             }
         }
     }
@@ -802,7 +802,9 @@ class PackTarget {
 
         this._engineIndexMod = modLo.addMemoryModule(engineIndexModURL, options.engineIndexModule.source);
 
-        this.setAssetDatabaseDomains([]);
+        // In constructor, there's no build in progress, so we can safely call setAssetDatabaseDomains
+        // without waiting. We use a synchronous initialization method.
+        this._setAssetDatabaseDomainsSync([]);
     }
 
     get quickPackLoaderContext() {
@@ -822,10 +824,29 @@ class PackTarget {
     }
 
     public async build(): Promise<BuildResult> {
-        this._ensureIdle();
+        // 如果正在构建，返回同一个 Promise，避免并发执行
+        if (this._buildPromise) {
+            this._logger.debug(`Target(${this._name}) build already in progress, waiting for existing build...`);
+            return this._buildPromise;
+        }
+
+        // 开始新的构建
         this._buildStarted = true;
         const targetName = this._name;
 
+        // 创建构建 Promise
+        this._buildPromise = this._executeBuild(targetName);
+
+        try {
+            const result = await this._buildPromise;
+            return result;
+        } finally {
+            // 构建完成后清除 Promise，允许下次构建
+            this._buildPromise = null;
+        }
+    }
+
+    private async _executeBuild(targetName: string): Promise<BuildResult> {
         // 发送开始编译消息
         eventEmitter.emit('pack-build-start', targetName);
 
@@ -844,17 +865,19 @@ class PackTarget {
             }
             this._logger.error(`${err}, stack: ${err.stack}`);
             buildResult.err = err;
+        } finally {
+            this._firstBuild = false;
+            const t2 = performance.now();
+            this._logger.debug(`Target(${targetName}) ends with cost ${t2 - t1}ms.`);
+
+            this._ready = true;
+
+            // 发送编译完成消息
+            eventEmitter.emit('pack-build-end', targetName);
+
+            this._buildStarted = false;
         }
-        this._firstBuild = false;
-        const t2 = performance.now();
-        this._logger.debug(`Target(${targetName}) ends with cost ${t2 - t1}ms.`);
 
-        this._ready = true;
-
-        // 发送编译完成消息
-        eventEmitter.emit('pack-build-end', targetName);
-
-        this._buildStarted = false;
         return buildResult;
     }
 
@@ -890,6 +913,11 @@ class PackTarget {
     }
 
     public async applyAssetChanges(changes: readonly AssetChange[]) {
+        // 如果正在构建，等待构建完成
+        if (this._buildPromise) {
+            this._logger.debug(`Target(${this._name}) build in progress, waiting before applying asset changes...`);
+            await this._buildPromise;
+        }
         this._ensureIdle();
         for (const change of changes) {
             const uuid = change.uuid;
@@ -947,14 +975,27 @@ class PackTarget {
         console.timeEnd('update entry mod');
     }
 
-    public setEngineIndexModuleSource(source: string) {
+    public async setEngineIndexModuleSource(source: string): Promise<void> {
+        // 如果正在构建，等待构建完成
+        if (this._buildPromise) {
+            this._logger.debug(`Target(${this._name}) build in progress, waiting before setting engine index module source...`);
+            await this._buildPromise;
+        }
         this._ensureIdle();
         this._engineIndexMod.source = source;
     }
 
-    public setAssetDatabaseDomains(assetDatabaseDomains: AssetDatabaseDomain[]) {
+    public async setAssetDatabaseDomains(assetDatabaseDomains: AssetDatabaseDomain[]): Promise<void> {
+        // 如果正在构建，等待构建完成
+        if (this._buildPromise) {
+            this._logger.debug(`Target(${this._name}) build in progress, waiting before setting asset database domains...`);
+            await this._buildPromise;
+        }
         this._ensureIdle();
+        this._setAssetDatabaseDomainsSync(assetDatabaseDomains);
+    }
 
+    private _setAssetDatabaseDomainsSync(assetDatabaseDomains: AssetDatabaseDomain[]): void {
         const { _userImportMap: userImportMap } = this;
 
         const importMap: ImportMap = {};
@@ -1000,6 +1041,7 @@ class PackTarget {
 
     private _dbInfos: DBInfo[] = [];
     private _buildStarted = false;
+    private _buildPromise: Promise<BuildResult> | null = null;
     private _ready = false;
     private _name: string;
     private _engineIndexMod: MemoryModule;
