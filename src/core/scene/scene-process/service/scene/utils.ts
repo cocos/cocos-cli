@@ -170,6 +170,9 @@ class SceneUtil {
      */
     generateNodeInfo(node: cc.Node, generateChildren: boolean): INode {
         const identifier = this.generateNodeIdentifier(node);
+        if (!cc.isValid(node)) {
+            console.warn('该节点无效');
+        }
         const nodeInfo: INode = {
             ...identifier,
             prefab: this.generatePrefabInfo(node['_prefab']),
@@ -182,11 +185,14 @@ class SceneUtil {
                 eulerAngles: node.eulerAngles,
                 mobility: node.mobility,
             },
-            components: node.components
+            components: [],
+        };
+        if (node.components) {
+            nodeInfo.components = node.components
                 .map((component: cc.Component) => {
                     return this.generateComponentInfo(component);
-                })
-        };
+                });
+        }
         if (generateChildren) {
             node.children.forEach((child) => {
                 if (!nodeInfo.children) {

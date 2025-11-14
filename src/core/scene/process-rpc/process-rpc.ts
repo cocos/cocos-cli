@@ -302,7 +302,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private sendMessage(msg: RpcMessage): boolean {
         const sent = this.processAdapter.send(msg);
         if (!sent) {
-            console.error(`[ProcessRPC] Send failed: type=${msg.type}, id=${'id' in msg ? msg.id : 'undefined'}`);
+            console.error(`[ProcessRPC] Send failed: `, JSON.stringify(msg));
         }
         return sent;
     }
