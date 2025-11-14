@@ -115,7 +115,7 @@ export const SchemaBuildRuntimeOptions = z.object({
     skipCheck: z.boolean().default(false).optional().describe('跳过构建参数的检查和自动补全流程，请在确认其他构建参数都是完整的情况才能设置为 true ，否则可能因为缺少配置导致构建失败'),
     taskId: z.string().optional().describe('指定构建任务 ID'),
     taskName: z.string().optional().describe('指定构建任务名称'),
-    logDest: z.string().optional().describe('指定构建日志输出地址'),
+    // logDest: z.string().optional().describe('指定构建日志输出地址'),
 });
 
 // ==================== 平台特定的完整构建选项 ====================

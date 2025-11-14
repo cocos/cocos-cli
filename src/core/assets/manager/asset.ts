@@ -78,18 +78,8 @@ class AssetManager extends EventEmitter {
         db.on('added', assetManager._onAssetAdded.bind(assetManager));
         db.on('changed', assetManager._onAssetChanged.bind(assetManager));
         db.on('deleted', assetManager._onAssetDeleted.bind(assetManager));
-
-        db.on('add', assetManager._onAssetAdded.bind(assetManager));
-        db.on('delete', assetManager._onAssetDeleted.bind(assetManager));
-        db.on('change', assetManager._onAssetChanged.bind(assetManager));
     }
 
-    _onAssetDBStarted(db: AssetDB) {
-        // 移除一些仅进度条使用的监听
-        db.removeListener('add', assetManager._onAssetAdded.bind(assetManager));
-        db.removeListener('change', assetManager._onAssetChanged.bind(assetManager));
-        db.removeListener('delete', assetManager._onAssetDeleted.bind(assetManager));
-    }
     _onAssetDBRemoved(db: AssetDB) {
         db.removeListener('unresponsive', onUnResponsive);
         db.removeListener('added', assetManager._onAssetAdded.bind(assetManager));

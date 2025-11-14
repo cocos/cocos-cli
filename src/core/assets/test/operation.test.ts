@@ -5,11 +5,36 @@ import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import { assetManager } from '..';
 import { ISupportCreateType } from '../@types/asset-types';
+import { IAsset } from '../@types/private';
 
 describe('测试 db 的操作接口', function () {
     const name = `__${Date.now()}__`;
     const testName = 'test-asset.txt';
     const databasePath = TestGlobalEnv.testRoot;
+    type AssetEventName = 'asset-add' | 'asset-change' | 'asset-delete';
+
+    function waitForAssetEventPropagation() {
+        return new Promise((resolve) => setTimeout(resolve, 30));
+    }
+
+    async function expectSingleAssetEvent(eventName: AssetEventName, expectedUrl: string, action: () => Promise<void>) {
+        const payloads: IAsset[] = [];
+        const handler = (asset: IAsset) => {
+            if (asset.url === expectedUrl) {
+                payloads.push(asset);
+            }
+        };
+
+        assetManager.on(eventName, handler);
+        try {
+            await action();
+            await waitForAssetEventPropagation();
+        } finally {
+            assetManager.removeListener(eventName, handler);
+        }
+        expect(payloads).toHaveLength(1);
+        return payloads[0]!;
+    }
 
     beforeAll(async () => {
         // 创建一些资源供测试
@@ -58,6 +83,26 @@ describe('测试 db 的操作接口', function () {
             });
             expect(asset).not.toBeNull();
             expect(readFileSync(dest, 'utf8')).toEqual('createAssetOverwrite');
+        });
+
+        it('创建资源会广播 asset-add 消息', async function () {
+            const targetName = `${name}-event-add.txt`;
+            const targetPath = join(databasePath, targetName);
+            const targetUrl = `${TestGlobalEnv.testRootUrl}/${targetName}`;
+            let createdAssetUuid: string | undefined;
+
+            const eventAsset = await expectSingleAssetEvent('asset-add', targetUrl, async () => {
+                const createdAsset = await assetManager.createAsset({
+                    target: targetPath,
+                    content: 'asset add event',
+                    overwrite: true,
+                });
+                createdAssetUuid = createdAsset?.uuid;
+            });
+
+            expect(createdAssetUuid).toBeDefined();
+            expect(eventAsset.uuid).toEqual(createdAssetUuid);
+            expect(eventAsset.url).toEqual(targetUrl);
         });
     });
 
@@ -229,6 +274,25 @@ describe('测试 db 的操作接口', function () {
             const metaExists = existsSync(join(databasePath, `${testName}.meta`));
             expect(metaExists).toStrictEqual(false);
         });
+
+        it('删除资源会广播 asset-delete 消息', async function () {
+            const targetName = `${name}_event_delete.txt`;
+            const targetPath = join(databasePath, targetName);
+            const createdAsset = await assetManager.createAsset({
+                target: targetPath,
+                content: 'delete event',
+                overwrite: true,
+            });
+            const targetUrl = `${TestGlobalEnv.testRootUrl}/${targetName}`;
+
+            const eventAsset = await expectSingleAssetEvent('asset-delete', targetUrl, async () => {
+                await assetManager.removeAsset(targetUrl);
+            });
+
+            expect(createdAsset).not.toBeNull();
+            expect(eventAsset.uuid).toEqual(createdAsset!.uuid);
+            expect(eventAsset.url).toEqual(targetUrl);
+        });
     });
 
     describe('save-asset', () => {
@@ -242,6 +306,25 @@ describe('测试 db 的操作接口', function () {
             expect(content).toStrictEqual('test2');
         });
         // 保存场景、prefab、材质、动画
+
+        it('保存资源会广播 asset-change 消息', async function () {
+            const targetName = `${name}-event-change.txt`;
+            const targetPath = join(databasePath, targetName);
+            const createdAsset = await assetManager.createAsset({
+                target: targetPath,
+                content: 'change event',
+                overwrite: true,
+            });
+            const targetUrl = `${TestGlobalEnv.testRootUrl}/${targetName}`;
+
+            const eventAsset = await expectSingleAssetEvent('asset-change', targetUrl, async () => {
+                await assetManager.saveAsset(targetUrl, 'change event updated');
+            });
+
+            expect(createdAsset).not.toBeNull();
+            expect(eventAsset.uuid).toEqual(createdAsset!.uuid);
+            expect(eventAsset.url).toEqual(targetUrl);
+        });
     });
 
     describe('reimport-asset', () => {

@@ -681,6 +681,13 @@ export class ReimportErrorComponent extends Component {
 
             expect(result.code).toBe(200);
         });
+        test('should refresh root assets directory by absolute path', async () => {
+            const result = await context.mcpClient.callTool('assets-refresh', {
+                dir: join(context.testProject.path, 'assets'),
+            });
+
+            expect(result.code).toBe(200);
+        });
     });
 });
 
