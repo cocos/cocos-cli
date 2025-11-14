@@ -170,9 +170,6 @@ class SceneUtil {
      */
     generateNodeInfo(node: cc.Node, generateChildren: boolean): INode {
         const identifier = this.generateNodeIdentifier(node);
-        if (!cc.isValid(node)) {
-            console.warn('该节点无效');
-        }
         const nodeInfo: INode = {
             ...identifier,
             prefab: this.generatePrefabInfo(node['_prefab']),

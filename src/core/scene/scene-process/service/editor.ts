@@ -56,6 +56,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
     async queryCurrent(): Promise<IScene | INode | null> {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
+        console.log(`current editor: ${this.currentEditorUuid} `, editor);
         return editor ? await editor.encode() : null;
     }
 
@@ -97,6 +98,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         const encode = await editor.open(assetInfo);
 
         this.emit('editor:open');
+        console.log(`打开 ${assetInfo.url}`);
         return encode;
     }
 
@@ -125,6 +127,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this.editorMap.delete(uuid);
 
             this.emit('editor:close');
+
+            console.log(`关闭 ${assetInfo.url}`);
             return result;
         } catch (error) {
             console.error(`关闭失败: [${urlOrUUID}]`, error);
@@ -154,6 +158,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
             this.emit('editor:save');
 
+            console.log(`保存 ${assetInfo.url}`);
             return result;
         } catch (error) {
             console.error(`保存失败: [${urlOrUUID}]`, error);
@@ -183,6 +188,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
             this.emit('editor:reload');
             this.broadcast('editor:reload');
+
+            console.log(`重载 ${assetInfo.url}`);
             return result;
         } catch (error) {
             console.error(`重载失败: [${urlOrUUID}]`, error);
