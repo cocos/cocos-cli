@@ -77,7 +77,6 @@ export class PrefabEditor extends BaseEditor {
         editorPrefabUtils.restorePrefabUUID(this.virtualScene, prefabUUIDMap);
         this.entity.instance = find(prefabName) as Node;
         Prefab._utils.applyTargetOverrides(this.entity.instance);
-
         return this.encode();
     }
 

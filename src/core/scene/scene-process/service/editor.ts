@@ -56,7 +56,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
     async queryCurrent(): Promise<IScene | INode | null> {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
-        console.log(`current editor: ${this.currentEditorUuid} `, editor);
+        console.log(`current editor: ${this.currentEditorUuid} `);
         return editor ? await editor.encode() : null;
     }
 
