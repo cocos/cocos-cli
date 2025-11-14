@@ -141,6 +141,9 @@ export class NewConsole {
         this._start = true;
 
         // @ts-ignore 将处理过的继承自 console 的新对象赋给 windows
+        // 保存原始 console 引用，以便其他模块可以访问原始 console 避免死循环
+        (this as any).__rawConsole = rawConsole;
+        // @ts-ignore
         globalThis.console = this;
         rawConsole.debug(`Start record log in {file(${this.logDest})}`);
     }
@@ -193,21 +196,32 @@ export class NewConsole {
      */
     private _logMessage(type: IConsoleType, ...args: any[]): void {
         if (this.isLogging) {
+            // 如果正在记录日志，直接返回，避免死循环
             return;
         }
         // 防止递归调用
         this.isLogging = true;
 
-        const message = this._formatMessage(...args);
-        this._handleProgressMessage(type, message);
+        try {
+            const message = this._formatMessage(...args);
+            this._handleProgressMessage(type, message);
 
-        // 重置标志
-        this.isLogging = false;
-
-        if (!this._start) {
-            return;
+            if (this._start) {
+                this.save();
+            }
+        } catch (error) {
+            // 如果日志记录过程中出错，使用原始 console 输出，避免死循环
+            // 不能使用 newConsole.error，因为那会再次触发这个流程
+            try {
+                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
+                rawConsole.error('[NewConsole] Error in _logMessage:', error);
+            } catch {
+                // 如果连原始 console 都失败了，忽略（避免无限循环）
+            }
+        } finally {
+            // 必须在 finally 中重置标志，确保即使出错也能重置
+            this.isLogging = false;
         }
-        this.save();
     }
 
     public log(...args: any[]) {
@@ -274,8 +288,21 @@ export class NewConsole {
         this.lastPrintType = type;
         this.lastPrintMessage = message;
         this.lastPrintTime = now;
+        
         // 控制台输出：保留 ANSI 转义码（用于彩色显示）
-        this.consola[type](message);
+        // 使用 try-catch 包裹 consola 调用，避免 consola 内部错误触发全局错误处理器导致死循环
+        try {
+            this.consola[type](message);
+        } catch (consolaError) {
+            // 如果 consola 调用失败，使用原始 console 输出，避免死循环
+            try {
+                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
+                rawConsole.error('[NewConsole] Failed to log to consola:', consolaError);
+            } catch {
+                // 如果连原始 console 都失败了，忽略（避免无限循环）
+            }
+        }
+        
         // 文件日志：去除 ANSI 转义码（避免日志文件中出现乱码）
         const cleanMessage = stripAnsi(message);
         this.messages.push({
@@ -283,31 +310,43 @@ export class NewConsole {
             value: cleanMessage,
         });
 
-        switch (type) {
-            case 'debug':
-                this.pino.debug(cleanMessage);
-                break;
-            case 'log':
-                this.pino.info(cleanMessage);
-                break;
-            case 'warn':
-                this.pino.warn(cleanMessage);
-                break;
-            case 'error':
-                this.pino.error(cleanMessage);
-                break;
-            case 'info':
-                this.pino.info(cleanMessage);
-                break;
-            case 'success':
-                this.pino.info(cleanMessage);
-                break;
-            case 'ready':
-                this.pino.info(cleanMessage);
-                break;
-            case 'start':
-                this.pino.info(cleanMessage);
-                break;
+        // 使用 try-catch 包裹 pino 调用，避免 pino 内部错误触发全局错误处理器导致死循环
+        try {
+            switch (type) {
+                case 'debug':
+                    this.pino.debug(cleanMessage);
+                    break;
+                case 'log':
+                    this.pino.info(cleanMessage);
+                    break;
+                case 'warn':
+                    this.pino.warn(cleanMessage);
+                    break;
+                case 'error':
+                    this.pino.error(cleanMessage);
+                    break;
+                case 'info':
+                    this.pino.info(cleanMessage);
+                    break;
+                case 'success':
+                    this.pino.info(cleanMessage);
+                    break;
+                case 'ready':
+                    this.pino.info(cleanMessage);
+                    break;
+                case 'start':
+                    this.pino.info(cleanMessage);
+                    break;
+            }
+        } catch (pinoError) {
+            // 如果 pino 调用失败，使用原始 console 输出，避免死循环
+            // 不能使用 newConsole.error，因为那会再次触发这个流程
+            try {
+                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
+                rawConsole.error('[NewConsole] Failed to log to pino:', pinoError);
+            } catch {
+                // 如果连原始 console 都失败了，忽略（避免无限循环）
+            }
         }
     }
 
