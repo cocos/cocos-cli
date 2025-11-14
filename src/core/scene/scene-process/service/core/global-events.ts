@@ -79,7 +79,7 @@ class GlobalEventManager {
      */
     emit<TEvents extends Record<string, any>>(
         event: keyof TEvents,
-        ...args: TEvents[keyof TEvents] extends void ? [] : [TEvents[keyof TEvents]]
+        ...args: TEvents[keyof TEvents]
     ): void;
     /**
      * 触发事件（通用版本）
@@ -98,7 +98,7 @@ class GlobalEventManager {
      */
     broadcast<TEvents extends Record<string, any>>(
         event: keyof TEvents,
-        ...args: TEvents[keyof TEvents] extends void ? [] : [TEvents[keyof TEvents]]
+        ...args: TEvents[keyof TEvents]
     ): void;
     broadcast(event: string, ...args: any[]): void;
     broadcast(event: any, ...args: any[]): void {
@@ -107,7 +107,10 @@ class GlobalEventManager {
             event: event as string,
             args: [...args]
         };
-        process.send?.(message);
+        globalEventEmitter.emit(event, ...args);
+        if ('connected' in process) {
+            process.send?.(message);
+        }
     }
 
     /**

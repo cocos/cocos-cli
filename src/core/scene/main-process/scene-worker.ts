@@ -5,6 +5,7 @@ import { SceneProcessEventTag, SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
 import { listenModuleMessages } from './messages';
+import { getAvailablePort } from '../../../server/utils';
 
 export interface ISceneWorkerEvents {
     'restart': boolean,
@@ -42,7 +43,7 @@ export class SceneWorker {
         this.enginePath = enginePath;
         this.projectPath = projectPath;
 
-        return new Promise((resolve) => {
+        return new Promise(async (resolve) => {
             let isResolved = false;
             let startupTimer: NodeJS.Timeout | null = null;
 
@@ -68,8 +69,8 @@ export class SceneWorker {
                     `--serverURL=${getServerUrl()}`,
                 ];
                 const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-                const inspectPort = '9230';
-
+                const inspectPort = await getAvailablePort(9230);
+                console.log('--inspect= ' + inspectPort);
                 this._process = fork(precessPath, args, {
                     detached: false,
                     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
@@ -150,16 +151,15 @@ export class SceneWorker {
     }
 
     /**
-     * 判断是否为真正的崩溃（排除手动kill等情况）
+     * 判断是否崩溃
      * @private
      */
-    private isCrashExit(code: number, signal: string | null): boolean {
+    private isCrashExit(code: number): boolean {
         // 如果是手动停止，不算崩溃
         if (this.isManualStop) {
             return false;
         }
-
-
+        
         // 其他非零退出码且非手动终止信号的情况，认为是崩溃
         return code !== 0;
     }
@@ -186,6 +186,14 @@ export class SceneWorker {
         console.log(`开始重启场景进程 (第 ${this.currentRestartCount}/${this.maxRestartAttempts} 次)`);
 
         try {
+            // 暂停 RPC 消息队列，避免在进程重启期间浪费重试次数
+            try {
+                Rpc.getInstance().pauseQueue();
+                console.log('RPC 消息队列已暂停');
+            } catch (error) {
+                console.warn('暂停 RPC 队列失败（RPC 可能未初始化）:', error);
+            }
+
             // 清理当前进程
             this._process = null;
 
@@ -199,6 +207,15 @@ export class SceneWorker {
 
             if (success) {
                 console.log('场景进程重启成功');
+                
+                // 恢复 RPC 消息队列，重置重试计数并继续发送待处理消息
+                try {
+                    Rpc.getInstance().resumeQueue();
+                    console.log('RPC 消息队列已恢复');
+                } catch (error) {
+                    console.warn('恢复 RPC 队列失败:', error);
+                }
+                
                 // 重启成功后重置重启计数
                 this.currentRestartCount = 0;
                 this.emit<ISceneWorkerEvents>('restart', true);
@@ -209,6 +226,14 @@ export class SceneWorker {
                 if (this.currentRestartCount >= this.maxRestartAttempts) {
                     console.error('已达到最大重启次数，场景进程无法恢复');
                     this.emit<ISceneWorkerEvents>('restart', false);
+                    
+                    // 清理所有待处理的 RPC 消息
+                    try {
+                        Rpc.getInstance().clearPendingMessages();
+                        console.log('已清理所有待处理的 RPC 消息');
+                    } catch (error) {
+                        console.warn('清理 RPC 消息失败:', error);
+                    }
                 }
             }
         } catch (error) {
@@ -220,6 +245,14 @@ export class SceneWorker {
             // 如果达到最大重试次数，停止重启
             if (this.currentRestartCount >= this.maxRestartAttempts) {
                 console.error('重启过程中发生错误且已达到最大重试次数，停止重启');
+                
+                // 清理所有待处理的 RPC 消息
+                try {
+                    Rpc.getInstance().clearPendingMessages();
+                    console.log('已清理所有待处理的 RPC 消息');
+                } catch (error) {
+                    console.warn('清理 RPC 消息失败:', error);
+                }
             }
         } finally {
             this.isRestarting = false;
@@ -258,10 +291,10 @@ export class SceneWorker {
         this.process.on('exit', (code: number, signal) => {
             if (code !== 0) {
                 console.error(`场景进程退出异常 code:${code}, signal:${signal}`);
-
-                // 判断是否为真正的崩溃（排除手动kill的情况）
-                const isCrash = this.isCrashExit(code, signal);
-
+                
+                // 判断是否为真正的崩溃（排除手动 kill 的情况）
+                const isCrash = this.isCrashExit(code);
+                
                 if (isCrash && !this.isManualStop && !this.isRestarting && this.enginePath && this.projectPath) {
                     console.log('检测到场景进程崩溃，准备重启...');
                     this.restart().catch(error => {

@@ -6,10 +6,8 @@ import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { sceneWorker } from '../main-process/scene-worker';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { EngineProxy } from '../main-process/proxy/engine-proxy';
-import { SceneProxy } from '../main-process/proxy/scene-proxy';
+import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
-
-jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
 
 describe('Engine Proxy 测试', () => {
     let nodePath = '';
@@ -42,7 +40,7 @@ describe('Engine Proxy 测试', () => {
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
         it('updateNode', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
@@ -59,7 +57,7 @@ describe('Engine Proxy 测试', () => {
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
         it('addComponent', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
@@ -74,7 +72,7 @@ describe('Engine Proxy 测试', () => {
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
         it('setProperty', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
@@ -90,7 +88,7 @@ describe('Engine Proxy 测试', () => {
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
         it('removeComponent', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
@@ -101,7 +99,7 @@ describe('Engine Proxy 测试', () => {
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
         it('deleteNode', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
@@ -115,35 +113,36 @@ describe('Engine Proxy 测试', () => {
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
         it('open Scene', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            await SceneProxy.create({
+            await EditorProxy.create({
+                type: 'scene',
                 baseName: 'abc',
                 templateType: '2d',
                 targetDirectory: SceneTestEnv.targetDirectoryURL,
             });
-            await SceneProxy.open({
+            await EditorProxy.open({
                 urlOrUUID: `${SceneTestEnv.targetDirectoryURL}/abc.scene`,
             });
 
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
 
-        it('softReload Scene', async () => {
+        it('reload Scene', async () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            await SceneProxy.softReload({});
+            await EditorProxy.reload({});
 
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
             expect(true).toBe(true);
-        }, 10000);
+        });
     });
 });

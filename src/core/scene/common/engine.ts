@@ -1,12 +1,13 @@
+import { IServiceEvents } from '../scene-process/service/core';
 
 export interface IEngineEvents {
-    'engine:update': void;
-    'engine:ticked': void;
+    'engine:update': [];
+    'engine:ticked': [];
 }
 
-export interface IPublicEngineService extends IEngineService {}
+export interface IPublicEngineService extends Omit<IEngineService, keyof IServiceEvents> {}
 
-export interface IEngineService {
+export interface IEngineService extends IServiceEvents {
     /**
      * 初始化引擎服务，目前是暂时引擎 mainLoop
      */

@@ -1,6 +1,6 @@
-import { description, param, result, title, tool } from '../decorator/decorator';
+import { description, param, result, title } from '../decorator/decorator';
 import { z } from 'zod';
-import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
+import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 
 // Schema 定义
 const SchemaProjectPath = z.string().min(1).describe('项目路径');

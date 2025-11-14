@@ -1,5 +1,8 @@
 import type { Component } from 'cc';
-import { IPropertyValueType } from '../@types/public';
+import type { IPropertyValueType } from '../@types/public';
+import type { IServiceEvents } from '../scene-process/service/core';
+import type { ICompPrefabInfo } from './prefab';
+import type { IChangeNodeOptions } from './node';
 
 /**
  * 代表一个组件
@@ -18,6 +21,7 @@ export interface IComponentIdentifier {
  */
 export interface IComponent extends IComponentIdentifier {
     properties: { [key: string]: IPropertyValueType };
+    prefab: ICompPrefabInfo | null;
 }
 
 /**
@@ -58,18 +62,23 @@ export interface ISetPropertyOptions {
  * 场景事件类型
  */
 export interface IComponentEvents {
-    'component:add': IComponent;
-    'component:before-remove': IComponent;
-    'component:remove': IComponent;
-    'component:set-property': IComponent;
+    'component:add': [Component];
+    'component:before-remove': [Component];
+    'component:remove': [Component];
+    'component:set-property': [Component, IChangeNodeOptions];
+    'component:added': [Component];
+    'component:removed': [Component];
 }
 
-export interface IPublicComponentService extends IComponentService {}
+export interface IPublicComponentService extends Omit<IComponentService, keyof IServiceEvents |
+    'init' |
+    'unregisterCompMgrEvents'
+> {}
 
 /**
  * 组件的相关处理接口
  */
-export interface IComponentService {
+export interface IComponentService extends IServiceEvents {
     /**
      * 创建组件
      * @param params
@@ -93,4 +102,9 @@ export interface IComponentService {
      * 获取所有组件名，包含内置与自定义组件
      */
     queryAllComponent(): Promise<string[]>
+
+    // 不对外接口
+
+    init(): void;
+    unregisterCompMgrEvents(): void;
 }

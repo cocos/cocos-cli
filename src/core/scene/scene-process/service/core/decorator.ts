@@ -20,7 +20,7 @@ import type { IServiceManager } from '../interfaces';
  *
  * // 使用
  * import { Service } from './service';
- * Service.Scene.loadScene('Main');
+ * Service.Editor.loadScene('Main');
  */
 
 export type ServiceName = keyof IServiceManager; // 'Scene' | 'Node' | 'Script' ...
@@ -40,7 +40,7 @@ export function register(name?: string): ClassDecorator {
 }
 
 /**
- * 全局代理：通过 Service.Scene.xxx() 访问
+ * 全局代理：通过 Service.Editor.xxx() 访问
  */
 export const Service = new Proxy({} as IServiceManager, {
     get(_, prop: string) {
@@ -51,3 +51,10 @@ export const Service = new Proxy({} as IServiceManager, {
         return svc;
     },
 });
+
+/**
+ * 获取全部 Service
+ */
+export function getServiceAll() {
+    return Object.values(_serviceRegistry);
+}

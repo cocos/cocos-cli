@@ -1,1233 +1,1233 @@
 {
-    "$schema": "./temp/cocos.config.schema.json",
-    "version": "1.0.0",
-    "builder": {
-        "platforms": {
-            "web-desktop": {
-                "outputName": "web-desktop-test",
-                "packages": {
-                    "web-desktop": {
-                        "useWebGPU": false,
-                        "resolution": {
-                            "designWidth": 1280,
-                            "designHeight": 960
-                        },
-                        "polyfills": {
-                            "asyncFunctions": true
-                        },
-                        "buildPath": "project://build",
-                        "outputName": "web-desktop-001",
-                        "mainBundleCompressionType": "merge_dep",
-                        "platform": "web-desktop",
-                        "debug": true,
-                        "sourceMaps": true,
-                        "startScene": "42e68f34-5f5f-4a8a-938a-ec9d5fe61b0d"
-                    }
-                }
+  "$schema": "./temp/cocos.config.schema.json",
+  "version": "1.0.0",
+  "builder": {
+    "platforms": {
+      "web-desktop": {
+        "outputName": "web-desktop-test",
+        "packages": {
+          "web-desktop": {
+            "useWebGPU": false,
+            "resolution": {
+              "designWidth": 1280,
+              "designHeight": 960
             },
-            "web-mobile": {
-                "outputName": "web-mobile-test",
-                "packages": {
-                    "web-mobile": {
-                        "useWebGPU": false,
-                        "orientation": "portrait",
-                        "embedWebDebugger": false,
-                        "polyfills": {
-                            "asyncFunctions": true
-                        },
-                        "buildPath": "project://build",
-                        "outputName": "web-mobile",
-                        "mainBundleCompressionType": "merge_dep",
-                        "platform": "web-mobile",
-                        "startScene": "42e68f34-5f5f-4a8a-938a-ec9d5fe61b0d"
-                    }
-                }
-            }
-        },
-        "common": {
-            "platform": "web-mobile",
-            "name": "cocos-example-test",
-            "server": "http://192.168.52.212:8080",
-            "buildPath": "project://build",
-            "debug": true,
-            "buildMode": "normal",
-            "mangleProperties": false,
-            "md5Cache": true,
-            "skipCompressTexture": false,
-            "sourceMaps": true,
-            "overwriteProjectSettings": {
-                "includeModules": {
-                    "gfx-webgl2": "on",
-                    "physics": "inherit-project-setting",
-                    "physics-2d": "inherit-project-setting"
-                },
-                "macroConfig": {
-                    "cleanupImageCache": "inherit-project-setting"
-                }
-            },
-            "nativeCodeBundleMode": "wasm",
             "polyfills": {
-                "asyncFunctions": true
+              "asyncFunctions": true
             },
-            "experimentalEraseModules": false,
-            "startSceneAssetBundle": true,
-            "bundleConfigs": [],
-            "inlineEnum": true,
-            "mainBundleIsRemote": false,
+            "buildPath": "project://build",
+            "outputName": "web-desktop-001",
             "mainBundleCompressionType": "merge_dep",
-            "useSplashScreen": true,
-            "bundleCommonChunk": false,
-            "packAutoAtlas": true,
-            "binGroupConfig": {
-                "threshold": 16,
-                "enable": false
-            },
-            "outputName": "bytedance-mini-game-001",
-            "useBuiltinServer": true
-        },
-        "bundleConfig": {
-            "custom": {
-                "auto_7evucA4SBKXLRpDJDwkOxu": {
-                    "displayName": "resources",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            },
-                            "overwriteSettings": {
-                                "windows": {
-                                    "compressionType": "merge_all_json",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "fallback",
-                            "overwriteSettings": {
-                                "alipay-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "taobao-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "merge_all_json",
-                                    "isRemote": false
-                                },
-                                "cocos-play": {
-                                    "compressionType": "merge_all_json",
-                                    "isRemote": false
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "merge_all_json",
-                                    "isRemote": true
-                                },
-                                "wechatgame": {
-                                    "compressionType": "merge_all_json",
-                                    "isRemote": true
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "none",
-                                    "isRemote": false
-                                }
-                            },
-                            "fallbackOptions": {
-                                "isRemote": true
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            },
-                            "overwriteSettings": {
-                                "web-desktop": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "web-mobile": {
-                                    "compressionType": "none",
-                                    "isRemote": true
-                                }
-                            }
-                        }
-                    }
-                },
-                "auto_2dkneFflFGUaSelpdUtlcE": {
-                    "displayName": "TestBundle",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "overwrite",
-                            "overwriteSettings": {
-                                "taobao-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "wechatgame": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "alipay-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "cocos-play": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        }
-                    }
-                },
-                "auto_4dDdFRwGRPe54YyeyK5MDp": {
-                    "displayName": "TestBundleZip",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "overwrite",
-                            "overwriteSettings": {
-                                "alipay-mini-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "taobao-mini-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "wechatgame": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "cocos-play": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        }
-                    }
-                },
-                "auto_67RTLI+bRLk5/K5Aww9eQK": {
-                    "displayName": "sub-pack-01",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "overwrite",
-                            "overwriteSettings": {
-                                "taobao-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "wechatgame": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "alipay-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "cocos-play": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        }
-                    }
-                },
-                "auto_f92s/QEXhO5KMFwv8Wdu5p": {
-                    "displayName": "sub-pack-02",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "overwrite",
-                            "overwriteSettings": {
-                                "taobao-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "wechatgame": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "alipay-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "cocos-play": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        }
-                    }
-                },
-                "auto_6acrVjL21C54emd5nf54bR": {
-                    "displayName": "subPackage",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "overwrite",
-                            "overwriteSettings": {
-                                "alipay-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "cocos-play": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "wechatgame": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        }
-                    }
-                },
-                "auto_c7TwxTkGpM6qguaJ+bd1Ve": {
-                    "displayName": "test-atlas-build",
-                    "configs": {
-                        "native": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        },
-                        "miniGame": {
-                            "configMode": "overwrite",
-                            "overwriteSettings": {
-                                "alipay-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-creative-app": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "taobao-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "bytedance-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": true
-                                },
-                                "oppo-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "huawei-quick-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "vivo-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "baidu-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "wechatgame": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "link-sure": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "qtt": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "cocos-play": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                }
-                            }
-                        },
-                        "web": {
-                            "preferredOptions": {
-                                "compressionType": "merge_dep",
-                                "isRemote": false
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "textureCompressConfig": {
-            "userPreset": {
-                "33c0074836a7e03830341d5a99f09f00": {
-                    "name": "etc1rgb",
-                    "options": {
-                        "android": {
-                            "etc1_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "etc1_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "etc1_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "etc1_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "2098655fcfa99b57d3f696a4033b3820": {
-                    "name": "etc1rgb_a",
-                    "options": {
-                        "android": {
-                            "etc1_rgb_a": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "etc1_rgb_a": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "etc1_rgb_a": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "etc1_rgb_a": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "a7dbf347e43450d4471f61e6e1644691": {
-                    "name": "etc2_rgb",
-                    "options": {
-                        "android": {
-                            "etc2_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "etc2_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "etc2_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "etc2_rgb": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "dccb557a034387b75e6baa80196832f0": {
-                    "name": "etc2rgba",
-                    "options": {
-                        "android": {
-                            "etc2_rgba": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "etc2_rgba": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "etc2_rgba": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "etc2_rgba": {
-                                "quality": "fast"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "13557f486bcc25b285cba9223b3377a8": {
-                    "name": "pvr2rgb",
-                    "options": {
-                        "android": {},
-                        "ios": {
-                            "pvrtc_2bits_rgb": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "pvrtc_2bits_rgb": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "pvrtc_2bits_rgb": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "0c4695421f1d2822ee478d63a908ebaf": {
-                    "name": "pvr2rgb_a",
-                    "options": {
-                        "android": {},
-                        "ios": {
-                            "pvrtc_2bits_rgb_a": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "pvrtc_2bits_rgb_a": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "pvrtc_2bits_rgb_a": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "88dc9f1afbbea6dc33264299b06defc4": {
-                    "name": "pvr2rgba",
-                    "options": {
-                        "android": {},
-                        "ios": {
-                            "pvrtc_2bits_rgba": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "pvrtc_2bits_rgba": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "pvrtc_2bits_rgba": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "3c1e2cfc710b99a2f1b24cd75d60f4da": {
-                    "name": "pvr4rgb",
-                    "options": {
-                        "ios": {
-                            "pvrtc_4bits_rgb": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "pvrtc_4bits_rgb": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "pvrtc_4bits_rgb": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "38862ba5a526479b6a8e705cff204240": {
-                    "name": "pvr4rgba",
-                    "options": {
-                        "android": {},
-                        "ios": {
-                            "pvrtc_4bits_rgba": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "pvrtc_4bits_rgba": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "pvrtc_4bits_rgba": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "b5b67369a666804c56cd0fbdcf37450d": {
-                    "name": "pvr4rgb_a",
-                    "options": {
-                        "android": {},
-                        "ios": {
-                            "pvrtc_4bits_rgb_a": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "pvrtc_4bits_rgb_a": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "pvrtc_4bits_rgb_a": {
-                                "quality": "normal"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "6a294358579240936bf4d66151e6e720": {
-                    "name": "webp",
-                    "options": {
-                        "android": {
-                            "webp": {
-                                "quality": 80
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "webp": {
-                                "quality": 80
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "webp": {
-                                "quality": 80
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "webp": {
-                                "quality": 80
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "c36bbd258b7ee694eb987221b2b197b0": {
-                    "name": "jpg",
-                    "options": {
-                        "android": {
-                            "jpg": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "jpg": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "jpg": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "jpg": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "edctr14XNOBKwkx22W6cdp": {
-                    "name": "astc4x4",
-                    "options": {
-                        "android": {
-                            "astc_4x4": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "astc_4x4": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "astc_4x4": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "astc_4x4": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "82pTTpO+lA74wnjpL1v4Bx": {
-                    "name": "astc10x10",
-                    "options": {
-                        "android": {
-                            "astc_10x10": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "astc_10x10": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "astc_10x10": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "astc_10x10": {
-                                "quality": "medium"
-                            },
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                },
-                "afI5JG+ONDCbgGbraJsAx6": {
-                    "name": "png",
-                    "options": {
-                        "android": {
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "ios": {
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "miniGame": {
-                            "png": {
-                                "quality": 80
-                            }
-                        },
-                        "web": {
-                            "png": {
-                                "quality": 80
-                            }
-                        }
-                    }
-                }
-            },
-            "genMipmaps": false
+            "platform": "web-desktop",
+            "debug": true,
+            "sourceMaps": true,
+            "startScene": "42e68f34-5f5f-4a8a-938a-ec9d5fe61b0d"
+          }
         }
-    },
-    "engine": {
-        "configs": {
-            "migrationsConfig": {
-                "name": "迁移生成的配置",
-                "flags": {},
-                "includeModules": [
-                    "2d",
-                    "3d",
-                    "affine-transform",
-                    "animation",
-                    "audio",
-                    "base",
-                    "debug-renderer",
-                    "dragon-bones",
-                    "geometry-renderer",
-                    "gfx-webgl",
-                    "graphics",
-                    "intersection-2d",
-                    "legacy-pipeline",
-                    "light-probe",
-                    "mask",
-                    "particle",
-                    "particle-2d",
-                    "physics-2d-builtin",
-                    "physics-cannon",
-                    "primitive",
-                    "profiler",
-                    "rich-text",
-                    "skeletal-animation",
-                    "spine-3.8",
-                    "terrain",
-                    "tiled-map",
-                    "tween",
-                    "ui",
-                    "video",
-                    "websocket",
-                    "webview"
-                ],
-                "noDeprecatedFeatures": {
-                    "value": false,
-                    "version": ""
-                }
-            }
-        },
-        "globalConfigKey": "migrationsConfig",
-        "designResolution": {
-            "width": 960,
-            "height": 640,
-            "fitWidth": true,
-            "fitHeight": true
-        },
-        "customLayers": [
-            {
-                "name": "canvas_9",
-                "value": 512
+      },
+      "web-mobile": {
+        "outputName": "web-mobile-test",
+        "packages": {
+          "web-mobile": {
+            "useWebGPU": false,
+            "orientation": "portrait",
+            "embedWebDebugger": false,
+            "polyfills": {
+              "asyncFunctions": true
             },
-            {
-                "name": "canvas_10",
-                "value": 1024
-            },
-            {
-                "name": "canvas_11",
-                "value": 2048
-            },
-            {
-                "name": "canvas_12",
-                "value": 4096
-            },
-            {
-                "name": "canvas_13",
-                "value": 8192
-            },
-            {
-                "name": "canvas_14",
-                "value": 16384
-            },
-            {
-                "name": "canvas_15",
-                "value": 32768
-            },
-            {
-                "name": "canvas_16",
-                "value": 65536
-            },
-            {
-                "name": "canvas_17",
-                "value": 131072
-            },
-            {
-                "name": "canvas_18",
-                "value": 262144
-            },
-            {
-                "name": "canvas_19",
-                "value": 524288
-            }
-        ]
-    },
-    "script": {
-        "useDefineForClassFields": true,
-        "allowDeclareFields": true,
-        "preserveSymlinks": true
-    },
-    "import": {
-        "fbx": {
-            "legacyFbxImporter": {
-                "visible": true
-            }
+            "buildPath": "project://build",
+            "outputName": "web-mobile",
+            "mainBundleCompressionType": "merge_dep",
+            "platform": "web-mobile",
+            "startScene": "42e68f34-5f5f-4a8a-938a-ec9d5fe61b0d"
+          }
         }
+      }
+    },
+    "common": {
+      "platform": "web-mobile",
+      "name": "cocos-example-test",
+      "server": "http://192.168.52.212:8080",
+      "buildPath": "project://build",
+      "debug": true,
+      "buildMode": "normal",
+      "mangleProperties": false,
+      "md5Cache": true,
+      "skipCompressTexture": false,
+      "sourceMaps": true,
+      "overwriteProjectSettings": {
+        "includeModules": {
+          "gfx-webgl2": "on",
+          "physics": "inherit-project-setting",
+          "physics-2d": "inherit-project-setting"
+        },
+        "macroConfig": {
+          "cleanupImageCache": "inherit-project-setting"
+        }
+      },
+      "nativeCodeBundleMode": "wasm",
+      "polyfills": {
+        "asyncFunctions": true
+      },
+      "experimentalEraseModules": false,
+      "startSceneAssetBundle": true,
+      "bundleConfigs": [],
+      "inlineEnum": true,
+      "mainBundleIsRemote": false,
+      "mainBundleCompressionType": "merge_dep",
+      "useSplashScreen": true,
+      "bundleCommonChunk": false,
+      "packAutoAtlas": true,
+      "binGroupConfig": {
+        "threshold": 16,
+        "enable": false
+      },
+      "outputName": "bytedance-mini-game-001",
+      "useBuiltinServer": true
+    },
+    "bundleConfig": {
+      "custom": {
+        "auto_7evucA4SBKXLRpDJDwkOxu": {
+          "displayName": "resources",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              },
+              "overwriteSettings": {
+                "windows": {
+                  "compressionType": "merge_all_json",
+                  "isRemote": false
+                }
+              }
+            },
+            "miniGame": {
+              "configMode": "fallback",
+              "overwriteSettings": {
+                "alipay-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "taobao-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "oppo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "vivo-mini-game": {
+                  "compressionType": "merge_all_json",
+                  "isRemote": false
+                },
+                "cocos-play": {
+                  "compressionType": "merge_all_json",
+                  "isRemote": false
+                },
+                "baidu-mini-game": {
+                  "compressionType": "merge_all_json",
+                  "isRemote": true
+                },
+                "wechatgame": {
+                  "compressionType": "merge_all_json",
+                  "isRemote": true
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "huawei-quick-game": {
+                  "compressionType": "none",
+                  "isRemote": false
+                }
+              },
+              "fallbackOptions": {
+                "isRemote": true
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              },
+              "overwriteSettings": {
+                "web-desktop": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "web-mobile": {
+                  "compressionType": "none",
+                  "isRemote": true
+                }
+              }
+            }
+          }
+        },
+        "auto_2dkneFflFGUaSelpdUtlcE": {
+          "displayName": "TestBundle",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            },
+            "miniGame": {
+              "configMode": "overwrite",
+              "overwriteSettings": {
+                "taobao-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "oppo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "huawei-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "vivo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "baidu-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "wechatgame": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "alipay-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "cocos-play": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                }
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            }
+          }
+        },
+        "auto_4dDdFRwGRPe54YyeyK5MDp": {
+          "displayName": "TestBundleZip",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            },
+            "miniGame": {
+              "configMode": "overwrite",
+              "overwriteSettings": {
+                "alipay-mini-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "taobao-mini-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "oppo-mini-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "huawei-quick-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "vivo-mini-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "baidu-mini-game": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "wechatgame": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "cocos-play": {
+                  "compressionType": "zip",
+                  "isRemote": true
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                }
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            }
+          }
+        },
+        "auto_67RTLI+bRLk5/K5Aww9eQK": {
+          "displayName": "sub-pack-01",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            },
+            "miniGame": {
+              "configMode": "overwrite",
+              "overwriteSettings": {
+                "taobao-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "oppo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "huawei-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "vivo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "baidu-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "wechatgame": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "alipay-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "cocos-play": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                }
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            }
+          }
+        },
+        "auto_f92s/QEXhO5KMFwv8Wdu5p": {
+          "displayName": "sub-pack-02",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            },
+            "miniGame": {
+              "configMode": "overwrite",
+              "overwriteSettings": {
+                "taobao-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "oppo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "huawei-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "vivo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "baidu-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "wechatgame": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "alipay-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "cocos-play": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                }
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            }
+          }
+        },
+        "auto_6acrVjL21C54emd5nf54bR": {
+          "displayName": "subPackage",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            },
+            "miniGame": {
+              "configMode": "overwrite",
+              "overwriteSettings": {
+                "alipay-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "oppo-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "huawei-quick-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "cocos-play": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "vivo-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "baidu-mini-game": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                },
+                "wechatgame": {
+                  "compressionType": "subpackage",
+                  "isRemote": false
+                }
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            }
+          }
+        },
+        "auto_c7TwxTkGpM6qguaJ+bd1Ve": {
+          "displayName": "test-atlas-build",
+          "configs": {
+            "native": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            },
+            "miniGame": {
+              "configMode": "overwrite",
+              "overwriteSettings": {
+                "alipay-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-creative-app": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "taobao-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "bytedance-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": true
+                },
+                "oppo-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "huawei-quick-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "vivo-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "xiaomi-quick-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "baidu-mini-game": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "wechatgame": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "link-sure": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "qtt": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                },
+                "cocos-play": {
+                  "compressionType": "merge_dep",
+                  "isRemote": false
+                }
+              }
+            },
+            "web": {
+              "preferredOptions": {
+                "compressionType": "merge_dep",
+                "isRemote": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "textureCompressConfig": {
+      "userPreset": {
+        "33c0074836a7e03830341d5a99f09f00": {
+          "name": "etc1rgb",
+          "options": {
+            "android": {
+              "etc1_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "etc1_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "etc1_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "etc1_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "2098655fcfa99b57d3f696a4033b3820": {
+          "name": "etc1rgb_a",
+          "options": {
+            "android": {
+              "etc1_rgb_a": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "etc1_rgb_a": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "etc1_rgb_a": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "etc1_rgb_a": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "a7dbf347e43450d4471f61e6e1644691": {
+          "name": "etc2_rgb",
+          "options": {
+            "android": {
+              "etc2_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "etc2_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "etc2_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "etc2_rgb": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "dccb557a034387b75e6baa80196832f0": {
+          "name": "etc2rgba",
+          "options": {
+            "android": {
+              "etc2_rgba": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "etc2_rgba": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "etc2_rgba": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "etc2_rgba": {
+                "quality": "fast"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "13557f486bcc25b285cba9223b3377a8": {
+          "name": "pvr2rgb",
+          "options": {
+            "android": {},
+            "ios": {
+              "pvrtc_2bits_rgb": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "pvrtc_2bits_rgb": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "pvrtc_2bits_rgb": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "0c4695421f1d2822ee478d63a908ebaf": {
+          "name": "pvr2rgb_a",
+          "options": {
+            "android": {},
+            "ios": {
+              "pvrtc_2bits_rgb_a": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "pvrtc_2bits_rgb_a": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "pvrtc_2bits_rgb_a": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "88dc9f1afbbea6dc33264299b06defc4": {
+          "name": "pvr2rgba",
+          "options": {
+            "android": {},
+            "ios": {
+              "pvrtc_2bits_rgba": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "pvrtc_2bits_rgba": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "pvrtc_2bits_rgba": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "3c1e2cfc710b99a2f1b24cd75d60f4da": {
+          "name": "pvr4rgb",
+          "options": {
+            "ios": {
+              "pvrtc_4bits_rgb": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "pvrtc_4bits_rgb": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "pvrtc_4bits_rgb": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "38862ba5a526479b6a8e705cff204240": {
+          "name": "pvr4rgba",
+          "options": {
+            "android": {},
+            "ios": {
+              "pvrtc_4bits_rgba": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "pvrtc_4bits_rgba": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "pvrtc_4bits_rgba": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "b5b67369a666804c56cd0fbdcf37450d": {
+          "name": "pvr4rgb_a",
+          "options": {
+            "android": {},
+            "ios": {
+              "pvrtc_4bits_rgb_a": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "pvrtc_4bits_rgb_a": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "pvrtc_4bits_rgb_a": {
+                "quality": "normal"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "6a294358579240936bf4d66151e6e720": {
+          "name": "webp",
+          "options": {
+            "android": {
+              "webp": {
+                "quality": 80
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "webp": {
+                "quality": 80
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "webp": {
+                "quality": 80
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "webp": {
+                "quality": 80
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "c36bbd258b7ee694eb987221b2b197b0": {
+          "name": "jpg",
+          "options": {
+            "android": {
+              "jpg": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "jpg": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "jpg": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "jpg": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "edctr14XNOBKwkx22W6cdp": {
+          "name": "astc4x4",
+          "options": {
+            "android": {
+              "astc_4x4": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "astc_4x4": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "astc_4x4": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "astc_4x4": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "82pTTpO+lA74wnjpL1v4Bx": {
+          "name": "astc10x10",
+          "options": {
+            "android": {
+              "astc_10x10": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "astc_10x10": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "astc_10x10": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "astc_10x10": {
+                "quality": "medium"
+              },
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        },
+        "afI5JG+ONDCbgGbraJsAx6": {
+          "name": "png",
+          "options": {
+            "android": {
+              "png": {
+                "quality": 80
+              }
+            },
+            "ios": {
+              "png": {
+                "quality": 80
+              }
+            },
+            "miniGame": {
+              "png": {
+                "quality": 80
+              }
+            },
+            "web": {
+              "png": {
+                "quality": 80
+              }
+            }
+          }
+        }
+      },
+      "genMipmaps": false
     }
+  },
+  "engine": {
+    "configs": {
+      "migrationsConfig": {
+        "name": "迁移生成的配置",
+        "flags": {},
+        "includeModules": [
+          "2d",
+          "3d",
+          "affine-transform",
+          "animation",
+          "audio",
+          "base",
+          "debug-renderer",
+          "dragon-bones",
+          "geometry-renderer",
+          "gfx-webgl",
+          "graphics",
+          "intersection-2d",
+          "legacy-pipeline",
+          "light-probe",
+          "mask",
+          "particle",
+          "particle-2d",
+          "physics-2d-builtin",
+          "physics-cannon",
+          "primitive",
+          "profiler",
+          "rich-text",
+          "skeletal-animation",
+          "spine-3.8",
+          "terrain",
+          "tiled-map",
+          "tween",
+          "ui",
+          "video",
+          "websocket",
+          "webview"
+        ],
+        "noDeprecatedFeatures": {
+          "value": false,
+          "version": ""
+        }
+      }
+    },
+    "globalConfigKey": "migrationsConfig",
+    "designResolution": {
+      "width": 960,
+      "height": 640,
+      "fitWidth": true,
+      "fitHeight": true
+    },
+    "customLayers": [
+      {
+        "name": "canvas_9",
+        "value": 512
+      },
+      {
+        "name": "canvas_10",
+        "value": 1024
+      },
+      {
+        "name": "canvas_11",
+        "value": 2048
+      },
+      {
+        "name": "canvas_12",
+        "value": 4096
+      },
+      {
+        "name": "canvas_13",
+        "value": 8192
+      },
+      {
+        "name": "canvas_14",
+        "value": 16384
+      },
+      {
+        "name": "canvas_15",
+        "value": 32768
+      },
+      {
+        "name": "canvas_16",
+        "value": 65536
+      },
+      {
+        "name": "canvas_17",
+        "value": 131072
+      },
+      {
+        "name": "canvas_18",
+        "value": 262144
+      },
+      {
+        "name": "canvas_19",
+        "value": 524288
+      }
+    ]
+  },
+  "script": {
+    "useDefineForClassFields": true,
+    "allowDeclareFields": true,
+    "preserveSymlinks": true
+  },
+  "import": {
+    "fbx": {
+      "legacyFbxImporter": {
+        "visible": true
+      }
+    }
+  }
 }

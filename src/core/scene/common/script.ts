@@ -1,12 +1,15 @@
+import { IServiceEvents } from '../scene-process/service/core';
 
 export interface IScriptEvents {
     /**
      * 当脚本刷新并执行完成时触发
      */
-    'script:execution-finished': void,
+    'script:execution-finished': [],
 }
 
-export interface IScriptService {
+export interface IPublicScriptService extends Omit<IScriptService, keyof IServiceEvents | 'suspend' | 'isCustomComponent'> { }
+
+export interface IScriptService extends IServiceEvents {
     investigatePackerDriver(): Promise<void>;
     loadScript(): Promise<void>;
     removeScript(): Promise<void>;
@@ -16,5 +19,3 @@ export interface IScriptService {
     isCustomComponent(classConstructor: Function): Promise<boolean>;
     suspend(condition: Promise<any>): void;
 }
-
-export interface IPublicScriptService extends Omit<IScriptService, 'suspend' | 'isCustomComponent'> { }

@@ -13,13 +13,16 @@ import {
 } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
-
-jest.setTimeout(30 * 60 * 1000); // 半小时（30 分钟）
+import { EditorProxy } from '../main-process/proxy/editor-proxy';
+import { SceneTestEnv } from './scene-test-env';
 
 describe('Component Proxy 测试', () => {
     let nodePath = '';
     let nodeId = '';
     beforeAll(async () => {
+        await EditorProxy.open({
+            urlOrUUID: SceneTestEnv.sceneURL
+        });
         // const params: ICreateByAssetParams = {
         //     dbURL: 'db://internal/default_prefab/ui/Sprite.prefab',
         //     path: '/PrefabNode',
@@ -54,6 +57,7 @@ describe('Component Proxy 测试', () => {
             console.log(`删除节点失败 ${e}`);
             throw e;
         }
+        await EditorProxy.close({});
     });
 
     describe('1. 基础组件操作- 添加，查询，设置属性，移除', () => {

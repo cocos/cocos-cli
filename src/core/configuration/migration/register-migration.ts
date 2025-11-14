@@ -166,5 +166,17 @@ export function getMigrationList(): IMigrationTarget[] {
         }
     });
 
+    // Scene 配置迁移
+    migrationList.push({
+        sourceScope: 'global',
+        pluginName: 'scene',
+        targetPath: 'scene',
+        migrate: async (oldConfig: Record<string, any>) => {
+            return {
+                tick: oldConfig?.scene?.tick ?? false,
+            }
+        }
+    });
+
     return migrationList;
 }

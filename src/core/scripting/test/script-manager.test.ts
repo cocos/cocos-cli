@@ -8,7 +8,7 @@ import { Engine } from '../../engine';
 import path, { join } from 'path';
 import { dbUrlToRawPath } from '../../builder/worker/builder/utils';
 import { TestGlobalEnv } from '../../../tests/global-env';
-import { ensureDirSync, writeFileSync, unlinkSync, existsSync } from 'fs-extra';
+import { ensureDirSync, writeFileSync, unlinkSync, existsSync, readdirSync, rmdirSync } from 'fs-extra';
 import { EngineLoader } from 'cc/loader';
 
 const _ProjectRoot = TestGlobalEnv.projectRoot;
@@ -180,6 +180,18 @@ describe('ScriptManager', () => {
             }
         }
         testFiles.length = 0;
+
+         // If scripts directory is empty, remove it
+         if (existsSync(_ScriptsDir)) {
+            try {
+                const files = readdirSync(_ScriptsDir);
+                if (files.length === 0) {
+                    rmdirSync(_ScriptsDir);
+                }
+            } catch (error) {
+                console.warn(`Failed to check or remove scripts directory: ${_ScriptsDir}`, error);
+            }
+        }
     });
 
     describe('initialize', () => {

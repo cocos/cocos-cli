@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import type { IComponent } from '../../core/scene';
+import { SchemaComponentIdentifier } from '../base/schema-identifier';
+import { SchemaCompPrefabInfo } from './prefab-info-schema';
 
 // 创建组件信息
 export const SchemaAddComponentInfo = z.object({
@@ -7,16 +9,6 @@ export const SchemaAddComponentInfo = z.object({
     //component: z.enum(Object.keys(globalComponentType) as [string, ...string[]]).describe('组件类型'),
     component: z.string().describe('组件名称，支持组件名称、组件资源的 URL 与 UUID'),
 }).describe('添加组件的信息');
-
-// 当前组件信息
-export const SchemaComponentIdentifier = z.object({
-    cid: z.string().describe('组件标识符'),
-    path: z.string().describe('返回组件的路径，包含节点路径'),
-    uuid: z.string().describe('组件的uuid'),
-    name: z.string().describe('组件名称'),
-    type: z.string().describe('组件类型'),
-    enabled: z.boolean().describe('组件是否使能'),
-}).describe('组件的基本信息');
 
 // 移除组件
 export const SchemaRemoveComponent = z.object({
@@ -73,7 +65,8 @@ export const SchemaComponent: z.ZodType<IComponent> = SchemaComponentIdentifier.
     properties: z.record(
         z.string().describe('属性名称'),
         SchemaProperty,
-    ).describe('组件属性')
+    ).describe('组件属性'),
+    prefab: SchemaCompPrefabInfo.nullable().describe('预制体中组件的信息')
 }).describe('组件信息');
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('所有组件集合，包含内置与自定义组件');

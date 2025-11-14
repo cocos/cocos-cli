@@ -1,6 +1,8 @@
 import type { Node } from 'cc';
 import { IComponentIdentifier } from './component';
 import { IVec3, IQuat } from './value-types';
+import { IServiceEvents } from '../scene-process/service/core';
+import { IPrefabInfo } from './prefab';
 
 export enum NodeType {
     EMPTY = 'Empty', // 空节点
@@ -103,13 +105,14 @@ export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
     components?: IComponentIdentifier[]; // 节点上的组件列表
     children?: INode[]; // 子节点列表
+    prefab: IPrefabInfo | null;// 是否是预制体
 }
 
 // 节点更新参数接口
 export interface IUpdateNodeParams {
     path: string;
     name?: string;
-    properties: Partial<INodeProperties>; // 节点属性
+    properties?: Partial<INodeProperties>; // 节点属性
 }
 
 // 节点更新结果接口
@@ -157,24 +160,39 @@ export interface ICreateByAssetParams extends IBaseCreateNodeParams {
     dbURL: string;
 }
 
+// TODO 目前先从 3x 迁移，后续在进行优化
+export interface IChangeNodeOptions {
+    // 产生的事件的来源: 'editor' 为 正常编辑器操作产生， 'undo' 为 undo 产生， 'engine' 为引擎发出
+    source?: 'editor' | 'undo' | 'engine';
+    type?: NodeEventType; // 引发变动的操作或事件类型
+    propPath?: string; // 属性路径
+    index?: number; // 数组变动可能会传 index
+    record?: boolean;// 是否记录到 undo 堆栈上
+    dumpImmediately?: boolean;// 是否马上记录 dump 数据，默认为 true， animation -> 其他模式 下为 false
+}
+
 /**
  * 节点事件类型
  */
 export interface INodeEvents {
-    'node:before-add': INode;
-    'node:add': INode;
-    'node:before-remove': INode;
-    'node:remove': INode;
-    'node:update': INode;
-    'node:before-change': INode;
+    'node:before-remove': [Node],
+    'node:before-change': [Node];
+    'node:change': [Node, IChangeNodeOptions];
+
+    'node:before-add': [Node];
+    'node:add': [Node];
+    'node:added': [Node];
+
+    'node:remove': [Node];
+    'node:removed': [Node, IChangeNodeOptions];
 }
 
-export interface IPublicNodeService extends INodeService {}
+export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents> {}
 
 /**
  * 节点的相关处理接口
  */
-export interface INodeService {
+export interface INodeService extends IServiceEvents {
     /**
      * 创建节点
      * @param params
@@ -195,9 +213,39 @@ export interface INodeService {
      * 更新节点
      * @param params
      */
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult | null>;
+    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     /**
     * 查询节点
     */
     queryNode(params: IQueryNodeParams): Promise<INode | null>;
+}
+
+///
+
+export enum NodeEventType {
+    TRANSFORM_CHANGED = 'transform-changed', // 节点改变位置、旋转或缩放事件
+    SIZE_CHANGED = 'size-changed', // 当节点尺寸改变时触发的事件
+    ANCHOR_CHANGED = 'anchor-changed', // 当节点锚点改变时触发的事件
+    CHILD_ADDED = 'child-added', // 节点子类添加
+    CHILD_REMOVED = 'child-removed', // 节点子类移除
+    PARENT_CHANGED = 'parent-changed', // 父节点改变时触发的事件
+    CHILD_CHANGED = 'child-changed', // 子节点改变时触发的事件
+    COMPONENT_CHANGED = 'component-changed', // 组件数据发生改变时
+    ACTIVE_IN_HIERARCHY_CHANGE = 'active-in-hierarchy-changed', // 节点在hierarchy是否激活
+    NOTIFY_NODE_CHANGED = 'notify-node-changed',
+    PREFAB_INFO_CHANGED = 'prefab-info-changed', // prefab数据改变
+    LIGHT_PROBE_CHANGED = 'light-probe-changed', // 光照探针数据改变
+
+    //
+    SET_PROPERTY = 'set-property', // 设置节点上的属性
+    MOVE_ARRAY_ELEMENT = 'move-array-element', // 调整一个数组类型的数据内某个 item 的位置
+    REMOVE_ARRAY_ELEMENT = 'remove-array-element', // 删除一个数组元素
+    CREATE_COMPONENT = 'create-component', // 创建一个组件
+    RESET_COMPONENT = 'reset-component', // 重置一个组件
+}
+
+export enum EventSourceType {
+    EDITOR = 'editor', // 由编辑器主动发出
+    UNDO = 'undo', // undo产生的事件
+    ENGINE = 'engine', // 由引擎发出
 }

@@ -1,53 +1,41 @@
+import { SCENE_TEMPLATE_TYPE } from '../../core/scene';
 import { z } from 'zod';
-import { NodeQueryResultSchema } from './node-schema';
-import { SchemaComponentIdentifier } from './component-schema';
+import { SchemaNodeQueryResult } from './node-schema';
+import { SchemaSceneIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
+import { SchemaSaveAssetResult } from '../assets/schema';
+import { SchemaPrefabInfo } from './prefab-info-schema';
+import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
 
-export const SchemaSceneAssetUUID = z.string().describe('场景资源唯一标识符 UUID');
-
-export const SchemaSceneURL = z.string().describe('场景资源使用 db:// 协议格式');
-
-export const SchemaSceneUrlOrUUID = z.union([SchemaSceneAssetUUID, SchemaSceneURL]).describe('使用 db:// 协议格式或者 UUID');
-
-const SchemaSceneIdentifier = z.object({
-    assetUuid: SchemaSceneAssetUUID,
-    assetUrl: SchemaSceneURL,
-    assetName: z.string().describe('场景资源名称'),
-    assetType: z.string().describe('场景资源类型'),
-}).describe('场景基础信息');
-
-export const SchemaSceneProperty = SchemaSceneIdentifier.extend({
-    name: z.string().describe('场景名称'),
-}).describe('场景基础属性');
-
-const SchemaScene = SchemaSceneProperty.extend({
-    children: z.array(z.lazy(() => NodeQueryResultSchema)).optional().default([]).describe('子节点列表'),
+const SchemaEntity = SchemaSceneIdentifier.extend({
+    name: z.string().describe('场景/预制体名称'),
+    prefab: z.union([SchemaPrefabInfo, z.null()]).describe('预制体信息'),
+    children: z.array(z.lazy(() => SchemaNodeQueryResult)).optional().default([]).describe('子节点列表'),
     components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
-}).describe('场景信息');
+}).describe('场景/预制体信息');
 
-export const SchemaCurrentSceneResult = z.union([SchemaScene, z.null()]).describe('获取当前场景返回数据');
+export const SchemaCurrentEntryResult = z.union([SchemaEntity, z.null()]).describe('获取场景/预制体返回数据');
 
-export const SchemaOpenSceneResult = SchemaScene.describe('打开场景操作的结果信息');
+export const SchemaOpenResult = SchemaEntity.describe('打开场景/预制体操作的结果信息');
 
-export const SchemaCloseSceneResult = z.boolean().describe('关闭场景结果');
+export const SchemaCloseResult = z.boolean().describe('关闭场景/预制体结果');
 
-export const SchemaSaveSceneResult = z.boolean().describe('保存场景结果');
+export const SchemaSaveResult = SchemaSaveAssetResult.describe('保存场景/预制体结果');
 
-export const SchemaSoftReloadScene = SchemaScene.describe('软重载场景结果');
+export const SchemaReload = SchemaEntity.describe('重载场景/预制体结果');
 
-export const SchemaCreateSceneOptions = z.object({
-    baseName: z.string().describe('场景资源名称'),
-    templateType: z.enum(['2d', '3d', 'quality']).optional().describe('场景模板类型'),
-    dbURL: z.string().describe('目标目录用于存放场景文件，例如 db://assets'),
-}).describe('创建场景参数');
+export const SchemaCreateOptions = z.object({
+    baseName: z.string().describe('资源名称'),
+    templateType: z.enum(SCENE_TEMPLATE_TYPE).optional().describe('场景模板类型（可选，资源类型为场景才生效）'),
+    dbURL: z.string().describe('目标目录用于存放资源文件，例如 db://assets'),
+}).describe('创建场景/预制体参数');
 
-export const SchemaCreateSceneResult = SchemaSceneIdentifier.describe('创建场景操作的结果信息');
+export const SchemaCreateResult = SchemaSceneIdentifier.describe('创建场景/预制体操作的结果信息');
 
-// 类型导出
-export type TUrlOrUUID = z.infer<typeof SchemaSceneUrlOrUUID>;
-export type TCurrentSceneResult = z.infer<typeof SchemaCurrentSceneResult>;
-export type TOpenSceneResult = z.infer<typeof SchemaOpenSceneResult>;
-export type TCloseSceneResult = z.infer<typeof SchemaCloseSceneResult>;
-export type TSaveSceneResult = z.infer<typeof SchemaSaveSceneResult>;
-export type TCreateSceneOptions = z.infer<typeof SchemaCreateSceneOptions>;
-export type TCreateSceneResult = z.infer<typeof SchemaCreateSceneResult>;
-export type TSoftReloadScene = z.infer<typeof SchemaSoftReloadScene>;
+export type TAssetUrlOrUUID = z.infer<typeof SchemaAssetUrlOrUUID>;
+export type TCurrentEntryResult = z.infer<typeof SchemaCurrentEntryResult>;
+export type TOpenResult = z.infer<typeof SchemaOpenResult>;
+export type TCloseResult = z.infer<typeof SchemaCloseResult>;
+export type TSaveResult = z.infer<typeof SchemaSaveResult>;
+export type TReload = z.infer<typeof SchemaReload>;
+export type TCreateOptions = z.infer<typeof SchemaCreateOptions>;
+export type TCreateResult = z.infer<typeof SchemaCreateResult>;

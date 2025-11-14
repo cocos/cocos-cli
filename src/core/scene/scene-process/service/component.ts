@@ -8,11 +8,12 @@ import {
     IComponentService,
     IQueryComponentOptions,
     IRemoveComponentOptions,
-    ISetPropertyOptions
+    ISetPropertyOptions, NodeEventType
 } from '../../common';
 import dumpUtil from './dump';
 import compMgr from './component/index';
 import componentUtils from './component/utils';
+import { isEditorNode } from './node/node-utils';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -63,10 +64,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw new Error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
         }
 
-        const encodeComponent = dumpUtil.dumpComponent(comp as Component);
-        this.emit('component:add', encodeComponent);
+        this.emit('component:add', comp);
 
-        return encodeComponent;
+        return dumpUtil.dumpComponent(comp as Component);
     }
 
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
@@ -79,10 +79,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw new Error(`Remove component failed: ${params.path} does not exist`);
         }
 
-        const encodeComponent = dumpUtil.dumpComponent(comp as Component);
-        this.emit('component:before-remove', encodeComponent);
+        this.emit('component:before-remove', comp);
         const result = compMgr.removeComponent(comp);
-        this.emit('component:remove', encodeComponent);
+        // 需要立刻执行removeComponent操作，否则会延迟到下一帧
+        cc.Object._deferredDestroy();
+        this.emit('component:remove', comp);
 
         return result;
     }
@@ -107,6 +108,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
         const compProperties = (dumpUtil.dumpComponent(component as Component));
         const properties = Object.entries(options.properties);
+
+        const idx = component.node.components.findIndex(comp => comp === component);
         for (const [key, value] of properties) {
             if (!compProperties.properties[key]) {
                 continue;
@@ -119,10 +122,12 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             }
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
-        }
 
-        const encodeComponent = dumpUtil.dumpComponent(component as Component);
-        this.emit('component:set-property', encodeComponent);
+            this.emit('component:set-property', component, {
+                type: NodeEventType.SET_PROPERTY,
+                propPath: `__comps__.${idx}.${key}`,
+            });
+        }
         return true;
     }
 
@@ -138,5 +143,60 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             } catch (e) { }
         });
         return components;
+    }
+
+    public init() {
+        this.registerCompMgrEvents();
+    }
+
+    private readonly CompMgrEventHandlers = {
+        ['add']: 'add',
+        ['remove']: 'remove',
+    } as const;
+    private compMgrEventHandlers = new Map<string, (...args: []) => void>();
+    /**
+     * 注册引擎 Node 管理相关事件的监听
+     */
+    registerCompMgrEvents() {
+        this.unregisterCompMgrEvents();
+        Object.entries(this.CompMgrEventHandlers).forEach(([eventType, handlerName]) => {
+            const handler = (this as any)[handlerName].bind(this);
+            EditorExtends.Component.on(eventType, handler);
+            this.compMgrEventHandlers.set(eventType, handler);
+        });
+    }
+
+    unregisterCompMgrEvents() {
+        Object.keys(this.CompMgrEventHandlers).forEach(eventType => {
+            const handler = this.compMgrEventHandlers.get(eventType);
+            if (handler) {
+                EditorExtends.Component.off(eventType, handler);
+                this.compMgrEventHandlers.delete(eventType);
+            }
+        });
+    }
+
+    /**
+     * 添加到组件缓存
+     * @param {String} uuid
+     * @param {cc.Component} component
+     */
+    add(uuid: string, component: Component) {
+        if (isEditorNode(component.node)) {
+            return;
+        }
+        this.emit('component:added', component);
+    }
+
+    /**
+     * 移除组件缓存
+     * @param {String} uuid
+     * @param {cc.Component} component
+     */
+    remove(uuid: string, component: Component) {
+        if (isEditorNode(component.node)) {
+            return;
+        }
+        this.emit('component:removed', component);
     }
 }

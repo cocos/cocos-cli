@@ -23,7 +23,7 @@ describe('MCP Node API', () => {
 
         // 创建并打开 2D 场景（若已存在则忽略创建）
         try {
-            await mcpClient.callTool('scene-create-scene', {
+            await mcpClient.callTool('scene-create', {
                 options: {
                     dbURL: testFolderPath,
                     baseName: 'scene-2d',
@@ -34,7 +34,7 @@ describe('MCP Node API', () => {
             // 场景可能已存在，忽略
         }
 
-        await mcpClient.callTool('scene-open-scene', {
+        await mcpClient.callTool('scene-open', {
             dbURLOrUUID: testSceneUrl,
         });
     });
@@ -151,7 +151,8 @@ describe('MCP Node API', () => {
         test('should query existing node', async () => {
             const result = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${testNodeName}`
+                    path: `Canvas/${testNodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -163,7 +164,8 @@ describe('MCP Node API', () => {
         test('should handle non-existent node', async () => {
             const result = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/NonExistentNode-${generateTestId()}`
+                    path: `Canvas/NonExistentNode-${generateTestId()}`,
+                    queryChildren: false,
                 }
             });
 
@@ -242,7 +244,8 @@ describe('MCP Node API', () => {
             // 验证更新
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${testNodeName}`
+                    path: `Canvas/${testNodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -282,7 +285,8 @@ describe('MCP Node API', () => {
             // 验证更新
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${testNodeName}`
+                    path: `Canvas/${testNodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -319,7 +323,8 @@ describe('MCP Node API', () => {
             // 验证节点已被删除
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${nodeName}`
+                    path: `Canvas/${nodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -379,7 +384,8 @@ describe('MCP Node API', () => {
             // 2. 查询节点
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${nodeName}`
+                    path: `Canvas/${nodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -400,7 +406,8 @@ describe('MCP Node API', () => {
             // 4. 验证单个属性更新
             const verifyResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${nodeName}`
+                    path: `Canvas/${nodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -430,7 +437,8 @@ describe('MCP Node API', () => {
             // 6. 验证多个属性都被正确修改
             const multiVerifyResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${nodeName}`
+                    path: `Canvas/${nodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -472,7 +480,8 @@ describe('MCP Node API', () => {
             // 8. 验证部分更新后的状态
             const partialVerifyResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${nodeName}`
+                    path: `Canvas/${nodeName}`,
+                    queryChildren: false,
                 }
             });
 
@@ -507,7 +516,8 @@ describe('MCP Node API', () => {
             // 10. 验证删除
             const finalQueryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
-                    path: `Canvas/${nodeName}`
+                    path: `Canvas/${nodeName}`,
+                    queryChildren: false,
                 }
             });
 

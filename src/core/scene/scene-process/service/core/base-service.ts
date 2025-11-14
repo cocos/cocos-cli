@@ -1,4 +1,41 @@
+import type { Node, Component } from 'cc';
 import { ServiceEvents } from './global-events';
+import type { IChangeNodeOptions } from '../../../common';
+
+export interface IServiceEvents {
+    // Editor events
+    onEditorOpened?(): void;
+    onEditorReload?(): void;
+    onEditorClosed?(): void;
+    onEditorSaved?(): void;
+
+    // Node events
+    onNodeBeforeChanged?(node: Node): void;
+    onBeforeRemoveNode?(node: Node): void;
+    onBeforeAddNode?(node: Node): void;
+    onNodeChanged?(node: Node, opts: IChangeNodeOptions): void;
+    onBeforeNodeAdded?(node: Node): void;
+    onAddNode?(node: Node): void;
+    onRemoveNode?(node: Node): void;
+    onNodeAdded?(node: Node): void;
+    onNodeRemoved?(node: Node): void;
+
+    // Component events
+    onAddComponent?(comp: Component): void;
+    onRemoveComponent?(comp: Component): void;
+    onSetPropertyComponent?(comp: Component): void;
+    onComponentAdded?(comp: Component): void;
+    onComponentRemoved?(comp: Component): void;
+    onBeforeRemoveComponent?(comp: Component): void;
+
+    // Asset events
+    onAssetDeleted?(uuid: string): void;
+    onAssetChanged?(uuid: string): void;
+    onAssetRefreshed?(uuid: string): void;
+
+    // Script events
+    onScriptExecutionFinished?(): void;
+}
 
 export class BaseService<TEvents extends Record<string, any>> {
     /**
@@ -8,7 +45,7 @@ export class BaseService<TEvents extends Record<string, any>> {
      */
     protected emit<K extends keyof TEvents>(
         event: K,
-        ...args: TEvents[K] extends void ? [] : [TEvents[K]]
+        ...args: TEvents[K]
     ) {
         ServiceEvents.emit(event as string, ...args);
     }
@@ -18,7 +55,7 @@ export class BaseService<TEvents extends Record<string, any>> {
      */
     broadcast<K extends keyof TEvents>(
         event: K,
-        ...args: TEvents[K] extends void ? [] : [TEvents[K]]
+        ...args: TEvents[K]
     ): void {
         ServiceEvents.broadcast(event as string, ...args);
     }
@@ -73,4 +110,3 @@ export class BaseService<TEvents extends Record<string, any>> {
         ServiceEvents.clear(event as string);
     }
 }
-

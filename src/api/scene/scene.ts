@@ -1,47 +1,48 @@
 import {
-    SchemaOpenSceneResult,
-    SchemaCloseSceneResult,
-    SchemaSaveSceneResult,
-    SchemaCreateSceneOptions,
-    SchemaCreateSceneResult,
-    SchemaCurrentSceneResult,
-    SchemaSceneUrlOrUUID,
-    TUrlOrUUID,
-    TOpenSceneResult,
-    TCloseSceneResult,
-    TSaveSceneResult,
-    TCreateSceneOptions,
-    TCreateSceneResult,
-    TCurrentSceneResult,
-    TSoftReloadScene, SchemaSoftReloadScene,
+    SchemaCloseResult,
+    SchemaCreateOptions,
+    SchemaCreateResult,
+    SchemaCurrentEntryResult,
+    SchemaOpenResult,
+    SchemaReload,
+    SchemaSaveResult,
+    TAssetUrlOrUUID,
+    TCloseResult,
+    TCreateOptions,
+    TCreateResult,
+    TCurrentEntryResult,
+    TOpenResult,
+    TReload,
+    TSaveResult,
 } from './schema';
+import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
+import { PrefabApi } from './prefab';
 
 export class SceneApi {
     public component: ComponentApi;
     public node: NodeApi;
+    public prefab: PrefabApi;
 
     constructor() {
         this.component = new ComponentApi();
         this.node = new NodeApi();
+        this.prefab = new PrefabApi();
     }
 
-    /**
-     * 获取当前打开场景信息
-     */
-    @tool('scene-query-current-scene')
-    @title('获取当前打开场景信息')
-    @description('获取 Cocos Creator 项目中当前打开场景信息，如果没有打开场景，返回 null')
-    @result(SchemaCurrentSceneResult)
-    async queryCurrentScene(): Promise<CommonResultType<TCurrentSceneResult>> {
+    @tool('scene-query-current')
+    @title('获取当前打开的场景/预制体信息')
+    @description('获取当前打开场景/预制体信息，如果没有打开，返回 null')
+    @result(SchemaCurrentEntryResult)
+    async queryCurrent(): Promise<CommonResultType<TCurrentEntryResult>> {
         try {
-            const data = await Scene.queryCurrentScene();
+            const data = await Scene.queryCurrent();
             return {
-                data,
+                data: data as TCurrentEntryResult,
                 code: COMMON_STATUS.SUCCESS,
             };
         } catch (e) { 
@@ -53,15 +54,15 @@ export class SceneApi {
         }
     }
 
-    @tool('scene-open-scene')
-    @title('打开场景')
-    @description('打开 Cocos Creator 项目中的指定场景文件。加载场景数据到内存中，使其成为当前活动场景，可以输入场景资源路径 dbURL 或 场景的 uuid。')
-    @result(SchemaOpenSceneResult)
-    async openScene(@param(SchemaSceneUrlOrUUID) dbURLOrUUID: TUrlOrUUID): Promise<CommonResultType<TOpenSceneResult>> {
+    @tool('scene-open')
+    @title('打开场景/预制体')
+    @description('打开指定场景/预制体资源。')
+    @result(SchemaOpenResult)
+    async open(@param(SchemaAssetUrlOrUUID) dbURLOrUUID: TAssetUrlOrUUID): Promise<CommonResultType<TOpenResult>> {
         try {
             const data = await Scene.open({ urlOrUUID: dbURLOrUUID });
             return {
-                data,
+                data: data as TOpenResult,
                 code: COMMON_STATUS.SUCCESS,
             };
         } catch (e) {
@@ -73,11 +74,11 @@ export class SceneApi {
         }
     }
 
-    @tool('scene-close-scene')
-    @title('关闭场景')
-    @description('关闭当前活动的场景，清理场景相关的内存资源。关闭前会提示保存未保存的更改。')
-    @result(SchemaCloseSceneResult)
-    async closeScene(): Promise<CommonResultType<TCloseSceneResult>> {
+    @tool('scene-close')
+    @title('关闭场景/预制体')
+    @description('关闭当前打开的场景/预制体。')
+    @result(SchemaCloseResult)
+    async close(): Promise<CommonResultType<TCloseResult>> {
         try {
             const data = await Scene.close({});
             return {
@@ -93,11 +94,11 @@ export class SceneApi {
         }
     }
 
-    @tool('scene-save-scene')
-    @title('保存场景')
-    @description('保存当前活动场景的所有更改到磁盘。包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。')
-    @result(SchemaSaveSceneResult)
-    async saveScene(): Promise<CommonResultType<TSaveSceneResult>> {
+    @tool('scene-save')
+    @title('保存场景/预制体')
+    @description('保存当前打开的场景/预制体到资源，包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。')
+    @result(SchemaSaveResult)
+    async save(): Promise<CommonResultType<TSaveResult>> {
         try {
             const data = await Scene.save({});
             return {
@@ -113,20 +114,22 @@ export class SceneApi {
         }
     }
 
-    @tool('scene-create-scene')
+    @tool('scene-create')
     @title('创建场景')
-    @description('在项目中创建新的场景文件。可以选择不同的场景模板（2D、3D、高质量）。自动生成场景的 UUID 和 .meta 文件，并注册到资源数据库中。')
-    @result(SchemaCreateSceneResult)
-    async createScene(@param(SchemaCreateSceneOptions) options: TCreateSceneOptions): Promise<CommonResultType<TCreateSceneResult>> {
+    @description('在项目中创建新的场景资源')
+    @result(SchemaCreateResult)
+    async createScene(@param(SchemaCreateOptions) options: TCreateOptions): Promise<CommonResultType<TCreateResult>> {
         try {
             const data = await Scene.create({
+                type: 'scene',
                 baseName: options.baseName,
                 targetDirectory: options.dbURL,
-                templateType: options.templateType as TSceneTemplateType
+                templateType: options.templateType as TSceneTemplateType,
             });
+            
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: data,
+                data: data as TCreateResult,
             };
         } catch (e) {
             console.error(e);
@@ -137,16 +140,16 @@ export class SceneApi {
         }
     }
 
-    @tool('scene-soft-reload-scene')
-    @title('重新加载场景')
-    @description('重新加载场景，可在添加脚本时使用')
-    @result(SchemaSoftReloadScene)
-    async reloadScene(): Promise<CommonResultType<TSoftReloadScene>> {
+    @tool('scene-reload')
+    @title('重新加载场景/预制体')
+    @description('重新加载场景/预制体')
+    @result(SchemaReload)
+    async reloadScene(): Promise<CommonResultType<TReload>> {
         try {
-            const data = await Scene.softReload({});
+            const data = await Scene.reload({});
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: data,
+                data: data as TReload,
             };
         } catch (e) {
             console.error(e);

@@ -21,9 +21,9 @@ describe('MCP Scene API', () => {
         await teardownAssetsTestEnvironment(context);
     });
 
-    describe('scene-query-current-scene', () => {
+    describe('scene-query-current', () => {
         test('should return null when no scene is open', async () => {
-            const result = await context.mcpClient.callTool('scene-query-current-scene', {});
+            const result = await context.mcpClient.callTool('scene-query-current', {});
 
             expect(result.code).toBe(200);
             expect(result.data).toBeNull();
@@ -31,12 +31,12 @@ describe('MCP Scene API', () => {
 
         test('should return current scene info after opening a scene', async () => {
             // 先打开一个场景
-            await context.mcpClient.callTool('scene-open-scene', {
+            await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: testSceneUrl,
             });
 
             // 查询当前场景
-            const result = await context.mcpClient.callTool('scene-query-current-scene', {});
+            const result = await context.mcpClient.callTool('scene-query-current', {});
 
             expect(result.code).toBe(200);
             expect(result.data).toBeDefined();
@@ -54,9 +54,9 @@ describe('MCP Scene API', () => {
         });
     });
 
-    describe('scene-open-scene', () => {
+    describe('scene-open', () => {
         test('should open scene by URL', async () => {
-            const result = await context.mcpClient.callTool('scene-open-scene', {
+            const result = await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: testSceneUrl,
             });
 
@@ -76,7 +76,7 @@ describe('MCP Scene API', () => {
 
         test('should open scene by UUID', async () => {
             // 先通过URL打开场景获取UUID
-            const openResult = await context.mcpClient.callTool('scene-open-scene', {
+            const openResult = await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: testSceneUrl,
             });
 
@@ -84,10 +84,10 @@ describe('MCP Scene API', () => {
                 const uuid = openResult.data.assetUuid;
 
                 // 关闭场景
-                await context.mcpClient.callTool('scene-close-scene', {});
+                await context.mcpClient.callTool('scene-close', {});
 
                 // 通过UUID重新打开
-                const result = await context.mcpClient.callTool('scene-open-scene', {
+                const result = await context.mcpClient.callTool('scene-open', {
                     dbURLOrUUID: uuid,
                 });
 
@@ -102,7 +102,7 @@ describe('MCP Scene API', () => {
         });
 
         test('should handle opening non-existent scene', async () => {
-            const result = await context.mcpClient.callTool('scene-open-scene', {
+            const result = await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: `db://assets/non-existent-${generateTestId()}.scene`,
             });
 
@@ -111,7 +111,7 @@ describe('MCP Scene API', () => {
         });
 
         test('should handle invalid scene URL format', async () => {
-            const result = await context.mcpClient.callTool('scene-open-scene', {
+            const result = await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: 'invalid-url-format',
             });
 
@@ -120,56 +120,56 @@ describe('MCP Scene API', () => {
         });
     });
 
-    describe('scene-close-scene', () => {
+    describe('scene-close', () => {
         test('should close currently open scene', async () => {
             // 先打开一个场景
-            await context.mcpClient.callTool('scene-open-scene', {
+            await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: testSceneUrl,
             });
 
             // 关闭场景
-            const result = await context.mcpClient.callTool('scene-close-scene', {});
+            const result = await context.mcpClient.callTool('scene-close', {});
 
             expect(result.code).toBe(200);
             expect(result.data).toBe(true);
 
             // 验证场景已关闭
-            const queryResult = await context.mcpClient.callTool('scene-query-current-scene', {});
+            const queryResult = await context.mcpClient.callTool('scene-query-current', {});
             expect(queryResult.data).toBeNull();
         });
 
         test('should handle closing when no scene is open', async () => {
             // 确保没有场景打开
-            await context.mcpClient.callTool('scene-close-scene', {});
+            await context.mcpClient.callTool('scene-close', {});
 
             // 再次尝试关闭
-            const result = await context.mcpClient.callTool('scene-close-scene', {});
+            const result = await context.mcpClient.callTool('scene-close', {});
 
             // 应该成功或返回适当的状态
              expect(result.code).toBe(200);
         });
     });
 
-    describe('scene-save-scene', () => {
+    describe('scene-save', () => {
         test('should save currently open scene', async () => {
             // 先打开一个场景
-            await context.mcpClient.callTool('scene-open-scene', {
+            await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: testSceneUrl,
             });
 
             // 保存场景
-            const result = await context.mcpClient.callTool('scene-save-scene', {});
+            const result = await context.mcpClient.callTool('scene-save', {});
 
             expect(result.code).toBe(200);
-            expect(result.data).toBe(true);
+            expect(result.data).toBeDefined();
         });
 
         test('should handle saving when no scene is open', async () => {
             // 确保没有场景打开
-            await context.mcpClient.callTool('scene-close-scene', {});
+            await context.mcpClient.callTool('scene-close', {});
 
             // 尝试保存
-            const result = await context.mcpClient.callTool('scene-save-scene', {});
+            const result = await context.mcpClient.callTool('scene-save', {});
 
             // 应该失败或返回适当的错误
             expect(result.code).not.toBe(200);
@@ -177,11 +177,11 @@ describe('MCP Scene API', () => {
         });
     });
 
-    describe('scene-create-scene', () => {
+    describe('scene-create', () => {
         test('should create new 2D scene', async () => {
             const sceneName = `test-scene-2d-${generateTestId()}`;
 
-            const result = await context.mcpClient.callTool('scene-create-scene', {
+            const result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -206,7 +206,7 @@ describe('MCP Scene API', () => {
         test('should create new 3D scene', async () => {
             const sceneName = `test-scene-3d-${generateTestId()}`;
 
-            const result = await context.mcpClient.callTool('scene-create-scene', {
+            const result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -231,7 +231,7 @@ describe('MCP Scene API', () => {
         test('should create scene with quality template', async () => {
             const sceneName = `test-scene-quality-${generateTestId()}`;
 
-            const result = await context.mcpClient.callTool('scene-create-scene', {
+            const result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -251,7 +251,7 @@ describe('MCP Scene API', () => {
         test('should create scene without template type (default)', async () => {
             const sceneName = `test-scene-default-${generateTestId()}`;
 
-            const result = await context.mcpClient.callTool('scene-create-scene', {
+            const result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -271,7 +271,7 @@ describe('MCP Scene API', () => {
             const sceneName = `duplicate-scene-${generateTestId()}`;
 
             // 创建第一个场景
-            const firstResult = await context.mcpClient.callTool('scene-create-scene', {
+            const firstResult = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -282,7 +282,7 @@ describe('MCP Scene API', () => {
             expect(firstResult.code).toBe(200);
 
             // 尝试创建同名场景
-            const secondResult = await context.mcpClient.callTool('scene-create-scene', {
+            const secondResult = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -303,7 +303,7 @@ describe('MCP Scene API', () => {
             const sceneName = `test-scene-invalid-${generateTestId()}`;
             const invalidDir = 'db://invalid/path';
 
-            const result = await context.mcpClient.callTool('scene-create-scene', {
+            const result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: invalidDir,
@@ -316,15 +316,15 @@ describe('MCP Scene API', () => {
         });
     });
 
-    describe('scene-soft-reload-scene', () => {
+    describe('scene-reload', () => {
         test('should reload currently open scene', async () => {
             // 先打开一个场景
-            await context.mcpClient.callTool('scene-open-scene', {
+            await context.mcpClient.callTool('scene-open', {
                 dbURLOrUUID: testSceneUrl,
             });
 
             // 重新加载场景
-            const result = await context.mcpClient.callTool('scene-soft-reload-scene', {});
+            const result = await context.mcpClient.callTool('scene-reload', {});
 
             expect(result.code).toBe(200);
             expect(result.data).toBeDefined();
@@ -342,10 +342,10 @@ describe('MCP Scene API', () => {
 
         test('should handle reloading when no scene is open', async () => {
             // 确保没有场景打开
-            await context.mcpClient.callTool('scene-close-scene', {});
+            await context.mcpClient.callTool('scene-close', {});
 
             // 尝试重新加载
-            const result = await context.mcpClient.callTool('scene-soft-reload-scene', {});
+            const result = await context.mcpClient.callTool('scene-reload', {});
 
             // 应该失败或返回适当的错误
             expect(result.code).not.toBe(200);
@@ -358,7 +358,7 @@ describe('MCP Scene API', () => {
             const sceneName = `workflow-scene-${generateTestId()}`;
 
             // 1. 创建新场景
-            const createResult = await context.mcpClient.callTool('scene-create-scene', {
+            const createResult = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: sceneName,
                     dbURL: testFolderPath,
@@ -373,7 +373,7 @@ describe('MCP Scene API', () => {
                 const sceneUrl = createResult.data.assetUrl;
 
                 // 2. 打开创建的场景
-                const openResult = await context.mcpClient.callTool('scene-open-scene', {
+                const openResult = await context.mcpClient.callTool('scene-open', {
                     dbURLOrUUID: sceneUrl,
                 });
 
@@ -381,28 +381,28 @@ describe('MCP Scene API', () => {
                 expect(openResult.data).toBeDefined();
 
                 // 3. 验证当前场景
-                const queryResult = await context.mcpClient.callTool('scene-query-current-scene', {});
+                const queryResult = await context.mcpClient.callTool('scene-query-current', {});
                 expect(queryResult.code).toBe(200);
                 expect(queryResult.data).not.toBeNull();
                 expect(queryResult.data?.assetUrl).toBe(sceneUrl);
 
                 // 4. 保存场景
-                const saveResult = await context.mcpClient.callTool('scene-save-scene', {});
+                const saveResult = await context.mcpClient.callTool('scene-save', {});
                 expect(saveResult.code).toBe(200);
-                expect(saveResult.data).toBe(true);
+                expect(saveResult.data).toBeDefined();
 
                 // 5. 重新加载场景
-                const reloadResult = await context.mcpClient.callTool('scene-soft-reload-scene', {});
+                const reloadResult = await context.mcpClient.callTool('scene-reload', {});
                 expect(reloadResult.code).toBe(200);
                 expect(reloadResult.data).toBeDefined();
 
                 // 6. 关闭场景
-                const closeResult = await context.mcpClient.callTool('scene-close-scene', {});
+                const closeResult = await context.mcpClient.callTool('scene-close', {});
                 expect(closeResult.code).toBe(200);
                 expect(closeResult.data).toBe(true);
 
                 // 7. 验证场景已关闭
-                const finalQueryResult = await context.mcpClient.callTool('scene-query-current-scene', {});
+                const finalQueryResult = await context.mcpClient.callTool('scene-query-current', {});
                 expect(finalQueryResult.data).toBeNull();
             }
         });
@@ -412,7 +412,7 @@ describe('MCP Scene API', () => {
             const scene2Name = `multi-scene-2-${generateTestId()}`;
 
             // 创建两个场景
-            const create1Result = await context.mcpClient.callTool('scene-create-scene', {
+            const create1Result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: scene1Name,
                     dbURL: testFolderPath,
@@ -420,7 +420,7 @@ describe('MCP Scene API', () => {
                 },
             });
 
-            const create2Result = await context.mcpClient.callTool('scene-create-scene', {
+            const create2Result = await context.mcpClient.callTool('scene-create', {
                 options: {
                     baseName: scene2Name,
                     dbURL: testFolderPath,
@@ -436,25 +436,25 @@ describe('MCP Scene API', () => {
                 const scene2Url = create2Result.data.assetUrl;
 
                 // 打开第一个场景
-                await context.mcpClient.callTool('scene-open-scene', {
+                await context.mcpClient.callTool('scene-open', {
                     dbURLOrUUID: scene1Url,
                 });
 
-                let queryResult = await context.mcpClient.callTool('scene-query-current-scene', {});
+                let queryResult = await context.mcpClient.callTool('scene-query-current', {});
                 expect(queryResult.data?.assetUrl).toBe(scene1Url);
 
                 // 切换到第二个场景
-                await context.mcpClient.callTool('scene-open-scene', {
+                await context.mcpClient.callTool('scene-open', {
                     dbURLOrUUID: scene2Url,
                 });
 
-                queryResult = await context.mcpClient.callTool('scene-query-current-scene', {});
+                queryResult = await context.mcpClient.callTool('scene-query-current', {});
                 expect(queryResult.data?.assetUrl).toBe(scene2Url);
 
                 // 关闭当前场景
-                await context.mcpClient.callTool('scene-close-scene', {});
+                await context.mcpClient.callTool('scene-close', {});
 
-                queryResult = await context.mcpClient.callTool('scene-query-current-scene', {});
+                queryResult = await context.mcpClient.callTool('scene-query-current', {});
                 expect(queryResult.data).toBeNull();
             }
         });
@@ -472,7 +472,7 @@ describe('MCP Scene API', () => {
             ];
 
             for (const url of malformedUrls) {
-                const result = await context.mcpClient.callTool('scene-open-scene', {
+                const result = await context.mcpClient.callTool('scene-open', {
                     dbURLOrUUID: url,
                 });
 
@@ -497,7 +497,7 @@ describe('MCP Scene API', () => {
             ];
 
             for (const name of invalidNames) {
-                const result = await context.mcpClient.callTool('scene-create-scene', {
+                const result = await context.mcpClient.callTool('scene-create', {
                     options: {
                         baseName: name,
                         dbURL: testFolderPath,
@@ -518,7 +518,7 @@ describe('MCP Scene API', () => {
         test('should handle concurrent scene operations', async () => {
             // 并发创建多个场景
             const promises = Array.from({ length: 3 }, (_, i) =>
-                context.mcpClient.callTool('scene-create-scene', {
+                context.mcpClient.callTool('scene-create', {
                     options: {
                         baseName: `concurrent-scene-${i}-${generateTestId()}`,
                         dbURL: testFolderPath,

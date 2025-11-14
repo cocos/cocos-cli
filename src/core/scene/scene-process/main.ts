@@ -3,25 +3,28 @@ import { Rpc } from './rpc';
 import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
-import { ServiceEvents } from './service/core';
+import { serviceManager } from './service/service-manager';
 
 async function startup() {
     // 监听进程退出事件
     process.on('message', (msg) => {
         if (msg === 'scene-process:exit') {
-            ServiceEvents.clear();
+            Rpc.dispose();
             process.disconnect?.(); // 关闭 IPC
             process.exit(0);// 退出进程
         }
     });
 
-    console.log('[Scene] startup worker');
+    console.log(`[Scene] startup worker pid: ${process.pid}`);
 
     console.log(`[Scene] parse args ${process.argv}`);
     const { enginePath, projectPath, serverURL } = parseCommandLineArgs(process.argv);
     if (!enginePath || !projectPath) {
         throw new Error('enginePath or projectPath is not set');
     }
+
+    // 初始化 service-manager
+    serviceManager.initialize();
 
     await Engine.init(enginePath);
     // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径
@@ -47,9 +50,6 @@ async function startup() {
         const { Service } = await import('./service/core/decorator');
         await Service.Engine.init();
     });
-
-    const { startupListener } = await import('./listener');
-    startupListener();
 
     console.log('[Scene] initEngine success');
 

@@ -5,8 +5,6 @@ declare const cc: any;
 import dumpUtil from './utils';
 
 import { DumpDefines } from './dump-defines';
-
-import { js } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { IComponent } from '../../../common';
 import compMgr from '../component/index';
@@ -32,12 +30,13 @@ export function encodeComponent(component: any): IComponent {
     // }
     const data: IComponent = {
         properties: {},
-        path: compMgr.getPathFromUuid(component.uuid) || "",
+        path: compMgr.getPathFromUuid(component.uuid) || '',
         uuid: component.uuid,
         name: component.name,
         enabled: component.enabled,
         type: dumpUtil.getTypeName(ctor),
         cid: component.__cid__,
+        prefab: component.__prefab
     };
 
     // 遍历组件内所有属性
