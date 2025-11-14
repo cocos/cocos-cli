@@ -80,9 +80,17 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this.editorMap.set(uuid, editor);
         }
 
-        const lastEditor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
-        if (lastEditor) {
-            await lastEditor.close();
+        if (this.currentEditorUuid) {
+            const lastEditor = this.editorMap.get(this.currentEditorUuid);
+            if (lastEditor) {
+                // 如果当前的编辑的资源已丢失，不需要进行 close，直接删缓存
+                const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [this.currentEditorUuid]);
+                if (!assetInfo) {
+                    this.editorMap.delete(this.currentEditorUuid);
+                } else {
+                    await lastEditor.close();
+                }
+            }
         }
         // 设置当前打开的编辑器
         this.currentEditorUuid = assetInfo.uuid;
