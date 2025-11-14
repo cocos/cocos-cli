@@ -24,7 +24,7 @@ export class SceneEditor extends BaseEditor {
             prefab: sceneUtils.generatePrefabInfo(entity.instance['_prefab']),
             children: entity.instance.children
                 .map((node: Node) => {
-                    return sceneUtils.generateNodeInfo(node, false);
+                    return sceneUtils.generateNodeInfo(node, true);
                 })
                 .filter(child => child !== null) as INode[],
             components: entity.instance.components
