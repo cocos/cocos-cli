@@ -18,6 +18,7 @@ import type {
 } from '../../common';
 import { validateCreatePrefabParams, validateNodePathParams } from './prefab/validate-params';
 import { sceneUtils } from './scene/utils';
+import { Rpc } from '../rpc';
 
 @register('Prefab')
 export class PrefabService extends BaseService<IPrefabEvents> implements IPrefabService {
@@ -36,6 +37,12 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             validateCreatePrefabParams(params);
 
             const nodeUuid = EditorExtends.Node.getNodeUuidByPathOrThrow(params.nodePath);
+
+            const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [params.dbURL]);
+            if (!params.overwrite && assetInfo && assetInfo.type === 'cc.Prefab') {
+                throw new Error(`已有同名 ${assetInfo.url} 预制体`);
+            }
+
             const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.dbURL, {
                 overwrite: !!params.overwrite,
                 undo: true,
@@ -93,6 +100,11 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         try {
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+
+            if (!prefabUtils.getPrefab(node)?.instance) {
+                throw new Error(`${params.nodePath} 节点已是普通节点`);
+            }
+
             this.unWrapPrefabInstance(node.uuid, !!params.recursive);
             return sceneUtils.generateNodeInfo(node, true);
         } catch (e) {

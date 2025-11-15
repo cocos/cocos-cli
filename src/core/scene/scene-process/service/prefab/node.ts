@@ -1555,7 +1555,6 @@ class NodeOperation {
             target: url,
             content: ret.prefabData,
             overwrite: options.overwrite,
-            rename: !options.overwrite,
         }]);
         let assetRootNode: Node | null = null;
         if (asset) {
