@@ -45,7 +45,7 @@ const config: Config.InitialOptions = {
                 executionTimeWarningThreshold: 5, // 执行时间警告阈值（秒）
                 dateFormat: 'yyyy-mm-dd HH:MM:ss',
                 theme: 'darkTheme', // 或 'lightTheme' / 'darkTheme'
-                logo: './image.png', // 可选：添加 logo
+                logo: './../image.png', // 可选：添加 logo
             },
         ],
         // 自定义 reporter：打印测试报告路径
