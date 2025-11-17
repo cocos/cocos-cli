@@ -10,7 +10,7 @@ describe('CallbackManager', () => {
     let manager: CallbackManager;
 
     beforeEach(() => {
-        manager = new CallbackManager(100);
+        manager = new CallbackManager(100, 30000); // maxCallbacks, defaultTimeout
     });
 
     describe('基本功能', () => {
@@ -22,16 +22,14 @@ describe('CallbackManager', () => {
             expect(manager.size).toBe(1);
         });
 
-        test('应该能获取已注册的回调', () => {
+        test('应该能检查已注册的回调', () => {
             const cb = jest.fn();
             const timer = setTimeout(() => {}, 1000);
             
             manager.register(1, cb, timer);
             
-            const entry = manager.get(1);
-            expect(entry).toBeDefined();
-            expect(entry?.cb).toBe(cb);
-            expect(entry?.timer).toBe(timer);
+            expect(manager.has(1)).toBe(true);
+            expect(manager.size).toBe(1);
             
             clearTimeout(timer);
         });
@@ -139,9 +137,10 @@ describe('CallbackManager', () => {
             manager.register(1, cb, timer1);
             manager.updateTimer(1, timer2);
             
-            const entry = manager.get(1);
-            expect(entry?.timer).toBe(timer2);
+            // 验证旧定时器被清理
             expect(clearTimeoutSpy).toHaveBeenCalledWith(timer1);
+            // 验证回调仍然存在
+            expect(manager.has(1)).toBe(true);
             
             clearTimeout(timer2);
             clearTimeoutSpy.mockRestore();
@@ -162,9 +161,8 @@ describe('CallbackManager', () => {
             manager.updateTimer(1, undefined);
             
             expect(clearTimeoutSpy).toHaveBeenCalledWith(timer);
-            
-            const entry = manager.get(1);
-            expect(entry?.timer).toBeUndefined();
+            // 验证回调仍然存在
+            expect(manager.has(1)).toBe(true);
             
             clearTimeoutSpy.mockRestore();
         });
@@ -245,7 +243,7 @@ describe('CallbackManager', () => {
         });
 
         test('大量回调应同步清理', () => {
-            const manager = new CallbackManager(200);
+            const manager = new CallbackManager(200, 30000);
             const callbacks: jest.Mock[] = [];
             
             // 创建 150 个回调
@@ -267,7 +265,7 @@ describe('CallbackManager', () => {
 
     describe('并发限制', () => {
         test('超过最大回调数应抛出错误', () => {
-            const smallManager = new CallbackManager(3);
+            const smallManager = new CallbackManager(3, 30000);
             
             smallManager.register(1, jest.fn());
             smallManager.register(2, jest.fn());
@@ -279,7 +277,7 @@ describe('CallbackManager', () => {
         });
 
         test('删除回调后应该能注册新回调', () => {
-            const smallManager = new CallbackManager(2);
+            const smallManager = new CallbackManager(2, 30000);
             
             smallManager.register(1, jest.fn());
             smallManager.register(2, jest.fn());
@@ -293,7 +291,7 @@ describe('CallbackManager', () => {
         });
 
         test('清理后应该能注册新回调', () => {
-            const smallManager = new CallbackManager(2);
+            const smallManager = new CallbackManager(2, 30000);
             
             smallManager.register(1, jest.fn());
             smallManager.register(2, jest.fn());

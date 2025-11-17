@@ -208,7 +208,7 @@ describe('MessageQueue', () => {
                 queue.resetRetryCount();
                 
                 // 重试计数应该被重置（内部状态，通过行为验证）
-                expect((queue as any).flushRetryCount).toBe(0);
+                expect((queue as any).retryCount).toBe(0);
                 
                 // 清理队列，停止后台重试
                 queue.clear();
@@ -270,11 +270,11 @@ describe('MessageQueue', () => {
             queue.pause();
             
             // 模拟一些重试
-            (queue as any).flushRetryCount = 5;
+            (queue as any).retryCount = 5;
             
             queue.resume();
             
-            expect((queue as any).flushRetryCount).toBe(0);
+            expect((queue as any).retryCount).toBe(0);
         });
 
         test('暂停应设置 sendBlocked 为 true', () => {
@@ -288,8 +288,10 @@ describe('MessageQueue', () => {
             }).not.toThrow();
         });
 
-        test('暂停超时应自动恢复', (done) => {
-            // 创建一个新队列，使用较短的暂停超时时间进行测试
+        test('暂停超时应自动恢复', () => {
+            // 使用 Jest 的假定时器
+            jest.useFakeTimers();
+            
             const testQueue = new MessageQueue(
                 100,
                 3,
@@ -299,17 +301,17 @@ describe('MessageQueue', () => {
                 onMessageSent
             );
             
-            // 修改暂停超时时间为 100ms（通过访问私有属性）
-            (testQueue as any).PAUSE_TIMEOUT = 100;
-            
             testQueue.pause();
+            expect((testQueue as any).paused).toBe(true);
             
-            // 等待超时自动恢复
-            setTimeout(() => {
-                // 应该自动恢复
-                expect((testQueue as any).paused).toBe(false);
-                done();
-            }, 150);
+            // 快进到暂停超时时间（60000ms）
+            jest.advanceTimersByTime(60000);
+            
+            // 应该自动恢复
+            expect((testQueue as any).paused).toBe(false);
+            
+            // 清理
+            jest.useRealTimers();
         });
 
         test('恢复应清除暂停定时器', () => {
@@ -325,7 +327,7 @@ describe('MessageQueue', () => {
 
     describe('拒绝请求', () => {
         test('应该能拒绝所有请求类型的消息', () => {
-            const callbackManager = new CallbackManager(100);
+            const callbackManager = new CallbackManager(100, 30000);
             const cb1 = jest.fn();
             const cb2 = jest.fn();
             
@@ -361,7 +363,7 @@ describe('MessageQueue', () => {
         });
 
         test('拒绝后应重置队列状态', () => {
-            const callbackManager = new CallbackManager(100);
+            const callbackManager = new CallbackManager(100, 30000);
             
             queue.enqueue({
                 type: 'request',
@@ -429,7 +431,7 @@ describe('MessageQueue', () => {
         });
 
         test('混合请求和发送消息应正确处理', (done) => {
-            const callbackManager = new CallbackManager(100);
+            const callbackManager = new CallbackManager(100, 30000);
             const cb = jest.fn();
             callbackManager.register(1, cb);
             
