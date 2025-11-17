@@ -21,7 +21,7 @@ export const SchemaCloseResult = z.boolean().describe('关闭场景/预制体结
 
 export const SchemaSaveResult = SchemaSaveAssetResult.describe('保存场景/预制体结果');
 
-export const SchemaReload = z.union([SchemaScene, SchemaNode]).describe('重载场景/预制体结果');
+export const SchemaReload = z.boolean().describe('重载场景/预制体是否成功');
 
 export const SchemaCreateOptions = z.object({
     baseName: z.string().describe('资源名称'),

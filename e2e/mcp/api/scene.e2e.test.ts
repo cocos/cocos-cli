@@ -328,19 +328,8 @@ describe('MCP Scene API', () => {
             // 重新加载场景
             const result = await context.mcpClient.callTool('scene-reload', {});
 
+            expect(result.data).toBe(true);
             expect(result.code).toBe(200);
-            expect(result.data).toBeDefined();
-
-            const data = result.data as { assetUrl: string, assetName: string, assetType: string, assetUuid: string };
-            if (data) {
-                expect(data.assetUrl).toBe(testSceneUrl);
-                expect(data.assetName).toBe('scene-2d.scene');
-                expect(data.assetType).toBe('cc.SceneAsset');
-                expect(data.assetUuid).toBeDefined();
-                expect(result.data.name).toBeDefined();
-                expect(result.data.children).toBeDefined();
-                expect(result.data.components).toBeDefined();
-            }
         });
 
         test('should handle reloading when no scene is open', async () => {
@@ -351,8 +340,8 @@ describe('MCP Scene API', () => {
             const result = await context.mcpClient.callTool('scene-reload', {});
 
             // 应该失败或返回适当的错误
-            expect(result.code).not.toBe(200);
-            expect(result.reason).toBeDefined();
+            expect(result.data).toBe(false);
+            expect(result.code).toBe(200);
         });
     });
 
@@ -397,8 +386,8 @@ describe('MCP Scene API', () => {
 
                 // 5. 重新加载场景
                 const reloadResult = await context.mcpClient.callTool('scene-reload', {});
+                expect(reloadResult.data).toBe(true);
                 expect(reloadResult.code).toBe(200);
-                expect(reloadResult.data).toBeDefined();
 
                 // 6. 关闭场景
                 const closeResult = await context.mcpClient.callTool('scene-close', {});

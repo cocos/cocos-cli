@@ -54,7 +54,7 @@ export class SceneEditor extends BaseEditor {
 
     async close(): Promise<boolean> {
         if (!this.entity) {
-            throw new Error('没有打开场景');
+            throw new Error('[close] 没有打开场景');
         }
         await this.save();
         await sceneUtils.runScene(new Scene(''));
@@ -64,7 +64,7 @@ export class SceneEditor extends BaseEditor {
 
     async save(): Promise<IAssetInfo> {
         if (!this.entity) {
-            throw new Error('没有打开场景');
+            throw new Error('[save] 没有打开场景');
         }
         const serializedData = sceneUtils.serialize(this.entity.instance as Scene);
         return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
@@ -72,7 +72,7 @@ export class SceneEditor extends BaseEditor {
 
     protected async _doReload(): Promise<IScene> {
         if (!this.entity) {
-            throw new Error('没有打开场景');
+            throw new Error('[reload] 没有打开场景');
         }
         const scene = this.entity.instance as Scene;
         const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(scene);

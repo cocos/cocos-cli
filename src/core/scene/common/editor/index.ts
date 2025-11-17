@@ -67,7 +67,7 @@ export interface IEditorService extends IServiceEvents {
      * 重载资产
      * @param params
      */
-    reload(params: IReloadOptions): Promise<TEditorEntity>;
+    reload(params: IReloadOptions): Promise<boolean>;
 
     /**
      * 创建新资产

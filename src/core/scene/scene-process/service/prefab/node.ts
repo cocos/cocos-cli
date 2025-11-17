@@ -1186,7 +1186,14 @@ class NodeOperation {
         }
 
         return new Promise((resolve) => {
-            ServiceEvents.once<IEditorEvents>('editor:reload', () => {
+            let finished = false;
+            const TIMEOUT_MS = 5000;
+
+            const done = () => {
+                if (finished) return;
+                finished = true;
+                clearTimeout(timer);
+
                 resolve({
                     nodeUUID,
                     mountedChildrenInfoMap,
@@ -1196,9 +1203,20 @@ class NodeOperation {
                     oldPrefabNodeData: oldNodeData,
                     targetOverrides: appliedTargetOverrides,
                 });
+            };
+
+            // 监听事件
+            ServiceEvents.once<IEditorEvents>('editor:reload', () => {
+                done();
             });
 
-            // 场景中使用的 Prefab 节点的 PrefabAsset 变动会重新 load 场景，所以不需要单独去变动节点了。
+            // 超时兜底
+            const timer = setTimeout(() => {
+                console.warn('[doApplyPrefab] editor:reload 未触发');
+                done();
+            }, TIMEOUT_MS);
+
+            // 保存资源
             Rpc.getInstance().request('assetManager', 'saveAsset', [
                 info.source, ret.prefabData,
             ]).then(() => {

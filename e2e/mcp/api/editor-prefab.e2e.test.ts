@@ -233,8 +233,8 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
                 // 2. 重新加载预制体
                 const result = await context.mcpClient.callTool('scene-reload', {});
 
+                expect(result.data).toBe(true);
                 expect(result.code).toBe(200);
-                expect(result.data).toBeDefined();
             });
 
             test('should handle reloading when no prefab is open', async () => {
@@ -242,8 +242,8 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
                 const result = await context.mcpClient.callTool('scene-reload', {});
 
+                expect(result.reason).toBe(true);
                 expect(result.code).not.toBe(200);
-                expect(result.reason).toBeDefined();
             });
         });
     });
