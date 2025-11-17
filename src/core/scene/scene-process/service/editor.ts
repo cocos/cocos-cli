@@ -108,7 +108,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         const encode = await editor.open(assetInfo);
 
         this.emit('editor:open');
-        this.isOpen = false;
+        this.isOpen = true;
         console.log(`打开 ${assetInfo.url}`);
         return encode;
     }
