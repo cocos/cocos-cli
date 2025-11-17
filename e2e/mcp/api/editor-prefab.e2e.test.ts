@@ -242,8 +242,8 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
                 const result = await context.mcpClient.callTool('scene-reload', {});
 
-                expect(result.reason).toBe(true);
-                expect(result.code).not.toBe(200);
+                expect(result.data).toBe(false);
+                expect(result.code).toBe(200);
             });
         });
     });
