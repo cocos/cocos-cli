@@ -6,8 +6,40 @@ import { CallbackEntry, RpcResponse } from './types';
  */
 export class CallbackManager {
     private callbacks = new Map<number, CallbackEntry>();
+    private msgId = 0;
+    private readonly MAX_MSG_ID = Number.MAX_SAFE_INTEGER - 1;
 
-    constructor(private readonly maxCallbacks: number) {}
+    constructor(
+        private readonly maxCallbacks: number,
+        private readonly defaultTimeout: number
+    ) {}
+
+    /**
+     * 生成唯一消息 ID
+     */
+    generateId(): number {
+        for (let i = 0; i < 1000; i++) {
+            this.msgId = (this.msgId >= this.MAX_MSG_ID) ? 1 : this.msgId + 1;
+            if (!this.callbacks.has(this.msgId)) return this.msgId;
+        }
+        throw new Error('Unable to generate unique message ID after 1000 attempts');
+    }
+
+    /**
+     * 创建超时定时器
+     */
+    createTimer(id: number, module: string, method: string, timeout?: number): NodeJS.Timeout | undefined {
+        const ms = timeout === undefined ? this.defaultTimeout : Math.max(0, timeout);
+        if (ms === 0) return undefined;
+
+        return setTimeout(() => {
+            this.executeAndDelete(id, {
+                id,
+                type: 'response',
+                error: `RPC request timeout: ${module}.${method}`
+            });
+        }, ms);
+    }
 
     /**
      * 注册回调
@@ -17,13 +49,6 @@ export class CallbackManager {
             throw new Error(`Exceeded maximum concurrent requests (${this.maxCallbacks})`);
         }
         this.callbacks.set(id, { cb, timer });
-    }
-
-    /**
-     * 获取回调
-     */
-    get(id: number): CallbackEntry | undefined {
-        return this.callbacks.get(id);
     }
 
     /**
@@ -45,18 +70,13 @@ export class CallbackManager {
      */
     executeAndDelete(id: number, response: RpcResponse): boolean {
         const entry = this.callbacks.get(id);
-        if (!entry) return false;
+        if (!entry || !this.callbacks.delete(id)) return false;
 
-        // 先删除回调，避免定时器触发时重复执行
-        if (!this.callbacks.delete(id)) return false;
-
-        // 清理定时器并显式置空引用
         if (entry.timer) {
             clearTimeout(entry.timer);
             entry.timer = undefined;
         }
-        
-        // 执行回调
+
         try {
             entry.cb(response);
             return true;
@@ -78,35 +98,58 @@ export class CallbackManager {
     }
 
     /**
+     * 计算剩余超时时间并设置定时器
+     */
+    setupRemainingTimer(id: number, module: string, method: string, startTime: number, duration: number): void {
+        const entry = this.callbacks.get(id);
+        if (!entry) return;
+
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, duration - elapsed);
+
+        if (entry.timer) clearTimeout(entry.timer);
+
+        if (remaining > 0) {
+            entry.timer = this.createTimer(id, module, method, remaining);
+        } else {
+            this.executeAndDelete(id, {
+                id,
+                type: 'response',
+                error: `RPC request timeout: ${module}.${method}`
+            });
+        }
+    }
+
+    /**
      * 清理所有回调
      */
     clear(reason: string): void {
-        // 先复制条目，再清空 Map，确保即使回调中有异常也能完全清理
         const entries = Array.from(this.callbacks.entries());
         this.callbacks.clear();
-        
-        // 先清理所有定时器，再执行回调，防止回调执行时间过长导致定时器泄漏
+
         for (const [, entry] of entries) {
             if (entry.timer) {
                 clearTimeout(entry.timer);
-                entry.timer = undefined; // 显式置空引用
+                entry.timer = undefined;
             }
         }
-        
-        // 执行回调通知
+
         for (const [id, entry] of entries) {
             try {
                 entry.cb({ id, type: 'response', error: reason });
             } catch (error) {
-                // 记录回调错误，便于调试
-                console.warn(`[CallbackManager] Callback execution error for id ${id}:`, error);
+                console.warn(`[CallbackManager] Callback error for id ${id}:`, error);
             }
         }
     }
 
     /**
-     * 获取当前回调数量
+     * 重置 ID 计数器
      */
+    reset(): void {
+        this.msgId = 0;
+    }
+
     get size(): number {
         return this.callbacks.size;
     }

@@ -8,12 +8,11 @@ import { CallbackManager } from './callback-manager';
 export class MessageQueue {
     private queue: PendingMessage[] = [];
     private flushScheduled = false;
-    private flushRetryCount = 0;
-    public sendBlocked = false;
+    private retryCount = 0;
     private paused = false;
     private pauseTimer?: NodeJS.Timeout;
-    private readonly PAUSE_TIMEOUT = 60000; // 60秒暂停超时
-    private flushTimer?: NodeJS.Timeout; // 用于跟踪 flush 延迟定时器
+    private flushTimer?: NodeJS.Timeout;
+    public sendBlocked = false;
 
     constructor(
         private readonly maxSize: number,
@@ -24,9 +23,6 @@ export class MessageQueue {
         private onMessageSent?: (msg: PendingMessage) => void
     ) {}
 
-    /**
-     * 添加消息到队列
-     */
     enqueue(message: PendingMessage): void {
         if (this.queue.length >= this.maxSize) {
             throw new Error(`Exceeded maximum pending messages (${this.maxSize})`);
@@ -35,221 +31,126 @@ export class MessageQueue {
         this.sendBlocked = true;
     }
 
-    /**
-     * 调度 flush 操作
-     */
     scheduleFlush(): void {
         if (this.paused || this.flushScheduled || this.queue.length === 0) return;
-        
         this.flushScheduled = true;
         this.flush();
     }
 
-    /**
-     * 暂停队列处理
-     * 用于进程重启前暂停发送，避免浪费重试次数
-     */
     pause(): void {
         this.paused = true;
-        this.sendBlocked = true; // 阻止新消息发送，强制进入队列
-        console.log('[MessageQueue] Queue paused (process restarting)');
-        
-        // 设置暂停超时保护
-        if (this.pauseTimer) {
-            clearTimeout(this.pauseTimer);
-        }
+        this.sendBlocked = true;
+        console.log('[MessageQueue] Paused');
+
+        this.clearTimer(this.pauseTimer);
         this.pauseTimer = setTimeout(() => {
-            console.warn('[MessageQueue] Pause timeout reached, auto-resuming queue');
+            console.warn('[MessageQueue] Auto-resuming after 60s');
             this.resume();
-        }, this.PAUSE_TIMEOUT);
+        }, 60000);
     }
 
-    /**
-     * 恢复队列处理
-     * 用于进程重启后恢复发送，并重置重试计数
-     */
     resume(): void {
         if (!this.paused) return;
-        
-        // 先设置 paused 为 false，避免 scheduleFlush 中的检查失败
         this.paused = false;
-        this.clearPauseTimer();
-        this.flushRetryCount = 0; // 重置重试计数
-        console.log('[MessageQueue] Queue resumed (process restarted)');
-        
-        // 立即尝试 flush
-        if (this.queue.length > 0) {
-            this.scheduleFlush();
-        }
+        this.retryCount = 0;
+        this.clearTimer(this.pauseTimer);
+        this.pauseTimer = undefined;
+        console.log('[MessageQueue] Resumed');
+
+        if (this.queue.length > 0) this.scheduleFlush();
     }
 
-    /**
-     * 处理队列中的消息
-     */
-    private flush(): void {
-        // 检查暂停状态，避免在暂停时继续 flush
-        if (this.paused) {
-            this.flushScheduled = false;
-            return;
-        }
-
-        // 如果队列为空，直接返回（可能在 flush 执行前被清空）
-        if (this.queue.length === 0) {
-            this.reset();
-            return;
-        }
-
-        const batchSize = Math.min(this.batchSize, this.queue.length);
-        let successCount = 0;
-        let failCount = 0;
-
-        // 从队列前端取出批次消息
-        const batch = this.queue.splice(0, batchSize);
-        
-        // 处理批次，失败的消息重新加入队列前端
-        const failedMessages: PendingMessage[] = [];
-        for (const msg of batch) {
-            const sent = this.sendMessage(msg.data);
-            
-            if (sent) {
-                successCount++;
-                // 消息发送成功，通知恢复超时定时器
-                if (this.onMessageSent && msg.type === 'request') {
-                    this.onMessageSent(msg);
-                }
-            } else {
-                failCount++;
-                failedMessages.push(msg);
-            }
-        }
-
-        // 将失败的消息放回队列前端
-        if (failedMessages.length > 0) {
-            this.queue.unshift(...failedMessages);
-        }
-
-        // 决定下一步
-        if (this.queue.length > 0) {
-            this.handleRetry(successCount, failCount);
-        } else {
-            this.reset();
-        }
+    resetRetryCount(): void {
+        this.retryCount = 0;
+        console.log('[MessageQueue] Retry count reset');
     }
 
-    /**
-     * 处理重试逻辑
-     */
-    private handleRetry(successCount: number, failCount: number): void {
-        if (failCount > 0 && successCount === 0) {
-            // 全部失败
-            this.flushRetryCount++;
-            
-            if (this.flushRetryCount > this.maxRetries) {
-                this.flushScheduled = false;
-                this.flushRetryCount = 0;
-                this.onRetryFailed(`Flush retry limit exceeded after ${this.maxRetries} attempts`);
-                this.queue = [];
-                this.sendBlocked = false;
-                return;
-            }
-            
-            // 指数退避 - 清理旧定时器，防止定时器泄漏
-            this.flushScheduled = false;
-            this.clearFlushTimer();
-            const backoffDelay = Math.min(100 * Math.pow(2, this.flushRetryCount - 1), 5000);
-            this.flushTimer = setTimeout(() => {
-                this.flushTimer = undefined;
-                this.scheduleFlush();
-            }, backoffDelay);
-        } else {
-            // 有成功的消息 - 先重置标志，再立即调度
-            this.flushRetryCount = 0;
-            this.flushScheduled = false;
-            setImmediate(() => {
-                this.scheduleFlush();
+    rejectAllRequests(reason: string, callbackManager: CallbackManager): void {
+        const requests = this.queue.filter(m => m.type === 'request');
+        this.clear();
+
+        for (const msg of requests) {
+            const req = msg.data as RpcRequest;
+            callbackManager.executeAndDelete(req.id, {
+                id: req.id,
+                type: 'response',
+                error: reason
             });
         }
     }
 
-    /**
-     * 重置状态
-     */
-    private reset(): void {
-        this.flushScheduled = false;
-        this.flushRetryCount = 0;
-        this.sendBlocked = false;
-    }
-
-    /**
-     * 重置重试计数器
-     * 用于进程重启场景，给新进程一个新的重试机会
-     */
-    resetRetryCount(): void {
-        this.flushRetryCount = 0;
-        console.log('[MessageQueue] Retry count reset (process restart detected)');
-    }
-
-    /**
-     * Reject 所有请求类型的消息并清空队列
-     */
-    rejectAllRequests(reason: string, callbackManager: CallbackManager): void {
-        // 复制队列以避免在遍历时修改
-        const queueCopy = [...this.queue];
-        
-        // 清空队列
-        this.queue = [];
-        this.reset();
-        
-        // 执行所有请求的回调
-        for (const msg of queueCopy) {
-            if (msg.type === 'request') {
-                const req = msg.data as RpcRequest;
-                callbackManager.executeAndDelete(req.id, {
-                    id: req.id,
-                    type: 'response',
-                    error: reason
-                });
-            }
-        }
-    }
-
-    /**
-     * 清空队列
-     */
     clear(): void {
         this.queue = [];
-        this.reset();
-        this.clearPauseTimer();
-        this.clearFlushTimer();
+        this.flushScheduled = false;
+        this.retryCount = 0;
+        this.sendBlocked = false;
         this.paused = false;
+        this.clearTimer(this.pauseTimer);
+        this.clearTimer(this.flushTimer);
+        this.pauseTimer = undefined;
+        this.flushTimer = undefined;
     }
 
-    /**
-     * 清除暂停定时器
-     */
-    private clearPauseTimer(): void {
-        if (this.pauseTimer) {
-            clearTimeout(this.pauseTimer);
-            this.pauseTimer = undefined;
-        }
-        // 注意：不在这里设置 paused = false，由调用者控制
-    }
-
-    /**
-     * 清除 flush 定时器
-     */
-    private clearFlushTimer(): void {
-        if (this.flushTimer) {
-            clearTimeout(this.flushTimer);
-            this.flushTimer = undefined;
-        }
-    }
-
-    /**
-     * 获取队列长度
-     */
     get length(): number {
         return this.queue.length;
+    }
+
+    private flush(): void {
+        if (this.paused || this.queue.length === 0) {
+            this.flushScheduled = false;
+            return;
+        }
+
+        const batch = this.queue.splice(0, Math.min(this.batchSize, this.queue.length));
+        const failed: PendingMessage[] = [];
+
+        for (const msg of batch) {
+            if (this.sendMessage(msg.data)) {
+                if (this.onMessageSent && msg.type === 'request') {
+                    this.onMessageSent(msg);
+                }
+            } else {
+                failed.push(msg);
+            }
+        }
+
+        if (failed.length > 0) {
+            this.queue.unshift(...failed);
+        }
+
+        if (this.queue.length === 0) {
+            this.flushScheduled = false;
+            this.retryCount = 0;
+            this.sendBlocked = false;
+        } else if (failed.length === batch.length) {
+            // 全部失败
+            this.retryCount++;
+            if (this.retryCount > this.maxRetries) {
+                this.flushScheduled = false;
+                this.retryCount = 0;
+                this.onRetryFailed(`Retry limit exceeded after ${this.maxRetries} attempts`);
+                this.queue = [];
+                this.sendBlocked = false;
+            } else {
+                // 指数退避
+                this.flushScheduled = false;
+                this.clearTimer(this.flushTimer);
+                const delay = Math.min(100 * Math.pow(2, this.retryCount - 1), 5000);
+                this.flushTimer = setTimeout(() => {
+                    this.flushTimer = undefined;
+                    this.scheduleFlush();
+                }, delay);
+            }
+        } else {
+            // 部分成功
+            this.retryCount = 0;
+            this.flushScheduled = false;
+            setImmediate(() => this.scheduleFlush());
+        }
+    }
+
+    private clearTimer(timer?: NodeJS.Timeout): void {
+        if (timer) clearTimeout(timer);
     }
 }
 

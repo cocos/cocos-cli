@@ -102,7 +102,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
 
             if (!prefabUtils.getPrefab(node)?.instance) {
-                throw new Error(`${params.nodePath} 节点已是普通节点`);
+                throw new Error(`${params.nodePath} 是普通节点`);
             }
 
             this.unWrapPrefabInstance(node.uuid, !!params.recursive);

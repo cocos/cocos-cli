@@ -532,7 +532,7 @@ describe('MCP Prefab API', () => {
             expect(isInstanceResult.data).toBe(false);
         });
     
-        test('should handle non-prefab node', async () => {
+        test('should error in unpack prefab by normal node ', async () => {
             const nodeName = `NonPrefabUnpackNode-${generateTestId()}`;
             const createNodeResult = await mcpClient.callTool('scene-create-node-by-type', {
                 options: {
@@ -549,8 +549,8 @@ describe('MCP Prefab API', () => {
                     recursive: false,
                 }
             });
-            expect(result.code).toBe(200);
-            expect(result.data).toBeTruthy();
+            expect(result.reason).toContain('普通节点');
+            expect(result.code).toBe(500);
         });
     
         test('should handle invalid node path', async () => {
