@@ -63,10 +63,9 @@ describe('EditorProxy Prefab 测试', () => {
 
             const result = await EditorProxy.reload({
                 urlOrUUID: identifier?.assetUuid,
-            }) as INode;
+            });
 
-            expect(result).toBeDefined();
-            expect(JSON.stringify(result)).toContain('prefab-test-node-uuid');
+            expect(result).toBe(true);
         });
 
         it('queryCurrent - 通过 UUID 关闭后获取当前预制体应该为空', async () => {
@@ -134,8 +133,7 @@ describe('EditorProxy Prefab 测试', () => {
                 urlOrUUID: instanceAssetURL
             });
 
-            expect(result).toBeDefined();
-            expect(JSON.stringify(result)).toContain('prefab-test-node-url');
+            expect(result).toBe(true);
         });
 
         it('queryCurrent - 通过 URL 关闭后获取当前预制体应该为空', async () => {
@@ -196,10 +194,9 @@ describe('EditorProxy Prefab 测试', () => {
         });
 
         it('reload - 重载当前预制体', async () => {
-            const result = await EditorProxy.reload({}) as INode;
+            const result = await EditorProxy.reload({});
 
-            expect(result).toBeDefined();
-            expect(JSON.stringify(result)).toContain('current-prefab-test-node');
+            expect(result).toBe(true);
         });
 
         it('queryCurrent - 获取当前预制体', async () => {

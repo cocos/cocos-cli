@@ -54,9 +54,8 @@ describe('EditorProxy Scene 测试', () => {
 
             const result = await EditorProxy.reload({
                 urlOrUUID: identifier.assetUuid,
-            }) as IScene;
-            expect(result).toBeDefined();
-            expect(JSON.stringify(result)).toContain('scene-test-node-uuid');
+            });
+            expect(result).toBe(true);
         });
 
         it('queryCurrent - 通过 UUID 关闭后获取当前场景应该为空', async () => {
@@ -115,8 +114,7 @@ describe('EditorProxy Scene 测试', () => {
             const result = await EditorProxy.reload({
                 urlOrUUID: identifier.assetUrl,
             });
-            expect(result).toBeDefined();
-            expect(JSON.stringify(result)).toContain('scene-test-node-url');
+            expect(result).toBe(true);
         });
 
         it('queryCurrent - 通过 URL 关闭后获取当前场景应该为空', async () => {
@@ -154,8 +152,7 @@ describe('EditorProxy Scene 测试', () => {
 
         it('reload - 重载当前场景', async () => {
             const result = await EditorProxy.reload({});
-            expect(result).toBeDefined();
-            expect(JSON.stringify(result)).toContain('current-scene-test-node');
+            expect(result).toBe(true);
         });
 
         it('queryCurrent - 获取当前场景', async () => {
