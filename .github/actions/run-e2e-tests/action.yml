@@ -42,10 +42,8 @@ runs:
           npm run test:e2e
         fi
     
-    - name: Archive E2E logs on failure
+    - name: Archive E2E logs
       shell: bash
-      # 仅在 E2E 测试失败时保留日志
-      if: steps.run-tests.outcome == 'failure'
       run: |
         if [ -d "temp/logs" ]; then
           mkdir -p e2e/logs
