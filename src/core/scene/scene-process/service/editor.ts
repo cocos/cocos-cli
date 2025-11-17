@@ -22,6 +22,9 @@ import { IAssetInfo } from '../../../assets/@types/public';
  */
 @register('Editor')
 export class EditorService extends BaseService<IEditorEvents> implements IEditorService {
+    private needReloadAgain = false;
+    private lastSceneOrNode: IScene | INode | undefined;
+    private reloadPromise: Promise<IScene | INode> | null = null;
     private currentEditorUuid: string | null = null; // 当前打开的编辑器 UUID
     private editorMap: Map<string, SceneEditor | PrefabEditor> = new Map(); // uuid -> editor
 
@@ -167,34 +170,44 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     async reload(params: IReloadOptions): Promise<IScene | INode> {
-        const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
-        try {
-            if (!urlOrUUID) {
-                throw new Error('当前没有打开任何编辑器');
-            }
-
-            const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
-            if (!assetInfo) {
-                throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
-            }
-
-            const uuid = assetInfo.uuid;
-            const editor = this.editorMap.get(uuid);
-            if (!editor) {
-                throw new Error(`当前没有打开任何编辑器`);
-            }
-
-            const result = await editor.reload();
-
-            this.emit('editor:reload');
-            this.broadcast('editor:reload');
-
-            console.log(`重载 ${assetInfo.url}`);
-            return result;
-        } catch (error) {
-            console.error(`重载失败: [${urlOrUUID}]`, error);
-            throw error;
+        if (this.reloadPromise) {
+            this.needReloadAgain = true;
+            return this.reloadPromise;
         }
+
+        this.reloadPromise = (async () => {
+            try {
+                do {
+                    this.needReloadAgain = false; // 重置
+                    this.lastSceneOrNode = await this.doReloadOnce(params);
+                } while (this.needReloadAgain);
+
+                return this.lastSceneOrNode!;
+            } finally {
+                this.reloadPromise = null;
+            }
+        })();
+
+        return this.reloadPromise;
+    }
+
+    private async doReloadOnce(params: IReloadOptions): Promise<IScene | INode> {
+        const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
+
+        if (!urlOrUUID) throw new Error('当前没有打开任何编辑器');
+
+        const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
+        if (!assetInfo) throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
+
+        const editor = this.editorMap.get(assetInfo.uuid);
+        if (!editor) throw new Error(`当前没有打开任何编辑器`);
+
+        const result = await editor.reload();
+
+        this.emit('editor:reload');
+        this.broadcast('editor:reload');
+        console.log(`重载 ${assetInfo.url}`);
+        return result;
     }
 
     async create(params: ICreateOptions): Promise<IBaseIdentifier> {

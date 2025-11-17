@@ -300,7 +300,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
 
     public async onAssetChanged(uuid: string) {
         // prefab 资源的变动，softReload场景
-        if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.queryCurrent()) {
+        if (nodeOperation.assetToNodesMap.has(uuid)) {
             clearTimeout(this._softReloadTimer);
             this._softReloadTimer = setTimeout(async () => {
                 await Service.Editor.reload({});
@@ -309,7 +309,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     }
 
     public async onAssetDeleted(uuid: string) {
-        if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.queryCurrent()) {
+        if (nodeOperation.assetToNodesMap.has(uuid)) {
             clearTimeout(this._softReloadTimer);
             this._softReloadTimer = setTimeout(async () => {
                 await Service.Editor.reload({});
