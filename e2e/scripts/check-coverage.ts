@@ -749,7 +749,8 @@ async function main() {
 
     const exitCode = generateReport(tools, references);
 
-    // 计算覆盖率统计
+    // 计算覆盖率统计（与 generateReport / generateJsonOutput 保持一致）
+    // 只统计 registry 中存在的工具，避免因为历史/无效工具导致覆盖率超过 100%
     const testCounts = new Map<string, TestReference[]>();
     for (const ref of references) {
         if (!testCounts.has(ref.toolName)) {
@@ -758,8 +759,8 @@ async function main() {
         testCounts.get(ref.toolName)!.push(ref);
     }
 
-    const testedCount = Array.from(testCounts.keys()).length;
     const totalTools = tools.length;
+    const testedCount = tools.filter(tool => testCounts.has(tool.name)).length;
     const coveragePercent = totalTools > 0 ? ((testedCount / totalTools) * 100).toFixed(2) : '0.00';
 
     // 在最后一行打印报告地址
