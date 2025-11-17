@@ -25,6 +25,9 @@ export const EditorProxy: IPublicEditorService = {
         return Rpc.getInstance().request('Editor', 'create', [params]);
     },
     queryCurrent() {
-        return Rpc.getInstance().request('Editor', 'queryCurrent', []);
+        return Rpc.getInstance().request('Editor', 'queryCurrent');
+    },
+    hasOpen() {
+        return Rpc.getInstance().request('Editor', 'hasOpen');
     }
 };

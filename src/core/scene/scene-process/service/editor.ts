@@ -39,6 +39,13 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     /**
+     * 是否打开场景
+     */
+    public async hasOpen(): Promise<boolean> {
+        return this.isOpen;
+    }
+
+    /**
      * 根据资源类型创建对应的编辑器
      */
     private createEditor(type: string): SceneEditor | PrefabEditor {
@@ -98,6 +105,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         const encode = await editor.open(assetInfo);
 
         this.emit('editor:open');
+        this.isOpen = false;
         console.log(`打开 ${assetInfo.url}`);
         return encode;
     }
@@ -127,7 +135,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this.editorMap.delete(uuid);
 
             this.emit('editor:close');
-
+            this.isOpen = false;
             console.log(`关闭 ${assetInfo.url}`);
             return result;
         } catch (error) {
