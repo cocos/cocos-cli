@@ -10,13 +10,11 @@ interface RpcRequest {
     module: string;
     method: string;
     args: any[];
-    stack: any;
 }
 
 interface RpcResponse {
     id: number;
     type: 'response';
-    stack?: any;
     result?: any;
     error?: string;
 }
@@ -26,7 +24,6 @@ interface RpcNotify {
     module: string;
     method: string;
     args: any[];
-    stack: any;
 }
 
 type RpcMessage = RpcRequest | RpcResponse | RpcNotify;
@@ -137,10 +134,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
 
         // 远程请求
         if (msg.type === 'request') {
-            const { id, module, method, args, stack } = msg;
+            const { id, module, method, args } = msg;
             const target = this.handlers[module];
             if (!target || typeof target[method] !== 'function') {
-                this.reply({ id, type: 'response', error: `Method not found: ${module}.${method}`, stack });
+                this.reply({ id, type: 'response', error: `Method not found: ${module}.${method}` });
                 return;
             }
 
@@ -148,7 +145,6 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 const result = await target[method](...(args || []));
                 this.reply({ id, type: 'response', result });
             } catch (e: any) {
-                console.error(e, 'stack: ', stack);
                 this.reply({ id, type: 'response', error: e?.message || String(e) });
             }
         }
@@ -164,14 +160,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
 
         // 单向消息
         if (msg.type === 'notify') {
-            const { module, method, args, stack } = msg;
+            const { module, method, args } = msg;
             const target = this.handlers[module];
             if (target && typeof target[method] === 'function') {
-                try {
-                    target[method](...(args || []));
-                } catch (e) {
-                    console.error(e, 'stack: ', stack);
-                }
+                target[method](...(args || []));
             }
         }
     }
@@ -210,8 +202,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 type: 'request',
                 module: module as string,
                 method: method as string,
-                args: args || [],
-                stack: getCleanStack(),
+                args: args || []
             };
 
             const timer = options?.timeout
@@ -249,14 +240,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             type: 'notify',
             module: module as string,
             method: method as string,
-            args: args || [],
-            stack: getCleanStack(),
+            args: args || []
         };
         this.process.send?.(msg);
     }
-}
-
-function getCleanStack(skipLines = 3) {
-    const stack = new Error().stack;
-    return stack ? stack.split('\n').slice(skipLines).join('\n') : 'No stack';
 }
