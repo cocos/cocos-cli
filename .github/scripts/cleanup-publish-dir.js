@@ -82,7 +82,7 @@ function cleanupOldPublishFiles(publishDir, keepCount = 6) {
  * 主函数
  */
 function main() {
-    const publishDir = process.argv[2] || process.env.PUBLISH_DIR || 'e2e/reports/.publish';
+    const publishDir = process.argv[2] || process.env.PUBLISH_DIR || 'e2e/server/.publish';
     const keepCount = parseInt(process.argv[3] || process.env.KEEP_COUNT || '6', 10);
     
     console.log(`🧹 开始清理发布目录: ${publishDir}`);

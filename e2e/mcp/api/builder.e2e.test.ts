@@ -28,6 +28,7 @@ describe('MCP Builder API', () => {
                     useCacheConfig: {
                         engine: false,
                     },
+                    startScene: 'db://assets/atlas/altas.scene',
                 },
             });
 

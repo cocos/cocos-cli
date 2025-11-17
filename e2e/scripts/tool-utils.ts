@@ -98,4 +98,3 @@ export function extendToolInfo(tool: BaseToolInfo): ExtendedToolInfo {
         category: 'Unknown',
     };
 }
-

@@ -612,7 +612,7 @@ function generateHtmlReport(tools: ApiTool[], references: TestReference[]): stri
  * 保存 HTML 报告到文件
  */
 function saveHtmlReport(content: string): string {
-    const reportsDir = path.resolve(process.cwd(), 'e2e/reports');
+    const reportsDir = path.resolve(process.cwd(), 'e2e/server/reports');
 
     // 确保目录存在
     if (!fs.existsSync(reportsDir)) {

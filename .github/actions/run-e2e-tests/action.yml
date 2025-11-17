@@ -6,6 +6,10 @@ inputs:
     description: '报告服务器地址'
     required: true
     default: 'http://192.168.52.77:8080'
+  debug:
+    description: '是否以 debug 模式运行 E2E 测试（使用 npm run test:e2e:debug）'
+    required: false
+    default: 'false'
 
 outputs:
   report_exists:
@@ -29,8 +33,30 @@ runs:
       shell: bash
       # 即使测试失败也继续执行后续步骤（查找报告）
       continue-on-error: true
-      run: npm run test:e2e
+      run: |
+        if [ "${{ inputs.debug }}" = "true" ]; then
+          echo "Running E2E tests in DEBUG mode..."
+          npm run test:e2e:debug
+        else
+          echo "Running E2E tests in normal mode..."
+          npm run test:e2e
+        fi
     
+    - name: Archive E2E logs on failure
+      shell: bash
+      # 仅在 E2E 测试失败时保留日志
+      if: steps.run-tests.outcome == 'failure'
+      run: |
+        if [ -d "temp/logs" ]; then
+          mkdir -p e2e/logs
+          LOG_DIR="e2e/logs/$(date +%Y-%m-%d_%H-%M-%S)"
+          mkdir -p "$LOG_DIR"
+          cp -r temp/logs/* "$LOG_DIR"/ || true
+          echo "E2E logs archived to $LOG_DIR"
+        else
+          echo "No temp/logs directory found, skip archiving."
+        fi
+
     - name: Find test report file
       id: find-report
       shell: bash
@@ -43,4 +69,3 @@ runs:
       # 如果测试失败，在找到报告后再标记失败
       if: steps.run-tests.outcome == 'failure'
       run: exit 1
-

@@ -48,7 +48,7 @@ npm run test:e2e -- tests/mcp/api
 
 ```bash
 # 测试报告位置（包含本地时间戳）
-e2e/reports/test-report-2024-01-15-10-30.html
+e2e/server/reports/test-report-2024-01-15-10-30.html
 ```
 
 ### 自动打印报告路径
@@ -74,13 +74,13 @@ e2e/reports/test-report-2024-01-15-10-30.html
 
 ```bash
 # Windows
-start e2e/reports/test-report-*.html
+start e2e/server/reports/test-report-*.html
 
 # macOS
-open $(ls -t e2e/reports/test-report-*.html | head -1)
+open $(ls -t e2e/server/reports/test-report-*.html | head -1)
 
 # Linux
-xdg-open $(ls -t e2e/reports/test-report-*.html | head -1)
+xdg-open $(ls -t e2e/server/reports/test-report-*.html | head -1)
 ```
 
 报告包含：

@@ -112,7 +112,7 @@ npx tsx e2e/scripts/check-coverage.ts --report
 **生成的文件：**
 
 ```
-e2e/reports/
+e2e/server/reports/
 └── coverage-report-2025-10-28T15-30-45.html  # 漂亮的 HTML 报告
 ```
 
@@ -120,13 +120,13 @@ e2e/reports/
 
 ```bash
 # Windows
-start e2e/reports/coverage-report-*.html
+start e2e/server/reports/coverage-report-*.html
 
 # macOS
-open e2e/reports/coverage-report-*.html
+open e2e/server/reports/coverage-report-*.html
 
 # Linux
-xdg-open e2e/reports/coverage-report-*.html
+xdg-open e2e/server/reports/coverage-report-*.html
 ```
 
 ## 📊 报告内容
@@ -212,7 +212,7 @@ await mcpClient.callTool('api-tool-name', {
 **文件位置：**
 
 ```
-e2e/reports/coverage-report-2025-10-28T15-30-45.html
+e2e/server/reports/coverage-report-2025-10-28T15-30-45.html
 ```
 
 **文件名格式：**
@@ -237,7 +237,7 @@ npm run check:e2e-coverage
 npm run check:e2e-coverage:report
 
 # 4. 根据提示打开报告
-start e2e/reports/coverage-report-*.html  # Windows
+start e2e/server/reports/coverage-report-*.html  # Windows
 
 # 5. 如果有未测试的 API，添加测试
 # 6. 再次检查
@@ -267,7 +267,7 @@ npx tsx e2e/scripts/check-coverage.ts || echo "⚠️ 部分 API 缺少 E2E 测�
 定期生成覆盖率报告作为项目文档：
 
 ```bash
-# 生成 HTML 报告到 e2e/reports 目录
+# 生成 HTML 报告到 e2e/server/reports 目录
 npm run check:e2e-coverage:report
 ```
 
@@ -376,10 +376,10 @@ for (const match of matches) {
 
 ## 📂 生成的报告文件
 
-所有报告文件保存在 `e2e/reports/` 目录：
+所有报告文件保存在 `e2e/server/reports/` 目录：
 
 ```
-e2e/reports/
+e2e/server/reports/
 ├── test-report-2025-10-28-15-27-48.html       # E2E 测试报告
 └── coverage-report-2025-10-28T15-30-45.html   # 覆盖率 HTML 报告
 ```
@@ -390,7 +390,7 @@ e2e/reports/
 
 ```bash
 # 手动清理旧的覆盖率报告（保留最新 5 个）
-ls -t e2e/reports/coverage-report-*.html | tail -n +6 | xargs rm -f
+ls -t e2e/server/reports/coverage-report-*.html | tail -n +6 | xargs rm -f
 ```
 
 ---

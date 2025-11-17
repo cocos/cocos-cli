@@ -9,7 +9,12 @@ coverage/
 .jest/
 
 # 测试报告
-reports/
+server/reports/
+
+# 测试日志
+server/logs/
+
+server/.publish
 
 # auto generated files
 types/mcp-tools.generated.ts

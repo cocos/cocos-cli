@@ -146,7 +146,7 @@ npm run check:e2e-coverage
 npm run check:e2e-coverage:report
 ```
 
-The coverage report will be saved to `e2e/reports/`.
+The coverage report will be saved to `e2e/server/reports/`.
 
 #### Run All Tests
 
@@ -466,7 +466,7 @@ npm run check:e2e-coverage
 npm run check:e2e-coverage:report
 ```
 
-覆盖率报告将保存到 `e2e/reports/` 目录。
+覆盖率报告将保存到 `e2e/server/reports/` 目录。
 
 #### 运行所有测试
 

@@ -66,7 +66,7 @@ jobs:
         if: success() && steps.e2e-tests.outcome == 'success'
         uses: ./.github/actions/release
         with:
-          publish-dir: e2e/reports/.publish
+          publish-dir: e2e/server/.publish
           nodejs: 'true'
           electron: 'false'
           create-zip: 'true'

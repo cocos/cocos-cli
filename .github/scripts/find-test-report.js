@@ -10,7 +10,7 @@ const path = require('path');
 console.log('🔍 Finding test report...');
 
 try {
-    const reportsDir = path.resolve(process.cwd(), 'e2e/reports');
+    const reportsDir = path.resolve(process.cwd(), 'e2e/server/reports');
     
     if (!fs.existsSync(reportsDir)) {
         console.log('❌ Reports directory not found');

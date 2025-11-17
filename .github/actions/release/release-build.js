@@ -191,9 +191,9 @@ function generateZipUrl(zipFile, publishDir, reportServerUrl, workspaceRoot) {
     const relativePath = normalizedPublishDir.replace(normalizedWorkspace, '').replace(/^\//, '');
     
     // 判断发布目录的类型，生成对应的 URL
-    // 如果发布目录是 e2e/reports/.publish，URL 应该是 /reports/.publish/filename
-    if (relativePath.includes('e2e/reports/.publish')) {
-        return `${reportServerUrl}/reports/.publish/${zipFilename}`;
+    // 如果发布目录是 e2e/server/.publish，URL 应该是 /reports/.publish/filename
+    if (relativePath.includes('e2e/server/.publish')) {
+        return `${reportServerUrl}/.publish/${zipFilename}`;
     }
     
     // 如果发布目录是 .publish（根目录下的），URL 应该是 /reports/.publish/filename

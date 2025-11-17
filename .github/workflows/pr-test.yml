@@ -10,7 +10,7 @@ jobs:
   pr-test:
     # 运行条件：
     # 1. PR 事件
-    # 2. 评论触发 (包含 "rerun pr test")
+    # 2. 评论触发 (包含 "rerun pr test"，包括 "rerun pr test:debug")
     if: |
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test'))
@@ -45,6 +45,8 @@ jobs:
         uses: ./.github/actions/run-e2e-tests
         with:
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+          # 如果是评论触发且包含 "rerun pr test:debug"，则以 debug 模式运行 E2E
+          debug: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test:debug') }}
       
       - name: Check E2E coverage
         id: coverage

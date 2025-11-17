@@ -5,10 +5,10 @@ import { getProjectManager } from './helpers/project-manager';
 import { getSharedMCPServer } from './helpers/shared-mcp-server';
 
 /**
- * 清理旧的测试报告
+ * 清理旧的测试报告或者日志文件
  * 保留最新的 N 个报告，删除其余的
  */
-function cleanupOldReports(reportsDir: string, keepCount: number = 10): void {
+function cleanupOldFiles(reportsDir: string, keepCount: number = 10, fileRule: string): void {
     try {
         // 确保报告目录存在
         if (!existsSync(reportsDir)) {
@@ -19,7 +19,7 @@ function cleanupOldReports(reportsDir: string, keepCount: number = 10): void {
         // 读取所有报告文件
         const files = readdirSync(reportsDir);
         const reportFiles = files
-            .filter(file => file.startsWith('test-report-') && file.endsWith('.html'))
+            .filter(file => file.includes(fileRule))
             .map(file => {
                 const filePath = join(reportsDir, file);
                 const stats = statSync(filePath);
@@ -158,7 +158,11 @@ export default async function globalSetup() {
 
     // 清理旧的测试报告
     const reportsDir = resolve(__dirname, 'reports');
-    cleanupOldReports(reportsDir, 10);
+    cleanupOldFiles(reportsDir, 10, '-report-');
+
+    // 清理旧的日志文件
+    cleanupOldFiles(resolve(__dirname, 'logs'), 10, 'cocos-');
+
 
     // 初始化项目管理器
     console.log(chalk.cyan('📦 初始化测试工作区...'));
