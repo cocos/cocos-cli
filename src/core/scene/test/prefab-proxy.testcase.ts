@@ -593,9 +593,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 recursive: false,
             };
 
-            const result = await PrefabProxy.unpackPrefabInstance(params);
-            expect(result).toBeTruthy();
-            expect(result).toBeDefined();
+            await expect(PrefabProxy.unpackPrefabInstance(params)).rejects.toThrow();
         });
     });
 

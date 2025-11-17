@@ -18,6 +18,10 @@ export class RpcProxy {
         return this.rpcInstance;
     }
 
+    public isConnect() {
+        return this.rpcInstance?.isConnect();
+    }
+
     async startup(prc: ChildProcess | NodeJS.Process) {
         // 在创建新实例前，先清理旧实例，防止内存泄漏
         this.dispose();

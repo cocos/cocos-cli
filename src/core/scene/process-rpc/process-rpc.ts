@@ -1,110 +1,209 @@
+// process-rpc.ts
 import { ChildProcess } from 'child_process';
-import { ProcessRPCConfig, RequestOptions, RpcMessage, RpcRequest, RpcResponse, RpcSend, PendingMessage } from './types';
-import { CallbackManager } from './callback-manager';
-import { MessageQueue } from './message-queue';
-import { ProcessAdapter } from './process-adapter';
+
+/**
+ * RPC 消息类型
+ */
+interface RpcRequest {
+    id: number;
+    type: 'request';
+    module: string;
+    method: string;
+    args: any[];
+    stack: any;
+}
+
+interface RpcResponse {
+    id: number;
+    type: 'response';
+    stack?: any;
+    result?: any;
+    error?: string;
+}
+
+interface RpcNotify {
+    type: 'notify';
+    module: string;
+    method: string;
+    args: any[];
+    stack: any;
+}
+
+type RpcMessage = RpcRequest | RpcResponse | RpcNotify;
+
+/**
+ * request 的 options
+ */
+interface RequestOptions {
+    timeout?: number; // 毫秒
+}
 
 /**
  * 双向 RPC 类
- * 精简、稳定、高性能的进程间 RPC 通信
+ * TModules 为注册模块接口集合
+ *
+ * 使用示例：
+ *
+ * interface INodeService {
+ *   createNode(name: string): Promise<string>;
+ *   deleteNode(id: string): Promise<void>;
+ * }
+ *
+ * interface ISceneService {
+ *   loadScene(id: string): Promise<boolean>;
+ * }
+ *
+ * // 假设我们在主进程
+ * const rpc = new ProcessRPC<{ node: INodeService; scene: ISceneService }>(childProcess);
+ *
+ * // 注册对象实例
+ * rpc.register('scene', {
+ *   async loadScene(id: string) {
+ *     console.log('Scene loaded:', id);
+ *     return true;
+ *   }
+ * });
+ *
+ * // 注册类实例
+ * class NodeService implements INodeService {
+ *   async createNode(name: string) {
+ *     return `Node:${name}`;
+ *   }
+ *   async deleteNode(id: string) {
+ *     console.log('Node deleted:', id);
+ *   }
+ * }
+ * rpc.register('node', new NodeService());
+ *
+ * // 调用子进程方法
+ * const nodeName = await rpc.request('node', 'createNode', ['Player']);
+ *
+ * // 发送单向消息
+ * rpc.send('scene', 'loadScene', ['Level01']);
  */
 export class ProcessRPC<TModules extends Record<string, any>> {
-    private static readonly ERROR_DISPOSED = 'Cannot operate: RPC instance has been disposed';
-    private static readonly ERROR_NO_PROCESS = '未挂载进程';
-    private static readonly ERROR_MODULE_METHOD_REQUIRED = 'Module and method are required';
-
-    private readonly config: Required<Omit<ProcessRPCConfig, 'onSendError'>> & Pick<ProcessRPCConfig, 'onSendError'>;
     private handlers: Record<string, any> = {};
-    private isDisposed = false;
-
-    private readonly callbackManager: CallbackManager;
-    private messageQueue: MessageQueue;
-    private processAdapter: ProcessAdapter;
+    private callbacks = new Map<number, (msg: RpcResponse) => void>();
+    private msgId = 0;
+    private process: NodeJS.Process | ChildProcess | undefined;
     private onMessageBind = this.onMessage.bind(this);
 
-    constructor(proc?: NodeJS.Process | ChildProcess, config?: ProcessRPCConfig) {
-        this.config = {
-            maxPendingMessages: config?.maxPendingMessages ?? 1000,
-            maxCallbacks: config?.maxCallbacks ?? 10000,
-            defaultTimeout: config?.defaultTimeout ?? 30000,
-            flushBatchSize: config?.flushBatchSize ?? 50,
-            maxFlushRetries: config?.maxFlushRetries ?? 3,
-            onSendError: config?.onSendError
-        };
-
-        this.callbackManager = new CallbackManager(this.config.maxCallbacks, this.config.defaultTimeout);
-        this.processAdapter = new ProcessAdapter();
-        this.messageQueue = new MessageQueue(
-            this.config.maxPendingMessages,
-            this.config.maxFlushRetries,
-            this.config.flushBatchSize,
-            (msg) => this.sendMessage(msg),
-            (reason) => this.onRetryFailed(reason),
-            (msg) => this.onMessageSentFromQueue(msg)
-        );
-
-        if (proc) this.attach(proc);
+    /**
+     * @param proc - NodeJS.Process 或 ChildProcess 实例
+     */
+    attach(proc: NodeJS.Process | ChildProcess) {
+        this.dispose();
+        this.process = proc;
+        this.listen();
     }
 
-    attach(proc: NodeJS.Process | ChildProcess): void {
-        this.checkDisposed();
-
-        const oldProcess = this.processAdapter.getProcess();
-        const isSwitch = oldProcess && oldProcess !== proc;
-
-        if (oldProcess) {
-            this.cleanup('RPC reset: process detached');
-        }
-
-        this.processAdapter.attach(proc);
-        this.processAdapter.on('message', this.onMessageBind);
-
-        if (isSwitch) {
-            console.log('[ProcessRPC] Process switch, resetting retry counter');
-            this.messageQueue.resetRetryCount();
-        }
-
-        this.processAdapter.setupConnectionListeners(
-            () => this.messageQueue.scheduleFlush(),
-            (reason) => this.cleanup(reason)
-        );
-    }
-
-    register(handler: Record<string, any>): void {
-        this.checkDisposed();
-        if (!handler || typeof handler !== 'object') {
-            throw new Error('Handler must be a valid object');
-        }
+    /**
+     * 注册模块，只支持对象或者类实例
+     * @param handler - 注册模块列表
+     */
+    register(handler: Record<string, any>) {
         this.handlers = handler;
     }
 
-    request<K extends keyof TModules, M extends keyof TModules[K] & string>(
+    /**
+     * 重置消息注册
+     */
+    public dispose() {
+        this.msgId = 0;
+        this.callbacks.clear();
+        this.process?.off('message', this.onMessageBind);
+        this.process = undefined;
+    }
+
+    /**
+     * 是否连接
+     */
+    public isConnect() {
+        return this.process?.connected;
+    }
+
+    /**
+     * 监听 incoming 消息
+     */
+    private listen() {
+        if (!this.process) {
+            throw new Error('未挂载进程');
+        }
+        this.process.on('message', this.onMessageBind);
+    }
+
+    private async onMessage(msg: RpcMessage) {
+        if (!msg || typeof msg !== 'object') return;
+
+        // 远程请求
+        if (msg.type === 'request') {
+            const { id, module, method, args, stack } = msg;
+            const target = this.handlers[module];
+            if (!target || typeof target[method] !== 'function') {
+                this.reply({ id, type: 'response', error: `Method not found: ${module}.${method}`, stack });
+                return;
+            }
+
+            try {
+                const result = await target[method](...(args || []));
+                this.reply({ id, type: 'response', result });
+            } catch (e: any) {
+                console.error(e, 'stack: ', stack);
+                this.reply({ id, type: 'response', error: e?.message || String(e) });
+            }
+        }
+
+        // 响应
+        if (msg.type === 'response') {
+            const callback = this.callbacks.get(msg.id);
+            if (callback) {
+                callback(msg);
+                this.callbacks.delete(msg.id);
+            }
+        }
+
+        // 单向消息
+        if (msg.type === 'notify') {
+            const { module, method, args, stack } = msg;
+            const target = this.handlers[module];
+            if (target && typeof target[method] === 'function') {
+                try {
+                    target[method](...(args || []));
+                } catch (e) {
+                    console.error(e, 'stack: ', stack);
+                }
+            }
+        }
+    }
+
+    /**
+     * 回复
+     * @param msg
+     * @private
+     */
+    private reply(msg: RpcResponse) {
+        if (!this.process) {
+            throw new Error('未挂载进程');
+        }
+        this.process.send?.(msg);
+    }
+
+    /**
+     * 发送请求并等待响应
+     * @param module 模块名
+     * @param method 方法名
+     * @param rest
+     */
+    request<K extends keyof TModules, M extends keyof TModules[K]>(
         module: K,
         method: M,
         ...rest: Parameters<TModules[K][M]> extends []
             ? [args?: [], options?: RequestOptions]
             : [args: Parameters<TModules[K][M]>, options?: RequestOptions]
     ): Promise<Awaited<ReturnType<TModules[K][M]>>> {
-        if (this.isDisposed) return Promise.reject(new Error(ProcessRPC.ERROR_DISPOSED));
-        if (!module || !method) return Promise.reject(new Error(ProcessRPC.ERROR_MODULE_METHOD_REQUIRED));
-        if (!this.processAdapter.getProcess()) return Promise.reject(new Error(ProcessRPC.ERROR_NO_PROCESS));
-
-        const [args, options] = rest as any as [any, RequestOptions?];
-        const callStack = new Error().stack;
-
+        const [args, options] = rest;
         return new Promise((resolve, reject) => {
-            if (this.isDisposed) {
-                reject(new Error(ProcessRPC.ERROR_DISPOSED));
-                return;
-            }
-
-            let id: number;
-            try {
-                id = this.callbackManager.generateId();
-            } catch (e) {
-                reject(e);
-                return;
-            }
+            const id = ++this.msgId;
 
             const req: RpcRequest = {
                 id,
@@ -112,198 +211,52 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 module: module as string,
                 method: method as string,
                 args: args || [],
+                stack: getCleanStack(),
             };
 
-            const cb = (res: RpcResponse) => {
-                if (res.error) {
-                    const error = new Error(res.error);
-                    if (callStack) error.stack = `${error.stack}\n--- Original call stack ---\n${callStack}`;
-                    reject(error);
-                } else {
-                    resolve(res.result);
-                }
-            };
+            const timer = options?.timeout
+                ? setTimeout(() => {
+                    this.callbacks.delete(id);
+                    reject(new Error(`RPC request timeout: ${String(module)}.${String(method)}`));
+                }, options.timeout)
+                : null;
 
-            const timer = this.callbackManager.createTimer(id, module as string, method as string, options?.timeout);
-
-            try {
-                this.callbackManager.register(id, cb, timer);
-            } catch (e) {
+            this.callbacks.set(id, (res) => {
                 if (timer) clearTimeout(timer);
-                reject(e);
-                return;
-            }
+                if (res.error) reject(new Error(res.error));
+                else resolve(res.result);
+            });
 
-            if (this.isDisposed) {
-                if (timer) clearTimeout(timer);
-                this.callbackManager.delete(id);
-                reject(new Error(ProcessRPC.ERROR_DISPOSED));
-                return;
+            if (!this.process) {
+                throw new Error('未挂载进程');
             }
-
-            if (!this.processAdapter.isConnected() || this.messageQueue.sendBlocked) {
-                this.queueRequest(req, timer, options?.timeout);
-            } else if (!this.sendMessage(req)) {
-                this.queueRequest(req, timer, options?.timeout);
-            }
+            this.process.send?.(req);
         });
     }
 
-    send<K extends keyof TModules, M extends keyof TModules[K] & string>(
+    /**
+     * 发送单向消息（无返回值）
+     */
+    notify<K extends keyof TModules, M extends keyof TModules[K]>(
         module: K,
         method: M,
         args?: Parameters<TModules[K][M]>
-    ): void {
-        this.checkDisposed();
-        if (!module || !method) throw new Error(ProcessRPC.ERROR_MODULE_METHOD_REQUIRED);
-        if (!this.processAdapter.getProcess()) throw new Error(ProcessRPC.ERROR_NO_PROCESS);
-
-        const msg: RpcSend = {
-            type: 'send',
+    ) {
+        if (!this.process) {
+            throw new Error('未挂载进程');
+        }
+        const msg: RpcNotify = {
+            type: 'notify',
             module: module as string,
             method: method as string,
             args: args || [],
+            stack: getCleanStack(),
         };
-
-        this.sendOrEnqueue(msg);
-    }
-
-    clearPendingMessages(): void {
-        this.checkDisposed();
-        this.callbackManager.clear('Pending messages cleared');
-        this.messageQueue.clear();
-    }
-
-    pauseQueue(): void {
-        this.checkDisposed();
-        this.messageQueue.pause();
-    }
-
-    resumeQueue(): void {
-        this.checkDisposed();
-        this.messageQueue.resume();
-    }
-
-    dispose(): void {
-        if (this.isDisposed) return;
-
-        this.isDisposed = true;
-        this.messageQueue.clear();
-        this.cleanup('RPC disposed');
-        this.processAdapter.off('message', this.onMessageBind);
-        this.processAdapter.detach();
-        this.handlers = {};
-        this.callbackManager.reset();
-    }
-
-    private checkDisposed(): void {
-        if (this.isDisposed) throw new Error(ProcessRPC.ERROR_DISPOSED);
-    }
-
-    private sendMessage(msg: RpcMessage): boolean {
-        const sent = this.processAdapter.send(msg);
-        if (!sent) console.error(`[ProcessRPC] Send failed:`, JSON.stringify(msg));
-        return sent;
-    }
-
-    private sendOrEnqueue(msg: RpcRequest | RpcSend): void {
-        if (!this.processAdapter.isConnected() || this.messageQueue.sendBlocked || !this.sendMessage(msg)) {
-            this.messageQueue.enqueue({ type: msg.type, data: msg });
-            this.messageQueue.scheduleFlush();
-        }
-    }
-
-    private queueRequest(req: RpcRequest, timer: NodeJS.Timeout | undefined, timeout?: number): void {
-        if (timer) clearTimeout(timer);
-        this.callbackManager.updateTimer(req.id, undefined);
-
-        const ms = timeout === undefined ? this.config.defaultTimeout : Math.max(0, timeout);
-        const hasTimeout = ms > 0;
-
-        this.messageQueue.enqueue({
-            type: 'request',
-            data: req,
-            timeoutStartTime: hasTimeout ? Date.now() : undefined,
-            timeoutDuration: hasTimeout ? ms : undefined
-        });
-        this.messageQueue.scheduleFlush();
-    }
-
-    private cleanup(reason: string): void {
-        this.callbackManager.clear(reason);
-        this.messageQueue.clear();
-    }
-
-    private onRetryFailed(reason: string): void {
-        console.error(`[ProcessRPC] ${reason}, rejecting ${this.messageQueue.length} pending messages`);
-        this.messageQueue.rejectAllRequests(reason, this.callbackManager);
-    }
-
-    private onMessageSentFromQueue(msg: PendingMessage): void {
-        if (msg.type !== 'request' || !msg.timeoutStartTime || !msg.timeoutDuration) return;
-
-        const req = msg.data as RpcRequest;
-        this.callbackManager.setupRemainingTimer(req.id, req.module, req.method, msg.timeoutStartTime, msg.timeoutDuration);
-    }
-
-    private async onMessage(msg: RpcMessage): Promise<void> {
-        if (!msg || typeof msg !== 'object') return;
-
-        if (msg.type === 'request') {
-            await this.handleRequest(msg);
-        } else if (msg.type === 'response') {
-            this.callbackManager.executeAndDelete(msg.id, msg);
-        } else if (msg.type === 'send') {
-            await this.handleSend(msg);
-        }
-    }
-
-    private async handleRequest(msg: RpcRequest): Promise<void> {
-        const { id, module, method, args } = msg;
-        const target = this.handlers[module];
-
-        if (!target || typeof target[method] !== 'function') {
-            this.reply({ id, type: 'response', error: `Method not found: ${module}.${method}` });
-            return;
-        }
-
-        try {
-            const result = await target[method](...(args || []));
-            this.reply({ id, type: 'response', result });
-        } catch (e: any) {
-            console.error('[ProcessRPC] Handler error:', { module, method }, e);
-            this.reply({ id, type: 'response', error: e?.message || String(e) });
-        }
-    }
-
-    private async handleSend(msg: RpcSend): Promise<void> {
-        const { module, method, args } = msg;
-        const target = this.handlers[module];
-
-        if (target && typeof target[method] === 'function') {
-            try {
-                await target[method](...(args || []));
-            } catch (e) {
-                const error = e instanceof Error ? e : new Error(String(e));
-                console.error('[ProcessRPC] Send handler error:', { module, method }, error);
-
-                if (this.config.onSendError) {
-                    try {
-                        this.config.onSendError(error, module, method);
-                    } catch (handlerError) {
-                        console.error('[ProcessRPC] Error in onSendError handler:', handlerError);
-                    }
-                }
-            }
-        }
-    }
-
-    private reply(msg: RpcResponse): void {
-        if (!this.processAdapter.isConnected()) {
-            console.error('[ProcessRPC] Cannot reply: process not connected');
-            return;
-        }
-        this.sendMessage(msg);
+        this.process.send?.(msg);
     }
 }
 
+function getCleanStack(skipLines = 3) {
+    const stack = new Error().stack;
+    return stack ? stack.split('\n').slice(skipLines).join('\n') : 'No stack';
+}

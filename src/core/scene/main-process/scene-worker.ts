@@ -186,14 +186,6 @@ export class SceneWorker {
         console.log(`开始重启场景进程 (第 ${this.currentRestartCount}/${this.maxRestartAttempts} 次)`);
 
         try {
-            // 暂停 RPC 消息队列，避免在进程重启期间浪费重试次数
-            try {
-                Rpc.getInstance().pauseQueue();
-                console.log('RPC 消息队列已暂停');
-            } catch (error) {
-                console.warn('暂停 RPC 队列失败（RPC 可能未初始化）:', error);
-            }
-
             // 清理当前进程
             this._process = null;
 
@@ -208,14 +200,6 @@ export class SceneWorker {
             if (success) {
                 console.log('场景进程重启成功');
                 
-                // 恢复 RPC 消息队列，重置重试计数并继续发送待处理消息
-                try {
-                    Rpc.getInstance().resumeQueue();
-                    console.log('RPC 消息队列已恢复');
-                } catch (error) {
-                    console.warn('恢复 RPC 队列失败:', error);
-                }
-                
                 // 重启成功后重置重启计数
                 this.currentRestartCount = 0;
                 this.emit<ISceneWorkerEvents>('restart', true);
@@ -226,14 +210,6 @@ export class SceneWorker {
                 if (this.currentRestartCount >= this.maxRestartAttempts) {
                     console.error('已达到最大重启次数，场景进程无法恢复');
                     this.emit<ISceneWorkerEvents>('restart', false);
-                    
-                    // 清理所有待处理的 RPC 消息
-                    try {
-                        Rpc.getInstance().clearPendingMessages();
-                        console.log('已清理所有待处理的 RPC 消息');
-                    } catch (error) {
-                        console.warn('清理 RPC 消息失败:', error);
-                    }
                 }
             }
         } catch (error) {
@@ -245,14 +221,6 @@ export class SceneWorker {
             // 如果达到最大重试次数，停止重启
             if (this.currentRestartCount >= this.maxRestartAttempts) {
                 console.error('重启过程中发生错误且已达到最大重试次数，停止重启');
-                
-                // 清理所有待处理的 RPC 消息
-                try {
-                    Rpc.getInstance().clearPendingMessages();
-                    console.log('已清理所有待处理的 RPC 消息');
-                } catch (error) {
-                    console.warn('清理 RPC 消息失败:', error);
-                }
             }
         } finally {
             this.isRestarting = false;
