@@ -38,7 +38,6 @@ export interface IServiceEvents {
 }
 
 export class BaseService<TEvents extends Record<string, any>> {
-    protected isOpen = false;
     /**
      * 触发事件
      * @param event 事件名称

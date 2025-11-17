@@ -76,11 +76,6 @@ export interface IEditorService extends IServiceEvents {
     create(params: ICreateOptions): Promise<IBaseIdentifier>;
 
     /**
-     * 是否有打开编辑器
-     */
-    hasOpen(): Promise<boolean>;
-
-    /**
      * 获取当前打开的资产
      */
     queryCurrent(): Promise<TEditorEntity | null>;
