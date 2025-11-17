@@ -60,7 +60,7 @@ const BuildConfigCoreFields = z.object({
 
     // 场景配置
     scenes: z.array(SchemaSceneRef).describe('构建场景列表，默认为全部场景'),
-    startScene: z.string().describe('打开游戏后进入的第一个场景，db url 格式'),
+    startScene: z.string().describe('打开游戏后进入的第一个场景，支持 db url 和 uuid 格式'),
 
     // 构建模式
     debug: z.boolean().describe('是否是调试模式'),
