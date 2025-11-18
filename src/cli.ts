@@ -3,7 +3,7 @@ import { initSentry } from './core/base/sentry';
 initSentry();
 
 import { Command } from 'commander';
-import { BuildCommand, McpServerCommand, WizardCommand, CommandRegistry, CreateCommand } from './commands';
+import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand } from './commands';
 import { config } from './display/config';
 
 const program = new Command();
@@ -26,7 +26,6 @@ const commandRegistry = new CommandRegistry();
 commandRegistry.register(new CreateCommand(program));
 commandRegistry.register(new BuildCommand(program));
 commandRegistry.register(new McpServerCommand(program));
-commandRegistry.register(new WizardCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();

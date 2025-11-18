@@ -100,7 +100,6 @@ export function createWelcomeMessage(): string {
     return chalk.cyan(`
 🎉 欢迎使用 Cocos CLI！
 📖 输入 'cocos --help' 查看可用命令
-🔧 输入 'cocos wizard' 启动交互式向导
 🚀 输入 'cocos <command> --help' 查看具体命令帮助
 `);
 }
@@ -128,10 +127,9 @@ export function createStartupMessage(): string {
 
     // 提示信息
     const tips = [
-        '🏗️  构建项目：cocos build --project <path>',
-        '📂 导入项目：cocos import --project <path>',
-        'ℹ️  查看信息：cocos info --project <path>',
-        '🧙 交互向导：cocos wizard',
+        '🏗️ 构建项目：cocos build --project <path>',
+        '📂 创建项目：cocos create --project <path>',
+        'ℹ️ 查看信息：cocos info --project <path>',
         '❓ 获取帮助：cocos --help'
     ];
 

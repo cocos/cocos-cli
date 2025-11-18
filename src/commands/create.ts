@@ -34,7 +34,7 @@ export class CreateCommand extends BaseCommand {
                         console.log(chalk.green('✓ Project created successfully!'));
                         console.log(chalk.gray('Next steps:'));
                         console.log(`  cd ${targetPath}`);
-                        console.log('  cocos import --project .');
+                        console.log('  cocos create --project .');
                     } else {
                         console.error(chalk.red('✗ Failed to create project.'));
                         process.exit(1);
