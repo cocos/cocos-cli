@@ -355,7 +355,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
             // 创建临时目录来存放要打包的文件
             const tempDir = path.join(extensionDir, '..', 'temp-notarize-files');
             await fs.ensureDir(tempDir);
-            
+
             // 复制所有原生二进制文件到临时目录
             for (const binaryFile of binaryFiles) {
                 const relativePath = path.relative(extensionDir, binaryFile);
@@ -479,7 +479,7 @@ async function uploadToFTP(filePath, ftpConfig) {
         const prefix = remoteDir.startsWith('/') ? '' : '/';
         const downloadUrl = `${downloadBase}${prefix}${remoteDir}/${fileName}`;
         console.log(`✅ 文件上传成功: ${downloadUrl}`);
-        
+
     } catch (error) {
         console.error('❌ FTP上传失败:', error.message);
         throw error;
@@ -491,7 +491,7 @@ async function uploadToFTP(filePath, ftpConfig) {
 /**
  * 从环境变量获取FTP配置
  */
-async function getFTPConfig(rootDir, type) {
+function getFTPConfig(rootDir, type) {
     const ftpUser = process.env.ORG_FTP_USER;
     const ftpPass = process.env.ORG_FTP_PASS;
     const ftpHost = process.env.FTP_HOST || 'ctc.upload.new1cloud.com';
@@ -519,7 +519,7 @@ async function getFTPConfig(rootDir, type) {
  */
 async function handleFTPUpload(zipFilePath, rootDir, type) {
     try {
-        const ftpConfig = await getFTPConfig(rootDir, type);
+        const ftpConfig = getFTPConfig(rootDir, type);
 
         if (zipFilePath) {
             // 上传ZIP文件
@@ -543,9 +543,9 @@ async function handleFTPUpload(zipFilePath, rootDir, type) {
 async function release(options = {}) {
     const rootDir = path.resolve(__dirname, '..');
     let configs;
-    
+
     let parsedArgs = null;
-    
+
     // 如果提供了完整的配置，使用它；否则解析命令行参数
     if (options.configs && Array.isArray(options.configs) && options.configs.length > 0) {
         // 作为模块调用，使用提供的配置
@@ -555,15 +555,15 @@ async function release(options = {}) {
         parsedArgs = parseArguments();
         configs = parsedArgs.configs;
     }
-    
+
     // 确定发布目录：优先使用函数参数，其次是命令行参数，最后是默认值
     const publishDirInput = options.publishDir || (parsedArgs && parsedArgs.publishDir) || '.publish';
-    
+
     // 将发布目录转换为绝对路径
-    const publishDirAbs = path.isAbsolute(publishDirInput) 
-        ? publishDirInput 
+    const publishDirAbs = path.isAbsolute(publishDirInput)
+        ? publishDirInput
         : path.resolve(rootDir, publishDirInput);
-    
+
     // 确保发布目录存在
     await fs.ensureDir(publishDirAbs);
     console.log(`📁 使用发布目录: ${publishDirAbs}`);
