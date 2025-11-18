@@ -50,7 +50,7 @@ function supportPlatform(platform: Platform): boolean {
  * @returns 校验结果
  * @param scenes
  */
-async function checkScenes(scenes: IBuildSceneItem[]): Promise<boolean | Error> {
+export function checkScenes(scenes: IBuildSceneItem[]): boolean | Error {
     if (!Array.isArray(scenes) || !scenes.length) {
         return new Error('Scenes is empty');
     }
@@ -71,22 +71,16 @@ async function checkScenes(scenes: IBuildSceneItem[]): Promise<boolean | Error> 
 
 /**
   * 确认初始场景对错
-  * @param uuid 
+  * @param uuidOrUrl 
   */
-export async function checkStartScene(uuid: string): Promise<boolean> {
-    if (typeof uuid !== 'string' || !uuid) {
-        return false;
-    }
-    const assetUrl = assetManager.queryUrl(uuid);
-    if (!assetUrl) {
-        return false;
-    }
-    if (assetUrl.startsWith('db://internal')) {
-        return false;
+export function checkStartScene(uuidOrUrl: string): boolean | Error {
+    const asset = assetManager.queryAsset(uuidOrUrl);
+    if (!asset) {
+        return new Error(`can not find asset by uuid or url ${uuidOrUrl}`);
     }
     const bundleDirInfos = assetManager.queryAssets({ isBundle: true });
-    if (bundleDirInfos.find((info) => assetUrl.startsWith(info.url + '/'))) {
-        return false;
+    if (bundleDirInfos.find((info) => asset.url.startsWith(info.url + '/'))) {
+        return new Error(`asset ${uuidOrUrl} is in bundle, can not be set as start scene`);
     }
 
     return true;
@@ -501,22 +495,19 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
     switch (key) {
         case 'scenes':
             {
-                const error = await checkScenes(value) || false;
+                const error = checkScenes(value) || false;
                 if (error instanceof Error) {
                     res.error = error.message;
-                    res.newValue = await getDefaultScenes();
+                    res.newValue = getDefaultScenes();
                 }
                 return res;
             }
         case 'startScene':
             {
-                const valid = await checkStartScene(value) || false;
-                if (!valid) {
-                    res.error = 'i18n:builder.error.invalidStartScene';
-                }
-
-                if (res.error) {
-                    res.newValue = await getDefaultStartScene();
+                const error = checkStartScene(value) || false;
+                if (error instanceof Error) {
+                    res.error = error.message;
+                    res.newValue = getDefaultStartScene();
                 }
                 return res;
             }

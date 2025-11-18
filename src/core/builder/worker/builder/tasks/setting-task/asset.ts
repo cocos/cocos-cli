@@ -41,7 +41,7 @@ export async function handle(this: IBuilder, options: IInternalBuildOptions, res
         const startSceneAsset = buildAssetLibrary.getAsset(options.startScene);
         if (!startSceneAsset) {
             // 理论上进入构建前应该已经校验过，这里还是校验一下给一个可阅读的报错
-            throw new Error(i18n.t('builder.error.invalid_start_scene'));
+            throw new Error('can not find start scene asset by uuid or url: ' + options.startScene);
         }
         options.startScene = startSceneAsset.url;
     }

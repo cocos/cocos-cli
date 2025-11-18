@@ -59,6 +59,7 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
                 return { code: BuildExitCode.PARAM_ERROR, reason: 'Check options failed!' };
             }
             res = rightOptions;
+            console.log(JSON.stringify(res, null, 2));
         } catch (error) {
             console.error(error);
             return { code: BuildExitCode.PARAM_ERROR, reason: 'Check options failed! ' + String(error) };
