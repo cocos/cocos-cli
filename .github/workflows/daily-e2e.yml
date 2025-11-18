@@ -38,6 +38,7 @@ jobs:
           clean: false
           persist-credentials: true
           fetch-depth: 0
+          ref: v0.0.1
       
       - name: Setup configuration
         id: setup-config
