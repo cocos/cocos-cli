@@ -200,6 +200,9 @@ export function findTextOccurrencesInFile(
 
 export async function replaceTextInFile(
     dbURL: string, fileType: string, targetText: string, replacementText: string, regex: boolean): Promise<boolean> {
+    if (targetText === '') {
+        throw new Error('Target text cannot be empty.');
+    }
     const filename = getScriptFilename(dbURL, fileType);
 
     let count = 0;
