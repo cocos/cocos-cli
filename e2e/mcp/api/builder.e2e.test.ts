@@ -32,11 +32,13 @@ describe('MCP Builder API', () => {
                 },
             });
 
+            expect(result.reason).toBe(undefined);
             expect(result.code).toBe(200);
             // 验证构建输出
             const buildPath = join(context.testProject.path, 'build-mcp-test', 'web-desktop');
             const buildExists = await pathExists(buildPath);
             expect(buildExists).toBe(true);
+            expect(result.data).toBeDefined();
             if (result.data) {
                 expect(result.data.code).toBe(0);
                 expect(result.data.dest).toBe('project://build-mcp-test/web-desktop');
@@ -58,7 +60,9 @@ describe('MCP Builder API', () => {
                 },
             });
 
+            expect(result.reason).toBe(undefined);
             expect(result.code).toBe(200);
+            expect(result.data).toBeDefined();
             if (result.data) {
                 expect(result.data.code).toBe(0);
                 expect(result.data.dest).toBe('project://build/web-mobile');
@@ -72,6 +76,7 @@ describe('MCP Builder API', () => {
                 platform: 'web-desktop',
             });
 
+            expect(result.reason).toBe(undefined);
             expect(result.code).toBe(200);
             expect(result.data).toBeDefined();
 
@@ -95,7 +100,7 @@ describe('MCP Builder API', () => {
             const result = await context.mcpClient.callTool('builder-query-default-build-config', {
                 platform: 'web-mobile',
             });
-
+            expect(result.reason).toBe(undefined);
             expect(result.code).toBe(200);
             expect(result.data).toBeDefined();
 
@@ -112,8 +117,10 @@ describe('MCP Builder API', () => {
             const result = await context.mcpClient.callTool('builder-query-default-build-config', {
                 platform: 'web-desktop',
             });
-
-            if (result.code === 200 && result.data) {
+            expect(result.reason).toBe(undefined);
+            expect(result.code).toBe(200);
+            expect(result.data).toBeDefined();
+            if (result.data) {
                 // 验证配置中的常见字段类型
                 if (result.data.debug !== undefined) {
                     expect(typeof result.data.debug).toBe('boolean');

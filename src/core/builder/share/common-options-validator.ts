@@ -480,8 +480,8 @@ export function getDefaultScenes(): IInternalBuildSceneItem[] {
     });
 }
 
-export async function getDefaultStartScene() {
-    const scenes = await getDefaultScenes();
+export function getDefaultStartScene() {
+    const scenes = getDefaultScenes();
     const realScenes = scenes.filter((item: any) => !item.bundle);
     return realScenes[0] && realScenes[0].uuid;
 }

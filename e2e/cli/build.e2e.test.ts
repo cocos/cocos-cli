@@ -30,6 +30,7 @@ describe('cocos build command', () => {
 
             // 验证构建成功
             expect(result.exitCode).toBe(0);
+            expect(result.error).toBe(undefined);
 
             // 验证构建输出目录存在
             const buildPath = join(testProject.path, 'build', 'web-desktop-test');
@@ -98,6 +99,7 @@ describe('cocos build command', () => {
                 platform: 'web-mobile',
             });
 
+            expect(result.error).toBe(undefined);
             expect(result.exitCode).toBe(0);
 
             const buildPath = join(testProject.path, 'build', 'web-mobile-test');
