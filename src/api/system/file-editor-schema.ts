@@ -24,7 +24,7 @@ export const SchemaEraseLinesInRangeInfo = z.object({
 export const SchemaReplaceTextInFileInfo = z.object({
     dbURL: z.string().describe('需要修改文件名'),
     fileType: z.enum(FILE_EXTENSIONS).describe('文件类型'),
-    targetText: z.string().describe('目标文本'),
+    targetText: z.string().nonempty().describe('目标文本'),
     replacementText: z.string().describe('替换文本'),
     regex: z.boolean().describe('是否使用正则表达式')
 }).describe('替换文件的 目标文本（文本或者正则表达式） 为 替换文本');
