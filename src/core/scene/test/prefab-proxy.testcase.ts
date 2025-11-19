@@ -518,6 +518,107 @@ describe('Prefab Proxy In Scene 测试', () => {
             // name 应该保持不变（应用后的值）
             expect(revertedQuery.name).toBe(appliedName);
         });
+
+        it('revertToPrefab - 保证子节点的 path 不变', async () => {
+            // 创建父节点
+            const parentNodeName = 'ParentNodeForRevert';
+            const createParentParams: ICreateByNodeTypeParams = {
+                path: '',
+                name: parentNodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const parentNode = await NodeProxy.createNodeByType(createParentParams);
+            expect(parentNode).toBeTruthy();
+            if (!parentNode) return;
+
+            // 创建子节点
+            const childNodeName = 'ChildNodeForRevert';
+            const createChildParams: ICreateByNodeTypeParams = {
+                path: parentNode.path,
+                name: childNodeName,
+                nodeType: NodeType.EMPTY,
+            };
+
+            const childNode = await NodeProxy.createNodeByType(createChildParams);
+            expect(childNode).toBeTruthy();
+            if (!childNode) return;
+
+            // 将父节点转换为预制体
+            const revertChildPrefabURL = getURL('revert-child-prefab', '.prefab');
+            const createPrefabParams: ICreatePrefabFromNodeParams = {
+                nodePath: parentNode.path,
+                dbURL: revertChildPrefabURL,
+            };
+
+            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            expect(prefabNode).toBeTruthy();
+            if (!prefabNode) return;
+
+            const prefabNodePath = prefabNode.path;
+
+            // 查询节点及其子节点，确认子节点存在（创建预制体后，父节点名称已改变，子节点 path 也会改变）
+            const beforeRevertQuery = await NodeProxy.queryNode({ 
+                path: prefabNodePath, 
+                queryChildren: true 
+            });
+            expect(beforeRevertQuery).toBeTruthy();
+            if (!beforeRevertQuery) return;
+
+            expect(beforeRevertQuery.children).toBeDefined();
+            expect(beforeRevertQuery.children?.length).toBeGreaterThan(0);
+
+            // 找到子节点并记录其 path（创建预制体后的 path）
+            const childBeforeRevert = beforeRevertQuery.children?.find(
+                child => child.name === childNodeName
+            );
+            expect(childBeforeRevert).toBeDefined();
+            if (!childBeforeRevert) return;
+
+            // 记录创建预制体后、revert 之前的子节点 path
+            const originalChildPath = childBeforeRevert.path;
+            expect(originalChildPath).toBeTruthy();
+            expect(originalChildPath).not.toBe('');
+
+            // 修改父节点属性
+            const updateResult = await NodeProxy.updateNode({
+                path: prefabNodePath,
+                properties: {
+                    position: { x: 100, y: 100, z: 100 },
+                },
+            });
+            expect(updateResult).toBeTruthy();
+
+            // 执行 revertToPrefab
+            const revertParams: IRevertToPrefabParams = {
+                nodePath: prefabNodePath,
+            };
+
+            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            expect(revertResult).toBe(true);
+
+            // 查询节点及其子节点，验证子节点的 path 保持不变
+            const afterRevertQuery = await NodeProxy.queryNode({ 
+                path: prefabNodePath, 
+                queryChildren: true 
+            });
+            expect(afterRevertQuery).toBeTruthy();
+            if (!afterRevertQuery) return;
+
+            expect(afterRevertQuery.children).toBeDefined();
+            expect(afterRevertQuery.children?.length).toBeGreaterThan(0);
+
+            // 验证子节点的 path 保持不变且不为空（使用 path 查找，因为父节点 name 已变为预制体名称）
+            const childAfterRevert = afterRevertQuery.children?.find(
+                child => child.path === originalChildPath
+            );
+            expect(childAfterRevert).toBeDefined();
+            if (!childAfterRevert) return;
+
+            expect(childAfterRevert.path).toBe(originalChildPath);
+            expect(childAfterRevert.path).not.toBe('');
+            expect(childAfterRevert.path).toBeTruthy();
+        });
     });
 
     describe('4. 预制体解耦测试', () => {
