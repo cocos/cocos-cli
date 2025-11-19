@@ -222,6 +222,11 @@ export default class NodeManager extends EventEmitter {
 
         node._id = newUUID;
 
+        // 更新节点路径
+        const oldPath = pathManager.getNodePath(oldUUID);
+        pathManager.remove(oldUUID);
+        pathManager.add(newUUID, oldPath);
+
         this._map[newUUID] = node;
         delete this._map[oldUUID];
     }

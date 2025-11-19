@@ -27,10 +27,14 @@ export class NodePathManager {
         const finalName = this.ensureUniqueName(parentUuid, cleanName);
         const finalPath = parentPath ? `${parentPath}/${finalName}` : `${finalName}`;
 
-        this._uuidToPath.set(uuid, finalPath);
-        this._pathToUuid.set(finalPath, uuid);
+        this.add(uuid, finalPath);
 
         return finalPath;
+    }
+
+    add(uuid: string, path: string) {
+        this._uuidToPath.set(uuid, path);
+        this._pathToUuid.set(path, uuid);
     }
 
     remove(uuid: string) {
