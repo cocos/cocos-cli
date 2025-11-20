@@ -4,33 +4,33 @@ const { execSync } = require('child_process');
 const { globby } = require('globby');
 const { Client } = require('basic-ftp');
 const { Command } = require('commander');
-const { runCommand, create7ZipArchive, formatBytes } = require('./utils');
+const { runCommand, create7ZipArchive, zipArchive, formatBytes } = require('./utils');
 
 /**
- * 解析命令行参数
+ * Parse command-line arguments
  */
 function parseArguments() {
     const program = new Command();
 
     program
         .name('release')
-        .description('Cocos CLI 发布工具')
+        .description('Cocos CLI release tool')
         .version('1.0.0')
-        .option('--nodejs', '创建 Node.js 版本发布包')
-        .option('--electron', '创建 Electron 版本发布包')
-        .option('--zip', '创建 ZIP 压缩包')
-        .option('--upload', '上传到 FTP 服务器')
-        .option('--publish-dir <dir>', '指定发布目录（默认为 .publish）')
+        .option('--nodejs', 'Create Node.js release package')
+        .option('--electron', 'Create Electron release package')
+        .option('--zip', 'Create ZIP archive')
+        .option('--upload', 'Upload to FTP server')
+        .option('--publish-dir <dir>', 'Specify release directory (defaults to .publish)')
         .parse();
 
     const options = program.opts();
 
-    // 检查是否有任何参数被传递
+    // Check whether any arguments were provided
     const hasAnyArgs = options.nodejs || options.electron || options.zip || options.upload;
 
-    // 如果没有任何参数，默认所有功能都启用
+    // Enable all features when no arguments are passed
     if (!hasAnyArgs) {
-        console.log('🚀 未指定参数，启用默认模式：构建所有平台 + ZIP打包 + FTP上传');
+        console.log('🚀 No arguments specified; enabling default mode: build all targets + ZIP packaging + FTP upload');
         return {
             configs: [
                 { type: 'nodejs', zip: true, upload: true },
@@ -40,7 +40,7 @@ function parseArguments() {
         };
     }
 
-    // 确定发布类型
+    // Determine release types
     const types = [];
     if (options.nodejs) {
         types.push('nodejs');
@@ -50,12 +50,12 @@ function parseArguments() {
     }
 
     if (types.length === 0) {
-        console.error('❌ 请指定发布类型: --nodejs 或 --electron');
+        console.error('❌ Please specify a release type: --nodejs or --electron');
         program.help();
         process.exit(1);
     }
 
-    // 为每个类型创建配置
+    // Create configuration for each type
      const configs = types.map(type => {
          const upload = !!options.upload;
 
@@ -73,7 +73,7 @@ function parseArguments() {
 }
 
 /**
- * 获取项目版本号
+ * Get project version
  */
 async function getProjectVersion(rootDir) {
     const packageJsonPath = path.join(rootDir, 'package.json');
@@ -82,13 +82,13 @@ async function getProjectVersion(rootDir) {
 }
 
 /**
- * 生成发布目录名称
+ * Generate release directory name
  */
 function generateReleaseDirectoryName(type, version) {
 
     const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
 
-    // 生成时间戳 (格式: YYMMDDHH)
+    // Generate timestamp (format: YYMMDDHH)
     const now = new Date();
     const timestamp = now.getFullYear().toString().slice(-2) +
                      (now.getMonth() + 1).toString().padStart(2, '0') +
@@ -100,16 +100,16 @@ function generateReleaseDirectoryName(type, version) {
     } else if (type === 'electron') {
         return `cocos-sdk-${platformSuffix}-${timestamp}-${version}`;
     }
-    throw new Error(`未知的发布类型: ${type}`);
+    throw new Error(`Unknown release type: ${type}`);
 }
 
 /**
- * 读取忽略模式
+ * Read ignore patterns
  */
 async function readIgnorePatterns(rootDir) {
     const vscodeignorePath = path.join(rootDir, '.vscodeignore');
 
-    console.log('📖 读取 .vscodeignore 文件...');
+    console.log('📖 Reading .vscodeignore file...');
     let ignorePatterns = [];
     if (await fs.pathExists(vscodeignorePath)) {
         const ignoreContent = await fs.readFile(vscodeignorePath, 'utf8');
@@ -119,30 +119,30 @@ async function readIgnorePatterns(rootDir) {
             .filter(line => line && !line.startsWith('#'));
     }
 
-    // 添加一些默认的忽略模式
+    // Append default ignore patterns
     ignorePatterns.push('.publish/**');
 
-    console.log('🚫 忽略模式:', ignorePatterns);
+    console.log('🚫 Ignore patterns:', ignorePatterns);
     return ignorePatterns;
 }
 
 /**
- * 创建发布目录
+ * Create release directory
  */
 async function createReleaseDirectory(extensionDir) {
-    console.log('📁 创建发布目录...');
+    console.log('📁 Creating release directory...');
     if (await fs.pathExists(extensionDir)) {
-        console.log('🗑️  清空现有发布目录...');
+        console.log('🗑️  Clearing existing release directory...');
         await fs.remove(extensionDir);
     }
     await fs.ensureDir(extensionDir);
 }
 
 /**
- * 扫描并获取需要拷贝的文件
+ * Scan project files to copy
  */
 async function scanProjectFiles(rootDir, ignorePatterns) {
-    console.log('🔍 扫描项目文件...');
+    console.log('🔍 Scanning project files...');
     const allFiles = await globby(['**/*'], {
         cwd: rootDir,
         dot: true,
@@ -150,46 +150,46 @@ async function scanProjectFiles(rootDir, ignorePatterns) {
         onlyFiles: true
     });
 
-    console.log(`📋 找到 ${allFiles.length} 个文件需要拷贝`);
+    console.log(`📋 Found ${allFiles.length} files to copy`);
     return allFiles;
 }
 
 /**
- * 拷贝文件到发布目录
+ * Copy files to release directory
  */
 async function copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles) {
-    console.log('📋 拷贝文件到发布目录...');
+    console.log('📋 Copying files into release directory...');
     let copiedCount = 0;
     for (const file of allFiles) {
         const srcPath = path.join(rootDir, file);
         const destPath = path.join(extensionDir, file);
 
-        // 确保目标目录存在
+        // Ensure target directory exists
         await fs.ensureDir(path.dirname(destPath));
 
-        // 拷贝文件
+        // Copy file
         await fs.copy(srcPath, destPath);
         copiedCount++;
 
         if (copiedCount % 2000 === 0) {
-            console.log(`📋 已拷贝 ${copiedCount}/${allFiles.length} 个文件...`);
+            console.log(`📋 Copied ${copiedCount}/${allFiles.length} files...`);
         }
     }
 
-    console.log(`✅ 成功拷贝 ${copiedCount} 个文件`);
+    console.log(`✅ Successfully copied ${copiedCount} files`);
 }
 
 /**
- * 查找目录中的原生二进制文件 (递归搜索)
+ * Find native binaries in directory (recursive search)
  */
 async function findNativeBinaries(extensionDir) {
     const binaryFiles = [];
 
     try {
-        // 1. 查找 node_modules 中的二进制文件（递归搜索）
+        // 1. Find binaries in node_modules (recursive search)
         const nodeModulesPath = path.join(extensionDir, 'node_modules');
         if (await fs.pathExists(nodeModulesPath)) {
-            console.log('🔍 递归扫描 node_modules 中的二进制文件...');
+            console.log('🔍 Recursively scanning node_modules for binaries...');
             const nodeModulesBinaries = await globby([
                 '**/*.node',
                 '**/*.dylib',
@@ -203,18 +203,18 @@ async function findNativeBinaries(extensionDir) {
             });
 
             binaryFiles.push(...nodeModulesBinaries);
-            console.log(`  ✓ 在 node_modules 中找到 ${nodeModulesBinaries.length} 个二进制文件`);
+            console.log(`  ✓ Found ${nodeModulesBinaries.length} binaries in node_modules`);
 
-            // 显示找到的文件
+            // List discovered files
             nodeModulesBinaries.forEach(file => {
                 console.log(`    - ${path.relative(extensionDir, file)}`);
             });
         }
 
-        // 2. 查找 static/tools 目录下的特定二进制工具
+        // 2. Locate specific binaries under static/tools
         const staticToolsPath = path.join(extensionDir, 'static', 'tools');
         if (await fs.pathExists(staticToolsPath)) {
-            console.log('🔍 扫描 static/tools 中的二进制文件...');
+            console.log('🔍 Scanning static/tools for binaries...');
             const toolBinaries = await globby([
                 'astc-encoder/astcenc',
                 'cmft/cmftRelease64',
@@ -224,7 +224,7 @@ async function findNativeBinaries(extensionDir) {
                 'mali_darwin/convert',
                 'mali_darwin/etcpack',
                 'PVRTexTool_darwin/PVRTexToolCLI',
-                //todo:代码在中暂时不需要这个工具，先删掉
+                // TODO: The codebase temporarily does not need this tool, remove it for now
                 // 'PVRTexTool_darwin/compare'
             ], {
                 cwd: staticToolsPath,
@@ -233,130 +233,130 @@ async function findNativeBinaries(extensionDir) {
             });
 
             binaryFiles.push(...toolBinaries);
-            console.log(`  ✓ 在 static/tools 中找到 ${toolBinaries.length} 个工具二进制文件`);
+            console.log(`  ✓ Found ${toolBinaries.length} tool binaries in static/tools`);
 
-            // 显示找到的文件
+            // List discovered files
             toolBinaries.forEach(file => {
                 console.log(`    - ${path.relative(extensionDir, file)}`);
             });
         }
 
-        console.log(`🔍 总共找到 ${binaryFiles.length} 个原生二进制文件需要签名`);
+        console.log(`🔍 Found ${binaryFiles.length} native binaries that require signing`);
 
         return binaryFiles;
     } catch (error) {
-        console.error('❌ 查找原生二进制文件失败:', error.message);
+        console.error('❌ Failed to locate native binaries:', error.message);
         return [];
     }
 }
 
 /**
- * 对单个原生二进制文件进行签名 (.node 或 .dylib)
+ * Sign a single native binary (.node or .dylib)
  */
 async function signBinaryFile(filePath, identity) {
     try {
-        console.log(`🔐 正在签名: ${path.basename(filePath)}`);
-        // 添加 --options runtime 以启用 hardened runtime，这是公证的要求
+        console.log(`🔐 Signing: ${path.basename(filePath)}`);
+        // Add --options runtime to enable hardened runtime, which is required for notarization
         execSync(`codesign --force --options runtime --sign "${identity}" "${filePath}"`, {
             stdio: 'pipe'
         });
-        console.log(`✅ 签名完成: ${path.basename(filePath)}`);
+        console.log(`✅ Signing completed: ${path.basename(filePath)}`);
     } catch (error) {
-        console.error(`❌ 签名失败 ${path.basename(filePath)}:`, error.message);
+        console.error(`❌ Failed to sign ${path.basename(filePath)}:`, error.message);
         throw error;
     }
 }
 
 /**
- * 为 CLI 可执行文件设置执行权限
+ * Set execute permission for CLI binary
  */
 async function setCliExecutablePermissions(extensionDir) {
     const isWindows = process.platform === 'win32';
     if (isWindows) {
-        console.log('ℹ️  Windows 系统，跳过 CLI 文件权限设置');
+        console.log('ℹ️  Windows detected; skipping CLI permission update');
         return;
     }
 
     const cliJsPath = path.join(extensionDir, 'dist', 'cli.js');
     if (await fs.pathExists(cliJsPath)) {
         try {
-            console.log('🔧 设置 CLI 可执行文件权限...');
+            console.log('🔧 Setting CLI executable permissions...');
             execSync(`chmod +x "${cliJsPath}"`, { stdio: 'pipe' });
-            console.log(`✅ 已设置权限: ${path.relative(extensionDir, cliJsPath)}`);
+            console.log(`✅ Permissions set: ${path.relative(extensionDir, cliJsPath)}`);
         } catch (error) {
-            console.warn(`⚠️  设置 CLI 文件权限失败: ${error.message}`);
+            console.warn(`⚠️  Failed to set CLI permissions: ${error.message}`);
         }
     } else {
-        console.log('ℹ️  未找到 dist/cli.js 文件，跳过权限设置');
+        console.log('ℹ️  dist/cli.js not found; skipping permission update');
     }
 }
 
 /**
- * 对原生二进制文件进行签名和公证（仅限 macOS）
- * 支持 .node 和 .dylib 文件
+ * Sign and notarize native binaries (macOS only)
+ * Supports .node and .dylib files
  */
 async function signAndNotarizeNativeBinaries(extensionDir) {
-    // 只在 macOS 上执行
+    // Execute only on macOS
     if (process.platform !== 'darwin') {
-        console.log('ℹ️  非 macOS 系统，跳过签名和公证');
+        console.log('ℹ️  Not macOS; skipping signing and notarization');
         return;
     }
 
-    console.log('🔐 开始对原生二进制文件进行签名和公证...');
+    console.log('🔐 Starting native binary signing and notarization...');
 
-    // 检查是否设置了签名身份
+    // Verify signing identity is configured
     const identity = process.env.CODESIGN_IDENTITY || process.env.APPLE_DEVELOPER_ID;
     if (!identity) {
-        console.log('⚠️  未设置签名身份 (CODESIGN_IDENTITY 或 APPLE_DEVELOPER_ID)，跳过签名');
+        console.log('⚠️  No signing identity (CODESIGN_IDENTITY or APPLE_DEVELOPER_ID) configured; skipping signing');
         return;
     }
 
-    // 查找所有原生二进制文件 (static/tools 下的工具)
+    // Locate every native binary (tools under static/tools)
     const binaryFiles = await findNativeBinaries(extensionDir);
     if (binaryFiles.length === 0) {
-        console.log('ℹ️  未找到原生二进制文件，跳过签名');
+        console.log('ℹ️  No native binaries found; skipping signing');
         return;
     }
 
-    // 首先为所有二进制文件设置可执行权限
+    // First, ensure every binary is executable
     const isWindows = process.platform === 'win32';
     if (!isWindows) {
-        console.log('🔧 设置二进制文件可执行权限...');
+        console.log('🔧 Setting executable permissions on binary files...');
         for (const binaryFile of binaryFiles) {
             try {
-                // 添加可执行权限 (chmod +x)
+                // Add execute permission (chmod +x)
                 await runCommand('chmod', ['+x', binaryFile], { stdio: 'pipe' });
-                console.log(`✅ 已设置权限: ${path.relative(extensionDir, binaryFile)}`);
+                console.log(`✅ Permissions set: ${path.relative(extensionDir, binaryFile)}`);
             } catch (error) {
-                console.warn(`⚠️  设置权限失败: ${path.relative(extensionDir, binaryFile)} - ${error.message}`);
+                console.warn(`⚠️  Failed to set permissions: ${path.relative(extensionDir, binaryFile)} - ${error.message}`);
             }
         }
     } else {
-        console.log('ℹ️  Windows 系统，跳过权限设置');
+        console.log('ℹ️  Windows detected; skipping permission setup');
     }
 
-    // 对每个原生二进制文件进行签名
+    // Sign every native binary
     for (const binaryFile of binaryFiles) {
         await signBinaryFile(binaryFile, identity);
     }
 
-    // 检查是否需要公证
+    // Determine whether notarization is required
     const shouldNotarize = true;
     const appleId = process.env.APPLE_ID;
     const appPassword = process.env.APPLE_PASSWORD;
     const teamId = process.env.APPLE_TEAM_ID;
 
     if (shouldNotarize && appleId && appPassword && teamId) {
-        console.log('📋 开始公证原生二进制文件...');
+        console.log('📋 Starting notarization for native binaries...');
 
-        // 创建临时 ZIP 文件用于公证
+        // Create temporary ZIP file for notarization
         const tempZipPath = path.join(extensionDir, '..', 'temp-notarize.zip');
         try {
-            // 创建临时目录来存放要打包的文件
+            // Create a temporary directory for the files to bundle
             const tempDir = path.join(extensionDir, '..', 'temp-notarize-files');
             await fs.ensureDir(tempDir);
 
-            // 复制所有原生二进制文件到临时目录
+            // Copy every native binary into the temporary directory
             for (const binaryFile of binaryFiles) {
                 const relativePath = path.relative(extensionDir, binaryFile);
                 const targetPath = path.join(tempDir, relativePath);
@@ -364,7 +364,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
                 await fs.copy(binaryFile, targetPath);
             }
 
-            // 使用 7zip 创建压缩包
+            // Create archive with 7zip
             await create7ZipArchive(tempDir, tempZipPath, {
                 compressionLevel: 9,
                 format: 'zip',
@@ -372,71 +372,71 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
                 preserveSymlinks: true
             });
 
-            // 清理临时目录
+            // Clean up temporary directory
             await fs.remove(tempDir);
 
-            // 提交公证
-            console.log('📤 提交公证请求...');
+            // Submit notarization request
+            console.log('📤 Submitting notarization request...');
             const notarizeCommand = `xcrun notarytool submit "${tempZipPath}" --apple-id "${appleId}" --password "${appPassword}" --team-id "${teamId}" --wait`;
             execSync(notarizeCommand, {
                 stdio: 'inherit',
-                timeout: 6000000 // 10分钟超时
+                timeout: 6000000 // 10-minute timeout
             });
 
-            console.log('✅ 原生二进制文件公证完成');
+            console.log('✅ Native binary notarization completed');
         } catch (error) {
-            console.error('❌ 公证失败:', error.message);
-            // 公证失败不应该阻止发布流程
+            console.error('❌ Notarization failed:', error.message);
+            // Notarization failure should not block release
         } finally {
-            // 清理临时文件
+            // Clean up temporary files
             if (await fs.pathExists(tempZipPath)) {
                 await fs.remove(tempZipPath);
             }
         }
     } else {
-        console.log('ℹ️  跳过公证（未配置公证参数或未启用）');
-        console.log('   设置以下环境变量以启用公证:');
+        console.log('ℹ️  Skipping notarization (not configured or disabled)');
+        console.log('   Configure these environment variables to enable notarization:');
         console.log('   - NOTARIZE_ENABLED=true');
         console.log('   - APPLE_ID=your-apple-id');
         console.log('   - APPLE_APP_PASSWORD=your-app-password');
         console.log('   - APPLE_TEAM_ID=your-team-id');
     }
 
-    console.log('🎉 原生二进制文件签名和公证流程完成');
+    console.log('🎉 Finished native binary signing and notarization');
 }
 
 /**
- * 显示发布统计信息
+ * Display release statistics
  */
 async function showReleaseStats(extensionDir) {
     const stats = await getDirectorySize(extensionDir);
-    console.log(`📊 发布包大小: ${formatBytes(stats.size)}`);
-    console.log(`📄 文件数量: ${stats.files}`);
+    console.log(`📊 Release package size: ${formatBytes(stats.size)}`);
+    console.log(`📄 File count: ${stats.files}`);
 }
 
 /**
- * 创建ZIP压缩包
+ * Create ZIP archive
  */
 async function createZipPackage(extensionDir, releaseDirectoryName) {
-    console.log('📦 创建ZIP压缩包...');
+    console.log('📦 Creating ZIP archive...');
 
     const zipFileName = `${releaseDirectoryName}.zip`;
     const zipFilePath = path.join(path.dirname(extensionDir), zipFileName);
 
     try {
-        // 使用 7zip-bin 创建压缩包
-        // 注意：在 Windows 上保留符号链接（-snl）会导致解压后出现空目录/不可用的链接
-        // 因此在 Windows 平台关闭符号链接保留，改为打包实际内容
+        // Use 7zip-bin to create the archive
+        // Note: preserving symlinks (-snl) on Windows leads to empty directories or unusable links after extraction
+        // Therefore disable symlink preservation on Windows and bundle actual contents instead
         const preserveSymlinks = process.platform !== 'win32';
-        return await create7ZipArchive(extensionDir, zipFilePath, {
+        return await zipArchive(extensionDir, zipFilePath, {
             compressionLevel: 9,
             format: 'zip',
             exclude: ['*.DS_Store', '*.Thumbs.db'],
             preserveSymlinks,
-            timeout: 1800000 // 30分钟超时
+            timeout: 1800000 // 30-minute timeout
         });
     } catch (error) {
-        console.error('❌ 7zip 压缩包创建失败:', error.message);
+        console.error('❌ Failed to create 7zip archive:', error.message);
         throw error;
     }
 }
@@ -444,16 +444,16 @@ async function createZipPackage(extensionDir, releaseDirectoryName) {
 
 
 /**
- * 上传文件到FTP服务器
+ * Upload files to FTP server
  */
 async function uploadToFTP(filePath, ftpConfig) {
-    console.log('🚀 开始上传到FTP服务器...');
+    console.log('🚀 Starting FTP upload...');
 
     const client = new Client();
-    client.ftp.verbose = false; // 设置为true可以看到详细日志
+    client.ftp.verbose = false; // Set to true to enable verbose logging
 
     try {
-        // 连接到FTP服务器
+        // Connect to FTP server
         await client.access({
             host: ftpConfig.host,
             port: ftpConfig.port || 21,
@@ -462,26 +462,25 @@ async function uploadToFTP(filePath, ftpConfig) {
             secure: ftpConfig.secure || false
         });
 
-        console.log('✅ FTP连接成功');
+        console.log('✅ FTP connection established');
 
-        // 如果指定了远程目录，切换到该目录
+        // Switch to remote directory when specified
         if (ftpConfig.remoteDir) {
             await client.ensureDir(ftpConfig.remoteDir);
             await client.cd(ftpConfig.remoteDir);
         }
 
-        // 上传文件
+        // Upload file
         const fileName = path.basename(filePath);
         await client.uploadFrom(filePath, fileName);
 
         const downloadBase = process.env.DOWNLOAD_BASE_URL || 'https://download.cocos.org';
         const remoteDir = ftpConfig.remoteDir || '';
-        const prefix = remoteDir.startsWith('/') ? '' : '/';
-        const downloadUrl = `${downloadBase}${prefix}${remoteDir}/${fileName}`;
-        console.log(`✅ 文件上传成功: ${downloadUrl}`);
+        const downloadUrl = `${downloadBase}/${remoteDir}/${fileName}`;
+        console.log(`✅ File uploaded successfully: ${downloadUrl}`);
 
     } catch (error) {
-        console.error('❌ FTP上传失败:', error.message);
+        console.error('❌ FTP upload failed:', error.message);
         throw error;
     } finally {
         client.close();
@@ -489,7 +488,7 @@ async function uploadToFTP(filePath, ftpConfig) {
 }
 
 /**
- * 从环境变量获取FTP配置
+ * Get FTP config from environment
  */
 function getFTPConfig(rootDir, type) {
     const ftpUser = process.env.ORG_FTP_USER;
@@ -497,11 +496,11 @@ function getFTPConfig(rootDir, type) {
     const ftpHost = process.env.FTP_HOST || 'ctc.upload.new1cloud.com';
     const ftpPort = process.env.FTP_PORT ? parseInt(process.env.FTP_PORT) : 21;
     const ftpSecure = process.env.FTP_SECURE === 'true';
-    const defaultRemoteDir = (type === 'electron') ? `/pink/` : `/CocosSDK/`;
+    const defaultRemoteDir = (type === 'electron') ? `pink` : `CocosSDK`;
     const ftpRemoteDir = process.env.FTP_REMOTE_DIR || defaultRemoteDir;
 
     if (!ftpUser || !ftpPass) {
-        throw new Error('❌ 缺少FTP凭据: 请设置环境变量 FTP_USER 和 FTP_PASS');
+        throw new Error('❌ Missing FTP credentials: set environment variables FTP_USER and FTP_PASS');
     }
 
     return {
@@ -515,30 +514,30 @@ function getFTPConfig(rootDir, type) {
 }
 
 /**
- * 处理FTP上传逻辑
+ * Handle FTP upload logic
  */
 async function handleFTPUpload(zipFilePath, rootDir, type) {
     try {
         const ftpConfig = getFTPConfig(rootDir, type);
 
         if (zipFilePath) {
-            // 上传ZIP文件
+            // Upload ZIP file
             await uploadToFTP(zipFilePath, ftpConfig);
         } else {
-            console.log('⚠️  未创建ZIP文件，无法上传。请同时使用 --zip 参数。');
+            console.log('⚠️  No ZIP file created; cannot upload. Please also pass --zip.');
         }
     } catch (error) {
-        console.error('❌ FTP上传失败:', error.message);
-        // 不中断整个发布流程，只是上传失败
+        console.error('❌ FTP upload failed:', error.message);
+        // Do not break the entire release flow; only the upload failed
     }
 }
 
 /**
- * 主发布函数
- * @param {object} [options] 发布选项
- * @param {string} [options.publishDir] 发布目录（如果不提供，将从命令行参数或默认值获取）
- * @param {Array<{type: string, zip: boolean, upload: boolean}>} [options.configs] 发布配置列表（如果不提供，将从命令行参数获取）
- * @returns {Promise<object>} 返回发布过程中产生的文件地址 map，格式为: { nodejs: { releaseDir, zipFile }, electron: { releaseDir, zipFile } }
+ * Main release function
+ * @param {object} [options] Release options
+ * @param {string} [options.publishDir] Release directory (defaults to CLI arguments or fallback when omitted)
+ * @param {Array<{type: string, zip: boolean, upload: boolean}>} [options.configs] Release configuration list (falls back to CLI arguments when omitted)
+ * @returns {Promise<object>} Map of generated artifact paths, e.g. { nodejs: { releaseDir, zipFile }, electron: { releaseDir, zipFile } }
  */
 async function release(options = {}) {
     const rootDir = path.resolve(__dirname, '..');
@@ -546,47 +545,47 @@ async function release(options = {}) {
 
     let parsedArgs = null;
 
-    // 如果提供了完整的配置，使用它；否则解析命令行参数
+    // Use provided configs when present; otherwise parse command-line arguments
     if (options.configs && Array.isArray(options.configs) && options.configs.length > 0) {
-        // 作为模块调用，使用提供的配置
+        // When invoked as a module, rely on the provided configs
         configs = options.configs;
     } else {
-        // 从命令行参数解析（包括直接运行脚本的情况）
+        // Parse from command-line arguments (including direct script execution)
         parsedArgs = parseArguments();
         configs = parsedArgs.configs;
     }
 
-    // 确定发布目录：优先使用函数参数，其次是命令行参数，最后是默认值
+    // Determine publish directory: function argument > CLI argument > default
     const publishDirInput = options.publishDir || (parsedArgs && parsedArgs.publishDir) || '.publish';
 
-    // 将发布目录转换为绝对路径
+    // Convert publish directory to an absolute path
     const publishDirAbs = path.isAbsolute(publishDirInput)
         ? publishDirInput
         : path.resolve(rootDir, publishDirInput);
 
-    // 确保发布目录存在
+    // Ensure publish directory exists
     await fs.ensureDir(publishDirAbs);
-    console.log(`📁 使用发布目录: ${publishDirAbs}`);
+    console.log(`📁 Using publish directory: ${publishDirAbs}`);
 
     const result = {};
 
     try {
-        // 获取项目版本号
+        // Fetch project version
         const version = await getProjectVersion(rootDir);
 
-        // 拉取最新的 engine 代码（只需要执行一次）
+        // Pull the latest engine code (once)
         await runCommand('npm', ['run', 'update:repos'], { cwd: rootDir });
 
-        // 读取忽略模式（只需要读取一次）
+        // Read ignore patterns (once)
         const ignorePatterns = await readIgnorePatterns(rootDir);
 
-        // 执行根目录的 npm install（只需要执行一次）
+        // Run npm install in the root (once)
         await runCommand('npm', ['install'], { cwd: rootDir });
 
-        // 扫描项目文件（只需要扫描一次）
+        // Scan project files (once)
         const allFiles = await scanProjectFiles(rootDir, ignorePatterns);
 
-        // 为每个配置执行发布流程
+        // Execute the release process for each config
         for (const config of configs) {
             const fileInfo = await releaseForType(config, rootDir, publishDirAbs, version, allFiles);
             result[config.type] = fileInfo;
@@ -594,7 +593,7 @@ async function release(options = {}) {
 
         return result;
     } catch (error) {
-        console.error('❌ 发布失败:', error.message);
+        console.error('❌ Release failed:', error.message);
         if (require.main === module) {
             process.exit(1);
         } else {
@@ -604,58 +603,58 @@ async function release(options = {}) {
 }
 
 /**
- * 为特定类型执行发布流程
- * @returns {Promise<{releaseDir: string, zipFile: string|null}>} 返回发布的文件路径信息
+ * Execute release flow for a specific type
+ * @returns {Promise<{releaseDir: string, zipFile: string|null}>} Release file path details
  */
 async function releaseForType(options, rootDir, publishDir, version, allFiles) {
-    // 生成发布目录名称
+    // Generate release directory name
     const releaseDirectoryName = generateReleaseDirectoryName(options.type, version);
     const extensionDir = path.join(publishDir, releaseDirectoryName);
 
-    console.log(`🚀 开始发布 ${options.type === 'nodejs' ? 'Cocos CLI' : 'Cocos SDK'} (${options.type}) 版本 ${version}...`);
+    console.log(`🚀 Starting release ${options.type === 'nodejs' ? 'Cocos CLI' : 'Cocos SDK'} (${options.type}) version ${version}...`);
 
-    // 步骤 1: 创建发布目录
+    // Step 1: Create release directory
     await createReleaseDirectory(extensionDir);
 
-    // 步骤 2: 拷贝文件
+    // Step 2: Copy files
     await copyFilesToReleaseDirectory(rootDir, extensionDir, allFiles);
 
-    // 步骤 3: 安装生产依赖
+    // Step 3: Install production dependencies
     await runCommand('npm', ['install', '--production'], { cwd: extensionDir });
     await runCommand('npm', ['install', '--production', '--ignore-scripts'], { cwd: path.join(extensionDir, 'packages/engine') });
 
-    // 步骤 4: 如果是 electron 版本，执行 electron rebuild
+    // Step 4: If this is an electron build, run electron rebuild
     options.type === 'electron' && (await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir }));
-    //如果是 nodejs 版本，执行e2e测试，electron 版本暂时忽略
+    // If this is the nodejs build, run e2e tests; temporarily skip for electron
     options.type === 'nodejs' && (await runCommand('npm', ['run',` test:e2e -- --cli ${extensionDir}/dist/cli.js` ], { cwd: rootDir }));
-    // 步骤 5: 对原生二进制文件进行签名和公证（仅限 macOS）
+    // Step 5: Sign and notarize native binaries (macOS only)
     await signAndNotarizeNativeBinaries(extensionDir);
 
-    console.log('🎉 发布完成！');
-    console.log(`📁 发布目录: ${extensionDir}`);
+    console.log('🎉 Release completed!');
+    console.log(`📁 Release directory: ${extensionDir}`);
 
-    // 显示发布目录的大小信息
+    // Display release directory size info
     await showReleaseStats(extensionDir);
 
-    // 在创建ZIP包之前，设置CLI可执行文件权限
+    // Set CLI executable permissions before creating the ZIP
     await setCliExecutablePermissions(extensionDir);
     let zipFilePath = null;
 
-    // 如果指定了--zip参数，创建ZIP压缩包
+    // Create a ZIP archive if --zip is specified
     if (options.zip) {
         zipFilePath = await createZipPackage(extensionDir, releaseDirectoryName);
     }
 
-    // 如果指定了--upload参数，上传到FTP服务器
+    // Upload to FTP if --upload is specified
     if (options.upload) {
         await handleFTPUpload(zipFilePath, rootDir, options.type);
     }
 
     if (zipFilePath) {
-        console.log(`📦 ZIP文件: ${zipFilePath}`);
+        console.log(`📦 ZIP file: ${zipFilePath}`);
     }
 
-    // 返回发布的文件路径信息
+    // Return release file path info
     return {
         releaseDir: extensionDir,
         zipFile: zipFilePath
@@ -663,7 +662,7 @@ async function releaseForType(options, rootDir, publishDir, version, allFiles) {
 }
 
 /**
- * 获取目录大小和文件数量
+ * Get directory size and file count
  */
 async function getDirectorySize(dirPath) {
     let totalSize = 0;
@@ -689,13 +688,13 @@ async function getDirectorySize(dirPath) {
 
 
 
-// 如果直接运行此脚本，则执行发布
+// Execute release when running this script directly
 if (require.main === module) {
     release().then(result => {
-        console.log('\n📋 发布文件路径汇总:');
+        console.log('\n📋 Release file summary:');
         console.log(JSON.stringify(result, null, 2));
     }).catch(error => {
-        console.error('❌ 发布失败:', error.message);
+        console.error('❌ Release failed:', error.message);
         process.exit(1);
     });
 }

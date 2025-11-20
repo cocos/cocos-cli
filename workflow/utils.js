@@ -1,30 +1,30 @@
 /**
- * 注意：这里不要使用不是 nodejs 原生的模块
+ * Note: Do not use non-native nodejs modules here
  */
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 /**
- * 是否是开发环境
+ * Check if it is a development environment
  */
 function hasDevelopmentEnvironment() {
     return fs.existsSync(path.join(__dirname, '../repo.json'));
 }
 
 /**
- * 异步执行命令
- * @param {string} cmd 命令
- * @param {string[]} args 参数数组
- * @param {object} [opts] 选项
- * @param {boolean} [opts.debug=true] 是否输出日志
+ * Execute command asynchronously
+ * @param {string} cmd Command
+ * @param {string[]} args Arguments array
+ * @param {object} [opts] Options
+ * @param {boolean} [opts.debug=true] Whether to log output
  * @returns {Promise<void>}
  */
 async function runCommand(cmd, args = [], opts = {}) {
     const { debug = true, shell = true, ...spawnOpts } = opts;
     const isWindows = process.platform === 'win32';
 
-    // 如果是 Windows 且命令是 "npm"，改用 "npm.cmd"
+    // If Windows and command is "npm", use "npm.cmd" instead
     if (isWindows && cmd === 'npm') {
         cmd = 'npm.cmd';
     }
@@ -57,7 +57,7 @@ async function runCommand(cmd, args = [], opts = {}) {
 }
 
 /**
- * 执行 Tsc 命令
+ * Execute Tsc command
  * @param sourceDir
  */
 function runTscCommand(sourceDir) {
@@ -67,7 +67,7 @@ function runTscCommand(sourceDir) {
 }
 
 /**
- * 统一输出标题日志
+ * Unified title log output
  * @param title
  */
 function logTitle(title) {
@@ -77,16 +77,16 @@ function logTitle(title) {
 }
 
 /**
- * 使用 7zip 创建压缩包
- * @param {string} sourceDir 要压缩的源目录
- * @param {string} outputPath 输出的压缩包路径
- * @param {object} [options] 压缩选项
- * @param {number} [options.compressionLevel=5] 压缩级别 (0-9)
- * @param {string} [options.format='zip'] 压缩格式 ('zip', '7z', 'tar', 'gzip')
- * @param {string[]} [options.exclude] 排除的文件模式
- * @param {boolean} [options.preserveSymlinks=true] 是否保留符号链接
- * @param {number} [options.timeout=1800000] 超时时间（毫秒）
- * @returns {Promise<string>} 返回创建的压缩包路径
+ * Create an archive with 7zip
+ * @param {string} sourceDir Source directory to archive
+ * @param {string} outputPath Output archive path
+ * @param {object} [options] Zip options
+ * @param {number} [options.compressionLevel=5] Compression level (0-9)
+ * @param {string} [options.format='zip'] Archive format ('zip', '7z', 'tar', 'gzip')
+ * @param {string[]} [options.exclude] Glob patterns to exclude
+ * @param {boolean} [options.preserveSymlinks=true] Preserve symbolic links when supported
+ * @param {number} [options.timeout=1800000] Timeout in milliseconds
+ * @returns {Promise<string>} The generated archive path
  */
 async function create7ZipArchive(sourceDir, outputPath, options = {}) {
     const sevenBin = require('7zip-bin');
@@ -95,65 +95,65 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
         format = 'zip',
         exclude = ['*.DS_Store'],
         preserveSymlinks = true,
-        timeout = 1800000 // 30分钟
+        timeout = 1800000 // 30 minutes
     } = options;
 
-    // 确保输出目录存在
+    // Ensure output directory exists
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // 删除现有的压缩包（如果存在）
+    // Delete existing archive (if exists)
     if (fs.existsSync(outputPath)) {
         fs.unlinkSync(outputPath);
     }
 
-    // 构建 7zip 命令参数
-    const args = ['a']; // 添加到压缩包
+    // Build 7zip command arguments
+    const args = ['a']; // Add to archive
 
-    // 设置压缩格式
+    // Set compression format
     args.push(`-t${format}`);
 
-    // 设置压缩级别
+    // Set compression level
     args.push(`-mx=${compressionLevel}`);
 
-    // 保留符号链接（仅在支持的格式下）
+    // Preserve symbolic links (only for supported formats)
     if (preserveSymlinks && (format === 'zip' || format === '7z')) {
         args.push('-snl'); // store symbolic links
     }
 
-    // 添加排除模式
+    // Add exclude patterns
     exclude.forEach(pattern => {
         args.push(`-x!${pattern}`);
     });
 
-    // 输出文件路径
+    // Output file path
     args.push(outputPath);
 
-    // 源目录（使用通配符包含所有内容）
+    // Source directory (use wildcard to include all content)
     args.push(path.join(sourceDir, '*'));
 
-    console.log(`🔧 使用 7zip 创建压缩包...`);
-    console.log(`📁 源目录: ${sourceDir}`);
-    console.log(`📦 输出文件: ${outputPath}`);
-    console.log(`⚙️  压缩格式: ${format}, 压缩级别: ${compressionLevel}`);
+    console.log(`🔧 Creating archive with 7zip...`);
+    console.log(`📁 Source directory: ${sourceDir}`);
+    console.log(`📦 Output file: ${outputPath}`);
+    console.log(`⚙️  Compression format: ${format}, Compression level: ${compressionLevel}`);
 
-    // 确保 7za 二进制文件有执行权限（非 Windows 系统）
+    // Ensure 7za binary has execute permission (non-Windows systems)
     if (process.platform !== 'win32' && fs.existsSync(sevenBin.path7za)) {
         try {
             const stats = fs.statSync(sevenBin.path7za);
-            // 检查是否有执行权限（检查所有者、组或其他用户的执行权限）
+            // Check for execute permission (check owner, group, or others)
             const mode = stats.mode;
-            const executePermission = 0o111; // 执行权限掩码 (rwx rwx rwx 中的 x)
+            const executePermission = 0o111; // Execute permission mask (x in rwx rwx rwx)
             if ((mode & executePermission) === 0) {
-                console.log(`🔧 为 7za 二进制文件设置执行权限...`);
-                // 添加执行权限：保留原有权限，添加执行权限
+                console.log(`🔧 Setting execute permission for 7za binary...`);
+                // Add execute permission: preserve original permissions, add execute permission
                 fs.chmodSync(sevenBin.path7za, mode | 0o111);
             }
         } catch (error) {
-            console.warn(`⚠️  设置 7za 执行权限失败: ${error.message}`);
-            // 即使设置权限失败，也继续尝试执行，可能会失败但至少会给出更明确的错误
+            console.warn(`⚠️  Failed to set 7za execute permission: ${error.message}`);
+            // Even if setting permission fails, continue trying to execute, it might fail but at least give a clearer error
         }
     }
 
@@ -164,26 +164,115 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
             debug: true
         });
 
-        // 检查文件是否创建成功
+        // Check if file was created successfully
         if (!fs.existsSync(outputPath)) {
-            throw new Error('压缩包创建失败：输出文件不存在');
+            throw new Error('Archive creation failed: output file does not exist');
         }
 
         const stats = fs.statSync(outputPath);
-        console.log(`✅ 压缩包创建完成: ${path.basename(outputPath)}`);
-        console.log(`📦 压缩包大小: ${formatBytes(stats.size)}`);
+        console.log(`✅ Archive created: ${path.basename(outputPath)}`);
+        console.log(`📦 Archive size: ${formatBytes(stats.size)}`);
 
         return outputPath;
     } catch (error) {
-        console.error('❌ 7zip 压缩失败:', error.message);
+        console.error('❌ 7zip compression failed:', error.message);
         throw error;
     }
 }
 
 /**
- * 格式化字节大小
- * @param {number} bytes 字节数
- * @returns {string} 格式化后的大小字符串
+ * Create an archive using the native macOS zip command
+ * @param {string} sourceDir Source directory to archive
+ * @param {string} outputPath Output archive path
+ * @param {object} [options] Zip options
+ * @param {number} [options.compressionLevel=5] Compression level (0-9)
+ * @param {string[]} [options.exclude] Glob patterns to exclude
+ * @param {boolean} [options.preserveSymlinks=true] Preserve symbolic links
+ * @returns {Promise<string>} The generated archive path
+ */
+async function createMacZipArchive(sourceDir, outputPath, options = {}) {
+    if (process.platform !== 'darwin') {
+        throw new Error('createMacZipArchive can only be used on macOS');
+    }
+
+    const {
+        compressionLevel = 5,
+        exclude = ['*.DS_Store'],
+        preserveSymlinks = true
+    } = options;
+
+    const resolvedSourceDir = path.resolve(sourceDir);
+    const resolvedOutputPath = path.resolve(outputPath);
+    const parentDir = path.dirname(resolvedSourceDir);
+    const sourceDirName = path.basename(resolvedSourceDir);
+
+    const outputDir = path.dirname(resolvedOutputPath);
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    if (fs.existsSync(resolvedOutputPath)) {
+        fs.unlinkSync(resolvedOutputPath);
+    }
+
+    const zipArgs = ['-r', `-${compressionLevel}`];
+
+    if (preserveSymlinks) {
+        zipArgs.push('-y');
+    }
+
+    zipArgs.push(resolvedOutputPath);
+    zipArgs.push(sourceDirName);
+
+    exclude.forEach(pattern => {
+        zipArgs.push('-x', pattern);
+    });
+
+    console.log('🍏 Using macOS native zip to create archive...');
+    console.log(`📁 Source directory: ${resolvedSourceDir}`);
+    console.log(`📦 Output file: ${resolvedOutputPath}`);
+
+    await runCommand('zip', zipArgs, {
+        cwd: parentDir,
+        shell: false,
+        stdio: ['ignore', 'ignore', 'inherit'],
+        debug: false
+    });
+
+    if (!fs.existsSync(resolvedOutputPath)) {
+        throw new Error('Archive creation failed: output file missing');
+    }
+
+    const stats = fs.statSync(resolvedOutputPath);
+    console.log(`✅ Archive ready: ${path.basename(resolvedOutputPath)} (${formatBytes(stats.size)})`);
+
+    return resolvedOutputPath;
+}
+
+/**
+ * Cross-platform zip helper that chooses the optimal backend
+ * @param {string} sourceDir Source directory to archive
+ * @param {string} outputPath Output archive path
+ * @param {object} [options] Zip options shared with backend implementations
+ * @returns {Promise<string>} The generated archive path
+ */
+async function zipArchive(sourceDir, outputPath, options = {}) {
+    if (process.platform === 'darwin') {
+        return createMacZipArchive(sourceDir, outputPath, options);
+    }
+
+    const normalizedOptions = {
+        format: 'zip',
+        ...options,
+    };
+
+    return create7ZipArchive(sourceDir, outputPath, normalizedOptions);
+}
+
+/**
+ * Format byte size
+ * @param {number} bytes Number of bytes
+ * @returns {string} Formatted size string
  */
 function formatBytes(bytes) {
     if (bytes === 0) return '0 Bytes';
@@ -200,5 +289,7 @@ module.exports = {
     logTitle,
     hasDevelopmentEnvironment,
     create7ZipArchive,
+    createMacZipArchive,
+    zipArchive,
     formatBytes
 };
