@@ -7,7 +7,7 @@ const PLATFORM = 'web-desktop';
 const buildTemplateDir = join(GlobalPaths.staticDir, `build-templates/${PLATFORM}`);
 
 const config: IPlatformBuildPluginConfig = {
-    platformName: 'i18n:web-desktop.title',
+    displayName: 'i18n:web-desktop.title',
     platformType: 'HTML5',
     doc: 'editor/publish/publish-web.html',
     options: {
@@ -15,9 +15,6 @@ const config: IPlatformBuildPluginConfig = {
             label: 'WEBGPU',
             default: false,
             description: 'i18n:web-desktop.tips.webgpu',
-            render: {
-                ui: 'ui-checkbox',
-            },
             experiment: true,
         },
         resolution: {
@@ -27,16 +24,10 @@ const config: IPlatformBuildPluginConfig = {
                 designWidth: {
                     label: 'i18n:web-desktop.options.design_width',
                     default: 1280,
-                    render: {
-                        ui: 'ui-num-input',
-                    },
                 },
                 designHeight: {
                     label: 'i18n:web-desktop.options.design_height',
                     default: 960,
-                    render: {
-                        ui: 'ui-num-input',
-                    },
                 },
             },
             default: {

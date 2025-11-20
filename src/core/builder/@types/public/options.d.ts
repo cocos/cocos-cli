@@ -294,30 +294,12 @@ export interface ITextureCompressConfigs {
 export type Platform =
     | 'web-desktop'
     | 'web-mobile'
-    | 'wechatgame'
-    | 'wechatprogram'
-    | 'oppo-mini-game'
-    | 'vivo-mini-game'
-    | 'huawei-quick-game'
-    | 'honor-mini-game'
-    | 'migu-mini-game'
-    | 'alipay-mini-game'
-    | 'taobao-creative-app'
-    | 'taobao-mini-game'
     | 'mac'
     | 'ios'
-    | 'linux'
     | 'android'
-    | 'google-play'
-    | 'ohos'
-    | 'harmonyos-next'
     | 'windows'
-    | 'xiaomi-quick-game'
-    | 'baidu-mini-game'
-    | 'bytedance-mini-game'
-    | 'cocos-play'
-    | 'huawei-agc'
     ;
+
 export type BundleCompressionType = 'none' | 'merge_dep' | 'merge_all_json' | 'subpackage' | 'zip';
 
 export type IModules = 'esm' | 'commonjs' | 'systemjs';

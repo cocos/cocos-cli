@@ -10,15 +10,15 @@ export const GlobalPaths: Record<string, string> = {
     enginePath: join(__dirname, '..', 'packages', 'engine'),
 };
 
-// /**
-//  * CLI 的任务模式
-//  */
-// type CLITaskMode = 'hold' | 'simple';
+/**
+ * CLI 的任务模式
+ */
+type CLITaskMode = 'hold' | 'simple';
 
-// interface IGlobalConfig {
-//     mode: CLITaskMode;
-// }
+interface IGlobalConfig {
+    mode: CLITaskMode;
+}
 
-// export const GlobalConfig: IGlobalConfig = {
-//     mode: 'hold',
-// }
+export const GlobalConfig: IGlobalConfig = {
+    mode: 'hold',
+};

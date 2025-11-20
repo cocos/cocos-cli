@@ -2,7 +2,7 @@
 
 import { join } from 'path';
 import { IDisplayOptions } from '../../@types';
-import { IBuildStageItem, IInternalBuildPluginConfig } from '../../@types/protected';
+import { IBuildStageItem, IInternalBuildPluginConfig, IPlatformBuildPluginConfig } from '../../@types/protected';
 import Utils from '../../../base/utils';
 
 const customBuildStages: IBuildStageItem[] = [{
@@ -12,10 +12,10 @@ const customBuildStages: IBuildStageItem[] = [{
 }, {
     name: 'run',
     displayName: 'i18n:native.options.run',
-    hook: 'make',
+    hook: 'run',
 }];
 
-export const baseNativeCommonOptions: IInternalBuildPluginConfig = {
+export const baseNativeCommonOptions: IInternalBuildPluginConfig & Pick<IPlatformBuildPluginConfig, 'assetBundleConfig' | 'buildTemplateConfig'> = {
     doc: 'editor/publish/native-options.html',
     options: {
         encrypted: {
@@ -53,34 +53,15 @@ export const serverOptions: IDisplayOptions = {
     hotModuleReload: {
         default: false,
         label: 'Hot Module Reload',
-        render: {
-            ui: 'ui-checkbox',
-        },
         experiment: true,
     },
     serverMode: {
         default: false,
         label: 'Server Mode',
-        render: {
-            ui: 'ui-checkbox',
-        },
     },
     netMode: {
         label: 'NetMode',
         default: '0',
-        render: {
-            ui: 'ui-select-pro',
-            items: [{
-                label: 'Client',
-                value: '0',
-            }, {
-                label: 'ListenServer',
-                value: '1',
-            }, {
-                label: 'HostServer',
-                value: '2',
-            }],
-        },
     },
 };
 

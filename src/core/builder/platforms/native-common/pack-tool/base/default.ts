@@ -1,15 +1,15 @@
 import * as ps from 'path';
 import * as fs from 'fs-extra';
-import { cchelper, Paths } from './utils';
+import { cchelper, Paths } from '../utils';
 import { CocosProjectTasks } from './cocosProjectTypes';
 import { gzipSync } from 'zlib';
-import { ICMakeConfig } from '../../../@types/platforms/native';
+import { ICMakeConfig } from '../../type';
 import { globby } from 'globby';
 const xxtea = require('xxtea-node');
 
 const PackageNewConfig = 'cocos-project-template.json';
 
-export type InternalNativePlatform = 'mac' | 'android' | 'windows' | 'ios' | 'ohos';
+export type InternalNativePlatform = 'mac' | 'android' | 'windows' | 'ios';
 
 const ErrorCodeIncompatible = 15004;
 
@@ -23,9 +23,9 @@ export interface INativePlatformOptions {
     init: (params: CocosParams<Object>) => void;
 }
 
-export abstract class NativePackTool {
+export default abstract class NativePackTool {
     // 传入的打包参数
-    params!: CocosParams<Object>;
+    declare params: CocosParams<Object>;
     // 收集初始化的一些路径信息
     paths!: Paths;
     // 存储调用 cmake 的命令行参数
@@ -273,7 +273,7 @@ export abstract class NativePackTool {
                 console.log(`  ${f}`);
             }
             console.log(`Consider fix the problem or remove the directory`);
-            console.log(`To avoid this warning, set field \'skipCheck\' in cocos-version.json to true.`);
+            console.log('To avoid this warning, set field \'skipCheck\' in cocos-version.json to true.');
             return false;
         }
         return true;
@@ -506,7 +506,7 @@ export class CocosParams<T> {
     public debug: boolean;
     public projectName: string;
     public cmakePath: string;
-    public platform: string;
+    public platform: InternalNativePlatform;
     public platformName: string;
     public executableName: string;
 

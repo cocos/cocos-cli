@@ -323,9 +323,6 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
         label: 'i18n:builder.options.inlineEnum',
         description: 'i18n:builder.options.inlineEnumTip',
         default: true,
-        render: {
-            ui: 'ui-checkbox',
-        },
     },
     md5Cache: {
         label: 'i18n:builder.options.md5_cache',
@@ -658,6 +655,8 @@ export function handleOverwriteProjectSettings(options: IBuildTaskOption) {
 }
 
 export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {
+    options.engineInfo = options.engineInfo || Engine.getInfo();
+
     const { designResolution, renderPipeline, physicsConfig, customLayers, sortingLayers, macroConfig, includeModules } = Engine.getConfig();
     // 默认 Canvas 设置
     if (!options.designResolution) {

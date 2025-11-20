@@ -49,6 +49,50 @@ class I18n {
         }
         return name;
     }
+
+    /**
+     * 动态注册语言包的补丁内容
+     * @param language 语言代码，例如 zh、en
+     * @param patchPath 需要覆盖的 i18n 路径（会作为 key 前缀，使用 “.” 分隔）
+     * @param languageData 需要注入的语言数据对象
+     */
+    registerLanguagePatch(language: string, patchPath: string, languageData: Record<string, any>) {
+        if (!language || typeof language !== 'string') {
+            console.warn('[i18n] registerLanguagePatch: invalid language', language);
+            return;
+        }
+        if (typeof patchPath !== 'string') {
+            console.warn('[i18n] registerLanguagePatch: invalid patch path', patchPath);
+            return;
+        }
+        if (!languageData || typeof languageData !== 'object') {
+            console.warn('[i18n] registerLanguagePatch: invalid language data', languageData);
+            return;
+        }
+
+        const normalizedPrefix = patchPath.replace(/^\.+/, '').trim();
+        const entries: Record<string, any> = {};
+
+        function flatten(obj: Record<string, any>, prefix: string) {
+            Object.keys(obj).forEach((key) => {
+                const value = obj[key];
+                const currentKey = prefix ? `${prefix}.${key}` : key;
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    flatten(value, currentKey);
+                } else {
+                    entries[currentKey] = value;
+                }
+            });
+        }
+
+        flatten(languageData, normalizedPrefix);
+
+        if (Object.keys(entries).length === 0) {
+            return;
+        }
+
+        i18nextInstance.addResources(language, 'translation', entries);
+    }
 }
 
 export default new I18n();

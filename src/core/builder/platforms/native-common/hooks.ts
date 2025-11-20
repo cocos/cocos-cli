@@ -2,7 +2,7 @@
 
 import os from 'os';
 import Ejs from 'ejs';
-import { basename, dirname, join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 import {
     existsSync,
     mkdir,
@@ -11,20 +11,18 @@ import {
     removeSync,
     writeFile,
     symlinkSync,
-    outputJSON,
     copy,
     emptyDirSync,
-    readJSON,
 } from 'fs-extra';
 import { getCmakePath, packToolHandler } from './native-utils';
-import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildResult } from '../../@types/protected';
-import { CocosParams } from './pack-tool/default';
+import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildResult, Platform } from '../../@types/protected';
+import { CocosParams } from './pack-tool/base/default';
 import i18n from '../../../base/i18n';
 import { BuildGlobalInfo } from '../../share/builder-config';
 import { Engine } from '../../../engine';
 import { relativeUrl } from '../../worker/builder/utils';
-import { ITaskOption } from '../../@types/platforms/native';
-import type { NativePackTool } from './pack-tool/default';
+import { ITaskOption } from './type';
+import nativePackToolMg from './pack-tool/manager';
 
 export const throwError = true;
 
@@ -127,6 +125,27 @@ async function getBrowserslistQuery(repo: string) {
     }
 }
 
+class ShareData {
+    _map: Record<string, any> = {};
+    _platform: Platform;
+    constructor(platform: Platform) {
+        this._platform = platform;
+    }
+    set<T>(key: string, data: T) {
+        this._map[key] = data;
+    }
+    get<T>(key: string): T {
+        return this._map[key];
+    }
+    clear() {
+        this._map = {};
+    }
+}
+
+class ShareDataInHooks {
+    static _map: Map<Platform, ShareData> = new Map();
+}
+
 // ******************* 钩子函数入口 ******************
 export function onBeforeBuild(options: ITaskOption) {
     // 修改此参数以避免构建时清空原目录
@@ -148,7 +167,6 @@ export async function onAfterInit(options: ITaskOption, result: InternalBuildRes
         typescript: { path: engineRoot },
     } = options.engineInfo;
     // 后续要支持命令行传参的自定义引擎，因而 native pack tool 管理器的初始化不能放在 load 钩子里
-    packToolHandler.init(engineRoot);
     console.debug('Native engine root:' + nativeRoot);
 
     const assetsLink = join(result.paths.dir, 'assets');
@@ -174,8 +192,7 @@ export async function onAfterInit(options: ITaskOption, result: InternalBuildRes
     }
     const params = await genCocosParams(options, result);
     options.cocosParams = params;
-    // 兼容旧版本的 xr 插件
-    result.compileOptions = options;
+    await nativePackToolMg.register(options.platform, params);
     options.generateCompileConfig = true;
 
     // 拷贝 adapter 文件
@@ -258,8 +275,7 @@ export async function onAfterCompressSettings(this: IBuilder, options: ITaskOpti
     // 1. 原生工程模板要尽早生成方便后续其他构建插件（service）做一些原生工程的调整或者 sdk 接入等等
     // 2. create 里还包含了脚本加密，为了给用户预留能在 onAfterBuildAssets 修改脚本的时序，需要在 onAfterBuildAssets 钩子之后再执行
     // 3. 在 create 之前要准备几乎所有的项目工程文件，包括 main.js
-    // @ts-ignore
-    const packTools = await packToolHandler.runTask('create', options.cocosParams) as NativePackTool;
+    const packTools = await packToolHandler.runTask('create', options.cocosParams);
     options.packages.native.projectDistPath = await packToolHandler.getProjectBuildPath(packTools);
     // 加密后再更改 remote 目录，否则 remote 目录可能会没有加密到
     const server = options.server || '';
@@ -320,5 +336,6 @@ export async function make(root: string, options: ITaskOption) {
  * @param options
  */
 export async function run(root: string, options: ITaskOption) {
-    await packToolHandler.runTask('run', options.cocosParams);
+    // 暂时不 await ，否则会持续等待
+    packToolHandler.runTask('run', options.cocosParams);
 }

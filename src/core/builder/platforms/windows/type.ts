@@ -1,5 +1,5 @@
-import { IInternalBuildOptions, InternalBuildResult } from "../protected";
-import { IOptions as INativeOption, CocosParams, ICustomBuildScriptParam } from './native';
+import { InternalBuildResult } from '../../@types/protected';
+import { IOptions as INativeOption } from '../native-common/type';
 
 export type IOptions = INativeOption & {
     executableName: string;

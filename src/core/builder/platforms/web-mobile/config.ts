@@ -9,11 +9,10 @@ const PLATFORM = 'web-mobile';
 const buildTemplateDir = join(GlobalPaths.staticDir, `build-templates/${PLATFORM}`);
 
 const config: IPlatformBuildPluginConfig = {
-    platformName: 'i18n:web-mobile.title',
+    displayName: 'i18n:web-mobile.title',
     platformType: 'HTML5',
     doc: 'editor/publish/publish-web.html',
     hooks: './hooks',
-    panel: './panel',
     textureCompressConfig: {
         platformType: 'web',
         support: {
@@ -77,37 +76,14 @@ const config: IPlatformBuildPluginConfig = {
             label: 'WEBGPU',
             default: false,
             description: 'i18n:web-mobile.tips.webgpu',
-            render: {
-                ui: 'ui-checkbox',
-            },
             experiment: true,
         },
         orientation: {
             label: 'i18n:web-mobile.options.orientation',
             default: 'auto',
-            render: {
-                ui: 'ui-select-pro',
-                items: [
-                    {
-                        label: 'i18n:web-mobile.options.landscape',
-                        value: 'landscape',
-                    },
-                    {
-                        label: 'i18n:web-mobile.options.portrait',
-                        value: 'portrait',
-                    },
-                    {
-                        label: 'i18n:web-mobile.options.auto',
-                        value: 'auto',
-                    },
-                ],
-            },
         },
         embedWebDebugger: {
             label: 'i18n:web-mobile.options.web_debugger',
-            render: {
-                ui: 'ui-checkbox',
-            },
             default: false,
         },
     },

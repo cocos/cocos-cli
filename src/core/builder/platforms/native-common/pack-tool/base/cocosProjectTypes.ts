@@ -8,7 +8,6 @@ export interface CocosProject {
 
 export interface CocosProjectTasks {
 
-
     appendFile?: { from: string, to: string }[],
 
     projectReplaceProjectName?: {

@@ -1,10 +1,10 @@
 import { IBuildOptionBase, Platform } from './options';
 
-import { IOptions as webDesktopOptions } from './../platforms/web-desktop';
+import { IOptions as webDesktopOptions } from '../../platforms/web-desktop/type';
 export { webDesktopOptions };
 import { IOptions as webMobileOptions } from './../platforms/web-mobile';
 export { webMobileOptions };
-import { IOptions as windowsOptions, IExtraOptions as windowsExtraOptions } from './../platforms/windows';
+import { IOptions as windowsOptions, IExtraOptions as windowsExtraOptions } from '../../platforms/windows/type';
 export { windowsOptions };
 /**
  * 构建所需的完整参数

@@ -28,9 +28,12 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle 配置选项');
 
 // 平台枚举
-export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile']);
+export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile', 'windows', 'ios', 'mac', 'android']);
+export const SchemaPlatformCanMake = z.enum(['windows', 'ios', 'mac', 'android']);
+export const SchemaRoot = z.string().min(1).describe('构建发布目录');
+export type IPlatformRoot = z.infer<typeof SchemaRoot>;
 export type TPlatform = z.infer<typeof SchemaPlatform>;
-
+export type TPlatformCanMake = z.infer<typeof SchemaPlatformCanMake>;
 // ==================== 平台特定的 Packages 配置 ====================
 
 // Web Desktop 平台配置
@@ -230,8 +233,8 @@ export type TWebDesktopPackages = z.infer<typeof SchemaWebDesktopPackages>;
 export type TWebMobilePackages = z.infer<typeof SchemaWebMobilePackages>;
 
 // Run API 相关 Schema
-export const SchemaRunDest = z.string().min(1).describe('构建输出目录路径，支持 project:// 协议，构建成功后会自动打印对应的目录地址');
-export type TRunDest = z.infer<typeof SchemaRunDest>;
+export const SchemaBuildDest = z.string().min(1).describe('构建输出目录路径，支持 project:// 协议，构建成功后会自动打印对应的目录地址');
+export type TBuildDest = z.infer<typeof SchemaBuildDest>;
 
 export const SchemaRunResult = z.string().describe('运行 URL');
 export type TRunResult = z.infer<typeof SchemaRunResult>;

@@ -1,16 +1,16 @@
 import * as fs from 'fs-extra';
 import * as ps from 'path';
 import * as os from 'os';
-import { NativePackTool, CocosParams } from '../native-common/pack-tool/default';
-import { cocosConfig } from '../native-common/pack-tool/cocosConfig';
-import { cchelper, toolHelper } from '../native-common/pack-tool/utils';
+import { cchelper, toolHelper, Paths } from '../utils';
+import cocosConfig from '../cocosConfig';
+import NativePackTool, { CocosParams } from '../base/default';
 
 export interface IWindowsParam {
     targetPlatform: 'x64';
     vsVersion: string;
 }
 
-export class WindowsPackTool extends NativePackTool {
+export default class WindowsPackTool extends NativePackTool {
     declare params: CocosParams<IWindowsParam>;
 
     async create() {
@@ -128,7 +128,7 @@ export class WindowsPackTool extends NativePackTool {
     }
 
     async run(): Promise<boolean> {
-        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release')
+        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release');
         const targetFile = this.getExecutableNameOrDefault();
         const executableFile = ps.join(executableDir, targetFile + '.exe');
         if (!executableFile || !fs.existsSync(executableFile)) {

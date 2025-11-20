@@ -1,0 +1,9 @@
+{
+    "name": "web-desktop",
+    "version": "1.0.0",
+    "author": "Cocos",
+    "description": "Web desktop platform plugin",
+    "contributions": {
+        "builder": "./config.js"
+    }
+}

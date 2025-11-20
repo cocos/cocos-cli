@@ -10,14 +10,16 @@ import { join } from 'path';
 import assetManager from '../assets/manager/asset';
 import { removeDbHeader } from './worker/builder/utils';
 import builderConfig, { BuildGlobalInfo } from './share/builder-config';
-import { Engine } from '../engine';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
+import { GlobalConfig } from '../../global';
 
-export async function init() {
+const supportPlatforms: Platform[] = ['web-desktop', 'web-mobile', 'windows'];
+
+export async function init(platforms?: Platform[]) {
     await builderConfig.init();
-    // TODO 看后续是否需要按需启动
-    await pluginManager.prepare(['web-desktop', 'web-mobile']);
+    // TODO 此处将会按照支持的平台全量启动
+    await pluginManager.prepare(platforms || supportPlatforms, GlobalConfig.mode === 'simple');
 }
 
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption<P>): Promise<IBuildResultData> {
@@ -28,7 +30,6 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
     options.taskId = options.taskId || String(new Date().getTime());
     options.logDest = options.logDest || getTaskLogDest(platform, options.taskId);
     options.taskName = options.taskName || platform;
-    options.engineInfo = options.engineInfo || Engine.getInfo();
 
     if (options.stage === 'bundle') {
         return await buildBundleOnly(options as unknown as IBundleBuildOptions);
@@ -39,7 +40,7 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         return await executeBuildStageTask(options.taskId, options.stage, options as unknown as IBuildStageOptions);
     }
     // 不支持的构建平台不执行构建
-    if (!PLATFORMS.includes(platform)) {
+    if (!supportPlatforms.includes(platform)) {
         console.error(i18n.t('builder.tips.disable_platform_for_build_command', {
             platform: platform,
         }));
@@ -150,8 +151,8 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     if (!options.taskName) {
         options.taskName = stageName + ' build';
     }
-
-    const buildOptions = readBuildTaskOptions(options.root);
+    options.dest = utils.Path.resolveToRaw(options.dest);
+    const buildOptions = readBuildTaskOptions(options.dest);
     if (!buildOptions) {
         return { code: BuildExitCode.PARAM_ERROR, reason: 'Build options is not exist!' };
     }
@@ -175,7 +176,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         newConsole.trackMemoryStart(`builder:build-stage-total ${stageName}`);
         const buildStageTask = new BuildStageTask(taskId, {
             hooksInfo: pluginManager.getHooksInfo(options.platform),
-            root: options.root,
+            root: options.dest,
             buildTaskOptions: buildOptions,
             ...stageConfig,
         });
@@ -189,13 +190,13 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             }
             console.log(`[task:${stageLabel}]: success!`);
         } else {
-            console.error(`${stageLabel} package ${options.root} failed!`);
+            console.error(`${stageLabel} package ${options.dest} failed!`);
             console.log(`[task:${stageLabel}]: failed!`);
             buildSuccess = false;
             break;
         }
     }
-    return buildSuccess ? { code: BuildExitCode.BUILD_SUCCESS, dest: options.root } : { code: BuildExitCode.BUILD_FAILED, reason: 'Build stage task failed!' };
+    return buildSuccess ? { code: BuildExitCode.BUILD_SUCCESS, dest: options.dest } : { code: BuildExitCode.BUILD_FAILED, reason: 'Build stage task failed!' };
 }
 
 function readBuildTaskOptions(root: string): IBuildTaskOption<any> | null {

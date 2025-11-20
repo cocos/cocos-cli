@@ -2,7 +2,7 @@ import * as ps from 'path';
 import * as fs from 'fs-extra';
 import { execSync, spawn } from 'child_process';
 import * as os from 'os';
-import type { CocosParams } from './default';
+import type { CocosParams } from './base/default';
 const iconv = require('iconv-lite');
 
 
@@ -453,7 +453,7 @@ export const toolHelper = {
         // Delete environment variables start with `npm_`, which may cause compile error on windows
         const newEnv: any = {};
         Object.assign(newEnv, process.env);
-        Object.keys(newEnv).filter(x => x.toLowerCase().startsWith("npm_")).forEach(e => delete newEnv[e]);
+        Object.keys(newEnv).filter(x => x.toLowerCase().startsWith('npm_')).forEach(e => delete newEnv[e]);
 
         return new Promise<void>((resolve, reject) => {
             console.log(`run ${cmakePath} ${args.join(' ')}`);
@@ -524,7 +524,7 @@ export const toolHelper = {
             }
         });
     }
-}
+};
 
 export class Paths {
     public static enginePath: string; // [engine]
@@ -558,7 +558,7 @@ export class Paths {
         this.buildDir = params.buildDir;
         this.buildAssetsDir = params.buildAssetsDir;
         if (params.platform === 'windows') {
-            this.platformTemplateDirName = (params.platformParams as any).targetPlatform === "win32" ? "win32" : "win64";
+            this.platformTemplateDirName = (params.platformParams as any).targetPlatform === 'win32' ? 'win32' : 'win64';
         } else {
             this.platformTemplateDirName = params.platformName ? params.platformName : this.platform;
         }

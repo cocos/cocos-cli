@@ -1,15 +1,27 @@
 'use strict';
 
-import { CocosParams, ICustomBuildScriptParam } from '../../@types/platforms/native';
-import { IBuildResult, ITaskOptionPackages } from '../../@types/platforms/windows';
+import { ICustomBuildScriptParam } from '../native-common/type';
+import { IBuildResult, ITaskOptionPackages } from './type';
 import { BuilderAssetCache, IInternalBuildOptions } from '../../@types/protected';
 import { executableNameOrDefault } from './utils';
+import * as nativeCommonHook from '../native-common/hooks';
+import { CocosParams } from '../native-common/pack-tool/base/default';
+
 export interface ITaskOption extends IInternalBuildOptions<'windows'> {
     packages: ITaskOptionPackages;
     buildScriptParam: ICustomBuildScriptParam;
     cocosParams: CocosParams<any>;
 }
+export const onBeforeBuild = nativeCommonHook.onBeforeBuild;
+export const onAfterBundleDataTask = nativeCommonHook.onAfterBundleDataTask;
+export const onAfterCompressSettings = nativeCommonHook.onAfterCompressSettings;
+export const onAfterBuild = nativeCommonHook.onAfterBuild;
+export const onBeforeMake = nativeCommonHook.onBeforeMake;
+export const make = nativeCommonHook.make;
+export const run = nativeCommonHook.run;
+
 export async function onAfterInit(options: ITaskOption, result: IBuildResult, cache: BuilderAssetCache) {
+    await nativeCommonHook.onAfterInit(options, result);
     const renderBackEnd = options.packages.windows.renderBackEnd;
 
     // 补充一些平台必须的参数
@@ -37,7 +49,8 @@ export async function onAfterInit(options: ITaskOption, result: IBuildResult, ca
     }
 }
 
-export async function onAfterBundleInit(options: IInternalBuildOptions<'windows'>) {
+export async function onAfterBundleInit(options: ITaskOption) {
+    await nativeCommonHook.onAfterBundleInit(options);
     const renderBackEnd = options.packages.windows.renderBackEnd;
 
     options.assetSerializeOptions!['cc.EffectAsset'].glsl1 = renderBackEnd.gles2 ?? true;

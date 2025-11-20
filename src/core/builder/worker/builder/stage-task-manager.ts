@@ -16,8 +16,7 @@ export interface IBuildStageConfig extends IBuildStageItem {
 
 export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     // 从构建包缓存文件内获取到的构建选项信息
-    options!: IBuildTaskOption;
-    buildTaskOptions?: IBuildTaskOption;
+    options: IBuildTaskOption;
     hooksInfo: IBuildHooksInfo;
     private root: string;
     hookMap: Record<string, string>;
@@ -26,7 +25,7 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
         super(id, config.name);
         this.hooksInfo = config.hooksInfo;
         this.root = config.root;
-        this.buildTaskOptions = config.buildTaskOptions;
+        this.options = config.buildTaskOptions;
         // 首字母转为大写后走前后钩子函数流程
         const name = config.name[0].toUpperCase() + config.name.slice(1, config.name.length);
         this.hookMap = {

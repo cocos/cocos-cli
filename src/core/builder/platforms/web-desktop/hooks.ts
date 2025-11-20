@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, outputFileSync } from 'fs-extra';
 import { basename, join, relative } from 'path';
 import Ejs from 'ejs';
 import { InternalBuildResult, BuilderAssetCache, IBuilder, IBuildTaskOption, IInternalBuildOptions } from '../../@types/protected';
-import { IBuildResult } from '../../@types/platforms/web-desktop';
+import { IBuildResult } from './type';
 import { relativeUrl, transformCode } from '../../worker/builder/utils';
 import utils from '../../../base/utils';
 

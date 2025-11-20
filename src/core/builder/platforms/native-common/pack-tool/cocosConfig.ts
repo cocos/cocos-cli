@@ -1,4 +1,4 @@
-export const cocosConfig = {
+ const cocosConfig = {
     default: {
         projectName: 'MyGame',
     },
@@ -41,3 +41,4 @@ export const cocosConfig = {
         },
     },
 };
+export default cocosConfig;

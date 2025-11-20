@@ -100,6 +100,5 @@ export interface IBuild {
     BUNDLE_ZIP_NAME: string;
     projectTempDir: string;
     globalTempDir: string;
-    buildTemplateDir: string; // 构建模板地址 build-templates
     isCommand: boolean; // 是否为命令行构建
 }

@@ -18,7 +18,7 @@ import {
     IBuildTaskItemJSON,
 } from '../public';
 import { BuilderAssetCache } from './asset-manager';
-import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager } from './build-result';
+import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager, IBuildStageTask } from './build-result';
 import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
 import { ImportMap } from './import-map';
 import { IImportMapOptions, IPlatformType } from './options';
@@ -270,35 +270,29 @@ export type ICustomBuildIconInfo = IBuildIconItem & {
 }
 export interface IInternalBuildPluginConfig extends IBuildPluginConfig {
     doc?: string; // 注册文档地址
-    platformName?: string; // 平台名，可以指定为 i18n 写法, 只有官方构建插件的该字段有效
-    platformType?: StatsQuery.ConstantManager.PlatformType,
-    icon?: IconConfig; // 平台 icon
     displayName?: string; // 在构建面板上的显示名称，默认为插件名
     hooks?: string; // 钩子函数的存储路径
-    panel?: string; // relate url about custom panel
-    // 仅对内部插件开放
+    priority?: number;
+    options?: IDisplayOptions; // 需要注入的平台参数配置
+    verifyRuleMap?: IVerificationRuleMap; // 注入的需要更改原有参数校验规则的函数
+    commonOptions?: Record<string, IConfigItem>; // 允许修改部分内置配置的默认值等
+    internal?: boolean; // 注册后，构建插件赋予的标记，插件指定无效
+    customBuildStages?: Array<IBuildStageItem>;
+}
+export interface IPlatformBuildPluginConfig extends MakeRequired<IInternalBuildPluginConfig, 'displayName'> {
+    platformType: StatsQuery.ConstantManager.PlatformType,
+    icon?: IconConfig; // 平台 icon
     textureCompressConfig?: PlatformCompressConfig;
     buildTemplateConfig?: BuildTemplateConfig;
     assetBundleConfig?: {
         // asset bundle 的配置
         supportedCompressionTypes: BundleCompressionType[];
-        // TODO 后续废弃，统一使用外层的 platformType 与引擎保持一致
+        // TODO 后续统一使用外层的 platformType 与引擎保持一致
         platformType: IPlatformType;
     };
-
-    priority?: number;
-    wrapWithFold?: boolean; // 是否将选项显示在折叠框内（默认 true ）
-    options?: IDisplayOptions; // 需要注入的平台参数配置
-    verifyRuleMap?: IVerificationRuleMap; // 注入的需要更改原有参数校验规则的函数
-    commonOptions?: Record<string, IConfigItem>; // 允许修改部分内置配置的界面显示方式
-    debugConfig?: IDebugConfig;
-    // 阶段性任务注册信息，由于涉及到按钮排序问题，需要指定为数组
-    customBuildStages?: Array<IBuildStageItem>;
     // icon 操作注册信息
     customIconConfigs?: Array<IBuildIconItem>;
-    internal?: boolean; // 注册后，构建插件赋予的标记，插件指定无效
-}
-export type IPlatformBuildPluginConfig = MakeRequired<IInternalBuildPluginConfig, 'platformType' | 'platformName'>;
+};
 
 export interface BuildTemplateConfig {
     // 构建模板的配置
@@ -310,7 +304,6 @@ export interface BuildTemplateConfig {
     displayName?: string;
     version: string;
     dirname?: string; // 指定构建模板目录名称，默认与平台名称保持一致
-    pkgName?: string; // 注册的来源插件
 }
 
 export type ICustomBuildStageDisplayItem = IBuildStageItem & {

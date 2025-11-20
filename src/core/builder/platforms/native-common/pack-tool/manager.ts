@@ -1,80 +1,57 @@
+import NativePackTool, { InternalNativePlatform } from './base/default';
 
-import { NativePackTool } from "./default";
-
-export type ISupportPlatform = 'mac-os' | 'mac' | 'ios' | 'android' | 'google-play' | 'ohos';
-const platformPackToolMap: Record<string, () => typeof NativePackTool> = {
-    ios: () => {
-        return require('../platforms/ios').IOSPackTool;
-    },
-    mac: () => {
-        return require('../platforms/mac').MacPackTool;
-    },
-    windows: () => {
-        return require('../platforms/windows').WindowsPackTool;
-    },
-    android: () => {
-        return require('../platforms/android').AndroidPackTool;
-    },
-    'google-play': () => {
-        return require('../platforms/google-play').GooglePlayPackTool;
-    },
-    'harmonyos-next': () => {
-        return require('../platforms/harmonyos-next').HarmonyOSNextPackTool;
-    },
-    ohos: () => {
-        return require('../platforms/ohos').OHOSPackTool;
-    },
-    'huawei-agc': () => {
-        return require('../platforms/huawei-agc').HuaweiAGCPackTool;
-    },
-}
+export type ISupportPlatform = 'windows';
+const platformPackToolMap: Record<string, string> = {
+    windows: '../platforms/windows',
+};
 export class NativePackToolManager {
-    private PackToolMap: Record<string, NativePackTool> = {};
-    static platformToPackTool: Record<string, typeof NativePackTool> = {};
+    private PackToolMap: Map<InternalNativePlatform, NativePackTool> = new Map();
+    static platformToPackTool: Map<InternalNativePlatform, typeof NativePackTool> = new Map();
 
-    static register(platform: string, tool: typeof NativePackTool) {
-        NativePackToolManager.platformToPackTool[platform] = tool;
+    static register(platform: InternalNativePlatform, tool: typeof NativePackTool) {
+        NativePackToolManager.platformToPackTool.set(platform, tool);
     }
 
-    private getTool(platform: string): NativePackTool {
-        const handler = this.PackToolMap[platform];
+    private async getTool(platform: InternalNativePlatform): Promise<NativePackTool> {
+        const handler = this.PackToolMap.get(platform);
         if (handler) {
             return handler;
         }
-        const PackTool = NativePackToolManager.getPackTool(platform) as new () => NativePackTool;
-        this.PackToolMap[platform] = new PackTool();
-        return this.PackToolMap[platform];
+        const PackTool = await NativePackToolManager.getPackTool(platform);
+        const tool = new PackTool();
+        this.PackToolMap.set(platform, tool);
+        return tool;
     }
-
-    static getPackTool(platform: string) {
-        if (NativePackToolManager.platformToPackTool[platform]) {
-            return NativePackToolManager.platformToPackTool[platform];
-        }
-        if (!platformPackToolMap[platform]) {
-            throw new Error(`No pack tool for platform ${platform}}`);
-        }
-        const PackTool = platformPackToolMap[platform]();
-        NativePackToolManager.platformToPackTool[platform] = PackTool;
-        return PackTool;
-    }
-
-    async openWithIDE(platform: string, projectPath: string, IDEDir?: string) {
-        const tool = NativePackToolManager.getPackTool(platform);
-        if (!tool.openWithIDE) {
-            return false;
-        }
-        await tool.openWithIDE(projectPath, IDEDir);
-        return true;
-    }
-
-    init(params: any) {
-        const tool = this.getTool(params.platform);
+    async register(platform: InternalNativePlatform, params:any) {
+        const tool = await this.getTool(platform);
         tool.init(params);
         return tool;
     }
 
-    async create(platform: string): Promise<NativePackTool | null> {
-        const tool = this.getTool(platform);
+    async destory(platform: InternalNativePlatform) {
+        this.PackToolMap.delete(platform);
+    }
+
+    static async getPackTool(platform: InternalNativePlatform) {
+        if (NativePackToolManager.platformToPackTool.has(platform)) {
+            return NativePackToolManager.platformToPackTool.get(platform);
+        }
+        if (!platformPackToolMap[platform]) {
+            throw new Error(`No pack tool for platform ${platform}}`);
+        }
+        const PackTool = await import(platformPackToolMap[platform]);
+        NativePackToolManager.platformToPackTool.set(platform, PackTool);
+        return PackTool;
+    }
+
+    async openWithIDE(platform: InternalNativePlatform, projectPath: string, IDEDir?: string) {
+        const tool = await NativePackToolManager.getPackTool(platform);
+        await tool.openWithIDE(projectPath, IDEDir);
+        return tool;
+    }
+
+    async create(platform: InternalNativePlatform): Promise<NativePackTool> {
+        const tool = await this.getTool(platform);
         if (!tool) {
             throw new Error(`No pack tool for platform ${platform}}`);
         }
@@ -82,35 +59,34 @@ export class NativePackToolManager {
         return tool;
     }
 
-    async generate(platform: string): Promise<boolean> {
-        const tool = this.getTool(platform);
+    async generate(platform: InternalNativePlatform): Promise<NativePackTool> {
+        const tool = await this.getTool(platform);
         if (!tool) {
             throw new Error(`No pack tool for platform ${platform}}`);
         }
-        if (!tool.generate) {
-            return false;
-        }
-        return await tool.generate();
+        await tool.generate!();
+        return tool;
     }
 
-    async make(platform: string): Promise<boolean> {
-        const tool = this.getTool(platform);
-        if (!tool.make) {
-            return false;
+    async make(platform: InternalNativePlatform): Promise<NativePackTool> {
+        const tool = await this.getTool(platform);
+        if (!tool) {
+            throw new Error(`No pack tool for platform ${platform}}`);
         }
-        await tool.make();
-        return true;
+        await tool.make!();
+        return tool;
     }
 
-    async run(platform: string): Promise<boolean> {
-        const tool = this.getTool(platform);
-        if (!tool.run) {
-            return false;
+    async run(platform: InternalNativePlatform): Promise<NativePackTool> {
+        const tool = await this.getTool(platform);
+        if (!tool) {
+            throw new Error(`No pack tool for platform ${platform}}`);
         }
-        await tool.run();
-        return true;
+        await tool.run!();
+        return tool;
     }
-
 }
 
-export const nativePackToolMg = new NativePackToolManager();
+const nativePackToolMg = new NativePackToolManager();
+
+export default nativePackToolMg;

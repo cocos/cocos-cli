@@ -356,7 +356,7 @@ export interface IBundleTaskItemJSON extends ITaskItemJSON {
 }
 
 export interface IBuildStageOptions {
-    root: string;
+    dest: string;
     platform: Platform;
     taskId?: string;
     nextStages?: string[];

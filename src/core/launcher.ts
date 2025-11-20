@@ -4,7 +4,7 @@ import utils from './base/utils';
 import { newConsole } from './base/console';
 import { getCurrentLocalTime } from './assets/utils';
 import { startServer } from '../server';
-import { GlobalPaths } from '../global';
+import { GlobalConfig, GlobalPaths } from '../global';
 import scripting from './scripting';
 import { startupScene } from './scene';
 
@@ -85,6 +85,7 @@ export default class Launcher {
      * @param options
      */
     async build(platform: Platform, options: Partial<IBuildCommandOption>) {
+        GlobalConfig.mode = 'simple';
         await this.import();
         if (!options.logDest) {
             options.logDest = join(this.projectPath, 'temp/build', getCurrentLocalTime() + '.log');
@@ -93,7 +94,7 @@ export default class Launcher {
         await this.import();
         // 执行构建流程
         const { init, build } = await import('./builder');
-        await init();
+        await init([platform]);
         return await build(platform, options);
     }
 
