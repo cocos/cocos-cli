@@ -78,9 +78,8 @@ function parseArgs(cb) {
         ? context.publishDir
         : path.resolve(context.rootDir, context.publishDir);
 
-    cb();
 
-    console.log('=== context ===', context);
+    cb();
 }
 
 /**
@@ -404,7 +403,7 @@ async function uploadToFTP(filePath, type) {
  * Factory to create a release pipeline for a specific config
  */
 function createReleasePipeline(config) {
-    console.log('=== createReleasePipeline ===', config);
+    console.log('start createReleasePipeline with config', config);
     const releaseDirName = () => generateReleaseDirectoryName(config.type, context.version);
     const extensionDir = () => path.join(context.publishDir, releaseDirName());
     let zipFilePath = null;
