@@ -1,6 +1,6 @@
 'use strict';
 
-import { Component, editorExtrasTag, instantiate, Node, Prefab, CCClass, Scene } from 'cc';
+import { Component, editorExtrasTag, instantiate, Node, Prefab, CCClass, Scene, isValid } from 'cc';
 import { isEditorNode } from '../node/node-utils';
 import { ServiceEvents, Service } from '../core';
 import { INodeEvents, NodeEventType } from '../../../common';
@@ -93,7 +93,7 @@ class PrefabUtil {
         }
 
         let assetRootNode: Node | undefined = undefined;
-        if (prefabInfo && prefabInfo.asset) {
+        if (prefabInfo && prefabInfo.asset && isValid(prefabInfo.asset)) {
             assetRootNode = instantiate(prefabInfo.asset);
         }
 
