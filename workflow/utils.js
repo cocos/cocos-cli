@@ -134,10 +134,10 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
     // Source directory (use wildcard to include all content)
     args.push(path.join(sourceDir, '*'));
 
-    console.log(`🔧 Creating archive with 7zip...`);
-    console.log(`📁 Source directory: ${sourceDir}`);
-    console.log(`📦 Output file: ${outputPath}`);
-    console.log(`⚙️  Compression format: ${format}, Compression level: ${compressionLevel}`);
+    console.log(`Creating archive with 7zip...`);
+    console.log(`Source directory: ${sourceDir}`);
+    console.log(`Output file: ${outputPath}`);
+    console.log(`Compression format: ${format}, Compression level: ${compressionLevel}`);
 
     // Ensure 7za binary has execute permission (non-Windows systems)
     if (process.platform !== 'win32' && fs.existsSync(sevenBin.path7za)) {
@@ -147,12 +147,12 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
             const mode = stats.mode;
             const executePermission = 0o111; // Execute permission mask (x in rwx rwx rwx)
             if ((mode & executePermission) === 0) {
-                console.log(`🔧 Setting execute permission for 7za binary...`);
+                console.log(`Setting execute permission for 7za binary...`);
                 // Add execute permission: preserve original permissions, add execute permission
                 fs.chmodSync(sevenBin.path7za, mode | 0o111);
             }
         } catch (error) {
-            console.warn(`⚠️  Failed to set 7za execute permission: ${error.message}`);
+            console.warn(`Failed to set 7za execute permission: ${error.message}`);
             // Even if setting permission fails, continue trying to execute, it might fail but at least give a clearer error
         }
     }
@@ -170,12 +170,12 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
         }
 
         const stats = fs.statSync(outputPath);
-        console.log(`✅ Archive created: ${path.basename(outputPath)}`);
-        console.log(`📦 Archive size: ${formatBytes(stats.size)}`);
+        console.log(`Archive created: ${path.basename(outputPath)}`);
+        console.log(`Archive size: ${formatBytes(stats.size)}`);
 
         return outputPath;
     } catch (error) {
-        console.error('❌ 7zip compression failed:', error.message);
+        console.error('7zip compression failed:', error.message);
         throw error;
     }
 }
@@ -228,9 +228,9 @@ async function createMacZipArchive(sourceDir, outputPath, options = {}) {
         zipArgs.push('-x', pattern);
     });
 
-    console.log('🍏 Using macOS native zip to create archive...');
-    console.log(`📁 Source directory: ${resolvedSourceDir}`);
-    console.log(`📦 Output file: ${resolvedOutputPath}`);
+    console.log('Using macOS native zip to create archive...');
+    console.log(`Source directory: ${resolvedSourceDir}`);
+    console.log(`Output file: ${resolvedOutputPath}`);
 
     await runCommand('zip', zipArgs, {
         cwd: parentDir,
@@ -244,7 +244,7 @@ async function createMacZipArchive(sourceDir, outputPath, options = {}) {
     }
 
     const stats = fs.statSync(resolvedOutputPath);
-    console.log(`✅ Archive ready: ${path.basename(resolvedOutputPath)} (${formatBytes(stats.size)})`);
+    console.log(`Archive ready: ${path.basename(resolvedOutputPath)} (${formatBytes(stats.size)})`);
 
     return resolvedOutputPath;
 }
