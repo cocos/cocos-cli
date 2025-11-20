@@ -50,7 +50,7 @@ function parseArgs(cb) {
 
     // Enable all features when no arguments are passed
     if (!hasAnyArgs) {
-        console.log('🚀 No arguments specified; enabling default mode: build all targets + ZIP packaging + FTP upload');
+        console.log('No arguments specified; enabling default mode: build all targets + ZIP packaging + FTP upload');
         context.configs = [
             { type: 'nodejs', zip: true, upload: true },
             { type: 'electron', zip: true, upload: true }
@@ -62,7 +62,7 @@ function parseArgs(cb) {
         if (options.electron) types.push('electron');
 
         if (types.length === 0) {
-            console.error('❌ Please specify a release type: --nodejs or --electron');
+            console.error('Please specify a release type: --nodejs or --electron');
             process.exit(1);
         }
 
@@ -89,7 +89,7 @@ async function getProjectVersion() {
     const packageJsonPath = path.join(context.rootDir, 'package.json');
     const packageJson = await fs.readJson(packageJsonPath);
     context.version = packageJson.version;
-    console.log(`📌 Project Version: ${context.version}`);
+    console.log(`Project Version: ${context.version}`);
 }
 
 /**
@@ -119,7 +119,7 @@ function generateReleaseDirectoryName(type, version) {
 async function readIgnorePatterns() {
     const vscodeignorePath = path.join(context.rootDir, '.vscodeignore');
 
-    console.log('📖 Reading .vscodeignore file...');
+    console.log('Reading .vscodeignore file...');
     let ignorePatterns = [];
     if (await fs.pathExists(vscodeignorePath)) {
         const ignoreContent = await fs.readFile(vscodeignorePath, 'utf8');
@@ -132,7 +132,7 @@ async function readIgnorePatterns() {
     // Append default ignore patterns
     ignorePatterns.push('.publish/**');
 
-    console.log('🚫 Ignore patterns:', ignorePatterns);
+    console.log('Ignore patterns:', ignorePatterns);
     context.ignorePatterns = ignorePatterns;
 }
 
@@ -140,7 +140,7 @@ async function readIgnorePatterns() {
  * Scan project files to copy
  */
 async function scanProjectFiles() {
-    console.log('🔍 Scanning project files...');
+    console.log('Scanning project files...');
     const allFiles = await globby(['**/*'], {
         cwd: context.rootDir,
         dot: true,
@@ -148,7 +148,7 @@ async function scanProjectFiles() {
         onlyFiles: true
     });
 
-    console.log(`📋 Found ${allFiles.length} files to copy`);
+    console.log(`Found ${allFiles.length} files to copy`);
     context.allFiles = allFiles;
 }
 
@@ -170,7 +170,7 @@ async function installDeps() {
  * Clean Publish Directory
  */
 async function clean() {
-    console.log(`📁 Using publish directory: ${context.publishDir}`);
+    console.log(`Using publish directory: ${context.publishDir}`);
     await fs.ensureDir(context.publishDir);
 }
 
@@ -184,7 +184,7 @@ async function findNativeBinaries(extensionDir) {
         // 1. Find binaries in node_modules (recursive search)
         const nodeModulesPath = path.join(extensionDir, 'node_modules');
         if (await fs.pathExists(nodeModulesPath)) {
-            console.log('🔍 Recursively scanning node_modules for binaries...');
+            console.log('Recursively scanning node_modules for binaries...');
             const nodeModulesBinaries = await globby([
                 '**/*.node',
                 '**/*.dylib',
@@ -198,13 +198,13 @@ async function findNativeBinaries(extensionDir) {
             });
 
             binaryFiles.push(...nodeModulesBinaries);
-            console.log(`  ✓ Found ${nodeModulesBinaries.length} binaries in node_modules`);
+            console.log(`  Found ${nodeModulesBinaries.length} binaries in node_modules`);
         }
 
         // 2. Locate specific binaries under static/tools
         const staticToolsPath = path.join(extensionDir, 'static', 'tools');
         if (await fs.pathExists(staticToolsPath)) {
-            console.log('🔍 Scanning static/tools for binaries...');
+            console.log('Scanning static/tools for binaries...');
             const toolBinaries = await globby([
                 'astc-encoder/astcenc',
                 'cmft/cmftRelease64',
@@ -221,12 +221,12 @@ async function findNativeBinaries(extensionDir) {
             });
 
             binaryFiles.push(...toolBinaries);
-            console.log(`  ✓ Found ${toolBinaries.length} tool binaries in static/tools`);
+            console.log(`  Found ${toolBinaries.length} tool binaries in static/tools`);
         }
 
         return binaryFiles;
     } catch (error) {
-        console.error('❌ Failed to locate native binaries:', error.message);
+        console.error('Failed to locate native binaries:', error.message);
         return [];
     }
 }
@@ -236,13 +236,13 @@ async function findNativeBinaries(extensionDir) {
  */
 async function signBinaryFile(filePath, identity) {
     try {
-        console.log(`🔐 Signing: ${path.basename(filePath)}`);
+        console.log(`Signing: ${path.basename(filePath)}`);
         execSync(`codesign --force --options runtime --sign "${identity}" "${filePath}"`, {
             stdio: 'pipe'
         });
-        console.log(`✅ Signing completed: ${path.basename(filePath)}`);
+        console.log(`Signing completed: ${path.basename(filePath)}`);
     } catch (error) {
-        console.error(`❌ Failed to sign ${path.basename(filePath)}:`, error.message);
+        console.error(`Failed to sign ${path.basename(filePath)}:`, error.message);
         throw error;
     }
 }
@@ -252,33 +252,33 @@ async function signBinaryFile(filePath, identity) {
  */
 async function signAndNotarizeNativeBinaries(extensionDir) {
     if (process.platform !== 'darwin') {
-        console.log('ℹ️  Not macOS; skipping signing and notarization');
+        console.log('Not macOS; skipping signing and notarization');
         return;
     }
 
-    console.log('🔐 Starting native binary signing and notarization...');
+    console.log('Starting native binary signing and notarization...');
 
     const identity = process.env.CODESIGN_IDENTITY || process.env.APPLE_DEVELOPER_ID;
     if (!identity) {
-        console.log('⚠️  No signing identity configured; skipping signing');
+        console.log('No signing identity configured; skipping signing');
         return;
     }
 
     const binaryFiles = await findNativeBinaries(extensionDir);
     if (binaryFiles.length === 0) {
-        console.log('ℹ️  No native binaries found; skipping signing');
+        console.log('No native binaries found; skipping signing');
         return;
     }
 
     // Ensure executable permissions
     const isWindows = process.platform === 'win32';
     if (!isWindows) {
-        console.log('🔧 Setting executable permissions on binary files...');
+        console.log('Setting executable permissions on binary files...');
         for (const binaryFile of binaryFiles) {
             try {
                 await runCommand('chmod', ['+x', binaryFile], { stdio: 'pipe' });
             } catch (error) {
-                console.warn(`⚠️  Failed to set permissions: ${path.relative(extensionDir, binaryFile)}`);
+                console.warn(`Failed to set permissions: ${path.relative(extensionDir, binaryFile)}`);
             }
         }
     }
@@ -295,7 +295,7 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
     const teamId = process.env.APPLE_TEAM_ID;
 
     if (shouldNotarize && appleId && appPassword && teamId) {
-        console.log('📋 Starting notarization for native binaries...');
+        console.log('Starting notarization for native binaries...');
         const tempZipPath = path.join(extensionDir, '..', 'temp-notarize.zip');
         const tempDir = path.join(extensionDir, '..', 'temp-notarize-files');
 
@@ -317,20 +317,20 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
 
             await fs.remove(tempDir);
 
-            console.log('📤 Submitting notarization request...');
+            console.log('Submitting notarization request...');
             const notarizeCommand = `xcrun notarytool submit "${tempZipPath}" --apple-id "${appleId}" --password "${appPassword}" --team-id "${teamId}" --wait`;
             execSync(notarizeCommand, { stdio: 'inherit', timeout: 6000000 });
 
-            console.log('✅ Native binary notarization completed');
+            console.log('Native binary notarization completed');
         } catch (error) {
-            console.error('❌ Notarization failed:', error.message);
+            console.error('Notarization failed:', error.message);
         } finally {
             if (await fs.pathExists(tempZipPath)) {
                 await fs.remove(tempZipPath);
             }
         }
     } else {
-        console.log('ℹ️  Skipping notarization (not configured)');
+        console.log('Skipping notarization (not configured)');
     }
 }
 
@@ -343,10 +343,10 @@ async function setCliExecutablePermissions(extensionDir) {
     const cliJsPath = path.join(extensionDir, 'dist', 'cli.js');
     if (await fs.pathExists(cliJsPath)) {
         try {
-            console.log('🔧 Setting CLI executable permissions...');
+            console.log('Setting CLI executable permissions...');
             execSync(`chmod +x "${cliJsPath}"`, { stdio: 'pipe' });
         } catch (error) {
-            console.warn(`⚠️  Failed to set CLI permissions: ${error.message}`);
+            console.warn(`Failed to set CLI permissions: ${error.message}`);
         }
     }
 }
@@ -355,7 +355,7 @@ async function setCliExecutablePermissions(extensionDir) {
  * Upload to FTP
  */
 async function uploadToFTP(filePath, type) {
-    console.log('🚀 Starting FTP upload...');
+    console.log('Starting FTP upload...');
     const ftpUser = process.env.ORG_FTP_USER;
     const ftpPass = process.env.ORG_FTP_PASS;
     const ftpHost = process.env.FTP_HOST || 'ctc.upload.new1cloud.com';
@@ -365,7 +365,7 @@ async function uploadToFTP(filePath, type) {
     const ftpRemoteDir = process.env.FTP_REMOTE_DIR || defaultRemoteDir;
 
     if (!ftpUser || !ftpPass) {
-        console.error('❌ Missing FTP credentials: set environment variables FTP_USER and FTP_PASS');
+        console.error('Missing FTP credentials: set environment variables FTP_USER and FTP_PASS');
         return;
     }
 
@@ -391,9 +391,9 @@ async function uploadToFTP(filePath, type) {
 
         const downloadBase = process.env.DOWNLOAD_BASE_URL || 'https://download.cocos.org';
         const downloadUrl = `${downloadBase}/${ftpRemoteDir || ''}/${fileName}`;
-        console.log(`✅ File uploaded successfully: ${downloadUrl}`);
+        console.log(`File uploaded successfully: ${downloadUrl}`);
     } catch (error) {
-        console.error('❌ FTP upload failed:', error.message);
+        console.error('FTP upload failed:', error.message);
     } finally {
         client.close();
     }
@@ -410,7 +410,7 @@ function createReleasePipeline(config) {
 
     const prepareDir = async () => {
         const dir = extensionDir();
-        console.log(`🚀 Starting release ${config.type} version ${context.version}...`);
+        console.log(`Starting release ${config.type} version ${context.version}...`);
         if (await fs.pathExists(dir)) {
             await fs.remove(dir);
         }
@@ -418,7 +418,7 @@ function createReleasePipeline(config) {
     };
 
     const copyFiles = async () => {
-        console.log('📋 Copying files into release directory...');
+        console.log('Copying files into release directory...');
         const dir = extensionDir();
         let copiedCount = 0;
         for (const file of context.allFiles) {
@@ -428,7 +428,7 @@ function createReleasePipeline(config) {
             await fs.copy(srcPath, destPath);
             copiedCount++;
         }
-        console.log(`✅ Successfully copied ${copiedCount} files`);
+        console.log(`Successfully copied ${copiedCount} files`);
     };
 
     const installProd = async () => {
@@ -459,7 +459,7 @@ function createReleasePipeline(config) {
 
     const pack = async () => {
         if (config.zip) {
-            console.log('📦 Creating ZIP archive...');
+            console.log('Creating ZIP archive...');
             const dir = extensionDir();
             const name = releaseDirName();
             const zipName = `${name}.zip`;
@@ -473,7 +473,7 @@ function createReleasePipeline(config) {
                 preserveSymlinks,
                 timeout: 1800000
             });
-            console.log(`📦 ZIP file: ${zipFilePath}`);
+            console.log(`ZIP file: ${zipFilePath}`);
         }
     };
 

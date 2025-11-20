@@ -47,7 +47,7 @@
         "postinstall": "node workflow/postinstall.js",
         "download-tools": "node workflow/download-tools.js",
         "pack:script": "node workflow/pack-scripts.js",
-        "release": "gulp release --gulpfile workflow/release.js",
+        "release": "npx --yes gulp release --gulpfile workflow/release.js",
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
