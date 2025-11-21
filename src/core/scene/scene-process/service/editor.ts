@@ -83,34 +83,43 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             throw new Error(`通过 ${urlOrUUID} 无法打开，查询不到该资源信息`);
         }
 
-        const uuid = assetInfo.uuid;
-        // 检查是否已经有对应的编辑器实例
-        let editor = this.editorMap.get(uuid);
-        if (!editor) {
-            editor = this.createEditor(assetInfo.type);
-            this.editorMap.set(uuid, editor);
-        }
-
         if (this.currentEditorUuid) {
-            const lastEditor = this.editorMap.get(this.currentEditorUuid);
-            if (lastEditor) {
-                // 如果当前的编辑的资源已丢失，不需要进行 close，直接删缓存
-                const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [this.currentEditorUuid]);
-                if (!assetInfo) {
+            const currentEditor = this.editorMap.get(this.currentEditorUuid);
+            if (currentEditor) {
+                try {
+                    // 关闭当前场景
+                    const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [this.currentEditorUuid]);
+                    if (assetInfo) {
+                        await currentEditor.close();
+                    }
+                } catch (error) {
+                    console.error(error);
+                } finally {
                     this.editorMap.delete(this.currentEditorUuid);
-                } else {
-                    await lastEditor.close();
                 }
             }
         }
-        // 设置当前打开的编辑器
-        this.currentEditorUuid = assetInfo.uuid;
-        const encode = await editor.open(assetInfo);
 
-        this.emit('editor:open');
-        this.isOpen = true;
-        console.log(`打开 ${assetInfo.url}`);
-        return encode;
+        const uuid = assetInfo.uuid;
+        try {
+            // 检查是否已经有对应的编辑器实例
+            let editor = this.editorMap.get(uuid);
+            if (!editor) {
+                editor = this.createEditor(assetInfo.type);
+                this.editorMap.set(uuid, editor);
+            }
+            const encode = await editor.open(assetInfo);
+            // 设置当前打开的编辑器
+            this.currentEditorUuid = assetInfo.uuid;
+            this.emit('editor:open');
+            this.isOpen = true;
+            console.log(`打开 ${assetInfo.url}`);
+            return encode;
+        } catch (err) {
+            this.editorMap.delete(uuid);
+            console.error(err);
+            throw err;
+        }
     }
 
     async close(params: ICloseOptions): Promise<boolean> {
