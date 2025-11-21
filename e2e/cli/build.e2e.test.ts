@@ -8,6 +8,7 @@ import {
 } from '../helpers/test-utils';
 import { TestProject } from '../helpers/project-manager';
 import { resolve, join } from 'path';
+import { platform } from 'os';
 
 describe('cocos build command', () => {
     let testProject: TestProject;
@@ -92,21 +93,24 @@ describe('cocos build command', () => {
         // }, E2E_TIMEOUTS.BUILD_OPERATION);
     });
 
-    describe('windows platform', () => {
-        test('should buildwindows project successfully', async () => {
-            const result = await cliRunner.build({
-                project: testProject.path,
-                platform: 'windows',
-            });
+    if (platform() ===  'win32') {
+        describe('windows platform', () => {
+            test('should buildwindows project successfully', async () => {
+                const result = await cliRunner.build({
+                    project: testProject.path,
+                    platform: 'windows',
+                });
+    
+                expect(result.error).toBe(undefined);
+                expect(result.exitCode).toBe(0);
+    
+                const buildPath = join(testProject.path, 'build', 'windows');
+                const buildExists = await checkPathExists(buildPath);
+                expect(buildExists).toBe(true);
+            }, E2E_TIMEOUTS.BUILD_OPERATION);
+        });
+    }
 
-            expect(result.error).toBe(undefined);
-            expect(result.exitCode).toBe(0);
-
-            const buildPath = join(testProject.path, 'build', 'windows');
-            const buildExists = await checkPathExists(buildPath);
-            expect(buildExists).toBe(true);
-        }, E2E_TIMEOUTS.BUILD_OPERATION);
-    });
 
     describe('build config file', () => {
         test('should fail when config file does not exist', async () => {
