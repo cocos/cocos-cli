@@ -96,6 +96,11 @@ const config: IPlatformBuildPluginConfig = {
         }),
         version: '1.0.0',
     },
+    customBuildStages: [{
+        hook: 'run',
+        name: 'run',
+        requiredBuildOptions: false,
+    }],
 };
 
 export default config;

@@ -152,9 +152,17 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         options.taskName = stageName + ' build';
     }
     options.dest = utils.Path.resolveToRaw(options.dest);
-    const buildOptions = readBuildTaskOptions(options.dest);
-    if (!buildOptions) {
-        return { code: BuildExitCode.PARAM_ERROR, reason: 'Build options is not exist!' };
+    let buildOptions = options.buildTaskOptions;
+    const hasGenerateOptions = await builderConfig.getProject(`platforms.${options.platform}.generateCompileConfig`);
+    if (hasGenerateOptions) {
+        try {
+            buildOptions = readBuildTaskOptions(options.dest);
+        } catch (error) {
+            console.error(error);
+            if (!buildOptions) {
+                return { code: BuildExitCode.PARAM_ERROR, reason: 'Build options is not exist!' };
+            }
+        }
     }
 
     const stages = options.nextStages ? [stageName, ...options.nextStages] : [stageName];
@@ -177,7 +185,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         const buildStageTask = new BuildStageTask(taskId, {
             hooksInfo: pluginManager.getHooksInfo(options.platform),
             root: options.dest,
-            buildTaskOptions: buildOptions,
+            buildTaskOptions: buildOptions!,
             ...stageConfig,
         });
         let stageLabel = stageConfig.name;
@@ -199,17 +207,9 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     return buildSuccess ? { code: BuildExitCode.BUILD_SUCCESS, dest: options.dest } : { code: BuildExitCode.BUILD_FAILED, reason: 'Build stage task failed!' };
 }
 
-function readBuildTaskOptions(root: string): IBuildTaskOption<any> | null {
+function readBuildTaskOptions(root: string): IBuildTaskOption<any> {
     const configFile = join(root, BuildGlobalInfo.buildOptionsFileName);
-    try {
-        if (existsSync(configFile)) {
-            return readJSONSync(configFile);
-        }
-    } catch (error) {
-        console.error(error);
-        console.error(`Get cache build options form ${configFile} failed! Please build project first.`);
-    }
-    return null;
+    return readJSONSync(configFile);
 }
 
 export async function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult> {

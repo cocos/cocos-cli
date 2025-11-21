@@ -18,8 +18,7 @@ import {
 import { BuilderAssetCache } from './asset-manager';
 import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager, IBuildStageTask } from './build-result';
 import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
-import { ImportMap } from './import-map';
-import { IImportMapOptions, IPlatformType } from './options';
+import { IPlatformType } from './options';
 import { StatsQuery } from '@cocos/ccbuild';
 import { IConfigItem } from '../../../base/type';
 
@@ -237,6 +236,7 @@ export interface IBuildStageItem {
     hidden?: boolean; // 是否显示指定的控制按钮在构建列表，默认显示
     parallelism?: 'none' | 'all' | 'other';
     hook: string;
+    requiredBuildOptions?: boolean; // 默认 true
 };
 
 export interface IconConfig {

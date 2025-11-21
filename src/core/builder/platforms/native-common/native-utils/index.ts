@@ -36,7 +36,7 @@ class PackToolHandler {
     }
 
     async runTask(task: 'create' | 'generate' | 'make' | 'run', params: CocosParams<Object>) {
-        return await this.manager[task](params.platform);
+        return await this.manager[task](params.platform, params);
     }
 }
 

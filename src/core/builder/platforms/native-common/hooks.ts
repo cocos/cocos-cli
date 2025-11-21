@@ -192,7 +192,6 @@ export async function onAfterInit(options: ITaskOption, result: InternalBuildRes
     }
     const params = await genCocosParams(options, result);
     options.cocosParams = params;
-    await nativePackToolMg.register(options.platform, params);
     options.generateCompileConfig = true;
 
     // 拷贝 adapter 文件

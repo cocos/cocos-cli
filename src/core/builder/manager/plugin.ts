@@ -200,6 +200,7 @@ export class PluginManager extends EventEmitter {
             // 注册构建阶段性任务
             lodash.set(this.customBuildStages, `${platform}.${pkgName}`, config.customBuildStages);
             lodash.set(this.customBuildStagesMap, `${pkgName}.${platform}`, config.customBuildStages);
+            await builderConfig.setProject(`platforms.${platform}.generateCompileConfig`, this.shouldGenerateOptions(platform), 'default');
         }
         // ----------------------------------- 剔除平台分割线 -------------------------------
 
@@ -437,6 +438,11 @@ export class PluginManager extends EventEmitter {
         }
 
         return checkRes;
+    }
+
+    public shouldGenerateOptions(platform: Platform): boolean {
+        const customBuildStageMap = this.customBuildStages[platform];
+        return !!Object.values(customBuildStageMap).find((stages) => stages.find((stageItem => stageItem.requiredBuildOptions !== false)));
     }
 
     /**

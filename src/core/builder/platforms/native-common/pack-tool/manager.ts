@@ -1,4 +1,4 @@
-import NativePackTool, { InternalNativePlatform } from './base/default';
+import NativePackTool, { CocosParams, InternalNativePlatform } from './base/default';
 
 export type ISupportPlatform = 'windows';
 const platformPackToolMap: Record<string, string> = {
@@ -22,7 +22,7 @@ export class NativePackToolManager {
         this.PackToolMap.set(platform, tool);
         return tool;
     }
-    async register(platform: InternalNativePlatform, params:any) {
+    async register(platform: InternalNativePlatform, params:CocosParams<Object>) {
         const tool = await this.getTool(platform);
         tool.init(params);
         return tool;
@@ -50,38 +50,26 @@ export class NativePackToolManager {
         return tool;
     }
 
-    async create(platform: InternalNativePlatform): Promise<NativePackTool> {
-        const tool = await this.getTool(platform);
-        if (!tool) {
-            throw new Error(`No pack tool for platform ${platform}}`);
-        }
+    async create(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(platform, params);
         await tool.create();
         return tool;
     }
 
-    async generate(platform: InternalNativePlatform): Promise<NativePackTool> {
-        const tool = await this.getTool(platform);
-        if (!tool) {
-            throw new Error(`No pack tool for platform ${platform}}`);
-        }
+    async generate(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(platform, params);
         await tool.generate!();
         return tool;
     }
 
-    async make(platform: InternalNativePlatform): Promise<NativePackTool> {
-        const tool = await this.getTool(platform);
-        if (!tool) {
-            throw new Error(`No pack tool for platform ${platform}}`);
-        }
+    async make(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(platform, params);
         await tool.make!();
         return tool;
     }
 
-    async run(platform: InternalNativePlatform): Promise<NativePackTool> {
-        const tool = await this.getTool(platform);
-        if (!tool) {
-            throw new Error(`No pack tool for platform ${platform}}`);
-        }
+    async run(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(platform, params);
         await tool.run!();
         return tool;
     }
