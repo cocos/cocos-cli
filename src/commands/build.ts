@@ -14,7 +14,6 @@ export class BuildCommand extends BaseCommand {
             .requiredOption('--project <path>', 'Path to the Cocos project (required)')
             .option('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
             .option('--build-config <path>', 'Specify build config file path')
-            .option('--log-dest <path>', 'Specify log file path')
             .action(async (options: any) => {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);

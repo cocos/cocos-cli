@@ -28,8 +28,12 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle 配置选项');
 
 // 平台枚举
-export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile', 'windows', 'ios', 'mac', 'android']);
-export const SchemaPlatformCanMake = z.enum(['windows', 'ios', 'mac', 'android']);
+export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile', 'windows', 
+    // 'ios', 'mac', 'android'
+]);
+export const SchemaPlatformCanMake = z.enum(['windows',
+    //  'ios', 'mac', 'android'
+]);
 export const SchemaRoot = z.string().min(1).describe('构建发布目录');
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
 export type TPlatform = z.infer<typeof SchemaPlatform>;

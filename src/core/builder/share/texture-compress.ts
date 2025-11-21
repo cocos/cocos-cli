@@ -50,25 +50,23 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
         options: {
             quality: {
                 default: 'normal',
-                render: {
-                    ui: 'ui-select-pro',
-                    items: [{
-                        value: 'fastest',
-                        label: 'Fastest',
-                    }, {
-                        value: 'fast',
-                        label: 'Fast',
-                    }, {
-                        value: 'normal',
-                        label: 'Normal',
-                    }, {
-                        value: 'high',
-                        label: 'High',
-                    }, {
-                        value: 'best',
-                        label: 'Best',
-                    }],
-                },
+                type: 'enum',
+                items: [{
+                    value: 'fastest',
+                    label: 'Fastest',
+                }, {
+                    value: 'fast',
+                    label: 'Fast',
+                }, {
+                    value: 'normal',
+                    label: 'Normal',
+                }, {
+                    value: 'high',
+                    label: 'High',
+                }, {
+                    value: 'best',
+                    label: 'Best',
+                }],
 
             },
         }, // 配置方式参考构建界面参数配置即可，后续这部分数据将会被记录下来
@@ -115,16 +113,16 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
         options: {
             quality: {
                 default: 'fast',
-                render: {
-                    ui: 'ui-select-pro',
-                    items: [{
+                type: 'enum',
+                items: [
+                    {
                         value: 'slow',
                         label: 'Slow',
                     }, {
                         value: 'fast',
                         label: 'Fast',
-                    }],
-                },
+                    }
+                ],
             },
         },
         formats: [{
@@ -155,25 +153,23 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
         options: {
             quality: {
                 default: 'medium',
-                render: {
-                    ui: 'ui-select-pro',
-                    items: [{
-                        value: 'veryfast',
-                        label: 'VeryFast',
-                    }, {
-                        value: 'fast',
-                        label: 'Fast',
-                    }, {
-                        value: 'medium',
-                        label: 'Medium',
-                    }, {
-                        value: 'thorough',
-                        label: 'Thorough',
-                    }, {
-                        value: 'exhaustive',
-                        label: 'Exhaustive',
-                    }],
-                },
+                type: 'enum',
+                items: [{
+                    value: 'veryfast',
+                    label: 'VeryFast',
+                }, {
+                    value: 'fast',
+                    label: 'Fast',
+                }, {
+                    value: 'medium',
+                    label: 'Medium',
+                }, {
+                    value: 'thorough',
+                    label: 'Thorough',
+                }, {
+                    value: 'exhaustive',
+                    label: 'Exhaustive',
+                }], 
             },
         },
         formats: [{
@@ -221,14 +217,10 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
         options: {
             quality: {
                 default: 80,
-                render: {
-                    ui: 'ui-num-input',
-                    attributes: {
-                        step: 1,
-                        max: 100,
-                        min: 10,
-                    },
-                },
+                type: 'number',
+                step: 1,
+                maximum: 100,
+                minimum: 10,
             },
         },
         formats: [{
@@ -244,14 +236,10 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
         options: {
             quality: {
                 default: 80,
-                render: {
-                    ui: 'ui-num-input',
-                    attributes: {
-                        step: 1,
-                        max: 100,
-                        min: 10,
-                    },
-                },
+                type: 'number',
+                step: 1,
+                maximum: 100,
+                minimum: 10,
             },
         },
         formats: [{
@@ -267,14 +255,10 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
         options: {
             quality: {
                 default: 80,
-                render: {
-                    ui: 'ui-num-input',
-                    attributes: {
-                        step: 1,
-                        max: 100,
-                        min: 10,
-                    },
-                },
+                type: 'number',
+                minimum: 10,
+                maximum: 10,
+                step: 1,
             },
         },
         formats: [{

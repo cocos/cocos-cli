@@ -13,6 +13,7 @@ const config: IPlatformBuildPluginConfig = {
     options: {
         useWebGPU: {
             label: 'WEBGPU',
+            type: 'boolean',
             default: false,
             description: 'i18n:web-desktop.tips.webgpu',
             experiment: true,
@@ -20,13 +21,15 @@ const config: IPlatformBuildPluginConfig = {
         resolution: {
             type: 'object',
             label: 'i18n:web-desktop.options.resolution',
-            itemConfigs: {
+            properties: {
                 designWidth: {
                     label: 'i18n:web-desktop.options.design_width',
+                    type: 'number',
                     default: 1280,
                 },
                 designHeight: {
                     label: 'i18n:web-desktop.options.design_height',
+                    type: 'number',
                     default: 960,
                 },
             },
@@ -38,13 +41,9 @@ const config: IPlatformBuildPluginConfig = {
     },
     commonOptions: {
         polyfills: {
-            hidden: false,
             default: {
                 asyncFunctions: true,
             },
-        },
-        buildScriptTargets: {
-            hidden: false,
         },
         nativeCodeBundleMode: {
             default: 'both',

@@ -37,7 +37,7 @@ function fixPath(p: string): string {
 async function genCocosParams(options: ITaskOption, result: InternalBuildResult): Promise<CocosParams<Object>> {
     const name = options.name;
     const engineInfo = options.engineInfo;
-    const pkg = options.packages;
+    const pkgOptions = options.packages[options.platform];
 
     const params: CocosParams<Object> = {
         buildDir: dirname(result.paths.dir),
@@ -48,16 +48,16 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
         enginePath: engineInfo.typescript.path,
         projectName: name,
         debug: options.debug,
-        encrypted: options.packages.native.encrypted,
-        xxteaKey: options.packages.native.xxteaKey,
-        compressZip: options.packages.native.compressZip,
+        encrypted: pkgOptions.encrypted,
+        xxteaKey: pkgOptions.xxteaKey,
+        compressZip: pkgOptions.compressZip,
         // @ts-ignore
         cMakeConfig: {
             APP_NAME: `set(APP_NAME "${name}")`,
             // 路径类的字段需要加 “” 否则当路径存在空格将会报错
             COCOS_X_PATH: `set(COCOS_X_PATH "${fixPath(engineInfo.native.path)}")`,
-            USE_JOB_SYSTEM_TASKFLOW: pkg.native.JobSystem === 'taskFlow',
-            USE_JOB_SYSTEM_TBB: pkg.native.JobSystem === 'tbb',
+            USE_JOB_SYSTEM_TASKFLOW: pkgOptions.JobSystem === 'taskFlow',
+            USE_JOB_SYSTEM_TBB: pkgOptions.JobSystem === 'tbb',
             ENABLE_FLOAT_OUTPUT: options.macroConfig.ENABLE_FLOAT_OUTPUT,
         },
         platformParams: {},
@@ -210,7 +210,7 @@ export async function onAfterBundleInit(options: ITaskOption) {
         native: { path: nativeRoot },
     } = options.engineInfo;
 
-    options.buildScriptParam.hotModuleReload = options.packages['native'].hotModuleReload;
+    options.buildScriptParam.hotModuleReload = options.packages[options.platform].hotModuleReload;
 
     if (options.polyfills) {
         options.polyfills.asyncFunctions = false;
@@ -276,7 +276,7 @@ export async function onAfterCompressSettings(this: IBuilder, options: ITaskOpti
     // 2. create 里还包含了脚本加密，为了给用户预留能在 onAfterBuildAssets 修改脚本的时序，需要在 onAfterBuildAssets 钩子之后再执行
     // 3. 在 create 之前要准备几乎所有的项目工程文件，包括 main.js
     const packTools = await packToolHandler.runTask('create', options.cocosParams);
-    options.packages.native.projectDistPath = await packToolHandler.getProjectBuildPath(packTools);
+    options.packages[options.platform].projectDistPath = await packToolHandler.getProjectBuildPath(packTools);
     // 加密后再更改 remote 目录，否则 remote 目录可能会没有加密到
     const server = options.server || '';
     const remoteDir = resolve(result.paths.dir, '../remote');
@@ -336,6 +336,5 @@ export async function make(root: string, options: ITaskOption) {
  * @param options
  */
 export async function run(root: string, options: ITaskOption) {
-    // 暂时不 await ，否则会持续等待
-    packToolHandler.runTask('run', options.cocosParams);
+    await packToolHandler.runTask('run', options.cocosParams);
 }

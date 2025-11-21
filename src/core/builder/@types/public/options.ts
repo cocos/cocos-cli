@@ -1,8 +1,9 @@
 import * as babel from '@babel/core';
 import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig } from './texture-compress';
-import { IBuildTaskOption, IPlatformType } from '../protected';
 import { StatsQuery } from '@cocos/ccbuild';
 import { EngineInfo, IEngineConfig } from '../../../engine/@types/public';
+
+export type IPlatformType = 'native' | 'miniGame' | 'web';
 
 export type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
 export type ISortType = 'taskName' | 'createTime' | 'platform' | 'buildTime';
@@ -60,7 +61,7 @@ export interface IPlatformConfig {
     createTemplateLabel: string;
 }
 
-interface IBinGroupConfig {
+export interface IBinGroupConfig {
     enable: boolean;
     threshold: number;
 }
@@ -200,7 +201,7 @@ export interface IBuildCommonOptions {
             physics?: 'inherit-project-setting' | string;
             'physics-2d'?: 'inherit-project-setting' | string;
             'gfx-webgl2'?: 'inherit-project-setting' | 'on' | 'off';
-            [key?: string]: string;
+            [key: string]: string | undefined;
         };
     };
 }
@@ -333,3 +334,28 @@ export interface IBuildTaskItemJSON extends ITaskItemJSON {
 }
 
 export type IOrientation = 'auto' | 'landscape' | 'portrait';
+
+import { IOptions as webDesktopOptions } from '../../platforms/web-desktop/type';
+export { webDesktopOptions };
+import { IOptions as webMobileOptions } from '../../platforms/web-mobile/type';
+export { webMobileOptions };
+import { IOptions as windowsOptions } from '../../platforms/windows/type';
+export { windowsOptions };
+import { IOptions as nativeOptions } from '../../platforms/native-common/type';
+export { nativeOptions };
+/**
+ * 构建所需的完整参数
+ */
+export interface IBuildTaskOption<P extends Platform = Platform> extends IBuildOptionBase {
+    platform: P;
+    packages: Record<P, PlatformPackageOptionMap[P]>;
+}
+
+export interface PlatformPackageOptionMap {
+    'web-desktop': webDesktopOptions;
+    'web-mobile': webMobileOptions;
+    'windows': windowsOptions;
+    'mac': nativeOptions;
+    'ios': nativeOptions;
+    'android': nativeOptions;
+}

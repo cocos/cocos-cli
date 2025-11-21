@@ -1,12 +1,11 @@
-import { IAsset } from '../../../asset-db/@types/private';
+import { IAsset } from '../../../assets/@types/protected';
 import { BundleCompressionType, IAssetPathInfo, IBuildPaths, IBuildTaskOption, IBundleConfig, IJsonPathInfo, ISettings, UUID, IBuildSceneItem, ITextureCompressType, ITextureCompressFormatType, ICustomConfig } from '../public';
 import { BuilderAssetCache } from './asset-manager';
 import { ImportMap, ImportMapWithImports } from './import-map';
 import { IAssetInfo, IImportMapOptions, IInternalBuildOptions, IBuildSeparateEngineResult } from './options';
 import { IPacInfo } from './texture-packer';
 
-export class TextureCompress {
-    _taskMap: Record<string, IImageTaskInfo>;
+export interface TextureCompress {
     platform: string;
     init(): Promise<void>;
     updateUserConfig(): Promise<void>;
@@ -42,7 +41,7 @@ export interface IBundleManager {
     break(reason: string): void;
 }
 
-export class IBuildTemplate {
+export interface IBuildTemplate {
     query(name: string): string | null;
     initUrl(relativeUrl: string, name?: string): string | undefined;
     copyTo(dest: string): Promise<void>;
@@ -50,7 +49,7 @@ export class IBuildTemplate {
     isEnable: boolean;
 }
 
-export class InternalBuildResult {
+export interface InternalBuildResult {
     settings: ISettings;
 
     // 脚本资源包分组（子包/分包）
@@ -122,7 +121,7 @@ export interface IAtlasResult {
     atlasToImages: Record<string, string[]>;
 }
 
-export class IBuilder {
+export interface IBuilder {
     cache: BuilderAssetCache;
     result: InternalBuildResult;
     options: IInternalBuildOptions;
@@ -135,7 +134,7 @@ export class IBuilder {
     break(reason: string): void;
 }
 
-export class IBuildStageTask {
+export interface IBuildStageTask {
     options: IBuildTaskOption;
     buildTaskOptions?: IBuildTaskOption;
 
@@ -148,7 +147,7 @@ export interface IBuildHooksInfo {
     infos: Record<string, { path: string; internal: boolean }>;
 }
 
-export class IBundle {
+export interface IBundle {
     readonly scenes: IBuildSceneItem[]; // 该 bundle 中的所有场景，包含重定向的
     readonly assets: UUID[]; // 该 bundle 中的所有资源，包含重定向的
     readonly assetsWithoutRedirect: UUID[]; // 该 bundle 中的未重定向的资源
@@ -174,7 +173,7 @@ export class IBundle {
     readonly isZip: boolean; // 该 bundle 是否是 zip 模式
     zipVer: string; // Zip 压缩模式，压缩包的版本
     // 存储纹理压缩 image uuid 与对应的纹理资源地址
-    public compressRes: Record<string, string[]>;
+    compressRes: Record<string, string[]>;
     atlasRes: IAtlasResult;
     compressTask: Record<UUID, IImageTaskInfo>;
     _rootAssets: Set<UUID>; // 该 bundle 直接包含的资源
@@ -184,7 +183,7 @@ export class IBundle {
     output: boolean;
     md5Cache: boolean;
     debug: boolean;
-    public paths: Record<string, string[]>;
+    paths: Record<string, string[]>;
 
     // addScene(scene: UUID): void;
     build(): void;

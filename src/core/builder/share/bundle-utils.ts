@@ -1,7 +1,7 @@
 import { basename } from 'path';
 import { IAsset } from '../../assets/@types/protected';
-import { BundleCompressionType } from '../@types';
-import { PlatformBundleConfig, IPlatformInfo, BundleRenderConfig, CustomBundleConfig, CustomBundleConfigItem } from '../@types/protected';
+import { BundleCompressionType, MakeRequired } from '../@types';
+import { PlatformBundleConfig, IPlatformInfo, BundleRenderConfig, CustomBundleConfig, CustomBundleConfigItem, BundleConfigItem } from '../@types/protected';
 
 export enum BundleCompressionTypes {
     NONE = 'none',
@@ -74,17 +74,17 @@ export const DefaultBundleConfig: CustomBundleConfig = {
 };
 
 export function transformPlatformSettings(config: CustomBundleConfigItem, platformConfigs: Record<string, PlatformBundleConfig>) {
-    const res: Record<string, { compressionType: BundleCompressionType, isRemote: boolean }> = {};
+    const res: Record<string, Required<BundleConfigItem>> = {};
     Object.keys(platformConfigs).forEach((platform) => {
         const option = getValidOption(platform, config, platformConfigs);
-        option.isRemote = getInvalidRemote(option.compressionType, option.isRemote);
+        option.isRemote = getInvalidRemote(option.compressionType || 'merge_dep', option.isRemote);
         option.compressionType = option.compressionType || BundleCompressionTypes.MERGE_DEP;
-        res[platform] = option;
+        res[platform] = option as Required<BundleConfigItem>;
     });
     return res;
 }
 
-function getValidOption(platform: string, config: CustomBundleConfigItem, platformConfigs: Record<string, PlatformBundleConfig>) {
+function getValidOption(platform: string, config: CustomBundleConfigItem, platformConfigs: Record<string, PlatformBundleConfig>): Partial<BundleConfigItem> {
     const mode = config.configMode || (platformConfigs[platform].platformType === 'miniGame' ? 'fallback' : 'auto');
     // mode 为 fallback 时， 优先使用回退选项
     if (mode === 'fallback' && config.fallbackOptions) {
@@ -129,7 +129,7 @@ export function checkRemoteDisabled(compressionType: BundleCompressionType) {
     return compressionType === BundleCompressionTypes.SUBPACKAGE || compressionType === BundleCompressionTypes.ZIP;
 }
 
-export function getInvalidRemote(compressionType: BundleCompressionType, isRemote?: boolean): boolean | undefined {
+export function getInvalidRemote(compressionType: BundleCompressionType, isRemote?: boolean): boolean {
     if (compressionType === BundleCompressionTypes.SUBPACKAGE) {
         return false;
     } else if (compressionType === BundleCompressionTypes.ZIP) {

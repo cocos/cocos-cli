@@ -13,8 +13,8 @@ import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
 import { GlobalConfig } from '../../global';
+import { checkPlatform, supportPlatforms } from './share/common-options-validator';
 
-const supportPlatforms: Platform[] = ['web-desktop', 'web-mobile', 'windows'];
 
 export async function init(platforms?: Platform[]) {
     await builderConfig.init();
@@ -40,7 +40,7 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         return await executeBuildStageTask(options.taskId, options.stage, options as unknown as IBuildStageOptions);
     }
     // 不支持的构建平台不执行构建
-    if (!supportPlatforms.includes(platform)) {
+    if (!checkPlatform(platform)) {
         console.error(i18n.t('builder.tips.disable_platform_for_build_command', {
             platform: platform,
         }));

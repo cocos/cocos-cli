@@ -46,7 +46,7 @@ export interface CustomBundleConfigItem {
         isRemote?: boolean;
     },
     // 平台覆盖参数
-    overwriteSettings?: Record<string, overwriteSettingItem>;
+    overwriteSettings?: Record<string, BundleConfigItem>;
     // 配置模式，默认 auto 会自动根据优先级计算结果，fallback 会使用 fallbackOptions
     configMode?: 'auto' | 'fallback' | 'overwrite';
 }

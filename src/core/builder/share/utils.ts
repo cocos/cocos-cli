@@ -2,10 +2,10 @@ import { basename, isAbsolute, join, normalize, relative } from 'path';
 import * as textureCompressConfig from '../share/texture-compress';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
-import { IBuildTaskOption, IConfigItem, IDisplayOptions } from '../@types';
+import { IBuildTaskOption, IDisplayOptions } from '../@types';
 import lodash from 'lodash';
 import { BuildGlobalInfo } from './builder-config';
-import { I18nKeys } from '../../../i18n/types/generated';
+import { IBuilderConfigItem } from '../@types/protected';
 export function compareNumeric(lhs: string, rhs: string): number {
     return lhs.localeCompare(rhs, 'en', { numeric: true });
 }
@@ -198,24 +198,25 @@ export function getParamsFromCommand(command: string) {
     return matchInfo.map((str) => str.replace('${', '').replace('}', ''));
 }
 
-export function checkConfigDefault(config: IConfigItem): any {
+export function checkConfigDefault(config: IBuilderConfigItem): any {
     if (!config) {
         return null;
     }
     if (config.default !== undefined && config.default !== null) {
         return config.default;
     }
-    if (config.type === 'array' && Array.isArray(config.itemConfigs)) {
+    if (config.type === 'array' && config.items) {
         config.default = [];
-        config.itemConfigs.forEach((item, index) => {
-            config.default[index] = checkConfigDefault(item);
+        // array items can be a single config or an array of configs
+        const items = Array.isArray(config.items) ? config.items : [config.items];
+        items.forEach((item, index) => {
+            config.default![index] = checkConfigDefault(item as IBuilderConfigItem);
         });
     }
-    if (config.type === 'object' && typeof config.itemConfigs === 'object') {
+    if (config.type === 'object' && config.properties) {
         config.default = {};
-        Object.keys(config.itemConfigs).forEach((itemKey) => {
-            // @ts-ignore
-            config.default[itemKey] = checkConfigDefault(config.itemConfigs[itemKey]);
+        Object.keys(config.properties).forEach((itemKey) => {
+            config.default![itemKey] = checkConfigDefault(config.properties[itemKey] as IBuilderConfigItem);
         });
     }
     return config.default;

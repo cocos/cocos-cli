@@ -1,7 +1,7 @@
 import * as fs from 'fs-extra';
 import * as ps from 'path';
 import * as os from 'os';
-import { cchelper, toolHelper, Paths } from '../utils';
+import { cchelper, toolHelper } from '../utils';
 import cocosConfig from '../cocosConfig';
 import NativePackTool, { CocosParams } from '../base/default';
 
@@ -134,7 +134,8 @@ export default class WindowsPackTool extends NativePackTool {
         if (!executableFile || !fs.existsSync(executableFile)) {
             throw new Error(`[windows run] '${targetFile}' is not found within ' + ${executableDir}!`);
         }
-        await cchelper.runCmd(ps.basename(executableFile), [], false, executableDir);
+        // 不等待，否则运行接口调用会一直卡在那里
+        cchelper.runCmd(ps.basename(executableFile), [], false, executableDir);
         return true;
     }
 }

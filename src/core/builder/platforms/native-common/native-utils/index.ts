@@ -3,10 +3,9 @@
 import { remove, existsSync, readJSON, readdirSync, statSync, writeFileSync, ensureDir } from 'fs-extra';
 import { join } from 'path';
 import NativePackTool, { CocosParams } from '../pack-tool/base/default';
-import { NativePackToolManager } from '../pack-tool/manager';
+import nativePackToolMg, { NativePackToolManager } from '../pack-tool/manager';
 import { GlobalPaths } from '../../../../../global';
 import { IBuildTaskOption } from '../../../@types';
-
 /**
  * 清空项目相关的资源和脚本
  * @param projectPath
@@ -29,14 +28,8 @@ export async function getCmakePath(): Promise<string> {
 }
 
 class PackToolHandler {
-    packRoot!: string;
-    manager!: NativePackToolManager;
-
-    constructor() {
-        this.packRoot = join(__dirname, '../pack-tool');
-        this.manager = require(join(this.packRoot, 'dist/index')).nativePackToolMg;
-    }
-
+    packRoot: string = join(__dirname, '../pack-tool');
+    manager: NativePackToolManager = nativePackToolMg;
 
     async getProjectBuildPath(tool: NativePackTool): Promise<string> {
         return tool?.projectDistPath;

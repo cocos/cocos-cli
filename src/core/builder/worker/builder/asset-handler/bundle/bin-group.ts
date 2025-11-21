@@ -6,8 +6,7 @@ import * as HashUuid from '../../utils/hash-uuid';
 import { compareUUID } from '../../../../share/utils';
 import { binPackagePack } from './bin-package-pack';
 import { IAsset } from '../../../../../assets/@types/protected';
-import { IBinGroupConfig } from '../../../../@types';
-import { IBundle, IGroup } from '../../../../@types/protected';
+import { IBinGroupConfig, IBundle, IGroup } from '../../../../@types/protected';
 
 const PACK_FILE_TYPE_LIST = ['cc.AnimationClip'];
 const KB = 1024;

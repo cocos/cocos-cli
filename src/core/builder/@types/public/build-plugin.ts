@@ -1,6 +1,5 @@
-import { ITextureCompressType, IPVRQuality, IASTCQuality, IETCQuality, ITextureFormatInfo } from './texture-compress';
-import { IBuildTaskOption, IConsoleType } from './options';
 import { IBuildResult, ICompressConfig } from './build-result';
+import { IBuilderConfigItem, IBuildTaskOption } from '../protected';
 
 export interface IBuildPluginConfig {
     doc?: string; // document address
@@ -40,7 +39,7 @@ export interface IInternalVerificationRule {
     message: string;
 }
 
-export type IDisplayOptions = Record<string, IConfigItem>;
+export type IDisplayOptions = Record<string, IBuilderConfigItem>;
 
 export type ArrayItem = {
     label: string;

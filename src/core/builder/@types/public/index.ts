@@ -1,4 +1,4 @@
-import { ITransformOptions, IBuildTaskOption } from './options';
+import { IBuildTaskOption, ITransformOptions } from './options';
 
 export * from './build-result';
 export * from './build-plugin';

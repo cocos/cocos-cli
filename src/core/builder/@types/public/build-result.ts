@@ -2,7 +2,8 @@
  * settings.js 里定义的数据
  */
 
-import { ISplashSetting, ICustomJointTextureLayout, UUID, IPhysicsConfig, IOrientation } from './options';
+import { ICustomJointTextureLayout, ISplashSetting } from '../../../engine/@types/public';
+import { UUID, IPhysicsConfig, IOrientation } from './options';
 import { ITextureCompressType, ITextureCompressFormatType, ICustomConfig } from './texture-compress';
 // ****************************** settings ************************************************
 
@@ -77,12 +78,6 @@ export interface ISettings {
     profiling?: {
         showFPS: boolean;
     };
-}
-
-export interface IPreviewSettingsResult {
-    settings: ISettings;
-    script2library: Record<string, string>;
-    bundleConfigs: IBundleConfig[];
 }
 
 export interface IPackageInfo {

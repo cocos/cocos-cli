@@ -4,14 +4,12 @@ import {
     IBuildPluginConfig,
     IBuildTaskOption,
     IDisplayOptions,
-    IConfigItem,
     ISettings,
     IVerificationRuleMap,
     PlatformCompressConfig,
     IBuildUtils,
     IBuild,
     ITaskState,
-    PanelInfo,
     BundleCompressionType,
     IConsoleType,
     MakeRequired,
@@ -23,6 +21,7 @@ import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
 import { ImportMap } from './import-map';
 import { IImportMapOptions, IPlatformType } from './options';
 import { StatsQuery } from '@cocos/ccbuild';
+import { IConfigItem } from '../../../base/type';
 
 export interface IQuickSpawnOption {
     cwd?: string;
@@ -119,7 +118,6 @@ export interface IBuildWorkerPluginInfo {
     pkgName: string;
     internal: boolean; // 是否为内置插件
     priority: number; // 优先级
-    // [platform][stageName]: ICustomBuildStageItem
     customBuildStages?: {
         [platform: string]: IBuildStageItem[];
     };
@@ -127,6 +125,14 @@ export interface IBuildWorkerPluginInfo {
     customIconConfigs?: {
         [platform: string]: IBuildIconItem[];
     };
+}
+export interface IBuildStagesInfo {
+    pkgNameOrder: string[];
+    infos: Record<string, IBuildStageItem>;
+}
+export interface IBuildAssetHandlerInfo {
+    pkgNameOrder: string[];
+    handles: {[pkgName: string]: Function};
 }
 
 export type IPluginHookName =
@@ -251,8 +257,6 @@ interface ICustomBuildIconItem extends IconConfig {
     description?: string,
     // 函数为校验 icon 按钮是否禁用，返回 true 表示禁用，返回 false 表示启用。不配置 disabled 函数时，默认启用
     disabled?: (taskInfo: IBuildTaskItemJSON) => boolean | Promise<boolean>;
-    // 按钮点击后的事件
-    // click?: (taskInfo: IBuildTaskItemJSON) => void;
 }
 
 
@@ -268,6 +272,13 @@ export type IBuildIconItem = IconConfigWithHook;
 export type ICustomBuildIconInfo = IBuildIconItem & {
     pkgName: string;
 }
+export type IBuilderConfigItem = IConfigItem & {
+    experiment?: boolean;
+    hidden?: boolean;
+    verifyRules?: string[];
+    verifyLevel?: IConsoleType;
+}
+
 export interface IInternalBuildPluginConfig extends IBuildPluginConfig {
     doc?: string; // 注册文档地址
     displayName?: string; // 在构建面板上的显示名称，默认为插件名
@@ -275,7 +286,7 @@ export interface IInternalBuildPluginConfig extends IBuildPluginConfig {
     priority?: number;
     options?: IDisplayOptions; // 需要注入的平台参数配置
     verifyRuleMap?: IVerificationRuleMap; // 注入的需要更改原有参数校验规则的函数
-    commonOptions?: Record<string, IConfigItem>; // 允许修改部分内置配置的默认值等
+    commonOptions?: Record<string, Partial<IBuilderConfigItem>>; // 允许修改部分内置配置的默认值等
     internal?: boolean; // 注册后，构建插件赋予的标记，插件指定无效
     customBuildStages?: Array<IBuildStageItem>;
 }
@@ -319,28 +330,3 @@ export interface BuildCheckResult {
 }
 
 export type IBuildVerificationFunc = (value: any, options: IBuildTaskOption) => boolean | Promise<boolean>;
-
-export interface IDebugConfig {
-    options?: IDisplayOptions; // 显示在构建平台编译运行调试工具上的配置选项
-    custom?: string; // 显示在构建平台编译运行调试工具上的配置 vue 组件
-}
-
-export interface ICompInfo {
-    displayName?: string;
-    doc?: string;
-    custom?: any;
-    options?: IDisplayOptions;
-    panelInfo?: PanelInfo;
-    wrapWithFold: boolean;
-
-    // ..... 初始化时未存在的字段 .....
-    panel?: any; // 实例化后的 panel 对象
-    pkgName?: string; // 插件名称
-}
-
-// 构建平台下架状态
-export interface IPlatformDelisted {
-    status: 'preDelisted' | 'delisted'; // 状态
-    message: string; // 默认下架提示信息
-    [key: string]: string; // 对应语言的下架提示信息。例如 message_zh
-}

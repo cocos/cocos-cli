@@ -1,18 +1,18 @@
-import { IAsset } from '@cocos/creator-types/editor/packages/asset-db/@types/protected';
+import { IAsset } from '../../../assets/@types/protected';
 import { IBuildSceneItem, UUID } from '../public';
 import { IInternalBuildOptions, IAssetInfo } from './options';
 
 // ********************************* asset-manager *********************************
 
-export class BuilderAssetCache {
+export interface BuilderAssetCache {
     // 场景资源的 assets 信息缓存
-    public readonly scenes: Array<IBuildSceneItem>;
+    readonly scenes: Array<IBuildSceneItem>;
 
     // 脚本资源的 assets 信息缓存
-    public readonly scriptUuids: Array<string>;
+    readonly scriptUuids: Array<string>;
 
     // 除场景、脚本资源外的资源 assets uuid 缓存
-    public readonly assetUuids: Array<string>;
+    readonly assetUuids: Array<string>;
 
     init: () => Promise<void>;
     hasAsset: (uuid: string) => Promise<boolean>;

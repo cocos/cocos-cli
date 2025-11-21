@@ -4,13 +4,13 @@
 
 import { basename, isAbsolute, join } from 'path';
 import { BundleCompressionTypes } from './bundle-utils';
-import { builtinPlugins, PLATFORMS } from './platforms-options';
+import { PLATFORMS } from './platforms-options';
 import { Validator } from './validator';
 import { validatorManager } from './validator-manager';
 import { NATIVE_PLATFORM } from './platforms-options';
-import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IConfigItem, IBuildTaskOption, IBuildCommonOptions } from '../@types';
+import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IBuildTaskOption, IBuildCommonOptions } from '../@types';
 import { IInternalBuildSceneItem } from '../@types/options';
-import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig } from '../@types/protected';
+import { BuildCheckResult, BundleCompressionType, IBuilderConfigItem, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig } from '../@types/protected';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetManager from '../../assets/manager/asset';
@@ -35,14 +35,15 @@ export const overwriteModuleConfig: Record<string, ModuleConfig> = {
         default: 'inherit-project-setting',
     },
 };
+export const supportPlatforms: Platform[] = ['web-desktop', 'web-mobile', 'windows'];
 
 /**
   * 是否为构建支持平台
   * @param platform 
   * @returns 
   */
-function supportPlatform(platform: Platform): boolean {
-    return platform && !!builtinPlugins.includes(platform);
+export function checkPlatform(platform: Platform): boolean {
+    return platform && !!supportPlatforms.includes(platform);
 }
 
 /**
@@ -184,24 +185,20 @@ function checkIncludeModules(modules: string[]): boolean | string {
 }
 
 Validator.addRule('supportPlatform', {
-    func: supportPlatform,
+    func: checkPlatform,
     message: 'i18n:builder.error.unknown_platform',
 });
 
-export const commonOptionConfigs: Record<string, IConfigItem> = {
+export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
     platform: {
         label: 'i18n:builder.options.platform',
         default: 'web-desktop',
+        type: 'string',
         verifyRules: ['required', 'supportPlatform'],
     },
     name: {
         label: 'i18n:builder.options.name',
-        render: {
-            ui: 'ui-input',
-            attributes: {
-                placeholder: 'i18n:builder.tips.enter_name',
-            },
-        },
+        type: 'string',
         default: basename(BuildGlobalInfo.projectRoot),
         verifyRules: ['required'],
     },
@@ -213,20 +210,18 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
         default: {
             asyncFunctions: false,
         },
-        itemConfigs: {
+        properties: {
             asyncFunctions: {
                 label: 'i18n:builder.options.async_functions',
                 description: 'i18n:builder.options.async_functions_tips',
-                render: {
-                    ui: 'ui-checkbox',
-                },
+                type: 'boolean',
+                default: false,
             },
             coreJs: {
                 label: 'i18n:builder.options.core_js',
                 description: 'i18n:builder.options.core_js_tips',
-                render: {
-                    ui: 'ui-checkbox',
-                },
+                type: 'boolean',
+                default: false,
             },
         },
     },
@@ -234,66 +229,54 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
         label: 'i18n:builder.options.buildScriptTargets',
         description: 'i18n:builder.options.buildScriptTargetsTips',
         hidden: true,
-        render: {
-            ui: 'ui-input',
-            attributes: {
-                placeholder: i18n.t('builder.example', {
-                    example: '> 0.4%',
-                }),
-            },
-        },
+        type: 'string',
+        default: '',
     },
     server: {
         label: 'i18n:builder.options.remote_server_address',
         description: 'i18n:builder.options.remote_server_address_tips',
         default: '',
-        render: {
-            ui: 'ui-input',
-            attributes: {
-                placeholder: 'https://resources',
-            },
-        },
+        type: 'string',
         verifyRules: ['http'],
     },
     sourceMaps: {
         label: 'i18n:builder.options.sourceMap',
         default: 'false',
         description: 'i18n:builder.options.sourceMapTips',
-        render: {
-            ui: 'ui-select-pro',
-            items: [{
-                label: 'i18n:builder.off',
-                value: 'false',
-            }, {
-                label: 'i18n:builder.options.sourceMapsInline',
-                value: 'inline',
-            }, {
-                label: 'i18n:builder.options.standaloneSourceMaps',
-                value: 'true',
-            }],
-        },
+        type: 'enum',
+        items: [{
+            label: 'i18n:builder.off',
+            value: 'false',
+        }, {
+            label: 'i18n:builder.options.sourceMapsInline',
+            value: 'inline',
+        }, {
+            label: 'i18n:builder.options.standaloneSourceMaps',
+            value: 'true',
+        }],
     },
     experimentalEraseModules: {
         label: 'i18n:builder.options.experimental_erase_modules',
         description: 'i18n:builder.options.experimental_erase_modules_tips',
         default: false,
         experiment: true,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     startSceneAssetBundle: {
         label: 'i18n:builder.options.start_scene_asset_bundle',
         description: 'i18n:builder.options.start_scene_asset_bundle_tips',
         default: false,
         hidden: true,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     bundleConfigs: {
         label: 'i18n:builder.options.includeBundles',
         default: [],
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {}, // Placeholder for bundle config properties if needed
+        },
         verifyLevel: 'warn',
     },
     // 之前 ios-app-clip 有隐藏 buildPath 的需求
@@ -301,36 +284,32 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
         label: 'i18n:builder.options.build_path',
         description: 'i18n:builder.tips.build_path',
         default: 'project://build',
+        type: 'string',
         verifyRules: ['required'],
     },
     debug: {
         label: 'i18n:builder.options.debug',
         description: 'i18n:builder.options.debugTips',
         default: false,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     mangleProperties: {
         label: 'i18n:builder.options.mangleProperties',
         description: 'i18n:builder.options.manglePropertiesTip',
         default: false,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     inlineEnum: {
         label: 'i18n:builder.options.inlineEnum',
         description: 'i18n:builder.options.inlineEnumTip',
         default: true,
+        type: 'boolean',
     },
     md5Cache: {
         label: 'i18n:builder.options.md5_cache',
         description: 'i18n:builder.options.md5CacheTips',
         default: false,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     md5CacheOptions: {
         default: {
@@ -339,65 +318,77 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
             replaceOnly: [],
             handleTemplateMd5Link: true,
         },
+        type: 'object',
+        properties: {
+            excludes: { type: 'array', items: { type: 'string' }, default: [] },
+            includes: { type: 'array', items: { type: 'string' }, default: [] },
+            replaceOnly: { type: 'array', items: { type: 'string' }, default: [] },
+            handleTemplateMd5Link: { type: 'boolean', default: true },
+        },
     },
     mainBundleIsRemote: {
         label: 'i18n:builder.options.main_bundle_is_remote',
         description: 'i18n:builder.asset_bundle.remote_bundle_invalid_tooltip',
         default: false,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     mainBundleCompressionType: {
         label: 'i18n:builder.options.main_bundle_compression_type',
         description: 'i18n:builder.asset_bundle.compression_type_tooltip',
         default: 'merge_dep',
+        type: 'string',
     },
     useSplashScreen: {
         label: 'i18n:builder.use_splash_screen',
         default: true,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     bundleCommonChunk: {
         label: 'i18n:builder.bundleCommonChunk',
         description: 'i18n:builder.bundleCommonChunkTips',
         default: false,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     skipCompressTexture: {
         label: 'i18n:builder.options.skip_compress_texture',
         default: false,
-        render: {
-            ui: 'ui-checkbox',
-        },
+        type: 'boolean',
     },
     packAutoAtlas: {
         label: 'i18n:builder.options.pack_autoAtlas',
         default: true,
+        type: 'boolean',
     },
     startScene: {
         label: 'i18n:builder.options.start_scene',
         description: 'i18n:builder.options.startSceneTips',
         default: '',
+        type: 'string',
     },
     outputName: {
         // 这个数据界面不显示，不需要 i18n
         description: '构建的输出目录名，将会作为后续构建任务上的名称',
         default: '',
+        type: 'string',
         verifyRules: ['required', 'normalName'],
     },
     taskName: {
         default: '',
+        type: 'string',
         verifyRules: ['required'],
     },
     scenes: {
         label: 'i18n:builder.options.scenes',
         description: 'i18n:builder.tips.build_scenes',
         default: [],
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                url: { type: 'string' },
+                uuid: { type: 'string' },
+            },
+        },
     },
     overwriteProjectSettings: {
         default: {
@@ -410,27 +401,50 @@ export const commonOptionConfigs: Record<string, IConfigItem> = {
                 'gfx-webgl2': 'off',
             },
         },
+        type: 'object',
+        properties: {
+            macroConfig: {
+                type: 'object',
+                properties: {
+                    cleanupImageCache: { type: 'string', default: 'inherit-project-setting' },
+                },
+            },
+            includeModules: {
+                type: 'object',
+                properties: {
+                    physics: { type: 'string', default: 'inherit-project-setting' },
+                    'physics-2d': { type: 'string', default: 'inherit-project-setting' },
+                    'gfx-webgl2': { type: 'string', default: 'off' },
+                },
+            },
+        },
     },
     nativeCodeBundleMode: {
         default: 'asmjs',
+        type: 'string',
     },
     wasmCompressionMode: {
         hidden: true,
         default: false,
+        type: 'boolean',
     },
     binGroupConfig: {
         default: {
             threshold: 16,
             enable: false,
         },
+        type: 'object',
         label: 'i18n:builder.options.bin_group_config',
-        itemConfigs: {
+        properties: {
             enable: {
                 label: 'i18n:builder.options.enable_cconb_group',
                 description: 'i18n:builder.options.enable_cconb_group_tips',
-                render: {
-                    ui: 'ui-checkbox',
-                },
+                type: 'boolean',
+                default: false,
+            },
+            threshold: {
+                type: 'number',
+                default: 16,
             },
         },
     },

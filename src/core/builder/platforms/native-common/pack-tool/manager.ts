@@ -2,7 +2,7 @@ import NativePackTool, { InternalNativePlatform } from './base/default';
 
 export type ISupportPlatform = 'windows';
 const platformPackToolMap: Record<string, string> = {
-    windows: '../platforms/windows',
+    windows: './platforms/windows',
 };
 export class NativePackToolManager {
     private PackToolMap: Map<InternalNativePlatform, NativePackTool> = new Map();
@@ -39,7 +39,7 @@ export class NativePackToolManager {
         if (!platformPackToolMap[platform]) {
             throw new Error(`No pack tool for platform ${platform}}`);
         }
-        const PackTool = await import(platformPackToolMap[platform]);
+        const PackTool = (await import(platformPackToolMap[platform])).default;
         NativePackToolManager.platformToPackTool.set(platform, PackTool);
         return PackTool;
     }

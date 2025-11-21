@@ -15,23 +15,58 @@ const customBuildStages: IBuildStageItem[] = [{
     hook: 'run',
 }];
 
-export const baseNativeCommonOptions: IInternalBuildPluginConfig & Pick<IPlatformBuildPluginConfig, 'assetBundleConfig' | 'buildTemplateConfig'> = {
-    doc: 'editor/publish/native-options.html',
-    options: {
-        encrypted: {
-            default: false,
-        },
-        xxteaKey: {
-            default: Utils.UUID.generate().substr(0, 16),
-        },
-        compressZip: {
-            default: false,
-        },
-        JobSystem: {
-            default: 'none',
-            verifyRules: [],
-        },
+export const baseNativeCommonOptions: IDisplayOptions = {
+    hotModuleReload: {
+        label: 'Hot Module Reload',
+        type: 'boolean',
+        default: false,
+        experiment: true,
     },
+    serverMode: {
+        label: 'Server Mode',
+        type: 'boolean',
+        default: false,
+    },
+    netMode: {
+        label: 'NetMode',
+        type: 'enum',
+        default: 0,
+        items: [
+            { label: 'Client', value: 0 },
+            { label: 'Host Server', value: 1 },
+            { label: 'Listen Server', value: 2 },
+        ],
+    },
+    encrypted: {
+        label: 'i18n:native.options.encrypted',
+        type: 'boolean',
+        default: false,
+    },
+    xxteaKey: {
+        label: 'i18n:native.options.xxtea_key',
+        type: 'string',
+        default: Utils.UUID.generate().substr(0, 16),
+    },
+    compressZip: {
+        label: 'i18n:native.options.compress_zip',
+        type: 'boolean',
+        default: false,
+    },
+    JobSystem: {
+        label: 'Job System',
+        type: 'enum',
+        default: 'none',
+        items: [
+            { label: 'None', value: 'none' },
+            { label: 'TaskFlow', value: 'taskFlow' },
+            { label: 'TBB', value: 'tbb' },
+        ],
+        verifyRules: [],
+    },
+};
+
+export const commonOptions: IInternalBuildPluginConfig & Pick<IPlatformBuildPluginConfig, 'assetBundleConfig' | 'buildTemplateConfig'> = {
+        doc: 'editor/publish/native-options.html',
     hooks: './hooks',
     priority: 2,
     assetBundleConfig: {
@@ -47,25 +82,5 @@ export const baseNativeCommonOptions: IInternalBuildPluginConfig & Pick<IPlatfor
         dirname: 'native',
         displayName: 'i18n:native.title',
     },
-};
-
-export const serverOptions: IDisplayOptions = {
-    hotModuleReload: {
-        default: false,
-        label: 'Hot Module Reload',
-        experiment: true,
-    },
-    serverMode: {
-        default: false,
-        label: 'Server Mode',
-    },
-    netMode: {
-        label: 'NetMode',
-        default: '0',
-    },
-};
-
-export const commonOptions = {
-    ...baseNativeCommonOptions,
     customBuildStages,
 };

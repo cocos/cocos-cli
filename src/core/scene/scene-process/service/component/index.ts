@@ -6,7 +6,6 @@ const CompMgr = EditorExtends.Component;
 import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
-import { ICompInfo } from '../../../../builder/@types/protected';
 import { IComponentIdentifier } from '../../../common';
 
 export class CompManager extends EventEmitter {

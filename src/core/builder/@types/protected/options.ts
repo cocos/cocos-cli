@@ -1,8 +1,8 @@
 import { StatsQuery } from '@cocos/ccbuild';
-import { IPolyFills, IBuildDesignResolution, IBuildOptionBase, IBuildTaskOption, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired } from '../public';
+import { IPolyFills, IBuildOptionBase, IBuildTaskOption, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired, IPlatformType } from '../public';
+export { IPlatformType };
 import { IAssetInfo as IAssetInfoFromDB, IAssetMeta } from '../../../assets/@types/private';
 import * as rollup from 'rollup';
-import { EngineInfo } from '../../../engine/@types/index';
 import { BuiltinBundleName } from './bundle-config';
 
 export interface IBundleInternalOptions extends IBundleOptions {
@@ -170,7 +170,7 @@ export interface IImportMapOptions {
     importMapFormat?: 'commonjs' | 'esm';
 }
 
-export type IPlatformType = 'native' | 'miniGame' | 'web';
+
 
 export interface IInternalBundleBuildOptions<P extends Platform = Platform> extends MakeRequired<IBuildTaskOption<P>, 'includeModules' | 'macroConfig' | 'engineModulesConfigKey' | 'customPipeline' | 'renderPipeline' | 'designResolution' | 'physicsConfig' | 'flags' | 'taskId'> {
     dest: string; // bundle 构建的输出地址，常规构建时为 assets 目录

@@ -1,7 +1,7 @@
 'use strict';
 
 import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { commonOptions, serverOptions } from '../native-common';
+import { commonOptions, baseNativeCommonOptions } from '../native-common';
 
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
@@ -9,12 +9,6 @@ const config: IPlatformBuildPluginConfig = {
     platformType: 'WINDOWS',
     doc: 'editor/publish/windows/build-example-windows.html',
     commonOptions: {
-        polyfills: {
-            hidden: true,
-        },
-        useBuiltinServer: {
-            hidden: false,
-        },
         nativeCodeBundleMode: {
             default: 'wasm',
         },
@@ -29,14 +23,33 @@ const config: IPlatformBuildPluginConfig = {
         },
     },
     options: {
-        ...serverOptions,
+        ...baseNativeCommonOptions,
         executableName: {
             label: 'i18n:windows.options.executable_name',
+            type: 'string',
             default: '',
             verifyRules: ['executableName'],
         },
         renderBackEnd: {
             label: 'Render BackEnd',
+            type: 'object',
+            properties: {
+                vulkan: {
+                    label: 'Vulkan',
+                    type: 'boolean',
+                    default: false,
+                },
+                gles3: {
+                    label: 'GLES3',
+                    type: 'boolean',
+                    default: true,
+                },
+                gles2: {
+                    label: 'GLES2',
+                    type: 'boolean',
+                    default: true,
+                },
+            },
             default: {
                 vulkan: false,
                 gles3: true,
@@ -45,6 +58,8 @@ const config: IPlatformBuildPluginConfig = {
         },
         targetPlatform: {
             label: 'i18n:windows.options.targetPlatform',
+            type: 'enum',
+            items: ['x64', 'x86'],
             default: 'x64',
         },
     },

@@ -52,13 +52,9 @@ const config: IPlatformBuildPluginConfig = {
     },
     commonOptions: {
         polyfills: {
-            hidden: false,
             default: {
                 asyncFunctions: true,
             },
-        },
-        buildScriptTargets: {
-            hidden: false,
         },
         nativeCodeBundleMode: {
             default: 'both',
@@ -74,6 +70,7 @@ const config: IPlatformBuildPluginConfig = {
     options: {
         useWebGPU: {
             label: 'WEBGPU',
+            type: 'boolean',
             default: false,
             description: 'i18n:web-mobile.tips.webgpu',
             experiment: true,
@@ -81,9 +78,12 @@ const config: IPlatformBuildPluginConfig = {
         orientation: {
             label: 'i18n:web-mobile.options.orientation',
             default: 'auto',
+            type: 'enum',
+            items: ['auto', 'landscape', 'portrait'],
         },
         embedWebDebugger: {
             label: 'i18n:web-mobile.options.web_debugger',
+            type: 'boolean',
             default: false,
         },
     },

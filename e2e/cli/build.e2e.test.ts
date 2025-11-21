@@ -92,17 +92,17 @@ describe('cocos build command', () => {
         // }, E2E_TIMEOUTS.BUILD_OPERATION);
     });
 
-    describe('web-mobile platform', () => {
-        test('should build web-mobile project successfully', async () => {
+    describe('windows platform', () => {
+        test('should buildwindows project successfully', async () => {
             const result = await cliRunner.build({
                 project: testProject.path,
-                platform: 'web-mobile',
+                platform: 'windows',
             });
 
             expect(result.error).toBe(undefined);
             expect(result.exitCode).toBe(0);
 
-            const buildPath = join(testProject.path, 'build', 'web-mobile-test');
+            const buildPath = join(testProject.path, 'build', 'windows');
             const buildExists = await checkPathExists(buildPath);
             expect(buildExists).toBe(true);
         }, E2E_TIMEOUTS.BUILD_OPERATION);

@@ -4,8 +4,8 @@ import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting, commonOpti
 import { NATIVE_PLATFORM, platformPlugins } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
-import { Platform, IConfigItem, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
-import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired } from '../@types/protected';
+import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
+import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem } from '../@types/protected';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
@@ -13,7 +13,7 @@ import { configGroups } from '../share/texture-compress';
 import { newConsole } from '../../base/console';
 import builderConfig, { } from '../share/builder-config';
 import { existsSync, readJSON } from 'fs-extra';
-import utils from '../../base/utils';
+import { GlobalPaths } from '../../../global';
 export interface InternalPackageInfo {
     name: string; // 插件名
     path: string; // 插件路径
@@ -42,7 +42,7 @@ const CustomAssetHandlerTypes: ICustomAssetHandlerType[] = ['compressTextures'];
 export class PluginManager extends EventEmitter {
     // 平台选项信息
     public bundleConfigs: Record<string, PlatformBundleConfig> = {};
-    public commonOptionConfig: Record<string, Record<string, IConfigItem>> = {};
+    public commonOptionConfig: Record<string, Record<string, IBuilderConfigItem  & { verifyKey: string }>> = {};
     public pkgOptionConfigs: Record<string, Record<string, IDisplayOptions>> = {};
     public platformConfig: Record<string, IPlatformConfig> = {};
     public buildTemplateConfigMap: Record<string, BuildTemplateConfig> = {};
@@ -84,14 +84,13 @@ export class PluginManager extends EventEmitter {
                     return;
                 }
                 const platformRoot = join(__dirname, `../platforms/${platform}`);
-                const packageJSON = await readJSON(join(platformRoot, 'package.json'));
-                const configPath = resolveToRaw(packageJSON.contributions.builder, platformRoot);
-                const config = (await import(configPath)).default;
+                const config = (await import(join(platformRoot, 'config.js'))).default;
                 await this.registerPlatform({
                     platform,
-                    config: config.default,
+                    config: config,
                     path: platformRoot,
                 });
+                console.log(`register platform ${platform} success!`);
             } catch (error) {
                 if (throwError) {
                     throw error;
@@ -103,7 +102,7 @@ export class PluginManager extends EventEmitter {
         
     }
 
-    private registerPlatform(registerInfo: IPlatformRegisterInfo) {
+    private async registerPlatform(registerInfo: IPlatformRegisterInfo) {
         const { platform, config } = registerInfo;
         this.configMap[platform] = {};
         this.platformConfig[platform] = {} as IPlatformConfig;
@@ -147,26 +146,26 @@ export class PluginManager extends EventEmitter {
         if (this.bundleConfigs[platform]) {
             this.platformConfig[platform].type = this.bundleConfigs[platform].platformType;
         }
-        this.internalRegister(registerInfo);
+        await this.internalRegister(registerInfo);
     }
 
     protected async internalRegister(registerInfo: IPluginRegisterInfo, pkgInfo?: InternalPackageInfo): Promise<void> {
         const { platform, config, path } = registerInfo;
-        if (this.platformConfig[platform] && this.platformConfig[platform].name) {
-            return;
+        if (!this.platformConfig[platform] || !this.platformConfig[platform].name) {
+            throw new Error(`platform ${platform} has been registered!`);
         }
 
         // TODO: register i18n
         const pkgName = pkgInfo?.name || platform;
-        this.pkgPriorities[pkgName] = config.priority || (builtinPlugins.includes(pkgName) ? 1 : 0);
+        this.pkgPriorities[pkgName] = config.priority || (path.includes(GlobalPaths.workspace) ? 1 : 0);
 
         // 注册校验方法
-        // if (typeof config.verifyRuleMap === 'object') {
-        //     for (const [ruleName, item] of Object.entries(config.verifyRuleMap)) {
-        //         // 添加以 平台 + 插件 作为 key 的校验规则
-        //         validatorManager.addRule(ruleName, item, platform + pkgName);
-        //     }
-        // }
+        if (typeof config.verifyRuleMap === 'object') {
+            for (const [ruleName, item] of Object.entries(config.verifyRuleMap)) {
+                // 添加以 平台 + 插件 作为 key 的校验规则
+                validatorManager.addRule(ruleName, item, platform + pkgName);
+            }
+        }
 
         if (config.doc && !config.doc.startsWith('http')) {
             config.doc = Utils.Url.getDocUrl(config.doc);
@@ -188,7 +187,7 @@ export class PluginManager extends EventEmitter {
             } else {
                 this.commonOptionConfig[platform] = defaultMerge({}, this.commonOptionConfig[platform], config.commonOptions || {});
             }
-            const commonOptions: Record<string, IConfigItem> = config.commonOptions;
+            const commonOptions = config.commonOptions;
             for (const key in commonOptions) {
                 if (commonOptions[key].verifyRules) {
                     this.commonOptionConfig[platform][key] = Object.assign({}, this.commonOptionConfig[platform][key], {
@@ -215,11 +214,11 @@ export class PluginManager extends EventEmitter {
         console.debug(`[Build] internalRegister pkg(${pkgName}) in ${platform} platform success!`);
     }
 
-    public getCommonOptionConfigs(platform: Platform): Record<string, IConfigItem> {
+    public getCommonOptionConfigs(platform: Platform): Record<string, IBuilderConfigItem> {
         return this.commonOptionConfig[platform];
     }
 
-    public getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IConfigItem | null {
+    public getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null {
         const config = this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key] || {};
         if (commonOptionConfigs[key]) {
             const defaultConfig = JSON.parse(JSON.stringify(commonOptionConfigs[key]));
@@ -231,7 +230,7 @@ export class PluginManager extends EventEmitter {
         return config;
     }
 
-    public getPackageOptionConfigByKey(key: string, pkgName: string, options: IBuildTaskOption): IConfigItem | null {
+    public getPackageOptionConfigByKey(key: string, pkgName: string, options: IBuildTaskOption): IBuilderConfigItem | null {
         if (!key || !pkgName) {
             return null;
         }
@@ -242,7 +241,7 @@ export class PluginManager extends EventEmitter {
         return lodash.get(configs, key);
     }
 
-    public getOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IConfigItem | null {
+    public getOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null {
         if (!key) {
             return null;
         }
@@ -295,7 +294,6 @@ export class PluginManager extends EventEmitter {
             if (key === 'packages') {
                 continue;
             }
-            // @ts-ignore
             const res = await this.checkCommonOptionByKey(key as keyof IBuildTaskOption, rightOptions[key], rightOptions);
             if (res && res.error && res.level === 'error') {
                 const errMsg = i18n.transI18nName(res.error) || res.error;
@@ -318,7 +316,6 @@ export class PluginManager extends EventEmitter {
                     }));
                 }
             }
-            // @ts-ignore
             rightOptions[key] = res.newValue;
         }
         const result = await this.checkPluginOptions(rightOptions);
@@ -331,7 +328,7 @@ export class PluginManager extends EventEmitter {
     }
 
     public async checkCommonOptions(options: IBuildTaskOption) {
-        const checkRes = {};
+        const checkRes: Record<string, BuildCheckResult> = {};
         for (const key of Object.keys(options)) {
             if (key === 'packages') {
                 continue;
