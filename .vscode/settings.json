@@ -1,4 +1,14 @@
 {
+    "continue.mcpServers": {
+        "cocos-cli": {
+            "command": "node",
+            "args": [
+                "./dist/mcp/start-fast-mcp.js"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {}
+        }
+    },
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "dbaeumer.vscode-eslint",
     "editor.detectIndentation": false,
