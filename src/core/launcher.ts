@@ -98,7 +98,7 @@ export default class Launcher {
         return await build(platform, options);
     }
 
-    async make(platform: Platform, dest: string) {
+    static async make(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
         await init([platform]);
@@ -108,7 +108,7 @@ export default class Launcher {
         });
     }
 
-    async run(platform: Platform, dest: string) {
+    static async run(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
         await init([platform]);

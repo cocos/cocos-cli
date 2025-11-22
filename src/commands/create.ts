@@ -12,7 +12,7 @@ export class CreateCommand extends BaseCommand {
         this.program
             .command('create')
             .description('Create a new Cocos project')
-            .requiredOption('--project <path>', 'Target directory to create the project (required)')
+            .requiredOption('-j, --project <path>', 'Target directory to create the project (required)')
             .option('-t, --type <type>', 'Project type (2d or 3d)', '3d')
             .action(async (options: any) => {
                 try {

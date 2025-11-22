@@ -10,7 +10,7 @@ export class McpServerCommand extends BaseCommand {
         this.program
             .command('start-mcp-server')
             .description('Start MCP (Model Context Protocol) server for Cocos project')
-            .requiredOption('--project <path>', 'Path to the Cocos project (required)')
+            .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
             .option('-p, --port <number>', 'Port number for the MCP server', '9527')
             .action(async (options: any) => {
                 try {

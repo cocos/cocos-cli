@@ -93,10 +93,9 @@ export class CocosAPI {
      * @param platform 
      * @param dest 
      */
-    public static async makeProject(projectPath: string, @param(SchemaPlatformCanMake) platform: TPlatformCanMake, @param(SchemaBuildDest) dest: TBuildDest) {
+    public static async makeProject(@param(SchemaPlatformCanMake) platform: TPlatformCanMake, @param(SchemaBuildDest) dest: TBuildDest) {
         const { default: Launcher } = await import('../core/launcher');
-        const launcher = new Launcher(projectPath);
-        return await launcher.make(platform, dest);
+        return await Launcher.make(platform, dest);
     }
 
     /**
@@ -104,9 +103,8 @@ export class CocosAPI {
      * @param platform 
      * @param dest 
      */
-    public static async runProject(projectPath: string, @param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest) {
+    public static async runProject(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest) {
         const { default: Launcher } = await import('../core/launcher');
-        const launcher = new Launcher(projectPath);
-        return await launcher.run(platform, dest);
+        return await Launcher.run(platform, dest);
     }
 }

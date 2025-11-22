@@ -9,16 +9,13 @@ export class MakeCommand extends BaseCommand {
     register(): void {
         this.program
             .command('make')
-            .description('Make a Cocos project')
-            .requiredOption('--project <path>', 'Path to the Cocos project (required)')
-            .option('-p, --platform <platform>', 'Target platform (windows, android, ios, etc.)')
-            .requiredOption('--dest <path>', 'Destination path for the made project')
+            .description('Make a Cocos native project')
+            .requiredOption('-p, --platform <platform>', 'Target platform (windows, android, ios, etc.)')
+            .requiredOption('-d, --dest <path>', 'Destination path for the made project')
             .action(async (options: any) => {
                 try {
-                    const resolvedPath = this.validateProjectPath(options.project);
-
                     const { CocosAPI } = await import('../api/index');
-                    const result = await CocosAPI.makeProject(resolvedPath, options.platform, options.dest);
+                    const result = await CocosAPI.makeProject(options.platform, options.dest);
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Make completed successfully!'));
                     } else {

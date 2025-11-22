@@ -108,12 +108,16 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IIntern
     options.md5CacheOptions.replaceOnly.push('index.html');
 }
 
-export async function onAfterBuild(options: IInternalBuildOptions<'web-mobile'>, result: InternalBuildResult) {
+export async function onAfterBuild(this: IBuilder, options: IInternalBuildOptions<'web-mobile'>, result: InternalBuildResult) {
     // 放在最后处理 url ，否则会破坏 md5 的处理
     result.settings.plugins.jsList.forEach((url: string, i: number) => {
         result.settings.plugins.jsList[i] = url.split('/').map(encodeURIComponent).join('/');
     });
     outputFileSync(result.paths.settings, JSON.stringify(result.settings, null, options.debug ? 4 : 0));
+    const previewUrl = await commonUtils.getPreviewUrl(result.paths.dir);
+    this.buildExitRes.custom = {
+        previewUrl,
+    };
 }
 
 export async function run(this: IBuildStageTask, root: string) {

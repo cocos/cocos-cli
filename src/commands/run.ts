@@ -10,15 +10,13 @@ export class RunCommand extends BaseCommand {
         this.program
             .command('run')
             .description('Run a Cocos project')
-            .requiredOption('--project <path>', 'Path to the Cocos project (required)')
-            .option('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
-            .requiredOption('--dest <path>', 'Destination path of the built project')
+            .requiredOption('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
+            .requiredOption('-d, --dest <path>', 'Destination path of the built project')
             .action(async (options: any) => {
                 try {
-                    const resolvedPath = this.validateProjectPath(options.project);
 
                     const { CocosAPI } = await import('../api/index');
-                    const result = await CocosAPI.runProject(resolvedPath, options.platform, options.dest);
+                    const result = await CocosAPI.runProject(options.platform, options.dest);
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Project is running!'));
                     } else {

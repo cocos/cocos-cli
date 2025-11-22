@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import { relative } from 'path';
 import utils from '../../../base/utils';
 
-export async function run(dest: string) {
+export async function getPreviewUrl(dest: string) {
     const rawPath = utils.Path.resolveToRaw(dest);
     if (!existsSync(rawPath)) {
         throw new Error(`Build path not found: ${dest}`);
@@ -10,8 +10,11 @@ export async function run(dest: string) {
     const serverService = (await import('../../../../server/server')).serverService;
 
     const relativePath = relative(utils.Path.resolveToRaw('project://build'), rawPath);
-    const url = serverService.url + '/build/' + relativePath + '/index.html';
+    return serverService.url + '/build/' + relativePath + '/index.html';
+}
 
+export async function run(dest: string) {
+    const url = await getPreviewUrl(dest);
     // 打开浏览器
     try {
         const { exec } = require('child_process');

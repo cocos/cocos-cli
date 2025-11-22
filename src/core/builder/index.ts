@@ -76,6 +76,7 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         const duration = formatMSTime(Date.now() - startTime);
         newConsole.buildComplete(platform, duration, buildSuccess);
         builder.buildExitRes.dest = utils.Path.resolveToUrl(builder.buildExitRes.dest, 'project');
+        console.debug(JSON.stringify(builder.buildExitRes));
         return buildSuccess ? builder.buildExitRes : { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed!' };
     } catch (error: any) {
         buildSuccess = false;
@@ -172,6 +173,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         buildSuccess = false;
     }
     buildStageTask.buildExitRes.dest = utils.Path.resolveToUrl(buildStageTask.buildExitRes.dest, 'project');
+    console.log(JSON.stringify(buildStageTask.buildExitRes));
     return buildSuccess ? buildStageTask.buildExitRes : { code: BuildExitCode.BUILD_FAILED, reason: 'Build stage task failed!' };
 }
 

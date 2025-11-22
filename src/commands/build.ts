@@ -11,9 +11,9 @@ export class BuildCommand extends BaseCommand {
         this.program
             .command('build')
             .description('Build a Cocos project')
-            .requiredOption('--project <path>', 'Path to the Cocos project (required)')
-            .option('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
-            .option('--build-config <path>', 'Specify build config file path')
+            .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
+            .requiredOption('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
+            .option('-c,--build-config <path>', 'Specify build config file path')
             .action(async (options: any) => {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
