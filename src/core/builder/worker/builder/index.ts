@@ -15,7 +15,7 @@ import { defaultsDeep, formatMSTime, getBuildPath } from '../../share/utils';
 import { BuildTemplate } from './manager/build-template';
 import { newConsole } from '../../../base/console';
 import { ITaskResultMap } from '../../@types/builder';
-import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildTaskOption } from '../../@types/protected';
+import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildTaskOption, IBuildResultData } from '../../@types/protected';
 import { assetDBManager } from '../../../assets';
 import Utils from '../../../base/utils';
 import { pluginManager } from '../../manager/plugin';
@@ -69,7 +69,6 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 构建任务的结果缓存，只允许接口访问
      */
     private taskResMap: ITaskResultMap = {};
-
 
     constructor(id: string, options: IBuildTaskOption) {
         super(id, 'build');
@@ -458,6 +457,8 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
                 glsl4: false,
             },
         };
+
+        this.buildExitRes.dest = this.result.paths.dir;
     }
 
     /**

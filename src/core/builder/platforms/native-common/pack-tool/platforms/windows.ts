@@ -63,8 +63,8 @@ export default class WindowsPackTool extends NativePackTool {
         return true;
     }
 
-    static async openWithIDE(projPath: string) {
-        await toolHelper.runCmake(['--open', `"${cchelper.fixPath(projPath)}"`]);
+    static async openWithIDE(nativePrjDir: string) {
+        await toolHelper.runCmake(['--open', `"${cchelper.fixPath(nativePrjDir)}"`]);
         return true;
     }
 
@@ -127,13 +127,19 @@ export default class WindowsPackTool extends NativePackTool {
         return this.params.platformParams.vsVersion || '';
     }
 
-    async run(): Promise<boolean> {
+    async getExecutableFile() {
         const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release');
         const targetFile = this.getExecutableNameOrDefault();
         const executableFile = ps.join(executableDir, targetFile + '.exe');
         if (!executableFile || !fs.existsSync(executableFile)) {
             throw new Error(`[windows run] '${targetFile}' is not found within ' + ${executableDir}!`);
         }
+        return executableFile;
+    }
+
+    async run(): Promise<boolean> {
+        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release');
+        const executableFile = await this.getExecutableFile();
         // 不等待，否则运行接口调用会一直卡在那里
         cchelper.runCmd(ps.basename(executableFile), [], false, executableDir);
         return true;

@@ -33,6 +33,7 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
             [this.name]: this.name,
             [`onAfter${name}`]: `onAfter${name}`,
         };
+        this.buildExitRes.dest = config.root;
     }
 
     public async run() {

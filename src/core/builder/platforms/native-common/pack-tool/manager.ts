@@ -1,9 +1,11 @@
 import NativePackTool, { CocosParams, InternalNativePlatform } from './base/default';
 
 export type ISupportPlatform = 'windows';
+
 const platformPackToolMap: Record<string, string> = {
     windows: './platforms/windows',
 };
+
 export class NativePackToolManager {
     private PackToolMap: Map<InternalNativePlatform, NativePackTool> = new Map();
     static platformToPackTool: Map<InternalNativePlatform, typeof NativePackTool> = new Map();
@@ -18,12 +20,12 @@ export class NativePackToolManager {
             return handler;
         }
         const PackTool = await NativePackToolManager.getPackTool(platform);
-        const tool = new PackTool();
+        const tool = new (PackTool as new () => NativePackTool)();
         this.PackToolMap.set(platform, tool);
         return tool;
     }
-    async register(platform: InternalNativePlatform, params:CocosParams<Object>) {
-        const tool = await this.getTool(platform);
+    async register(params:CocosParams<Object>) {
+        const tool = await this.getTool(params.platform);
         tool.init(params);
         return tool;
     }
@@ -32,9 +34,9 @@ export class NativePackToolManager {
         this.PackToolMap.delete(platform);
     }
 
-    static async getPackTool(platform: InternalNativePlatform) {
+    static async getPackTool(platform: InternalNativePlatform): Promise<typeof NativePackTool> {
         if (NativePackToolManager.platformToPackTool.has(platform)) {
-            return NativePackToolManager.platformToPackTool.get(platform);
+            return NativePackToolManager.platformToPackTool.get(platform)!;
         }
         if (!platformPackToolMap[platform]) {
             throw new Error(`No pack tool for platform ${platform}}`);
@@ -45,31 +47,31 @@ export class NativePackToolManager {
     }
 
     async openWithIDE(platform: InternalNativePlatform, projectPath: string, IDEDir?: string) {
-        const tool = await NativePackToolManager.getPackTool(platform);
-        await tool.openWithIDE(projectPath, IDEDir);
-        return tool;
+        const PackTool = await NativePackToolManager.getPackTool(platform);
+        await PackTool.openWithIDE!(projectPath, IDEDir);
+        return PackTool;
     }
 
-    async create(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
-        const tool = await this.register(platform, params);
+    async create(params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(params);
         await tool.create();
         return tool;
     }
 
-    async generate(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
-        const tool = await this.register(platform, params);
+    async generate(params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(params);
         await tool.generate!();
         return tool;
     }
 
-    async make(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
-        const tool = await this.register(platform, params);
+    async make(params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(params);
         await tool.make!();
         return tool;
     }
 
-    async run(platform: InternalNativePlatform, params:CocosParams<Object>): Promise<NativePackTool> {
-        const tool = await this.register(platform, params);
+    async run(params:CocosParams<Object>): Promise<NativePackTool> {
+        const tool = await this.register(params);
         await tool.run!();
         return tool;
     }

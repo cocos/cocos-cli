@@ -121,7 +121,7 @@ export interface IBundleBuildOptions {
     buildTaskIds?: string[];
     taskName: string;
     dest: string;
-    optionList: IBuildTaskOption[];
+    buildTaskOptions: IBuildTaskOption;
     logDest?: string;
 }
 
@@ -358,9 +358,6 @@ export interface IBundleTaskItemJSON extends ITaskItemJSON {
 export interface IBuildStageOptions {
     dest: string;
     platform: Platform;
-    taskId?: string;
-    nextStages?: string[];
-    buildTaskOptions?: IBuildTaskOption;
     taskName?: string;
 }
 
@@ -375,7 +372,8 @@ export const enum BuildExitCode {
 export interface IBuildResultSuccess {
     code: BuildExitCode.BUILD_SUCCESS;
     dest: string;
-    // TODO 更多的构建结果信息
+    // 不同平台有不同的结果
+    custom: Record<string, any>
 }
 
 export interface IBuildResultFailed {

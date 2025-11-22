@@ -2,7 +2,7 @@ import { IAsset } from '../../../assets/@types/protected';
 import { BundleCompressionType, IAssetPathInfo, IBuildPaths, IBuildTaskOption, IBundleConfig, IJsonPathInfo, ISettings, UUID, IBuildSceneItem, ITextureCompressType, ITextureCompressFormatType, ICustomConfig } from '../public';
 import { BuilderAssetCache } from './asset-manager';
 import { ImportMap, ImportMapWithImports } from './import-map';
-import { IAssetInfo, IImportMapOptions, IInternalBuildOptions, IBuildSeparateEngineResult } from './options';
+import { IAssetInfo, IImportMapOptions, IInternalBuildOptions, IBuildSeparateEngineResult, IBuildResultData, IBuildResultSuccess } from './options';
 import { IPacInfo } from './texture-packer';
 
 export interface TextureCompress {
@@ -128,6 +128,7 @@ export interface IBuilder {
     bundleManager: IBundleManager;
     hooksInfo: IBuildHooksInfo;
     buildTemplate: IBuildTemplate;
+    buildExitRes: IBuildResultSuccess;
     id: string;
 
     updateProcess(message: string, increment?: number): void;
@@ -135,6 +136,7 @@ export interface IBuilder {
 }
 
 export interface IBuildStageTask {
+    buildExitRes: IBuildResultSuccess;
     options: IBuildTaskOption;
     buildTaskOptions?: IBuildTaskOption;
 

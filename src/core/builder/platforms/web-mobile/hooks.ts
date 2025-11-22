@@ -3,7 +3,7 @@
 import Ejs from 'ejs';
 import { copyFileSync, outputFileSync } from 'fs-extra';
 import { basename, join } from 'path';
-import { InternalBuildResult, BuilderAssetCache, IBuilder, IInternalBuildOptions } from '../../@types/protected';
+import { InternalBuildResult, BuilderAssetCache, IBuilder, IInternalBuildOptions, IBuildStage, IBuildStageTask } from '../../@types/protected';
 import { relativeUrl, transformCode } from '../../worker/builder/utils';
 import { IBuildResult } from './type';
 import * as commonUtils from '../web-common/utils';
@@ -116,4 +116,9 @@ export async function onAfterBuild(options: IInternalBuildOptions<'web-mobile'>,
     outputFileSync(result.paths.settings, JSON.stringify(result.settings, null, options.debug ? 4 : 0));
 }
 
-export const run = commonUtils.run;
+export async function run(this: IBuildStageTask, root: string) {
+    const previewUrl = await commonUtils.run(root);
+    this.buildExitRes.custom = {
+        previewUrl,
+    };
+};

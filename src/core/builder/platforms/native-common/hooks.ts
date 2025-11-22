@@ -14,7 +14,7 @@ import {
     copy,
     emptyDirSync,
 } from 'fs-extra';
-import { getCmakePath, packToolHandler } from './native-utils';
+import { getCmakePath } from './native-utils';
 import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildResult, Platform } from '../../@types/protected';
 import { CocosParams } from './pack-tool/base/default';
 import i18n from '../../../base/i18n';
@@ -152,7 +152,7 @@ export function onBeforeBuild(options: ITaskOption) {
     options.useCache = true;
 }
 
-export async function onAfterInit(options: ITaskOption, result: InternalBuildResult) {
+export async function onAfterInit(this: IBuilder, options: ITaskOption, result: InternalBuildResult) {
     // 3.4 在 m1 支持了 physx，这部分代码保留一个版本，3.5 后再移除这部分代码和对应 i18n
     // if (options.platform === 'mac' && options.packages.mac!.supportM1 && options.includeModules.includes('physics-physx')) {
     //     throw new Error(i18n.t('builder.platforms.mac.error.m1_with_physic_x'));
@@ -168,7 +168,7 @@ export async function onAfterInit(options: ITaskOption, result: InternalBuildRes
     } = options.engineInfo;
     // 后续要支持命令行传参的自定义引擎，因而 native pack tool 管理器的初始化不能放在 load 钩子里
     console.debug('Native engine root:' + nativeRoot);
-
+    this.buildExitRes.dest = result.paths.dir;
     const assetsLink = join(result.paths.dir, 'assets');
     result.paths.dir = join(result.paths.dir, 'data');
     const output = result.paths.dir;
@@ -274,8 +274,9 @@ export async function onAfterCompressSettings(this: IBuilder, options: ITaskOpti
     // 1. 原生工程模板要尽早生成方便后续其他构建插件（service）做一些原生工程的调整或者 sdk 接入等等
     // 2. create 里还包含了脚本加密，为了给用户预留能在 onAfterBuildAssets 修改脚本的时序，需要在 onAfterBuildAssets 钩子之后再执行
     // 3. 在 create 之前要准备几乎所有的项目工程文件，包括 main.js
-    const packTools = await packToolHandler.runTask('create', options.cocosParams);
-    options.packages[options.platform].projectDistPath = await packToolHandler.getProjectBuildPath(packTools);
+    const packTools = await nativePackToolMg.create(options.cocosParams);
+    options.packages[options.platform].projectDistPath = packTools.paths.nativePrjDir;
+    this.buildExitRes.custom.nativePrjDir = packTools.paths.nativePrjDir;
     // 加密后再更改 remote 目录，否则 remote 目录可能会没有加密到
     const server = options.server || '';
     const remoteDir = resolve(result.paths.dir, '../remote');
@@ -298,8 +299,10 @@ export async function onAfterCompressSettings(this: IBuilder, options: ITaskOpti
  * @param options
  * @param result
  */
-export async function onAfterBuild(options: ITaskOption, result: InternalBuildResult) {
-    await packToolHandler.runTask('generate', options.cocosParams);
+export async function onAfterBuild(this: IBuilder, options: ITaskOption, result: InternalBuildResult) {
+    const tool = await nativePackToolMg.generate(options.cocosParams);
+    this.buildExitRes.custom.nativePrjDir = tool.paths.nativePrjDir;
+
 }
 
 export async function onBeforeMake(this: IBuildStageTask, root: string, options: ITaskOption) {
@@ -325,8 +328,10 @@ export async function onBeforeMake(this: IBuildStageTask, root: string, options:
  * @param root
  * @param options
  */
-export async function make(root: string, options: ITaskOption) {
-    await packToolHandler.runTask('make', options.cocosParams);
+export async function make(this: IBuildStageTask, root: string, options: ITaskOption) {
+    const tool = await nativePackToolMg.make(options.cocosParams);
+    this.buildExitRes.custom.nativePrjDir = tool.paths.nativePrjDir;
+    this.buildExitRes.custom.executableFile = await tool.getExecutableFile();
 }
 
 /**
@@ -335,5 +340,5 @@ export async function make(root: string, options: ITaskOption) {
  * @param options
  */
 export async function run(root: string, options: ITaskOption) {
-    await packToolHandler.runTask('run', options.cocosParams);
+    await nativePackToolMg.run(options.cocosParams);
 }

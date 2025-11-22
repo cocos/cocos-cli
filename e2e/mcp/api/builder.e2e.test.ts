@@ -176,6 +176,7 @@ describe('MCP Builder API', () => {
 
         test('should handle invalid build path', async () => {
             const result = await context.mcpClient.callTool('builder-run', {
+                platform: 'web-mobile',
                 dest: '/invalid/path/that/does/not/exist',
             });
 

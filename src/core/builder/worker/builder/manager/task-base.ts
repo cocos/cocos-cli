@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import { newConsole } from '../../../../base/console';
 import { IBuildOptionBase, IConsoleType } from '../../../@types';
-import { IBuildHooksInfo } from '../../../@types/protected';
+import { BuildExitCode, IBuildHooksInfo, IBuildResultSuccess } from '../../../@types/protected';
 import Utils from '../../../../base/utils';
 import i18n from '../../../../base/i18n';
 
@@ -16,6 +16,11 @@ export abstract class BuildTaskBase extends EventEmitter {
     public abstract hookMap: Record<string, string>;
     public hookWeight = 0.4;
     public id: string;
+    public buildExitRes: IBuildResultSuccess = {
+        code: BuildExitCode.BUILD_SUCCESS,
+        dest: '',
+        custom: {},
+    };
 
     constructor(id: string, name: string) {
         super();

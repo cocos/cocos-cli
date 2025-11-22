@@ -1,8 +1,8 @@
-import { build, executeBuildStageTask, queryDefaultBuildConfigByPlatform, run } from '../../core/builder';
+import { build, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, SchemaMakeResult } from './schema';
 
 export class BuilderApi {
 
@@ -18,7 +18,7 @@ export class BuilderApi {
         };
         try {
             const res = await build(platform, options as unknown as IBuildCommandOption<TPlatform>);
-            ret.data = res;
+            ret.data = res as TBuildResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = res.reason || 'Build failed!';
@@ -76,10 +76,10 @@ export class BuilderApi {
     @tool('builder-make')
     @title('编译构建包')
     @description('编译构建后的游戏包，仅部分平台支持')
-    @result(SchemaBuildResult)
+    @result(SchemaMakeResult)
     async make(@param(SchemaPlatformCanMake) platform: TPlatformCanMake, @param(SchemaBuildDest) dest: TBuildDest) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TBuildResultData> = {
+        const ret: CommonResultType<IMakeResultData> = {
             code: code,
             data: null,
         };
@@ -88,7 +88,7 @@ export class BuilderApi {
                 dest,
                 platform,
             });
-            ret.data = res;
+            ret.data = res as IMakeResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = res.reason || `Make ${platform} in ${dest} failed!`;
@@ -103,11 +103,11 @@ export class BuilderApi {
 
     @tool('builder-run')
     @title('运行构建结果')
-    @description('运行构建后的游戏，不同平台的效果不同，目前 web 平台支持启动构建结果的预览服务器，返回运行 URL')
+    @description('运行构建后的游戏，不同平台的效果不同')
     @result(SchemaBuildResult)
-    async run(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest): Promise<CommonResultType<TBuildResultData>> {
+    async run(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest): Promise<CommonResultType<IRunResultData>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TBuildResultData> = {
+        const ret: CommonResultType<IRunResultData> = {
             code: code,
             data: null,
         };

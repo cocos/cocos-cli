@@ -95,7 +95,7 @@ describe('cocos build command', () => {
 
     if (platform() ===  'win32') {
         describe('windows platform', () => {
-            test('should buildwindows project successfully', async () => {
+            test('should build windows project successfully', async () => {
                 const result = await cliRunner.build({
                     project: testProject.path,
                     platform: 'windows',

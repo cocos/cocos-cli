@@ -491,9 +491,7 @@ export default abstract class NativePackTool {
     }
 
     abstract create(): Promise<boolean>;
-    get projectDistPath() {
-        return this.paths.nativePrjDir;
-    };
+    abstract getExecutableFile(): Promise<string>;
     generate?(): Promise<boolean>;
     make?(): Promise<boolean>;
     run?(): Promise<boolean>;

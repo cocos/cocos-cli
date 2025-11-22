@@ -2,7 +2,7 @@
 
 import { ICustomBuildScriptParam } from '../native-common/type';
 import { IBuildResult, ITaskOptionPackages } from './type';
-import { BuilderAssetCache, IInternalBuildOptions } from '../../@types/protected';
+import { BuilderAssetCache, IBuilder, IInternalBuildOptions } from '../../@types/protected';
 import { executableNameOrDefault } from './utils';
 import * as nativeCommonHook from '../native-common/hooks';
 import { CocosParams } from '../native-common/pack-tool/base/default';
@@ -20,10 +20,9 @@ export const onBeforeMake = nativeCommonHook.onBeforeMake;
 export const make = nativeCommonHook.make;
 export const run = nativeCommonHook.run;
 
-export async function onAfterInit(options: ITaskOption, result: IBuildResult, cache: BuilderAssetCache) {
-    await nativeCommonHook.onAfterInit(options, result);
+export async function onAfterInit(this: IBuilder, options: ITaskOption, result: IBuildResult, cache: BuilderAssetCache) {
+    await nativeCommonHook.onAfterInit.call(this, options, result);
     const renderBackEnd = options.packages.windows.renderBackEnd;
-
     // 补充一些平台必须的参数
     const params = options.cocosParams;
     params.platformParams.targetPlatform = 'x64';

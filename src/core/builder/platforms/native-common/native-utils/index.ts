@@ -1,9 +1,7 @@
 'use strict';
 
-import { remove, existsSync, readJSON, readdirSync, statSync, writeFileSync, ensureDir } from 'fs-extra';
+import { remove } from 'fs-extra';
 import { join } from 'path';
-import NativePackTool, { CocosParams } from '../pack-tool/base/default';
-import nativePackToolMg, { NativePackToolManager } from '../pack-tool/manager';
 import { GlobalPaths } from '../../../../../global';
 import { IBuildTaskOption } from '../../../@types';
 /**
@@ -26,21 +24,6 @@ export async function getCmakePath(): Promise<string> {
         return join(internalCmakeRoot, 'bin/cmake');
     }
 }
-
-class PackToolHandler {
-    packRoot: string = join(__dirname, '../pack-tool');
-    manager: NativePackToolManager = nativePackToolMg;
-
-    async getProjectBuildPath(tool: NativePackTool): Promise<string> {
-        return tool?.projectDistPath;
-    }
-
-    async runTask(task: 'create' | 'generate' | 'make' | 'run', params: CocosParams<Object>) {
-        return await this.manager[task](params.platform, params);
-    }
-}
-
-export const packToolHandler = new PackToolHandler();
 
 // 支持中文的平台如果有修改，需要同步到 configs
 export function acceptChineseName(options: IBuildTaskOption) {

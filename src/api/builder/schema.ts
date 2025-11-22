@@ -101,7 +101,6 @@ const BuildConfigCoreFields = z.object({
     useSplashScreen: z.boolean().describe('是否使用自定义启动画面'),
 
     // 构建阶段
-    stage: z.enum(['build', 'make', 'run', 'bundle']).describe('构建阶段指定，默认为 build 可指定为 make/run/bundle 等'),
     nextStages: z.array(z.enum(['make', 'run'])).describe('指定后续联合的构建阶段，可指定多个'),
 
     // 缓存配置
@@ -156,11 +155,25 @@ export const SchemaBuildOption = z.union([
 ]).optional();
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
-export const SchemaBuildResult = z.object({
+export const SchemaResultBase = z.object({
     code: z.number().int().describe('构建的退出码, 0 表示成功, 其他表示失败, 32 表示参数错误, 34 表示构建失败, 37 表示构建繁忙, 50 表示未知错误'),
     dest: z.string().optional().describe('构建后的游戏生成文件夹，目前输出为 project 协议地址'),
     reason: z.string().optional().describe('构建失败的错误信息'),
+});
+
+export const SchemaBuildResult = SchemaResultBase.extend({
+    custom: z.object({
+        nativePrjDir: z.string().optional().describe('构建后的原生项目地址'),
+        previewUrl: z.string().optional().describe('web 平台构建的默认预览服务器地址'),
+    }).optional().describe('不同构建平台结果的自定义字段, object 形式'),
 }).nullable().describe('构建项目后的结果');
+
+export const SchemaMakeResult = SchemaResultBase.extend({
+    custom: z.object({
+        nativePrjDir: z.string().optional().describe('构建后的原生项目地址'),
+        executableFile: z.string().optional().describe('编译后的可执行文件地址'),
+    }).optional().describe('编译项目后的自定义字段, object 形式'),
+}).nullable().describe('编译项目后的结果');
 
 export const SchemaPreviewSettingsResult = z.object({
     settings: z.object({
@@ -230,6 +243,8 @@ export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;
 export type TBuildBaseConfig = z.infer<typeof SchemaBuildBaseConfig>;
 export type TBuildRuntimeOptions = z.infer<typeof SchemaBuildRuntimeOptions>;
 export type TBuildResultData = z.infer<typeof SchemaBuildResult>;
+export type IMakeResultData = z.infer<typeof SchemaMakeResult>;
+export type IRunResultData = z.infer<typeof SchemaBuildResult>;
 export type TBundleConfig = z.infer<typeof SchemaBundleConfig>;
 export type TPolyfills = z.infer<typeof SchemaPolyfills>;
 export type TSceneRef = z.infer<typeof SchemaSceneRef>;
@@ -237,7 +252,7 @@ export type TWebDesktopPackages = z.infer<typeof SchemaWebDesktopPackages>;
 export type TWebMobilePackages = z.infer<typeof SchemaWebMobilePackages>;
 
 // Run API 相关 Schema
-export const SchemaBuildDest = z.string().min(1).describe('构建输出目录路径，支持 project:// 协议，构建成功后会自动打印对应的目录地址');
+export const SchemaBuildDest = z.string().min(1).describe('构建输出目录，支持绝对路径和 project:// 协议 URL');
 export type TBuildDest = z.infer<typeof SchemaBuildDest>;
 
 export const SchemaRunResult = z.string().describe('运行 URL');
