@@ -89,6 +89,7 @@ function generateGitHubMarkdown(data) {
  */
 function generateFeishuCard(data) {
     const {
+        runnerOS,
         e2eTestOutcome,
         reportExists,
         reportUrl,
@@ -112,6 +113,9 @@ function generateFeishuCard(data) {
     const statusIcon = testPassed ? '✅' : '❌';
     const statusText = testPassed ? '测试通过' : '测试失败';
     
+    // 系统图标
+    const osIcon = runnerOS.toLowerCase().includes('mac') ? '🍎' : '🖥️';
+
     // 构建飞书卡片消息（紧凑型）
     const card = {
         msg_type: 'interactive',
@@ -122,7 +126,7 @@ function generateFeishuCard(data) {
             header: {
                 title: {
                     tag: 'plain_text',
-                    content: `${statusIcon} Daily E2E ${statusText}`,
+                    content: `${statusIcon} Daily E2E ${statusText} (${osIcon} ${runnerOS})`,
                 },
                 template: cardColor,
             },

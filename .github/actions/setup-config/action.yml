@@ -26,146 +26,30 @@ inputs:
 outputs:
   FEISHU_WEBHOOK_URL:
     description: '飞书 Webhook URL'
-    value: ${{ steps.resolve-config.outputs.feishu_webhook_url }}
+    value: ${{ steps.setup-config.outputs.feishu_webhook_url }}
   PAT_TOKEN:
     description: 'GitHub Token (用于评论 PR)'
-    value: ${{ steps.resolve-config.outputs.pat_token }}
+    value: ${{ steps.setup-config.outputs.pat_token }}
   HTTP_PROXY:
     description: 'HTTP 代理地址'
-    value: ${{ steps.resolve-config.outputs.http_proxy }}
+    value: ${{ steps.setup-config.outputs.http_proxy }}
   HTTPS_PROXY:
     description: 'HTTPS 代理地址'
-    value: ${{ steps.resolve-config.outputs.https_proxy }}
+    value: ${{ steps.setup-config.outputs.https_proxy }}
   REPORT_SERVER_URL:
     description: '报告服务器地址'
-    value: ${{ steps.resolve-config.outputs.report_server_url }}
+    value: ${{ steps.setup-config.outputs.report_server_url }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Load configuration from .user.json
-      id: load-config
-      shell: bash
-      run: |
-        # 统一读取 .user.json 文件（如果存在）
-        USER_JSON_PATH=".user.json"
-        
-        if [ -f "$USER_JSON_PATH" ]; then
-          echo "🔍 发现 .user.json 文件，读取配置..."
-          # 使用 Node.js 读取并输出所有配置
-          # stdout 输出配置值（USER_KEY=value 格式）
-          # stderr 输出日志（显示在控制台）
-          node -e "
-            const fs = require('fs');
-            try {
-              const config = JSON.parse(fs.readFileSync('$USER_JSON_PATH', 'utf-8'));
-              const keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'REPORT_SERVER_URL', 'FEISHU_WEBHOOK_URL', 'PAT_TOKEN'];
-              keys.forEach(key => {
-                if (config[key]) {
-                  // stdout: 配置值
-                  process.stdout.write('USER_' + key + '=' + config[key] + '\\n');
-                  // stderr: 日志
-                  process.stderr.write('✅ 从 .user.json 读取到 ' + key + '\\n');
-                }
-              });
-            } catch (e) {
-              process.stderr.write('⚠️  读取 .user.json 失败: ' + e.message + '\\n');
-            }
-          " > /tmp/user-config-cache.env || true
-        else
-          echo "ℹ️  未找到 .user.json 文件，跳过本地配置"
-          # 创建空文件，确保后续步骤不会出错
-          touch /tmp/user-config-cache.env
-        fi
-    
-    - name: Resolve all configurations
-      id: resolve-config
-      shell: bash
-      run: |
-        # 加载用户配置（从临时文件读取，stderr 包含日志）
-        USER_HTTP_PROXY=""
-        USER_HTTPS_PROXY=""
-        USER_REPORT_SERVER_URL=""
-        USER_FEISHU_WEBHOOK_URL=""
-        USER_PAT_TOKEN=""
-        
-        if [ -f /tmp/user-config-cache.env ]; then
-          # 从临时文件读取配置（过滤掉 stderr 的日志信息）
-          while IFS='=' read -r key value || [ -n "$key" ]; do
-            # 跳过空行和日志行
-            if [[ "$key" =~ ^USER_ ]] && [ -n "$value" ]; then
-              eval "${key}=\"$value\""
-            fi
-          done < <(grep "^USER_" /tmp/user-config-cache.env 2>/dev/null || true)
-        fi
-        
-        # 统一的解析函数：优先从 .user.json，然后是 inputs，最后是默认值
-        resolve_config() {
-          local key=$1
-          local input_value=$2
-          local default_value=$3
-          local user_var="USER_${key}"
-          local user_value=$(eval "echo \${${user_var}:-}")
-          
-          if [ -n "$user_value" ]; then
-            echo "$user_value"
-            echo "✅ ${key}: 从 .user.json 读取" >&2
-          elif [ -n "$input_value" ]; then
-            echo "$input_value"
-            echo "✅ ${key}: 使用传入的值" >&2
-          else
-            echo "$default_value"
-            echo "ℹ️  ${key}: 使用默认值" >&2
-          fi
-        }
-        
-        # 解析所有配置项（有默认值的）
-        HTTP_PROXY=$(resolve_config "HTTP_PROXY" "${{ inputs.http-proxy }}" "http://127.0.0.1:7890")
-        HTTPS_PROXY=$(resolve_config "HTTPS_PROXY" "${{ inputs.https-proxy }}" "http://127.0.0.1:7890")
-        REPORT_SERVER_URL=$(resolve_config "REPORT_SERVER_URL" "${{ inputs.report-server-url }}" "http://192.168.52.77:8080")
-        
-        # FEISHU_WEBHOOK_URL: 优先级是 .user.json > inputs (没有默认值)
-        if [ -n "${USER_FEISHU_WEBHOOK_URL:-}" ]; then
-          FEISHU_WEBHOOK_URL="${USER_FEISHU_WEBHOOK_URL}"
-          echo "✅ FEISHU_WEBHOOK_URL: 从 .user.json 读取" >&2
-        elif [ -n "${{ inputs.feishu-webhook-url }}" ]; then
-          FEISHU_WEBHOOK_URL="${{ inputs.feishu-webhook-url }}"
-          echo "✅ FEISHU_WEBHOOK_URL: 使用传入的值" >&2
-        else
-          FEISHU_WEBHOOK_URL=""
-          echo "⚠️  FEISHU_WEBHOOK_URL: 未找到，飞书通知功能将被跳过" >&2
-        fi
-        
-        # PAT_TOKEN / GitHub Token: 优先级是 .user.json (PAT_TOKEN) > inputs (github-token，通常是 github.token)
-        if [ -n "${USER_PAT_TOKEN:-}" ]; then
-          PAT_TOKEN="${USER_PAT_TOKEN}"
-          echo "✅ PAT_TOKEN: 从 .user.json 读取" >&2
-        elif [ -n "${{ inputs.github-token }}" ]; then
-          PAT_TOKEN="${{ inputs.github-token }}"
-          echo "✅ PAT_TOKEN: 使用 GitHub Actions token" >&2
-        else
-          PAT_TOKEN=""
-          echo "⚠️  PAT_TOKEN: 未找到，评论功能将被跳过" >&2
-        fi
-        
-        # 输出所有配置到 GITHUB_OUTPUT
-        {
-          echo "http_proxy=$HTTP_PROXY"
-          echo "https_proxy=$HTTPS_PROXY"
-          echo "report_server_url=$REPORT_SERVER_URL"
-          echo "feishu_webhook_url=$FEISHU_WEBHOOK_URL"
-          echo "pat_token=$PAT_TOKEN"
-        } >> $GITHUB_OUTPUT
-    
-    - name: Setup environment variables
-      shell: bash
-      run: |
-        echo "✅ Environment variables configured"
-        echo "   HTTP_PROXY: ${{ steps.resolve-config.outputs.http_proxy }}"
-        echo "   HTTPS_PROXY: ${{ steps.resolve-config.outputs.https_proxy }}"
-        echo "   REPORT_SERVER_URL: ${{ steps.resolve-config.outputs.report_server_url }}"
-        
-        echo "HTTP_PROXY=${{ steps.resolve-config.outputs.http_proxy }}" >> $GITHUB_ENV
-        echo "HTTPS_PROXY=${{ steps.resolve-config.outputs.https_proxy }}" >> $GITHUB_ENV
-        echo "REPORT_SERVER_URL=${{ steps.resolve-config.outputs.report_server_url }}" >> $GITHUB_ENV
+    - name: Setup Configuration
+      id: setup-config
+      run: node "${{ github.action_path }}/setup.js"
+      env:
+        INPUT_HTTP_PROXY: ${{ inputs.http-proxy }}
+        INPUT_HTTPS_PROXY: ${{ inputs.https-proxy }}
+        INPUT_REPORT_SERVER_URL: ${{ inputs.report-server-url }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_FEISHU_WEBHOOK_URL: ${{ inputs.feishu-webhook-url }}
 

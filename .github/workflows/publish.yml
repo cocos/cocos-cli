@@ -46,7 +46,11 @@ permissions:
 
 jobs:
   publish:
-    runs-on: [ self-hosted, macOS ]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [Windows, macOS]
+    runs-on: [ self-hosted, "${{ matrix.os }}" ]
 
     steps:
       - name: Checkout code
@@ -134,6 +138,7 @@ jobs:
         run: node .github/scripts/send-release-to-feishu.js
         env:
           FEISHU_WEBHOOK_URL: ${{ steps.setup-config.outputs.FEISHU_WEBHOOK_URL }}
+          RUNNER_OS: ${{ matrix.os }}
           RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
           RUN_ID: ${{ github.run_id }}
           TRIGGER_TYPE: ${{ github.event_name }}

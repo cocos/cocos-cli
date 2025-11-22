@@ -126,6 +126,7 @@ async function main() {
 
     // 收集数据
     const data = {
+        runnerOS: process.env.RUNNER_OS || '',
         e2eTestOutcome: process.env.E2E_TEST_OUTCOME || '',
         reportExists: process.env.REPORT_EXISTS === 'true',
         reportUrl: process.env.REPORT_URL || '',
@@ -147,6 +148,7 @@ async function main() {
     };
 
     console.log('📊 Test Report Data:');
+    console.log(`   OS: ${data.runnerOS}`);
     console.log(`   E2E Test Report: ${data.reportExists ? data.reportUrl : 'N/A'}`);
     console.log(`   Coverage Report: ${data.coverageReportUrl || 'N/A'}`);
     if (data.releaseResults) {
