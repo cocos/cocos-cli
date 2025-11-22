@@ -45,6 +45,15 @@ export default {
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 const filePath = assetInfo && assetInfo.library[`${nativeName}.${ext}`];
+                if (!filePath) {
+                    console.warn(`Asset not found: ${req.url}`);
+                    return res.status(404).json({
+                        error: 'Asset not found',
+                        requested: req.url,
+                        uuid,
+                        file: `${nativeName}.${ext}`
+                    });
+                }
                 res.status(200).send(filePath || req.url);
             },
         },
@@ -55,6 +64,14 @@ export default {
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 const filePath = assetInfo && assetInfo.library[`.${ext}`];
+                if (!filePath) {
+                    console.warn(`Asset not found: ${req.url}`);
+                    return res.status(404).json({
+                        error: 'Asset not found',
+                        requested: req.url,
+                        uuid,
+                    });
+                }
                 res.status(200).send(filePath || req.url);
             },
         }
