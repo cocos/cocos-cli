@@ -5,8 +5,9 @@ import type { BuilderApi } from '../api/builder/builder';
 import type { ConfigurationApi } from '../api/configuration/configuration';
 import type { SceneApi } from '../api/scene/scene';
 import type { SystemApi } from '../api/system/system';
-import { IBuildCommandOption, Platform } from '../core/builder/@types/private';
-import { ProjectType } from '../core/project/@types/public';
+import { SchemaProjectPath, SchemaPort, SchemaProjectType, TProjectPath, TPort, TProjectType } from './schema';
+import { param } from './decorator/decorator';
+import { SchemaPlatform, TPlatform, SchemaBuildOption, TBuildOption, SchemaPlatformCanMake, TPlatformCanMake, SchemaBuildDest, TBuildDest } from './builder/schema';
 
 export class CocosAPI {
     public scene!: SceneApi;
@@ -52,14 +53,14 @@ export class CocosAPI {
      * @param projectPath 
      * @param port 
      */
-    public startupMcpServer(projectPath: string, port?: number) {
+    public startupMcpServer(@param(SchemaProjectPath) projectPath: TProjectPath, @param(SchemaPort) port?: TPort) {
         this.startup(projectPath, port);
     }
 
     /**
      * 启动工程
      */
-    public async startup(projectPath: string, port?: number) {
+    public async startup(@param(SchemaProjectPath) projectPath: TProjectPath, @param(SchemaPort) port?: TPort) {
         const { default: Launcher } = await import('../core/launcher');
         const launcher = new Launcher(projectPath);
         await launcher.startup(port);
@@ -71,7 +72,7 @@ export class CocosAPI {
      * @param projectPath 
      * @param type 
      */
-    public static async createProject(projectPath: string, type: ProjectType) {
+    public static async createProject(@param(SchemaProjectPath) projectPath: TProjectPath, @param(SchemaProjectType) type: TProjectType) {
         const { projectManager } = await import('../core/project-manager');
         return await projectManager.create(projectPath, type);
     }
@@ -81,9 +82,31 @@ export class CocosAPI {
      * @param platform 
      * @param options 
      */
-    public static async buildProject(projectPath: string, platform: Platform, options: Partial<IBuildCommandOption>) {
+    public static async buildProject(projectPath: string, @param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildOption) options: TBuildOption) {
         const { default: Launcher } = await import('../core/launcher');
         const launcher = new Launcher(projectPath);
-        return await launcher.build(platform, options);
+        return await launcher.build(platform, options as any);
+    }
+
+    /**
+     * 命令行打包入口
+     * @param platform 
+     * @param dest 
+     */
+    public static async makeProject(projectPath: string, @param(SchemaPlatformCanMake) platform: TPlatformCanMake, @param(SchemaBuildDest) dest: TBuildDest) {
+        const { default: Launcher } = await import('../core/launcher');
+        const launcher = new Launcher(projectPath);
+        return await launcher.make(platform, dest);
+    }
+
+    /**
+     * 命令行运行入口
+     * @param platform 
+     * @param dest 
+     */
+    public static async runProject(projectPath: string, @param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest) {
+        const { default: Launcher } = await import('../core/launcher');
+        const launcher = new Launcher(projectPath);
+        return await launcher.run(platform, dest);
     }
 }

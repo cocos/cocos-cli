@@ -119,7 +119,7 @@ export class BuilderApi {
             ret.data = res;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;
-                ret.reason = res.reason || `Make ${platform} in ${dest} failed!`;
+                ret.reason = res.reason || `Run ${platform} in ${dest} failed!`;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;

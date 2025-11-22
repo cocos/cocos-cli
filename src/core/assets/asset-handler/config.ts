@@ -355,7 +355,7 @@ export const assetHandlerInfos: AssetHandlerInfo[] = [
         name: 'sprite-atlas',
         extensions: ['.plist'],
         load: async () => {
-            return (await import('./assets/auto-atlas')).default;
+            return (await import('./assets/texture-packer')).default;
         }
     },
     {

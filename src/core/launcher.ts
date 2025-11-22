@@ -98,6 +98,26 @@ export default class Launcher {
         return await build(platform, options);
     }
 
+    async make(platform: Platform, dest: string) {
+        GlobalConfig.mode = 'simple';
+        const { init, executeBuildStageTask } = await import('./builder');
+        await init([platform]);
+        return await executeBuildStageTask('command make', 'make', {
+            platform,
+            dest,
+        });
+    }
+
+    async run(platform: Platform, dest: string) {
+        GlobalConfig.mode = 'simple';
+        const { init, executeBuildStageTask } = await import('./builder');
+        await init([platform]);
+        return await executeBuildStageTask('command run', 'run', {
+            platform,
+            dest,
+        });
+    }
+
     async close() {
         // 保存项目配置
         const { default: Project } = await import('./project');
