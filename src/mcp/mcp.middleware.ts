@@ -10,7 +10,8 @@ import { ResourceManager } from './resources';
 import { HTTP_STATUS } from '../api/base/schema-base';
 import type { HttpStatusCode } from '../api/base/schema-base';
 import stripAnsi from 'strip-ansi';
-
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 export class McpMiddleware {
     private server: McpServer;
     private resourceManager: ResourceManager;
@@ -75,7 +76,7 @@ export class McpMiddleware {
     private registerDecoratorTools() {
         Array.from(toolRegistry.entries()).forEach(([toolName, { target, meta }]) => {
             try {
-                // 构建输入 schema
+                // --- 步骤 A: 构建 Zod Shape ---
                 const inputSchemaFields: Record<string, z.ZodTypeAny> = {};
                 meta.paramSchemas
                     .sort((a, b) => a.index - b.index)
@@ -84,33 +85,23 @@ export class McpMiddleware {
                             inputSchemaFields[param.name] = param.schema;
                         }
                     });
-
-                // 构建输出 schema - 如果有返回 schema，使用它，否则使用 any
-                const outputSchemaFields = meta.returnSchema ? { result: meta.returnSchema } : { result: z.any() };
-
-                // 注册工具
-                this.server.registerTool(
+                
+                // --- 步骤 B: 注册工具 ---
+                // 使用 this.server.tool 注册，传入 Zod Shape 以便 SDK 进行验证
+                this.server.tool(
                     toolName,
-                    {
-                        title: meta.title || toolName,
-                        description: meta.description || `Tool: ${toolName}`,
-                        inputSchema: inputSchemaFields,
-                        outputSchema: outputSchemaFields
-                    },
-                    async (params: any) => {
+                    meta.description || `Tool: ${toolName}`,
+                    inputSchemaFields,
+                    async (args) => {
+                        // args 已经是验证过的参数对象
                         try {
-                            // 注意：参数验证已经由 MCP SDK 在调用回调之前完成
-                            // 如果到达这里，说明参数已经通过了 inputSchema 验证
-                            
-                            // 准备方法参数
-                            const methodArgs = this.prepareMethodArguments(meta, params);
-
-                            // 调用实际的工具方法
+                            // 这里的 prepareMethodArguments 主要是为了按顺序排列参数给 apply 使用
+                            // 注意：args 是对象，prepareMethodArguments 需要处理对象
+                            const methodArgs = this.prepareMethodArguments(meta, args);
                             const result = await this.callToolMethod(target, meta, methodArgs);
-                            // 格式化返回结果
+                            
                             const formattedResult = this.formatToolResult(meta, result);
-
-                            // 构建符合 schema 的 structuredContent
+                            
                             let structuredContent: any;
                             if (meta.returnSchema) {
                                 try {
@@ -122,43 +113,75 @@ export class McpMiddleware {
                             } else {
                                 structuredContent = { result: result };
                             }
-                            console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
-                            return {
-                                content: [{ type: 'text', text: formattedResult }],
+                             console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
+                             return {
+                                content: [{ type: 'text' as const, text: formattedResult }],
                                 structuredContent: structuredContent
-                            };
+                             };
+
                         } catch (error) {
-                            // 捕获所有错误，返回标准错误格式
-                            const errorMessage = error instanceof Error ? error.message : String(error);
-                            const errorStack = error instanceof Error ? error.stack : undefined;
-                            
-                            // 构建详细的错误信息
-                            let detailedReason = `Tool execution failed (${toolName}): ${errorMessage}`;
-                            if (errorStack && process.env.NODE_ENV === 'development') {
-                                detailedReason += `\n\nStack trace:\n${errorStack}`;
-                            }
-                            detailedReason += `\n\nParameters passed:\n${JSON.stringify(params, null, 2)}`;
-                            
-                            console.error(`[MCP] ${detailedReason}`);
-                            
-                            // 返回标准错误格式，使用 500 表示服务器错误
-                            const errorResult: { code: HttpStatusCode; data?: any; reason?: string } = {
-                                code: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-                                data: undefined,
-                                reason: detailedReason,
-                            };
-                            
-                            const formattedResult = JSON.stringify({ result: errorResult }, null, 2);
-                            return {
-                                content: [{ type: 'text', text: formattedResult }],
-                                structuredContent: { result: errorResult }
-                            };
+                             const errorMessage = error instanceof Error ? error.message : String(error);
+                             const errorStack = error instanceof Error ? error.stack : undefined;
+                             
+                             let detailedReason = `Tool execution failed (${toolName}): ${errorMessage}`;
+                             if (errorStack && process.env.NODE_ENV === 'development') {
+                                 detailedReason += `\n\nStack trace:\n${errorStack}`;
+                             }
+                             detailedReason += `\n\nParameters passed:\n${JSON.stringify(args, null, 2)}`;
+                             
+                             console.error(`[MCP] ${detailedReason}`);
+                             
+                             const errorResult: { code: HttpStatusCode; data?: any; reason?: string } = {
+                                 code: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                                 data: undefined,
+                                 reason: detailedReason,
+                             };
+                             
+                             const formattedResult = JSON.stringify({ result: errorResult }, null, 2);
+                             return {
+                                 content: [{ type: 'text' as const, text: formattedResult }],
+                                 structuredContent: { result: errorResult },
+                                 isError: true
+                             };
                         }
                     }
                 );
             } catch (error) {
                 console.error(`Failed to register tool ${toolName}:`, error);
             }
+        });
+
+        // --- 步骤 C: 覆盖 tools/list 处理程序 ---
+        // 为了支持 Gemini (不支持 $ref)，我们需要手动生成并返回 Gemini 兼容的 JSON Schema
+        this.server.server.setRequestHandler(ListToolsRequestSchema, async () => {
+            const tools = Array.from(toolRegistry.entries()).map(([toolName, { meta }]) => {
+                const inputSchemaFields: Record<string, z.ZodTypeAny> = {};
+                meta.paramSchemas
+                    .sort((a, b) => a.index - b.index)
+                    .forEach(param => {
+                        if (param.name) {
+                            inputSchemaFields[param.name] = param.schema;
+                        }
+                    });
+                
+                const fullInputZodSchema = z.object(inputSchemaFields);
+                const geminiInputSchema = this.getGeminiCompatibleSchema(fullInputZodSchema);
+
+                // 构建输出 schema
+                const outputSchemaFields = meta.returnSchema ? { result: meta.returnSchema } : { result: z.any() };
+                const fullOutputZodSchema = z.object(outputSchemaFields);
+                const geminiOutputSchema = this.getGeminiCompatibleSchema(fullOutputZodSchema);
+
+                return {
+                    name: toolName,
+                    title: meta.title || toolName,
+                    description: meta.description || `Tool: ${toolName}`,
+                    inputSchema: geminiInputSchema,
+                    outputSchema: geminiOutputSchema
+                };
+            });
+
+            return { tools };
         });
     }
 
@@ -182,6 +205,18 @@ export class McpMiddleware {
                 const validatedValue = param.schema.parse(value);
                 methodArgs[param.index] = validatedValue;
             } catch (error) {
+                // 尝试处理 Gemini 传回的 string 类型数字 (针对 numeric enum)
+                if (typeof value === 'string' && !isNaN(Number(value))) {
+                    try {
+                        const numValue = Number(value);
+                        const validatedValue = param.schema.parse(numValue);
+                        methodArgs[param.index] = validatedValue;
+                        continue;
+                    } catch (innerError) {
+                        // 忽略内部错误，继续抛出原始错误
+                    }
+                }
+                
                 console.error(`Parameter validation failed for ${paramName}:`, error);
                 // 使用原始值
                 methodArgs[param.index] = value;
@@ -313,5 +348,92 @@ export class McpMiddleware {
                 }
             ]
         };
+    }
+    /**
+     * 将 Zod Schema 转换为兼容 Gemini (Google Vertex AI/Studio) 的 JSON Schema
+     * 核心修复：
+     * 1. 移除 $ref (Gemini 不支持引用，必须内联)
+     * 2. 将 const 转换为 enum (Gemini 不支持 const)
+     * 3. 移除 propertyNames 等不支持的关键字
+     * 4. 强制枚举值类型匹配
+     */
+    private getGeminiCompatibleSchema(zodObj: z.ZodTypeAny): any {
+        // 1. 转换为 OpenAPI 3.0 格式，关键配置：$refStrategy: 'none'
+        // 这会强制展开所有引用，解决 "Unknown name $ref" 错误
+        const schemaObj = zodToJsonSchema(zodObj, { 
+            target: 'openApi3', 
+            $refStrategy: 'none' 
+        }) as any;
+
+        // 2. 递归清洗函数
+        const cleanSchema = (node: any) => {
+            if (!node || typeof node !== 'object') return;
+
+            // --- 移除 Gemini 不支持的关键字 ---
+            if (node.propertyNames) delete node.propertyNames; // 解决 "Unknown name propertyNames"
+            // if (node.title) delete node.title; // 可选，减少干扰 -> 恢复 title
+            if (node['$schema']) delete node['$schema'];
+
+            // --- 修复 const 问题 ---
+            // Gemini 报错: "Unknown name const"
+            // 解决: 将 {"const": "A"} 转换为 {"enum": ["A"]}
+            if ('const' in node) {
+                node.enum = [node.const];
+                delete node.const;
+            }
+
+            // --- 修复 Enum 类型不匹配问题 ---
+            // Gemini 报错: "Invalid value ... enum ... (TYPE_STRING), 0"
+            // 解决: 如果类型声明是 string，确保 enum 里的值也是 string
+            // --- 修复 Enum 类型不匹配问题 ---
+            // Gemini 报错: "Invalid value ... enum ... (TYPE_STRING), 0"
+            // 解决: 如果类型声明是 string，或者 enum 里包含字符串（Gemini 会推断为 string），则强制将所有值转换为 string
+            if (node.enum && Array.isArray(node.enum)) {
+                // 1. 如果 type 缺失，尝试推断
+                if (!node.type) {
+                    const allNumbers = node.enum.every((v: any) => typeof v === 'number');
+                    node.type = allNumbers ? 'number' : 'string';
+                }
+
+                // 2. 根据 type 强制转换值
+                if (node.type === 'string') {
+                    node.enum = node.enum.map((val: any) => String(val));
+                } else if (node.type === 'integer' || node.type === 'number') {
+                    node.enum = node.enum.map((val: any) => Number(val));
+                }
+            }
+
+            // --- 递归处理子节点 ---
+            // 处理 anyOf, allOf, oneOf
+            ['anyOf', 'allOf', 'oneOf'].forEach(key => {
+                if (Array.isArray(node[key])) {
+                    node[key].forEach(cleanSchema);
+                }
+            });
+
+            // 处理 properties
+            if (node.properties) {
+                Object.values(node.properties).forEach(cleanSchema);
+            }
+            
+            // 处理 items (数组)
+            if (node.items) {
+                cleanSchema(node.items);
+            }
+            
+            // 处理 additionalProperties
+            if (typeof node.additionalProperties === 'object') {
+                cleanSchema(node.additionalProperties);
+            }
+        };
+
+        // 执行清洗
+        cleanSchema(schemaObj);
+
+        // 移除根节点残留的定义字段
+        if (schemaObj.definitions) delete schemaObj.definitions;
+        if (schemaObj.$defs) delete schemaObj.$defs;
+
+        return schemaObj;
     }
 }

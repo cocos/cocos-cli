@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { IPrefabInfo, NodeType } from '../../core/scene';
-import { INode, MobilityMode } from '../../core/scene';
+import { INode } from '../../core/scene';
 import { SchemaQuat, SchemaVec3 } from '../base/schema-value-types';
 import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaPrefabInfo } from './prefab-info-schema';
@@ -20,7 +20,7 @@ export const SchemaNodeProperty = z.object({
     // forward: Vec3Schema.describe('节点的前方向向量, 默认前方为 -z 方向'),
     // up: Vec3Schema.describe('当前节点在世界空间中朝上的方向向量'),
     // right: Vec3Schema.describe('当前节点在世界空间中朝右的方向向量'),
-    mobility: z.nativeEnum(MobilityMode).describe('节点的移动性，static 表示静态节点，movable 表示可移动节点, Stationary 固定节点'),
+    mobility: z.number().describe('节点的移动性，static 表示静态节点，movable 表示可移动节点, Stationary 固定节点'),
     layer: z.number().describe('节点所在的层级'),
     // hasChangedFlags: z.number().describe('这个节点的空间变换信息在当前帧内是否有变过？'),
     active: z.boolean().describe('节点是否激活'),
