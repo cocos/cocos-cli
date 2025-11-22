@@ -117,6 +117,7 @@ describe('cocos build command', () => {
             const result = await cliRunner.run([
                 'build',
                 '--project', testProject.path,
+                '--platform', 'web-desktop',
                 '--build-config', '/non-existent/config.json',
             ]);
 
