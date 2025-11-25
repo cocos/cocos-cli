@@ -20,6 +20,51 @@ export const SchemaQueryComponent = z.object({
     path: z.string().describe('组件的路径，包含节点路径'),
 }).describe('查询组件需要的信息');
 
+// Vec2
+export const Vec2Type = z.object({
+    x: z.number().describe('x 坐标'),
+    y: z.number().describe('y 坐标'),
+}).describe('Vec2 类型');
+
+// Vec3
+export const Vec3Type = z.object({
+    x: z.number().describe('x 坐标'),
+    y: z.number().describe('y 坐标'),
+    z: z.number().describe('z 坐标'),
+}).describe('Vec3 类型');
+
+// Vec4
+export const Vec4Type = z.object({
+    x: z.number().describe('x 坐标'),
+    y: z.number().describe('y 坐标'),
+    z: z.number().describe('z 坐标'),
+    w: z.number().describe('w 坐标'),
+}).describe('Vec4 类型');
+
+// Mat4
+export const Mat4Type = z.object({
+    m00: z.number().describe('第1行第1列'),
+    m01: z.number().describe('第1行第2列'),
+    m02: z.number().describe('第1行第3列'),
+    m03: z.number().describe('第1行第4列'),
+
+    m10: z.number().describe('第2行第1列'),
+    m11: z.number().describe('第2行第2列'),
+    m12: z.number().describe('第2行第3列'),
+    m13: z.number().describe('第2行第4列'),
+
+    m20: z.number().describe('第3行第1列'),
+    m21: z.number().describe('第3行第2列'),
+    m22: z.number().describe('第3行第3列'),
+    m23: z.number().describe('第3行第4列'),
+
+    m30: z.number().describe('第4行第1列'),
+    m31: z.number().describe('第4行第2列'),
+    m32: z.number().describe('第4行第3列'),
+    m33: z.number().describe('第4行第4列'),
+}).describe('Vec4 类型');
+
+
 /**
  * 属性数据结构和配置选项
  * 用于描述编辑器中的属性字段，支持多种数据类型和UI控件
@@ -31,6 +76,10 @@ export const SchemaProperty = z.object({
         z.string().describe('字符串类型'),
         z.number().describe('数字类型'),
         z.boolean().describe('boolean类型'),
+        Vec2Type,
+        Vec3Type,
+        Vec4Type,
+        Mat4Type,
         z.null().describe('null类型'),
         z.any().describe('任意类型')
     ]).describe('属性的当前值，可以是键值对对象或基础类型值'),

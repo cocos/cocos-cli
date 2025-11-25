@@ -39,7 +39,7 @@ export interface Mat4 {
     m15: number;
 }
 
-export type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | Array<unknown>
+export type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
 
 export interface IProperty {
     value: { [key: string]: IPropertyValueType } | IPropertyValueType;
