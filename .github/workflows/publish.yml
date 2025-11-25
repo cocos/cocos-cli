@@ -106,30 +106,30 @@ jobs:
               
               if (results.nodejs) {
                 if (results.nodejs.success) {
-                  summary += '### ✅ Node.js 发布成功\\n';
-                  summary += '- **发布目录**: ' + results.nodejs.releaseDir + '\\n';
+                  summary += '### ✅ Node.js 发布成功\n';
+                  summary += '- **发布目录**: ' + results.nodejs.releaseDir + '\n';
                   if (results.nodejs.zipFile) {
-                    summary += '- **ZIP 文件**: ' + results.nodejs.zipFile + '\\n';
-                    summary += '- **ZIP URL**: ' + results.nodejs.zipUrl + '\\n';
+                    summary += '- **ZIP 文件**: ' + results.nodejs.zipFile + '\n';
+                    summary += '- **ZIP URL**: ' + results.nodejs.zipUrl + '\n';
                   }
                 } else {
-                  summary += '### ❌ Node.js 发布失败\\n';
+                  summary += '### ❌ Node.js 发布失败\n';
                 }
-                summary += '\\n';
+                summary += '\n';
               }
               
               if (results.electron) {
                 if (results.electron.success) {
-                  summary += '### ✅ Electron 发布成功\\n';
-                  summary += '- **发布目录**: ' + results.electron.releaseDir + '\\n';
+                  summary += '### ✅ Electron 发布成功\n';
+                  summary += '- **发布目录**: ' + results.electron.releaseDir + '\n';
                   if (results.electron.zipFile) {
-                    summary += '- **ZIP 文件**: ' + results.electron.zipFile + '\\n';
-                    summary += '- **ZIP URL**: ' + results.electron.zipUrl + '\\n';
+                    summary += '- **ZIP 文件**: ' + results.electron.zipFile + '\n';
+                    summary += '- **ZIP URL**: ' + results.electron.zipUrl + '\n';
                   }
                 } else {
-                  summary += '### ❌ Electron 发布失败\\n';
+                  summary += '### ❌ Electron 发布失败\n';
                 }
-                summary += '\\n';
+                summary += '\n';
               }
               
               fs.appendFileSync(summaryFile, summary);
