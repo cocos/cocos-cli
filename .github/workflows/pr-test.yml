@@ -79,46 +79,46 @@ jobs:
             
             let message = '';
             if (!allPass) {
-              message += '## ⚠️ 发现问题\\n\\n';
+              message += '## ⚠️ 发现问题\n\n';
             } else {
-              message += '## ✅ 测试通过\\n\\n';
+              message += '## ✅ 测试通过\n\n';
             }
             
-            message += '| 类型 | 结果 |\\n';
-            message += '|:----:|------|\\n';
+            message += '| 类型 | 结果 |\n';
+            message += '|:----:|------|\n';
             
             // 单元测试
             if (unitOutcome === 'success') {
-              message += '| 🧪 | ✅ 单元测试 |\\n';
+              message += '| 🧪 | ✅ 单元测试 |\n';
             } else {
-              message += '| 🧪 | ❌ 单元测试失败 |\\n';
+              message += '| 🧪 | ❌ 单元测试失败 |\n';
             }
             
             // E2E 测试
             if (e2eOutcome === 'success') {
               if (reportUrl) {
-                message += '| 🔄 | ✅ E2E 测试 · [报告](' + reportUrl + ') |\\n';
+                message += '| 🔄 | ✅ E2E 测试 · [报告](' + reportUrl + ') |\n';
               } else {
-                message += '| 🔄 | ✅ E2E 测试 |\\n';
+                message += '| 🔄 | ✅ E2E 测试 |\n';
               }
             } else {
               if (reportUrl) {
-                message += '| 🔄 | ❌ E2E 测试失败 · [查看报告](' + reportUrl + ') |\\n';
+                message += '| 🔄 | ❌ E2E 测试失败 · [查看报告](' + reportUrl + ') |\n';
               } else {
-                message += '| 🔄 | ❌ E2E 测试失败 |\\n';
+                message += '| 🔄 | ❌ E2E 测试失败 |\n';
               }
             }
             
             // 覆盖率
             if (coveragePercent && coverageUrl) {
-              message += '| 📈 | 覆盖率 ' + coveragePercent + '% (' + testedCount + '/' + totalCount + ') · [详情](' + coverageUrl + ') |\\n';
+              message += '| 📈 | 覆盖率 ' + coveragePercent + '% (' + testedCount + '/' + totalCount + ') · [详情](' + coverageUrl + ') |\n';
             } else if (coverageUrl) {
-              message += '| 📈 | 覆盖率报告 · [详情](' + coverageUrl + ') |\\n';
+              message += '| 📈 | 覆盖率报告 · [详情](' + coverageUrl + ') |\n';
             } else {
-              message += '| 📈 | ⚠️ 覆盖率检查失败 |\\n';
+              message += '| 📈 | ⚠️ 覆盖率检查失败 |\n';
             }
             
-            message += '\\n<sub>Run #' + runId + '</sub>\\n';
+            message += '\n<sub>Run #' + runId + '</sub>\n';
             message += '<!-- PR_TEST_COMMENT -->';
             
             // 写入 GITHUB_OUTPUT

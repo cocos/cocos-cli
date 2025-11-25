@@ -84,7 +84,7 @@ export class PluginManager extends EventEmitter {
                     return;
                 }
                 const platformRoot = join(__dirname, `../platforms/${platform}`);
-                const config = (await import(join(platformRoot, 'config.js'))).default;
+                const config = (await import(join(platformRoot, 'config'))).default;
                 await this.registerPlatform({
                     platform,
                     config: config,
