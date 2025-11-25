@@ -26,26 +26,40 @@ inputs:
 outputs:
   FEISHU_WEBHOOK_URL:
     description: '飞书 Webhook URL'
-    value: ${{ steps.setup-config.outputs.feishu_webhook_url }}
+    value: ${{ steps.setup-config-win.outputs.feishu_webhook_url || steps.setup-config-unix.outputs.feishu_webhook_url }}
   PAT_TOKEN:
     description: 'GitHub Token (用于评论 PR)'
-    value: ${{ steps.setup-config.outputs.pat_token }}
+    value: ${{ steps.setup-config-win.outputs.pat_token || steps.setup-config-unix.outputs.pat_token }}
   HTTP_PROXY:
     description: 'HTTP 代理地址'
-    value: ${{ steps.setup-config.outputs.http_proxy }}
+    value: ${{ steps.setup-config-win.outputs.http_proxy || steps.setup-config-unix.outputs.http_proxy }}
   HTTPS_PROXY:
     description: 'HTTPS 代理地址'
-    value: ${{ steps.setup-config.outputs.https_proxy }}
+    value: ${{ steps.setup-config-win.outputs.https_proxy || steps.setup-config-unix.outputs.https_proxy }}
   REPORT_SERVER_URL:
     description: '报告服务器地址'
-    value: ${{ steps.setup-config.outputs.report_server_url }}
+    value: ${{ steps.setup-config-win.outputs.report_server_url || steps.setup-config-unix.outputs.report_server_url }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Setup Configuration
-      id: setup-config
+    - name: Setup Configuration (Windows)
+      if: runner.os == 'Windows'
+      id: setup-config-win
       run: node "${{ github.action_path }}/setup.js"
+      shell: powershell
+      env:
+        INPUT_HTTP_PROXY: ${{ inputs.http-proxy }}
+        INPUT_HTTPS_PROXY: ${{ inputs.https-proxy }}
+        INPUT_REPORT_SERVER_URL: ${{ inputs.report-server-url }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_FEISHU_WEBHOOK_URL: ${{ inputs.feishu-webhook-url }}
+
+    - name: Setup Configuration (Unix)
+      if: runner.os != 'Windows'
+      id: setup-config-unix
+      run: node "${{ github.action_path }}/setup.js"
+      shell: bash
       env:
         INPUT_HTTP_PROXY: ${{ inputs.http-proxy }}
         INPUT_HTTPS_PROXY: ${{ inputs.https-proxy }}

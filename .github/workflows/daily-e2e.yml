@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [Windows, macOS]
-    runs-on: [ self-hosted, "${{ matrix.os }}" ]
+    runs-on: [ self-hosted, daily-test, "${{ matrix.os }}" ]
 
     steps:
       - name: Checkout code

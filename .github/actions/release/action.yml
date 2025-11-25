@@ -30,16 +30,56 @@ inputs:
 outputs:
   release_results:
     description: '发布结果 JSON（包含所有类型的发布信息）'
-    value: ${{ steps.release.outputs.release_results }}
+    value: ${{ steps.release-win.outputs.release_results || steps.release-unix.outputs.release_results }}
   release_success:
     description: '发布是否成功（所有类型都成功才为 true）'
-    value: ${{ steps.release.outputs.release_success }}
+    value: ${{ steps.release-win.outputs.release_success || steps.release-unix.outputs.release_success }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Cleanup old publish files
-      id: cleanup
+    # Windows Steps
+    - name: Cleanup old publish files (Windows)
+      if: runner.os == 'Windows'
+      id: cleanup-win
+      shell: powershell
+      run: |
+        $publishDir = "${{ inputs.publish-dir }}"
+        # 确保发布目录是绝对路径
+        if (-not (Test-Path -Path $publishDir -PathType Container)) {
+           # 如果不是绝对路径或不存在，假设相对于工作区
+           # 注意：Powershell 中路径处理可能需要更细致，这里简单处理
+           if (-not [System.IO.Path]::IsPathRooted($publishDir)) {
+             $publishDir = Join-Path $env:GITHUB_WORKSPACE $publishDir
+           }
+        }
+        Write-Host "🧹 清理发布目录: $publishDir"
+        node "$env:GITHUB_WORKSPACE/.github/scripts/cleanup-publish-dir.js" "$publishDir" 6
+    
+    - name: Run release (Windows)
+      if: runner.os == 'Windows'
+      id: release-win
+      shell: powershell
+      continue-on-error: true
+      run: node "$env:GITHUB_WORKSPACE/.github/actions/release/release-build.js"
+      env:
+        PUBLISH_DIR: ${{ inputs.publish-dir }}
+        NODEJS: ${{ inputs.nodejs }}
+        ELECTRON: ${{ inputs.electron }}
+        CREATE_ZIP: ${{ inputs.create-zip }}
+        UPLOAD: ${{ inputs.upload }}
+        REPORT_SERVER_URL: ${{ inputs.report-server-url }}
+    
+    - name: Check release result (Windows)
+      if: runner.os == 'Windows' && steps.release-win.outputs.release_success != 'true'
+      shell: powershell
+      run: |
+        Write-Host "⚠️  部分发布类型构建失败，继续执行"
+
+    # Unix Steps
+    - name: Cleanup old publish files (Unix)
+      if: runner.os != 'Windows'
+      id: cleanup-unix
       shell: bash
       run: |
         PUBLISH_DIR="${{ inputs.publish-dir }}"
@@ -50,8 +90,9 @@ runs:
         echo "🧹 清理发布目录: $PUBLISH_DIR"
         node "$GITHUB_WORKSPACE/.github/scripts/cleanup-publish-dir.js" "$PUBLISH_DIR" 6
     
-    - name: Run release
-      id: release
+    - name: Run release (Unix)
+      if: runner.os != 'Windows'
+      id: release-unix
       shell: bash
       continue-on-error: true
       run: node "$GITHUB_WORKSPACE/.github/actions/release/release-build.js"
@@ -63,10 +104,9 @@ runs:
         UPLOAD: ${{ inputs.upload }}
         REPORT_SERVER_URL: ${{ inputs.report-server-url }}
     
-    - name: Check release result
+    - name: Check release result (Unix)
+      if: runner.os != 'Windows' && steps.release-unix.outputs.release_success != 'true'
       shell: bash
-      if: steps.release.outputs.release_success != 'true'
       run: |
         echo "⚠️  部分发布类型构建失败，继续执行"
-        # 不退出，让工作流继续执行以便显示详细结果
 

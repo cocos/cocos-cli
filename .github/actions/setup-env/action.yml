@@ -4,15 +4,35 @@ description: '初始化环境：安装依赖和构建项目'
 runs:
   using: 'composite'
   steps:
-    - name: Init
+    # Windows Steps
+    - name: Init (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: npm run init
+    
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: npm i
+    
+    - name: Build project (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: npm run build
+
+    # Unix Steps
+    - name: Init (Unix)
+      if: runner.os != 'Windows'
       shell: bash
       run: npm run init
     
-    - name: Install dependencies
+    - name: Install dependencies (Unix)
+      if: runner.os != 'Windows'
       shell: bash
       run: npm i
     
-    - name: Build project
+    - name: Build project (Unix)
+      if: runner.os != 'Windows'
       shell: bash
       run: npm run build
 

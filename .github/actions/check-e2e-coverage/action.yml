@@ -10,42 +10,68 @@ inputs:
 outputs:
   report_path:
     description: '覆盖率报告文件路径'
-    value: ${{ steps.coverage-report.outputs.report_path }}
+    value: ${{ steps.coverage-report-win.outputs.report_path || steps.coverage-report-unix.outputs.report_path }}
   report_url:
     description: '覆盖率报告 URL'
-    value: ${{ steps.report-url.outputs.report_url }}
+    value: ${{ steps.report-url-win.outputs.report_url || steps.report-url-unix.outputs.report_url }}
   report_filename:
     description: '覆盖率报告文件名'
-    value: ${{ steps.report-url.outputs.report_filename }}
+    value: ${{ steps.report-url-win.outputs.report_filename || steps.report-url-unix.outputs.report_filename }}
   coverage_percent:
     description: '覆盖率百分比'
-    value: ${{ steps.coverage-report.outputs.coverage_percent }}
+    value: ${{ steps.coverage-report-win.outputs.coverage_percent || steps.coverage-report-unix.outputs.coverage_percent }}
   tested_count:
     description: '已测试的 API 数量'
-    value: ${{ steps.coverage-report.outputs.tested_count }}
+    value: ${{ steps.coverage-report-win.outputs.tested_count || steps.coverage-report-unix.outputs.tested_count }}
   total_count:
     description: 'API 总数'
-    value: ${{ steps.coverage-report.outputs.total_count }}
+    value: ${{ steps.coverage-report-win.outputs.total_count || steps.coverage-report-unix.outputs.total_count }}
   markdown:
     description: 'Markdown 格式的覆盖率摘要'
-    value: ${{ steps.coverage-report.outputs.markdown }}
+    value: ${{ steps.coverage-report-win.outputs.markdown || steps.coverage-report-unix.outputs.markdown }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Generate coverage report with Markdown
-      id: coverage-report
+    # Windows Steps
+    - name: Generate coverage report with Markdown (Windows)
+      if: runner.os == 'Windows'
+      id: coverage-report-win
+      shell: powershell
+      # 覆盖率检查仅作为信息展示，不会导致流程失败
+      run: npm run check:e2e-coverage:report -- --markdown
+    
+    - name: Generate coverage report URL (Windows)
+      if: runner.os == 'Windows' && steps.coverage-report-win.outputs.report_path != ''
+      id: report-url-win
+      shell: powershell
+      run: |
+        $reportFile = "${{ steps.coverage-report-win.outputs.report_path }}"
+        $reportFilename = Split-Path $reportFile -Leaf
+        
+        # 生成报告 URL（CI 机器上的 http-server 已在运行）
+        $reportUrl = "${{ inputs.report-server-url }}/reports/$reportFilename"
+        
+        Add-Content -Path $env:GITHUB_OUTPUT -Value "report_url=$reportUrl"
+        Add-Content -Path $env:GITHUB_OUTPUT -Value "report_filename=$reportFilename"
+        
+        Write-Host "📊 Coverage Report URL: $reportUrl"
+        Write-Host "📄 Report file: $reportFile"
+
+    # Unix Steps
+    - name: Generate coverage report with Markdown (Unix)
+      if: runner.os != 'Windows'
+      id: coverage-report-unix
       shell: bash
       # 覆盖率检查仅作为信息展示，不会导致流程失败
       run: npm run check:e2e-coverage:report -- --markdown
     
-    - name: Generate coverage report URL
-      id: report-url
+    - name: Generate coverage report URL (Unix)
+      if: runner.os != 'Windows' && steps.coverage-report-unix.outputs.report_path != ''
+      id: report-url-unix
       shell: bash
-      # 只要有报告就生成 URL
-      if: steps.coverage-report.outputs.report_path != ''
       run: |
-        REPORT_FILE="${{ steps.coverage-report.outputs.report_path }}"
+        REPORT_FILE="${{ steps.coverage-report-unix.outputs.report_path }}"
         REPORT_FILENAME=$(basename "$REPORT_FILE")
         
         # 生成报告 URL（CI 机器上的 http-server 已在运行）

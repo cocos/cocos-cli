@@ -86,50 +86,57 @@ jobs:
         env:
           RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
         run: |
-          echo "## 📦 发布结果" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -z "$RELEASE_RESULTS" ] || [ "$RELEASE_RESULTS" == "null" ]; then
-            echo "⚠️ **未执行发布流程或发布失败**" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
-          
-          # 使用 Node.js 解析 JSON 并生成摘要
           node -e "
-          const results = JSON.parse(process.env.RELEASE_RESULTS);
-          const fs = require('fs');
-          const summaryFile = process.env.GITHUB_STEP_SUMMARY;
-          let summary = '';
-          
-          if (results.nodejs) {
-            if (results.nodejs.success) {
-              summary += '### ✅ Node.js 发布成功\\n';
-              summary += '- **发布目录**: ' + results.nodejs.releaseDir + '\\n';
-              if (results.nodejs.zipFile) {
-                summary += '- **ZIP 文件**: ' + results.nodejs.zipFile + '\\n';
-                summary += '- **ZIP URL**: ' + results.nodejs.zipUrl + '\\n';
-              }
-            } else {
-              summary += '### ❌ Node.js 发布失败\\n';
+            const fs = require('fs');
+            const os = require('os');
+            const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+            
+            // 写入标题
+            fs.appendFileSync(summaryFile, '## 📦 发布结果' + os.EOL + os.EOL);
+            
+            const releaseResultsStr = process.env.RELEASE_RESULTS;
+            if (!releaseResultsStr || releaseResultsStr === 'null') {
+              fs.appendFileSync(summaryFile, '⚠️ **未执行发布流程或发布失败**' + os.EOL);
+              process.exit(0);
             }
-            summary += '\\n';
-          }
-          
-          if (results.electron) {
-            if (results.electron.success) {
-              summary += '### ✅ Electron 发布成功\\n';
-              summary += '- **发布目录**: ' + results.electron.releaseDir + '\\n';
-              if (results.electron.zipFile) {
-                summary += '- **ZIP 文件**: ' + results.electron.zipFile + '\\n';
-                summary += '- **ZIP URL**: ' + results.electron.zipUrl + '\\n';
+            
+            try {
+              const results = JSON.parse(releaseResultsStr);
+              let summary = '';
+              
+              if (results.nodejs) {
+                if (results.nodejs.success) {
+                  summary += '### ✅ Node.js 发布成功\\n';
+                  summary += '- **发布目录**: ' + results.nodejs.releaseDir + '\\n';
+                  if (results.nodejs.zipFile) {
+                    summary += '- **ZIP 文件**: ' + results.nodejs.zipFile + '\\n';
+                    summary += '- **ZIP URL**: ' + results.nodejs.zipUrl + '\\n';
+                  }
+                } else {
+                  summary += '### ❌ Node.js 发布失败\\n';
+                }
+                summary += '\\n';
               }
-            } else {
-              summary += '### ❌ Electron 发布失败\\n';
+              
+              if (results.electron) {
+                if (results.electron.success) {
+                  summary += '### ✅ Electron 发布成功\\n';
+                  summary += '- **发布目录**: ' + results.electron.releaseDir + '\\n';
+                  if (results.electron.zipFile) {
+                    summary += '- **ZIP 文件**: ' + results.electron.zipFile + '\\n';
+                    summary += '- **ZIP URL**: ' + results.electron.zipUrl + '\\n';
+                  }
+                } else {
+                  summary += '### ❌ Electron 发布失败\\n';
+                }
+                summary += '\\n';
+              }
+              
+              fs.appendFileSync(summaryFile, summary);
+            } catch (e) {
+              console.error('Failed to parse release results:', e);
+              fs.appendFileSync(summaryFile, '⚠️ **解析发布结果失败**' + os.EOL);
             }
-            summary += '\\n';
-          }
-          
-          fs.appendFileSync(summaryFile, summary);
           "
       
       - name: Send to Feishu

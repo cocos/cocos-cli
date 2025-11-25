@@ -14,24 +14,64 @@ inputs:
 outputs:
   report_exists:
     description: '测试报告是否存在'
-    value: ${{ steps.find-report.outputs.report_exists }}
+    value: ${{ steps.find-report-win.outputs.report_exists || steps.find-report-unix.outputs.report_exists }}
   report_url:
     description: '测试报告 URL'
-    value: ${{ steps.find-report.outputs.report_url }}
+    value: ${{ steps.find-report-win.outputs.report_url || steps.find-report-unix.outputs.report_url }}
   report_filename:
     description: '测试报告文件名'
-    value: ${{ steps.find-report.outputs.report_filename }}
+    value: ${{ steps.find-report-win.outputs.report_filename || steps.find-report-unix.outputs.report_filename }}
   report_file:
     description: '测试报告文件路径'
-    value: ${{ steps.find-report.outputs.report_file }}
+    value: ${{ steps.find-report-win.outputs.report_file || steps.find-report-unix.outputs.report_file }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Run E2E tests
-      id: run-tests
+    # Windows Steps
+    - name: Run E2E tests (Windows)
+      if: runner.os == 'Windows'
+      id: run-tests-win
+      shell: powershell
+      continue-on-error: true
+      run: |
+        if ("${{ inputs.debug }}" -eq "true") {
+          Write-Host "Running E2E tests in DEBUG mode..."
+          npm run test:e2e:debug
+        } else {
+          Write-Host "Running E2E tests in normal mode..."
+          npm run test:e2e
+        }
+    
+    - name: Archive E2E logs (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        if (Test-Path "temp/logs") {
+          $logDir = "e2e/logs/$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss')"
+          New-Item -ItemType Directory -Force -Path $logDir
+          Copy-Item -Path "temp/logs/*" -Destination "$logDir" -Recurse -Force
+          Write-Host "E2E logs archived to $logDir"
+        } else {
+          Write-Host "No temp/logs directory found, skip archiving."
+        }
+
+    - name: Find test report file (Windows)
+      if: runner.os == 'Windows'
+      id: find-report-win
+      shell: powershell
+      run: node .github/scripts/find-test-report.js
+    
+    - name: Check test result (Windows)
+      if: runner.os == 'Windows' && steps.run-tests-win.outcome == 'failure'
+      shell: powershell
+      run: exit 1
+
+    # Unix Steps
+    - name: Run E2E tests (Unix)
+      if: runner.os != 'Windows'
+      id: run-tests-unix
       shell: bash
-      # 即使测试失败也继续执行后续步骤（查找报告）
       continue-on-error: true
       run: |
         if [ "${{ inputs.debug }}" = "true" ]; then
@@ -42,7 +82,8 @@ runs:
           npm run test:e2e
         fi
     
-    - name: Archive E2E logs
+    - name: Archive E2E logs (Unix)
+      if: runner.os != 'Windows'
       shell: bash
       run: |
         if [ -d "temp/logs" ]; then
@@ -55,15 +96,13 @@ runs:
           echo "No temp/logs directory found, skip archiving."
         fi
 
-    - name: Find test report file
-      id: find-report
+    - name: Find test report file (Unix)
+      if: runner.os != 'Windows'
+      id: find-report-unix
       shell: bash
-      # 无论测试成功或失败，都查找报告
-      if: always()
       run: node .github/scripts/find-test-report.js
     
-    - name: Check test result
+    - name: Check test result (Unix)
+      if: runner.os != 'Windows' && steps.run-tests-unix.outcome == 'failure'
       shell: bash
-      # 如果测试失败，在找到报告后再标记失败
-      if: steps.run-tests.outcome == 'failure'
       run: exit 1
