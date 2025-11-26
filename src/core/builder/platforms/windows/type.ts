@@ -1,5 +1,6 @@
-import { InternalBuildResult } from '../../@types/protected';
-import { IOptions as INativeOption } from '../native-common/type';
+import { IInternalBuildOptions, InternalBuildResult } from '../../@types/protected';
+import { CocosParams } from '../native-common/pack-tool/base/default';
+import { ICustomBuildScriptParam, IOptions as INativeOption } from '../native-common/type';
 
 export type IOptions = INativeOption & {
     executableName: string;
@@ -16,6 +17,13 @@ export type IOptions = INativeOption & {
 
 export interface ITaskOptionPackages {
     windows: IOptions;
+}
+
+export interface IWindowsInternalBuildOptions extends IInternalBuildOptions {
+    windows: IOptions;
+    buildScriptParam: ICustomBuildScriptParam;
+    cocosParams: CocosParams<any>;
+    platform: 'windows';
 }
 
 export interface IBuildResult extends InternalBuildResult {
