@@ -3,21 +3,21 @@
 import { copyFileSync, existsSync, outputFileSync } from 'fs-extra';
 import { basename, join, relative } from 'path';
 import Ejs from 'ejs';
-import { InternalBuildResult, BuilderAssetCache, IBuilder, IBuildTaskOption, IInternalBuildOptions, IBuildStageTask } from '../../@types/protected';
+import { InternalBuildResult, BuilderCache, IBuilder, IBuildTaskOption, IBuildStageTask, IInterBuildTaskOption } from '../../@types/protected';
 import { IBuildResult } from './type';
 import { relativeUrl, transformCode } from '../../worker/builder/utils';
 import * as commonUtils from '../web-common/utils';
 
 export const throwError = true;
 
-export function onAfterInit(options: IInternalBuildOptions<'web-desktop'>, result: InternalBuildResult, cache: BuilderAssetCache) {
+export function onAfterInit(options: IInterBuildTaskOption<'web-desktop'>, result: InternalBuildResult, cache: BuilderCache) {
     options.buildEngineParam.assetURLFormat = 'runtime-resolved';
     if (options.server && !options.server.endsWith('/')) {
         options.server += '/';
     }
 }
 
-export function onAfterBundleInit(options: IInternalBuildOptions<'web-desktop'>) {
+export function onAfterBundleInit(options: IInterBuildTaskOption<'web-desktop'>) {
     options.buildScriptParam.system = { preset: 'web' };
     const useWebGPU = options.packages['web-desktop'].useWebGPU;
     options.buildScriptParam.flags['WEBGPU'] = useWebGPU;
@@ -36,7 +36,7 @@ export function onAfterBundleInit(options: IInternalBuildOptions<'web-desktop'>)
  * @param options
  * @param settings
  */
-export async function onBeforeCompressSettings(options: IInternalBuildOptions<'web-desktop'>, result: InternalBuildResult, cache: BuilderAssetCache) {
+export async function onBeforeCompressSettings(options: IInterBuildTaskOption<'web-desktop'>, result: InternalBuildResult, cache: BuilderCache) {
     if (!result.paths.dir) {
         return;
     }
@@ -44,7 +44,7 @@ export async function onBeforeCompressSettings(options: IInternalBuildOptions<'w
     settings.screen.exactFitScreen = false;
 }
 
-export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInternalBuildOptions<'web-desktop'>, result: IBuildResult) {
+export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInterBuildTaskOption<'web-desktop'>, result: IBuildResult) {
     const staticDir = join(options.engineInfo.typescript.path, 'templates/web-desktop');
     const packageOptions = options.packages['web-desktop'];
 
@@ -97,7 +97,7 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IIntern
     // 入口文件排除 md5 写入
     options.md5CacheOptions.replaceOnly.push('index.html');
 }
-export async function onAfterBuild(this: IBuilder, options: IInternalBuildOptions<'web-desktop'>, result: InternalBuildResult) {
+export async function onAfterBuild(this: IBuilder, options: IInterBuildTaskOption<'web-desktop'>, result: InternalBuildResult) {
     // 放在最后处理 url ，否则会破坏 md5 的处理
     result.settings.plugins.jsList.forEach((url: string, i: number) => {
         result.settings.plugins.jsList[i] = url.split('/').map(encodeURIComponent).join('/');

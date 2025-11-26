@@ -7,7 +7,7 @@ import { buildAssetLibrary } from './asset-library';
 import { hasCCONFormatAssetInLibrary } from '../utils/cconb';
 import { IAsset } from '../../../../assets/@types/protected';
 import { IBuildSceneItem } from '../../../@types';
-import { IInstanceMap, IBuilder, ISerializedOptions, IInternalBuildOptions, BuilderAssetCache as IBuilderAssetCache } from '../../../@types/protected';
+import { IInstanceMap, IBuilder, ISerializedOptions, IInternalBuildOptions, BuilderCache as IBuilderCache } from '../../../@types/protected';
 import assetManager from '../../../../assets/manager/asset';
 import { BuildGlobalInfo } from '../../../share/builder-config';
 
@@ -15,7 +15,7 @@ import { BuildGlobalInfo } from '../../../share/builder-config';
  * 资源管理器，主要负责资源的缓存查询缓存等
  * 所有 __ 开头的属性方法都不对外公开
  */
-export class BuilderAssetCache implements IBuilderAssetCache {
+export class BuilderAssetCache implements IBuilderCache {
 
     // 场景资源信息
     public readonly scenes: Array<IBuildSceneItem> = [];

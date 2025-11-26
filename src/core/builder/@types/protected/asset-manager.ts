@@ -4,7 +4,7 @@ import { IInternalBuildOptions, IAssetInfo } from './options';
 
 // ********************************* asset-manager *********************************
 
-export interface BuilderAssetCache {
+export interface BuilderCache {
     // 场景资源的 assets 信息缓存
     readonly scenes: Array<IBuildSceneItem>;
 

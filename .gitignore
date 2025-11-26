@@ -16,16 +16,23 @@ tsconfig.tsbuildinfo
 
 # node 模块
 **/node_modules/
-**/yarn.lock
+**/yarn.lock.
 packages/engine/
+
 # packages
 packages/cc-module/editor
+packages/platforms/
+packages/cocos-cli-types/**/*
+!packages/cocos-cli-types/package.json
 
 # static
 static/tools/
 
 # 构建文件
 /dist
+
+# types
+/@types
 
 # jest
 coverage

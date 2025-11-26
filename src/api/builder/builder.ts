@@ -17,7 +17,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await build(platform, options as unknown as IBuildCommandOption<TPlatform>);
+            const res = await build(platform, options);
             ret.data = res as TBuildResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;

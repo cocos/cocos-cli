@@ -22,7 +22,7 @@ import { newConsole } from '../../../../../base/console';
 import i18n from '../../../../../base/i18n';
 import { IAsset } from '../../../../../assets/@types/protected';
 import { IBundleOptions } from '../../../../@types';
-import { IBundleManager, IBuilder, IInternalBundleBuildOptions, IBuildHooksInfo, IBundle, CustomBundleConfig, BundleRenderConfig, BundlePlatformType, IBundleInitOptions, IBundleBuildOptions, IBuildTaskOption } from '../../../../@types/protected';
+import { IBundleManager, IBuilder, IInternalBundleBuildOptions, IBuildHooksInfo, IBundle, CustomBundleConfig, BundleRenderConfig, BundlePlatformType, IBundleInitOptions, IBundleBuildOptions, IBuildOptionBase } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
 import utils from '../../../../../base/utils';
 import script from '../../../../../scripting';
@@ -107,7 +107,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         [RESOURCES]: 8,
     };
 
-    private constructor(options: IBuildTaskOption, imageCompressManager: TextureCompress | null, task?: IBuilder) {
+    private constructor(options: IBuildOptionBase, imageCompressManager: TextureCompress | null, task?: IBuilder) {
         super(options.taskId!, 'Bundle Task');
         // @ts-ignore TODO 补全 options 为 IInternalBundleBuildOptions
         this.options = options as IInternalBundleBuildOptions;
@@ -125,7 +125,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         this.hooksInfo = task ? task.hooksInfo : pluginManager.getHooksInfo(this.options.platform);
     }
 
-    static async create(options: IBuildTaskOption, task?: IBuilder) {
+    static async create(options: IBuildOptionBase, task?: IBuilder) {
         if (!options.skipCompressTexture) {
             const { TextureCompress } = await import('../texture-compress');
             const imageCompressManager = new TextureCompress(options.platform, options.useCacheConfig?.textureCompress);

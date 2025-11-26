@@ -3,8 +3,8 @@ import { buildAssetLibrary } from './asset-library';
 import * as BundleUtils from '../asset-handler/bundle/utils';
 import EventEmitter from 'events';
 import { getBuildPath } from '../utils';
-import { IBuildPaths, ISettings, IBuildTaskOption, IBuildResult, IRawAssetPathInfo, IAssetPathInfo, IImportAssetPathInfo } from '../../../@types';
-import { ICompressImageResult, ImportMapWithImports, IBuilder, IBuildSeparateEngineResult } from '../../../@types/protected';
+import { IBuildPaths, ISettings, IBuildOptionBase, IBuildResult, IRawAssetPathInfo, IAssetPathInfo, IImportAssetPathInfo } from '../../../@types';
+import { ICompressImageResult, ImportMapWithImports, IBuilder, IBuildSeparateEngineResult, InternalBuildResult as IInternalBuildResult } from '../../../@types/protected';
 import { BuildGlobalInfo } from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
 
@@ -20,10 +20,12 @@ class Paths implements IBuildPaths {
     hashedMap: Record<string, string> = {};
 
     plugins: Record<string, string> = {};
-    constructor(dir: string) {
+    tempDir: string;
+    constructor(dir: string, platform: string) {
         this.dir = dir || '';
         this.output = this.dir;
         this.compileConfig = join(dir, BuildGlobalInfo.buildOptionsFileName);
+        this.tempDir = join(BuildGlobalInfo.projectTempDir, 'builder', platform);
     }
 
     get settings() {
@@ -84,7 +86,7 @@ class Paths implements IBuildPaths {
 }
 
 // 构建过程处理的缓存对象
-export class InternalBuildResult extends EventEmitter implements InternalBuildResult {
+export class InternalBuildResult extends EventEmitter implements IInternalBuildResult {
     public settings: ISettings = {
         CocosEngine: '0.0.0',
         engine: {
@@ -143,7 +145,7 @@ export class InternalBuildResult extends EventEmitter implements InternalBuildRe
      */
     public importMap: ImportMapWithImports = { imports: {} };
 
-    public rawOptions: IBuildTaskOption;
+    public rawOptions: IBuildOptionBase;
 
     public paths: IBuildPaths;
 
@@ -172,7 +174,7 @@ export class InternalBuildResult extends EventEmitter implements InternalBuildRe
         if (!preview) {
             dest = getBuildPath(task.options);
         }
-        this.paths = new Paths(dest);
+        this.paths = new Paths(dest, task.options.platform);
         this.__task = task;
     }
 

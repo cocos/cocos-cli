@@ -1,5 +1,5 @@
 import { IBuildResult, ICompressConfig } from './build-result';
-import { IBuilderConfigItem, IBuildTaskOption } from '../protected';
+import { IBuilderConfigItem, IBuildOptionBase } from '../protected';
 
 export interface IBuildPluginConfig {
     doc?: string; // document address
@@ -52,8 +52,8 @@ export interface IBuildPlugin {
     load?: BuildPlugin.load;
     unload?: BuildPlugin.Unload;
 }
-export type IBaseHooks = (options: IBuildTaskOption, result: IBuildResult) => Promise<void> | void;
-export type IBuildStageHooks = (root: string, options: IBuildTaskOption) => Promise<void> | void;
+export type IBaseHooks = (options: IBuildOptionBase, result: IBuildResult) => Promise<void> | void;
+export type IBuildStageHooks = (root: string, options: IBuildOptionBase) => Promise<void> | void;
 
 export namespace BuildPlugin {
     export type Configs = Record<string, IBuildPluginConfig>;

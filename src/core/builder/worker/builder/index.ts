@@ -1,7 +1,7 @@
 'use strict';
 
 import { emptyDirSync, ensureDir, outputFileSync, outputJSONSync } from 'fs-extra';
-import { join, relative } from 'path';
+import { join } from 'path';
 import { BuilderAssetCache } from './manager/asset';
 import { InternalBuildResult } from './manager/build-result';
 import { BuildResult } from './manager/build-result';
@@ -11,17 +11,18 @@ import { workerManager } from '../worker-pools/sub-process-manager';
 import { BundleManager } from './asset-handler/bundle';
 import { ResolutionPolicy } from 'cc';
 import { BuildTaskBase } from './manager/task-base';
-import { defaultsDeep, formatMSTime, getBuildPath } from '../../share/utils';
+import { formatMSTime, getBuildPath } from '../../share/utils';
 import { BuildTemplate } from './manager/build-template';
 import { newConsole } from '../../../base/console';
 import { ITaskResultMap } from '../../@types/builder';
-import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildTaskOption, IBuildResultData } from '../../@types/protected';
+import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildOptionBase, IBuildResultData, IBuildUtils } from '../../@types/protected';
 import { assetDBManager } from '../../../assets';
 import Utils from '../../../base/utils';
 import { pluginManager } from '../../manager/plugin';
 import i18n from '../../../base/i18n';
 import { checkProjectSetting } from '../../share/common-options-validator';
 import { I18nKeys } from '../../../../i18n/types/generated';
+import * as buildUtils from './utils';
 
 export class BuildTask extends BuildTaskBase implements IBuilder {
     public cache: BuilderAssetCache;
@@ -70,7 +71,17 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      */
     private taskResMap: ITaskResultMap = {};
 
-    constructor(id: string, options: IBuildTaskOption) {
+    static utils: IBuildUtils = {
+        isInstallNodeJs: buildUtils.isInstallNodeJs,
+        relativeUrl: buildUtils.relativeUrl,
+        transformCode: buildUtils.transformCode,
+    };
+
+    get utils() {
+        return BuildTask.utils;
+    }
+
+    constructor(id: string, options: IBuildOptionBase) {
         super(id, 'build');
         this.taskManager = new TaskManager();
         this.taskManager.activeTask('dataTasks');

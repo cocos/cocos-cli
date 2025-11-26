@@ -2,8 +2,7 @@ import { basename, isAbsolute, join, normalize, relative } from 'path';
 import * as textureCompressConfig from '../share/texture-compress';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
-import { IBuildTaskOption, IDisplayOptions } from '../@types';
-import lodash from 'lodash';
+import { IBuildOptionBase, IBuildTaskOption, IDisplayOptions } from '../@types';
 import { BuildGlobalInfo } from './builder-config';
 import { IBuilderConfigItem } from '../@types/protected';
 export function compareNumeric(lhs: string, rhs: string): number {
@@ -273,7 +272,7 @@ export function defaultMerge(target: Record<string, any>, ...sources: Record<str
     return target;
 }
 
-export function getBuildPath(options: IBuildTaskOption) {
+export function getBuildPath(options: IBuildOptionBase) {
     return join(Utils.Path.resolveToRaw(options.buildPath), options.outputName || options.platform);
 }
 

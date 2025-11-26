@@ -27,7 +27,7 @@
     },
     "include": [
         "src/**/*",
-        "@types/**/*"
+        "src/**/@types/**/*"
     ],
     "exclude": [
         "dist",

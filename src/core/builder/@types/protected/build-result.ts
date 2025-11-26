@@ -1,8 +1,8 @@
 import { IAsset } from '../../../assets/@types/protected';
-import { BundleCompressionType, IAssetPathInfo, IBuildPaths, IBuildTaskOption, IBundleConfig, IJsonPathInfo, ISettings, UUID, IBuildSceneItem, ITextureCompressType, ITextureCompressFormatType, ICustomConfig } from '../public';
-import { BuilderAssetCache } from './asset-manager';
+import { BundleCompressionType, IBuildPaths, IBuildOptionBase, IBundleConfig, ISettings, UUID, IBuildSceneItem } from '../public';
+import { BuilderCache } from './asset-manager';
 import { ImportMap, ImportMapWithImports } from './import-map';
-import { IAssetInfo, IImportMapOptions, IInternalBuildOptions, IBuildSeparateEngineResult, IBuildResultData, IBuildResultSuccess } from './options';
+import { IAssetInfo, IImportMapOptions, IInternalBuildOptions, IBuildSeparateEngineResult, IBuildResultSuccess, ITransformOptions } from './options';
 import { IPacInfo } from './texture-packer';
 
 export interface TextureCompress {
@@ -26,7 +26,7 @@ export interface IBundleManager {
     destDir: string;
     scriptBuilder: ScriptBuilder;
     packResults: IPacInfo[];
-    cache: BuilderAssetCache;
+    cache: BuilderCache;
     hookMap: Record<string, string>;
 
     buildAsset(): Promise<void>;
@@ -64,7 +64,7 @@ export interface InternalBuildResult {
     compressImageResult: ICompressImageResult;
     importMap: ImportMapWithImports;
     // 传入构建的 options
-    rawOptions: IBuildTaskOption;
+    rawOptions: IBuildOptionBase;
     // 输出路径集合
     paths: IBuildPaths;
     // 允许的自定义编译选项
@@ -121,8 +121,35 @@ export interface IAtlasResult {
     atlasToImages: Record<string, string[]>;
 }
 
+interface IAppendRes {
+    hash: string;
+    paths: string[];
+}
+
+interface ICreateBundleOptions {
+    excludes?: string[];
+    debug?: boolean;
+    sourceMap?: boolean;
+    targets?: string;
+}
+export interface IBuildUtils {
+
+    /**
+     * 检查是否全局安装了 nodejs
+     */
+    isInstallNodeJs: () => Promise<boolean>;
+
+    /**
+     * 获取相对路径接口
+     * 返回 / 拼接的相对路径
+     */
+    relativeUrl: (from: string, to: string) => string;
+
+    transformCode: (code: string, options: ITransformOptions) => Promise<string>;
+}
+
 export interface IBuilder {
-    cache: BuilderAssetCache;
+    cache: BuilderCache;
     result: InternalBuildResult;
     options: IInternalBuildOptions;
     bundleManager: IBundleManager;
@@ -130,6 +157,7 @@ export interface IBuilder {
     buildTemplate: IBuildTemplate;
     buildExitRes: IBuildResultSuccess;
     id: string;
+    utils: IBuildUtils;
 
     updateProcess(message: string, increment?: number): void;
     break(reason: string): void;
@@ -137,8 +165,8 @@ export interface IBuilder {
 
 export interface IBuildStageTask {
     buildExitRes: IBuildResultSuccess;
-    options: IBuildTaskOption;
-    buildTaskOptions?: IBuildTaskOption;
+    options: IBuildOptionBase;
+    buildTaskOptions?: IBuildOptionBase;
 
     run(): Promise<boolean>;
     saveOptions(): Promise<void>;

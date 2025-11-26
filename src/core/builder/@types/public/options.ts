@@ -1,4 +1,3 @@
-import * as babel from '@babel/core';
 import { ITextureCompressPlatform, ITextureCompressType, PlatformCompressConfig } from './texture-compress';
 import { StatsQuery } from '@cocos/ccbuild';
 import { EngineInfo, IEngineConfig } from '../../../engine/@types/public';
@@ -102,7 +101,7 @@ export interface IBuildCommonOptions {
      * 构建平台
      * @default 'web-desktop'
      */
-    platform: Platform;
+    platform: Platform | string;
     /**
      * 构建场景列表，默认为全部场景
      */
@@ -182,6 +181,7 @@ export interface IBuildCommonOptions {
     stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
     buildMode?: 'normal' | 'bundle' | 'script';
     nextStages?: string[];
+    packages: Record<string, any>;
     // 构建阶段性任务绑定分组
     // buildStageGroup?: Record<string, string[]>;
     nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
@@ -241,7 +241,7 @@ export interface IBundleOptions {
 }
 
 
-export interface IBundleTaskOption extends IBuildTaskOption {
+export interface IBundleTaskOption extends IBuildOptionBase {
     dest: string;
 }
 
@@ -303,13 +303,6 @@ export type Platform =
 
 export type BundleCompressionType = 'none' | 'merge_dep' | 'merge_all_json' | 'subpackage' | 'zip';
 
-export type IModules = 'esm' | 'commonjs' | 'systemjs';
-export interface ITransformOptions {
-    importMapFormat: IModules;
-    plugins?: babel.PluginItem[];
-    loose?: boolean;
-}
-
 export type IBuildStage = 'build' | 'bundle' | 'make' | 'run' | string;
 
 export type ITaskState = 'waiting' | 'success' | 'failure' | 'cancel' | 'processing' | 'none';
@@ -327,9 +320,9 @@ export interface ITaskItemJSON {
 
 export interface IBuildTaskItemJSON extends ITaskItemJSON {
     stage: 'build' | string;
-    options: IBuildTaskOption;
+    options: IBuildOptionBase;
     dirty: boolean;
-    rawOptions?: IBuildTaskOption;
+    rawOptions?: IBuildOptionBase;
     type: 'build',
 }
 
@@ -342,7 +335,9 @@ export { webMobileOptions };
 import { IOptions as windowsOptions } from '../../platforms/windows/type';
 export { windowsOptions };
 import { IOptions as nativeOptions } from '../../platforms/native-common/type';
+import { IInternalBuildOptions } from '../protected';
 export { nativeOptions };
+
 /**
  * 构建所需的完整参数
  */
@@ -358,4 +353,9 @@ export interface PlatformPackageOptionMap {
     'mac': nativeOptions;
     'ios': nativeOptions;
     'android': nativeOptions;
+}
+
+export type IInterBuildTaskOption<P extends Platform = Platform> = IInternalBuildOptions & {
+    platform: P;
+    packages: Record<P, PlatformPackageOptionMap[P]>;
 }

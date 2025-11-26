@@ -1,3 +1,4 @@
+import { Vec4, Vec3, Vec2, Mat4 } from 'cc';
 
 export type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | Array<unknown>
 

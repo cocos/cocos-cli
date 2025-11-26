@@ -1,0 +1,11 @@
+{
+  "name": "@cocos/cocos-cli-types",
+  "description": "types for cocos cli",
+  "author": "cocos creator",
+  "version": "0.0.1-alpha.5",
+  "main": "index.d.ts",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts"
+  ]
+}

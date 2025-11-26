@@ -3,7 +3,7 @@ import { readJSONSync, emptyDirSync, existsSync, outputJSON } from 'fs-extra';
 import { workerManager } from '../worker-pools/sub-process-manager';
 import { BuildTaskBase } from './manager/task-base';
 import { newConsole } from '../../../base/console';
-import { IBuildTaskOption } from '../../@types';
+import { IBuildOptionBase } from '../../@types';
 import { IBuildHooksInfo, IBuildStageTask, IBuildStageItem } from '../../@types/protected';
 import { BuildGlobalInfo } from '../../share/builder-config';
 
@@ -11,12 +11,12 @@ import { BuildGlobalInfo } from '../../share/builder-config';
 export interface IBuildStageConfig extends IBuildStageItem {
     root: string;
     hooksInfo: IBuildHooksInfo;
-    buildTaskOptions: IBuildTaskOption;
+    buildTaskOptions: IBuildOptionBase;
 }
 
 export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     // 从构建包缓存文件内获取到的构建选项信息
-    options: IBuildTaskOption;
+    options: IBuildOptionBase;
     hooksInfo: IBuildHooksInfo;
     private root: string;
     hookMap: Record<string, string>;

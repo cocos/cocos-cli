@@ -1,10 +1,20 @@
 import { StatsQuery } from '@cocos/ccbuild';
-import { IPolyFills, IBuildOptionBase, IBuildTaskOption, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired, IPlatformType } from '../public';
+import * as rollup from 'rollup';
+import * as babel from '@babel/core';
+import { IPolyFills, IBuildOptionBase, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired, IPlatformType } from '../public';
 export { IPlatformType };
 import { IAssetInfo as IAssetInfoFromDB, IAssetMeta } from '../../../assets/@types/private';
-import * as rollup from 'rollup';
 import { BuiltinBundleName } from './bundle-config';
 
+export type BabelPluginItem = babel.PluginItem;
+
+export type IModules = 'esm' | 'commonjs' | 'systemjs';
+
+export interface ITransformOptions {
+    importMapFormat: IModules;
+    plugins?: BabelPluginItem[];
+    loose?: boolean;
+}
 export interface IBundleInternalOptions extends IBundleOptions {
     dest: string, // bundle 的输出目录
     scriptDest: string, // 脚本的输出地址
@@ -121,7 +131,7 @@ export interface IBundleBuildOptions {
     buildTaskIds?: string[];
     taskName: string;
     dest: string;
-    buildTaskOptions: IBuildTaskOption;
+    buildTaskOptions: IBuildOptionBase;
     logDest?: string;
 }
 
@@ -172,7 +182,7 @@ export interface IImportMapOptions {
 
 
 
-export interface IInternalBundleBuildOptions<P extends Platform = Platform> extends MakeRequired<IBuildTaskOption<P>, 'includeModules' | 'macroConfig' | 'engineModulesConfigKey' | 'customPipeline' | 'renderPipeline' | 'designResolution' | 'physicsConfig' | 'flags' | 'taskId'> {
+export interface IInternalBundleBuildOptions extends MakeRequired<IBuildOptionBase, 'includeModules' | 'macroConfig' | 'engineModulesConfigKey' | 'customPipeline' | 'renderPipeline' | 'designResolution' | 'physicsConfig' | 'flags' | 'taskId'> {
     dest: string; // bundle 构建的输出地址，常规构建时为 assets 目录
     // 编译脚本配置选项
     buildScriptParam: IBuildScriptParam;
@@ -185,14 +195,13 @@ export interface IInternalBundleBuildOptions<P extends Platform = Platform> exte
     platformType: StatsQuery.ConstantManager.PlatformType;
 }
 
-export interface IBuildCommandOption<P extends Platform = Platform> extends Partial<IBuildTaskOption<P>> {
+export interface IBuildCommandOption extends Partial<IBuildOptionBase> {
     configPath?: string; // 构建配置文件地址
     migrate?: boolean; // 默认关闭，开启后自动迁移传入的配置
-    // projectSettingsPath?: string; // 导出的项目设置文件地址
     skipCheck?: boolean; // 跳过参数的检查流程
 }
 
-export interface IInternalBuildOptions<P extends Platform = Platform> extends IInternalBundleBuildOptions<P> {
+export interface IInternalBuildOptions extends IInternalBundleBuildOptions {
     dest: string;
     // 编译 application.js 参数配置
     appTemplateData: appTemplateData;
@@ -357,7 +366,7 @@ export interface IBundleTaskItemJSON extends ITaskItemJSON {
 
 export interface IBuildStageOptions {
     dest: string;
-    platform: Platform;
+    platform: Platform | string;
     taskName?: string;
 }
 
@@ -385,6 +394,6 @@ export type IBuildResultData = IBuildResultSuccess | IBuildResultFailed;
 export interface ExecuteHookTaskOption {
     pkgName: string;
     hook: string;
-    options: IBuildTaskOption;
+    options: IBuildOptionBase;
     [x: string]: any;
 }

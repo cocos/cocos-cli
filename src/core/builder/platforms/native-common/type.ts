@@ -74,7 +74,8 @@ export interface IOptions {
     cocosParams: CocosParams<any>;
     buildScriptParam: ICustomBuildScriptParam;
 }
-export interface ITaskOption extends IInternalBuildOptions<InternalNativePlatform> {
+export interface ITaskOption extends IInternalBuildOptions {
+    platform: InternalNativePlatform;
     packages: any;
     buildScriptParam: ICustomBuildScriptParam;
     cocosParams: CocosParams<Object>;

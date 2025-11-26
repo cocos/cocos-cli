@@ -18,7 +18,7 @@ export class BuildTemplate implements IBuildTemplate {
         return !!this._buildTemplateDirs.length;
     }
 
-    constructor(platform: Platform, taskName: string, config?: BuildTemplateConfig) {
+    constructor(platform: Platform | string, taskName: string, config?: BuildTemplateConfig) {
         this.config = config;
         const { buildTemplateDir } = BuildGlobalInfo;
         // 初始化不同层级的构建模板地址，按照使用优先级从大到小排布
@@ -35,7 +35,7 @@ export class BuildTemplate implements IBuildTemplate {
             this._buildTemplateDirs.push(commonDir);
         }
         const internalTemplate: Record<string, string> = {
-            'application': 'application.ejs',
+            application: 'application.ejs',
         };
         Object.keys(internalTemplate).forEach((name) => {
             this.initUrl(internalTemplate[name], name);

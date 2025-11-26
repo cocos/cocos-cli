@@ -8,14 +8,11 @@ import * as babel from '@babel/core';
 import babelPresetEnv from '@babel/preset-env';
 import { workerManager } from '../../worker-pools/sub-process-manager';
 import { IAsset } from '../../../../assets/@types/protected';
-import { IModules, ITransformOptions, IBuildTaskOption } from '../../../@types';
 import utils from '../../../../base/utils';
 import { BuildGlobalInfo } from '../../../share/builder-config';
-import i18n from '../../../../base/i18n';
+import { IModules, ITransformOptions } from '../../../@types/protected';
 
 export { getBuildPath } from '../../../share/utils';
-
-
 
 // 当前文件对外暴露的接口是直接对用户公开的，对内使用的工具接口请在其他文件夹内放置
 

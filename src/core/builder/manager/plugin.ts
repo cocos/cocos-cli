@@ -12,7 +12,6 @@ import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
 import { newConsole } from '../../base/console';
 import builderConfig, { } from '../share/builder-config';
-import { existsSync, readJSON } from 'fs-extra';
 import { GlobalPaths } from '../../../global';
 export interface InternalPackageInfo {
     name: string; // 插件名
@@ -46,7 +45,7 @@ export class PluginManager extends EventEmitter {
     public pkgOptionConfigs: Record<string, Record<string, IDisplayOptions>> = {};
     public platformConfig: Record<string, IPlatformConfig> = {};
     public buildTemplateConfigMap: Record<string, BuildTemplateConfig> = {};
-    public configMap: Record<Platform, Record<string, IInternalBuildPluginConfig>>; // 存储注入进来的 config
+    public configMap: Record<string, Record<string, IInternalBuildPluginConfig>>; // 存储注入进来的 config
     // 存储注册进来的，带有 hooks 的插件路径，[pkgName][platform]: hooks
     private builderPathsMap: Record<string, Record<string, string>> = {};
     private customBuildStagesMap: {
@@ -54,7 +53,7 @@ export class PluginManager extends EventEmitter {
             [platform: string]: IBuildStageItem[];
         };
     } = {};
-    protected customBuildStages: Record<Platform, {
+    protected customBuildStages: Record<string, {
         [pkgName: string]: IBuildStageItem[];
     }>;
 
@@ -449,11 +448,11 @@ export class PluginManager extends EventEmitter {
      * 获取平台默认值
      * @param platform
      */
-    public async getOptionsByPlatform<P extends Platform>(platform: P): Promise<IBuildTaskOption<P>> {
+    public async getOptionsByPlatform<P extends Platform | string>(platform: P): Promise<IBuildTaskOption> {
         const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
         const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
         commonOptions.platform = platform;
-        return Object.assign(commonOptions, options) as unknown as IBuildTaskOption<P>;
+        return Object.assign(commonOptions, options);
     }
 
     public getTexturePlatformConfigs(): Record<string, ITextureCompressConfig> {
@@ -479,7 +478,7 @@ export class PluginManager extends EventEmitter {
      * @param platform 
      * @returns 
      */
-    public getBuildStageWithHookTasks(platform: Platform, taskName: string): IBuildStageItem | null {
+    public getBuildStageWithHookTasks(platform: Platform | string, taskName: string): IBuildStageItem | null {
         const customStages = this.customBuildStages[platform];
         if (!customStages) {
             return null;
@@ -515,7 +514,7 @@ export class PluginManager extends EventEmitter {
      * 获取平台插件的构建路径信息
      * @param platform
      */
-    public getHooksInfo(platform: Platform): IBuildHooksInfo {
+    public getHooksInfo(platform: Platform | string): IBuildHooksInfo {
         // 为了保障插件的先后注册顺序，采用了数组的方式传递
         const result: IBuildHooksInfo = {
             pkgNameOrder: [],

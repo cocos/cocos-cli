@@ -153,6 +153,7 @@ export interface IBuildPaths {
     compileConfig: string; // cocos.compile.config.json
     importMap: string; // import-map 文件地址
     engineMeta: string; // 引擎构建结果的 meta 文件路径
+    tempDir: string; // 平台构建过程中可以使用的临时目录
 
     plugins: Record<string, string>;
     hashedMap: Record<string, string>; // 用于记录被编辑器添加过 md5 hash 值的路径 map

@@ -1,5 +1,4 @@
-import { IBuildTaskOption } from "./options";
-
+import { IBuildTaskOption } from './options';
 
 // 主要为了生成 schema
 export type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;

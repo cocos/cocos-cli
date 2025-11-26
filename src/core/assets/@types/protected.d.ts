@@ -17,6 +17,5 @@ export interface IAssetDBProfileJSON {
 }
 
 export * from './public';
-export * from './protected/global';
 export * from './protected/asset';
 export * from './protected/asset-handler';

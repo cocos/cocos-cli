@@ -20,7 +20,7 @@ export async function init(platforms?: Platform[]) {
     await pluginManager.prepare(platforms || supportPlatforms, GlobalConfig.mode === 'simple');
 }
 
-export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption<P>): Promise<IBuildResultData> {
+export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
     if (!options) {
         options = await pluginManager.getOptionsByPlatform(platform);
     }

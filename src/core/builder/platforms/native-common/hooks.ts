@@ -15,7 +15,7 @@ import {
     emptyDirSync,
 } from 'fs-extra';
 import { getCmakePath } from './native-utils';
-import { IBundle, BuilderAssetCache, IBuilder, IBuildStageTask, InternalBuildResult, Platform } from '../../@types/protected';
+import { IBundle, BuilderCache, IBuilder, IBuildStageTask, InternalBuildResult, Platform } from '../../@types/protected';
 import { CocosParams } from './pack-tool/base/default';
 import i18n from '../../../base/i18n';
 import { BuildGlobalInfo } from '../../share/builder-config';
@@ -236,7 +236,7 @@ export async function onAfterBundleInit(options: ITaskOption) {
     options.buildScriptParam.system = { preset: 'commonjs-like' };
 }
 
-export async function onAfterBundleDataTask(options: ITaskOption, bundles: IBundle[], cache: BuilderAssetCache) {
+export async function onAfterBundleDataTask(options: ITaskOption, bundles: IBundle[], cache: BuilderCache) {
     for (const bundle of bundles) {
         bundle.configOutPutName = 'cc.config';
     }

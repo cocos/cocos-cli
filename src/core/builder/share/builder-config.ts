@@ -18,7 +18,6 @@ export const BuildGlobalInfo = {
     BUNDLE_ZIP_NAME: 'res.zip',
     projectRoot: '',
     buildTemplateDir: '',
-    // globalTempDir: '',
     projectTempDir: '',
     projectName: 'projectName',
 
@@ -27,6 +26,7 @@ export const BuildGlobalInfo = {
 
     buildOptionsFileName: 'cocos.compile.config.json',
 };
+
 export function getBuildCommonOptions(): IBuildCommonOptions {
     return {
         name: 'gameName',
@@ -50,6 +50,7 @@ export function getBuildCommonOptions(): IBuildCommonOptions {
         moveRemoteBundleScript: false,
         nativeCodeBundleMode: 'asmjs',
         packAutoAtlas: true,
+        packages: {},
     };
 }
 
@@ -235,7 +236,6 @@ class BuilderConfig {
         BuildGlobalInfo.projectRoot = project.default.path;
         BuildGlobalInfo.buildTemplateDir = join(BuildGlobalInfo.projectRoot, 'build-template');
         BuildGlobalInfo.projectTempDir = join(BuildGlobalInfo.projectRoot, 'temp', 'builder',);
-        // BuildGlobalInfo.globalTempDir = join(projectInfo.path, 'builder', 'temp', 'global');
         this._init = true;
         this._configInstance = await configurationRegistry.register('builder', getDefaultConfig());
         await this.getProject<Record<string, any>>();

@@ -2,25 +2,23 @@
 
 import {
     IBuildPluginConfig,
-    IBuildTaskOption,
+    IBuildOptionBase,
     IDisplayOptions,
     ISettings,
     IVerificationRuleMap,
     PlatformCompressConfig,
-    IBuildUtils,
-    IBuild,
     ITaskState,
     BundleCompressionType,
     IConsoleType,
     MakeRequired,
     IBuildTaskItemJSON,
 } from '../public';
-import { BuilderAssetCache } from './asset-manager';
-import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager, IBuildStageTask } from './build-result';
+import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager, IBuildStageTask, IBuildUtils } from './build-result';
 import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
 import { IPlatformType } from './options';
 import { StatsQuery } from '@cocos/ccbuild';
 import { IConfigItem } from '../../../base/type';
+import { BuilderCache } from '../protected';
 
 export interface IQuickSpawnOption {
     cwd?: string;
@@ -63,14 +61,6 @@ export interface IInternalBuildUtils extends IBuildUtils {
      * @param path
      */
     compileJS(contents: Buffer, path: string): string;
-}
-
-export interface IInternalBuild extends IBuild {
-    Utils: IInternalBuildUtils;
-    debugMode: boolean; // 是否为调试模式，仅供开发使用，进程池开启的子进程打开 inspector 后会自动在第一行断点，任务管理器也可以随意组织
-
-    // ------------------ 开放的一些构建内置资源处理模块，供插件自由组合使用（持续更新中） ---------------------
-    ScriptBuilder: typeof ScriptBuilder;
 }
 
 export type IProcessingFunc = (process: number, message: string, state?: ITaskState) => void;
@@ -196,7 +186,7 @@ export interface PlatformPackageOptions {
 export type IInternalBaseHooks = (
     options: IInternalBuildOptions,
     result: InternalBuildResult,
-    cache: BuilderAssetCache,
+    cache: BuilderCache,
     ...args: any[]
 ) => void;
 
@@ -210,11 +200,11 @@ export type IInternalBundleBaseHooks = (
     this: IBundleManager,
     options: IInternalBundleBuildOptions,
     bundles: IBundle[],
-    cache: BuilderAssetCache,
+    cache: BuilderCache,
 ) => void;
 
 export interface IBuildTask {
-    handle: (options: IInternalBuildOptions, result: InternalBuildResult, cache: BuilderAssetCache, settings?: ISettings) => {};
+    handle: (options: IInternalBuildOptions, result: InternalBuildResult, cache: BuilderCache, settings?: ISettings) => {};
     title: string;
     name: string;
 }
@@ -329,4 +319,4 @@ export interface BuildCheckResult {
     level: IConsoleType;
 }
 
-export type IBuildVerificationFunc = (value: any, options: IBuildTaskOption) => boolean | Promise<boolean>;
+export type IBuildVerificationFunc = (value: any, options: IBuildOptionBase) => boolean | Promise<boolean>;
