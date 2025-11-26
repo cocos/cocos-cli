@@ -7,7 +7,7 @@ import { encodeObject, encodeComponent } from './encode';
 import { IComponent } from '../../../common';
 
 // import * as dumpDecode from './decode';
-const { get, set } = require('lodash');
+const { get } = require('lodash');
 
 // dump接口,统一下全局引用
 class DumpUtil {
@@ -18,7 +18,6 @@ class DumpUtil {
         }
         // 通过路径找到对象，然后dump这个对象
         const info = parsingPath(path, node);
-        const parentInfo = parsingPath(info.search, node);
         // 获取需要修改的数据
         const data = info.search ? get(node, info.search) : node;
         const attr = CCClass.Attr.getClassAttrs(data.constructor);
@@ -84,16 +83,11 @@ class DumpUtil {
         return parsingPath(path, data);
     }
 
-    // 获取节点上某个属性的路径
-    generatePath(node: Node, property: any) {
-        // return generatePath(node, property);
-    }
-
     /**
      * encodeObject
      */
-    encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean) {
-        return encodeObject(object, attributes, owner, objectKey, isTemplate);
+    encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string) {
+        return encodeObject(object, attributes, owner, objectKey);
     }
 
     /**

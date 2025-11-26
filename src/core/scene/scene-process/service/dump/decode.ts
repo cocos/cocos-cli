@@ -1,42 +1,14 @@
-'use strcit';
+'use strict';
 
 declare const cc: any;
 
-import { ccClassAttrPropertyDefaultValue, getDefault, getTypeInheritanceChain, getTypeName, parsingPath } from './utils';
+import { ccClassAttrPropertyDefaultValue, getDefault, getTypeInheritanceChain, parsingPath } from './utils';
 
 import lodash from 'lodash';
 const { get, set } = lodash;
 import { DumpDefines } from './dump-defines';
-import { Component, editorExtrasTag, Node, Prefab, Vec3, MobilityMode } from 'cc';
-import { IProperty } from '../../../@types/public';
-import { IComponent } from '../../../common'
-import ComponentManager from '../component/index';
-import {
-    MissingScript,
-} from 'cc';
+import { Component, editorExtrasTag, Node, Vec3, MobilityMode } from 'cc';
 const NodeMgr = EditorExtends.Node;
-
-type TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
-const TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
-type TargetInfo = Prefab._utils.TargetInfo;
-const TargetInfo = Prefab._utils.TargetInfo;
-type PrefabInfo = Prefab._utils.PrefabInfo;
-const PrefabInfo = Prefab._utils.PrefabInfo;
-
-
-function addComponentAt(node: Node, comp: Component, index: number): boolean {
-    if (!node || !comp || index < 0) {
-        return false;
-    }
-
-    if (comp instanceof MissingScript && !comp._$erialized) {
-        return false;
-    }
-
-    // @ts-ignore
-    node._addComponentAt(comp, index);
-    return true;
-}
 
 // 还原mountedRoot
 export function decodeMountedRoot(compOrNode: Node | Component, mountedRoot?: string) {
@@ -56,161 +28,6 @@ export function decodeMountedRoot(compOrNode: Node | Component, mountedRoot?: st
         if (compOrNode[editorExtrasTag]) {
             compOrNode[editorExtrasTag].mountedRoot = undefined;
         }
-    }
-}
-
-// 差异还原节点上的组件
-async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) {
-    if (!dumpComps) {
-        // 容错处理
-        return;
-    }
-
-    // 用于判断 prefabNode 下的 component 复用
-    const prefabFileIdToDumpComp: { [key: string]: any } = {};
-    const dumpCompsUuids = dumpComps
-        .map((comp: any) => {
-            if (comp.value.uuid) {
-                if (comp.value.__prefab && comp.value.__prefab.value && comp.value.__prefab.value.fileId.value) {
-                    prefabFileIdToDumpComp[comp.value.__prefab.value.fileId.value] = comp;
-                }
-
-                return comp.value.uuid.value;
-            }
-            return '';
-        })
-        .filter(Boolean);
-
-    const componentsUuids = node.components
-        .map((component: any) => {
-            if (excludeComps) {
-                // 需要 exclude 的 component，假装不在 node 上
-                const compType = getTypeName(component.constructor);
-                if (excludeComps.includes(compType)) {
-                    return '';
-                }
-            }
-
-            // 将 dumpComp 转为现有相同 fileId component 的配置，后面执行值覆盖
-            if (component.__prefab && component.__prefab.fileId) {
-                const dumpComp = prefabFileIdToDumpComp[component.__prefab.fileId];
-                if (dumpComp) {
-                    const existIndex = dumpCompsUuids.indexOf(dumpComp.value.uuid.value);
-                    if (existIndex !== -1) {
-                        dumpCompsUuids.splice(existIndex, 1, component.uuid);
-                        dumpComp.value.uuid.value = component.uuid;
-                    }
-                }
-            }
-
-            return component.uuid;
-        })
-        .filter(Boolean);
-
-    /**
-     * 删除现有在 node._compoennts 中但不在 dumpComps 中的 component
-     * 2次方: 次数限制的作用：
-     * 既能再次删除被依赖而不能被先删除的组件，
-     * 又能避免死循环
-     */
-    let maxLoopTimes = componentsUuids.length ** 2;
-    let i = componentsUuids.length - 1;
-
-    do {
-        const compUuid = componentsUuids[i];
-
-        if (compUuid && !dumpCompsUuids.includes(compUuid)) {
-            // 删除失败会返回 false, 可能是组件被依赖，会下次再删
-            if (ComponentManager.removeComponent(compUuid)) {
-                componentsUuids.splice(i, 1);
-            } else {
-                i--;
-            }
-        } else {
-            i--;
-        }
-
-        maxLoopTimes--;
-    } while (componentsUuids.length !== 0 && maxLoopTimes);
-
-    // 重要：当前帧执行删除，保障下面的排序逻辑和上面的删除处于同一帧
-    cc.Object._deferredDestroy();
-
-    // 挂载上新的组件及调整组件的位置
-    const components = node.components.slice(); // 下一步会清空，先缓存一份，以用于比较
-    node['_components'].length = 0; // 先清空节点上的组件
-
-    for (let i = 0; i < dumpComps.length; i++) {
-        const dumpComp: IComponent = dumpComps[i];
-
-        if (!dumpComp.properties || !dumpComp.properties.value.uuid) {
-            continue;
-        }
-
-        let component = components[i];
-
-        const compUuid = (dumpComp.properties.value.uuid as IProperty).value as string;
-        let cacheComp = ComponentManager.query(compUuid);
-
-        if (cacheComp) {
-            // 有缓存
-            if (component !== cacheComp) {
-                /**
-                 * 新增场景：组件是从别的节点移过来的，
-                 * 例如 prefab 从资源还原时，会先实例化一个临时节点，里面的组件会被移植过来
-                 */
-                if (cacheComp.node !== node) {
-                    _removeDependComponent(cacheComp);
-                }
-
-                // 组件已被删除
-                if (cacheComp.objFlags & cc.Object.Flags.Destroying || cacheComp.objFlags & cc.Object.Flags.Destroyed) {
-                    // 57349 , 5 不会等于 128
-                    // 重置 component.objFlags 的状态是为了重新走组件的生命周期
-                    cacheComp.objFlags &= cc.Object.Flags.PersistentMask;
-                    cacheComp.objFlags &= ~cc.Object.Flags.Destroyed;
-
-                    // 回收站的缓存机制是编辑器的，这里需要将组件从回收站还原
-                    // cce.Component.recycle(compUuid);
-                }
-                component = cacheComp;
-            }
-            addComponentAt(node, component, i); // 插入新位置
-        }
-
-
-        // 对于原先还在的组件，还原内部的值
-        for (const key in dumpComp.properties.value) {
-            await decodePatch(key, dumpComp.properties.value[key], component);
-        }
-
-        // 还原mountedRoot
-        //decodeMountedRoot(component, dumpComp.mountedRoot);
-
-        // TODO: 不知道为啥这个方法是个protected的,应该改成public的
-        // @ts-ignore 
-        component && component.onRestore && component.onRestore();
-    }
-
-    // 按依赖关系的顺序删除组件
-    function _removeDependComponent(component: any) {
-        // 组件已被删除
-        if (component.objFlags & cc.Object.Flags.Destroying || component.objFlags & cc.Object.Flags.Destroyed) {
-            // 57349 , 5 不会等于 128
-            return;
-        }
-
-        // 关系是 dependComponent 依赖 component
-        const dependComponent = component.node._getDependComponent(component);
-        dependComponent.forEach((dep: any) => {
-            _removeDependComponent(dep);
-        });
-
-        /**
-         * 需要立即执行 cc.Object._deferredDestroy() 动作
-         */
-        NodeMgr.remove(component.uuid);
-        cc.Object._deferredDestroy();
     }
 }
 

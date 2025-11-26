@@ -15,19 +15,7 @@ import compMgr from '../component/index';
  */
 export function encodeComponent(component: any): IComponent {
     const ctor = component.constructor;
-    // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
-    // const mountedRootNode = prefabUtils.getMountedRoot(component);
-    // let mountedRoot: string | undefined = mountedRootNode?.uuid;
-    // if (mountedRootNode) {
-    //     const prefabInfo = mountedRootNode['_prefab'];
-    //     if (prefabInfo && prefabInfo.root) {
-    //         const prefabRootNode = prefabInfo.root['_prefab']?.instance?.prefabRootNode;
-    //         // 判断下是否是嵌套预制体且由父预制体引入到当前场景（避免在预制体编辑模式中误判）
-    //         if (prefabRootNode && prefabRootNode !== cce.Scene.rootNode) {
-    //             mountedRoot = undefined;
-    //         }
-    //     }
-    // }
+
     const data: IComponent = {
         properties: {},
         path: compMgr.getPathFromUuid(component.uuid) || '',
@@ -71,40 +59,6 @@ export function encodeComponent(component: any): IComponent {
         }
     });
 
-    // // editor 附加数据
-    // data.editor = {
-    //     inspector: ctor._inspector || '',
-    //     icon: ctor._icon || '',
-    //     help: ctor._help || '',
-    //     _showTick:
-    //         typeof component.start === 'function' ||
-    //         typeof component.update === 'function' ||
-    //         typeof component.lateUpdate === 'function' ||
-    //         typeof component.onEnable === 'function' ||
-    //         typeof component.onDisable === 'function',
-    // };
-
-    // // __scriptUuid
-    // if (data.value) {
-    //     const scriptType: any = data.value.__scriptAsset;
-    //     if (component instanceof cc._MissingScript) {
-    //         const compData = component['_$erialized'];
-    //         let uuid = compData && compData['__type__'];
-    //         uuid = uuid && utils.UUID.decompressUUID(component._$erialized.__type__);
-    //         scriptType.visible = !!(uuid && utils.UUID.isUUID(uuid));
-    //         scriptType.value = { uuid };
-    //     } else {
-    //         scriptType.visible = !!component.__scriptUuid;
-    //         scriptType.value = { uuid: component.__scriptUuid };
-    //     }
-    //     scriptType.displayOrder = -999;
-    // }
-
-    // // 继承链
-    // if (ctor) {
-    //     data.extends = dumpUtil.getTypeInheritanceChain(ctor);
-    // }
-
     return data;
 }
 
@@ -121,16 +75,7 @@ function _checkConstructorRewriteType(data: IProperty, object: any, attributes: 
     }
 }
 
-function _checkAttributes(data: IProperty, attributes: any, owner: any) {
-    // 处理存在函数写法的属性
-    // ['visible', 'min', 'max'].forEach((name: string) => {
-    //     const attributeName = name as keyof IProperty;
-    //     const value = _checkFuncAttribute(attributeName, attributes, owner);
-    //     if (value !== undefined) {
-    //         data[attributeName] = value;
-    //     }
-    // });
-
+function _checkAttributes(data: IProperty, attributes: any) {
     if (!attributes.ctor && attributes.type) {
         data.type = '' + attributes.type;
     }
@@ -143,33 +88,6 @@ function _checkAttributes(data: IProperty, attributes: any, owner: any) {
     if (attributes && attributes.hasGetter && !attributes.hasSetter) {
         data.readonly = true;
     }
-
-    // attributeProps.forEach((propName) => {
-    //     // eslint-disable-next-line no-prototype-builtins
-    //     if (attributes.hasOwnProperty(propName)) {
-    //         // @ts-ignore
-    //         data[propName] = attributes[propName];
-    //     }
-    // });
-
-    // // 如果对象类型名以 `cc.` 开始，也就是引擎对象。
-    // // 则自动按规则组装出要 i18n 的特性（比如显示名和工具提示）的 i18n 路径，作为 Dump 数据。
-    // //
-    // // 组装规则如下。对于某个引擎类的某个属性的某个特性，编辑器会按以下的字典路径去查找该特性的 i18n 字符串：
-    // // `i18n:ENGINE.classes.<类的 cc-class 名称>.properties.<属性的名称>.<特性的名称>`
-    // //
-    // if (typeof data.name === 'string' && owner && typeof owner === 'object') {
-    //     const ownerTypeName = findClassName(owner, data.name);
-    //     if (ownerTypeName) {
-    //         for (const autoI18nAttributeName of autoI18nAttributeNames) {
-    //             // 如果该特性已经被声明，比如 `@property({ tooltip: '' })`，跳过组装。
-    //             if (Object.prototype.hasOwnProperty.call(attributes, autoI18nAttributeName)) {
-    //                 continue;
-    //             }
-    //             data[autoI18nAttributeName] = `i18n:ENGINE.classes.${ownerTypeName}.properties.${data.name}.${autoI18nAttributeName}`;
-    //         }
-    //     }
-    // }
 }
 
 function _encodeByType(type: string | undefined, object: any, data: IProperty, opts?: any) {
@@ -191,7 +109,7 @@ function _encodeByType(type: string | undefined, object: any, data: IProperty, o
  * @param owner 编码对象所属的对象
  * @param objectKey 输出有效信息，当前数据 key，以便问题排查
  */
-export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean): IProperty {
+export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string): IProperty {
     const ctor = dumpUtil.getConstructor(object, attributes);
     // let defValue = dumpUtil.getDefault(attributes);
 
@@ -211,11 +129,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
     const data: IProperty = {
         name: objectKey,
         value: null,
-        //default: defValue,
         type: type,
-        //readonly: !!attributes.readonly,
-        //visible: true,
-        //animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值
     };
 
     //如果有 userData 就把 userData 传递过去
@@ -223,7 +137,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         data.userData = attributes.userData;
     }
 
-    _checkAttributes(data, attributes, owner);
+    _checkAttributes(data, attributes);
 
     if (!data.isArray && Array.isArray(object)) {
         data.isArray = true;
@@ -246,10 +160,6 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
             // 子元素的类型由父级决定，子元素的默认值跟随父级类型的默认值
             childAttribute.default = getElementDefaultValue(attributes, propertyDefaultValue);
 
-            // if (!isTemplate) {
-            //     data.elementTypeData = encodeObject(childAttribute.default, childAttribute, propertyDefaultValue, undefined, true);
-            // }
-
             const resultValue: any = [];
             // 未避免有可能出现的内部数据有空，需要用普通的 for 循环，不要使用 forEach\map 等来遍历
             for (let i = 0; i < object.length; i++) {
@@ -262,8 +172,6 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 const result = encodeObject(item, childAttribute, owner);
                 if (result.type !== 'Unknown') {
                     resultValue.push(result);
-                } else {
-                    // resultValue.push(data.elementTypeData);
                 }
             }
             data.value = resultValue;
@@ -316,11 +224,6 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         }
     }
 
-    // // 继承链
-    // if (ctor) {
-    //     data.extends = dumpUtil.getTypeInheritanceChain(ctor);
-    // }
-
     return data;
 }
 
@@ -346,8 +249,6 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
     return null;
 }
 
-
-// export * as default from './encode';
 export default {
     encodeComponent,
     encodeObject,

@@ -5,7 +5,6 @@ import {
     SphereCollider,
     BoxCollider,
     UITransformComponent,
-    PhysicsSystem2D,
     PolygonCollider2D,
     MeshCollider,
     CapsuleCollider,
@@ -187,21 +186,14 @@ class ComponentUtils {
         },
 
         PolygonCollider2D(component: PolygonCollider2D, node: Node) {
-            //PhysicsUtils.resetPoints(component);
+            //TODO: PhysicsUtils.resetPoints(component);
         },
 
         Camera(component: Camera, node: Node) {
-            //if (cce.SceneFacadeManager['_projectType'] === '2d') {
-                component.visibility = Layers.makeMaskInclude([Layers.Enum.UI_3D, Layers.Enum.UI_2D]);
-                component.projection = Camera.ProjectionType.ORTHO;
-                component.near = 0;
-                component.clearFlags = Camera.ClearFlag.DEPTH_ONLY;
-            //}
-            // if (cce.SceneFacadeManager['_projectType'] === '3d') {
-            //     component.visibility = Layers.Enum.DEFAULT;
-            //     component.projection = Camera.ProjectionType.PERSPECTIVE;
-            //     component.clearFlags = Camera.ClearFlag.SKYBOX;
-            // }
+            component.visibility = Layers.makeMaskInclude([Layers.Enum.UI_3D, Layers.Enum.UI_2D]);
+            component.projection = Camera.ProjectionType.ORTHO;
+            component.near = 0;
+            component.clearFlags = Camera.ClearFlag.DEPTH_ONLY;
         },
     };
 

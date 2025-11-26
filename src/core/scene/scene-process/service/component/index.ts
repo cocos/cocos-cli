@@ -49,7 +49,7 @@ export class CompManager extends EventEmitter {
      * @param {cc.Component} component
      */
     add(uuid: string, component: Component) {
-
+        this.emit('added', component);
     }
 
     /**
@@ -60,17 +60,6 @@ export class CompManager extends EventEmitter {
     remove(uuid: string, component: Component) {
         this.emit('removed', component);
     }
-
-    // /**
-    //  * 查询一个组件的实例
-    //  * @param {*} uuid
-    //  * @returns {cc.Component}
-    //  */
-    // query(uuid: string): Component | null
-    // query<T extends Component>(uuid: string): T | null
-    // query<T extends Component>(uuid: string): T | null {
-    //     return CompMgr.getComponent(uuid) || null;
-    // }
 
     query(path: string): Component | null {
         return CompMgr.getComponentFromPath(path) || null;
@@ -91,20 +80,12 @@ export class CompManager extends EventEmitter {
     getPathFromUuid(uuid: string): string | null {
         return CompMgr.getPathFromUuid(uuid);
     }
+
     /**
      * 获取所有在用的组件
      */
     queryAll() {
         return CompMgr.getComponents();
-    }
-
-    /**
-     * 在回收站中查询一个组件的实例
-     * @param {*} uuid
-     * @returns {cc.Component}
-     */
-    queryRecycle(uuid: string) {
-
     }
 
     /**
@@ -116,7 +97,6 @@ export class CompManager extends EventEmitter {
         // @ts-ignore
         if (component.node._getDependComponent(component).length > 0) {
             // @ts-ignore
-            const a = component.node._getDependComponent(component).length;
             console.warn('Dependent components cannot be removed.  ' + component.name);
             return false;
         }
