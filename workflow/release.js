@@ -5,7 +5,7 @@ const { globby } = require('globby');
 const { Client } = require('basic-ftp');
 const { Command } = require('commander');
 const gulp = require('gulp');
-const { runCommand, create7ZipArchive, zipArchive, formatBytes } = require('./utils');
+const { runCommand, create7ZipArchive, zipArchive } = require('./utils');
 
 // Global context to share state between tasks
 const context = {
@@ -358,11 +358,11 @@ async function uploadToFTP(filePath, type) {
     console.log('Starting FTP upload...');
     const ftpUser = process.env.ORG_FTP_USER;
     const ftpPass = process.env.ORG_FTP_PASS;
-    const ftpHost = process.env.FTP_HOST || 'ctc.upload.new1cloud.com';
-    const ftpPort = process.env.FTP_PORT ? parseInt(process.env.FTP_PORT) : 21;
+    const ftpHost = process.env.ORG_UPLOAD_URL;
+    const ftpPort = process.env.ORG_FTP_PORT ? parseInt(process.env.ORG_FTP_PORT) : 21;
     const ftpSecure = process.env.FTP_SECURE === 'true';
-    const defaultRemoteDir = (type === 'electron') ? `pink` : `CocosSDK`;
-    const ftpRemoteDir = process.env.FTP_REMOTE_DIR || defaultRemoteDir;
+    const defaultRemoteDir = (type === 'electron') ? `/pink` : `/CocosSDK`;
+    const ftpRemoteDir = process.env.ORG_FTP_REMOTE_DIR || defaultRemoteDir;
 
     if (!ftpUser || !ftpPass) {
         console.error('Missing FTP credentials: set environment variables FTP_USER and FTP_PASS');
@@ -389,8 +389,8 @@ async function uploadToFTP(filePath, type) {
         const fileName = path.basename(filePath);
         await client.uploadFrom(filePath, fileName);
 
-        const downloadBase = process.env.DOWNLOAD_BASE_URL || 'https://download.cocos.org';
-        const downloadUrl = `${downloadBase}/${ftpRemoteDir || ''}/${fileName}`;
+        const downloadBase = process.env.DOWNLOAD_BASE_URL;
+        const downloadUrl = `${downloadBase}${ftpRemoteDir || ''}/${fileName}`;
         console.log(`File uploaded successfully: ${downloadUrl}`);
     } catch (error) {
         console.error('FTP upload failed:', error.message);
