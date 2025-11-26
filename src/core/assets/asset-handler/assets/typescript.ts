@@ -174,6 +174,7 @@ export const TypeScriptHandler: AssetHandler = {
         },
     },
 
+    destroy: JavascriptHandler.destroy,
     /**
      * 类型检查指定脚本资源。
      * @param asset 要检查的脚本资源。
