@@ -10,7 +10,6 @@ import { removeDbHeader } from './worker/builder/utils';
 import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
-import { checkPlatform } from './share/common-options-validator';
 
 export async function init(platform?: string) {
     await builderConfig.init();
@@ -31,7 +30,7 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
     options.taskName = options.taskName || platform;
 
     // 不支持的构建平台不执行构建
-    if (!checkPlatform(platform)) {
+    if (!pluginManager.checkPlatform(platform)) {
         console.error(i18n.t('builder.tips.disable_platform_for_build_command', {
             platform: platform,
         }));

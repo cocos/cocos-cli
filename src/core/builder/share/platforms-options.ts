@@ -14,7 +14,6 @@ export const PLATFORMS: string[] = [
 
     'web-desktop',
     'web-mobile',
-    'wechatgame',
 ];
 
 export const overwriteCommonOptions: OverwriteCommonOption[] = [

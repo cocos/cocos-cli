@@ -161,6 +161,14 @@ export class PluginManager extends EventEmitter {
         console.log(`register platform ${platform} success!`);
     }
 
+    public checkPlatform(platform: string) {
+        try {
+            return !!platform && !!this.platformConfig[platform].platformType;
+        } catch (error) {
+            return false;
+        }
+    }
+
     private async registerPlatform(registerInfo: IPlatformRegisterInfo) {
         const { platform, config } = registerInfo;
         if (this.platformConfig[platform]) {

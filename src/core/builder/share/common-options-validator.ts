@@ -15,7 +15,7 @@ import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetManager from '../../assets/manager/asset';
 import { Engine } from '../../engine';
-import builderConfig, { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
+import { BuildGlobalInfo, getBuildCommonOptions } from './builder-config';
 interface ModuleConfig {
     match: (module: string) => boolean;
     default: string | boolean;
@@ -35,15 +35,6 @@ export const overwriteModuleConfig: Record<string, ModuleConfig> = {
         default: 'inherit-project-setting',
     },
 };
-
-/**
-  * 是否为构建支持平台
-  * @param platform 
-  * @returns 
-  */
-export function checkPlatform(platform: Platform): boolean {
-    return platform && !!PLATFORMS.includes(platform);
-}
 
 /**
  * 校验场景数据
@@ -183,17 +174,11 @@ function checkIncludeModules(modules: string[]): boolean | string {
     return true;
 }
 
-Validator.addRule('supportPlatform', {
-    func: checkPlatform,
-    message: 'i18n:builder.error.unknown_platform',
-});
-
 export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
     platform: {
         label: 'i18n:builder.options.platform',
         default: 'web-desktop',
         type: 'string',
-        verifyRules: ['required', 'supportPlatform'],
     },
     name: {
         label: 'i18n:builder.options.name',
@@ -521,12 +506,6 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
                 }
                 return res;
             }
-        case 'platform':
-            if (!PLATFORMS.includes(value)) {
-                res.error = 'InValid platform!';
-                res.newValue = null;
-            }
-            break;
         case 'mainBundleIsRemote':
             if (value && options.mainBundleCompressionType === BundleCompressionTypes.SUBPACKAGE) {
                 res.newValue = false;

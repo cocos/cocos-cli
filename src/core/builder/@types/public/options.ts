@@ -292,13 +292,15 @@ export interface ITextureCompressConfigs {
 }
 
 // **************************** options *******************************************
-export type Platform =
+export type Platform = InternalPlatform | string;
+
+// 内置支持的平台
+export type InternalPlatform =
     | 'web-desktop'
     | 'web-mobile'
     | 'mac'
     | 'ios'
     | 'android'
-    | 'wechatgame'
     | 'windows'
     ;
 
