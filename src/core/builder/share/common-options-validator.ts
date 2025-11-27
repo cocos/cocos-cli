@@ -721,4 +721,8 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
         };
     }
 
+    if (!options.splashScreen) {
+        options.splashScreen = Engine.getConfig().splashScreen;
+    }
+
 }
