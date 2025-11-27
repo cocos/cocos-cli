@@ -12,9 +12,8 @@ import {
     IConsoleType,
     MakeRequired,
     IBuildTaskItemJSON,
-    Platform,
 } from '../public';
-import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager, IBuildStageTask, IBuildUtils } from './build-result';
+import { IBundle, InternalBuildResult, IBundleManager, IBuildStageTask, IBuildUtils } from './build-result';
 import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
 import { IPlatformType } from './options';
 import { StatsQuery } from '@cocos/ccbuild';

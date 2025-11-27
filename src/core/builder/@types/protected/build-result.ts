@@ -121,17 +121,7 @@ export interface IAtlasResult {
     atlasToImages: Record<string, string[]>;
 }
 
-interface IAppendRes {
-    hash: string;
-    paths: string[];
-}
 
-interface ICreateBundleOptions {
-    excludes?: string[];
-    debug?: boolean;
-    sourceMap?: boolean;
-    targets?: string;
-}
 export interface IBuildUtils {
 
     /**
@@ -146,6 +136,8 @@ export interface IBuildUtils {
     relativeUrl: (from: string, to: string) => string;
 
     transformCode: (code: string, options: ITransformOptions) => Promise<string>;
+
+    resolveToRaw: (path: string) => string;
 }
 
 export interface IBuilder {

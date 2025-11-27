@@ -135,8 +135,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     }
     options.dest = utils.Path.resolveToRaw(options.dest);
     let buildOptions;
-    const hasGenerateOptions = await builderConfig.getProject(`platforms.${options.platform}.generateCompileConfig`);
-    if (hasGenerateOptions) {
+    if (!options.platform.startsWith('web')) {
         try {
             buildOptions = readBuildTaskOptions(options.dest);
         } catch (error) {
