@@ -12,9 +12,18 @@ export const SchemaQueryLogParamInfo = z.object({
     logLevel: z.enum(consoleTypeValues as [IConsoleType, ...IConsoleType[]]).optional().describe('日志级别')
 }).describe('需要查询的日志信息');
 
+export const SchemaClearLogParamInfo = z.object({
+}).describe('清除日志信息');
+
 // 返回 cli 日志信息
 export const SchemaQueryLogResult = z.array(z.string()).describe('日志信息');
+
+// 清除 cli 日志信息
+export const SchemaClearLogResult = z.boolean().describe('清除日志信息');
 
 // 类型导出
 export type TQueryLogParamInfo = z.infer<typeof SchemaQueryLogParamInfo>;
 export type TQueryLogResult = z.infer<typeof SchemaQueryLogResult>;
+
+export type TClearLogParamInfo = z.infer<typeof SchemaClearLogParamInfo>;
+export type TClearLogResult = z.infer<typeof SchemaClearLogResult>;

@@ -1,7 +1,11 @@
 
 import {
+    SchemaClearLogParamInfo,
+    SchemaClearLogResult,
     SchemaQueryLogParamInfo,
     SchemaQueryLogResult,
+    TClearLogParamInfo,
+    TClearLogResult,
     TQueryLogParamInfo,
     TQueryLogResult
 } from './system-schema';
@@ -40,4 +44,25 @@ export class SystemApi {
         }
     }
 
+    /**
+     * 清除 cli 日志信息
+     */
+    @tool('system-clear-logs')
+    @title('清除 cli 日志')
+    @description('清除 cli 日志信息')
+    @result(SchemaClearLogResult)
+    async clearLogs(@param(SchemaClearLogParamInfo) _queryParam: TClearLogParamInfo): Promise<CommonResultType<TClearLogResult>> {
+        try {
+            newConsole.clearLogs();
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: true,
+            };
+        } catch (e) {
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
 }
