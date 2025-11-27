@@ -2,7 +2,7 @@ import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
 import { BuildExitCode, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { pluginManager } from './manager/plugin';
-import { formatMSTime, getTaskLogDest } from './share/utils';
+import { formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
 import { join } from 'path';
 import assetManager from '../assets/manager/asset';
@@ -10,14 +10,16 @@ import { removeDbHeader } from './worker/builder/utils';
 import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
-import { GlobalConfig } from '../../global';
-import { checkPlatform, supportPlatforms } from './share/common-options-validator';
+import { checkPlatform } from './share/common-options-validator';
 
-
-export async function init(platforms?: Platform[]) {
+export async function init(platform?: string) {
     await builderConfig.init();
-    // TODO 此处将会按照支持的平台全量启动
-    await pluginManager.prepare(platforms || supportPlatforms, GlobalConfig.mode === 'simple');
+    await pluginManager.init();
+    platform && pluginManager.register(platform);
+}
+
+export async function startup() {
+    await pluginManager.registerAllPlatform();
 }
 
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {

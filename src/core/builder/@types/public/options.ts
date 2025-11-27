@@ -298,6 +298,7 @@ export type Platform =
     | 'mac'
     | 'ios'
     | 'android'
+    | 'wechatgame'
     | 'windows'
     ;
 
@@ -353,6 +354,7 @@ export interface PlatformPackageOptionMap {
     'mac': nativeOptions;
     'ios': nativeOptions;
     'android': nativeOptions;
+    [platform: string]: any;
 }
 
 export type IInterBuildTaskOption<P extends Platform = Platform> = IInternalBuildOptions & {

@@ -1,7 +1,7 @@
 'use strict';
 
 import { IBuildResult, IWindowsInternalBuildOptions } from './type';
-import { BuilderCache, IBuilder, IInterBuildTaskOption, IInternalBuildOptions } from '../../@types/protected';
+import { BuilderCache, IBuilder } from '../../@types/protected';
 import { executableNameOrDefault } from './utils';
 import * as nativeCommonHook from '../native-common/hooks';
 

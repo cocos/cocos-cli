@@ -28,7 +28,7 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle 配置选项');
 
 // 平台枚举
-export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile', 'windows', 
+export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile', 'windows', 'wechatgame'
     // 'ios', 'mac', 'android'
 ]);
 export const SchemaPlatformCanMake = z.enum(['windows',
@@ -151,8 +151,14 @@ export const SchemaWebMobileBuildOption = SchemaBuildRuntimeOptions
 // 通用构建选项（用于 API 入参）
 export const SchemaBuildOption = z.union([
     SchemaWebDesktopBuildOption,
-    SchemaWebMobileBuildOption
-]).optional();
+    SchemaWebMobileBuildOption,
+    SchemaBuildRuntimeOptions
+    .merge(SchemaBuildBaseConfig)
+    .extend({
+        platform: SchemaPlatform.optional().describe('构建平台'),
+        packages: z.any().optional().describe('平台特定配置'),
+    })
+]).optional().describe('构建选项（用于 API 入参）');
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaResultBase = z.object({
@@ -234,7 +240,12 @@ const SchemaWebMobileBuildConfigResult = BuildConfigCoreFields.partial()
 // 构建配置查询结果：union 类型，所有字段必填，包含 packages，不包含运行时选项
 export const SchemaBuildConfigResult = z.union([
     SchemaWebDesktopBuildConfigResult,
-    SchemaWebMobileBuildConfigResult
+    SchemaWebMobileBuildConfigResult,
+    BuildConfigCoreFields.partial()
+    .extend({
+        platform: SchemaPlatform,
+        packages: z.any().optional().describe('平台特定配置'),
+    })
 ]).nullable().describe('构建配置查询结果（所有字段必填，包含 packages）');
 
 export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;

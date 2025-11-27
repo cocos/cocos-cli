@@ -35,7 +35,6 @@ export const overwriteModuleConfig: Record<string, ModuleConfig> = {
         default: 'inherit-project-setting',
     },
 };
-export const supportPlatforms: Platform[] = ['web-desktop', 'web-mobile', 'windows'];
 
 /**
   * 是否为构建支持平台
@@ -43,7 +42,7 @@ export const supportPlatforms: Platform[] = ['web-desktop', 'web-mobile', 'windo
   * @returns 
   */
 export function checkPlatform(platform: Platform): boolean {
-    return platform && !!supportPlatforms.includes(platform);
+    return platform && !!PLATFORMS.includes(platform);
 }
 
 /**
