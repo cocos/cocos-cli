@@ -700,7 +700,7 @@ const engineIndexModURL = 'cce:/internal/x/cc';
 
 type TargetName = string;
 
-type PredefinedTargetName = 'editor'; // | 'preview';
+type PredefinedTargetName = 'editor' | 'preview';
 
 const DEFAULT_PREVIEW_BROWSERS_LIST_TARGET = 'supports es6-module';
 
@@ -711,11 +711,11 @@ const predefinedTargets: Record<PredefinedTargetName, PredefinedTarget> = {
         sourceMaps: 'inline',
         isEditor: true,
     },
-    // preview: {
-    //     name: 'Preview',
-    //     sourceMaps: true,
-    //     browsersListTargets: DEFAULT_PREVIEW_BROWSERS_LIST_TARGET,
-    // },
+    preview: {
+        name: 'Preview',
+        sourceMaps: true,
+        browsersListTargets: DEFAULT_PREVIEW_BROWSERS_LIST_TARGET,
+    },
 } as const;
 
 async function readBrowserslistTarget(browserslistrcPath: string) {
