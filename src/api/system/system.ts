@@ -1,10 +1,8 @@
 
 import {
-    SchemaClearLogParamInfo,
     SchemaClearLogResult,
     SchemaQueryLogParamInfo,
     SchemaQueryLogResult,
-    TClearLogParamInfo,
     TClearLogResult,
     TQueryLogParamInfo,
     TQueryLogResult
@@ -51,7 +49,7 @@ export class SystemApi {
     @title('清除 cli 日志')
     @description('清除 cli 日志信息')
     @result(SchemaClearLogResult)
-    async clearLogs(@param(SchemaClearLogParamInfo) _queryParam: TClearLogParamInfo): Promise<CommonResultType<TClearLogResult>> {
+    async clearLogs(): Promise<CommonResultType<TClearLogResult>> {
         try {
             newConsole.clearLogs();
             return {
