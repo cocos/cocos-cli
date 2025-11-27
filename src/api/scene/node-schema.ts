@@ -73,7 +73,7 @@ export const SchemaNodeDelete = z.object({
 }).describe('删除节点的选项参数');
 
 const SchemaNodeCreateBase = z.object({
-    path: z.string().describe('创建的节点相对路径，根节点是场景节点'),
+    path: z.string().describe('创建的节点相对路径，根节点是场景节点; 该路径为父节点路径,完整节点路径为父路径+节点名，根节点路径为 "/"'),
     name: z.string().optional().describe('节点的名称，不传，系统会默认一个名字'),
     workMode: z.enum(['2d', '3d']).optional().describe('节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d'),
     keepWorldTransform: z.boolean().optional().describe('保持世界变换'),
