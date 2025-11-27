@@ -1,11 +1,11 @@
 import EventEmitter from 'events';
-import { join, resolve } from 'path';
+import { basename, join } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting, commonOptionConfigs } from '../share/common-options-validator';
-import { NATIVE_PLATFORM, platformPlugins } from '../share/platforms-options';
+import { NATIVE_PLATFORM, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
 import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
-import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem } from '../@types/protected';
+import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo } from '../@types/protected';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
@@ -13,6 +13,10 @@ import { configGroups } from '../share/texture-compress';
 import { newConsole } from '../../base/console';
 import builderConfig, { } from '../share/builder-config';
 import { GlobalPaths } from '../../../global';
+import { existsSync, readdirSync } from 'fs';
+import utils from '../../base/utils';
+import { readJSONSync } from 'fs-extra';
+
 export interface InternalPackageInfo {
     name: string; // 插件名
     path: string; // 插件路径
@@ -22,22 +26,64 @@ export interface InternalPackageInfo {
     version: string; // 版本号
 }
 
-export interface IPlatformRegisterInfo {
-    config: IPlatformBuildPluginConfig;
-    platform: Platform;
-    path: string;
-}
-
-export interface IPluginRegisterInfo {
-    config: IInternalBuildPluginConfig;
-    platform: Platform;
-    path: string;
-}
-
 type ICustomAssetHandlerType = 'compressTextures';
 type IAssetHandlers = Record<ICustomAssetHandlerType, Record<string, Function>>;
 // 对外支持的对外公开的资源处理方法汇总
 const CustomAssetHandlerTypes: ICustomAssetHandlerType[] = ['compressTextures'];
+
+const pluginRoots = [
+    join(__dirname, '../platforms'),
+    join(GlobalPaths.workspace, 'packages/platforms'),
+];
+
+function getRegisterInfo(root: string, dirName: string) : IPlatformRegisterInfo | null {
+    const packageJSONPath = join(root, 'package.json');
+    if (existsSync(packageJSONPath)) {
+        const packageJSON = require(packageJSONPath);
+        const builder: IPackageRegisterInfo = packageJSON.contributes.builder;
+        if (!builder.register) {
+            return null;
+        }
+        return {
+            platform: builder.platform,
+            hooks: builder.hooks ? join(root, builder.hooks) : undefined,
+            config: require(join(root, builder.config)).default,
+            path: root,
+            type: 'register',
+        };
+    }
+
+    if (utils.Path.contains(GlobalPaths.workspace, root)) {
+        if (PLATFORMS.includes(dirName)) {
+            return {
+                platform: basename(root),
+                path: root,
+                config: require(join(root, 'config')).default,
+                hooks: join(root, 'hooks'),
+                type: 'register',
+            };
+        }
+        return null;
+    }
+
+    throw new Error(`Can not find package.json in root: ${root}`);
+}
+
+async function scanPluginRoot(root: string): Promise<IPlatformRegisterInfo[]>{
+    const dirNames = readdirSync(root);
+    const res: IPlatformRegisterInfo[] = [];
+    for (const dirName of dirNames) {
+        try {
+            const registerInfo = await getRegisterInfo(join(root, dirName), dirName);
+            registerInfo && res.push(registerInfo);
+        } catch (error) {
+            console.error(error);
+            console.error(`Register platform package failed in root: ${root}`);
+        }
+    }
+    return res;
+}
+
 export class PluginManager extends EventEmitter {
     // 平台选项信息
     public bundleConfigs: Record<string, PlatformBundleConfig> = {};
@@ -65,6 +111,8 @@ export class PluginManager extends EventEmitter {
     // 记录已注册的插件名称
     public packageRegisterInfo: Map<string, InternalPackageInfo> = new Map();
 
+    private platformRegisterInfoPool: Map<string, IPlatformRegisterInfo> = new Map();
+
     constructor() {
         super();
         const compsMap: any = {};
@@ -76,33 +124,57 @@ export class PluginManager extends EventEmitter {
         });
     }
 
-    async prepare(platforms: Platform[], throwError?: boolean) {
-        await Promise.all(platforms.map(async (platform) => {
+    async init() {
+        for (const root of pluginRoots) {
+            if (!existsSync(root)) {
+                continue;
+            }
+            const infos = await scanPluginRoot(root);
+            for (const info of infos) {
+                this.platformRegisterInfoPool.set(info.platform, info);
+            }
+        }
+    }
+
+    public async registerAllPlatform() {
+        for (const platform of this.platformRegisterInfoPool.keys()) {
             try {
-                if (this.platformConfig[platform] && this.platformConfig[platform].name) {
-                    return;
-                }
-                const platformRoot = join(__dirname, `../platforms/${platform}`);
-                const config = (await import(join(platformRoot, 'config.js'))).default;
-                await this.registerPlatform({
-                    platform,
-                    config: config,
-                    path: platformRoot,
-                });
-                console.log(`register platform ${platform} success!`);
+                await this.register(platform);
             } catch (error) {
-                if (throwError) {
-                    throw error;
-                }
                 console.error(error);
                 console.error(`register platform ${platform} failed!`);
             }
-        }));
-        
+        }
+    }
+
+    public async register(platform: string) {
+        if (this.platformConfig[platform]) {
+            console.debug(`platform ${platform} has register already!`);
+            return;
+        }
+        const info = this.platformRegisterInfoPool.get(platform);
+        if (!info) {
+            throw new Error(`Can not find platform register info for ${platform}`);
+        }
+        await this.registerPlatform(info);
+        await this.internalRegister(info);
+        console.log(`register platform ${platform} success!`);
+    }
+
+    public checkPlatform(platform: string) {
+        try {
+            return !!platform && !!this.platformConfig[platform].platformType;
+        } catch (error) {
+            return false;
+        }
     }
 
     private async registerPlatform(registerInfo: IPlatformRegisterInfo) {
         const { platform, config } = registerInfo;
+        if (this.platformConfig[platform]) {
+            console.error(`platform ${platform} has register already!`);
+            return;
+        }
         this.configMap[platform] = {};
         this.platformConfig[platform] = {} as IPlatformConfig;
         if (config.assetBundleConfig) {
@@ -145,19 +217,17 @@ export class PluginManager extends EventEmitter {
         if (this.bundleConfigs[platform]) {
             this.platformConfig[platform].type = this.bundleConfigs[platform].platformType;
         }
-        await this.internalRegister(registerInfo);
     }
 
-    protected async internalRegister(registerInfo: IPluginRegisterInfo, pkgInfo?: InternalPackageInfo): Promise<void> {
+    private async internalRegister(registerInfo: IBuilderRegisterInfo): Promise<void> {
         const { platform, config, path } = registerInfo;
         if (!this.platformConfig[platform] || !this.platformConfig[platform].name) {
             throw new Error(`platform ${platform} has been registered!`);
         }
 
-        // TODO: register i18n
-        const pkgName = pkgInfo?.name || platform;
+        const pkgName = registerInfo.pkgName || platform;
         this.pkgPriorities[pkgName] = config.priority || (path.includes(GlobalPaths.workspace) ? 1 : 0);
-
+        this._registerI18n(registerInfo);
         // 注册校验方法
         if (typeof config.verifyRuleMap === 'object') {
             for (const [ruleName, item] of Object.entries(config.verifyRuleMap)) {
@@ -201,17 +271,37 @@ export class PluginManager extends EventEmitter {
             lodash.set(this.customBuildStagesMap, `${pkgName}.${platform}`, config.customBuildStages);
             await builderConfig.setProject(`platforms.${platform}.generateCompileConfig`, this.shouldGenerateOptions(platform), 'default');
         }
-        // ----------------------------------- 剔除平台分割线 -------------------------------
 
         this.pkgPriorities[pkgName] = config.priority || 0;
         this.configMap[platform][pkgName] = config;
         // 注册 hooks 路径
-        if (typeof config.hooks === 'string') {
-            config.hooks = resolveToRaw(config.hooks, path);
+        if (registerInfo.hooks) {
+            config.hooks = registerInfo.hooks;
             lodash.set(this.builderPathsMap, `${pkgName}.${platform}`, config.hooks);
         }
         // 注册构建模板菜单项
         console.debug(`[Build] internalRegister pkg(${pkgName}) in ${platform} platform success!`);
+    }
+
+    _registerI18n(registerInfo: IBuilderRegisterInfo) {
+        const { platform, path } = registerInfo;
+        const i18nPath = join(path, 'i18n');
+        if (existsSync(i18nPath)) {
+            try {
+                readdirSync(i18nPath).forEach((file) => {
+                    if (file.endsWith('.json')) {
+                        const lang = basename(file, '.json');
+                        const path = registerInfo.pkgName || platform;
+                        i18n.registerLanguagePatch(lang, path, readJSONSync(join(i18nPath, file)));
+                    }
+                });
+            } catch (error) {
+                if (registerInfo.type === 'register') {
+                    throw error;
+                }
+                console.error(error);
+            }
+        }
     }
 
     public getCommonOptionConfigs(platform: Platform): Record<string, IBuilderConfigItem> {
@@ -439,7 +529,7 @@ export class PluginManager extends EventEmitter {
         return checkRes;
     }
 
-    public shouldGenerateOptions(platform: Platform): boolean {
+    public shouldGenerateOptions(platform: Platform | string): boolean {
         const customBuildStageMap = this.customBuildStages[platform];
         return !!Object.values(customBuildStageMap).find((stages) => stages.find((stageItem => stageItem.requiredBuildOptions !== false)));
     }
@@ -452,6 +542,7 @@ export class PluginManager extends EventEmitter {
         const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
         const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
         commonOptions.platform = platform;
+        commonOptions.outputName = platform;
         return Object.assign(commonOptions, options);
     }
 
@@ -501,9 +592,9 @@ export class PluginManager extends EventEmitter {
     private sortPkgNameWidthPriority(pkgNames: string[]) {
         return pkgNames.sort((a, b) => {
             // 平台构建插件的顺序始终在外部注册的任意插件之上
-            if (!platformPlugins.includes(a) && platformPlugins.includes(b)) {
+            if (!PLATFORMS.includes(a) && PLATFORMS.includes(b)) {
                 return 1;
-            } else if (platformPlugins.includes(a) && !platformPlugins.includes(b)) {
+            } else if (PLATFORMS.includes(a) && !PLATFORMS.includes(b)) {
                 return -1;
             }
             return this.pkgPriorities[b] - this.pkgPriorities[a];

@@ -174,7 +174,7 @@ export function getMigrationList(): IMigrationTarget[] {
         migrate: async (oldConfig: Record<string, any>) => {
             return {
                 tick: oldConfig?.scene?.tick ?? false,
-            }
+            };
         }
     });
 

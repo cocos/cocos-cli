@@ -75,8 +75,9 @@ export default class Launcher {
         // 启动场景进程
         await startupScene(GlobalPaths.enginePath, this.projectPath);
         // 初始化构建
-        const { init: initBuilder } = await import('./builder');
+        const { init: initBuilder, startup } = await import('./builder');
         await initBuilder();
+        await startup();
     }
 
     /**
@@ -94,14 +95,14 @@ export default class Launcher {
         await this.import();
         // 执行构建流程
         const { init, build } = await import('./builder');
-        await init([platform]);
+        await init(platform);
         return await build(platform, options);
     }
 
     static async make(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
-        await init([platform]);
+        await init(platform);
         return await executeBuildStageTask('command make', 'make', {
             platform,
             dest,
@@ -111,7 +112,7 @@ export default class Launcher {
     static async run(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
-        await init([platform]);
+        await init(platform);
         return await executeBuildStageTask('command run', 'run', {
             platform,
             dest,

@@ -588,6 +588,12 @@ export class NewConsole {
         messages.reverse();
         return messages;
     }
+    /**
+     * 清除所有日志信息
+     */
+    public clearLogs(): void {
+        this.messages.length = 0;
+    }
 }
 
 export function formateBytes(bytes: number) {

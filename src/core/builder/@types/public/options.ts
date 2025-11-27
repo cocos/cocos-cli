@@ -292,7 +292,10 @@ export interface ITextureCompressConfigs {
 }
 
 // **************************** options *******************************************
-export type Platform =
+export type Platform = InternalPlatform | string;
+
+// 内置支持的平台
+export type InternalPlatform =
     | 'web-desktop'
     | 'web-mobile'
     | 'mac'
@@ -353,6 +356,7 @@ export interface PlatformPackageOptionMap {
     'mac': nativeOptions;
     'ios': nativeOptions;
     'android': nativeOptions;
+    [platform: string]: any;
 }
 
 export type IInterBuildTaskOption<P extends Platform = Platform> = IInternalBuildOptions & {

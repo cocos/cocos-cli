@@ -13,7 +13,7 @@ import {
     MakeRequired,
     IBuildTaskItemJSON,
 } from '../public';
-import { IBundle, InternalBuildResult, ScriptBuilder, IBundleManager, IBuildStageTask, IBuildUtils } from './build-result';
+import { IBundle, InternalBuildResult, IBundleManager, IBuildStageTask, IBuildUtils } from './build-result';
 import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
 import { IPlatformType } from './options';
 import { StatsQuery } from '@cocos/ccbuild';
@@ -31,6 +31,33 @@ export interface IQuickSpawnOption {
     ignoreError?: boolean; // 忽略错误信息
     prefix?: string; // log 输出前缀
     shell?: boolean;//windows 是否使用 shell 运行 spawn
+}
+
+export interface IPackageRegisterInfo {
+    config: string;
+    platform: string;
+    hooks?: string;
+    register?: boolean;
+}
+
+export type IBuilderRegisterInfo = IPlatformRegisterInfo | IPluginRegisterInfo;
+
+export interface IPlatformRegisterInfo {
+    config: IPlatformBuildPluginConfig;
+    platform: string;
+    path: string;
+    hooks?: string;
+    pkgName?: string;
+    type: 'register';
+}
+
+export interface IPluginRegisterInfo {
+    config: IInternalBuildPluginConfig;
+    platform: string;
+    pkgName?: string;
+    path: string;
+    hooks?: string;
+    type: 'plugin';
 }
 
 export interface IInternalBuildUtils extends IBuildUtils {

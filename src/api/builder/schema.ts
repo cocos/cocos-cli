@@ -27,13 +27,10 @@ export const SchemaBundleConfig = z.object({
     scriptDest: z.string().optional().describe('脚本的输出地址'),
 }).describe('Bundle 配置选项');
 
-// 平台枚举
-export const SchemaPlatform = z.enum(['web-desktop', 'web-mobile', 'windows', 
-    // 'ios', 'mac', 'android'
-]);
-export const SchemaPlatformCanMake = z.enum(['windows',
-    //  'ios', 'mac', 'android'
-]);
+// 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
+export const SchemaPlatform = z.string().describe('平台标识符 (如: web-desktop, web-mobile, windows 等)');
+export const SchemaPlatformCanMake = z.string().describe('支持编译的平台标识符 (如: windows, mac, ios, android 等)');
+
 export const SchemaRoot = z.string().min(1).describe('构建发布目录');
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
 export type TPlatform = z.infer<typeof SchemaPlatform>;
@@ -151,8 +148,14 @@ export const SchemaWebMobileBuildOption = SchemaBuildRuntimeOptions
 // 通用构建选项（用于 API 入参）
 export const SchemaBuildOption = z.union([
     SchemaWebDesktopBuildOption,
-    SchemaWebMobileBuildOption
-]).optional();
+    SchemaWebMobileBuildOption,
+    SchemaBuildRuntimeOptions
+    .merge(SchemaBuildBaseConfig)
+    .extend({
+        platform: SchemaPlatform.optional().describe('构建平台'),
+        packages: z.any().optional().describe('平台特定配置'),
+    })
+]).optional().describe('构建选项（用于 API 入参）');
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaResultBase = z.object({
@@ -234,7 +237,12 @@ const SchemaWebMobileBuildConfigResult = BuildConfigCoreFields.partial()
 // 构建配置查询结果：union 类型，所有字段必填，包含 packages，不包含运行时选项
 export const SchemaBuildConfigResult = z.union([
     SchemaWebDesktopBuildConfigResult,
-    SchemaWebMobileBuildConfigResult
+    SchemaWebMobileBuildConfigResult,
+    BuildConfigCoreFields.partial()
+    .extend({
+        platform: SchemaPlatform,
+        packages: z.any().optional().describe('平台特定配置'),
+    })
 ]).nullable().describe('构建配置查询结果（所有字段必填，包含 packages）');
 
 export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;

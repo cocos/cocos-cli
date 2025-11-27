@@ -42,13 +42,13 @@ export async function patchOptionsToSettings(options: IInternalBuildOptions, set
     const { renderPipeline: defaultPipeline, splashScreen: defaultSplashScreen } = Engine.getConfig(true);
     settings.rendering.renderPipeline = options.renderPipeline === defaultPipeline ? '' : options.renderPipeline;
     settings.rendering.customPipeline = options.customPipeline;
-    const { customJointTextureLayouts, downloadMaxConcurrency, splashScreen } = Engine.getConfig();
+    const { customJointTextureLayouts, downloadMaxConcurrency } = Engine.getConfig();
     settings.animation.customJointTextureLayouts = customJointTextureLayouts || [];
     if (options.includeModules.includes('custom-pipeline')) {
         settings.rendering.effectSettingsPath = 'src/effect.bin';
     }
     // 自定义插屏写入
-    settings.splashScreen = await getSplashSettings(!!options.useSplashScreen, !!options.preview, defaultSplashScreen, splashScreen);
+    settings.splashScreen = await getSplashSettings(!!options.useSplashScreen, !!options.preview, defaultSplashScreen, options.splashScreen);
     settings.physics = await getPhysicsConfig(options.includeModules, options.physicsConfig);
     settings.engine.macros = options.macroConfig || {};
     settings.assets.downloadMaxConcurrency = downloadMaxConcurrency;

@@ -23,6 +23,7 @@ import i18n from '../../../base/i18n';
 import { checkProjectSetting } from '../../share/common-options-validator';
 import { I18nKeys } from '../../../../i18n/types/generated';
 import * as buildUtils from './utils';
+import utils from '../../../base/utils';
 
 export class BuildTask extends BuildTaskBase implements IBuilder {
     public cache: BuilderAssetCache;
@@ -75,6 +76,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         isInstallNodeJs: buildUtils.isInstallNodeJs,
         relativeUrl: buildUtils.relativeUrl,
         transformCode: buildUtils.transformCode,
+        resolveToRaw: utils.Path.resolveToRaw,
     };
 
     get utils() {

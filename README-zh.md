@@ -172,6 +172,7 @@ npm run test:all
 - [快速开始指南](docs/zh/quick-start.md)
 - [工具下载指南](docs/zh/download-tools.md)
 - [Commands 文档](docs/zh/commands.md)
+- [构建平台适配包开发指南](docs/zh/build-platform.md)
 
 ## 🤝 贡献代码
 
