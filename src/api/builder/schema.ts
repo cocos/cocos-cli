@@ -27,15 +27,9 @@ export const SchemaBundleConfig = z.object({
     scriptDest: z.string().optional().describe('脚本的输出地址'),
 }).describe('Bundle 配置选项');
 
-// 平台枚举
-export const SchemaPlatform = z.union([
-    z.enum(['web-desktop', 'web-mobile', 'windows']),
-    z.string()
-]).describe('平台枚举');
-export const SchemaPlatformCanMake = z.union([
-    z.enum(['windows']),
-    z.string()
-]).describe('平台枚举');
+// 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
+export const SchemaPlatform = z.string().describe('平台标识符 (如: web-desktop, web-mobile, windows 等)');
+export const SchemaPlatformCanMake = z.string().describe('支持编译的平台标识符 (如: windows, mac, ios, android 等)');
 
 export const SchemaRoot = z.string().min(1).describe('构建发布目录');
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
