@@ -126,6 +126,9 @@ export class PluginManager extends EventEmitter {
 
     async init() {
         for (const root of pluginRoots) {
+            if (!existsSync(root)) {
+                continue;
+            }
             const infos = await scanPluginRoot(root);
             for (const info of infos) {
                 this.platformRegisterInfoPool.set(info.platform, info);
