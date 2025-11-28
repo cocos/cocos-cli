@@ -23,7 +23,6 @@ packages/engine/
 packages/cc-module/editor
 packages/platforms/
 packages/cocos-cli-types/**/*
-!packages/cocos-cli-types/package.json
 
 # static
 static/tools/

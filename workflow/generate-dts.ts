@@ -30,6 +30,18 @@ const entries: IDtsEntry[] = [
     }
 ];
 
+const packageJSON = {
+    name: '@cocos/cocos-cli-types',
+    description: 'types for cocos cli',
+    author: 'cocos cli',
+    version: '0.0.1-alpha.5',
+    main: 'index.d.ts',
+    types: 'index.d.ts',
+    files: [
+        'index.d.ts'
+    ]
+};
+
 async function generate() {
     console.log(`Starting DTS generation for ${entries.length} entries...`);
 
@@ -119,9 +131,8 @@ async function generate() {
     }
     
     const packageJSONPath = path.join(dtsExportRoot, 'package.json');
-    const packageJSON = await fs.readJSON(packageJSONPath);
     packageJSON.version = require(path.join(projectRoot, 'package.json')).version;
-    await fs.writeJSON(packageJSONPath, packageJSON, { spaces: 4 });
+    await fs.outputJSON(packageJSONPath, packageJSON, { spaces: 4 });
     
     console.log('\nAll DTS generation tasks completed.');
 }

@@ -24,7 +24,7 @@ A standard platform adapter package should contain a `package.json` file and dec
 
 **package.json Configuration:**
 
-```json
+```json5
 {
     "name": "[platform]",
     "version": "1.0.0",
@@ -92,11 +92,11 @@ export default config;
 
 ### Key Fields Description
 
-*   **displayName**: The platform name displayed in the build panel.
-*   **platformType**: The base type of the platform, which affects how the engine is loaded and macro definitions.
-*   **options**: Defines build parameters unique to this platform, supporting attributes like `type` (string, boolean, number, enum, array, object), `default`, `label`, `description`, `verifyRules`, etc.
-*   **commonOptions**: Used to modify or override default values or validation rules for CLI common build options (such as `outputName`, `mainBundleCompressionType`, etc.).
-*   **verifyRuleMap**: Custom parameter validation rules.
+* **displayName**: The platform name displayed in the build panel.
+* **platformType**: The base type of the platform, which affects how the engine is loaded and macro definitions.
+* **options**: Defines build parameters unique to this platform, supporting attributes like `type` (string, boolean, number, enum, array, object), `default`, `label`, `description`, `verifyRules`, etc.
+* **commonOptions**: Used to modify or override default values or validation rules for CLI common build options (such as `outputName`, `mainBundleCompressionType`, etc.).
+* **verifyRuleMap**: Custom parameter validation rules.
 
 ## 3. Build Hooks (Hooks)
 
