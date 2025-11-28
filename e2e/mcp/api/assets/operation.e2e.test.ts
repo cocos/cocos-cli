@@ -516,6 +516,7 @@ export class InvalidComponent extends Component {
                 },
             });
 
+            expect(createResult.reason).toBe(undefined);
             expect(createResult.code).toBe(200);
             expect(createResult.data).toBeDefined();
 

@@ -542,6 +542,7 @@ export class PackerDriver {
             if (buildResult.err) {
                 this._building = false;
                 this._currentTaskId = null;
+                this._deleteErrFile((buildResult.err as any).file);
                 eventEmitter.emit('compiled', 'project');
                 throw buildResult.err;
             }
@@ -554,6 +555,14 @@ export class PackerDriver {
         eventEmitter.emit('compiled', 'project');
 
     }
+
+    private _deleteErrFile(filePath: string | undefined) {
+        if (!filePath) return;
+        for (const [, target] of Object.entries(this._targets)) {
+            target.deleteCacheFile(filePath);
+        }
+    }
+
 
     private static async _createIncrementalRecord(logger: Logger): Promise<IncrementalRecord> {
         const sharedModLoOptions = await querySharedSettings(logger);
@@ -700,7 +709,7 @@ const engineIndexModURL = 'cce:/internal/x/cc';
 
 type TargetName = string;
 
-type PredefinedTargetName = 'editor'; // | 'preview';
+type PredefinedTargetName = 'editor' | 'preview';
 
 const DEFAULT_PREVIEW_BROWSERS_LIST_TARGET = 'supports es6-module';
 
@@ -711,11 +720,11 @@ const predefinedTargets: Record<PredefinedTargetName, PredefinedTarget> = {
         sourceMaps: 'inline',
         isEditor: true,
     },
-    // preview: {
-    //     name: 'Preview',
-    //     sourceMaps: true,
-    //     browsersListTargets: DEFAULT_PREVIEW_BROWSERS_LIST_TARGET,
-    // },
+    preview: {
+        name: 'Preview',
+        sourceMaps: true,
+        browsersListTargets: DEFAULT_PREVIEW_BROWSERS_LIST_TARGET,
+    },
 } as const;
 
 async function readBrowserslistTarget(browserslistrcPath: string) {
@@ -857,12 +866,6 @@ class PackTarget {
         try {
             buildResult = await this._build();
         } catch (err: any) {
-            if (err.file) {
-                const mods = this._prerequisiteAssetMods;
-                if (err.file && mods.size) {
-                    mods.delete(err.file);
-                }
-            }
             this._logger.error(`${err}, stack: ${err.stack}`);
             buildResult.err = err;
         } finally {
@@ -879,6 +882,13 @@ class PackTarget {
         }
 
         return buildResult;
+    }
+
+    deleteCacheFile(filePath: string) {
+        const mods = this._prerequisiteAssetMods;
+        if (filePath && mods.size) {
+            mods.delete(filePath);
+        }
     }
 
     private async _build(): Promise<BuildResult> {

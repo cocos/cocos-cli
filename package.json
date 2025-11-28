@@ -1,6 +1,6 @@
 {
     "name": "cocos-cli",
-    "version": "0.0.1-alpha.5",
+    "version": "0.0.1-alpha.6",
     "displayName": "Cocos CLI Extension",
     "icon": "static/logo/logo.png",
     "description": "Cocos Creator CLI tool for project management and building",
@@ -116,7 +116,7 @@
         "@cocos/data-uri": "^1.0.6",
         "@cocos/fbx-gltf-conv": "^1.0.0-alpha.49.editor.1",
         "@cocos/fbx2gltf": "^1.0.8",
-        "@cocos/lib-programming": "3.8.7",
+        "@cocos/lib-programming": "3.8.8",
         "@cocos/module-system": "^0.0.21",
         "@cocos/quick-compiler": "^4.2.24",
         "@ffprobe-installer/ffprobe": "^1.4.1",
