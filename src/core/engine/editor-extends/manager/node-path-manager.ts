@@ -88,7 +88,7 @@ export class NodePathManager {
     }
 
     getNodePath(uuid: string): string {
-        return this._uuidToPath.get(uuid) || "";
+        return this._uuidToPath.get(uuid) || '';
     }
 
     updateUuid(uuid: string, newName: string, parentUuid?: string) {

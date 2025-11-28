@@ -119,6 +119,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         resultNode.setParent(parent, params.keepWorldTransform);
+        // setParent 后，node的path可能会变，node的name需要同步path中对应的name
+        const path = NodeMgr.getNodePath(resultNode);
+        const name = path.split('/').pop();
+        if (name && resultNode.name !== name) {
+            resultNode.name = name;
+        }
         if (checkUITransform) {
             this.ensureUITransformComponent(resultNode);
         }
