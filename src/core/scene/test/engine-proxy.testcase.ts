@@ -46,7 +46,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            const result = await NodeProxy.updateNode({
+            await NodeProxy.updateNode({
                 path: nodePath,
                 properties: {
                     position: { x: 5, y: 5, z: 5 }
