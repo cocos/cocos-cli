@@ -223,9 +223,7 @@ export default class NodeManager extends EventEmitter {
         node._id = newUUID;
 
         // 更新节点路径
-        const oldPath = pathManager.getNodePath(oldUUID);
-        pathManager.remove(oldUUID);
-        pathManager.add(newUUID, oldPath);
+        pathManager.changeUuid(oldUUID, newUUID);
 
         this._map[newUUID] = node;
         delete this._map[oldUUID];
@@ -262,9 +260,6 @@ export default class NodeManager extends EventEmitter {
             }
             this._parentChildren.delete(uuid);
         }
-
-        // 清理名称计数
-        pathManager.deleteNodeName(uuid);
     }
 
     /**
