@@ -3,7 +3,7 @@ import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-
 import { IMountedChildrenInfo, OptimizationPolicy } from '../../core/scene';
 
 // 首先定义基础 schema
-export const SchemaOptimizationPolicy = z.nativeEnum(OptimizationPolicy).describe('优化策略');
+export const SchemaOptimizationPolicy = z.number().describe('优化策略，AUTO: 0，SINGLE_INSTANCE: 1，MULTI_INSTANCE：1');
 
 export const SchemaTargetInfo = z.object({
     localID: z.array(z.string()).describe('由 fileId 组成的数组'),
