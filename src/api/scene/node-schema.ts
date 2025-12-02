@@ -29,7 +29,7 @@ export const SchemaNodeProperty = z.object({
 
 export const SchemaNode: z.ZodType<INode> = SchemaNodeIdentifier.extend({
     properties: SchemaNodeProperty.describe('节点属性'),
-    prefab: z.union([SchemaPrefabInfo as z.ZodType<IPrefabInfo>, z.null()]).describe('预制体信息'),
+    prefab: z.union([SchemaPrefabInfo, z.null()]).describe('预制体信息'),
     children: z.array(z.lazy(() => SchemaNode)).default([]).describe('子节点列表'),
     components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
 });

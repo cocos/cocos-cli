@@ -165,12 +165,12 @@ export class McpMiddleware {
                     });
                 
                 const fullInputZodSchema = z.object(inputSchemaFields);
-                const geminiInputSchema = this.getGeminiCompatibleSchema(fullInputZodSchema);
+                const geminiInputSchema = this.zodToJSONSchema7(fullInputZodSchema);
 
                 // 构建输出 schema
                 const outputSchemaFields = meta.returnSchema ? { result: meta.returnSchema } : { result: z.any() };
                 const fullOutputZodSchema = z.object(outputSchemaFields);
-                const geminiOutputSchema = this.getGeminiCompatibleSchema(fullOutputZodSchema);
+                const geminiOutputSchema = this.zodToJSONSchema7(fullOutputZodSchema);
 
                 return {
                     name: toolName,
@@ -350,90 +350,12 @@ export class McpMiddleware {
         };
     }
     /**
-     * 将 Zod Schema 转换为兼容 Gemini (Google Vertex AI/Studio) 的 JSON Schema
-     * 核心修复：
-     * 1. 移除 $ref (Gemini 不支持引用，必须内联)
-     * 2. 将 const 转换为 enum (Gemini 不支持 const)
-     * 3. 移除 propertyNames 等不支持的关键字
-     * 4. 强制枚举值类型匹配
+     * 将 Zod Schema 转换为兼容性高的 jsonSchema7 格式
      */
-    private getGeminiCompatibleSchema(zodObj: z.ZodTypeAny): any {
-        // 1. 转换为 OpenAPI 3.0 格式，关键配置：$refStrategy: 'none'
-        // 这会强制展开所有引用，解决 "Unknown name $ref" 错误
-        const schemaObj = zodToJsonSchema(zodObj, { 
-            target: 'openApi3', 
-            $refStrategy: 'none' 
+    private zodToJSONSchema7(zodObj: z.ZodTypeAny): any {
+        return zodToJsonSchema(zodObj, {
+            target: 'jsonSchema7',
+            $refStrategy: 'none',
         }) as any;
-
-        // 2. 递归清洗函数
-        const cleanSchema = (node: any) => {
-            if (!node || typeof node !== 'object') return;
-
-            // --- 移除 Gemini 不支持的关键字 ---
-            if (node.propertyNames) delete node.propertyNames; // 解决 "Unknown name propertyNames"
-            // if (node.title) delete node.title; // 可选，减少干扰 -> 恢复 title
-            if (node['$schema']) delete node['$schema'];
-
-            // --- 修复 const 问题 ---
-            // Gemini 报错: "Unknown name const"
-            // 解决: 将 {"const": "A"} 转换为 {"enum": ["A"]}
-            if ('const' in node) {
-                node.enum = [node.const];
-                delete node.const;
-            }
-
-            // --- 修复 Enum 类型不匹配问题 ---
-            // Gemini 报错: "Invalid value ... enum ... (TYPE_STRING), 0"
-            // 解决: 如果类型声明是 string，确保 enum 里的值也是 string
-            // --- 修复 Enum 类型不匹配问题 ---
-            // Gemini 报错: "Invalid value ... enum ... (TYPE_STRING), 0"
-            // 解决: 如果类型声明是 string，或者 enum 里包含字符串（Gemini 会推断为 string），则强制将所有值转换为 string
-            if (node.enum && Array.isArray(node.enum)) {
-                // 1. 如果 type 缺失，尝试推断
-                if (!node.type) {
-                    const allNumbers = node.enum.every((v: any) => typeof v === 'number');
-                    node.type = allNumbers ? 'number' : 'string';
-                }
-
-                // 2. 根据 type 强制转换值
-                if (node.type === 'string') {
-                    node.enum = node.enum.map((val: any) => String(val));
-                } else if (node.type === 'integer' || node.type === 'number') {
-                    node.enum = node.enum.map((val: any) => Number(val));
-                }
-            }
-
-            // --- 递归处理子节点 ---
-            // 处理 anyOf, allOf, oneOf
-            ['anyOf', 'allOf', 'oneOf'].forEach(key => {
-                if (Array.isArray(node[key])) {
-                    node[key].forEach(cleanSchema);
-                }
-            });
-
-            // 处理 properties
-            if (node.properties) {
-                Object.values(node.properties).forEach(cleanSchema);
-            }
-            
-            // 处理 items (数组)
-            if (node.items) {
-                cleanSchema(node.items);
-            }
-            
-            // 处理 additionalProperties
-            if (typeof node.additionalProperties === 'object') {
-                cleanSchema(node.additionalProperties);
-            }
-        };
-
-        // 执行清洗
-        cleanSchema(schemaObj);
-
-        // 移除根节点残留的定义字段
-        if (schemaObj.definitions) delete schemaObj.definitions;
-        if (schemaObj.$defs) delete schemaObj.$defs;
-
-        return schemaObj;
     }
 }
