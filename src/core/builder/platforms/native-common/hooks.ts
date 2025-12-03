@@ -76,10 +76,12 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
         params.cMakeConfig.BUILTIN_COCOS_X_PATH = `set(BUILTIN_COCOS_X_PATH "${fixPath(engineInfo.native.builtin)}")`;
     }
 
-    const moduleConfig = Engine.queryModuleConfig().moduleCmakeConfig;
-    Object.keys(moduleConfig).forEach((module) => {
-        if (moduleConfig[module].native) {
-            params.cMakeConfig[moduleConfig[module].native] = `set(${moduleConfig[module].native} ${options.includeModules.includes(module) ? 'ON' : 'OFF'})`;
+    const moduleConfig = Engine.queryModuleConfig().moduleCmakeConfig as Record<string, { native?: string }>;
+    Object.keys(moduleConfig).forEach((mod) => {
+        const cfg = moduleConfig[mod];
+        const nativeKey = cfg?.native;
+        if (nativeKey) {
+            params.cMakeConfig[nativeKey] = `set(${nativeKey} ${options.includeModules.includes(mod) ? 'ON' : 'OFF'})`;
         }
     });
 
