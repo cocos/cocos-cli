@@ -362,12 +362,13 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
 
     private async initOptions() {
         this.options.platformType = pluginManager.platformConfig[this.options.platform].platformType;
-        this.options.md5CacheOptions = this.options.md5CacheOptions || {
+        const defaultMd5CacheOptions = {
             excludes: [],
             includes: [],
             replaceOnly: [],
             handleTemplateMd5Link: false,
         };
+        this.options.md5CacheOptions = Object.assign(defaultMd5CacheOptions, this.options.md5CacheOptions || {});
         await checkProjectSetting(this.options);
 
         // TODO 支持传参直接传递 resolution
