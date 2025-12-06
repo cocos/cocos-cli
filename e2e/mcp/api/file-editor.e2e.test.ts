@@ -300,8 +300,8 @@ const test = 'original';
                 param: {
                     dbURL: testFileUrl,
                     fileType: 'ts',
-                    targetText: '\nconst',
-                    replacementText: '\n    const',
+                    targetText: '\nconst test = \'original\';',
+                    replacementText: '\n    const test = \'replaced\';',
                     regex: false,
                 },
             });
@@ -318,7 +318,7 @@ const test = 'original';
                 },
             });
             expect(queryResult.code).toBe(200);
-            expect(queryResult.data).toContain("    const test = 'original';");
+            expect(queryResult.data).toContain("    const test = 'replaced';");
             expect(queryResult.data).not.toContain("const test = 'original';");
         });
         it('should fail when multiple occurrences exist', async () => {
