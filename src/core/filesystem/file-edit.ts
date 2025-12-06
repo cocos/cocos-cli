@@ -248,7 +248,7 @@ export async function replaceTextInFile(
 
         return results.some(result => result.hasChanged);
     }
-    throw new Error('No occurrences found. File is not changed.');
+    throw new Error(`No replacement was performed, TargetText ${targetText} did not appear verbatim in ${filename}.`);
 }
 
 export async function queryLinesInFile(
