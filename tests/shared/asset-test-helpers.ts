@@ -1,6 +1,7 @@
 import { existsSync } from 'fs-extra';
 import { join } from 'path';
 import { expect } from '@jest/globals';
+import eol from 'eol';
 
 /**
  * 资源测试共享验证函数
@@ -155,6 +156,7 @@ export function validateAssetSaved(filePath: string, expectedContent: string): v
     validateAssetFileExists(filePath);
 
     const content = require('fs-extra').readFileSync(filePath, 'utf8');
+    expectedContent = eol.auto(expectedContent);
     expect(content).toBe(expectedContent);
 }
 
