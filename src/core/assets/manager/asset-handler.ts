@@ -429,7 +429,7 @@ class AssetHandlerManager {
                 options.content = JSON.stringify(options.content, null, 4);
             }
             // Normalize EOL for string content
-            if (typeof options.content === 'string') {
+            if (typeof options.content === 'string' && options.handler === 'text') {
                 options.content = eol.auto(options.content);
             }
             // 部分自定义创建资源没有模板，内容为空，只需要一个空文件即可完成创建
@@ -458,7 +458,7 @@ class AssetHandlerManager {
             return await assetHandler.createInfo.save(asset, content);
         }
         // Normalize EOL for string content
-        if (typeof content === 'string') {
+        if (typeof content === 'string' && asset.meta.importer === 'text') {
             content = eol.auto(content);
         }
         await outputFile(asset.source, content);
