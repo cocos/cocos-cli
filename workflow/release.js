@@ -70,7 +70,7 @@ function parseArgs(cb) {
 
         context.configs = types.map(type => ({
             type: type,
-            zip: options.zip !== 'undefined',
+            zip: !!options.zip,
             upload: !!options.upload,
             notarize: !options.skipNotarization,
         }));
