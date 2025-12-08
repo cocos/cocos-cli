@@ -24,7 +24,7 @@ Cocos CLI 支持通过插件包的形式扩展构建平台。开发者可以开�
 
 **package.json 配置:**
 
-```json
+```json5
 {
     "name": "[platform]",
     "version": "1.0.0",
@@ -50,9 +50,9 @@ import { IPlatformBuildPluginConfig } from '@cocos/cocos-cli-types/builder';
 
 const config: IPlatformBuildPluginConfig = {
     displayName: '[Platform Name]', // 构建面板显示的名称
-    platformType: 'HTML5',       // 平台宏类型 (HTML5, WINDOWS 等)
+    platformType: 'HTML5',       // 平台宏类型 (HTML5, WINDOWS 等)，用于引擎的宏剔除等
 
-    // 平台特有的构建选项
+    // 平台特有的构建选项，配置规则与 JSON Schema 的定义规则一致
     options: {
         orientation: {
             label: '屏幕方向',
@@ -64,7 +64,6 @@ const config: IPlatformBuildPluginConfig = {
             label: 'AppID',
             default: '',
             type: 'string',
-            verifyRules: ['required'], // 校验规则
         }
     },
 
@@ -93,10 +92,9 @@ export default config;
 ### 关键字段说明
 
 * **displayName**: 在构建面板中显示的平台名称。
-* **platformType**: 平台的基础类型，影响引擎的加载方式和宏定义。
+* **platformType**: 平台的宏定义，必填项，用于脚本、引擎编译过程的宏剔除等
 * **options**: 定义该平台独有的构建参数，支持 `type` (string, boolean, number, enum, array, object), `default`, `label`, `description`, `verifyRules` 等属性。
-* **commonOptions**: 用于修改或覆盖 CLI 通用构建选项（如 `outputName`, `mainBundleCompressionType` 等）的默认值或校验规则。
-* **verifyRuleMap**: 自定义参数校验规则。
+* **commonOptions**: 用于修改或覆盖构建通用构建选项（如 `outputName`, `mainBundleCompressionType` 等）的默认值或隐藏一些不支持的选项。
 
 ## 3. 构建钩子 (Hooks)
 

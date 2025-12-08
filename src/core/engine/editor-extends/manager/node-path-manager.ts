@@ -43,12 +43,53 @@ export class NodePathManager {
             this._pathToUuid.delete(path);
         }
         this._uuidToPath.delete(uuid);
+        this._nodeNames.delete(uuid);
+        const parentUuid = this._getParentUuid(path);
+        if (parentUuid && this._nodeNames.has(parentUuid)) {
+            const nameMap = this._nodeNames.get(parentUuid)!;
+            const nodeName = path ? path.split('/').pop() : undefined;
+            if (nodeName) {
+                nameMap.delete(nodeName);
+            }
+        }
+    }
+
+    changeUuid(oldUuid: string, newUuid: string) {
+        const path = this._uuidToPath.get(oldUuid);
+        if (!path) {
+            return;
+        }
+        this._pathToUuid.delete(path);
+        this._uuidToPath.delete(oldUuid);
+        this._uuidToPath.set(newUuid, path);
+        this._pathToUuid.set(path, newUuid);
+
+        if (this._nodeNames.has(oldUuid)) {
+            const nameMap = this._nodeNames.get(oldUuid)!;
+            this._nodeNames.delete(oldUuid);
+            this._nodeNames.set(newUuid, nameMap);
+        }
     }
 
     clear() {
         this._uuidToPath.clear();
         this._pathToUuid.clear();
         this._nodeNames.clear();
+    }
+
+    private _getParentUuid(nodePath: string | undefined): string | undefined {
+        if (!nodePath) {
+            return undefined;
+        }
+        const parts = nodePath.split('/');
+        if (parts.length <= 1) {
+            return undefined; // 已经是根节点或没有父节点
+        }
+        
+        // 移除最后一个元素（当前节点），然后重新组合
+        const parentPath = parts.slice(0, -1).join('/');
+        const parentUuid = parentPath ? this._pathToUuid.get(parentPath) : undefined;
+        return parentUuid;
     }
 
     /**
@@ -88,7 +129,7 @@ export class NodePathManager {
     }
 
     getNodePath(uuid: string): string {
-        return this._uuidToPath.get(uuid) || "";
+        return this._uuidToPath.get(uuid) || '';
     }
 
     updateUuid(uuid: string, newName: string, parentUuid?: string) {
@@ -100,10 +141,6 @@ export class NodePathManager {
         this._uuidToPath.set(uuid, newPath);
         this._pathToUuid.delete(oldPath!);
         this._pathToUuid.set(newPath, uuid);
-    }
-
-    deleteNodeName(uuid: string) {
-        this._nodeNames.delete(uuid);
     }
 
     getNameMap(uuid: string): Map<string, number> | null {

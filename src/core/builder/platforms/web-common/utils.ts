@@ -41,7 +41,12 @@ export async function run(dest: string) {
                 console.log(`请手动打开浏览器访问: ${url}`);
                 return url;
         }
-
+        //@ts-expect-error
+        //hack: when run on pink use simple browser instead of default browser
+        if(process && process.addGlobalOpenUrl) {
+            //@ts-expect-error
+            return process.addGlobalOpenUrl(url);
+        }
         exec(command, (error: any) => {
             if (error) {
                 console.error('打开浏览器失败:', error.message);

@@ -48,7 +48,6 @@ describe('Engine Proxy 测试', () => {
 
             await NodeProxy.updateNode({
                 path: nodePath,
-                name: 'TestNode',
                 properties: {
                     position: { x: 5, y: 5, z: 5 }
                 }

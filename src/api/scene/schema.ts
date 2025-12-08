@@ -8,7 +8,7 @@ import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
 
 const SchemaScene = SchemaSceneIdentifier.extend({
     name: z.string().describe('场景/预制体名称'),
-    prefab: z.union([SchemaPrefabInfo, z.null(), z.undefined()]).describe('预制体信息'),
+    prefab: z.union([SchemaPrefabInfo, z.null()]).describe('预制体信息'),
     children: z.array(z.lazy(() => SchemaNodeQueryResult)).optional().default([]).describe('子节点列表'),
     components: z.array(SchemaComponentIdentifier).default([]).describe('节点上的组件列表'),
 }).describe('场景/预制体信息');

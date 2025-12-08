@@ -24,7 +24,7 @@ export interface IMountedChildrenInfo {
 export interface IPropertyOverrideInfo {
     targetInfo: ITargetInfo | null;
     propertyPath: string[];
-    value: any;
+    value?: any;
 }
 
 export interface ITargetInfo {

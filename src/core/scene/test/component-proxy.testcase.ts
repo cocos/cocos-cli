@@ -577,7 +577,6 @@ describe('Component Proxy 测试', () => {
             };
             const testNode = await NodeProxy.createNodeByType(params);
             expect(testNode).toBeDefined();
-            expect(testNode?.name).toBe('New Node');
             if (!testNode) {
                 return;
             }

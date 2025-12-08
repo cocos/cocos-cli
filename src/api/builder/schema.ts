@@ -35,6 +35,7 @@ export const SchemaRoot = z.string().min(1).describe('构建发布目录');
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
 export type TPlatform = z.infer<typeof SchemaPlatform>;
 export type TPlatformCanMake = z.infer<typeof SchemaPlatformCanMake>;
+
 // ==================== 平台特定的 Packages 配置 ====================
 
 // Web Desktop 平台配置

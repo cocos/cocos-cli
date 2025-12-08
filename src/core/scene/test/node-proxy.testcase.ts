@@ -5,7 +5,7 @@ import {
     type IQueryNodeParams,
     type IUpdateNodeParams,
     type INode,
-    NodeType, ICreateOptions,
+    NodeType,
 } from '../common';
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
