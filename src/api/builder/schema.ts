@@ -28,7 +28,7 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle 配置选项');
 
 // 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
-export const SchemaPlatform = z.string().describe('平台标识符 (如: web-desktop, web-mobile, windows 等)');
+export const SchemaPlatform = z.string().describe('平台标识符 (如: web-desktop, web-mobile, windows, mac, ios 等)');
 export const SchemaPlatformCanMake = z.string().describe('支持编译的平台标识符 (如: windows, mac, ios, android 等)');
 
 export const SchemaRoot = z.string().min(1).describe('构建发布目录');

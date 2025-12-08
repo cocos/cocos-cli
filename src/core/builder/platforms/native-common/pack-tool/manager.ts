@@ -1,9 +1,10 @@
 import NativePackTool, { CocosParams, InternalNativePlatform } from './base/default';
 
-export type ISupportPlatform = 'windows';
 
 const platformPackToolMap: Record<string, string> = {
     windows: './platforms/windows',
+    mac: './platforms/mac',
+    ios: './platforms/ios',
 };
 
 export class NativePackToolManager {
