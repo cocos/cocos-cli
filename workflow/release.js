@@ -33,6 +33,7 @@ function parseArgs(cb) {
         .option('--zip', 'Create ZIP archive')
         .option('--upload', 'Upload to FTP server')
         .option('--publish-dir <dir>', 'Specify release directory (defaults to .publish)')
+        .option('--publish-name <name>', 'Custom name for the release artifact')
         .option('--skip-notarization', 'Skip notarization process')
         .allowUnknownOption(); // Allow Gulp flags
 
@@ -98,6 +99,11 @@ async function getProjectVersion() {
  * Generate release directory name
  */
 function generateReleaseDirectoryName(type, version) {
+    // Use custom publish name if provided
+    if (context.args.publishName) {
+        return context.args.publishName;
+    }
+
     const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
 
     // Generate timestamp (format: YYMMDDHH)
