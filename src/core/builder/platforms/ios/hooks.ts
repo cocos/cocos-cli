@@ -91,8 +91,8 @@ export async function onBeforeCompressSettings(options: IIOSInternalBuildOptions
 
 export async function onAfterBuild(this: IBuilder, options: IIOSInternalBuildOptions, result: InternalBuildResult) {
     await nativeCommonHook.onAfterBuild.call(this, options, result);
-    // generate 之后 make 之前，生成插屏图片
-    await buildSplash(options, result);
+    // generate 之后 make 之前，生成插屏图片，暂时屏蔽
+ //   await buildSplash(options, result);
 }
 
 async function buildSplash(options: IIOSInternalBuildOptions, result: InternalBuildResult) {
