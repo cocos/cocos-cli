@@ -166,7 +166,7 @@ export const ImageHandler: AssetHandler = {
         default: {
             type: {
                 label: 'i18n:ENGINE.assets.image.type',
-                default: 'texture',
+                default: 'sprite-frame',
                 render: {
                     ui: 'ui-select',
                     items: [
