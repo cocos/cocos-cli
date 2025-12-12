@@ -4,12 +4,19 @@ import utils from '../../../base/utils';
 import { BuildGlobalInfo } from '../../share/builder-config';
 import { GlobalConfig } from '../../../../global';
 
+import { getBuildUrlPath } from '../../build.middleware';
+
 export async function getPreviewUrl(dest: string) {
     const rawPath = utils.Path.resolveToRaw(dest);
     if (!existsSync(rawPath)) {
         throw new Error(`Build path not found: ${dest}`);
     }
     const serverService = (await import('../../../../server/server')).serverService;
+    const buildKey = getBuildUrlPath(rawPath);
+    if (buildKey) {
+        return `${serverService.url}/build/${buildKey}/index.html`;
+    }
+    
     const buildRoot = join(BuildGlobalInfo.projectRoot, 'build');
     const relativePath = relative(buildRoot, rawPath);
     return serverService.url + '/build/' + relativePath + '/index.html';

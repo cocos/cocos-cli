@@ -112,6 +112,9 @@ export default class Launcher {
     static async run(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
+        if (platform.startsWith('web')) {
+            await startServer();
+        }
         await init(platform);
         return await executeBuildStageTask('command run', 'run', {
             platform,
