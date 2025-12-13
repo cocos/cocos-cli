@@ -274,7 +274,7 @@ export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
     debug: {
         label: 'i18n:builder.options.debug',
         description: 'i18n:builder.options.debugTips',
-        default: false,
+        default: true,
         type: 'boolean',
     },
     mangleProperties: {
@@ -292,7 +292,7 @@ export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
     md5Cache: {
         label: 'i18n:builder.options.md5_cache',
         description: 'i18n:builder.options.md5CacheTips',
-        default: false,
+        default: true,
         type: 'boolean',
     },
     md5CacheOptions: {
