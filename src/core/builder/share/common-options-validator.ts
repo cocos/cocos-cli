@@ -225,7 +225,7 @@ export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
     },
     sourceMaps: {
         label: 'i18n:builder.options.sourceMap',
-        default: 'false',
+        default: 'inline',
         description: 'i18n:builder.options.sourceMapTips',
         type: 'enum',
         items: [{
@@ -292,7 +292,7 @@ export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
     md5Cache: {
         label: 'i18n:builder.options.md5_cache',
         description: 'i18n:builder.options.md5CacheTips',
-        default: true,
+        default: false,
         type: 'boolean',
     },
     md5CacheOptions: {
