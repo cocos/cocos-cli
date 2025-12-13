@@ -1,6 +1,8 @@
-import { join } from 'path';
+import { join, basename } from 'path';
+import { getOptionsDefault } from './utils';
 import { IBaseConfiguration, ConfigurationScope, configurationRegistry } from '../../configuration';
 import { IBuildCommonOptions, Platform } from '../@types';
+import { IBuilderConfigItem } from '../@types/protected';
 import { BuildConfiguration } from '../@types/config-export';
 
 export const BuildGlobalInfo = {
@@ -28,30 +30,12 @@ export const BuildGlobalInfo = {
 };
 
 export function getBuildCommonOptions(): IBuildCommonOptions {
+    const defaultOptions = getOptionsDefault(commonOptionConfigs);
     return {
-        name: 'gameName',
-        outputName: 'web-desktop',
-        buildPath: 'project://build',
-        taskName: 'build task',
-        platform: 'web-desktop',
-        scenes: [],
-        skipCompressTexture: false,
-        sourceMaps: false,
-        experimentalEraseModules: false,
-        bundleCommonChunk: false,
-        startScene: '',
-        debug: false,
-        mangleProperties: false,
-        inlineEnum: true,
-        md5Cache: false,
-        mainBundleCompressionType: 'merge_dep',
-        mainBundleIsRemote: false,
-        startSceneAssetBundle: false,
+        ...defaultOptions,
         moveRemoteBundleScript: false,
-        nativeCodeBundleMode: 'asmjs',
-        packAutoAtlas: true,
         packages: {},
-    };
+    } as IBuildCommonOptions;
 }
 
 export function getDefaultConfig(): BuildConfiguration {
@@ -243,3 +227,264 @@ class BuilderConfig {
 }
 
 export default new BuilderConfig();
+
+
+export const commonOptionConfigs: Record<string, IBuilderConfigItem> = {
+    platform: {
+        label: 'i18n:builder.options.platform',
+        default: 'web-mobile',
+        type: 'string',
+    },
+    name: {
+        label: 'i18n:builder.options.name',
+        type: 'string',
+        default: basename(BuildGlobalInfo.projectRoot),
+        verifyRules: ['required'],
+    },
+    polyfills: {
+        label: 'i18n:builder.options.polyfills',
+        description: 'i18n:builder.options.polyfills_tips',
+        type: 'object',
+        hidden: true,
+        default: {
+            asyncFunctions: false,
+        },
+        properties: {
+            asyncFunctions: {
+                label: 'i18n:builder.options.async_functions',
+                description: 'i18n:builder.options.async_functions_tips',
+                type: 'boolean',
+                default: false,
+            },
+            coreJs: {
+                label: 'i18n:builder.options.core_js',
+                description: 'i18n:builder.options.core_js_tips',
+                type: 'boolean',
+                default: false,
+            },
+        },
+    },
+    buildScriptTargets: {
+        label: 'i18n:builder.options.buildScriptTargets',
+        description: 'i18n:builder.options.buildScriptTargetsTips',
+        hidden: true,
+        type: 'string',
+        default: '',
+    },
+    server: {
+        label: 'i18n:builder.options.remote_server_address',
+        description: 'i18n:builder.options.remote_server_address_tips',
+        default: '',
+        type: 'string',
+        verifyRules: ['http'],
+    },
+    sourceMaps: {
+        label: 'i18n:builder.options.sourceMap',
+        default: 'inline',
+        description: 'i18n:builder.options.sourceMapTips',
+        type: 'enum',
+        items: [{
+            label: 'i18n:builder.off',
+            value: 'false',
+        }, {
+            label: 'i18n:builder.options.sourceMapsInline',
+            value: 'inline',
+        }, {
+            label: 'i18n:builder.options.standaloneSourceMaps',
+            value: 'true',
+        }],
+    },
+    experimentalEraseModules: {
+        label: 'i18n:builder.options.experimental_erase_modules',
+        description: 'i18n:builder.options.experimental_erase_modules_tips',
+        default: false,
+        experiment: true,
+        type: 'boolean',
+    },
+    startSceneAssetBundle: {
+        label: 'i18n:builder.options.start_scene_asset_bundle',
+        description: 'i18n:builder.options.start_scene_asset_bundle_tips',
+        default: false,
+        hidden: true,
+        type: 'boolean',
+    },
+    bundleConfigs: {
+        label: 'i18n:builder.options.includeBundles',
+        default: [],
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {}, // Placeholder for bundle config properties if needed
+        },
+        verifyLevel: 'warn',
+    },
+    // 之前 ios-app-clip 有隐藏 buildPath 的需求
+    buildPath: {
+        label: 'i18n:builder.options.build_path',
+        description: 'i18n:builder.tips.build_path',
+        default: 'project://build',
+        type: 'string',
+        verifyRules: ['required'],
+    },
+    debug: {
+        label: 'i18n:builder.options.debug',
+        description: 'i18n:builder.options.debugTips',
+        default: true,
+        type: 'boolean',
+    },
+    mangleProperties: {
+        label: 'i18n:builder.options.mangleProperties',
+        description: 'i18n:builder.options.manglePropertiesTip',
+        default: false,
+        type: 'boolean',
+    },
+    inlineEnum: {
+        label: 'i18n:builder.options.inlineEnum',
+        description: 'i18n:builder.options.inlineEnumTip',
+        default: true,
+        type: 'boolean',
+    },
+    md5Cache: {
+        label: 'i18n:builder.options.md5_cache',
+        description: 'i18n:builder.options.md5CacheTips',
+        default: false,
+        type: 'boolean',
+    },
+    md5CacheOptions: {
+        default: {
+            excludes: [],
+            includes: [],
+            replaceOnly: [],
+            handleTemplateMd5Link: true,
+        },
+        type: 'object',
+        properties: {
+            excludes: { type: 'array', items: { type: 'string' }, default: [] },
+            includes: { type: 'array', items: { type: 'string' }, default: [] },
+            replaceOnly: { type: 'array', items: { type: 'string' }, default: [] },
+            handleTemplateMd5Link: { type: 'boolean', default: true },
+        },
+    },
+    mainBundleIsRemote: {
+        label: 'i18n:builder.options.main_bundle_is_remote',
+        description: 'i18n:builder.asset_bundle.remote_bundle_invalid_tooltip',
+        default: false,
+        type: 'boolean',
+    },
+    mainBundleCompressionType: {
+        label: 'i18n:builder.options.main_bundle_compression_type',
+        description: 'i18n:builder.asset_bundle.compression_type_tooltip',
+        default: 'merge_dep',
+        type: 'string',
+    },
+    useSplashScreen: {
+        label: 'i18n:builder.use_splash_screen',
+        default: true,
+        type: 'boolean',
+    },
+    bundleCommonChunk: {
+        label: 'i18n:builder.bundleCommonChunk',
+        description: 'i18n:builder.bundleCommonChunkTips',
+        default: false,
+        type: 'boolean',
+    },
+    skipCompressTexture: {
+        label: 'i18n:builder.options.skip_compress_texture',
+        default: false,
+        type: 'boolean',
+    },
+    packAutoAtlas: {
+        label: 'i18n:builder.options.pack_autoAtlas',
+        default: true,
+        type: 'boolean',
+    },
+    startScene: {
+        label: 'i18n:builder.options.start_scene',
+        description: 'i18n:builder.options.startSceneTips',
+        default: '',
+        type: 'string',
+    },
+    outputName: {
+        // 这个数据界面不显示，不需要 i18n
+        description: '构建的输出目录名，将会作为后续构建任务上的名称',
+        default: '',
+        type: 'string',
+        verifyRules: ['required', 'normalName'],
+    },
+    taskName: {
+        default: '',
+        type: 'string',
+        verifyRules: ['required'],
+    },
+    scenes: {
+        label: 'i18n:builder.options.scenes',
+        description: 'i18n:builder.tips.build_scenes',
+        default: [],
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                url: { type: 'string' },
+                uuid: { type: 'string' },
+            },
+        },
+    },
+    overwriteProjectSettings: {
+        default: {
+            macroConfig: {
+                cleanupImageCache: 'inherit-project-setting',
+            },
+            includeModules: {
+                physics: 'inherit-project-setting',
+                'physics-2d': 'inherit-project-setting',
+                'gfx-webgl2': 'off',
+            },
+        },
+        type: 'object',
+        properties: {
+            macroConfig: {
+                type: 'object',
+                properties: {
+                    cleanupImageCache: { type: 'string', default: 'inherit-project-setting' },
+                },
+            },
+            includeModules: {
+                type: 'object',
+                properties: {
+                    physics: { type: 'string', default: 'inherit-project-setting' },
+                    'physics-2d': { type: 'string', default: 'inherit-project-setting' },
+                    'gfx-webgl2': { type: 'string', default: 'off' },
+                },
+            },
+        },
+    },
+    nativeCodeBundleMode: {
+        default: 'asmjs',
+        type: 'string',
+    },
+    wasmCompressionMode: {
+        hidden: true,
+        default: false,
+        type: 'boolean',
+    },
+    binGroupConfig: {
+        default: {
+            threshold: 16,
+            enable: false,
+        },
+        type: 'object',
+        label: 'i18n:builder.options.bin_group_config',
+        properties: {
+            enable: {
+                label: 'i18n:builder.options.enable_cconb_group',
+                description: 'i18n:builder.options.enable_cconb_group_tips',
+                type: 'boolean',
+                default: false,
+            },
+            threshold: {
+                type: 'number',
+                default: 16,
+            },
+        },
+    },
+};
