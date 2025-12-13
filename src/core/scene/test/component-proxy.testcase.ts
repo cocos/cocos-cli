@@ -319,7 +319,6 @@ describe('Component Proxy 测试', () => {
                     properties: { enableOutline: true },
                 };
                 expect(componentInfo?.properties['enableOutline'].value).toBe(false);
-                setComponentProperty.properties.value = true;
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.queryComponent(queryComponent);
