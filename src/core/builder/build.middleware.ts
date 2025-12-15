@@ -26,12 +26,12 @@ export default {
             /**
              * http://localhost:xxxx/build/web-desktop/outputName/index.html
              */
-            url: '/build/:platform/:name/*',
+            url: /^\/build\/([^/]+)\/([^/]+)\/(.*)/,
             async handler(req: Request, res: Response) {
-                const { platform, name } = req.params;
+                const platform = req.params[0];
+                const name = req.params[1];
                 const dest = getBuildPath(platform, name);
-                // @ts-ignore
-                const file = req.params[0];
+                const file = req.params[2];
                 if (dest && file) {
                     const path = join(dest, file);
                     if (existsSync(path)) {

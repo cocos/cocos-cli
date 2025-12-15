@@ -79,7 +79,7 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
     const moduleConfig = Engine.queryModuleConfig().moduleCmakeConfig;
     Object.keys(moduleConfig).forEach((module) => {
         if (moduleConfig[module].native) {
-            params.cMakeConfig[moduleConfig[module].native] = `set(${moduleConfig[module].native} ${options.includeModules.includes(module) ? 'ON' : 'OFF'})`;
+            params.cMakeConfig[moduleConfig[module].native!] = `set(${moduleConfig[module].native} ${options.includeModules.includes(module) ? 'ON' : 'OFF'})`;
         }
     });
 
