@@ -1,6 +1,7 @@
 'use strict';
 
 import { Asset } from '@cocos/asset-db';
+import type { Texture2D, TextureCube, RenderTexture } from 'cc';
 import { Filter, SpriteFrameBaseAssetUserData, TextureBaseAssetUserData, WrapMode } from '../../@types/userDatas';
 
 export const defaultMinFilter: Filter = 'linear';
@@ -118,7 +119,7 @@ export function getFilterString(num: number) {
 }
 
 // @ts-ignore
-export function applyTextureBaseAssetUserData(userData: TextureBaseAssetUserData, texture: cc.Texture2D) {
+export function applyTextureBaseAssetUserData(userData: TextureBaseAssetUserData, texture: Texture2D | TextureCube | RenderTexture) {
     texture.setWrapMode(getWrapMode(userData.wrapModeS), getWrapMode(userData.wrapModeT));
     texture.setFilters(getFilter(userData.minfilter), getFilter(userData.magfilter));
     texture.setMipFilter(getFilter(userData.mipfilter));
