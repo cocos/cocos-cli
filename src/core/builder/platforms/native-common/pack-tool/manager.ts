@@ -4,6 +4,7 @@ export type ISupportPlatform = 'windows';
 
 const platformPackToolMap: Record<string, string> = {
     windows: './platforms/windows',
+    android: './platforms/android',
 };
 
 export class NativePackToolManager {
