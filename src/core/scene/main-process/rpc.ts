@@ -88,6 +88,9 @@ export class RpcProxy {
     }
 
     dispose(): void {
+        if (this.manager) {
+            this.manager.rpc.dispose();
+        }
         this.manager = null;
         this.rpcProxy = null;
     }

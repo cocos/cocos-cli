@@ -107,7 +107,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     public dispose() {
         // Idempotent check - prevent double dispose
-        if (!this.process && this.callbacks.size === 0) {
+        if (!this.process && this.callbacks.size === 0 && Object.keys(this.handlers).length === 0) {
             return;
         }
         
@@ -122,6 +122,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             });
         }
         this.callbacks.clear();
+        // Clear handlers to prevent memory leaks
+        this.handlers = {};
         if (this.process) {
             this.process.off('message', this.onMessageBind);
         }

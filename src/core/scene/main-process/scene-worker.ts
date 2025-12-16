@@ -88,7 +88,10 @@ export class SceneWorker {
         const managerToStop = this.manager;
         
         if (managerToStop) {
-            // Clear event listeners first to prevent race conditions during shutdown
+            // Unregister process-specific listeners first
+            this.unregisterProcessListeners();
+            
+            // Clear event emitter listeners
             this.clear();
             
             // Unlisten module messages to prevent memory leaks
@@ -118,35 +121,86 @@ export class SceneWorker {
         return false;
     }
 
+    // Store bound handlers for cleanup
+    private processListeners: Map<string, (...args: any[]) => void> = new Map();
+
     private registerListener(process: ChildProcess) {
-        process.on('message', (msg: { type: string, event: string, args: any[] }) => {
+        // Clear previous listeners if any
+        this.unregisterProcessListeners();
+
+        const messageHandler = (msg: { type: string, event: string, args: any[] }) => {
             if (msg && msg.type === SceneProcessEventTag) {
                 this.emit(msg.event, ...msg.args);
             }
-        });
+        };
 
-        process.stdout?.on('data', (chunk) => {
+        const stdoutHandler = (chunk: Buffer) => {
             console.log(chunk.toString());
-        });
+        };
 
-        process.stderr?.on('data', (chunk) => {
+        const stderrHandler = (chunk: Buffer) => {
             const str = chunk.toString();
             if (str.startsWith('[Scene]')) {
-                console.log(chunk.toString());
+                console.log(str);
             } else {
-                console.log('[Scene]', chunk.toString());
+                console.log('[Scene]', str);
             }
-        });
+        };
 
-        process.on('error', (err) => {
+        const errorHandler = (err: Error) => {
             if (err.message.startsWith('[Scene]')) {
                 console.error(err);
             } else {
                 console.error(`[Scene] `, err);
             }
-        });
+        };
+
+        // Register and store handlers
+        process.on('message', messageHandler);
+        this.processListeners.set('message', messageHandler);
+
+        if (process.stdout) {
+            process.stdout.on('data', stdoutHandler);
+            this.processListeners.set('stdout:data', stdoutHandler);
+        }
+
+        if (process.stderr) {
+            process.stderr.on('data', stderrHandler);
+            this.processListeners.set('stderr:data', stderrHandler);
+        }
+
+        process.on('error', errorHandler);
+        this.processListeners.set('error', errorHandler);
         
         // 'exit' is handled by manager
+    }
+
+    private unregisterProcessListeners() {
+        if (!this.manager?.process) return;
+        
+        const proc = this.manager.process;
+        
+        const messageHandler = this.processListeners.get('message');
+        if (messageHandler) {
+            proc.off('message', messageHandler);
+        }
+
+        const stdoutHandler = this.processListeners.get('stdout:data');
+        if (stdoutHandler && proc.stdout) {
+            proc.stdout.off('data', stdoutHandler);
+        }
+
+        const stderrHandler = this.processListeners.get('stderr:data');
+        if (stderrHandler && proc.stderr) {
+            proc.stderr.off('data', stderrHandler);
+        }
+
+        const errorHandler = this.processListeners.get('error');
+        if (errorHandler) {
+            proc.off('error', errorHandler);
+        }
+
+        this.processListeners.clear();
     }
 
     /**
