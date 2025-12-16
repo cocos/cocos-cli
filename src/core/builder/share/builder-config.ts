@@ -31,6 +31,7 @@ export const BuildGlobalInfo = {
 
 export function getBuildCommonOptions(): IBuildCommonOptions {
     const defaultOptions = getOptionsDefault(commonOptionConfigs);
+    if (!defaultOptions.name) defaultOptions.name = 'gameName';
     return {
         ...defaultOptions,
         moveRemoteBundleScript: false,
