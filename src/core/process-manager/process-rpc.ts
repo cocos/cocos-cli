@@ -89,7 +89,21 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * @param proc - NodeJS.Process or ChildProcess instance
      */
     attach(proc: NodeJS.Process | ChildProcess) {
-        this.dispose();
+        // Detach from previous process but preserve handlers
+        if (this.process) {
+            this.process.off('message', this.onMessageBind);
+        }
+        // Clear pending callbacks as they belong to the old process
+        for (const [id, callback] of Array.from(this.callbacks)) {
+            callback({
+                id,
+                type: 'response',
+                error: 'Process disconnected'
+            });
+        }
+        this.callbacks.clear();
+        this.msgId = 0;
+        
         this.process = proc;
         this.listen();
     }

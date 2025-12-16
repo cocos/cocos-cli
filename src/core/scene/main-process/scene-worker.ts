@@ -67,7 +67,7 @@ export class SceneWorker {
                 // No automatic restart, rely on Lazy Start during RPC requests
             });
             
-            // Initialize RPC
+            // Initialize RPC before start (register handlers first, attach() preserves them)
             Rpc.init(this.manager);
     
             const success = await this.manager.start();
