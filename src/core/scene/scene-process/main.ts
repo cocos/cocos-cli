@@ -6,12 +6,16 @@ import { join } from 'path';
 import { serviceManager } from './service/service-manager';
 
 async function startup() {
-    // 监听进程退出事件
+    // 0. Initialize RPC first (Attach process), prevent early message loss
+    // Even if Service is not ready, take over Message listening
+    Rpc.init();
+
+    // Listen for process exit event
     process.on('message', (msg) => {
         if (msg === 'scene-process:exit') {
             Rpc.dispose();
-            process.disconnect?.(); // 关闭 IPC
-            process.exit(0);// 退出进程
+            process.disconnect?.(); // Close IPC
+            process.exit(0);// Exit process
         }
     });
 
@@ -23,38 +27,40 @@ async function startup() {
         throw new Error('enginePath or projectPath is not set');
     }
 
-    // 初始化 service-manager
+    // Initialize service-manager
     serviceManager.initialize();
 
     await Engine.init(enginePath);
-    // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径
+    // Use server for importBase and nativeBase to let server transform real resource availability
     await Engine.initEngine({
         serverURL: serverURL,
         importBase: serverURL ?? join(projectPath, 'library'),
         nativeBase: serverURL ?? join(projectPath, 'library'),
         writablePath: join(projectPath, 'temp'),
     }, async () => {
-        // 导入 service，处理装饰器，捕获开发的 api
+        // Import service, handle decorators, capture developed api
         await import('./service');
         console.log('[Scene] import service');
-        await Rpc.startup();
+        
+        // Register Service to RPC
+        const { Service } = await import('./service/core/decorator');
+        Rpc.register(Service);
         console.log('[Scene] startup Rpc');
 
-        const { Service } = await import('./service/core/decorator');
         (globalThis.cce as any) = {
             Script: Service.Script
         };
     }, async () => {
         await cc.game.run();
         
-        // 初始化 engine 服务
+        // Initialize engine service
         const { Service } = await import('./service/core/decorator');
         await Service.Engine.init();
     });
 
     console.log('[Scene] initEngine success');
     
-    // 发送消息给父进程
+    // Send message to parent process
     process.send?.(SceneReadyChannel);
     
     console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);

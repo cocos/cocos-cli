@@ -43,11 +43,13 @@ export class RpcProxy {
                     return (...args: any[]) => {
                         if (this.manager && !this.manager.isRunning) {
                             // Fire and forget start + send
-                            console.log('[RpcProxy] Auto-starting scene process for notify...');
+                            const [module, method] = args;
+                            console.log(`[RpcProxy] Auto-starting scene process for notify: ${module}.${method}`);
                             this.manager.ensureRunning().then(() => {
                                 originalValue.apply(target, args);
                             }).catch(err => {
-                                console.error('[RpcProxy] Failed to auto-start for notify:', err);
+                                console.error(`[RpcProxy] Failed to auto-start for notify (${module}.${method}):`, err);
+                                console.warn(`[RpcProxy] Notification dropped: ${module}.${method} - process failed to start`);
                             });
                             return; // Return void as expected
                         }

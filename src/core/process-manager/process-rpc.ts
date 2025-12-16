@@ -2,7 +2,7 @@
 import { ChildProcess } from 'child_process';
 
 /**
- * RPC 消息类型
+ * RPC Message Type
  */
 interface RpcRequest {
     id: number;
@@ -29,17 +29,17 @@ interface RpcNotify {
 type RpcMessage = RpcRequest | RpcResponse | RpcNotify;
 
 /**
- * request 的 options
+ * Options for request
  */
 interface RequestOptions {
     timeout?: number; // 毫秒
 }
 
 /**
- * 双向 RPC 类
- * TModules 为注册模块接口集合
+ * Bidirectional RPC Class
+ * TModules is the collection of registered module interfaces
  *
- * 使用示例：
+ * Usage Example:
  *
  * interface INodeService {
  *   createNode(name: string): Promise<string>;
@@ -50,10 +50,10 @@ interface RequestOptions {
  *   loadScene(id: string): Promise<boolean>;
  * }
  *
- * // 假设我们在主进程
+ * // Assuming we are in the main process
  * const rpc = new ProcessRPC<{ node: INodeService; scene: ISceneService }>(childProcess);
  *
- * // 注册对象实例
+ * // Register object instance
  * rpc.register('scene', {
  *   async loadScene(id: string) {
  *     console.log('Scene loaded:', id);
@@ -61,7 +61,7 @@ interface RequestOptions {
  *   }
  * });
  *
- * // 注册类实例
+ * // Register class instance
  * class NodeService implements INodeService {
  *   async createNode(name: string) {
  *     return `Node:${name}`;
@@ -72,10 +72,10 @@ interface RequestOptions {
  * }
  * rpc.register('node', new NodeService());
  *
- * // 调用子进程方法
+ * // Call specific process method
  * const nodeName = await rpc.request('node', 'createNode', ['Player']);
  *
- * // 发送单向消息
+ * // Send one-way notification
  * rpc.send('scene', 'loadScene', ['Level01']);
  */
 export class ProcessRPC<TModules extends Record<string, any>> {
@@ -86,7 +86,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private onMessageBind = this.onMessage.bind(this);
 
     /**
-     * @param proc - NodeJS.Process 或 ChildProcess 实例
+     * @param proc - NodeJS.Process or ChildProcess instance
      */
     attach(proc: NodeJS.Process | ChildProcess) {
         this.dispose();
@@ -95,15 +95,15 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     }
 
     /**
-     * 注册模块，只支持对象或者类实例
+     * Register module, supports only object or class instances
      * @param handler - 注册模块列表
      */
     register(handler: Record<string, any>) {
-        this.handlers = handler;
+            this.handlers = handler;
     }
 
     /**
-     * 重置消息注册
+     * Reset message registration
      */
     public dispose() {
         this.msgId = 0;
@@ -117,23 +117,25 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             });
         }
         this.callbacks.clear();
-        this.process?.off('message', this.onMessageBind);
+        if (this.process) {
+            this.process.off('message', this.onMessageBind);
+        }
         this.process = undefined;
     }
 
     /**
-     * 是否连接
+     * Is connected
      */
     public isConnect() {
         return this.process?.connected;
     }
 
     /**
-     * 监听 incoming 消息
+     * Listen for incoming messages
      */
     private listen() {
         if (!this.process) {
-            throw new Error('未挂载进程');
+            throw new Error('Process not attached');
         }
         this.process.on('message', this.onMessageBind);
     }
@@ -141,7 +143,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private async onMessage(msg: RpcMessage) {
         if (!msg || typeof msg !== 'object') return;
 
-        // 远程请求
+        // Remote Request
         if (msg.type === 'request') {
             const { id, module, method, args } = msg;
             const target = this.handlers[module];
@@ -158,7 +160,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             }
         }
 
-        // 响应
+        // Response
         if (msg.type === 'response') {
             const callback = this.callbacks.get(msg.id);
             if (callback) {
@@ -167,7 +169,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             }
         }
 
-        // 单向消息
+        // Notification
         if (msg.type === 'notify') {
             const { module, method, args } = msg;
             const target = this.handlers[module];
@@ -178,7 +180,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     }
 
     /**
-     * 回复
+     * Reply
      * @param msg
      * @private
      */
@@ -187,13 +189,64 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             console.warn(`[ProcessRPC] Cannot send reply, process not attached. MsgId: ${msg.id}`);
             return;
         }
-        this.process.send?.(msg);
+        this.safeSend(msg);
     }
 
     /**
-     * 发送请求并等待响应
-     * @param module 模块名
-     * @param method 方法名
+     * Safe send message, handle circular references and exceptions
+     */
+    private safeSend(msg: any) {
+        try {
+            this.process?.send?.(msg);
+        } catch (error) {
+            console.warn('[ProcessRPC] Send message failed, trying to sanitize circular reference...', error);
+            try {
+                const safeMsg = this.removeCircular(msg);
+                this.process?.send?.(safeMsg);
+            } catch (retryError) {
+                console.error('[ProcessRPC] Send message failed even after sanitization:', retryError);
+                if (msg.type === 'response' && msg.id) {
+                    // 尝试发送一个最简单的错误响应
+                    try {
+                        this.process?.send?.({
+                            id: msg.id,
+                            type: 'response',
+                            error: 'RPC Error: Response serialization failed'
+                        });
+                    } catch (e) {
+                        // Give up
+                    }
+                }
+            }
+        }
+    }
+
+    private removeCircular(obj: any, cache = new Set()): any {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+        if (cache.has(obj)) {
+            return { __isCircular__: true };
+        }
+        cache.add(obj);
+
+        if (Array.isArray(obj)) {
+            return obj.map(v => this.removeCircular(v, new Set(cache)));
+        }
+
+        const copy: any = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                copy[key] = this.removeCircular(obj[key], cache);
+            }
+        }
+        return copy;
+    }
+
+    /**
+     * Send request and wait for response
+     * @param module Module name
+     * @param method Method name
      * @param rest
      */
     request<K extends keyof TModules, M extends keyof TModules[K]>(
@@ -234,12 +287,12 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 reject(new Error('Process not attached'));
                 return;
             }
-            this.process.send?.(req);
+            this.safeSend(req);
         });
     }
 
     /**
-     * 发送单向消息（无返回值）
+     * Send notification (no return value)
      */
     notify<K extends keyof TModules, M extends keyof TModules[K]>(
         module: K,
@@ -256,6 +309,6 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             method: method as string,
             args: args || []
         };
-        this.process.send?.(msg);
+        this.safeSend(msg);
     }
 }

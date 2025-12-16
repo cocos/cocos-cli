@@ -11,24 +11,47 @@ export class RpcProxy {
         return this.rpcInstance;
     }
 
+    /**
+     * Phase 1: Attach process only, receive messages (prevent message loss)
+     */
+    init() {
+        if (this.rpcInstance) {
+            return;
+        }
+        this.rpcInstance = new ProcessRPC<IMainModule>();
+        this.rpcInstance.attach(process);
+        console.log('[Scene] Scene Process RPC attached');
+    }
+
+    /**
+     * Phase 2: Register service
+     */
+    register(service: any) {
+         if (!this.rpcInstance) {
+             this.init();
+         }
+         this.rpcInstance!.register(service);
+         console.log('[Scene] Scene Process RPC registered');
+    }
+
     async startup() {
-        // 在创建新实例前，先清理旧实例，防止内存泄漏
+        // Cleanup old instance before creating new one to prevent memory leaks
         this.dispose();
         
-        // 先加载 Service
+        // 1. Attach first, ensure no message loss
+        this.init();
+        
+        // 2. Load Service
         const { Service } = await import('./service/core/decorator');
         
-        this.rpcInstance = new ProcessRPC<IMainModule>();
-        // 先注册处理函数
-        this.rpcInstance.register(Service);
-        // 最后挂载进程，开始监听消息
-        this.rpcInstance.attach(process);
+        // 3. Register handlers
+        this.register(Service);
         
         console.log('[Scene] Scene Process RPC ready');
     }
 
     /**
-     * 清理 RPC 实例
+     * Cleanup RPC instance
      */
     dispose(): void {
         if (this.rpcInstance) {

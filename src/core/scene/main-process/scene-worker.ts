@@ -17,10 +17,11 @@ export class SceneWorker {
     static ExitWorkerEvent = 'scene-process:exit';
 
     private manager: ProcessManager<any> | null = null;
+    private isStarting = false;
     
     public get process(): ChildProcess {
         if (!this.manager || !this.manager.process) {
-            throw new Error('Scene worker 未初始化或未启动, 请使用 sceneWorker.start');
+            throw new Error('Scene worker not initialized or started, please use sceneWorker.start');
         }
         return this.manager.process;
     }
@@ -29,63 +30,83 @@ export class SceneWorker {
 
     async start(enginePath: string, projectPath: string): Promise<boolean> {
         if (this.manager && this.manager.isRunning) {
-            console.warn('重复启动场景进程，请 stop 进程在 start');
+            console.warn('Scene process already started, please stop it before starting again');
             return false;
         }
-
-        const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-        const inspectPort = await getAvailablePort(9230);
-        console.log('--inspect= ' + inspectPort);
-
-        this.manager = new ProcessManager({
-            entryPath: precessPath,
-            args: [
-                `--enginePath=${enginePath}`,
-                `--projectPath=${projectPath}`,
-                `--serverURL=${getServerUrl()}`,
-            ],
-            inspectPort,
-            readySignal: SceneReadyChannel,
-            name: 'Scene'
-        });
-
-        // 注册启动事件，绑定监听器
-        this.manager.on('started', (proc: ChildProcess) => {
-            this.registerListener(proc);
-        });
-
-        this.manager.on('exit', (code, signal) => {
-            console.log(`场景进程退出 code:${code}, signal:${signal}`);
-            // 不再自动重启，依赖 RPC 请求时的自动启动 (Lazy Start)
-        });
+        if (this.isStarting) {
+             console.warn('Scene process is starting...');
+             return false;
+        }
         
-        // 初始化 RPC
-        Rpc.init(this.manager);
-
+        this.isStarting = true;
         try {
+            const processPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
+            const inspectPort = await getAvailablePort(9230);
+            console.log('--inspect= ' + inspectPort);
+    
+            this.manager = new ProcessManager({
+                entryPath: processPath,
+                args: [
+                    `--enginePath=${enginePath}`,
+                    `--projectPath=${projectPath}`,
+                    `--serverURL=${getServerUrl()}`,
+                ],
+                inspectPort,
+                readySignal: SceneReadyChannel,
+                exitSignal: SceneWorker.ExitWorkerEvent,
+                name: 'Scene'
+            });
+    
+            // Register start event, bind listeners
+            this.manager.on('started', (proc: ChildProcess) => {
+                this.registerListener(proc);
+            });
+    
+            this.manager.on('exit', (code, signal) => {
+                console.log(`Scene process exited code:${code}, signal:${signal}`);
+                // No automatic restart, rely on Lazy Start during RPC requests
+            });
+            
+            // Initialize RPC
+            Rpc.init(this.manager);
+    
             const success = await this.manager.start();
             
-            // 监听主进程模块的事件 (Is this global or per process? It seems global in original code)
+            // Listen to main process module events
             await listenModuleMessages();
             
             return success;
         } catch (error) {
-            console.error('场景进程启动失败:', error);
+            console.error('Scene process start failed:', error);
             return false;
+        } finally {
+            this.isStarting = false;
         }
     }
 
     async stop() {
-        if (this.manager) {
-            await this.manager.stop();
-            this.manager = null; // Dispose manager?
+        const managerToStop = this.manager;
+        
+        if (managerToStop) {
+            // Clear event listeners first to prevent race conditions during shutdown
+            this.clear();
+            
+            // Stop the process
+            await managerToStop.stop();
+            
+            // Dispose RPC to clear references
+            Rpc.dispose();
+            
+            // Set manager to null only after everything is cleaned up
+            this.manager = null;
         }
-        this.clear();
+        
+        this.isStarting = false; // Reset state
         return true;
     }
 
     /**
-     * 手动重启 (Compatibility)
+     * Manual restart (Compatibility)
      */
     public async restart(): Promise<boolean> {
         if (this.manager) {
@@ -126,7 +147,7 @@ export class SceneWorker {
     }
 
     /**
-     * 监听指定类型的事件（类型安全版本）
+     * Listen to specific events (Type safe version)
      */
     on<TEvents extends Record<string, any>>(
         event: keyof TEvents,

@@ -1,19 +1,19 @@
 import { sceneConfigInstance } from './scene-configs';
-// 接口类型
+// Interface types
 export * from './common';
-// 主进程
+// Main process
 export * from './main-process';
 export { sceneConfigInstance };
 
 /**
- * 启动场景
- * @param enginePath 引擎目录
- * @param projectPath 项目目录
+ * Startup scene
+ * @param enginePath Engine directory
+ * @param projectPath Project directory
  */
 export async function startupScene(enginePath: string, projectPath: string) {
-    // 场景配置初始化
+    // Scene config initialization
     await sceneConfigInstance.init();
-    // 启动场景进程
+    // Startup scene process
     const { sceneWorker } = await import('./main-process/scene-worker');
     await sceneWorker.start(enginePath, projectPath);
 }

@@ -16,6 +16,11 @@ export interface ProcessManagerOptions {
      */
     readySignal?: string;
     /**
+     * Signal message to send to the process to request graceful shutdown.
+     * @default 'process:exit'
+     */
+    exitSignal?: string;
+    /**
      * Timeout in ms for startup
      * @default 30000
      */
@@ -138,19 +143,25 @@ export class ProcessManager<TRpcModules extends Record<string, any>> extends Eve
                 const onExit = (code: number, signal: string) => {
                     console.log(`[${name}] Exit code: ${code}, signal: ${signal}`);
                     
-                    if (this._process !== child) {
-                        // 如果当前的进程已经不是这个退出的进程（说明已经启动了新的），忽略清理
+                    // Check if this is the current process before cleanup
+                    const isCurrentProcess = this._process === child;
+                    
+                    if (!isCurrentProcess) {
+                        // If a new process has started, ignore cleanup for the old one
                         return;
                     }
 
+                    // Emit exit event first while we still have valid state
+                    this.emit('exit', code, signal);
+
                     if (!resolved) {
                         cleanupListeners();
-                        this.cleanupProcess();
                         resolved = true;
                         clearTimeout(timer);
                         resolve(false);
                     }
-                    this.emit('exit', code, signal);
+                    
+                    // Clean up state last
                     this._process = undefined;
                     this._rpc.dispose();
                 };
@@ -166,13 +177,14 @@ export class ProcessManager<TRpcModules extends Record<string, any>> extends Eve
                 child.on('error', onError);
                 child.on('exit', onExit);
 
-                // 立即建立 RPC 通信，允许子进程在初始化阶段请求数据
+                // Establish RPC communication immediately, allowing child process to request data during initialization
                 this._rpc.attach(child);
 
                 if (!readySignal) {
                     // Resolve immediately if no signal expected
                     resolved = true;
                     clearTimeout(timer);
+                    this.emit('started', child);
                     resolve(true);
                 }
 
@@ -193,32 +205,38 @@ export class ProcessManager<TRpcModules extends Record<string, any>> extends Eve
     public async stop(): Promise<void> {
         if (!this._process) return;
         
+        const processToStop = this._process;
+        
         return new Promise((resolve) => {
-            if (!this._process) {
-                resolve();
-                return;
-            }
+            let forceKillTimer: NodeJS.Timeout | null = null;
             
             // Wait for exit
             const onExit = () => {
+                if (forceKillTimer) {
+                    clearTimeout(forceKillTimer);
+                    forceKillTimer = null;
+                }
+                // Clean up state after exit
+                this.cleanupProcess();
                 resolve();
             };
-            this._process.once('exit', onExit);
+            processToStop.once('exit', onExit);
             
             // Send exit signal if RPC channel is open, process might handle graceful shutdown
-            // Or just kill
-            const sent = this._process.send?.('scene-process:exit'); // Generic exit message, maybe make configurable
+            const exitSignal = this.options.exitSignal || "process:exit";
+            const sent = processToStop.send?.(exitSignal);
             
-            // Force kill if needed
-            setTimeout(() => {
-                if (this._process) {
-                    this._process.kill();
+            // Force kill if needed after 5 seconds
+            forceKillTimer = setTimeout(() => {
+                if (processToStop && !processToStop.killed) {
+                    console.warn(`[${this.options.name || 'Process'}] Force killing process after timeout`);
+                    processToStop.kill('SIGKILL');
                 }
             }, 5000);
             
             // If sending failed (channel closed), kill immediately
             if (!sent) {
-                 this._process.kill();
+                processToStop.kill();
             }
         });
     }

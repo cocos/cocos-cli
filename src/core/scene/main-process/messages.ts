@@ -29,7 +29,7 @@ export async function listenModuleMessages() {
                 break;
             }
         }
-        AssetProxy.assetChanged(asset.uuid).catch((err) => {});
+        AssetProxy.assetChanged(asset.uuid).catch(() => {});
     });
 
     assetManager.on('asset-delete', (asset: IAsset) => {
@@ -40,6 +40,6 @@ export async function listenModuleMessages() {
                 break;
             }
         }
-        AssetProxy.assetDeleted(asset.uuid).catch((err) => {});
+        AssetProxy.assetDeleted(asset.uuid).catch(() => {});
     });
 }
