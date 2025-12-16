@@ -262,7 +262,10 @@ export class ProcessManager<TRpcModules extends Record<string, any>> extends Eve
            this._process.removeAllListeners();
            try {
                this._process.kill();
-           } catch(e) {}
+           } catch(e) {
+               // Process might already be dead, log for debugging
+               console.debug(`[${this.options.name || 'Process'}] Kill during cleanup failed (might be already dead):`, e);
+           }
            this._process = undefined;
        } 
        this._rpc.dispose();

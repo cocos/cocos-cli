@@ -34,32 +34,16 @@ export class RpcProxy {
          console.log('[Scene] Scene Process RPC registered');
     }
 
-    async startup() {
-        // Cleanup old instance before creating new one to prevent memory leaks
-        this.dispose();
-        
-        // 1. Attach first, ensure no message loss
-        this.init();
-        
-        // 2. Load Service
-        const { Service } = await import('./service/core/decorator');
-        
-        // 3. Register handlers
-        this.register(Service);
-        
-        console.log('[Scene] Scene Process RPC ready');
-    }
-
     /**
      * Cleanup RPC instance
      */
     dispose(): void {
         if (this.rpcInstance) {
-            console.log('[Node] Disposing RPC instance');
+            console.log('[Scene] Disposing RPC instance');
             try {
                 this.rpcInstance.dispose();
             } catch (error) {
-                console.warn('[Node] Error disposing RPC instance:', error);
+                console.warn('[Scene] Error disposing RPC instance:', error);
             } finally {
                 this.rpcInstance = null;
             }

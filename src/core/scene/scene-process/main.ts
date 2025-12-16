@@ -1,4 +1,4 @@
-import { SceneReadyChannel } from '../common';
+import { SceneReadyChannel, SceneExitChannel } from '../common';
 import { Rpc } from './rpc';
 import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
@@ -12,7 +12,7 @@ async function startup() {
 
     // Listen for process exit event
     process.on('message', (msg) => {
-        if (msg === 'scene-process:exit') {
+        if (msg === SceneExitChannel) {
             Rpc.dispose();
             process.disconnect?.(); // Close IPC
             process.exit(0);// Exit process

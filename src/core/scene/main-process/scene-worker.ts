@@ -1,10 +1,10 @@
 import { ChildProcess } from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { SceneProcessEventTag, SceneReadyChannel } from '../common';
+import { SceneProcessEventTag, SceneReadyChannel, SceneExitChannel } from '../common';
 import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
-import { listenModuleMessages } from './messages';
+import { listenModuleMessages, unlistenModuleMessages } from './messages';
 import { getAvailablePort } from '../../../server/utils';
 import { ProcessManager } from '../../process-manager';
 
@@ -14,7 +14,7 @@ export interface ISceneWorkerEvents {
 
 export class SceneWorker {
 
-    static ExitWorkerEvent = 'scene-process:exit';
+    static ExitWorkerEvent = SceneExitChannel;
 
     private manager: ProcessManager<any> | null = null;
     private isStarting = false;
@@ -57,12 +57,12 @@ export class SceneWorker {
                 name: 'Scene'
             });
     
-            // Register start event, bind listeners
-            this.manager.on('started', (proc: ChildProcess) => {
+            // Register start event, bind listeners (use once to avoid accumulation on restart)
+            this.manager.once('started', (proc: ChildProcess) => {
                 this.registerListener(proc);
             });
     
-            this.manager.on('exit', (code, signal) => {
+            this.manager.once('exit', (code, signal) => {
                 console.log(`Scene process exited code:${code}, signal:${signal}`);
                 // No automatic restart, rely on Lazy Start during RPC requests
             });
@@ -90,6 +90,9 @@ export class SceneWorker {
         if (managerToStop) {
             // Clear event listeners first to prevent race conditions during shutdown
             this.clear();
+            
+            // Unlisten module messages to prevent memory leaks
+            await unlistenModuleMessages();
             
             // Stop the process
             await managerToStop.stop();

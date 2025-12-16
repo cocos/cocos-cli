@@ -12,18 +12,40 @@ class SceneConfig {
         tick: false,
     };
 
-    private configInstance!: IBaseConfiguration;
+    private configInstance: IBaseConfiguration | null = null;
+    private initPromise: Promise<void> | null = null;
 
     async init() {
+        if (this.initPromise) {
+            return this.initPromise;
+        }
+        this.initPromise = this._doInit();
+        return this.initPromise;
+    }
+
+    private async _doInit() {
         this.configInstance = await configurationRegistry.register('scene', this.defaultConfig);
     }
 
-    public get<T>(path?: string, scope?: ConfigurationScope): Promise<T> {
-        return this.configInstance.get(path, scope);
+    private async ensureInitialized(): Promise<IBaseConfiguration> {
+        if (!this.configInstance) {
+            if (this.initPromise) {
+                await this.initPromise;
+            } else {
+                throw new Error('[SceneConfig] Configuration not initialized. Call init() first.');
+            }
+        }
+        return this.configInstance!;
     }
 
-    public set(path: string, value: any, scope?: ConfigurationScope) {
-        return this.configInstance.set(path, value, scope);
+    public async get<T>(path?: string, scope?: ConfigurationScope): Promise<T> {
+        const config = await this.ensureInitialized();
+        return config.get(path, scope);
+    }
+
+    public async set(path: string, value: any, scope?: ConfigurationScope) {
+        const config = await this.ensureInitialized();
+        return config.set(path, value, scope);
     }
 }
 

@@ -30,7 +30,11 @@ export class RpcProxy {
                 // Intercept 'request'
                 if (prop === 'request' && typeof originalValue === 'function') {
                     return async (...args: any[]) => {
-                        if (this.manager && !this.manager.isRunning) {
+                        // Check if manager is still valid (might be disposed)
+                        if (!this.manager) {
+                            throw new Error('[RpcProxy] Manager has been disposed. Cannot make RPC request.');
+                        }
+                        if (!this.manager.isRunning) {
                             console.log('[RpcProxy] Auto-starting scene process...');
                             await this.manager.ensureRunning();
                         }
@@ -41,7 +45,12 @@ export class RpcProxy {
                 // Intercept 'notify'
                 if (prop === 'notify' && typeof originalValue === 'function') {
                     return (...args: any[]) => {
-                        if (this.manager && !this.manager.isRunning) {
+                        // Check if manager is still valid
+                        if (!this.manager) {
+                            console.warn('[RpcProxy] Manager has been disposed. Dropping notification.');
+                            return;
+                        }
+                        if (!this.manager.isRunning) {
                             // Fire and forget start + send
                             const [module, method] = args;
                             console.log(`[RpcProxy] Auto-starting scene process for notify: ${module}.${method}`);
@@ -61,25 +70,21 @@ export class RpcProxy {
             }
         });
 
-        console.log('[Node] Scene Process RPC initialized with manager');
+        console.log('[RpcProxy] Scene Process RPC initialized with manager');
     }
 
     public getInstance() {
         if (!this.rpcProxy) {
-            throw new Error('[Node] Rpc instance is not initialized! Call sceneWorker.start or ensure Rpc.init is called.');
+            throw new Error('[RpcProxy] Rpc instance is not initialized! Call sceneWorker.start or ensure Rpc.init is called.');
+        }
+        if (!this.manager) {
+            throw new Error('[RpcProxy] Manager has been disposed. RPC instance is no longer valid.');
         }
         return this.rpcProxy;
     }
 
     public isConnect() {
         return this.manager?.isRunning;
-    }
-
-    /**
-     * @deprecated functionality moved to ProcessManager
-     */
-    async startup(prc: any) {
-        console.warn('[RpcProxy] startup() is deprecated. Use init(manager) instead.');
     }
 
     dispose(): void {

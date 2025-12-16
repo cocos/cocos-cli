@@ -22,9 +22,6 @@ import { IAssetInfo } from '../../../assets/@types/public';
  */
 @register('Editor')
 export class EditorService extends BaseService<IEditorEvents> implements IEditorService {
-    private needReloadAgain: IReloadOptions | null = null;
-    private lastSceneOrNode: IScene | INode | undefined;
-    private reloadPromise: Promise<IScene | INode> | null = null;
     private currentEditorUuid: string | null = null; // 当前打开的编辑器 UUID
     private editorMap: Map<string, SceneEditor | PrefabEditor> = new Map(); // uuid -> editor
 
@@ -187,10 +184,6 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     async reload(params: IReloadOptions): Promise<boolean> {
-        if (this.reloadPromise) {
-            this.needReloadAgain = params;
-            return false;
-        }
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         if (!urlOrUUID) {
             console.warn('当前没有打开任何编辑器');
@@ -210,13 +203,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
 
         try {
+            // BaseEditor.reload() 已处理并发保护
             await editor.reload();
-
-            if (this.needReloadAgain) {
-                this.reload(this.needReloadAgain);
-                this.needReloadAgain = null;
-            }
-
             this.emit('editor:reload');
             this.broadcast('editor:reload');
             console.log(`重载 ${assetInfo.url}`);

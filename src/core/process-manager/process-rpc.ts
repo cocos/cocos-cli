@@ -99,13 +99,18 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * @param handler - 注册模块列表
      */
     register(handler: Record<string, any>) {
-            this.handlers = handler;
+        this.handlers = handler;
     }
 
     /**
      * Reset message registration
      */
     public dispose() {
+        // Idempotent check - prevent double dispose
+        if (!this.process && this.callbacks.size === 0) {
+            return;
+        }
+        
         this.msgId = 0;
         // Reject all pending callbacks
         for (const [id, callback] of Array.from(this.callbacks)) {
