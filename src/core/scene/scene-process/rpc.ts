@@ -1,4 +1,4 @@
-import { ProcessRPC } from '../process-rpc';
+import { ProcessRPC } from '../../process-manager';
 import type { IMainModule } from '../main-process';
 
 export class RpcProxy {
@@ -11,26 +11,39 @@ export class RpcProxy {
         return this.rpcInstance;
     }
 
-    async startup() {
-        // 在创建新实例前，先清理旧实例，防止内存泄漏
-        this.dispose();
+    /**
+     * Phase 1: Attach process only, receive messages (prevent message loss)
+     */
+    init() {
+        if (this.rpcInstance) {
+            return;
+        }
         this.rpcInstance = new ProcessRPC<IMainModule>();
         this.rpcInstance.attach(process);
-        const { Service } = await import('./service/core/decorator');
-        this.rpcInstance.register(Service);
-        console.log('[Scene] Scene Process RPC ready');
+        console.log('[Scene] Scene Process RPC attached');
     }
 
     /**
-     * 清理 RPC 实例
+     * Phase 2: Register service
+     */
+    register(service: any) {
+         if (!this.rpcInstance) {
+             this.init();
+         }
+         this.rpcInstance!.register(service);
+         console.log('[Scene] Scene Process RPC registered');
+    }
+
+    /**
+     * Cleanup RPC instance
      */
     dispose(): void {
         if (this.rpcInstance) {
-            console.log('[Node] Disposing RPC instance');
+            console.log('[Scene] Disposing RPC instance');
             try {
                 this.rpcInstance.dispose();
             } catch (error) {
-                console.warn('[Node] Error disposing RPC instance:', error);
+                console.warn('[Scene] Error disposing RPC instance:', error);
             } finally {
                 this.rpcInstance = null;
             }
