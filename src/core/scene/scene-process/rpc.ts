@@ -1,4 +1,4 @@
-import { ProcessRPC } from '../process-rpc';
+import { ProcessRPC } from '../../process-manager';
 import type { IMainModule } from '../main-process';
 
 export class RpcProxy {
@@ -14,10 +14,16 @@ export class RpcProxy {
     async startup() {
         // 在创建新实例前，先清理旧实例，防止内存泄漏
         this.dispose();
-        this.rpcInstance = new ProcessRPC<IMainModule>();
-        this.rpcInstance.attach(process);
+        
+        // 先加载 Service
         const { Service } = await import('./service/core/decorator');
+        
+        this.rpcInstance = new ProcessRPC<IMainModule>();
+        // 先注册处理函数
         this.rpcInstance.register(Service);
+        // 最后挂载进程，开始监听消息
+        this.rpcInstance.attach(process);
+        
         console.log('[Scene] Scene Process RPC ready');
     }
 

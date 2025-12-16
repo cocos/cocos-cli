@@ -46,15 +46,17 @@ async function startup() {
         };
     }, async () => {
         await cc.game.run();
+        
         // 初始化 engine 服务
         const { Service } = await import('./service/core/decorator');
         await Service.Engine.init();
     });
 
     console.log('[Scene] initEngine success');
-
+    
     // 发送消息给父进程
     process.send?.(SceneReadyChannel);
+    
     console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);
 }
 

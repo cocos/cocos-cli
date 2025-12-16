@@ -107,6 +107,15 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     public dispose() {
         this.msgId = 0;
+        // Reject all pending callbacks
+        for (const [id, callback] of Array.from(this.callbacks)) {
+            // We construct a mock response with error to trigger the callback's rejection logic
+            callback({
+                id,
+                type: 'response',
+                error: 'Process disconnected or RPC disposed'
+            });
+        }
         this.callbacks.clear();
         this.process?.off('message', this.onMessageBind);
         this.process = undefined;
@@ -175,7 +184,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      */
     private reply(msg: RpcResponse) {
         if (!this.process) {
-            throw new Error('未挂载进程');
+            console.warn(`[ProcessRPC] Cannot send reply, process not attached. MsgId: ${msg.id}`);
+            return;
         }
         this.process.send?.(msg);
     }
@@ -219,7 +229,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             });
 
             if (!this.process) {
-                throw new Error('未挂载进程');
+                this.callbacks.delete(id);
+                if (timer) clearTimeout(timer);
+                reject(new Error('Process not attached'));
+                return;
             }
             this.process.send?.(req);
         });
@@ -234,7 +247,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         args?: Parameters<TModules[K][M]>
     ) {
         if (!this.process) {
-            throw new Error('未挂载进程');
+            console.warn(`[ProcessRPC] Cannot notify '${String(module)}.${String(method)}', process not attached.`);
+            return;
         }
         const msg: RpcNotify = {
             type: 'notify',
