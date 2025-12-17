@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { join, relative, basename } from 'path';
 import utils from '../../../base/utils';
-import { BuildGlobalInfo } from '../../share/builder-config';
+import builderConfig from '../../share/builder-config';
 import { getBuildUrlPath, registerBuildPath } from '../../build.middleware';
 
 export async function getPreviewUrl(dest: string, platform?: string) {
@@ -15,18 +15,21 @@ export async function getPreviewUrl(dest: string, platform?: string) {
         return `${serverService.url}/build/${buildKey}/index.html`;
     }
     
-    if (rawPath.startsWith(BuildGlobalInfo.projectRoot) && platform) {
+    if (rawPath.startsWith(builderConfig.projectRoot) && platform) {
         const registerName = basename(rawPath);
         registerBuildPath(platform, registerName, rawPath);
         return `${serverService.url}/build/${platform}/${registerName}/index.html`;
     }
     
-    const buildRoot = join(BuildGlobalInfo.projectRoot, 'build');
+    const buildRoot = join(builderConfig.projectRoot, 'build');
     const relativePath = relative(buildRoot, rawPath);
     return serverService.url + '/build/' + relativePath + '/index.html';
 }
 
 export async function run(platform: string, dest: string) {
+    // if (GlobalConfig.mode === 'simple') {
+    //     throw new Error('simple mode not support run in platform ' + platform);
+    // }
     const url = await getPreviewUrl(dest, platform);
     // 打开浏览器
     try {

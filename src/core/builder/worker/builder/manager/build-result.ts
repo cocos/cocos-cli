@@ -5,8 +5,9 @@ import EventEmitter from 'events';
 import { getBuildPath } from '../utils';
 import { IBuildPaths, ISettings, IBuildOptionBase, IBuildResult, IRawAssetPathInfo, IAssetPathInfo, IImportAssetPathInfo } from '../../../@types';
 import { ICompressImageResult, ImportMapWithImports, IBuilder, IBuildSeparateEngineResult, InternalBuildResult as IInternalBuildResult } from '../../../@types/protected';
-import { BuildGlobalInfo } from '../../../share/builder-config';
+import builderConfig from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
+import { BuildGlobalInfo } from '../../../share/global';
 
 class Paths implements IBuildPaths {
     dir: string;
@@ -21,11 +22,13 @@ class Paths implements IBuildPaths {
 
     plugins: Record<string, string> = {};
     tempDir: string;
+    projectRoot: string;
     constructor(dir: string, platform: string) {
         this.dir = dir || '';
         this.output = this.dir;
         this.compileConfig = join(dir, BuildGlobalInfo.buildOptionsFileName);
-        this.tempDir = join(BuildGlobalInfo.projectTempDir, 'builder', platform);
+        this.tempDir = join(builderConfig.projectTempDir, 'builder', platform);
+        this.projectRoot = builderConfig.projectRoot;
     }
 
     get settings() {
@@ -170,7 +173,7 @@ export class InternalBuildResult extends EventEmitter implements IInternalBuildR
         super();
         this.rawOptions = JSON.parse(JSON.stringify(task.options));
         // 虚拟路径
-        let dest = join(BuildGlobalInfo.projectRoot, 'build', 'preview');
+        let dest = join(builderConfig.projectRoot, 'build', 'preview');
         if (!preview) {
             dest = getBuildPath(task.options);
         }

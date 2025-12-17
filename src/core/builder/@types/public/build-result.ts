@@ -157,6 +157,8 @@ export interface IBuildPaths {
 
     plugins: Record<string, string>;
     hashedMap: Record<string, string>; // 用于记录被编辑器添加过 md5 hash 值的路径 map
+
+    projectRoot: string;
 }
 
 export declare class IBuildResult {

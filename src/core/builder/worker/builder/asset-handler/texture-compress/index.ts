@@ -19,7 +19,7 @@ import { IBuildAssetHandlerInfo } from '../../../../@types/private';
 import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected';
 import { pluginManager } from '../../../../manager/plugin';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';
-import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
+import builderConfig from '../../../../share/builder-config';
 interface CompressCacheInfo {
     option: {
         mtime: number | string;
@@ -52,7 +52,7 @@ export class TextureCompress extends EventEmitter {
     static _presetIdToCompressOption: Record<string, Record<string, Record<string, number | string>>> = {};
     static allTextureCompressConfig: AllTextureCompressConfig;
     static userCompressConfig: UserCompressConfig;
-    static compressCacheDir = join(BuildGlobalInfo.projectRoot, 'temp', 'builder', 'CompressTexture');
+    static compressCacheDir = join(builderConfig.projectRoot, 'temp', 'builder', 'CompressTexture');
     static storedCompressInfo: Record<string, CompressCacheInfo> = {};
     static storedCompressInfoPath = join(TextureCompress.compressCacheDir, 'compress-info.json');
     static enableMipMaps = false;

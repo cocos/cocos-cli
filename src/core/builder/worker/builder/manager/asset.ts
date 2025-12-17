@@ -9,7 +9,7 @@ import { IAsset } from '../../../../assets/@types/protected';
 import { IBuildSceneItem } from '../../../@types';
 import { IInstanceMap, IBuilder, ISerializedOptions, IInternalBuildOptions, BuilderCache as IBuilderCache } from '../../../@types/protected';
 import assetManager from '../../../../assets/manager/asset';
-import { BuildGlobalInfo } from '../../../share/builder-config';
+import builderConfig from '../../../share/builder-config';
 
 /**
  * 资源管理器，主要负责资源的缓存查询缓存等
@@ -235,7 +235,7 @@ export class BuilderAssetCache implements IBuilderCache {
             await buildAssetLibrary.outputAssets(uuid, dest, options.debug);
         } else {
             // 正常资源的输出路径需要以 library 内的输出路径为准，不可直接拼接，比如 ttf 字体类的生成路径
-            const dest = join(destDir, asset.library.replace(join(BuildGlobalInfo.projectRoot, 'library'), '') + '.json');
+            const dest = join(destDir, asset.library.replace(join(builderConfig.projectRoot, 'library'), '') + '.json');
             const jsonObject = buildAssetLibrary.serialize(instance, {
                 debug: options.debug,
             });

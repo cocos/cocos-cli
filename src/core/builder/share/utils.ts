@@ -3,7 +3,7 @@ import * as textureCompressConfig from '../share/texture-compress';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import { IBuildOptionBase, IBuildTaskOption, IDisplayOptions } from '../@types';
-import { BuildGlobalInfo } from './builder-config';
+import builderConfig from './builder-config';
 import { IBuilderConfigItem } from '../@types/protected';
 export function compareNumeric(lhs: string, rhs: string): number {
     return lhs.localeCompare(rhs, 'en', { numeric: true });
@@ -140,7 +140,7 @@ export function transTimeToNumber(time: string) {
  * @returns 
  */
 export function getTaskLogDest(taskName: string, time: number | string) {
-    return Utils.Path.resolveToUrl(join(BuildGlobalInfo.projectTempDir, 'builder', 'log', taskName + changeToLocalTime(time, 5).replace(/:/g, '-') + '.log'), 'project');
+    return Utils.Path.resolveToUrl(join(builderConfig.projectTempDir, 'builder', 'log', taskName + changeToLocalTime(time, 5).replace(/:/g, '-') + '.log'), 'project');
 }
 
 /**

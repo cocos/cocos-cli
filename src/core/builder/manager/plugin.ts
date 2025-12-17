@@ -11,7 +11,7 @@ import i18n from '../../base/i18n';
 import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
 import { newConsole } from '../../base/console';
-import builderConfig, { commonOptionConfigs } from '../share/builder-config';
+import builderConfig from '../share/builder-config';
 import { GlobalPaths } from '../../../global';
 import { existsSync, readdirSync } from 'fs';
 import utils from '../../base/utils';
@@ -252,7 +252,7 @@ export class PluginManager extends EventEmitter {
             // 此机制依赖了插件的启动顺序来写入配置
             if (!this.commonOptionConfig[platform]) {
                 // 使用默认通用配置和首个插件自定义的通用配置进行融合
-                this.commonOptionConfig[platform] = Object.assign({}, lodash.defaultsDeep({}, config.commonOptions, JSON.parse(JSON.stringify(commonOptionConfigs))));
+                this.commonOptionConfig[platform] = Object.assign({}, lodash.defaultsDeep({}, config.commonOptions, JSON.parse(JSON.stringify(builderConfig.commonOptionConfigs))));
             } else {
                 this.commonOptionConfig[platform] = defaultMerge({}, this.commonOptionConfig[platform], config.commonOptions || {});
             }
@@ -310,8 +310,8 @@ export class PluginManager extends EventEmitter {
 
     public getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null {
         const config = this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key] || {};
-        if (commonOptionConfigs[key]) {
-            const defaultConfig = JSON.parse(JSON.stringify(commonOptionConfigs[key]));
+        if (builderConfig.commonOptionConfigs[key]) {
+            const defaultConfig = JSON.parse(JSON.stringify(builderConfig.commonOptionConfigs[key]));
             lodash.defaultsDeep(config, defaultConfig);
         }
         if (!config || !config.verifyRules) {

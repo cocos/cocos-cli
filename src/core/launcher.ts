@@ -73,11 +73,10 @@ export default class Launcher {
         await this.import();
         await startServer(port);
         // 初始化构建
-        const { init: initBuilder, startup } = await import('./builder');
+        const { init: initBuilder } = await import('./builder');
         await initBuilder();
         // 启动场景进程，需要在 Builder 之后，因为服务器路由场景还没有做前缀约束匹配范围比较广
         await startupScene(GlobalPaths.enginePath, this.projectPath);
-        await startup();
     }
 
     /**
@@ -87,10 +86,6 @@ export default class Launcher {
      */
     async build(platform: Platform, options: Partial<IBuildCommandOption>) {
         GlobalConfig.mode = 'simple';
-        await this.import();
-        if (!options.logDest) {
-            options.logDest = join(this.projectPath, 'temp/build', getCurrentLocalTime() + '.log');
-        }
         // 先导入项目
         await this.import();
         // 执行构建流程

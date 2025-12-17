@@ -6,7 +6,7 @@ import { BuilderAssetCache } from '../../manager/asset';
 import { InternalBuildResult } from '../../manager/build-result';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
 import utils from '../../../../../base/utils';
-import { BuildGlobalInfo } from '../../../../share/builder-config';
+import builderConfig from '../../../../share/builder-config';
 
 export const title = 'Build Assets';
 
@@ -16,7 +16,7 @@ export async function handle(this: IBuilder, options: IInternalBuildOptions, res
 
     // 生成 effect.bin
     if (options.includeModules.includes('custom-pipeline')) {
-        const file = join(BuildGlobalInfo.projectTempDir, 'asset-db/effect/effect.bin');
+        const file = join(builderConfig.projectTempDir, 'asset-db/effect/effect.bin');
         result.paths.effectBin = join(dirname(result.paths.settings), 'effect.bin');
         await copyFile(file, result.paths.effectBin);
         options.md5CacheOptions.excludes.push(utils.Path.relative(result.paths.dir, result.paths.effectBin));

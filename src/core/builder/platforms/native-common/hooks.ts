@@ -18,7 +18,6 @@ import { getCmakePath } from './native-utils';
 import { IBundle, BuilderCache, IBuilder, IBuildStageTask, InternalBuildResult, Platform } from '../../@types/protected';
 import { CocosParams } from './pack-tool/base/default';
 import i18n from '../../../base/i18n';
-import { BuildGlobalInfo } from '../../share/builder-config';
 import { Engine } from '../../../engine';
 import { relativeUrl } from '../../worker/builder/utils';
 import { ITaskOption } from './type';
@@ -42,7 +41,7 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
     const params: CocosParams<Object> = {
         buildDir: dirname(result.paths.dir),
         buildAssetsDir: result.paths.dir,
-        projDir: BuildGlobalInfo.projectRoot,
+        projDir: result.paths.projectRoot,
         cmakePath: await getCmakePath(),
         nativeEnginePath: engineInfo.native.path,
         enginePath: engineInfo.typescript.path,

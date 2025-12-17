@@ -9,8 +9,9 @@ import babelPresetEnv from '@babel/preset-env';
 import { workerManager } from '../../worker-pools/sub-process-manager';
 import { IAsset } from '../../../../assets/@types/protected';
 import utils from '../../../../base/utils';
-import { BuildGlobalInfo } from '../../../share/builder-config';
+import builderConfig from '../../../share/builder-config';
 import { IModules, ITransformOptions } from '../../../@types/protected';
+import { BuildGlobalInfo } from '../../../share/global';
 
 export { getBuildPath } from '../../../share/utils';
 
@@ -119,7 +120,7 @@ export function removeDbHeader(path: string): string {
  * @param url db://
  */
 export function dbUrlToRawPath(url: string) {
-    return join(BuildGlobalInfo.projectRoot, removeDbHeader(url));
+    return join(builderConfig.projectRoot, removeDbHeader(url));
 }
 
 /**

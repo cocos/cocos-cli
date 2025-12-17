@@ -4,7 +4,7 @@ import i18n from '../../../../base/i18n';
 import { Platform } from '../../../@types';
 import { IBuildTemplate, BuildTemplateConfig } from '../../../@types/protected';
 import utils from '../../../../base/utils';
-import { BuildGlobalInfo } from '../../../share/builder-config';
+import builderConfig from '../../../share/builder-config';
 
 export class BuildTemplate implements IBuildTemplate {
     _buildTemplateDirs: string[] = [];
@@ -20,7 +20,7 @@ export class BuildTemplate implements IBuildTemplate {
 
     constructor(platform: Platform | string, taskName: string, config?: BuildTemplateConfig) {
         this.config = config;
-        const { buildTemplateDir } = BuildGlobalInfo;
+        const buildTemplateDir  = builderConfig.buildTemplateDir;
         // 初始化不同层级的构建模板地址，按照使用优先级从大到小排布
         const commonDir = join(buildTemplateDir, 'common');
         const platformDir = join(buildTemplateDir, this.config?.dirname || platform);
@@ -55,7 +55,7 @@ export class BuildTemplate implements IBuildTemplate {
         }
         try {
             // 默认构建模板需要有版本号
-            const templateVersionJson = join(BuildGlobalInfo.buildTemplateDir, 'templates-version.json');
+            const templateVersionJson = join(builderConfig.buildTemplateDir, 'templates-version.json');
             // 用户模板版本号
             if (existsSync(templateVersionJson)) {
                 this._versionUser = (await readJSON(templateVersionJson))[platform];
