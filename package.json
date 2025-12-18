@@ -52,7 +52,7 @@
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
-        "rebuild": "npx --yes patch-package && npx @electron/rebuild --force --version 37.6.0"
+        "rebuild": "npx @electron/rebuild --force --version 39.2.3"
     },
     "author": "cocos",
     "files": [
@@ -64,6 +64,9 @@
         "writablePath",
         "packages/cc-module"
     ],
+    "overrides": {
+        "fsevents": "2.3.3"
+    },
     "license": "ISC",
     "devDependencies": {
         "@types/cli-progress": "^3.11.6",
@@ -90,6 +93,7 @@
         "@vscode/test-cli": "^0.0.11",
         "@vscode/test-electron": "^2.5.2",
         "7zip-bin": "^5.2.0",
+        "baseline-browser-mapping": "^2.9.9",
         "basic-ftp": "^5.0.5",
         "eslint": "^9.34.0",
         "globals": "^16.3.0",
@@ -136,7 +140,7 @@
         "express": "^5.1.0",
         "figlet": "^1.9.3",
         "fs-extra": "^10.0.0",
-        "gl": "^8.1.6",
+        "gl": "^9.0.0-rc.8",
         "globby": "^14.1.0",
         "glsl-parser": "^2.0.1",
         "glsl-tokenizer": "^2.1.5",
