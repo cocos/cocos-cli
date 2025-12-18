@@ -1,17 +1,15 @@
 import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@cocos/asset-db';
-import { copy, copyFile, ensureDir, existsSync, outputFile, outputFileSync, outputJSON, outputJSONSync, readJSONSync } from 'fs-extra';
+import { copy, copyFile, ensureDir, existsSync, outputFile, outputJSON } from 'fs-extra';
 import { basename, dirname, extname, isAbsolute, join } from 'path';
 import { url2path } from '../utils';
-import lodash, { extend } from 'lodash';
+import lodash from 'lodash';
 import fg from 'fast-glob';
 import Sharp from 'sharp';
-import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
-import { AssetOperationOption, IAsset, IExportData, ISupportCreateCCType, ISupportCreateType } from '../@types/protected/asset';
+import { IAsset, IExportData } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
-import { AssetHandlerInfo } from '../asset-handler/config';
+import type { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
-
 interface HandlerInfo extends AssetHandlerInfo {
     pkgName: string;
     internal: boolean;
@@ -73,6 +71,7 @@ class AssetHandlerManager {
     _userDataCache: Record<string, any> = {};
     // 导入器里注册的默认 userData 值， 注册后不可修改
     _defaultUserData: Record<string, any> = {};
+
     clear() {
         this.name2handler = {};
         this.extname2registerInfo = {};
@@ -83,10 +82,24 @@ class AssetHandlerManager {
         this._iconConfigMap = null;
     }
 
+    compileEffect(_force: boolean) {
+        throw new Error('compileEffect is not implemented, please init assetHandler first!');
+    };
+    startAutoGenEffectBin() {
+        throw new Error('startAutoGenEffectBin is not implemented, please init assetHandler first!');
+    };
+    getEffectBinPath(): Promise<string> {
+        throw new Error('getEffectBinPath is not implemented, please init assetHandler first!');
+    };
+
     async init() {
         const { assetHandlerInfos } = await import('../../assets/asset-handler/config');
         this.register('cocos-cli', assetHandlerInfos, true);
         AssetHandlerManager.createTemplateRoot = await assetConfig.getProject('createTemplateRoot');
+        const { compileEffect, startAutoGenEffectBin, getEffectBinPath } = await import('../asset-handler');
+        this.compileEffect = compileEffect;
+        this.startAutoGenEffectBin = startAutoGenEffectBin;
+        this.getEffectBinPath = getEffectBinPath;
     }
 
     /**
@@ -719,6 +732,7 @@ class AssetHandlerManager {
 const assetHandlerManager = new AssetHandlerManager();
 
 export default assetHandlerManager;
+
 function patchHandler(info: ICreateMenuInfo, handler: string, extensions: string[]) {
     // 避免污染原始 info 数据
     const res = {

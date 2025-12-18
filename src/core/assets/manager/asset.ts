@@ -51,6 +51,9 @@ class AssetManager extends EventEmitter {
     updateDefaultUserData = assetHandlerManager.updateDefaultUserData.bind(assetHandlerManager);
     getCreateMap = assetHandlerManager.getCreateMap.bind(assetHandlerManager);
     queryAssetUserDataConfig = assetHandlerManager.queryUserDataConfig.bind(assetHandlerManager);
+    getEffectBinPath() {
+        return assetHandlerManager.getEffectBinPath();
+    };
 
     url2uuid(url: string) {
         return url2uuid(url);
@@ -163,6 +166,7 @@ export interface TypedAssetManager extends EventEmitter {
     updateDefaultUserData: typeof assetHandlerManager.updateDefaultUserData;
     getCreateMap: typeof assetHandlerManager.getCreateMap;
     queryAssetUserDataConfig: typeof assetHandlerManager.queryUserDataConfig;
+    getEffectBinPath: typeof assetHandlerManager.getEffectBinPath;
 
     url2uuid(url: string): string;
     url2path(url: string): string;
