@@ -6,7 +6,7 @@
     "description": "Cocos Creator CLI tool for project management and building",
     "main": "dist/index.js",
     "engines": {
-        "vscode": "^4.0.0"
+        "vscode": "1.105.1"
     },
     "bin": {
         "cocos": "./dist/cli.js"
