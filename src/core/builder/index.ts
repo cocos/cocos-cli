@@ -11,10 +11,14 @@ import builderConfig, { BuildGlobalInfo } from './share/builder-config';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
 
+import { middlewareService } from '../../server/middleware/core';
+import BuildMiddleware from './build.middleware';
+
 export async function init(platform?: string) {
     await builderConfig.init();
     await pluginManager.init();
     platform && pluginManager.register(platform);
+    middlewareService.register('Build', BuildMiddleware);
 }
 
 export async function startup() {

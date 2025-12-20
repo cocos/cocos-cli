@@ -74,7 +74,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
-        const comp = compMgr.query(params.path);
+        const comp = compMgr.queryFromPath(params.path);
         if (!comp) {
             throw new Error(`Remove component failed: ${params.path} does not exist`);
         }
@@ -89,7 +89,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async queryComponent(params: IQueryComponentOptions): Promise<IComponent | null> {
-        const comp = compMgr.query(params.path);
+        const comp = compMgr.queryFromPath(params.path);
         if (!comp) {
             console.warn(`Query component failed: ${params.path} does not exist`);
             return null;
@@ -102,9 +102,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     private async setPropertyImp(options: ISetPropertyOptions): Promise<boolean> {
-        const component = compMgr.query(options.componentPath);
+        const component = compMgr.queryFromPath(options.componentPath);
         if (!component) {
-            throw new Error(`Set property failed: ${options.componentPath} does not exist`);
+            throw new Error(`Failed to set property: Target component(${options.componentPath}) not found`);
         }
         const compProperties = (dumpUtil.dumpComponent(component as Component));
         const properties = Object.entries(options.properties);
@@ -112,14 +112,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         const idx = component.node.components.findIndex(comp => comp === component);
         for (const [key, value] of properties) {
             if (!compProperties.properties[key]) {
-                continue;
+                throw new Error(`Failed to set property: Target property(${key}) not found`);
+                // continue;
             }
             const compProperty = compProperties.properties[key];
-            if (compProperty.type === 'array') {
-                compProperty.items = value;
-            } else {
-                compProperty.value = value;
-            }
+            compProperty.value = value;
             // 恢复数据
             await dumpUtil.restoreProperty(component, key, compProperty);
 

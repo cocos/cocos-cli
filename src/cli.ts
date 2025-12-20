@@ -25,8 +25,8 @@ const commandRegistry = new CommandRegistry();
 commandRegistry.register(new CreateCommand(program));
 commandRegistry.register(new BuildCommand(program));
 commandRegistry.register(new McpServerCommand(program));
-// commandRegistry.register(new MakeCommand(program));
-// commandRegistry.register(new RunCommand(program));
+commandRegistry.register(new MakeCommand(program));
+commandRegistry.register(new RunCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();
