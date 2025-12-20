@@ -1,26 +1,33 @@
 import { existsSync } from 'fs';
-import { join, relative } from 'path';
+import { join, relative, basename } from 'path';
 import utils from '../../../base/utils';
 import { BuildGlobalInfo } from '../../share/builder-config';
-import { GlobalConfig } from '../../../../global';
+import { getBuildUrlPath, registerBuildPath } from '../../build.middleware';
 
-export async function getPreviewUrl(dest: string) {
+export async function getPreviewUrl(dest: string, platform?: string) {
     const rawPath = utils.Path.resolveToRaw(dest);
     if (!existsSync(rawPath)) {
         throw new Error(`Build path not found: ${dest}`);
     }
     const serverService = (await import('../../../../server/server')).serverService;
+    const buildKey = getBuildUrlPath(rawPath);
+    if (buildKey) {
+        return `${serverService.url}/build/${buildKey}/index.html`;
+    }
+    
+    if (rawPath.startsWith(BuildGlobalInfo.projectRoot) && platform) {
+        const registerName = basename(rawPath);
+        registerBuildPath(platform, registerName, rawPath);
+        return `${serverService.url}/build/${platform}/${registerName}/index.html`;
+    }
+    
     const buildRoot = join(BuildGlobalInfo.projectRoot, 'build');
     const relativePath = relative(buildRoot, rawPath);
     return serverService.url + '/build/' + relativePath + '/index.html';
 }
 
-export async function run(dest: string) {
-    if (GlobalConfig.mode === 'simple') {
-        // TODO simple 模式需要单独开启服务器来启动项目，需要改造服务器的启动流程
-        throw new Error('Can not support run web platform in simple mode');
-    }
-    const url = await getPreviewUrl(dest);
+export async function run(platform: string, dest: string) {
+    const url = await getPreviewUrl(dest, platform);
     // 打开浏览器
     try {
         const { exec } = require('child_process');

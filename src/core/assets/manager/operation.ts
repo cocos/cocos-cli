@@ -444,7 +444,7 @@ export async function moveFile(source: string, target: string, options?: IMoveOp
     if (!options || !options.overwrite) {
         options = { overwrite: false }; // fs move 要求实参 options 要有值
     }
-    const tempDir = join(assetConfig.data.tempRoot, 'asset-db', 'move-temp');
+    const tempDir = join(assetConfig.data.tempRoot, 'move-temp');
     const relativePath = relative(assetConfig.data.root, target);
     try {
         if (!utils.Path.contains(source, target)) {

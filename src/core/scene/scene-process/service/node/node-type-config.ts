@@ -177,7 +177,10 @@ export const NODE_CONFIGS: NodeMap = {
         {
             'project-type': '2d',
             name: 'Canvas',
-            assetUuid: '4c33600e-9ca9-483b-b734-946008261697',
+            // TODO 这里会导致如果在 3D 场景下创建 2d canvas 摄像机的优先级跟主摄像机一样，
+            //  导致显示不出 UI 来，先都用 ui canvas
+            // assetUuid: '4c33600e-9ca9-483b-b734-946008261697',
+            assetUuid: 'f773db21-62b8-4540-956a-29bacf5ddbf5',
             snapshot: true,
             nameIncrease: true
         },

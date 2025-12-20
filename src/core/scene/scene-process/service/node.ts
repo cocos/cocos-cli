@@ -390,12 +390,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
             // 自动创建一个 canvas 节点
             if (!canvasNode) {
-                let canvasAssetUuid = 'f773db21-62b8-4540-956a-29bacf5ddbf5';
+                // TODO 这里会导致如果在 3D 场景下创建 2d canvas 摄像机的优先级跟主摄像机一样，
+                //  导致显示不出 UI 来，先都用 ui canvas
+                const canvasAssetUuid = 'f773db21-62b8-4540-956a-29bacf5ddbf5';
 
-                // 2d 项目创建的 ui 节点，canvas 下的 camera 的 visibility 默认勾上 default
-                if (workMode === '2d') {
-                    canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
-                }
+                // // 2d 项目创建的 ui 节点，canvas 下的 camera 的 visibility 默认勾上 default
+                // if (workMode === '2d') {
+                //     canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
+                // }
 
                 const canvasAsset = await loadAny<Prefab>(canvasAssetUuid);
                 canvasNode = cc.instantiate(canvasAsset) as Node;

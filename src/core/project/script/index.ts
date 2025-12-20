@@ -129,7 +129,7 @@ export class Project implements IProject {
 
     get tmpDir(): string {
         if (!this._tmpDir) {
-            this._tmpDir = join(this._projectPath, 'tmp');
+            this._tmpDir = join(this._projectPath, 'temp');
         }
         return this._tmpDir;
     }

@@ -1,8 +1,9 @@
 import { IGetPostConfig, IMiddlewareContribution, ISocketConfig, IStaticFileConfig } from '../interfaces';
-import { Router } from 'express';
+import express, { Router } from 'express';
 
 export class MiddlewareManager {
     public router = Router();
+    public staticRouter = Router();
     public middlewareStaticFile: IStaticFileConfig[] = [];
     public middlewareSocket: Map<string, ISocketConfig> = new Map();
 
@@ -16,6 +17,7 @@ export class MiddlewareManager {
         });
         module.staticFiles?.forEach((m: IStaticFileConfig) => {
             this.middlewareStaticFile.push(m);
+            this.staticRouter.use(m.url, express.static(m.path));
         });
         if (module.socket) {
             this.middlewareSocket.set(name, {

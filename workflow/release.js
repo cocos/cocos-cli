@@ -491,6 +491,17 @@ function createReleasePipeline(config) {
                 timeout: 1800000
             });
             console.log(`ZIP file: ${zipFilePath}`);
+
+            // Calculate and print MD5
+            const crypto = require('crypto');
+            const fileBuffer = await fs.readFile(zipFilePath);
+            const hashSum = crypto.createHash('md5');
+            hashSum.update(fileBuffer);
+            const hex = hashSum.digest('hex');
+            console.log(`MD5: ${hex}`);
+
+            const md5FilePath = path.join(path.dirname(dir), `${name}.txt`);
+            await fs.writeFile(md5FilePath, hex);
         }
     };
 
