@@ -126,7 +126,7 @@ class ScriptManager {
      * @param delay 延迟时间，单位为毫秒, 同一时间只能有一个延迟编译任务，如果存在则返回已有的任务ID
      * @returns 延迟编译任务的ID，如果存在则返回已有的任务ID
      */
-     postCompileScripts(delay: number): string {
+    postCompileScripts(delay: number): string {
         // 如果已经有待执行的延迟任务，取消它
         if (this._pendingCompileTimer) {
             clearTimeout(this._pendingCompileTimer);

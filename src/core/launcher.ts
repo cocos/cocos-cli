@@ -72,11 +72,11 @@ export default class Launcher {
     async startup(port?: number) {
         await this.import();
         await startServer(port);
-        // 启动场景进程
-        await startupScene(GlobalPaths.enginePath, this.projectPath);
         // 初始化构建
         const { init: initBuilder, startup } = await import('./builder');
         await initBuilder();
+        // 启动场景进程，需要在 Builder 之后，因为服务器路由场景还没有做前缀约束匹配范围比较广
+        await startupScene(GlobalPaths.enginePath, this.projectPath);
         await startup();
     }
 
@@ -112,6 +112,9 @@ export default class Launcher {
     static async run(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
+        if (platform.startsWith('web')) {
+            await startServer();
+        }
         await init(platform);
         return await executeBuildStageTask('command run', 'run', {
             platform,

@@ -33,6 +33,8 @@ function parseArgs(cb) {
         .option('--zip', 'Create ZIP archive')
         .option('--upload', 'Upload to FTP server')
         .option('--publish-dir <dir>', 'Specify release directory (defaults to .publish)')
+        .option('--publish-name <name>', 'Custom name for the release artifact')
+        .option('--skip-notarization', 'Skip notarization process')
         .allowUnknownOption(); // Allow Gulp flags
 
     // Parse arguments
@@ -46,14 +48,14 @@ function parseArgs(cb) {
     context.publishDir = options.publishDir || '.publish';
 
     // Check whether any arguments were provided
-    const hasAnyArgs = options.nodejs || options.electron || options.zip || options.upload;
+    const hasAnyArgs = options.nodejs || options.electron || options.zip || options.upload || options.skipNotarization;
 
     // Enable all features when no arguments are passed
     if (!hasAnyArgs) {
         console.log('No arguments specified; enabling default mode: build all targets + ZIP packaging + FTP upload');
         context.configs = [
-            { type: 'nodejs', zip: true, upload: true },
-            { type: 'electron', zip: true, upload: true }
+            { type: 'nodejs', zip: true, upload: true, notarize: true },
+            { type: 'electron', zip: true, upload: true, notarize: true }
         ];
     } else {
         // Determine release types
@@ -68,8 +70,9 @@ function parseArgs(cb) {
 
         context.configs = types.map(type => ({
             type: type,
-            zip: options.zip === undefined ? true : options.zip,
-            upload: !!options.upload
+            zip: !!options.zip,
+            upload: !!options.upload,
+            notarize: !options.skipNotarization,
         }));
     }
 
@@ -96,6 +99,11 @@ async function getProjectVersion() {
  * Generate release directory name
  */
 function generateReleaseDirectoryName(type, version) {
+    // Use custom publish name if provided
+    if (context.args.publishName) {
+        return context.args.publishName;
+    }
+
     const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
 
     // Generate timestamp (format: YYMMDDHH)
@@ -250,7 +258,7 @@ async function signBinaryFile(filePath, identity) {
 /**
  * Sign and notarize native binaries (macOS only)
  */
-async function signAndNotarizeNativeBinaries(extensionDir) {
+async function signAndNotarizeNativeBinaries(extensionDir, config) {
     if (process.platform !== 'darwin') {
         console.log('Not macOS; skipping signing and notarization');
         return;
@@ -289,6 +297,15 @@ async function signAndNotarizeNativeBinaries(extensionDir) {
     }
 
     // Notarization
+    if (config.notarize) {
+        await notarizationNativeBinaries(extensionDir, binaryFiles);
+    }
+}
+
+/**
+ * Notarization
+ */
+async function notarizationNativeBinaries (extensionDir, binaryFiles) {
     const shouldNotarize = true;
     const appleId = process.env.APPLE_ID;
     const appPassword = process.env.APPLE_PASSWORD;
@@ -450,7 +467,7 @@ function createReleasePipeline(config) {
     };
 
     const sign = async () => {
-        await signAndNotarizeNativeBinaries(extensionDir());
+        await signAndNotarizeNativeBinaries(extensionDir(), config);
     };
 
     const setPerms = async () => {
@@ -474,6 +491,17 @@ function createReleasePipeline(config) {
                 timeout: 1800000
             });
             console.log(`ZIP file: ${zipFilePath}`);
+
+            // Calculate and print MD5
+            const crypto = require('crypto');
+            const fileBuffer = await fs.readFile(zipFilePath);
+            const hashSum = crypto.createHash('md5');
+            hashSum.update(fileBuffer);
+            const hex = hashSum.digest('hex');
+            console.log(`MD5: ${hex}`);
+
+            const md5FilePath = path.join(path.dirname(dir), `${name}.txt`);
+            await fs.writeFile(md5FilePath, hex);
         }
     };
 

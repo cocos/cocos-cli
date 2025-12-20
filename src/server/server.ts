@@ -138,9 +138,7 @@ export class ServerService {
         this.app.use(compression());
         this.app.use(cors);
         this.app.use(middlewareService.router);
-        for (const config of middlewareService.middlewareStaticFile) {
-            this.app.use(config.url, express.static(config.path));
-        }
+        this.app.use(middlewareService.staticRouter);
 
         // 未能正常响应的接口
         this.app.use((req: any, res: any) => {
