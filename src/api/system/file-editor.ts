@@ -84,6 +84,7 @@ export class FileEditorApi {
     async queryFileText(@param(SchemaQueryFileTextInfo) param: TQueryFileTextInfo): Promise<CommonResultType<TFileQueryTextResult>> {
         try {
             const result = await queryLinesInFile(param.dbURL, param.fileType, param.startLine, param.lineCount);
+  
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result,
