@@ -206,7 +206,7 @@ export class LanguageServiceAdapter {
                 return;
             }
             if (this.autoUpdateFileImport === undefined) {
-                this.autoUpdateFileImport = await scriptConfig.getProject<boolean>('updateAutoUpdateImportConfig.global');
+                this.autoUpdateFileImport = await scriptConfig.getProject<boolean>('updateAutoUpdateImportConfig');
             }
             if (this.autoUpdateFileImport) {
                 console.debug('Starting rename...');

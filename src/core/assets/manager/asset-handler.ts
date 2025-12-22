@@ -10,6 +10,8 @@ import { IAsset, IExportData } from '../@types/protected/asset';
 import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import type { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
+import eol from 'eol';
+
 interface HandlerInfo extends AssetHandlerInfo {
     pkgName: string;
     internal: boolean;
@@ -440,6 +442,10 @@ class AssetHandlerManager {
             if (typeof options.content === 'object') {
                 options.content = JSON.stringify(options.content, null, 4);
             }
+            // Normalize EOL for string content
+            if (typeof options.content === 'string' && options.handler === 'text') {
+                options.content = eol.auto(options.content);
+            }
             // 部分自定义创建资源没有模板，内容为空，只需要一个空文件即可完成创建
             await outputFile(options.target, options.content, 'utf8');
         }
@@ -465,7 +471,10 @@ class AssetHandlerManager {
             // 优先使用自定义的保存方法
             return await assetHandler.createInfo.save(asset, content);
         }
-
+        // Normalize EOL for string content
+        if (typeof content === 'string' && asset.meta.importer === 'text') {
+            content = eol.auto(content);
+        }
         await outputFile(asset.source, content);
         return true;
     }

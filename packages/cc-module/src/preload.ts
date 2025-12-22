@@ -56,7 +56,7 @@ async function preload(options: {
         };
         
         // loader web adapter
-        require(join(options.engineRoot, 'bin/adapter/nodejs/web-adapter.js'));
+        require(join(options.engineRoot, 'bin/.editor/web-adapter.js'));
         // init EngineLoader
         await EngineLoader.init(options.engineDev, options.requiredModules);
 
@@ -66,7 +66,7 @@ async function preload(options: {
             // eslint-disable-next-line no-undef
             const ccm = window.ccm = require('cc');
 
-            await import(join(options.engineRoot, 'bin/adapter/nodejs/engine-adapter.js'));
+            await import(join(options.engineRoot, 'bin/.editor/engine-adapter.js'));
             // ---- hack creator 使用的一些 engine 参数
             require('./polyfill/engine');
             // overwrite

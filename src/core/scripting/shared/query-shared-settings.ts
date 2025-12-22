@@ -32,6 +32,7 @@ export function getDefaultSharedSettings(): ScriptProjectConfig {
         preserveSymlinks: false,
         importMap: '',
         previewBrowserslistConfigFile: '',
+        updateAutoUpdateImportConfig: false,
     };
 }
 

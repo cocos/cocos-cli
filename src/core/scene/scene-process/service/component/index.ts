@@ -61,7 +61,18 @@ export class CompManager extends EventEmitter {
         this.emit('removed', component);
     }
 
-    query(path: string): Component | null {
+    /**
+     * 查询一个组件的实例
+     * @param {*} uuid
+     * @returns {cc.Component}
+     */
+    query(uuid: string): Component | null
+    query<T extends Component>(uuid: string): T | null
+    query<T extends Component>(uuid: string): T | null {
+        return CompMgr.getComponent(uuid) || null;
+    }
+
+    queryFromPath(path: string): Component | null {
         return CompMgr.getComponentFromPath(path) || null;
     }
 

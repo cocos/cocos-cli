@@ -1,11 +1,14 @@
 import fs from 'fs';
 import { EOL } from 'os';
+import eol from 'eol';
 import readline from 'readline';
 import { replaceInFile } from 'replace-in-file';
 import path from 'path';
 import { resolveToRaw, contains } from '../base/utils/path';
 import { assetManager } from '../../core/assets';
 import { queryPath } from '@cocos/asset-db/libs/manager';
+
+const LF = '\n';
 
 function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
     let succeeded = true;
@@ -49,6 +52,8 @@ export async function insertTextAtLine(
     if (lineNumber < 0) {
         throw new Error('Line number must be non-negative.');
     }
+    // Normalize EOL to the system's EOL
+    textToInsert = eol.auto(textToInsert);
 
     const filename = getScriptFilename(dbURL, fileType);
     const fileStream = fs.createReadStream(filename);
@@ -200,6 +205,11 @@ export function findTextOccurrencesInFile(
 
 export async function replaceTextInFile(
     dbURL: string, fileType: string, targetText: string, replacementText: string, regex: boolean): Promise<boolean> {
+    // Normalize EOL to the system's EOL
+    targetText = eol.auto(targetText);
+    replacementText = eol.auto(replacementText);
+
+    // Get filename
     const filename = getScriptFilename(dbURL, fileType);
 
     let count = 0;
@@ -238,7 +248,7 @@ export async function replaceTextInFile(
 
         return results.some(result => result.hasChanged);
     }
-    throw new Error('No occurrences found. File is not changed.');
+    throw new Error(`No replacement was performed, TargetText ${targetText} did not appear verbatim in ${filename}.`);
 }
 
 export async function queryLinesInFile(
@@ -264,7 +274,7 @@ export async function queryLinesInFile(
     let currentLine = 0;
     for await (const line of rl) {
         if (currentLine >= startLine && (currentLine < startLine + lineCount || lineCount < 0)) {
-            content = content.concat(`${currentLine + 1}\t${line}` + EOL);
+            content = content.concat(`${(currentLine + 1).toString().padStart(6, ' ')}\t${line}` + LF);
         }
         ++currentLine;
     }
