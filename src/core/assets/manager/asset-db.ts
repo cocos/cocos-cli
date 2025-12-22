@@ -12,7 +12,6 @@ import assetHandlerManager from './asset-handler';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
-import { compileEffect, startAutoGenEffectBin } from '../asset-handler';
 import scripting from '../../scripting';
 import { AssetChangeInfo, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
@@ -660,7 +659,7 @@ function patchAssetDBInfo(config: AssetDBRegisterInfo): IAssetDBInfo {
         target: Utils.Path.normalize(config.target),
         readonly: !!config.readonly,
 
-        temp: config.temp || Utils.Path.normalize(join(AssetDBManager.tempRoot, 'asset-db', config.name)),
+        temp: config.temp || Utils.Path.normalize(join(AssetDBManager.tempRoot, config.name)),
         library: config.library || AssetDBManager.libraryRoot,
 
         level: 4,
@@ -745,10 +744,9 @@ async function afterPreImport(db: assetdb.AssetDB) {
 }
 
 async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
-    await compileEffect();
+    await assetHandlerManager.compileEffect(true);
     // 启动数据库后，打开 effect 导入后的自动重新生成 effect.bin 开关
-    await startAutoGenEffectBin();
-
+    await assetHandlerManager.startAutoGenEffectBin();
 
     // 脚本系统未触发构建，启动脚本构建流程
     if (!scripting.isTargetReady('editor')) {

@@ -1,7 +1,7 @@
 # 🎮 Cocos CLI
 
 [![Node.js](https://img.shields.io/badge/Node.js-22.17.0-green.svg)](https://nodejs.org/)
-[![Cocos Engine](https://img.shields.io/badge/Cocos-Engine-orange.svg)](https://github.com/cocos/cocos-engine)
+[![Cocos Engine](https://img.shields.io/badge/Cocos-Engine-orange.svg)](https://github.com/cocos/cocos4)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ![cli logo](./static/image.png)

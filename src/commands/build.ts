@@ -14,6 +14,8 @@ export class BuildCommand extends BaseCommand {
             .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
             .requiredOption('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
             .option('-c,--build-config <path>', 'Specify build config file path')
+            .option('--ndkPath <path>', 'Android NDK path (for Android platform)')
+            .option('--sdkPath <path>', 'Android SDK path (for Android platform)')
             .action(async (options: any) => {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
@@ -32,6 +34,29 @@ export class BuildCommand extends BaseCommand {
                         // 移除旧的 key 方便和 configPath 未读取的情况做区分
                         delete options.buildConfig;
                     }
+
+                    // 处理 Android 平台特定的命令行参数
+                    if (options.platform === 'android') {
+                        if (options.ndkPath || options.sdkPath) {
+                            if (!options.packages) {
+                                options.packages = {};
+                            }
+                            if (!options.packages.android) {
+                                options.packages.android = {};
+                            }
+                            // 命令行指定的 ndkPath 覆盖配置文件中的值
+                            if (options.ndkPath) {
+                                options.packages.android.ndkPath = options.ndkPath;
+                                delete options.ndkPath; // 清理，避免传递到其他地方
+                            }
+                            // 命令行指定的 sdkPath 覆盖配置文件中的值
+                            if (options.sdkPath) {
+                                options.packages.android.sdkPath = options.sdkPath;
+                                delete options.sdkPath; // 清理，避免传递到其他地方
+                            }
+                        }
+                    }
+                    
                     const { CocosAPI } = await import('../api/index');
                     const result = await CocosAPI.buildProject(resolvedPath, options.platform, options);
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {

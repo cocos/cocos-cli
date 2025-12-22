@@ -1,4 +1,4 @@
-/* eslint-disable no-useless-escape */
+ 
 
 import { Asset, AssetDB, forEach } from '@cocos/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
@@ -57,11 +57,13 @@ export const autoGenEffectBinInfo: {
     autoGenEffectBin: boolean;
     waitingGenEffectBin: boolean;
     waitingGenEffectBinTimmer: NodeJS.Timeout | null;
+    effectBinPath: string;
 } = {
     // 是否要在导入 effect 后自动重新生成 effect.bin
     autoGenEffectBin: false,
     waitingGenEffectBin: false,
     waitingGenEffectBinTimmer: null,
+    effectBinPath: join(assetConfig.data.tempRoot, 'effect/effect.bin'),
 };
 
 export const EffectHandler: AssetHandler = {
@@ -258,7 +260,8 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
     buildLayoutGraphData(lgInfo.lg, lgData);
 }
 
-/** source/contributions/asset-db-hook
+/** 
+ * source/contributions/asset-db-hook
  * effect 导入器比较特殊，单独增加了一个在所有 effect 导入完成后的钩子
  * 这个函数名字是固定的，如果需要修改，需要一同修改 cocos-editor 仓库里的 asset-db 插件代码
  * @param effectArray
@@ -266,10 +269,6 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
  */
 export async function afterImport(force?: boolean) {
     const effectList: Asset[] = [];
-    if (!effectList.length) {
-        console.debug('no effect to compile');
-        return;
-    }
     forEach((database: AssetDB) => {
         database.path2asset.forEach((asset) => {
             if (asset.meta.importer === 'effect') {
@@ -277,6 +276,10 @@ export async function afterImport(force?: boolean) {
             }
         });
     });
+    if (!effectList.length) {
+        console.debug('no effect to compile');
+        return;
+    }
     await recompileAllEffects(effectList, force);
 }
 
@@ -338,7 +341,7 @@ function forceRecompileEffects(file: string): boolean {
  * @param force 强制重编
  */
 export async function recompileAllEffects(effectArray: Asset[], force?: boolean) {
-    const file = join(assetConfig.data.tempRoot, 'asset-db/effect/effect.bin');
+    const file = autoGenEffectBinInfo.effectBinPath;
     // 存在等待刷新的指令或者 effect.bin 不存在时，就重新生成
     if (force || autoGenEffectBinInfo.waitingGenEffectBin || !existsSync(file) || forceRecompileEffects(file)) {
         // 仅编译导入正常的 effect

@@ -64,6 +64,7 @@ class EngineManager implements IEngine {
             includeModules: [
                 '2d',
                 '3d',
+                'debug-renderer',
                 'affine-transform',
                 'animation',
                 'audio',
