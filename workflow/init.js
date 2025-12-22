@@ -10,5 +10,7 @@ const utils = require('./utils');
     // update repo
     await utils.runCommand('node', ['./workflow/update-repo.js', forceFlag].filter(Boolean));
 
+    await utils.runCommand('npm run build --prefix ./packages/engine');
+
     console.log('\n初始化完成\n');
 })();
