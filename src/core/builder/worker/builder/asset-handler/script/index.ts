@@ -18,6 +18,7 @@ import { Engine } from '../../../../../engine';
 import { MacroItem } from '../../../../../engine/@types/config';
 import { compressUuid } from '../../utils';
 import project from '../../../../../project';
+import { runStaticCompileCheck } from './static-compile-check';
 type PlatformType = StatsQuery.ConstantManager.PlatformType;
 
 interface IScriptProjectOption extends SharedSettings {
@@ -108,6 +109,14 @@ export class ScriptBuilder {
     }
 
     async buildBundleScript(bundles: IBundle[]) {
+        // 执行静态编译检查
+        // 注意：如果在 BuildCommand 中已经执行过，这里会重复执行。
+        // 但为了确保脚本编译的安全性，这里强制检查。
+        const checkPassed = await runStaticCompileCheck(project.path, true);
+        if (!checkPassed) {
+             console.warn('⚠ Warning: Found assets-related TypeScript errors. Build will continue...');
+        }
+
         const scriptBundles: Array<{ id: string, scripts: IAssetInfo[], outFile: string }> = [];
         const uuidCompressMap: Record<string, string> = {};
         bundles.forEach((bundle) => {
