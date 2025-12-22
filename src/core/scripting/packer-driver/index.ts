@@ -542,7 +542,7 @@ export class PackerDriver {
             const buildResult = await target.build();
             if (buildResult.err) {
                 err = buildResult.err;
-                this._deleteErrFile((buildResult.err as any).file);
+                target.deleteCacheFile((err as any).file);
                 continue;
             }
             buildResult.depsGraph && (this._depsGraph = buildResult.depsGraph); // 更新依赖图
@@ -557,14 +557,6 @@ export class PackerDriver {
             throw err;
         }
     }
-
-    private _deleteErrFile(filePath: string | undefined) {
-        if (!filePath) return;
-        for (const [, target] of Object.entries(this._targets)) {
-            target.deleteCacheFile(filePath);
-        }
-    }
-
 
     private static async _createIncrementalRecord(logger: Logger): Promise<IncrementalRecord> {
         const sharedModLoOptions = await querySharedSettings(logger);
