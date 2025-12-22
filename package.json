@@ -49,7 +49,7 @@
         "download-tools": "node workflow/download-tools.js",
         "pack:script": "node workflow/pack-scripts.js",
         "release": "npx --yes gulp release --gulpfile workflow/release.js",
-        "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=/Users/flying/Documents/project/creator/NewProject",
+        "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
         "rebuild": "npx --yes patch-package && npx @electron/rebuild --force --version 37.6.0"
@@ -90,6 +90,7 @@
         "@vscode/test-cli": "^0.0.11",
         "@vscode/test-electron": "^2.5.2",
         "7zip-bin": "^5.2.0",
+        "baseline-browser-mapping": "^2.9.11",
         "basic-ftp": "^5.0.5",
         "eslint": "^9.34.0",
         "globals": "^16.3.0",
