@@ -3,6 +3,9 @@ import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-
 import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, SchemaMakeResult } from './schema';
+import { runStaticCompileCheck } from '../../core/builder/share/static-compile-check';
+import { BuildGlobalInfo } from '../../core/builder/share/builder-config';
+import builderConfig from '../../core/builder/share/builder-config';
 
 export class BuilderApi {
 
@@ -17,6 +20,19 @@ export class BuilderApi {
             data: null,
         };
         try {
+            // 确保 builderConfig 已初始化，以便获取项目路径
+            await builderConfig.init();
+            
+            // 先执行静态编译检查（仅提示，不终止构建）
+            const projectPath = BuildGlobalInfo.projectRoot;
+            if (projectPath) {
+                const checkPassed = await runStaticCompileCheck(projectPath, true);
+                if (!checkPassed) {
+                    console.warn('⚠ Warning: Found assets-related TypeScript errors. Build will continue...');
+                    console.warn('Please review and fix the TypeScript errors when possible.');
+                }
+            }
+            
             const res = await build(platform, options);
             ret.data = res as TBuildResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {

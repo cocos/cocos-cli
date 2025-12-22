@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 import { existsSync, readJSONSync } from 'fs-extra';
-import { runStaticCompileCheck } from './static-compile-check';
+import { runStaticCompileCheck } from '../core/builder/share/static-compile-check';
 
 /**
  * Build 命令类
