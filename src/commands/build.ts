@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 import { existsSync, readJSONSync } from 'fs-extra';
+import { runStaticCompileCheck } from './static-compile-check';
 
 /**
  * Build 命令类
@@ -17,6 +18,14 @@ export class BuildCommand extends BaseCommand {
             .action(async (options: any) => {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
+
+                    // 先执行静态编译检查（仅提示，不终止构建）
+                    const checkPassed = await runStaticCompileCheck(resolvedPath, true);
+                    if (!checkPassed) {
+                        console.warn(chalk.yellow('⚠ Warning: Found assets-related TypeScript errors. Build will continue...'));
+                        console.warn(chalk.yellow('Please review and fix the TypeScript errors when possible.'));
+                    }
+                    console.log('');
 
                     if (options.buildConfig) {
                         if (!existsSync(options.buildConfig)) {
