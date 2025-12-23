@@ -114,8 +114,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             setLayer(resultNode, parent.layer, true);
         }
 
+        // Compared to the editor, the position is set via API, so local coordinates are used here.
         if (params.position) {
-            resultNode.setWorldPosition(params.position);
+            resultNode.setPosition(params.position);
         }
 
         resultNode.setParent(parent, params.keepWorldTransform);
