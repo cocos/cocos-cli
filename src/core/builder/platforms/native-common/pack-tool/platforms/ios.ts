@@ -3,8 +3,8 @@ import * as fs from 'fs-extra';
 import * as ps from 'path';
 import * as os from 'os';
 import { CocosParams } from '../base/default';
-import { cchelper, toolHelper, Paths } from "../utils";
-import { MacOSPackTool } from "./mac-os";
+import { cchelper, toolHelper, Paths } from '../utils';
+import { MacOSPackTool } from './mac-os';
 
 export interface IOrientation {
     landscapeLeft: boolean;
@@ -38,11 +38,11 @@ export default class IOSPackTool extends MacOSPackTool {
     }
 
     async getExecutableFile() {
-        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug' : 'Release');
+        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug-iphoneos' : 'Release-iphoneos');
         const targetFile = this.getExecutableNameOrDefault();
         const executableFile = ps.join(executableDir, targetFile + '.app');
         if (!executableFile || !fs.existsSync(executableFile)) {
-            throw new Error(`[mac run] '${targetFile}' is not found within ' + ${executableDir}!`);
+            throw new Error(`[ios run] '${targetFile}' is not found within ' + ${executableDir}!`);
         }
         return executableFile;
     }
@@ -110,7 +110,7 @@ export default class IOSPackTool extends MacOSPackTool {
 
         this.appendCmakeCommonArgs(ext);
 
-        const ver = toolHelper.getXcodeMajorVerion() >= 12 ? "12" : "1";
+        const ver = toolHelper.getXcodeMajorVerion() >= 12 ? '12' : '1';
         await toolHelper.runCmake(['-S', `"${this.paths.platformTemplateDirInPrj}"`, '-GXcode', `-B"${nativePrjDir}"`, '-T', `buildsystem=${ver}`,
                                     '-DCMAKE_SYSTEM_NAME=iOS'].concat(ext));
 
@@ -122,7 +122,7 @@ export default class IOSPackTool extends MacOSPackTool {
     async make() {
         const options = this.params.platformParams;
         if (options.iphoneos && !options.teamid) {
-            throw new Error("Error: Try to build iphoneos application but no developer team id was given!");
+            throw new Error('Error: Try to build iphoneos application but no developer team id was given!');
         }
         const nativePrjDir = this.paths.nativePrjDir;
 
@@ -255,7 +255,7 @@ export default class IOSPackTool extends MacOSPackTool {
                 }
             }
         } else {
-            throw new Error(`Info.plist not found ${infoPlist}`)
+            throw new Error(`Info.plist not found ${infoPlist}`);
         }
         return null;
     }
