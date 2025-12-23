@@ -38,7 +38,15 @@ export default class IOSPackTool extends MacOSPackTool {
     }
 
     async getExecutableFile() {
-        const executableDir = ps.join(this.paths.nativePrjDir, this.params.debug ? 'Debug-iphoneos' : 'Release-iphoneos');
+        const options = this.params.platformParams;
+        let targetDir = '';
+        if (options.simulator) {
+            targetDir = this.params.debug ? 'Debug-iphonesimulator' : 'Release-iphonesimulator';
+        } else {
+            targetDir = this.params.debug ? 'Debug-iphoneos' : 'Release-iphoneos';
+        }
+
+        const executableDir = ps.join(this.paths.nativePrjDir, targetDir);
         const targetFile = this.getExecutableNameOrDefault();
         const executableFile = ps.join(executableDir, targetFile + '.app');
         if (!executableFile || !fs.existsSync(executableFile)) {
