@@ -95,6 +95,10 @@ async function getProjectVersion() {
     console.log(`Project Version: ${context.version}`);
 }
 
+const storeReleaseDirName = {
+    nodejs: '',
+    electron: ''
+};
 /**
  * Generate release directory name
  */
@@ -103,6 +107,11 @@ function generateReleaseDirectoryName(type, version) {
     if (context.args.publishName) {
         return context.args.publishName;
     }
+
+    if (storeReleaseDirName[type]) {
+        return storeReleaseDirName[type];
+    }
+
 
     const platformSuffix = process.platform === 'darwin' ? 'mac' : 'win';
 
@@ -114,11 +123,14 @@ function generateReleaseDirectoryName(type, version) {
                      now.getHours().toString().padStart(2, '0');
 
     if (type === 'nodejs') {
-        return `cocos-cli-${platformSuffix}-${timestamp}-${version}`;
+        storeReleaseDirName[type] = `cocos-cli-${platformSuffix}-${timestamp}-${version}`;
     } else if (type === 'electron') {
-        return `cocos-sdk-${platformSuffix}-${timestamp}-${version}`;
+        storeReleaseDirName[type] = `cocos-sdk-${platformSuffix}-${timestamp}-${version}`;
+    } else {
+        throw new Error(`Unknown release type: ${type}`);
     }
-    throw new Error(`Unknown release type: ${type}`);
+
+    return storeReleaseDirName[type];
 }
 
 /**
