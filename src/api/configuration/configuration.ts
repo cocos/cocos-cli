@@ -2,10 +2,6 @@ import { description, param, result, title, tool } from '../decorator/decorator'
 import { z } from 'zod';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 
-// Schema 定义
-const SchemaProjectPath = z.string().min(1).describe('项目路径');
-export type TProjectPath = z.infer<typeof SchemaProjectPath>;
-
 // TODO 接口定义？
 const SchemaMigrateResult = z.record(z.string(), z.any()).describe('迁移结果');
 export type TMigrateResult = z.infer<typeof SchemaMigrateResult>;
@@ -18,11 +14,11 @@ export type TReloadResult = z.infer<typeof SchemaReloadResult>;
 
 export class ConfigurationApi {
 
-    // @tool('configuration-migrate-from-project')
-    @title('配置迁移')
-    @description('从指定项目路径迁移配置到当前项目')
+    @tool('configuration-remigrate')
+    @title('重新迁移配置')
+    @description('从当前项目的 settings 目录重新迁移生成 cocos.config.json')
     @result(SchemaMigrateResult)
-    async migrateFromProject(@param(SchemaProjectPath) projectPath: TProjectPath): Promise<CommonResultType<TMigrateResult>> {
+    async migrateFromProject(): Promise<CommonResultType<TMigrateResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TMigrateResult> = {
             code: code,
@@ -30,8 +26,9 @@ export class ConfigurationApi {
         };
 
         try {
+            const project = await import('../../core/project/index');
             const { configurationManager } = await import('../../core/configuration/index');
-            const result = await configurationManager.migrateFromProject(projectPath);
+            const result = await configurationManager.migrateFromProject(project.default.path);
             ret.data = result;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -42,7 +39,7 @@ export class ConfigurationApi {
         return ret;
     }
 
-    @tool('configuration-reload')
+    // @tool('configuration-reload')
     @title('重新加载配置')
     @description('从硬盘的配置文件重新加载配置，用于刷新配置状态')
     @result(SchemaReloadResult)
