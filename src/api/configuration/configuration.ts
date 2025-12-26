@@ -18,7 +18,7 @@ export type TReloadResult = z.infer<typeof SchemaReloadResult>;
 
 export class ConfigurationApi {
 
-    @tool('configuration-migrate-from-project')
+    // @tool('configuration-migrate-from-project')
     @title('配置迁移')
     @description('从指定项目路径迁移配置到当前项目')
     @result(SchemaMigrateResult)
