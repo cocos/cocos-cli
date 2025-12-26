@@ -189,7 +189,7 @@ export const SchemaWebMobileBuildOption = SchemaBuildBaseOption
 // Windows 构建选项
 export const SchemaWindowsBuildOption = SchemaBuildBaseOption
     .extend({
-        name: z.string().describe('游戏名称（Windows平台必填）'),
+        name: z.string().describe('游戏名称（Windows 平台必填）'),
         platform: z.literal('windows').describe('构建平台')
     })
     .describe('Windows平台构建选项');
@@ -207,6 +207,7 @@ export const SchemaIOSBuildOption = SchemaBuildBaseOption
 // Android 构建选项
 export const SchemaAndroidBuildOption = SchemaBuildBaseOption
     .extend({
+        name: z.string().describe('游戏名称（Android 平台必填）,gradlew 游戏名称:assemble 命令会用到。'),
         platform: z.literal('android').describe('构建平台'),
         packages: z.object({
             android: SchemaAndroidPackage
