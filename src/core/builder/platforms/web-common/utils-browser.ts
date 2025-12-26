@@ -1,12 +1,9 @@
-import { spawn, exec } from "child_process";
-import { platform, tmpdir } from "os";
+import { spawn, exec, execSync } from "child_process";
+import os, { platform, tmpdir } from "os";
 import fs from "fs";
 import path from "path";
 import { get as httpGet } from "http";
 import WebSocket from "ws";
-import { newConsole } from "../../../base/console";
-import { execSync } from "child_process";
-import os from "os";
 
 /**
  * openUrl 函数的选项类型
@@ -164,14 +161,14 @@ export async function connectToChromeDevTools(
                     }
 
                     if (!target) {
-                        newConsole.warn(`未找到可用的调试目标，端口: ${port}`);
+                        console.warn(`未找到可用的调试目标，端口: ${port}`);
                         resolve();
                         return;
                     }
 
                     const wsUrl = target.webSocketDebuggerUrl;
                     if (!wsUrl) {
-                        newConsole.warn(`调试目标没有 WebSocket URL`);
+                        console.warn(`调试目标没有 WebSocket URL`);
                         resolve();
                         return;
                     }
@@ -181,7 +178,7 @@ export async function connectToChromeDevTools(
                     let messageId = 1;
 
                     ws.on('open', () => {
-                        newConsole.log(`🔗 已连接到浏览器调试端口 ${port}`);
+                        console.log(`🔗 已连接到浏览器调试端口 ${port}`);
 
                         // 发送 Runtime.enable 命令
                         ws.send(JSON.stringify({
@@ -218,18 +215,18 @@ export async function connectToChromeDevTools(
                                 // 格式化日志消息
                                 const logMessage = `[Browser ${level.toUpperCase()}] ${text}`;
 
-                                // 根据日志级别输出到 newConsole
+                                // 根据日志级别输出到 console
                                 switch (level) {
                                     case 'error':
-                                        newConsole.error(logMessage);
+                                        console.error(logMessage);
                                         break;
                                     case 'warning':
-                                        newConsole.warn(logMessage);
+                                        console.warn(logMessage);
                                         break;
                                     case 'info':
                                     case 'verbose':
                                     default:
-                                        newConsole.log(logMessage);
+                                        console.log(logMessage);
                                         break;
                                 }
                             }
@@ -256,19 +253,19 @@ export async function connectToChromeDevTools(
                                 // 根据 console 类型输出
                                 switch (type) {
                                     case 'error':
-                                        newConsole.error(consoleMessage);
+                                        console.error(consoleMessage);
                                         break;
                                     case 'warning':
-                                        newConsole.warn(consoleMessage);
+                                        console.warn(consoleMessage);
                                         break;
                                     case 'info':
-                                        newConsole.info(consoleMessage);
+                                        console.info(consoleMessage);
                                         break;
                                     case 'debug':
-                                        newConsole.debug(consoleMessage);
+                                        console.debug(consoleMessage);
                                         break;
                                     default:
-                                        newConsole.log(consoleMessage);
+                                        console.log(consoleMessage);
                                         break;
                                 }
                             }
@@ -278,29 +275,29 @@ export async function connectToChromeDevTools(
                     });
 
                     ws.on('error', (error) => {
-                        newConsole.warn(`WebSocket 连接错误: ${error.message}`);
+                        console.warn(`WebSocket 连接错误: ${error.message}`);
                         resolve(); // 不 reject，允许继续执行
                     });
 
                     ws.on('close', () => {
-                        newConsole.log(`🔌 浏览器调试连接已关闭`);
+                        console.log(`🔌 浏览器调试连接已关闭`);
                     });
 
                     // 连接成功
                     resolve();
                 } catch (error: any) {
-                    newConsole.warn(`解析调试目标列表失败: ${error.message}`);
+                    console.warn(`解析调试目标列表失败: ${error.message}`);
                     resolve(); // 不 reject，允许继续执行
                 }
             });
         }).on('error', async (error) => {
             // 如果无法连接到调试端口，可能是浏览器还没启动，尝试重试
             if (retries > 0) {
-                newConsole.debug(`无法连接到调试端口 ${port}，${retries} 次重试后重试...`);
+                console.debug(`无法连接到调试端口 ${port}，${retries} 次重试后重试...`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 await connectToChromeDevTools(port, targetUrl, retries - 1, retryDelay);
             } else {
-                newConsole.debug(`无法连接到调试端口 ${port}: ${error.message}`);
+                console.debug(`无法连接到调试端口 ${port}: ${error.message}`);
             }
             resolve(); // 允许继续执行
         });
