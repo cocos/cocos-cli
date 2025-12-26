@@ -148,7 +148,7 @@ export class ResourceManager {
 
 ## 快速链接
 - [API 参考](https://docs.cocos.com/creator/3.8/api/zh/)
-- [引擎源码](https://github.com/cocos/cocos-engine)
+- [引擎源码](https://github.com/cocos/cocos4)
 - [社区论坛](https://forum.cocos.org/)`,
                 mimeType: 'text/markdown'
             }

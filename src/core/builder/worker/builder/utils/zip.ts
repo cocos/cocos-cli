@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, removeSync, readdirSync, statSync } from 'fs-extra';
 import { relative, join, parse } from 'path';
 import JsZip from 'jszip';
-import { BuildGlobalInfo } from '../../../share/builder-config';
+import { BuildGlobalInfo } from '../../../share/global';
 export async function compressDirs(dirnames: string[], basepath: string, outputPath: string) {
     await new Promise<void>(resolve => {
         const jsZip = new JsZip();

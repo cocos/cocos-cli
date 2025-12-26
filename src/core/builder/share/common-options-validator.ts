@@ -4,18 +4,16 @@
 
 import { basename, isAbsolute, join } from 'path';
 import { BundleCompressionTypes } from './bundle-utils';
-import { PLATFORMS } from './platforms-options';
-import { Validator } from './validator';
-import { validatorManager } from './validator-manager';
 import { NATIVE_PLATFORM } from './platforms-options';
-import { Platform, IBuildSceneItem, IBuildTaskItemJSON, IBuildTaskOption, IBuildCommonOptions } from '../@types';
+import { IBuildSceneItem, IBuildTaskItemJSON, IBuildTaskOption } from '../@types';
 import { IInternalBuildSceneItem } from '../@types/options';
-import { BuildCheckResult, BundleCompressionType, IBuilderConfigItem, IInternalBuildOptions, IInternalBundleBuildOptions, IPhysicsConfig } from '../@types/protected';
+import { BuildCheckResult, BundleCompressionType, IInternalBuildOptions, IInternalBundleBuildOptions } from '../@types/protected';
 import i18n from '../../base/i18n';
 import Utils from '../../base/utils';
 import assetManager from '../../assets/manager/asset';
 import { Engine } from '../../engine';
-import { BuildGlobalInfo, commonOptionConfigs, getBuildCommonOptions } from './builder-config';
+import builderConfig from './builder-config';
+import { validatorManager } from './validator-manager';
 interface ModuleConfig {
     match: (module: string) => boolean;
     default: string | boolean;
@@ -310,7 +308,7 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
             {
                 res.error = await validatorManager.check(
                     value,
-                    commonOptionConfigs.server.verifyRules || [],
+                    builderConfig.commonOptionConfigs.server.verifyRules || [],
                     options,
                     options.platform + options.platform,
                 );
@@ -327,7 +325,7 @@ function checkIncludeChineseAndSymbol(value: string) {
 }
 
 export async function checkBuildCommonOptions(options: any) {
-    const commonOptions = getBuildCommonOptions();
+    const commonOptions = builderConfig.getBuildCommonOptions();
     const checkResMap: Record<string, BuildCheckResult> = {};
     // const checkKeys = Array.from(new Set(Object.keys(commonOptions).concat(Object.keys(options))))
     // 正常来说应该检查默认值和 options 整合的 key

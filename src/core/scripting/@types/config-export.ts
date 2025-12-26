@@ -8,6 +8,7 @@ export interface ScriptProjectConfig {
 
     importMap: string;
     previewBrowserslistConfigFile?: string;
+    updateAutoUpdateImportConfig?: boolean;
 }
 
 export interface DBInfo {

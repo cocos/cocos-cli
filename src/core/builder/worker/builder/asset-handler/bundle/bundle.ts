@@ -15,7 +15,7 @@ import { IAsset } from '../../../../../assets/@types/protected';
 import { initBundleConfig } from './utils';
 import i18n from '../../../../../base/i18n';
 import utils from '../../../../../base/utils';
-import { BuildGlobalInfo } from '../../../../share/builder-config';
+import { BuildGlobalInfo } from '../../../../share/global';
 export class Bundle {
 
     public get scenes() {

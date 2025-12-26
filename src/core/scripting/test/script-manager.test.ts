@@ -6,7 +6,6 @@ import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
 import { DBChangeType } from '../packer-driver/asset-db-interop';
 import { Engine } from '../../engine';
 import path, { join } from 'path';
-import { dbUrlToRawPath } from '../../builder/worker/builder/utils';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import { ensureDirSync, writeFileSync, unlinkSync, existsSync, readdirSync, rmdirSync } from 'fs-extra';
 import { EngineLoader } from 'cc/loader';
@@ -15,8 +14,23 @@ const _ProjectRoot = TestGlobalEnv.projectRoot;
 const _EngineRoot = TestGlobalEnv.engineRoot;
 const _ScriptsDir = path.join(_ProjectRoot, 'assets', 'scripts');
 
+const DB_PROTOCOL_HEADER = 'db://';
+// 去除 db:// 的路径
+export function removeDbHeader(url: string): string {
+    if (!url) {
+        return '';
+    }
+    if (!url.startsWith(DB_PROTOCOL_HEADER)) {
+        console.error('unknown path to build: ' + path);
+        return url;
+    }
+    // 获取剔除 db:// 后的文件目录
+    const mountPoint = url.slice(DB_PROTOCOL_HEADER.length);
+    return mountPoint;
+}
+
 const _url2path = (url: string): string => {
-    return path.join(_ProjectRoot, dbUrlToRawPath(url));
+    return path.join(_ProjectRoot, removeDbHeader(url));
 };
 
 /**

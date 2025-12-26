@@ -10,7 +10,7 @@ import { IAsset } from '../../../../../assets/@types/protected';
 import { IAssetPathInfo, IImportAssetPathInfo } from '../../../../@types';
 import { BundleFilterConfig, IBundle } from '../../../../@types/protected';
 import assetManager from '../../../../../assets/manager/asset';
-import { BuildGlobalInfo } from '../../../../share/builder-config';
+import { BuildGlobalInfo } from '../../../../share/global';
 
 /**
  * 获取指定 uuid 资源的路径相关信息

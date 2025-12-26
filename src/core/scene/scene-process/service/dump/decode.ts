@@ -63,11 +63,11 @@ export async function decodePatch(path: string, dump: any, node: any) {
     const data = info.search ? get(node, info.search) : node;
 
     if (!data) {
-        return;
+        throw new Error(`Failed to decodePatch: Target component not found. path=${path}, info=${JSON.stringify(info)}`);
     }
 
     if (data instanceof Component && forbidUserChanges.includes(info.key)) {
-        return;
+        throw new Error(`Failed to decodePatch: Property(${info.key}) modification not allowed`);
     }
 
     if (Object.prototype.toString.call(data) === '[object Object]') {
@@ -88,7 +88,7 @@ export async function decodePatch(path: string, dump: any, node: any) {
                 return;
             }
         } else if (!propertyConfig.writable && !propertyConfig.set) {
-            return;
+            throw new Error(`Failed to decodePatch: Property(${info.key}) is read-only or has no setter`);
         }
     }
 
@@ -133,8 +133,11 @@ export async function decodePatch(path: string, dump: any, node: any) {
                  * 如果后续发现真的有一些场景需要请修改本条注释
                  */
                 arrayValue[i] = ccClassAttrPropertyDefaultValue(attr);
-
-                await decodePatch(`${i}`, dump.value[i], arrayValue);
+                const dumpItem = {
+                    type: dump.type,
+                    value: dump.value[i]
+                };
+                await decodePatch(`${i}`, dumpItem, arrayValue);
             }
 
             data[info.key] = arrayValue;

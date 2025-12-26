@@ -9,7 +9,7 @@ import { IAsset } from '../../../../../assets/@types/protected';
 import { IPackOptions, IPacInfo, PacStoreInfo, IPackResult, CompressedInfo, IAtlasInfo, ISpriteFrameInfo } from '../../../../@types/protected';
 import utils from '../../../../../base/utils';
 import lodash from 'lodash';
-import { BuildGlobalInfo } from '../../../../share/builder-config';
+import builderConfig from '../../../../share/builder-config';
 
 export const DefaultPackOption: IPackOptions = {
     maxWidth: 1024,
@@ -76,7 +76,7 @@ export class PacInfo implements IPacInfo {
             sprites: [],
             options: this.packOptions,
         };
-        const assetsPath = join(BuildGlobalInfo.projectRoot, 'assets');
+        const assetsPath = join(builderConfig.projectRoot, 'assets');
         this.relativePath = relative(assetsPath, pacAsset.source);
         this.relativeDir = relative(assetsPath, dirname(pacAsset.source));
         this.name = buildAssetLibrary.getAssetProperty(pacAsset, 'name');

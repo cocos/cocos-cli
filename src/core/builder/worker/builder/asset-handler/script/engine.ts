@@ -13,7 +13,6 @@ import * as ccBuild from '@cocos/ccbuild';
 import fs from 'fs-extra';
 import ps from 'path';
 import { workerManager } from '../../../worker-pools/sub-process-manager';
-import { buildEngineOptions, buildSeparateEngine } from './build-engine';
 import fg from 'fast-glob';
 
 import { parseMangleConfig } from './mangle-config-parser';
@@ -22,7 +21,8 @@ import { StatsQuery } from '@cocos/ccbuild';
 import { IBuildEngineParam, IInternalBuildOptions, IBuildSeparateEngineOptions, IBuildSeparateEngineResult } from '../../../../@types/protected';
 import utils from '../../../../../base/utils';
 import { relativeUrl } from '../../utils';
-import { BuildGlobalInfo } from '../../../../share/builder-config';
+import builderConfig from '../../../../share/builder-config';
+import { buildEngineOptions } from './build-engine';
 
 // 存储引擎复用参数的文件
 const EngineCacheName = 'engine-cache';
@@ -112,7 +112,7 @@ async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuer
         loose,
     };
 
-    const mangleConfigJsonPath = join(BuildGlobalInfo.projectRoot, 'engine-mangle-config.json');
+    const mangleConfigJsonPath = join(builderConfig.projectRoot, 'engine-mangle-config.json');
     if (options.mangleProperties && !await fs.pathExists(mangleConfigJsonPath)) {
         console.debug(`mangleProperties is enabled, but engine-mangle-config.json not found, create default mangle configuration`);
         defaultMangleConfig.__doc_url__ = utils.Url.getDocUrl('advanced-topics/mangle-properties.html');
@@ -127,7 +127,7 @@ async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuer
     let md5String = calcMd5String(Object.assign(profileOptions, options), md5Keys);
 
     if (options.mangleProperties) {
-        md5String += `projectPath=${BuildGlobalInfo.projectRoot},`;
+        md5String += `projectPath=${builderConfig.projectRoot},`;
         console.debug(`Found mangle config, append projectPath to md5String: ${md5String.split(',').join(',\n')}`);
     }
 
@@ -281,7 +281,7 @@ async function isValidMeta(metaFile: string) {
         return false;
     }
 
-    const mangleConfigJsonPath = join(BuildGlobalInfo.projectRoot, 'engine-mangle-config.json');
+    const mangleConfigJsonPath = join(builderConfig.projectRoot, 'engine-mangle-config.json');
     if (await fs.pathExists(mangleConfigJsonPath)) {
         const currentMangleConfigJsonMtime = (await fs.stat(mangleConfigJsonPath)).mtimeMs;
         const currentMangleConfigJsonReadableTime = new Date(currentMangleConfigJsonMtime).toLocaleString();

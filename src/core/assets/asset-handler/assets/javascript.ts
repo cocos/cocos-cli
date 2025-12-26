@@ -64,6 +64,12 @@ export const JavascriptHandler: AssetHandlerBase = {
             importer: asset.meta.importer,
             userData: asset.meta.userData,
         });
+        try {
+            await scripting.compileScripts();
+        } catch {
+            //
+        } 
+        
     },
 };
 

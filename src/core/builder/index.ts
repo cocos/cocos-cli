@@ -7,31 +7,30 @@ import { newConsole } from '../base/console';
 import { join } from 'path';
 import assetManager from '../assets/manager/asset';
 import { removeDbHeader } from './worker/builder/utils';
-import builderConfig, { BuildGlobalInfo } from './share/builder-config';
+import builderConfig from './share/builder-config';
 import { BuildConfiguration } from './@types/config-export';
 import utils from '../base/utils';
-
 import { middlewareService } from '../../server/middleware/core';
 import BuildMiddleware from './build.middleware';
+import { BuildGlobalInfo } from './share/global';
 
 export async function init(platform?: string) {
     await builderConfig.init();
     await pluginManager.init();
-    platform && pluginManager.register(platform);
     middlewareService.register('Build', BuildMiddleware);
-}
-
-export async function startup() {
-    await pluginManager.registerAllPlatform();
+    if (platform) {
+        await pluginManager.register(platform);
+    } else {
+        await pluginManager.registerAllPlatform();
+    }
 }
 
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
+
     if (!options) {
         options = await pluginManager.getOptionsByPlatform(platform);
     }
     options.platform = platform;
-    options.taskId = options.taskId || String(new Date().getTime());
-    options.taskName = options.taskName || platform;
 
     // 不支持的构建平台不执行构建
     if (!pluginManager.checkPlatform(platform)) {
@@ -40,6 +39,8 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         }));
         return { code: BuildExitCode.BUILD_FAILED, reason: `Unsupported platform ${platform} for build command!` };
     }
+    options.taskId = options.taskId || String(new Date().getTime());
+    options.taskName = options.taskName || platform;
 
     // 命令行构建前，补全项目配置数据
     // await checkProjectSettingsBeforeCommand(options);

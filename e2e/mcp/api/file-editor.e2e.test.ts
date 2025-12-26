@@ -295,7 +295,32 @@ const test = 'original';
             expect(queryResult.data).toContain("const test = 'replaced';");
             expect(queryResult.data).not.toContain("const test = 'original';");
         });
+        it('should replace eol successfully', async () => {
+            const replaceResult = await mcpClient.callTool('file-replace-text', {
+                param: {
+                    dbURL: testFileUrl,
+                    fileType: 'ts',
+                    targetText: '\nconst test = \'original\';',
+                    replacementText: '\n    const test = \'replaced\';',
+                    regex: false,
+                },
+            });
 
+            expect(replaceResult.code).toBe(200);
+            expect(replaceResult.data).toBe(true);
+            // 使用 file-query-text 验证替换结果
+            const queryResult = await mcpClient.callTool('file-query-text', {
+                param: {
+                    dbURL: testFileUrl,
+                    fileType: 'ts',
+                    startLine: 1,
+                    lineCount: -1,
+                },
+            });
+            expect(queryResult.code).toBe(200);
+            expect(queryResult.data).toContain("    const test = 'replaced';");
+            expect(queryResult.data).not.toContain("const test = 'original';");
+        });
         it('should fail when multiple occurrences exist', async () => {
             // 先添加另一个 'original' 文本
             await mcpClient.callTool('file-insert-text', {

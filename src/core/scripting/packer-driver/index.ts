@@ -533,18 +533,17 @@ export class PackerDriver {
         }
         await this.beforeEditorBuildDelegate.dispatch(assetChanges.filter(item => item.type === AssetActionEnum.change) as ModifiedAssetChange[]);
         const nonDTSChanges = assetChanges.filter(item => !item.filePath.endsWith('.d.ts'));
-        // TODO 目前并不需要多个 targets 可以简化
+        
+        let err: Error | null = null;
         for (const [, target] of Object.entries(this._targets)) {
             if (assetChanges.length !== 0) {
                 await target.applyAssetChanges(nonDTSChanges);
             }
             const buildResult = await target.build();
             if (buildResult.err) {
-                this._building = false;
-                this._currentTaskId = null;
-                this._deleteErrFile((buildResult.err as any).file);
-                eventEmitter.emit('compiled', 'project');
-                throw buildResult.err;
+                err = buildResult.err;
+                target.deleteCacheFile((err as any).file);
+                continue;
             }
             buildResult.depsGraph && (this._depsGraph = buildResult.depsGraph); // 更新依赖图
             this._needUpdateDepsCache = true;
@@ -554,15 +553,10 @@ export class PackerDriver {
 
         eventEmitter.emit('compiled', 'project');
 
-    }
-
-    private _deleteErrFile(filePath: string | undefined) {
-        if (!filePath) return;
-        for (const [, target] of Object.entries(this._targets)) {
-            target.deleteCacheFile(filePath);
+        if (err) {
+            throw err;
         }
     }
-
 
     private static async _createIncrementalRecord(logger: Logger): Promise<IncrementalRecord> {
         const sharedModLoOptions = await querySharedSettings(logger);

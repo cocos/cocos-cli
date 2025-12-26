@@ -33,12 +33,14 @@ interface IWaitingTask {
     func: Function;
     args: any[];
     resolve?: Function;
+    reject?: Function;
 }
 
 interface IWaitingTaskInfo {
     func: Function;
     args: any[];
     resolves?: Function[];
+    rejects?: Function[];
 }
 
 /**
@@ -385,11 +387,12 @@ class AssetDBManager extends EventEmitter {
             console.log(i18n.t('assets.asset_d_b_pause_tips',
                 { operate: 'removeDB' }
             ));
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 this._addTaskToQueue({
                     func: this._removeDB.bind(this),
                     args: [name],
                     resolve,
+                    reject
                 });
             });
         }
@@ -439,11 +442,12 @@ class AssetDBManager extends EventEmitter {
                     { operate: 'refresh' }
                 ));
             }
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 this._addTaskToQueue({
                     func: this._refresh.bind(this),
                     args: [],
                     resolve,
+                    reject
                 });
             });
         }
@@ -520,11 +524,12 @@ class AssetDBManager extends EventEmitter {
             console.log(i18n.t('assets.asset_d_b_pause_tips',
                 { operate: func.name }
             ));
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 this._addTaskToQueue({
                     func,
                     args: args,
                     resolve,
+                    reject,
                 });
             });
         }
@@ -537,8 +542,9 @@ class AssetDBManager extends EventEmitter {
             func: task.func,
             args: task.args,
         };
-        if (task.resolve) {
+        if (task.resolve && task.reject) {
             curTask.resolves = [task.resolve];
+            curTask.rejects = [task.reject];
         }
         if (!last) {
             this.waitingTaskQueue.push(curTask);
@@ -553,14 +559,16 @@ class AssetDBManager extends EventEmitter {
             return;
         }
         // 将一样的任务合并
-        if (!task.resolve) {
+        if (!task.resolve || !task.reject) {
             return;
         }
 
-        if (last.resolves) {
+        if (last.resolves && last.rejects) {
             last.resolves.push(task.resolve);
+            last.rejects.push(task.reject);
         } else {
             last.resolves = curTask.resolves;
+            last.rejects = curTask.rejects;
         }
         this.step();
     }
@@ -602,6 +610,9 @@ class AssetDBManager extends EventEmitter {
                 task.resolves.forEach((resolve) => resolve(res));
             } catch (error) {
                 console.warn(error);
+                if (task.rejects) {
+                    task.rejects.forEach((reject) => reject(error));
+                }
             }
         }
 

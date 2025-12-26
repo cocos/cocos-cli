@@ -26,9 +26,10 @@ import { IBundleManager, IBuilder, IInternalBundleBuildOptions, IBuildHooksInfo,
 import { pluginManager } from '../../../../manager/plugin';
 import utils from '../../../../../base/utils';
 import script from '../../../../../scripting';
-import builderConfig, { BuildGlobalInfo } from '../../../../share/builder-config';
+import builderConfig from '../../../../share/builder-config';
 import { IPluginScriptInfo } from '../../../../../scripting/interface';
 import assetQuery from '../../../../../assets/manager/query';
+import { BuildGlobalInfo } from '../../../../share/global';
 
 const { MAIN, START_SCENE, INTERNAL, RESOURCES } = BuiltinBundleName;
 // 只 Bundle 构建时，可走此类的生成执行函数
@@ -118,7 +119,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
             });
         }
         this._task = task;
-        this.destDir = this.options.dest && utils.Path.resolveToRaw(this.options.dest) || join(BuildGlobalInfo.projectRoot, 'build', 'assetBundle');
+        this.destDir = this.options.dest && utils.Path.resolveToRaw(this.options.dest) || join(builderConfig.projectRoot, 'build', 'assetBundle');
         this.scriptBuilder = new ScriptBuilder();
         // @ts-ignore
         this.cache = task ? task.cache : new BuilderAssetCache();

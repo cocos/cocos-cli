@@ -12,7 +12,7 @@ import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../..
 import assetManager from '../../../../assets/manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../assets/@types/protected';
 import assetDBManager from '../../../../assets/manager/asset-db';
-import { BuildGlobalInfo } from '../../../share/builder-config';
+import builderConfig from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
 
 // 版本号记录
@@ -43,9 +43,9 @@ class BuildAssetLibrary {
     private meta: IMetaMap = {};
 
     // 缓存地址
-    private cacheTempDir: string = join(BuildGlobalInfo.projectTempDir, 'asset-db');
+    private cacheTempDir: string = join(builderConfig.projectTempDir, 'asset-db');
     private assetMtimeCache: Record<string, number> = {};
-    private assetMtimeCacheFile: string = join(BuildGlobalInfo.projectTempDir, 'builder', 'assets-mtime.json');
+    private assetMtimeCacheFile: string = join(builderConfig.projectTempDir, 'builder', 'assets-mtime.json');
 
     // 是否使用缓存开关
     public useCache = true;

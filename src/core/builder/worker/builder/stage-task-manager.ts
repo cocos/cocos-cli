@@ -1,12 +1,11 @@
 import { join } from 'path';
-import { readJSONSync, emptyDirSync, existsSync, outputJSON } from 'fs-extra';
+import { outputJSON } from 'fs-extra';
 import { workerManager } from '../worker-pools/sub-process-manager';
 import { BuildTaskBase } from './manager/task-base';
 import { newConsole } from '../../../base/console';
 import { IBuildOptionBase } from '../../@types';
 import { IBuildHooksInfo, IBuildStageTask, IBuildStageItem } from '../../@types/protected';
-import { BuildGlobalInfo } from '../../share/builder-config';
-
+import { BuildGlobalInfo } from '../../share/global';
 
 export interface IBuildStageConfig extends IBuildStageItem {
     root: string;
@@ -42,8 +41,6 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
         // 为了保障构建 + 编译或者单独编译的情况都有统计到，直接加在此处
         newConsole.trackTimeStart(trickTimeLabel);
         this.updateProcess('init options success', 0.1);
-
-        emptyDirSync(join(BuildGlobalInfo.projectTempDir, 'builder', 'compile'));
 
         try {
             for (const taskName of Object.keys(this.hookMap)) {
