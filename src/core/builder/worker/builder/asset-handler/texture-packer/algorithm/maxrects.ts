@@ -11,62 +11,59 @@ export interface IRect {
     clone(): IRect;
 }
 
-export interface IMaxRectsBinPack {
-    binWidth: number;
-    binHeight: number;
-    allowRotate: boolean;
-    usedRectangles: IRect[];
-    freeRectangles: IRect[];
-    init(width: number, height: number, allowRotate: boolean): void;
-    insertRects(rectangles: IRect[], method: number): IRect[];
-}
+const BestShortSideFit = 0; ///< -BSSF: Positions the Rectangle against the short side of a free Rectangle into which it fits the best.
+const BestLongSideFit = 1; ///< -BLSF: Positions the Rectangle against the long side of a free Rectangle into which it fits the best.
+const BestAreaFit = 2; ///< -BAF: Positions the Rectangle into the smallest free Rectangle into which it fits.
+const BottomLeftRule = 3; ///< -BL: Does the Tetris placement.
+const ContactPointRule = 4; ///< -CP: Choosest the placement where the Rectangle touches other Rectangles as much as possible.
+const LeftoverArea = 5;
 
-export enum Heuristic {
-    BestShortSideFit = 0, ///< -BSSF: Positions the Rectangle against the short side of a free Rectangle into which it fits the best.
-    BestLongSideFit = 1, ///< -BLSF: Positions the Rectangle against the long side of a free Rectangle into which it fits the best.
-    BestAreaFit = 2, ///< -BAF: Positions the Rectangle into the smallest free Rectangle into which it fits.
-    BottomLeftRule = 3, ///< -BL: Does the Tetris placement.
-    ContactPointRule = 4, ///< -CP: Choosest the placement where the Rectangle touches other Rectangles as much as possible.
-    LeftoverArea = 5
-}
-
-export class Rect implements IRect {
-    public x: number;
-    public y: number;
-    public width: number;
-    public height: number;
-    public rotated?: boolean;
+/**
+ * Rect
+ */
+class Rect implements IRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotated?: boolean;
 
     constructor(x: number = 0, y: number = 0, width: number = 0, height: number = 0) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
+        this.x = x || 0;
+        this.y = y || 0;
+        this.width = width || 0;
+        this.height = height || 0;
     }
 
-    public clone(): IRect {
+    clone(): IRect {
         return new Rect(this.x, this.y, this.width, this.height);
     }
 
-    public static isContainedIn(a: IRect, b: IRect): boolean {
+    static isContainedIn(a: IRect, b: IRect): boolean {
         return a.x >= b.x && a.y >= b.y &&
             a.x + a.width <= b.x + b.width &&
             a.y + a.height <= b.y + b.height;
     }
 }
 
-export class MaxRectsBinPack implements IMaxRectsBinPack {
-    public binWidth: number = 0;
-    public binHeight: number = 0;
-    public allowRotate: boolean = false;
-    public usedRectangles: IRect[] = [];
-    public freeRectangles: IRect[] = [];
+/**
+ * MaxRectanglesBinPack
+ */
+class MaxRectsBinPack {
+    binWidth: number = 0;
+    binHeight: number = 0;
+    allowRotate: boolean = false;
+    usedRectangles: IRect[] = [];
+    freeRectangles: IRect[] = [];
 
     constructor(width: number, height: number, allowRotate: boolean = false) {
         this.init(width, height, allowRotate);
     }
 
-    public init(width: number, height: number, allowRotate: boolean): void {
+    /**
+     * Init
+     */
+    init(width: number, height: number, allowRotate: boolean): void {
         this.binWidth = width;
         this.binHeight = height;
         this.allowRotate = allowRotate || false;
@@ -76,7 +73,13 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         this.freeRectangles.push(new Rect(0, 0, width, height));
     }
 
-    public insertRects(rectangles: IRect[], method: number): IRect[] {
+    /**
+     * Insert a set of rectangles
+     * @param rectangles
+     * @param method 0~4
+     * @return success inserted rectangles
+     */
+    insertRects(rectangles: IRect[], method: number): IRect[] {
         const res: IRect[] = [];
         while (rectangles.length > 0) {
             let bestScore1 = Infinity;
@@ -87,7 +90,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
             for (let i = 0; i < rectangles.length; i++) {
                 const score1 = { value: 0 };
                 const score2 = { value: 0 };
-                const newNode = this.scoreRect(rectangles[i].width, rectangles[i].height, method, score1, score2);
+                const newNode = this._scoreRectangle(rectangles[i].width, rectangles[i].height, method, score1, score2);
 
                 if (score1.value < bestScore1 || (score1.value === bestScore1 && score2.value < bestScore2)) {
                     bestScore1 = score1.value;
@@ -101,7 +104,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
                 return res;
             }
 
-            this.placeRect(bestNode);
+            this._placeRectangle(bestNode);
             const rect = rectangles.splice(bestRectangleIndex, 1)[0];
             rect.x = bestNode.x;
             rect.y = bestNode.y;
@@ -115,38 +118,44 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return res;
     }
 
-    private placeRect(node: IRect): void {
+    private _placeRectangle(node: IRect): void {
         for (let i = 0; i < this.freeRectangles.length; i++) {
-            if (this.splitFreeNode(this.freeRectangles[i], node)) {
+            if (this._splitFreeNode(this.freeRectangles[i], node)) {
                 this.freeRectangles.splice(i, 1);
                 i--;
             }
         }
 
-        this.pruneFreeList();
+        this._pruneFreeList();
         this.usedRectangles.push(node);
     }
 
-    private scoreRect(width: number, height: number, method: number, score1: { value: number }, score2: { value: number }): IRect {
-        const newNode = new Rect();
+    private _scoreRectangle(width: number, height: number, method: number, score1: { value: number }, score2: { value: number }): IRect {
+        let newNode = new Rect();
         score1.value = Infinity;
         score2.value = Infinity;
-
         switch (method) {
-            case Heuristic.BestShortSideFit:
-                return this.findPositionForNewNodeBestShortSideFit(width, height, score1, score2);
-            case Heuristic.BottomLeftRule:
-                return this.findPositionForNewNodeBottomLeft(width, height, score1, score2);
-            case Heuristic.ContactPointRule:
-                const result = this.findPositionForNewNodeContactPoint(width, height, score1);
-                score1.value = -score1.value; // Reverse since we are minimizing, but for contact point score bigger is better.
-                return result;
-            case Heuristic.BestLongSideFit:
-                return this.findPositionForNewNodeBestLongSideFit(width, height, score2, score1);
-            case Heuristic.BestAreaFit:
-                return this.findPositionForNewNodeBestAreaFit(width, height, score1, score2);
-            case Heuristic.LeftoverArea:
-                return this.findPositionForNewNodeLeftoverArea(width, height, score1, score2);
+            case BestShortSideFit:
+                newNode = this._findPositionForNewNodeBestShortSideFit(width, height, score1, score2);
+                break;
+            case BottomLeftRule:
+                newNode = this._findPositionForNewNodeBottomLeft(width, height, score1, score2);
+                break;
+            case ContactPointRule:
+                newNode = this._findPositionForNewNodeContactPoint(width, height, score1);
+                // todo: reverse
+                // @ts-ignore - 保持与 JS 版本一致的行为
+                score1 = -score1; // Reverse since we are minimizing, but for contact point score bigger is better.
+                break;
+            case BestLongSideFit:
+                newNode = this._findPositionForNewNodeBestLongSideFit(width, height, score2, score1);
+                break;
+            case BestAreaFit:
+                newNode = this._findPositionForNewNodeBestAreaFit(width, height, score1, score2);
+                break;
+            case LeftoverArea:
+                newNode = this._findPositionForNewNodeLeftoverArea(width, height, score1, score2);
+                break;
         }
 
         // Cannot fit the current Rectangle.
@@ -158,14 +167,13 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return newNode;
     }
 
-    private findPositionForNewNodeBottomLeft(width: number, height: number, bestY: { value: number }, bestX: { value: number }): IRect {
+    private _findPositionForNewNodeBottomLeft(width: number, height: number, bestY: { value: number }, bestX: { value: number }): IRect {
         const freeRectangles = this.freeRectangles;
         const bestNode = new Rect();
 
         bestY.value = Infinity;
         let rect: IRect;
         let topSideY: number;
-
         for (let i = 0; i < freeRectangles.length; i++) {
             rect = freeRectangles[i];
             // Try to place the Rectangle in upright (non-flipped) orientation.
@@ -195,7 +203,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return bestNode;
     }
 
-    private findPositionForNewNodeBestShortSideFit(width: number, height: number, bestShortSideFit: { value: number }, bestLongSideFit: { value: number }): IRect {
+    private _findPositionForNewNodeBestShortSideFit(width: number, height: number, bestShortSideFit: { value: number }, bestLongSideFit: { value: number }): IRect {
         const freeRectangles = this.freeRectangles;
         const bestNode = new Rect();
 
@@ -225,12 +233,10 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
                     bestLongSideFit.value = longSideFit;
                 }
             }
-
             let flippedLeftoverHoriz: number;
             let flippedLeftoverVert: number;
             let flippedShortSideFit: number;
             let flippedLongSideFit: number;
-
             if (this.allowRotate && rect.width >= height && rect.height >= width) {
                 flippedLeftoverHoriz = Math.abs(rect.width - height);
                 flippedLeftoverVert = Math.abs(rect.height - width);
@@ -251,7 +257,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return bestNode;
     }
 
-    private findPositionForNewNodeBestLongSideFit(width: number, height: number, bestShortSideFit: { value: number }, bestLongSideFit: { value: number }): IRect {
+    private _findPositionForNewNodeBestLongSideFit(width: number, height: number, bestShortSideFit: { value: number }, bestLongSideFit: { value: number }): IRect {
         const freeRectangles = this.freeRectangles;
         const bestNode = new Rect();
         bestLongSideFit.value = Infinity;
@@ -261,7 +267,6 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         let leftoverVert: number;
         let shortSideFit: number;
         let longSideFit: number;
-
         for (let i = 0; i < freeRectangles.length; i++) {
             rect = freeRectangles[i];
             // Try to place the Rectangle in upright (non-flipped) orientation.
@@ -300,7 +305,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return bestNode;
     }
 
-    private findPositionForNewNodeBestAreaFit(width: number, height: number, bestAreaFit: { value: number }, bestShortSideFit: { value: number }): IRect {
+    private _findPositionForNewNodeBestAreaFit(width: number, height: number, bestAreaFit: { value: number }, bestShortSideFit: { value: number }): IRect {
         const freeRectangles = this.freeRectangles;
         const bestNode = new Rect();
         const requestArea = width * height;
@@ -349,7 +354,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return bestNode;
     }
 
-    private findPositionForNewNodeLeftoverArea(width: number, height: number, bestAreaFit: { value: number }, bestShortSideFit: { value: number }): IRect {
+    private _findPositionForNewNodeLeftoverArea(width: number, height: number, bestAreaFit: { value: number }, bestShortSideFit: { value: number }): IRect {
         const freeRectangles = this.freeRectangles;
         const bestNode = new Rect();
 
@@ -357,6 +362,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         bestShortSideFit.value = 0;
 
         let rect: IRect;
+
         let leftoverHoriz: number;
         let leftoverVert: number;
         let shortSideFit: number;
@@ -404,14 +410,15 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return bestNode;
     }
 
-    private commonIntervalLength(i1start: number, i1end: number, i2start: number, i2end: number): number {
+    /// Returns 0 if the two intervals i1 and i2 are disjoint, or the length of their overlap otherwise.
+    private _commonIntervalLength(i1start: number, i1end: number, i2start: number, i2end: number): number {
         if (i1end < i2start || i2end < i1start) {
             return 0;
         }
         return Math.min(i1end, i2end) - Math.max(i1start, i2start);
     }
 
-    private contactPointScoreNode(x: number, y: number, width: number, height: number): number {
+    private _contactPointScoreNode(x: number, y: number, width: number, height: number): number {
         const usedRectangles = this.usedRectangles;
         let score = 0;
 
@@ -421,21 +428,20 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         if (y === 0 || y + height === this.binHeight) {
             score += width;
         }
-
         let rect: IRect;
         for (let i = 0; i < usedRectangles.length; i++) {
             rect = usedRectangles[i];
             if (rect.x === x + width || rect.x + rect.width === x) {
-                score += this.commonIntervalLength(rect.y, rect.y + rect.height, y, y + height);
+                score += this._commonIntervalLength(rect.y, rect.y + rect.height, y, y + height);
             }
             if (rect.y === y + height || rect.y + rect.height === y) {
-                score += this.commonIntervalLength(rect.x, rect.x + rect.width, x, x + width);
+                score += this._commonIntervalLength(rect.x, rect.x + rect.width, x, x + width);
             }
         }
         return score;
     }
 
-    private findPositionForNewNodeContactPoint(width: number, height: number, bestContactScore: { value: number }): IRect {
+    private _findPositionForNewNodeContactPoint(width: number, height: number, bestContactScore: { value: number }): IRect {
         const freeRectangles = this.freeRectangles;
         const bestNode = new Rect();
 
@@ -443,22 +449,22 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
 
         let rect: IRect;
         let score: number;
-
         for (let i = 0; i < freeRectangles.length; i++) {
             rect = freeRectangles[i];
             // Try to place the Rectangle in upright (non-flipped) orientation.
             if (rect.width >= width && rect.height >= height) {
-                score = this.contactPointScoreNode(rect.x, rect.y, width, height);
+                score = this._contactPointScoreNode(rect.x, rect.y, width, height);
                 if (score > bestContactScore.value) {
                     bestNode.x = rect.x;
                     bestNode.y = rect.y;
                     bestNode.width = width;
                     bestNode.height = height;
-                    bestContactScore.value = score;
+                    // @ts-ignore - 保持与 JS 版本一致
+                    bestContactScore = score;
                 }
             }
             if (this.allowRotate && rect.width >= height && rect.height >= width) {
-                score = this.contactPointScoreNode(rect.x, rect.y, height, width);
+                score = this._contactPointScoreNode(rect.x, rect.y, height, width);
                 if (score > bestContactScore.value) {
                     bestNode.x = rect.x;
                     bestNode.y = rect.y;
@@ -471,7 +477,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return bestNode;
     }
 
-    private splitFreeNode(freeNode: IRect, usedNode: IRect): boolean {
+    private _splitFreeNode(freeNode: IRect, usedNode: IRect): boolean {
         const freeRectangles = this.freeRectangles;
         // Test with SAT if the Rectangles even intersect.
         if (usedNode.x >= freeNode.x + freeNode.width || usedNode.x + usedNode.width <= freeNode.x ||
@@ -514,7 +520,7 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
         return true;
     }
 
-    private pruneFreeList(): void {
+    private _pruneFreeList(): void {
         const freeRectangles = this.freeRectangles;
         for (let i = 0; i < freeRectangles.length; i++) {
             for (let j = i + 1; j < freeRectangles.length; j++) {
@@ -530,13 +536,15 @@ export class MaxRectsBinPack implements IMaxRectsBinPack {
             }
         }
     }
+
+    static heuristics = {
+        BestShortSideFit,
+        BestLongSideFit,
+        BestAreaFit,
+        BottomLeftRule,
+        ContactPointRule,
+        LeftoverArea,
+    };
 }
 
-export const heuristics = {
-    BestShortSideFit: Heuristic.BestShortSideFit,
-    BestLongSideFit: Heuristic.BestLongSideFit,
-    BestAreaFit: Heuristic.BestAreaFit,
-    BottomLeftRule: Heuristic.BottomLeftRule,
-    ContactPointRule: Heuristic.ContactPointRule,
-    LeftoverArea: Heuristic.LeftoverArea,
-};
+export default MaxRectsBinPack;
