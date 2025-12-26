@@ -61,6 +61,20 @@ export default class AndroidPackTool extends NativePackTool {
             await fs.copy(platformTemplateDir, nativePrjDir, { overwrite: true });
         }
 
+        // 3.1. 替换 settings.gradle 中的项目名
+        // 因为复制文件可能会覆盖之前在 create() 阶段替换的内容，需要再次替换
+        const settingsGradlePath = ps.join(nativePrjDir, 'settings.gradle');
+        if (fs.existsSync(settingsGradlePath)) {
+            const projectName = this.params.projectName;
+            if (projectName !== 'CocosGame') {
+                // 使用全局正则表达式替换所有出现的 CocosGame
+                const content = await fs.readFile(settingsGradlePath, 'utf8');
+                const newContent = content.replace(/CocosGame/g, projectName);
+                await fs.writeFile(settingsGradlePath, newContent, 'utf8');
+                console.log(`[Android] Replaced project name in settings.gradle: CocosGame -> ${projectName}`);
+            }
+        }
+
         // 4. 生成 local.properties
         const sdkPath = this.params.platformParams.sdkPath;
         const ndkPath = this.params.platformParams.ndkPath;
