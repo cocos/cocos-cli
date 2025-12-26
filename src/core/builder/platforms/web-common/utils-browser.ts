@@ -5,14 +5,8 @@ import path from "path";
 import { get as httpGet } from "http";
 import WebSocket from "ws";
 import { newConsole } from "../../../base/console";
-
-/**
- * 浏览器类型枚举
- */
-export enum BrowserType {
-    Chrome = 'chrome',
-    Edge = 'edge'
-}
+import { execSync } from "child_process";
+import os from "os";
 
 /**
  * openUrl 函数的选项类型
@@ -24,147 +18,6 @@ export interface OpenUrlOptions {
     browserPath?: string;
     /** 远程调试端口，仅在 remoteDebuggingMode 为 true 时有效，默认 9222 */
     port?: number;
-    /** 浏览器类型，仅在 remoteDebuggingMode 为 true 且未提供 browserPath 时有效，默认 BrowserType.Chrome */
-    browserType?: BrowserType;
-}
-
-/**
- * 查找 Chrome 浏览器路径
- */
-function findChromePath(): string | undefined {
-    const currentPlatform = platform();
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-
-    if (currentPlatform === 'win32') {
-        const chromePaths = [
-            // Chrome (按优先级排序)
-            path.join(homeDir, 'AppData\\Local\\Google\\Chrome\\Application\\chrome.exe'),
-            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-            // Chrome Canary
-            path.join(homeDir, 'AppData\\Local\\Google\\Chrome SxS\\Application\\chrome.exe'),
-            // Chromium
-            path.join(homeDir, 'AppData\\Local\\Chromium\\Application\\chrome.exe'),
-        ];
-
-        for (const p of chromePaths) {
-            if (fs.existsSync(p)) {
-                return p;
-            }
-        }
-    } else if (currentPlatform === 'darwin') {
-        const chromePaths = [
-            // Chrome (按优先级排序)
-            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-            path.join(homeDir, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
-            // Chrome Canary
-            '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
-            path.join(homeDir, 'Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary'),
-            // Chromium
-            '/Applications/Chromium.app/Contents/MacOS/Chromium',
-            path.join(homeDir, 'Applications/Chromium.app/Contents/MacOS/Chromium'),
-        ];
-
-        for (const p of chromePaths) {
-            if (fs.existsSync(p)) {
-                return p;
-            }
-        }
-    } else if (currentPlatform === 'linux') {
-        const chromePaths = [
-            // Chrome (按优先级排序)
-            '/usr/bin/google-chrome-stable',
-            '/usr/bin/google-chrome',
-            '/usr/bin/chromium-browser',
-            '/usr/bin/chromium',
-            // Snap packages
-            '/snap/bin/chromium',
-            '/snap/bin/google-chrome',
-            // Flatpak
-            '/var/lib/flatpak/exports/bin/com.google.Chrome',
-            '/var/lib/flatpak/exports/bin/org.chromium.Chromium',
-            // User-level installations
-            path.join(homeDir, '.local/share/flatpak/exports/bin/com.google.Chrome'),
-            path.join(homeDir, '.local/share/flatpak/exports/bin/org.chromium.Chromium'),
-        ];
-
-        for (const p of chromePaths) {
-            if (fs.existsSync(p)) {
-                return p;
-            }
-        }
-    }
-
-    // 最后检查环境变量
-    return process.env.CHROME_PATH || process.env.CHROMIUM_PATH;
-}
-
-/**
- * 查找 Edge 浏览器路径
- */
-function findEdgePath(): string | undefined {
-    const currentPlatform = platform();
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-
-    if (currentPlatform === 'win32') {
-        const edgePaths = [
-            // Edge (按优先级排序)
-            path.join(homeDir, 'AppData\\Local\\Microsoft\\Edge\\Application\\msedge.exe'),
-            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-            'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-            // Edge Beta/Dev
-            path.join(homeDir, 'AppData\\Local\\Microsoft\\Edge Beta\\Application\\msedge.exe'),
-            path.join(homeDir, 'AppData\\Local\\Microsoft\\Edge Dev\\Application\\msedge.exe'),
-        ];
-
-        for (const p of edgePaths) {
-            if (fs.existsSync(p)) {
-                return p;
-            }
-        }
-    } else if (currentPlatform === 'darwin') {
-        const edgePaths = [
-            // Edge
-            '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-            path.join(homeDir, 'Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
-        ];
-
-        for (const p of edgePaths) {
-            if (fs.existsSync(p)) {
-                return p;
-            }
-        }
-    } else if (currentPlatform === 'linux') {
-        const edgePaths = [
-            '/usr/bin/microsoft-edge',
-            '/usr/bin/microsoft-edge-stable',
-            '/usr/bin/microsoft-edge-beta',
-            '/usr/bin/microsoft-edge-dev',
-            // Snap packages
-            '/snap/bin/microsoft-edge',
-            // Flatpak
-            '/var/lib/flatpak/exports/bin/com.microsoft.Edge',
-            path.join(homeDir, '.local/share/flatpak/exports/bin/com.microsoft.Edge'),
-        ];
-
-        for (const p of edgePaths) {
-            if (fs.existsSync(p)) {
-                return p;
-            }
-        }
-    }
-
-    // 检查环境变量
-    return process.env.EDGE_PATH;
-}
-
-/**
- * 根据浏览器类型查找浏览器路径
- * @param browserType 浏览器类型，默认为 BrowserType.Chrome
- * @returns 浏览器可执行文件路径，如果未找到则返回 undefined
- */
-function findBrowserPath(browserType: BrowserType = BrowserType.Chrome): string | undefined {
-    return browserType === BrowserType.Edge ? findEdgePath() : findChromePath();
 }
 
 /**
@@ -464,19 +317,18 @@ export function openUrl(url: string, options: OpenUrlOptions = {}, completedCall
     const {
         remoteDebuggingMode = false,
         browserPath,
-        port = 9222,
-        browserType = BrowserType.Chrome
+        port = 9222
     } = options;
 
     if (remoteDebuggingMode) {
-        // 如果未提供浏览器路径，则根据 browserType 自动查找
-        const resolvedBrowserPath = browserPath ?? findBrowserPath(browserType);
+        // 如果未提供浏览器路径，自动查找
+        const resolvedBrowserPath = browserPath ?? getDefaultBrowserPath();
 
         if (resolvedBrowserPath) {
             openDebuggingBrowser(url, resolvedBrowserPath, port, completedCallback);
             return;
         } else {
-            console.warn(`⚠️ 未找到指定的浏览器 (${browserType})，回退到默认浏览器`);
+            console.warn(`⚠️ 未找到指定的浏览器，回退到默认浏览器`);
         }
     }
 
@@ -496,4 +348,99 @@ export function openUrlAsync(url: string, options: OpenUrlOptions = {}): Promise
             resolve();
         });
     });
+}
+
+/**
+ * 获取系统默认浏览器的可执行文件路径
+ * 
+ * 该函数会根据当前操作系统平台，使用不同的方法检测系统默认浏览器：
+ * - Windows: 通过查询注册表获取默认 HTTP 协议处理程序
+ * - macOS: 通过系统设置获取默认浏览器的 Bundle ID，然后查找对应的应用程序路径
+ * - Linux: 通过 xdg-settings 或 xdg-mime 获取默认浏览器，然后从 desktop 文件中解析可执行路径
+ * 
+ * @returns 返回默认浏览器的可执行文件路径，如果无法检测到则返回 undefined
+ */
+function getDefaultBrowserPath(): string | undefined {
+    try {
+        const platform = os.platform();
+
+        if (platform === "win32") {
+            // Windows: 通过查询注册表获取默认 HTTP 协议处理程序
+            // 注册表路径: HKEY_CLASSES_ROOT\HTTP\shell\open\command
+            // 该路径存储了系统默认用于打开 HTTP 链接的命令
+            const regQuery = execSync(
+                'reg query "HKEY_CLASSES_ROOT\\HTTP\\shell\\open\\command" /ve',
+                { encoding: "utf8" }
+            );
+            // 从注册表查询结果中提取浏览器可执行文件路径（通常在引号中）
+            const match = regQuery.match(/"([^"]+)"/);
+            if (match && fs.existsSync(match[1])) {
+                return match[1];
+            }
+        } else if (platform === "darwin") {
+            // macOS: 通过系统设置获取默认浏览器的 Bundle ID，然后查找应用程序路径
+            // 1. 读取 LaunchServices 的 LSHandlers 配置，查找 HTTP 协议的处理程序
+            // 2. 提取 Bundle ID（例如: com.google.Chrome）
+            // 3. 使用 mdfind 根据 Bundle ID 查找应用程序的安装路径
+            // 4. 构建可执行文件路径: <AppPath>/Contents/MacOS/<AppName>
+            const bundleId = execSync(
+                'defaults read com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers | grep -A 1 "http" | grep LSHandlerRoleAll | awk \'{print $3}\'',
+                { encoding: "utf8" }
+            ).trim();
+
+            if (bundleId) {
+                // 使用 mdfind 根据 Bundle ID 查找应用程序路径
+                const appPath = execSync(`mdfind "kMDItemCFBundleIdentifier == '${bundleId}'"`, {
+                    encoding: "utf8",
+                }).split("\n")[0];
+                if (appPath && fs.existsSync(appPath)) {
+                    // macOS 应用程序的可执行文件位于: <AppPath>/Contents/MacOS/<AppName>
+                    return path.join(appPath, "Contents", "MacOS", path.basename(appPath, ".app"));
+                }
+            }
+        } else if (platform === "linux") {
+            // Linux: 通过 xdg-settings 或 xdg-mime 获取默认浏览器
+            // 1. 首先尝试使用 xdg-settings 获取默认浏览器
+            // 2. 如果失败，则使用 xdg-mime 查询 HTTP 协议的处理程序
+            // 3. 从 desktop 文件中读取 Exec 字段，获取可执行文件路径
+            let browserDesktop = "";
+            try {
+                // 方法1: 使用 xdg-settings 获取默认浏览器
+                browserDesktop = execSync("xdg-settings get default-web-browser", {
+                    encoding: "utf8",
+                }).trim();
+            } catch {
+                // 方法2: 如果 xdg-settings 失败，使用 xdg-mime 查询 HTTP 协议处理程序
+                browserDesktop = execSync(
+                    "xdg-mime query default x-scheme-handler/http",
+                    { encoding: "utf8" }
+                ).trim();
+            }
+
+            if (browserDesktop) {
+                // desktop 文件通常位于 /usr/share/applications/ 目录
+                const desktopFilePath = `/usr/share/applications/${browserDesktop}`;
+                if (fs.existsSync(desktopFilePath)) {
+                    // 读取 desktop 文件内容
+                    const desktopFileContent = fs.readFileSync(desktopFilePath, "utf8");
+                    // 查找 Exec= 行，该行包含可执行文件路径
+                    const execLine = desktopFileContent
+                        .split("\n")
+                        .find((line) => line.startsWith("Exec="));
+                    if (execLine) {
+                        // 提取可执行文件路径（移除 Exec= 前缀和可能的参数）
+                        const execPath = execLine.replace("Exec=", "").split(" ")[0];
+                        if (fs.existsSync(execPath)) {
+                            return execPath;
+                        }
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        // 检测失败时记录错误，但不抛出异常，返回 undefined
+        console.error("Error detecting default browser path");
+    }
+
+    return undefined;
 }
