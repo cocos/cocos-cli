@@ -40,6 +40,9 @@ export async function onAfterInit(this: IBuilder, options: IMacInternalBuildOpti
         params.cMakeConfig[`CC_USE_${backend.toUpperCase()}`] = renderBackEnd[backend];
     });
     // TODO 仅部分平台支持的选项，需要放在平台插件里自行注册
+    if (!options.packages.native) {
+        options.packages.native = {};
+    }
     params.cMakeConfig.USE_SERVER_MODE = `set(USE_SERVER_MODE ${options.packages.native!.serverMode ? 'ON' : 'OFF'})`;
     let netMode = Number(options.packages.native!.netMode);
     netMode = options.packages.native!.netMode = (isNaN(netMode) || netMode > 2 || netMode < 0) ? 0 : netMode;

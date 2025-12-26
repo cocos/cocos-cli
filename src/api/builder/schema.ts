@@ -54,6 +54,44 @@ export const SchemaWebMobilePackages = z.object({
     embedWebDebugger: z.boolean().default(false).describe('是否嵌入 Web 端调试工具'),
 }).describe('Web Mobile 平台配置');
 
+// iOS Packages 配置
+export const SchemaIOSPackage = z.object({
+    packageName: z.string()
+        .min(1, 'iOS包名不能为空')
+        .regex(
+            /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/i,
+            'iOS包名格式不正确，请使用逆域名格式，如：com.company.app'
+        )
+        .describe('iOS应用包名（必填）'),
+    provisioningProfile: z.string().optional().describe('描述文件'),
+    certificate: z.string().optional().describe('证书名称'),
+    teamId: z.string().optional().describe('开发者团队ID'),
+}).describe('iOS平台特定配置');
+
+// Mac Packages 配置
+export const SchemaMacPackage = z.object({
+    packageName: z.string()
+        .min(1, 'Mac包名不能为空')
+        .regex(
+            /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/i,
+            'Mac包名格式不正确，请使用逆域名格式，如：com.company.app'
+        )
+        .describe('Mac应用包名（必填）')
+}).describe('Mac平台特定配置');
+
+// Android Packages 配置
+export const SchemaAndroidPackage = z.object({
+    packageName: z.string()
+        .min(1, 'Android包名不能为空')
+        .regex(
+            /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/i,
+            'Android包名格式不正确，如：com.company.app'
+        )
+        .describe('Android应用包名（必填）'),
+    keystorePath: z.string().optional().describe('签名文件路径'),
+    keystorePassword: z.string().optional().describe('签名文件密码'),
+}).describe('Android平台特定配置');
+
 // ==================== 基础构建配置 ====================
 
 // 核心构建字段定义（不包含 platform 和 packages，这些在平台特定配置中定义）
@@ -124,40 +162,115 @@ export const SchemaBuildRuntimeOptions = z.object({
 
 // ==================== 平台特定的完整构建选项 ====================
 
-// Web Desktop 完整构建选项（入参，所有字段可选）
-export const SchemaWebDesktopBuildOption = SchemaBuildRuntimeOptions
-    .merge(SchemaBuildBaseConfig)
+// 基础构建选项（包含运行时选项）
+const SchemaBuildBaseOption = SchemaBuildRuntimeOptions
+    .merge(SchemaBuildBaseConfig);
+
+// Web Desktop 完整构建选项
+export const SchemaWebDesktopBuildOption = SchemaBuildBaseOption
     .extend({
-        platform: z.literal('web-desktop').describe('构建平台').optional(),
+        platform: z.literal('web-desktop').describe('构建平台'),
         packages: z.object({
             'web-desktop': SchemaWebDesktopPackages.partial()
         }).optional().describe('Web Desktop 平台特定配置')
     })
     .describe('Web Desktop 完整构建选项（所有字段可选）');
 
-// Web Mobile 完整构建选项（入参，所有字段可选）
-export const SchemaWebMobileBuildOption = SchemaBuildRuntimeOptions
-    .merge(SchemaBuildBaseConfig)
+// Web Mobile 完整构建选项
+export const SchemaWebMobileBuildOption = SchemaBuildBaseOption
     .extend({
-        platform: z.literal('web-mobile').describe('构建平台').optional(),
+        platform: z.literal('web-mobile').describe('构建平台'),
         packages: z.object({
             'web-mobile': SchemaWebMobilePackages.partial()
         }).optional().describe('Web Mobile 平台特定配置')
     })
     .describe('Web Mobile 完整构建选项（所有字段可选）');
 
-// 通用构建选项（用于 API 入参）
-export const SchemaBuildOption = z.union([
-    SchemaWebDesktopBuildOption,
-    SchemaWebMobileBuildOption,
-    SchemaBuildRuntimeOptions
-    .merge(SchemaBuildBaseConfig)
+// Windows 构建选项
+export const SchemaWindowsBuildOption = SchemaBuildBaseOption
+    .extend({
+        name: z.string().describe('游戏名称（Windows平台必填）'),
+        platform: z.literal('windows').describe('构建平台')
+    })
+    .describe('Windows平台构建选项');
+
+// iOS 构建选项
+export const SchemaIOSBuildOption = SchemaBuildBaseOption
+    .extend({
+        platform: z.literal('ios').describe('构建平台'),
+        packages: z.object({
+            ios: SchemaIOSPackage
+        }).describe('iOS平台配置')
+    })
+    .describe('iOS平台构建选项');
+
+// Android 构建选项
+export const SchemaAndroidBuildOption = SchemaBuildBaseOption
+    .extend({
+        platform: z.literal('android').describe('构建平台'),
+        packages: z.object({
+            android: SchemaAndroidPackage
+        }).describe('Android平台配置')
+    })
+    .describe('Android平台构建选项');
+
+    
+ // Mac 构建选项
+export const SchemaMacBuildOption = SchemaBuildBaseOption
+.extend({
+    platform: z.literal('mac').describe('构建平台'),
+    packages: z.object({
+        mac: SchemaMacPackage
+    }).describe('Mac平台配置')
+})
+.describe('Mac平台构建选项');
+
+
+// 其他平台构建选项（通用）
+export const SchemaOtherPlatformBuildOption = SchemaBuildBaseOption
     .extend({
         platform: SchemaPlatform.optional().describe('构建平台'),
         packages: z.any().optional().describe('平台特定配置'),
     })
-]).optional().describe('构建选项（用于 API 入参）');
+    .describe('其他平台构建选项');
+
+
+// ==================== 创建带预处理的 discriminatedUnion ====================
+// 创建预处理函数，确保 platform 字段存在
+const preprocessPlatform = (val: unknown) => {
+    if (typeof val !== 'object' || val === null) return val;
+    
+    const obj = val as Record<string, any>;
+    
+    // 如果 platform 不存在，尝试推断
+    if (!obj.platform) {
+        if (obj.packages?.ios) return { ...obj, platform: 'ios' };
+        if (obj.packages?.mac) return { ...obj, platform: 'mac' };
+        if (obj.packages?.android) return { ...obj, platform: 'android' };
+        if (obj.packages?.windows) return { ...obj, platform: 'windows' };
+        if (obj.packages?.['web-desktop']) return { ...obj, platform: 'web-desktop' };
+        if (obj.packages?.['web-mobile']) return { ...obj, platform: 'web-mobile' };
+    }
+    
+    return val;
+};
+
+export const SchemaBuildOption = z.preprocess(
+    preprocessPlatform,
+    z.discriminatedUnion('platform', [
+        SchemaWebDesktopBuildOption,
+        SchemaWebMobileBuildOption,
+        SchemaWindowsBuildOption,
+        SchemaIOSBuildOption,
+        SchemaMacBuildOption,
+        SchemaAndroidBuildOption,
+        SchemaOtherPlatformBuildOption
+    ])
+).optional().describe('构建选项（带平台预处理）');
+
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
+
+// ==================== 结果类型定义 ====================
 
 export const SchemaResultBase = z.object({
     code: z.number().int().describe('构建的退出码, 0 表示成功, 其他表示失败, 32 表示参数错误, 34 表示构建失败, 37 表示构建繁忙, 50 表示未知错误'),
@@ -215,35 +328,15 @@ export type TPreviewSettingsResult = z.infer<typeof SchemaPreviewSettingsResult>
 
 // ==================== 构建配置查询结果 ====================
 
-// Web Desktop 构建配置查询结果（所有字段必填，包含 packages，不包含运行时选项）
-const SchemaWebDesktopBuildConfigResult = BuildConfigCoreFields.partial()
-    .extend({
-        platform: z.literal('web-desktop').describe('构建平台'),
-        packages: z.object({
-            'web-desktop': SchemaWebDesktopPackages
-        }).describe('Web Desktop 平台特定配置')
-    })
-    .describe('Web Desktop 构建配置查询结果');
-
-// Web Mobile 构建配置查询结果（所有字段必填，包含 packages，不包含运行时选项）
-const SchemaWebMobileBuildConfigResult = BuildConfigCoreFields.partial()
-    .extend({
-        platform: z.literal('web-mobile').describe('构建平台'),
-        packages: z.object({
-            'web-mobile': SchemaWebMobilePackages
-        }).describe('Web Mobile 平台特定配置')
-    })
-    .describe('Web Mobile 构建配置查询结果');
-
 // 构建配置查询结果：union 类型，所有字段必填，包含 packages，不包含运行时选项
 export const SchemaBuildConfigResult = z.union([
-    SchemaWebDesktopBuildConfigResult,
-    SchemaWebMobileBuildConfigResult,
-    BuildConfigCoreFields.partial()
-    .extend({
-        platform: SchemaPlatform,
-        packages: z.any().optional().describe('平台特定配置'),
-    })
+    SchemaWebDesktopBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaWebMobileBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaWindowsBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaIOSBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaAndroidBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaMacBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaOtherPlatformBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
 ]).nullable().describe('构建配置查询结果（所有字段必填，包含 packages）');
 
 export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;
