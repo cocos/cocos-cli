@@ -1,34 +1,34 @@
 import z from 'zod';
 
-// ===== HTTP 状态码常量定义 =====
+// ===== HTTP Status Code Constants Definition ===== // HTTP 状态码常量定义
 
-// 成功状态码 (2xx)
+// Success Status Codes (2xx) // 成功状态码 (2xx)
 export const HTTP_STATUS = {
     // 2xx Success
-    OK: 200,                    // 请求成功
-    CREATED: 201,               // 资源创建成功
-    ACCEPTED: 202,              // 请求已接受，但处理未完成
-    NO_CONTENT: 204,            // 请求成功，但无内容返回
+    OK: 200,                    // Request Successful // 请求成功
+    CREATED: 201,               // Resource Created Successfully // 资源创建成功
+    ACCEPTED: 202,              // Request Accepted, Processing Not Completed // 请求已接受，但处理未完成
+    NO_CONTENT: 204,            // Request Successful, No Content Returned // 请求成功，但无内容返回
 
     // 3xx Redirection
-    NOT_MODIFIED: 304,          // 资源未修改
+    NOT_MODIFIED: 304,          // Resource Not Modified // 资源未修改
 
     // 4xx Client Error
-    BAD_REQUEST: 400,           // 请求参数错误
-    UNAUTHORIZED: 401,          // 未授权
-    FORBIDDEN: 403,             // 禁止访问
-    NOT_FOUND: 404,             // 资源不存在
-    METHOD_NOT_ALLOWED: 405,    // 方法不允许
-    CONFLICT: 409,              // 资源冲突
-    UNPROCESSABLE_ENTITY: 422,  // 请求格式正确，但语义错误
-    TOO_MANY_REQUESTS: 429,     // 请求过于频繁
+    BAD_REQUEST: 400,           // Invalid Request Parameters // 请求参数错误
+    UNAUTHORIZED: 401,          // Unauthorized // 未授权
+    FORBIDDEN: 403,             // Forbidden // 禁止访问
+    NOT_FOUND: 404,             // Resource Not Found // 资源不存在
+    METHOD_NOT_ALLOWED: 405,    // Method Not Allowed // 方法不允许
+    CONFLICT: 409,              // Resource Conflict // 资源冲突
+    UNPROCESSABLE_ENTITY: 422,  // Request Format Correct, Semantic Error // 请求格式正确，但语义错误
+    TOO_MANY_REQUESTS: 429,     // Too Many Requests // 请求过于频繁
 
     // 5xx Server Error
-    INTERNAL_SERVER_ERROR: 500, // 服务器内部错误
-    NOT_IMPLEMENTED: 501,       // 功能未实现
-    BAD_GATEWAY: 502,           // 网关错误
-    SERVICE_UNAVAILABLE: 503,   // 服务不可用
-    GATEWAY_TIMEOUT: 504,       // 网关超时
+    INTERNAL_SERVER_ERROR: 500, // Internal Server Error // 服务器内部错误
+    NOT_IMPLEMENTED: 501,       // Not Implemented // 功能未实现
+    BAD_GATEWAY: 502,           // Bad Gateway // 网关错误
+    SERVICE_UNAVAILABLE: 503,   // Service Unavailable // 服务不可用
+    GATEWAY_TIMEOUT: 504,       // Gateway Timeout // 网关超时
 } as const;
 
 export const COMMON_STATUS = {
@@ -36,11 +36,11 @@ export const COMMON_STATUS = {
     FAIL: HTTP_STATUS.INTERNAL_SERVER_ERROR,
 } as const;
 
-// 导出状态码的类型
+// Export Status Code Types // 导出状态码的类型
 export type HttpStatusCode = typeof HTTP_STATUS[keyof typeof HTTP_STATUS];
 export type CommonStatus = typeof COMMON_STATUS[keyof typeof COMMON_STATUS];
 
-// 创建 Zod 枚举类型来限制 code 字段的值
+// Create Zod Enum Type to Restrict code Field Values // 创建 Zod 枚举类型来限制 code 字段的值
 export const HttpStatusCodeSchema = z.union([
     z.literal(HTTP_STATUS.OK),
     // z.literal(HTTP_STATUS.CREATED),
@@ -62,24 +62,24 @@ export const HttpStatusCodeSchema = z.union([
     // z.literal(HTTP_STATUS.GATEWAY_TIMEOUT),
 ]);
 
-// ===== CommonResult 定义 =====
+// ===== CommonResult Definition ===== // CommonResult 定义
 
 export function createCommonResult<T extends z.ZodTypeAny>(dataSchema: T) {
     return z.object({
-        code: HttpStatusCodeSchema.describe('200 表示成功，其他值表示失败'),
-        data: z.union([dataSchema, z.undefined()]).describe('当成功的时候，data 字段返回的是结果'),
-        reason: z.union([z.string(), z.undefined()]).describe('当失败的时候 reason 的字段提示错误信息'),
+        code: HttpStatusCodeSchema.describe('200 indicates success, other values indicate failure'), // 200 表示成功，其他值表示失败
+        data: z.union([dataSchema, z.undefined()]).describe('When successful, the data field returns the result'), // 当成功的时候，data 字段返回的是结果
+        reason: z.union([z.string(), z.undefined()]).describe('When failed, the reason field provides error information'), // 当失败的时候 reason 的字段提示错误信息
     });
 }
 
-// 类型推导辅助
+// Type Inference Helper // 类型推导辅助
 export type CommonResultType<T> = {
     code: CommonStatus;
     data?: T;
-    reason?: string;//当失败的时候，需要带上 reason 的字段提示错误信息
+    reason?: string; // When failed, the reason field provides error information // 当失败的时候，需要带上 reason 的字段提示错误信息
 };
 
 /**
- * 项目路径
+ * Project Path // 项目路径
  */
-export const SchemaProjectPath = z.string().min(1).describe('Cocos Creator 项目的绝对路径，必须指向包含 project.json 文件的项目根目录');
+export const SchemaProjectPath = z.string().min(1).describe('Absolute path to the Cocos Creator project, must point to the project root directory containing the project.json file'); // Cocos Creator 项目的绝对路径，必须指向包含 project.json 文件的项目根目录
