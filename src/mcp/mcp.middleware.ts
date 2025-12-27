@@ -102,7 +102,10 @@ export class McpMiddleware {
                     async (args) => {
                         // args 已经是验证过的参数对象 (对于 builder-build.options 是 any)
                         if (toolName === 'builder-build') {
-                            if (args.options && typeof args.options === 'object' && !args.options.platform) {
+                            if (!args.options) {
+                                args.options = {};
+                            }
+                            if (typeof args.options === 'object' && !args.options.platform) {
                                 // 注入 platform
                                 args.options.platform = args.platform;
                             }
