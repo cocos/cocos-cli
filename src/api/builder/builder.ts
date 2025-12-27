@@ -7,8 +7,8 @@ import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPl
 export class BuilderApi {
 
     @tool('builder-build')
-    @title('构建项目')
-    @description('根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数')
+    @title('Build Project') // 构建项目
+    @description('Build the project into a game package for the specified platform based on options. If build options are already set in the project, no parameters are needed.') // 根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数
     @result(SchemaBuildResult)
     async build(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildOption) options?: TBuildOption) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -32,8 +32,8 @@ export class BuilderApi {
     }
 
     // @tool('builder-get-preview-settings')
-    // @title('获取预览设置')
-    // @description('获取预览设置')
+    // @title('Get Preview Settings') // 获取预览设置
+    // @description('Get Preview Settings') // 获取预览设置
     // @result(SchemaPreviewSettingsResult)
     // async getPreviewSettings() {
     //     const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -52,8 +52,8 @@ export class BuilderApi {
     // }
 
     @tool('builder-query-default-build-config')
-    @title('获取平台默认构建配置')
-    @description('获取平台默认构建配置')
+    @title('Get Default Build Config') // 获取平台默认构建配置
+    @description('Get default build configuration for platform') // 获取平台默认构建配置
     @result(SchemaBuildConfigResult)
     async queryDefaultBuildConfig(@param(SchemaPlatform) platform: TPlatform) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -63,7 +63,7 @@ export class BuilderApi {
         };
 
         try {
-            // 暂时绕过
+            // Temporarily bypassed // 暂时绕过
             ret.data = await queryDefaultBuildConfigByPlatform(platform) as unknown as TBuildConfigResult;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -74,8 +74,8 @@ export class BuilderApi {
     }
 
     @tool('builder-make')
-    @title('编译构建包')
-    @description('编译构建后的游戏包，仅部分平台支持')
+    @title('Make Build Package') // 编译构建包
+    @description('Compile the built game package, supported only by some platforms') // 编译构建后的游戏包，仅部分平台支持
     @result(SchemaMakeResult)
     async make(@param(SchemaPlatformCanMake) platform: TPlatformCanMake, @param(SchemaBuildDest) dest: TBuildDest) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -102,8 +102,8 @@ export class BuilderApi {
     }
 
     @tool('builder-run')
-    @title('运行构建结果')
-    @description('运行构建后的游戏，不同平台的效果不同')
+    @title('Run Build Result') // 运行构建结果
+    @description('Run the built game, effects vary by platform') // 运行构建后的游戏，不同平台的效果不同
     @result(SchemaBuildResult)
     async run(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest): Promise<CommonResultType<IRunResultData>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
