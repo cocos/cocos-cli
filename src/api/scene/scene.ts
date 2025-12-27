@@ -35,8 +35,8 @@ export class SceneApi {
     }
 
     @tool('scene-query-current')
-    @title('获取当前打开的场景/预制体信息')
-    @description('获取当前打开场景/预制体信息，如果没有打开，返回 null')
+    @title('Get current opened scene/prefab info') // 获取当前打开的场景/预制体信息
+    @description('Get current opened scene/prefab info, return null if none opened') // 获取当前打开场景/预制体信息，如果没有打开，返回 null
     @result(SchemaCurrentResult)
     async queryCurrent(): Promise<CommonResultType<TCurrentResult>> {
         try {
@@ -55,8 +55,8 @@ export class SceneApi {
     }
 
     @tool('scene-open')
-    @title('打开场景/预制体')
-    @description('打开指定场景/预制体资源。')
+    @title('Open scene/prefab') // 打开场景/预制体
+    @description('Open specified scene/prefab asset.') // 打开指定场景/预制体资源。
     @result(SchemaOpenResult)
     async open(@param(SchemaAssetUrlOrUUID) dbURLOrUUID: TAssetUrlOrUUID): Promise<CommonResultType<TOpenResult>> {
         try {
@@ -75,8 +75,8 @@ export class SceneApi {
     }
 
     @tool('scene-close')
-    @title('关闭场景/预制体')
-    @description('关闭当前打开的场景/预制体。')
+    @title('Close scene/prefab') // 关闭场景/预制体
+    @description('Close current opened scene/prefab.') // 关闭当前打开的场景/预制体。
     @result(SchemaCloseResult)
     async close(): Promise<CommonResultType<TCloseResult>> {
         try {
@@ -95,8 +95,8 @@ export class SceneApi {
     }
 
     @tool('scene-save')
-    @title('保存场景/预制体')
-    @description('保存当前打开的场景/预制体到资源，包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。')
+    @title('Save scene/prefab') // 保存场景/预制体
+    @description('Save current opened scene/prefab to asset, including scene node structure, component data, asset references etc. Will update .meta file after save.') // 保存当前打开的场景/预制体到资源，包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。
     @result(SchemaSaveResult)
     async save(): Promise<CommonResultType<TSaveResult>> {
         try {
@@ -115,8 +115,8 @@ export class SceneApi {
     }
 
     @tool('scene-create')
-    @title('创建场景')
-    @description('在项目中创建新的场景资源')
+    @title('Create scene') // 创建场景
+    @description('Create new scene asset in project') // 在项目中创建新的场景资源
     @result(SchemaCreateResult)
     async createScene(@param(SchemaCreateOptions) options: TCreateOptions): Promise<CommonResultType<TCreateResult>> {
         try {
@@ -141,8 +141,8 @@ export class SceneApi {
     }
 
     @tool('scene-reload')
-    @title('重新加载场景/预制体')
-    @description('重新加载场景/预制体')
+    @title('Reload scene/prefab') // 重新加载场景/预制体
+    @description('Reload scene/prefab') // 重新加载场景/预制体
     @result(SchemaReload)
     async reloadScene(): Promise<CommonResultType<TReload>> {
         try {
