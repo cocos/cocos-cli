@@ -23,11 +23,11 @@ import { ICreateByNodeTypeParams, Scene } from '../../core/scene';
 export class NodeApi {
 
     /**
-     * 创建节点
+     * Create Node // 创建节点
      */
     @tool('scene-create-node-by-type')
-    @title('根据类型创建节点')
-    @description('在当前打开的场景中的 path 路径下创建一个名字为 name，类型为 nodeType 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点。')
+    @title('Create Node By Type') // 根据类型创建节点
+    @description('Create a node named name with type nodeType under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed.') // 在当前打开的场景中的 path 路径下创建一个名字为 name，类型为 nodeType 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点。
     @result(SchemaNodeQueryResult)
     async createNodeByType(@param(SchemaNodeCreateByType) options: TCreateNodeByTypeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -41,7 +41,7 @@ export class NodeApi {
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('创建节点失败:', e);
+            console.error('Failed to create node:', e); // 创建节点失败:
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 
@@ -50,11 +50,11 @@ export class NodeApi {
 
 
     /**
-     * 创建节点
+     * Create Node // 创建节点
      */
     @tool('scene-create-node-by-asset')
-    @title('根据资源创建节点')
-    @description('在当前打开的场景中的 path 路径下使用 dbURL 资源，创建一个名字为 name 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点，资源的 dbURL 格式举例：db://assets/sample.prefab')
+    @title('Create Node By Asset') // 根据资源创建节点
+    @description('Create a node named name using dbURL asset under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed. Example of resource dbURL format: db://assets/sample.prefab') // 在当前打开的场景中的 path 路径下使用 dbURL 资源，创建一个名字为 name 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点，资源的 dbURL 格式举例：db://assets/sample.prefab
     @result(SchemaNodeQueryResult)
     async createNodeByAsset(@param(SchemaNodeCreateByAsset) options: TCreateNodeByAssetOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -68,7 +68,7 @@ export class NodeApi {
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('创建节点失败:', e);
+            console.error('Failed to create node:', e); // 创建节点失败:
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 
@@ -77,11 +77,11 @@ export class NodeApi {
 
 
     /**
-     * 删除节点
+     * Delete Node // 删除节点
      */
     @tool('scene-delete-node')
-    @title('删除节点')
-    @description('在当前打开的场景中删除节点，需要传入节点的路径，比如：Canvas/Node1')
+    @title('Delete Node') // 删除节点
+    @description('Delete a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中删除节点，需要传入节点的路径，比如：Canvas/Node1
     @result(SchemaNodeDeleteResult)
     async deleteNode(@param(SchemaNodeDelete) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDeleteResult>> {
         const ret: CommonResultType<TNodeDeleteResult> = {
@@ -97,7 +97,7 @@ export class NodeApi {
             };
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('删除节点失败:', e);
+            console.error('Failed to delete node:', e); // 删除节点失败:
             ret.reason = e instanceof Error ? e.message : String(e);
             delete ret.data;
         }
@@ -106,11 +106,11 @@ export class NodeApi {
     }
 
     /**
-     * 更新节点
+     * Update Node // 更新节点
      */
     @tool('scene-update-node')
-    @title('更新节点')
-    @description('在当前打开的场景中更新节点，需要传入节点的路径，比如：Canvas/Node1')
+    @title('Update Node') // 更新节点
+    @description('Update a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中更新节点，需要传入节点的路径，比如：Canvas/Node1
     @result(SchemaNodeUpdateResult)
     async updateNode(@param(SchemaNodeUpdate) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
         try {
@@ -120,7 +120,7 @@ export class NodeApi {
                 code: COMMON_STATUS.SUCCESS,
             };
         } catch (e) {
-            console.error('更新节点失败:', e);
+            console.error('Failed to update node:', e); // 更新节点失败:
             return {
                 code: COMMON_STATUS.FAIL,
                 reason: e instanceof Error ? e.message : String(e),
@@ -129,11 +129,11 @@ export class NodeApi {
     }
 
     /**
-    * 查询节点
+    * Query Node // 查询节点
     */
     @tool('scene-query-node')
-    @title('查询节点')
-    @description('在当前打开的场景中查询节点，需要传入节点的路径，比如：Canvas/Node1')
+    @title('Query Node') // 查询节点
+    @description('Query a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中查询节点，需要传入节点的路径，比如：Canvas/Node1
     @result(SchemaNodeQueryResult)
     async queryNode(@param(SchemaNodeQuery) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
@@ -147,7 +147,7 @@ export class NodeApi {
             ret.data = result;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
-            console.error('查询节点失败:', e);
+            console.error('Failed to query node:', e); // 查询节点失败:
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 
