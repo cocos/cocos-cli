@@ -93,7 +93,7 @@ const BuildConfigCoreFields = z.object({
 
     // Asset Processing // 资源处理
     skipCompressTexture: z.boolean().describe('Whether to skip texture compression'), // 是否跳过纹理压缩
-    packAutoAtlas: z.boolean().describe('Whether to auto atlas'), // 是否自动合图
+    packAutoAtlas: z.boolean().describe('Whether to use auto atlas'), // 是否自动合图
 
     // Other Options // 其他选项
     useSplashScreen: z.boolean().describe('Whether to use custom splash screen'), // 是否使用自定义启动画面
