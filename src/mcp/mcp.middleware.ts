@@ -82,7 +82,14 @@ export class McpMiddleware {
                     .sort((a, b) => a.index - b.index)
                     .forEach(param => {
                         if (param.name) {
-                            inputSchemaFields[param.name] = param.schema;
+                            // 特殊处理 builder-build 的 options 参数
+                            // 使用 z.any() 绕过 SDK 的初步验证，以便我们在 callback 中注入 platform
+                            // 实际的严格验证会在 prepareMethodArguments 中使用 meta.paramSchemas 进行
+                            if (toolName === 'builder-build' && param.name === 'options') {
+                                inputSchemaFields[param.name] = z.any();
+                            } else {
+                                inputSchemaFields[param.name] = param.schema;
+                            }
                         }
                     });
                 
@@ -93,11 +100,17 @@ export class McpMiddleware {
                     meta.description || `Tool: ${toolName}`,
                     inputSchemaFields,
                     async (args) => {
-                        // args 已经是验证过的参数对象
+                        // args 已经是验证过的参数对象 (对于 builder-build.options 是 any)
+                        if (toolName === 'builder-build') {
+                            if (args.options && typeof args.options === 'object' && !args.options.platform) {
+                                // 注入 platform
+                                args.options.platform = args.platform;
+                            }
+                        }
                         try {
                             // 这里的 prepareMethodArguments 主要是为了按顺序排列参数给 apply 使用
                             // 注意：args 是对象，prepareMethodArguments 需要处理对象
-                            const methodArgs = this.prepareMethodArguments(meta, args);
+                            const methodArgs = this.prepareMethodArguments(meta, args, toolName);
                             const result = await this.callToolMethod(target, meta, methodArgs);
                             
                             const formattedResult = this.formatToolResult(meta, result);
@@ -188,7 +201,7 @@ export class McpMiddleware {
     /**
      * 准备方法参数
      */
-    private prepareMethodArguments(meta: any, args: any): any[] {
+    private prepareMethodArguments(meta: any, args: any, toolName: string): any[] {
         if (!meta.paramSchemas || meta.paramSchemas.length === 0) {
             return [];
         }
@@ -218,6 +231,12 @@ export class McpMiddleware {
                 }
                 
                 console.error(`Parameter validation failed for ${paramName}:`, error);
+                
+                // 如果是 builder-build 接口，参数校验失败直接报错
+                if (toolName === 'builder-build') {
+                    throw new Error(`Parameter validation failed for ${paramName}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+
                 // 使用原始值
                 methodArgs[param.index] = value;
             }
