@@ -99,7 +99,7 @@ const BuildConfigCoreFields = z.object({
     useSplashScreen: z.boolean().describe('Whether to use custom splash screen'), // 是否使用自定义启动画面
 
     // Build Stages // 构建阶段
-    nextStages: z.array(z.enum(['make', 'run'])).describe('Specify subsequent combined build stages, multiple can be specified'), // 指定后续联合的构建阶段，可指定多个
+    nextStages: z.array(z.enum(['make', 'run'])).describe('Specify subsequent combined build stages, multiple stages can be specified'), // 指定后续联合的构建阶段，可指定多个
 
     // Cache Configuration // 缓存配置
     useCacheConfig: z.object({
