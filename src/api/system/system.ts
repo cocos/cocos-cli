@@ -21,11 +21,11 @@ export class SystemApi {
     }
 
     /**
-     * 查询 cli 日志信息
+     * Query CLI log information // 查询 cli 日志信息
      */
     @tool('system-query-logs')
-    @title('查询 cli 日志')
-    @description('返回执行 cli 后产生的日志信息。第一个参数是指返回最后前 n 行的日志信息，loglevel需要查询的日志级别，例如Error，Warning，Info，Debug等')
+    @title('Query CLI logs') // 查询 cli 日志
+    @description('Returns log information generated after executing CLI. The first parameter refers to returning the last n lines of log information, loglevel is the log level to query, such as Error, Warning, Info, Debug, etc.') // 返回执行 cli 后产生的日志信息。第一个参数是指返回最后前 n 行的日志信息，loglevel需要查询的日志级别，例如Error，Warning，Info，Debug等
     @result(SchemaQueryLogResult)
     async queryLogs(@param(SchemaQueryLogParamInfo) queryParam: TQueryLogParamInfo): Promise<CommonResultType<TQueryLogResult>> {
         try {
@@ -43,11 +43,11 @@ export class SystemApi {
     }
 
     /**
-     * 清除 cli 日志信息
+     * Clear CLI log information // 清除 cli 日志信息
      */
     @tool('system-clear-logs')
-    @title('清除 cli 日志')
-    @description('清除 cli 日志信息')
+    @title('Clear CLI logs') // 清除 cli 日志
+    @description('Clear CLI log information') // 清除 cli 日志信息
     @result(SchemaClearLogResult)
     async clearLogs(): Promise<CommonResultType<TClearLogResult>> {
         try {

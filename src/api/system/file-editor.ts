@@ -21,8 +21,8 @@ import { insertTextAtLine, eraseLinesInRange, replaceTextInFile, queryLinesInFil
 
 export class FileEditorApi {
     @tool('file-insert-text')
-    @title('在文件第n行前插入内容')
-    @description('在文件第 n 行前插入内容，返回成功或者失败。行号大于文件总行数时，插入到文件末尾')
+    @title('Insert content before line n of the file') // 在文件第n行前插入内容
+    @description('Insert content before line n of the file, return success or failure. If the line number is greater than the total number of lines in the file, insert it at the end of the file.') // 在文件第 n 行前插入内容，返回成功或者失败。行号大于文件总行数时，插入到文件末尾
     @result(SchemaFileEditorResult)
     async insertTextAtLine(@param(SchemaInsertTextAtLineInfo) param: TInsertTextAtLineInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
@@ -40,8 +40,8 @@ export class FileEditorApi {
     }
 
     @tool('file-delete-text')
-    @title('删除文件第 startLine 到 endLine 之间的内容')
-    @description('删除文件第 startLine 到 endLine 之间的内容，返回成功或者失败')
+    @title('Delete content between startLine and endLine of the file') // 删除文件第 startLine 到 endLine 之间的内容
+    @description('Delete content between startLine and endLine of the file, return success or failure') // 删除文件第 startLine 到 endLine 之间的内容，返回成功或者失败
     @result(SchemaFileEditorResult)
     async eraseLinesInRange(@param(SchemaEraseLinesInRangeInfo) param: TEraseLinesInRangeInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
@@ -59,8 +59,8 @@ export class FileEditorApi {
     }
 
     @tool('file-replace-text')
-    @title('替换文件中的 目标文本 为 替换文本')
-    @description('替换文件中的 目标文本(含正则表达式) 为 替换文本，只替换唯一出现的目标文本（如果有多个视为失败），返回成功或者失败')
+    @title('Replace target text with replacement text in the file') // 替换文件中的 目标文本 为 替换文本
+    @description('Replace target text (including regular expressions) with replacement text in the file. Only replace the unique occurrence of the target text (fail if there are multiple), return success or failure.') // 替换文件中的 目标文本(含正则表达式) 为 替换文本，只替换唯一出现的目标文本（如果有多个视为失败），返回成功或者失败
     @result(SchemaFileEditorResult)
     async replaceTextInFile(@param(SchemaReplaceTextInFileInfo) param: TReplaceTextInFileInfo): Promise<CommonResultType<TFileEditorResult>> {
         try {
@@ -78,8 +78,8 @@ export class FileEditorApi {
     }
 
     @tool('file-query-text')
-    @title('查询文件指定行数的内容')
-    @description('查询文件从 startLine 行开始的指定行数内容，返回查询到的内容数组')
+    @title('Query content of specified lines in the file') // 查询文件指定行数的内容
+    @description('Query content of specified number of lines starting from startLine in the file, return the array of queried content') // 查询文件从 startLine 行开始的指定行数内容，返回查询到的内容数组
     @result(SchemaFileQueryTextResult)
     async queryFileText(@param(SchemaQueryFileTextInfo) param: TQueryFileTextInfo): Promise<CommonResultType<TFileQueryTextResult>> {
         try {
