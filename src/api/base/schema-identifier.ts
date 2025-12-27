@@ -3,11 +3,11 @@ import { z } from 'zod';
 export const SchemaAssetUrlOrUUID = z.string().describe('Use db:// protocol format or UUID'); // 使用 db:// 协议格式或者 UUID
 
 export const SchemaSceneIdentifier = z.object({
-    assetName: z.string().describe('Scene/Prefab asset name'), // 场景/预制体资源名称
-    assetUuid: z.string().describe('Scene/Prefab asset unique identifier UUID'), // 场景/预制体资源唯一标识符 UUID
-    assetUrl: z.string().describe('Scene/Prefab asset uses db:// protocol format'), // 场景/预制体资源使用 db:// 协议格式
-    assetType: z.string().describe('Scene/Prefab asset type'), // 场景/预制体资源类型
-}).describe('Scene/Prefab basic information'); // 场景/预制体基础信息
+    assetName: z.string().describe('Scene or Prefab asset name'), // 场景/预制体资源名称
+    assetUuid: z.string().describe('Scene or Prefab asset unique identifier UUID'), // 场景/预制体资源唯一标识符 UUID
+    assetUrl: z.string().describe('Scene or Prefab asset uses db:// protocol format'), // 场景/预制体资源使用 db:// 协议格式
+    assetType: z.string().describe('Scene or Prefab asset type'), // 场景/预制体资源类型
+}).describe('Scene or Prefab basic information'); // 场景/预制体基础信息
 
 // Current component information 当前组件信息
 export const SchemaComponentIdentifier = z.object({
