@@ -110,7 +110,7 @@ const BuildConfigCoreFields = z.object({
     }).optional().describe('Cache configuration'), // 缓存配置
 });
 
-// Build Configuration Base Class: All fields optional (for API input, excluding platform and packages) // 构建配置基类：所有字段可选（用于 API 入参，不包含 platform 和 packages）
+// Build Configuration Base Class: All fields are optional (for API input, excluding platform and packages) // 构建配置基类：所有字段可选（用于 API 入参，不包含 platform 和 packages）
 export const SchemaBuildBaseConfig = BuildConfigCoreFields.partial().describe('Base build configuration (all fields optional)'); // 基础构建配置（所有字段可选）
 
 // Runtime/One-time Options (not included in configuration result) // 运行时/一次性选项（不进入配置结果）
