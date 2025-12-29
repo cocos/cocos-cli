@@ -76,8 +76,13 @@ export default class AndroidPackTool extends NativePackTool {
         }
 
         // 4. 生成 local.properties
-        const sdkPath = this.params.platformParams.sdkPath;
-        const ndkPath = this.params.platformParams.ndkPath;
+        // 如果 sdkPath 或 ndkPath 是空字符串，则视为未配置（等同于 undefined）
+        const sdkPath = this.params.platformParams.sdkPath && this.params.platformParams.sdkPath.trim() !== '' 
+            ? this.params.platformParams.sdkPath 
+            : undefined;
+        const ndkPath = this.params.platformParams.ndkPath && this.params.platformParams.ndkPath.trim() !== '' 
+            ? this.params.platformParams.ndkPath 
+            : undefined;
         let localProps = '';
         console.log(`[Android] Generating local.properties with SDK: ${sdkPath}, NDK: ${ndkPath}`);
         if (sdkPath) {
@@ -104,8 +109,10 @@ export default class AndroidPackTool extends NativePackTool {
                 //     await fs.appendFile(propsPath, `\nndk.dir=${cchelper.fixPath(ndkPath)}`);
                 // }
             } else {
-                 // 仅写入 sdk.dir
-                 await fs.writeFile(propsPath, `sdk.dir=${cchelper.fixPath(sdkPath)}\n`);
+                 // 仅写入 sdk.dir（如果存在）
+                 if (sdkPath) {
+                     await fs.writeFile(propsPath, `sdk.dir=${cchelper.fixPath(sdkPath)}\n`);
+                 }
             }
             console.log(`[Android] local.properties updated/generated at: ${propsPath}`);
         } else {
