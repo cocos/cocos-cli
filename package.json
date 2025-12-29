@@ -6,7 +6,7 @@
     "description": "COCOS CLI",
     "main": "dist/index.js",
     "engines": {
-        "vscode": "1.105.1",
+        "vscode": "1.107.1",
         "electron": "39.2.3"
     },
     "bin": {
