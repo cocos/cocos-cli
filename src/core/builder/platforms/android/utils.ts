@@ -130,12 +130,45 @@ export async function generateAndroidOptions(options: IAndroidInternalBuildOptio
              const ndkBase = join(android.sdkPath, 'ndk');
              if (existsSync(ndkBase)) {
                  const dirs = readdirSync(ndkBase);
-                 // 简单获取第一个版本，或者排序获取最新的
                  if (dirs.length > 0) {
-                     // 过滤非目录
-                     const version = dirs.sort().reverse()[0];
-                     android.ndkPath = join(ndkBase, version);
-                     console.log(`[Android] Auto-detected NDK at: ${android.ndkPath}`);
+                     // 优先选择版本 28，其次 23，最后是其他版本
+                     const priorityVersions = ['28', '23'];
+                     let selectedVersion: string | undefined;
+                     
+                     // 先按优先级搜索
+                     for (const priorityVersion of priorityVersions) {
+                         const versionDir = dirs.find(dir => {
+                             const dirPath = join(ndkBase, dir);
+                             return statSync(dirPath).isDirectory() && dir.startsWith(priorityVersion + '.');
+                         });
+                         
+                         if (versionDir) {
+                             selectedVersion = versionDir;
+                             console.log(`[Android] Found NDK version ${priorityVersion} at: ${join(ndkBase, selectedVersion)}`);
+                             break;
+                         }
+                     }
+                     
+                     // 如果优先级版本都没找到，选择其他版本（排序获取最新的）
+                     if (!selectedVersion) {
+                         const otherVersionDirs = dirs.filter(dir => {
+                             const dirPath = join(ndkBase, dir);
+                             return statSync(dirPath).isDirectory() 
+                                 && !priorityVersions.some(pv => dir.startsWith(pv + '.'))
+                                 && /^\d+\./.test(dir); // 版本号格式：数字.xxx
+                         });
+                         
+                         if (otherVersionDirs.length > 0) {
+                             otherVersionDirs.sort();
+                             selectedVersion = otherVersionDirs[otherVersionDirs.length - 1];
+                             console.log(`[Android] Found NDK version ${selectedVersion} at: ${join(ndkBase, selectedVersion)}`);
+                         }
+                     }
+                     
+                     if (selectedVersion) {
+                         android.ndkPath = join(ndkBase, selectedVersion);
+                         console.log(`[Android] Auto-detected NDK at: ${android.ndkPath}`);
+                     }
                  }
              }
         }

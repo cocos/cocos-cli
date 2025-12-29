@@ -470,6 +470,18 @@ export default class AndroidPackTool extends NativePackTool {
             }
         }
 
+        // 停止 Gradle 守护进程，释放文件锁定，以便可以删除构建目录
+        try {
+            process.chdir(nativePrjDir);
+            await cchelper.runCmd(gradlew, ['--stop'], true, nativePrjDir);
+            console.log(`[Android] Stopped Gradle daemon`);
+        } catch (e) {
+            // 忽略停止守护进程的错误，不影响构建结果
+            console.warn(`[Android] Failed to stop Gradle daemon (non-critical):`, e);
+        } finally {
+            process.chdir(originDir);
+        }
+
         return await this.copyToDist();
     }
 
