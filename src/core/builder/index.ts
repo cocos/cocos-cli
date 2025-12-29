@@ -25,9 +25,8 @@ export async function init(platform?: string) {
     }
 }
 
-export async function build<P extends Platform>(platformTmp: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
+export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
 
-    const platform = platformTmp.trim();
     if (!options) {
         options = await pluginManager.getOptionsByPlatform(platform);
     }
