@@ -53,7 +53,7 @@
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
-        "rebuild": "node scripts/rebuild.js"
+        "rebuild": "node workflow/rebuild.js"
     },
     "author": "COCOS",
     "files": [
