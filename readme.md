@@ -18,6 +18,10 @@
 
 - Node.js 22.17.0
 - Git
+- Visual Studio with C++ build tools (for Windows)
+- Xcode (for macOS)
+
+For native development, please refer to the [Native Development Setup Guide](https://docs.cocos.com/creator/3.8/manual/en/editor/publish/setup-native-development.html) for detailed setup instructions.
 
 ## 🛠️ Installation
 
@@ -31,6 +35,7 @@
 2. **Install dependencies**
 
    ```bash
+   npm install -g node-gyp
    npm run init
    npm install
    ```

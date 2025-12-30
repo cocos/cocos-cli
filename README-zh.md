@@ -18,6 +18,10 @@
 
 - Node.js 22.17.0
 - Git
+- Visual Studio with C++ build tools (Windows 系统)
+- Xcode (macOS 系统)
+
+原生开发请参考 [原生开发环境搭建指南](https://docs.cocos.com/creator/3.8/manual/en/editor/publish/setup-native-development.html) 获取详细的搭建说明。
 
 ## 🛠️ 安装
 
@@ -31,6 +35,7 @@
 2. **安装依赖**
 
    ```bash
+   npm install -g node-gyp
    npm run init
    npm install
    ```
