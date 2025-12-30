@@ -39,7 +39,7 @@ const config: IPlatformBuildPluginConfig = {
         apiLevel: {
             label: 'i18n:android.options.apiLevel',
             type: 'number',
-            default: 26,
+            default: 35,
             verifyRules: ['required'],
         },
         appABIs: {

@@ -246,10 +246,10 @@ export default class AndroidPackTool extends NativePackTool {
             }
 
             // 11. 设置 SDK 版本
-            // 强制设置编译 SDK 版本为 34，以避免 android-36 (Preview) 的资源链接问题
-            // 如果用户指定的 apiLevel 大于 34，则使用用户的
-            const apiLevel = this.params.platformParams.apiLevel || 34;
-            const compileSdkVersion = Math.max(apiLevel, 34);
+            // 强制设置编译 SDK 版本为 36，以避免 android-36 (Preview) 的资源链接问题
+            // 如果用户指定的 apiLevel 大于 36，则使用用户的
+            const apiLevel = this.params.platformParams.apiLevel || 36;
+            const compileSdkVersion = Math.max(apiLevel, 36);
             
             if (gradleProps.match(/^#?\s*PROP_COMPILE_SDK_VERSION=/m)) {
                 gradleProps = gradleProps.replace(/^#?\s*PROP_COMPILE_SDK_VERSION=.*$/m, `PROP_COMPILE_SDK_VERSION=${compileSdkVersion}`);
