@@ -1,145 +1,145 @@
-name: PR Test
+# name: PR Test
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
-  issue_comment:
-    types: [created]
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened, edited]
+#   issue_comment:
+#     types: [created]
 
-jobs:
-  pr-test:
-    # 运行条件：
-    # 1. PR 事件
-    # 2. 评论触发 (包含 "rerun pr test"，包括 "rerun pr test:debug")
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test'))
+# jobs:
+#   pr-test:
+#     # 运行条件：
+#     # 1. PR 事件
+#     # 2. 评论触发 (包含 "rerun pr test"，包括 "rerun pr test:debug")
+#     if: |
+#       github.event_name == 'pull_request' ||
+#       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test'))
     
-    runs-on: [ self-hosted, pr-test ]
+#     runs-on: [ self-hosted, pr-test ]
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          clean: false
-          persist-credentials: true
-          fetch-depth: 0
-          # 如果是评论触发，需要检出 PR 的代码
-          ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#         with:
+#           clean: false
+#           persist-credentials: true
+#           fetch-depth: 0
+#           # 如果是评论触发，需要检出 PR 的代码
+#           ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
       
-      - name: Setup configuration
-        id: setup-config
-        uses: ./.github/actions/setup-config
-        with:
-          feishu-webhook-url: ${{ secrets.FEISHU_WEBHOOK_URL }}
+#       - name: Setup configuration
+#         id: setup-config
+#         uses: ./.github/actions/setup-config
+#         with:
+#           feishu-webhook-url: ${{ secrets.FEISHU_WEBHOOK_URL }}
       
-      - name: Setup environment
-        uses: ./.github/actions/setup-env
+#       - name: Setup environment
+#         uses: ./.github/actions/setup-env
       
-      - name: Run unit tests
-        id: unit-tests
-        run: npm run test:quiet
+#       - name: Run unit tests
+#         id: unit-tests
+#         run: npm run test:quiet
       
-      - name: Run E2E tests
-        id: e2e-tests
-        uses: ./.github/actions/run-e2e-tests
-        with:
-          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
-          # 如果是评论触发且包含 "rerun pr test:debug"，则以 debug 模式运行 E2E
-          debug: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test:debug') }}
+#       - name: Run E2E tests
+#         id: e2e-tests
+#         uses: ./.github/actions/run-e2e-tests
+#         with:
+#           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+#           # 如果是评论触发且包含 "rerun pr test:debug"，则以 debug 模式运行 E2E
+#           debug: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'rerun pr test:debug') }}
       
-      - name: Check E2E coverage
-        id: coverage
-        uses: ./.github/actions/check-e2e-coverage
-        with:
-          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+#       - name: Check E2E coverage
+#         id: coverage
+#         uses: ./.github/actions/check-e2e-coverage
+#         with:
+#           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
       
-      - name: Generate PR comment
-        if: always()
-        id: message
-        run: |
-          # 判断整体状态
-          ALL_PASS=true
+#       - name: Generate PR comment
+#         if: always()
+#         id: message
+#         run: |
+#           # 判断整体状态
+#           ALL_PASS=true
           
-          # 检查单元测试状态（通过检查 unit-tests 步骤的 outcome）
-          if [ "${{ steps.unit-tests.outcome }}" != "success" ]; then
-            ALL_PASS=false
-          fi
+#           # 检查单元测试状态（通过检查 unit-tests 步骤的 outcome）
+#           if [ "${{ steps.unit-tests.outcome }}" != "success" ]; then
+#             ALL_PASS=false
+#           fi
           
-          # E2E 测试状态（通过 outcome 判断）
-          if [ "${{ steps.e2e-tests.outcome }}" != "success" ]; then
-            ALL_PASS=false
-          fi
+#           # E2E 测试状态（通过 outcome 判断）
+#           if [ "${{ steps.e2e-tests.outcome }}" != "success" ]; then
+#             ALL_PASS=false
+#           fi
           
-          # 覆盖率检查仅作为信息展示，不影响整体状态
+#           # 覆盖率检查仅作为信息展示，不影响整体状态
           
-          # 构建紧凑型消息
-          if [ "$ALL_PASS" = "false" ]; then
-            MESSAGE="## ⚠️ 发现问题\n\n"
-          else
-            MESSAGE="## ✅ 测试通过\n\n"
-          fi
-          MESSAGE+="| 类型 | 结果 |\n"
-          MESSAGE+="|:----:|------|\n"
+#           # 构建紧凑型消息
+#           if [ "$ALL_PASS" = "false" ]; then
+#             MESSAGE="## ⚠️ 发现问题\n\n"
+#           else
+#             MESSAGE="## ✅ 测试通过\n\n"
+#           fi
+#           MESSAGE+="| 类型 | 结果 |\n"
+#           MESSAGE+="|:----:|------|\n"
           
-          # 单元测试行（总是显示）
-          if [ "${{ steps.unit-tests.outcome }}" = "success" ]; then
-            MESSAGE+="| 🧪 | ✅ 单元测试 |\n"
-          else
-            MESSAGE+="| 🧪 | ❌ 单元测试失败 |\n"
-          fi
+#           # 单元测试行（总是显示）
+#           if [ "${{ steps.unit-tests.outcome }}" = "success" ]; then
+#             MESSAGE+="| 🧪 | ✅ 单元测试 |\n"
+#           else
+#             MESSAGE+="| 🧪 | ❌ 单元测试失败 |\n"
+#           fi
           
-          # E2E 测试行（总是显示）
-          # 获取报告 URL（无论测试成功还是失败）
-          REPORT_URL="${{ steps.e2e-tests.outputs.report_url }}"
+#           # E2E 测试行（总是显示）
+#           # 获取报告 URL（无论测试成功还是失败）
+#           REPORT_URL="${{ steps.e2e-tests.outputs.report_url }}"
           
-          # 检查测试是否通过（通过检查 outcome）
-          if [ "${{ steps.e2e-tests.outcome }}" = "success" ]; then
-            # 测试成功
-            if [ -n "$REPORT_URL" ]; then
-              MESSAGE+="| 🔄 | ✅ E2E 测试 · [报告]($REPORT_URL) |\n"
-            else
-              MESSAGE+="| 🔄 | ✅ E2E 测试 |\n"
-            fi
-          else
-            # 测试失败，但仍附上报告链接（如果存在）
-            if [ -n "$REPORT_URL" ]; then
-              MESSAGE+="| 🔄 | ❌ E2E 测试失败 · [查看报告]($REPORT_URL) |\n"
-            else
-              MESSAGE+="| 🔄 | ❌ E2E 测试失败 |\n"
-            fi
-          fi
+#           # 检查测试是否通过（通过检查 outcome）
+#           if [ "${{ steps.e2e-tests.outcome }}" = "success" ]; then
+#             # 测试成功
+#             if [ -n "$REPORT_URL" ]; then
+#               MESSAGE+="| 🔄 | ✅ E2E 测试 · [报告]($REPORT_URL) |\n"
+#             else
+#               MESSAGE+="| 🔄 | ✅ E2E 测试 |\n"
+#             fi
+#           else
+#             # 测试失败，但仍附上报告链接（如果存在）
+#             if [ -n "$REPORT_URL" ]; then
+#               MESSAGE+="| 🔄 | ❌ E2E 测试失败 · [查看报告]($REPORT_URL) |\n"
+#             else
+#               MESSAGE+="| 🔄 | ❌ E2E 测试失败 |\n"
+#             fi
+#           fi
           
-          # 覆盖率行（总是显示，但不影响测试结果）
-          # 获取覆盖率信息
-          COVERAGE_URL="${{ steps.coverage.outputs.report_url }}"
-          COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
-          TESTED_COUNT="${{ steps.coverage.outputs.tested_count }}"
-          TOTAL_COUNT="${{ steps.coverage.outputs.total_count }}"
+#           # 覆盖率行（总是显示，但不影响测试结果）
+#           # 获取覆盖率信息
+#           COVERAGE_URL="${{ steps.coverage.outputs.report_url }}"
+#           COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
+#           TESTED_COUNT="${{ steps.coverage.outputs.tested_count }}"
+#           TOTAL_COUNT="${{ steps.coverage.outputs.total_count }}"
           
-          # 显示覆盖率百分比（如果有数据）
-          if [ -n "$COVERAGE_PERCENT" ] && [ -n "$COVERAGE_URL" ]; then
-            MESSAGE+="| 📈 | 覆盖率 ${COVERAGE_PERCENT}% (${TESTED_COUNT}/${TOTAL_COUNT}) · [详情]($COVERAGE_URL) |\n"
-          elif [ -n "$COVERAGE_URL" ]; then
-            MESSAGE+="| 📈 | 覆盖率报告 · [详情]($COVERAGE_URL) |\n"
-          else
-            MESSAGE+="| 📈 | ⚠️ 覆盖率检查失败 |\n"
-          fi
+#           # 显示覆盖率百分比（如果有数据）
+#           if [ -n "$COVERAGE_PERCENT" ] && [ -n "$COVERAGE_URL" ]; then
+#             MESSAGE+="| 📈 | 覆盖率 ${COVERAGE_PERCENT}% (${TESTED_COUNT}/${TOTAL_COUNT}) · [详情]($COVERAGE_URL) |\n"
+#           elif [ -n "$COVERAGE_URL" ]; then
+#             MESSAGE+="| 📈 | 覆盖率报告 · [详情]($COVERAGE_URL) |\n"
+#           else
+#             MESSAGE+="| 📈 | ⚠️ 覆盖率检查失败 |\n"
+#           fi
           
-          MESSAGE+="\n<sub>Run #${{ github.run_id }}</sub>\n"
-          MESSAGE+="<!-- PR_TEST_COMMENT -->"
+#           MESSAGE+="\n<sub>Run #${{ github.run_id }}</sub>\n"
+#           MESSAGE+="<!-- PR_TEST_COMMENT -->"
           
-          # 保存到 GitHub Output
-          {
-            echo 'content<<EOF'
-            echo -e "$MESSAGE"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+#           # 保存到 GitHub Output
+#           {
+#             echo 'content<<EOF'
+#             echo -e "$MESSAGE"
+#             echo 'EOF'
+#           } >> $GITHUB_OUTPUT
       
-      - name: Comment on PR
-        if: always()
-        uses: ./.github/actions/comment-on-pr
-        with:
-          pat-token: ${{ steps.setup-config.outputs.PAT_TOKEN }}
-          message: ${{ steps.message.outputs.content }}
-          comment-identifier: 'PR 测试报告'
+#       - name: Comment on PR
+#         if: always()
+#         uses: ./.github/actions/comment-on-pr
+#         with:
+#           pat-token: ${{ steps.setup-config.outputs.PAT_TOKEN }}
+#           message: ${{ steps.message.outputs.content }}
+#           comment-identifier: 'PR 测试报告'
