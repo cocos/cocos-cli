@@ -537,25 +537,10 @@ class AssetQueryManager {
             case 'dependeds':
                 {
                     const usedList: string[] = [];
-                    // 包含子资源时，子资源的使用也算使用父资源
-                    const uuids = Object.values(asset.subAssets).map((subAsset) => subAsset.uuid);
-                    let collectUuid: Function;
-                    if (uuids.length) {
-                        uuids.push(asset.uuid);
-                        collectUuid = (depends: string[], uuid: string) => {
-                            uuids.forEach((item) => {
-                                // 需要剔除资源自身的重复依赖信息
-                                if (depends.includes(item) && !uuids.includes(uuid)) {
-                                    usedList.push(uuid);
-                                }
-                            });
-                        };
-                    } else {
-                        collectUuid = (depends: string[], uuid: string) => {
-                            if (depends.includes(asset.uuid)) {
-                                usedList.push(uuid);
-                            }
-                        };
+                    function collectUuid(depends: string[], uuid: string) {
+                        if (depends.includes(asset.uuid)) {
+                            usedList.push(uuid);
+                        }
                     }
                     forEach((db: AssetDB) => {
                         const map = db.dataManager.dataMap;
