@@ -8,51 +8,51 @@ const { execSync } = require('child_process');
 const tools = {
     win32: [
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/unzip.exe',
+            url: 'http://download.cocos.com/CocosSDK/tools/unzip.exe',
             dist: 'unzip.exe',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexToolCLI_win32_20251028.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/PVRTexToolCLI_win32_20251028.zip',
             dist: 'PVRTexTool_win32',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/mali_win32.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/mali_win32.zip',
             dist: 'mali_win32',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/libwebp_win32.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/libwebp_win32.zip',
             dist: 'libwebp_win32',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/openSSLWin64.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/openSSLWin64.zip',
             dist: 'openSSLWin64',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/Python27-win32.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/Python27-win32.zip',
             dist: 'Python27-win32',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/astcenc/astcenc-win32-5.2.0-250220.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/astcenc/astcenc-win32-5.2.0-250220.zip',
             dist: 'astc-encoder',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/xiaomi-pack-tools-win32-202404.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/xiaomi-pack-tools-win32-202404.zip',
             dist: 'xiaomi-pack-tools',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/lightmap-tools-win32-230525.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/lightmap-tools-win32-230525.zip',
             dist: 'lightmap-tools',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/uvunwrap_win32_221025.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/uvunwrap_win32_221025.zip',
             dist: 'LightFX',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/cmft_win32_x64-20230323.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/cmft_win32_x64-20230323.zip',
             dist: 'cmft',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/cmake-3.24.3-windows-x86_64.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-windows-x86_64.zip',
             dist: 'cmake',
         },
         // 注意：windows-process-tree 的 URL 可能已失效，暂时注释
@@ -63,57 +63,57 @@ const tools = {
     ],
     darwin: [
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/PVRTexToolCLI_darwin_20251028.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/PVRTexToolCLI_darwin_20251028.zip',
             dist: 'PVRTexTool_darwin',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/mali_darwin.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/mali_darwin.zip',
             dist: 'mali_darwin',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/libwebp-1.4.0-mac-universal.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/libwebp-1.4.0-mac-universal.zip',
             dist: 'libwebp_darwin',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/astcenc/astcenc-darwin-5.2.0-250220.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/astcenc/astcenc-darwin-5.2.0-250220.zip',
             dist: 'astc-encoder',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/xiaomi-pack-tools-darwin-202404.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/xiaomi-pack-tools-darwin-202404.zip',
             dist: 'xiaomi-pack-tools',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/lightmap-tools-darwin-20241217.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/lightmap-tools-darwin-20241217.zip',
             dist: 'lightmap-tools',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/uvunwrap_darwin_20241217.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/uvunwrap_darwin_20241217.zip',
             dist: 'LightFX',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/cmft-darwin-20231124.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/cmft-darwin-20231124.zip',
             dist: 'cmft',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/cmake-3.24.3-macos-universal.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-macos-universal.zip',
             dist: 'cmake',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/process-info-20231116-darwin.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/process-info-20231116-darwin.zip',
             dist: 'process-info'
         }
     ],
     common: [
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/quickgame-toolkit.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/quickgame-toolkit.zip',
             dist: 'quickgame-toolkit',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/huawei-rpk-tools.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/huawei-rpk-tools.zip',
             dist: 'huawei-rpk-tools',
         },
         {
-            url: 'http://ftp.cocos.org/TestBuilds/Editor-3d/tools/debug.keystore-201112.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/debug.keystore-201112.zip',
             dist: 'keystore',
         }
     ]
