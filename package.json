@@ -1,7 +1,7 @@
 {
     "name": "cocos-cli",
     "version": "0.0.1-alpha.8",
-    "displayName": "Cocos CLI",
+    "displayName": "COCOS CLI",
     "icon": "static/logo/logo.png",
     "description": "COCOS CLI",
     "main": "dist/index.js",
