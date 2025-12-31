@@ -20,6 +20,7 @@ program
 // 全局错误处理
 program.exitOverride();
 
+
 // 注册命令
 const commandRegistry = new CommandRegistry();
 commandRegistry.register(new CreateCommand(program));
