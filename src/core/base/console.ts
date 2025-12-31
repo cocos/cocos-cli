@@ -253,7 +253,7 @@ export class NewConsole {
     }
 
     public debug(...args: any[]) {
-        this._logMessage('log', ...args);
+        this._logMessage('debug', ...args);
     }
 
     /**
