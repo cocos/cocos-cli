@@ -1,0 +1,95 @@
+# 每日 E2E 测试与覆盖率检查工作流
+#
+# 触发方式：
+# 1. 手动触发：在 GitHub Actions 页面点击 "Run workflow"
+# 2. 定时触发：每天北京时间凌晨 00:00（UTC 16:00）
+#
+# 功能：
+# - 运行完整的 E2E 测试套件
+# - 生成可视化的 HTML 测试报告
+# - 检查 E2E 测试覆盖率
+# - 生成覆盖率报告
+# - 在测试成功后自动构建发布包（Node.js 版本）
+# - 清理旧的发布文件（保留最新 6 个）
+# - 发送测试结果、覆盖率报告和发布包信息到飞书群聊
+
+name: Daily E2E Check
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  
+  # 定时触发：每天凌晨 12 点（北京时间 = UTC+8，所以 UTC 时间是 16:00）
+  schedule:
+    - cron: '0 16 * * *'  # 每天 UTC 16:00 = 北京时间 00:00
+
+permissions:
+  contents: read          # 读取代码
+  actions: read          # 读取 Actions
+
+jobs:
+  daily-check:
+    runs-on: [ macOS ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: true
+          fetch-depth: 0
+          ref: v0.0.1
+      
+      - name: Setup configuration
+        id: setup-config
+        uses: ./.github/actions/setup-config
+        with:
+          feishu-webhook-url: ${{ secrets.FEISHU_WEBHOOK_URL }}
+      
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
+      
+      - name: Run E2E tests
+        id: e2e-tests
+        uses: ./.github/actions/run-e2e-tests
+        with:
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+      
+      - name: Check E2E coverage
+        id: coverage
+        if: always()
+        uses: ./.github/actions/check-e2e-coverage
+        with:
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+      
+      - name: Release build
+        id: release
+        if: success() && steps.e2e-tests.outcome == 'success'
+        uses: ./.github/actions/release
+        with:
+          publish-dir: e2e/server/.publish
+          nodejs: 'true'
+          electron: 'false'
+          create-zip: 'true'
+          upload: 'false'
+          report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+      
+      - name: Send to Feishu
+        if: always()
+        continue-on-error: true
+        run: node .github/scripts/send-to-feishu.js
+        env:
+          FEISHU_WEBHOOK_URL: ${{ steps.setup-config.outputs.FEISHU_WEBHOOK_URL }}
+          E2E_TEST_OUTCOME: ${{ steps.e2e-tests.outcome }}
+          REPORT_EXISTS: ${{ steps.e2e-tests.outputs.report_exists }}
+          REPORT_URL: ${{ steps.e2e-tests.outputs.report_url }}
+          REPORT_FILENAME: ${{ steps.e2e-tests.outputs.report_filename }}
+          COVERAGE_REPORT_URL: ${{ steps.coverage.outputs.report_url }}
+          COVERAGE_REPORT_FILENAME: ${{ steps.coverage.outputs.report_filename }}
+          COVERAGE_PERCENT: ${{ steps.coverage.outputs.coverage_percent }}
+          TESTED_COUNT: ${{ steps.coverage.outputs.tested_count }}
+          TOTAL_COUNT: ${{ steps.coverage.outputs.total_count }}
+          COVERAGE_MARKDOWN: ${{ steps.coverage.outputs.markdown }}
+          RELEASE_SUCCESS: ${{ steps.release.outputs.release_success }}
+          RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
+
