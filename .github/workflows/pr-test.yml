@@ -26,7 +26,10 @@ jobs:
           fetch-depth: 0
           # 如果是评论触发，需要检出 PR 的代码
           ref: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
-      
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.17.0'
       - name: Setup configuration
         id: setup-config
         uses: ./.github/actions/setup-config
