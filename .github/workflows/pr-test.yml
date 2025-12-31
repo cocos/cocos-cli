@@ -33,6 +33,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22.17.0'
+      - name: Setup Env
+        run: echo "NODE_OPTIONS=--max-old-space-size=8192" >> $GITHUB_ENV
       - name: Setup configuration
         id: setup-config
         uses: ./.github/actions/setup-config
