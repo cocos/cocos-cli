@@ -7,6 +7,6 @@
     "external": {
         "repo": "https://github.com/cocos/cocos-engine-external.git",
         "dist": "packages/engine/native/external",
-        "tag": "v3.8.8-1"
+        "tag": "v3.8.8-2"
     }
 }
