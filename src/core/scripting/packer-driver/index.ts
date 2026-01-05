@@ -285,52 +285,56 @@ export class PackerDriver {
     }
 
     public async updateDbInfos(dbInfo: DBInfo, dbChangeType: DBChangeType) {
-        // Serialize with builds using promise chain
-        const run = async () => {
-            const oldDbInfoSize = this._dbInfos.length;
-            if (dbChangeType === DBChangeType.add) {
-                if (!this._dbInfos.some(item => item.dbID === dbInfo.dbID)) {
-                    this._dbInfos.push(dbInfo);
-                }
-            } else if (dbChangeType === DBChangeType.remove) {
-                this._dbInfos = this._dbInfos.filter(item => item.dbID !== dbInfo.dbID);
-                const scriptInfos = this._assetDbInterop.removeTsScriptInfoCache(dbInfo.target);
-                scriptInfos.forEach((info) => {
-                    this._assetChangeQueue.push({
-                        type: AssetActionEnum.delete,
-                        importer: 'typescript',
-                        filePath: info.filePath,
-                        uuid: info.uuid,
-                        isPluginScript: info.isPluginScript,
-                        url: info.url,
-                    });
+        const oldDbInfoSize = this._dbInfos.length;
+        if (dbChangeType === DBChangeType.add) {
+            if (!this._dbInfos.some(item => item.dbID === dbInfo.dbID)) {
+                this._dbInfos.push(dbInfo);
+            }
+        } else if (dbChangeType === DBChangeType.remove) {
+            this._dbInfos = this._dbInfos.filter(item => item.dbID !== dbInfo.dbID);
+            const scriptInfos = this._assetDbInterop.removeTsScriptInfoCache(dbInfo.target);
+            scriptInfos.forEach((info) => {
+                this._assetChangeQueue.push({
+                    type: AssetActionEnum.delete,
+                    importer: 'typescript',
+                    filePath: info.filePath,
+                    uuid: info.uuid,
+                    isPluginScript: info.isPluginScript,
+                    url: info.url,
                 });
-            }
-            if (oldDbInfoSize === this._dbInfos.length) {
-                return;
-            }
-            await PackerDriver._updateImportRestrictions(this._dbInfos);
+            });
+        }
+        if (oldDbInfoSize === this._dbInfos.length) {
+            return;
+        }
+        const self = this;
+        const update = async () => {
+            PackerDriver._updateImportRestrictions(this._dbInfos);
             const assetDatabaseDomains = await this._assetDbInterop.queryAssetDomains(this._dbInfos);
-            this._logger.debug(
+            self._logger.debug(
                 'Reset databases. ' +
                 `Enumerated domains: ${JSON.stringify(assetDatabaseDomains, undefined, 2)}`);
 
 
-            const tsBuilder = this._tsBuilder;
+            const tsBuilder = self._tsBuilder;
             tsBuilder.setDbURLInfos(this._dbInfos);
             const realTsConfigPath = tsBuilder.getRealTsConfigPath();
             const projectPath = tsBuilder.getProjectPath();
             const compilerOptions = await tsBuilder.getCompilerOptions();
             const internalDbURLInfos = await tsBuilder.getInternalDbURLInfos();
-            this.languageService = new LanguageServiceAdapter(realTsConfigPath, projectPath, this.beforeEditorBuildDelegate, compilerOptions, internalDbURLInfos);
+            self.languageService = new LanguageServiceAdapter(realTsConfigPath, projectPath, self.beforeEditorBuildDelegate, compilerOptions, internalDbURLInfos);
             for (const target of Object.values(this._targets)) {
                 target.updateDbInfos(this._dbInfos);
                 await target.setAssetDatabaseDomains(assetDatabaseDomains);
             }
         };
-        const nextPromise = this._buildLock.then(run, run);
-        this._buildLock = nextPromise.catch(() => { });
-        await nextPromise;
+        if (this.busy()) {
+            this._beforeBuildTasks.push(() => {
+                update();
+            });
+        } else {
+            await update();
+        }
     }
 
     dispatchAssetChanges(assetChange: AssetChangeInfo) {
@@ -351,54 +355,43 @@ export class PackerDriver {
      * @param taskId 任务ID，用于跟踪任务状态
      */
     public async build(changeInfos?: AssetChangeInfo[], taskId?: string) {
-        // Serialize builds using promise chain (mutex-like behavior)
-        const run = async () => {
-            const logger = this._logger;
+        const logger = this._logger;
 
-            logger.debug('Pulling asset-db.');
+        logger.debug('Pulling asset-db.');
 
-            const t1 = performance.now();
-            if (changeInfos && changeInfos.length > 0) {
-                changeInfos.forEach(changeInfo => {
-                    this._assetDbInterop.onAssetChange(changeInfo);
-                });
-                const assetChanges = this._assetDbInterop.getAssetChangeQueue();
-                this._assetChangeQueue.push(...assetChanges);
-                this._assetDbInterop.resetAssetChangeQueue();
-            }
-            const t2 = performance.now();
+        const t1 = performance.now();
+        if (changeInfos && changeInfos.length > 0) {
+            changeInfos.forEach(changeInfo => {
+                this._assetDbInterop.onAssetChange(changeInfo);
+            });
+            const assetChanges = this._assetDbInterop.getAssetChangeQueue();
+            this._assetChangeQueue.push(...assetChanges);
+            this._assetDbInterop.resetAssetChangeQueue();
+        }
+        const t2 = performance.now();
 
-            logger.debug(`Fetch asset-db cost: ${t2 - t1}ms.`);
+        logger.debug(`Fetch asset-db cost: ${t2 - t1}ms.`);
 
-            await this._startBuild(taskId);
-        };
-        const nextPromise = this._buildLock.then(run, run);
-        this._buildLock = nextPromise.catch(() => { });
-        await nextPromise;
+        await this._startBuild(taskId);
     }
 
     public async clearCache() {
-        // Serialize with builds using promise chain
-        const run = async () => {
-            if (this._clearing) {
-                this._logger.debug('Failed to clear cache: previous clearing have not finished yet.');
-                return;
-            }
-            this._clearing = true;
-            try {
-                for (const [name, target] of Object.entries(this._targets)) {
-                    this._logger.debug(`Clear cache of target ${name}`);
-                    await target.clearCache();
-                }
-                this._logger.debug('Request build after clearing...');
-                await this._startBuild();
-            } finally {
-                this._clearing = false;
-            }
-        };
-        const nextPromise = this._buildLock.then(run, run);
-        this._buildLock = nextPromise.catch(() => { });
-        await nextPromise;
+        if (this._clearing) {
+            this._logger.debug('Failed to clear cache: previous clearing have not finished yet.');
+            return;
+        }
+        if (this.busy()) {
+            this._logger.error('Failed to clear cache: the building is still working in progress.');
+            return;
+        }
+        this._clearing = true;
+        for (const [name, target] of Object.entries(this._targets)) {
+            this._logger.debug(`Clear cache of target ${name}`);
+            await target.clearCache();
+        }
+        this._logger.debug('Request build after clearing...');
+        await this.build([]);
+        this._clearing = false;
     }
 
     public getQuickPackLoaderContext(targetName: TargetName) {
@@ -468,7 +461,6 @@ export class PackerDriver {
     private _init = false;
     private _features: string[] = [];
     private _currentTaskId: string | null = null;
-    private _buildLock: Promise<void> = Promise.resolve();
 
     private constructor(builder: TypeScriptConfigBuilder, targets: PackerDriver['_targets'], statsQuery: StatsQuery, logger: PackerDriverLogger) {
         this._tsBuilder = builder;
@@ -550,30 +542,8 @@ export class PackerDriver {
             const buildResult = await target.build();
             if (buildResult.err) {
                 err = buildResult.err;
-                if ((err as any).code === 'ENOENT' && target.deleteCacheFile((err as any).file)) {
-                    this._logger.warn(`Build failed with ENOENT for ${(err as any).file}, but file was removed from registry. Retrying...`);
-                    // Retry this target
-                    // We need to decrement index or restart loop? 
-                    // Since we are iterating object entries, we can't easily restart just this one.
-                    // But we can just call target.build() again?
-                    // No, we should restart the whole build process or at least this target.
-                    // Let's try calling target.build() again recursively?
-                    // Or simpler: just continue, but reset err to null if we successfully handled it?
-                    // But we need to actually rebuild this target.
-                    
-                    // Actually, if we removed it from prerequisiteAssetMods, the next build() call will succeed.
-                    // So we can just await target.build() again.
-                    const retryResult = await target.build();
-                    if (retryResult.err) {
-                        err = retryResult.err;
-                        // If it fails again, we give up
-                    } else {
-                        err = null;
-                        retryResult.depsGraph && (this._depsGraph = retryResult.depsGraph);
-                        this._needUpdateDepsCache = true;
-                    }
-                }
-                if (err) continue;
+                target.deleteCacheFile((err as any).file);
+                continue;
             }
             buildResult.depsGraph && (this._depsGraph = buildResult.depsGraph); // 更新依赖图
             this._needUpdateDepsCache = true;
@@ -911,18 +881,8 @@ class PackTarget {
     deleteCacheFile(filePath: string) {
         const mods = this._prerequisiteAssetMods;
         if (filePath && mods.size) {
-            // Try deleting as is
-            if (mods.delete(filePath)) return true;
-            
-            // Try converting to URL
-            try {
-                const fileUrl = pathToFileURL(filePath).href;
-                if (mods.delete(fileUrl)) return true;
-            } catch (e) {
-                // ignore
-            }
+            mods.delete(filePath);
         }
-        return false;
     }
 
     private async _build(): Promise<BuildResult> {
@@ -983,7 +943,6 @@ class PackTarget {
                 } else {
                     this._uuidURLMap.delete(uuid);
                     this._modLo.unsetUUID(oldURL);
-                    
                     const deleted = this._prerequisiteAssetMods.delete(oldURL);
                     if (!deleted) {
                         this._logger.warn(`Unexpected: ${oldURL} is not in registry.`);
