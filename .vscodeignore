@@ -38,7 +38,7 @@ repo.json
 node_modules/**
 @types/**
 packages/engine/node_modules/**
-packages/platforms/*/node_modules/**
+packages/platforms/*/src/**
 # ===========================================
 # 测试和覆盖率
 # ===========================================
