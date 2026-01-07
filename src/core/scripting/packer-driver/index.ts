@@ -36,8 +36,6 @@ const VERSION = '20';
 
 const featureUnitModulePrefix = 'cce:/internal/x/cc-fu/';
 
-const useEditorFolderFeature = false; // TODO: 之后正式接入编辑器 Editor 目录后移除这个开关
-
 function getEditorPatterns(dbInfos: DBInfo[]) {
     const editorPatterns = [];
     for (const info of dbInfos) {
@@ -86,9 +84,6 @@ type CCEModuleMap = {
 /**
  * Packer 驱动器。
  * - 底层用 QuickPack 快速打包模块相关的资源。
- * - 监听涉及到的所有模块变动并重进行打包，包括：
- *   - asset-db 代码相关资源的变动。
- *   - 引擎设置变动。
  * - 产出是可以进行加载的模块资源，包括模块、Source map等；需要使用 QuickPackLoader 对这些模块资源进行加载和访问。
  */
 export class PackerDriver {
@@ -250,27 +245,6 @@ export class PackerDriver {
         return packer;
     }
 
-    private static async _updateImportRestrictions(dbInfos: DBInfo[]) {
-        if (!useEditorFolderFeature) {
-            return;
-        }
-
-        const restrictions = PackerDriver._importRestrictions;
-        restrictions.length = 0;
-        const banSourcePatterns = await getEditorPatterns(dbInfos);
-        banSourcePatterns.push(...getCCEModuleIDs(PackerDriver._cceModuleMap)); // 禁止从这些模块里导入
-
-        for (let i = 0; i < dbInfos.length; ++i) {
-            const targetPath = dbInfos[i].target;
-            const dbPattern = ps.join(targetPath, '**/*');
-            const dbEditorPattern = ps.join(targetPath, '**', 'editor', '**/*');
-            restrictions[i] = {
-                importerPatterns: [dbPattern, '!' + dbEditorPattern], // TODO: 如果需要兼容就项目，则路径不能这么配置，等编辑器提供查询接口
-                banSourcePatterns,
-            };
-        }
-    }
-
     public static queryCCEModuleMap(): CCEModuleMap {
         const cceModuleMapLocation = ps.join(__dirname, '../../../../static/scripting/cce-module.jsonc');
         const cceModuleMap = JSON5.parse(fs.readFileSync(cceModuleMapLocation, 'utf8')) as CCEModuleMap;
@@ -309,7 +283,6 @@ export class PackerDriver {
         }
         const self = this;
         const update = async () => {
-            PackerDriver._updateImportRestrictions(this._dbInfos);
             const assetDatabaseDomains = await this._assetDbInterop.queryAssetDomains(this._dbInfos);
             self._logger.debug(
                 'Reset databases. ' +
@@ -1065,15 +1038,7 @@ class PackTarget {
     private _userImportMap: ImportMapWithURL | undefined;
 
     private async _getPrerequisiteAssetModsWithFilter() {
-        let prerequisiteAssetMods = Array.from(this._prerequisiteAssetMods).sort();
-        if (useEditorFolderFeature && this._name !== 'editor') {
-            // preview 编译需要剔除 Editor 目录下的脚本
-            const editorPatterns = await getEditorPatterns(this._dbInfos);
-            prerequisiteAssetMods = Array.from(prerequisiteAssetMods).filter(mods => {
-                const filePath = mods.startsWith('file:') ? fileURLToPath(mods) : mods;
-                return !editorPatterns.some(pattern => minimatch(filePath, pattern));
-            });
-        }
+        const prerequisiteAssetMods = Array.from(this._prerequisiteAssetMods).sort();
         return prerequisiteAssetMods;
     }
 

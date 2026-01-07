@@ -5,7 +5,7 @@ import { pathToFileURL } from 'url';
 import type { ImportMap } from '@cocos/creator-programming-import-maps/lib/import-map';
 import type { Logger } from '@cocos/creator-programming-common/lib/logger';
 import { existsSync } from 'fs';
-import { configurationManager, configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../../configuration';
+import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../../configuration';
 import Utils from '../../base/utils';
 import { ScriptProjectConfig } from '../@types/config-export';
 
