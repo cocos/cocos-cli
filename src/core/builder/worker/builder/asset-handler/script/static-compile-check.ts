@@ -82,9 +82,9 @@ function filterAssetsErrors(output: string): string {
  * 执行静态编译检查
  * @param projectPath 项目路径
  * @param showOutput 是否显示输出信息（默认 true）
- * @returns 返回 true 表示检查通过（没有 assets 相关错误），false 表示有错误
+ * @returns 返回对象，包含检查结果和错误信息。passed 为 true 表示检查通过（没有 assets 相关错误），false 表示有错误
  */
-export async function runStaticCompileCheck(projectPath: string, showOutput: boolean = true): Promise<boolean> {
+export async function runStaticCompileCheck(projectPath: string, showOutput: boolean = true): Promise<{ passed: boolean; errorMessage?: string }> {
     if (showOutput) {
         console.log(chalk.blue('Running TypeScript static compile check...'));
         console.log(chalk.gray(`Project: ${projectPath}`));
@@ -119,7 +119,7 @@ export async function runStaticCompileCheck(projectPath: string, showOutput: boo
             if (showOutput) {
                 console.log(chalk.green('✓ No assets-related TypeScript errors found!'));
             }
-            return true;
+            return { passed: true };
         }
 
         // 过滤出包含 "assets" 的错误
@@ -130,13 +130,13 @@ export async function runStaticCompileCheck(projectPath: string, showOutput: boo
             if (showOutput) {
                 console.log(filteredOutput);
             }
-            return false;
+            return { passed: false, errorMessage: filteredOutput };
         } else {
             // 没有 assets 相关的错误
             if (showOutput) {
                 console.log(chalk.green('✓ No assets-related TypeScript errors found!'));
             }
-            return true;
+            return { passed: true };
         }
     } catch (error: any) {
         // execAsync 在命令返回非零退出码时会抛出错误
@@ -152,7 +152,7 @@ export async function runStaticCompileCheck(projectPath: string, showOutput: boo
             if (showOutput) {
                 console.log(chalk.green('✓ No assets-related TypeScript errors found!'));
             }
-            return true;
+            return { passed: true };
         }
 
         // 过滤出包含 "assets" 的错误
@@ -163,13 +163,13 @@ export async function runStaticCompileCheck(projectPath: string, showOutput: boo
             if (showOutput) {
                 console.log(filteredOutput);
             }
-            return false;
+            return { passed: false, errorMessage: filteredOutput };
         } else {
             // 没有 assets 相关的错误
             if (showOutput) {
                 console.log(chalk.green('✓ No assets-related TypeScript errors found!'));
             }
-            return true;
+            return { passed: true };
         }
     }
 }

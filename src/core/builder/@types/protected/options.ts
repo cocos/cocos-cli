@@ -375,6 +375,7 @@ export const enum BuildExitCode {
     BUILD_FAILED = 34,
     BUILD_SUCCESS = 0,
     BUILD_BUSY = 37,
+    STATIC_COMPILE_ERROR = 38,
     UNKNOWN_ERROR = 50,
 }
 

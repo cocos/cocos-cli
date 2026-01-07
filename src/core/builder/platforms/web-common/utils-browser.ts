@@ -211,7 +211,11 @@ export async function connectToChromeDevTools(
                                 const entry = message.params.entry;
                                 const level = entry.level || 'info';
                                 const text = entry.text || '';
-
+                                
+                                // 处理聚合消息 (Chrome 可能会聚合相同的日志)
+                                // 注意：CDP 的 Log.entryAdded 可能不包含 count 属性，这里预留扩展
+                                // 如果使用了 Console.messageAdded (已废弃) 或其它事件可能会有
+                                
                                 // 格式化日志消息
                                 const logMessage = `[Browser ${level.toUpperCase()}] ${text}`;
 
@@ -237,22 +241,45 @@ export async function connectToChromeDevTools(
                                 const type = params.type || 'log';
                                 const args = params.args || [];
 
-                                // 将参数转换为字符串
-                                const messages = args.map((arg: any) => {
+                                // 辅助函数：格式化 RemoteObject
+                                const formatRemoteObject = (arg: any) => {
                                     if (arg.type === 'string') {
                                         return arg.value;
-                                    } else if (arg.type === 'object') {
-                                        return JSON.stringify(arg.value || arg.description || '');
-                                    } else {
-                                        return String(arg.value || arg.description || '');
                                     }
-                                });
+                                    // 优先显示具体值
+                                    if (arg.value !== undefined) {
+                                        // 处理 undefined, null, boolean, number
+                                        return String(arg.value);
+                                    }
+                                    
+                                    // 处理对象预览
+                                    let str = arg.description || '';
+                                    if (arg.preview && arg.preview.properties) {
+                                        const props = arg.preview.properties
+                                            .map((p: any) => `${p.name}: ${p.value || (p.type === 'string' ? `"${p.value}"` : p.type)}`)
+                                            .join(', ');
+                                        // 如果是 Array，格式稍有不同
+                                        if (arg.subtype === 'array') {
+                                            str = `${arg.description || 'Array'} [${props}]`;
+                                        } else if (arg.subtype === 'error') {
+                                            // Error 类型通常 description 已经包含了名字和消息，不需要 preview 属性
+                                            str = arg.description;
+                                        } else {
+                                            str = `${arg.description || 'Object'} { ${props} }`;
+                                        }
+                                    }
+                                    return str;
+                                };
+
+                                // 将参数转换为字符串
+                                const messages = args.map(formatRemoteObject);
 
                                 const consoleMessage = `[Browser Console.${type}] ${messages.join(' ')}`;
 
                                 // 根据 console 类型输出
                                 switch (type) {
                                     case 'error':
+                                    case 'assert':
                                         console.error(consoleMessage);
                                         break;
                                     case 'warning':
@@ -262,15 +289,45 @@ export async function connectToChromeDevTools(
                                         console.info(consoleMessage);
                                         break;
                                     case 'debug':
+                                    case 'trace':
                                         console.debug(consoleMessage);
+                                        break;
+                                    case 'clear':
+                                        // 忽略 clear 或输出提示
                                         break;
                                     default:
                                         console.log(consoleMessage);
                                         break;
                                 }
                             }
-                        } catch (error) {
-                            // 忽略解析错误，避免影响其他功能
+
+                            // 处理 Runtime.exceptionThrown 事件（未捕获的异常）
+                            if (message.method === 'Runtime.exceptionThrown') {
+                                const params = message.params;
+                                const exceptionDetails = params.exceptionDetails;
+                                const text = exceptionDetails.text; // 通常是 "Uncaught"
+                                const exception = exceptionDetails.exception;
+                                const description = exception ? (exception.description || exception.value) : '';
+
+                                const url = exceptionDetails.url || '';
+                                const line = exceptionDetails.lineNumber;
+                                const col = exceptionDetails.columnNumber;
+
+                                let errorMsg = `[Browser Error] ${text}`;
+                                if (description) {
+                                    errorMsg += `: ${description}`;
+                                }
+                                if (url) {
+                                    errorMsg += `\n    at ${url}:${line}:${col}`;
+                                }
+
+                                console.error(errorMsg);
+                            }
+                        } catch (error: any) {
+                            // 打印解析失败的原因，防止静默吞掉消息
+                            if (process.env.NODE_ENV === 'development') {
+                                console.debug(`[WS Processing Error] Failed to process message: ${error.message}`);
+                            }
                         }
                     });
 

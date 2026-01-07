@@ -160,7 +160,7 @@ export const SchemaBuildOption = z.union([
 export type TBuildOption = z.infer<typeof SchemaBuildOption>;
 
 export const SchemaResultBase = z.object({
-    code: z.number().int().describe('Build exit code, 0 means success, others mean failure, 32 means parameter error, 34 means build failure, 37 means build busy, 50 means unknown error'), // 构建的退出码, 0 表示成功, 其他表示失败, 32 表示参数错误, 34 表示构建失败, 37 表示构建繁忙, 50 表示未知错误
+    code: z.number().int().describe('Build exit code, 0 means success, others mean failure, 32 means parameter error, 34 means build failure, 37 means build busy, 38 means static compile error, 50 means unknown error'), // 构建的退出码, 0 表示成功, 其他表示失败, 32 表示参数错误, 34 表示构建失败, 37 表示构建繁忙, 38 表示静态编译错误, 50 表示未知错误
     dest: z.string().optional().describe('Generated game folder after build, currently output as project protocol address'), // 构建后的游戏生成文件夹，目前输出为 project 协议地址
     reason: z.string().optional().describe('Error message for build failure'), // 构建失败的错误信息
 });
