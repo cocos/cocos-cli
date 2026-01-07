@@ -63,6 +63,7 @@ class AssetDBManager extends EventEmitter {
     public assetDBInfo: Record<string, IAssetDBInfo> = {};
     private waitingTaskQueue: IWaitingTaskInfo[] = [];
     private waitingRefreshAsset: string[] = [];
+    private pendingAutoRefreshResolves: Function[] = [];
     private autoRefreshTimer?: NodeJS.Timeout;
     private get assetBusy() {
         return this.assetBusyTask.size > 0;
@@ -491,6 +492,7 @@ class AssetDBManager extends EventEmitter {
 
         this.autoRefreshTimer && clearTimeout(this.autoRefreshTimer);
         return new Promise((resolve) => {
+            this.pendingAutoRefreshResolves.push(resolve);
             this.autoRefreshTimer = setTimeout(async () => {
                 const taskId = 'autoRefreshAssetLazy' + Date.now();
                 this.assetBusyTask.add(taskId);
@@ -499,7 +501,8 @@ class AssetDBManager extends EventEmitter {
                 await Promise.all(files.map((file: string) => assetdb.refresh(file)));
                 this.assetBusyTask.delete(taskId);
                 this.step();
-                resolve(true);
+                this.pendingAutoRefreshResolves.forEach((resolve) => resolve(true));
+                this.pendingAutoRefreshResolves.length = 0;
             }, 100);
         });
     }

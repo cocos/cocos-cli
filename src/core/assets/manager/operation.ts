@@ -284,7 +284,7 @@ class AssetOperation extends EventEmitter {
         if (autoRefreshDir) {
             // HACK 某些情况下导入原始资源后，文件夹的 mtime 会发生变化，导致资源量大的情况下下次获得焦点自动刷新时会有第二次的文件夹大批量刷新
             // 用进入队列的方式才能保障 pause 等机制不会被影响
-            assetDBManager.addTask(assetDBManager.autoRefreshAssetLazy.bind(assetDBManager), [dirname(pathOrUrlOrUUID)]);
+            await assetDBManager.addTask(assetDBManager.autoRefreshAssetLazy.bind(assetDBManager), [dirname(pathOrUrlOrUUID)]);
         }
         // this.autoRefreshAssetLazy(dirname(pathOrUrlOrUUID));
         console.debug(`refresh asset ${dirname(pathOrUrlOrUUID)} success`);
