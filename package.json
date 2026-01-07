@@ -6,7 +6,8 @@
     "description": "COCOS CLI",
     "main": "dist/index.js",
     "engines": {
-        "vscode": "1.105.1"
+        "vscode": "1.107.1",
+        "electron": "39.2.3"
     },
     "bin": {
         "cocos": "./dist/cli.js"
@@ -52,7 +53,7 @@
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
-        "rebuild": "npx --yes patch-package && npx @electron/rebuild --force --version 37.6.0"
+        "rebuild": "node workflow/electron-rebuild.js"
     },
     "author": "COCOS",
     "files": [
@@ -64,6 +65,9 @@
         "writablePath",
         "packages/cc-module"
     ],
+    "overrides": {
+        "fsevents": "2.3.3"
+    },
     "license": "ISC",
     "devDependencies": {
         "@types/cli-progress": "^3.11.6",
@@ -139,7 +143,7 @@
         "express": "^5.1.0",
         "figlet": "^1.9.3",
         "fs-extra": "^10.0.0",
-        "gl": "^8.1.6",
+        "gl": "^9.0.0-rc.8",
         "globby": "^14.1.0",
         "glsl-parser": "^2.0.1",
         "glsl-tokenizer": "^2.1.5",

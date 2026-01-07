@@ -89,7 +89,12 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         const duration = formatMSTime(Date.now() - startTime);
         newConsole.error(error);
         newConsole.buildComplete(platform, duration, false);
-        return { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed! ' + String(error) };
+        // 如果错误对象包含 code 属性，使用该错误码（如 500）
+        let errorCode = error?.code && typeof error.code === 'number' ? error.code as BuildExitCode : BuildExitCode.BUILD_FAILED;
+        if (errorCode === BuildExitCode.BUILD_SUCCESS) {
+            errorCode = BuildExitCode.BUILD_FAILED;
+        }
+        return { code: errorCode as Exclude<BuildExitCode, BuildExitCode.BUILD_SUCCESS>, reason: error?.message || String(error) };
     }
 }
 

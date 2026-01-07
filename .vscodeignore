@@ -38,6 +38,7 @@ repo.json
 node_modules/**
 @types/**
 packages/engine/node_modules/**
+packages/platforms/*/src/**
 # ===========================================
 # 测试和覆盖率
 # ===========================================
@@ -61,7 +62,7 @@ docs/dev/**
 # ===========================================
 # 工作流和脚本
 # ===========================================
-workflow/!(postinstall|utils).js
+workflow/!(postinstall|utils|electron-rebuild).js
 
 # ===========================================
 # 发布和构建产物

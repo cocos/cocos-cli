@@ -206,7 +206,7 @@ export function findTextOccurrencesInFile(
 export async function replaceTextInFile(
     dbURL: string, fileType: string, targetText: string, replacementText: string, regex: boolean): Promise<boolean> {
     // Normalize EOL to the system's EOL
-    targetText = eol.auto(targetText);
+    const targetText1 = eol.auto(targetText);
     replacementText = eol.auto(replacementText);
 
     // Get filename
@@ -217,7 +217,7 @@ export async function replaceTextInFile(
         // First, count occurrences
         const results = await replaceInFile({
             files: filename,
-            from: new RegExp(targetText, 'g'), // Global replace
+            from: new RegExp(targetText1, 'g'), // Global replace
             to: replacementText,
             countMatches: true,
             dry: true, // Dry run to count matches first
@@ -228,7 +228,7 @@ export async function replaceTextInFile(
             }
         }
     } else {
-        count = findTextOccurrencesInFile(filename, targetText);
+        count = findTextOccurrencesInFile(filename, targetText1);
     }
 
     if (count > 1) {
@@ -239,8 +239,8 @@ export async function replaceTextInFile(
         const results = await replaceInFile({
             files: filename,
             from: regex
-                ? new RegExp(targetText, 'g') // Global replace
-                : targetText, // First occurrence
+                ? new RegExp(targetText1, 'g') // Global replace
+                : targetText1, // First occurrence
             to: replacementText,
         });
 

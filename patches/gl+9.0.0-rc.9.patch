@@ -1,0 +1,184 @@
+diff --git a/node_modules/gl/src/native/webgl.cc b/node_modules/gl/src/native/webgl.cc
+index 0e03023..bd406a7 100644
+--- a/node_modules/gl/src/native/webgl.cc
++++ b/node_modules/gl/src/native/webgl.cc
+@@ -2292,7 +2292,7 @@ GL_METHOD(GetBufferSubData) {
+   GLenum target = Nan::To<int32_t>(info[0]).ToChecked();
+   GLintptr srcByteOffset = Nan::To<int64_t>(info[1]).ToChecked();
+   auto buffer = info[2].As<v8::ArrayBufferView>();
+-  void *bufferPtr = buffer->Buffer()->GetBackingStore()->Data();
++  void *bufferPtr = buffer->Buffer()->Data();
+   GLsizeiptr bufferSize = buffer->ByteLength();
+   // TODO:  glGetBufferSubData(target, srcByteOffset, bufferSize, bufferPtr);
+ }
+@@ -2413,7 +2413,7 @@ GL_METHOD(TexImage3D) {
+                  nullptr);
+   } else if (info[9]->IsArrayBufferView()) {
+     auto buffer = info[9].As<v8::ArrayBufferView>();
+-    void *bufferPtr = buffer->Buffer()->GetBackingStore()->Data();
++    void *bufferPtr = buffer->Buffer()->Data();
+     glTexImage3D(target, level, internalformat, width, height, depth, border, format, type,
+                  bufferPtr);
+   } else {
+@@ -2438,7 +2438,7 @@ GL_METHOD(TexSubImage3D) {
+                     nullptr);
+   } else if (info[10]->IsArrayBufferView()) {
+     auto buffer = info[10].As<v8::ArrayBufferView>();
+-    void *bufferPtr = buffer->Buffer()->GetBackingStore()->Data();
++    void *bufferPtr = buffer->Buffer()->Data();
+     glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type,
+                     bufferPtr);
+   } else {
+@@ -2475,7 +2475,7 @@ GL_METHOD(CompressedTexImage3D) {
+                            nullptr);
+   } else if (info[8]->IsArrayBufferView()) {
+     auto buffer = info[8].As<v8::ArrayBufferView>();
+-    void *bufferPtr = buffer->Buffer()->GetBackingStore()->Data();
++    void *bufferPtr = buffer->Buffer()->Data();
+     glCompressedTexImage3D(target, level, internalformat, width, height, depth, border, imageSize,
+                            bufferPtr);
+   } else {
+@@ -2500,7 +2500,7 @@ GL_METHOD(CompressedTexSubImage3D) {
+                               format, imageSize, nullptr);
+   } else if (info[10]->IsArrayBufferView()) {
+     auto buffer = info[10].As<v8::ArrayBufferView>();
+-    void *bufferPtr = buffer->Buffer()->GetBackingStore()->Data();
++    void *bufferPtr = buffer->Buffer()->Data();
+     glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth,
+                               format, imageSize, bufferPtr);
+   } else {
+@@ -2554,7 +2554,7 @@ GL_METHOD(Uniform1uiv) {
+   GL_BOILERPLATE;
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   auto data = info[1].As<v8::ArrayBufferView>();
+-  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->GetBackingStore()->Data());
++  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / sizeof(GLuint);
+   glUniform1uiv(location, count, bufferPtr);
+ }
+@@ -2563,7 +2563,7 @@ GL_METHOD(Uniform2uiv) {
+   GL_BOILERPLATE;
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   auto data = info[1].As<v8::ArrayBufferView>();
+-  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->GetBackingStore()->Data());
++  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (2 * sizeof(GLuint));
+   glUniform2uiv(location, count, bufferPtr);
+ }
+@@ -2572,7 +2572,7 @@ GL_METHOD(Uniform3uiv) {
+   GL_BOILERPLATE;
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   auto data = info[1].As<v8::ArrayBufferView>();
+-  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->GetBackingStore()->Data());
++  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (3 * sizeof(GLuint));
+   glUniform3uiv(location, count, bufferPtr);
+ }
+@@ -2581,7 +2581,7 @@ GL_METHOD(Uniform4uiv) {
+   GL_BOILERPLATE;
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   auto data = info[1].As<v8::ArrayBufferView>();
+-  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->GetBackingStore()->Data());
++  GLuint *bufferPtr = static_cast<GLuint *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (4 * sizeof(GLuint));
+   glUniform4uiv(location, count, bufferPtr);
+ }
+@@ -2591,7 +2591,7 @@ GL_METHOD(UniformMatrix3x2fv) {
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   GLboolean transpose = Nan::To<bool>(info[1]).ToChecked();
+   auto data = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (6 * sizeof(GLfloat));
+   glUniformMatrix3x2fv(location, count, transpose, bufferPtr);
+ }
+@@ -2601,7 +2601,7 @@ GL_METHOD(UniformMatrix4x2fv) {
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   GLboolean transpose = Nan::To<bool>(info[1]).ToChecked();
+   auto data = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (8 * sizeof(GLfloat));
+   glUniformMatrix4x2fv(location, count, transpose, bufferPtr);
+ }
+@@ -2611,7 +2611,7 @@ GL_METHOD(UniformMatrix2x3fv) {
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   GLboolean transpose = Nan::To<bool>(info[1]).ToChecked();
+   auto data = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (6 * sizeof(GLfloat));
+   glUniformMatrix2x3fv(location, count, transpose, bufferPtr);
+ }
+@@ -2621,7 +2621,7 @@ GL_METHOD(UniformMatrix4x3fv) {
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   GLboolean transpose = Nan::To<bool>(info[1]).ToChecked();
+   auto data = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (12 * sizeof(GLfloat));
+   glUniformMatrix4x3fv(location, count, transpose, bufferPtr);
+ }
+@@ -2631,7 +2631,7 @@ GL_METHOD(UniformMatrix2x4fv) {
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   GLboolean transpose = Nan::To<bool>(info[1]).ToChecked();
+   auto data = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (8 * sizeof(GLfloat));
+   glUniformMatrix2x4fv(location, count, transpose, bufferPtr);
+ }
+@@ -2641,7 +2641,7 @@ GL_METHOD(UniformMatrix3x4fv) {
+   GLuint location = Nan::To<uint32_t>(info[0]).ToChecked();
+   GLboolean transpose = Nan::To<bool>(info[1]).ToChecked();
+   auto data = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(data->Buffer()->Data());
+   GLsizei count = data->ByteLength() / (12 * sizeof(GLfloat));
+   glUniformMatrix3x4fv(location, count, transpose, bufferPtr);
+ }
+@@ -2660,7 +2660,7 @@ GL_METHOD(VertexAttribI4iv) {
+   GL_BOILERPLATE;
+   GLuint index = Nan::To<uint32_t>(info[0]).ToChecked();
+   auto values = info[1].As<v8::ArrayBufferView>();
+-  GLint *bufferPtr = static_cast<GLint *>(values->Buffer()->GetBackingStore()->Data());
++  GLint *bufferPtr = static_cast<GLint *>(values->Buffer()->Data());
+   glVertexAttribI4iv(index, bufferPtr);
+ }
+ 
+@@ -2678,7 +2678,7 @@ GL_METHOD(VertexAttribI4uiv) {
+   GL_BOILERPLATE;
+   GLuint index = Nan::To<uint32_t>(info[0]).ToChecked();
+   auto values = info[1].As<v8::ArrayBufferView>();
+-  GLuint *bufferPtr = static_cast<GLuint *>(values->Buffer()->GetBackingStore()->Data());
++  GLuint *bufferPtr = static_cast<GLuint *>(values->Buffer()->Data());
+   glVertexAttribI4uiv(index, bufferPtr);
+ }
+ 
+@@ -2747,7 +2747,7 @@ GL_METHOD(ClearBufferfv) {
+   GLenum buffer = Nan::To<int32_t>(info[0]).ToChecked();
+   GLint drawbuffer = Nan::To<int32_t>(info[1]).ToChecked();
+   auto values = info[2].As<v8::ArrayBufferView>();
+-  GLfloat *bufferPtr = static_cast<GLfloat *>(values->Buffer()->GetBackingStore()->Data());
++  GLfloat *bufferPtr = static_cast<GLfloat *>(values->Buffer()->Data());
+   glClearBufferfv(buffer, drawbuffer, bufferPtr);
+ }
+ 
+@@ -2756,7 +2756,7 @@ GL_METHOD(ClearBufferiv) {
+   GLenum buffer = Nan::To<int32_t>(info[0]).ToChecked();
+   GLint drawbuffer = Nan::To<int32_t>(info[1]).ToChecked();
+   auto values = info[2].As<v8::ArrayBufferView>();
+-  GLint *bufferPtr = static_cast<GLint *>(values->Buffer()->GetBackingStore()->Data());
++  GLint *bufferPtr = static_cast<GLint *>(values->Buffer()->Data());
+   glClearBufferiv(buffer, drawbuffer, bufferPtr);
+ }
+ 
+@@ -2765,7 +2765,7 @@ GL_METHOD(ClearBufferuiv) {
+   GLenum buffer = Nan::To<int32_t>(info[0]).ToChecked();
+   GLint drawbuffer = Nan::To<int32_t>(info[1]).ToChecked();
+   auto values = info[2].As<v8::ArrayBufferView>();
+-  GLuint *bufferPtr = static_cast<GLuint *>(values->Buffer()->GetBackingStore()->Data());
++  GLuint *bufferPtr = static_cast<GLuint *>(values->Buffer()->Data());
+   glClearBufferuiv(buffer, drawbuffer, bufferPtr);
+ }
+ 
