@@ -141,8 +141,6 @@ jobs:
       
       - name: Comment on PR
         if: always()
-        uses: ./.github/actions/comment-on-pr
+        uses: thollander/actions-comment-pull-request@v3
         with:
-          pat-token: ${{ steps.setup-config.outputs.PAT_TOKEN }}
           message: ${{ steps.message.outputs.content }}
-          comment-identifier: 'PR 测试报告'
