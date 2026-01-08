@@ -4,6 +4,10 @@ description: '初始化环境：安装依赖和构建项目'
 runs:
   using: 'composite'
   steps:
+    - name: Install node-gyp
+      shell: bash
+      run: npm i -g node-gyp
+
     - name: Init
       shell: bash
       run: npm run init

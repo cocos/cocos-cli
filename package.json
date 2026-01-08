@@ -40,7 +40,7 @@
         "generate:dts": "tsx workflow/generate-dts.ts",
         "install:engine": "cd ./packages/engine && npm i",
         "compiler": "FORCE_UPDATE=true npm i",
-        "compiler:engine": "node workflow/compiler-engine.js --force",
+        "compiler:engine": "node --max-old-space-size=8192 workflow/compiler-engine.js --force",
         "build:cc-module": "node workflow/build-cc-module.js",
         "build": "npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js",
         "compile": "npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js",

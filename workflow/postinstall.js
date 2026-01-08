@@ -46,7 +46,7 @@ async function mockNpmModules() {
     
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
     // compiler engine
-    await utils.runCommand('node', ['./workflow/compiler-engine.js', forceFlag].filter(Boolean));
+    await utils.runCommand('node', ['--max-old-space-size=8192', './workflow/compiler-engine.js', forceFlag].filter(Boolean));
     // build cc module
     await utils.runCommand('node', ['./workflow/build-cc-module.js', forceFlag].filter(Boolean));
     // generate i18n types

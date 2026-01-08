@@ -177,16 +177,17 @@ class UpdateRepo {
         try {
             // 克隆仓库
             console.log(`开始克隆仓库: ${key}`);
-            const cloneCommand = `git clone ${repo} ${targetDir}`;
-            this.execCommand(cloneCommand);
 
             // 切换到指定分支或标签
             if (branch) {
-                console.log(`切换到分支: ${branch}`);
-                this.execCommand(`git checkout ${branch}`, targetDir);
+                console.log(`clone branch: ${branch}`);
+                this.execCommand(`git clone -b ${branch} ${repo} ${targetDir}`);
             } else if (tag) {
-                console.log(`切换到标签: ${tag}`);
-                this.execCommand(`git checkout ${tag}`, targetDir);
+                console.log(`clone tag: ${tag}`);
+                this.execCommand(`git clone -b ${tag} --depth 1 ${repo} ${targetDir}`);
+            } else {
+                console.log('clone default branch');
+                this.execCommand(`git clone ${repo} ${targetDir}`);
             }
 
             console.log(`仓库 ${key} 克隆完成`);

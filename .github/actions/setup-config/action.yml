@@ -2,14 +2,6 @@ name: 'Setup Configuration'
 description: '获取配置项（支持从 GitHub Secrets 或本地 .user.json 读取）并设置环境变量'
 
 inputs:
-  http-proxy:
-    description: 'HTTP 代理地址'
-    required: false
-    default: 'http://127.0.0.1:7890'
-  https-proxy:
-    description: 'HTTPS 代理地址'
-    required: false
-    default: 'http://127.0.0.1:7890'
   report-server-url:
     description: '报告服务器地址'
     required: false
@@ -120,8 +112,6 @@ runs:
         }
         
         # 解析所有配置项（有默认值的）
-        HTTP_PROXY=$(resolve_config "HTTP_PROXY" "${{ inputs.http-proxy }}" "http://127.0.0.1:7890")
-        HTTPS_PROXY=$(resolve_config "HTTPS_PROXY" "${{ inputs.https-proxy }}" "http://127.0.0.1:7890")
         REPORT_SERVER_URL=$(resolve_config "REPORT_SERVER_URL" "${{ inputs.report-server-url }}" "http://192.168.52.77:8080")
         
         # FEISHU_WEBHOOK_URL: 优先级是 .user.json > inputs (没有默认值)
