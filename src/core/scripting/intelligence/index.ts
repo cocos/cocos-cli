@@ -57,9 +57,18 @@ export class TypeScriptConfigBuilder {
 
     async getCompilerOptions(): Promise<Readonly<ts.CompilerOptions>> {
         if (Object.keys(this.internalTsConfig).length === 0) {
-            this.buildCommonConfig();
+            await this.buildCommonConfig();
         }
         return this.internalTsConfig;
+    }
+
+    async generateDeclarations(types: string[]) {
+        await Promise.all([
+            this.addEngineDeclarations(types),
+            this.addEnvDeclarations(types),
+            this.addCustomMacroDeclarations(types),
+            this.addJsbDeclarations(types),
+        ]);
     }
 
     async buildCommonConfig() {
@@ -69,14 +78,8 @@ export class TypeScriptConfigBuilder {
 
         const paths: TsConfigPaths = {};
 
-        await Promise.all([
-            this.addEngineDeclarations(types),
-            this.addEnvDeclarations(types),
-            this.addCustomMacroDeclarations(types),
-            this.addJsbDeclarations(types),
-            this.addDbPathMappings(paths),
-        ]);
-
+        await this.generateDeclarations(types);
+        await this.addDbPathMappings(paths);
         await this.updateCustomMacroJS();
 
         const compilerOptions: Record<string, ts.CompilerOptionsValue> = {

@@ -103,6 +103,13 @@ class ScriptManager {
     }
 
     /**
+     * 生成类型声明文件
+     */
+    async generateDeclarations() {
+        return PackerDriver.getInstance().generateDeclarations();
+    }
+
+    /**
      * @param type 变更类型
      * @param uuid 资源UUID
      * @param assetInfo 资源信息

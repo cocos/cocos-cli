@@ -457,6 +457,10 @@ export class PackerDriver {
         await this._syncEngineFeatures(features);
     }
 
+    public async generateDeclarations() {
+        await this._tsBuilder.generateDeclarations([]);
+    }
+
     public async querySharedSettings(): Promise<SharedSettings> {
         return querySharedSettings(this._logger);
     }
