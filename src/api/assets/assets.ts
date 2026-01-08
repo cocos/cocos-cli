@@ -147,6 +147,10 @@ export class AssetsApi {
 
         try {
             ret.data = await assetManager.queryAssetInfo(urlOrUUIDOrPath, dataKeys as (keyof IAssetInfo)[] | undefined);
+            if (!ret.data) {
+                ret.code = COMMON_STATUS.FAIL;
+                ret.reason = `❌Asset can not be found: ${urlOrUUIDOrPath}`;
+            }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset info fail:', e instanceof Error ? e.message : String(e));
