@@ -51,14 +51,11 @@ cocos create --project ./my-game --type 2d
 ### ⚡ 构建项目
 
 ```bash
-# 构建到 Web 桌面平台
-cocos build --project ./my-game --platform web-desktop
-
 # 构建到 Web 移动平台
 cocos build --project ./my-game --platform web-mobile
 
 # 调试模式构建
-cocos build --project ./my-game --platform web-desktop --debug
+cocos build --project ./my-game --platform web-mobile --debug
 ```
 
 ## 🎨 交互式向导

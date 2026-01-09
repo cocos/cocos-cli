@@ -54,7 +54,7 @@ cocos build --project <project-path> [options]
 **示例:**
 
 ```bash
-cocos build --project /path/to/project --platform web-desktop
+cocos build --project /path/to/project --platform web-mobile
 ```
 
 ### `cocos start-mcp-server`
