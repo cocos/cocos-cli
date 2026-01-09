@@ -99,7 +99,7 @@ export interface IBuildCommonOptions {
     buildPath: string;
     /**
      * 构建平台
-     * @default 'web-desktop'
+     * @default 'web-mobile'
      */
     platform: Platform | string;
     /**

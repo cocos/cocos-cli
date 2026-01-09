@@ -58,7 +58,7 @@ See [Quick Start Guide](docs/en/quick-start.md) for detailed usage steps.
 cocos create --project ./my-project
 
 # Build project
-cocos build --project ./my-project --platform web-desktop
+cocos build --project ./my-project --platform web-mobile
 
 # Import project
 cocos import --project ./my-project

@@ -58,7 +58,7 @@
 cocos create --project ./my-project
 
 # 构建项目
-cocos build --project ./my-project --platform web-desktop
+cocos build --project ./my-project --platform web-mobile
 
 # 导入项目
 cocos import --project ./my-project

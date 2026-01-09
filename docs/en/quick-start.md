@@ -51,14 +51,11 @@ cocos create --project ./my-game --type 2d
 ### ⚡ Build Project
 
 ```bash
-# Build to Web Desktop platform
-cocos build --project ./my-game --platform web-desktop
-
 # Build to Web Mobile platform
 cocos build --project ./my-game --platform web-mobile
 
 # Debug mode build
-cocos build --project ./my-game --platform web-desktop --debug
+cocos build --project ./my-game --platform web-mobile --debug
 ```
 
 ## 🎨 Interactive Wizard
