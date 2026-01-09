@@ -661,6 +661,8 @@ export class AssetsApi {
             const asset = assetManager.queryAsset(urlOrUuidOrPath);
             if (asset) {
                 ret.data = await assetManager.queryAssetUserDataConfig(asset);
+            } else {
+                ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}`;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -691,6 +693,9 @@ export class AssetsApi {
 
         try {
             ret.data = await assetManager.updateUserData(urlOrUuidOrPath, path, value);
+            if (!ret.data) {
+                ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}`;
+            }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('update asset user data fail:', e instanceof Error ? e.message : String(e));
