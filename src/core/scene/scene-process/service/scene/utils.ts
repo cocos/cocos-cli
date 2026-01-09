@@ -107,7 +107,7 @@ class SceneUtil {
             if (!instance) {
                 return undefined;
             }
-            return {
+            const result = {
                 fileId: instance.fileId,
                 prefabRootNode: instance.prefabRootNode ? this.generateNodeIdentifier(instance.prefabRootNode) : undefined,
                 mountedChildren: instance.mountedChildren.map(generateMountedChildrenInfo),
@@ -115,6 +115,11 @@ class SceneUtil {
                 propertyOverrides: instance.propertyOverrides.map(generatePropertyOverrideInfo),
                 removedComponents: instance.removedComponents.map(generateTargetInfo),
             };
+            //prefabRootNode is optional field.
+            if (!result.prefabRootNode) {
+                delete result.prefabRootNode;
+            }
+            return result;
         };
 
         const generatePrefabAsset = (asset: any): IPrefab | undefined => {
@@ -142,7 +147,7 @@ class SceneUtil {
 
         const root = prefab.root && this.generateNodeIdentifier(prefab.root);
 
-        return {
+        const result = {
             asset: generatePrefabAsset(prefab.asset) ?? undefined,
             root: root ?? undefined,
             instance: generatePrefabInstance(prefab.instance) ?? undefined,
@@ -150,6 +155,17 @@ class SceneUtil {
             targetOverrides: prefab.targetOverrides ? prefab.targetOverrides.map(generateTargetOverrideInfo) : [],
             nestedPrefabInstanceRoots: prefab.nestedPrefabInstanceRoots ? prefab.nestedPrefabInstanceRoots.map((node: cc.Node) => this.generateNodeIdentifier(node)) : [],
         };
+        // asset, root, instance is a optional field in SchemaPrefabInfo.
+        if (!result.asset) {
+            delete result.asset;
+        }
+        if (!result.root) {
+            delete result.root;
+        }
+        if (!result.instance) {
+            delete result.instance;
+        }
+        return result;
     }
 
     generateNodeIdentifier(node: cc.Node) {

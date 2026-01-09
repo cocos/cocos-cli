@@ -83,7 +83,7 @@ export class CompManager extends EventEmitter {
             type: cc.js.getClassName(component.constructor),
             uuid: component.uuid,
             name: component.name,
-            enabled: component.enabled,
+            enabled: component.enabled ? true : false,//enalbed maybe undefined.
             path: path === null ? '' : path,
         };
     }
