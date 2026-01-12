@@ -100,6 +100,21 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
         }
 
+        const outputDependentInfo = async function (err: any) {
+            try {
+                const errInfo = err.message || '';
+                const regexObj = /^download failed: .*\/([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})\.json/i;
+                const result = regexObj.exec(errInfo);
+                let uuid = '';
+                if (result) {
+                    uuid = result[1];
+                }
+                err.message = `The asset ${urlOrUUID} cannot be loaded because a dependent asset is missing: ${uuid}`;
+            } catch (error) {
+                //
+            }
+        };
+
         const uuid = assetInfo.uuid;
         try {
             // 检查是否已经有对应的编辑器实例
@@ -116,6 +131,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             console.log(`打开 ${assetInfo.url}`);
             return encode;
         } catch (err) {
+            await outputDependentInfo(err);
             this.editorMap.delete(uuid);
             console.error(err);
             throw err;
