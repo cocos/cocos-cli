@@ -6,6 +6,7 @@ export const NATIVE_PLATFORM: Platform[] = [
     'ios',
     'windows',
     'mac',
+    'ohos',
 ];
 
 // 支持的平台数组，顺序将会影响界面的平台排序

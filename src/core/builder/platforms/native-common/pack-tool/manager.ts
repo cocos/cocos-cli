@@ -6,6 +6,7 @@ const platformPackToolMap: Record<string, string> = {
     android: './platforms/android',
     mac: './platforms/mac',
     ios: './platforms/ios',
+    ohos: './platforms/ohos',
 };
 
 export class NativePackToolManager {
@@ -62,7 +63,10 @@ export class NativePackToolManager {
 
     async generate(params:CocosParams<Object>): Promise<NativePackTool> {
         const tool = await this.register(params);
-        await tool.generate!();
+        if(tool.generate) {
+            // 有些平台是没这个函数的，例如：OHOS
+            await tool.generate();
+        }
         return tool;
     }
 

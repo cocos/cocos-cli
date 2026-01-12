@@ -27,6 +27,7 @@ export const SchemaBundleConfig = z.object({
     scriptDest: z.string().optional().describe('Output path for scripts'), // 脚本的输出地址
 }).describe('Bundle Configuration Options'); // Bundle 配置选项
 
+export const SchemaPlatform = z.string().describe('平台标识符 (如: web-desktop, web-mobile, windows, android, ohos等)');
 // Platform Enum - Accepts any string, built-in platform names are for reference only // 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
 export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios 等)
 export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android, etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)

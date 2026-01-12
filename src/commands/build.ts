@@ -56,6 +56,29 @@ export class BuildCommand extends BaseCommand {
                             }
                         }
                     }
+
+                    
+                    // 处理 OHOS 平台特定的命令行参数
+                    if (options.platform === 'ohos') {
+                        if (options.ndkPath || options.sdkPath) {
+                            if (!options.packages) {
+                                options.packages = {};
+                            }
+                            if (!options.packages.ohos) {
+                                options.packages.ohos = {};
+                            }
+                            // 命令行指定的 ndkPath 覆盖配置文件中的值
+                            if (options.ndkPath) {
+                                options.packages.ohos.ndkPath = options.ndkPath;
+                                delete options.ndkPath; // 清理，避免传递到其他地方
+                            }
+                            // 命令行指定的 sdkPath 覆盖配置文件中的值
+                            if (options.sdkPath) {
+                                options.packages.ohos.sdkPath = options.sdkPath;
+                                delete options.sdkPath; // 清理，避免传递到其他地方
+                            }
+                        }
+                    }
                     
                     const { CocosAPI } = await import('../api/index');
                     const result = await CocosAPI.buildProject(resolvedPath, options.platform, options);
