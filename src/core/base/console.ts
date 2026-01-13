@@ -144,7 +144,7 @@ export class NewConsole {
         // 保存原始 console 引用，以便其他模块可以访问原始 console 避免死循环
         (this as any).__rawConsole = rawConsole;
         // @ts-ignore
-        globalThis.console = this;
+        // globalThis.console = this;
         rawConsole.debug(`Start record log in {file(${this.logDest})}`);
     }
 
