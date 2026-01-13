@@ -7,6 +7,7 @@ const platformPackToolMap: Record<string, string> = {
     mac: './platforms/mac',
     ios: './platforms/ios',
     ohos: './platforms/ohos',
+    'harmonyos-next': './platforms/harmonyos-next',
 };
 
 export class NativePackToolManager {

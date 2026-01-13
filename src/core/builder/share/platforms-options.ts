@@ -7,6 +7,7 @@ export const NATIVE_PLATFORM: Platform[] = [
     'windows',
     'mac',
     'ohos',
+    'harmonyos-next',
 ];
 
 // 支持的平台数组，顺序将会影响界面的平台排序
