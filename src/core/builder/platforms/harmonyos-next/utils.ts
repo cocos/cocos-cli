@@ -1,8 +1,7 @@
 'use strict';
 import { IHarmonyOSNextInternalBuildOptions } from './type';
-import { existsSync, statSync, readdirSync } from 'fs-extra';
-import { dirname, join, normalize } from 'path';
-import { platform } from 'os';
+import { existsSync } from 'fs-extra';
+import { join } from 'path';
 
 /**
  * 生成新的配置

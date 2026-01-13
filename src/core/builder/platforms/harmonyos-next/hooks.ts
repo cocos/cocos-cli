@@ -3,13 +3,13 @@
 import { existsSync, outputJSON, unlinkSync, readFileSync, outputFileSync, rm, statSync, pathExists } from 'fs-extra';
 import { IBuildResult, IHarmonyOSNextInternalBuildOptions } from './type';
 import { BuilderCache, IBuilder } from '../../@types/protected';
-import { emptyDir, readFile, copy, moveSync, ensureDir, writeFileSync, readdirSync } from 'fs-extra';
+import { emptyDir, copy, moveSync, ensureDir, writeFileSync, readdirSync } from 'fs-extra';
 import { basename, relative, join, dirname } from 'path';
 import * as nativeCommonHook from '../native-common/hooks';
 import { generateOptions } from './utils';
 import Ejs from 'ejs';
 import JSON5 from 'json5';
-import { cchelper, Paths } from '../native-common/pack-tool/utils';
+import { transformCode } from '../../worker/builder/utils';
 
 //export const onBeforeBuild = nativeCommonHook.onBeforeBuild;
 export const onAfterBundleDataTask = nativeCommonHook.onAfterBundleDataTask;
@@ -91,14 +91,13 @@ export async function onAfterBuild(this: IBuilder, options: IHarmonyOSNextIntern
         // 转化 settings.json 为 SystemJS 模块的 settings.js
         let settingsCode = readFileSync(result.paths.settings, 'utf8');
         settingsCode = 'export default ' + settingsCode;
-        const systemSettingsCode = await Build.Utils.transformCode(settingsCode, {
+        const systemSettingsCode = await transformCode(settingsCode, {
             importMapFormat: 'systemjs',
         });
         unlinkSync(result.paths.settings);
         const settingsJsFile = join(dirname(result.paths.settings), 'settings.js');
         outputFileSync(settingsJsFile, systemSettingsCode, 'utf8');
     }
-    const paths = new Paths(options.cocosParams);
     // 拷贝 assets 资源到 rawfile 目录下 entry/src/main/resources/rawfile/Resources/
     const assetDir = join(result.paths.dir, 'assets');
     const mainDir = join(options.cocosParams.projDir, 'native/engine', options.platform, 'entry/src/main');
