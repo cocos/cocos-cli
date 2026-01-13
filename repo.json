@@ -2,7 +2,7 @@
     "engine": {
         "repo": "https://github.com/cocos/cocos4.git",
         "dist": "packages/engine",
-        "branch": "v4.0.0"
+        "tag": "4.0.0-alpha.2"
     },
     "external": {
         "repo": "https://github.com/cocos/cocos-engine-external.git",
