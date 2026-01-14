@@ -59,14 +59,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
-        const currentScene = Service.Editor.getRootNode();
+        const currentScene = await Service.Editor.getRootNodeAsync();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
         }
 
         const workMode = params.workMode || '2d';
         // 使用增强的路径处理方法
-        let parent = await this._getOrCreateNodeByPath(params.path);
+        let parent = await this._getOrCreateNodeByPath(params.path, currentScene);
         if (!parent) {
             parent = currentScene;
         }
@@ -110,7 +110,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
          * 新节点的 layer 跟随父级节点，但父级节点为场景根节点除外
          * parent.layer 可能为 0 （界面下拉框为 None），此情况下新节点不跟随
          */
-        if (parent && parent.layer && parent !== Service.Editor.getRootNode()) {
+        if (parent && parent.layer && parent !== currentScene) {
             setLayer(resultNode, parent.layer, true);
         }
 
@@ -144,7 +144,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     /**
      * 获取或创建路径节点
      */
-    private async _getOrCreateNodeByPath(path: string | undefined): Promise<Node | null> {
+    private async _getOrCreateNodeByPath(path: string | undefined, currentScene: Node): Promise<Node | null> {
         if (!path) {
             return null;
         }
@@ -156,18 +156,17 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         // 如果不存在，则创建路径
-        return await this._ensurePathExists(path);
+        return await this._ensurePathExists(path, currentScene);
     }
 
     /**
      * 确保路径存在，如果不存在则创建空节点
      */
-    private async _ensurePathExists(path: string | undefined): Promise<Node | null> {
+    private async _ensurePathExists(path: string | undefined, currentScene: Node): Promise<Node | null> {
         if (!path) {
             return null;
         }
 
-        const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             return null;
         }

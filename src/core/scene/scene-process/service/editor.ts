@@ -75,6 +75,11 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? editor.getRootNode() : null;
     }
 
+    async getRootNodeAsync(): Promise<cc.Scene | cc.Node | null> {
+        const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
+        return editor ? await editor.getRootNodeAsync() : null;
+    }
+
     async open(params: IOpenOptions): Promise<IScene | INode> {
         const { urlOrUUID } = params;
 
