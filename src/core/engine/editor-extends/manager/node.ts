@@ -29,6 +29,9 @@ export default class NodeManager extends EventEmitter {
         if (!this.allow) {
             return;
         }
+        if (!node.children) {
+            console.error('bf test children is unexist');
+        }
         this._map[uuid] = node;
 
         const parentUuid = node.parent ? node.parent.uuid : undefined;
