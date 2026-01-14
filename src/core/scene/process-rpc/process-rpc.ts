@@ -164,11 +164,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             const target = this.handlers[module];
             if (target && typeof target[method] === 'function') {
                 console.log(`[ProcessRPC] Error handling notify ${module}.${method}:`, args);
-                // try {
-                    target[method](...(args || []));
-                // } catch (err) {
-                //     console.log(`[ProcessRPC] Error handling notify ${module}.${method}:`, err);
-                // }
+                target[method](...(args || []));
             }
         }
     }
