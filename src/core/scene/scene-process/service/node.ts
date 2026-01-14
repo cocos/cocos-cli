@@ -31,22 +31,27 @@ const NodeMgr = EditorExtends.Node;
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
     async createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
-        let canvasNeeded = params.canvasRequired || false;
-        const nodeType = params.nodeType as string;
-        const paramsArray = NodeConfig[nodeType];
-        if (!paramsArray || paramsArray.length < 0) {
-            throw new Error(`Node type '${nodeType}' is not implemented`);
-        }
-        let assetUuid = paramsArray[0].assetUuid || null;
-        canvasNeeded = paramsArray[0].canvasRequired ? true : false;
-        const projectType = paramsArray[0]['project-type'];
-        const workMode = params.workMode;
-        if (projectType && workMode && projectType !== workMode && paramsArray.length > 1) {
-            assetUuid = paramsArray[1]['assetUuid'] || null;
-            canvasNeeded = paramsArray[1].canvasRequired ? true : false;
-        }
+        try {
+            let canvasNeeded = params.canvasRequired || false;
+            const nodeType = params.nodeType as string;
+            const paramsArray = NodeConfig[nodeType];
+            if (!paramsArray || paramsArray.length < 0) {
+                throw new Error(`Node type '${nodeType}' is not implemented`);
+            }
+            let assetUuid = paramsArray[0].assetUuid || null;
+            canvasNeeded = paramsArray[0].canvasRequired ? true : false;
+            const projectType = paramsArray[0]['project-type'];
+            const workMode = params.workMode;
+            if (projectType && workMode && projectType !== workMode && paramsArray.length > 1) {
+                assetUuid = paramsArray[1]['assetUuid'] || null;
+                canvasNeeded = paramsArray[1].canvasRequired ? true : false;
+            }
 
-        return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+            return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+        } catch(e) {
+            console.error('bf test error', e);
+            throw e;
+        }
     }
 
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
@@ -82,10 +87,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
         if (!resultNode) {
             resultNode = new cc.Node();
-        }
-
-        if (!resultNode) {
-            return null;
         }
 
         /**
