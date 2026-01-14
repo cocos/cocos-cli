@@ -120,6 +120,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             resultNode.setPosition(params.position);
         }
 
+        if (!parent.children) {
+            console.log('bf test error parent=', parent, currentScene);
+        }
         resultNode.setParent(parent, params.keepWorldTransform);
         // setParent 后，node的path可能会变，node的name需要同步path中对应的name
         const path = NodeMgr.getNodePath(resultNode);
