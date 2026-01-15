@@ -46,7 +46,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             canvasNeeded = paramsArray[1].canvasRequired ? true : false;
         }
 
-        return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+        try {
+            return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
     }
 
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
@@ -55,16 +60,18 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
         }
         const canvasNeeded = params.canvasRequired || false;
-        return await this._createNode(assetUuid, canvasNeeded, false, params);
+        try {
+            return await this._createNode(assetUuid, canvasNeeded, false, params);
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
         const currentScene = await Service.Editor.getRootNodeAsync();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
-        }
-        if (!currentScene.children) {
-            console.log('bf test currentScene.children is null');
         }
 
         const workMode = params.workMode || '2d';
