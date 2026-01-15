@@ -49,6 +49,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         try {
             return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
         } catch (error) {
+            console.error('bf test createNode error', Service.Editor.getRootNode());
             console.error(error);
             throw error;
         }
