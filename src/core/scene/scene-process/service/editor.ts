@@ -232,7 +232,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
 
         try {
-            await editor.reload();
+            this.reloadPromise = editor.reload() as Promise<IScene | INode>;
+            await this.reloadPromise;
 
             if (this.needReloadAgain) {
                 this.reload(this.needReloadAgain);
@@ -246,6 +247,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         } catch (error) {
             console.error(error);
             return false;
+        } finally {
+            this.reloadPromise = null;
         }
     }
 
