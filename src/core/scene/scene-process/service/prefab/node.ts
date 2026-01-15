@@ -1145,6 +1145,7 @@ class NodeOperation {
     }
 
     public async doApplyPrefab(nodeUUID: string): Promise<IApplyPrefabInfo | null> {
+        await Service.Editor.waitReloading();
         const node = nodeMgr.getNode(nodeUUID);
         if (!node) return null;
 
@@ -1226,6 +1227,7 @@ class NodeOperation {
     }
 
     public async undoApplyPrefab(applyPrefabInfo: IApplyPrefabInfo) {
+        await Service.Editor.waitReloading();
         const node = nodeMgr.getNode(applyPrefabInfo.nodeUUID);
         if (!node) {
             return;
@@ -1537,6 +1539,7 @@ class NodeOperation {
      * @param options
      */
     public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { undo: true, overwrite: true }) {
+        await Service.Editor.waitReloading();
         const node = nodeMgr.getNode(nodeUUID);
         if (!node) {
             return null;
@@ -1671,6 +1674,7 @@ class NodeOperation {
     public async linkNodeWithPrefabAsset(nodeUUID: string | Node, assetUuid: string | any) {
         let node: Node | null = null;
         if (typeof nodeUUID === 'string') {
+            await Service.Editor.waitReloading();
             node = nodeMgr.getNode(nodeUUID);
         } else {
             node = nodeUUID;
@@ -1970,6 +1974,7 @@ class NodeOperation {
     public async revertPrefab(nodeUUID: Node | string) {
         let node: Node | null = null;
         if (typeof nodeUUID === 'string') {
+            await Service.Editor.waitReloading();
             node = nodeMgr.getNode(nodeUUID);
         } else {
             node = nodeUUID;

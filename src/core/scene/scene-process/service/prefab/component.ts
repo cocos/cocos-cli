@@ -156,6 +156,7 @@ class ComponentOperation {
      * @param fileID component的fileID
      */
     public async doApplyRemovedComponent(nodeUUID: string, fileID: string): Promise<null | IRemovedComponentInfo> {
+        await Service.Editor.waitReloading();
         const node = nodeMgr.getNode(nodeUUID);
 
         if (!node) {
@@ -256,6 +257,7 @@ class ComponentOperation {
             return;
         }
 
+        await Service.Editor.waitReloading();
         const node = nodeMgr.getNode(removedCompInfo.nodeUUID);
 
         if (!node) {
@@ -355,6 +357,7 @@ class ComponentOperation {
      * @param fileID component的fileID
      */
     public async revertRemovedComponent(nodeUUID: string, fileID: string) {
+        await Service.Editor.waitReloading();
         const node = nodeMgr.getNode(nodeUUID);
 
         if (!node) {
