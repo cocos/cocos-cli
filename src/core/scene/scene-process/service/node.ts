@@ -63,6 +63,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
         }
+        if (!currentScene.children) {
+            console.log('bf test currentScene.children is null');
+        }
 
         const workMode = params.workMode || '2d';
         // 使用增强的路径处理方法
