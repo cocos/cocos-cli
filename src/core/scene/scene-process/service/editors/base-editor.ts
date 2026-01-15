@@ -77,47 +77,37 @@ export abstract class BaseEditor {
             rejectCurrent = reject;
         });
 
-        // 执行实际的 reload 操作
         try {
-            // 重置待处理标志
-            this._pendingReload = false;
-
-            // 执行 reload
-            const result = await this._doReload();
-
-            // 如果执行期间有新的 reload 请求，基于最新数据重新执行
-            if (this._pendingReload) {
-                // 递归执行，等待最新的结果
-                const latestResult = await this._executeReload();
-                // 解析当前 Promise 为最新结果
-                resolveCurrent!(latestResult);
-                return latestResult;
-            } else {
-                // 没有待处理的请求，返回当前结果并清空 Promise
-                resolveCurrent!(result);
-                this._reloadPromise = null;
-                return result;
-            }
-        } catch (error) {
-            // 如果出错，也要检查是否有待处理的请求
-            if (this._pendingReload) {
+            let result: TEditorEntity | undefined;
+            // 使用循环处理待处理的 reload 请求，避免递归
+            do {
+                // 重置待处理标志
+                this._pendingReload = false;
                 try {
-                    // 尝试执行新的 reload，可能会成功
-                    const latestResult = await this._executeReload();
-                    resolveCurrent!(latestResult);
-                    return latestResult;
-                } catch {
-                    // 如果新的 reload 也失败，抛出原始错误
-                    rejectCurrent!(error);
-                    this._reloadPromise = null;
+                    // 执行 reload
+                    result = await this._doReload();
+                } catch (error) {
+                    // 如果出错，但有新的 reload 请求，则忽略错误继续重试
+                    if (this._pendingReload) {
+                        console.warn('Reload failed, retrying due to pending request:', error);
+                        continue;
+                    }
+                    // 否则抛出错误
                     throw error;
                 }
-            } else {
-                // 没有待处理的请求，抛出错误并清空 Promise
-                rejectCurrent!(error);
-                this._reloadPromise = null;
-                throw error;
+            } while (this._pendingReload);
+
+            if (!result) {
+                throw new Error('Reload returned no result');
             }
+
+            resolveCurrent!(result);
+            return result;
+        } catch (error) {
+            rejectCurrent!(error);
+            throw error;
+        } finally {
+            this._reloadPromise = null;
         }
     }
 

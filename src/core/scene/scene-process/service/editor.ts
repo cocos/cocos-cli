@@ -80,6 +80,10 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? await editor.getRootNodeAsync() : null;
     }
 
+    isReloading(): boolean {
+        return this.reloadPromise !== null;
+    }
+
     async open(params: IOpenOptions): Promise<IScene | INode> {
         const { urlOrUUID } = params;
 

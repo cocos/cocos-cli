@@ -39,7 +39,6 @@ export class PrefabEditor extends BaseEditor {
             identifier,
             instance
         });
-        console.log('bf test editor open', instance);
 
         return this.encode();
     }

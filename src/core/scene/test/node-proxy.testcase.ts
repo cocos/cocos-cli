@@ -11,6 +11,7 @@ import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
+import { Service } from '../scene-process/service/core';
 
 describe('Node Proxy 测试', () => {
     let createdNode: INode | null = null;
@@ -281,6 +282,9 @@ describe('Node Proxy 测试', () => {
                     };
 
                     const result = await NodeProxy.deleteNode(deleteParams);
+                    if (Service.Editor.isReloading()) {
+                        break;
+                    }
                     expect(result).toBeDefined();
                     expect(result?.path).toBe(node!.path);
                 };

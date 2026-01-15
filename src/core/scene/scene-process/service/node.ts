@@ -45,14 +45,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             assetUuid = paramsArray[1]['assetUuid'] || null;
             canvasNeeded = paramsArray[1].canvasRequired ? true : false;
         }
-
-        try {
-            return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
-        } catch (error) {
-            console.error('bf test createNode error', Service.Editor.getRootNode());
-            console.error(error);
-            throw error;
-        }
+        return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
     }
 
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
@@ -61,12 +54,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
         }
         const canvasNeeded = params.canvasRequired || false;
-        try {
-            return await this._createNode(assetUuid, canvasNeeded, false, params);
-        } catch (error) {
-            console.error(error);
-            throw error;
-        }
+        return await this._createNode(assetUuid, canvasNeeded, false, params);
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
@@ -223,6 +211,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         const path = params.path;
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
+            const isReloading = Service.Editor.isReloading();
+            if (isReloading) {
+                console.error(`Failed to delete node, current scene is reloading.`);
+            }
             return null;
         }
 
@@ -262,6 +254,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
+            const isReloading = Service.Editor.isReloading();
+            if (isReloading) {
+                console.error(`Failed to update node, current scene is reloading.`);
+            }
             throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
         }
 
@@ -347,6 +343,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
+            const isReloading = Service.Editor.isReloading();
+            if (isReloading) {
+                console.error(`Failed to query node, current scene is reloading.`);
+            }
             return null;
         }
         return sceneUtils.generateNodeInfo(node, params.queryChildren || false);

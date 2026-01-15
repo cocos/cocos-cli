@@ -76,13 +76,11 @@ export class SceneEditor extends BaseEditor {
         }
         
         const scene = this.entity.instance as Scene;
-        console.log('reload scene start', scene);
         const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(scene);
         const serializeJSON = sceneUtils.serialize(scene);
         const sceneAfterLoad = await sceneUtils.runSceneImmediateByJson(serializeJSON);
         editorPrefabUtils.restorePrefabUUID(sceneAfterLoad, prefabUUIDMap);
         this.entity.instance = sceneAfterLoad;
-        console.log('reload scene end', sceneAfterLoad);
         return this.encode();
     }
 
