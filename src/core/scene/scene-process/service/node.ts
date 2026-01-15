@@ -58,7 +58,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
-        const currentScene = await Service.Editor.getRootNodeAsync();
+        await Service.Editor.waitReloading();
+        const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
         }
@@ -208,13 +209,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
+        await Service.Editor.waitReloading();
         const path = params.path;
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
-            const isReloading = Service.Editor.isReloading();
-            if (isReloading) {
-                console.error(`Failed to delete node, current scene is reloading.`);
-            }
             return null;
         }
 
@@ -252,12 +250,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
+        await Service.Editor.waitReloading();
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
-            const isReloading = Service.Editor.isReloading();
-            if (isReloading) {
-                console.error(`Failed to update node, current scene is reloading.`);
-            }
             throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
         }
 
@@ -341,12 +336,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
+        await Service.Editor.waitReloading();
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
-            const isReloading = Service.Editor.isReloading();
-            if (isReloading) {
-                console.error(`Failed to query node, current scene is reloading.`);
-            }
             return null;
         }
         return sceneUtils.generateNodeInfo(node, params.queryChildren || false);

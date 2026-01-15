@@ -34,9 +34,8 @@ export interface IEditorTarget {
 
 export interface IPublicEditorService extends Omit<IEditorService,
     'getRootNode' |
-    'getRootNodeAsync' |
     'getCurrentEditorType' |
-    'isReloading' |
+    'waitReloading' |
     keyof IServiceEvents
 > {
 
@@ -92,10 +91,6 @@ export interface IEditorService extends IServiceEvents {
      */
     getRootNode(): TEditorInstance | null;
 
-    /**
-     * 获取当前打开的资产（异步，如果正在重载会等待重载完成）
-     */
-    getRootNodeAsync(): Promise<TEditorInstance | null>;
 
-    isReloading(): boolean;
+    waitReloading(): Promise<void>;
 }

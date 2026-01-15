@@ -29,13 +29,6 @@ export abstract class BaseEditor {
         return this.entity ? this.entity.instance : null;
     }
 
-    public async getRootNodeAsync(): Promise<TEditorInstance | null> {
-        if (this._reloadPromise) {
-            await this._reloadPromise;
-        }
-        return this.entity ? this.entity.instance : null;
-    }
-
     public setCurrentOpen(entity: IEditorTarget | null): void {
         this.entity = entity;
     }
