@@ -74,7 +74,6 @@ export class SceneEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('[reload] 没有打开场景');
         }
-        
         const scene = this.entity.instance as Scene;
         const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(scene);
         const serializeJSON = sceneUtils.serialize(scene);
