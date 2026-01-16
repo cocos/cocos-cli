@@ -28,6 +28,38 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     private currentEditorUuid: string | null = null; // 当前打开的编辑器 UUID
     private editorMap: Map<string, SceneEditor | PrefabEditor> = new Map(); // uuid -> editor
 
+    private lockCount = 0;
+    private lockPromise: Promise<void> | null = null;
+    private lockResolve: (() => void) | null = null;
+    private _isReloading = false;
+
+    public async lock() {
+        if (this.reloadPromise) {
+            await this.reloadPromise;
+        }
+        this.lockCount++;
+        if (this.lockCount === 1) {
+            this.lockPromise = new Promise((resolve) => {
+                this.lockResolve = resolve;
+            });
+        }
+    }
+
+    public unlock() {
+        this.lockCount--;
+        if (this.lockCount === 0) {
+            this.lockResolve?.();
+            this.lockPromise = null;
+            this.lockResolve = null;
+        }
+    }
+
+    async waitLocks() {
+        if (this.lockPromise) {
+            await this.lockPromise;
+        }
+    }
+
     /**
      * 当前编辑的类型
      */
@@ -73,12 +105,6 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     getRootNode(): cc.Scene | cc.Node | null {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         return editor ? editor.getRootNode() : null;
-    }
-
-    async waitReloading(): Promise<void> {
-        if (this.reloadPromise) {
-            await this.reloadPromise;
-        }
     }
 
     async open(params: IOpenOptions): Promise<IScene | INode> {
@@ -232,6 +258,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
 
         try {
+            await this.waitLocks();
             this.reloadPromise = editor.reload() as Promise<IScene | INode>;
             await this.reloadPromise;
 

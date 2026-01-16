@@ -31,34 +31,49 @@ const NodeMgr = EditorExtends.Node;
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
     async createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
-        let canvasNeeded = params.canvasRequired || false;
-        const nodeType = params.nodeType as string;
-        const paramsArray = NodeConfig[nodeType];
-        if (!paramsArray || paramsArray.length < 0) {
-            throw new Error(`Node type '${nodeType}' is not implemented`);
+        try {
+            await Service.Editor.lock();
+            let canvasNeeded = params.canvasRequired || false;
+            const nodeType = params.nodeType as string;
+            const paramsArray = NodeConfig[nodeType];
+            if (!paramsArray || paramsArray.length < 0) {
+                throw new Error(`Node type '${nodeType}' is not implemented`);
+            }
+            let assetUuid = paramsArray[0].assetUuid || null;
+            canvasNeeded = paramsArray[0].canvasRequired ? true : false;
+            const projectType = paramsArray[0]['project-type'];
+            const workMode = params.workMode;
+            if (projectType && workMode && projectType !== workMode && paramsArray.length > 1) {
+                assetUuid = paramsArray[1]['assetUuid'] || null;
+                canvasNeeded = paramsArray[1].canvasRequired ? true : false;
+            }
+            return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+        } catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
         }
-        let assetUuid = paramsArray[0].assetUuid || null;
-        canvasNeeded = paramsArray[0].canvasRequired ? true : false;
-        const projectType = paramsArray[0]['project-type'];
-        const workMode = params.workMode;
-        if (projectType && workMode && projectType !== workMode && paramsArray.length > 1) {
-            assetUuid = paramsArray[1]['assetUuid'] || null;
-            canvasNeeded = paramsArray[1].canvasRequired ? true : false;
-        }
-        return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
     }
 
     async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
-        const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
-        if (!assetUuid) {
-            throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
+        try {
+            await Service.Editor.lock();
+             const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
+            if (!assetUuid) {
+                throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
+            }
+            const canvasNeeded = params.canvasRequired || false;
+            return await this._createNode(assetUuid, canvasNeeded, false, params);
+        } catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
         }
-        const canvasNeeded = params.canvasRequired || false;
-        return await this._createNode(assetUuid, canvasNeeded, false, params);
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
-        await Service.Editor.waitReloading();
         const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
@@ -209,37 +224,45 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
-        await Service.Editor.waitReloading();
-        const path = params.path;
-        const node = NodeMgr.getNodeByPath(path);
-        if (!node) {
-            return null;
-        }
-
-        // 发送节点修改消息
-        const parent = node.parent;
-        this.emit('node:before-remove', node);
-        if (parent) {
-            this.emit('node:before-change', parent);
-        }
-
-        node.setParent(null, params.keepWorldTransform);
-        node._objFlags |= CCObject.Flags.Destroyed;
-        // 3.6.1 特殊 hack，请在后续版本移除
-        // 相关修复 pr: https://github.com/cocos/cocos-editor/pull/890
         try {
-            this._walkNode(node, (child: any) => {
-                child._objFlags |= CCObject.Flags.Destroyed;
-            });
-        } catch (error) {
-            console.warn(error);
+            await Service.Editor.lock();
+
+            const path = params.path;
+            const node = NodeMgr.getNodeByPath(path);
+            if (!node) {
+                return null;
+            }
+
+            // 发送节点修改消息
+            const parent = node.parent;
+            this.emit('node:before-remove', node);
+            if (parent) {
+                this.emit('node:before-change', parent);
+            }
+
+            node.setParent(null, params.keepWorldTransform);
+            node._objFlags |= CCObject.Flags.Destroyed;
+            // 3.6.1 特殊 hack，请在后续版本移除
+            // 相关修复 pr: https://github.com/cocos/cocos-editor/pull/890
+            try {
+                this._walkNode(node, (child: any) => {
+                    child._objFlags |= CCObject.Flags.Destroyed;
+                });
+            } catch (error) {
+                console.warn(error);
+            }
+
+            this.emit('node:remove', node);
+
+            return {
+                path: path,
+            };
+        } catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
         }
-
-        this.emit('node:remove', node);
-
-        return {
-            path: path,
-        };
     }
 
     private _walkNode(node: Node, func: Function) {
@@ -250,98 +273,116 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
-        await Service.Editor.waitReloading();
-        const node = NodeMgr.getNodeByPath(params.path);
-        if (!node) {
-            throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
-        }
+        const updateOperate = () => {
+            const node = NodeMgr.getNodeByPath(params.path);
+            if (!node) {
+                throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
+            }
 
-        this.emit('node:before-change', node);
-        // TODO 少了 parent 属性的设置
-        // if (path === 'parent' && node.parent) {
-        //   // 发送节点修改消息
-        //   // this.emit('before-change', node.parent);
-        // }
+            this.emit('node:before-change', node);
+            // TODO 少了 parent 属性的设置
+            // if (path === 'parent' && node.parent) {
+            //   // 发送节点修改消息
+            //   // this.emit('before-change', node.parent);
+            // }
 
-        if (params.name && params.name !== node.name) {
-            NodeMgr.updateNodeName(node.uuid, params.name);
-        }
-        // TODO 这里需要按照 3x 用 setProperty 的方式去赋值，因为 prefab 那边需要 path
-        const paths: string[] = [];
-        if (params.properties) {
-            const options = params.properties;
-            if (options.active !== undefined) {
-                node.active = options.active;
-                paths.push('active');
+            if (params.name && params.name !== node.name) {
+                NodeMgr.updateNodeName(node.uuid, params.name);
             }
-            if (options.position) {
-                node.setPosition(options.position as Vec3);
-                paths.push('position');
+            // TODO 这里需要按照 3x 用 setProperty 的方式去赋值，因为 prefab 那边需要 path
+            const paths: string[] = [];
+            if (params.properties) {
+                const options = params.properties;
+                if (options.active !== undefined) {
+                    node.active = options.active;
+                    paths.push('active');
+                }
+                if (options.position) {
+                    node.setPosition(options.position as Vec3);
+                    paths.push('position');
+                }
+                // if (options.worldPosition) {
+                //     node.setWorldPosition(options.worldPosition as Vec3);
+                // }
+                if (options.rotation) {
+                    node.rotation = options.rotation as Quat;
+                    paths.push('rotation');
+                }
+                // if (options.worldRotation) {
+                //     node.worldRotation = options.worldRotation as Quat;
+                // }
+                if (options.eulerAngles) {
+                    node.eulerAngles = options.eulerAngles as Vec3;
+                    paths.push('eulerAngles');
+                }
+                // if (options.angle) {
+                //     node.angle = options.angle;
+                // }
+                if (options.scale) {
+                    node.scale = options.scale as Vec3;
+                    paths.push('scale');
+                }
+                // if (options.worldScale) {
+                //     node.worldScale = options.worldScale as Vec3;
+                // }
+                // if (options.forward) {
+                //     node.forward = options.forward as Vec3;
+                // }
+                if (options.mobility) {
+                    node.mobility = options.mobility;
+                    paths.push('mobility');
+                }
+                if (options.layer) {
+                    node.layer = options.layer;
+                    paths.push('layer');
+                }
+                // if (options.hasChangedFlags) {
+                //     node.hasChangedFlags = options.hasChangedFlags;
+                // }
             }
-            // if (options.worldPosition) {
-            //     node.setWorldPosition(options.worldPosition as Vec3);
-            // }
-            if (options.rotation) {
-                node.rotation = options.rotation as Quat;
-                paths.push('rotation');
-            }
-            // if (options.worldRotation) {
-            //     node.worldRotation = options.worldRotation as Quat;
-            // }
-            if (options.eulerAngles) {
-                node.eulerAngles = options.eulerAngles as Vec3;
-                paths.push('eulerAngles');
-            }
-            // if (options.angle) {
-            //     node.angle = options.angle;
-            // }
-            if (options.scale) {
-                node.scale = options.scale as Vec3;
-                paths.push('scale');
-            }
-            // if (options.worldScale) {
-            //     node.worldScale = options.worldScale as Vec3;
-            // }
-            // if (options.forward) {
-            //     node.forward = options.forward as Vec3;
-            // }
-            if (options.mobility) {
-                node.mobility = options.mobility;
-                paths.push('mobility');
-            }
-            if (options.layer) {
-                node.layer = options.layer;
-                paths.push('layer');
-            }
-            // if (options.hasChangedFlags) {
-            //     node.hasChangedFlags = options.hasChangedFlags;
-            // }
-        }
 
-        const info = {
-            path: NodeMgr.getNodePath(node),
+            const info = {
+                path: NodeMgr.getNodePath(node),
+            };
+
+            for (const path of paths) {
+                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: path });
+            }
+
+            // TODO 少了 parent 属性的设置
+            // 改变父子关系
+            // if (path === 'parent' && node.parent) {
+            //     // 发送节点修改消息
+            //     this.emit('change', node.parent, { type: NodeOperationType.SET_PROPERTY, propPath: 'children', record: record });
+            // }
+            return info;
         };
 
-        for (const path of paths) {
-            this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: path });
+        try {
+            await Service.Editor.lock();
+            return updateOperate();
+        } catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
         }
-
-        // TODO 少了 parent 属性的设置
-        // 改变父子关系
-        // if (path === 'parent' && node.parent) {
-        //     // 发送节点修改消息
-        //     this.emit('change', node.parent, { type: NodeOperationType.SET_PROPERTY, propPath: 'children', record: record });
-        // }
-        return info;
     }
 
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
-        await Service.Editor.waitReloading();
-        const node = NodeMgr.getNodeByPath(params.path);
-        if (!node) {
-            return null;
+        try {
+            await Service.Editor.lock();
+            const node = NodeMgr.getNodeByPath(params.path);
+            if (!node) {
+                return null;
+            }
+            return sceneUtils.generateNodeInfo(node, params.queryChildren || false);
+        }   catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
         }
-        return sceneUtils.generateNodeInfo(node, params.queryChildren || false);
     }
 
     /**
