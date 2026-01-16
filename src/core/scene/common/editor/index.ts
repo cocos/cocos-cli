@@ -35,7 +35,6 @@ export interface IEditorTarget {
 export interface IPublicEditorService extends Omit<IEditorService,
     'getRootNode' |
     'getCurrentEditorType' |
-    'waitReloading' |
     keyof IServiceEvents
 > {
 
@@ -90,7 +89,4 @@ export interface IEditorService extends IServiceEvents {
      *
      */
     getRootNode(): TEditorInstance | null;
-
-
-    waitReloading(): Promise<void>;
 }

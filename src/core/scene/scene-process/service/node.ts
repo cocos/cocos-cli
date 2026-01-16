@@ -45,6 +45,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             assetUuid = paramsArray[1]['assetUuid'] || null;
             canvasNeeded = paramsArray[1].canvasRequired ? true : false;
         }
+
         return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
     }
 
@@ -58,7 +59,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
-        await Service.Editor.waitReloading();
         const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
@@ -66,7 +66,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
         const workMode = params.workMode || '2d';
         // 使用增强的路径处理方法
-        let parent = await this._getOrCreateNodeByPath(params.path, currentScene);
+        let parent = await this._getOrCreateNodeByPath(params.path);
         if (!parent) {
             parent = currentScene;
         }
@@ -110,7 +110,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
          * 新节点的 layer 跟随父级节点，但父级节点为场景根节点除外
          * parent.layer 可能为 0 （界面下拉框为 None），此情况下新节点不跟随
          */
-        if (parent && parent.layer && parent !== currentScene) {
+        if (parent && parent.layer && parent !== Service.Editor.getRootNode()) {
             setLayer(resultNode, parent.layer, true);
         }
 
@@ -144,7 +144,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     /**
      * 获取或创建路径节点
      */
-    private async _getOrCreateNodeByPath(path: string | undefined, currentScene: Node): Promise<Node | null> {
+    private async _getOrCreateNodeByPath(path: string | undefined): Promise<Node | null> {
         if (!path) {
             return null;
         }
@@ -156,17 +156,18 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         // 如果不存在，则创建路径
-        return await this._ensurePathExists(path, currentScene);
+        return await this._ensurePathExists(path);
     }
 
     /**
      * 确保路径存在，如果不存在则创建空节点
      */
-    private async _ensurePathExists(path: string | undefined, currentScene: Node): Promise<Node | null> {
+    private async _ensurePathExists(path: string | undefined): Promise<Node | null> {
         if (!path) {
             return null;
         }
 
+        const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             return null;
         }
@@ -209,7 +210,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
-        await Service.Editor.waitReloading();
         const path = params.path;
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
@@ -250,7 +250,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
-        await Service.Editor.waitReloading();
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
             throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
@@ -336,7 +335,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
-        await Service.Editor.waitReloading();
         const node = NodeMgr.getNodeByPath(params.path);
         if (!node) {
             return null;
