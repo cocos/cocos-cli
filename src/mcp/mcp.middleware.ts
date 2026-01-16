@@ -22,7 +22,7 @@ export class McpMiddleware {
         this.builderHook = new BuilderHook();
         // 创建 MCP server
         this.server = new McpServer({
-            name: 'cocos-cli-mcp-server',
+            name: 'cocos-cli',
             version: pkgJson.version || '0.0.0',
         }, {
             capabilities: {
