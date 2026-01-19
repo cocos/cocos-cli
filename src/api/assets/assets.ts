@@ -89,7 +89,7 @@ export class AssetsApi {
     @title('Delete Project Asset') // 删除项目资源
     @description('Delete specified asset files from the Cocos Creator project. Supports deleting single files or entire directories. Deleted assets will be removed from the asset database, and corresponding .meta files will also be deleted. The deletion operation is irreversible, please use with caution.') // 从 Cocos Creator 项目中删除指定的资源文件。支持删除单个文件或整个目录。删除的资源会从资源数据库中移除，同时删除对应的 .meta 文件。删除操作不可逆，请谨慎使用。
     @result(SchemaDbDirResult)
-    async deleteAsset(@param(SchemaUrlOrPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
+    async deleteAsset(@param(SchemaDirOrDbPath) dbPath: TDirOrDbPath): Promise<CommonResultType<TDbDirResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TDbDirResult> = {
             code: code,
@@ -114,7 +114,7 @@ export class AssetsApi {
     @title('Refresh Asset Directory') // 刷新资源目录
     @description('Refresh the specified asset directory in the Cocos Creator project, rescan all asset files in the directory, and update the asset database index. This method needs to be called to synchronize the asset status when asset files are modified externally or new files are added.') // 刷新 Cocos Creator 项目中的指定资源目录，重新扫描目录下的所有资源文件，更新资源数据库索引。当外部修改了资源文件或添加了新文件时，需要调用此方法同步资源状态。
     @result(SchemaRefreshDirResult)
-    async refresh(@param(SchemaUrlOrPath) dir: TDirOrDbPath): Promise<CommonResultType<TRefreshDirResult>> {
+    async refresh(@param(SchemaDirOrDbPath) dir: TDirOrDbPath): Promise<CommonResultType<TRefreshDirResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TRefreshDirResult> = {
             code: code,
@@ -273,7 +273,7 @@ export class AssetsApi {
     @result(SchemaCreatedAssetResult)
     async createAssetByType(
         @param(SchemaSupportCreateType) ccType: TSupportCreateType,
-        @param(SchemaUrlOrPath) dirOrUrl: TDirOrDbPath,
+        @param(SchemaDirOrDbPath) dirOrUrl: TDirOrDbPath,
         @param(SchemaBaseName) baseName: TBaseName,
         @param(SchemaCreateAssetByTypeOptions) options?: TCreateAssetByTypeOptions
     ): Promise<CommonResultType<TCreatedAssetResult>> {
@@ -566,8 +566,8 @@ export class AssetsApi {
     @description('Rename the specified asset file. Supports renaming files and folders, with options to overwrite or automatically rename.') // 重命名指定的资源文件。支持重命名文件和文件夹，可选择是否覆盖或自动重命名。
     @result(SchemaAssetInfoResult)
     async renameAsset(
-        @param(SchemaUrlOrPath) source: TDirOrDbPath,
-        @param(SchemaUrlOrPath) target: TDirOrDbPath,
+        @param(SchemaDirOrDbPath) source: TDirOrDbPath,
+        @param(SchemaDirOrDbPath) target: TDirOrDbPath,
         @param(SchemaAssetRenameOptions) options: TAssetRenameOptions = {}
     ): Promise<CommonResultType<TAssetInfoResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -595,8 +595,8 @@ export class AssetsApi {
     @description('Move assets from the source location to the target location. Supports moving files and folders, with options to overwrite or automatically rename.') // 将资源从源位置移动到目标位置。支持移动文件和文件夹，可选择是否覆盖或自动重命名。
     @result(SchemaAssetInfoResult)
     async moveAsset(
-        @param(SchemaUrlOrPath) source: TDirOrDbPath,
-        @param(SchemaUrlOrPath) target: TDirOrDbPath,
+        @param(SchemaDirOrDbPath) source: TDirOrDbPath,
+        @param(SchemaDirOrDbPath) target: TDirOrDbPath,
         @param(SchemaAssetMoveOptions) options: TAssetMoveOptions = {}
     ): Promise<CommonResultType<TAssetInfoResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
