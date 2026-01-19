@@ -203,7 +203,7 @@ export const SchemaUpdateUserDataOptions = z.object({
 // Independent parameter Schema for updating default user data // 更新默认用户数据的独立参数 Schema
 export const SchemaUserDataHandler = z.string().min(1).describe('Asset handler name'); // 资源处理器名称
 
-export type TDirOrDbPath = z.infer<typeof SchemaUrlOrPath>;
+export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
 export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
