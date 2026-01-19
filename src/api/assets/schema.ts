@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
-import { SchemaUrlOrUUIDOrPath } from '../base/schema-identifier';
+import { SchemaUrlOrUUID, SchemaUUIDOrPath, SchemaUrlOrUUIDOrPath, SchemaUrlOrPath } from '../base/schema-identifier';
 
 export { SchemaUrlOrUUIDOrPath };
 
@@ -203,10 +203,13 @@ export const SchemaUpdateUserDataOptions = z.object({
 // Independent parameter Schema for updating default user data // 更新默认用户数据的独立参数 Schema
 export const SchemaUserDataHandler = z.string().min(1).describe('Asset handler name'); // 资源处理器名称
 
-export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
+export type TDirOrDbPath = z.infer<typeof SchemaUrlOrPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
 export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
+export type TUUIDOrPath = z.infer<typeof SchemaUUIDOrPath>;
+export type TUrlOrUUID = z.infer<typeof SchemaUrlOrUUID>;
+export type TUrlOrPath = z.infer<typeof SchemaUrlOrPath>;
 export type TDataKeys = z.infer<typeof SchemaDataKeys>;
 export type TQueryAssetsOption = z.infer<typeof SchemaQueryAssetsOption> | undefined;
 export type TSupportCreateType = z.infer<typeof SchemaSupportCreateType>;

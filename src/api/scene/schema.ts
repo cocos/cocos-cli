@@ -4,7 +4,7 @@ import { SchemaNode, SchemaNodeQueryResult } from './node-schema';
 import { SchemaSceneIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaSaveAssetResult } from '../assets/schema';
 import { SchemaPrefabInfo } from './prefab-info-schema';
-import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
+import { SchemaUrlOrUUID } from '../base/schema-identifier';
 
 const SchemaScene = SchemaSceneIdentifier.extend({
     name: z.string().describe('Scene/Prefab Name'), // 场景/预制体名称
@@ -31,7 +31,7 @@ export const SchemaCreateOptions = z.object({
 
 export const SchemaCreateResult = SchemaSceneIdentifier.describe('Create Scene/Prefab Result Info'); // 创建场景/预制体操作的结果信息
 
-export type TAssetUrlOrUUID = z.infer<typeof SchemaAssetUrlOrUUID>;
+export type TAssetUrlOrUUID = z.infer<typeof SchemaUrlOrUUID>;
 export type TCurrentResult = z.infer<typeof SchemaCurrentResult>;
 export type TOpenResult = z.infer<typeof SchemaOpenResult>;
 export type TCloseResult = z.infer<typeof SchemaCloseResult>;
