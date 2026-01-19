@@ -566,8 +566,8 @@ export class AssetsApi {
     @description('Rename the specified asset file. Supports renaming files and folders, with options to overwrite or automatically rename.') // 重命名指定的资源文件。支持重命名文件和文件夹，可选择是否覆盖或自动重命名。
     @result(SchemaAssetInfoResult)
     async renameAsset(
-        @param(SchemaDirOrDbPath) source: TDirOrDbPath,
-        @param(SchemaDirOrDbPath) target: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath,
         @param(SchemaAssetRenameOptions) options: TAssetRenameOptions = {}
     ): Promise<CommonResultType<TAssetInfoResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -595,8 +595,8 @@ export class AssetsApi {
     @description('Move assets from the source location to the target location. Supports moving files and folders, with options to overwrite or automatically rename.') // 将资源从源位置移动到目标位置。支持移动文件和文件夹，可选择是否覆盖或自动重命名。
     @result(SchemaAssetInfoResult)
     async moveAsset(
-        @param(SchemaDirOrDbPath) source: TDirOrDbPath,
-        @param(SchemaDirOrDbPath) target: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath,
         @param(SchemaAssetMoveOptions) options: TAssetMoveOptions = {}
     ): Promise<CommonResultType<TAssetInfoResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
