@@ -70,22 +70,38 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
-        return await this.addComponentImpl(params.nodePath, params.component);
+        try {
+            await Service.Editor.lock();
+            return await this.addComponentImpl(params.nodePath, params.component);
+        } catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
+        }
     }
 
     async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
-        const comp = compMgr.queryFromPath(params.path);
-        if (!comp) {
-            throw new Error(`Remove component failed: ${params.path} does not exist`);
+        try {
+            await Service.Editor.lock();
+            const comp = compMgr.queryFromPath(params.path);
+            if (!comp) {
+                throw new Error(`Remove component failed: ${params.path} does not exist`);
+            }
+
+            this.emit('component:before-remove', comp);
+            const result = compMgr.removeComponent(comp);
+            // 需要立刻执行removeComponent操作，否则会延迟到下一帧
+            cc.Object._deferredDestroy();
+            this.emit('component:remove', comp);
+
+            return result;
+        } catch(error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
         }
-
-        this.emit('component:before-remove', comp);
-        const result = compMgr.removeComponent(comp);
-        // 需要立刻执行removeComponent操作，否则会延迟到下一帧
-        cc.Object._deferredDestroy();
-        this.emit('component:remove', comp);
-
-        return result;
     }
 
     async queryComponent(params: IQueryComponentOptions): Promise<IComponent | null> {
@@ -98,7 +114,15 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
-        return this.setPropertyImp(options);
+        try {
+            await Service.Editor.lock();
+            return this.setPropertyImp(options);
+        } catch(error) { 
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
+        }
     }
 
     private async setPropertyImp(options: ISetPropertyOptions): Promise<boolean> {
