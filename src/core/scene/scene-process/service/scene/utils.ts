@@ -1,5 +1,6 @@
-import cc from 'cc';
+import cc, { Component } from 'cc';
 import {
+    IComponent,
     IComponentIdentifier,
     IMountedChildrenInfo,
     IMountedComponentsInfo,
@@ -14,6 +15,7 @@ import {
 } from '../../../common';
 import compMgr from '../component/index';
 import { prefabUtils } from '../prefab/utils';
+import dumpUtil from '../dump';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -185,7 +187,7 @@ class SceneUtil {
      * @param node
      * @param generateChildren
      */
-    generateNodeInfo(node: cc.Node, generateChildren: boolean): INode {
+    generateNodeInfo(node: cc.Node, generateChildren: boolean, generateComponent = false): INode {
         const identifier = this.generateNodeIdentifier(node);
         const nodeInfo: INode = {
             ...identifier,
@@ -204,7 +206,16 @@ class SceneUtil {
         if (node.components) {
             nodeInfo.components = node.components
                 .map((component: cc.Component) => {
-                    return this.generateComponentInfo(component);
+                    if (generateComponent) {
+                        const path = compMgr.getPathFromUuid(component.uuid);
+                        if (!path) throw Error('can not find component:`${component.uuid}`');
+                        const comp = compMgr.queryFromPath(path);
+                        if (!comp) throw Error('can not find component path: `${path}`');
+                        return dumpUtil.dumpComponent(comp as Component);
+                    } else {
+                        const obj = this.generateComponentInfo(component) as IComponent;
+                        return obj;
+                    }
                 });
         }
         if (generateChildren) {
@@ -212,7 +223,7 @@ class SceneUtil {
                 if (!nodeInfo.children) {
                     nodeInfo.children = [];
                 }
-                nodeInfo.children.push(this.generateNodeInfo(child, true));
+                nodeInfo.children.push(this.generateNodeInfo(child, true, false));
             });
         }
         return nodeInfo;

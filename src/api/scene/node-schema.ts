@@ -6,6 +6,7 @@ import { SchemaQuat, SchemaVec3 } from '../base/schema-value-types';
 import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaPrefabInfo } from './prefab-info-schema';
 import { SchemaUrl } from '../base/schema-identifier';
+import { SchemaComponent } from './component-schema';
 
 // 节点属性的 schema，
 export const SchemaNodeProperty = z.object({
@@ -28,11 +29,16 @@ export const SchemaNodeProperty = z.object({
     // activeInHierarchy: z.boolean().readonly().describe('节点在场景中是否激活'),
 });
 
+export const SchemaComponentOrDetail = z.union([
+    SchemaComponent,
+    SchemaComponentIdentifier
+]).describe('components on the node'); // 节点上的组件信息
+
 export const SchemaNode: z.ZodType<INode> = SchemaNodeIdentifier.extend({
     properties: SchemaNodeProperty.describe('Node properties'), // 节点属性
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab information'), // 预制体信息
     children: z.array(z.lazy(() => SchemaNode)).default([]).describe('List of child nodes'), // 子节点列表
-    components: z.array(SchemaComponentIdentifier).default([]).describe('List of components on the node'), // 节点上的组件列表
+    components: z.array(SchemaComponentOrDetail).default([]).describe('List of components on the node'), // 节点上的组件列表
 });
 
 // 查询节点的参数
@@ -45,6 +51,7 @@ export const SchemaNodeSearch = SchemaNodeIdentifier.extend({
 export const SchemaNodeQuery = z.object({
     path: z.string().describe('Node path'), // 节点路径
     queryChildren: z.boolean().default(false).describe('Whether to query child node information'), // 是否查询子节点信息
+    queryComponent: z.boolean().default(false).describe('Whether to query component`s information, the child component only returns concise information.'), // 是否查询组件信息,子节点只返回简易的信息
 }).describe('Query options for nodes, the result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的结果

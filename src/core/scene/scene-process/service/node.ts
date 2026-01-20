@@ -376,7 +376,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             if (!node) {
                 return null;
             }
-            return sceneUtils.generateNodeInfo(node, params.queryChildren || false);
+            return sceneUtils.generateNodeInfo(node, !!params.queryChildren, !!params.queryComponent);
         }   catch(error) {
             console.error(error);
             throw error;
