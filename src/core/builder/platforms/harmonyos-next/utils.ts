@@ -11,55 +11,36 @@ export async function generateOptions(options: IHarmonyOSNextInternalBuildOption
     const ohos = options.packages['harmonyos-next'];
     ohos.orientation = ohos.orientation || {};
     if(!ohos.sdkPath) {
-        ohos.sdkPath = process.env.OHOS_HOME || process.env.OHOS_SDK_ROOT || '';
-            
-        // 尝试默认路径 (Windows)
-        if (!ohos.sdkPath && process.platform === 'win32') {
-            const localAppData = process.env.LOCALAPPDATA;
-            if (localAppData) {
-                const defaultSdkPath = join(localAppData, 'Huawei', 'Sdk');
-                if (existsSync(defaultSdkPath)) {
-                    ohos.sdkPath = defaultSdkPath;
-                    console.log(`[HarmonyOS Next] Auto-detected SDK at: ${ohos.sdkPath}`);
-                }
-            }
-        }
-        // 尝试默认路径 (Mac)
-        if (!ohos.sdkPath && process.platform === 'darwin') {
-            const home = process.env.HOME;
-            if (home) {
-                const defaultSdkPath = join(home, 'Library', 'Huawei', 'sdk');
-                if (existsSync(defaultSdkPath)) {
-                    ohos.sdkPath = defaultSdkPath;
-                    console.log(`[HarmonyOS Next] Auto-detected SDK at: ${ohos.sdkPath}`);
-                }
-            }
-        }
+        ohos.sdkPath = process.env.HARMONYOS_NEXT_HOME || process.env.HARMONYOS_NEXT_SDK_ROOT || '';
+        //TODO:sdk目录和NDK目录都是在软件安装目录下的，目前暂时不支持自动检测软件位置的功能
     }
-    if (ohos.sdkPath && !process.env.ANDROID_HOME) {
+    if (ohos.sdkPath && !process.env.HARMONYOS_NEXT_HOME) {
         console.log(`[HarmonyOS Next] Using SDK at: ${ohos.sdkPath}`);
     }
 
     if (!ohos.ndkPath) {
-        ohos.ndkPath = process.env.ANDROID_NDK_HOME || process.env.NDK_ROOT || '';
-        
-        // 如果有了 SDK 路径但没有 NDK 路径，尝试在 SDK/ndk 下查找
+        ohos.ndkPath = process.env.HARMONYOS_NEXT_NDK_ROOT || '';
+        // 如果有了 SDK 路径但没有 NDK 路径，尝试在 SDK/native 下查找
         if (!ohos.ndkPath && ohos.sdkPath) {
-            // 目前只支持这个版本
-            const ndkPath = join(ohos.sdkPath, 'ndk', '2.1.1.21');
+            // ndk和sdk是绑定的，不需要指定ndk的版本
+            const ndkPath = join(ohos.sdkPath, 'native');
             if (existsSync(ndkPath)) {
                 ohos.ndkPath = ndkPath;
                 console.log(`[HarmonyOS Next] Auto-detected NDK at: ${ohos.ndkPath}`);
             }
         }
     }
-    if (ohos.ndkPath && !process.env.ANDROID_HOME) {
+    if (ohos.ndkPath && !process.env.HARMONYOS_NEXT_HOME) {
         console.log(`[HarmonyOS Next] Using NDK at: ${ohos.ndkPath}`);
     }
 
     ohos.sdkPath = ohos.sdkPath || '';
     ohos.ndkPath = ohos.ndkPath || '';
 
+    if(ohos.sdkPath === '' || ohos.ndkPath === '') {
+        console.log('[HarmonyOS Next] The SDK or NDK is not configured.');
+    }
+    console.log(`[HarmonyOS Next] Using SDK at: ${ohos.sdkPath}, Using NDK at: ${ohos.ndkPath}`);
     return ohos;
 }
 
