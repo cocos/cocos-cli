@@ -2,6 +2,7 @@ import { IScene } from './scene';
 import type { Node, Scene } from 'cc';
 import type { INode } from '../node';
 import type { ICloseOptions, ICreateOptions, IOpenOptions, IReloadOptions, ISaveOptions } from './options';
+import { ReloadResult } from './type';
 import { IAssetInfo } from '../../../assets/@types/public';
 import { IBaseIdentifier } from './base';
 import { IServiceEvents } from '../../scene-process/service/core';
@@ -69,7 +70,7 @@ export interface IEditorService extends IServiceEvents {
      * 重载资产
      * @param params
      */
-    reload(params: IReloadOptions): Promise<boolean>;
+    reload(params: IReloadOptions): Promise<ReloadResult>;
 
     /**
      * 创建新资产

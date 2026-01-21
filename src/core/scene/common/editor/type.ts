@@ -9,3 +9,15 @@ export type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
  */
 export const CREATE_TYPES = ['scene', 'prefab'] as const;
 export type ICreateType = typeof CREATE_TYPES[number];
+
+/**
+ * 重载结果
+ */
+export enum ReloadResult {
+    SUCCESS = 0,
+    FAILED = 1,
+    QUEUED = 2,
+    NO_EDITOR = 3,
+    ASSET_NOT_FOUND = 4,
+    EDITOR_NOT_FOUND = 5,
+}

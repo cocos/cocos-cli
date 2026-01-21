@@ -1,4 +1,5 @@
 import { AssetsTestContext, generateTestId, setupAssetsTestEnvironment, teardownAssetsTestEnvironment } from '../../helpers/test-utils';
+import { ReloadResult } from '../../../src/core/scene/common/editor/type';
 
 /**
  * 测试打开预制体文件后，使用场景 API 对预制体内部进行操作
@@ -233,7 +234,7 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
                 // 2. 重新加载预制体
                 const result = await context.mcpClient.callTool('scene-reload', {});
 
-                expect(result.data).toBe(true);
+                expect(result.data).toBe(ReloadResult.SUCCESS); // ReloadResult.SUCCESS
                 expect(result.code).toBe(200);
             });
 
@@ -242,7 +243,7 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
                 const result = await context.mcpClient.callTool('scene-reload', {});
 
-                expect(result.data).toBe(false);
+                expect(result.data).toBe(ReloadResult.NO_EDITOR); // ReloadResult.NO_EDITOR
                 expect(result.code).toBe(200);
             });
         });

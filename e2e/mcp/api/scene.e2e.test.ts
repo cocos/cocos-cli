@@ -1,4 +1,5 @@
 import { AssetsTestContext, generateTestId, setupAssetsTestEnvironment, teardownAssetsTestEnvironment } from '../../helpers/test-utils';
+import { ReloadResult } from '../../../src/core/scene/common/editor/type';
 
 describe('MCP Scene API', () => {
     let context: AssetsTestContext;
@@ -386,7 +387,7 @@ describe('MCP Scene API', () => {
 
                 // 5. 重新加载场景
                 const reloadResult = await context.mcpClient.callTool('scene-reload', {});
-                expect(reloadResult.data).toBe(true);
+                expect(reloadResult.data).toBe(ReloadResult.SUCCESS);
                 expect(reloadResult.code).toBe(200);
 
                 // 6. 关闭场景
