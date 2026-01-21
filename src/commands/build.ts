@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { BaseCommand, CommandUtils } from './base';
 import { IBuildCommandOption, BuildExitCode } from '../core/builder/@types/protected';
 import { existsSync, readJSONSync } from 'fs-extra';
+import { openImageAsset } from '../core/assets/asset-handler/assets/image/utils';
 
 /**
  * Build 命令类
@@ -35,25 +36,49 @@ export class BuildCommand extends BaseCommand {
                         delete options.buildConfig;
                     }
 
-                    // 处理 Android 平台特定的命令行参数
-                    if (options.platform === 'android') {
-                        if (options.ndkPath || options.sdkPath) {
-                            if (!options.packages) {
-                                options.packages = {};
-                            }
-                            if (!options.packages.android) {
-                                options.packages.android = {};
-                            }
-                            // 命令行指定的 ndkPath 覆盖配置文件中的值
-                            if (options.ndkPath) {
+                    // 处理 SDK\NDK 参数
+                    if(options.sdkPath || options.ndkPath) {
+                        if (!options.packages) {
+                            options.packages = {};
+                        }
+                        if(options.ndkPath) {
+                            if (options.platform === 'android') {
+                                if (!options.packages.android) {
+                                    options.packages.android = {};
+                                }
                                 options.packages.android.ndkPath = options.ndkPath;
-                                delete options.ndkPath; // 清理，避免传递到其他地方
-                            }
-                            // 命令行指定的 sdkPath 覆盖配置文件中的值
-                            if (options.sdkPath) {
+                            } else if(options.platform === 'ohos') {
+                                if (!options.packages.ohos) {
+                                    options.packages.ohos = {};
+                                }
+                                options.packages.ohos.ndkPath = options.ndkPath;
+                            } else if(options.platform === 'harmonyos-next') {
+                                if (!options.packages['harmonyos-next']) {
+                                    options.packages['harmonyos-next'] = {};
+                                }
+                                options.packages['harmonyos-next'].ndkPath = options.ndkPath;
+                            } 
+                            delete options.ndkPath; // 清理，避免传递到其他地方
+                        }
+                        
+                        if(options.sdkPath) {
+                            if (options.platform === 'android') {
+                                if (!options.packages.android) {
+                                    options.packages.android = {};
+                                }
                                 options.packages.android.sdkPath = options.sdkPath;
-                                delete options.sdkPath; // 清理，避免传递到其他地方
+                            } else if(options.platform === 'ohos') {
+                                if (!options.packages.ohos) {
+                                    options.packages.ohos = {};
+                                }
+                                options.packages.ohos.sdkPath = options.sdkPath;
+                            } else if(options.platform === 'harmonyos-next') {
+                                if (!options.packages['harmonyos-next']) {
+                                    options.packages['harmonyos-next'] = {};
+                                }
+                                options.packages['harmonyos-next'].sdkPath = options.sdkPath;
                             }
+                            delete options.sdkPath; // 清理，避免传递到其他地方
                         }
                     }
                     

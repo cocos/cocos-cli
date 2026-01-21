@@ -15,7 +15,7 @@ import {
     TReload,
     TSaveResult,
 } from './schema';
-import { SchemaAssetUrlOrUUID } from '../base/schema-identifier';
+import { SchemaUrlOrUUID } from '../base/schema-identifier';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
@@ -58,7 +58,7 @@ export class SceneApi {
     @title('Open scene/prefab') // 打开场景/预制体
     @description('Open specified scene/prefab asset.') // 打开指定场景/预制体资源。
     @result(SchemaOpenResult)
-    async open(@param(SchemaAssetUrlOrUUID) dbURLOrUUID: TAssetUrlOrUUID): Promise<CommonResultType<TOpenResult>> {
+    async open(@param(SchemaUrlOrUUID) dbURLOrUUID: TAssetUrlOrUUID): Promise<CommonResultType<TOpenResult>> {
         try {
             const data = await Scene.open({ urlOrUUID: dbURLOrUUID });
             return {

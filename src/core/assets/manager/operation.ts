@@ -79,7 +79,7 @@ class AssetOperation extends EventEmitter {
     async saveAsset(uuidOrURLOrPath: string, content: string | Buffer) {
         const asset = assetQuery.queryAsset(uuidOrURLOrPath);
         if (!asset) {
-            throw new Error(`${i18n.t('assets.save_asset.fail.asset')}`);
+            throw new Error(`${i18n.t('assets.save_asset.fail.asset', { asset: uuidOrURLOrPath })}`);
         }
         if (asset._assetDB.options.readonly) {
             throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);

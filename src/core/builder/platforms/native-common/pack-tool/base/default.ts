@@ -9,7 +9,7 @@ const xxtea = require('xxtea-node');
 
 const PackageNewConfig = 'cocos-project-template.json';
 
-export type InternalNativePlatform = 'mac' | 'android' | 'windows' | 'ios';
+export type InternalNativePlatform = 'mac' | 'android' | 'windows' | 'ios' | 'ohos' | 'harmonyos-next';
 
 const ErrorCodeIncompatible = 15004;
 

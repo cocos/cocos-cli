@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
-import { SchemaUrlOrUUIDOrPath } from '../base/schema-identifier';
+import { SchemaUrlOrUUID, SchemaUUIDOrPath, SchemaUrlOrUUIDOrPath, SchemaUrlOrPath } from '../base/schema-identifier';
 
 export { SchemaUrlOrUUIDOrPath };
 
@@ -207,6 +207,9 @@ export type TDirOrDbPath = z.infer<typeof SchemaDirOrDbPath>;
 export type TBaseName = z.infer<typeof SchemaBaseName>;
 export type TDbDirResult = z.infer<typeof SchemaDbDirResult>;
 export type TUrlOrUUIDOrPath = z.infer<typeof SchemaUrlOrUUIDOrPath>;
+export type TUUIDOrPath = z.infer<typeof SchemaUUIDOrPath>;
+export type TUrlOrUUID = z.infer<typeof SchemaUrlOrUUID>;
+export type TUrlOrPath = z.infer<typeof SchemaUrlOrPath>;
 export type TDataKeys = z.infer<typeof SchemaDataKeys>;
 export type TQueryAssetsOption = z.infer<typeof SchemaQueryAssetsOption> | undefined;
 export type TSupportCreateType = z.infer<typeof SchemaSupportCreateType>;

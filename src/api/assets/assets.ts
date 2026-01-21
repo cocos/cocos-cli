@@ -68,13 +68,17 @@ import {
     TUpdateAssetUserDataValue,
     TUpdateAssetUserDataResult,
     SchemaAssetConfigMapResult,
-    TAssetConfigMapResult
+    TAssetConfigMapResult,
+    TUUIDOrPath,
+    TUrlOrUUID,
+    TUrlOrPath,
 } from './schema';
 import { z } from 'zod';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
 import { assetDBManager, assetManager } from '../../core/assets';
 import { IAssetInfo } from '../../core/assets/@types/public';
+import { SchemaUrlOrPath, SchemaUrlOrUUID, SchemaUUIDOrPath } from '../base/schema-identifier';
 
 export class AssetsApi {
 
@@ -403,7 +407,7 @@ export class AssetsApi {
     @title('Query Asset UUID') // 查询资源 UUID
     @description('Query the unique identifier UUID of an asset based on its URL or file path. Supports db:// protocol paths and file system paths.') // 根据资源的 URL 或文件路径查询资源的唯一标识符 UUID。支持 db:// 协议路径和文件系统路径。
     @result(SchemaUUIDResult)
-    async queryUUID(@param(SchemaUrlOrUUIDOrPath) urlOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TUUIDResult>> {
+    async queryUUID(@param(SchemaUrlOrPath) urlOrPath: TUrlOrPath): Promise<CommonResultType<TUUIDResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TUUIDResult> = {
             code: code,
@@ -428,7 +432,7 @@ export class AssetsApi {
     @title('Query Asset File Path') // 查询资源文件路径
     @description('Query the actual path of an asset in the file system based on its URL or UUID. Returns an absolute path string.') // 根据资源的 URL 或 UUID 查询资源在文件系统中的实际路径。返回绝对路径字符串。
     @result(SchemaPathResult)
-    async queryPath(@param(SchemaUrlOrUUIDOrPath) urlOrUuid: TUrlOrUUIDOrPath): Promise<CommonResultType<TPathResult>> {
+    async queryPath(@param(SchemaUrlOrUUID) urlOrUuid: TUrlOrUUID): Promise<CommonResultType<TPathResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TPathResult> = {
             code: code,
@@ -453,7 +457,7 @@ export class AssetsApi {
     @title('Query Asset URL') // 查询资源 URL
     @description('Query the URL address of an asset in the database based on its file path or UUID. Returns a URL in db:// protocol format.') // 根据资源的文件路径或 UUID 查询资源在数据库中的 URL 地址。返回 db:// 协议格式的 URL。
     @result(SchemaUrlResult)
-    async queryUrl(@param(SchemaUrlOrUUIDOrPath) uuidOrPath: TUrlOrUUIDOrPath): Promise<CommonResultType<TUrlResult>> {
+    async queryUrl(@param(SchemaUUIDOrPath) uuidOrPath: TUUIDOrPath): Promise<CommonResultType<TUrlResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TUrlResult> = {
             code: code,
@@ -479,7 +483,7 @@ export class AssetsApi {
     @description('Query the list of other assets that the specified asset depends on. Supports querying normal asset dependencies, script dependencies, or all dependencies.') // 查询指定资源所依赖的其他资源列表。支持查询普通资源依赖、脚本依赖或全部依赖。
     @result(z.array(z.string()).describe('List of dependent asset UUIDs')) // 依赖资源的 UUID 列表
     async queryAssetDependencies(
-        @param(SchemaUrlOrUUIDOrPath) uuidOrUrl: TUrlOrUUIDOrPath,
+        @param(SchemaUrlOrUUID) uuidOrUrl: TUrlOrUUID,
         @param(SchemaQueryAssetType) type: TQueryAssetType = 'asset'
     ): Promise<CommonResultType<string[]>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -507,7 +511,7 @@ export class AssetsApi {
     @description('Query the list of other assets that use the specified asset. Supports querying normal asset users, script users, or all users.') // 查询使用指定资源的其他资源列表。支持查询普通资源使用者、脚本使用者或全部使用者。
     @result(z.array(z.string()).describe('List of asset UUIDs using this asset')) // 使用该资源的资源 UUID 列表
     async queryAssetUsers(
-        @param(SchemaUrlOrUUIDOrPath) uuidOrUrl: TUrlOrUUIDOrPath,
+        @param(SchemaUrlOrUUID) uuidOrUrl: TUrlOrUUID,
         @param(SchemaQueryAssetType) type: TQueryAssetType = 'asset'
     ): Promise<CommonResultType<string[]>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;

@@ -12,6 +12,7 @@ import assetConfig from '../asset-config';
 import minimatch from 'minimatch';
 import utils from '../../base/utils';
 import { existsSync } from 'fs-extra';
+import * as path from 'path';
 
 declare global {
     var assetQuery: AssetQueryManager;
@@ -702,6 +703,12 @@ class AssetQueryManager {
         if (assetDBManager.assetDBMap[name]) {
             return `db://${name}`;
         }
+        
+        const result = queryUrl(uuidOrPath);
+        if (result) {
+            return result;
+        }
+        uuidOrPath = uuidOrPath.replaceAll('/', path.sep);
         return queryUrl(uuidOrPath);
     }
 

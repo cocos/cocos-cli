@@ -302,6 +302,8 @@ export type InternalPlatform =
     | 'ios'
     | 'android'
     | 'windows'
+    | 'ohos'
+    | 'harmonyos-next'
     ;
 
 export type BundleCompressionType = 'none' | 'merge_dep' | 'merge_all_json' | 'subpackage' | 'zip';

@@ -162,11 +162,24 @@ export const SchemaUrlOrUUIDOrPath = z.union([
     SchemaPath,
 ]).describe('Asset URL, UUID or file path'); // 资源的 URL、UUID 或文件路径
 
-// URL 或 UUID
-export const SchemaAssetUrlOrUUID = z.union([
+// PATH 或 UUID
+export const SchemaUUIDOrPath = z.union([
+    SchemaPath,
+    SchemaUUID,
+]).describe('Use UUID or file path');
+
+
+// PATH 或 Url
+export const SchemaUrlOrPath = z.union([
+    SchemaUrl,
+    SchemaPath,
+]).describe('Use Url or file path');
+
+
+export const SchemaUrlOrUUID = z.union([
     SchemaUrl,
     SchemaUUID,
-]).describe('Use db:// protocol format or UUID'); // 使用 db:// 协议格式或者 UUID 
+]).describe('Use db:// protocol format or UUID'); // 使用 db:// 协议格式或者 UUID
 
 
 export const SchemaSceneIdentifier = z.object({

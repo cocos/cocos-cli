@@ -12,17 +12,6 @@
     "bin": {
         "cocos": "./dist/cli.js"
     },
-    "activationEvents": [
-        "onStartupFinished"
-    ],
-    "contributes": {
-        "mcpServerDefinitionProviders": [
-            {
-                "id": "cocos-cli-mcp-provider",
-                "label": "Cocos CLI MCP Provider"
-            }
-        ]
-    },
     "scripts": {
         "init": "node workflow/init.js",
         "clear": "node workflow/clear.js",

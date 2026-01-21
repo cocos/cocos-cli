@@ -442,7 +442,8 @@ describe('Component Proxy 测试', () => {
         beforeAll(async () => {
             const params: IQueryNodeParams = {
                 path: nodePath,
-                queryChildren: false
+                queryChildren: false,
+                queryComponent: true
             };
             buildinComponentTypes = await ComponentProxy.queryAllComponent();
             const result = await NodeProxy.queryNode(params);
@@ -489,7 +490,8 @@ describe('Component Proxy 测试', () => {
                 try {
                     const params: IQueryNodeParams = {
                         path: nodePath,
-                        queryChildren: false
+                        queryChildren: false,
+                        queryComponent: true
                     };
                     const node = await NodeProxy.queryNode(params);
                     for (let i = 0; i < node!.components!.length; ++i) {

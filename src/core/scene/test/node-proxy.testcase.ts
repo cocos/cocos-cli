@@ -84,7 +84,8 @@ describe('Node Proxy 测试', () => {
             if (createdNode) {
                 const params: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false
+                    queryChildren: false,
+                    queryComponent: true
                 };
 
                 const result = await NodeProxy.queryNode(params);
@@ -99,7 +100,8 @@ describe('Node Proxy 测试', () => {
             if (createdNode) {
                 const params: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: true
+                    queryChildren: true,
+                    queryComponent: false
                 };
 
                 const result = await NodeProxy.queryNode(params);
@@ -128,7 +130,8 @@ describe('Node Proxy 测试', () => {
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false
+                    queryChildren: false,
+                    queryComponent: true
                 };
                 const updatedNode = await NodeProxy.queryNode(queryParams);
                 expect(updatedNode?.properties.position).toEqual(newPosition);
@@ -152,7 +155,8 @@ describe('Node Proxy 测试', () => {
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false
+                    queryChildren: false,
+                    queryComponent: true
                 };
                 const updatedNode = await NodeProxy.queryNode(queryParams);
                 expect(updatedNode?.properties.active).toBe(false);
@@ -178,7 +182,8 @@ describe('Node Proxy 测试', () => {
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false
+                    queryChildren: false,
+                    queryComponent: true
                 };
                 const updatedNode = await NodeProxy.queryNode(queryParams);
                 expect(updatedNode?.properties.scale).toEqual(newScale);
@@ -202,7 +207,8 @@ describe('Node Proxy 测试', () => {
                 // 验证节点是否已被删除
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false
+                    queryChildren: false,
+                    queryComponent: true
                 };
                 const deletedNode = await NodeProxy.queryNode(queryParams);
                 expect(deletedNode).toBeNull();
@@ -239,7 +245,8 @@ describe('Node Proxy 测试', () => {
         it('queryNode - 查询不存在的节点应返回null', async () => {
             const params: IQueryNodeParams = {
                 path: '/NonExistentNode',
-                queryChildren: false
+                queryChildren: false,
+                queryComponent: false
             };
 
             const result = await NodeProxy.queryNode(params);

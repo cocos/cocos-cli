@@ -28,7 +28,7 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle Configuration Options'); // Bundle 配置选项
 
 // Platform Enum - Accepts any string, built-in platform names are for reference only // 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
-export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios 等)
+export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonys-next etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonys-next 等)
 export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android, etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)
 
 export const SchemaRoot = z.string().min(1).describe('Build Output Directory'); // 构建发布目录

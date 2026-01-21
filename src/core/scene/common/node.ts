@@ -1,5 +1,5 @@
 import type { Node } from 'cc';
-import { IComponentIdentifier } from './component';
+import { IComponent, IComponentIdentifier } from './component';
 import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabInfo } from './prefab';
@@ -98,12 +98,13 @@ export interface INodeIdentifier {
 export interface IQueryNodeParams {
     path: string; // 查询的深度
     queryChildren: boolean; // 是否查询子节点信息
+    queryComponent: boolean; // 是否查询component的详细信息
 }
 
 // 节点查询结果项接口
 export interface INode extends INodeIdentifier {
     properties: INodeProperties; // 节点属性
-    components?: IComponentIdentifier[]; // 节点上的组件列表
+    components?: IComponent[] | IComponentIdentifier[]; // 节点上的组件列表
     children?: INode[]; // 子节点列表
     prefab: IPrefabInfo | null;// 是否是预制体
 }
