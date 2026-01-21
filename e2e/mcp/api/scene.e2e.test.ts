@@ -329,7 +329,7 @@ describe('MCP Scene API', () => {
             // 重新加载场景
             const result = await context.mcpClient.callTool('scene-reload', {});
 
-            expect(result.data).toBe(true);
+            expect(result.data).toBe(ReloadResult.SUCCESS);
             expect(result.code).toBe(200);
         });
 
@@ -341,7 +341,7 @@ describe('MCP Scene API', () => {
             const result = await context.mcpClient.callTool('scene-reload', {});
 
             // 应该失败或返回适当的错误
-            expect(result.data).toBe(false);
+            expect(result.data).toBe(ReloadResult.NO_EDITOR);
             expect(result.code).toBe(200);
         });
     });
