@@ -21,7 +21,9 @@ export const SchemaCloseResult = z.boolean().describe('Close Scene/Prefab Result
 
 export const SchemaSaveResult = SchemaSaveAssetResult.describe('Save Scene/Prefab Result'); // 保存场景/预制体结果
 
-export const SchemaReload = z.boolean().describe('Reload Scene/Prefab Success'); // 重载场景/预制体是否成功
+import { ReloadResult } from '../../core/scene/common/editor/type';
+
+export const SchemaReload = z.nativeEnum(ReloadResult).describe('Reload Scene/Prefab Result'); // 重载场景/预制体结果
 
 export const SchemaCreateOptions = z.object({
     baseName: z.string().describe('Asset Name'), // 资源名称

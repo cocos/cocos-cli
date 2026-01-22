@@ -1,4 +1,4 @@
-import { IBaseIdentifier, IScene, NodeType, TEditorEntity, } from '../common';
+import { IBaseIdentifier, IScene, NodeType, TEditorEntity, ReloadResult } from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -55,7 +55,7 @@ describe('EditorProxy Scene 测试', () => {
             const result = await EditorProxy.reload({
                 urlOrUUID: identifier.assetUuid,
             });
-            expect(result).toBe(true);
+            expect(result).toBe(ReloadResult.SUCCESS);
         });
 
         it('queryCurrent - 通过 UUID 关闭后获取当前场景应该为空', async () => {
@@ -114,7 +114,7 @@ describe('EditorProxy Scene 测试', () => {
             const result = await EditorProxy.reload({
                 urlOrUUID: identifier.assetUrl,
             });
-            expect(result).toBe(true);
+            expect(result).toBe(ReloadResult.SUCCESS);
         });
 
         it('queryCurrent - 通过 URL 关闭后获取当前场景应该为空', async () => {
@@ -152,7 +152,7 @@ describe('EditorProxy Scene 测试', () => {
 
         it('reload - 重载当前场景', async () => {
             const result = await EditorProxy.reload({});
-            expect(result).toBe(true);
+            expect(result).toBe(ReloadResult.SUCCESS);
         });
 
         it('queryCurrent - 获取当前场景', async () => {

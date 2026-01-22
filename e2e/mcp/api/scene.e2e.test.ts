@@ -1,4 +1,5 @@
 import { AssetsTestContext, generateTestId, setupAssetsTestEnvironment, teardownAssetsTestEnvironment } from '../../helpers/test-utils';
+import { ReloadResult } from '../../../src/core/scene/common/editor/type';
 
 describe('MCP Scene API', () => {
     let context: AssetsTestContext;
@@ -328,7 +329,7 @@ describe('MCP Scene API', () => {
             // 重新加载场景
             const result = await context.mcpClient.callTool('scene-reload', {});
 
-            expect(result.data).toBe(true);
+            expect(result.data).toBe(ReloadResult.SUCCESS);
             expect(result.code).toBe(200);
         });
 
@@ -340,7 +341,7 @@ describe('MCP Scene API', () => {
             const result = await context.mcpClient.callTool('scene-reload', {});
 
             // 应该失败或返回适当的错误
-            expect(result.data).toBe(false);
+            expect(result.data).toBe(ReloadResult.NO_EDITOR);
             expect(result.code).toBe(200);
         });
     });
@@ -386,7 +387,7 @@ describe('MCP Scene API', () => {
 
                 // 5. 重新加载场景
                 const reloadResult = await context.mcpClient.callTool('scene-reload', {});
-                expect(reloadResult.data).toBe(true);
+                expect(reloadResult.data).toBe(ReloadResult.SUCCESS);
                 expect(reloadResult.code).toBe(200);
 
                 // 6. 关闭场景
