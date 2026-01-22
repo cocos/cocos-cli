@@ -96,7 +96,7 @@ export interface INodeIdentifier {
 
 // 节点查询参数接口
 export interface IQueryNodeParams {
-    path: string; // 查询的深度
+    path: string; // 查询的节点路径
     queryChildren: boolean; // 是否查询子节点信息
     queryComponent: boolean; // 是否查询component的详细信息
 }

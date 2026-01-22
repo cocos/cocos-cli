@@ -3,7 +3,7 @@ import { isAbsolute, basename, extname } from 'path';
 import { QueryAssetType, IAsset } from '../@types/protected';
 import { AssetHandlerType, IAssetInfo, IAssetMeta, QueryAssetsOption } from '../@types/public';
 import { FilterPluginOptions, IPluginScriptInfo } from '../../scripting/interface';
-import { url2uuid, libArr2Obj, getExtendsFromCCType } from '../utils';
+import { url2uuid, libArr2Obj, getExtendsFromCCType, url2path } from '../utils';
 import assetDBManager from './asset-db';
 import assetHandlerManager from './asset-handler';
 import script from '../../scripting';
@@ -601,6 +601,11 @@ class AssetQueryManager {
                     uuid: uuidOrURLOrPath,
                     ver: '1.0.0',
                 };
+            }
+            const path = url2path(uuidOrURLOrPath);
+            const metaInfo = assetDBManager.assetDBMap['assets'].metaManager.path2meta[path];
+            if (metaInfo) {
+                return metaInfo.json;
             }
             uuid = url2uuid(uuidOrURLOrPath);
         }

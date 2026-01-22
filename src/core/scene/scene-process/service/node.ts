@@ -372,7 +372,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
-            const node = NodeMgr.getNodeByPath(params.path);
+            let node = NodeMgr.getNodeByPath(params.path);
+            if (!params.path || params.path === '/') {
+                node = Service.Editor.getRootNode();
+            }
             if (!node) {
                 return null;
             }
