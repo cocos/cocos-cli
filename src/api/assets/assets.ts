@@ -666,6 +666,7 @@ export class AssetsApi {
             if (asset) {
                 ret.data = await assetManager.queryAssetUserDataConfig(asset);
             } else {
+                ret.code = COMMON_STATUS.FAIL;
                 ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}`;
             }
         } catch (e) {
@@ -698,6 +699,7 @@ export class AssetsApi {
         try {
             ret.data = await assetManager.updateUserData(urlOrUuidOrPath, path, value);
             if (!ret.data) {
+                ret.code = COMMON_STATUS.FAIL;
                 ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}`;
             }
         } catch (e) {

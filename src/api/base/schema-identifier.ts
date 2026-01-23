@@ -155,32 +155,123 @@ export const SchemaPath = z.string()
 
 // ==================== 组合 Schema ====================
 
-// URL 或 UUID 或 Path
-export const SchemaUrlOrUUIDOrPath = z.union([
-    SchemaUrl,
-    SchemaUUID,
-    SchemaPath,
-]).describe('Asset URL, UUID or file path'); // 资源的 URL、UUID 或文件路径
+export const SchemaUrlOrUUIDOrPath = z.string()
+    .min(1, 'Value cannot be empty')
+    .transform((value, ctx) => {
+        const cleaned = value.trim();
+
+        // Attempt to parse sequentially：URL -> UUID -> Path
+        try {
+            // 1. URL
+            if (cleaned.startsWith('db://')) {
+                return SchemaUrl.parse(cleaned);
+            }
+
+            // 2. UUID
+            const potentialUuid = removeWhitespace(cleaned).replace(/-/g, '').toLowerCase();
+            if (/^[0-9a-f]{32}$/.test(potentialUuid)) {
+                return SchemaUUID.parse(cleaned);
+            }
+
+            // 3. Path
+            return SchemaPath.parse(cleaned);
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                error.errors.forEach((err) => {
+                    ctx.addIssue(err);
+                });
+                return z.NEVER;
+            }
+            throw error;
+        }
+    }).describe('Asset URL, UUID or file path'); // 资源的 URL、UUID 或文件路径
 
 // PATH 或 UUID
-export const SchemaUUIDOrPath = z.union([
-    SchemaPath,
-    SchemaUUID,
-]).describe('Use UUID or file path');
+export const SchemaUUIDOrPath = z.string()
+    .min(1, 'Value cannot be empty')
+    .transform((value, ctx) => {
+        const cleaned = value.trim();
+        // Attempt to parse sequentially：UUID -> Path
+        try {
+            // 1. UUID
+            const potentialUuid = removeWhitespace(cleaned).replace(/-/g, '').toLowerCase();
+            if (/^[0-9a-f]{32}$/.test(potentialUuid)) {
+                return SchemaUUID.parse(cleaned);
+            }
+
+            // 2. Path
+            return SchemaPath.parse(cleaned);
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                error.errors.forEach((err) => {
+                    ctx.addIssue(err);
+                });
+                return z.NEVER;
+            }
+            throw error;
+        }
+    }).describe('Use UUID or file path');
 
 
-// PATH 或 Url
-export const SchemaUrlOrPath = z.union([
-    SchemaUrl,
-    SchemaPath,
-]).describe('Use Url or file path');
+export const SchemaUrlOrPath = z.string()
+    .min(1, 'Value cannot be empty')
+    .transform((value, ctx) => {
+        const cleaned = value.trim();
+
+        // Attempt to parse sequentially：URL -> Path
+        try {
+            // 1. URL
+            if (cleaned.startsWith('db://')) {
+                return SchemaUrl.parse(cleaned);
+            }
+
+            // 2. Path
+            return SchemaPath.parse(cleaned);
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                error.errors.forEach((err) => {
+                    ctx.addIssue(err);
+                });
+                return z.NEVER;
+            }
+            throw error;
+        }
+    }).describe('Use Url or file path');
 
 
-export const SchemaUrlOrUUID = z.union([
-    SchemaUrl,
-    SchemaUUID,
-]).describe('Use db:// protocol format or UUID'); // 使用 db:// 协议格式或者 UUID
+export const SchemaUrlOrUUID = z.string()
+    .min(1, 'Value cannot be empty')
+    .transform((value, ctx) => {
+        const cleaned = value.trim();
 
+        // Attempt to parse sequentially：URL -> UUID
+        try {
+            // 1. URL
+            if (cleaned.startsWith('db://')) {
+                return SchemaUrl.parse(cleaned);
+            }
+
+            // 2. UUID
+            const potentialUuid = removeWhitespace(cleaned).replace(/-/g, '').toLowerCase();
+            if (/^[0-9a-f]{32}$/.test(potentialUuid)) {
+                return SchemaUUID.parse(cleaned);
+            }
+
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Invalid parameter. Only db:// URLs and UUIDs are supported for the path.',
+            });
+            return z.NEVER;
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                error.errors.forEach((err) => {
+                    ctx.addIssue(err);
+                });
+                return z.NEVER;
+            }
+            throw error;
+        }
+    }).describe('Use db:// protocol format or UUID'); // 使用 db:// 协议格式或者 UUID
 
 export const SchemaSceneIdentifier = z.object({
     assetName: z.string().describe('Scene or Prefab asset name'), // 场景/预制体资源名称
