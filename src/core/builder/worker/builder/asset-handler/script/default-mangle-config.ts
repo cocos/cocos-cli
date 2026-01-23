@@ -30,7 +30,6 @@ export const defaultMangleConfig: Record<MangleConfigPlatformType, IMangleConfig
             'ReflectionProbe.DEFAULT_PLANER_SIZE',
             'WebGLDeviceManager.setInstance',
             'WebGL2DeviceManager.setInstance',
-            'CanvasPool',
         ],
         dontMangleList: [
             'Component',
