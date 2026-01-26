@@ -236,12 +236,12 @@ export const SchemaAndroidBuildOption = SchemaBuildBaseOption
     })
     .describe('Android Platform Build Options'); // Android平台构建选项
 
-// Ohos Build Options // OHOS 构建选项
+// OHOS Build Options // OHOS 构建选项
 export const SchemaOhosBuildOption = SchemaBuildBaseOption
     .extend({
         platform: z.literal('ohos').describe('Build Platform'), // 构建平台
         packages: z.object({
-            Ohos: SchemaOhosPackage
+            ohos: SchemaOhosPackage
                 .catchall(z.any())  // 允许其他任意字段
                 .optional()
         }).describe('Ohos Platform Configuration') // Ohos平台配置
@@ -367,6 +367,8 @@ export const SchemaBuildConfigResult = z.union([
     SchemaIOSBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
     SchemaAndroidBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
     SchemaMacBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaOhosBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaHarmonyOSNextBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
     SchemaOtherPlatformBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
 ]).nullable().describe('Build configuration query result (all fields required, including packages)'); // 构建配置查询结果（所有字段必填，包含 packages）
 
