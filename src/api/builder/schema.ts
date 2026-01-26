@@ -28,8 +28,8 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle Configuration Options'); // Bundle 配置选项
 
 // Platform Enum - Accepts any string, built-in platform names are for reference only // 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
-export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonys-next etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonys-next 等)
-export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android, etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)
+export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonyos-next etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonyos-next 等)
+export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)
 
 export const SchemaRoot = z.string().min(1).describe('Build Output Directory'); // 构建发布目录
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
@@ -83,6 +83,20 @@ export const SchemaAndroidPackage = z.object({
     keystorePath: z.string().optional().describe('Keystore file path'), // 签名文件路径
     keystorePassword: z.string().optional().describe('Keystore password'), // 签名文件密码
 }).describe('Android platform specific configuration'); // Android平台特定配置
+
+// Ohos Packages Configuration // Ohos Packages 配置
+export const SchemaOhosPackage = z.object({
+    packageName: z.string()
+        .min(1, 'Ohos package name cannot be empty') // Ohos包名不能为空
+        .describe('Ohos application package name (required)'), // Ohos应用包名（必填）
+}).describe('Ohos platform specific configuration'); // Ohos平台特定配置
+
+// HarmonyOS Next Packages Configuration // HarmonyOS Next Packages 配置
+export const SchemaHarmonyOSNextPackage = z.object({
+    packageName: z.string()
+        .min(1, 'HarmonyOS Next package name cannot be empty') // HarmonyOS Next包名不能为空
+        .describe('HarmonyOS Next application package name (required)'), // HarmonyOS Next应用包名（必填）
+}).describe('HarmonyOS Next platform specific configuration'); // HarmonyOS Next平台特定配置
 
 // ==================== Basic Build Configuration ==================== // 基础构建配置
 
@@ -222,6 +236,29 @@ export const SchemaAndroidBuildOption = SchemaBuildBaseOption
     })
     .describe('Android Platform Build Options'); // Android平台构建选项
 
+// Ohos Build Options // OHOS 构建选项
+export const SchemaOhosBuildOption = SchemaBuildBaseOption
+    .extend({
+        platform: z.literal('ohos').describe('Build Platform'), // 构建平台
+        packages: z.object({
+            Ohos: SchemaOhosPackage
+                .catchall(z.any())  // 允许其他任意字段
+                .optional()
+        }).describe('Ohos Platform Configuration') // Ohos平台配置
+    })
+    .describe('Ohos Platform Build Options'); // Ohos平台构建选项
+
+// HarmonyOS Next Build Options // HarmonyOS Next 构建选项
+export const SchemaHarmonyOSNextBuildOption = SchemaBuildBaseOption
+    .extend({
+        platform: z.literal('harmonyos-next').describe('Build Platform'), // 构建平台
+        packages: z.object({
+            'harmonyos-next': SchemaHarmonyOSNextPackage
+                .catchall(z.any())  // 允许其他任意字段
+                .optional()
+        }).describe('HarmonyOS Next Platform Configuration') // HarmonyOS Next平台配置
+    })
+    .describe('HarmonyOS Next Platform Build Options'); // HarmonyOS Next平台构建选项
 
 // Mac Build Options // Mac 构建选项
 export const SchemaMacBuildOption = SchemaBuildBaseOption
@@ -251,7 +288,10 @@ export const SchemaKnownBuildOptions = [
     SchemaIOSBuildOption,
     SchemaMacBuildOption,
     SchemaAndroidBuildOption,
+    SchemaOhosBuildOption,
+    SchemaHarmonyOSNextBuildOption
 ];
+
 // ==================== Create discriminatedUnion ==================== //
 export const SchemaBuildOption = z.discriminatedUnion('platform', [
     ...SchemaKnownBuildOptions,
