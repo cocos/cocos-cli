@@ -14,6 +14,7 @@ import dumpUtil from './dump';
 import compMgr from './component/index';
 import componentUtils from './component/utils';
 import { isEditorNode } from './node/node-utils';
+import { isUUID } from '../../../base/utils/uuid';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -45,25 +46,76 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         } else if (isURL) {
             uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [componentNameOrUUIDOrURL]);
         }
+
+        let ctor = null;
+        let comp = null;
         if (uuid) {
             const cid = await Service.Script.queryScriptCid(uuid);
             if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
                 componentNameOrUUIDOrURL = cid;
+                ctor = cc.js.getClassById(cid);
+                if (!ctor) {
+                    ctor = cc.js.getClassByName(cid);
+                }
+                if (!ctor) {
+                    // 理论上不会出现这个错误，出现了需要定位下
+                    throw `Component script(${cid}) name exists but constructor does not exist.`;
+                }
+            } else {
+                // uuid存在，脚本也存在，但是组件ID不存在，则表示异常
+                const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
+                if (assetInfo?.file && assetInfo?.file.length > 0) {
+                    throw `Check if the script(${uuid}) contains any errors.`;
+                }
+            }
+        } else {
+            ctor = cc.js.getClassById(componentNameOrUUIDOrURL);
+            if (!ctor) {
+                ctor = cc.js.getClassByName(componentNameOrUUIDOrURL);
             }
         }
 
-        let comp = null;
-        let ctor = cc.js.getClassById(componentNameOrUUIDOrURL);
-        if (!ctor) {
-            ctor = cc.js.getClassByName(componentNameOrUUIDOrURL);
+        if(!ctor) {
+            // 首字母是否大写
+            const isStartWithUppercase = (componentNameOrUUIDOrURL.charAt(0) == componentNameOrUUIDOrURL.charAt(0).toUpperCase());
+            if(!isStartWithUppercase) {
+                // 首字母大写查询
+                const fullName = componentNameOrUUIDOrURL.charAt(0).toUpperCase() + componentNameOrUUIDOrURL.slice(1);
+                ctor = cc.js.getClassByName(fullName);
+            }
+            if(!ctor && !isUuid && !isURL) {
+                if(!componentNameOrUUIDOrURL.startsWith('cc.')) {
+                    // 添加 'cc.' 查询
+                    const fullName = 'cc.' + componentNameOrUUIDOrURL;
+                    ctor = cc.js.getClassByName(fullName);
+                    if (!ctor && !isStartWithUppercase) {
+                        // 添加 cc. 并且后面首字母大写
+                        const fullName = 'cc.' + componentNameOrUUIDOrURL.charAt(0).toUpperCase() + componentNameOrUUIDOrURL.slice(1);
+                        ctor = cc.js.getClassByName(fullName);
+                    }
+                } else if(componentNameOrUUIDOrURL.length > 3 && componentNameOrUUIDOrURL.charAt(3) != componentNameOrUUIDOrURL.charAt(0).toUpperCase()) {
+                    // 如果是 cc.lalel 直接更换为 cc.Label 查询
+                    const fullName = componentNameOrUUIDOrURL.slice(0, 3) + componentNameOrUUIDOrURL.at(3)?.toUpperCase() + componentNameOrUUIDOrURL.slice(4);
+                    ctor = cc.js.getClassByName(fullName);
+                }
+            }
+        }
+        if(!ctor) {
+            console.error(`ctor with name ${componentNameOrUUIDOrURL} is not found `);
+            if(isUuid) {
+                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component uuid`);
+            } else if(isURL) {
+                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component url`);
+            } else {
+                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component name`);   
+            }
         }
         if (cc.js.isChildClassOf(ctor, Component)) {
             comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
         } else {
             console.error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
-            throw new Error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
+            throw new Error(`Constructor has been found, but it is not component-based.`);
         }
-
         this.emit('component:add', comp);
 
         return dumpUtil.dumpComponent(comp as Component);

@@ -101,17 +101,21 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     private _tick() {
-        if (this._paused) return;
-        this.setTimeout(this._bindTick, tickTime);
-        const now = performance.now() / 1000;
-        Time.update(now, false, this._maxDeltaTimeInEM);
+        try {
+            if (this._paused) return;
+            this.setTimeout(this._bindTick, tickTime);
+            const now = performance.now() / 1000;
+            Time.update(now, false, this._maxDeltaTimeInEM);
 
-        if (this._isTickAllowed()) {
-            this._shouldRepaintInEM = false;
-            this.tickInEditMode(Time.deltaTime);
-            this.broadcast('engine:update');
+            if (this._isTickAllowed()) {
+                this._shouldRepaintInEM = false;
+                this.tickInEditMode(Time.deltaTime);
+                this.broadcast('engine:update');
+            }
+            this.broadcast('engine:ticked');
+        } catch (e) {
+            console.error(e);
         }
-        this.broadcast('engine:ticked');
     }
 
     private _isTickAllowed() {

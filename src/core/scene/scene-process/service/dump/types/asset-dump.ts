@@ -49,12 +49,12 @@ class AssetDump implements DumpInterface {
         } else {
             // TODO: 这是 Hack 做法，避开类似 uuid = 'ui-sprite-material' 资源加载失败的报错
             if (!dump.value || !dump.value.uuid || dump.value.uuid.startsWith('ui-')) {
-                data[info.key] = null;
+                //data[info.key] = null;
+                throw new Error(`The UUID is empty or starts with '-ui'`);
             } else {
                 const asset = await new Promise((resolve) => {
                     cc.assetManager.loadAny(dump.value.uuid, (error: any, asset: any) => {
                         if (error) {
-                            console.error(`asset can't be load:${dump.value.uuid}`);
                             resolve(null);
                         } else {
                             resolve(asset);
@@ -64,10 +64,8 @@ class AssetDump implements DumpInterface {
                 if (asset) {
                     data[info.key] = asset;
                 } else {
-                    // @ts-ignore
-                    const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
-                    placeHolder.initDefault();
-                    data[info.key] = placeHolder;
+                    console.error(`Failed to load asset using the UUID:${dump.value.uuid}`);
+                    throw new Error(`Failed to load asset using the UUID:${dump.value.uuid}`);
                 }
             }
         }
