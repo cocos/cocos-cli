@@ -173,20 +173,12 @@ export class NewConsole {
             return '';
         }
 
-        // 如果第一个参数是 Error，特殊处理
-        if (args[0] instanceof Error) {
-            const error = args[0];
-            const errorMessage = error.stack || error.message || String(error);
-            // 如果有其他参数，也包含进去
-            if (args.length > 1) {
-                const otherArgs = args.slice(1).map(arg => String(arg));
-                return [errorMessage, ...otherArgs].join(' ');
+        return args.map(arg => {
+            if (arg instanceof Error) {
+                return arg.stack || arg.message || String(arg);
             }
-            return errorMessage;
-        }
-
-        // 所有参数都转换为字符串并连接
-        return args.map(arg => String(arg)).join(' ');
+            return String(arg);
+        }).join(' ');
     }
 
     /**
