@@ -217,7 +217,7 @@ export class AssetsApi {
     /**
      * Batch Query Asset Info // 批量查询资源信息
      */
-    @tool('assets-query-asset-infos')
+    // @tool('assets-query-asset-infos')
     @title('Batch Query Asset Info') // 批量查询资源信息
     @description('Batch retrieve asset information based on query conditions. Supports filtering by asset type, importer, path pattern, extension, userData, etc. Can be used for asset list display, batch processing, and other scenarios.') // 根据查询条件批量获取资源信息。支持按资源类型、导入器、路径模式、扩展名、userData 等条件筛选。可用于资源列表展示、批量处理等场景。
     @result(SchemaAssetInfosResult)
