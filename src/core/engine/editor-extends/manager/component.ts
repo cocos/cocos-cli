@@ -103,7 +103,6 @@ export default class ComponentManager extends EventEmitter {
         const path = this._generateUniquePath(component);
         this._pathToUuid.set(path, component.uuid);
         this._addOriginPathToCaseInsensitivePathMap(path.toLocaleLowerCase(), path);
-        path.toLowerCase();
         this._uuidToPath.set(component.uuid, path);
     }
 

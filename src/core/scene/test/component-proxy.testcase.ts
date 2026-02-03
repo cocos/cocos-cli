@@ -401,6 +401,15 @@ describe('Component Proxy 测试', () => {
                 console.log(`removeComponent test error:  ${e}`);
                 throw e;
             }
+            // 删除成功后理论上是查询不到的
+            const queryComponent: IQueryComponentOptions = {
+                path: componentPath
+            };
+            try {
+                await ComponentProxy.queryComponent(queryComponent);
+            } catch (e) {
+                expect(e instanceof Error ? e.message : String(e)).toBe(`No component found for this path(${queryComponent.path}).`);
+            }
         });
     });
 
