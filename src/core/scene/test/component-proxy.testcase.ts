@@ -273,7 +273,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        
+
         it('queryComponent - 查询组件-根据模糊的匹配-label不带下标', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/label'
@@ -326,7 +326,7 @@ describe('Component Proxy 测试', () => {
                 expect(e instanceof Error ? e.message : String(e)).toBe(`No component found for this path(${queryComponent.path}).`);
             }
         });
-        
+
         it('queryComponent - 查询存在相同组件', async () => {
             const newNodePath = 'TestNode/new node';
             const addComponentInfo: IAddComponentOptions = {

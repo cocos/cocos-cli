@@ -75,16 +75,16 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             }
         }
 
-        if(!ctor) {
+        if (!ctor) {
             // 首字母是否大写
             const isStartWithUppercase = (componentNameOrUUIDOrURL.charAt(0) == componentNameOrUUIDOrURL.charAt(0).toUpperCase());
-            if(!isStartWithUppercase) {
+            if (!isStartWithUppercase) {
                 // 首字母大写查询
                 const fullName = componentNameOrUUIDOrURL.charAt(0).toUpperCase() + componentNameOrUUIDOrURL.slice(1);
                 ctor = cc.js.getClassByName(fullName);
             }
-            if(!ctor && !isUuid && !isURL) {
-                if(!componentNameOrUUIDOrURL.startsWith('cc.')) {
+            if (!ctor && !isUuid && !isURL) {
+                if (!componentNameOrUUIDOrURL.startsWith('cc.')) {
                     // 添加 'cc.' 查询
                     const fullName = 'cc.' + componentNameOrUUIDOrURL;
                     ctor = cc.js.getClassByName(fullName);
@@ -93,21 +93,21 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                         const fullName = 'cc.' + componentNameOrUUIDOrURL.charAt(0).toUpperCase() + componentNameOrUUIDOrURL.slice(1);
                         ctor = cc.js.getClassByName(fullName);
                     }
-                } else if(componentNameOrUUIDOrURL.length > 3 && componentNameOrUUIDOrURL.charAt(3) != componentNameOrUUIDOrURL.charAt(0).toUpperCase()) {
+                } else if (componentNameOrUUIDOrURL.length > 3 && componentNameOrUUIDOrURL.charAt(3) != componentNameOrUUIDOrURL.charAt(0).toUpperCase()) {
                     // 如果是 cc.lalel 直接更换为 cc.Label 查询
                     const fullName = componentNameOrUUIDOrURL.slice(0, 3) + componentNameOrUUIDOrURL.at(3)?.toUpperCase() + componentNameOrUUIDOrURL.slice(4);
                     ctor = cc.js.getClassByName(fullName);
                 }
             }
         }
-        if(!ctor) {
+        if (!ctor) {
             console.error(`ctor with name ${componentNameOrUUIDOrURL} is not found `);
-            if(isUuid) {
+            if (isUuid) {
                 throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component uuid`);
-            } else if(isURL) {
+            } else if (isURL) {
                 throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component url`);
             } else {
-                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component name`);   
+                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component name`);
             }
         }
         if (cc.js.isChildClassOf(ctor, Component)) {
@@ -125,7 +125,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         try {
             await Service.Editor.lock();
             return await this.addComponentImpl(params.nodePath, params.component);
-        } catch(error) {
+        } catch (error) {
             console.error(error);
             throw error;
         } finally {
@@ -148,7 +148,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             this.emit('component:remove', comp);
 
             return result;
-        } catch(error) {
+        } catch (error) {
             console.error(error);
             throw error;
         } finally {
@@ -169,7 +169,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         try {
             await Service.Editor.lock();
             return this.setPropertyImp(options);
-        } catch(error) { 
+        } catch (error) {
             console.error(error);
             throw error;
         } finally {
