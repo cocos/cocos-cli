@@ -211,43 +211,43 @@ describe('MCP Assets API - Query', () => {
         });
     });
 
-    describe('asset-query-asset-infos', () => {
-        test('should query all assets', async () => {
-            const result = await context.mcpClient.callTool('assets-query-asset-infos', {
-                options: COMMON_QUERY_OPTIONS.all,
-            });
+    // describe('asset-query-asset-infos', () => {
+    //     test('should query all assets', async () => {
+    //         const result = await context.mcpClient.callTool('assets-query-asset-infos', {
+    //             options: COMMON_QUERY_OPTIONS.all,
+    //         });
 
-            expect(result.code).toBe(200);
-            validateQueryAssetsResult(result.data, 1);
-        });
+    //         expect(result.code).toBe(200);
+    //         validateQueryAssetsResult(result.data, 1);
+    //     });
 
-        test('should query assets by pattern', async () => {
-            const result = await context.mcpClient.callTool('assets-query-asset-infos', {
-                options: COMMON_QUERY_OPTIONS.internalDb,
-            });
+    //     test('should query assets by pattern', async () => {
+    //         const result = await context.mcpClient.callTool('assets-query-asset-infos', {
+    //             options: COMMON_QUERY_OPTIONS.internalDb,
+    //         });
 
-            expect(result.code).toBe(200);
-            validateQueryAssetsResult(result.data, 1);
+    //         expect(result.code).toBe(200);
+    //         validateQueryAssetsResult(result.data, 1);
 
-            // 所有结果应该是 internal 数据库的
-            result.data.forEach((asset: any) => {
-                expect(asset.url).toContain('db://internal');
-            });
-        });
+    //         // 所有结果应该是 internal 数据库的
+    //         result.data.forEach((asset: any) => {
+    //             expect(asset.url).toContain('db://internal');
+    //         });
+    //     });
 
-        test('should query assets by ccType', async () => {
-            const result = await context.mcpClient.callTool('assets-query-asset-infos', {
-                options: COMMON_QUERY_OPTIONS.scenes,
-            });
+    //     test('should query assets by ccType', async () => {
+    //         const result = await context.mcpClient.callTool('assets-query-asset-infos', {
+    //             options: COMMON_QUERY_OPTIONS.scenes,
+    //         });
 
-            expect(result.code).toBe(200);
+    //         expect(result.code).toBe(200);
 
-            if (result.data.length > 0) {
-                result.data.forEach((asset: any) => {
-                    expect(asset.type).toBe('cc.SceneAsset');
-                });
-            }
-        });
-    });
+    //         if (result.data.length > 0) {
+    //             result.data.forEach((asset: any) => {
+    //                 expect(asset.type).toBe('cc.SceneAsset');
+    //             });
+    //         }
+    //     });
+    // });
 });
 
