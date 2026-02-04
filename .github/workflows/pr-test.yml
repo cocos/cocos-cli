@@ -45,7 +45,7 @@ jobs:
       
       - name: Run unit tests
         id: unit-tests
-        run: npm run test:quiet
+        run: npm run test
       
       - name: Run E2E tests
         id: e2e-tests
