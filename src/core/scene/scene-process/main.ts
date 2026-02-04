@@ -15,6 +15,15 @@ async function startup() {
         }
     });
 
+    process.on('unhandledRejection', (reason, promise) => {
+        console.warn('未处理的 Promise rejection:', reason);
+    });
+
+    process.on('uncaughtException', (error) => {
+        console.error('未捕获的异常:', error);
+        // 不调用 process.exit()
+    });
+
     console.log(`[Scene] startup worker pid: ${process.pid}`);
 
     console.log(`[Scene] parse args ${process.argv}`);

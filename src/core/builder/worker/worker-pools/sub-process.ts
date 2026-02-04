@@ -11,6 +11,10 @@ process.on('uncaughtException', (err) => {
     console.error(err);
 });
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.warn('未处理的 Promise rejection:', reason);
+});
+
 process.on('message', async function (msgInfo: IMessageInfo) {
     if (msgInfo.type === 'execute-script' && process.send) {
         const res = await executeScript(msgInfo.path, msgInfo.method, msgInfo.args);
