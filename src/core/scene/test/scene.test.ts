@@ -2,19 +2,27 @@ import * as fse from 'fs-extra';
 import { SceneTestEnv } from './scene-test-env';
 
 function removeCache() {
-    if (fse.existsSync(SceneTestEnv.cacheDirectory)) {
-        fse.removeSync(SceneTestEnv.cacheDirectory);
-        fse.removeSync(SceneTestEnv.cacheDirectory + '.meta');
-        console.log('删除场景测试目录:', SceneTestEnv.cacheDirectory);
+    try {
+        if (fse.existsSync(SceneTestEnv.cacheDirectory)) {
+            fse.removeSync(SceneTestEnv.cacheDirectory);
+            fse.removeSync(SceneTestEnv.cacheDirectory + '.meta');
+            console.log('删除场景测试目录:', SceneTestEnv.cacheDirectory);
+        }
+        } catch(err) {
+            console.error('scene test remove cache error:', err);
     }
 }
 
 beforeAll(async () => {
     removeCache();
-    fse.ensureDirSync(SceneTestEnv.cacheDirectory);
-    console.log('创建场景测试目录:', SceneTestEnv.cacheDirectory);
-    const TestUtils = await import('../../test/global-setup');
-    await TestUtils.globalSetup();
+    try {
+        fse.ensureDirSync(SceneTestEnv.cacheDirectory);
+        console.log('创建场景测试目录:', SceneTestEnv.cacheDirectory);
+        const TestUtils = await import('../../test/global-setup');
+        await TestUtils.globalSetup();
+    } catch(err) {
+        console.error('scene test error:', err);
+    }
 });
 
 afterAll(async () => {
