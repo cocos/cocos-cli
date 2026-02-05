@@ -1,4 +1,3 @@
-import { PluginScriptInfo } from '@cocos/lib-programming/dist/executor';
 
 export interface SharedSettings {
     useDefineForClassFields: boolean;
@@ -16,6 +15,10 @@ export interface SharedSettings {
     };
 }
 
+export interface PluginScriptInfo {
+    file: string;
+    uuid: string;
+}
 
 export interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
