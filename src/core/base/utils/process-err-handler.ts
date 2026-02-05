@@ -41,4 +41,12 @@ export function setupProcessHandler(process: NodeJS.Process | ChildProcess) {
             console.error(error.stack);
         }
     });
+
+    const signals = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGABRT'];
+    signals.forEach(signal => {
+    process.on(signal, () => {
+        console.log(`收到${signal}信号`);
+        console.trace();
+    });
+});
 }
