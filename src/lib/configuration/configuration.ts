@@ -9,6 +9,6 @@ export class ConfigurationLib {
 
     static async reload(): Promise<void> {
         const { configurationManager } = await import('../../core/configuration/index');
-        await configurationManager.reload();
+        return await configurationManager.reload();
     }
 }
