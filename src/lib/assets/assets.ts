@@ -3,9 +3,8 @@ import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, I
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
 
-export { AssetOperationOption, CreateAssetByTypeOptions, IAssetInfo, IAssetMeta, ISupportCreateType, QueryAssetsOption } from '../../core/assets/@types/public';
+export * from '../../core/assets/@types/public';
 export { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
-export { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 
 export class Assets {
     static async init(): Promise<void> {
