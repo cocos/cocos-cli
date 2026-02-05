@@ -89,11 +89,11 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     /**
      * @param proc - NodeJS.Process 或 ChildProcess 实例
      */
-    attach(proc: NodeJS.Process | ChildProcess) {
+    attach(proc: NodeJS.Process | ChildProcess, label: string = 'ProcessRPC') {
         this.dispose();
         this.process = proc;
         this.listen();
-        setupProcessHandler(proc);
+        setupProcessHandler(proc, label);
     }
 
     /**
@@ -165,7 +165,16 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             const { module, method, args } = msg;
             const target = this.handlers[module];
             if (target && typeof target[method] === 'function') {
-                target[method](...(args || []));
+                try {
+                    const result = target[method](...(args || []));
+                    if (result instanceof Promise) {
+                        result.catch(e => {
+                            console.error(`[ProcessRPC] Error in async notify handler: ${module}.${method}`, e);
+                        });
+                    }
+                } catch (e) {
+                    console.error(`[ProcessRPC] Error in notify handler: ${module}.${method}`, e);
+                }
             }
         }
     }

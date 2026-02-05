@@ -15,7 +15,7 @@ export class RpcProxy {
         // 在创建新实例前，先清理旧实例，防止内存泄漏
         this.dispose();
         this.rpcInstance = new ProcessRPC<IMainModule>();
-        this.rpcInstance.attach(process);
+        this.rpcInstance.attach(process, 'SceneProcess');
         const { Service } = await import('./service/core/decorator');
         this.rpcInstance.register(Service);
         console.log('[Scene] Scene Process RPC ready');

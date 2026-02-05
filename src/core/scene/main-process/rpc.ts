@@ -26,7 +26,7 @@ export class RpcProxy {
         // 在创建新实例前，先清理旧实例，防止内存泄漏
         this.dispose();
         this.rpcInstance = new ProcessRPC<IPublicServiceManager>();
-        this.rpcInstance.attach(prc);
+        this.rpcInstance.attach(prc, 'MainProcess:SceneWorker');
         this.rpcInstance.register({
             assetManager: assetManager,
             programming: scriptManager,

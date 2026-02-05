@@ -4,10 +4,10 @@ import { ChildProcess } from 'child_process';
 
 
 
-export function setupProcessHandler(process: NodeJS.Process | ChildProcess) {
-     // 监听所有警告
+export function setupProcessHandler(process: NodeJS.Process | ChildProcess, label: string = 'unknown') {
+    // 监听所有警告
     process.on('warning', (warning) => {
-      console.warn('bf test 进程警告:', warning.name);
+      console.warn(`[${label}] bf test 进程警告:`, warning.name);
       console.warn('消息:', warning.message);
       console.warn('堆栈:', warning.stack);
       
@@ -21,31 +21,41 @@ export function setupProcessHandler(process: NodeJS.Process | ChildProcess) {
 
 
     process.on('uncaughtException', (error: Error, origin: string) => {
-      console.error('bf test 未捕获的异常!');
+      console.error(`[${label}] bf test 未捕获的异常!`);
       console.error('错误:', error);
     });
 
     process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-      console.error('bf test 未处理的 Promise 拒绝!', reason);
+      console.error(`[${label}] bf test 未处理的 Promise 拒绝!`, reason);
     });
 
     process.on('moduleResolutionError', (error: Error) => {
-      console.error('bf test 模块解析失败!');
+      console.error(`[${label}] bf test 模块解析失败!`);
       console.error('错误:', error);
     });
 
-    process.on('exit', (code) => {
-        if (code !== 0) {
-            console.error('bf test 000 进程异常退出，退出码:', code);
+    process.on('exit', (code, signal) => {
+        if (code !== 0 && code !== null) {
+            let pid = 'unknown';
+            let argv = '';
+            if ('pid' in process) {
+                pid = String(process.pid);
+            }
+            if ('argv' in process) {
+                argv = process.argv.join(' ');
+            }
+            console.error(`[${label}] bf test 000 进程异常退出，退出码:`, code, 'PID:', pid, 'ARGV:', argv);
             const error = new Error();
             console.error(error.stack);
+        } else if (signal) {
+            console.log(`[${label}] 进程收到信号并退出:`, signal);
         }
     });
 
     const signals = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGABRT'];
     signals.forEach(signal => {
     process.on(signal, () => {
-        console.log(`收到${signal}信号`);
+        console.log(`[${label}] 收到${signal}信号`);
         console.trace();
     });
 });

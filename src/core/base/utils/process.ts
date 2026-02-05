@@ -41,7 +41,7 @@ export function quickSpawn(command: string, cmdParams: string[], options: IQuick
             env: options?.env,
             ...options,
         });
-        setupProcessHandler(child);
+        setupProcessHandler(child, `ChildProcess:${command}`);
 
         let outputData = '';
         function output(type: 'log' | 'debug' | 'warn' | 'error', data: Buffer) {

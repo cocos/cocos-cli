@@ -58,4 +58,7 @@ async function startup() {
     console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);
 }
 
-void startup();
+startup().catch(err => {
+    console.error('[Scene] Startup fatal error:', err);
+    process.exit(1);
+});
