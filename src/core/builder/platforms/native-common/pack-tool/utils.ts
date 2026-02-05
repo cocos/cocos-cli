@@ -329,7 +329,7 @@ export class cchelper {
             }
             cp.on('exit', (code, signal) => {
                 if (code !== 0) {
-                    console.error('bf test 进程异常退出，退出码:', code);
+                    console.error('bf test 111 进程异常退出，退出码:', code);
                     console.trace();
                 }
                 if (code !== 0 && !slient) {

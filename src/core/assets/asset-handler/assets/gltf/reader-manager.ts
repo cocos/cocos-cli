@@ -228,7 +228,7 @@ async function _getOptimizerPath(asset: Asset, source: string, importerVersion: 
                 // if (stderr) { console.error(`Error: ${stderr}`); }
                 // if (stdout) { console.log(`${stdout}`); }
                 if (code !== 0) {
-                    console.error('bf test 1111 进程异常退出，退出码:', code);
+                    console.error('bf test yyyy 进程异常退出，退出码:', code);
                     console.trace();
                 }
                 await fs.writeFile(statusPath, JSON.stringify(expectedStatus, undefined, 2));

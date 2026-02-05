@@ -31,12 +31,12 @@ export function setupProcessHandler(process: NodeJS.Process | ChildProcess) {
 
     process.on('moduleResolutionError', (error: Error) => {
       console.error('bf test 模块解析失败!');
-      console.error('错误:', error.message);
+      console.error('错误:', error);
     });
 
     process.on('exit', (code) => {
         if (code !== 0) {
-            console.error('bf test 进程异常退出，退出码:', code);
+            console.error('bf test 000 进程异常退出，退出码:', code);
             console.trace();
         }
     });
