@@ -1,5 +1,5 @@
 
-export class ProjectLib {
+export class Project {
     static async init(projectPath: string): Promise<void> {
         // 初始化项目信息
         const { default: Project } = await import('../../core/project');

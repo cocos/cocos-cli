@@ -1,6 +1,8 @@
 import type { IConfiguration } from '../../core/configuration/script/interface';
 
-export class ConfigurationLib {
+export { IConfiguration } from '../../core/configuration/script/interface';
+
+export class Configuration {
     static async init(projectPath: string): Promise<void> {
         const { configurationManager } = await import('../../core/configuration');
         return await configurationManager.initialize(projectPath);
