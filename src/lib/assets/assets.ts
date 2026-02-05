@@ -4,6 +4,11 @@ import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scriptin
 import { assetDBManager, assetManager } from '../../core/assets';
 
 export class AssetsLib {
+    static async init(): Promise<void> {
+        // 启动以及初始化资源数据库
+        const { startupAssetDB } = await import('../../core/assets');
+        await startupAssetDB();
+    }
     /**
      * Delete Asset // 删除资源
      */
