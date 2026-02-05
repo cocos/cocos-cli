@@ -55,7 +55,7 @@ async function startup() {
 
     // 发送消息给父进程
     process.send?.(SceneReadyChannel);
-    console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);
+ //   console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);
 }
 
 void startup();
