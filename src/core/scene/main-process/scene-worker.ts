@@ -236,11 +236,6 @@ export class SceneWorker {
         });
 
         this.process.stdout?.on('data', (chunk) => {
-            if (process.env.NODE_ENV === 'test' && (global as any).__TESTS_FINISHED__) {
-                // 测试已结束，静默处理或记录到文件
-                return;
-            }
-
             console.log(chunk.toString());
         });
 
