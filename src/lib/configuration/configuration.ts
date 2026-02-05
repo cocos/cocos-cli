@@ -1,4 +1,4 @@
-import { IConfiguration } from '../../core/configuration/script/interface';
+import type { IConfiguration } from '../../core/configuration/script/interface';
 
 export class ConfigurationLib {
     static async migrateFromProject(): Promise<IConfiguration> {
