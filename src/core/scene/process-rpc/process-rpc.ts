@@ -1,5 +1,6 @@
 // process-rpc.ts
 import { ChildProcess } from 'child_process';
+import {setupProcessHandler} from '../../base/utils/process-err-handler';
 
 /**
  * RPC 消息类型
@@ -92,6 +93,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         this.dispose();
         this.process = proc;
         this.listen();
+        setupProcessHandler(proc);
     }
 
     /**
