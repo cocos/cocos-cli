@@ -1,4 +1,78 @@
 describe('newConsole dead loop reproduction', () => {
+    // Store original state at the suite level
+    let originalMaxListeners: number;
+    let suiteOriginalUncaughtException: NodeJS.UncaughtExceptionListener[];
+    let suiteOriginalUnhandledRejection: NodeJS.UnhandledRejectionListener[];
+    
+    beforeAll(() => {
+        // Increase max listeners to prevent warnings during tests
+        originalMaxListeners = process.getMaxListeners();
+        process.setMaxListeners(50);
+        
+        // Save original listeners at suite level
+        suiteOriginalUncaughtException = process.listeners('uncaughtException').slice();
+        suiteOriginalUnhandledRejection = process.listeners('unhandledRejection').slice();
+    });
+    
+    afterAll(async () => {
+        // Restore max listeners
+        process.setMaxListeners(originalMaxListeners);
+        
+        // Final cleanup - restore all original listeners
+        process.removeAllListeners('uncaughtException');
+        process.removeAllListeners('unhandledRejection');
+        
+        suiteOriginalUncaughtException.forEach(listener => {
+            process.on('uncaughtException', listener as any);
+        });
+        
+        suiteOriginalUnhandledRejection.forEach(listener => {
+            process.on('unhandledRejection', listener as any);
+        });
+        
+        // Wait for any pending async operations to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+    });
+    
+    // Add cleanup between each test
+    let testOriginalPinoError: any = null;
+    let testOriginalUncaughtException: NodeJS.UncaughtExceptionListener[] = [];
+    
+    beforeEach(() => {
+        // Save current state before each test
+        testOriginalUncaughtException = process.listeners('uncaughtException').slice();
+    });
+    
+    afterEach(async () => {
+        // Defensive cleanup after each test
+        try {
+            // Restore pino.error if it was mocked
+            if (testOriginalPinoError) {
+                const { newConsole } = await import('../../base/console');
+                if ((newConsole as any).pino) {
+                    (newConsole as any).pino.error = testOriginalPinoError;
+                }
+                testOriginalPinoError = null;
+            }
+        } catch {
+            // Ignore errors during cleanup
+        }
+        
+        try {
+            // Remove all test listeners and restore original ones
+            process.removeAllListeners('uncaughtException');
+            testOriginalUncaughtException.forEach(listener => {
+                process.on('uncaughtException', listener as any);
+            });
+            testOriginalUncaughtException = [];
+        } catch {
+            // Ignore errors during cleanup
+        }
+        
+        // Wait for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
     it('should reproduce dead loop when pino.error throws exception', async () => {
         // 根据错误堆栈重现死循环场景：
         // 1. sentry.ts 中的全局错误处理器调用 newConsole.error
@@ -19,45 +93,54 @@ describe('newConsole dead loop reproduction', () => {
         
         // 保存原始方法
         const originalPinoError = (newConsole as any).pino?.error;
-        const originalUncaughtException = process.listeners('uncaughtException');
+        testOriginalPinoError = originalPinoError; // Store for afterEach cleanup
+        const originalUncaughtException = process.listeners('uncaughtException').slice();
         
         // 清空现有的 uncaughtException 监听器，避免干扰测试
         process.removeAllListeners('uncaughtException');
         
-        // 设置全局错误处理器（模拟 sentry.ts 的行为）
-        process.on('uncaughtException', (error) => {
-            errorCallCount++;
-            if (errorCallCount > maxCalls) {
-                // 检测到死循环，恢复原始监听器并抛出错误
-                originalUncaughtException.forEach(listener => {
-                    process.on('uncaughtException', listener as any);
-                });
-                throw new Error(`Dead loop detected: uncaughtException handler called ${errorCallCount} times`);
-            }
-            
-            // 调用 newConsole.error（这会触发 pino.error）
-            newConsole.error(`[Global] 未捕获的异常: ${error instanceof Error ? error.message : String(error)}`);
-        });
-        
-        // 模拟 pino.error 抛出异常
-        if (originalPinoError) {
-            (newConsole as any).pino.error = function(..._args: any[]) {
-                pinoErrorCallCount++;
-                if (pinoErrorCallCount > maxCalls) {
-                    // 恢复原始方法
-                    (newConsole as any).pino.error = originalPinoError;
+        try {
+            // 设置全局错误处理器（模拟 sentry.ts 的行为）
+            const errorHandler = (error: Error) => {
+                errorCallCount++;
+                if (errorCallCount > maxCalls) {
+                    // 检测到死循环，恢复原始监听器并抛出错误
+                    process.removeAllListeners('uncaughtException');
                     originalUncaughtException.forEach(listener => {
                         process.on('uncaughtException', listener as any);
                     });
-                    throw new Error(`Dead loop detected: pino.error called ${pinoErrorCallCount} times`);
+                    throw new Error(`Dead loop detected: uncaughtException handler called ${errorCallCount} times`);
                 }
                 
-                // 模拟 pino.error 抛出异常（比如序列化错误、写入文件错误等）
-                throw new Error('pino.error failed: serialization error');
+                // 调用 newConsole.error（这会触发 pino.error）
+                try {
+                    newConsole.error(`[Global] 未捕获的异常: ${error instanceof Error ? error.message : String(error)}`);
+                } catch {
+                    // Swallow the error to prevent cascading failures
+                }
             };
-        }
-        
-        try {
+            
+            process.on('uncaughtException', errorHandler);
+            
+            // 模拟 pino.error 抛出异常
+            if (originalPinoError) {
+                (newConsole as any).pino.error = function(..._args: any[]) {
+                    pinoErrorCallCount++;
+                    if (pinoErrorCallCount > maxCalls) {
+                        // 恢复原始方法
+                        (newConsole as any).pino.error = originalPinoError;
+                        process.removeAllListeners('uncaughtException');
+                        originalUncaughtException.forEach(listener => {
+                            process.on('uncaughtException', listener as any);
+                        });
+                        throw new Error(`Dead loop detected: pino.error called ${pinoErrorCallCount} times`);
+                    }
+                    
+                    // 模拟 pino.error 抛出异常（比如序列化错误、写入文件错误等）
+                    throw new Error('pino.error failed: serialization error');
+                };
+            }
+            
             // 触发一个异常，这会启动死循环
             // 使用 Promise 包装，确保异常能被正确处理
             const errorPromise = new Promise<void>((resolve) => {
@@ -88,18 +171,20 @@ describe('newConsole dead loop reproduction', () => {
             if (errorCallCount > 5 || pinoErrorCallCount > 5) {
                 console.warn(`Warning: Potential dead loop detected. errorCallCount: ${errorCallCount}, pinoErrorCallCount: ${pinoErrorCallCount}`);
             }
-        } catch (testError) {
-            // 如果测试本身出错，也要清理
-            console.error('Test error:', testError);
         } finally {
-            // 恢复原始方法（使用 try-catch 确保清理不会失败）
+            // CRITICAL: Restore mocks IMMEDIATELY before any other cleanup
+            // This prevents any lingering async errors from using the mocked version
             try {
-                if (originalPinoError) {
+                if (originalPinoError && (newConsole as any).pino) {
                     (newConsole as any).pino.error = originalPinoError;
                 }
-            } catch (cleanupError) {
-                console.error('Error restoring pino.error:', cleanupError);
+                testOriginalPinoError = null;
+            } catch {
+                // Ignore cleanup errors
             }
+            
+            // Wait for any pending async errors to flush through the system
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             // 恢复原始监听器（使用 try-catch 确保清理不会失败）
             try {
@@ -107,9 +192,12 @@ describe('newConsole dead loop reproduction', () => {
                 originalUncaughtException.forEach(listener => {
                     process.on('uncaughtException', listener as any);
                 });
-            } catch (cleanupError) {
-                console.error('Error restoring uncaughtException listeners:', cleanupError);
+            } catch {
+                // Ignore cleanup errors
             }
+            
+            // Extra wait to ensure all async operations complete
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
     }, 5000); // 设置较短的超时时间，如果出现死循环会快速失败
     
@@ -124,46 +212,53 @@ describe('newConsole dead loop reproduction', () => {
         
         // 保存原始方法
         const originalPinoError = (newConsole as any).pino?.error;
-        const originalUncaughtException = process.listeners('uncaughtException');
+        testOriginalPinoError = originalPinoError; // Store for afterEach cleanup
+        const originalUncaughtException = process.listeners('uncaughtException').slice();
         
         // 清空现有的 uncaughtException 监听器
         process.removeAllListeners('uncaughtException');
         
-        // 模拟 pino.error 抛出异常
-        if (originalPinoError) {
-            (newConsole as any).pino.error = function(..._args: any[]) {
-                callChain.push('pino.error');
+        try {
+            // 模拟 pino.error 抛出异常
+            if (originalPinoError) {
+                (newConsole as any).pino.error = function(..._args: any[]) {
+                    callChain.push('pino.error');
+                    if (callChain.length > maxDepth) {
+                        // 恢复并抛出错误
+                        (newConsole as any).pino.error = originalPinoError;
+                        process.removeAllListeners('uncaughtException');
+                        originalUncaughtException.forEach(listener => {
+                            process.on('uncaughtException', listener as any);
+                        });
+                        throw new Error(`Dead loop detected. Call chain: ${callChain.join(' -> ')}`);
+                    }
+                    // 抛出异常，模拟 pino.error 失败
+                    throw new Error('pino.error serialization failed');
+                };
+            }
+            
+            // 设置全局错误处理器（模拟 sentry.ts）
+            const errorHandler = (error: Error) => {
+                callChain.push('uncaughtException');
                 if (callChain.length > maxDepth) {
-                    // 恢复并抛出错误
-                    (newConsole as any).pino.error = originalPinoError;
                     process.removeAllListeners('uncaughtException');
                     originalUncaughtException.forEach(listener => {
                         process.on('uncaughtException', listener as any);
                     });
                     throw new Error(`Dead loop detected. Call chain: ${callChain.join(' -> ')}`);
                 }
-                // 抛出异常，模拟 pino.error 失败
-                throw new Error('pino.error serialization failed');
+                
+                // 调用 newConsole.error（这会触发整个调用链）
+                callChain.push('newConsole.error');
+                try {
+                    newConsole.error(`[Global] 未捕获的异常: ${error instanceof Error ? error.message : String(error)}`);
+                } catch {
+                    // Swallow the error to prevent cascading failures
+                }
             };
-        }
-        
-        // 设置全局错误处理器（模拟 sentry.ts）
-        process.on('uncaughtException', (error) => {
-            callChain.push('uncaughtException');
-            if (callChain.length > maxDepth) {
-                process.removeAllListeners('uncaughtException');
-                originalUncaughtException.forEach(listener => {
-                    process.on('uncaughtException', listener as any);
-                });
-                throw new Error(`Dead loop detected. Call chain: ${callChain.join(' -> ')}`);
-            }
             
-            // 调用 newConsole.error（这会触发整个调用链）
-            callChain.push('newConsole.error');
-            newConsole.error(`[Global] 未捕获的异常: ${error instanceof Error ? error.message : String(error)}`);
-        });
-        
-        try {
+            process.on('uncaughtException', errorHandler);
+            
             // 触发一个异常
             // 使用 Promise 包装，确保异常能被正确处理
             const errorPromise = new Promise<void>((resolve) => {
@@ -192,27 +287,31 @@ describe('newConsole dead loop reproduction', () => {
             if (chainStr.includes('pino.error -> uncaughtException -> newConsole.error -> pino.error')) {
                 console.warn('Warning: Dead loop pattern detected:', chainStr);
             }
-        } catch (testError) {
-            // 如果测试本身出错，也要清理
-            console.error('Test error:', testError);
         } finally {
-            // 恢复（使用 try-catch 确保清理不会失败）
+            // CRITICAL: Restore mocks IMMEDIATELY before any other cleanup
             try {
-                if (originalPinoError) {
+                if (originalPinoError && (newConsole as any).pino) {
                     (newConsole as any).pino.error = originalPinoError;
                 }
-            } catch (cleanupError) {
-                console.error('Error restoring pino.error:', cleanupError);
+                testOriginalPinoError = null;
+            } catch {
+                // Ignore cleanup errors
             }
+            
+            // Wait for any pending async errors to flush through the system
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             try {
                 process.removeAllListeners('uncaughtException');
                 originalUncaughtException.forEach(listener => {
                     process.on('uncaughtException', listener as any);
                 });
-            } catch (cleanupError) {
-                console.error('Error restoring uncaughtException listeners:', cleanupError);
+            } catch {
+                // Ignore cleanup errors
             }
+            
+            // Extra wait to ensure all async operations complete
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
     }, 5000);
 });
