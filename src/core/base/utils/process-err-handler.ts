@@ -36,7 +36,6 @@ export function setupProcessHandler(process: NodeJS.Process | ChildProcess) {
 
     process.on('exit', (code) => {
         if (code !== 0) {
-            Error.stackTraceLimit = 50;
             console.error('bf test 000 进程异常退出，退出码:', code);
             const error = new Error();
             console.error(error.stack);
