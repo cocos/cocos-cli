@@ -33,4 +33,11 @@ export function setupProcessHandler(process: NodeJS.Process | ChildProcess) {
       console.error('bf test 模块解析失败!');
       console.error('错误:', error.message);
     });
+
+    process.on('exit', (code) => {
+        if (code !== 0) {
+            console.error('bf test 进程异常退出，退出码:', code);
+            console.trace();
+        }
+    });
 }

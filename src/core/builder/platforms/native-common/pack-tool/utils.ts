@@ -328,6 +328,10 @@ export class cchelper {
                 });
             }
             cp.on('exit', (code, signal) => {
+                if (code !== 0) {
+                    console.error('bf test 进程异常退出，退出码:', code);
+                    console.trace();
+                }
                 if (code !== 0 && !slient) {
                     reject(`failed to exec ${cmd} ${args.join(' ')}`);
                 } else {

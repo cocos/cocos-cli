@@ -187,6 +187,10 @@ class WorkerTask {
             this.close();
         });
         child.on('exit', (code, signal) => {
+            if (code !== 0) {
+                console.error('bf test 进程异常退出，退出码:', code);
+                console.trace();
+            }
             if (code !== 0 && signal !== 'SIGTERM') {
                 this.reject(new Error(`Exit process with code:${code}, signal:${signal} in task ${this.name}`));
             } else {

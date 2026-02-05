@@ -193,6 +193,10 @@ export class MCPTestClient {
                     }
                     reject(new Error(`Server exited with code ${code} before ready`));
                 }
+                if (code !== 0) {
+                    console.error('bf test 000 进程异常退出，退出码:', code);
+                    console.trace();
+                }
             });
         });
     }
