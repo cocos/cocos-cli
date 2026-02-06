@@ -87,10 +87,6 @@ export function quickSpawn(command: string, cmdParams: string[], options: IQuick
             reject(err);
         });
         child.on('exit', (code) => {
-            if (code !== 0) {
-                console.error('bf test zzzz 进程异常退出，退出码:', code);
-                console.trace();
-            }
             !options.onlyPrintWhenError && console.debug(options.prefix + `Child process exit width code ${code}`);
         });
     });

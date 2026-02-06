@@ -140,7 +140,7 @@ export class NewConsole {
 
         this._start = true;
 
-        const EXIT_FLUSH_GUARD = Symbol.for('bf.console.exit.flush');
+        const EXIT_FLUSH_GUARD = Symbol.for('console.exit.flush');
         // Auto-flush on exit
         if (!(process as any)[EXIT_FLUSH_GUARD]) {
             process.on('exit', () => {
