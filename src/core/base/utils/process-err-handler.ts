@@ -48,7 +48,7 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
             const error = new Error();
             console.error(error.stack);
         } else if (signal) {
-            console.log(`[${label}] 进程收到信号并退出:`, signal);
+            console.log(`[${label}] [${isGlobal ? 'Global' : 'Child'}] 进程收到信号并退出:`, signal);
         }
     });
 
@@ -56,7 +56,7 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
         const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGABRT'];
         signals.forEach(signal => {
             proc.on(signal, () => {
-                console.log(`[${label}] 收到${signal}信号`);
+                console.log(`[${label}] [Global] 收到${signal}信号`);
                 // Give a bit of time for logs to flush if needed, but signals usually imply we should stop
             });
         });

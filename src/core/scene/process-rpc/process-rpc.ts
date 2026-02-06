@@ -90,8 +90,11 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * @param proc - NodeJS.Process 或 ChildProcess 实例
      */
     attach(proc: NodeJS.Process | ChildProcess, label: string = 'ProcessRPC') {
+        process.stdout.write(`[ProcessRPC:${label}] Attaching to process\n`);
         this.dispose();
         this.process = proc;
+        // @ts-ignore
+        this.process.label = label;
         this.listen();
         setupProcessHandler(proc, label);
     }
@@ -108,9 +111,14 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 重置消息注册
      */
     public dispose() {
+        if (this.process) {
+            // @ts-ignore
+            const label = this.process.label || 'unknown';
+            process.stdout.write(`[ProcessRPC:${label}] Disposing\n`);
+            this.process.off('message', this.onMessageBind);
+        }
         this.msgId = 0;
         this.callbacks.clear();
-        this.process?.off('message', this.onMessageBind);
         this.process = undefined;
     }
 
@@ -185,8 +193,9 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * @private
      */
     private reply(msg: RpcResponse) {
-        if (!this.process) {
-            throw new Error('未挂载进程');
+        if (!this.process || !this.process.connected) {
+            console.warn(`[ProcessRPC] Cannot send reply, process is not connected. id:${msg.id}`);
+            return;
         }
         this.process.send?.(msg);
     }
@@ -229,8 +238,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 else resolve(res.result);
             });
 
-            if (!this.process) {
-                throw new Error('未挂载进程');
+            if (!this.process || !this.process.connected) {
+                this.callbacks.delete(id);
+                if (timer) clearTimeout(timer);
+                return reject(new Error(`RPC process is not connected. Cannot send request: ${String(module)}.${String(method)}`));
             }
             this.process.send?.(req);
         });
@@ -239,13 +250,14 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     /**
      * 发送单向消息（无返回值）
      */
-    notify<K extends keyof TModules, M extends keyof TModules[K]>(
+    public notify<K extends keyof TModules, M extends keyof TModules[K]>(
         module: K,
         method: M,
         args?: Parameters<TModules[K][M]>
     ) {
-        if (!this.process) {
-            throw new Error('未挂载进程');
+        if (!this.process || !this.process.connected) {
+            console.warn(`[ProcessRPC] Cannot send notify, process is not connected. module:${String(module)}, method:${String(method)}`);
+            return;
         }
         const msg: RpcNotify = {
             type: 'notify',

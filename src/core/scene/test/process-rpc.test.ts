@@ -28,7 +28,7 @@ describe('ProcessRPC 双向调用测试', () => {
             console.log(chunk.toString());
         });
         rpc = new ProcessRPC<{ node: INodeService; scene: ISceneService }>();
-        rpc.attach(child);
+        rpc.attach(child, 'Test:RPCWorkerProcess');
     });
 
     afterAll(() => {
