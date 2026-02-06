@@ -85,6 +85,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private msgId = 0;
     private process: NodeJS.Process | ChildProcess | undefined;
     private onMessageBind = this.onMessage.bind(this);
+    private disposeBind = this.dispose.bind(this);
 
     /**
      * @param proc - NodeJS.Process 或 ChildProcess 实例
@@ -111,23 +112,41 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 重置消息注册
      */
     public dispose() {
-        if (this.process) {
-            // @ts-ignore
-            const label = this.process.label || 'unknown';
-            process.stdout.write(`[ProcessRPC:${label}] Disposing\n`);
-            try {
-                if (typeof this.process.off === 'function') {
-                    this.process.off('message', this.onMessageBind);
-                } else if (typeof (this.process as any).removeListener === 'function') {
-                    (this.process as any).removeListener('message', this.onMessageBind);
-                }
-            } catch (err) {
-                process.stdout.write(`[ProcessRPC:${label}] Error during dispose off: ${err}\n`);
-            }
+        if (!this.process) {
+            return;
         }
-        this.msgId = 0;
-        this.callbacks.clear();
+
+        const proc = this.process;
+        // @ts-ignore
+        const label = proc.label || 'unknown';
+        process.stdout.write(`[ProcessRPC:${label}] Disposing\n`);
+
         this.process = undefined;
+
+        try {
+            if (typeof proc.off === 'function') {
+                proc.off('message', this.onMessageBind);
+                proc.off('disconnect', this.disposeBind);
+                proc.off('exit', this.disposeBind);
+            } else if (typeof (proc as any).removeListener === 'function') {
+                (proc as any).removeListener('message', this.onMessageBind);
+                (proc as any).removeListener('disconnect', this.disposeBind);
+                (proc as any).removeListener('exit', this.disposeBind);
+            }
+        } catch (err) {
+            process.stdout.write(`[ProcessRPC:${label}] Error during dispose off: ${err}\n`);
+        }
+
+        // Reject pending callbacks
+        if (this.callbacks.size > 0) {
+            process.stdout.write(`[ProcessRPC:${label}] Rejecting ${this.callbacks.size} pending callbacks\n`);
+            for (const [id, callback] of this.callbacks) {
+                callback({ id, type: 'response', error: `ProcessRPC [${label}] disposed or process disconnected` });
+            }
+            this.callbacks.clear();
+        }
+
+        this.msgId = 0;
     }
 
     /**
@@ -145,6 +164,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             throw new Error('未挂载进程');
         }
         this.process.on('message', this.onMessageBind);
+        this.process.once('disconnect', this.disposeBind);
+        this.process.once('exit', this.disposeBind);
     }
 
     private async onMessage(msg: RpcMessage) {
