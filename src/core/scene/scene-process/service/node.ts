@@ -231,6 +231,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
         try {
             await Service.Editor.lock();
+            const root = Service.Editor.getRootNode();
+            if (!root) {
+                throw new Error('Failed to delete node: the scene is not opened.');
+            }
 
             const path = params.path;
             const node = NodeMgr.getNodeByPath(path);
@@ -365,6 +369,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
         try {
             await Service.Editor.lock();
+            const node = Service.Editor.getRootNode();
+            if (!node) {
+                throw new Error('Failed to update node: the scene is not opened.');
+            }
             return updateOperate();
         } catch (error) {
             console.error(error);
@@ -377,9 +385,13 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     async queryNode(params: IQueryNodeParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
+            const root = Service.Editor.getRootNode();
+            if (!root) {
+                throw new Error('Failed to query node: the scene is not opened.');
+            }
             let node = NodeMgr.getNodeByPath(params.path);
             if (!params.path || params.path === '/') {
-                node = Service.Editor.getRootNode();
+                node = root;
             }
             if (!node) {
                 return null;
