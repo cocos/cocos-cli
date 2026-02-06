@@ -12,6 +12,7 @@ import { createFbxConverter } from '../utils/fbx-converter';
 import { modelConvertRoutine } from '../utils/model-convert-routine';
 import { fbxToGlTf } from './fbx-to-gltf';
 import { I18nKeys } from '../../../../../i18n/types/generated';
+import { setupProcessHandler } from '../../../../base/utils/process-err-handler';
 
 class GlTfReaderManager {
     private _map = new Map<string, GltfConverter>();
@@ -223,14 +224,11 @@ async function _getOptimizerPath(asset: Asset, source: string, importerVersion: 
             // if (options.h) { args.push'-h'; }
 
             const child = fork(cmd, args);
+            setupProcessHandler(child, 'GltfPack');
             child.on('exit', async (code) => {
                 // if (error) { console.error(`Error: ${error}`); }
                 // if (stderr) { console.error(`Error: ${stderr}`); }
                 // if (stdout) { console.log(`${stdout}`); }
-                if (code !== 0) {
-                    console.error('bf test yyyy 进程异常退出，退出码:', code);
-                    console.trace();
-                }
                 await fs.writeFile(statusPath, JSON.stringify(expectedStatus, undefined, 2));
                 resolve(out);
             });

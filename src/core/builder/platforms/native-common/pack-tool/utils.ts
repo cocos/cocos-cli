@@ -4,6 +4,7 @@ import { execSync, spawn } from 'child_process';
 import * as os from 'os';
 import type { CocosParams } from './base/default';
 const iconv = require('iconv-lite');
+import { setupProcessHandler } from '../../../../base/utils/process-err-handler';
 
 
 // 因为加密后有多个后缀
@@ -327,11 +328,8 @@ export class cchelper {
                     console.log(`[runCmd ${cmd} - error] ${chunk}`);
                 });
             }
+            setupProcessHandler(cp, `RunCmd:${cmd}`);
             cp.on('exit', (code, signal) => {
-                if (code !== 0) {
-                    console.error('bf test 111 进程异常退出，退出码:', code);
-                    console.trace();
-                }
                 if (code !== 0 && !slient) {
                     reject(`failed to exec ${cmd} ${args.join(' ')}`);
                 } else {

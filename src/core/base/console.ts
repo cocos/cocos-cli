@@ -108,7 +108,7 @@ export class NewConsole {
             return;
         }
 
-        this.pino.flush(); // Finish previous writes
+        this.flush(); // Finish previous writes
 
         // Reset pino using new log destination
         this.pino = pino({
@@ -131,7 +131,7 @@ export class NewConsole {
                             errorLogFile: join(this.logDest, 'errors.log'),
                             timestampFormat: 'iso',
                             skipPretty: false,
-                            errorFlushIntervalMs: 1000,
+                            errorFlushIntervalMs: 100, // Reduced for faster flush
                         },
                     }
                 ],
@@ -139,6 +139,15 @@ export class NewConsole {
         });
 
         this._start = true;
+
+        const EXIT_FLUSH_GUARD = Symbol.for('bf.console.exit.flush');
+        // Auto-flush on exit
+        if (!(process as any)[EXIT_FLUSH_GUARD]) {
+            process.on('exit', () => {
+                this.flush();
+            });
+            (process as any)[EXIT_FLUSH_GUARD] = true;
+        }
 
         // @ts-ignore 将处理过的继承自 console 的新对象赋给 windows
         // 保存原始 console 引用，以便其他模块可以访问原始 console 避免死循环
@@ -560,7 +569,11 @@ export class NewConsole {
         }
     }
 
-    // --------------------- Query logs -------------------------
+    public flush() {
+        this.pino.flush();
+    }
+
+    // --------------------- Common Level -------------------------
     /**
      * 获取最近的日志信息
      */

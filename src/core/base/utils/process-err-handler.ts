@@ -1,49 +1,49 @@
 import { ChildProcess } from 'child_process';
 
 
+const GLOBAL_HANDLER_KEY = Symbol.for('bf.test.process.handler');
 
+export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: string = 'unknown') {
+    // Determine if it's the global process
+    const isGlobal = proc === process;
 
+    if (isGlobal) {
+        // Prevent duplicate registration on global process
+        if ((proc as any)[GLOBAL_HANDLER_KEY]) {
+            return;
+        }
+        (proc as any)[GLOBAL_HANDLER_KEY] = true;
+    }
 
-export function setupProcessHandler(process: NodeJS.Process | ChildProcess, label: string = 'unknown') {
     // 监听所有警告
-    process.on('warning', (warning) => {
-      console.warn(`[${label}] bf test 进程警告:`, warning.name);
-      console.warn('消息:', warning.message);
-      console.warn('堆栈:', warning.stack);
-      
-      // 特定警告处理
-      if (warning.name === 'DeprecationWarning') {
-        console.warn('弃用警告', { warning });
-      } else if (warning.name === 'MaxListenersExceededWarning') {
-        console.error('事件监听器过多，可能导致内存泄漏', { warning });
-      }
+    proc.on('warning', (warning) => {
+        console.warn(`[${label}] bf test 进程警告:`, warning.name, warning.message);
+        if (warning.name === 'ExperimentalWarning') {
+            // 忽略实验性特性警告
+        } else if (warning.name === 'MaxListenersExceededWarning') {
+            console.error(`[${label}] 事件监听器过多，可能导致内存泄漏`, { warning });
+        }
     });
 
+    if (isGlobal || 'pid' in proc) { // process or the current process
+        proc.on('uncaughtException', (error: Error, origin: string) => {
+            console.error(`[${label}] bf test 未捕获的异常! Origin:`, origin);
+            console.error('错误:', error);
+        });
 
-    process.on('uncaughtException', (error: Error, origin: string) => {
-      console.error(`[${label}] bf test 未捕获的异常!`);
-      console.error('错误:', error);
-    });
+        proc.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+            console.error(`[${label}] bf test 未处理的 Promise 拒绝!`, reason);
+        });
+    }
 
-    process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-      console.error(`[${label}] bf test 未处理的 Promise 拒绝!`, reason);
-    });
-
-    process.on('moduleResolutionError', (error: Error) => {
-      console.error(`[${label}] bf test 模块解析失败!`);
-      console.error('错误:', error);
-    });
-
-    process.on('exit', (code, signal) => {
+    // exit covers both ChildProcess and Process
+    proc.on('exit', (code, signal) => {
         if (code !== 0 && code !== null) {
             let pid = 'unknown';
             let argv = '';
-            if ('pid' in process) {
-                pid = String(process.pid);
-            }
-            if ('argv' in process) {
-                argv = process.argv.join(' ');
-            }
+            if ('pid' in proc) { pid = String(proc.pid); }
+            if ('argv' in proc) { argv = proc.argv.join(' '); }
+            
             console.error(`[${label}] bf test 000 进程异常退出，退出码:`, code, 'PID:', pid, 'ARGV:', argv);
             const error = new Error();
             console.error(error.stack);
@@ -52,11 +52,13 @@ export function setupProcessHandler(process: NodeJS.Process | ChildProcess, labe
         }
     });
 
-    const signals = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGABRT'];
-    signals.forEach(signal => {
-    process.on(signal, () => {
-        console.log(`[${label}] 收到${signal}信号`);
-        console.trace();
-    });
-});
+    if (isGlobal) {
+        const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGABRT'];
+        signals.forEach(signal => {
+            proc.on(signal, () => {
+                console.log(`[${label}] 收到${signal}信号`);
+                // Give a bit of time for logs to flush if needed, but signals usually imply we should stop
+            });
+        });
+    }
 }
