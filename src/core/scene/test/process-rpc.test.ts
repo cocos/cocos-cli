@@ -31,8 +31,10 @@ describe('ProcessRPC 双向调用测试', () => {
         rpc.attach(child, 'Test:RPCWorkerProcess');
     });
 
-    afterAll(() => {
+    afterAll(async () => {
+        const exitPromise = new Promise((resolve) => child.once('exit', resolve));
         child.kill();
+        await exitPromise;
     });
 
     test('主进程调用子进程方法', async () => {

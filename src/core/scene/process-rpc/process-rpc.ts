@@ -115,7 +115,15 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             // @ts-ignore
             const label = this.process.label || 'unknown';
             process.stdout.write(`[ProcessRPC:${label}] Disposing\n`);
-            this.process.off('message', this.onMessageBind);
+            try {
+                if (typeof this.process.off === 'function') {
+                    this.process.off('message', this.onMessageBind);
+                } else if (typeof (this.process as any).removeListener === 'function') {
+                    (this.process as any).removeListener('message', this.onMessageBind);
+                }
+            } catch (err) {
+                process.stdout.write(`[ProcessRPC:${label}] Error during dispose off: ${err}\n`);
+            }
         }
         this.msgId = 0;
         this.callbacks.clear();

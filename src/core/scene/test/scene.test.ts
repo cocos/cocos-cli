@@ -18,6 +18,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+    const { sceneWorker } = await import('../main-process/scene-worker');
+    await sceneWorker.stop();
     removeCache();
 });
 

@@ -206,6 +206,11 @@ export class SceneWorker {
             console.log(`等待 ${delay}ms 后重启...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (this.isManualStop) {
+                console.log('检测到手动停止，取消重启');
+                return;
+            }
+
             // 重新启动进程
             const success = await this.start(this.enginePath, this.projectPath);
 

@@ -44,11 +44,11 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
             if ('pid' in proc) { pid = String(proc.pid); }
             if ('argv' in proc) { argv = proc.argv.join(' '); }
             
-            console.error(`[${label}] bf test 000 进程异常退出，退出码:`, code, 'PID:', pid, 'ARGV:', argv);
+            process.stdout.write(`[${label}] bf test 000 进程异常退出，退出码: ${code} PID: ${pid} ARGV: ${argv}\n`);
             const error = new Error();
-            console.error(error.stack);
+            process.stdout.write(`${error.stack}\n`);
         } else if (signal) {
-            console.log(`[${label}] [${isGlobal ? 'Global' : 'Child'}] 进程收到信号并退出:`, signal);
+            process.stdout.write(`[${label}] [${isGlobal ? 'Global' : 'Child'}] 进程收到信号并退出: ${signal}\n`);
         }
     });
 
@@ -56,7 +56,7 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
         const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGABRT'];
         signals.forEach(signal => {
             proc.on(signal, () => {
-                console.log(`[${label}] [Global] 收到${signal}信号`);
+                process.stdout.write(`[${label}] [Global] 收到${signal}信号\n`);
                 // Give a bit of time for logs to flush if needed, but signals usually imply we should stop
             });
         });

@@ -70,6 +70,8 @@ export class CLIRunner {
                 env,
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
+            const { setupProcessHandler } = require('../../src/core/base/utils/process-err-handler');
+            setupProcessHandler(child, `E2E:CLI:${args[0]}`);
 
             // 设置超时
             const timer = setTimeout(() => {
