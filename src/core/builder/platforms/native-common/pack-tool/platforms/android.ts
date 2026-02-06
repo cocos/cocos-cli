@@ -3,47 +3,19 @@ import * as ps from 'path';
 import { cchelper } from '../utils';
 import NativePackTool, { CocosParams } from '../base/default';
 
-export interface IOrientation {
-    landscapeLeft: boolean;
-    landscapeRight: boolean;
-    portrait: boolean;
-    upsideDown: boolean;
-}
-
 export interface IAndroidParam {
     packageName: string;
-    sdkPath: string;
-    ndkPath: string;
-    javaHome: string;
-    javaPath: string;
-    androidInstant: boolean,
-    isSoFileCompressed: boolean;
-    maxAspectRatio: string;
-    remoteUrl?: string;
     apiLevel: number;
     appABIs: string[];
-    keystorePassword: string;
-    keystoreAlias: string;
-    keystoreAliasPassword: string;
-    keystorePath: string;
-    inputSDK: boolean;
-
-    orientation: IOrientation;
-    appBundle: boolean;
-    resizeableActivity: boolean;
+    sdkPath: string;
+    ndkPath: string;
+    javaHome?: string;
+    javaPath?: string;
+    [key: string]: any;
 }
 
 export default class AndroidPackTool extends NativePackTool {
     declare params: CocosParams<IAndroidParam>;
-
-    private updateGradleProp(content: string, key: string, value: string | number | boolean): string {
-        const pattern = new RegExp(`^#?\\s*${key}=.*$`, 'm');
-        const newLine = `${key}=${value}`;
-        if (content.match(pattern)) {
-            return content.replace(pattern, newLine);
-        }
-        return content + `\n${newLine}`;
-    }
 
     async create() {
         await this.copyCommonTemplate();
@@ -67,6 +39,7 @@ export default class AndroidPackTool extends NativePackTool {
 
     async generate() {
         const nativePrjDir = this.paths.nativePrjDir;
+        const platformTemplateDir = this.paths.platformTemplateDirInPrj;
         const buildTemplateDir = ps.join(this.paths.nativeTemplateDirInCocos, 'android', 'build');
 
         // 1. 确保构建目录存在
@@ -77,7 +50,18 @@ export default class AndroidPackTool extends NativePackTool {
             await fs.copy(buildTemplateDir, nativePrjDir, { overwrite: true });
         }
 
-        // 3. 替换 settings.gradle 中的项目名
+        // 3. 复制用户代码 (native/engine/android) 到构建目录，覆盖骨架
+        if (fs.existsSync(platformTemplateDir)) {
+            // 先删除构建目录中的 res 目录，避免与用户代码中的 res 目录冲突
+            const resDirInBuild = ps.join(nativePrjDir, 'res');
+            if (fs.existsSync(resDirInBuild)) {
+                await fs.remove(resDirInBuild);
+                console.log(`[Android] Removed existing res directory in build folder to avoid conflicts`);
+            }
+            await fs.copy(platformTemplateDir, nativePrjDir, { overwrite: true });
+        }
+
+        // 3.1. 替换 settings.gradle 中的项目名
         // 因为复制文件可能会覆盖之前在 create() 阶段替换的内容，需要再次替换
         const settingsGradlePath = ps.join(nativePrjDir, 'settings.gradle');
         if (fs.existsSync(settingsGradlePath)) {
@@ -118,6 +102,12 @@ export default class AndroidPackTool extends NativePackTool {
                 if (!existingProps.includes('sdk.dir=') && sdkPath) {
                     await fs.appendFile(propsPath, `\nsdk.dir=${cchelper.fixPath(sdkPath)}`);
                 }
+                // 不要写入 ndk.dir，这会导致与 build.gradle 中的 android.ndkVersion 冲突
+                // 如果 ndk.dir 与 android.ndkVersion 指定的版本不一致，构建会失败
+                // 通过让 Gradle 根据 android.ndkVersion 自动查找 NDK 目录来解决此问题
+                // if (!existingProps.includes('ndk.dir=') && ndkPath) {
+                //     await fs.appendFile(propsPath, `\nndk.dir=${cchelper.fixPath(ndkPath)}`);
+                // }
             } else {
                  // 仅写入 sdk.dir（如果存在）
                  if (sdkPath) {
@@ -129,70 +119,131 @@ export default class AndroidPackTool extends NativePackTool {
              console.warn('[Android] local.properties skipped because sdkPath and ndkPath are empty');
         }
 
-        // 5. 更新 gradle.properties
+        // 5. 更新 gradle.properties 中的 COCOS_ENGINE_PATH
         const gradlePropsPath = ps.join(nativePrjDir, 'gradle.properties');
         if (fs.existsSync(gradlePropsPath)) {
             let gradleProps = await fs.readFile(gradlePropsPath, 'utf8');
-            
-            // --- 更新 COCOS_ENGINE_PATH ---
             const enginePath = this.params.enginePath;
             let nativeEnginePath = this.params.nativeEnginePath;
             console.log(`[Android] Debug Params - enginePath: ${enginePath}, nativeEnginePath: ${nativeEnginePath}`);
             
             if (!nativeEnginePath && enginePath) {
+                // 如果 nativeEnginePath 未定义，尝试从 enginePath 推断
+                // 通常 native 目录在 enginePath/native
                 const potentialNativePath = ps.join(enginePath, 'native');
                 if (fs.existsSync(potentialNativePath)) {
                     nativeEnginePath = potentialNativePath;
                     console.log(`[Android] Inferred nativeEnginePath: ${nativeEnginePath}`);
                 }
             } else if (!nativeEnginePath && !enginePath) {
+                 // 最后的尝试：假设我们正在运行在 cocos-cli 项目中，且 packages/engine 存在
+                 // 这是一个开发环境的 fallback
                  const cliEnginePath = ps.resolve(__dirname, '../../../../../../../../packages/engine');
                  if (fs.existsSync(cliEnginePath)) {
-                     // fallback logic placeholder
+                     // nativeEnginePath = ps.join(cliEnginePath, 'native'); // 这似乎不对，cliEnginePath 已经是 packages/engine
+                     // 实际上 engineInfo.typescript.path 应该指向这个目录
+                     // 但我们这里只是为了获取 native 目录
+                     // 无论如何，我们尝试构造一个路径
+                     // 实际上，如果 enginePath 都没有，说明初始化流程有问题
                  }
             }
 
             if (nativeEnginePath || this.params.enginePath) {
+                // settings.gradle: new File(COCOS_ENGINE_PATH,'cocos/platform/android/libcocos2dx')
+                // 这里的路径结构表明 COCOS_ENGINE_PATH 应该指向 native 目录
+                // 因为文件实际位于 packages/engine/native/cocos/platform/android/libcocos2dx
+                
+                // 优先使用 nativeEnginePath
                 let targetEnginePath = nativeEnginePath;
                 if (!targetEnginePath && this.params.enginePath) {
+                    // 如果 nativeEnginePath 未定义，尝试从 enginePath/native 获取
                     targetEnginePath = ps.join(this.params.enginePath, 'native');
                 }
                 
                 if (targetEnginePath) {
                     const fixedPath = cchelper.fixPath(targetEnginePath);
-                    gradleProps = this.updateGradleProp(gradleProps, 'COCOS_ENGINE_PATH', fixedPath);
-                    console.log(`[Android] Updated COCOS_ENGINE_PATH: ${fixedPath}`);
+                    // 替换 COCOS_ENGINE_PATH= 为 COCOS_ENGINE_PATH=path
+                    if (gradleProps.includes('COCOS_ENGINE_PATH=')) {
+                        gradleProps = gradleProps.replace(/COCOS_ENGINE_PATH=(.*)/, `COCOS_ENGINE_PATH=${fixedPath}`);
+                        await fs.writeFile(gradlePropsPath, gradleProps);
+                        console.log(`[Android] Updated COCOS_ENGINE_PATH in gradle.properties to: ${fixedPath}`);
+                    }
                 }
             }
 
-            // --- 更新 RES_PATH ---
+            // 6. 更新 RES_PATH
+            // RES_PATH 应该是 build/android 目录
             const resPath = cchelper.fixPath(this.paths.buildDir);
-            gradleProps = this.updateGradleProp(gradleProps, 'RES_PATH', resPath);
+            gradleProps = await fs.readFile(gradlePropsPath, 'utf8'); // re-read in case it was updated
+            if (gradleProps.includes('RES_PATH=')) {
+                 // 如果为空或者需要强制更新
+                 gradleProps = gradleProps.replace(/RES_PATH=(.*)/, `RES_PATH=${resPath}`);
+                 await fs.writeFile(gradlePropsPath, gradleProps);
+                 console.log(`[Android] Updated RES_PATH in gradle.properties to: ${resPath}`);
+            }
 
-            // --- 更新签名相关配置 ---
+            // 7. 添加/更新签名相关配置
+            gradleProps = await fs.readFile(gradlePropsPath, 'utf8'); // re-read in case it was updated
+            
+            // 计算 keystore 文件的绝对路径
             const { keystoreAlias, keystoreAliasPassword, keystorePassword, keystorePath } = this.params.platformParams;
             const fixedKeystorePath = cchelper.fixPath(keystorePath);
             
-            gradleProps = this.updateGradleProp(gradleProps, 'RELEASE_STORE_FILE', fixedKeystorePath);
-            gradleProps = this.updateGradleProp(gradleProps, 'RELEASE_STORE_PASSWORD', keystorePassword);
-            gradleProps = this.updateGradleProp(gradleProps, 'RELEASE_KEY_ALIAS', keystoreAlias);
-            gradleProps = this.updateGradleProp(gradleProps, 'RELEASE_KEY_PASSWORD', keystoreAliasPassword);
+            // 更新或添加 RELEASE_STORE_FILE（处理注释行）
+            if (gradleProps.match(/^#?\s*RELEASE_STORE_FILE=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*RELEASE_STORE_FILE=.*$/m, `RELEASE_STORE_FILE=${fixedKeystorePath}`);
+            } else {
+                gradleProps += `\nRELEASE_STORE_FILE=${fixedKeystorePath}`;
+            }
             
-            // --- 更新 APPLICATION_ID ---
+            // 更新或添加 RELEASE_STORE_PASSWORD（处理注释行）
+            if (gradleProps.match(/^#?\s*RELEASE_STORE_PASSWORD=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*RELEASE_STORE_PASSWORD=.*$/m, `RELEASE_STORE_PASSWORD=${keystorePassword}`);
+            } else {
+                gradleProps += `\nRELEASE_STORE_PASSWORD=${keystorePassword}`;
+            }
+            
+            // 更新或添加 RELEASE_KEY_ALIAS（处理注释行）
+            if (gradleProps.match(/^#?\s*RELEASE_KEY_ALIAS=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*RELEASE_KEY_ALIAS=.*$/m, `RELEASE_KEY_ALIAS=${keystoreAlias}`);
+            } else {
+                gradleProps += `\nRELEASE_KEY_ALIAS=${keystoreAlias}`;
+            }
+            
+            // 更新或添加 RELEASE_KEY_PASSWORD（处理注释行）
+            if (gradleProps.match(/^#?\s*RELEASE_KEY_PASSWORD=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*RELEASE_KEY_PASSWORD=.*$/m, `RELEASE_KEY_PASSWORD=${keystoreAliasPassword}`);
+            } else {
+                gradleProps += `\nRELEASE_KEY_PASSWORD=${keystoreAliasPassword}`;
+            }
+            
+            // 8. 添加/更新 APPLICATION_ID（使用 packageName，处理注释行）
             const packageName = this.params.platformParams.packageName;
             if (packageName) {
-                gradleProps = this.updateGradleProp(gradleProps, 'APPLICATION_ID', packageName);
+                if (gradleProps.match(/^#?\s*APPLICATION_ID=/m)) {
+                    gradleProps = gradleProps.replace(/^#?\s*APPLICATION_ID=.*$/m, `APPLICATION_ID=${packageName}`);
+                } else {
+                    gradleProps += `\nAPPLICATION_ID=${packageName}`;
+                }
             }
             
-            // --- 更新 PROP_NDK_PATH ---
+            // 9. 添加/更新 PROP_NDK_PATH（处理注释行）
             if (ndkPath) {
                 const fixedNdkPath = cchelper.fixPath(ndkPath);
-                gradleProps = this.updateGradleProp(gradleProps, 'PROP_NDK_PATH', fixedNdkPath);
+                if (gradleProps.match(/^#?\s*PROP_NDK_PATH=/m)) {
+                    gradleProps = gradleProps.replace(/^#?\s*PROP_NDK_PATH=.*$/m, `PROP_NDK_PATH=${fixedNdkPath}`);
+                } else {
+                    gradleProps += `\nPROP_NDK_PATH=${fixedNdkPath}`;
+                }
             }
             
-            // --- 更新 NATIVE_DIR ---
+            // 10. 添加/更新 NATIVE_DIR（处理注释行）
             const nativeDir = cchelper.fixPath(this.paths.platformTemplateDirInPrj);
-            gradleProps = this.updateGradleProp(gradleProps, 'NATIVE_DIR', nativeDir);
+            if (gradleProps.match(/^#?\s*NATIVE_DIR=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*NATIVE_DIR=.*$/m, `NATIVE_DIR=${nativeDir}`);
+            } else {
+                gradleProps += `\nNATIVE_DIR=${nativeDir}`;
+            }
 
             // 11. 设置 SDK 版本
             // 强制设置编译 SDK 版本为 36，以避免 android-36 (Preview) 的资源链接问题
@@ -200,40 +251,77 @@ export default class AndroidPackTool extends NativePackTool {
             const apiLevel = this.params.platformParams.apiLevel || 36;
             const compileSdkVersion = Math.max(apiLevel, 36);
             
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_COMPILE_SDK_VERSION', compileSdkVersion);
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_TARGET_SDK_VERSION', apiLevel);
-
-            // --- 更新 PROP_MIN_SDK_VERSION (仅当不存在时) ---
-            if (!gradleProps.match(/^#?\s*PROP_MIN_SDK_VERSION=/m)) {
-                gradleProps = this.updateGradleProp(gradleProps, 'PROP_MIN_SDK_VERSION', 21);
+            if (gradleProps.match(/^#?\s*PROP_COMPILE_SDK_VERSION=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_COMPILE_SDK_VERSION=.*$/m, `PROP_COMPILE_SDK_VERSION=${compileSdkVersion}`);
+            } else {
+                gradleProps += `\nPROP_COMPILE_SDK_VERSION=${compileSdkVersion}`;
+            }
+            
+            if (gradleProps.match(/^#?\s*PROP_TARGET_SDK_VERSION=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_TARGET_SDK_VERSION=.*$/m, `PROP_TARGET_SDK_VERSION=${apiLevel}`);
+            } else {
+                gradleProps += `\nPROP_TARGET_SDK_VERSION=${apiLevel}`;
             }
 
-            // --- 更新 PROP_IS_DEBUG ---
+            // 11. 添加 PROP_MIN_SDK_VERSION（如果不存在）
+            if (!gradleProps.match(/^#?\s*PROP_MIN_SDK_VERSION=/m)) {
+                gradleProps += `\nPROP_MIN_SDK_VERSION=21`;
+            }
+
+            // 12. 更新 PROP_IS_DEBUG（参考 packages/engine 的实现）
             const isDebug = this.params.debug ? 'true' : 'false';
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_IS_DEBUG', isDebug);
+            if (gradleProps.match(/^#?\s*PROP_IS_DEBUG=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_IS_DEBUG=.*$/m, `PROP_IS_DEBUG=${isDebug}`);
+            } else {
+                gradleProps += `\nPROP_IS_DEBUG=${isDebug}`;
+            }
 
-            // --- 更新 PROP_APP_NAME ---
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_APP_NAME', this.params.projectName);
+            // 13. 添加 PROP_APP_NAME
+            if (gradleProps.match(/^#?\s*PROP_APP_NAME=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_APP_NAME=.*$/m, `PROP_APP_NAME=${this.params.projectName}`);
+            } else {
+                gradleProps += `\nPROP_APP_NAME=${this.params.projectName}`;
+            }
 
-            // --- 更新 PROP_ENABLE_INSTANT_APP ---
-            const androidInstant = this.params.platformParams.androidInstant || false;
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_ENABLE_INSTANT_APP', androidInstant ? 'true' : 'false');
+            // 14. 更新 PROP_ENABLE_INSTANT_APP（如果存在）
+            const androidInstant = (this.params.platformParams as any).androidInstant || false;
+            if (gradleProps.match(/^#?\s*PROP_ENABLE_INSTANT_APP=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_ENABLE_INSTANT_APP=.*$/m, `PROP_ENABLE_INSTANT_APP=${androidInstant ? 'true' : 'false'}`);
+            } else if (!gradleProps.match(/^PROP_ENABLE_INSTANT_APP=/m)) {
+                gradleProps += `\nPROP_ENABLE_INSTANT_APP=${androidInstant ? 'true' : 'false'}`;
+            }
 
-            // --- 更新 PROP_ENABLE_INPUTSDK ---
-            const inputSDK = this.params.platformParams.inputSDK || false;
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_ENABLE_INPUTSDK', inputSDK ? 'true' : 'false');
+            // 15. 更新 PROP_ENABLE_INPUTSDK（如果存在）
+            const inputSDK = (this.params.platformParams as any).inputSDK || false;
+            if (gradleProps.match(/^#?\s*PROP_ENABLE_INPUTSDK=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_ENABLE_INPUTSDK=.*$/m, `PROP_ENABLE_INPUTSDK=${inputSDK ? 'true' : 'false'}`);
+            } else if (!gradleProps.match(/^PROP_ENABLE_INPUTSDK=/m)) {
+                gradleProps += `\nPROP_ENABLE_INPUTSDK=${inputSDK ? 'true' : 'false'}`;
+            }
 
-            // --- 更新 PROP_ENABLE_COMPRESS_SO ---
-            const isSoFileCompressed = this.params.platformParams.isSoFileCompressed ?? true;
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_ENABLE_COMPRESS_SO', isSoFileCompressed ? 'true' : 'false');
+            // 16. 更新 PROP_ENABLE_COMPRESS_SO（如果存在）
+            const isSoFileCompressed = (this.params.platformParams as any).isSoFileCompressed || false;
+            if (gradleProps.match(/^#?\s*PROP_ENABLE_COMPRESS_SO=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_ENABLE_COMPRESS_SO=.*$/m, `PROP_ENABLE_COMPRESS_SO=${isSoFileCompressed ? 'true' : 'false'}`);
+            } else if (!gradleProps.match(/^PROP_ENABLE_COMPRESS_SO=/m)) {
+                gradleProps += `\nPROP_ENABLE_COMPRESS_SO=${isSoFileCompressed ? 'true' : 'false'}`;
+            }
 
-            // --- 更新 PROP_APP_ABI ---
+            // 17. 更新 PROP_APP_ABI
             const appABIs = this.params.platformParams.appABIs && this.params.platformParams.appABIs.length > 0 
                 ? this.params.platformParams.appABIs.join(':') 
                 : 'armeabi-v7a';
-            gradleProps = this.updateGradleProp(gradleProps, 'PROP_APP_ABI', appABIs);
+            if (gradleProps.match(/^#?\s*PROP_APP_ABI=/m)) {
+                gradleProps = gradleProps.replace(/^#?\s*PROP_APP_ABI=.*$/m, `PROP_APP_ABI=${appABIs}`);
+            } else {
+                // 使用全局替换，因为可能有注释行
+                gradleProps = gradleProps.replace(/PROP_APP_ABI=.*/g, `PROP_APP_ABI=${appABIs}`);
+                if (!gradleProps.includes('PROP_APP_ABI=')) {
+                    gradleProps += `\nPROP_APP_ABI=${appABIs}`;
+                }
+            }
 
-            // --- 更新 PROP_NDK_VERSION ---
+            // 18. 更新 PROP_NDK_VERSION（从 NDK 的 source.properties 读取）
             if (ndkPath) {
                 const ndkPropertiesPath = ps.join(ndkPath, 'source.properties');
                 if (fs.existsSync(ndkPropertiesPath)) {
@@ -243,7 +331,11 @@ export default class AndroidPackTool extends NativePackTool {
                         const match = ndkContent.match(regexp);
                         if (match && match[1]) {
                             const ndkVersion = match[1].trim();
-                            gradleProps = this.updateGradleProp(gradleProps, 'PROP_NDK_VERSION', ndkVersion);
+                            if (gradleProps.match(/^#?\s*PROP_NDK_VERSION=/m)) {
+                                gradleProps = gradleProps.replace(/^#?\s*PROP_NDK_VERSION=.*$/m, `PROP_NDK_VERSION=${ndkVersion}`);
+                            } else if (!gradleProps.match(/^PROP_NDK_VERSION=/m)) {
+                                gradleProps += `\nPROP_NDK_VERSION=${ndkVersion}`;
+                            }
                         }
                     } catch (e) {
                         console.warn(`[Android] Failed to read NDK version from ${ndkPropertiesPath}:`, e);
@@ -252,13 +344,11 @@ export default class AndroidPackTool extends NativePackTool {
             }
             
             await fs.writeFile(gradlePropsPath, gradleProps);
-            console.log(`[Android] Updated gradle.properties with all configurations`);
+            console.log(`[Android] Updated gradle.properties with keystore, applicationId, NDK path, NATIVE_DIR, SDK versions, PROP_IS_DEBUG and PROP_APP_NAME`);
 
-            // 12. 修复 strings.xml (如果为空或不存在)
+            // 12. 修复 strings.xml (如果为空)
             // 某些情况下，构建目录下的 strings.xml 可能是空的，导致构建失败
             const stringsXmlPath = ps.join(nativePrjDir, 'res', 'values', 'strings.xml');
-            // [Modified] Ensure file exists to align with old build behavior
-            fs.ensureFileSync(stringsXmlPath);
             if (fs.existsSync(stringsXmlPath)) {
                 const content = await fs.readFile(stringsXmlPath, 'utf8');
                 if (!content || content.trim() === '' || content.replace(/\s/g, '') === '<resources></resources>') {
@@ -626,3 +716,4 @@ export default class AndroidPackTool extends NativePackTool {
         return false;
     }
 }
+

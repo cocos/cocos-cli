@@ -39,7 +39,6 @@ export async function checkAndroidAPILevels(value: number, options: IAndroidInte
     };
     if (checkIsEmpty(value)) {
         res.error = 'API Level cannot be empty';
-        return res; // 必须返回，否则后续判断会报错
     }
     if (isNaN(value)) {
         res.error = 'API Level must be a number';
@@ -73,85 +72,6 @@ export async function checkAndroidAPILevels(value: number, options: IAndroidInte
     return res;
 }
 
-function findSdkPath(): string {
-    const envSdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-    if (envSdk) return envSdk;
-
-    if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
-        const defaultSdkPath = join(process.env.LOCALAPPDATA, 'Android', 'Sdk');
-        if (existsSync(defaultSdkPath)) return defaultSdkPath;
-    } else if (process.platform === 'darwin' && process.env.HOME) {
-        const defaultSdkPath = join(process.env.HOME, 'Library', 'Android', 'sdk');
-        if (existsSync(defaultSdkPath)) return defaultSdkPath;
-    }
-    return '';
-}
-
-function findNdkPath(sdkPath: string): string {
-    const envNdk = process.env.ANDROID_NDK_HOME || process.env.NDK_ROOT;
-    if (envNdk) return envNdk;
-
-    if (sdkPath) {
-        const ndkBase = join(sdkPath, 'ndk');
-        if (existsSync(ndkBase)) {
-            try {
-                const dirs = readdirSync(ndkBase);
-                if (dirs.length > 0) {
-                    // 优先选择版本 28，其次 23
-                    const priorityVersions = ['28', '23'];
-                    
-                    // 1. 查找优先级版本
-                    for (const ver of priorityVersions) {
-                        const match = dirs.find(d => d.startsWith(ver + '.') && statSync(join(ndkBase, d)).isDirectory());
-                        if (match) {
-                            console.log(`[Android] Found NDK version ${ver} at: ${join(ndkBase, match)}`);
-                            return join(ndkBase, match);
-                        }
-                    }
-
-                    // 2. 查找其他最新版本
-                    const otherVersions = dirs.filter(d => 
-                        !priorityVersions.some(ver => d.startsWith(ver + '.')) && 
-                        /^\d+\./.test(d) && 
-                        statSync(join(ndkBase, d)).isDirectory()
-                    ).sort(); // 字符串排序，高版本号通常在后面
-                    
-                    if (otherVersions.length > 0) {
-                        const latest = otherVersions[otherVersions.length - 1];
-                        console.log(`[Android] Found NDK version ${latest} at: ${join(ndkBase, latest)}`);
-                        return join(ndkBase, latest);
-                    }
-                }
-            } catch (e) {
-                // ignore
-            }
-        }
-    }
-    return '';
-}
-
-function resolveJavaPath(javaHome: string): { javaHome: string, javaPath: string } {
-    if (!javaHome) return { javaHome: '', javaPath: '' };
-
-    try {
-        const st = statSync(javaHome);
-        if (st.isFile()) {
-            return { javaHome: normalize(join(dirname(javaHome), '..')), javaPath: javaHome };
-        } else if (st.isDirectory()) {
-            const javaFileName = platform() === 'win32' ? 'java.exe' : 'java';
-            const pathToJava = join(javaHome, 'bin', javaFileName);
-            if (!existsSync(pathToJava)) {
-                console.error(`Java executable not found at ${javaHome}/bin`);
-                return { javaHome, javaPath: '' }; // 虽然路径有问题，但还是返回 home
-            }
-            return { javaHome, javaPath: pathToJava };
-        }
-    } catch (e) {
-        console.error(e);
-    }
-    return { javaHome, javaPath: '' };
-}
-
 /**
  * 生成 Android 选项，包括 SDK、NDK、Java 路径等
  */
@@ -164,29 +84,130 @@ export async function generateAndroidOptions(options: IAndroidInternalBuildOptio
         upsideDown: false,
     };
 
-    // 1. SDK
+    // 查询 Android SDK、NDK、Java Home 路径
+    // 注意：这里需要根据实际的 Editor.Message API 来获取，在 CLI 环境中可能需要不同的方式
+    // const androidSDKInfo = await Editor.Message.request('program', 'query-program-info', 'androidSDK');
+    // const androidNDKInfo = await Editor.Message.request('program', 'query-program-info', 'androidNDK');
+    // const javaHome = await Editor.Message.request('program', 'query-program-info', 'javaHome');
+    
+    // 临时处理：如果路径未设置，尝试从环境变量获取
     if (!android.sdkPath) {
-        android.sdkPath = findSdkPath();
-        if (android.sdkPath) console.log(`[Android] Auto-detected SDK at: ${android.sdkPath}`);
-    } else if (!process.env.ANDROID_HOME) {
+        android.sdkPath = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || '';
+        
+        // 尝试默认路径 (Windows)
+        if (!android.sdkPath && process.platform === 'win32') {
+            const localAppData = process.env.LOCALAPPDATA;
+            if (localAppData) {
+                const defaultSdkPath = join(localAppData, 'Android', 'Sdk');
+                if (existsSync(defaultSdkPath)) {
+                    android.sdkPath = defaultSdkPath;
+                    console.log(`[Android] Auto-detected SDK at: ${android.sdkPath}`);
+                }
+            }
+        }
+        // 尝试默认路径 (Mac)
+        if (!android.sdkPath && process.platform === 'darwin') {
+            const home = process.env.HOME;
+            if (home) {
+                const defaultSdkPath = join(home, 'Library', 'Android', 'sdk');
+                if (existsSync(defaultSdkPath)) {
+                    android.sdkPath = defaultSdkPath;
+                    console.log(`[Android] Auto-detected SDK at: ${android.sdkPath}`);
+                }
+            }
+        }
+    }
+    
+    if (android.sdkPath && !process.env.ANDROID_HOME) {
         console.log(`[Android] Using SDK at: ${android.sdkPath}`);
     }
-    android.sdkPath = android.sdkPath || '';
 
-    // 2. NDK
     if (!android.ndkPath) {
-        android.ndkPath = findNdkPath(android.sdkPath);
-        if (android.ndkPath) console.log(`[Android] Auto-detected NDK at: ${android.ndkPath}`);
-    } else if (!process.env.ANDROID_NDK_HOME) {
+        android.ndkPath = process.env.ANDROID_NDK_HOME || process.env.NDK_ROOT || '';
+        
+        // 如果有了 SDK 路径但没有 NDK 路径，尝试在 SDK/ndk 下查找
+        if (!android.ndkPath && android.sdkPath) {
+             const ndkBase = join(android.sdkPath, 'ndk');
+             if (existsSync(ndkBase)) {
+                 const dirs = readdirSync(ndkBase);
+                 if (dirs.length > 0) {
+                     // 优先选择版本 28，其次 23，最后是其他版本
+                     const priorityVersions = ['28', '23'];
+                     let selectedVersion: string | undefined;
+                     
+                     // 先按优先级搜索
+                     for (const priorityVersion of priorityVersions) {
+                         const versionDir = dirs.find(dir => {
+                             const dirPath = join(ndkBase, dir);
+                             return statSync(dirPath).isDirectory() && dir.startsWith(priorityVersion + '.');
+                         });
+                         
+                         if (versionDir) {
+                             selectedVersion = versionDir;
+                             console.log(`[Android] Found NDK version ${priorityVersion} at: ${join(ndkBase, selectedVersion)}`);
+                             break;
+                         }
+                     }
+                     
+                     // 如果优先级版本都没找到，选择其他版本（排序获取最新的）
+                     if (!selectedVersion) {
+                         const otherVersionDirs = dirs.filter(dir => {
+                             const dirPath = join(ndkBase, dir);
+                             return statSync(dirPath).isDirectory() 
+                                 && !priorityVersions.some(pv => dir.startsWith(pv + '.'))
+                                 && /^\d+\./.test(dir); // 版本号格式：数字.xxx
+                         });
+                         
+                         if (otherVersionDirs.length > 0) {
+                             otherVersionDirs.sort();
+                             selectedVersion = otherVersionDirs[otherVersionDirs.length - 1];
+                             console.log(`[Android] Found NDK version ${selectedVersion} at: ${join(ndkBase, selectedVersion)}`);
+                         }
+                     }
+                     
+                     if (selectedVersion) {
+                         android.ndkPath = join(ndkBase, selectedVersion);
+                         console.log(`[Android] Auto-detected NDK at: ${android.ndkPath}`);
+                     }
+                 }
+             }
+        }
+    }
+    
+    if (android.ndkPath && !process.env.ANDROID_NDK_HOME) {
         console.log(`[Android] Using NDK at: ${android.ndkPath}`);
     }
-    android.ndkPath = android.ndkPath || '';
 
-    // 3. Java
+    android.sdkPath = android.sdkPath || '';
+    android.ndkPath = android.ndkPath || '';
     android.javaHome = android.javaHome || process.env.JAVA_HOME || '';
-    const { javaHome, javaPath } = resolveJavaPath(android.javaHome);
-    android.javaHome = javaHome;
-    android.javaPath = javaPath;
+    android.javaPath = '';
+
+    if (android.javaHome) {
+        try {
+            const st = statSync(android.javaHome);
+            if (st.isFile()) {
+                android.javaPath = android.javaHome;
+                android.javaHome = normalize(join(dirname(android.javaPath), '..'));
+            } else if (st.isDirectory()) {
+                const javaFileName = platform() === 'win32' ? 'java.exe' : 'java';
+                const pathToJava = join(android.javaHome, 'bin', javaFileName);
+                if (!existsSync(pathToJava)) {
+                    console.error(`Java executable not found at ${android.javaHome}/bin`);
+                } else {
+                    android.javaPath = pathToJava;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    if (android.keystorePath) {
+        // 在 CLI 环境中，路径处理可能需要调整
+        // android.keystorePath = Editor.UI.__protected__.File.resolveToRaw(android.keystorePath);
+    }
 
     return android;
 }
+
