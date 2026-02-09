@@ -34,7 +34,7 @@ describe('Import Project', () => {
             asset.library.forEach((extension) => {
                 it('library exists', () => {
                     const uuid = meta.uuid;
-                    expect(existsSync(join(TestGlobalEnv.projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`))).toBeTruthy();
+                    expect(existsSync(join(TestGlobalEnv.projectRoot, `library/cli/${uuid.substring(0, 2)}/${uuid}${extension}`))).toBeTruthy();
                 });
             });
 

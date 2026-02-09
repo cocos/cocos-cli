@@ -79,13 +79,13 @@ class AssetConfig {
         this._assetConfig.root = project.path;
         const enginePath = Engine.getInfo().typescript.path;
         this._assetConfig.libraryRoot = this._assetConfig.libraryRoot || join(this._assetConfig.root, 'library');
-        this._assetConfig.tempRoot = join(this._assetConfig.root, 'temp/asset-db');
+        this._assetConfig.tempRoot = join(this._assetConfig.root, 'temp/cli/asset-db');
         this._assetConfig.assetDBList = [{
             name: 'assets',
             target: join(this._assetConfig.root, 'assets'),
             readonly: false,
             visible: true,
-            library: join(this._assetConfig.root, 'library'),
+            library: join(this._assetConfig.root, 'library/cli'),
         }, {
             name: 'internal',
             target: join(enginePath, 'editor/assets'),

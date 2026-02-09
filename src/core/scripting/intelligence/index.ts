@@ -25,7 +25,7 @@ export class TypeScriptConfigBuilder {
         this._engineTsPath = engineTsPath;
         this._projectPath = projectPath;
         this._realTsConfigPath = ps.join(projectPath, 'tsconfig.json');
-        this._tempDirPath = ps.join(projectPath, 'temp');
+        this._tempDirPath = ps.join(projectPath, 'temp/cli');
         this._configFilePath = ps.join(this._tempDirPath, 'tsconfig.cocos.json');
         this._declarationHomePath = ps.join(this._tempDirPath, 'declarations');
     }

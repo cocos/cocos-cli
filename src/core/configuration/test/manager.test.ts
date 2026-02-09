@@ -299,7 +299,7 @@ describe('ConfigurationManager', () => {
             expect(manager['projectConfig']).toEqual({
                 version: '1.0.0',
                 migratedKey: 'migratedValue',
-                $schema: './temp/cocos.config.schema.json'
+                $schema: './temp/cli/cocos.config.schema.json'
             });
             expect(manager['version']).toBe('1.0.0');
             // Same version - should not migrate (migrate method checks version)
@@ -329,7 +329,7 @@ describe('ConfigurationManager', () => {
             expect(mockFse.ensureDir).toHaveBeenCalledWith(path.dirname(configPath));
             expect(mockFse.writeJSON).toHaveBeenCalledWith(
                 configPath,
-                { version: '1.0.0', test: 'value', $schema: './temp/cocos.config.schema.json' },
+                { version: '1.0.0', test: 'value', $schema: './temp/cli/cocos.config.schema.json' },
                 { spaces: 4 }
             );
 

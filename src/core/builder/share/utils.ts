@@ -140,7 +140,7 @@ export function transTimeToNumber(time: string) {
  * @returns 
  */
 export function getTaskLogDest(taskName: string, time: number | string) {
-    return Utils.Path.resolveToUrl(join(builderConfig.projectTempDir, 'builder', 'log', taskName + changeToLocalTime(time, 5).replace(/:/g, '-') + '.log'), 'project');
+    return Utils.Path.resolveToUrl(join(builderConfig.projectTempDir, 'cli', 'builder', 'log', taskName + changeToLocalTime(time, 5).replace(/:/g, '-') + '.log'), 'project');
 }
 
 /**

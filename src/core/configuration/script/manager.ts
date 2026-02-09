@@ -43,7 +43,7 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
     static VERSION: string = '1.0.0';
     static name = 'cocos.config.json';
     static SchemaPathSource = join(__dirname, '../../../../dist/cocos.config.schema.json');
-    static relativeSchemaPath = `./temp/${path.basename(ConfigurationManager.SchemaPathSource)}`;
+    static relativeSchemaPath = `./temp/cli/${path.basename(ConfigurationManager.SchemaPathSource)}`;
 
     private initialized: boolean = false;
     private projectPath: string = '';
