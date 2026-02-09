@@ -52,7 +52,7 @@ export const SchemaNodeQuery = z.object({
     path: z.string().describe('Node path, root path is "/"'), // 节点路径
     queryChildren: z.boolean().default(false).describe('Whether to query child node information'), // 是否查询子节点信息
     queryComponent: z.boolean().default(false).describe('Whether to query component`s detailed information, the child component only returns concise information.'), // 是否查询组件信息,子节点只返回简易的信息
-}).describe('Query options for nodes, the result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
+}).describe('To configure options for node query, the Scene must be open first. The result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的结果
 export const SchemaNodeQueryResult: z.ZodType<INode> = SchemaNode;
@@ -62,7 +62,7 @@ export const SchemaNodeUpdate = z.object({
     path: z.string().describe('Relative path of the node'), // 节点相对路径
     name: z.string().optional().describe('Name of the node to update'), // 更新的节点名称
     properties: SchemaNodeProperty.partial().optional().describe('Node properties to update, can update partial properties'), // 要更新的节点属性，可以只更新部分属性
-}).describe('Options for updating nodes'); // 更新节点的选项参数
+}).describe('To configure options for node update, the Scene must be open first.'); // 更新节点的选项参数, 需先打开场景
 
 // 节点更新结果的 schema
 export const SchemaNodeUpdateResult = z.object({
@@ -78,7 +78,7 @@ export const SchemaNodeDeleteResult = z.object({
 export const SchemaNodeDelete = z.object({
     path: z.string().describe('Relative path of the node'), // 节点相对路径
     keepWorldTransform: z.boolean().optional().describe('Keep world transform'), // 保持世界变换
-}).describe('Options for deleting nodes'); // 删除节点的选项参数
+}).describe('To configure options for node deletion, the Scene must be open first.'); // 删除节点的选项参数，需先打开场景
 
 const SchemaNodeCreateBase = z.object({
     path: z.string().describe('Relative path of the created node, root node is scene node; This path is parent node path, full node path is parent path + node name, and root node path is "/"'), // 创建的节点相对路径，根节点是场景节点; 该路径为父节点路径,完整节点路径为父路径+节点名，根节点路径为 "/"
@@ -87,7 +87,7 @@ const SchemaNodeCreateBase = z.object({
     keepWorldTransform: z.boolean().optional().describe('Keep world transform'), // 保持世界变换
     position: SchemaVec3.optional().describe('Node position'), // 节点位置
     canvasRequired: z.boolean().optional().describe('Whether Canvas is required'), // 是否需要 Canvas
-});
+}).describe('To configure options for node creation, the Scene must be open first.'); // 创建节点的选项参数, 需先打开场景;
 
 export const SchemaNodeCreateByAsset = SchemaNodeCreateBase.extend({
     dbURL: SchemaUrl.describe('Prefab asset path, if created from a prefab, please pass this parameter, format is custom db path e.g. db://assets/abc.prefab'), // 预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab
