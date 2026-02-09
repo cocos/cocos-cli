@@ -196,7 +196,7 @@ describe('EditorProxy Prefab 测试', () => {
         it('reload - 重载当前预制体', async () => {
             const result = await EditorProxy.reload({});
 
-            expect(result).toContain([ReloadResult.SUCCESS, ReloadResult.QUEUED]);
+            expect(result).toBe(ReloadResult.SUCCESS);
         });
 
         it('queryCurrent - 获取当前预制体', async () => {
