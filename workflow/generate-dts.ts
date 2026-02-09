@@ -27,6 +27,10 @@ const entries: IDtsEntry[] = [
         name: 'api',
         source: 'src/api/index.ts',
         output: 'index.d.ts'
+    }, {
+        name: 'lib',
+        source: 'src/lib/index.ts',
+        output: 'lib.d.ts'
     }
 ];
 
@@ -47,19 +51,19 @@ async function generate() {
 
     for (const entry of entries) {
         console.log(`\nProcessing ${entry.name}...`);
-        
+
         // Convert source path to dist path
         // Assuming src/ matches dist/ structure and .ts -> .d.ts
         // We need to handle the fact that 'src' might be mapped to 'dist' in tsconfig
         // For this project, rootDir is ./src and outDir is ./dist
-        
+
         const relativeSource = path.relative(path.join(projectRoot, 'src'), path.join(projectRoot, entry.source));
         if (relativeSource.startsWith('..') || path.isAbsolute(relativeSource)) {
             throw new Error(`Source ${entry.source} must be inside src/ directory`);
         }
-        
+
         const distPath = path.join(projectRoot, 'dist', relativeSource.replace(/\.ts$/, '.d.ts'));
-        
+
         if (!fs.existsSync(distPath)) {
             console.error(`Entry file not found: ${distPath}`);
             console.error(`Please ensure you have run the build script (e.g. 'npm run build') to generate the dist files.`);
@@ -81,7 +85,7 @@ async function generate() {
                 untrimmedFilePath: output
                 // publicTrimmedFilePath: path.join(outputDir, 'public.d.ts') // Optional: if we want a public vs beta split
             },
-            bundledPackages: ['@cocos/asset-db', '@cocos/ccbuild', 'rollup', '@babel', '@babel/core', '@babel', 'workflow-extra'],
+            bundledPackages: ['@cocos/asset-db', '@cocos/ccbuild', 'rollup', '@babel', '@babel/core', '@babel', 'workflow-extra', '@cocos/lib-programming'],
             docModel: {
                 enabled: false
             },
@@ -129,11 +133,11 @@ async function generate() {
             process.exit(1);
         }
     }
-    
+
     const packageJSONPath = path.join(dtsExportRoot, 'package.json');
     packageJSON.version = require(path.join(projectRoot, 'package.json')).version;
     await fs.outputJSON(packageJSONPath, packageJSON, { spaces: 4 });
-    
+
     console.log('\nAll DTS generation tasks completed.');
 }
 

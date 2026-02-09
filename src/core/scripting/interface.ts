@@ -16,7 +16,6 @@ export interface SharedSettings {
     };
 }
 
-
 export interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
