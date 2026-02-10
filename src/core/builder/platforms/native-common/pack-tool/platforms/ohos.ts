@@ -36,11 +36,11 @@ export default class OHOSPackTool extends NativePackTool {
         const platformParams = this.params.platformParams;
         // check directories
         if (!fs.existsSync(platformParams.sdkPath)) {
-            throw new Error(`Directory hwsdk.dir ${platformParams.sdkPath} not exists`);
+            throw new Error(`SDK directory ${platformParams.sdkPath} not exists`);
         }
 
         if (!fs.existsSync(platformParams.ndkPath)) {
-            throw new Error(`Directory Ndk path ${platformParams.ndkPath} not exists`);
+            throw new Error(`NDK directory ${platformParams.ndkPath} not exists`);
         }
 
         // local.properties
