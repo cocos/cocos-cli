@@ -120,7 +120,7 @@ const config: IPlatformBuildPluginConfig = {
         appBundle: {
             label: 'i18n:google-play.options.app_bundle',
             type: 'boolean',
-            default: false,
+            default: true,
         },
         androidInstant: {
             label: 'i18n:google-play.options.google_play_instant',
@@ -142,6 +142,20 @@ const config: IPlatformBuildPluginConfig = {
             type: 'boolean',
             default: false,
             description: 'i18n:google-play.options.swappy_tips',
+        },
+        playGames: {
+            type: 'boolean',
+            default: true,
+        },
+        googleBilling: {
+            label: 'i18n:google-play.tips.google_play_billing',
+            type: 'boolean',
+            default: true,
+        },
+        customIcon: {
+            label: 'i18n:google-play.custom_icon.title',
+            type: 'string',
+            default: 'default',
         },
         renderBackEnd: {
             label: 'i18n:google-play.options.render_back_end',
