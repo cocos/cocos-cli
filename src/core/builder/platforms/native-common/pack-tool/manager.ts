@@ -8,6 +8,7 @@ const platformPackToolMap: Record<string, string> = {
     ios: './platforms/ios',
     ohos: './platforms/ohos',
     'harmonyos-next': './platforms/harmonyos-next',
+    'google-play': './platforms/google-play'
 };
 
 export class NativePackToolManager {

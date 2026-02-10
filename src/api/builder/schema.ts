@@ -28,8 +28,8 @@ export const SchemaBundleConfig = z.object({
 }).describe('Bundle Configuration Options'); // Bundle 配置选项
 
 // Platform Enum - Accepts any string, built-in platform names are for reference only // 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
-export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonyos-next etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonyos-next 等)
-export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)
+export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, google-play, harmonyos-next etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonyos-next 等)
+export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android, google-play etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)
 
 export const SchemaRoot = z.string().min(1).describe('Build Output Directory'); // 构建发布目录
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
@@ -97,6 +97,13 @@ export const SchemaHarmonyOSNextPackage = z.object({
         .min(1, 'HarmonyOS Next package name cannot be empty') // HarmonyOS Next包名不能为空
         .describe('HarmonyOS Next application package name (required)'), // HarmonyOS Next应用包名（必填）
 }).describe('HarmonyOS Next platform specific configuration'); // HarmonyOS Next平台特定配置
+
+// Google Play Packages Configuration // Google Play Packages 配置
+export const SchemaGooglePlayPackage = z.object({
+    packageName: z.string()
+        .min(1, 'Google Play package name cannot be empty') // Google Play包名不能为空
+        .describe('Google Play application package name (required)'), // Google Play应用包名（必填）
+}).describe('Google Play platform specific configuration'); // Google Play平台特定配置
 
 // ==================== Basic Build Configuration ==================== // 基础构建配置
 
@@ -260,6 +267,18 @@ export const SchemaHarmonyOSNextBuildOption = SchemaBuildBaseOption
     })
     .describe('HarmonyOS Next Platform Build Options'); // HarmonyOS Next平台构建选项
 
+// Google Play Build Options // Google Play 构建选项
+export const SchemaGooglePlayBuildOption = SchemaBuildBaseOption
+    .extend({
+        platform: z.literal('google-play').describe('Build Platform'), // 构建平台
+        packages: z.object({
+            'google-play': SchemaGooglePlayPackage
+                .catchall(z.any())  // 允许其他任意字段
+                .optional()
+        }).describe('Google Play Platform Configuration') // Google Play平台配置
+    })
+    .describe('Google Play Platform Build Options'); // Google Play平台构建选项
+
 // Mac Build Options // Mac 构建选项
 export const SchemaMacBuildOption = SchemaBuildBaseOption
     .extend({
@@ -289,7 +308,8 @@ export const SchemaKnownBuildOptions = [
     SchemaMacBuildOption,
     SchemaAndroidBuildOption,
     SchemaOhosBuildOption,
-    SchemaHarmonyOSNextBuildOption
+    SchemaHarmonyOSNextBuildOption,
+    SchemaGooglePlayBuildOption
 ];
 
 // ==================== Create discriminatedUnion ==================== //
@@ -369,6 +389,7 @@ export const SchemaBuildConfigResult = z.union([
     SchemaMacBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
     SchemaOhosBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
     SchemaHarmonyOSNextBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaGooglePlayBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
     SchemaOtherPlatformBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
 ]).nullable().describe('Build configuration query result (all fields required, including packages)'); // 构建配置查询结果（所有字段必填，包含 packages）
 

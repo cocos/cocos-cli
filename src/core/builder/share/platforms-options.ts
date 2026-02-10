@@ -3,6 +3,7 @@ import { OverwriteCommonOption } from '../@types/protected';
 
 export const NATIVE_PLATFORM: Platform[] = [
     'android',
+    'google-play',
     'ios',
     'windows',
     'mac',

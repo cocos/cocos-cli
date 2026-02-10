@@ -301,6 +301,7 @@ export type InternalPlatform =
     | 'mac'
     | 'ios'
     | 'android'
+    | 'google-play'
     | 'windows'
     | 'ohos'
     | 'harmonyos-next'

@@ -52,7 +52,7 @@ export class BuilderHook {
     public onRegisterParam(toolName: string, param: any, inputSchemaFields: Record<string, any>) {
         if (toolName !== 'builder-build') return;
 
-        const knownPlatforms = ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac', 'ohos', 'harmonyos-next'];
+        const knownPlatforms = ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac', 'ohos', 'harmonyos-next', 'google-play'];
         // 合并去重
         const allPlatforms = Array.from(new Set([...knownPlatforms, ...this.dynamicPlatforms]));
         const platformDesc = `Platform Identifier (e.g., ${allPlatforms.join(', ')})`;

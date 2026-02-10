@@ -40,7 +40,7 @@ export default class OHOSPackTool extends NativePackTool {
         }
 
         if (!fs.existsSync(platformParams.ndkPath)) {
-            throw new Error(`Directory native.dir ${platformParams.ndkPath} not exists`);
+            throw new Error(`Directory Ndk path ${platformParams.ndkPath} not exists`);
         }
 
         // local.properties
@@ -48,20 +48,20 @@ export default class OHOSPackTool extends NativePackTool {
             { reg: '^hwsdk\\.dir.*', text: `hwsdk.dir=${cchelper.fixPath(platformParams.sdkPath)}` },
             { reg: '^native\\.dir.*', text: `native.dir=${cchelper.fixPath(platformParams.ndkPath)}` },
         ], ps.join(ohosProjDir, 'local.properties'));
-        
+
         // settings.gradle
         await cchelper.replaceInFile([
             { reg: '\\$\\{ENGINE_ROOT\\}', text: cchelper.fixPath(cocosXRoot) },
             { reg: '^rootProject\\.name.*', text: `rootProject.name = "${this.params.projectName}"` },
         ], ps.join(ohosProjDir, 'settings.gradle'));
-        
+
         // gradle.properties
         await cchelper.replaceInFile([
             { reg: '^RES_PATH.*', text: `RES_PATH=${cchelper.fixPath(this.paths.buildDir)}` },
             { reg: '^ENGINE_ROOT.*', text: `ENGINE_ROOT=${cchelper.fixPath(cocosXRoot)}` },
             { reg: '^COMMON_DIR.*', text: `COMMON_DIR=${cchelper.fixPath(process.env.COMMON_DIR || '')}` },
         ], ps.join(ohosProjDir, 'gradle.properties'));
-        
+
         try {
             // try update orientation, failures allowed
             const cfgFile = ps.join(ohosProjDir, 'entry/src/main/config.json');
@@ -89,7 +89,7 @@ export default class OHOSPackTool extends NativePackTool {
         } catch (e) {
             console.error(e);
         }
-        
+
         try {
             // try update app name, failures allowed
             const stringJson = ps.join(ohosProjDir, 'entry/src/main/resources/base/element/string.json');

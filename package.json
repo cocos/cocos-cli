@@ -121,6 +121,7 @@
         "@types/semver": "^7.7.1",
         "@types/ws": "^8.18.1",
         "@types/xxhashjs": "^0.2.4",
+        "@types/xml2js": "^0.4.11",
         "cc": "file:./packages/cc-module",
         "chalk": "^2.4.2",
         "cli-progress": "^3.12.0",
@@ -180,6 +181,7 @@
         "xxtea-node": "^1.1.5",
         "zod": "^3.25.76",
         "zod-to-json-schema": "^3.24.6",
-        "zod-to-ts": "1.1.4"
+        "zod-to-ts": "1.1.4",
+        "xml2js": "^0.6.0"
     }
 }

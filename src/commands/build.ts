@@ -15,6 +15,8 @@ export class BuildCommand extends BaseCommand {
             .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
             .requiredOption('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
             .option('-c,--build-config <path>', 'Specify build config file path')
+            .option('--ndkPath <path>', 'Android NDK path (for Android platform)')
+            .option('--sdkPath <path>', 'Android SDK path (for Android platform)')
             .action(async (options: any) => {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
@@ -33,7 +35,63 @@ export class BuildCommand extends BaseCommand {
                         // 移除旧的 key 方便和 configPath 未读取的情况做区分
                         delete options.buildConfig;
                     }
-                    
+
+                    // 处理 SDK\NDK 参数
+                    if (options.sdkPath || options.ndkPath) {
+                        if (!options.packages) {
+                            options.packages = {};
+                        }
+                        if (options.ndkPath) {
+                            if (options.platform === 'android') {
+                                if (!options.packages.android) {
+                                    options.packages.android = {};
+                                }
+                                options.packages.android.ndkPath = options.ndkPath;
+                            } else if (options.platform == 'google-play') {
+                                if (!options.packages['google-play']) {
+                                    options.packages['google-play'] = {};
+                                }
+                                options.packages['google-play'].ndkPath = options.ndkPath;
+                            } else if (options.platform === 'ohos') {
+                                if (!options.packages.ohos) {
+                                    options.packages.ohos = {};
+                                }
+                                options.packages.ohos.ndkPath = options.ndkPath;
+                            } else if (options.platform === 'harmonyos-next') {
+                                if (!options.packages['harmonyos-next']) {
+                                    options.packages['harmonyos-next'] = {};
+                                }
+                                options.packages['harmonyos-next'].ndkPath = options.ndkPath;
+                            }
+                            delete options.ndkPath; // 清理，避免传递到其他地方
+                        }
+
+                        if (options.sdkPath) {
+                            if (options.platform === 'android') {
+                                if (!options.packages.android) {
+                                    options.packages.android = {};
+                                }
+                                options.packages.android.sdkPath = options.sdkPath;
+                            } else if (options.platform == 'google-play') {
+                                if (!options.packages['google-play']) {
+                                    options.packages['google-play'] = {};
+                                }
+                                options.packages['google-play'].sdkPath = options.sdkPath;
+                            } else if (options.platform === 'ohos') {
+                                if (!options.packages.ohos) {
+                                    options.packages.ohos = {};
+                                }
+                                options.packages.ohos.sdkPath = options.sdkPath;
+                            } else if (options.platform === 'harmonyos-next') {
+                                if (!options.packages['harmonyos-next']) {
+                                    options.packages['harmonyos-next'] = {};
+                                }
+                                options.packages['harmonyos-next'].sdkPath = options.sdkPath;
+                            }
+                            delete options.sdkPath; // 清理，避免传递到其他地方
+                        }
+                    }
+
                     const { CocosAPI } = await import('../api/index');
                     const result = await CocosAPI.buildProject(resolvedPath, options.platform, options);
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
