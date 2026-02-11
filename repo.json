@@ -2,11 +2,11 @@
     "engine": {
         "repo": "https://github.com/cocos/cocos4.git",
         "dist": "packages/engine",
-        "tag": "4.0.0-alpha.5"
+        "tag": "4.0.0-alpha.6"
     },
     "external": {
         "repo": "https://github.com/cocos/cocos-engine-external.git",
         "dist": "packages/engine/native/external",
-        "tag": "v4.0.0-2"
+        "tag": "v4.0.0-3"
     }
 }
