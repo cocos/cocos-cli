@@ -1,6 +1,5 @@
 // process-rpc.ts
 import { ChildProcess } from 'child_process';
-import {setupProcessHandler} from '../../base/utils/process-err-handler';
 
 /**
  * RPC 消息类型
@@ -85,19 +84,14 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private msgId = 0;
     private process: NodeJS.Process | ChildProcess | undefined;
     private onMessageBind = this.onMessage.bind(this);
-    private disposeBind = this.dispose.bind(this);
 
     /**
      * @param proc - NodeJS.Process 或 ChildProcess 实例
      */
-    attach(proc: NodeJS.Process | ChildProcess, label: string = 'ProcessRPC') {
-        process.stdout.write(`[ProcessRPC:${label}] Attaching to process\n`);
+    attach(proc: NodeJS.Process | ChildProcess) {
         this.dispose();
         this.process = proc;
-        // @ts-ignore
-        this.process.label = label;
         this.listen();
-        setupProcessHandler(proc, label);
     }
 
     /**
@@ -112,41 +106,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 重置消息注册
      */
     public dispose() {
-        if (!this.process) {
-            return;
-        }
-
-        const proc = this.process;
-        // @ts-ignore
-        const label = proc.label || 'unknown';
-        process.stdout.write(`[ProcessRPC:${label}] Disposing\n`);
-
-        this.process = undefined;
-
-        try {
-            if (typeof proc.off === 'function') {
-                proc.off('message', this.onMessageBind);
-                proc.off('disconnect', this.disposeBind);
-                proc.off('exit', this.disposeBind);
-            } else if (typeof (proc as any).removeListener === 'function') {
-                (proc as any).removeListener('message', this.onMessageBind);
-                (proc as any).removeListener('disconnect', this.disposeBind);
-                (proc as any).removeListener('exit', this.disposeBind);
-            }
-        } catch (err) {
-            process.stdout.write(`[ProcessRPC:${label}] Error during dispose off: ${err}\n`);
-        }
-
-        // Reject pending callbacks
-        if (this.callbacks.size > 0) {
-            process.stdout.write(`[ProcessRPC:${label}] Rejecting ${this.callbacks.size} pending callbacks\n`);
-            for (const [id, callback] of this.callbacks) {
-                callback({ id, type: 'response', error: `ProcessRPC [${label}] disposed or process disconnected` });
-            }
-            this.callbacks.clear();
-        }
-
         this.msgId = 0;
+        this.callbacks.clear();
+        this.process?.off('message', this.onMessageBind);
+        this.process = undefined;
     }
 
     /**
@@ -164,8 +127,6 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             throw new Error('未挂载进程');
         }
         this.process.on('message', this.onMessageBind);
-        this.process.once('disconnect', this.disposeBind);
-        this.process.once('exit', this.disposeBind);
     }
 
     private async onMessage(msg: RpcMessage) {
@@ -202,16 +163,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             const { module, method, args } = msg;
             const target = this.handlers[module];
             if (target && typeof target[method] === 'function') {
-                try {
-                    const result = target[method](...(args || []));
-                    if (result instanceof Promise) {
-                        result.catch(e => {
-                            console.error(`[ProcessRPC] Error in async notify handler: ${module}.${method}`, e);
-                        });
-                    }
-                } catch (e) {
-                    console.error(`[ProcessRPC] Error in notify handler: ${module}.${method}`, e);
-                }
+                target[method](...(args || []));
             }
         }
     }
@@ -222,9 +174,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * @private
      */
     private reply(msg: RpcResponse) {
-        if (!this.process || !this.process.connected) {
-            console.warn(`[ProcessRPC] Cannot send reply, process is not connected. id:${msg.id}`);
-            return;
+        if (!this.process) {
+            throw new Error('未挂载进程');
         }
         this.process.send?.(msg);
     }
@@ -267,10 +218,8 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 else resolve(res.result);
             });
 
-            if (!this.process || !this.process.connected) {
-                this.callbacks.delete(id);
-                if (timer) clearTimeout(timer);
-                return reject(new Error(`RPC process is not connected. Cannot send request: ${String(module)}.${String(method)}`));
+            if (!this.process) {
+                throw new Error('未挂载进程');
             }
             this.process.send?.(req);
         });
@@ -279,14 +228,13 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     /**
      * 发送单向消息（无返回值）
      */
-    public notify<K extends keyof TModules, M extends keyof TModules[K]>(
+    notify<K extends keyof TModules, M extends keyof TModules[K]>(
         module: K,
         method: M,
         args?: Parameters<TModules[K][M]>
     ) {
-        if (!this.process || !this.process.connected) {
-            console.warn(`[ProcessRPC] Cannot send notify, process is not connected. module:${String(module)}, method:${String(method)}`);
-            return;
+        if (!this.process) {
+            throw new Error('未挂载进程');
         }
         const msg: RpcNotify = {
             type: 'notify',
