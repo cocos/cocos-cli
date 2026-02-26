@@ -137,27 +137,15 @@ export class SceneWorker {
     }
 
     async stop() {
-        if (!this._process) return true;
+        if (!this.process) return true;
         this.isManualStop = true; // 标记为手动停止
         return new Promise<boolean>((resolve) => {
-            const timer = setTimeout(() => {
-                console.warn('停止场景进程超时，尝试强制杀死...');
-                if (this._process) {
-                    this._process.kill('SIGKILL');
-                }
-            }, 5000);
-
-            this.process.once('exit', (code, signal) => {
-                clearTimeout(timer);
-                console.log(`Scene process stopped. code:${code}, signal:${signal}`);
+            this.process.once('exit', () => {
+                console.log('Scene process stopped.');
                 this.clear();
                 resolve(true);
             });
-            this.process.once('error', (err) => {
-                clearTimeout(timer);
-                console.error('停止场景进程出错:', err);
-                resolve(false);
-            });
+            this.process.once('error', () => resolve(false));
             this.process.send(SceneWorker.ExitWorkerEvent);
         });
     }
@@ -205,11 +193,6 @@ export class SceneWorker {
             const delay = 2000; // 固定2秒间隔
             console.log(`等待 ${delay}ms 后重启...`);
             await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (this.isManualStop) {
-                console.log('检测到手动停止，取消重启');
-                return;
-            }
 
             // 重新启动进程
             const success = await this.start(this.enginePath, this.projectPath);

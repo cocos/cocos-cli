@@ -28,13 +28,11 @@ describe('ProcessRPC 双向调用测试', () => {
             console.log(chunk.toString());
         });
         rpc = new ProcessRPC<{ node: INodeService; scene: ISceneService }>();
-        rpc.attach(child, 'Test:RPCWorkerProcess');
+        rpc.attach(child);
     });
 
-    afterAll(async () => {
-        const exitPromise = new Promise((resolve) => child.once('exit', resolve));
+    afterAll(() => {
         child.kill();
-        await exitPromise;
     });
 
     test('主进程调用子进程方法', async () => {
