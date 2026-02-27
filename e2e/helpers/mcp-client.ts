@@ -109,6 +109,8 @@ export class MCPTestClient {
             this.serverProcess = spawn('node', args, {
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
+            const { setupProcessHandler } = require('../../src/core/base/utils/process-err-handler');
+            setupProcessHandler(this.serverProcess, 'E2E:MCPServer');
 
             this.serverReady = false;
             this.startTimeoutTimer = setTimeout(() => {

@@ -4,6 +4,8 @@ import { TestGlobalEnv } from '../../tests/global-env';
 let hasInit = false;
 
 export async function globalSetup() {
+    const { setupProcessHandler } = await import('../base/utils/process-err-handler');
+    setupProcessHandler(process, 'GlobalTest');
     // TODO 如果是异步多次调用，需要做队列管理
     if (hasInit) {
         return;
