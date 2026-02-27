@@ -661,6 +661,17 @@ class AssetDBManager extends EventEmitter {
         }, 2000 * 60);
         return this.waitPausePromiseTask;
     }
+
+    /**
+     * 停止所有数据库
+     */
+    async stop() {
+        const names = Object.keys(this.assetDBMap);
+        for (const name of names) {
+            await this._removeDB(name);
+        }
+        this.ready = false;
+    }
 }
 
 const assetDBManager = new AssetDBManager();

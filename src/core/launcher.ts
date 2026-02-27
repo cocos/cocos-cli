@@ -118,9 +118,36 @@ export default class Launcher {
     }
 
     async close() {
+        // 停止场景进程
+        try {
+            const { sceneWorker } = await import('./scene/main-process/scene-worker');
+            await sceneWorker.stop();
+        } catch (error) {
+            console.error('Failed to stop scene worker:', error);
+        }
+
+        // 停止资源数据库
+        try {
+            const { stopAssetDB } = await import('./assets');
+            await stopAssetDB();
+        } catch (error) {
+            console.error('Failed to stop asset database:', error);
+        }
+
+        // 停止服务器
+        try {
+            const { stopServer } = await import('../server');
+            await stopServer();
+        } catch (error) {
+            console.error('Failed to stop server:', error);
+        }
+
         // 保存项目配置
-        const { default: Project } = await import('./project');
-        await Project.close();
-        // ----- TODO 可能有的更多其他模块的保存销毁操作 ----
+        try {
+            const { default: Project } = await import('./project');
+            await Project.close();
+        } catch (error) {
+            console.error('Failed to close project:', error);
+        }
     }
 }

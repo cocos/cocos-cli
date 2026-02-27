@@ -137,16 +137,43 @@ export class SceneWorker {
     }
 
     async stop() {
-        if (!this.process) return true;
+        const proc = this._process;
+        if (!proc) {
+            return true;
+        }
         this.isManualStop = true; // 标记为手动停止
         return new Promise<boolean>((resolve) => {
-            this.process.once('exit', () => {
+            const timeout = setTimeout(() => {
+                console.warn('Scene process stop timeout, killing...');
+                if (this._process) {
+                    this._process.kill('SIGKILL');
+                    this._process = null;
+                }
+                resolve(true);
+            }, 5000);
+
+            proc.once('exit', () => {
+                clearTimeout(timeout);
                 console.log('Scene process stopped.');
                 this.clear();
                 resolve(true);
             });
-            this.process.once('error', () => resolve(false));
-            this.process.send(SceneWorker.ExitWorkerEvent);
+            proc.once('error', (err) => {
+                clearTimeout(timeout);
+                console.error('Scene process error during stop:', err);
+                resolve(false);
+            });
+
+            try {
+                if (proc.connected) {
+                    proc.send(SceneWorker.ExitWorkerEvent);
+                } else {
+                    proc.kill('SIGTERM');
+                }
+            } catch (error) {
+                console.error('Failed to send exit event to scene process:', error);
+                proc.kill('SIGTERM');
+            }
         });
     }
 
