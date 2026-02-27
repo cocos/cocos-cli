@@ -144,17 +144,7 @@ export class NewConsole {
         // Auto-flush on exit
         if (!(process as any)[EXIT_FLUSH_GUARD]) {
             process.on('exit', () => {
-                try {
-                    this.flush();
-                } catch (error) {
-                    // Use raw console to avoid recursion
-                    const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
-                    try {
-                        rawC.error('[NewConsole] Failed to flush logs on exit:', error);
-                    } catch {
-                        // Ignore
-                    }
-                }
+                this.flush();
             });
             (process as any)[EXIT_FLUSH_GUARD] = true;
         }

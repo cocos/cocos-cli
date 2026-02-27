@@ -35,7 +35,6 @@ class ProjectManager {
     async open(path: string) {
         const { default: Launcher } = await import('./launcher');
         const projectLauncher = new Launcher(path);
-        this._currentLauncher = projectLauncher;
         await projectLauncher.startup();
     }
 

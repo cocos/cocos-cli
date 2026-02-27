@@ -26,12 +26,5 @@ export async function startupAssetDB() {
     }
 }
 
-/**
- * 停止资源数据库
- */
-export async function stopAssetDB() {
-    await assetDBManager.stop();
-}
-
 export { default as assetManager } from './manager/asset';
 export { default as assetDBManager } from './manager/asset-db';
