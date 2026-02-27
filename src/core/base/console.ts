@@ -214,8 +214,8 @@ export class NewConsole {
             // 如果日志记录过程中出错，使用原始 console 输出，避免死循环
             // 不能使用 newConsole.error，因为那会再次触发这个流程
             try {
-                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
-                rawConsole.error('[NewConsole] Error in _logMessage:', error);
+                const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
+                rawC.error('[NewConsole] Error in _logMessage:', error);
             } catch {
                 // 如果连原始 console 都失败了，忽略（避免无限循环）
             }
@@ -297,8 +297,8 @@ export class NewConsole {
         } catch (consolaError) {
             // 如果 consola 调用失败，使用原始 console 输出，避免死循环
             try {
-                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
-                rawConsole.error('[NewConsole] Failed to log to consola:', consolaError);
+                const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
+                rawC.error('[NewConsole] Failed to log to consola:', consolaError);
             } catch {
                 // 如果连原始 console 都失败了，忽略（避免无限循环）
             }
@@ -343,8 +343,8 @@ export class NewConsole {
             // 如果 pino 调用失败，使用原始 console 输出，避免死循环
             // 不能使用 newConsole.error，因为那会再次触发这个流程
             try {
-                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
-                rawConsole.error('[NewConsole] Failed to log to pino:', pinoError);
+                const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
+                rawC.error('[NewConsole] Failed to log to pino:', pinoError);
             } catch {
                 // 如果连原始 console 都失败了，忽略（避免无限循环）
             }

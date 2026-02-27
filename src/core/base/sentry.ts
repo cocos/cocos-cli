@@ -146,26 +146,44 @@ class SentryInitializer {
  * 全局错误处理器
  */
 function setupGlobalErrorHandlers(): void {
+    let isHandlingError = false;
+
     // 捕获未处理的异常
     process.on('uncaughtException', (error) => {
-        newConsole.error(`[Global] 未捕获的异常: ${error instanceof Error ? error.message : String(error)}`);
-        SentryInitializer.captureException(error, {
-            type: 'uncaughtException',
-            timestamp: new Date().toISOString(),
-        });
+        if (isHandlingError) {
+            return;
+        }
+        isHandlingError = true;
+        try {
+            newConsole.error(`[Global] 未捕获的异常: ${error instanceof Error ? error.message : String(error)}`);
+            SentryInitializer.captureException(error, {
+                type: 'uncaughtException',
+                timestamp: new Date().toISOString(),
+            });
+        } finally {
+            isHandlingError = false;
+        }
     });
 
     // 捕获未处理的 Promise 拒绝
     process.on('unhandledRejection', (reason, promise) => {
-        newConsole.error(`[Global] 未处理的 Promise 拒绝: ${reason instanceof Error ? reason.message : String(reason)}`);
-        SentryInitializer.captureException(
-            reason instanceof Error ? reason : new Error(String(reason)),
-            {
-                type: 'unhandledRejection',
-                promise: promise.toString(),
-                timestamp: new Date().toISOString(),
-            }
-        );
+        if (isHandlingError) {
+            return;
+        }
+        isHandlingError = true;
+        try {
+            newConsole.error(`[Global] 未处理的 Promise 拒绝: ${reason instanceof Error ? reason.message : String(reason)}`);
+            SentryInitializer.captureException(
+                reason instanceof Error ? reason : new Error(String(reason)),
+                {
+                    type: 'unhandledRejection',
+                    promise: promise.toString(),
+                    timestamp: new Date().toISOString(),
+                }
+            );
+        } finally {
+            isHandlingError = false;
+        }
     });
 }
 
