@@ -4,7 +4,6 @@ import { dirname, join } from 'path';
 import { IQuickSpawnOption } from '../../@types/protected';
 import project from '../../../project';
 import { GlobalPaths } from '../../../../global';
-import { setupProcessHandler } from '../../../base/utils/process-err-handler';
 
 // 获取 CPU 数量，有几个 CPU 就创建几个子进程，这样就可以最大化的利用机器性能
 const workerPath = join(__dirname, './sub-process');
@@ -177,7 +176,6 @@ class WorkerTask {
             // 确保信号处理正确
             killSignal: 'SIGTERM',
         });
-        setupProcessHandler(child, `Worker:${this.name}`);
         child.on('message', (m: ChildProcessMessageInfo) => {
             if (m && m.type === 'execute-script-end') {
                 processPool.notRunning(child);
@@ -369,7 +367,6 @@ export class WorkerManager {
                 console.error(options.prefix + `child process error: ${command} ${cmdParams.toString()}`);
                 reject(err);
             });
-            setupProcessHandler(ls, `QuickSpawn:${command}`);
             ls.on('exit', (code) => {
                 processPool.delete(ls);
                 if (code !== 0) {

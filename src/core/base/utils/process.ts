@@ -1,5 +1,4 @@
 import { spawn, SpawnOptions } from 'child_process';
-import {setupProcessHandler} from './process-err-handler';
 export const enum LogLevel {
     LOG,
     WARN,
@@ -41,7 +40,6 @@ export function quickSpawn(command: string, cmdParams: string[], options: IQuick
             env: options?.env,
             ...options,
         });
-        setupProcessHandler(child, `ChildProcess:${command}`);
 
         let outputData = '';
         function output(type: 'log' | 'debug' | 'warn' | 'error', data: Buffer) {

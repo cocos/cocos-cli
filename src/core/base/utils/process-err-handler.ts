@@ -17,7 +17,7 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
 
     // 监听所有警告
     proc.on('warning', (warning) => {
-        console.warn(`[${label}] bf test 进程警告:`, warning.name, warning.message);
+        console.warn(`[${label}] 进程警告:`, warning.name, warning.message);
         if (warning.name === 'ExperimentalWarning') {
             // 忽略实验性特性警告
         } else if (warning.name === 'MaxListenersExceededWarning') {
@@ -27,12 +27,12 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
 
     if (isGlobal || 'pid' in proc) { // process or the current process
         proc.on('uncaughtException', (error: Error, origin: string) => {
-            console.error(`[${label}] bf test 未捕获的异常! Origin:`, origin);
+            console.error(`[${label}] 未捕获的异常! Origin:`, origin);
             console.error('错误:', error);
         });
 
         proc.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-            console.error(`[${label}] bf test 未处理的 Promise 拒绝!`, reason);
+            console.error(`[${label}] 未处理的 Promise 拒绝!`, reason);
         });
     }
 
@@ -44,7 +44,7 @@ export function setupProcessHandler(proc: NodeJS.Process | ChildProcess, label: 
             if ('pid' in proc) { pid = String(proc.pid); }
             if ('argv' in proc) { argv = proc.argv.join(' '); }
             
-            process.stdout.write(`[${label}] bf test 000 进程异常退出，退出码: ${code} PID: ${pid} ARGV: ${argv}\n`);
+            process.stdout.write(`[${label}] 进程异常退出，退出码: ${code} PID: ${pid} ARGV: ${argv}\n`);
             const error = new Error();
             process.stdout.write(`${error.stack}\n`);
         } else if (signal) {
