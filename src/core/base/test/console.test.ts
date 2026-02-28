@@ -131,12 +131,12 @@ describe('newConsole dead loop reproduction', () => {
                 };
             }
             
-            // 触发一个异常，这会启动死循环
+            // 直接调用错误处理器，而不是使用 process.emit 发送全局事件，防止把测试运行器本身的进程搞崩溃
             const errorPromise = new Promise<void>((resolve) => {
                 setTimeout(() => {
                     try {
                         const err = new Error('Test error to trigger uncaughtException');
-                        process.emit('uncaughtException', err);
+                        errorHandler(err);
                         resolve();
                     } catch {
                         resolve();
@@ -234,11 +234,11 @@ describe('newConsole dead loop reproduction', () => {
             
             process.on('uncaughtException', errorHandler);
             
-            // 触发一个异常
+            // 直接调用错误处理器触发异常
             const errorPromise = new Promise<void>((resolve) => {
                 setTimeout(() => {
                     try {
-                        process.emit('uncaughtException', new Error('Test error'));
+                        errorHandler(new Error('Test error'));
                         resolve();
                     } catch {
                         resolve();
