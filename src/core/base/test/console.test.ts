@@ -82,10 +82,8 @@ describe('newConsole dead loop reproduction', () => {
         // 5. 形成死循环
         
         const { newConsole } = await import('../../base/console');
-        const { initSentry } = await import('../../base/sentry');
         
-        // 初始化 Sentry（这会设置全局错误处理器）
-        initSentry();
+        // Remove initSentry() to prevent Native Heap Corruption with test runner
         
         let errorCallCount = 0;
         let pinoErrorCallCount = 0;
