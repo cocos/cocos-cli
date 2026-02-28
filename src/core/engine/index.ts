@@ -316,7 +316,7 @@ class EngineManager implements IEngine {
                 physics: {
                     ...physicsConfig,
                     // 物理引擎如果没有明确设置，默认是开启的，因此需要明确定义为false
-                    enabled: !!info.serverURL ? true : false,
+                    enabled: info.serverURL ? true : false,
                 },
                 assets: {
                     importBase: info.importBase,

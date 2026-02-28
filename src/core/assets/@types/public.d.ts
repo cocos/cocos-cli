@@ -80,7 +80,7 @@ export interface AssetInfo extends IAssetInfo {
     // 使用的导入器名字
     importer: string;
     // 类型
-    type: string;
+    type: IAssetType;
     // 是否是文件夹
     isDirectory: boolean;
     // 导入资源的 map

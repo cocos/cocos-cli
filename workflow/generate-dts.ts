@@ -20,17 +20,37 @@ interface IDtsEntry {
 // Define your entries here
 const entries: IDtsEntry[] = [
     {
-        name: 'builder-plugins',
-        source: 'src/core/builder/@types/protected.ts',
-        output: 'builder.d.ts'
-    }, {
-        name: 'api',
-        source: 'src/api/index.ts',
-        output: 'index.d.ts'
-    }, {
         name: 'lib',
         source: 'src/lib/index.ts',
-        output: 'lib.d.ts'
+        output: 'index.d.ts'
+    }, {
+        name: 'assets',
+        source: 'src/lib/assets/assets.ts',
+        output: 'assets.d.ts'
+    }, {
+        name: 'base',
+        source: 'src/lib/base/base.ts',
+        output: 'base.d.ts'
+    }, {
+        name: 'configuration',
+        source: 'src/lib/configuration/configuration.ts',
+        output: 'configuration.d.ts'
+    }, {
+        name: 'engine',
+        source: 'src/lib/engine/engine.ts',
+        output: 'engine.d.ts'
+    }, {
+        name: 'project',
+        source: 'src/lib/project/project.ts',
+        output: 'project.d.ts'
+    }, {
+        name: 'scripting',
+        source: 'src/lib/scripting/scripting.ts',
+        output: 'scripting.d.ts'
+    }, {
+        name: 'builder',
+        source: 'src/lib/builder/builder.ts',
+        output: 'builder.d.ts'
     }
 ];
 
