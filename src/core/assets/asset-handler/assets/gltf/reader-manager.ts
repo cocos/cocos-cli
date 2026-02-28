@@ -227,6 +227,7 @@ async function _getOptimizerPath(asset: Asset, source: string, importerVersion: 
                 // if (error) { console.error(`Error: ${error}`); }
                 // if (stderr) { console.error(`Error: ${stderr}`); }
                 // if (stdout) { console.log(`${stdout}`); }
+
                 await fs.writeFile(statusPath, JSON.stringify(expectedStatus, undefined, 2));
                 resolve(out);
             });
