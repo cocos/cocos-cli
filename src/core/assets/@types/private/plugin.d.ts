@@ -1,7 +1,7 @@
 'use strict';
 
-import { CustomHandler, AssetHandler } from "../protected/asset-handler";
-import { AssetDBContribution, AssetHandlerInfo } from "../protected";
+import { CustomHandler, AssetHandler } from '../protected/asset-handler';
+import { AssetDBContribution, AssetHandlerInfo } from '../protected';
 
 export interface EditorMethodModule {
     methods: { [name: string]: Function; };

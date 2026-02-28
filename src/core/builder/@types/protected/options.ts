@@ -1,12 +1,12 @@
 import { StatsQuery } from '@cocos/ccbuild';
 import * as rollup from 'rollup';
-import * as babel from '@babel/core';
+import type { PluginItem } from '@babel/core';
 import { IPolyFills, IBuildOptionBase, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired, IPlatformType } from '../public';
 export { IPlatformType };
 import { IAssetInfo as IAssetInfoFromDB, IAssetMeta } from '../../../assets/@types/private';
 import { BuiltinBundleName } from './bundle-config';
 
-export type BabelPluginItem = babel.PluginItem;
+export type BabelPluginItem = PluginItem;
 
 export type IModules = 'esm' | 'commonjs' | 'systemjs';
 
