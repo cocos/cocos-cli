@@ -259,6 +259,21 @@ class ScriptManager {
         await PackerDriver.getInstance().updateDbInfos(dbInfo, dbChangeType);
     }
 
+    /**
+     * 关闭脚本管理器，释放资源
+     */
+    async close(): Promise<void> {
+        if (!this._initialized) {
+            return;
+        }
+        await PackerDriver.getInstance().shutDown();
+        if (executor) {
+            await (executor as any).destroy?.();
+            executor = null;
+        }
+        this._initialized = false;
+    }
+
 }
 
 export default new ScriptManager();

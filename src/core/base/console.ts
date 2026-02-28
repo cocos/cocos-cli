@@ -111,10 +111,11 @@ export class NewConsole {
         this.flush(); // Finish previous writes
 
         // Reset pino using new log destination
+        const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
         this.pino = pino({
             level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
                 ? 'debug' : 'trace', // 暂时全部记录
-            transport: {
+            transport: !isTest ? {
                 targets: [
                     {
                         target: 'pino-transport-rotating-file',
@@ -135,7 +136,7 @@ export class NewConsole {
                         },
                     }
                 ],
-            }
+            } : undefined
         });
 
         this._start = true;
@@ -144,7 +145,11 @@ export class NewConsole {
         // Auto-flush on exit
         if (!(process as any)[EXIT_FLUSH_GUARD]) {
             process.on('exit', () => {
-                this.flush();
+                try {
+                    this.flush();
+                } catch (_e) {
+                    // console.error('[Console] Flush failed on exit:', e.message);
+                }
             });
             (process as any)[EXIT_FLUSH_GUARD] = true;
         }
@@ -570,7 +575,11 @@ export class NewConsole {
     }
 
     public flush() {
-        this.pino.flush();
+        try {
+            this.pino?.flush?.();
+        } catch (_e) {
+            // ignore
+        }
     }
 
     // --------------------- Common Level -------------------------
