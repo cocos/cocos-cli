@@ -4,5 +4,4 @@ export * as Configuration from './configuration/configuration';
 export * as Engine from './engine/engine';
 export * as Project from './project/project';
 export * as Scripting from './scripting/scripting';
-export * as Builder from './builder/builder';
 
