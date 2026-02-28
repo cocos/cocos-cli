@@ -30,7 +30,7 @@ function getCustomIconInfoImpl(projDir: string, type: 'default' | 'custom', outp
     let base = '';
     switch (type) {
         case 'default':
-            base = join(__dirname, `../../../../../src/core/builder/platforms/google-play/static/icons`);
+            base = join(__dirname, `../../../../../static/assets/google-play/icons`);
             break;
         case 'custom':
             base = join(projDir, 'settings/icons/' + outputName);
