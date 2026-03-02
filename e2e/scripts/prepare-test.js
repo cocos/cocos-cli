@@ -69,10 +69,19 @@ if (cliPath) {
 if (!shouldSkipMcpTypes) {
     // 默认生成 MCP types
     console.log(`📋 生成 MCP types...`);
-    const generateTypes = spawn('npm', ['run', 'generate:mcp-types'], {
+    
+    // 在 Windows 上使用 npm.cmd 以确保能够正确执行
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    
+    const generateTypes = spawn(npmCmd, ['run', 'generate:mcp-types'], {
         stdio: 'inherit',
         shell: true,
         env: { ...process.env }, // 传递环境变量
+    });
+    
+    generateTypes.on('error', (err) => {
+        console.error(`❌ 启动 MCP types 生成失败: ${err.message}`);
+        process.exit(1);
     });
     
     generateTypes.on('close', (code) => {
@@ -130,7 +139,7 @@ function runJest() {
     // 添加 Jest 配置
     jestArgs.unshift('--config', 'e2e/jest.config.e2e.ts');
     
-    console.log(`🚀 启动 Jest: jest ${jestArgs.join(' ')}`);
+    console.log(`🚀 启动 Jest: npx jest ${jestArgs.join(' ')}`);
     if (process.env.E2E_CLI_PATH) {
         console.log(`   环境变量 E2E_CLI_PATH: ${process.env.E2E_CLI_PATH}`);
     }
@@ -141,19 +150,25 @@ function runJest() {
         console.log(`   - 检测未关闭的句柄`);
     }
     
-    const jest = spawn('jest', jestArgs, {
+    // 使用 npx jest 以确保在 CI 中能找到 jest 命令
+    const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    
+    const jest = spawn(npxCmd, ['jest', ...jestArgs], {
         stdio: 'inherit',
         shell: true,
         env: { ...process.env }, // 传递环境变量（包括 E2E_CLI_PATH 和 E2E_DEBUG）
     });
     
-    jest.on('close', (code) => {
-        process.exit(code);
+    jest.on('error', (err) => {
+        console.error(`❌ 启动 Jest 失败: ${err.message}`);
+        process.exit(1);
     });
     
-    jest.on('error', (error) => {
-        console.error(`❌ 启动 Jest 失败:`, error);
-        process.exit(1);
+    jest.on('close', (code) => {
+        if (code !== 0) {
+            console.log(`⚠️ Jest 退出，退出码: ${code}`);
+        }
+        process.exit(code);
     });
 }
 
