@@ -83,8 +83,16 @@ if (!shouldSkipMcpTypes) {
         console.error(`❌ 启动 MCP types 生成失败: ${err.message}`);
         process.exit(1);
     });
-    
+
+    // 添加超时保护（120秒）
+    const timeout = setTimeout(() => {
+        console.error('❌ MCP types 生成超时（120秒），强制终止');
+        generateTypes.kill('SIGKILL');
+        process.exit(1);
+    }, 120000);
+
     generateTypes.on('close', (code) => {
+        clearTimeout(timeout);
         if (code !== 0) {
             console.error(`❌ MCP types 生成失败，退出码: ${code}`);
             process.exit(code);
