@@ -26,7 +26,7 @@
         "test:all": "npm run test && npm run test:e2e",
         "check:e2e-coverage": "tsx e2e/scripts/check-coverage.ts",
         "check:e2e-coverage:report": "tsx e2e/scripts/check-coverage.ts --save",
-        "generate:mcp-types": "tsx e2e/scripts/generate-mcp-types.ts",
+        "generate:mcp-types": "node --max-old-space-size=4096 node_modules/tsx/dist/cli.mjs e2e/scripts/generate-mcp-types.ts",
         "generate:dts": "tsx workflow/generate-dts.ts",
         "install:engine": "cd ./packages/engine && npm i",
         "compiler": "FORCE_UPDATE=true npm i",

@@ -42,8 +42,8 @@ if (cliPath) {
     // 从命令行参数读取
     const argPath = args[cliIndex + 1];
     if (argPath && !argPath.startsWith('--')) {
-        cliPath = path.isAbsolute(argPath) 
-            ? argPath 
+        cliPath = path.isAbsolute(argPath)
+            ? argPath
             : path.resolve(process.cwd(), argPath);
         console.log(`📋 检测到 --cli 参数: ${argPath}`);
         
@@ -72,34 +72,57 @@ if (!shouldSkipMcpTypes) {
     
     // 在 Windows 上使用 npm.cmd 以确保能够正确执行
     const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    
-    const generateTypes = spawn(npmCmd, ['run', 'generate:mcp-types'], {
-        stdio: 'inherit',
-        shell: true,
-        env: { ...process.env }, // 传递环境变量
-    });
-    
-    generateTypes.on('error', (err) => {
-        console.error(`❌ 启动 MCP types 生成失败: ${err.message}`);
-        process.exit(1);
-    });
 
-    // 添加超时保护（120秒）
-    const timeout = setTimeout(() => {
-        console.error('❌ MCP types 生成超时（120秒），强制终止');
-        generateTypes.kill('SIGKILL');
-        process.exit(1);
-    }, 120000);
+    const maxRetries = 3;
+    let attempt = 0;
 
-    generateTypes.on('close', (code) => {
-        clearTimeout(timeout);
-        if (code !== 0) {
-            console.error(`❌ MCP types 生成失败，退出码: ${code}`);
-            process.exit(code);
+    function runGenerateTypes() {
+        attempt++;
+        if (attempt > 1) {
+            console.log(`🔄 重试生成 MCP types (第 ${attempt} 次尝试)...`);
         }
-        // 继续执行 Jest
-        runJest();
-    });
+
+        const generateTypes = spawn(npmCmd, ['run', 'generate:mcp-types'], {
+            stdio: 'inherit',
+            shell: true,
+            env: { ...process.env }, // 传递环境变量
+        });
+
+        generateTypes.on('error', (err) => {
+            console.error(`❌ 启动 MCP types 生成失败: ${err.message}`);
+            process.exit(1);
+        });
+
+        // 添加超时保护（120秒）
+        const timeout = setTimeout(() => {
+            console.error('❌ MCP types 生成超时（120秒），强制终止');
+            generateTypes.kill('SIGKILL');
+            handleFailure();
+        }, 120000);
+
+        generateTypes.on('close', (code) => {
+            clearTimeout(timeout);
+            if (code !== 0) {
+                console.error(`❌ MCP types 生成失败，退出码: ${code}`);
+                handleFailure();
+            } else {
+                // 成功，继续执行 Jest
+                runJest();
+            }
+        });
+
+        function handleFailure() {
+            if (attempt < maxRetries) {
+                console.log(`⏳ 3秒后进行第 ${attempt + 1} 次尝试...`);
+                setTimeout(runGenerateTypes, 3000);
+            } else {
+                console.error(`❌ 已达到最大重试次数 (${maxRetries})，放弃生成`);
+                process.exit(1);
+            }
+        }
+    }
+
+    runGenerateTypes();
 } else {
     // 跳过生成，直接运行 Jest
     console.log(`⏭️  跳过 MCP types 生成（--skip-mcp-types 参数）`);
