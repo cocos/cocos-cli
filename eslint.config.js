@@ -6,6 +6,9 @@ import globals from 'globals';
 export default [
     js.configs.recommended,
     {
+        "extends": ["plugin:@typescript-eslint/recommended"]
+    },
+    {
         files: ['**/*.{js,ts,tsx,vue}'],
         languageOptions: {
             ecmaVersion: 2022,

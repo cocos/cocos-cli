@@ -8,6 +8,36 @@ import {
     IConfigFile,
     ExtractorLogLevel
 } from '@microsoft/api-extractor';
+import { Modularize } from '@cocos/ccbuild';
+
+// Dynamically build the real PlatformType union from @cocos/ccbuild enums.
+// This is needed because api-extractor incorrectly resolves
+// `type PlatformType = _PlatformType` into `type PlatformType = PlatformType`
+// (circular self-reference) when bundling the .d.ts files.
+function buildPlatformTypeUnion(): string {
+    const allKeys = [
+        ...Object.keys(Modularize.WebPlatform).filter(k => isNaN(Number(k))),
+        ...Object.keys(Modularize.MinigamePlatform).filter(k => isNaN(Number(k))),
+        ...Object.keys(Modularize.NativePlatform).filter(k => isNaN(Number(k))),
+    ].map(k => k.toUpperCase());
+    const extras = ['HTML5', 'NATIVE', 'NODEJS', 'INVALID_PLATFORM'];
+    const allTypes = [...new Set([...allKeys, ...extras])];
+    return allTypes.map(t => `'${t}'`).join(' | ');
+}
+
+async function postProcessDts(filePath: string) {
+    let content = await fs.readFile(filePath, 'utf-8');
+    const selfRef = 'type PlatformType = PlatformType;';
+    if (!content.includes(selfRef)) return;
+
+    const platformTypeUnion = buildPlatformTypeUnion();
+    content = content.replace(
+        new RegExp(selfRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        `type PlatformType = ${platformTypeUnion};`
+    );
+    await fs.writeFile(filePath, content, 'utf-8');
+    console.log(`  Post-processed: fixed PlatformType self-reference in ${path.basename(filePath)}`);
+}
 
 const projectRoot = path.resolve(__dirname, '..');
 const dtsExportRoot = path.join(projectRoot, 'packages/cocos-cli-types');
@@ -144,6 +174,7 @@ async function generate() {
 
             if (extractorResult.succeeded) {
                 console.log(`Successfully generated dts for ${entry.name} at ${entry.output}`);
+                await postProcessDts(output);
             } else {
                 console.error(`API Extractor completed with ${extractorResult.errorCount} errors and ${extractorResult.warningCount} warnings`);
                 process.exit(1);

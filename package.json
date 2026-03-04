@@ -27,7 +27,7 @@
         "check:e2e-coverage": "tsx e2e/scripts/check-coverage.ts",
         "check:e2e-coverage:report": "tsx e2e/scripts/check-coverage.ts --save",
         "generate:mcp-types": "tsx e2e/scripts/generate-mcp-types.ts",
-        "generate:dts": "tsx workflow/generate-dts.ts",
+        "generate:dts": "tsx workflow/generate-dts.ts && npx eslint --fix \"./packages/cocos-cli-types/*.d.ts\"",
         "install:engine": "cd ./packages/engine && npm i",
         "compiler": "FORCE_UPDATE=true npm i",
         "compiler:engine": "node --max-old-space-size=8192 workflow/compiler-engine.js --force",
