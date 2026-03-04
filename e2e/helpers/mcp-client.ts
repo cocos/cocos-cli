@@ -106,7 +106,7 @@ export class MCPTestClient {
             }
 
             // 启动服务器进程
-            this.serverProcess = spawn('node', args, {
+            this.serverProcess = spawn(process.execPath, args, {
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
 
@@ -439,10 +439,22 @@ export class MCPTestClient {
                     resolve();
                 };
 
+                // 检查进程是否已经退出
+                if (this.serverProcess!.exitCode !== null) {
+                    onExit();
+                    return;
+                }
+
                 this.serverProcess!.once('exit', onExit);
 
                 // 发送 SIGTERM
-                this.serverProcess!.kill('SIGTERM');
+                try {
+                    this.serverProcess!.kill('SIGTERM');
+                } catch (err) {
+                    if (E2E_DEBUG) {
+                        console.warn(`   Error sending SIGTERM to server process:`, err);
+                    }
+                }
 
                 // 超时后如果还没退出，强制杀死
                 this.forceKillTimer = setTimeout(() => {
@@ -450,8 +462,14 @@ export class MCPTestClient {
                         if (E2E_DEBUG) {
                             console.log(`   Force killing server process`);
                         }
-                        this.serverProcess.kill('SIGKILL');
-                        // 强制杀死后，等待进程退出
+                        try {
+                            this.serverProcess.kill('SIGKILL');
+                        } catch (err) {
+                            if (E2E_DEBUG) {
+                                console.error(`   Error sending SIGKILL to server process:`, err);
+                            }
+                        }
+                        // 强制杀死后，额外等待一下确保操作系统释放资源
                         setTimeout(() => {
                             if (this.forceKillTimer) {
                                 clearTimeout(this.forceKillTimer);
@@ -459,7 +477,7 @@ export class MCPTestClient {
                             }
                             this.serverProcess = null;
                             resolve();
-                        }, 1000);
+                        }, 500);
                     } else {
                         if (this.forceKillTimer) {
                             clearTimeout(this.forceKillTimer);

@@ -2,7 +2,6 @@ import { join } from 'path';
 import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
-import { getCurrentLocalTime } from './assets/utils';
 import { startServer } from '../server';
 import { GlobalConfig, GlobalPaths } from '../global';
 import scripting from './scripting';
@@ -118,6 +117,22 @@ export default class Launcher {
     }
 
     async close() {
+        // 关闭服务器
+        const { stopServer } = await import('../server');
+        await stopServer();
+
+        // 关闭场景进程
+        const { sceneWorker } = await import('./scene/main-process/scene-worker');
+        await sceneWorker.stop();
+
+        // 关闭资源数据库
+        const { stopAssetDB } = await import('./assets');
+        await stopAssetDB();
+
+        // 关闭脚本管理器
+        const { default: scripting } = await import('./scripting');
+        await scripting.close();
+
         // 保存项目配置
         const { default: Project } = await import('./project');
         await Project.close();

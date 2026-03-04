@@ -108,13 +108,14 @@ export class NewConsole {
             return;
         }
 
-        this.pino.flush(); // Finish previous writes
+        this.flush(); // Finish previous writes
 
         // Reset pino using new log destination
+        const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
         this.pino = pino({
             level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
                 ? 'debug' : 'trace', // 暂时全部记录
-            transport: {
+            transport: !isTest ? {
                 targets: [
                     {
                         target: 'pino-transport-rotating-file',
@@ -131,14 +132,27 @@ export class NewConsole {
                             errorLogFile: join(this.logDest, 'errors.log'),
                             timestampFormat: 'iso',
                             skipPretty: false,
-                            errorFlushIntervalMs: 1000,
+                            errorFlushIntervalMs: 100, // Reduced for faster flush
                         },
                     }
                 ],
-            }
+            } : undefined
         });
 
         this._start = true;
+
+        const EXIT_FLUSH_GUARD = Symbol.for('console.exit.flush');
+        // Auto-flush on exit
+        if (!(process as any)[EXIT_FLUSH_GUARD]) {
+            process.on('exit', () => {
+                try {
+                    this.flush();
+                } catch (_e) {
+                    // console.error('[Console] Flush failed on exit:', e.message);
+                }
+            });
+            (process as any)[EXIT_FLUSH_GUARD] = true;
+        }
 
         // @ts-ignore 将处理过的继承自 console 的新对象赋给 windows
         // 保存原始 console 引用，以便其他模块可以访问原始 console 避免死循环
@@ -205,8 +219,8 @@ export class NewConsole {
             // 如果日志记录过程中出错，使用原始 console 输出，避免死循环
             // 不能使用 newConsole.error，因为那会再次触发这个流程
             try {
-                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
-                rawConsole.error('[NewConsole] Error in _logMessage:', error);
+                const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
+                rawC.error('[NewConsole] Error in _logMessage:', error);
             } catch {
                 // 如果连原始 console 都失败了，忽略（避免无限循环）
             }
@@ -288,8 +302,8 @@ export class NewConsole {
         } catch (consolaError) {
             // 如果 consola 调用失败，使用原始 console 输出，避免死循环
             try {
-                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
-                rawConsole.error('[NewConsole] Failed to log to consola:', consolaError);
+                const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
+                rawC.error('[NewConsole] Failed to log to consola:', consolaError);
             } catch {
                 // 如果连原始 console 都失败了，忽略（避免无限循环）
             }
@@ -334,8 +348,8 @@ export class NewConsole {
             // 如果 pino 调用失败，使用原始 console 输出，避免死循环
             // 不能使用 newConsole.error，因为那会再次触发这个流程
             try {
-                const rawConsole = (globalThis as any).console?.__rawConsole || require('console');
-                rawConsole.error('[NewConsole] Failed to log to pino:', pinoError);
+                const rawC = (this as any).__rawConsole || (globalThis as any).console?.__rawConsole || rawConsole;
+                rawC.error('[NewConsole] Failed to log to pino:', pinoError);
             } catch {
                 // 如果连原始 console 都失败了，忽略（避免无限循环）
             }
@@ -560,7 +574,15 @@ export class NewConsole {
         }
     }
 
-    // --------------------- Query logs -------------------------
+    public flush() {
+        try {
+            this.pino?.flush?.();
+        } catch (_e) {
+            // ignore
+        }
+    }
+
+    // --------------------- Common Level -------------------------
     /**
      * 获取最近的日志信息
      */

@@ -153,7 +153,7 @@ export class AssetsApi {
             ret.data = await assetManager.queryAssetInfo(urlOrUUIDOrPath, dataKeys as (keyof IAssetInfo)[] | undefined);
             if (!ret.data) {
                 ret.code = COMMON_STATUS.FAIL;
-                ret.reason = `❌Asset can not be found: ${urlOrUUIDOrPath}`;
+                ret.reason = `❌Asset can not be found: ${urlOrUUIDOrPath}. Please refresh asset db and try again.`;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -700,7 +700,7 @@ export class AssetsApi {
             ret.data = await assetManager.updateUserData(urlOrUuidOrPath, path, value);
             if (!ret.data) {
                 ret.code = COMMON_STATUS.FAIL;
-                ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}`;
+                ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}. Please refresh asset db and try again.`;
             }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;

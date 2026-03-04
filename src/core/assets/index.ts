@@ -26,5 +26,17 @@ export async function startupAssetDB() {
     }
 }
 
+/**
+ * 停止资源数据库
+ */
+export async function stopAssetDB() {
+    for (const name in assetDBManager.assetDBMap) {
+        const db = assetDBManager.assetDBMap[name];
+        if (db) {
+            await db.stop();
+        }
+    }
+}
+
 export { default as assetManager } from './manager/asset';
 export { default as assetDBManager } from './manager/asset-db';

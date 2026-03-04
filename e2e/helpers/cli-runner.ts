@@ -65,7 +65,7 @@ export class CLIRunner {
             let hasTimedOut = false;
 
             // 启动子进程
-            const child: ChildProcess = spawn('node', [this.cliPath, ...args], {
+            const child: ChildProcess = spawn(process.execPath, [this.cliPath, ...args], {
                 cwd,
                 env,
                 stdio: ['pipe', 'pipe', 'pipe'],
@@ -189,7 +189,7 @@ export class CLIRunner {
             let stderr = '';
             let exitCode: number | null = null;
 
-            const child: ChildProcess = spawn('node', [this.cliPath, 'wizard'], {
+            const child: ChildProcess = spawn(process.execPath, [this.cliPath, 'wizard'], {
                 cwd,
                 stdio: ['pipe', 'pipe', 'pipe'],
             });

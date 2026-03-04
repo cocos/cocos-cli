@@ -24,8 +24,8 @@ rpc.attach({
 
 // 注册对象实例
 rpc.register({
-    'node': new NodeService(),
-    'scene': {
+    node: new NodeService(),
+    scene: {
         async loadScene(id) {
             return id === 'Level01';
         },

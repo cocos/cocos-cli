@@ -1,5 +1,4 @@
 import { spawn, SpawnOptions } from 'child_process';
-
 export const enum LogLevel {
     LOG,
     WARN,

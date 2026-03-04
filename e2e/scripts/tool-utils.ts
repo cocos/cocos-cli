@@ -45,6 +45,15 @@ export async function scanToolsFromRegistry(): Promise<ExtendedToolInfo[]> {
     const tools: ExtendedToolInfo[] = [];
 
     try {
+        // 清理模块缓存，确保每次运行都是干净的状态
+        // 这对于避免概率性失败非常重要
+        const moduleCache = require.cache;
+        Object.keys(moduleCache).forEach(key => {
+            if (key.includes('dist/api') || key.includes('dist/core')) {
+                delete moduleCache[key];
+            }
+        });
+
         const { CocosAPI } = await import('../../dist/api/index');
         // 先创建 API 实例，触发所有装饰器的执行
         await CocosAPI.create();
@@ -73,6 +82,14 @@ export async function scanToolsFromRegistry(): Promise<ExtendedToolInfo[]> {
                 returnSchema: meta.returnSchema,
             });
         }
+
+        // 强制垃圾回收，释放内存
+        if (global.gc) {
+            global.gc();
+        }
+
+        // 清理 toolRegistry，避免内存泄漏
+        toolRegistry.clear();
     } catch (error) {
         console.error('❌ 无法加载 toolRegistry:', error);
         console.error('   请确保项目已经构建 (npm run build)');

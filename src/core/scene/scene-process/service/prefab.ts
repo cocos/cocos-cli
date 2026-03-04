@@ -40,7 +40,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
 
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [params.dbURL]);
             if (!params.overwrite && assetInfo && assetInfo.type === 'cc.Prefab') {
-                throw new Error(`已有同名 ${assetInfo.url} 预制体`);
+                throw new Error(`已有同名 ${assetInfo.url} 预制体。操作冲突，禁止重试相同命令。请尝试重命名或检查目录。`);
             }
 
             const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.dbURL, {

@@ -30,7 +30,7 @@ describe('MCP Builder API', () => {
                     },
                     startScene: 'db://assets/atlas/altas.scene',
                 },
-            });
+            }, E2E_TIMEOUTS.BUILD_OPERATION);
 
             expect(result.reason).toBe(undefined);
             expect(result.code).toBe(200);

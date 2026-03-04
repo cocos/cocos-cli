@@ -10,16 +10,16 @@ import { queryPath } from '@cocos/asset-db/libs/manager';
 
 const LF = '\n';
 
-function writeTextToStream(writeStream: fs.WriteStream, text: string): boolean {
-    let succeeded = true;
-    // Append EOL to maintain line breaks
-    writeStream.write(text + EOL, 'utf-8', (err) => {
-        if (err) {
-            console.error('Error writing file:', err.message);
-            succeeded = false;
+function asyncWrite(stream: fs.WriteStream, chunk: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const result = stream.write(chunk + EOL, 'utf-8');
+        if (result) {
+            resolve();
+        } else {
+            stream.once('drain', resolve);
+            stream.once('error', reject);
         }
     });
-    return succeeded;
 }
 
 function getScriptFilename(dbURL: string, fileType: string): string {
@@ -56,6 +56,7 @@ export async function insertTextAtLine(
     textToInsert = eol.auto(textToInsert);
 
     const filename = getScriptFilename(dbURL, fileType);
+    const tmpFilename = filename + '.tmp';
     const fileStream = fs.createReadStream(filename);
 
     const rl = readline.createInterface({
@@ -64,7 +65,7 @@ export async function insertTextAtLine(
     });
 
     // Create a temporary write stream
-    const writeStream = fs.createWriteStream(filename + '.tmp');
+    const writeStream = fs.createWriteStream(tmpFilename);
 
     let currentLine = 0;
     let modified = false;
@@ -72,47 +73,42 @@ export async function insertTextAtLine(
     try {
         for await (const line of rl) {
             if (currentLine === lineNumber) { // Insert text before the current line
-                if (!writeTextToStream(writeStream, textToInsert)) {
-                    errorOccurred = true;
-                    break;
-                }
+                await asyncWrite(writeStream, textToInsert);
                 modified = true;
             }
             // Write the current line
-            if (!writeTextToStream(writeStream, line)) {
-                errorOccurred = true;
-                break;
-            }
+            await asyncWrite(writeStream, line);
             ++currentLine;
+        }
+
+        if (!modified) { // If lineNumber is greater than total lines, append at the end
+            await asyncWrite(writeStream, textToInsert);
+            modified = true;
         }
     } catch (err) {
         console.error('insertTextAtLine error:', err);
         errorOccurred = true;
+    } finally {
+        rl.close();
+        fileStream.destroy();
+
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', resolve);
+            writeStream.on('error', reject);
+            writeStream.end();
+        });
     }
-
-    if (!errorOccurred && !modified) { // If lineNumber is greater than total lines, append at the end
-        if (!writeTextToStream(writeStream, textToInsert)) {
-            errorOccurred = true;
-        } else {
-            modified = true;
-        }
-    }
-
-    // Close the read stream
-    rl.close();
-    fileStream.close();
-
-    // Close the write stream
-    writeStream.end();
 
     // If an error occurred, delete the temporary file
     if (errorOccurred || !modified) {
-        fs.unlinkSync(filename + '.tmp');
+        if (fs.existsSync(tmpFilename)) {
+            fs.unlinkSync(tmpFilename);
+        }
         throw new Error('Failed to insert text at the specified line.');
     }
 
     // Replace the original file with the modified temporary file
-    fs.renameSync(filename + '.tmp', filename);
+    fs.renameSync(tmpFilename, filename);
 
     // Reimport script
     await assetManager.reimportAsset(dbURL);
@@ -135,13 +131,14 @@ export async function eraseLinesInRange(
     }
 
     const filename = getScriptFilename(dbURL, fileType);
+    const tmpFilename = filename + '.tmp';
     const fileStream = fs.createReadStream(filename);
     const rl = readline.createInterface({
         input: fileStream,
         crlfDelay: Infinity
     });
     // Create a temporary write stream
-    const writeStream = fs.createWriteStream(filename + '.tmp');
+    const writeStream = fs.createWriteStream(tmpFilename);
     let currentLine = 0;
     let modified = false;
     let errorOccurred = false;
@@ -149,10 +146,7 @@ export async function eraseLinesInRange(
         for await (const line of rl) {
             if (currentLine < startLine || currentLine > endLine) {
                 // Write the current line if it's outside the range
-                if (!writeTextToStream(writeStream, line)) {
-                    errorOccurred = true;
-                    break;
-                }
+                await asyncWrite(writeStream, line);
             } else {
                 modified = true; // Lines in range are skipped
             }
@@ -161,26 +155,36 @@ export async function eraseLinesInRange(
     } catch (err) {
         console.error('eraseLinesInRange error:', err);
         errorOccurred = true;
+    } finally {
+        rl.close();
+        fileStream.destroy();
+
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', resolve);
+            writeStream.on('error', reject);
+            writeStream.end();
+        });
     }
-    // Close the read stream
-    rl.close();
-    fileStream.close();
-    // Close the write stream
-    writeStream.end();
+
     // If an error occurred, delete the temporary file
     if (errorOccurred) {
-        fs.unlinkSync(filename + '.tmp');
+        if (fs.existsSync(tmpFilename)) {
+            fs.unlinkSync(tmpFilename);
+        }
         throw new Error('Failed to erase lines in the specified range.');
     }
+
     // Replace the original file with the modified temporary file
     if (modified) {
-        fs.renameSync(filename + '.tmp', filename);
+        fs.renameSync(tmpFilename, filename);
 
         await assetManager.reimportAsset(dbURL);
 
         return true;
     } else {
-        fs.unlinkSync(filename + '.tmp');
+        if (fs.existsSync(tmpFilename)) {
+            fs.unlinkSync(tmpFilename);
+        }
         throw new Error('No lines were erased. Please check the specified range.');
     }
 }

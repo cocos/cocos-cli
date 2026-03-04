@@ -37,7 +37,29 @@ runs:
       id: coverage-report
       shell: bash
       # 覆盖率检查仅作为信息展示，不会导致流程失败
-      run: npm run check:e2e-coverage:report -- --markdown
+      # 添加重试逻辑以应对 Windows CI 上概率性出现的 exit code 127（tsx 命令解析失败）
+      run: |
+        max_retries=3
+        attempt=0
+        while [ $attempt -lt $max_retries ]; do
+          attempt=$((attempt + 1))
+          echo "🔄 Attempt $attempt of $max_retries..."
+          set +e
+          npm run check:e2e-coverage:report -- --markdown
+          exit_code=$?
+          set -e
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ Coverage report generated successfully"
+            exit 0
+          fi
+          echo "⚠️ Attempt $attempt failed with exit code $exit_code"
+          if [ $attempt -lt $max_retries ]; then
+            echo "⏳ Retrying in 3 seconds..."
+            sleep 3
+          fi
+        done
+        echo "❌ All $max_retries attempts failed"
+        exit 1
     
     - name: Generate coverage report URL
       id: report-url
