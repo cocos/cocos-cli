@@ -92,7 +92,7 @@ const packageJSON = {
     main: 'index.d.ts',
     types: 'index.d.ts',
     files: [
-        'index.d.ts'
+        '*.d.ts',
     ]
 };
 

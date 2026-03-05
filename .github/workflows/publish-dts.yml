@@ -1,0 +1,24 @@
+name: Publish-DTS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: "Publish to npm registry"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.17.0'
+
+      - run: npm run generate:dts
+
+      - run: npm jest packages/cocos-cli-types
+
+      - uses: JS-DevTools/npm-publish@4b07b26a2f6e0a51846e1870223e545bae91c552
+        with:
+          token: ${{ secrets.NPM_PUBLISH }}
+          registry: "https://registry.npmjs.org"
+          package: packages/cocos-cli-types
