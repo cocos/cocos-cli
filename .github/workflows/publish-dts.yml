@@ -16,8 +16,6 @@ jobs:
         with:
           node-version: '22.17.0'
 
-      - run: npm install
-
       - run: npm run generate:dts
 
       - run: npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
