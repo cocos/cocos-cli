@@ -9,9 +9,53 @@ import {
     ExtractorLogLevel
 } from '@microsoft/api-extractor';
 import { Modularize } from '@cocos/ccbuild';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
-// Dynamically build the real PlatformType union from @cocos/ccbuild enums.
+const execAsync = promisify(exec);// Dynamically build the real PlatformType union from @cocos/ccbuild enums.
 // This is needed because api-extractor incorrectly resolves
+
+// -------------------------------------------------------------------
+// Version counter utilities for DTS package publishing
+// -------------------------------------------------------------------
+
+async function fetchNextVersionCounter(rootVersion: string): Promise<number> {
+    try {
+        const { stdout } = await execAsync('npm view @cocos/cocos-cli-types versions --json');
+        const versions: string[] = JSON.parse(stdout);
+        
+        // Find versions that start with the rootVersion 
+        // Example: if rootVersion is "0.0.1-alpha.15", we look for "0.0.1-alpha.15.1", "0.0.1-alpha.15.2", etc.
+        const prefix = `${rootVersion}.`;
+        const matchingVersions = versions.filter(v => v.startsWith(prefix));
+
+        if (matchingVersions.length === 0) {
+            return 1;
+        }
+
+        // Extract the suffixes and find the maximum numeric value
+        const suffixes = matchingVersions.map(v => {
+            const suffixStr = v.substring(prefix.length);
+            const num = parseInt(suffixStr, 10);
+            return isNaN(num) ? 0 : num;
+        });
+
+        const maxSuffix = Math.max(...suffixes);
+        return maxSuffix + 1;
+    } catch (e) {
+        // If the package doesn't exist yet or command fails, start from 1
+        console.warn(`Could not fetch versions from NPM. Defaulting counter to 1. Error: ${(e as Error).message}`);
+        return 1;
+    }
+}
+
+function composeVersion(root: string, counter: number): string {
+  return `${root}.${counter}`;
+}
+
+// -------------------------------------------------------------------
+
+
 // `type PlatformType = _PlatformType` into `type PlatformType = PlatformType`
 // (circular self-reference) when bundling the .d.ts files.
 function buildPlatformTypeUnion(): string {
@@ -186,7 +230,11 @@ async function generate() {
     }
 
     const packageJSONPath = path.join(dtsExportRoot, 'package.json');
-    packageJSON.version = require(path.join(projectRoot, 'package.json')).version;
+    const rootVersion = require(path.join(projectRoot, 'package.json')).version;
+    const counter = await fetchNextVersionCounter(rootVersion);
+    packageJSON.version = composeVersion(rootVersion, counter);
+    
+    console.log(`\nNext published version will be: ${packageJSON.version}`);
     await fs.outputJSON(packageJSONPath, packageJSON, { spaces: 4 });
 
     console.log('\nAll DTS generation tasks completed.');
