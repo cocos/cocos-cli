@@ -15,6 +15,7 @@ jobs:
         with:
           node-version: '22.17.0'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - uses: ./.github/actions/setup-env
 
@@ -26,8 +27,11 @@ jobs:
 
       - run: npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
 
-      - uses: JS-DevTools/npm-publish@4b07b26a2f6e0a51846e1870223e545bae91c552
-        with:
-          token: ${{ secrets.NPM_PUBLISH }}
-          registry: "https://registry.npmjs.org"
-          package: packages/cocos-cli-types
+      - name: Remove local .npmrc to avoid registry conflict
+        run: rm -f .npmrc
+
+      - name: Publish to npm
+        run: npm publish --access public
+        working-directory: packages/cocos-cli-types
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH }}
