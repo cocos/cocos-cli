@@ -79,8 +79,16 @@ async function postProcessDts(filePath: string) {
         new RegExp(selfRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
         `type PlatformType = ${platformTypeUnion};`
     );
+    // Remove leftover eslint-disable-next-line @typescript-eslint/ban-types comments
+    // These come from dependencies like @cocos/ccbuild but trigger errors in the new ESLint config
+    // We add `[ \t]*` to catch any indentation the comment might have
+    const banTypesComment = /[ \t]*\/\/ eslint-disable-next-line @typescript-eslint\/ban-types\r?\n/g;
+    if (content.match(banTypesComment)) {
+        content = content.replace(banTypesComment, '');
+        console.log(`  Post-processed: removed @typescript-eslint/ban-types comments in ${path.basename(filePath)}`);
+    }
+
     await fs.writeFile(filePath, content, 'utf-8');
-    console.log(`  Post-processed: fixed PlatformType self-reference in ${path.basename(filePath)}`);
 }
 
 const projectRoot = path.resolve(__dirname, '..');

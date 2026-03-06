@@ -3,11 +3,11 @@ import typescript from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import globals from 'globals';
 
+import tseslint from 'typescript-eslint';
+
 export default [
     js.configs.recommended,
-    {
-        "extends": ["plugin:@typescript-eslint/recommended"]
-    },
+    ...tseslint.configs.recommended,
     {
         files: ['**/*.{js,ts,tsx,vue}'],
         languageOptions: {
@@ -86,6 +86,15 @@ export default [
         },
         rules: {
             'no-console': 'off', // 测试文件中允许 console
+        },
+    },
+    {
+        files: ['**/*.d.ts'],
+        rules: {
+            '@typescript-eslint/no-unused-vars': 'off',
+            '@typescript-eslint/no-unsafe-function-type': 'off',
+            '@typescript-eslint/no-empty-object-type': 'off',
+            '@typescript-eslint/ban-types': 'off',
         },
     },
     {
