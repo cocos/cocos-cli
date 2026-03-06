@@ -118,7 +118,7 @@ export class AssetsApi {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<TRefreshDirResult> = {
             code: code,
-            data: null,
+            data: {},
         };
 
         try {
