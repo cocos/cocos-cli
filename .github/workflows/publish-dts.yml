@@ -17,6 +17,9 @@ jobs:
           node-version: '22.17.0'
           cache: 'npm'
 
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
+
       - run: npm ci
 
       - run: npm run generate:dts
