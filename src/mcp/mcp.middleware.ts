@@ -100,8 +100,8 @@ export class McpMiddleware {
                     inputSchemaFields,
                     async (args) => {
                         // args 已经是验证过的参数对象 (对于 builder-build.options 是 any)
-                        this.builderHook.onBeforeExecute(toolName, args);
                         try {
+                            this.builderHook.onBeforeExecute(toolName, args);
                             // 这里的 prepareMethodArguments 主要是为了按顺序排列参数给 apply 使用
                             // 注意：args 是对象，prepareMethodArguments 需要处理对象
                             const methodArgs = this.prepareMethodArguments(meta, args, toolName);

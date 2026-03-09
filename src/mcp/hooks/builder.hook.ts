@@ -58,26 +58,9 @@ export class BuilderHook {
         const platformDesc = `Platform Identifier (e.g., ${allPlatforms.join(', ')})`;
 
         if (param.name === 'options') {
-            inputSchemaFields[param.name] = z.any();
-
-            // 动态构建 SchemaBuildOption
-            const dynamicSchemas = this.dynamicPlatforms.map(platform => {
-                return SchemaBuildBaseOption.extend({
-                    platform: z.literal(platform).describe('Build platform'),
-                    packages: z.object({
-                        [platform]: z.any().optional().describe(`${platform} platform specific configuration`)
-                    }).optional().describe(`${platform} platform specific configuration`)
-                }).describe(`${platform} complete build options`);
-            });
-
-            const newSchema = z.discriminatedUnion('platform', [
-                ...SchemaKnownBuildOptions,
-                ...dynamicSchemas,
-                SchemaOtherPlatformBuildOption
-            ] as any).default({}).describe('Build options (with platform preprocessing)');
-
-            // 更新原始 meta 中的 schema，以便 list handler 使用
-            param.schema = newSchema;
+            const simpleSchema = z.any().describe('Build options (Detailed validation is deferred to execution)');
+            inputSchemaFields[param.name] = simpleSchema;
+            param.schema = simpleSchema;
 
         } else if (param.name === 'platform') {
             // 动态更新 platform 参数的描述，包含扫描到的平台
@@ -130,6 +113,24 @@ export class BuilderHook {
                 }
             }
         }
+
+        // 动态构建 SchemaBuildOption 并进行严格校验
+        const dynamicSchemas = this.dynamicPlatforms.map(platform => {
+            return SchemaBuildBaseOption.extend({
+                platform: z.literal(platform).describe('Build platform'),
+                packages: z.object({
+                    [platform]: z.any().optional().describe(`${platform} platform specific configuration`)
+                }).optional().describe(`${platform} platform specific configuration`)
+            }).describe(`${platform} complete build options`);
+        });
+
+        const newSchema = z.discriminatedUnion('platform', [
+            ...SchemaKnownBuildOptions,
+            ...dynamicSchemas,
+            SchemaOtherPlatformBuildOption
+        ] as any).default({});
+
+        args.options = newSchema.parse(options);
     }
 
     public onValidationFailed(toolName: string, paramName: string, error: any) {
