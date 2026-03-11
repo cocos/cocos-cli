@@ -62,6 +62,7 @@ function buildPlatformTypeUnion(): string {
     const allKeys = [
         ...Object.keys(Modularize.WebPlatform).filter(k => isNaN(Number(k))),
         ...Object.keys(Modularize.MinigamePlatform).filter(k => isNaN(Number(k))),
+        'SUD',
         ...Object.keys(Modularize.NativePlatform).filter(k => isNaN(Number(k))),
     ].map(k => k.toUpperCase());
     const extras = ['HTML5', 'NATIVE', 'NODEJS', 'INVALID_PLATFORM'];
