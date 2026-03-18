@@ -6,8 +6,8 @@
     "description": "COCOS CLI",
     "main": "dist/index.js",
     "engines": {
-        "vscode": "1.107.1",
-        "electron": "39.2.3",
+        "vscode": ">=1.107.1",
+        "electron": ">=39.2.3",
         "pink": ">=0.0.1.6"
     },
     "bin": {
