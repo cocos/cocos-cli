@@ -19,3 +19,8 @@ export async function getInfo() {
     const { default: Project } = await import('../../core/project');
     return await Project.getInfo();
 }
+
+export async function get() {
+    const { default: Project } = await import('../../core/project');
+    return Project;
+}

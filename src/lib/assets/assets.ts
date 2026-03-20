@@ -5,7 +5,7 @@ import { assetDBManager, assetManager } from '../../core/assets';
 
 export type * from '../../core/assets/@types/public';
 export type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
-
+export type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 
 export async function init(): Promise<void> {
     // 初始化资源数据库
