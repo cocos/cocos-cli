@@ -1,7 +1,7 @@
-import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBundleBuildOptions, Platform } from '../../core/builder/@types/private';
+import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
 
-export type * from '../../core/builder/@types/protected';
+export type * from '../../core/builder/@types/private';
 
 export async function init(platform?: string): Promise<void> {
     const builder = await import('../../core/builder');
@@ -41,4 +41,9 @@ export async function queryBuildConfig(): Promise<BuildConfiguration> {
 export async function queryDefaultBuildConfigByPlatform(platform: Platform) {
     const builder = await import('../../core/builder');
     return builder.queryDefaultBuildConfigByPlatform(platform);
+}
+
+export async function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult> {
+    const builder = await import('../../core/builder');
+    return builder.getPreviewSettings(options);
 }

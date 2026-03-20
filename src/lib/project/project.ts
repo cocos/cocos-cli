@@ -15,3 +15,7 @@ export async function close(): Promise<void> {
     return await projectManager.close();
 }
 
+export async function getInfo() {
+    const { default: Project } = await import('../../core/project');
+    return await Project.getInfo();
+}
