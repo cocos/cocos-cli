@@ -144,6 +144,14 @@ const packageJSON = {
     version: '0.0.1-alpha.5',
     main: 'index.d.ts',
     types: 'index.d.ts',
+    exports: {
+        '.': {
+            types: './index.d.ts'
+        },
+        './*': {
+            types: './*.d.ts'
+        }
+    },
     files: [
         '*.d.ts',
     ]
