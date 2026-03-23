@@ -37,8 +37,8 @@ export const SchemaComponentOrDetail = z.union([
 export const SchemaNode: z.ZodType<INode> = SchemaNodeIdentifier.extend({
     properties: SchemaNodeProperty.describe('Node properties'), // 节点属性
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab information'), // 预制体信息
-    children: z.array(z.lazy(() => SchemaNode)).default([]).describe('List of child nodes'), // 子节点列表
-    components: z.array(SchemaComponentOrDetail).default([]).describe('List of components on the node'), // 节点上的组件列表
+    children: z.array(z.lazy(() => SchemaNode)).optional().describe('List of child nodes'), // 子节点列表
+    components: z.array(SchemaComponentOrDetail).optional().describe('List of components on the node'), // 节点上的组件列表
 });
 
 // 查询节点的参数

@@ -9,8 +9,8 @@ import { SchemaUrlOrUUID } from '../base/schema-identifier';
 const SchemaScene = SchemaSceneIdentifier.extend({
     name: z.string().describe('Scene/Prefab Name'), // 场景/预制体名称
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab Info'), // 预制体信息
-    children: z.array(z.lazy(() => SchemaNodeQueryResult)).optional().default([]).describe('Children List'), // 子节点列表
-    components: z.array(SchemaComponentIdentifier).default([]).describe('Component List'), // 节点上的组件列表
+    children: z.array(z.lazy(() => SchemaNodeQueryResult)).optional().describe('Children List'), // 子节点列表
+    components: z.array(SchemaComponentIdentifier).optional().describe('Component List'), // 节点上的组件列表
 }).describe('Scene/Prefab Info'); // 场景/预制体信息
 
 export const SchemaCurrentResult = z.union([SchemaScene, SchemaNode]).describe('Get Scene/Prefab Return Data'); // 获取场景/预制体返回数据
