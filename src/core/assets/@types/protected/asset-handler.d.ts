@@ -162,12 +162,8 @@ export interface ICreateMenuInfo {
     // 创建的默认文件名称带后缀，具体实际上是为 assets 面板提供的数据，assets 面板新建时，需要先让用户填写清楚命名最后才创建
     fullFileName: string;
 
-    // 资源文件内容，支持字符串、Buffer、JSON
-    content?: string | Buffer | JSON;
     // 资源文件模板地址，例如 db://xxx/ani ，支持 url 与绝对路径
     template?: string;
-    // (当 content 与 template 都未传递时，将创建文件夹)
-    // (当 content 与 template 都传递时，优先使用 content 创建文件)
 
     // 创建类型的 handler 名称，默认为当前处理器名称
     handler?: string;
