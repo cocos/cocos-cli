@@ -37,7 +37,9 @@ describe('MCP Component API', () => {
         }
 
         await mcpClient.callTool('scene-open', {
-            dbURLOrUUID: testSceneUrl,
+            options: {
+                dbURLOrUUID: testSceneUrl
+            }
         });
     });
 

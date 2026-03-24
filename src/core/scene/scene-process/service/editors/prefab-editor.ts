@@ -15,12 +15,17 @@ export class PrefabEditor extends BaseEditor {
 
     private virtualScene: Scene | null = null;
 
-    async encode(entity?: IEditorTarget | null): Promise<INode> {
+    async encode(simpleNode?: boolean, entity?: IEditorTarget | null): Promise<INode> {
         entity = entity ?? this.entity;
         if (!entity) {
             throw new Error('encode 失败，没有打开预制体');
         }
-        return sceneUtils.generateNodeInfo(entity.instance, true);
+        simpleNode = simpleNode ?? true;
+        if(!simpleNode) {
+            return sceneUtils.generateNodeInfo(entity.instance, !simpleNode);
+        } else {
+            return sceneUtils.generateNodeInfo(entity.instance, false);
+        }
     }
 
     async open(asset: IAssetInfo): Promise<INode> {

@@ -22,7 +22,9 @@ describe('MCP Prefab API', () => {
         sceneAssetUUID = result.data.assetUuid;
 
         await mcpClient.callTool('scene-open', {
-            dbURLOrUUID: sceneAssetUUID,
+            options: {
+                dbURLOrUUID: sceneAssetUUID,
+            }
         });
     });
 

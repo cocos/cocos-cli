@@ -1,7 +1,8 @@
 import { SCENE_TEMPLATE_TYPE } from '../../core/scene';
 import { z } from 'zod';
 import { SchemaNode, SchemaNodeQueryResult } from './node-schema';
-import { SchemaSceneIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
+
+import { SchemaSceneIdentifier, SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaSaveAssetResult } from '../assets/schema';
 import { SchemaPrefabInfo } from './prefab-info-schema';
 import { SchemaUrlOrUUID } from '../base/schema-identifier';
@@ -9,7 +10,7 @@ import { SchemaUrlOrUUID } from '../base/schema-identifier';
 const SchemaScene = SchemaSceneIdentifier.extend({
     name: z.string().describe('Scene/Prefab Name'), // 场景/预制体名称
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab Info'), // 预制体信息
-    children: z.array(z.lazy(() => SchemaNodeQueryResult)).optional().describe('Children List'), // 子节点列表
+    children: z.array(z.union([SchemaNodeQueryResult, SchemaNodeIdentifier])).optional().describe('Children List'), // 子节点列表
     components: z.array(SchemaComponentIdentifier).optional().describe('Component List'), // 节点上的组件列表
 }).describe('Scene/Prefab Info'); // 场景/预制体信息
 
@@ -33,7 +34,15 @@ export const SchemaCreateOptions = z.object({
 
 export const SchemaCreateResult = SchemaSceneIdentifier.describe('Create Scene/Prefab Result Info'); // 创建场景/预制体操作的结果信息
 
+// 打开场景选项
+export const SchemaOpenOptions = z.object({
+    dbURLOrUUID: SchemaUrlOrUUID, // 资源的 URL、UUID 或文件路径
+    simpleNode: z.boolean().default(true).describe('Whether to return simple node info (id, name only) or detailed node info'), // 是否查询详细节点信息
+}).describe('Open scene options'); // 查询节点的选项参数，查询结果是传入的信息的交集
+
+
 export type TAssetUrlOrUUID = z.infer<typeof SchemaUrlOrUUID>;
+export type TOpenOptions = z.infer<typeof SchemaOpenOptions>;
 export type TCurrentResult = z.infer<typeof SchemaCurrentResult>;
 export type TOpenResult = z.infer<typeof SchemaOpenResult>;
 export type TCloseResult = z.infer<typeof SchemaCloseResult>;

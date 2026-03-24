@@ -1,4 +1,5 @@
 import {
+    SchemaOpenOptions,
     SchemaCloseResult,
     SchemaCreateOptions,
     SchemaCreateResult,
@@ -6,7 +7,7 @@ import {
     SchemaOpenResult,
     SchemaReload,
     SchemaSaveResult,
-    TAssetUrlOrUUID,
+    TOpenOptions,
     TCloseResult,
     TCreateOptions,
     TCreateResult,
@@ -15,13 +16,13 @@ import {
     TReload,
     TSaveResult,
 } from './schema';
-import { SchemaUrlOrUUID } from '../base/schema-identifier';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
 import { PrefabApi } from './prefab';
+import { options } from '../../core/builder/platforms/android/i18n/en';
 
 export class SceneApi {
     public component: ComponentApi;
@@ -63,9 +64,9 @@ export class SceneApi {
     @title('Open scene/prefab') // 打开场景/预制体
     @description('Open specified scene/prefab asset.') // 打开指定场景/预制体资源。
     @result(SchemaOpenResult)
-    async open(@param(SchemaUrlOrUUID) dbURLOrUUID: TAssetUrlOrUUID): Promise<CommonResultType<TOpenResult>> {
+    async open(@param(SchemaOpenOptions) options: TOpenOptions): Promise<CommonResultType<TOpenResult>> {
         try {
-            const data = await Scene.open({ urlOrUUID: dbURLOrUUID });
+            const data = await Scene.open({ urlOrUUID: options.dbURLOrUUID, simpleNode: options.simpleNode });
             return {
                 data: data as TOpenResult,
                 code: COMMON_STATUS.SUCCESS,

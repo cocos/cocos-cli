@@ -109,7 +109,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     async open(params: IOpenOptions): Promise<IScene | INode> {
-        const { urlOrUUID } = params;
+        const { urlOrUUID, simpleNode = true } = params;
 
         const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
         if (!assetInfo) {
@@ -156,7 +156,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 editor = this.createEditor(assetInfo.type);
                 this.editorMap.set(uuid, editor);
             }
-            const encode = await editor.open(assetInfo);
+            const encode = await editor.open(assetInfo, simpleNode);
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
             this.emit('editor:open');

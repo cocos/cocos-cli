@@ -13,18 +13,23 @@ import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
  */
 export class SceneEditor extends BaseEditor {
 
-    async encode(entity?: IEditorTarget | null): Promise<IScene> {
+    async encode(simpleNode: boolean = false, entity?: IEditorTarget | null): Promise<IScene> {
         entity = entity ?? this.entity;
         if (!entity) {
             throw new Error('encode 失败，没有打开场景');
         }
+        simpleNode = simpleNode ?? true;
         return {
             ...entity.identifier,
             name: entity.instance.name,
             prefab: sceneUtils.generatePrefabInfo(entity.instance['_prefab']),
             children: entity.instance.children
                 .map((node: Node) => {
-                    return sceneUtils.generateNodeInfo(node, true);
+                    if(simpleNode) {
+                        return sceneUtils.generateNodeIdentifier(node);
+                    } else {
+                        return sceneUtils.generateNodeInfo(node, true);
+                    }
                 })
                 .filter(child => child !== null) as INode[],
             components: entity.instance.components
@@ -34,11 +39,11 @@ export class SceneEditor extends BaseEditor {
         };
     }
 
-    async open(asset: IAssetInfo): Promise<IScene> {
+    async open(asset: IAssetInfo, simpleNode: boolean): Promise<IScene> {
         const identifier = this.getIdentifier(asset);
 
         if (this.entity?.identifier.assetUuid === identifier.assetUuid) {
-            return await this.encode();
+            return await this.encode(simpleNode);
         }
 
         const sceneAsset = await sceneUtils.loadAny<SceneAsset>(identifier.assetUuid);
@@ -49,7 +54,7 @@ export class SceneEditor extends BaseEditor {
             identifier,
         });
 
-        return this.encode();
+        return this.encode(simpleNode);
     }
 
     async close(): Promise<boolean> {

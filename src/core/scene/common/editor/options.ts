@@ -22,6 +22,7 @@ export interface ISaveOptions {
  */
 export interface IOpenOptions {
     urlOrUUID: string;
+    simpleNode?: boolean;
 }
 
 /**

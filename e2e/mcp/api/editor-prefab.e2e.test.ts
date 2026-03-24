@@ -49,7 +49,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
         // 先打开场景创建节点
         await context.mcpClient.callTool('scene-open', {
-            dbURLOrUUID: testSceneUrl,
+            options: {
+                dbURLOrUUID: testSceneUrl
+            }
         });
 
         // 创建一个节点
@@ -92,7 +94,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
                 // 2. 打开预制体
                 const result = await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: prefabUrl,
+                    options: {
+                        dbURLOrUUID: prefabUrl
+                    }
                 });
 
                 expect(result.code).toBe(200);
@@ -105,7 +109,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
                 // 2. 先通过 URL 打开获取 UUID
                 const openResult = await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: prefabUrl,
+                    options: {
+                        dbURLOrUUID: prefabUrl
+                    }
                 });
 
                 expect(openResult.code).toBe(200);
@@ -123,7 +129,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
                 // 4. 通过 UUID 重新打开
                 const reopenResult = await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: queryData.data,
+                    options: {
+                        dbURLOrUUID: queryData.data
+                    }
                 });
 
                 expect(reopenResult.code).toBe(200);
@@ -132,7 +140,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
 
             test('should handle opening non-existent prefab', async () => {
                 const result = await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: `${testFolderPath}/non-existent-${generateTestId()}.prefab`,
+                    options: {
+                        dbURLOrUUID: `${testFolderPath}/non-existent-${generateTestId()}.prefab`,
+                    }
                 });
 
                 expect(result.code).not.toBe(200);
@@ -145,7 +155,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
                 // 1. 创建并打开预制体
                 const prefabUrl = await createTestPrefab();
                 await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: prefabUrl,
+                    options: {
+                        dbURLOrUUID: prefabUrl,
+                    }
                 });
 
                 // 2. 查询当前打开的资源
@@ -171,7 +183,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
                 // 1. 创建并打开预制体
                 const prefabUrl = await createTestPrefab();
                 await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: prefabUrl,
+                    options: {
+                        dbURLOrUUID: prefabUrl,
+                    }
                 });
 
                 // 2. 关闭预制体
@@ -191,7 +205,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
                 // 1. 创建并打开预制体
                 const prefabUrl = await createTestPrefab();
                 await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: prefabUrl,
+                    options: {
+                        dbURLOrUUID: prefabUrl,
+                    }
                 });
 
                 // 2. 修改预制体（添加子节点）
@@ -228,7 +244,9 @@ describe('MCP Editor Prefab API - Scene Operations on Prefab Assets', () => {
                 // 1. 创建并打开预制体
                 const prefabUrl = await createTestPrefab();
                 await context.mcpClient.callTool('scene-open', {
-                    dbURLOrUUID: prefabUrl,
+                    options: {
+                        dbURLOrUUID: prefabUrl,
+                    }
                 });
 
                 // 2. 重新加载预制体
