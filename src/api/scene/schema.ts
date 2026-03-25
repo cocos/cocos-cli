@@ -37,7 +37,7 @@ export const SchemaCreateResult = SchemaSceneIdentifier.describe('Create Scene/P
 // 打开场景选项
 export const SchemaOpenOptions = z.object({
     dbURLOrUUID: SchemaUrlOrUUID, // 资源的 URL、UUID 或文件路径
-    simpleNode: z.boolean().default(true).describe('Whether to return simple node info (id, name only) or detailed node info'), // 是否查询详细节点信息
+    simpleNode: z.boolean().default(true).describe('Whether to return simple node info (nodeId, name, path only) or detailed node info'), // 是否查询详细节点信息
 }).describe('Open scene options'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 
