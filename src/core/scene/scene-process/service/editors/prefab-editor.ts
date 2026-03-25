@@ -21,14 +21,10 @@ export class PrefabEditor extends BaseEditor {
             throw new Error('encode 失败，没有打开预制体');
         }
         simpleNode = simpleNode ?? true;
-        if(!simpleNode) {
-            return sceneUtils.generateNodeInfo(entity.instance, !simpleNode);
-        } else {
-            return sceneUtils.generateNodeInfo(entity.instance, false);
-        }
+        return sceneUtils.generateNodeInfo(entity.instance, !simpleNode);
     }
 
-    async open(asset: IAssetInfo): Promise<INode> {
+    async open(asset: IAssetInfo, simpleNode?: boolean): Promise<INode> {
         // 获取预制体标识符
         const identifier = this.getIdentifier(asset);
         // 加载预制体资源
@@ -45,7 +41,7 @@ export class PrefabEditor extends BaseEditor {
             instance
         });
 
-        return this.encode();
+        return this.encode(simpleNode);
     }
 
     async close(): Promise<boolean> {

@@ -13,7 +13,7 @@ import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
  */
 export class SceneEditor extends BaseEditor {
 
-    async encode(simpleNode: boolean = false, entity?: IEditorTarget | null): Promise<IScene> {
+    async encode(simpleNode?: boolean, entity?: IEditorTarget | null): Promise<IScene> {
         entity = entity ?? this.entity;
         if (!entity) {
             throw new Error('encode 失败，没有打开场景');
@@ -39,7 +39,7 @@ export class SceneEditor extends BaseEditor {
         };
     }
 
-    async open(asset: IAssetInfo, simpleNode: boolean): Promise<IScene> {
+    async open(asset: IAssetInfo, simpleNode?: boolean): Promise<IScene> {
         const identifier = this.getIdentifier(asset);
 
         if (this.entity?.identifier.assetUuid === identifier.assetUuid) {
