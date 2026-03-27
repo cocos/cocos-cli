@@ -2,6 +2,7 @@ import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildT
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
 
 export type * from '../../core/builder/@types/private';
+export type * from '../../core/builder/@types/config-export';
 
 export async function init(platform?: string): Promise<void> {
     const builder = await import('../../core/builder');
@@ -13,14 +14,29 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
     return builder.build(platform, options);
 }
 
+export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+    const builder = await import('../../core/builder');
+    return builder.createBuildTask(platform, options);
+}
+
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
     return builder.buildBundleOnly(bundleOptions);
 }
 
+export async function createBundleBuildTask(bundleOptions: IBundleBuildOptions) {
+    const builder = await import('../../core/builder');
+    return builder.createBundleBuildTask(bundleOptions);
+}
+
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
     return builder.executeBuildStageTask(taskId, stageName, options);
+}
+
+export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions) {
+    const builder = await import('../../core/builder');
+    return builder.createBuildStageTask(taskId, stageName, options);
 }
 
 export async function make(platform: Platform, dest: string) {
@@ -47,3 +63,5 @@ export async function getPreviewSettings<P extends Platform>(options?: IBuildTas
     const builder = await import('../../core/builder');
     return builder.getPreviewSettings(options);
 }
+
+export { pluginManager } from '../../core/builder/manager/plugin';

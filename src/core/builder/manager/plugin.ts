@@ -585,6 +585,30 @@ export class PluginManager extends EventEmitter {
     }
 
     /**
+     * 查询某个平台的阶段性任务按钮配置信息
+     * @param platform
+     */
+    public getBuildStageConfigByPlatform(platform: Platform) {
+        if (!this.customBuildStages[platform]) {
+            return null;
+        }
+        const result: Record<string, any> = {};
+        if (this.customBuildStages[platform]) {
+            result.buttons = [];
+            const pkgNames = Object.keys(this.customBuildStages[platform]);
+            if (pkgNames.length) {
+                pkgNames.sort((a, b) => this.pkgPriorities[b] - this.pkgPriorities[a]);
+                pkgNames.forEach((pkgName) => {
+                    result.buttons.push(...this.customBuildStages[platform][pkgName].filter((config) => !config.hidden));
+                });
+            }
+        }
+
+        return result;
+    }
+
+
+    /**
      * 根据插件权重传参的插件数组
      * @param pkgNames 
      * @returns 
