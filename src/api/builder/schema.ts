@@ -413,3 +413,4 @@ export const SchemaBuildDest = z.string().min(1).describe('Build Output Director
 export type TBuildDest = z.infer<typeof SchemaBuildDest>;
 
 export const SchemaRunResult = z.string().describe('Run URL'); // 运行 URL
+export type TRunResult = z.infer<typeof SchemaRunResult>;
