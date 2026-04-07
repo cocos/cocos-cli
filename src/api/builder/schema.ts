@@ -339,8 +339,9 @@ export const SchemaMakeResult = SchemaResultBase.extend({
     custom: z.object({
         nativePrjDir: z.string().optional().describe('Native project path after build'), // 构建后的原生项目地址
         executableFile: z.string().optional().describe('Compiled executable file path'), // 编译后的可执行文件地址
-    }).optional().describe('Custom fields after compiling the project, in object format'), // 编译项目后的自定义字段, object 形式
+    }).passthrough().optional().describe('Custom fields after compiling the project, in object format'), // 编译项目后的自定义字段, object 形式
 }).nullable().describe('Result after compiling the project'); // 编译项目后的结果
+
 
 export const SchemaPreviewSettingsResult = z.object({
     settings: z.object({
