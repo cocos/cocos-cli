@@ -342,7 +342,6 @@ export const SchemaMakeResult = SchemaResultBase.extend({
     }).passthrough().optional().describe('Custom fields after compiling the project, in object format'), // 编译项目后的自定义字段, object 形式
 }).nullable().describe('Result after compiling the project'); // 编译项目后的结果
 
-
 export const SchemaPreviewSettingsResult = z.object({
     settings: z.object({
         CocosEngine: z.string().describe('Cocos Engine Version'), // Cocos Engine 版本
