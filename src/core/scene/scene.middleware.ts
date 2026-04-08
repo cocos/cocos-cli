@@ -7,7 +7,7 @@ export default {
     get: [
         {
             // TODO 这里后续需要改引擎 wasm/wasm-nodejs.ts 的写法，改成向服务器请求数据
-            url: '/cocos-api/engine/engineExternal/',
+            url: '/cocos-file/engine/engineExternal/',
             async handler(req: Request, res: Response) {
                 const url = req.query.url;
                 const externalProtocol = 'external:';
