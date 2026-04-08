@@ -7,7 +7,7 @@ export default {
     get: [
         {
             // TODO 这里后续需要改引擎 wasm/wasm-nodejs.ts 的写法，改成向服务器请求数据
-            url: '/engine_external/',
+            url: '/cocos-api/engine/engineExternal/',
             async handler(req: Request, res: Response) {
                 const url = req.query.url;
                 const externalProtocol = 'external:';
@@ -23,7 +23,7 @@ export default {
             },
         },
         {
-            url: '/query-extname/:uuid',
+            url: '/cocos-api/engine/queryExtname/:uuid',
             async handler(req: Request, res: Response) {
                 const uuid = req.params.uuid;
                 const { assetManager } = await import('../assets');
@@ -36,7 +36,7 @@ export default {
             },
         },
         {
-            url: '/:dir/:uuid/:nativeName.:ext',
+            url: '/cocos-api/engine/:dir/:uuid/:nativeName.:ext',
             async handler(req: Request, res: Response, next: NextFunction) {
                 if (req.params.dir === 'build' || req.params.dir === 'mcp') {
                     return next();
@@ -58,7 +58,7 @@ export default {
             },
         },
         {
-            url: '/:dir/:uuid.:ext',
+            url: '/cocos-api/engine/:dir/:uuid.:ext',
             async handler(req: Request, res: Response) {
                 const { uuid, ext } = req.params;
                 const { assetManager } = await import('../assets');
