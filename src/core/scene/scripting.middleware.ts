@@ -152,9 +152,9 @@ export default {
                     // Decode ONE level of percent-encoding: %253A → %3A (files on disk
                     // use single-encoded names, but SystemJS deps use double-encoded).
                     const rawPath = req.originalUrl.split('?')[0];
-                    const relPath = rawPath.substring('/scripting/engine'.length).replace(/%25/g, '%').replace(/\\/g, '/');
+                    let relPath = rawPath.substring('/scripting/engine'.length);
+                    relPath = decodeURIComponent(relPath);
                     const { default: scripting } = await import('../../core/scripting');
-
                     // Try engine root first — preserve percent-encoded dir names
                     let resourcePath = join(enginePath, relPath);
 
