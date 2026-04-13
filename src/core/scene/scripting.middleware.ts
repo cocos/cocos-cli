@@ -18,16 +18,16 @@ export default {
                     const enginePath = Engine.getInfo().typescript.path;
                     const engineDistRelPath = relative(enginePath, facet.engineDistRoot).replace(/\\/g, '/');
                     const { default: scripting } = await import('../../core/scripting');
+                    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
                     const renderData = {
                         title: `Cocos Creator Preview - ${basename(scripting.projectPath)}`,
-                        settingsJs: '/settings.js',
                         packImportMapURL: `/scripting/x/${facet.packImportMapURL}`,
                         packResolutionDetailMapURL: `/scripting/x/${facet.packResolutionDetailMapURL}`,
                         engineDistPath: `/scripting/engine/${engineDistRelPath}`,
                         globalImportMap: await facet.getGlobalImportMap(),
                         projectPath: scripting.projectPath.replace(/\\/g, '/'),
                         enginePath: enginePath.replace(/\\/g, '/'),
-                        engineConfig: Engine.getConfig(),
+                        serverURL: serverBaseUrl
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'index.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);
@@ -35,12 +35,6 @@ export default {
                 } catch (err) {
                     next(err);
                 }
-            },
-        },
-        {
-            url: '/settings.js',
-            async handler(req: Request, res: Response) {
-                res.status(200).send('window._CCSettings = { "debug": true };');
             },
         },
         {
@@ -261,32 +255,6 @@ export default {
                     res.sendFile(resourcePath);
                 } else {
                     console.warn(`[Preview Server] SystemJS resource not found: ${resourcePath}`);
-                    next();
-                }
-            },
-        },
-
-        {
-            url: /^\/scripting\/polyfills/,
-            async handler(req: Request, res: Response, next: NextFunction) {
-                let relPath = req.path.substring('/scripting/polyfills'.length);
-                if (relPath.endsWith('.js')) {
-                    relPath = relPath.substring(0, relPath.length - 3);
-                }
-                const polyfillMap: any = {
-                    '/events': join(GlobalPaths.workspace, 'node_modules', 'events', 'events.js'),
-                    '/path': join(GlobalPaths.workspace, 'node_modules', 'path-browserify', 'index.js'),
-                    '/url': join(GlobalPaths.workspace, 'node_modules', 'url', 'url.js'),
-                    '/util': join(GlobalPaths.workspace, 'node_modules', 'util', 'util.js'),
-                    '/os': join(GlobalPaths.workspace, 'node_modules', 'os-browserify', 'main.js'),
-                    '/reflect': join(GlobalPaths.workspace, 'node_modules', 'reflect-metadata', 'Reflect.js'),
-                    '/reflect-metadata': join(GlobalPaths.workspace, 'node_modules', 'reflect-metadata', 'Reflect.js'),
-                };
-
-                const resourcePath = polyfillMap[relPath];
-                if (resourcePath && await pathExists(resourcePath)) {
-                    res.sendFile(resourcePath);
-                } else {
                     next();
                 }
             },

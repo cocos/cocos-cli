@@ -76,57 +76,18 @@
     <script src="/static/web/editor-stub-preload.js"></script>>
 
     <script src="<%= engineDistPath %>/bundled/index.js"></script>
-    
-    <!-- Polyfills for Scene Services -->
-    <script src="/scripting/polyfills/reflect.js"></script>
-    <script>
-        // Setup minimal Node environment shims
-        window.process = { 
-            env: { NODE_ENV: 'development' }, 
-            platform: 'browser',
-            argv: [],
-            pid: 1234,
-            on: () => {},
-            exit: () => { console.warn('process.exit called in browser'); }
-        };
-        window.module = { exports: {} };
-        window.exports = window.module.exports;
-    </script>
-    <script src="/scripting/polyfills/events.js"></script>
-    <script src="/scripting/polyfills/path.js"></script>
-    <script src="/settings.js"></script>
-
-    <script>
-        window._getRenderData = function() {
-            return {
-                projectPath: '<%= projectPath %>',
-                enginePath: '<%= enginePath %>',
-                engineConfig: '<%- JSON.stringify(engineConfig) %>'
-            };
-        };
-    </script>
-
 
     <script type="module">
-        const { projectPath, enginePath, engineConfig } = window._getRenderData();
-
         // Save our resolve hook AND the System instance before scene-bundle overrides them.
         // scene-bundle replaces globalThis.System with a new instance lacking registerRegistry.
-        const _preSceneBundleResolve = System.constructor.prototype.resolve;
         const _originalSystem = System;
 
         (async function() {
-            const currentUrl = window.location.origin;
+            const serverURL = '<%= serverURL %>';
 
             try {
                 // Wait for async resolution to settle
                 await new Promise(resolve => setTimeout(resolve, 500));
-                const defaultConfig = await fetch('/scripting/engine/game-config');
-                const modules = await fetch('/scripting/engine/modules');
-                const config = await defaultConfig.json();
-                const features = await modules.json();
-
-
                 console.log('[Scene] loading scene bundle');
                 const SceneBundle = await System.import('/static/web/scene-bundle.js?t=' + Date.now());
                 const { startup } = SceneBundle;
@@ -143,7 +104,7 @@
                 // closure matches its register. One System = no bridging needed.
                 globalThis.System = _originalSystem;
 
-                const sceneListPromise = await fetch(`${currentUrl}/query-asset-infos/cc.SceneAsset`);
+                const sceneListPromise = await fetch(`${serverURL}/query-asset-infos/cc.SceneAsset`);
                 const sceneList = await sceneListPromise.json();
                 const length = sceneList.length;
                 let sceneUuid = null;
@@ -155,20 +116,12 @@
                     sceneUuid =  sceneList[i].uuid;
                     break;
                 }
-                const startScenePromise = await fetch(`${currentUrl}/scene/${sceneUuid}.json`);
+                const startScenePromise = await fetch(`${serverURL}/scene/${sceneUuid}.json`);
                 const startScene = await startScenePromise.json();
-
-
-                // config.overrideSettings.assets.importBase = 'assets/general/import';
-                // config.overrideSettings.assets.nativeBase = 'assets/general/native';
-                config.overrideSettings.launch = config.overrideSettings.launch || {};
-                config.overrideSettings.launch.launchScene = '';
                 await startup({
-                    enginePath,
-                    projectPath,
-                    serverURL: currentUrl,
-                    defaultConfig: config,
-                    modules: features,
+                    enginePath: '<%= enginePath %>',
+                    projectPath: '<%= projectPath %>',
+                    serverURL: serverURL,
                     startScene: startScene
                 });
 

@@ -17,23 +17,19 @@ if (EditorExtends.UuidUtils) {
 export { serviceManager, EditorExtends };
 export const Service = DecoratorService;
 
-/**
- * Placeholder for SystemJS module import.
- * This function will be replaced by \`module.import()\` in the final bundled SystemJS output.
- */
-declare function __moduleImport(id: string): Promise<any>;
-
 declare const cc: any;
 
 export async function startup(options: {
     enginePath: string;
     projectPath: string;
     serverURL: string;
-    defaultConfig: any;
-    modules: string[];
     startScene: any;
 }) {
-    const { projectPath, serverURL, defaultConfig, modules, startScene } = options;
+    const defaultConfig = await fetch('/scripting/engine/game-config');
+    const config = await defaultConfig.json();
+    const modules = await fetch('/scripting/engine/modules');
+    const features = (await modules.json()) as string[];
+    const { projectPath, serverURL, startScene } = options;
 
     if (typeof window !== 'undefined') {
         (window as any).__CC_PROJECT_PATH__ = projectPath;
@@ -80,13 +76,14 @@ export async function startup(options: {
 
     (globalThis as any).cce = (globalThis as any).cce || {};
     (globalThis as any).cce.Script = DecoratorService.Script;
+    (globalThis as any).cli = DecoratorService;
 
     if (EditorExtends.init) {
         await EditorExtends.init();
     }
 
     cc.physics.selector.runInEditor = true;
-    await cc.game.init(defaultConfig);
+    await cc.game.init(config);
 
     let backend = 'builtin';
     const Backends: Record<string, string> = {
@@ -95,7 +92,7 @@ export async function startup(options: {
         'physics-builtin': 'builtin',
         'physics-physx': 'physx',
     };
-    modules.forEach((m) => {
+    features.forEach((m: string) => {
         if (m in Backends) {
             backend = Backends[m];
         }

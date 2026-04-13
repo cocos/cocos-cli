@@ -26577,7 +26577,11 @@ System.register(['cc'], (function (exports) {
 				globalThis.EditorExtends = EditorExtends;
 				exports.Service = decorator_1.Service;
 				async function startup(options) {
-				    const { projectPath, serverURL, defaultConfig, modules, startScene } = options;
+				    const defaultConfig = await fetch('/scripting/engine/game-config');
+				    const config = await defaultConfig.json();
+				    const modules = await fetch('/scripting/engine/modules');
+				    const features = (await modules.json());
+				    const { projectPath, serverURL, startScene } = options;
 				    if (typeof window !== 'undefined') {
 				        window.__CC_PROJECT_PATH__ = projectPath;
 				    }
@@ -26620,11 +26624,12 @@ System.register(['cc'], (function (exports) {
 				    }
 				    globalThis.cce = globalThis.cce || {};
 				    globalThis.cce.Script = decorator_1.Service.Script;
+				    globalThis.cli = decorator_1.Service;
 				    if (EditorExtends.init) {
 				        await EditorExtends.init();
 				    }
 				    cc.physics.selector.runInEditor = true;
-				    await cc.game.init(defaultConfig);
+				    await cc.game.init(config);
 				    let backend = 'builtin';
 				    const Backends = {
 				        'physics-cannon': 'cannon.js',
@@ -26632,7 +26637,7 @@ System.register(['cc'], (function (exports) {
 				        'physics-builtin': 'builtin',
 				        'physics-physx': 'physx',
 				    };
-				    modules.forEach((m) => {
+				    features.forEach((m) => {
 				        if (m in Backends) {
 				            backend = Backends[m];
 				        }
