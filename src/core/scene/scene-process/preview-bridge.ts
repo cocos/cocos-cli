@@ -70,29 +70,6 @@ export async function startup(options: {
         }
     }
 
-    // @ts-ignore
-    const metaUrl = import.meta.url;
-    const baseUrl = metaUrl.substring(0, metaUrl.lastIndexOf('/static/preview'));
-
-    const webAdapter = join(baseUrl, '/scripting/engine/bin/.editor/web-adapter.js');
-
-    // 通过 fetch + Blob 绕过 Rollup 的转换
-    // const response = await fetch('/scripting/engine/bin/.editor/web-adapter.js');
-    // const code = await response.text();
-    // const blob = new Blob([code], { type: 'application/javascript' });
-    // const blobUrl = URL.createObjectURL(blob);
-    // await import(blobUrl);
-    // URL.revokeObjectURL(blobUrl);
-
-    // // 同样处理 engine adapter
-    // const engineAdapter = join(baseUrl, '/scripting/engine/bin/.editor/engine-adapter.js');
-    // const engineResponse = await fetch('/scripting/engine/bin/.editor/engine-adapter.js');
-    // const engineCode = await engineResponse.text();
-    // const engineBlob = new Blob([engineCode], { type: 'application/javascript' });
-    // const engineBlobUrl = URL.createObjectURL(engineBlob);
-    // await import(engineBlobUrl);
-    // URL.revokeObjectURL(engineBlobUrl);
-
     // ---- hack creator 使用的一些 engine 参数
     await import('cc/polyfill/engine');
     // overwrite
