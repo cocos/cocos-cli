@@ -76,13 +76,7 @@ import {
 import { z } from 'zod';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, HttpStatusCode } from '../base/schema-base';
-import { createAsset, createAssetByType, deleteAsset, importAsset,
-    moveAsset, queryAssetConfigMap, queryAssetDBInfos, queryAssetDependencies,
-    queryAssetInfo, queryAssetInfos, queryAssetMeta, queryAssetUserDataConfig,
-    queryAssetUsers, queryCreateMap, queryPath, querySortedPlugins, queryUrl,
-    queryUUID, refresh, reimportAsset, renameAsset, saveAsset, updateAssetUserData,
-    updateDefaultUserData,
-} from '../../lib/assets/assets';
+import { Assets } from '../../lib';
 import { SchemaUrlOrPath, SchemaUrlOrUUID, SchemaUUIDOrPath } from '../base/schema-identifier';
 
 export class AssetsApi {
@@ -102,7 +96,7 @@ export class AssetsApi {
         };
 
         try {
-            await deleteAsset(dbPath);
+            await Assets.deleteAsset(dbPath);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('remove asset fail:', e instanceof Error ? e.message : String(e));
@@ -127,7 +121,7 @@ export class AssetsApi {
         };
 
         try {
-            await refresh(dir);
+            await Assets.refresh(dir);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('refresh dir fail:', e);
@@ -155,7 +149,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryAssetInfo(urlOrUUIDOrPath, dataKeys);
+            ret.data = await Assets.queryAssetInfo(urlOrUUIDOrPath, dataKeys);
             if (!ret.data) {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = `❌Asset can not be found: ${urlOrUUIDOrPath}. Please refresh asset db and try again.`;
@@ -184,7 +178,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryAssetMeta(urlOrUUIDOrPath);
+            ret.data = await Assets.queryAssetMeta(urlOrUUIDOrPath);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset meta fail:', e instanceof Error ? e.message : String(e));
@@ -209,7 +203,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryCreateMap();
+            ret.data = await Assets.queryCreateMap();
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query create map fail:', e instanceof Error ? e.message : String(e));
@@ -234,7 +228,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryAssetInfos(options);
+            ret.data = await Assets.queryAssetInfos(options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset infos fail:', e instanceof Error ? e.message : String(e));
@@ -259,7 +253,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = Object.values(await queryAssetDBInfos());
+            ret.data = Object.values(await Assets.queryAssetDBInfos());
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset db infos fail:', e instanceof Error ? e.message : String(e));
@@ -289,7 +283,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await createAssetByType(ccType, dirOrUrl, baseName, options);
+            ret.data = await Assets.createAssetByType(ccType, dirOrUrl, baseName, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error(e);
@@ -313,7 +307,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await createAsset(options);
+            ret.data = await Assets.createAsset(options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error(e);
@@ -341,7 +335,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await importAsset(source, target, options);
+            ret.data = await Assets.importAsset(source, target, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('import asset fail:', e instanceof Error ? e.message : String(e));
@@ -366,7 +360,7 @@ export class AssetsApi {
         };
 
         try {
-            const assetInfo = await reimportAsset(pathOrUrlOrUUID);
+            const assetInfo = await Assets.reimportAsset(pathOrUrlOrUUID);
             ret.data = assetInfo;
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
@@ -395,7 +389,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await saveAsset(pathOrUrlOrUUID, data);
+            ret.data = await Assets.saveAsset(pathOrUrlOrUUID, data);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('save asset fail:', e instanceof Error ? e.message : String(e));
@@ -420,7 +414,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryUUID(urlOrPath);
+            ret.data = await Assets.queryUUID(urlOrPath);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query UUID fail:', e instanceof Error ? e.message : String(e));
@@ -445,7 +439,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryPath(urlOrUuid);
+            ret.data = await Assets.queryPath(urlOrUuid);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query path fail:', e instanceof Error ? e.message : String(e));
@@ -470,7 +464,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryUrl(uuidOrPath);
+            ret.data = await Assets.queryUrl(uuidOrPath);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query URL fail:', e instanceof Error ? e.message : String(e));
@@ -498,7 +492,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryAssetDependencies(uuidOrUrl, type);
+            ret.data = await Assets.queryAssetDependencies(uuidOrUrl, type);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset dependencies fail:', e instanceof Error ? e.message : String(e));
@@ -526,7 +520,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryAssetUsers(uuidOrUrl, type);
+            ret.data = await Assets.queryAssetUsers(uuidOrUrl, type);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset users fail:', e instanceof Error ? e.message : String(e));
@@ -553,7 +547,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await querySortedPlugins(filterOptions);
+            ret.data = await Assets.querySortedPlugins(filterOptions);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query sorted plugins fail:', e instanceof Error ? e.message : String(e));
@@ -582,7 +576,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await renameAsset(source, target, options);
+            ret.data = await Assets.renameAsset(source, target, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('rename asset fail:', e instanceof Error ? e.message : String(e));
@@ -611,7 +605,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await moveAsset(source, target, options);
+            ret.data = await Assets.moveAsset(source, target, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('move asset fail:', e instanceof Error ? e.message : String(e));
@@ -640,7 +634,7 @@ export class AssetsApi {
         };
 
         try {
-            await updateDefaultUserData(handler, path, value);
+            await Assets.updateDefaultUserData(handler, path, value);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('update default user data fail:', e instanceof Error ? e.message : String(e));
@@ -667,9 +661,9 @@ export class AssetsApi {
         };
 
         try {
-            const result = await queryAssetUserDataConfig(urlOrUuidOrPath);
-            if (result) {
-                ret.data = result;
+            const asset = await Assets.queryAsset(urlOrUuidOrPath);
+            if (asset) {
+                ret.data = await Assets.queryAssetUserDataConfig(urlOrUuidOrPath);
             } else {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}`;
@@ -702,7 +696,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await updateAssetUserData(urlOrUuidOrPath, path, value);
+            ret.data = await Assets.updateAssetUserData(urlOrUuidOrPath, path, value);
             if (!ret.data) {
                 ret.code = COMMON_STATUS.FAIL;
                 ret.reason = `❌Asset can not be found: ${urlOrUuidOrPath}. Please refresh asset db and try again.`;
@@ -731,7 +725,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await queryAssetConfigMap();
+            ret.data = await Assets.queryAssetConfigMap();
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset config map fail:', e instanceof Error ? e.message : String(e));

@@ -1,5 +1,5 @@
 import type { AssetOperationOption, CreateAssetByTypeOptions, IAssetInfo, IAssetMeta, ISupportCreateType, QueryAssetsOption } from '../../core/assets/@types/public';
-import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
+import type { CreateAssetOptions, IAsset, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
 
@@ -252,6 +252,13 @@ export async function updateDefaultUserData(
     value: any
 ): Promise<void> {
     return await assetManager.updateDefaultUserData(handler, path, value);
+}
+
+/**
+ * Query Asset // 查询资源
+ */
+export async function queryAsset(urlOrUuidOrPath: string): Promise<IAsset | null> {
+    return await assetManager.queryAsset(urlOrUuidOrPath);
 }
 
 /**
