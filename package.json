@@ -41,9 +41,9 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "npx --yes gulp release --gulpfile workflow/release.js",
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
+        "start:preview": "node ./dist/cli.js preview --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
-        "start-preview": "tsx src/core/scripting/programming/preview-main.ts",
         "rebuild": "node workflow/electron-rebuild.js"
     },
     "author": "COCOS",
