@@ -38,7 +38,6 @@
             <canvas id="GameCanvas" tabindex="-1" style="background-color: '';"></canvas>
         </div>
     </div>
-    <!-- <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas> -->
 
     <script src="/static/web/polyfills.bundle.js" charset="utf-8"></script>
     
@@ -79,19 +78,12 @@
         window.Editor = {
             Message: {
                 request: async function(target, method, uuid) {
-                    // query-extname: called by editor-path-replace.js during asset loading
                     if (method === 'query-asset-info') {
                         const currentUrl = window.location.origin;
                         return await fetch(`${currentUrl}/query-asset-info/${uuid}`)
                             .then(function(r) { return r.json(); })
                             .catch(function() { return ''; });
                     }
-                    // if (method === 'query-engine-info') {
-                    //     return Promise.resolve({
-                    //         typescript: { path: '<%= enginePath %>' },
-                    //         native: { path: '<%= enginePath %>' },
-                    //     });
-                    // }
                     return Promise.resolve(null);
                 },
             },
@@ -383,7 +375,7 @@
             try {
                 // Wait for async resolution to settle
                 await new Promise(resolve => setTimeout(resolve, 500));
-                const defaultConfig = await fetch('/scripting/engine/preview-config');
+                const defaultConfig = await fetch('/scripting/engine/game-config');
                 const modules = await fetch('/scripting/engine/modules');
                 const config = await defaultConfig.json();
                 const features = await modules.json();

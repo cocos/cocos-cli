@@ -358,7 +358,7 @@ class EngineManager implements IEngine {
         return this;
     }
 
-    async getPreviewConfig(serverURL: string, importBase: string, nativeBase: string) {
+    async getGameConfig(serverURL: string, importBase: string, nativeBase: string, isPreview?: boolean) {
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
         const bundles = assetManager.queryAssets({ isBundle: true }).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
         const builtinAssets = serverURL && await this.queryInternalAssetList(this.getInfo().typescript.path);
@@ -378,7 +378,7 @@ class EngineManager implements IEngine {
                     }),
                 },
                 profiling: {
-                    showFPS: false,
+                    showFPS: isPreview ? true : false,
                 },
                 screen: {
                     frameRate: 30,

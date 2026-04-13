@@ -8,7 +8,7 @@ const path = require('path');
 async function buildSceneBundle() {
     const workspaceDir = path.join(__dirname, '..');
     const sceneProcessDir = path.join(workspaceDir, 'dist', 'core', 'scene', 'scene-process').replace(/\\/g, '/');
-    const previewBridgeFile = path.join(sceneProcessDir, 'preview-bridge.js').replace(/\\/g, '/');
+    const bridgeFile = path.join(sceneProcessDir, 'scene-runtime.js').replace(/\\/g, '/');
 
     console.log('[Build] Bundling scene services for preview...');
 
@@ -22,7 +22,7 @@ async function buildSceneBundle() {
             json(),
             virtual({
                 entry: `
-                    import * as Bridge from '${previewBridgeFile}';
+                    import * as Bridge from '${bridgeFile}';
                     const { startup, serviceManager, EditorExtends, Service } = Bridge;
                     export { startup, serviceManager, EditorExtends, Service };
                 `

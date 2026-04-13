@@ -44,11 +44,11 @@ export default {
             },
         },
         {
-            url: '/scripting/engine/preview-config',
+            url: '/scripting/engine/game-config',
             async handler(req: Request, res: Response) {
                 const { Engine } = await import('../engine');
                 const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
-                const config = await Engine.getPreviewConfig(serverBaseUrl, serverBaseUrl, serverBaseUrl);
+                const config = await Engine.getGameConfig(serverBaseUrl, serverBaseUrl, serverBaseUrl);
                 res.json(config);
             },
         },

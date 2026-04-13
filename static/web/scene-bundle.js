@@ -87,7 +87,7 @@ System.register(['cc'], (function (exports) {
 				return a;
 			}
 
-			var previewBridge$1 = {};
+			var sceneRuntime$1 = {};
 
 			var editorExtends = {};
 
@@ -26577,7 +26577,7 @@ System.register(['cc'], (function (exports) {
 				globalThis.EditorExtends = EditorExtends;
 				exports.Service = decorator_1.Service;
 				async function startup(options) {
-				    const { enginePath, projectPath, serverURL, defaultConfig, modules, startScene } = options;
+				    const { projectPath, serverURL, defaultConfig, modules, startScene } = options;
 				    if (typeof window !== 'undefined') {
 				        window.__CC_PROJECT_PATH__ = projectPath;
 				    }
@@ -26623,7 +26623,6 @@ System.register(['cc'], (function (exports) {
 				    if (EditorExtends.init) {
 				        await EditorExtends.init();
 				    }
-				    // await (globalThis as any).System.import('cc');
 				    cc.physics.selector.runInEditor = true;
 				    await cc.game.init(defaultConfig);
 				    let backend = 'builtin';
@@ -26640,6 +26639,7 @@ System.register(['cc'], (function (exports) {
 				    });
 				    // 切换物理引擎
 				    cc.physics.selector.switchTo(backend);
+				    //TODO
 				    cc.view.setDesignResolutionSize(1920, 1080, cc.ResolutionPolicy.SHOW_ALL);
 				    await cc.game.run(async () => {
 				        cc.game.pause();
@@ -26664,14 +26664,14 @@ System.register(['cc'], (function (exports) {
 				    await cc.game.resume();
 				}
 				
-			} (previewBridge$1));
+			} (sceneRuntime$1));
 
-			var previewBridge = /*@__PURE__*/getDefaultExportFromCjs(previewBridge$1);
+			var sceneRuntime = /*@__PURE__*/getDefaultExportFromCjs(sceneRuntime$1);
 
 			var Bridge = /*#__PURE__*/_mergeNamespaces({
 				__proto__: null,
-				'default': previewBridge
-			}, [previewBridge$1]);
+				'default': sceneRuntime
+			}, [sceneRuntime$1]);
 
 			const { startup, serviceManager, EditorExtends: EditorExtends$1, Service } = Bridge; exports({ startup: startup, serviceManager: serviceManager, EditorExtends: EditorExtends$1, Service: Service });
 

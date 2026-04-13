@@ -2,7 +2,6 @@ import * as EditorExtends from '../../engine/editor-extends';
 import { serviceManager } from './service/service-manager';
 import { Service as DecoratorService } from './service/core/decorator';
 import './service';
-import { join } from 'path';
 
 // Patch UuidUtils for casing compatibility
 if (EditorExtends.UuidUtils) {
@@ -34,7 +33,7 @@ export async function startup(options: {
     modules: string[];
     startScene: any;
 }) {
-    const { enginePath, projectPath, serverURL, defaultConfig, modules, startScene } = options;
+    const { projectPath, serverURL, defaultConfig, modules, startScene } = options;
 
     if (typeof window !== 'undefined') {
         (window as any).__CC_PROJECT_PATH__ = projectPath;
@@ -79,8 +78,6 @@ export async function startup(options: {
         handle(cc);
     }
 
-
-
     (globalThis as any).cce = (globalThis as any).cce || {};
     (globalThis as any).cce.Script = DecoratorService.Script;
 
@@ -88,7 +85,6 @@ export async function startup(options: {
         await EditorExtends.init();
     }
 
-    // await (globalThis as any).System.import('cc');
     cc.physics.selector.runInEditor = true;
     await cc.game.init(defaultConfig);
 
@@ -107,6 +103,7 @@ export async function startup(options: {
 
     // 切换物理引擎
     cc.physics.selector.switchTo(backend);
+    //TODO
     cc.view.setDesignResolutionSize(1920, 1080, cc.ResolutionPolicy.SHOW_ALL);
 
     await cc.game.run(async () => {
