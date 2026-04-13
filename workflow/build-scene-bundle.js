@@ -28,22 +28,6 @@ async function buildSceneBundle() {
                 `
             }),
             {
-                // Provide a dummy __moduleImport function that Rollup can resolve.
-                // The renderChunk plugin below replaces calls to it with module.import()
-                // in the final SystemJS output.
-                name: 'module-import-placeholder',
-                resolveId(id) {
-                    if (id === '__moduleImport') return '\0__moduleImport';
-                    return null;
-                },
-                load(id) {
-                    if (id === '\0__moduleImport') {
-                        return 'export default function __moduleImport(id) { return import(id); }';
-                    }
-                    return null;
-                },
-            },
-            {
                 name: 'smart-node-builtins',
                 resolveId(id) {
                     const stubs = [
@@ -304,11 +288,6 @@ async function buildSceneBundle() {
                     let fixed = code.replace(/= module\["default"\];/g, '= module["default"] || module;');
                     // Fix url polyfill missing the URL constructor
                     fixed = fixed.replace(/url_1\.URL/g, 'window.URL');
-                    // Replace __moduleImport(x) placeholder with module.import(x).
-                    // Rollup inlines the placeholder as a regular function, but we
-                    // need the SystemJS module-scoped import for correct resolution.
-                    // Match patterns like: __moduleImport$1(mod) or __moduleImport(mod)
-                    fixed = fixed.replace(/\b__moduleImport(?:\$\d+)?\s*\(/g, 'module.import(');
                     return { code: fixed, map: null };
                 }
             },

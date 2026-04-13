@@ -9,6 +9,8 @@ import { startupScene } from './scene';
 import { spawn } from 'child_process';
 import { middlewareService } from '../server/middleware';
 import ScriptingMiddleware from './scene/scripting.middleware';
+import SceneMiddleware from './scene/scene.middleware';
+import { sceneConfigInstance } from './scene/scene-configs';
 
 
 /**
@@ -83,12 +85,20 @@ export default class Launcher {
         const { init: initBuilder } = await import('./builder');
         await initBuilder();
 
-        // Register scripting middleware BEFORE scene startup,
-        // because scene process needs /programming/* endpoints during init
-        middlewareService.register('scripting', ScriptingMiddleware);
-
         // 启动场景进程，需要在 Builder 之后，因为服务器路由场景还没有做前缀约束匹配范围比较广
         await startupScene(GlobalPaths.enginePath, this.projectPath);
+    }
+
+    async startPreview(port?: number) {
+        await this.import();
+        await startServer(port);
+        // 初始化构建
+        const { init: initBuilder } = await import('./builder');
+        await initBuilder();
+
+        middlewareService.register('scripting', ScriptingMiddleware);
+        middlewareService.register('Scene', SceneMiddleware);
+        await sceneConfigInstance.init();
 
         const browserPath = process.platform === 'win32'
             ? 'start'

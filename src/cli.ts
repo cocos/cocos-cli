@@ -5,6 +5,7 @@ initSentry();
 import { Command } from 'commander';
 import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand, MakeCommand, RunCommand } from './commands';
 import { config } from './display/config';
+import { PreviewCommand } from './commands/preview';
 
 const program = new Command();
 
@@ -27,6 +28,7 @@ commandRegistry.register(new BuildCommand(program));
 commandRegistry.register(new McpServerCommand(program));
 commandRegistry.register(new MakeCommand(program));
 commandRegistry.register(new RunCommand(program));
+commandRegistry.register(new PreviewCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();

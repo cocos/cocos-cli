@@ -64,7 +64,7 @@ export async function startup(options: {
     // We use the __moduleImport placeholder which is replaced with SystemJS's module.import().
     for (const mod of requiredModules) {
         try {
-            await __moduleImport(mod);
+            await System.import(mod);
         } catch (e) {
             console.error('Failed to load engine module:', mod, 'e:', e);
         }
