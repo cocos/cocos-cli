@@ -29,7 +29,7 @@ export default {
                         enginePath: enginePath.replace(/\\/g, '/'),
                         engineConfig: Engine.getConfig(),
                     };
-                    const templatePath = join(GlobalPaths.workspace, 'static', 'preview', 'index.ejs');
+                    const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'index.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);
                     res.status(200).send(html);
                 } catch (err) {
@@ -230,10 +230,10 @@ export default {
             },
         },
         {
-            url: /^\/static\/preview/,
+            url: /^\/static\/web/,
             async handler(req: Request, res: Response, next: NextFunction) {
-                const relPath = req.path.substring('/static/preview'.length);
-                const resourcePath = join(GlobalPaths.workspace, 'static', 'preview', relPath);
+                const relPath = req.path.substring('/static/web'.length);
+                const resourcePath = join(GlobalPaths.workspace, 'static', 'web', relPath);
                 console.log(`[Preview Server] Static resource requested: ${relPath} -> ${resourcePath}`);
                 if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
                     res.sendFile(resourcePath);

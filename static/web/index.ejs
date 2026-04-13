@@ -40,7 +40,7 @@
     </div>
     <!-- <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas> -->
 
-    <script src="/static/preview/polyfills.bundle.js" charset="utf-8"></script>
+    <script src="/static/web/polyfills.bundle.js" charset="utf-8"></script>
     
     <!-- SystemJS support. -->
     <script src="/scripting/systemjs/system.js"></script>
@@ -390,7 +390,7 @@
 
 
                 console.log('[Scene] loading scene bundle');
-                const SceneBundle = await System.import('/static/preview/scene-bundle.js?t=' + Date.now());
+                const SceneBundle = await System.import('/static/web/scene-bundle.js?t=' + Date.now());
                 const { startup } = SceneBundle;
 
                 // scene-bundle replaces globalThis.System with a new SystemJS

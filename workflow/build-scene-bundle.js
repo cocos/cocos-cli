@@ -299,7 +299,7 @@ async function buildSceneBundle() {
         ],
     });
 
-    const bundleOutputFile = path.join(workspaceDir, 'static', 'preview', 'scene-bundle.js');
+    const bundleOutputFile = path.join(workspaceDir, 'static', 'web', 'scene-bundle.js');
     await bundle.write({
         file: bundleOutputFile,
         format: 'system',
