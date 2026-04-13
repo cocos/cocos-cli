@@ -259,7 +259,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = Object.values(queryAssetDBInfos());
+            ret.data = Object.values(await queryAssetDBInfos());
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset db infos fail:', e instanceof Error ? e.message : String(e));
