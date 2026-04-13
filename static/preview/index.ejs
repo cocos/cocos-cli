@@ -33,7 +33,12 @@
     </style>
 </head>
 <body>
-    <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+    <div id="GameDiv" class="wrapper">
+        <div id="Cocos3dGameContainer">
+            <canvas id="GameCanvas" tabindex="-1" style="background-color: '';"></canvas>
+        </div>
+    </div>
+    <!-- <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas> -->
 
     <script src="/static/preview/polyfills.bundle.js" charset="utf-8"></script>
     
@@ -73,19 +78,20 @@
         window.CC_EDITOR = true;
         window.Editor = {
             Message: {
-                request: function(target, method, uuid) {
+                request: async function(target, method, uuid) {
                     // query-extname: called by editor-path-replace.js during asset loading
-                    if (method === 'query-extname') {
-                        return fetch('/query-extname/' + uuid)
-                            .then(function(r) { return r.text(); })
+                    if (method === 'query-asset-info') {
+                        const currentUrl = window.location.origin;
+                        return await fetch(`${currentUrl}/query-asset-info/${uuid}`)
+                            .then(function(r) { return r.json(); })
                             .catch(function() { return ''; });
                     }
-                    if (method === 'query-engine-info') {
-                        return Promise.resolve({
-                            typescript: { path: '<%= enginePath %>' },
-                            native: { path: '<%= enginePath %>' },
-                        });
-                    }
+                    // if (method === 'query-engine-info') {
+                    //     return Promise.resolve({
+                    //         typescript: { path: '<%= enginePath %>' },
+                    //         native: { path: '<%= enginePath %>' },
+                    //     });
+                    // }
                     return Promise.resolve(null);
                 },
             },
@@ -377,7 +383,7 @@
             try {
                 // Wait for async resolution to settle
                 await new Promise(resolve => setTimeout(resolve, 500));
-                const defaultConfig = await fetch('/scripting/engine/default-config');
+                const defaultConfig = await fetch('/scripting/engine/preview-config');
                 const modules = await fetch('/scripting/engine/modules');
                 const config = await defaultConfig.json();
                 const features = await modules.json();
@@ -399,12 +405,33 @@
                 // closure matches its register. One System = no bridging needed.
                 globalThis.System = _originalSystem;
 
+                const sceneListPromise = await fetch(`${currentUrl}/query-asset-infos/cc.SceneAsset`);
+                const sceneList = await sceneListPromise.json();
+                const length = sceneList.length;
+                let sceneUuid = null;
+                for (let i = 0; i < length; i++) {
+                    const source =  sceneList[i].source;
+                    if (source.startsWith('db://internal')) {
+                        continue;
+                    }
+                    sceneUuid =  sceneList[i].uuid;
+                    break;
+                }
+                const startScenePromise = await fetch(`${currentUrl}/scene/${sceneUuid}.json`);
+                const startScene = await startScenePromise.json();
+
+
+                // config.overrideSettings.assets.importBase = 'assets/general/import';
+                // config.overrideSettings.assets.nativeBase = 'assets/general/native';
+                config.overrideSettings.launch = config.overrideSettings.launch || {};
+                config.overrideSettings.launch.launchScene = '';
                 await startup({
                     enginePath,
                     projectPath,
                     serverURL: currentUrl,
                     defaultConfig: config,
-                    modules: features
+                    modules: features,
+                    startScene: startScene
                 });
 
                 console.log('Cocos Engine and Scene Services loaded successfully');

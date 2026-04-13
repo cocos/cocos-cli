@@ -44,11 +44,11 @@ export default {
             },
         },
         {
-            url: '/scripting/engine/default-config',
+            url: '/scripting/engine/preview-config',
             async handler(req: Request, res: Response) {
                 const { Engine } = await import('../engine');
                 const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
-                const config = await Engine.getDefaultConfig(serverBaseUrl, serverBaseUrl, serverBaseUrl);
+                const config = await Engine.getPreviewConfig(serverBaseUrl, serverBaseUrl, serverBaseUrl);
                 res.json(config);
             },
         },

@@ -56,8 +56,6 @@ System.register(['cc'], (function (exports, module) {
 				return Object.freeze(n);
 			}
 
-			exports('startup', startup);
-
 			var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 			function getDefaultExportFromCjs (x) {
@@ -88,6 +86,8 @@ System.register(['cc'], (function (exports, module) {
 				});
 				return a;
 			}
+
+			var previewBridge$1 = {};
 
 			var editorExtends = {};
 
@@ -6782,23 +6782,7 @@ System.register(['cc'], (function (exports, module) {
 				
 			} (editorExtends));
 
-			var index = /*@__PURE__*/getDefaultExportFromCjs(editorExtends);
-
-			var EditorExtendsLocalImport = /*#__PURE__*/_mergeNamespaces({
-				__proto__: null,
-				'default': index
-			}, [editorExtends]);
-
-			const EditorExtendsLocal = exports('EditorExtends', { ...EditorExtendsLocalImport });
-			                    if (EditorExtendsLocal.UuidUtils) {
-			                        const U = EditorExtendsLocal.UuidUtils;
-			                        U.decompressUuid = U.decompressUuid || U.decompressUUID;
-			                        U.compressUuid = U.compressUuid || U.compressUUID;
-			                        U.isUuid = U.isUuid || U.isUUID;
-			                    }
-			                    globalThis.EditorExtends = EditorExtendsLocal;
-
-			var serviceManager = {};
+			var serviceManager$1 = {};
 
 			var core = {};
 
@@ -7029,9 +7013,9 @@ System.register(['cc'], (function (exports, module) {
 
 			Object.defineProperty(asset$2, "__esModule", { value: true });
 
-			var engine$1 = {};
+			var engine$2 = {};
 
-			Object.defineProperty(engine$1, "__esModule", { value: true });
+			Object.defineProperty(engine$2, "__esModule", { value: true });
 
 			(function (exports) {
 				var __createBinding = (commonjsGlobal && commonjsGlobal.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -7056,7 +7040,7 @@ System.register(['cc'], (function (exports, module) {
 				__exportStar(script$1, exports);
 				__exportStar(component$3, exports);
 				__exportStar(asset$2, exports);
-				__exportStar(engine$1, exports);
+				__exportStar(engine$2, exports);
 				
 			} (common$1));
 
@@ -8583,7 +8567,7 @@ System.register(['cc'], (function (exports, module) {
 			})(Reflect$1 || (Reflect$1 = {}));
 
 			Object.defineProperty(decorator, "__esModule", { value: true });
-			var Service$1 = decorator.Service = void 0;
+			decorator.Service = void 0;
 			decorator.register = register;
 			decorator.getServiceAll = getServiceAll;
 
@@ -8601,7 +8585,7 @@ System.register(['cc'], (function (exports, module) {
 			/**
 			 * 全局代理：通过 Service.Editor.xxx() 访问
 			 */
-			Service$1 = decorator.Service = new Proxy({}, {
+			decorator.Service = new Proxy({}, {
 			    get(_, prop) {
 			        const svc = _serviceRegistry[prop];
 			        if (!svc) {
@@ -8641,8 +8625,8 @@ System.register(['cc'], (function (exports, module) {
 				
 			} (core));
 
-			Object.defineProperty(serviceManager, "__esModule", { value: true });
-			var serviceManager_1 = exports('serviceManager', serviceManager.serviceManager = serviceManager.ServiceManager = void 0);
+			Object.defineProperty(serviceManager$1, "__esModule", { value: true });
+			serviceManager$1.serviceManager = serviceManager$1.ServiceManager = void 0;
 			const core_1$b = core;
 			// 定义事件分组映射
 			const SERVICE_EVENTS_MAP = {
@@ -8708,8 +8692,8 @@ System.register(['cc'], (function (exports, module) {
 			        this.eventHandlers.clear();
 			    }
 			}
-			serviceManager.ServiceManager = ServiceManager;
-			exports('serviceManager', serviceManager_1 = serviceManager.serviceManager = new ServiceManager());
+			serviceManager$1.ServiceManager = ServiceManager;
+			serviceManager$1.serviceManager = new ServiceManager();
 
 			var service = {};
 
@@ -13057,7 +13041,7 @@ System.register(['cc'], (function (exports, module) {
 			const core_1$9 = core;
 			const common_1$3 = common$1;
 			const editors_1 = editors;
-			const service_manager_1$1 = serviceManager;
+			const service_manager_1$1 = serviceManager$1;
 			/**
 			 * EditorAsset - 统一的编辑器管理入口
 			 * 作为调度器，根据资源类型动态创建和管理编辑器实例
@@ -21475,7 +21459,7 @@ System.register(['cc'], (function (exports, module) {
 			const rpc_1$6 = rpc;
 			const core_1$7 = core;
 			const utils_1$4 = __importDefault$4(utils$7);
-			const service_manager_1 = serviceManager;
+			const service_manager_1 = serviceManager$1;
 			/**
 			 * 异步迭代。有以下特点：
 			 * 1. 每次调用 `nextIteration()` 会执行一次传入的**迭代函数**；迭代函数允许是异步的，在构造函数中确定之后不能更改；
@@ -21573,12 +21557,6 @@ System.register(['cc'], (function (exports, module) {
 			        this._suspendPromise = condition;
 			    }
 			    async init() {
-			        // Skip packer-driver initialization in browser preview —
-			        // QuickPackLoaderContext and other Node.js dependencies are unavailable
-			        // const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-			        // if (isBrowser) {
-			        //     return;
-			        // }
 			        EditorExtends.on('class-registered', (classConstructor, metadata, className) => {
 			            console.log('classRegistered', className);
 			            console.log('class-registered ' + cc_1$7.default.js.isChildClassOf(classConstructor, cc_1$7.default.Component));
@@ -21723,7 +21701,7 @@ System.register(['cc'], (function (exports, module) {
 			                const res = await fetch(`${serverUrl}/assetManager/querySortedPlugins`);
 			                if (res.ok) {
 			                    const pluginScripts = await res.json();
-			                    this._executor.setPluginScripts(pluginScripts);
+			                    this._executor.setPluginScripts(pluginScripts || []);
 			                }
 			                else {
 			                    this._executor.setPluginScripts([]);
@@ -22947,7 +22925,7 @@ System.register(['cc'], (function (exports, module) {
 			    (0, core_1$4.register)('Component')
 			], ComponentService);
 
-			var engine = {};
+			var engine$1 = {};
 
 			var time = {};
 
@@ -23137,8 +23115,8 @@ System.register(['cc'], (function (exports, module) {
 			var __importDefault$1 = (commonjsGlobal && commonjsGlobal.__importDefault) || function (mod) {
 			    return (mod && mod.__esModule) ? mod : { "default": mod };
 			};
-			Object.defineProperty(engine, "__esModule", { value: true });
-			engine.EngineService = void 0;
+			Object.defineProperty(engine$1, "__esModule", { value: true });
+			engine$1.EngineService = void 0;
 			const time_1 = __importDefault$1(time);
 			const cc_1$3 = require$$0__default;
 			const geometry_renderer_1 = geometry_renderer;
@@ -23273,8 +23251,8 @@ System.register(['cc'], (function (exports, module) {
 			        void this.repaintInEditMode();
 			    }
 			};
-			engine.EngineService = EngineService;
-			engine.EngineService = EngineService = __decorate$1([
+			engine$1.EngineService = EngineService;
+			engine$1.EngineService = EngineService = __decorate$1([
 			    (0, core_1$3.register)('Engine')
 			], EngineService);
 
@@ -26269,99 +26247,446 @@ System.register(['cc'], (function (exports, module) {
 				__exportStar(script, exports);
 				__exportStar(asset, exports);
 				__exportStar(component$1, exports);
-				__exportStar(engine, exports);
+				__exportStar(engine$1, exports);
 				__exportStar(prefab, exports);
 				
 			} (service));
 
-			const Service = exports('Service', Service$1);
+			var engine = {};
 
-			                    async function startup(options) {
-			                        const { enginePath, projectPath, serverURL, defaultConfig, modules } = options;
-			                        
-			                        if (typeof window !== 'undefined') {
-			                            window.__CC_PROJECT_PATH__ = projectPath;
-			                        }
-			                        serviceManager_1.initialize(serverURL);
+			var hasRequiredEngine;
 
-			                        const requiredModules = [
-			                                                    'cc',
-			                                                    'cc/editor/populate-internal-constants',
-			                                                    'cc/editor/serialization',
-			                                                    'cc/editor/new-gen-anim',
-			                                                    'cc/editor/embedded-player',
-			                                                    'cc/editor/reflection-probe',
-			                                                    'cc/editor/lod-group-utils',
-			                                                    'cc/editor/material',
-			                                                    'cc/editor/2d-misc',
-			                                                    'cc/editor/offline-mappings',
-			                                                    'cc/editor/custom-pipeline',
-			                                                    'cc/editor/animation-clip-migration',
-			                                                    'cc/editor/exotic-animation',
-			                                                    'cc/editor/color-utils',
-			                                                ];
-			                        // IMPORTANT: We must NOT use import() here because Rollup's
-			                        // resolveId hook aliases cc/editor/* to a cc re-export stub,
-			                        // which means the real engine side-effect modules never load
-			                        // (e.g. cc.deserialize._macros never gets populated).
-			                        //
-			                        // We also cannot use System.import() directly because it lacks
-			                        // the correct parentURL context for import-map resolution.
-			                        //
-			                        // Solution: use module.import(id), a placeholder that the
-			                        // renderChunk plugin replaces with module.import(id) — the
-			                        // SystemJS module-scoped import that has the right resolution
-			                        // context and bypasses Rollup's resolveId entirely.
-			                        for (const mod of requiredModules) {
-			                            try {
-			                                await module.import(mod);
-			                            } catch (e) {
-			                                console.error('Failed to load engine module:', mod, 'e:', e);
-			                            }
-			                        }
+			function requireEngine () {
+				if (hasRequiredEngine) return engine;
+				hasRequiredEngine = 1;
 
-			                        const baseUrl = module.meta.url.substring(0, module.meta.url.lastIndexOf('/static/preview'));
-			                        new URL('/scripting/engine/bin/.editor/web-adapter.js', baseUrl).href;
-			                       // await import(webAdapter);
-			                        new URL('/scripting/engine/bin/.editor/engine-adapter.js', baseUrl).href;
-			                       // await import(engineAdapter);
+				const { basename } = pathBrowserify;
+				const { EventEmitter } = events;
 
-			                        // EditorExtends is already on globalThis now
-			                        if (EditorExtendsLocal.UuidUtils) {
-			                            EditorExtendsLocal.UuidUtils.compressUuid = EditorExtendsLocal.UuidUtils.compressUUID;
-			                        }
-			                        globalThis.cce = globalThis.cce || {};
-			                        globalThis.cce.Script = Service$1.Script;
+				class Engine extends EventEmitter {
+				    constructor() {
+				        super();
+				        this.attachedObjsForEditor = {};
+				    }
 
-			                       // await DecoratorService.Engine.init();
-			                        if (EditorExtendsLocal.init) {
-			                            await EditorExtendsLocal.init();
-			                        }
+				    off() { }
 
-			                        await System.import('cc');
-			                        cc.physics.selector.runInEditor = true;
-			                        await cc.game.init(defaultConfig);
-			                        
-			                        let backend = 'builtin';
-			                        const Backends = {
-			                            'physics-cannon': 'cannon.js',
-			                            'physics-ammo': 'bullet',
-			                            'physics-builtin': 'builtin',
-			                            'physics-physx': 'physx',
-			                        };
-			                        modules.forEach((m) => {
-			                            if (m in Backends) {
-			                                backend = Backends[m];
-			                            }
-			                        });
+				    getDesignResolutionSize() {
+				        return { width: 1280, height: 760 }; // 手写的设计分辨率
+				    }
 
-			                        // 切换物理引擎
-			                        cc.physics.selector.switchTo(backend);
+				    setDesignResolutionSize() { }
+				}
 
-			                        await cc.game.run(async () => {
-			                            cc.game.pause();
-			                        });
-			                    }
+				// 适配 cc.engine
+				// todo 引擎内发送了 node-attach-to-scene 等事件
+				cc.engine = new Engine();
+
+				// 适配 _Scene
+				window._Scene = {
+				    AssetsWatcher: {
+				        start() { },
+				        initComponent() { },
+				        stop() { },
+				    },
+				    DetectConflict: {
+				        beforeAddChild() { },
+				        afterAddChild() { },
+				    },
+				};
+				cc.require = function(request, originRequire) {
+				    originRequire = originRequire || commonjsRequire;
+
+				    let m;
+				    try {
+				        const name = basename(request);
+
+				        m = cc.js.getClassByName(name);
+				        if (!m) {
+				            m = originRequire(request);
+				        }
+				    } catch (err) {
+				        console.error(`load script [${request}] failed : ${err.stack}`);
+				    }
+				    return m;
+				};
+
+				// 适配 cc._throw
+				cc._throw = cc.error;
+				return engine;
+			}
+
+			var widgetManager;
+			var hasRequiredWidgetManager;
+
+			function requireWidgetManager () {
+				if (hasRequiredWidgetManager) return widgetManager;
+				hasRequiredWidgetManager = 1;
+
+				/**
+				 * 编辑器内重写 widget 内部分方法以实现值锁定功能
+				 */
+
+				widgetManager = function(ccm) {
+				    const { Widget, UITransform, Label } = ccm;
+				    const cc = commonjsGlobal.cc;
+				    const LockFlags = {
+				        TOP: 1 << 0,
+				        MID: 1 << 1,
+				        BOT: 1 << 2,
+				        LEFT: 1 << 3,
+				        CENTER: 1 << 4,
+				        RIGHT: 1 << 5,
+				    };
+
+				    Widget.prototype.setLockTop = function(lock) {
+				        this._setLock(LockFlags.TOP, lock);
+				    };
+				    Widget.prototype.getLockTop = function() {
+				        return this._lockFlags & LockFlags.TOP;
+				    };
+
+				    Widget.prototype.setLockBottom = function(lock) {
+				        this._setLock(LockFlags.BOT, lock);
+				    };
+				    Widget.prototype.getLockBottom = function() {
+				        return this._lockFlags & LockFlags.BOT;
+				    };
+
+				    Widget.prototype.setLockLeft = function(lock) {
+				        this._setLock(LockFlags.LEFT, lock);
+				    };
+				    Widget.prototype.getLockLeft = function() {
+				        return this._lockFlags & LockFlags.LEFT;
+				    };
+
+				    Widget.prototype.setLockRight = function(lock) {
+				        this._setLock(LockFlags.RIGHT, lock);
+				    };
+				    Widget.prototype.getLockRight = function() {
+				        return this._lockFlags & LockFlags.RIGHT;
+				    };
+
+				    Widget.prototype.setLockHorizontalCenter = function(lock) {
+				        this._setLock(LockFlags.CENTER, lock);
+				    };
+				    Widget.prototype.getLockHorizontalCenter = function() {
+				        return this._lockFlags & LockFlags.CENTER;
+				    };
+
+				    Widget.prototype.setLockVerticalCenter = function(lock) {
+				        this._setLock(LockFlags.MID, lock);
+				    };
+				    Widget.prototype.getLockVerticalCenter = function() {
+				        return this._lockFlags & LockFlags.MID;
+				    };
+
+				    Widget.prototype._setLock = function(flag, isLock) {
+				        const current = (this._lockFlags & flag) > 0;
+				        if (isLock === current) {
+				            return;
+				        }
+				        if (isLock) {
+				            this._lockFlags |= flag;
+				        } else {
+				            this._lockFlags &= ~flag;
+				        }
+				    };
+
+				    Widget.prototype._adjustWidgetToAllowMovingInEditor = function(eventType) {
+				        if (!(eventType & cc.internal.TransformBit.POSITION)) {
+				            return;
+				        }
+
+				        if (cc._widgetManager.isAligning) {
+				            return;
+				        }
+
+				        const self = this;
+				        const newPos = self.node.getPosition();
+				        const oldPos = this._lastPos;
+				        const delta = new cc.Vec3(newPos);
+				        delta.subtract(oldPos);
+
+				        let target = self.node.parent;
+				        const inverseScale = new cc.Vec3(1, 1, 1);
+
+				        if (self.target) {
+				            target = self.target;
+				            cc.internal.computeInverseTransForTarget(self.node, target, new cc.Vec3(), inverseScale);
+				        }
+				        if (!target) {
+				            return;
+				        }
+
+				        const targetSize = cc.internal.getReadonlyNodeSize(target);
+				        const deltaInPercent = new cc.Vec3();
+				        if (targetSize.width !== 0 && targetSize.height !== 0) {
+				            cc.Vec3.set(deltaInPercent, delta.x / targetSize.width, delta.y / targetSize.height, deltaInPercent.z);
+				        }
+
+				        if (self.isAlignTop && !self.getLockTop()) {
+				            self._top -= (self._isAbsTop ? delta.y : deltaInPercent.y) * inverseScale.y;
+				        }
+				        if (self.isAlignBottom && !self.getLockBottom()) {
+				            self._bottom += (self._isAbsBottom ? delta.y : deltaInPercent.y) * inverseScale.y;
+				        }
+				        if (self.isAlignLeft && !self.getLockLeft()) {
+				            self._left += (self._isAbsLeft ? delta.x : deltaInPercent.x) * inverseScale.x;
+				        }
+				        if (self.isAlignRight && !self.getLockRight()) {
+				            self._right -= (self._isAbsRight ? delta.x : deltaInPercent.x) * inverseScale.x;
+				        }
+				        if (self.isAlignHorizontalCenter && !self.getLockHorizontalCenter()) {
+				            self._horizontalCenter += (self._isAbsHorizontalCenter ? delta.x : deltaInPercent.x) * inverseScale.x;
+				        }
+				        if (self.isAlignVerticalCenter && !self.getLockVerticalCenter()) {
+				            self._verticalCenter += (self._isAbsVerticalCenter ? delta.y : deltaInPercent.y) * inverseScale.y;
+				        }
+				        this._recursiveDirty();
+				        self.node.getPosition(self._lastPos);
+				    };
+
+				    Widget.prototype._adjustWidgetToAllowResizingInEditor = function() {
+				        if (cc._widgetManager.isAligning) {
+				            return;
+				        }
+
+				        const self = this;
+				        const uiTransformComp = self.node.getComponent(UITransform);
+				        if (!uiTransformComp) {
+				            return;
+				        }
+
+				        const newSize = uiTransformComp.contentSize;
+				        const oldSize = this._lastSize;
+				        const delta = new cc.Vec3(newSize.width - oldSize.width, newSize.height - oldSize.height, 0);
+
+				        let target = self.node.parent;
+				        const inverseScale = new cc.Vec3(1, 1, 1);
+				        if (self.target) {
+				            target = self.target;
+				            cc.internal.computeInverseTransForTarget(self.node, target, new cc.Vec3(), inverseScale);
+				        }
+				        if (!target) {
+				            return;
+				        }
+
+				        const targetSize = cc.internal.getReadonlyNodeSize(target);
+				        const deltaInPercent = new cc.Vec3();
+				        if (targetSize.width !== 0 && targetSize.height !== 0) {
+				            cc.Vec3.set(deltaInPercent, delta.x / targetSize.width, delta.y / targetSize.height, deltaInPercent.z);
+				        }
+
+				        const anchor = uiTransformComp.anchorPoint;
+
+				        if (self.isAlignTop && !self.getLockTop()) {
+				            self._top -= (self._isAbsTop ? delta.y : deltaInPercent.y) * (1 - anchor.y) * inverseScale.y;
+				        }
+				        if (self.isAlignBottom && !self.getLockBottom()) {
+				            self._bottom -= (self._isAbsBottom ? delta.y : deltaInPercent.y) * anchor.y * inverseScale.y;
+				        }
+				        if (self.isAlignLeft && !self.getLockLeft()) {
+				            self._left -= (self._isAbsLeft ? delta.x : deltaInPercent.x) * anchor.x * inverseScale.x;
+				        }
+				        if (self.isAlignRight && !self.getLockRight()) {
+				            self._right -= (self._isAbsRight ? delta.x : deltaInPercent.x) * (1 - anchor.x) * inverseScale.x;
+				        }
+
+				        // hack for label none mode can`t change context size
+				        const label = self.node.getComponent(Label);
+				        if (label && label.overflow === 0 && self.isAlignRight && self.isAlignLeft) {
+				            return;
+				        }
+				        this._recursiveDirty();
+				    };
+				};
+				return widgetManager;
+			}
+
+			var overwrite;
+			var hasRequiredOverwrite;
+
+			function requireOverwrite () {
+				if (hasRequiredOverwrite) return overwrite;
+				hasRequiredOverwrite = 1;
+				overwrite = function(ccm) {
+				    requireWidgetManager()(ccm);
+				};
+				return overwrite;
+			}
+
+			(function (exports) {
+				var __createBinding = (commonjsGlobal && commonjsGlobal.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+				    if (k2 === undefined) k2 = k;
+				    var desc = Object.getOwnPropertyDescriptor(m, k);
+				    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+				      desc = { enumerable: true, get: function() { return m[k]; } };
+				    }
+				    Object.defineProperty(o, k2, desc);
+				}) : (function(o, m, k, k2) {
+				    if (k2 === undefined) k2 = k;
+				    o[k2] = m[k];
+				}));
+				var __setModuleDefault = (commonjsGlobal && commonjsGlobal.__setModuleDefault) || (Object.create ? (function(o, v) {
+				    Object.defineProperty(o, "default", { enumerable: true, value: v });
+				}) : function(o, v) {
+				    o["default"] = v;
+				});
+				var __importStar = (commonjsGlobal && commonjsGlobal.__importStar) || (function () {
+				    var ownKeys = function(o) {
+				        ownKeys = Object.getOwnPropertyNames || function (o) {
+				            var ar = [];
+				            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+				            return ar;
+				        };
+				        return ownKeys(o);
+				    };
+				    return function (mod) {
+				        if (mod && mod.__esModule) return mod;
+				        var result = {};
+				        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+				        __setModuleDefault(result, mod);
+				        return result;
+				    };
+				})();
+				Object.defineProperty(exports, "__esModule", { value: true });
+				exports.Service = exports.EditorExtends = exports.serviceManager = void 0;
+				exports.startup = startup;
+				const EditorExtends = __importStar(editorExtends);
+				exports.EditorExtends = EditorExtends;
+				const service_manager_1 = serviceManager$1;
+				Object.defineProperty(exports, "serviceManager", { enumerable: true, get: function () { return service_manager_1.serviceManager; } });
+				const decorator_1 = decorator;
+
+				const path_1 = pathBrowserify;
+				// Patch UuidUtils for casing compatibility
+				if (EditorExtends.UuidUtils) {
+				    const U = EditorExtends.UuidUtils;
+				    U.decompressUuid = U.decompressUuid || U.decompressUUID;
+				    U.compressUuid = U.compressUuid || U.compressUUID;
+				    U.isUuid = U.isUuid || U.isUUID;
+				    U.uuid = U.uuid || U.generate;
+				}
+				globalThis.EditorExtends = EditorExtends;
+				exports.Service = decorator_1.Service;
+				async function startup(options) {
+				    const { enginePath, projectPath, serverURL, defaultConfig, modules, startScene } = options;
+				    if (typeof window !== 'undefined') {
+				        window.__CC_PROJECT_PATH__ = projectPath;
+				    }
+				    service_manager_1.serviceManager.initialize(serverURL);
+				    const requiredModules = [
+				        'cc',
+				        'cc/editor/populate-internal-constants',
+				        'cc/editor/serialization',
+				        'cc/editor/new-gen-anim',
+				        'cc/editor/embedded-player',
+				        'cc/editor/reflection-probe',
+				        'cc/editor/lod-group-utils',
+				        'cc/editor/material',
+				        'cc/editor/2d-misc',
+				        'cc/editor/offline-mappings',
+				        'cc/editor/custom-pipeline',
+				        'cc/editor/animation-clip-migration',
+				        'cc/editor/exotic-animation',
+				        'cc/editor/color-utils',
+				    ];
+				    // IMPORTANT: We must NOT use import() here because Rollup's
+				    // resolveId hook aliases cc/editor/* to a cc re-export stub,
+				    // which means the real engine side-effect modules never load.
+				    // We use the __moduleImport placeholder which is replaced with SystemJS's module.import().
+				    for (const mod of requiredModules) {
+				        try {
+				            await module.import(mod);
+				        }
+				        catch (e) {
+				            console.error('Failed to load engine module:', mod, 'e:', e);
+				        }
+				    }
+				    // @ts-ignore
+				    const metaUrl = module.meta.url;
+				    const baseUrl = metaUrl.substring(0, metaUrl.lastIndexOf('/static/preview'));
+				    (0, path_1.join)(baseUrl, '/scripting/engine/bin/.editor/web-adapter.js');
+				    // 通过 fetch + Blob 绕过 Rollup 的转换
+				    // const response = await fetch('/scripting/engine/bin/.editor/web-adapter.js');
+				    // const code = await response.text();
+				    // const blob = new Blob([code], { type: 'application/javascript' });
+				    // const blobUrl = URL.createObjectURL(blob);
+				    // await import(blobUrl);
+				    // URL.revokeObjectURL(blobUrl);
+				    // // 同样处理 engine adapter
+				    // const engineAdapter = join(baseUrl, '/scripting/engine/bin/.editor/engine-adapter.js');
+				    // const engineResponse = await fetch('/scripting/engine/bin/.editor/engine-adapter.js');
+				    // const engineCode = await engineResponse.text();
+				    // const engineBlob = new Blob([engineCode], { type: 'application/javascript' });
+				    // const engineBlobUrl = URL.createObjectURL(engineBlob);
+				    // await import(engineBlobUrl);
+				    // URL.revokeObjectURL(engineBlobUrl);
+				    // ---- hack creator 使用的一些 engine 参数
+				    await Promise.resolve().then(() => __importStar(requireEngine()));
+				    // overwrite
+				    const overwrite = await Promise.resolve().then(() => __importStar(requireOverwrite()));
+				    const handle = overwrite.default || overwrite;
+				    if (typeof handle === 'function') {
+				        handle(cc);
+				    }
+				    globalThis.cce = globalThis.cce || {};
+				    globalThis.cce.Script = decorator_1.Service.Script;
+				    if (EditorExtends.init) {
+				        await EditorExtends.init();
+				    }
+				    // await (globalThis as any).System.import('cc');
+				    cc.physics.selector.runInEditor = true;
+				    await cc.game.init(defaultConfig);
+				    let backend = 'builtin';
+				    const Backends = {
+				        'physics-cannon': 'cannon.js',
+				        'physics-ammo': 'bullet',
+				        'physics-builtin': 'builtin',
+				        'physics-physx': 'physx',
+				    };
+				    modules.forEach((m) => {
+				        if (m in Backends) {
+				            backend = Backends[m];
+				        }
+				    });
+				    // 切换物理引擎
+				    cc.physics.selector.switchTo(backend);
+				    cc.view.setDesignResolutionSize(1920, 1080, cc.ResolutionPolicy.SHOW_ALL);
+				    await cc.game.run(async () => {
+				        cc.game.pause();
+				        const json = startScene;
+				        // load scene
+				        cc.assetManager.loadWithJson(json, { assetId: json[1]._id }, 
+				        // 进度条
+				        (completedCount, totalCount) => {
+				            //
+				        }, (error, sceneAsset) => {
+				            if (error) {
+				                cc.error(error);
+				                return;
+				            }
+				            const scene = sceneAsset.scene;
+				            scene._name = sceneAsset._name;
+				            cc.director.runSceneImmediate(scene, () => {
+				                cc.game.resume();
+				            });
+				        });
+				    });
+				    await cc.game.resume();
+				}
+				
+			} (previewBridge$1));
+
+			var previewBridge = /*@__PURE__*/getDefaultExportFromCjs(previewBridge$1);
+
+			var Bridge = /*#__PURE__*/_mergeNamespaces({
+				__proto__: null,
+				'default': previewBridge
+			}, [previewBridge$1]);
+
+			const { startup, serviceManager, EditorExtends: EditorExtends$1, Service } = Bridge; exports({ startup: startup, serviceManager: serviceManager, EditorExtends: EditorExtends$1, Service: Service });
 
 		})
 	};

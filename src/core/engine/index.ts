@@ -358,7 +358,7 @@ class EngineManager implements IEngine {
         return this;
     }
 
-    async getDefaultConfig(serverURL: string, importBase: string, nativeBase: string) {
+    async getPreviewConfig(serverURL: string, importBase: string, nativeBase: string) {
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality } = this.getConfig();
         const bundles = assetManager.queryAssets({ isBundle: true }).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
         const builtinAssets = serverURL && await this.queryInternalAssetList(this.getInfo().typescript.path);
@@ -385,7 +385,7 @@ class EngineManager implements IEngine {
                     exactFitScreen: true,
                 },
                 rendering: {
-                    renderMode: 3,
+                    renderMode: 2,
                     highQualityMode: highQuality,
                 },
                 physics: {

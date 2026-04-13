@@ -8,11 +8,7 @@ const path = require('path');
 async function buildSceneBundle() {
     const workspaceDir = path.join(__dirname, '..');
     const sceneProcessDir = path.join(workspaceDir, 'dist', 'core', 'scene', 'scene-process').replace(/\\/g, '/');
-    const serviceDir = path.join(sceneProcessDir, 'service').replace(/\\/g, '/');
-    const indexFile = path.join(serviceDir, 'index.js').replace(/\\/g, '/');
-    const managerFile = path.join(serviceDir, 'service-manager.js').replace(/\\/g, '/');
-    const decoratorFile = path.join(serviceDir, 'core', 'decorator.js').replace(/\\/g, '/');
-    const editorExtendsFile = path.join(workspaceDir, 'dist', 'core', 'engine', 'editor-extends', 'index.js').replace(/\\/g, '/');
+    const previewBridgeFile = path.join(sceneProcessDir, 'preview-bridge.js').replace(/\\/g, '/');
 
     console.log('[Build] Bundling scene services for preview...');
 
@@ -25,113 +21,10 @@ async function buildSceneBundle() {
         plugins: [
             json(),
             virtual({
-                'setup-globals': `
-                    import * as EditorExtendsLocalImport from '${editorExtendsFile}';
-                    const EditorExtendsLocal = { ...EditorExtendsLocalImport };
-                    if (EditorExtendsLocal.UuidUtils) {
-                        const U = EditorExtendsLocal.UuidUtils;
-                        U.decompressUuid = U.decompressUuid || U.decompressUUID;
-                        U.compressUuid = U.compressUuid || U.compressUUID;
-                        U.isUuid = U.isUuid || U.isUUID;
-                    }
-                    globalThis.EditorExtends = EditorExtendsLocal;
-                    export { EditorExtendsLocal };
-                `,
                 entry: `
-                    import { EditorExtendsLocal as EditorExtends } from 'setup-globals';
-                    import { serviceManager } from '${managerFile}';
-                    import { Service as DecoratorService } from '${decoratorFile}';
-                    import '${indexFile}';
-
-                    export { serviceManager, EditorExtends };
-                    export const Service = DecoratorService;
-
-                    export async function startup(options) {
-                        const { enginePath, projectPath, serverURL, defaultConfig, modules } = options;
-                        
-                        if (typeof window !== 'undefined') {
-                            window.__CC_PROJECT_PATH__ = projectPath;
-                        }
-                        serviceManager.initialize(serverURL);
-
-                        const requiredModules = [
-                                                    'cc',
-                                                    'cc/editor/populate-internal-constants',
-                                                    'cc/editor/serialization',
-                                                    'cc/editor/new-gen-anim',
-                                                    'cc/editor/embedded-player',
-                                                    'cc/editor/reflection-probe',
-                                                    'cc/editor/lod-group-utils',
-                                                    'cc/editor/material',
-                                                    'cc/editor/2d-misc',
-                                                    'cc/editor/offline-mappings',
-                                                    'cc/editor/custom-pipeline',
-                                                    'cc/editor/animation-clip-migration',
-                                                    'cc/editor/exotic-animation',
-                                                    'cc/editor/color-utils',
-                                                ];
-                        // IMPORTANT: We must NOT use import() here because Rollup's
-                        // resolveId hook aliases cc/editor/* to a cc re-export stub,
-                        // which means the real engine side-effect modules never load
-                        // (e.g. cc.deserialize._macros never gets populated).
-                        //
-                        // We also cannot use System.import() directly because it lacks
-                        // the correct parentURL context for import-map resolution.
-                        //
-                        // Solution: use __moduleImport(id), a placeholder that the
-                        // renderChunk plugin replaces with module.import(id) — the
-                        // SystemJS module-scoped import that has the right resolution
-                        // context and bypasses Rollup's resolveId entirely.
-                        for (const mod of requiredModules) {
-                            try {
-                                await __moduleImport(mod);
-                            } catch (e) {
-                                console.error('Failed to load engine module:', mod, 'e:', e);
-                            }
-                        }
-
-                        const baseUrl = import.meta.url.substring(0, import.meta.url.lastIndexOf('/static/preview'));
-                        const webAdapter = new URL('/scripting/engine/bin/.editor/web-adapter.js', baseUrl).href;
-                       // await import(webAdapter);
-                        const engineAdapter = new URL('/scripting/engine/bin/.editor/engine-adapter.js', baseUrl).href;
-                       // await import(engineAdapter);
-
-                        // EditorExtends is already on globalThis now
-                        if (EditorExtends.UuidUtils) {
-                            EditorExtends.UuidUtils.compressUuid = EditorExtends.UuidUtils.compressUUID;
-                        }
-                        globalThis.cce = globalThis.cce || {};
-                        globalThis.cce.Script = DecoratorService.Script;
-
-                       // await DecoratorService.Engine.init();
-                        if (EditorExtends.init) {
-                            await EditorExtends.init();
-                        }
-
-                        await System.import('cc');
-                        cc.physics.selector.runInEditor = true;
-                        await cc.game.init(defaultConfig);
-                        
-                        let backend = 'builtin';
-                        const Backends = {
-                            'physics-cannon': 'cannon.js',
-                            'physics-ammo': 'bullet',
-                            'physics-builtin': 'builtin',
-                            'physics-physx': 'physx',
-                        };
-                        modules.forEach((m) => {
-                            if (m in Backends) {
-                                backend = Backends[m];
-                            }
-                        });
-
-                        // 切换物理引擎
-                        cc.physics.selector.switchTo(backend);
-
-                        await cc.game.run(async () => {
-                            cc.game.pause();
-                        });
-                    }
+                    import * as Bridge from '${previewBridgeFile}';
+                    const { startup, serviceManager, EditorExtends, Service } = Bridge;
+                    export { startup, serviceManager, EditorExtends, Service };
                 `
             }),
             {

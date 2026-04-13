@@ -285,7 +285,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
                 const res = await fetch(`${serverUrl}/assetManager/querySortedPlugins`);
                 if (res.ok) {
                     const pluginScripts = await res.json();
-                    this._executor.setPluginScripts(pluginScripts);
+                    this._executor.setPluginScripts(pluginScripts || []);
                 } else {
                     this._executor.setPluginScripts([]);
                 }

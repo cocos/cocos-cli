@@ -49,6 +49,39 @@ export default {
             },
         },
         {
+            url: '/query-asset-infos/:cctype',
+            async handler(req: Request, res: Response) {
+                const ccType = req.params.cctype;
+                const { assetManager } = await import('../assets');
+                const assetInfos = assetManager.queryAssetInfos({ ccType });
+                if (assetInfos) {
+                    res.status(200).json(assetInfos);
+                } else {
+                    res.status(404).json({ error: 'Asset not found', ccType });
+                }
+            },
+        },
+        {
+            url: '/scene/:uuid.json',
+            async handler(req: Request, res: Response, next: NextFunction) {
+                const scene_uuid = req.params.uuid;
+                const { assetManager } = await import('../assets');
+                const assetInfo = assetManager.queryAssetInfo(scene_uuid);
+                if (assetInfo && assetInfo.library['.json']) {
+                    const filepath = assetInfo.library['.json'];
+                    if (filepath) {
+                        res.sendFile(filepath);
+                    }
+                    else {
+                        return next(new Error(`Scene not found: ${scene_uuid}`));
+                    }
+                }
+                else {
+                    return next(new Error(`Scene not found: ${scene_uuid}`));
+                }
+            },
+        },
+        {
             // Serve library assets by UUID - try asset database first,
             // then fall back to library directories on disk
             url: '/:dir/:uuid/:nativeName.:ext',
