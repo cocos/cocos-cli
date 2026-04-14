@@ -1,8 +1,9 @@
 import { ProcessRPC } from '../process-rpc';
+import { FetchRPC } from './fetch-rpc';
 import type { IMainModule } from '../main-process';
 
 export class RpcProxy {
-    private rpcInstance: ProcessRPC<IMainModule> | null = null;
+    private rpcInstance: ProcessRPC<IMainModule> | FetchRPC<IMainModule> | null = null;
 
     public getInstance() {
         if (!this.rpcInstance) {
@@ -11,14 +12,30 @@ export class RpcProxy {
         return this.rpcInstance;
     }
 
-    async startup() {
+    async startup(serverURL?: string) {
         // 在创建新实例前，先清理旧实例，防止内存泄漏
         this.dispose();
-        this.rpcInstance = new ProcessRPC<IMainModule>();
-        this.rpcInstance.attach(process);
-        const { Service } = await import('./service/core/decorator');
-        this.rpcInstance.register(Service);
+        const baseURL = serverURL || this._inferBaseURL();
+        const isNode = typeof process !== 'undefined' && !!process.versions?.node;
+        if (isNode) {
+            this.rpcInstance = new FetchRPC<IMainModule>(baseURL);
+        }
+        else {
+            this.rpcInstance = new ProcessRPC<IMainModule>();
+            const { Service } = await import('./service/core/decorator');
+            this.rpcInstance.register(Service);
+        }
         console.log('[Scene] Scene Process RPC ready');
+    }
+
+    /**
+     * 从当前页面 URL 推断 API 基地址
+     */
+    private _inferBaseURL(): string {
+        if (typeof location !== 'undefined') {
+            return location.origin;
+        }
+        return 'http://localhost:3000';
     }
 
     /**

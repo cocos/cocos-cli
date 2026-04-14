@@ -166,9 +166,14 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             importExceptionHandler: (...args) => this._handleImportException(...args),
             cceModuleMap,
         });
-        // eslint-disable-next-line no-undef
-        globalThis.self = window;
-        this._executor.addPolyfillFile(require.resolve('@cocos/build-polyfills/prebuilt/editor/bundle'));
+        // Web 改造：
+        // - 移除 globalThis.self = window（Web 环境中 self 已自动指向 window 或 WorkerGlobalScope）
+        // - require.resolve 替换为构建时注入的常量或动态路径
+        //   若使用 bundler（如 vite/webpack），可通过 define 插件注入 __POLYFILL_BUNDLE_URL__
+        const polyfillUrl = typeof __POLYFILL_BUNDLE_URL__ !== 'undefined'
+            ? __POLYFILL_BUNDLE_URL__
+            : '@cocos/build-polyfills/prebuilt/editor/bundle';
+        this._executor.addPolyfillFile(polyfillUrl);
         // 同步插件脚本列表
         await this._syncPluginScripts.nextIteration();
         // 重载项目与插件脚本

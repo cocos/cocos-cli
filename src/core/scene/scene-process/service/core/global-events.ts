@@ -1,14 +1,71 @@
-import { EventEmitter } from 'events';
-import { SceneProcessEventTag } from '../../../common';
+/**
+ * 纯 JS 实现的轻量 EventEmitter，替代 Node.js 的 EventEmitter
+ * 在浏览器/Worker 环境中无需依赖 Node 'events' 模块
+ */
+class SimpleEventEmitter {
+    private _listeners = new Map<string, Set<(...args: any[]) => void>>();
+
+    on(event: string, listener: (...args: any[]) => void): void {
+        if (!this._listeners.has(event)) {
+            this._listeners.set(event, new Set());
+        }
+        this._listeners.get(event)!.add(listener);
+    }
+
+    once(event: string, listener: (...args: any[]) => void): void {
+        const wrapper = (...args: any[]) => {
+            this.off(event, wrapper);
+            listener(...args);
+        };
+        (wrapper as any)._original = listener;
+        this.on(event, wrapper);
+    }
+
+    off(event: string, listener: (...args: any[]) => void): void {
+        const set = this._listeners.get(event);
+        if (!set) return;
+        // 直接移除
+        if (set.delete(listener)) return;
+        // 尝试移除 once 包装
+        for (const fn of set) {
+            if ((fn as any)._original === listener) {
+                set.delete(fn);
+                return;
+            }
+        }
+    }
+
+    emit(event: string, ...args: any[]): void {
+        const set = this._listeners.get(event);
+        if (!set) return;
+        for (const listener of set) {
+            listener(...args);
+        }
+    }
+
+    removeAllListeners(event?: string): void {
+        if (event) {
+            this._listeners.delete(event);
+        } else {
+            this._listeners.clear();
+        }
+    }
+}
 
 // 全局共享的 EventEmitter 实例（内部使用，不对外暴露）
-const globalEventEmitter = new EventEmitter();
+const globalEventEmitter = new SimpleEventEmitter();
 
 /**
  * 全局事件管理器
  * 统一管理所有服务的事件监听，支持类型安全的事件订阅
+ *
+ * Fetch 方案改造：
+ * - EventEmitter 替换为纯 JS 实现的 SimpleEventEmitter
+ * - 移除 IMessageTransport 跨线程广播
+ * - broadcast 退化为与 emit 相同的本地事件触发
  */
 class GlobalEventManager {
+
     /**
      * 监听指定类型的事件（类型安全版本）
      * @param event 事件名称
@@ -92,9 +149,14 @@ class GlobalEventManager {
     }
 
     /**
-     * 跨进程广播，传的参数需要能被序列化
-     * @param event 事件名称
-     * @param args 事件参数
+     * 广播事件
+     *
+     * Fetch 方案改造：
+     * - 移除 process.send()（原实现：发送到 Node 父进程）
+     * - 移除 IMessageTransport（Worker 方案的产物，Fetch 方案不需要）
+     * - broadcast 退化为与 emit 相同的本地事件触发
+     *
+     * 如需向服务端推送事件，应由调用方主动 fetch 接口
      */
     broadcast<TEvents extends Record<string, any>>(
         event: keyof TEvents,
@@ -102,15 +164,7 @@ class GlobalEventManager {
     ): void;
     broadcast(event: string, ...args: any[]): void;
     broadcast(event: any, ...args: any[]): void {
-        const message = {
-            type: SceneProcessEventTag,
-            event: event as string,
-            args: [...args]
-        };
         globalEventEmitter.emit(event, ...args);
-        if ('connected' in process) {
-            process.send?.(message);
-        }
     }
 
     /**

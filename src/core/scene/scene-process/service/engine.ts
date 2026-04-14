@@ -14,7 +14,7 @@ const tickTime = 1000 / 60;
  */
 @register('Engine')
 export class EngineService extends BaseService<IEngineEvents> implements IEngineService {
-    private _setTimeoutId: NodeJS.Timeout | null = null;
+    private _setTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private _rafId: number | null = null;
     private _maxDeltaTimeInEM = 1 / 30;
     private _stateRecord = 0; // 记录当前状态
