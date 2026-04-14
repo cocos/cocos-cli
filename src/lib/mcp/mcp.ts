@@ -16,6 +16,7 @@
 
 let mcpUrl: string | undefined;
 let isRunning = false;
+let startingPromise: Promise<string> | undefined;
 
 /**
  * Start the MCP server.
@@ -35,6 +36,20 @@ export async function startServer(port?: number): Promise<string> {
 		return mcpUrl;
 	}
 
+	// Concurrent startup guard: if already starting, wait for the existing promise
+	if (startingPromise) {
+		return startingPromise;
+	}
+
+	startingPromise = doStartServer(port);
+	try {
+		return await startingPromise;
+	} finally {
+		startingPromise = undefined;
+	}
+}
+
+async function doStartServer(port?: number): Promise<string> {
 	// 1. Import API modules to trigger @tool decorators and populate toolRegistry
 	const { CocosAPI } = await import('../../api/index');
 	await CocosAPI.create();
