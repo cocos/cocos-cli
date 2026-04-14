@@ -8,7 +8,7 @@ const path = require('path');
 async function buildSceneBundle() {
     const workspaceDir = path.join(__dirname, '..');
     const sceneProcessDir = path.join(workspaceDir, 'dist', 'core', 'scene', 'scene-process').replace(/\\/g, '/');
-    const bridgeFile = path.join(sceneProcessDir, 'scene-runtime.js').replace(/\\/g, '/');
+    const bridgeFile = path.join(sceneProcessDir, 'engine-bootstrap.js').replace(/\\/g, '/');
 
     console.log('[Build] Bundling scene services for preview...');
 
@@ -32,17 +32,20 @@ async function buildSceneBundle() {
                 resolveId(id) {
                     const stubs = [
                         'fs', 'node:fs', 'fs-extra', 'graceful-fs', 'lodash', 'package.json', '@cocos/asset-db',
-                        'constants', 'stream', 'assert', 'crypto', 'child_process', 'vm', 'buffer', 
-                        'tty', 'zlib', 'http', 'https', 'net', 'tls', 'dns', 'readline', 'punycode', 
+                        'constants', 'stream', 'assert', 'crypto', 'child_process', 'vm', 'buffer',
+                        'tty', 'zlib', 'http', 'https', 'net', 'tls', 'dns', 'readline', 'punycode',
                         'cc/mods-mgr', 'inherits', 'sys', 'url', 'process', 'proper-lockfile'
                     ];
                     if (stubs.includes(id)) {
                         return '\0smart-' + id;
                     }
-                    if (['cc/preload', 'cc/editor/populate-internal-constants', 'cc/editor/serialization', 'cc/env', 'cce.env'].includes(id)) {
+                    if (['cc/preload', 'cc/editor/populate-internal-constants', 'cc/env', 'cce.env'].includes(id)) {
                         return '\0alias-cc-' + id;
                     }
-                    
+                    if (id === 'cc/editor/serialization') {
+                        return '\0alias-cc-editor-serialization';
+                    }
+
                     const polyfills = {
                         events: path.join(workspaceDir, 'node_modules', 'events', 'events.js'),
                         path: path.join(workspaceDir, 'node_modules', 'path-browserify', 'index.js'),
@@ -270,6 +273,38 @@ async function buildSceneBundle() {
                                 }
                             });
                         `;
+                    }
+                    if (id === '\0alias-cc-editor-serialization') {
+                        return [
+                            `import * as cc from 'cc';`,
+                            `function _getInternal() {`,
+                            `    return (cc && cc.internal) || (typeof globalThis !== 'undefined' && globalThis.cc && globalThis.cc.internal) || {};`,
+                            `}`,
+                            `export const BufferBuilder = new Proxy(function() {}, {`,
+                            `    construct(target, args) {`,
+                            `        const C = _getInternal().BufferBuilder;`,
+                            `        if (!C) throw new Error('cc.internal.BufferBuilder is not available. Please ensure engine is correctly compiled.');`,
+                            `        return new C(...args);`,
+                            `    },`,
+                            `    get(target, prop) {`,
+                            `        const C = _getInternal().BufferBuilder;`,
+                            `        return C ? C[prop] : target[prop];`,
+                            `    }`,
+                            `});`,
+                            `export const CCON = new Proxy(function() {}, {`,
+                            `    construct(target, args) {`,
+                            `        const C = _getInternal().CCON;`,
+                            `        if (!C) throw new Error('cc.internal.CCON is not available.');`,
+                            `        return new C(...args);`,
+                            `    },`,
+                            `    get(target, prop) {`,
+                            `        const C = _getInternal().CCON;`,
+                            `        return C ? C[prop] : target[prop];`,
+                            `    }`,
+                            `});`,
+                            `export function encodeCCONBinary(...args) { return _getInternal().encodeCCONBinary(...args); }`,
+                            `export function decodeCCONBinary(...args) { return _getInternal().decodeCCONBinary(...args); }`,
+                        ].join('\n');
                     }
                     if (id.startsWith('\0alias-cc-')) {
                         return `import * as cc from 'cc';\nexport * from 'cc';\nexport default cc;`;

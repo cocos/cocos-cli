@@ -11,6 +11,9 @@ export { walkProperties } from './missing-reporter/object-walker';
 
 import utils from '../../base/utils';
 import EventEmitter from 'events';
+if (!EventEmitter.prototype.off) {
+    EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
+}
 import ScriptManager from './manager/script';
 import NodeManager from './manager/node';
 import ComponentManager from './manager/component';

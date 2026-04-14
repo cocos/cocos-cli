@@ -24,7 +24,6 @@ export default {
                         packImportMapURL: `/scripting/x/${facet.packImportMapURL}`,
                         packResolutionDetailMapURL: `/scripting/x/${facet.packResolutionDetailMapURL}`,
                         engineDistPath: `/scripting/engine/${engineDistRelPath}`,
-                        globalImportMap: await facet.getGlobalImportMap(),
                         projectPath: scripting.projectPath.replace(/\\/g, '/'),
                         enginePath: enginePath.replace(/\\/g, '/'),
                         serverURL: serverBaseUrl
@@ -97,7 +96,7 @@ export default {
             async handler(req: Request, res: Response) {
                 const { getPreviewFacet } = await import('../scripting/programming/FacetInstance');
                 const facet = getPreviewFacet();
-                const importMap = facet.getGlobalImportMap();
+                const importMap = await facet.getGlobalImportMap();
                 console.log(`[Preview Server] Global import map:`, JSON.stringify(importMap, null, 2).substring(0, 500));
                 res.json(importMap);
             },

@@ -10,15 +10,75 @@ window.Editor = {
                 return await fetch(`${currentUrl}/query-asset-info/${uuid}`)
                     .then(function (r) { return r.json(); })
                     .catch(function () { return ''; });
+            } else if (method === 'query-engine-info') {
+                const currentUrl = window.location.origin;
+                return await fetch(`${currentUrl}/engine/query-engine-info`)
+                    .then(function (r) { return r.json(); })
+                    .catch(function () { return ''; });
             }
             return Promise.resolve(null);
         },
     },
 };
 
+if (typeof window.require === 'undefined') {
+    const fsMock = {
+        readFile: function (filePath) {
+            const requestUrl = `${window.location.origin}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
+            return fetch(requestUrl).then(function (res) {
+                if (res.ok) {
+                    return res.arrayBuffer();
+                }
+                throw new Error('Failed to read file: ' + filePath);
+            });
+        },
+        readFileSync: function (filePath) {
+            // 使用同步通信（需要 SharedArrayBuffer）
+            const requestUrl = `${window.location.origin}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
+            
+            // 注意：这需要 Service Worker 支持
+            const channel = new MessageChannel();
+            let result = null;
+            let error = null;
+            
+            // 发送同步请求（实际还是异步，但模拟同步行为）
+            navigator.serviceWorker.controller.postMessage({
+                type: 'SYNC_READ',
+                url: requestUrl
+            }, [channel.port2]);
+            
+            // 阻塞等待（不推荐，但可以实现）
+            channel.port1.onmessage = (event) => {
+                if (event.data.error) {
+                    error = event.data.error;
+                } else {
+                    result = event.data.data;
+                }
+            };
+            
+            // 简单的轮询等待（非常糟糕的做法）
+            const startTime = Date.now();
+            while (result === null && error === null && (Date.now() - startTime) < 5000) {
+                // 阻塞等待
+            }
+            
+            if (error) throw error;
+            return result;
+        }
+    };
+
+    window.require = function (name) {
+        if (name === 'fs' || name === 'fs-extra') {
+            return fsMock;
+        }
+        throw new Error('Module ' + name + ' not found in editor-stub-preload require mock');
+    };
+}
+
 window.EditorExtends = {
     emit: function () { },
     on: function () { },
+    off: function () { },
     removeListener: function () { },
     UuidUtils: {
         uuid: function () { return ''; },
@@ -28,18 +88,54 @@ window.EditorExtends = {
         isUuid: function () { return false; },
     },
     Component: {
+        allow: false,
         addMenu: function () { },
         removeMenu: function () { },
+        getMenus: function () { return []; },
         add: function () { },
         remove: function () { },
+        clear: function () { },
+        getComponent: function () { return null; },
+        getComponentFromPath: function () { return null; },
+        getPathFromUuid: function () { return ''; },
+        getComponents: function () { return {}; },
+        changeUUID: function () { },
+        emit: function () { },
+        on: function () { },
+        off: function () { },
+        removeListener: function () { },
     },
     Node: {
+        allow: false,
         add: function () { },
         remove: function () { },
+        clear: function () { },
+        updateNodeName: function () { },
         getNode: function () { return null; },
+        getNodeByPath: function () { return null; },
+        getNodePath: function () { return ''; },
+        getNodeUuidByPath: function () { return null; },
+        getNodeByPathOrThrow: function () { throw new Error('Not implemented'); },
+        getNodeUuidByPathOrThrow: function () { throw new Error('Not implemented'); },
+        getNodes: function () { return {}; },
+        getNodesByAsset: function () { return []; },
+        getNodesInScene: function () { return {}; },
+        changeNodeUUID: function () { },
         emit: function () { },
+        on: function () { },
+        off: function () { },
+        removeListener: function () { },
     },
-    Script: { allow: false },
+    Script: {
+        allow: false,
+        add: function () { },
+        remove: function () { },
+        getCtors: function () { return []; },
+        emit: function () { },
+        on: function () { },
+        off: function () { },
+        removeListener: function () { },
+    },
     MissingReporter: {
         classInstance: (function () {
             const finder = function (type, data, owner, propName) {

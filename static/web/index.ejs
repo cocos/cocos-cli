@@ -39,98 +39,22 @@
         </div>
     </div>
 
-    <script src="/static/web/polyfills.bundle.js" charset="utf-8"></script>
-    
-    <!-- SystemJS support. -->
-    <script src="/scripting/systemjs/system.js"></script>
-    <script src="/scripting/systemjs/extras/named-register.js"></script>
-
-    <!-- Import map that map the engine feature unit modules. -->
-    <script src="<%= engineDistPath %>/import-map.json" type="systemjs-importmap"></script>
-
-    <!-- Import map that map the entry of project module(s). -->
-    <script type="systemjs-importmap" src="<%= packImportMapURL %>"></script>
-
-    <!-- Import map that map 'cc', 'cc/env'. -->
-    <script type="systemjs-importmap">
-        <%- JSON.stringify(globalImportMap) %>
-    </script>
-    
-    <!-- Setup the detailed resolution. -->
     <script>
-        System.setResolutionDetailMapCallback(function() {
-            var url = new URL('<%=packResolutionDetailMapURL%>', window.location);
-            return fetch(url).then(function (response) {
-                return response.json();
-            }).then(function (json) {
-                return { json, url: url.href };
-            });
-        });
+        window.WebEnv = {
+            serverURL: '<%= serverURL %>',
+            engineDistPath: '<%= engineDistPath %>',
+            packImportMapURL: '<%= packImportMapURL %>',
+            packResolutionDetailMapURL: '<%= packResolutionDetailMapURL %>',
+            enginePath: '<%= enginePath %>',
+            projectPath: '<%= projectPath %>'
+        };
     </script>
-
-    <!-- Set CC_EDITOR before engine loads so that editor-only code paths
-         (e.g. deserialize._macros) are enabled in the preview.
-         Also provide an EditorExtends stub so the engine can reference it
-         during class registration. The real implementation is loaded later
-         by scene-bundle.js and overwrites this stub. -->
-    <script src="/static/web/editor-stub-preload.js"></script>>
-
-    <script src="<%= engineDistPath %>/bundled/index.js"></script>
-
+    <script type="module" src="/static/web/boot.js"></script>
     <script type="module">
-        // Save our resolve hook AND the System instance before scene-bundle overrides them.
-        // scene-bundle replaces globalThis.System with a new instance lacking registerRegistry.
-        const _originalSystem = System;
-
-        (async function() {
-            const serverURL = '<%= serverURL %>';
-
-            try {
-                // Wait for async resolution to settle
-                await new Promise(resolve => setTimeout(resolve, 500));
-                console.log('[Scene] loading scene bundle');
-                const SceneBundle = await System.import('/static/web/scene-bundle.js?t=' + Date.now());
-                const { startup } = SceneBundle;
-
-                // scene-bundle replaces globalThis.System with a new SystemJS
-                // instance that has its own registry, import maps, and closures.
-                // This causes all sorts of problems: registrations go to the
-                // wrong System, getRegister reads the wrong closure, external
-                // modules lose their exports, physics deps don't load, etc.
-                //
-                // Fix: restore the original System. All engine modules were
-                // registered on _originalSystem (via bundled/index.js), all
-                // import maps are on _originalSystem, and its getRegister
-                // closure matches its register. One System = no bridging needed.
-                globalThis.System = _originalSystem;
-
-                const sceneListPromise = await fetch(`${serverURL}/query-asset-infos/cc.SceneAsset`);
-                const sceneList = await sceneListPromise.json();
-                const length = sceneList.length;
-                let sceneUuid = null;
-                for (let i = 0; i < length; i++) {
-                    const source =  sceneList[i].source;
-                    if (source.startsWith('db://internal')) {
-                        continue;
-                    }
-                    sceneUuid =  sceneList[i].uuid;
-                    break;
-                }
-                const startScenePromise = await fetch(`${serverURL}/scene/${sceneUuid}.json`);
-                const startScene = await startScenePromise.json();
-                await startup({
-                    enginePath: '<%= enginePath %>',
-                    projectPath: '<%= projectPath %>',
-                    serverURL: serverURL,
-                    startScene: startScene
-                });
-
-                console.log('Cocos Engine and Scene Services loaded successfully');
-
-            } catch (err) {
-                console.error('Failed to load Cocos Engine or Services:', err.stack || err);
-            }
-        })();
+        window.addEventListener('click', async () => {
+            await import("/static/web/load-scene.js");
+            window.loadScene(WebEnv.serverURL);
+        });
     </script>
 </body>
 </html>

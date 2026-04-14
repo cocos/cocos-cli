@@ -6,6 +6,44 @@ import fse from 'fs-extra';
 export default {
     get: [
         {
+            url: '/engine/read-file-sync',
+            async handler(req: Request, res: Response) {
+                let filePath = req.query.path as string;
+                if (!filePath) {
+                    return res.status(400).send('Path is required');
+                }
+
+                // Normalize path to fix mixed slashes on Windows
+                filePath = path.normalize(filePath);
+
+                if (!(await fse.pathExists(filePath))) {
+                    // Fallback for .wasm.wasm -> .wasm if the double extension file is missing
+                    if (filePath.endsWith('.wasm.wasm')) {
+                        const fallbackPath = filePath.slice(0, -5);
+                        if (await fse.pathExists(fallbackPath)) {
+                            filePath = fallbackPath;
+                        }
+                    }
+                }
+
+                if (await fse.pathExists(filePath)) {
+                    const content = await fse.readFile(filePath);
+                    res.status(200).send(content);
+                } else {
+                    res.status(404).send('File not found: ' + filePath);
+                }
+            }
+        },
+        {
+            // TODO 这里后续需要改引擎 wasm/wasm-nodejs.ts 的写法，改成向服务器请求数据
+            url: '/engine/query-engine-info',
+            async handler(req: Request, res: Response) {
+                const { Engine } = await import('../engine');
+                const engineInfo = Engine.getInfo();
+                res.status(200).send(engineInfo);
+            },
+        },
+        {
             // TODO 这里后续需要改引擎 wasm/wasm-nodejs.ts 的写法，改成向服务器请求数据
             url: '/engine_external/',
             async handler(req: Request, res: Response) {
@@ -23,9 +61,9 @@ export default {
             },
         },
         {
-            url: '/query-extname/:uuid',
+            url: /^\/query-extname\/(.+)$/,
             async handler(req: Request, res: Response) {
-                const uuid = req.params.uuid;
+                const uuid = req.params[0];
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo && assetInfo.library['.bin'] && Object.keys(assetInfo.library).length === 1) {
@@ -36,9 +74,9 @@ export default {
             },
         },
         {
-            url: '/query-asset-info/:uuid',
+            url: /^\/query-asset-info\/(.+)$/,
             async handler(req: Request, res: Response) {
-                const uuid = req.params.uuid;
+                const uuid = req.params[0];
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo) {
@@ -58,26 +96,6 @@ export default {
                     res.status(200).json(assetInfos);
                 } else {
                     res.status(404).json({ error: 'Asset not found', ccType });
-                }
-            },
-        },
-        {
-            url: '/scene/:uuid.json',
-            async handler(req: Request, res: Response, next: NextFunction) {
-                const scene_uuid = req.params.uuid;
-                const { assetManager } = await import('../assets');
-                const assetInfo = assetManager.queryAssetInfo(scene_uuid);
-                if (assetInfo && assetInfo.library['.json']) {
-                    const filepath = assetInfo.library['.json'];
-                    if (filepath) {
-                        res.sendFile(filepath);
-                    }
-                    else {
-                        return next(new Error(`Scene not found: ${scene_uuid}`));
-                    }
-                }
-                else {
-                    return next(new Error(`Scene not found: ${scene_uuid}`));
                 }
             },
         },

@@ -87,7 +87,7 @@ System.register(['cc'], (function (exports) {
 				return a;
 			}
 
-			var sceneRuntime$1 = {};
+			var engineBootstrap$1 = {};
 
 			var editorExtends = {};
 
@@ -4050,12 +4050,43 @@ System.register(['cc'], (function (exports) {
 
 			var builder = {};
 
-			var serialization = /*#__PURE__*/_mergeNamespaces({
-				__proto__: null,
-				'default': require$$0$6
-			}, [require$$0$6]);
+			function _getInternal() {
+			    return (require$$0$6 && require$$0$6.internal) || (typeof globalThis !== 'undefined' && globalThis.cc && globalThis.cc.internal) || {};
+			}
+			const BufferBuilder = new Proxy(function() {}, {
+			    construct(target, args) {
+			        const C = _getInternal().BufferBuilder;
+			        if (!C) throw new Error('cc.internal.BufferBuilder is not available. Please ensure engine is correctly compiled.');
+			        return new C(...args);
+			    },
+			    get(target, prop) {
+			        const C = _getInternal().BufferBuilder;
+			        return C ? C[prop] : target[prop];
+			    }
+			});
+			const CCON = new Proxy(function() {}, {
+			    construct(target, args) {
+			        const C = _getInternal().CCON;
+			        if (!C) throw new Error('cc.internal.CCON is not available.');
+			        return new C(...args);
+			    },
+			    get(target, prop) {
+			        const C = _getInternal().CCON;
+			        return C ? C[prop] : target[prop];
+			    }
+			});
+			function encodeCCONBinary(...args) { return _getInternal().encodeCCONBinary(...args); }
+			function decodeCCONBinary(...args) { return _getInternal().decodeCCONBinary(...args); }
 
-			var require$$1$1 = /*@__PURE__*/getAugmentedNamespace(serialization);
+			var _aliasCcEditorSerialization = /*#__PURE__*/Object.freeze({
+				__proto__: null,
+				BufferBuilder: BufferBuilder,
+				CCON: CCON,
+				encodeCCONBinary: encodeCCONBinary,
+				decodeCCONBinary: decodeCCONBinary
+			});
+
+			var require$$1$1 = /*@__PURE__*/getAugmentedNamespace(_aliasCcEditorSerialization);
 
 			var types = {};
 
@@ -6753,6 +6784,9 @@ System.register(['cc'], (function (exports) {
 				Object.defineProperty(exports, "walkProperties", { enumerable: true, get: function () { return object_walker_1.walkProperties; } });
 				const utils_1 = __importDefault(utils$7);
 				const events_1 = __importDefault(events);
+				if (!events_1.default.prototype.off) {
+				    events_1.default.prototype.off = events_1.default.prototype.removeListener;
+				}
 				const script_1 = __importDefault(script$2);
 				const node_1 = __importDefault(node$3);
 				const component_1 = __importDefault(component$4);
@@ -26581,7 +26615,7 @@ System.register(['cc'], (function (exports) {
 				    const config = await defaultConfig.json();
 				    const modules = await fetch('/scripting/engine/modules');
 				    const features = (await modules.json());
-				    const { projectPath, serverURL, startScene } = options;
+				    const { projectPath, serverURL } = options;
 				    if (typeof window !== 'undefined') {
 				        window.__CC_PROJECT_PATH__ = projectPath;
 				    }
@@ -26648,35 +26682,17 @@ System.register(['cc'], (function (exports) {
 				    cc.view.setDesignResolutionSize(1920, 1080, cc.ResolutionPolicy.SHOW_ALL);
 				    await cc.game.run(async () => {
 				        cc.game.pause();
-				        const json = startScene;
-				        // load scene
-				        cc.assetManager.loadWithJson(json, { assetId: json[1]._id }, 
-				        // 进度条
-				        (completedCount, totalCount) => {
-				            //
-				        }, (error, sceneAsset) => {
-				            if (error) {
-				                cc.error(error);
-				                return;
-				            }
-				            const scene = sceneAsset.scene;
-				            scene._name = sceneAsset._name;
-				            cc.director.runSceneImmediate(scene, () => {
-				                cc.game.resume();
-				            });
-				        });
 				    });
-				    await cc.game.resume();
 				}
 				
-			} (sceneRuntime$1));
+			} (engineBootstrap$1));
 
-			var sceneRuntime = /*@__PURE__*/getDefaultExportFromCjs(sceneRuntime$1);
+			var engineBootstrap = /*@__PURE__*/getDefaultExportFromCjs(engineBootstrap$1);
 
 			var Bridge = /*#__PURE__*/_mergeNamespaces({
 				__proto__: null,
-				'default': sceneRuntime
-			}, [sceneRuntime$1]);
+				'default': engineBootstrap
+			}, [engineBootstrap$1]);
 
 			const { startup, serviceManager, EditorExtends: EditorExtends$1, Service } = Bridge; exports({ startup: startup, serviceManager: serviceManager, EditorExtends: EditorExtends$1, Service: Service });
 

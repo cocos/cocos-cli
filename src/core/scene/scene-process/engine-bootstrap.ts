@@ -20,16 +20,14 @@ export const Service = DecoratorService;
 declare const cc: any;
 
 export async function startup(options: {
-    enginePath: string;
     projectPath: string;
     serverURL: string;
-    startScene: any;
 }) {
     const defaultConfig = await fetch('/scripting/engine/game-config');
     const config = await defaultConfig.json();
     const modules = await fetch('/scripting/engine/modules');
     const features = (await modules.json()) as string[];
-    const { projectPath, serverURL, startScene } = options;
+    const { projectPath, serverURL } = options;
 
     if (typeof window !== 'undefined') {
         (window as any).__CC_PROJECT_PATH__ = projectPath;
@@ -105,23 +103,5 @@ export async function startup(options: {
 
     await cc.game.run(async () => {
         cc.game.pause();
-        const json = startScene;
-        // load scene
-        cc.assetManager.loadWithJson(json, { assetId: json[1]._id },
-            // 进度条
-            (completedCount: number, totalCount: number) => {
-                //
-            }, (error: Error | null, sceneAsset: any) => {
-                if (error) {
-                    cc.error(error);
-                    return;
-                }
-                const scene = sceneAsset.scene;
-                scene._name = sceneAsset._name;
-                cc.director.runSceneImmediate(scene, () => {
-                    cc.game.resume();
-                });
-            });
     });
-    await cc.game.resume();
 }
