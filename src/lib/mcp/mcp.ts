@@ -4,42 +4,46 @@
  *--------------------------------------------------------------------------------------------*/
 
 /**
- * MCP 服务器 Facade 模块
+ * MCP Server Facade Module
  *
- * 供 cocos-code 的 utility process 调用，在已初始化的环境中启动 MCP 服务器。
- * 前提条件：core 模块（project/engine/assets/scripting/builder）已经通过各自的 lib 模块初始化完毕。
- * 本模块只做 MCP 特有的工作：填充 toolRegistry + 启动 Express + 注册 MCP 路由。
+ * Called by the cocos-code utility process to start the MCP server
+ * in an already-initialized environment.
+ * Prerequisite: core modules (project/engine/assets/scripting/builder)
+ * have been initialized via their respective lib modules.
+ * This module only handles MCP-specific work: populating the toolRegistry,
+ * starting Express, and registering MCP routes.
  */
 
 let mcpUrl: string | undefined;
 let isRunning = false;
 
 /**
- * 启动 MCP 服务器
+ * Start the MCP server.
  *
- * 注意：不调用 CocosAPI.startup() / Launcher，因为 core 模块已由 utility process 初始化。
- * 仅完成：
- * 1. 导入 API 模块以填充 toolRegistry（@tool 装饰器副作用）
- * 2. 启动 Express HTTP 服务器
- * 3. 创建 McpMiddleware 并注册路由
+ * Note: does NOT call CocosAPI.startup() / Launcher because
+ * core modules are already initialized by the utility process.
+ * This function only:
+ * 1. Imports API modules to populate the toolRegistry (@tool decorator side-effects)
+ * 2. Starts the Express HTTP server
+ * 3. Creates McpMiddleware and registers routes
  *
- * @param port 可选端口号，默认自动选取
- * @returns MCP 服务器 URL（如 http://localhost:9527/mcp）
+ * @param port Optional port number; auto-selected if omitted
+ * @returns MCP server URL (e.g. http://localhost:9527/mcp)
  */
 export async function startServer(port?: number): Promise<string> {
 	if (isRunning && mcpUrl) {
 		return mcpUrl;
 	}
 
-	// 1. 导入 API 模块，触发 @tool 装饰器填充 toolRegistry
+	// 1. Import API modules to trigger @tool decorators and populate toolRegistry
 	const { CocosAPI } = await import('../../api/index');
 	await CocosAPI.create();
 
-	// 2. 启动 Express HTTP 服务器
+	// 2. Start the Express HTTP server
 	const { serverService } = await import('../../server/server');
 	await serverService.start(port);
 
-	// 3. 创建 MCP 中间件并注册路由
+	// 3. Create MCP middleware and register routes
 	const { McpMiddleware } = await import('../../mcp/mcp.middleware');
 	const middleware = new McpMiddleware();
 	serverService.register('mcp', middleware.getMiddlewareContribution());
@@ -52,7 +56,7 @@ export async function startServer(port?: number): Promise<string> {
 }
 
 /**
- * 停止 MCP 服务器
+ * Stop the MCP server.
  */
 export async function stopServer(): Promise<void> {
 	if (!isRunning) {
@@ -68,7 +72,7 @@ export async function stopServer(): Promise<void> {
 }
 
 /**
- * 查询 MCP 服务器状态
+ * Get the MCP server status.
  */
 export function getStatus(): { running: boolean; url?: string } {
 	return { running: isRunning, url: mcpUrl };
