@@ -5,8 +5,14 @@ export * from './common';
 export * from './main-process';
 export { sceneConfigInstance };
 
-import { middlewareService } from '../../server/middleware/core';
+import { middlewareService } from '../../server/middleware';
 import SceneMiddleware from './scene.middleware';
+
+export async function init() {
+    middlewareService.register('Scene', SceneMiddleware);
+    // 场景配置初始化
+    await sceneConfigInstance.init();
+}
 
 /**
  * 启动场景
@@ -14,9 +20,7 @@ import SceneMiddleware from './scene.middleware';
  * @param projectPath 项目目录
  */
 export async function startupScene(enginePath: string, projectPath: string) {
-    middlewareService.register('Scene', SceneMiddleware);
-    // 场景配置初始化
-    await sceneConfigInstance.init();
+    await init();
     // 启动场景进程
     const { sceneWorker } = await import('./main-process/scene-worker');
     await sceneWorker.start(enginePath, projectPath);

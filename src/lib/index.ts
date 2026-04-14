@@ -4,5 +4,6 @@ export * as Configuration from './configuration/configuration';
 export * as Engine from './engine/engine';
 export * as Mcp from './mcp/mcp';
 export * as Project from './project/project';
+export * as Scene from './scene/scene';
 export * as Scripting from './scripting/scripting';
 
