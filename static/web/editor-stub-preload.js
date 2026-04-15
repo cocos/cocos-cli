@@ -52,11 +52,35 @@ if (typeof window.require === 'undefined') {
     };
 
     window.require = function (name) {
+        if (window.require.cache[name]) {
+            return window.require.cache[name].exports;
+        }
+
         if (name === 'fs' || name === 'fs-extra') {
             return fsMock;
         }
+
+        if (name.endsWith('.js') || name.includes('\\') || name.includes('/')) {
+            try {
+                const buf = fsMock.readFileSync(name);
+                const decoder = new TextDecoder('utf-8');
+                const content = decoder.decode(buf);
+                const module = { exports: {} };
+                const wrapper = new Function('exports', 'require', 'module', '__filename', '__dirname', content);
+                
+                const dirname = name.includes('\\') ? name.substring(0, name.lastIndexOf('\\')) : name.substring(0, name.lastIndexOf('/'));
+                wrapper(module.exports, window.require, module, name, dirname);
+                
+                window.require.cache[name] = module;
+                return module.exports;
+            } catch (e) {
+                throw new Error('Failed to require dynamically ' + name + ': ' + e.message);
+            }
+        }
+
         throw new Error('Module ' + name + ' not found in editor-stub-preload require mock');
     };
+    window.require.cache = {};
 }
 
 window.EditorExtends = {

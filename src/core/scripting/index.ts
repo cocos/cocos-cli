@@ -228,7 +228,7 @@ class ScriptManager {
                 console.error('Failed to init executor');
                 return;
             }
-            executor.setPluginScripts(pluginScripts);
+            executor.setPluginScripts(pluginScripts || []);
             await executor.reload();
         });
     }

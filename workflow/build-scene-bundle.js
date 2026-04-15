@@ -330,7 +330,9 @@ async function buildSceneBundle() {
                 preferBuiltins: true,
                 browser: true,
             }),
-            commonjs(),
+            commonjs({
+                ignoreDynamicRequires: true
+            }),
         ],
     });
 
