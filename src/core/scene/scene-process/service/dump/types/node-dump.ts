@@ -11,10 +11,10 @@ class NodeDump implements DumpInterface {
             uuid: object ? object.uuid || '' : '',
         };
 
-        // // 当 default 为 Node 的时候，无法生成虚假的 Node，所以 default 重置为 null
-        // if (data.default) {
-        //     data.default = null;
-        // }
+        // 当 default 为 Node 的时候，无法生成虚假的 Node，所以 default 重置为 null
+        if (data.default) {
+            data.default = null;
+        }
     }
 
     public decode(data: any, info: any, dump: any, opts?: any): void {

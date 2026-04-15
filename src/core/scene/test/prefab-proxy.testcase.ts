@@ -12,7 +12,8 @@ import type {
     ICreateByNodeTypeParams,
     ICreateByAssetParams,
     INode,
-    IPrefabInfo
+    IPrefabInfo,
+    IComponent
 } from '../common';
 import { NodeType } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
@@ -314,8 +315,8 @@ describe('Prefab Proxy In Scene 测试', () => {
                 expect(path).toBeTruthy();
 
                 const component = await ComponentProxy.queryComponent({
-                    path: path,
-                });
+                    pathOrUuidOrUrl: path,
+                }) as IComponent;
 
                 expect(prefabInstanceNode).toBeTruthy();
                 expect(component?.properties.contentSize.value).toEqual(contentSize);
@@ -558,9 +559,9 @@ describe('Prefab Proxy In Scene 测试', () => {
             const prefabNodePath = prefabNode.path;
 
             // 查询节点及其子节点，确认子节点存在（创建预制体后，父节点名称已改变，子节点 path 也会改变）
-            const beforeRevertQuery = await NodeProxy.queryNode({ 
-                path: prefabNodePath, 
-                queryChildren: true ,
+            const beforeRevertQuery = await NodeProxy.queryNode({
+                path: prefabNodePath,
+                queryChildren: true,
                 queryComponent: false
             });
             expect(beforeRevertQuery).toBeTruthy();
@@ -599,8 +600,8 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(revertResult).toBe(true);
 
             // 查询节点及其子节点，验证子节点的 path 保持不变
-            const afterRevertQuery = await NodeProxy.queryNode({ 
-                path: prefabNodePath, 
+            const afterRevertQuery = await NodeProxy.queryNode({
+                path: prefabNodePath,
                 queryChildren: true,
                 queryComponent: false
             });

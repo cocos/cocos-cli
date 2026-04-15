@@ -49,8 +49,11 @@ class AssetDump implements DumpInterface {
         } else {
             // TODO: 这是 Hack 做法，避开类似 uuid = 'ui-sprite-material' 资源加载失败的报错
             if (!dump.value || !dump.value.uuid || dump.value.uuid.startsWith('ui-')) {
-                //data[info.key] = null;
-                throw new Error(`The UUID is empty or starts with '-ui'`);
+                if (opts?.suppressError != undefined && opts?.suppressError == true) {
+                    data[info.key] = null;
+                } else {
+                    throw new Error(`The UUID is empty or starts with '-ui'`);
+                }
             } else {
                 const asset = await new Promise((resolve) => {
                     cc.assetManager.loadAny(dump.value.uuid, (error: any, asset: any) => {
@@ -64,8 +67,15 @@ class AssetDump implements DumpInterface {
                 if (asset) {
                     data[info.key] = asset;
                 } else {
-                    console.error(`Failed to load asset using the UUID:${dump.value.uuid}`);
-                    throw new Error(`Failed to load asset using the UUID:${dump.value.uuid}`);
+                    if (opts?.suppressError != undefined && opts?.suppressError == true) {
+                        // @ts-ignore
+                        const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
+                        placeHolder.initDefault();
+                        data[info.key] = placeHolder;
+                    } else {
+                        console.error(`Failed to load asset using the UUID:${dump.value.uuid}`);
+                        throw new Error(`Failed to load asset using the UUID:${dump.value.uuid}`);
+                    }
                 }
             }
         }

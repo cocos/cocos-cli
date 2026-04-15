@@ -8,6 +8,7 @@ import lodash from 'lodash';
 const { get, set } = lodash;
 import { DumpDefines } from './dump-defines';
 import { Component, editorExtrasTag, Node, Vec3, MobilityMode } from 'cc';
+import { openSync } from 'fs';
 const NodeMgr = EditorExtends.Node;
 
 // 还原mountedRoot
@@ -41,13 +42,14 @@ async function _decodeByType(type: string, node: any, info: any, dump: any, opts
 
     return false;
 }
+
 /**
  * 解码一个 dump 补丁到指定的 node 上
  * @param path
  * @param dump
  * @param node
  */
-export async function decodePatch(path: string, dump: any, node: any) {
+export async function decodePatch(path: string, dump: any, node: any, forPink: boolean = false) {
     // 将 dump path 转成实际的 node search path
     const info = parsingPath(path, node);
     const parentInfo = parsingPath(info.search, node);
@@ -74,6 +76,11 @@ export async function decodePatch(path: string, dump: any, node: any) {
         // 只对 json 格式处理，array 等其他数据放行
         // 判断属性是否为 readonly,是则跳过还原步骤
         let propertyConfig: any = Object.getOwnPropertyDescriptor(data, info.key);
+        // TODO(qgh): 暂时不支持原生场景
+        // 原生场景下时取不到对象的属性情况时，需要尝试获取取对象的__proto__才能获取到jsb中定义的属性情况
+        // if (window.isSceneNative && propertyConfig === undefined) {
+        //     propertyConfig = Object.getOwnPropertyDescriptor(data.__proto__, info.key);
+        // }
         if (propertyConfig === undefined) {
             // 原型链上的判断
             propertyConfig = cc.Class.attr(data, info.key);
@@ -133,11 +140,16 @@ export async function decodePatch(path: string, dump: any, node: any) {
                  * 如果后续发现真的有一些场景需要请修改本条注释
                  */
                 arrayValue[i] = ccClassAttrPropertyDefaultValue(attr);
-                const dumpItem = {
-                    type: dump.type,
-                    value: dump.value[i]
-                };
-                await decodePatch(`${i}`, dumpItem, arrayValue);
+                if (!forPink) {
+                    // 这是针对cli的特殊处理
+                    const dumpItem = {
+                        type: dump.type,
+                        value: dump.value[i]
+                    };
+                    await decodePatch(`${i}`, dumpItem, arrayValue, forPink);
+                } else {
+                    await decodePatch(`${i}`, dump.value[i], arrayValue, forPink);
+                }
             }
 
             data[info.key] = arrayValue;
@@ -147,6 +159,9 @@ export async function decodePatch(path: string, dump: any, node: any) {
     } else {
         const opts: any = {};
         opts.ccType = ccType;
+        if (forPink) {
+            opts.suppressError = true;
+        }
         // 特殊属性
         if (info.key in nodeSpecialPropertyDefaultValue) {
             setNodeSpecialProperty(node, info.key, dump.value);
@@ -182,7 +197,7 @@ export async function decodePatch(path: string, dump: any, node: any) {
                     const key = ccType.__props__[i];
                     const item = dump.value[key];
                     if (item) {
-                        await decodePatch(`${path}.${key}`, item, node);
+                        await decodePatch(`${path}.${key}`, item, node, forPink);
                     }
                 }
             } else if (dump.value === null) {
@@ -194,7 +209,7 @@ export async function decodePatch(path: string, dump: any, node: any) {
                         continue;
                     }
 
-                    await decodePatch(key, dump.value[key], data[info.key]);
+                    await decodePatch(key, dump.value[key], data[info.key], forPink);
                 }
             } else {
                 data[info.key] = dump.value;
@@ -202,7 +217,9 @@ export async function decodePatch(path: string, dump: any, node: any) {
         }
     }
 
-    info.search && set(node, info.search, data);
+    if (info.search) {
+        set(node, info.search, data);
+    }
     if (parentInfo && parentInfo.search) {
         const data = get(node, parentInfo.search);
         // 对组件下的自定义类型进行还原时，可能存在没有setter的情况

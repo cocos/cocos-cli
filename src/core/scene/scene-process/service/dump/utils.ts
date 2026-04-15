@@ -80,7 +80,7 @@ export function parsingPath(path: string, data: any) {
     };
 }
 
-function walkProps(obj: any, property: any, path: string): string|undefined {
+function walkProps(obj: any, property: any, path: string): string | undefined {
     const props = obj?.constructor?.__props__;
     if (props) {
         for (const key of props) {
@@ -95,10 +95,10 @@ function walkProps(obj: any, property: any, path: string): string|undefined {
 
 // 这个路径如何获取都是个问题
 // 将某个属性转化成对应的dump的路径，主要得解决自定义类型里的数据
-export function generatePath(node: Node, comp: Component|null, property: string, value: any): string {
+export function generatePath(node: Node, comp: Component | null, property: string, value: any): string {
     // @ts-ignore
     const props = node.constructor.__props__;
-    
+
     // @ts-ignore
     if (props.includes(property) && node[property] === value) {
         return property;// 访问的是node的直接节点
@@ -111,7 +111,7 @@ export function generatePath(node: Node, comp: Component|null, property: string,
         // @ts-ignore
         if (node[key] === property) {
             // paths.push(key);
-            
+
         }
     }
     for (let index = 0; index < node.components.length; index++) {

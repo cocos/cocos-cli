@@ -17,7 +17,7 @@ import {
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { Scene, ISetPropertyOptions } from '../../core/scene';
+import { Scene, ISetPropertyOptions, IComponent } from '../../core/scene';
 
 export class ComponentApi {
 
@@ -30,7 +30,7 @@ export class ComponentApi {
     @result(SchemaComponentResult)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
-            const component = await Scene.addComponent({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
+            const component = await Scene.addComponent({ nodePathOrUuid: addComponentInfo.nodePath, component: addComponentInfo.componentNameOrUuidOrUrl });
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: component
@@ -76,11 +76,11 @@ export class ComponentApi {
         try {
             const componentInfo = await Scene.queryComponent(component);
             if (!componentInfo) {
-                throw new Error(`component not fount at path ${component.path}`);
+                throw new Error(`component not found: ${component.pathOrUuidOrUrl}`);
             }
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: componentInfo
+                data: componentInfo as IComponent
             };
         } catch (e) {
             return {

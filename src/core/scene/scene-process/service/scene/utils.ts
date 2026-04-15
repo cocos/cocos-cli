@@ -211,7 +211,7 @@ class SceneUtil {
                         if (!path) throw Error('can not find component:`${component.uuid}`');
                         const comp = compMgr.queryFromPath(path);
                         if (!comp) throw Error('can not find component path: `${path}`');
-                        return dumpUtil.dumpComponent(comp as Component);
+                        return dumpUtil.dumpComponent(comp as Component) as IComponent;
                     } else {
                         const obj = this.generateComponentInfo(component) as IComponent;
                         return obj;

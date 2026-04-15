@@ -326,7 +326,7 @@ class ComponentOperation {
     }
 
     public async cloneComponentToNode(node: Node, clonedComp: Component) {
-        const copyCompDump = dumpUtil.dumpComponent(clonedComp);
+        const copyCompDump = dumpUtil.dumpComponentForPinK(clonedComp);
         // 不要同步_objFlags，否则因为没有onEnable的标记会导致onDisable不被调用
         // delete copyCompDump.value._objFlags;
         const newComp = node.addComponent(js.getClassName(clonedComp));
@@ -512,7 +512,7 @@ class ComponentOperation {
                     mountedComp.__prefab.fileId = mountedComp.uuid;
                 }
                 // 节点挂载嵌套预制体身上
-                if (targetInfo.localID.length > 1) { 
+                if (targetInfo.localID.length > 1) {
                     prefabInfo.instance = undefined;
                     const nestedInstPrefabInstanceInfo = prefabUtils.getOutMostPrefabInstanceInfo(target);
                     prefabInfo.instance = prefabInstance;
@@ -542,13 +542,13 @@ class ComponentOperation {
                     const nestedMountedComponentInfo = prefabUtils.getPrefabInstanceMountedComponents(nestedInstPrefabInstance, mountedNodePath);
                     nestedMountedComponentInfo.components.push(mountedComp);
                     prefabUtils.setMountedRoot(mountedComp, nestedInstNode);
-                    
+
                     // 记录undo索引数据,从根节点开始找，所以需要第一个fileID
                     const targetPath = nestedInstPrefabInstanceInfo.targetPath.slice();
                     targetPath.push(mountedComp.__prefab.fileId);
-                    mountedCompsMap.set(targetPath, {prefabInfo: null});
+                    mountedCompsMap.set(targetPath, { prefabInfo: null });
                 } else {
-                    mountedCompsMap.set([mountedComp.__prefab.fileId], {prefabInfo: null});
+                    mountedCompsMap.set([mountedComp.__prefab.fileId], { prefabInfo: null });
                     prefabUtils.setMountedRoot(mountedComp, undefined);
                 }
             });

@@ -150,18 +150,17 @@ export class CompManager extends EventEmitter {
         try {
             const node = new cc.Node();
             const newComp = node.addComponent(component.constructor);
-            const dump = dumpUtil.dumpComponent(newComp);
+            const dump = dumpUtil.dumpComponentForPinK(newComp);
 
-            for (const key in dump.properties) {
+            for (const key in dump.value) {
                 if (skipCompProps.includes(key)) {
                     continue;
                 }
 
-                await dumpUtil.restoreProperty(component, key, dump.properties.value[key]);
+                await dumpUtil.restoreProperty(component, key, dump.value[key], true);
             }
-
-            component && component.resetInEditor && component.resetInEditor();
-            component && component.onRestore && component.onRestore();
+            component?.resetInEditor?.();
+            component?.onRestore?.();
         } catch (error) {
             console.error(error);
             return false;
@@ -180,7 +179,7 @@ export class CompManager extends EventEmitter {
         if (!comp) {
             return null;
         }
-        return dumpUtil.dumpComponent(comp);
+        return dumpUtil.dumpComponentForPinK(comp);
     }
 
     /**

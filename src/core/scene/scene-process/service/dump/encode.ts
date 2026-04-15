@@ -1,13 +1,16 @@
 'use strict';
 
 declare const cc: any;
+declare const EditorExtends: any;
 
 import dumpUtil from './utils';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
-import { IComponent } from '../../../common';
+import { IComponent, IComponentForPinK } from '../../../common';
 import compMgr from '../component/index';
+import { prefabUtils } from './../prefab/utils';
+import { Service } from './../core';
 
 /**
  * 编码一个 component
@@ -61,6 +64,108 @@ export function encodeComponent(component: any): IComponent {
 
     return data;
 }
+
+/**
+ * 详细的编码 component
+ * @param component
+ */
+export function encodeComponentForPinK(component: any): IComponentForPinK {
+    const ctor = component.constructor;
+    // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
+    const mountedRootNode = prefabUtils.getMountedRoot(component);
+    let mountedRoot: string | undefined = mountedRootNode?.uuid;
+    if (mountedRootNode) {
+        const prefabInfo = mountedRootNode['_prefab'];
+        if (prefabInfo && prefabInfo.root) {
+            const prefabRootNode = prefabInfo.root['_prefab']?.instance?.prefabRootNode;
+            // 判断下是否是嵌套预制体且由父预制体引入到当前场景（避免在预制体编辑模式中误判）
+            if (prefabRootNode && prefabRootNode !== Service.Editor.getRootNode()) {
+                mountedRoot = undefined;
+            }
+        }
+    }
+    const data: IComponentForPinK = {
+        value: {
+            uuid: encodeObject(component.uuid, { default: null, visible: false }, component),
+            name: encodeObject(component.name, { default: null, visible: false }, component),
+            enabled: encodeObject(component.enabled, { default: null, visible: false }, component),
+        },
+        default: undefined,
+        type: dumpUtil.getTypeName(ctor),
+        readonly: false,
+        visible: true,
+        cid: component.__cid__,
+
+        mountedRoot: mountedRoot,
+    };
+
+    // 遍历组件内所有属性
+    ctor.__props__.forEach((key: string) => {
+        if (!data.value) {
+            return;
+        }
+
+        try {
+            if (key in component) {
+                /**
+                 * 此处 cc.Class.attr(component, key) 中的 component 不能用 ctor 替代
+                 * 因为 ctor 是基类定义，component 是子类，子类的 __attr__ 存了一些自己数据了
+                 * 比如 sp.Skeleton 当 skeletonData 属性有数据时取 _animationIndex 属性的 enumList 数据  
+                 */
+                const attrs = cc.Class.attr(component, key);
+                const dumpData = encodeObject(component[key], attrs, component, key);
+                if (dumpData.type !== 'Unknown') {
+                    data.value[key] = dumpData;
+                }
+                _checkConstructorRewriteType(dumpData, component[key], attrs);
+            }
+        } catch (error) {
+            // tslint:disable-next-line:max-line-length
+            console.warn(
+                `Component property dump failed:\n  Node: ${component.node.name}(${component.node.uuid})\n Component: ${data.type}(${component.uuid})\n Property: ${key}`,
+            );
+            console.warn(error);
+            delete data.value[key];
+        }
+    });
+
+    // editor 附加数据
+    data.editor = {
+        inspector: ctor._inspector || '',
+        icon: ctor._icon || '',
+        help: ctor._help || '',
+        _showTick:
+            typeof component.start === 'function' ||
+            typeof component.update === 'function' ||
+            typeof component.lateUpdate === 'function' ||
+            typeof component.onEnable === 'function' ||
+            typeof component.onDisable === 'function',
+    };
+
+    // __scriptUuid
+    if (data.value && typeof data.value === 'object' && !Array.isArray(data.value)) {
+        const scriptType: any = (data.value as Record<string, any>).__scriptAsset;
+        if (component instanceof cc._MissingScript) {
+            const compData = component['_$erialized'];
+            let uuid = compData && compData['__type__'];
+            uuid = uuid && EditorExtends.UuidUtils.decompressUuid(component._$erialized.__type__);
+            scriptType.visible = !!(uuid && EditorExtends.UuidUtils.isUuid(uuid));
+            scriptType.value = { uuid };
+        } else {
+            scriptType.visible = !!component.__scriptUuid;
+            scriptType.value = { uuid: component.__scriptUuid };
+        }
+        scriptType.displayOrder = -999;
+    }
+
+    // 继承链
+    if (ctor) {
+        data.extends = dumpUtil.getTypeInheritanceChain(ctor);
+    }
+
+    return data;
+}
+
 
 /**
  * 属性（非数组）的现有值类型和所在组件对其定义的类型进行比较，
@@ -251,5 +356,6 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
 
 export default {
     encodeComponent,
+    encodeComponentForPinK,
     encodeObject,
 };

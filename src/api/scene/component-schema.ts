@@ -7,17 +7,17 @@ import { SchemaCompPrefabInfo } from './prefab-info-schema';
 export const SchemaAddComponentInfo = z.object({
     nodePath: z.string().describe('Node path'), // 节点路径
     //component: z.enum(Object.keys(globalComponentType) as [string, ...string[]]).describe('组件类型'),
-    component: z.string().describe('Component name, supports component name, component resource URL and UUID'), // 组件名称，支持组件名称、组件资源的 URL 与 UUID
+    componentNameOrUuidOrUrl: z.string().describe('Component name, supports component name, component resource URL and UUID'), // 组件名称，支持组件名称、组件资源的 URL 与 UUID
 }).describe('Information for adding a component'); // 添加组件的信息
 
 // Remove component // 移除组件
 export const SchemaRemoveComponent = z.object({
-    path: z.string().describe('Path of the component, including node path'), // 组件的路径，包含节点路径
+    pathOrUuidOrUrl: z.string().describe('Path, UUID or URL of the component'), // 组件的路径、uuid 或 url
 }).describe('Information required to remove a component'); // 移除组件需要的信息
 
 // Query component // 查询组件
 export const SchemaQueryComponent = z.object({
-    path: z.string().describe('Path of the component, including node path'), // 组件的路径，包含节点路径
+    pathOrUuidOrUrl: z.string().describe('Path, UUID or URL of the component'), // 组件的路径、uuid 或 url
 }).describe('Information required to query a component'); // 查询组件需要的信息
 
 // Vec2

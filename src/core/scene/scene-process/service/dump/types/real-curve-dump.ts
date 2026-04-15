@@ -13,9 +13,9 @@ class RealCurveDump implements DumpInterface {
 
         // HACK 目前曲线新建完无默认数据
         // @ts-ignore
-        // if (!data.value.keyFrames.length) {
-        //     data.value = data.default;
-        // }
+        if (!data.value.keyFrames.length) {
+            data.value = data.default;
+        }
     }
 
     public decode(data: cc.CurveRange, info: any, dump: any, opts?: any): void {

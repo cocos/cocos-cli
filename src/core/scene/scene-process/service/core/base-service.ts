@@ -27,6 +27,9 @@ export interface IServiceEvents {
     onComponentAdded?(comp: Component): void;
     onComponentRemoved?(comp: Component): void;
     onBeforeRemoveComponent?(comp: Component): void;
+    onComponentBeforeChanged?(node: Node): void;
+    onBeforeComponentAdded?(name:string, node: Node): void;
+    onComponentChanged?(name:string, opts: IChangeNodeOptions): void;
 
     // Asset events
     onAssetDeleted?(uuid: string): void;

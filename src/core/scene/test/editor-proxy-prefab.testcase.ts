@@ -173,7 +173,7 @@ describe('EditorProxy Prefab 测试', () => {
             expect(node).not.toBeNull();
 
             const label = await ComponentProxy.addComponent({
-                nodePath: node?.path as string,
+                nodePathOrUuid: node?.path as string,
                 component: 'cc.Label'
             });
             await ComponentProxy.setProperty({

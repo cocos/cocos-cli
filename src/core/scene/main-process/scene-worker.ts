@@ -106,18 +106,18 @@ export class SceneWorker {
                     }
                 };
 
-                // 设置启动超时（30秒）
-                startupTimer = setTimeout(() => {
-                    console.error('场景进程启动超时');
-                    this._process?.off('message', onReady);
-                    this._process?.off('error', onError);
-                    this._process?.off('exit', onEarlyExit);
-                    if (this._process) {
-                        this._process.kill('SIGTERM');
-                        this._process = null;
-                    }
-                    resolveOnce(false);
-                }, 30000);
+                // // 设置启动超时（30秒）
+                // startupTimer = setTimeout(() => {
+                //     console.error('场景进程启动超时');
+                //     this._process?.off('message', onReady);
+                //     this._process?.off('error', onError);
+                //     this._process?.off('exit', onEarlyExit);
+                //     if (this._process) {
+                //         this._process.kill('SIGTERM');
+                //         this._process = null;
+                //     }
+                //     resolveOnce(false);
+                // }, 30000);
 
                 // 注册事件监听器
                 this._process.on('error', onError);

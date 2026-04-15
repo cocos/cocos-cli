@@ -3,8 +3,8 @@ import { Node, Component, js, CCClass } from 'cc';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
 import { decodePatch, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeComponent } from './encode';
-import { IComponent } from '../../../common';
+import { encodeObject, encodeComponent, encodeComponentForPinK } from './encode';
+import { IComponent, IComponentForPinK } from '../../../common';
 
 // import * as dumpDecode from './decode';
 const { get } = require('lodash');
@@ -35,24 +35,34 @@ class DumpUtil {
         return encodeComponent(comp);
     }
 
+    // 生成一个component的dump数据
+    dumpComponentForPinK(comp: Component): IComponentForPinK;
+    dumpComponentForPinK(comp: null | undefined): null;
+    dumpComponentForPinK(comp: Component | null | undefined) {
+        if (!comp) {
+            return null;
+        }
+        return encodeComponentForPinK(comp);
+    }
+
     /**
      * 恢复一个 dump 数据到 property
      * @param node
      * @param path
      * @param dump
      */
-    async restoreProperty(node: Node | Component, path: string, dump: any) {
+    async restoreProperty(node: Node | Component, path: string, dump: any, forPink: boolean = false) {
         // 还原整个 component
         if (/^__comps__\.\d+$/.test(path)) {
             if (typeof dump.value === 'object') {
                 for (const key in dump.value) {
                     // @ts-ignore
-                    await decodePatch(`${path}.${key}`, dump.value[key], node);
+                    await decodePatch(`${path}.${key}`, dump.value[key], node, forPink);
                 }
             }
         } else {
             // 还原单个属性
-            return decodePatch(path, dump, node);
+            return decodePatch(path, dump, node, forPink);
         }
     }
 

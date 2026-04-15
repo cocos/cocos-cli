@@ -206,7 +206,10 @@ class ComponentUtils {
         if (typeof value !== 'string') {
             return false;
         }
-
+        //  组件的UUID的生成规则是IDGenerator指定的
+        if(/^Comp\.\d+$/.test(value)) {
+            return true;
+        }
         // UUID 正则匹配 (v1-v5)
         const uuidReg =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

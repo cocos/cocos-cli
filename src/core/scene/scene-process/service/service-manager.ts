@@ -39,7 +39,7 @@ const SERVICE_EVENTS_MAP: EventMap = {
     'component:removed': 'onComponentRemoved',
     'component:before-remove': 'onBeforeRemoveComponent',
     'component:set-property': 'onSetPropertyComponent',
-
+    'component:before-add-component': 'onBeforeComponentAdded',
     // Script 事件
     'script:execution-finished': 'onScriptExecutionFinished',
 } as const;

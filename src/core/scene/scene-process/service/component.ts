@@ -1,4 +1,4 @@
-import { Component, Constructor } from 'cc';
+import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas } from 'cc';
 import { Rpc } from '../rpc';
 import { register, Service, BaseService } from './core';
 import {
@@ -8,15 +8,42 @@ import {
     IComponentService,
     IQueryComponentOptions,
     IRemoveComponentOptions,
-    ISetPropertyOptions, NodeEventType
+    ISetPropertyOptions, NodeEventType,
+    IExecuteComponentMethodOptions,
+    IComponentForPinK
 } from '../../common';
 import dumpUtil from './dump';
 import compMgr from './component/index';
 import componentUtils from './component/utils';
+import { hasOneKindOfComponent } from './node/node-utils';
 import { isEditorNode } from './node/node-utils';
-import { isUUID } from '../../../base/utils/uuid';
+import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
+import PrefabService from './prefab';
+import { IProperty } from '../../@types/public';
 
 const NodeMgr = EditorExtends.Node;
+enum SceneModeType {
+    General = 'general',
+    Prefab = 'prefab',
+    Animation = 'animation',
+    Preview = 'preview',
+    Unset = '',
+}
+
+export interface IOptionBase {
+    modeName?: string; // 当前所处的模式
+}
+
+interface ISceneEvents {
+
+    // Component events
+    onAddComponent?(comp: Component): void;
+    onRemoveComponent?(comp: Component): void;
+    onComponentAdded?(comp: Component, opts?: IOptionBase): void;
+    onComponentRemoved?(comp: Component, opts?: IOptionBase): void;
+}
+
+export { ISceneEvents };
 
 /**
  * 子进程节点处理器
@@ -24,27 +51,89 @@ const NodeMgr = EditorExtends.Node;
  */
 @register('Component')
 export class ComponentService extends BaseService<IComponentEvents> implements IComponentService {
-    private async addComponentImpl(path: string, componentNameOrUUIDOrURL: string): Promise<IComponent> {
-        const node = NodeMgr.getNodeByPath(path);
-        if (!node) {
-            throw new Error(`add component failed: ${path} does not exist`);
+    public modeName: SceneModeType = SceneModeType.General;
+    // private _stagingCameraInfo: any;
+    protected _sceneEventListener: ISceneEvents[] = [];
+    protected _recycleComponent: Record<string, Component> = {};
+
+    constructor() {
+        super();
+        compMgr.on('add', this.onAddComponent.bind(this));
+        compMgr.on('remove', this.onRemoveComponent.bind(this));
+        compMgr.on('added', this.onComponentAdded.bind(this));
+        compMgr.on('removed', this.onComponentRemoved.bind(this));
+    }
+
+    /**
+     * 查询当前正在编辑的模式名字
+     */
+    public queryMode() {
+        return this.modeName;
+    }
+
+    public onAddComponent(comp: Component, opts: IOptionBase = {}) {
+        opts.modeName = this.modeName;
+        // TODO(qgh): 发送消息
+        //this.dispatchEvents('onAddComponent', comp, opts);
+    }
+
+    public onRemoveComponent(comp: Component, opts: IOptionBase = {}) {
+        opts.modeName = this.modeName;
+        // TODO(qgh): 发送消息
+        //this.dispatchEvents('onRemoveComponent', comp, opts);
+        // 编辑器中的this._sceneProxy.getRootNode()实现返回的是null
+        PrefabService.onRemoveComponentInGeneralMode(comp, null);
+        //this._prefabMgr.onRemoveComponentInGeneralMode(comp, this._sceneProxy.getRootNode());
+    }
+
+    public onComponentAdded(comp: Component, opts: IOptionBase = {}) {
+        opts.modeName = this.modeName;
+        // TODO(qgh): 发送消息
+        //this.dispatchEvents('onComponentAdded', comp, opts);
+        if (this._recycleComponent[comp.uuid]) {
+            delete this._recycleComponent[comp.uuid];
         }
-        if (!componentNameOrUUIDOrURL || componentNameOrUUIDOrURL.length <= 0) {
-            throw new Error(`add component failed: ${componentNameOrUUIDOrURL} does not exist`);
+    }
+
+    public onComponentRemoved(comp: Component, opts: IOptionBase = {}) {
+        opts.modeName = this.modeName;
+        // TODO(qgh): 发送消息
+        // this.dispatchEvents('onComponentRemoved', comp);
+        // 编辑器中的this._sceneProxy.getRootNode()实现返回的是null
+        PrefabService.onComponentRemovedInGeneralMode(comp, null);
+        this._recycleComponent[comp.uuid] = comp;
+    }
+
+    public dispatchEvents(eventName: keyof ISceneEvents, ...args: any[any]) {
+        this._sceneEventListener.forEach((listener) => {
+            if (listener && listener[eventName]) {
+                // @ts-ignore
+                listener[eventName]!.apply(listener, args);
+            }
+        });
+    }
+
+    private async addComponentImpl(nodePathOrUuid: string, component: string): Promise<IComponent> {
+        const node = NodeMgr.getNodeByPath(nodePathOrUuid) ?? NodeMgr.getNode(nodePathOrUuid);
+        if (!node) {
+            throw new Error(`add component failed: ${nodePathOrUuid} does not exist`);
+        }
+        if (!component || component.length <= 0) {
+            throw new Error(`add component failed: ${component} does not exist`);
         }
         // 需要单独处理 missing script
-        if (componentNameOrUUIDOrURL === 'MissingScript' || componentNameOrUUIDOrURL === 'cc.MissingScript') {
+        if (component === 'MissingScript' || component === 'cc.MissingScript') {
             throw new Error('Reset Component failed: MissingScript does not exist');
         }
 
         // 处理 URL 与 Uuid
-        const isURL = componentNameOrUUIDOrURL.startsWith('db://');
-        const isUuid = componentUtils.isUUID(componentNameOrUUIDOrURL);
+        const isURL = component.startsWith('db://');
+        const isUuid = componentUtils.isUUID(component);
         let uuid;
         if (isUuid) {
-            uuid = componentNameOrUUIDOrURL;
+            uuid = component;
         } else if (isURL) {
-            uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [componentNameOrUUIDOrURL]);
+            uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [component]);
         }
 
         let ctor = null;
@@ -52,7 +141,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         if (uuid) {
             const cid = await Service.Script.queryScriptCid(uuid);
             if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
-                componentNameOrUUIDOrURL = cid;
+                component = cid;
                 ctor = cc.js.getClassById(cid);
                 if (!ctor) {
                     ctor = cc.js.getClassByName(cid);
@@ -69,51 +158,51 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 }
             }
         } else {
-            ctor = cc.js.getClassById(componentNameOrUUIDOrURL);
+            ctor = cc.js.getClassById(component);
             if (!ctor) {
-                ctor = cc.js.getClassByName(componentNameOrUUIDOrURL);
+                ctor = cc.js.getClassByName(component);
             }
         }
 
         if (!ctor) {
             // 首字母是否大写
-            const isStartWithUppercase = (componentNameOrUUIDOrURL.charAt(0) == componentNameOrUUIDOrURL.charAt(0).toUpperCase());
+            const isStartWithUppercase = (component.charAt(0) == component.charAt(0).toUpperCase());
             if (!isStartWithUppercase) {
                 // 首字母大写查询
-                const fullName = componentNameOrUUIDOrURL.charAt(0).toUpperCase() + componentNameOrUUIDOrURL.slice(1);
+                const fullName = component.charAt(0).toUpperCase() + component.slice(1);
                 ctor = cc.js.getClassByName(fullName);
             }
             if (!ctor && !isUuid && !isURL) {
-                if (!componentNameOrUUIDOrURL.startsWith('cc.')) {
+                if (!component.startsWith('cc.')) {
                     // 添加 'cc.' 查询
-                    const fullName = 'cc.' + componentNameOrUUIDOrURL;
+                    const fullName = 'cc.' + component;
                     ctor = cc.js.getClassByName(fullName);
                     if (!ctor && !isStartWithUppercase) {
                         // 添加 cc. 并且后面首字母大写
-                        const fullName = 'cc.' + componentNameOrUUIDOrURL.charAt(0).toUpperCase() + componentNameOrUUIDOrURL.slice(1);
+                        const fullName = 'cc.' + component.charAt(0).toUpperCase() + component.slice(1);
                         ctor = cc.js.getClassByName(fullName);
                     }
-                } else if (componentNameOrUUIDOrURL.length > 3 && componentNameOrUUIDOrURL.charAt(3) != componentNameOrUUIDOrURL.charAt(0).toUpperCase()) {
+                } else if (component.length > 3 && component.charAt(3) != component.charAt(0).toUpperCase()) {
                     // 如果是 cc.lalel 直接更换为 cc.Label 查询
-                    const fullName = componentNameOrUUIDOrURL.slice(0, 3) + componentNameOrUUIDOrURL.at(3)?.toUpperCase() + componentNameOrUUIDOrURL.slice(4);
+                    const fullName = component.slice(0, 3) + component.at(3)?.toUpperCase() + component.slice(4);
                     ctor = cc.js.getClassByName(fullName);
                 }
             }
         }
         if (!ctor) {
-            console.error(`ctor with name ${componentNameOrUUIDOrURL} is not found `);
+            console.error(`ctor with name ${component} is not found `);
             if (isUuid) {
-                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component uuid`);
+                throw new Error(`Target Component('${component}') Not Found. Hint: Please use the correct component uuid`);
             } else if (isURL) {
-                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component url`);
+                throw new Error(`Target Component('${component}') Not Found. Hint: Please use the correct component url`);
             } else {
-                throw new Error(`Target Component('${componentNameOrUUIDOrURL}') Not Found. Hint: Please use the correct component name`);
+                throw new Error(`Target Component('${component}') Not Found. Hint: Please use the correct component name`);
             }
         }
         if (cc.js.isChildClassOf(ctor, Component)) {
             comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
         } else {
-            console.error(`ctor with name ${componentNameOrUUIDOrURL} is not child class of Component `);
+            console.error(`ctor with name ${component} is not child class of Component `);
             throw new Error(`Constructor has been found, but it is not component-based.`);
         }
         this.emit('component:add', comp);
@@ -124,7 +213,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
         try {
             await Service.Editor.lock();
-            return await this.addComponentImpl(params.nodePath, params.component);
+            return await this.addComponentImpl(params.nodePathOrUuid, params.component);
         } catch (error) {
             console.error(error);
             throw error;
@@ -133,12 +222,156 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
+
+    /**
+     * 创建组件
+     * @param params
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    private requireComponentList: Function[] = [];
+
+    async createComponent(params: IAddComponentOptions): Promise<boolean> {
+        if (Array.isArray(params.component)) {
+            params.component.forEach((id) => {
+                this.createComponent({ nodePathOrUuid: params.nodePathOrUuid, component: id });
+            });
+            console.warn('don\'t add component to more than one node at one time');
+            return false;
+        }
+        const node = NodeMgr.getNodeByPath(params.nodePathOrUuid) ?? NodeMgr.getNode(params.nodePathOrUuid);
+        if (!node) {
+            console.warn(`create component failed: ${params.nodePathOrUuid} does not exist`);
+            return false;
+        }
+
+        if (params.component) {
+            // 发送节点修改消息
+            this.emit('node:before-change', node);
+            this.emit('component:before-add-component', params.component, node);
+
+            let comp = null;
+            try {
+                // 需要单独处理 missing script
+                if (params.component === 'MissingScript' || params.component === 'cc.MissingScript') {
+                    throw new Error('Reset Component failed: MissingScript does not exist');
+                }
+
+                /**
+                 * 增加编辑器对外 create-component 接口的兼容性
+                 * getClassById(string) 查不到的时候，再查一次 getClassByName(string)
+                 */
+                let ctor = cc.js.getClassById(params.component);
+                if (!ctor) {
+                    ctor = cc.js.getClassByName(params.component);
+                }
+                if (cc.js.isChildClassOf(ctor, Component)) {
+                    let iterateObj = ctor as any;
+                    if (iterateObj._requireComponent) {
+                        while (iterateObj._requireComponent) {
+                            this.requireComponentList.push(iterateObj._requireComponent);
+                            iterateObj = iterateObj._requireComponent;
+                        }
+                    }
+                    comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
+                    this.requireComponentList = [];
+                } else {
+                    console.error(`ctor with name ${params.component} is not child class of Component `);
+                }
+                const mode = this.queryMode();
+                if (mode === 'prefab') {
+                    // 理论上应该使用
+                    const rootNode = Service.Editor.getRootNode();
+                    if (rootNode && hasOneKindOfComponent(node, UITransform) && !hasOneKindOfComponent(rootNode, Canvas)) {
+                        // 为了显示，节点结构为：scene node > canvas node > prefab root node
+                        createShouldHideInHierarchyCanvasNode(director.getScene()!).then((target) => {
+                            rootNode.parent = target;
+                        });
+                    }
+                }
+                this.checkComponentsCollision(node);
+                this.checkDynamicBodyShape(node);
+            } catch (error) {
+                console.error(error);
+            }
+            if (comp) {
+                compMgr.onComponentAddedFromEditor(comp);
+            }
+
+            // 发送节点修改消息
+            this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
+        } else {
+            console.warn(`create component failed: ${params.component} does not exist`);
+            return false;
+        }
+
+        return true;
+    }
+
+
+    async checkComponentsCollision(node: Node) {
+        if (hasOneKindOfComponent(node, animation.AnimationController) && hasOneKindOfComponent(node, Animation)) {
+            console.warn('scene.contributions.messages.description.animationComponentCollision');
+        }
+    }
+
+    checkDynamicBodyShape(ndoe: Node) {
+        if (hasOneKindOfComponent(ndoe, RigidBody) && hasOneKindOfComponent(ndoe, Collider)) {
+            // get the rigid body component
+            const body = ndoe.getComponent(RigidBody);
+
+            if (!body) {
+                return;
+            }
+
+            // get the collider
+            const collider = ndoe.getComponent(Collider);
+
+            if (body.type === ERigidBodyType.DYNAMIC) {
+                switch (collider?.type) {
+                    case EColliderType.PLANE:
+                    case EColliderType.TERRAIN:
+                        console.warn('scene.contributions.messages.description.physicsDynamicBodyShape'); break;
+
+                    case EColliderType.MESH:
+                        if (!(collider as MeshCollider).convex) {
+                            console.warn('scene.contributions.messages.description.physicsDynamicBodyShape');
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 通过 path、uuid 或 url 查找组件实例
+     */
+    private async findComponent(pathOrUuidOrUrl: string): Promise<Component | null> {
+        const isUuid = componentUtils.isUUID(pathOrUuidOrUrl);
+        const isURL = pathOrUuidOrUrl.startsWith('db://');
+
+        if (isUuid) {
+            return compMgr.query(pathOrUuidOrUrl);
+        } else if (isURL) {
+            const uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [pathOrUuidOrUrl]);
+            if (uuid) {
+                return compMgr.query(uuid);
+            }
+            return null;
+        } else {
+            return compMgr.queryFromPath(pathOrUuidOrUrl);
+        }
+    }
+
     async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
         try {
             await Service.Editor.lock();
-            const comp = compMgr.queryFromPath(params.path);
+
+            const comp = await this.findComponent(params.pathOrUuidOrUrl);
             if (!comp) {
-                throw new Error(`Remove component failed: ${params.path} does not exist`);
+                throw new Error(`Remove component failed: ${params.pathOrUuidOrUrl} does not exist`);
             }
 
             this.emit('component:before-remove', comp);
@@ -156,13 +389,18 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async queryComponent(params: IQueryComponentOptions): Promise<IComponent | null> {
-        const comp = compMgr.queryFromPath(params.path);
+    async queryComponent(params: IQueryComponentOptions): Promise<IComponent | IComponentForPinK | null> {
+        const comp = await this.findComponent(params.pathOrUuidOrUrl);
         if (!comp) {
-            console.warn(`Query component failed: ${params.path} does not exist`);
+            console.warn(`Query component failed: ${params.pathOrUuidOrUrl} does not exist`);
             return null;
         }
-        return (dumpUtil.dumpComponent(comp as Component));
+        if (params?.isFull) {
+            return (dumpUtil.dumpComponentForPinK(comp as Component));
+        } else {
+            return (dumpUtil.dumpComponent(comp as Component));
+        }
+
     }
 
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
@@ -175,6 +413,70 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         } finally {
             Service.Editor.unlock();
         }
+    }
+
+    /**
+     * 查询一个节点的实例
+     * @param {*} uuid
+     * @return {cc.Node}
+     */
+    query(uuid: string | undefined): Node | null {
+        if (typeof uuid === 'undefined') {
+            return null;
+        }
+        // TODO(qgh): nodeMgr应该添加queryRecycleNode
+        // return NodeMgr.getNode(uuid) ?? NodeMgr.queryRecycleNode(uuid);
+        return NodeMgr.getNode(uuid);
+    }
+
+    async setPropertyForPink(uuid: string, path: string, dump: IProperty, record: boolean = true): Promise<boolean> {
+        // 多个节点更新值
+        if (Array.isArray(uuid)) {
+            try {
+                for (let i = 0; i < uuid.length; i++) {
+                    await this.setPropertyForPink(uuid[i], path, dump);
+                }
+                return true;
+            } catch (e) {
+                console.error(e);
+                return false;
+            }
+        }
+        const node = this.query(uuid);
+        if (!node) {
+            console.warn(`Set property failed: ${uuid} does not exist`);
+            return false;
+        }
+
+        // 触发修改前的事件
+        this.emit('node:before-change', node);
+        if (path === 'parent' && node.parent) {
+            // 发送节点修改消息
+            this.emit('node:before-change', node.parent);
+        }
+
+        // 恢复数据
+        try {
+            await dumpUtil.restoreProperty(node, path, dump, true);
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
+
+        // 触发修改后的事件
+        this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: path, record: record });
+        // 如果是数组的话，需要依次 emit change，路径定位到数组的下标位置
+        if (dump.isArray && Array.isArray(dump.value)) {
+            dump.value.forEach((item, i) => {
+                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: `${path}.${i}`, record: record });
+            });
+        }
+        // 改变父子关系
+        if (path === 'parent' && node.parent) {
+            // 发送节点修改消息
+            this.emit('node:change', node.parent, { type: NodeEventType.SET_PROPERTY, propPath: 'children', record: record });
+        }
+        return true;
     }
 
     private async setPropertyImp(options: ISetPropertyOptions): Promise<boolean> {
@@ -271,5 +573,34 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             return;
         }
         this.emit('component:removed', component);
+    }
+
+    /**
+     * 重置组件
+     * @param uuid component 的 uuid
+     */
+    public async resetComponent(params: IQueryComponentOptions): Promise<boolean> {
+        try {
+            const comp = await this.findComponent(params.pathOrUuidOrUrl);
+            if (!comp) {
+                console.warn(`Reset Component failed: ${params.pathOrUuidOrUrl} does not exist`);
+                return false;
+            }
+            // 发送节点修改消息
+            this.emit('node:before-change', comp.node);
+
+            const result = await compMgr.resetComponent(comp);
+
+            // 发送节点修改消息
+            this.emit('node:change', comp.node, { type: NodeEventType.RESET_COMPONENT });
+            return result;
+        } catch (e) {
+            console.warn(e);
+            return false;
+        }
+    }
+
+    public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean> {
+        return await compMgr.executeComponentMethod(options.uuid, options.name, options.args);
     }
 }
