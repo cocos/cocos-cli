@@ -7,13 +7,11 @@ window.Editor = {
     Message: {
         request: async function (target, method, uuid) {
             if (method === 'query-asset-info') {
-                const currentUrl = serverUrl;
-                return await fetch(`${currentUrl}/query-asset-info/${uuid}`)
+                return await fetch(`${serverUrl}/query-asset-info/${uuid}`)
                     .then(function (r) { return r.json(); })
                     .catch(function () { return ''; });
             } else if (method === 'query-engine-info') {
-                const currentUrl = serverUrl;
-                return await fetch(`${currentUrl}/engine/query-engine-info`)
+                return await fetch(`${serverUrl}/engine/query-engine-info`)
                     .then(function (r) { return r.json(); })
                     .catch(function () { return ''; });
             }
@@ -34,37 +32,22 @@ if (typeof window.require === 'undefined') {
             });
         },
         readFileSync: function (filePath) {
-            // 使用同步通信（需要 SharedArrayBuffer）
             const requestUrl = `${serverUrl}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
-            
-            // 注意：这需要 Service Worker 支持
-            const channel = new MessageChannel();
-            let result = null;
-            let error = null;
-            
-            // 发送同步请求（实际还是异步，但模拟同步行为）
-            navigator.serviceWorker.controller.postMessage({
-                type: 'SYNC_READ',
-                url: requestUrl
-            }, [channel.port2]);
-            
-            // 阻塞等待（不推荐，但可以实现）
-            channel.port1.onmessage = (event) => {
-                if (event.data.error) {
-                    error = event.data.error;
-                } else {
-                    result = event.data.data;
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', requestUrl, false); // synchronous
+            xhr.overrideMimeType('text/plain; charset=x-user-defined');
+            xhr.send(null);
+
+            if (xhr.status === 200) {
+                const val = xhr.responseText;
+                const len = val.length;
+                const buf = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    buf[i] = val.charCodeAt(i) & 0xff;
                 }
-            };
-            
-            // 简单的轮询等待（非常糟糕的做法）
-            const startTime = Date.now();
-            while (result === null && error === null && (Date.now() - startTime) < 5000) {
-                // 阻塞等待
+                return buf;
             }
-            
-            if (error) throw error;
-            return result;
+            throw new Error('Failed to read file synchronously: ' + filePath);
         }
     };
 
