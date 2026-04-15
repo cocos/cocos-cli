@@ -26,6 +26,8 @@ packages/cocos-cli-types/**/*
 
 # static
 static/tools/
+static/web/scene-bundle.js
+static/web/scene-bundle.js.map
 
 # 构建文件
 /dist
