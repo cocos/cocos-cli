@@ -1,6 +1,6 @@
 import type { IMiddlewareContribution } from '../server/interfaces';
 import { Request, Response } from 'express';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { toolRegistry } from '../api/decorator/decorator';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import type { HttpStatusCode } from '../api/base/schema-base';
 import stripAnsi from 'strip-ansi';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { assetManager } from '../core/assets';
 export class McpMiddleware {
     private server: McpServer;
     private resourceManager: ResourceManager;
@@ -29,7 +30,7 @@ export class McpMiddleware {
                 resources: {
                     subscribe: true,
                     listChanged: true,
-                    templates: false
+                    templates: true
                 },
                 tools: {},
                 // 日志能力（调试用）
@@ -44,6 +45,7 @@ export class McpMiddleware {
         // 注册资源和工具
         this.registerDecoratorTools();
         this.registerResourcesList();
+        this.registerAssetResourcesTemplate();
     }
 
     private registerResourcesList() {
@@ -71,6 +73,47 @@ export class McpMiddleware {
                 };
             });
         });
+    }
+
+    /**
+     * 注册项目资源 Resource Template，支持按 ccType 查询工程资源列表
+     */
+    private registerAssetResourcesTemplate() {
+        const template = new ResourceTemplate('cocos://assets/{ccType}', {
+            list: undefined,
+        });
+
+        this.server.resource(
+            'project-assets-by-type',
+            template,
+            {
+                title: 'Project Assets by Type',
+                description: 'Query project assets filtered by ccType, e.g. cc.ImageAsset, cc.SceneAsset, cc.Prefab, cc.Material, cc.AnimationClip, cc.Script',
+                mimeType: 'application/json',
+            },
+            async (uri: URL, variables) => {
+                const ccType = variables.ccType as string;
+                console.error('registerAssetResources',ccType);
+                const assetInfos = assetManager.queryAssetInfos({ ccType });
+                const simplified = assetInfos
+                    .filter((info) => !info.url?.startsWith('db://internal'))
+                    .map((info) => ({
+                    name: info.name,
+                    url: info.url,
+                    uuid: info.uuid,
+                    type: info.type,
+                    importer: info.importer,
+                    file: info.file,
+                    }));
+                return {
+                    contents: [{
+                    uri: uri.href,
+                        mimeType: 'application/json',
+                        text: JSON.stringify(simplified, null, 2),
+                    }],
+                };
+            }
+        );
     }
 
     /**
