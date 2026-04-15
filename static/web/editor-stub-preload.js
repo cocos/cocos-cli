@@ -1,17 +1,18 @@
 /* global window */
 
 window.CC_EDITOR = true;
+const serverUrl = window.WebEnv.serverURL;
 
 window.Editor = {
     Message: {
         request: async function (target, method, uuid) {
             if (method === 'query-asset-info') {
-                const currentUrl = window.location.origin;
+                const currentUrl = serverUrl;
                 return await fetch(`${currentUrl}/query-asset-info/${uuid}`)
                     .then(function (r) { return r.json(); })
                     .catch(function () { return ''; });
             } else if (method === 'query-engine-info') {
-                const currentUrl = window.location.origin;
+                const currentUrl = serverUrl;
                 return await fetch(`${currentUrl}/engine/query-engine-info`)
                     .then(function (r) { return r.json(); })
                     .catch(function () { return ''; });
@@ -24,7 +25,7 @@ window.Editor = {
 if (typeof window.require === 'undefined') {
     const fsMock = {
         readFile: function (filePath) {
-            const requestUrl = `${window.location.origin}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
+            const requestUrl = `${serverUrl}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
             return fetch(requestUrl).then(function (res) {
                 if (res.ok) {
                     return res.arrayBuffer();
@@ -34,7 +35,7 @@ if (typeof window.require === 'undefined') {
         },
         readFileSync: function (filePath) {
             // 使用同步通信（需要 SharedArrayBuffer）
-            const requestUrl = `${window.location.origin}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
+            const requestUrl = `${serverUrl}/engine/read-file-sync?path=${encodeURIComponent(filePath)}`;
             
             // 注意：这需要 Service Worker 支持
             const channel = new MessageChannel();
