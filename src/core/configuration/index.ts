@@ -11,3 +11,5 @@ export {
     configurationRegistry,
     configurationManager,
 };
+
+export { getCocosConfigNodes, ICocosConfigurationNode, ICocosConfigurationPropertySchema } from './script/metadata';

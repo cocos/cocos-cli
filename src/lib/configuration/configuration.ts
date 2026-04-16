@@ -1,4 +1,5 @@
 import type { IConfiguration, ConfigurationScope } from '../../core/configuration/script/interface';
+import { ICocosConfigurationNode } from '../../core/configuration/script/metadata';
 
 export { IConfiguration, ConfigurationScope } from '../../core/configuration/script/interface';
 export { IBaseConfiguration } from '../../core/configuration/script/config';
@@ -42,5 +43,14 @@ export async function remove(key: string, scope?: ConfigurationScope): Promise<b
 export async function save(force?: boolean): Promise<void> {
     const { configurationManager } = await import('../../core/configuration/index');
     return await configurationManager.save(force);
+}
+
+// ==================== Metadata ====================
+
+export { ICocosConfigurationNode, ICocosConfigurationPropertySchema } from '../../core/configuration/script/metadata';
+
+export async function getMetadata(): Promise<ICocosConfigurationNode[]> {
+    const { getCocosConfigNodes } = await import('../../core/configuration/script/metadata');
+    return getCocosConfigNodes();
 }
 
