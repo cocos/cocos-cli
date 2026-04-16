@@ -222,9 +222,12 @@ export class ProgrammingFacet {
         // NOTE: The @cocos/rollup-plugin-typescript requires document.baseURI to resolve tslib in Node.js environment.
         // In cocos-cli, web-adapter.js (loaded by initEngine) polyfills `document` but not `baseURI`.
         // If `document` is defined, the rollup plugin enters a browser-only branch and fails if `baseURI` is missing.
+        // Use the cocos-cli package root (not process.cwd()) so tslib resolves correctly when
+        // the CLI is invoked from an arbitrary working directory.
         if (typeof document !== 'undefined' && !document.baseURI) {
             const { pathToFileURL } = require('url');
-            (document as any).baseURI = pathToFileURL(ps.join(process.cwd(), 'index.js')).href;
+            const cliRoot = ps.resolve(__dirname, '..', '..', '..', '..');
+            (document as any).baseURI = pathToFileURL(ps.join(cliRoot, 'index.js')).href;
         }
 
         await moduleSystem.build({

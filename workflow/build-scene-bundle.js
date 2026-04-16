@@ -344,9 +344,6 @@ async function buildSceneBundle() {
         banner: `
 (function() {
     var _process = {
-        cwd: function() { 
-            return (typeof window !== 'undefined' && (window.__CC_PROJECT_PATH__ || (window.Editor && window.Editor.Project && window.Editor.Project.path))) || '/';
-        },
         platform: 'browser',
         nextTick: function(fn) { 
             var args = Array.prototype.slice.call(arguments, 1);
@@ -365,8 +362,6 @@ async function buildSceneBundle() {
     if (typeof window !== 'undefined') {
         if (!window.process) {
             window.process = _process;
-        } else if (!window.process.cwd) {
-            window.process.cwd = _process.cwd;
         }
     }
     if (typeof globalThis !== 'undefined' && !globalThis.process) {

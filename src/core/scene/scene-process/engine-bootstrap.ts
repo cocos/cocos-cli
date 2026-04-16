@@ -21,18 +21,14 @@ export const Service = DecoratorService;
 declare const cc: any;
 
 export async function startup(options: {
-    projectPath: string;
     serverURL: string;
 }) {
     const defaultConfig = await fetch('/scripting/engine/game-config');
     const config = await defaultConfig.json();
     const modules = await fetch('/scripting/engine/modules');
     const features = (await modules.json()) as string[];
-    const { projectPath, serverURL } = options;
+    const { serverURL } = options;
 
-    if (typeof window !== 'undefined') {
-        (window as any).__CC_PROJECT_PATH__ = projectPath;
-    }
     serviceManager.initialize(serverURL);
 
     const requiredModules = [

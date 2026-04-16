@@ -46,7 +46,6 @@ export default async function boot () {
     globalThis.System = _originalSystem;
     await startup({
         enginePath: env.enginePath,
-        projectPath: env.projectPath,
         serverURL: env.serverURL
     });
     console.log('Cocos Engine and Scene Services loaded successfully');
