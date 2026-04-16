@@ -7,10 +7,12 @@ export { sceneConfigInstance };
 
 import { middlewareService } from '../../server/middleware';
 import SceneMiddleware from './scene.middleware';
+import SceneScriptingMiddleware from './scene.scripting.middleware';
 
+// 场景配置初始化
 export async function init() {
+    middlewareService.register('SceneScripting', SceneScriptingMiddleware);
     middlewareService.register('Scene', SceneMiddleware);
-    // 场景配置初始化
     await sceneConfigInstance.init();
 }
 

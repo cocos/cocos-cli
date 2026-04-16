@@ -7,10 +7,6 @@ import { GlobalConfig, GlobalPaths } from '../global';
 import scripting from './scripting';
 import { startupScene } from './scene';
 import { spawn } from 'child_process';
-import { middlewareService } from '../server/middleware';
-import ScriptingMiddleware from './scene/scripting.middleware';
-import SceneMiddleware from './scene/scene.middleware';
-import { sceneConfigInstance } from './scene/scene-configs';
 
 
 /**
@@ -96,9 +92,8 @@ export default class Launcher {
         const { init: initBuilder } = await import('./builder');
         await initBuilder();
 
-        middlewareService.register('scripting', ScriptingMiddleware);
-        middlewareService.register('Scene', SceneMiddleware);
-        await sceneConfigInstance.init();
+        const { init: initScene } = await import('./scene');
+        await initScene();
 
         const { Rpc } = await import('./scene/main-process/rpc');
         await Rpc.startup();

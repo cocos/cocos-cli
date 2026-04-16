@@ -28,6 +28,7 @@ packages/cocos-cli-types/**/*
 static/tools/
 static/web/scene-bundle.js
 static/web/scene-bundle.js.map
+static/web/polyfills.bundle.js
 
 # 构建文件
 /dist

@@ -19,7 +19,7 @@ console.log('📦 Building polyfills bundle...');
 
 // 1. core-js-bundle (prebuilt)
 const coreJsPath = path.join(require.resolve('core-js-bundle/package.json'), '..', 'minified.js');
-const coreJsCode = fs.readFileSync(coreJsPath, 'utf8');
+const coreJsCode = fs.readFileSync(coreJsPath, 'utf8').replace(/\/\/# sourceMappingURL=.*$/m, '');
 console.log(`  ✅ core-js-bundle: ${(coreJsCode.length / 1024).toFixed(1)} KB`);
 
 // 2. regenerator-runtime

@@ -41,16 +41,13 @@
 
     <script>
         window.WebEnv = {
-            serverURL: '<%= serverURL %>',
-            engineDistPath: '<%= engineDistPath %>',
-            packImportMapURL: '<%= packImportMapURL %>',
-            packResolutionDetailMapURL: '<%= packResolutionDetailMapURL %>',
-            enginePath: '<%= enginePath %>',
-            projectPath: '<%= projectPath %>'
+            serverURL: '<%= serverURL %>'
         };
     </script>
-    <script type="module" src="/static/web/boot.js"></script>
     <script type="module">
+        const { default: boot } = await import("/static/web/boot.js");
+        await boot();
+
         window.addEventListener('click', async () => {
             await import("/static/web/load-scene.js");
             window.loadScene(WebEnv.serverURL);

@@ -1,6 +1,6 @@
 import type { IMiddlewareContribution } from '../../server/interfaces';
 import { Request, Response, NextFunction } from 'express';
-import path, { basename, join, relative } from 'path';
+import path, { basename, join } from 'path';
 import ejs from 'ejs';
 import { pathExists, stat } from 'fs-extra';
 import { GlobalPaths } from '../../global';
@@ -12,25 +12,50 @@ export default {
             url: '/',
             async handler(req: Request, res: Response, next: NextFunction) {
                 try {
-                    const { getPreviewFacet } = await import('../scripting/programming/FacetInstance');
-                    const facet = getPreviewFacet();
-                    const { Engine } = await import('../engine');
-                    const enginePath = Engine.getInfo().typescript.path;
-                    const engineDistRelPath = relative(enginePath, facet.engineDistRoot).replace(/\\/g, '/');
                     const { default: scripting } = await import('../../core/scripting');
                     const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
                     const renderData = {
                         title: `Cocos Creator Preview - ${basename(scripting.projectPath)}`,
-                        packImportMapURL: `/scripting/x/${facet.packImportMapURL}`,
-                        packResolutionDetailMapURL: `/scripting/x/${facet.packResolutionDetailMapURL}`,
-                        engineDistPath: `/scripting/engine/${engineDistRelPath}`,
-                        projectPath: scripting.projectPath.replace(/\\/g, '/'),
-                        enginePath: enginePath.replace(/\\/g, '/'),
                         serverURL: serverBaseUrl
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'index.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);
                     res.status(200).send(html);
+                } catch (err) {
+                    next(err);
+                }
+            },
+        },
+        {
+            url: '/scripting/web-env',
+            async handler(req: Request, res: Response, next: NextFunction) {
+                try {
+                    const { Engine } = await import('../engine');
+                    const enginePath = Engine.getInfo().typescript.path;
+                    const { default: scripting } = await import('../../core/scripting');
+                    res.json({
+                        projectPath: scripting.projectPath.replace(/\\/g, '/'),
+                        enginePath: enginePath.replace(/\\/g, '/'),
+                    });
+                } catch (err) {
+                    next(err);
+                }
+            },
+        },
+        {
+            url: /^\/scripting\/engine-dist/,
+            async handler(req: Request, res: Response, next: NextFunction) {
+                try {
+                    const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
+                    const facet = await waitForProgrammingFacet();
+                    let relPath = req.path.substring('/scripting/engine-dist'.length);
+                    relPath = decodeURIComponent(relPath);
+                    const resourcePath = join(facet.engineDistRoot, relPath);
+                    if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
+                        res.sendFile(resourcePath, { dotfiles: 'allow' });
+                    } else {
+                        next();
+                    }
                 } catch (err) {
                     next(err);
                 }
@@ -73,8 +98,8 @@ export default {
         {
             url: '/scripting/import-map-global',
             async handler(req: Request, res: Response) {
-                const { getPreviewFacet } = await import('../scripting/programming/FacetInstance');
-                const facet = getPreviewFacet();
+                const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
+                const facet = await waitForProgrammingFacet();
                 const importMap = await facet.getGlobalImportMap();
                 console.log(`[Preview Server] Global import map:`, JSON.stringify(importMap, null, 2).substring(0, 500));
                 res.json(importMap);
@@ -83,12 +108,36 @@ export default {
         {
             url: /^\/scripting\/x/,
             async handler(req: Request, res: Response, next: NextFunction) {
-                const { getPreviewFacet } = await import('../scripting/programming/FacetInstance');
-                const facet = getPreviewFacet();
+                const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
+                const facet = await waitForProgrammingFacet();
 
                 const url = req.path.substring('/scripting/x'.length).replace(/^\//, '');
                 if (url === '' || url === '/') {
                     return next();
+                }
+
+                // Special handling for pack import-map and resolution-detail-map
+                if (url === 'pack-import-map-url') {
+                    try {
+                        const resource = await facet.loadPackResource(facet.packImportMapURL);
+                        if (resource.type === 'json') {
+                            return res.json(resource.json);
+                        }
+                        return next(new Error('Unexpected pack resource type'));
+                    } catch (err) {
+                        return next(err);
+                    }
+                }
+                if (url === 'resolution-detail-map') {
+                    try {
+                        const resource = await facet.loadPackResource(facet.packResolutionDetailMapURL);
+                        if (resource.type === 'json') {
+                            return res.json(resource.json);
+                        }
+                        return next(new Error('Unexpected pack resource type'));
+                    } catch (err) {
+                        return next(err);
+                    }
                 }
 
                 // Forward query string
@@ -218,8 +267,8 @@ export default {
         {
             url: /^\/scripting\/systemjs/,
             async handler(req: Request, res: Response, next: NextFunction) {
-                const { getPreviewFacet } = await import('../scripting/programming/FacetInstance');
-                const facet = getPreviewFacet();
+                const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
+                const facet = await waitForProgrammingFacet();
                 const relPath = req.path.substring('/scripting/systemjs'.length);
                 if (relPath.startsWith('/extras/')) {
                     const extraPath = join(GlobalPaths.workspace, 'node_modules', '@cocos', 'systemjs', 'dist', relPath);

@@ -1,8 +1,8 @@
-import ps, { join } from 'path';
+import { join } from 'path';
 import { ProgrammingFacet } from './Facet';
 
-
-let programmingFacet: ProgrammingFacet | null;
+let programmingFacet: ProgrammingFacet | null = null;
+let createProgrammingFacetPromise: Promise<ProgrammingFacet> | null = null;
 
 export async function createProgrammingFacet(enginePath: string, projectPath: string, features: string[]) {
     if (!programmingFacet) {
@@ -17,6 +17,22 @@ export async function createProgrammingFacet(enginePath: string, projectPath: st
         );
     }
     return programmingFacet;
+}
+
+export async function waitForProgrammingFacet(): Promise<ProgrammingFacet> {
+    if (!createProgrammingFacetPromise) {
+        const { Engine } = await import('../../engine');
+        const { default: scripting } = await import('../');
+        const enginePath = Engine.getInfo().typescript.path;
+        const features = Engine.getConfig().includeModules || [];
+        createProgrammingFacetPromise = createProgrammingFacet(enginePath, scripting.projectPath, features);
+        createProgrammingFacetPromise.catch(() => {
+            createProgrammingFacetPromise = null;
+        });
+    }
+    await createProgrammingFacetPromise;
+
+    return programmingFacet!;
 }
 
 export function getPreviewFacet() {

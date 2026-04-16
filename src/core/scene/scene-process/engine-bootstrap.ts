@@ -103,7 +103,6 @@ export async function startup(options: {
     //TODO
     cc.view.setDesignResolutionSize(1920, 1080, cc.ResolutionPolicy.SHOW_ALL);
 
-    await cc.game.run(async () => {
-        cc.game.pause();
-    });
+    await cc.game.run();
+    await DecoratorService.Engine.init();
 }

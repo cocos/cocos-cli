@@ -1,89 +1,74 @@
 /**
- * MCP Server Facade Module
+ * MCP Facade Module
  *
- * Called by the cocos-code utility process to start the MCP server
+ * Called by the cocos-code utility process to register MCP middleware
  * in an already-initialized environment.
- * Prerequisite: core modules (project/engine/assets/scripting/builder)
- * have been initialized via their respective lib modules.
- * This module only handles MCP-specific work: populating the toolRegistry,
- * starting Express, and registering MCP routes.
+ * Prerequisite: the Server module must be started before calling this module.
+ * This module only handles MCP-specific work: populating the toolRegistry
+ * and registering MCP routes on the running server.
  */
 
 let mcpUrl: string | undefined;
-let isRunning = false;
-let startingPromise: Promise<string> | undefined;
+let registeringPromise: Promise<string> | undefined;
 
 /**
- * Start the MCP server.
+ * Register MCP middleware on the running server.
  *
- * Note: does NOT call CocosAPI.startup() / Launcher because
- * core modules are already initialized by the utility process.
+ * Note: the Express server must already be started via the Server module.
  * This function only:
  * 1. Imports API modules to populate the toolRegistry (@tool decorator side-effects)
- * 2. Starts the Express HTTP server
- * 3. Creates McpMiddleware and registers routes
+ * 2. Creates McpMiddleware and registers routes on the server
  *
- * @param port Optional port number; auto-selected if omitted
- * @returns MCP server URL (e.g. http://localhost:9527/mcp)
+ * @returns MCP endpoint URL (e.g. http://localhost:9527/mcp)
  */
-export async function startServer(port?: number): Promise<string> {
-	if (isRunning && mcpUrl) {
+export async function register(): Promise<string> {
+	if (mcpUrl) {
 		return mcpUrl;
 	}
 
-	// Concurrent startup guard: if already starting, wait for the existing promise
-	if (startingPromise) {
-		return startingPromise;
-	}
-
-	startingPromise = doStartServer(port);
+	// Reuse in-flight registration if called concurrently
+	registeringPromise ??= doRegisterMcp();
 	try {
-		return await startingPromise;
+		return await registeringPromise;
 	} finally {
-		startingPromise = undefined;
+		registeringPromise = undefined;
 	}
 }
 
-async function doStartServer(port?: number): Promise<string> {
+async function doRegisterMcp(): Promise<string> {
 	// 1. Import API modules to trigger @tool decorators and populate toolRegistry
 	const { CocosAPI } = await import('../../api/index');
 	await CocosAPI.create();
 
-	// 2. Start the Express HTTP server
-	const { serverService } = await import('../../server/server');
-	await serverService.start(port);
-
-	// 3. Create MCP middleware and register routes
+	// 2. Create MCP middleware and register routes on the running server
 	const { McpMiddleware } = await import('../../mcp/mcp.middleware');
+	const { register, getUrl } = await import('../server/server');
 	const middleware = new McpMiddleware();
-	serverService.register('mcp', middleware.getMiddlewareContribution());
+	await register('mcp', middleware.getMiddlewareContribution());
 
-	mcpUrl = `${serverService.url}/mcp`;
-	isRunning = true;
+	const serverUrl = getUrl();
+	mcpUrl = `${serverUrl}/mcp`;
 
-	console.log(`[MCP] Server started at: ${mcpUrl}`);
+	console.log(`[MCP] Middleware registered at: ${mcpUrl}`);
 	return mcpUrl;
 }
 
 /**
- * Stop the MCP server.
+ * Clean up MCP state.
+ * Note: does NOT stop the Express server — use the Server module for that.
  */
-export async function stopServer(): Promise<void> {
-	if (!isRunning) {
+export async function unregister(): Promise<void> {
+	if (!mcpUrl) {
 		return;
 	}
 
-	const { serverService } = await import('../../server/server');
-	await serverService.stop();
-
-	isRunning = false;
 	mcpUrl = undefined;
-	console.log('[MCP] Server stopped');
+	console.log('[MCP] Middleware unregistered');
 }
 
 /**
- * Get the MCP server status.
+ * Get the MCP registration status.
  */
-export function getStatus(): { running: boolean; url?: string } {
-	return { running: isRunning, url: mcpUrl };
+export function getStatus(): { registered: boolean; url?: string } {
+	return { registered: !!mcpUrl, url: mcpUrl };
 }
