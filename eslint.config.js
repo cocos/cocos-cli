@@ -95,6 +95,7 @@ export default [
             '@typescript-eslint/no-unsafe-function-type': 'off',
             '@typescript-eslint/no-empty-object-type': 'off',
             '@typescript-eslint/ban-types': 'off',
+            '@typescript-eslint/no-duplicate-enum-values': 'off',
         },
     },
     {
@@ -105,6 +106,7 @@ export default [
             'coverage/**',
             '*.min.js',
             '*.bundle.js',
+            'packages/cocos-cli-types/cc.d.ts',
         ],
     },
 ];

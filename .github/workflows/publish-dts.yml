@@ -23,6 +23,8 @@ jobs:
 
       - run: npm run generate:dts
 
+      - run: cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
+
       - run: npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
 
       - run: npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"

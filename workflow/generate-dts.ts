@@ -134,6 +134,10 @@ const entries: IDtsEntry[] = [
         name: 'builder',
         source: 'src/lib/builder/builder.ts',
         output: 'builder.d.ts'
+    }, {
+        name: 'service',
+        source: 'src/core/scene/scene-process/service/index.ts',
+        output: 'service.d.ts'
     }
 ];
 
