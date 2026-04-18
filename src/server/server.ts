@@ -137,9 +137,9 @@ export class ServerService {
     }
 
     init() {
-        this.app.use(compression());
-        this.app.use(express.json());
         this.app.use(cors);
+        this.app.use(compression());
+        this.app.use(express.json({ limit: '50mb' }));
         this.app.use(consoleLogService.injectMiddleware);
         this.app.use(middlewareService.router);
         this.app.use(middlewareService.staticRouter);
