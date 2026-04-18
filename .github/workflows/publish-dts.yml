@@ -1,7 +1,8 @@
 name: Publish-DTS
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 
 jobs:
@@ -31,9 +32,3 @@ jobs:
 
       - name: Remove local .npmrc to avoid registry conflict
         run: rm -f .npmrc
-
-      - name: Publish to npm
-        run: npm publish --access public
-        working-directory: packages/cocos-cli-types
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH }}
