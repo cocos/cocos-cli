@@ -387,6 +387,8 @@ describe('Node Proxy 测试', () => {
             };
 
         });
+    });
+
     describe('7. queryNodeTree - 查询节点树', () => {
         it('queryNodeTree - 查询整棵场景树', async () => {
             const params: IQueryNodeTreeParams = {};
