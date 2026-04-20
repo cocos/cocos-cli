@@ -3,6 +3,7 @@ import {
     type ICreateByNodeTypeParams,
     type IDeleteNodeParams,
     type IQueryNodeParams,
+    type IQueryNodeTreeParams,
     type IUpdateNodeParams,
     type INode,
     NodeType,
@@ -385,6 +386,92 @@ describe('Node Proxy 测试', () => {
                 }
             };
 
+        });
+    describe('7. queryNodeTree - 查询节点树', () => {
+        it('queryNodeTree - 查询整棵场景树', async () => {
+            const params: IQueryNodeTreeParams = {};
+            const tree = await NodeProxy.queryNodeTree(params);
+            expect(tree).toBeDefined();
+            expect(tree).not.toBeNull();
+            expect(tree!.isScene).toBe(true);
+            expect(tree!.name).toBeDefined();
+            expect(Array.isArray(tree!.children)).toBe(true);
+            expect(Array.isArray(tree!.components)).toBe(true);
+        });
+
+        it('queryNodeTree - 返回的节点包含必要字段', async () => {
+            const tree = await NodeProxy.queryNodeTree({});
+            expect(tree).not.toBeNull();
+
+            const checkFields = (item: typeof tree) => {
+                if (!item) return;
+                expect(typeof item.name).toBe('string');
+                expect(typeof item.active).toBe('boolean');
+                expect(typeof item.locked).toBe('boolean');
+                expect(typeof item.type).toBe('string');
+                expect(typeof item.path).toBe('string');
+                expect(typeof item.isScene).toBe('boolean');
+                expect(typeof item.readonly).toBe('boolean');
+                expect(typeof item.parent).toBe('string');
+                expect(item.prefab).toBeDefined();
+                expect(Array.isArray(item.children)).toBe(true);
+                expect(Array.isArray(item.components)).toBe(true);
+            };
+            checkFields(tree);
+            if (tree!.children.length > 0) {
+                checkFields(tree!.children[0]);
+            }
+        });
+
+        it('queryNodeTree - 通过 path 查询子树', async () => {
+            // 先创建一个节点用于查询
+            const createParams: ICreateByNodeTypeParams = {
+                path: '/',
+                name: 'TreeTestNode',
+                nodeType: NodeType.EMPTY,
+            };
+            const created = await NodeProxy.createNodeByType(createParams);
+            expect(created).toBeDefined();
+
+            const params: IQueryNodeTreeParams = { path: created!.path };
+            const subtree = await NodeProxy.queryNodeTree(params);
+            expect(subtree).not.toBeNull();
+            expect(subtree!.name).toBe('TreeTestNode');
+            expect(subtree!.isScene).toBe(false);
+
+            // 清理
+            await NodeProxy.deleteNode({ path: created!.path, keepWorldTransform: false });
+        });
+
+        it('queryNodeTree - 查询不存在的路径应返回 null', async () => {
+            const params: IQueryNodeTreeParams = { path: '/NonExistentTreeNode' };
+            const result = await NodeProxy.queryNodeTree(params);
+            expect(result).toBeNull();
+        });
+
+        it('queryNodeTree - 组件信息包含 type 和 extends', async () => {
+            // 创建一个带组件的节点
+            const createParams: ICreateByNodeTypeParams = {
+                path: '/',
+                name: 'CompTreeTestNode',
+                nodeType: NodeType.SPRITE,
+            };
+            const created = await NodeProxy.createNodeByType(createParams);
+            expect(created).toBeDefined();
+
+            const tree = await NodeProxy.queryNodeTree({ path: created!.path });
+            expect(tree).not.toBeNull();
+            expect(tree!.components.length).toBeGreaterThan(0);
+
+            for (const comp of tree!.components) {
+                expect(typeof comp.type).toBe('string');
+                expect(typeof comp.isCustom).toBe('boolean');
+                expect(typeof comp.value).toBe('string');
+                expect(Array.isArray(comp.extends)).toBe(true);
+            }
+
+            // 清理
+            await NodeProxy.deleteNode({ path: created!.path, keepWorldTransform: false });
         });
     });
 });
