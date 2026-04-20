@@ -2,26 +2,9 @@ import type { Node } from 'cc';
 import { IComponent, IComponentIdentifier } from './component';
 import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
-import { IPrefabInfo } from './prefab';
+import { IPrefabInfo, IPrefabStateInfo } from './prefab';
 
 // ====== Hierarchy tree types (for queryNodeTree) ======
-
-export enum PrefabState {
-    NotAPrefab = 0,
-    PrefabChild = 1,
-    PrefabInstance = 2,
-    PrefabLostAsset = 3,
-}
-
-export interface IPrefabStateInfo {
-    state: PrefabState;
-    isUnwrappable: boolean;
-    isRevertable: boolean;
-    isApplicable: boolean;
-    isAddedChild: boolean;
-    isNested: boolean;
-    assetUuid: string;
-}
 
 export interface INodeTreeComponent {
     isCustom: boolean;

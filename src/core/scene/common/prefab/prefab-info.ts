@@ -3,8 +3,8 @@ import type { IComponentIdentifier } from '../component';
 
 export enum OptimizationPolicy {
     AUTO = 0,
-    SINGLE_INSTANCE = 0,
-    MULTI_INSTANCE = 1,
+    SINGLE_INSTANCE = 1,
+    MULTI_INSTANCE = 2,
 }
 
 export interface IPrefabInstance {
@@ -64,4 +64,21 @@ export interface IPrefabInfo {
     fileId: string;
     targetOverrides: ITargetOverrideInfo[];
     nestedPrefabInstanceRoots: INodeIdentifier[];
+}
+
+export enum PrefabState {
+    NotAPrefab = 0,
+    PrefabChild = 1,
+    PrefabInstance = 2,
+    PrefabLostAsset = 3,
+}
+
+export interface IPrefabStateInfo {
+    state: PrefabState;
+    isUnwrappable: boolean;
+    isRevertable: boolean;
+    isApplicable: boolean;
+    isAddedChild: boolean;
+    isNested: boolean;
+    assetUuid: string;
 }
