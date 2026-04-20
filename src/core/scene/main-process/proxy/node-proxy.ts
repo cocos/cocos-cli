@@ -1,8 +1,10 @@
 import {
     INode,
+    INodeTreeItem,
     ICreateByNodeTypeParams,
     ICreateByAssetParams,
     IQueryNodeParams,
+    IQueryNodeTreeParams,
     IUpdateNodeParams,
     IDeleteNodeParams,
     IUpdateNodeResult,
@@ -26,5 +28,8 @@ export const NodeProxy: IPublicNodeService = {
     },
     queryNode(params: IQueryNodeParams): Promise<INode | null> {
         return Rpc.getInstance().request('Node', 'queryNode', [params]);
+    },
+    queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
+        return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);
     }
 };

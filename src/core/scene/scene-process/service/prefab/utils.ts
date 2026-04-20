@@ -3,7 +3,7 @@
 import { Component, editorExtrasTag, instantiate, Node, Prefab, CCClass, Scene, isValid } from 'cc';
 import { isEditorNode } from '../node/node-utils';
 import { ServiceEvents, Service } from '../core';
-import { INodeEvents, NodeEventType } from '../../../common';
+import { INodeEvents, NodeEventType, PrefabState } from '../../../common';
 
 type PrefabInfo = Prefab._utils.PrefabInfo;
 const PrefabInfo = Prefab._utils.PrefabInfo;
@@ -22,12 +22,6 @@ const TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
 type MountedComponentsInfo = Prefab._utils.MountedComponentsInfo;
 const MountedComponentsInfo = Prefab._utils.MountedComponentsInfo;
 
-export enum PrefabState {
-    NotAPrefab = 0, // 普通节点，非Prefab
-    PrefabChild = 1, // Prefab子节点，不含有PrefabInstance
-    PrefabInstance = 2, // Prefab的根节点含有PrefabInstance的节点
-    PrefabLostAsset = 3, // 丢失资源的Prefab节点
-}
 
 const compKey = '_components';
 const DELIMETER = CCClass.Attr.DELIMETER;

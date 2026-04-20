@@ -16,6 +16,6 @@ export interface IScriptService extends IServiceEvents {
     scriptChange(): Promise<void>;
     queryScriptCid(uuid: string): Promise<string | null>;
     queryScriptName(uuid: string): Promise<string | null>;
-    isCustomComponent(classConstructor: Function): Promise<boolean>;
+    isCustomComponent(classConstructor: Function): boolean;
     suspend(condition: Promise<any>): void;
 }

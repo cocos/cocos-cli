@@ -7,6 +7,8 @@ import {
     type INode,
     type INodeService,
     type IQueryNodeParams,
+    type IQueryNodeTreeParams,
+    type INodeTreeItem,
     type INodeEvents,
     type IUpdateNodeParams,
     type IUpdateNodeResult,
@@ -16,10 +18,11 @@ import {
     IChangeNodeOptions
 } from '../../common';
 import { Rpc } from '../rpc';
-import { CCObject, Node, Prefab, Quat, Vec3, TransformBit, UITransform, LODGroup } from 'cc';
+import { CCClass, CCObject, Node, Prefab, Quat, Vec3, TransformBit, UITransform, LODGroup } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, isEditorNode, setLayer } from './node/node-utils';
 import { sceneUtils } from './scene/utils';
+import { prefabUtils } from './prefab/utils';
 import NodeConfig from './node/node-type-config';
 
 const NodeMgr = EditorExtends.Node;
@@ -397,6 +400,64 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return null;
             }
             return sceneUtils.generateNodeInfo(node, !!params.queryChildren, !!params.queryComponent);
+        } catch (error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
+        }
+    }
+
+    async queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
+        try {
+            await Service.Editor.lock();
+            const root = Service.Editor.getRootNode();
+            if (!root) {
+                throw new Error('Failed to query node tree: the scene is not opened.');
+            }
+
+            const step = (node: Node): INodeTreeItem | null => {
+                if (node.objFlags & CCObject.Flags.HideInHierarchy) {
+                    return null;
+                }
+
+                const children = node.children.map(step).filter(Boolean) as INodeTreeItem[];
+                const prefabStateInfo = prefabUtils.getPrefabStateInfo(node);
+                const isScene = node.constructor.name === 'Scene';
+
+                return {
+                    name: !node.name && isScene ? 'Scene' : node.name,
+                    active: node.active,
+                    locked: Boolean(node.objFlags & CCObject.Flags.LockedInEditor),
+                    type: 'cc.' + node.constructor.name,
+                    children,
+                    prefab: prefabStateInfo,
+                    parent: (node.parent && node.parent.uuid) || '',
+                    path: isScene ? '/' : NodeMgr.getNodePath(node),
+                    isScene,
+                    readonly: false,
+                    components: node.components.map((comp) => {
+                        const className = cc.js.getClassName(comp.constructor);
+                        return {
+                            isCustom: Service.Script.isCustomComponent(comp.constructor),
+                            type: className,
+                            value: comp.uuid,
+                            extends: CCClass.getInheritanceChain(comp.constructor)
+                                .map((itemCtor: any) => cc.js.getClassName(itemCtor))
+                                .filter(Boolean),
+                        };
+                    }),
+                };
+            };
+
+            let node: Node | null = root;
+            if (params.path) {
+                node = NodeMgr.getNodeByPath(params.path);
+            }
+            if (!node) {
+                return null;
+            }
+            return step(node);
         } catch (error) {
             console.error(error);
             throw error;

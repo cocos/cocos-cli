@@ -5,7 +5,6 @@ import { Rpc } from '../rpc';
 import { BaseService, register } from './core';
 import { IScriptEvents, IScriptService } from '../../common';
 import utils from '../../../base/utils';
-import { serviceManager } from './service-manager';
 
 /**
  * 异步迭代。有以下特点：
@@ -215,7 +214,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
      * 是否是自定义脚本（不是引擎定义的组件）
      * @param classConstructor
      */
-    public async isCustomComponent(classConstructor: Function) {
+    public isCustomComponent(classConstructor: Function) {
         return this.customComponents.has(classConstructor);
     }
 

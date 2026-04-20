@@ -326,6 +326,26 @@ async function buildSceneBundle() {
                     return { code: fixed, map: null };
                 }
             },
+            {
+                // Alias EditorExtends (capital) to the bundled editorExtends module.
+                // Service files reference EditorExtends as a bare global which resolves
+                // to window.EditorExtends (the stub from editor-stub-preload.js).
+                // This injects a var assignment right after the editor-extends IIFE
+                // so all subsequent references use the real module.
+                name: 'alias-editor-extends-global',
+                renderChunk(code) {
+                    const marker = '} (editorExtends));';
+                    if (!code.includes(marker)) {
+                        console.warn('[Build] Warning: could not find editorExtends IIFE marker. EditorExtends global aliasing skipped.');
+                        return null;
+                    }
+                    const fixed = code.replace(
+                        marker,
+                        marker + '\n\t\t\tvar EditorExtends = editorExtends;'
+                    );
+                    return { code: fixed, map: null };
+                }
+            },
             nodeResolve({
                 preferBuiltins: true,
                 browser: true,
