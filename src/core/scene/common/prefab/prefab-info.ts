@@ -67,10 +67,10 @@ export interface IPrefabInfo {
 }
 
 export enum PrefabState {
-    NotAPrefab = 0,
-    PrefabChild = 1,
-    PrefabInstance = 2,
-    PrefabLostAsset = 3,
+    NotAPrefab = 0, // Normal node, not a Prefab
+    PrefabChild = 1, // Child node of a Prefab, without PrefabInstance
+    PrefabInstance = 2, // Root node of a Prefab that contains a PrefabInstance
+    PrefabLostAsset = 3, // Prefab node with missing asset
 }
 
 export interface IPrefabStateInfo {
