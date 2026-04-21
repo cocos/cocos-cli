@@ -315,7 +315,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 expect(path).toBeTruthy();
 
                 const component = await ComponentProxy.queryComponent({
-                    pathOrUuidOrUrl: path,
+                    path: path,
                 }) as IComponent;
 
                 expect(prefabInstanceNode).toBeTruthy();

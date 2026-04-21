@@ -1,14 +1,15 @@
 import {
     IComponent,
-    IComponentForPinK,
+    IComponentForEditor,
     IAddComponentOptions,
     IRemoveComponentOptions,
     IQueryComponentOptions,
     ISetPropertyOptions,
     IPublicComponentService,
     IExecuteComponentMethodOptions,
+    IQueryClassesOptions,
 } from '../../common';
-import {IProperty} from '../../@types/public';
+import { IProperty } from '../../@types/public';
 
 import { Rpc } from '../rpc';
 
@@ -25,7 +26,7 @@ export const ComponentProxy: IPublicComponentService = {
         return Rpc.getInstance().request('Component', 'removeComponent', [params]);
     },
 
-    queryComponent(params: IQueryComponentOptions): Promise<IComponent | IComponentForPinK | null> {
+    queryComponent(params: IQueryComponentOptions): Promise<IComponent | IComponentForEditor | null> {
         return Rpc.getInstance().request('Component', 'queryComponent', [params]);
     },
 
@@ -33,14 +34,22 @@ export const ComponentProxy: IPublicComponentService = {
         return Rpc.getInstance().request('Component', 'setProperty', [params]);
     },
 
-    setPropertyForPink(uuid: string, path: string, dump: IProperty, record?: boolean): Promise<boolean> {
-        return Rpc.getInstance().request('Component', 'setPropertyForPink', [uuid, path, dump, record]);
-    },
-
     queryAllComponent(): Promise<string[]> {
         return Rpc.getInstance().request('Component', 'queryAllComponent');
     },
-    
+
+    queryClasses(options?: IQueryClassesOptions): Promise<{ name: string }[]> {
+        return Rpc.getInstance().request('Component', 'queryClasses', [options]);
+    },
+
+    queryComponentFunctionOfNode(uuid: string): Promise<any> {
+        return Rpc.getInstance().request('Component', 'queryComponentFunctionOfNode', [uuid]);
+    },
+
+    queryComponentHasScript(name: string): Promise<boolean> {
+        return Rpc.getInstance().request('Component', 'queryComponentHasScript', [name]);
+    },
+
     resetComponent(params: IQueryComponentOptions): Promise<boolean> {
         return Rpc.getInstance().request('Component', 'resetComponent', [params]);
     },

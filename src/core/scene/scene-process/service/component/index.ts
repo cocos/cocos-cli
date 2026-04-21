@@ -150,7 +150,7 @@ export class CompManager extends EventEmitter {
         try {
             const node = new cc.Node();
             const newComp = node.addComponent(component.constructor);
-            const dump = dumpUtil.dumpComponentForPinK(newComp);
+            const dump = dumpUtil.dumpComponentForEditor(newComp);
 
             for (const key in dump.value) {
                 if (skipCompProps.includes(key)) {
@@ -179,7 +179,7 @@ export class CompManager extends EventEmitter {
         if (!comp) {
             return null;
         }
-        return dumpUtil.dumpComponentForPinK(comp);
+        return dumpUtil.dumpComponentForEditor(comp);
     }
 
     /**

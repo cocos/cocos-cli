@@ -93,7 +93,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            await ComponentProxy.removeComponent({ pathOrUuidOrUrl: componentPath });
+            await ComponentProxy.removeComponent({ path: componentPath });
 
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;

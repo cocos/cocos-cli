@@ -3,8 +3,8 @@ import { Node, Component, js, CCClass } from 'cc';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
 import { decodePatch, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeComponent, encodeComponentForPinK } from './encode';
-import { IComponent, IComponentForPinK } from '../../../common';
+import { encodeObject, encodeComponent, encodeComponentForEditor } from './encode';
+import { IComponent, IComponentForEditor } from '../../../common';
 
 // import * as dumpDecode from './decode';
 const { get } = require('lodash');
@@ -36,13 +36,13 @@ class DumpUtil {
     }
 
     // 生成一个component的dump数据
-    dumpComponentForPinK(comp: Component): IComponentForPinK;
-    dumpComponentForPinK(comp: null | undefined): null;
-    dumpComponentForPinK(comp: Component | null | undefined) {
+    dumpComponentForEditor(comp: Component): IComponentForEditor;
+    dumpComponentForEditor(comp: null | undefined): null;
+    dumpComponentForEditor(comp: Component | null | undefined) {
         if (!comp) {
             return null;
         }
-        return encodeComponentForPinK(comp);
+        return encodeComponentForEditor(comp);
     }
 
     /**
@@ -51,18 +51,18 @@ class DumpUtil {
      * @param path
      * @param dump
      */
-    async restoreProperty(node: Node | Component, path: string, dump: any, forPink: boolean = false) {
+    async restoreProperty(node: Node | Component, path: string, dump: any, forEditor: boolean = false) {
         // 还原整个 component
         if (/^__comps__\.\d+$/.test(path)) {
             if (typeof dump.value === 'object') {
                 for (const key in dump.value) {
                     // @ts-ignore
-                    await decodePatch(`${path}.${key}`, dump.value[key], node, forPink);
+                    await decodePatch(`${path}.${key}`, dump.value[key], node, forEditor);
                 }
             }
         } else {
             // 还原单个属性
-            return decodePatch(path, dump, node, forPink);
+            return decodePatch(path, dump, node, forEditor);
         }
     }
 

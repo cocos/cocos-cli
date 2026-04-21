@@ -10,11 +10,14 @@ import {
     IRemoveComponentOptions,
     ISetPropertyOptions, NodeEventType,
     IExecuteComponentMethodOptions,
-    IComponentForPinK
+    IComponentForEditor,
+    IQueryClassesOptions,
+    ISetPropertyOptionsForEditor
 } from '../../common';
 import dumpUtil from './dump';
 import compMgr from './component/index';
 import componentUtils from './component/utils';
+import getComponentFunctionOfNode from './component/get-component-function-of-node';
 import { hasOneKindOfComponent } from './node/node-utils';
 import { isEditorNode } from './node/node-utils';
 import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
@@ -346,22 +349,22 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     /**
-     * 通过 path、uuid 或 url 查找组件实例
+     * 通过 path 查找组件实例，支持路径、UUID 或 URL
      */
-    private async findComponent(pathOrUuidOrUrl: string): Promise<Component | null> {
-        const isUuid = componentUtils.isUUID(pathOrUuidOrUrl);
-        const isURL = pathOrUuidOrUrl.startsWith('db://');
+    private async findComponent(path: string): Promise<Component | null> {
+        const isUuid = componentUtils.isUUID(path);
+        const isURL = path.startsWith('db://');
 
         if (isUuid) {
-            return compMgr.query(pathOrUuidOrUrl);
+            return compMgr.query(path);
         } else if (isURL) {
-            const uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [pathOrUuidOrUrl]);
+            const uuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [path]);
             if (uuid) {
                 return compMgr.query(uuid);
             }
             return null;
         } else {
-            return compMgr.queryFromPath(pathOrUuidOrUrl);
+            return compMgr.queryFromPath(path);
         }
     }
 
@@ -369,9 +372,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         try {
             await Service.Editor.lock();
 
-            const comp = await this.findComponent(params.pathOrUuidOrUrl);
+            const comp = await this.findComponent(params.path);
             if (!comp) {
-                throw new Error(`Remove component failed: ${params.pathOrUuidOrUrl} does not exist`);
+                throw new Error(`Remove component failed: ${params.path} does not exist`);
             }
 
             this.emit('component:before-remove', comp);
@@ -389,21 +392,28 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async queryComponent(params: IQueryComponentOptions): Promise<IComponent | IComponentForPinK | null> {
-        const comp = await this.findComponent(params.pathOrUuidOrUrl);
+    async queryComponentImpl(params: IQueryComponentOptions, isEditor: boolean = false): Promise<IComponent | IComponentForEditor | null> {
+        const comp = await this.findComponent(params.path);
         if (!comp) {
-            console.warn(`Query component failed: ${params.pathOrUuidOrUrl} does not exist`);
+            console.warn(`Query component failed: ${params.path} does not exist`);
             return null;
         }
-        if (params?.isFull) {
-            return (dumpUtil.dumpComponentForPinK(comp as Component));
+        if (isEditor) {
+            return (dumpUtil.dumpComponentForEditor(comp as Component));
         } else {
             return (dumpUtil.dumpComponent(comp as Component));
         }
-
     }
 
-    async setProperty(options: ISetPropertyOptions): Promise<boolean> {
+    async queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null> {
+        if (typeof params === 'string') {
+            return this.queryComponentImpl({ path: params }, true);
+        } else {
+            return this.queryComponentImpl(params);
+        }
+    }
+
+    async setPropertyForCli(options: ISetPropertyOptions): Promise<boolean> {
         try {
             await Service.Editor.lock();
             return this.setPropertyImp(options);
@@ -412,6 +422,14 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             throw error;
         } finally {
             Service.Editor.unlock();
+        }
+    }
+
+    async setProperty(options: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean> {
+        if ('uuid' in options) {
+            return await this.setPropertyForEditor(options as ISetPropertyOptionsForEditor);
+        } else {
+            return await this.setPropertyForCli(options);
         }
     }
 
@@ -429,12 +447,12 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return NodeMgr.getNode(uuid);
     }
 
-    async setPropertyForPink(uuid: string, path: string, dump: IProperty, record: boolean = true): Promise<boolean> {
+    async setPropertyForEditor(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         // 多个节点更新值
-        if (Array.isArray(uuid)) {
+        if (Array.isArray(options.uuid)) {
             try {
-                for (let i = 0; i < uuid.length; i++) {
-                    await this.setPropertyForPink(uuid[i], path, dump);
+                for (let i = 0; i < options.uuid.length; i++) {
+                    await this.setPropertyForEditor({ uuid: options.uuid[i], path: options.path, dump: options.dump, record: options?.record });
                 }
                 return true;
             } catch (e) {
@@ -442,39 +460,39 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 return false;
             }
         }
-        const node = this.query(uuid);
+        const node = this.query(options.uuid);
         if (!node) {
-            console.warn(`Set property failed: ${uuid} does not exist`);
+            console.warn(`Set property failed: ${options.uuid} does not exist`);
             return false;
         }
 
         // 触发修改前的事件
         this.emit('node:before-change', node);
-        if (path === 'parent' && node.parent) {
+        if (options.path === 'parent' && node.parent) {
             // 发送节点修改消息
             this.emit('node:before-change', node.parent);
         }
 
         // 恢复数据
         try {
-            await dumpUtil.restoreProperty(node, path, dump, true);
+            await dumpUtil.restoreProperty(node, options.path, options.dump, true);
         } catch (e) {
             console.error(e);
             return false;
         }
 
         // 触发修改后的事件
-        this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: path, record: record });
+        this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: options.path, record: options.record });
         // 如果是数组的话，需要依次 emit change，路径定位到数组的下标位置
-        if (dump.isArray && Array.isArray(dump.value)) {
-            dump.value.forEach((item, i) => {
-                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: `${path}.${i}`, record: record });
+        if (options.dump.isArray && Array.isArray(options.dump.value)) {
+            options.dump.value.forEach((item, i) => {
+                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: `${options.path}.${i}`, record: options.record });
             });
         }
         // 改变父子关系
-        if (path === 'parent' && node.parent) {
+        if (options.path === 'parent' && node.parent) {
             // 发送节点修改消息
-            this.emit('node:change', node.parent, { type: NodeEventType.SET_PROPERTY, propPath: 'children', record: record });
+            this.emit('node:change', node.parent, { type: NodeEventType.SET_PROPERTY, propPath: 'children', record: options.record });
         }
         return true;
     }
@@ -506,7 +524,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return true;
     }
 
-    async queryAllComponent() {
+    async queryAllComponent(): Promise<string[]> {
         const keys = Object.keys(cc.js._registeredClassNames);
         const components: string[] = [];
         keys.forEach((key) => {
@@ -518,6 +536,50 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             } catch (e) { }
         });
         return components;
+    }
+
+    async queryComponentHasScript(name: string): Promise<boolean> {
+        const classes = await this.queryClasses();
+        return classes.some((cls) => cls.name === name);
+    }
+
+    async queryClasses(options?: IQueryClassesOptions): Promise<{ name: string }[]> {
+        const classes = [];
+        for (const name in cc.js._registeredClassNames) {
+            if (options) {
+                if (typeof options.extends === 'string') {
+                    options.extends = [options.extends];
+                }
+                const subClass = cc.js._registeredClassNames[name];
+                if (
+                    Array.isArray(options.extends) &&
+                    options.extends.some((extend: string) => {
+                        const superClass = cc.js.getClassByName(extend);
+                        const isChildOrSelf = cc.js.isChildClassOf(subClass, superClass);
+
+                        if (options.excludeSelf) {
+                            return isChildOrSelf && superClass !== subClass;
+                        }
+
+                        return isChildOrSelf;
+                    })
+                ) {
+                    classes.push({ name });
+                }
+            } else {
+                classes.push({ name });
+            }
+        }
+
+        return classes;
+    }
+
+    async queryComponentFunctionOfNode(uuid: string): Promise<any> {
+        const node = NodeMgr.getNode(uuid);
+        if (!node) {
+            return {};
+        }
+        return getComponentFunctionOfNode(node);
     }
 
     public init() {
@@ -581,9 +643,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      */
     public async resetComponent(params: IQueryComponentOptions): Promise<boolean> {
         try {
-            const comp = await this.findComponent(params.pathOrUuidOrUrl);
+            const comp = await this.findComponent(params.path);
             if (!comp) {
-                console.warn(`Reset Component failed: ${params.pathOrUuidOrUrl} does not exist`);
+                console.warn(`Reset Component failed: ${params.path} does not exist`);
                 return false;
             }
             // 发送节点修改消息
