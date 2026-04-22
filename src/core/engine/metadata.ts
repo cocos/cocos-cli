@@ -166,6 +166,32 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.moduleConfig.noDeprecatedFeatures.title',
                 description: 'i18n:configuration.engine.moduleConfig.noDeprecatedFeatures.description',
             },
+            'engine.globalConfigKey': {
+                type: 'string',
+                default: '',
+                title: 'i18n:configuration.engine.projectConfig.globalConfigKey.title',
+            },
+            'engine.configs': objectSchema(undefined, {
+                title: 'i18n:configuration.engine.projectConfig.configs.title',
+                additionalProperties: objectSchema({
+                    includeModules: dynamicMetadata.includeModules,
+                    flags: dynamicMetadata.flagsObject,
+                    noDeprecatedFeatures: objectSchema({
+                        value: {
+                            type: 'boolean',
+                            title: 'i18n:configuration.engine.projectConfig.noDeprecatedFeatureConfig.value.title',
+                        },
+                        version: {
+                            type: 'string',
+                            title: 'i18n:configuration.engine.projectConfig.noDeprecatedFeatureConfig.version.title',
+                        },
+                    }, {
+                        title: 'i18n:configuration.engine.projectConfig.noDeprecatedFeatureConfig.title',
+                    }),
+                }, {
+                    title: 'i18n:configuration.engine.projectConfig.configItem.title',
+                }),
+            }),
         }, 4),
 
         createNode('engine.rendering', 'i18n:configuration.engine.rendering.title', 'engine', {
@@ -221,48 +247,22 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
             }),
         }, 6),
 
-        createNode('engine.layers', 'i18n:configuration.engine.layers.title', 'engine', {
+        createNode('engine.customLayers', 'i18n:configuration.engine.layers.customLayers.title', 'engine', {
             'engine.customLayers': {
                 type: 'array',
                 default: options.defaultConfig.customLayers,
                 title: 'i18n:configuration.engine.layers.customLayers.title',
                 description: 'i18n:configuration.engine.layers.customLayers.description',
             },
+        }, 7),
+
+        createNode('engine.sortingLayers', 'i18n:configuration.engine.layers.sortingLayers.title', 'engine', {
             'engine.sortingLayers': {
                 type: 'array',
                 default: options.defaultConfig.sortingLayers,
                 title: 'i18n:configuration.engine.layers.sortingLayers.title',
                 description: 'i18n:configuration.engine.layers.sortingLayers.description',
             },
-        }, 7),
-
-        createNode('engine.projectConfig', 'i18n:configuration.engine.projectConfig.title', 'engine', {
-            'engine.globalConfigKey': {
-                type: 'string',
-                default: '',
-                title: 'i18n:configuration.engine.projectConfig.globalConfigKey.title',
-            },
-            'engine.configs': objectSchema(undefined, {
-                title: 'i18n:configuration.engine.projectConfig.configs.title',
-                additionalProperties: objectSchema({
-                    includeModules: dynamicMetadata.includeModules,
-                    flags: dynamicMetadata.flagsObject,
-                    noDeprecatedFeatures: objectSchema({
-                        value: {
-                            type: 'boolean',
-                            title: 'i18n:configuration.engine.projectConfig.noDeprecatedFeatureConfig.value.title',
-                        },
-                        version: {
-                            type: 'string',
-                            title: 'i18n:configuration.engine.projectConfig.noDeprecatedFeatureConfig.version.title',
-                        },
-                    }, {
-                        title: 'i18n:configuration.engine.projectConfig.noDeprecatedFeatureConfig.title',
-                    }),
-                }, {
-                    title: 'i18n:configuration.engine.projectConfig.configItem.title',
-                }),
-            }),
         }, 8),
     ];
 }
