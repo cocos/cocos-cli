@@ -59,6 +59,8 @@ export interface IConfigurationManager {
      * @param force 是否强制保存，默认为 false
      */
     save(force?: boolean): Promise<void>;
+
+    getConfigPath(): Promise<string>;
 }
 
 export class ConfigurationManager extends EventEmitter implements IConfigurationManager {
@@ -323,6 +325,15 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
         } catch (error) {
             newConsole.error(`[Configuration] 保存项目配置失败: ${this.configPath} - ${error}`);
             throw error;
+        }
+    }
+
+    public async getConfigPath(): Promise<string> {
+        try {
+            await this.ensureInitialized();
+            return this.configPath;
+        } catch (error) {
+            throw new Error(`[Configuration] Failed to get configuration file path: ${error}`);
         }
     }
 

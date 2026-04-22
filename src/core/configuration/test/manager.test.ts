@@ -190,6 +190,27 @@ describe('ConfigurationManager', () => {
         });
     });
 
+    describe('getConfigPath', () => {
+        beforeEach(async () => {
+            mockFse.pathExists.mockResolvedValue(false);
+            mockFse.ensureDir.mockResolvedValue(undefined);
+            mockFse.writeJSON.mockResolvedValue(undefined);
+            await manager.initialize(projectPath);
+        });
+
+        it('should return the config file path after initialization', async () => {
+            await expect(manager.getConfigPath()).resolves.toBe(configPath);
+        });
+
+        it('should throw when called before initialization', async () => {
+            const uninitializedManager = new ConfigurationManager();
+
+            await expect(uninitializedManager.getConfigPath()).rejects.toThrow(
+                'Failed to get configuration file path'
+            );
+        });
+    });
+
     describe('remove', () => {
         beforeEach(async () => {
             mockFse.pathExists.mockResolvedValue(false);

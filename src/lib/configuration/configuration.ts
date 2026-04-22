@@ -45,6 +45,11 @@ export async function save(force?: boolean): Promise<void> {
     return await configurationManager.save(force);
 }
 
+export async function getConfigPath(): Promise<string> {
+    const { configurationManager } = await import('../../core/configuration/index');
+    return await configurationManager.getConfigPath();
+}
+
 /**
  * 注册 configurationManager 保存事件的监听器
  * 每次 cocos.config.json 被写入磁盘时触发
