@@ -178,19 +178,19 @@ export interface IComponentService extends IServiceEvents {
 
     /**
      * 查询组件信息
-     * - 传入 IQueryComponentOptions 时，根据 isEditor 决定返回 IComponent 或 IComponentForEditor
-     * - 传入 string 时，等同于 { path: string }，返回 IComponent
+     * - 传入 IQueryComponentOptions 时，返回 IComponent 或 IComponent
+     * - 传入 string 时，返回 IComponentForEditor
      *
      * @param params - 查询选项或组件路径字符串
-     * @returns isEditor=false 时返回 IComponent，isEditor=true 时返回 IComponentForEditor，未找到返回 null
+     * @returns 如果传入的是 IQueryComponentOptions 时返回 IComponent，如果传入是string时返回 IComponentForEditor，未找到返回 null
      *
      * @example
      * ```ts
-     * // CLI 模式：返回 IComponent（扁平属性）
-     * const comp = await queryComponent({ path: 'Canvas/cc.Label_1' });
+     * CLI 模式：返回 IComponent（扁平属性）
+     * const comp = await queryComponent({ path: 'Canvas/cc.Label_1' }) as IComponent;
      *
-     * // 编辑器模式：直接传 string
-     * const comp = await queryComponent('Canvas/cc.Label_1');
+     * 编辑器模式：直接传 string，这里是uuid，因为与cli重复了，也支持 path 和 url
+     * const comp = await queryComponent('uuid') as IComponentForEditor;
      * ```
      */
     queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
