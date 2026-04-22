@@ -45,6 +45,19 @@ export async function save(force?: boolean): Promise<void> {
     return await configurationManager.save(force);
 }
 
+/**
+ * 注册 configurationManager 保存事件的监听器
+ * 每次 cocos.config.json 被写入磁盘时触发
+ * @returns 取消监听的函数
+ */
+export function onDidSave(callback: () => void): () => void {
+    // 同步引入：调用时 configurationManager 必定已初始化
+    const { configurationManager } = require('../../core/configuration/index');
+    const handler = () => callback();
+    configurationManager.on('configuration:save', handler);
+    return () => configurationManager.off('configuration:save', handler);
+}
+
 // ==================== Metadata ====================
 
 export { ICocosConfigurationNode, ICocosConfigurationPropertySchema } from '../../core/configuration/script/metadata';
