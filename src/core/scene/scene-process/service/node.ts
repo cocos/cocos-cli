@@ -430,6 +430,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     active: node.active,
                     locked: Boolean(node.objFlags & CCObject.Flags.LockedInEditor),
                     type: 'cc.' + node.constructor.name,
+                    uuid: node.uuid,
                     children,
                     prefab: prefabStateInfo,
                     parent: (node.parent && node.parent.uuid) || '',

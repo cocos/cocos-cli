@@ -18,6 +18,7 @@ export interface INodeTreeItem {
     active: boolean;
     locked: boolean;
     type: string;
+    uuid: string;
     children: INodeTreeItem[];
     prefab: IPrefabStateInfo;
     parent: string;
