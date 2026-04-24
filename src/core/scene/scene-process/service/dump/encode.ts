@@ -7,7 +7,7 @@ import dumpUtil from './utils';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
-import { IComponent, IComponentForPinK } from '../../../common';
+import { IComponent, IComponentForEditor } from '../../../common';
 import compMgr from '../component/index';
 import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
@@ -69,7 +69,7 @@ export function encodeComponent(component: any): IComponent {
  * 详细的编码 component
  * @param component
  */
-export function encodeComponentForPinK(component: any): IComponentForPinK {
+export function encodeComponentForEditor(component: any): IComponentForEditor {
     const ctor = component.constructor;
     // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
     const mountedRootNode = prefabUtils.getMountedRoot(component);
@@ -84,7 +84,7 @@ export function encodeComponentForPinK(component: any): IComponentForPinK {
             }
         }
     }
-    const data: IComponentForPinK = {
+    const data: IComponentForEditor = {
         value: {
             uuid: encodeObject(component.uuid, { default: null, visible: false }, component),
             name: encodeObject(component.name, { default: null, visible: false }, component),
@@ -356,6 +356,6 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
 
 export default {
     encodeComponent,
-    encodeComponentForPinK,
+    encodeComponentForEditor,
     encodeObject,
 };

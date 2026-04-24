@@ -49,7 +49,7 @@ async function _decodeByType(type: string, node: any, info: any, dump: any, opts
  * @param dump
  * @param node
  */
-export async function decodePatch(path: string, dump: any, node: any, forPink: boolean = false) {
+export async function decodePatch(path: string, dump: any, node: any, forEditor: boolean = false) {
     // 将 dump path 转成实际的 node search path
     const info = parsingPath(path, node);
     const parentInfo = parsingPath(info.search, node);
@@ -140,15 +140,15 @@ export async function decodePatch(path: string, dump: any, node: any, forPink: b
                  * 如果后续发现真的有一些场景需要请修改本条注释
                  */
                 arrayValue[i] = ccClassAttrPropertyDefaultValue(attr);
-                if (!forPink) {
+                if (!forEditor) {
                     // 这是针对cli的特殊处理
                     const dumpItem = {
                         type: dump.type,
                         value: dump.value[i]
                     };
-                    await decodePatch(`${i}`, dumpItem, arrayValue, forPink);
+                    await decodePatch(`${i}`, dumpItem, arrayValue, forEditor);
                 } else {
-                    await decodePatch(`${i}`, dump.value[i], arrayValue, forPink);
+                    await decodePatch(`${i}`, dump.value[i], arrayValue, forEditor);
                 }
             }
 
@@ -159,7 +159,7 @@ export async function decodePatch(path: string, dump: any, node: any, forPink: b
     } else {
         const opts: any = {};
         opts.ccType = ccType;
-        if (forPink) {
+        if (forEditor) {
             opts.suppressError = true;
         }
         // 特殊属性
@@ -197,7 +197,7 @@ export async function decodePatch(path: string, dump: any, node: any, forPink: b
                     const key = ccType.__props__[i];
                     const item = dump.value[key];
                     if (item) {
-                        await decodePatch(`${path}.${key}`, item, node, forPink);
+                        await decodePatch(`${path}.${key}`, item, node, forEditor);
                     }
                 }
             } else if (dump.value === null) {
@@ -209,7 +209,7 @@ export async function decodePatch(path: string, dump: any, node: any, forPink: b
                         continue;
                     }
 
-                    await decodePatch(key, dump.value[key], data[info.key], forPink);
+                    await decodePatch(key, dump.value[key], data[info.key], forEditor);
                 }
             } else {
                 data[info.key] = dump.value;

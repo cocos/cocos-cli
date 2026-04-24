@@ -30,7 +30,7 @@ export class ComponentApi {
     @result(SchemaComponentResult)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
-            const component = await Scene.addComponent({ nodePathOrUuid: addComponentInfo.nodePath, component: addComponentInfo.componentNameOrUuidOrUrl });
+            const component = await Scene.addComponent({ nodePathOrUuid: addComponentInfo.nodePath, component: addComponentInfo.component });
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: component
@@ -76,7 +76,7 @@ export class ComponentApi {
         try {
             const componentInfo = await Scene.queryComponent(component);
             if (!componentInfo) {
-                throw new Error(`component not found: ${component.pathOrUuidOrUrl}`);
+                throw new Error(`component not found: ${component.path}`);
             }
             return {
                 code: COMMON_STATUS.SUCCESS,
