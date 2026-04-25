@@ -25,3 +25,13 @@ export async function startEngineCompilation(force: boolean = false) {
     const { startCompileEngineProcess } = await import('../../core/engine/compile-process');
     await startCompileEngineProcess(force);
 }
+
+export async function queryLayerBuiltin() {
+    const { Engine } = await import('../../core/engine');
+    return Engine.queryLayerBuiltin();
+}
+
+export async function querySortingLayerBuiltin() {
+    const { Engine } = await import('../../core/engine');
+    return Engine.querySortingLayerBuiltin();
+}

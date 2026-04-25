@@ -19,6 +19,8 @@ export interface IEngine {
     init(enginePath: string): Promise<this>;
     initEngine(info: IInitEngineInfo): Promise<this>;
     queryRenderConfig(): ModuleRenderConfig;
+    queryLayerBuiltin(): Promise<{ name: string; value: number }[]>;
+    querySortingLayerBuiltin(): Promise<ReadonlyArray<{ id: number; name: string; value: number }>>;
 }
 
 const layerMask: number[] = [];
@@ -469,6 +471,24 @@ class EngineManager implements IEngine {
             throw new Error('Engine not init');
         }
         return getEngineRenderConfig(this._info.typescript.path);
+    }
+
+    async queryLayerBuiltin() {
+        const { Layers } = await import('cc');
+
+        const LAYER_NONE = 0;
+        const LAYER_ALL = 0xffffffff;
+        const entries = Object.entries(Layers.Enum) as [string, number][];
+
+        return entries
+            .filter(([, value]) => value !== LAYER_NONE && value !== LAYER_ALL)
+            .map(([name, value]) => ({ name, value }));
+    }
+
+    async querySortingLayerBuiltin() {
+        const { SortingLayers } = await import('cc');
+
+        return SortingLayers.getBuiltinLayers();
     }
 }
 

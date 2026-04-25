@@ -250,11 +250,11 @@
       "title": "Layer Settings",
       "customLayers": {
         "title": "Custom Layers",
-        "description": "List of custom layers"
+        "description": "Layers are most commonly used by Cameras to render only a part of the scene, and by Lights to illuminate only parts of the scene. \n You can customise User Layers form 0 to 19. The last twelve Builtin Layers are defaults used by Engine."
       },
       "sortingLayers": {
         "title": "Sorting Layers",
-        "description": "List of sorting layers"
+        "description": "Sort the layer list by dragging the layer list."
       }
     },
     "projectConfig": {

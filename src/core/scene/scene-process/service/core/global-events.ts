@@ -108,7 +108,7 @@ class GlobalEventManager {
             args: [...args]
         };
         globalEventEmitter.emit(event, ...args);
-        if ('connected' in process) {
+        if ('connected' in process && process.connected) {
             process.send?.(message);
         }
     }

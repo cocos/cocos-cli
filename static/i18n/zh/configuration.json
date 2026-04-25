@@ -250,11 +250,11 @@
       "title": "图层配置",
       "customLayers": {
         "title": "自定义图层",
-        "description": "自定义图层列表"
+        "description": "Layers 能让相机渲染部分场景，让灯光照亮部分场景。\n 可自定义 0 到 19 个 Layers， 而后 12 个 Layers 是引擎内置的。"
       },
       "sortingLayers": {
         "title": "排序图层",
-        "description": "排序图层列表"
+        "description": "排序图层列表，通过拖动可进行排序"
       }
     },
     "projectConfig": {
