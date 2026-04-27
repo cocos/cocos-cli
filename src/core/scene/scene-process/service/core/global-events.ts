@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { SceneProcessEventTag } from '../../../common';
 
 // 全局共享的 EventEmitter 实例（内部使用，不对外暴露）
-const globalEventEmitter = new EventEmitter();
+export const globalEventEmitter = new EventEmitter();
 
 /**
  * 全局事件管理器

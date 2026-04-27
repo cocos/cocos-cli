@@ -2,6 +2,8 @@ import * as EditorExtends from '../../engine/editor-extends';
 import { Rpc } from './rpc';
 import { serviceManager } from './service/service-manager';
 import { Service as DecoratorService } from './service/core/decorator';
+import { ServiceEvents } from './service/core/global-events';
+
 import './service';
 
 // Patch UuidUtils for casing compatibility
@@ -71,7 +73,9 @@ export async function startup(options: {
 
     (globalThis as any).cce = (globalThis as any).cce || {};
     (globalThis as any).cce.Script = DecoratorService.Script;
-    (globalThis as any).cli = DecoratorService;
+    (globalThis as any).cli = {};
+    (globalThis as any).cli.Scene = DecoratorService;
+    (globalThis as any).cli.SceneEvents = ServiceEvents;
 
     if (EditorExtends.init) {
         await EditorExtends.init();
