@@ -1,27 +1,11 @@
 import { Asset, AssetHandler, VirtualAsset } from '../../@types/protected';
 import { getDependUUIDList } from '../utils';
 import { IFaceSwapSpace } from './erp-texture-cube';
-import { defaultIconConfig } from './image/utils';
-
 export const TextureCubeFaceHandler: AssetHandler = {
     // Handler 的名字，用于指定 Handler as 等
     name: 'texture-cube-face',
     // 引擎内对应的类型
     assetType: 'cc.ImageAsset',
-    iconInfo: {
-        default: defaultIconConfig,
-        generateThumbnail(asset: Asset) {
-            const parentAsset = asset.parent!.parent as Asset;
-            if (parentAsset.invalid) {
-                return defaultIconConfig;
-            }
-            const extname = parentAsset.meta.files.find((extName) => extName !== '.json') || '.png';
-            return {
-                type: 'image',
-                value: asset.library + extname,
-            };
-        },
-    },
 
     importer: {
         // 版本号如果变更，则会强制重新导入

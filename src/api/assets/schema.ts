@@ -250,12 +250,6 @@ export type TUpdateAssetUserDataValue = z.infer<typeof SchemaUpdateAssetUserData
 export const SchemaUpdateAssetUserDataResult = z.any().describe('Updated user data object'); // 更新后的用户数据对象
 export type TUpdateAssetUserDataResult = z.infer<typeof SchemaUpdateAssetUserDataResult>;
 
-// Asset Config Map related Schema // Asset Config Map 相关 Schema
-export const SchemaThumbnailInfo = z.object({
-    type: z.enum(['icon', 'image']).describe('Thumbnail type: icon or image'), // 缩略图类型：icon 或 image
-    value: z.string().describe('Specific icon name or image path, supports absolute path, db://, project:// paths'), // 具体 icon 名字或者 image 路径，支持绝对路径、db://、project:// 下的路径
-}).describe('Thumbnail information'); // 缩略图信息
-
 // Recursively defined user data configuration item // 递归定义用户数据配置项
 const SchemaUserDataConfigItem: z.ZodType<any> = z.lazy(() => z.object({
     key: z.string().optional().describe('Unique identifier'), // 唯一标识符
@@ -282,7 +276,6 @@ export const SchemaAssetConfig = z.object({
     description: z.string().optional().describe('Asset description'), // 资源描述
     docURL: z.string().optional().describe('Document URL'), // 文档 URL
     userDataConfig: z.record(z.string(), SchemaUserDataConfigItem).optional().describe('User data configuration'), // 用户数据配置
-    iconInfo: SchemaThumbnailInfo.optional().describe('Icon information'), // 图标信息
 }).describe('Asset configuration information'); // 资源配置信息
 
 export const SchemaAssetConfigMapResult = z.record(z.string(), SchemaAssetConfig).describe('Asset configuration map, key is asset handler name, value is corresponding configuration information'); // 资源配置映射表，键为资源处理器名称，值为对应的配置信息

@@ -106,18 +106,6 @@ export interface AssetHandlerBase extends CustomHandlerBase {
         generate?(asset: IAsset): Promise<Record<string, IUerDataConfigItem>>;
     };
 
-    // 指定资源的缩略图信息，默认值为必填项，thumbnail 为可选性
-    iconInfo?: {
-        default: ThumbnailInfo;
-
-        /**
-         * 获取某个资源的预览图信息（预览图地址，icon 图标等）
-         * @return 缩略图信息
-         * @param asset 
-         */
-        generateThumbnail?(asset: IAsset): ThumbnailInfo | Promise<ThumbnailInfo>;
-    };
-
     /**
      * 资源创建信息
      */
@@ -270,11 +258,6 @@ export interface ThumbnailInfo {
     value: string; // 具体 icon 名字或者 image 路径，image 路径支持绝对路径、 db:// 、 project:// 、和 packages:// 下的路径
 }
 
-export interface ICONConfig extends ThumbnailInfo {
-    // 是否支持缩略图，如存在可以单独像 db 查询缩略图信息
-    thumbnail?: boolean;
-}
-
 export type UIType = 'ui-select' | 'ui-checkbox' | 'ui-input' | 'ui-textarea' | 'ui-number-input' | 'ui-checkbox';
 
 export interface IUerDataConfigItem {
@@ -305,5 +288,4 @@ export interface IAssetConfig {
     description?: string;
     docURL?: string;
     userDataConfig?: Record<string, IUerDataConfigItem>;
-    iconInfo?: ThumbnailInfo;
 }

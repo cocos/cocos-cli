@@ -6,7 +6,7 @@ import { gfx } from 'cc';
 import fs from 'fs-extra';
 import { unwrapLightmapUV } from '../utils/uv-unwrap';
 import { ensureDir } from 'fs-extra';
-import { AssetHandler, ThumbnailInfo } from '../../../@types/protected';
+import { AssetHandler } from '../../../@types/protected';
 import { optimizeMesh, clusterizeMesh, simplifyMesh, getDefaultSimplifyOptions, compressMesh } from './meshOptimizer';
 import FbxHandler from '../fbx';
 import GltfHandler from '../gltf';
@@ -17,22 +17,6 @@ export const GltfMeshHandler: AssetHandler = {
 
     // 引擎内对应的类型
     assetType: 'cc.Mesh',
-
-    iconInfo: {
-        default: {
-            type: 'icon',
-            value: 'gltf-mesh',
-        },
-        async generateThumbnail(asset: Asset) {
-            const result: ThumbnailInfo = {
-                type: 'icon',
-                value: 'gltf-mesh',
-            };
-
-            // TODO: 实现生成 mesh 的缩略图
-            return result;
-        },
-    },
 
     /**
      * 允许这种类型的资源进行实例化

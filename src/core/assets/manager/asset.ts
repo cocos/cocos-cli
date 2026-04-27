@@ -46,7 +46,6 @@ class AssetManager extends EventEmitter {
     updateUserData = assetOperation.updateUserData.bind(assetOperation);
 
     // ----------- assetHandlerManager ------------
-    queryIconConfigMap = assetHandlerManager.queryIconConfigMap.bind(assetHandlerManager);
     queryAssetConfigMap = assetHandlerManager.queryAssetConfigMap.bind(assetHandlerManager);
     updateDefaultUserData = assetHandlerManager.updateDefaultUserData.bind(assetHandlerManager);
     getCreateMap = assetHandlerManager.getCreateMap.bind(assetHandlerManager);
@@ -344,7 +343,6 @@ export interface TypedAssetManager extends EventEmitter {
     createAssetByType: typeof assetOperation.createAssetByType;
     updateUserData: typeof assetOperation.updateUserData;
 
-    queryIconConfigMap: typeof assetHandlerManager.queryIconConfigMap;
     queryAssetConfigMap: typeof assetHandlerManager.queryAssetConfigMap;
     updateDefaultUserData: typeof assetHandlerManager.updateDefaultUserData;
     getCreateMap: typeof assetHandlerManager.getCreateMap;

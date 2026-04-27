@@ -1,13 +1,13 @@
 import { Importer as AssetDBImporter, Asset, setDefaultUserData, get } from '@cocos/asset-db';
-import { copy, copyFile, ensureDir, existsSync, outputFile, outputJSON } from 'fs-extra';
-import { basename, dirname, extname, isAbsolute, join } from 'path';
+import { copy, ensureDir, existsSync, outputFile, outputJSON } from 'fs-extra';
+import { basename, extname, isAbsolute, join } from 'path';
 import { url2path } from '../utils';
 import lodash from 'lodash';
 import fg from 'fast-glob';
-import Sharp from 'sharp';
+
 import i18n from '../../base/i18n';
 import { IAsset, IExportData } from '../@types/protected/asset';
-import { ICONConfig, AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, ThumbnailSize, ThumbnailInfo, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
+import { AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
 import type { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
 import eol from 'eol';
@@ -16,12 +16,6 @@ interface HandlerInfo extends AssetHandlerInfo {
     pkgName: string;
     internal: boolean;
 }
-
-const databaseIconConfig: ICONConfig = {
-    type: 'icon',
-    value: 'database',
-    thumbnail: false,
-};
 
 export class CustomImporter extends AssetDBImporter {
     constructor(extensions: string[], assetHandler: AssetHandler) {
@@ -67,8 +61,6 @@ class AssetHandlerManager {
     name2custom: Record<string, CustomHandler> = {};
     importer2custom: Record<string, CustomHandler[]> = {};
 
-    _iconConfigMap: Record<string, ICONConfig> | null = null;
-
     // 用户配置里的 userData 缓存
     _userDataCache: Record<string, any> = {};
     // 导入器里注册的默认 userData 值， 注册后不可修改
@@ -81,7 +73,6 @@ class AssetHandlerManager {
         this.name2custom = {};
         this.importer2OperateRecord = {};
         this.importer2custom = {};
-        this._iconConfigMap = null;
     }
 
     compileEffect(_force: boolean) {
@@ -377,36 +368,9 @@ class AssetHandlerManager {
         return true;
     }
 
-    async queryIconConfigMap(): Promise<Record<string, ICONConfig>> {
-        if (this._iconConfigMap) {
-            return this._iconConfigMap;
-        }
-        const result: Record<string, ICONConfig> = {};
-        for (const importer of Object.keys(this.name2handler)) {
-            const handler = this.name2handler[importer];
-            if (!handler.iconInfo) {
-                result[importer] = {
-                    type: 'icon',
-                    value: importer,
-                    thumbnail: false,
-                };
-                continue;
-            }
-            const { default: defaultConfig, generateThumbnail } = handler.iconInfo;
-            result[importer] = {
-                ...defaultConfig,
-                thumbnail: !!generateThumbnail,
-            };
-        }
-        // 手动补充 database 的资源处理器
-        result['database'] = databaseIconConfig;
-        this._iconConfigMap = result;
-        return result;
-    }
-
     /**
      * 创建资源
-     * @param options 
+     * @param options
      * @returns 返回资源创建地址
      */
     async createAsset(options: CreateAssetOptions): Promise<string> {
@@ -479,69 +443,6 @@ class AssetHandlerManager {
         return true;
     }
 
-    async generateThumbnail(asset: IAsset, size: number | ThumbnailSize = 'large'): Promise<ThumbnailInfo | null> {
-        if (!asset) {
-            return null;
-        }
-
-        // 无效资源需要等待重新导入
-        if (asset.invalid) {
-            return {
-                type: 'icon',
-                value: 'file',
-            };
-        }
-
-        const configMap = await this.queryIconConfigMap();
-        if (!configMap[asset.meta.importer]) {
-            return null;
-        }
-
-        const cacheDest = join(asset.temp, `thumbnail-${size}.png`);
-        if (existsSync(cacheDest)) {
-            return {
-                type: 'image',
-                value: cacheDest,
-            };
-        }
-        let data: ThumbnailInfo;
-        if (!configMap[asset.meta.importer].thumbnail) {
-            data = configMap[asset.meta.importer];
-        } else {
-            const assetHandler = this.name2handler[asset.meta.importer];
-            try {
-                data = await assetHandler.iconInfo!.generateThumbnail!(asset);
-            } catch (error) {
-                console.warn(error);
-                console.warn(`generateThumbnail failed for ${asset.url}`);
-                return null;
-            }
-        }
-        if (data.type === 'image') {
-            const file = isAbsolute(data.value) ? data.value : url2path(data.value);
-            // SVG 无需 resize
-            if (file.endsWith('.svg')) {
-                return data;
-            }
-            if (!existsSync(file)) {
-                return null;
-            }
-            try {
-                data.value = await resizeThumbnail(file, cacheDest, size);
-            } catch (error) {
-                console.warn(error);
-                console.warn(`resizeThumbnail failed for ${asset.url}`);
-            }
-        }
-        return data;
-    }
-
-    /**
-     * 生成某个资源的导出文件信息
-     * @param asset 
-     * @param options 
-     * @returns 
-     */
     async generateExportData(asset: IAsset, options?: IExportOptions): Promise<IExportData | null> {
         const assetHandler = this.name2handler[asset.meta.importer];
         if (!assetHandler || !assetHandler.exporter || !assetHandler.exporter.generateExportData) {
@@ -579,9 +480,6 @@ class AssetHandlerManager {
                 description: handler.description,
                 docURL: handler.docURL,
             };
-            if (handler.iconInfo) {
-                config.iconInfo = handler.iconInfo.default;
-            }
 
             if (handler.userDataConfig) {
                 config.userDataConfig = handler.userDataConfig.default;
@@ -777,31 +675,6 @@ async function queryUserTemplates(templateDir: string) {
 
 function getUserTemplateDir(importer: string) {
     return join(AssetHandlerManager.createTemplateRoot, importer);
-}
-
-const SizeMap = {
-    large: 512,
-    small: 16,
-    middle: 128,
-};
-
-async function resizeThumbnail(src: string, dest: string, size: number | ThumbnailSize): Promise<string> {
-    if (size === 'origin') {
-        return src;
-    }
-    if (typeof size === 'string') {
-        size = SizeMap[size] || 16;
-    }
-    await ensureDir(dirname(dest));
-    const img = Sharp(src);
-    const width = (await img.metadata()).width;
-    // 如果图片尺寸小于缩略图尺寸，则直接拷贝
-    if (width && width <= size) {
-        await copyFile(src, dest);
-        return dest;
-    }
-    await img.resize(size).toFile(dest);
-    return dest;
 }
 
 async function afterCreateAsset(paths: string | string[], options: CreateAssetOptions) {

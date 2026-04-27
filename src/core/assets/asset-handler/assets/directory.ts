@@ -30,26 +30,6 @@ const DirectoryHandler: AssetHandler = {
         },
     },
 
-    iconInfo: {
-        default: {
-            value: 'directory',
-            type: 'icon',
-        },
-        generateThumbnail(asset) {
-            const userData = asset.userData as DirectoryAssetUserData;
-            if (userData.isBundle) {
-                return {
-                    value: 'bundle-folder',
-                    type: 'icon',
-                };
-            }
-            return {
-                value: 'directory',
-                type: 'icon',
-            };
-        },
-    },
-
     createInfo: {
         generateMenuInfo() {
             return [

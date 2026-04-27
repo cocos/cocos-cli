@@ -1,11 +1,11 @@
-import { VirtualAsset, Asset, queryAsset } from '@cocos/asset-db';
+import { VirtualAsset, Asset } from '@cocos/asset-db';
 
 import { ImageAsset } from 'cc';
 
 import { AssetHandler } from '../../@types/protected';
 import { Texture2DAssetUserData } from '../../@types/userDatas';
 import { getDependUUIDList } from '../utils';
-import { defaultIconConfig, makeDefaultTexture2DAssetUserData } from './image/utils';
+import { makeDefaultTexture2DAssetUserData } from './image/utils';
 import { applyTextureBaseAssetUserData } from './texture-base';
 import { url2uuid } from '../../utils';
 
@@ -15,24 +15,6 @@ export const TextureHandler: AssetHandler = {
 
     // 引擎内对应的类型
     assetType: 'cc.Texture2D',
-    iconInfo: {
-        default: defaultIconConfig,
-        generateThumbnail(asset: Asset) {
-            const imageUuid = getImageUuid(asset);
-            if (!imageUuid) {
-                return defaultIconConfig;
-            }
-            const imageAsset = queryAsset(imageUuid) as Asset;
-            if (imageAsset.invalid) {
-                return defaultIconConfig;
-            }
-            const extname = imageAsset.meta.files.find((extName) => extName !== '.json') || '.png';
-            return {
-                type: 'image',
-                value: imageAsset.library + extname,
-            };
-        },
-    },
 
     importer: {
         // 版本号如果变更，则会强制重新导入

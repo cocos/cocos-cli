@@ -13,34 +13,6 @@ export const UnknownHandler: AssetHandler = {
     // 引擎内对应的类型
     assetType: 'cc.Asset',
 
-    iconInfo: {
-        default: {
-            type: 'icon',
-            value: 'file',
-        },
-        generateThumbnail(asset: Asset) {
-            let val = 'file';
-            switch (asset.extname) {
-                case '.zip':
-                    val = 'zip';
-                    break;
-                case '.html':
-                    val = 'html5';
-                    break;
-                case '.bin':
-                    val = 'bin';
-                    break;
-                case '.svg':
-                    val = 'svg';
-                    break;
-            }
-            return {
-                type: 'icon',
-                value: val,
-            };
-        },
-    },
-
     async open() {
 
         return false;

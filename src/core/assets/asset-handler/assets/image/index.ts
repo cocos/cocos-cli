@@ -7,7 +7,6 @@ import { ImageAssetUserData } from '../../../@types/userDatas';
 
 import { join } from 'path';
 import {
-    defaultIconConfig,
     handleImageUserData,
     importWithType,
     isCapableToFixAlphaTransparencyArtifacts,
@@ -26,16 +25,6 @@ export const ImageHandler: AssetHandler = {
     // 引擎内对应的类型
     assetType: 'cc.ImageAsset',
     open: openImageAsset,
-    iconInfo: {
-        default: defaultIconConfig,
-        generateThumbnail(asset: Asset) {
-            const extname = asset.meta.files.find((extName) => extName !== '.json') || '.png';
-            return {
-                type: 'image',
-                value: asset.library + extname,
-            };
-        },
-    },
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.27',

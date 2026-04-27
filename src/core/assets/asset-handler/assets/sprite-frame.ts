@@ -1,12 +1,11 @@
 'use strict';
 
-import { Asset, VirtualAsset, queryPath, queryUUID, queryAsset } from '@cocos/asset-db';
+import { Asset, VirtualAsset, queryPath, queryUUID } from '@cocos/asset-db';
 import * as cc from 'cc';
 
 import { AssetHandler } from '../../@types/protected';
 import { SpriteFrameBaseAssetUserData, SpriteFrameAssetUserData } from '../../@types/userDatas';
 import { getTrimRect, getDependUUIDList } from '../utils';
-import { defaultIconConfig } from './image/utils';
 import i18n from '../../../base/i18n';
 
 try {
@@ -25,33 +24,6 @@ export const SpriteFrameHandler: AssetHandler = {
     name: 'sprite-frame',
 
     assetType: 'cc.SpriteFrame',
-    iconInfo: {
-        default: defaultIconConfig,
-        async generateThumbnail(asset: Asset) {
-            let parentAsset = queryAsset(asset.meta.userData.imageUuidOrDatabaseUri) as Asset;
-            if (parentAsset.meta.importer !== 'image') {
-                parentAsset = parentAsset.parent as Asset;
-            }
-            if (parentAsset.invalid) {
-                return defaultIconConfig;
-            }
-            const extname = parentAsset.meta.files.find((extName) => extName !== '.json') || '.png';
-            const imagePath = parentAsset.library + extname;
-            const dest = asset.library + '_sprite_trim_' + extname;
-            const userData = asset.userData as SpriteFrameBaseAssetUserData;
-            try {
-                await trimImage(imagePath, dest, userData);
-            } catch (error) {
-                console.warn(`trim image {file(${imagePath})} to generate thumbnail failed~`);
-                console.warn(error);
-                return defaultIconConfig;
-            }
-            return {
-                type: 'image',
-                value: dest,
-            };
-        },
-    },
 
     userDataConfig: {
         default: {

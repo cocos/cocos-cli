@@ -13,7 +13,7 @@ import { imageMimeTypeToExt } from '../utils/image-mime-type-to-ext';
 import { decodeBase64ToArrayBuffer } from '../utils/base64';
 import { ImageAsset } from 'cc';
 import { getDependUUIDList } from '../../utils';
-import { defaultIconConfig, handleImageUserData } from '../image/utils';
+import { handleImageUserData } from '../image/utils';
 import { AssetHandler } from '../../../@types/protected';
 import FbxHandler from '../fbx';
 import GltfHandler from '../gltf';
@@ -24,15 +24,6 @@ export const GltfImageHandler: AssetHandler = {
 
     // 引擎内对应的类型
     assetType: 'cc.ImageAsset',
-    iconInfo: {
-        default: defaultIconConfig,
-        generateThumbnail(asset: Asset) {
-            return {
-                type: 'image',
-                value: asset.library + asset.getData('imageExtName'),
-            };
-        },
-    },
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.3',

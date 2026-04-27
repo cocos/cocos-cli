@@ -1,6 +1,6 @@
 import { Asset, VirtualAsset } from '@cocos/asset-db';
-import { AssetHandler, ThumbnailInfo } from '../../../@types/protected';
-import { defaultIconConfig, handleImageUserData, importWithType, isCapableToFixAlphaTransparencyArtifacts, saveImageAsset } from './utils';
+import { AssetHandler } from '../../../@types/protected';
+import { handleImageUserData, importWithType, isCapableToFixAlphaTransparencyArtifacts, saveImageAsset } from './utils';
 import utils from '../../../../base/utils';
 
 export const SignImageHandler: AssetHandler = {
@@ -9,16 +9,6 @@ export const SignImageHandler: AssetHandler = {
 
     // 引擎内对应的类型
     assetType: 'cc.ImageAsset',
-
-    iconInfo: {
-        default: defaultIconConfig,
-        generateThumbnail(asset: Asset) {
-            return {
-                type: 'image',
-                value: asset.library + '.png',
-            };
-        },
-    },
 
     importer: {
         // 版本号如果变更，则会强制重新导入
