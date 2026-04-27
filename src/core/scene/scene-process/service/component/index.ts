@@ -9,6 +9,8 @@ import { IProperty } from '../../../@types/public';
 import { IComponentIdentifier } from '../../../common';
 
 export class CompManager extends EventEmitter {
+    protected _recycleComponent: Record<string, Component> = {};
+
     init() {
         this.registerCompMgrEvents();
     }
@@ -90,6 +92,25 @@ export class CompManager extends EventEmitter {
 
     getPathFromUuid(uuid: string): string | null {
         return CompMgr.getPathFromUuid(uuid);
+    }
+
+    addRecycleComponent(uuid: string) {
+        if (this._recycleComponent[uuid]) {
+            delete this._recycleComponent[uuid];
+        }
+    }
+
+    removeRecycleComponent(uuid: string, comp: Component) {
+        this._recycleComponent[comp.uuid] = comp;
+    }
+
+    /**
+     * 在回收站中查询一个组件的实例
+     * @param {*} uuid
+     * @returns {cc.Component}
+     */
+    queryRecycle(uuid: string): Component | null {
+        return this._recycleComponent[uuid] ?? null;
     }
 
     /**

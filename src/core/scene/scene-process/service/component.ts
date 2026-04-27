@@ -22,7 +22,6 @@ import { hasOneKindOfComponent } from './node/node-utils';
 import { isEditorNode } from './node/node-utils';
 import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
 import PrefabService from './prefab';
-import { IProperty } from '../../@types/public';
 
 const NodeMgr = EditorExtends.Node;
 enum SceneModeType {
@@ -57,7 +56,6 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     public modeName: SceneModeType = SceneModeType.General;
     // private _stagingCameraInfo: any;
     protected _sceneEventListener: ISceneEvents[] = [];
-    protected _recycleComponent: Record<string, Component> = {};
 
     constructor() {
         super();
@@ -93,9 +91,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         opts.modeName = this.modeName;
         // TODO(qgh): 发送消息
         //this.dispatchEvents('onComponentAdded', comp, opts);
-        if (this._recycleComponent[comp.uuid]) {
-            delete this._recycleComponent[comp.uuid];
-        }
+        compMgr.addRecycleComponent(comp.uuid);
     }
 
     public onComponentRemoved(comp: Component, opts: IOptionBase = {}) {
@@ -104,7 +100,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         // this.dispatchEvents('onComponentRemoved', comp);
         // 编辑器中的this._sceneProxy.getRootNode()实现返回的是null
         PrefabService.onComponentRemovedInGeneralMode(comp, null);
-        this._recycleComponent[comp.uuid] = comp;
+        compMgr.removeRecycleComponent(comp.uuid, comp);
     }
 
     public dispatchEvents(eventName: keyof ISceneEvents, ...args: any[any]) {

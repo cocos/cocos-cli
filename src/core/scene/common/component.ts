@@ -51,6 +51,10 @@ export interface IAddComponentOptions {
 export interface IRemoveComponentOptions {
     path: string;
 }
+export interface IRemovedComponentInfo {
+    name: string;
+    fileID: string;
+}
 
 /**
  * 查询组件的选项
@@ -145,7 +149,7 @@ export interface IComponentService extends IServiceEvents {
     /**
      * 删除指定组件
      * @param params - 删除组件选项
-     * @param params.path - 组件路径，支持路径、UUID 或资源 URL
+     * @param params.path - 组件路径
      * @returns 删除成功返回 true，失败返回 false
      */
     removeComponent(params: IRemoveComponentOptions): Promise<boolean>;
@@ -215,7 +219,7 @@ export interface IComponentService extends IServiceEvents {
     /**
      * 复位组件，将组件所有属性恢复为默认值
      * @param params - 查询组件选项，用于定位要复位的组件
-     * @param params.path - 组件路径，支持路径、UUID 或资源 URL
+     * @param params.path - 组件路径
      * @returns 复位成功返回 true，失败返回 false
      */
     resetComponent(params: IQueryComponentOptions): Promise<boolean>;

@@ -1,9 +1,9 @@
 import type { Node } from 'cc';
-import { IComponent, IComponentIdentifier } from './component';
+import { IComponent, IComponentIdentifier, IRemovedComponentInfo } from './component';
 import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabInfo, IPrefabStateInfo } from './prefab';
-
+import type { IProperty } from '../@types/public';
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
 export interface INodeTreeComponent {
@@ -137,6 +137,35 @@ export interface INode extends INodeIdentifier {
     prefab: IPrefabInfo | null;// 是否是预制体
 }
 
+export interface INodeForEditor {
+    active: IProperty;
+    locked: IProperty;
+    name: IProperty;
+    position: IProperty;
+
+    /**
+     * 此为 dump 数据，非 node.rotation
+     * 实际指向 node.eulerAngles
+     * rotation 为了给用户更友好的文案
+     */
+    rotation: IProperty;
+    mobility: IProperty;
+
+    scale: IProperty;
+    layer: IProperty;
+    uuid: IProperty;
+
+    children: any[];
+    parent: any;
+
+    __comps__: IProperty[];
+    __type__: string;
+    __prefab__?: any;
+    _prefabInstance?: any;
+    removedComponents?: IRemovedComponentInfo[];
+    mountedRoot?: string;
+}
+
 // 节点更新参数接口
 export interface IUpdateNodeParams {
     path: string;
@@ -216,7 +245,7 @@ export interface INodeEvents {
     'node:removed': [Node, IChangeNodeOptions];
 }
 
-export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents> {}
+export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents> { }
 
 /**
  * 节点的相关处理接口
