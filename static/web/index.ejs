@@ -341,12 +341,12 @@
 
         function safeCall(svc, method, ...args) {
             try {
-                if (!window.cli) { log('cli not ready', 'status-warn'); return; }
-                const s = window.cli[svc];
+                if (!window.cli.Scene) { log('cli not ready', 'status-warn'); return; }
+                const s = window.cli.Scene[svc];
                 if (!s) { log(svc + ' not registered', 'status-warn'); return; }
                 const result = s[method](...args);
                 log(svc + '.' + method + '(' + args.map(a => JSON.stringify(a)).join(',') + ')', 'status-ok');
-                try { window.cli.Engine.repaintInEditMode(); } catch (_) {}
+                try { window.cli.Scene.Engine.repaintInEditMode(); } catch (_) {}
                 return result;
             } catch (e) {
                 log(svc + '.' + method + ' error: ' + e.message, 'status-err');
@@ -387,8 +387,8 @@
         /* ── Camera ── */
         function set2D(is2D) {
             try {
-                if (window.cli && window.cli.Camera) {
-                    window.cli.Camera.is2D = is2D;
+                if (window.cli.Scene && window.cli.Scene.Camera) {
+                    window.cli.Scene.Camera.is2D = is2D;
                     log('Camera.is2D = ' + is2D, 'status-ok');
                 }
             } catch(e) { log('set2D error: ' + e.message, 'status-err'); }
@@ -413,9 +413,9 @@
 
         function rotateCam(x, y, z, byDist) {
             try {
-                if (!window.cli || !window.cli.Camera) { log('Camera not ready', 'status-warn'); return; }
+                if (!window.cli.Scene || !window.cli.Scene.Camera) { log('Camera not ready', 'status-warn'); return; }
                 const dir = new cc.Vec3(x, y, z);
-                window.cli.Camera.rotateCameraToDir(dir, byDist);
+                window.cli.Scene.Camera.rotateCameraToDir(dir, byDist);
                 log('rotateCameraToDir(' + x + ',' + y + ',' + z + ')', 'status-ok');
             } catch(e) { log('rotateCam error: ' + e.message, 'status-err'); }
         }
@@ -458,8 +458,8 @@
         /* ── Selection ── */
         function getSelectedUuids() {
             try {
-                if (window.cli && window.cli.Selection) {
-                    return window.cli.Selection.query() || [];
+                if (window.cli.Scene && window.cli.Scene.Selection) {
+                    return window.cli.Scene.Selection.query() || [];
                 }
             } catch(e) {}
             return [];
@@ -487,7 +487,7 @@
             const sel = document.getElementById('nodeList');
             sel.innerHTML = '<option value="">loading...</option>';
             try {
-                const root = await window.cli.Node.queryNode({
+                const root = await window.cli.Scene.Node.queryNode({
                     path: '/', queryChildren: true, queryComponent: false
                 });
                 sel.innerHTML = '';
@@ -522,19 +522,19 @@
         /* ── State Refresh ── */
         function refreshState() {
             try {
-                if (!window.cli) return;
+                if (!window.cli.Scene) return;
 
                 // Camera
                 try {
-                    const fov = window.cli.Camera.getCameraFov();
+                    const fov = window.cli.Scene.Camera.getCameraFov();
                     document.getElementById('fovSlider').value = fov;
                     document.getElementById('fovVal').textContent = Math.round(fov);
-                    const grid = window.cli.Camera.isGridVisible();
+                    const grid = window.cli.Scene.Camera.isGridVisible();
                     document.getElementById('chkGrid').checked = grid;
-                    const is2D = window.cli.Camera.is2D;
+                    const is2D = window.cli.Scene.Camera.is2D;
                     document.getElementById('btn2D').classList.toggle('active', is2D);
                     document.getElementById('btn3D').classList.toggle('active', !is2D);
-                    const cam = window.cli.Camera.camera;
+                    const cam = window.cli.Scene.Camera.camera;
                     if (cam && cam.node) {
                         const p = cam.node.worldPosition;
                         document.getElementById('camPos').textContent =
@@ -544,7 +544,7 @@
 
                 // Gizmo
                 try {
-                    const tool = window.cli.Gizmo.transformToolName;
+                    const tool = window.cli.Scene.Gizmo.transformToolName;
                     document.getElementById('toolName').textContent = tool || '?';
                     tools.forEach(t => {
                         const el = document.getElementById('tool-' + t);
@@ -554,7 +554,7 @@
 
                 // Selection
                 try {
-                    const sel = window.cli.Selection.query();
+                    const sel = window.cli.Scene.Selection.query();
                     const info = document.getElementById('selInfo');
                     if (sel && sel.length > 0) {
                         info.textContent = sel.length + ': ' + sel.map(u => u.substring(0, 8)).join(', ');
@@ -565,7 +565,7 @@
 
                 // SceneView
                 try {
-                    const lightOn = window.cli.SceneView.querySceneLightOn();
+                    const lightOn = window.cli.Scene.SceneView.querySceneLightOn();
                     document.getElementById('chkLight').checked = lightOn;
                 } catch(e) {}
 
@@ -644,18 +644,18 @@
 
             function dispatchMouse(type, evt) {
                 try {
-                    if (window.cli && window.cli.Operation) {
+                    if (window.cli.Scene && window.cli.Scene.Operation) {
                         var dpr = window.devicePixelRatio || 1;
-                        window.cli.Operation.emitMouseEvent(type, evt, dpr);
-                        window.cli.Engine && window.cli.Engine.repaintInEditMode();
+                        window.cli.Scene.Operation.emitMouseEvent(type, evt, dpr);
+                        window.cli.Scene.Engine && window.cli.Scene.Engine.repaintInEditMode();
                     }
                 } catch (ex) { /* ignore */ }
             }
 
             function dispatchKey(type, evt) {
                 try {
-                    if (window.cli && window.cli.Operation) {
-                        window.cli.Operation.dispatch(type, evt);
+                    if (window.cli.Scene && window.cli.Scene.Operation) {
+                        window.cli.Scene.Operation.dispatch(type, evt);
                     }
                 } catch (ex) { /* ignore */ }
             }
