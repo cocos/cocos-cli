@@ -8,6 +8,7 @@ import { configurationRegistry, IBaseConfiguration } from '../configuration';
 import { assetManager } from '../assets';
 import { getEngineDynamicConfigContribution, getEngineRenderConfig } from './dynamic-metadata';
 import { createEngineMetadataNodes } from './metadata';
+import i18n from '../base/i18n';
 
 /**
  * 整合 engine 的一些编译、配置读取等功能
@@ -248,6 +249,7 @@ class EngineManager implements IEngine {
         this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
         this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
+        i18n.loadEngineI18n(enginePath);
         this._defaultConfig = this.resolveDefaultConfig(this._info.typescript.path);
         this._config = this.defaultConfig;
         const configInstance = await configurationRegistry.register('engine', {
