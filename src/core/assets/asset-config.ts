@@ -95,7 +95,7 @@ class AssetConfig {
         }, {
             name: 'internal',
             target: join(enginePath, 'editor/assets'),
-            readonly: false,
+            readonly: true,
             visible: true,
             library: join(enginePath, 'editor/library'),
         }];
