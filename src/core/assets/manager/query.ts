@@ -573,6 +573,8 @@ class AssetQueryManager {
                     });
                     return usedList;
                 }
+            case 'temp':
+                return asset.temp;
         }
     }
 

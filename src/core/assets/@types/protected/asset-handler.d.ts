@@ -131,6 +131,11 @@ export interface AssetHandlerBase extends CustomHandlerBase {
 
     // 虚拟资源可以实例化成实体的话，会带上这个扩展名
     instantiation?: string;
+
+    /**
+     * 生成资源缩略图，可选。
+     */
+    generateThumbnail?(asset: IAsset, size?: ThumbnailSize): Promise<ThumbnailInfo | null>;
 }
 
 export interface FileNameCheckConfig {

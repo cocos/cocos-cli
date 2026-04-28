@@ -49,6 +49,7 @@ export interface IAssetInfo {
     mtime?: number; // 资源文件的 mtime
     depends?: string[]; // 依赖的资源 uuid 信息
     dependeds?: string[]; // 被依赖的资源 uuid 信息
+    temp?: string; // 资源临时文件目录
 }
 
 export interface AssetOperationOption {

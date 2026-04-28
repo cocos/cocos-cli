@@ -1,5 +1,5 @@
 import type { AssetOperationOption, CreateAssetByTypeOptions, IAssetInfo, IAssetMeta, ISupportCreateType, QueryAssetsOption } from '../../core/assets/@types/public';
-import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
+import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType, ThumbnailInfo, ThumbnailSize } from '../../core/assets/@types/protected';
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
 
@@ -284,6 +284,22 @@ export async function updateAssetUserData(
  */
 export async function queryAssetConfigMap(): Promise<Record<string, IAssetConfig>> {
     return await assetManager.queryAssetConfigMap();
+}
+
+/**
+ * Query Thumbnail Handlers // 查询支持缩略图生成的资源处理器列表
+ */
+export function queryThumbnailHandlers(): string[] {
+    return assetManager.queryThumbnailHandlers();
+}
+
+/**
+ * Generate Thumbnail // 生成资源缩略图
+ */
+export async function generateThumbnail(
+    urlOrUUIDOrPath: string, size?: ThumbnailSize
+): Promise<ThumbnailInfo | null> {
+    return assetManager.generateThumbnail(urlOrUUIDOrPath, size);
 }
 
 /**

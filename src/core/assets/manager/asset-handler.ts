@@ -7,7 +7,7 @@ import fg from 'fast-glob';
 
 import i18n from '../../base/i18n';
 import { IAsset, IExportData } from '../@types/protected/asset';
-import { AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, IExportOptions, IAssetConfig, ImporterHook } from '../@types/protected/asset-handler';
+import { AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, IExportOptions, IAssetConfig, ImporterHook, ThumbnailInfo, ThumbnailSize } from '../@types/protected/asset-handler';
 import type { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
 import eol from 'eol';
@@ -487,6 +487,19 @@ class AssetHandlerManager {
             result[importer] = config;
         }
         return result;
+    }
+
+    queryThumbnailHandlers(): string[] {
+        return Object.keys(this.name2handler)
+            .filter(name => typeof this.name2handler[name].generateThumbnail === 'function');
+    }
+
+    async generateThumbnail(asset: IAsset, size?: ThumbnailSize): Promise<ThumbnailInfo | null> {
+        const handler = this.name2handler[asset.meta.importer];
+        if (handler && typeof handler.generateThumbnail === 'function') {
+            return handler.generateThumbnail(asset, size);
+        }
+        return null;
     }
 
     async queryUserDataConfig(asset: IAsset) {
