@@ -692,18 +692,7 @@ function getUserTemplateDir(importer: string) {
 
 function translateCreateMenuInfo(info: ICreateMenuInfo): ICreateMenuInfo {
     const translated = { ...info };
-    console.log('translated', JSON.stringify(translated));
     translated.label = i18n.transI18nName(translated.label);
-    console.log('translated label', translated.label);
-    if (translated.fileNameCheckConfigs) {
-        translated.fileNameCheckConfigs = translated.fileNameCheckConfigs.map((config) => ({
-            ...config,
-            failedInfo: i18n.transI18nName(config.failedInfo),
-        }));
-    }
-    if (translated.submenu) {
-        translated.submenu = translated.submenu.map((sub) => translateCreateMenuInfo(sub));
-    }
     return translated;
 }
 
