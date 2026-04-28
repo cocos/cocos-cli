@@ -131,10 +131,6 @@
                                     "compressionType": "subpackage",
                                     "isRemote": false
                                 },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
                                 "vivo-mini-game": {
                                     "compressionType": "merge_all_json",
                                     "isRemote": false
@@ -214,10 +210,6 @@
                                     "compressionType": "subpackage",
                                     "isRemote": false
                                 },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
                                 "baidu-mini-game": {
                                     "compressionType": "subpackage",
                                     "isRemote": false
@@ -292,10 +284,6 @@
                                     "compressionType": "zip",
                                     "isRemote": true
                                 },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "zip",
-                                    "isRemote": true
-                                },
                                 "baidu-mini-game": {
                                     "compressionType": "zip",
                                     "isRemote": true
@@ -355,10 +343,6 @@
                                     "isRemote": false
                                 },
                                 "vivo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
                                     "compressionType": "subpackage",
                                     "isRemote": false
                                 },
@@ -429,10 +413,6 @@
                                     "isRemote": false
                                 },
                                 "vivo-mini-game": {
-                                    "compressionType": "subpackage",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
                                     "compressionType": "subpackage",
                                     "isRemote": false
                                 },
@@ -514,10 +494,6 @@
                                     "compressionType": "merge_dep",
                                     "isRemote": false
                                 },
-                                "xiaomi-quick-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
                                 "link-sure": {
                                     "compressionType": "merge_dep",
                                     "isRemote": false
@@ -589,10 +565,6 @@
                                     "isRemote": false
                                 },
                                 "vivo-mini-game": {
-                                    "compressionType": "merge_dep",
-                                    "isRemote": false
-                                },
-                                "xiaomi-quick-game": {
                                     "compressionType": "merge_dep",
                                     "isRemote": false
                                 },

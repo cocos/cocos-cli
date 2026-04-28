@@ -65,11 +65,6 @@ export const defaultMangleConfig: Record<MangleConfigPlatformType, IMangleConfig
         mangleList: [],
         dontMangleList: [],
     },
-    XIAOMI: {
-        extends: 'MINIGAME',
-        mangleList: [],
-        dontMangleList: [],
-    },
     ALIPAY: {
         extends: 'MINIGAME',
         mangleList: [],
@@ -91,11 +86,6 @@ export const defaultMangleConfig: Record<MangleConfigPlatformType, IMangleConfig
         dontMangleList: [],
     },
     HUAWEI: {
-        extends: 'MINIGAME',
-        mangleList: [],
-        dontMangleList: [],
-    },
-    MIGU: {
         extends: 'MINIGAME',
         mangleList: [],
         dontMangleList: [],
