@@ -99,7 +99,6 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
                 this.initFromConfig();
             }
 
-            // 每次场景加载都需要执行的设置（与编辑器 onSceneOpened 一致）
             this.refresh();
 
             const scene = (cc as any).director?.getScene();
@@ -107,15 +106,6 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             if (this._currentUuid !== uuid) {
                 this._currentUuid = uuid;
                 this._controllerFirstChange = false;
-
-                const rootNode = Service.Editor?.getRootNode?.() as any || scene;
-                const hasCanvas = rootNode?.getComponentInChildren?.(Canvas);
-
-                this._controller.active = true;
-                this.defaultFocus(uuid);
-                if (hasCanvas) {
-                    this.is2D = true;
-                }
             }
 
             this._detachSceneCameras();
@@ -370,34 +360,6 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
                 comp.camera.detachCamera();
             }
         });
-    }
-
-    private _focusOnSceneContent(): void {
-        const rootNode = Service.Editor?.getRootNode?.() as any;
-        const scene = rootNode || (cc as any).director?.getScene();
-        if (!scene) return;
-
-        if (this.is2D) {
-            // 与编辑器 defaultFocus 一致：查找 Canvas 节点，使用 getBoundingBoxToWorld
-            const canvas = scene.getComponentInChildren?.(Canvas);
-            if (canvas?.node) {
-                const uiTransform = canvas.node.getComponent?.('cc.UITransform') as any;
-                if (uiTransform) {
-                    const bounds = uiTransform.getBoundingBoxToWorld();
-                    this._controller2D.fitSize(bounds);
-                    return;
-                }
-            }
-        }
-
-        this._controller3D.focusByNode([scene], false, true);
-    }
-
-    /**
-     * 场景保存时调用，可通过 RPC 持久化相机配置
-     */
-    onEditorSaved(): void {
-        // 可通过 RPC 保存相机配置
     }
 
     onComponentAdded(comp: any): void {

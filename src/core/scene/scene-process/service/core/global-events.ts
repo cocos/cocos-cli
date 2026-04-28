@@ -126,5 +126,7 @@ class GlobalEventManager {
     }
 }
 
+export { GlobalEventManager };
+
 // 导出全局单例
 export const ServiceEvents = new GlobalEventManager();
