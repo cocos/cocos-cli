@@ -42,8 +42,8 @@ export const ComponentProxy: IPublicComponentService = {
         return Rpc.getInstance().request('Component', 'queryClasses', [options]);
     },
 
-    queryComponentFunctionOfNode(uuid: string): Promise<any> {
-        return Rpc.getInstance().request('Component', 'queryComponentFunctionOfNode', [uuid]);
+    queryComponentFunctionOfNode(path: string): Promise<any> {
+        return Rpc.getInstance().request('Component', 'queryComponentFunctionOfNode', [path]);
     },
 
     queryComponentHasScript(name: string): Promise<boolean> {

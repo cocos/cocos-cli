@@ -1045,7 +1045,7 @@ describe('Component Proxy 测试', () => {
         it('executeComponentMethod - 执行组件上存在的方法', async () => {
             try {
                 await ComponentProxy.executeComponentMethod({
-                    uuid: componentUuid,
+                    path: componentPath,
                     name: 'onLoad',
                     args: [],
                 });
@@ -1057,7 +1057,7 @@ describe('Component Proxy 测试', () => {
 
         it('executeComponentMethod - 执行返回非 undefined 值的方法', async () => {
             const result = await ComponentProxy.executeComponentMethod({
-                uuid: componentUuid,
+                path: componentPath,
                 name: 'node.getSiblingIndex',
                 args: [],
             });
@@ -1143,13 +1143,13 @@ describe('Component Proxy 测试', () => {
         });
 
         it('queryComponentFunctionOfNode - 查询有效节点的组件函数', async () => {
-            const result = await ComponentProxy.queryComponentFunctionOfNode(nodeId);
+            const result = await ComponentProxy.queryComponentFunctionOfNode(nodePath);
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
         });
 
         it('queryComponentFunctionOfNode - 查询不存在节点返回空对象', async () => {
-            const result = await ComponentProxy.queryComponentFunctionOfNode('non-existent-uuid');
+            const result = await ComponentProxy.queryComponentFunctionOfNode('non-existent-path');
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
             expect(Object.keys(result).length).toBe(0);
@@ -1212,7 +1212,7 @@ describe('Component Proxy 测试', () => {
                 const stringDump = { ...value['string'], value: 'pink-test' };
 
                 const result = await ComponentProxy.setProperty({
-                    uuid: nodeUUid,
+                    nodePath: nodePath,
                     path: '__comps__.2.string',
                     dump: stringDump,
                     record: false

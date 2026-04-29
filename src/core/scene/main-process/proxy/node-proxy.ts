@@ -34,8 +34,8 @@ export const NodeProxy: IPublicNodeService = {
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
         return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);
     },
-    queryNodeDump(uuid: string): Promise<INodeForEditor | null> {
-        return Rpc.getInstance().request('Node', 'queryNodeDump', [uuid]);
+    queryNodeDump(path: string): Promise<INodeForEditor | null> {
+        return Rpc.getInstance().request('Node', 'queryNodeDump', [path]);
     },
     previewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         return Rpc.getInstance().request('Node', 'previewSetNodeProperty', [options]);
@@ -46,8 +46,8 @@ export const NodeProxy: IPublicNodeService = {
     setNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         return Rpc.getInstance().request('Node', 'setNodeProperty', [options]);
     },
-    resetNode(uuid: string): Promise<boolean> {
-        return Rpc.getInstance().request('Node', 'resetNode', [uuid]);
+    resetNode(path: string): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'resetNode', [path]);
     },
     resetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         return Rpc.getInstance().request('Node', 'resetNodeProperty', [options]);

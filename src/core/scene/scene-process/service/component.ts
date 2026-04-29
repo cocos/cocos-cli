@@ -415,7 +415,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async setProperty(options: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean> {
-        if ('uuid' in options) {
+        if ('nodePath' in options) {
             return await this.setPropertyForEditor(options as ISetPropertyOptionsForEditor);
         } else {
             return await this.setPropertyForCli(options);
@@ -438,10 +438,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
 
     async setPropertyForEditor(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         // 多个节点更新值
-        if (Array.isArray(options.uuid)) {
+        if (Array.isArray(options.nodePath)) {
             try {
-                for (let i = 0; i < options.uuid.length; i++) {
-                    await this.setPropertyForEditor({ uuid: options.uuid[i], path: options.path, dump: options.dump, record: options?.record });
+                for (let i = 0; i < options.nodePath.length; i++) {
+                    await this.setPropertyForEditor({ nodePath: options.nodePath[i], path: options.path, dump: options.dump, record: options?.record });
                 }
                 return true;
             } catch (e) {
@@ -449,9 +449,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 return false;
             }
         }
-        const node = this.query(options.uuid);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
-            console.warn(`Set property failed: ${options.uuid} does not exist`);
+            console.warn(`Set property failed: ${options.nodePath} does not exist`);
             return false;
         }
 
@@ -563,8 +563,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return classes;
     }
 
-    async queryComponentFunctionOfNode(uuid: string): Promise<any> {
-        const node = NodeMgr.getNode(uuid);
+    async queryComponentFunctionOfNode(path: string): Promise<any> {
+        const node = NodeMgr.getNodeByPath(path);
         if (!node) {
             return {};
         }
@@ -652,6 +652,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<any> {
-        return await compMgr.executeComponentMethod(options.uuid, options.name, options.args);
+        const comp = compMgr.queryFromPath(options.path);
+        if (!comp) {
+            return null;
+        }
+        return await compMgr.executeComponentMethod(comp.uuid, options.name, options.args);
     }
 }

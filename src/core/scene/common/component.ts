@@ -79,7 +79,7 @@ export interface ISetPropertyOptions {
  * 编辑器设置组件属性的选项
  */
 export interface ISetPropertyOptionsForEditor {
-    uuid: string; // 修改属性的对象的 uuid
+    nodePath: string; // 修改属性的节点路径
     path: string; // 属性挂载对象的搜索路径
     // key: string; // 属性的 key
     dump: IProperty; // 属性 dump 出来的数据
@@ -90,7 +90,7 @@ export interface ISetPropertyOptionsForEditor {
  * 执行组件方法的选项
  */
 export interface IExecuteComponentMethodOptions {
-    uuid: string;
+    path: string; // 组件路径，如 'Canvas/cc.Label_1'
     name: string;
     args: any[];
 }
@@ -157,7 +157,7 @@ export interface IComponentService extends IServiceEvents {
     /**
      * 设置组件属性
      * - CLI 调用时传入 ISetPropertyOptions，通过 componentPath 定位，属性为扁平键值对
-     * - 编辑器调用时传入 ISetPropertyOptionsForEditor，通过节点 UUID + dump 路径定位，属性为 IProperty 格式
+     * - 编辑器调用时传入 ISetPropertyOptionsForEditor，通过节点路径 + dump 路径定位，属性为 IProperty 格式
      *
      * @param params - 设置属性选项，根据调用方不同传入不同类型
      * @returns 设置成功返回 true，失败返回 false
@@ -170,9 +170,9 @@ export interface IComponentService extends IServiceEvents {
      *     properties: { string: 'Hello', fontSize: 32 },
      * });
      *
-     * // 编辑器方式：通过节点 UUID + dump 路径定位，传 IProperty 格式
+     * // 编辑器方式：通过节点路径 + dump 路径定位，传 IProperty 格式
      * await setProperty({
-     *     uuid: 'node-uuid',
+     *     nodePath: 'Canvas/MyNode',
      *     path: '__comps__.0.string',
      *     dump: { value: 'Hello', type: 'String' },
      * });
@@ -247,15 +247,15 @@ export interface IComponentService extends IServiceEvents {
 
     /**
      * 查询指定节点上所有组件暴露的可调用函数
-     * @param uuid - 节点 UUID
+     * @param path - 节点路径
      * @returns 节点上组件的函数信息，节点不存在时返回空对象
      */
-    queryComponentFunctionOfNode(uuid: string): Promise<any>;
+    queryComponentFunctionOfNode(path: string): Promise<any>;
 
     /**
      * 执行组件上的指定方法
      * @param options - 执行选项
-     * @param options.uuid - 组件实例的 UUID
+     * @param options.path - 组件路径，如 'Canvas/cc.Label_1'
      * @param options.name - 要执行的方法名，如 'onLoad'、'start'
      * @param options.args - 方法参数列表
      * @returns 执行成功返回 true，失败返回 false

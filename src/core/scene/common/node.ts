@@ -288,10 +288,10 @@ export interface INodeService extends IServiceEvents {
      * 查询节点的 dump 数据，返回节点的完整序列化信息（属性、组件、prefab 等）
      * 用于编辑器 Inspector 面板渲染节点属性
      *
-     * @param uuid - 节点 UUID
+     * @param path - 节点路径
      * @returns 节点的 dump 数据（INodeForEditor），节点不存在时返回 null
      */
-    queryNodeDump(uuid: string): Promise<INodeForEditor | null>;
+    queryNodeDump(path: string): Promise<INodeForEditor | null>;
 
     /**
      * 预览设置节点属性，临时应用属性变更但不记录到 undo 栈
@@ -299,7 +299,7 @@ export interface INodeService extends IServiceEvents {
      * 可通过 cancelPreviewSetNodeProperty 恢复
      *
      * @param options - 设置属性选项
-     * @param options.uuid - 节点 UUID
+     * @param options.nodePath - 节点路径
      * @param options.path - 属性路径，如 'position'、'scale'
      * @param options.dump - 属性的 dump 数据
      * @returns 设置成功返回 true，节点或属性路径无效返回 false
@@ -308,7 +308,7 @@ export interface INodeService extends IServiceEvents {
      * ```ts
      * // 预览修改节点位置
      * await previewSetNodeProperty({
-     *     uuid: 'node-uuid',
+     *     nodePath: 'Canvas/MyNode',
      *     path: 'position',
      *     dump: { value: { x: 100, y: 200, z: 0 }, type: 'cc.Vec3' },
      * });
@@ -318,10 +318,10 @@ export interface INodeService extends IServiceEvents {
 
     /**
      * 取消预览设置，将节点属性恢复到 previewSetNodeProperty 调用前的值
-     * 仅使用 options.uuid 和 options.path，options.dump 不会被使用
+     * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
      *
      * @param options - 设置属性选项
-     * @param options.uuid - 节点 UUID
+     * @param options.nodePath - 节点路径
      * @param options.path - 属性路径
      * @returns 恢复成功返回 true，无缓存的预览数据或节点无效返回 false
      */
@@ -331,7 +331,7 @@ export interface INodeService extends IServiceEvents {
      * 设置节点属性，会记录到 undo 栈
      *
      * @param options - 设置属性选项
-     * @param options.uuid - 节点 UUID
+     * @param options.nodePath - 节点路径
      * @param options.path - 属性路径，如 'position'、'rotation'、'layer'
      * @param options.dump - 属性的 dump 数据
      * @returns 设置成功返回 true，节点不存在返回 false
@@ -339,7 +339,7 @@ export interface INodeService extends IServiceEvents {
      * @example
      * ```ts
      * await setNodeProperty({
-     *     uuid: 'node-uuid',
+     *     nodePath: 'Canvas/MyNode',
      *     path: 'position',
      *     dump: { value: { x: 100, y: 200, z: 0 }, type: 'cc.Vec3' },
      * });
@@ -350,17 +350,17 @@ export interface INodeService extends IServiceEvents {
     /**
      * 重置节点的变换属性（position、rotation、scale、mobility）到默认值
      *
-     * @param uuid - 节点 UUID
+     * @param path - 节点路径
      * @returns 重置成功返回 true，节点不存在返回 false
      */
-    resetNode(uuid: string): Promise<boolean>;
+    resetNode(path: string): Promise<boolean>;
 
     /**
      * 重置节点的单个属性到 CCClass 定义的默认值
-     * 仅使用 options.uuid 和 options.path，options.dump 不会被使用
+     * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
      *
      * @param options - 设置属性选项
-     * @param options.uuid - 节点 UUID
+     * @param options.nodePath - 节点路径
      * @param options.path - 属性路径，如 'position'、'scale'
      * @returns 重置成功返回 true，节点不存在返回 false
      */
@@ -369,10 +369,10 @@ export interface INodeService extends IServiceEvents {
     /**
      * 将节点上值为 null 的属性初始化为默认实例
      * 当属性为 null 且有定义构造函数类型时，会创建该类型的新实例
-     * 仅使用 options.uuid 和 options.path，options.dump 不会被使用
+     * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
      *
      * @param options - 设置属性选项
-     * @param options.uuid - 节点 UUID
+     * @param options.nodePath - 节点路径
      * @param options.path - 属性路径
      * @returns 初始化成功返回 true，节点不存在返回 false
      *
@@ -380,7 +380,7 @@ export interface INodeService extends IServiceEvents {
      * ```ts
      * // 将节点上值为 null 的自定义属性初始化
      * await updateNodePropertyFromNull({
-     *     uuid: 'node-uuid',
+     *     nodePath: 'Canvas/MyNode',
      *     path: 'customProperty',
      *     dump: {} as IProperty,
      * });
@@ -391,16 +391,16 @@ export interface INodeService extends IServiceEvents {
     /**
      * 设置节点及其所有子节点的 layer 属性
      * 递归将相同的 layer 值应用到整个节点子树
-     * 仅使用 options.uuid 和 options.dump，options.path 不会被使用（内部固定为 'layer'）
+     * 仅使用 options.nodePath 和 options.dump，options.path 不会被使用（内部固定为 'layer'）
      *
      * @param options - 设置属性选项
-     * @param options.uuid - 节点 UUID
+     * @param options.nodePath - 节点路径
      * @param options.dump - layer 属性的 dump 数据
      *
      * @example
      * ```ts
      * await setNodeAndChildrenLayer({
-     *     uuid: 'node-uuid',
+     *     nodePath: 'Canvas/MyNode',
      *     path: 'layer',
      *     dump: { value: 1 << 25, type: 'Enum' },
      * });

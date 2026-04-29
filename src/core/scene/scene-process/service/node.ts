@@ -513,37 +513,68 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         EditorExtends.Component.clear();
     }
 
-    public async queryNodeDump(uuid: string): Promise<any> {
-        return await nodeMgr.queryDump(uuid);
+    public async queryNodeDump(path: string): Promise<any> {
+        const node = NodeMgr.getNodeByPath(path);
+        if (!node) {
+            return null;
+        }
+        return await nodeMgr.queryDump(node.uuid);
     }
 
     public async previewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-        return await nodeMgr.previewSetNodeProperty(options.uuid, options.path, options.dump);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) {
+            return false;
+        }
+        return await nodeMgr.previewSetNodeProperty(node.uuid, options.path, options.dump);
     }
 
     public async cancelPreviewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-        return await nodeMgr.cancelPreviewSetNodeProperty(options.uuid, options.path);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) {
+            return false;
+        }
+        return await nodeMgr.cancelPreviewSetNodeProperty(node.uuid, options.path);
     }
 
     public async setNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-        return await nodeMgr.setProperty(options.uuid, options.path, options.dump);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) {
+            return false;
+        }
+        return await nodeMgr.setProperty(node.uuid, options.path, options.dump);
     }
 
-    public async resetNode(uuid: string): Promise<boolean> {
-        return await nodeMgr.resetNode(uuid);
+    public async resetNode(path: string): Promise<boolean> {
+        const node = NodeMgr.getNodeByPath(path);
+        if (!node) {
+            return false;
+        }
+        return await nodeMgr.resetNode(node.uuid);
     }
-
 
     public async resetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-        return await nodeMgr.resetProperty(options.uuid, options.path);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) {
+            return false;
+        }
+        return await nodeMgr.resetProperty(node.uuid, options.path);
     }
 
     public async updateNodePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-        return await nodeMgr.updatePropertyFromNull(options.uuid, options.path);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) {
+            return false;
+        }
+        return await nodeMgr.updatePropertyFromNull(node.uuid, options.path);
     }
 
     public async setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
-        return await nodeMgr.setNodeAndChildrenLayer(options.uuid, options.dump);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) {
+            return;
+        }
+        return await nodeMgr.setNodeAndChildrenLayer(node.uuid, options.dump);
     }
 }
 
