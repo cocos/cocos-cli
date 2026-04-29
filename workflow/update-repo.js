@@ -115,7 +115,7 @@ class UpdateRepo {
 
             // 获取远程更新
             console.log('获取远程更新...');
-            this.execCommand('git fetch origin --tags', targetDir);
+            this.execCommand('git fetch origin --tags --force', targetDir);
 
             // 切换到指定分支或标签并更新
             if (branch) {
