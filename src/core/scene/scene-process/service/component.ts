@@ -366,7 +366,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 throw new Error(`Remove component failed: ${params.path} does not exist`);
             }
 
-            this.emit('component:before-remove', comp);
+            this.emit('component:before-remove-component', comp);
             const result = compMgr.removeComponent(comp);
             // 需要立刻执行removeComponent操作，否则会延迟到下一帧
             cc.Object._deferredDestroy();

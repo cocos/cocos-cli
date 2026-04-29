@@ -108,12 +108,12 @@ export interface IQueryClassesOptions {
  */
 export interface IComponentEvents extends INodeEvents {
     'component:add': [Component];
-    'component:before-remove': [Component];
     'component:remove': [Component];
     'component:set-property': [Component, IChangeNodeOptions];
     'component:added': [Component];
     'component:removed': [Component];
     'component:before-add-component': [string, Node];
+    'component:before-remove-component': [Component];
 }
 
 /**

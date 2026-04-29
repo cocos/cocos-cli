@@ -8,20 +8,13 @@ import { IProperty } from '../../../@types/public';
 import { IComponentIdentifier, type IComponentEvents } from '../../../common';
 import { ServiceEvents } from '../core/global-events';
 
-/**
- * 从 IComponentEvents 中提取 component: 前缀的事件，去掉前缀作为短名
- */
-type ComponentShortEvents = {
-    [K in keyof IComponentEvents as K extends `component:${infer S}` ? S : never]: IComponentEvents[K];
-};
-
 export class CompManager {
     protected _recycleComponent: Record<string, Component> = {};
 
-    emit<K extends keyof ComponentShortEvents>(event: K, ...args: ComponentShortEvents[K]): void;
+    emit<K extends keyof IComponentEvents>(event: K, ...args: IComponentEvents[K]): void;
     emit(event: string, ...args: any[]): void;
     emit(event: string, ...args: any[]) {
-        ServiceEvents.emit(`component:${event}`, ...args);
+        ServiceEvents.emit(event, ...args);
     }
 
     init() {
@@ -64,7 +57,7 @@ export class CompManager {
      * @param {cc.Component} component
      */
     add(uuid: string, component: Component) {
-        this.emit('added', component);
+        this.emit('component:added', component);
     }
 
     /**
@@ -73,7 +66,7 @@ export class CompManager {
      * @param {cc.Component} component
      */
     remove(uuid: string, component: Component) {
-        this.emit('removed', component);
+        this.emit('component:removed', component);
     }
 
     /**
@@ -146,12 +139,12 @@ export class CompManager {
             return false;
         }
 
-        this.emit('before-remove', component);
+        this.emit('component:before-remove-component', component);
         component.node.removeComponent(component);
         // 需要立刻执行removeComponent操作，否则会延迟到下一帧
         cc.Object._deferredDestroy();
 
-        this.emit('remove', component);
+        this.emit('component:remove', component);
 
         return true;
     }
@@ -271,7 +264,7 @@ export class CompManager {
             return;
         }
 
-        this.emit('add', component);
+        this.emit('component:add', component);
 
         // 一些组件在添加的时候，需要执行部分特殊的逻辑
         if (component.constructor && (utils.addComponentMap as any)[component.constructor.name]) {

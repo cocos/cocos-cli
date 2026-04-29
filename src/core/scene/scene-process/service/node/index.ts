@@ -1823,7 +1823,7 @@ export class NodeManager {
 
         // @ts-ignore
         node._addComponentAt(comp, index);
-        compMgr.emit('add', comp);
+        compMgr.emit('component:add', comp);
 
         return true;
     }
