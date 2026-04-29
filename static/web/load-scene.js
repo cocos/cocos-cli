@@ -1,4 +1,4 @@
-/* global window, cc, fetch */
+/* global window, cc, fetch, setupInputBridge */
 
 window.loadScene = async function (serverURL) {
     const sceneListPromise = await fetch(`${serverURL}/query-asset-infos/cc.SceneAsset`);
@@ -19,8 +19,26 @@ window.loadScene = async function (serverURL) {
         return;
     }
 
-    cli.SceneEvents.on('editor:open', () => { 
+    cli.SceneEvents.on('editor:open', () => {
         console.log('editor:open onCalled');
     });
+
+    await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = '/static/web/input-bridge.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+    });
+
+    var canvas = document.getElementById('GameCanvas');
+    if (canvas && cli.Scene.Operation) {
+        setupInputBridge({
+            canvas: canvas,
+            operation: cli.Scene.Operation,
+            engine: cli.Scene.Engine,
+        });
+    }
+
     await cli.Scene.Editor.open({ urlOrUUID: sceneUrl });
 };
