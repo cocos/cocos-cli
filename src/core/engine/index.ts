@@ -89,7 +89,6 @@ class EngineManager implements IEngine {
                 if (entry.endsWith('.js')) {
                     try {
                         const resolved = require.resolve(fullPath);
-                        delete require.cache[resolved];
                         const data = require(resolved);
                         i18n.registerLanguagePatch(lang, prefix, data);
                     } catch (error) {
