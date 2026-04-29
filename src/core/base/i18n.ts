@@ -95,38 +95,6 @@ class I18n {
 
         i18nextInstance.addResources(language, 'translation', entries);
     }
-
-    /**
-     * 加载引擎包的 i18n 文件（.js CommonJS 模块）
-     * 将 packages/engine/editor/i18n/{lang}/*.js 注册到 ENGINE.* 命名空间
-     */
-    loadEngineI18n(enginePath: string) {
-        const i18nDir = join(enginePath, 'editor', 'i18n');
-        if (!existsSync(i18nDir)) {
-            return;
-        }
-
-        for (const lang of ['zh', 'en']) {
-            const langDir = join(i18nDir, lang);
-            if (!existsSync(langDir)) {
-                continue;
-            }
-
-            readdirSync(langDir).forEach((file) => {
-                if (!file.endsWith('.js')) {
-                    return;
-                }
-                try {
-                    const resolved = require.resolve(join(langDir, file));
-                    delete require.cache[resolved];
-                    const data = require(resolved);
-                    this.registerLanguagePatch(lang, `ENGINE`, data);
-                } catch (error) {
-                    console.warn(`[i18n] Failed to load engine i18n: ${join(langDir, file)}`, error);
-                }
-            });
-        }
-    }
 }
 
 export default new I18n();

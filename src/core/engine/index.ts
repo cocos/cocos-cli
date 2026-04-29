@@ -1,4 +1,5 @@
 import fse from 'fs-extra';
+import { existsSync, readdirSync, statSync } from 'fs';
 import { EngineInfo } from './@types/public';
 import { IEngineConfig, IEngineProjectConfig, IInitEngineInfo } from './@types/config';
 import { IModuleConfig, ModuleRenderConfig } from './@types/modules';
@@ -69,6 +70,44 @@ class EngineManager implements IEngine {
 
     private get defaultConfig(): IEngineConfig {
         return cloneDeep(this._defaultConfig);
+    }
+
+    /**
+     * 加载引擎包的 i18n 文件（.js CommonJS 模块）
+     * 将 packages/engine/editor/i18n/{lang}/*.js 注册到 ENGINE.* 命名空间
+     * 递归处理子目录（如 modules/physics.js → ENGINE.physics.*）
+     */
+    private _loadEngineI18n(enginePath: string) {
+        const i18nDir = join(enginePath, 'editor', 'i18n');
+        if (!existsSync(i18nDir)) {
+            return;
+        }
+
+        const loadDir = (dir: string, lang: string, prefix: string) => {
+            readdirSync(dir).forEach((entry) => {
+                const fullPath = join(dir, entry);
+                if (entry.endsWith('.js')) {
+                    try {
+                        const resolved = require.resolve(fullPath);
+                        delete require.cache[resolved];
+                        const data = require(resolved);
+                        i18n.registerLanguagePatch(lang, prefix, data);
+                    } catch (error) {
+                        console.warn(`[i18n] Failed to load engine i18n: ${fullPath}`, error);
+                    }
+                } else if (statSync(fullPath).isDirectory()) {
+                    loadDir(fullPath, lang, prefix);
+                }
+            });
+        };
+
+        for (const lang of ['zh', 'en']) {
+            const langDir = join(i18nDir, lang);
+            if (!existsSync(langDir)) {
+                continue;
+            }
+            loadDir(langDir, lang, 'ENGINE');
+        }
     }
 
     private createFallbackDefaultConfig(): IEngineConfig {
@@ -249,7 +288,7 @@ class EngineManager implements IEngine {
         this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
         this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
         this._info.tmpDir = join(enginePath, '.temp');
-        i18n.loadEngineI18n(enginePath);
+        this._loadEngineI18n(enginePath);
         this._defaultConfig = this.resolveDefaultConfig(this._info.typescript.path);
         this._config = this.defaultConfig;
         const configInstance = await configurationRegistry.register('engine', {
