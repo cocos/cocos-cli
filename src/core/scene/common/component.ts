@@ -41,7 +41,7 @@ export interface IComponentForEditor extends IProperty {
  * 添加/创建组件的选项
  */
 export interface IAddComponentOptions {
-    nodePathOrUuid: string;
+    nodePath: string;
     component: string;
 }
 
@@ -67,7 +67,7 @@ export interface IQueryComponentOptions {
  * CLI 设置组件属性的选项
  */
 export interface ISetPropertyOptions {
-    componentPath: string; // 修改属性的对象的 uuid
+    componentPath: string; // 修改属性的节点路径
     // key: string; // 属性的 key
     properties: {
         [key: string]: null | undefined | number | boolean | string | object | Array<unknown>;
@@ -131,17 +131,17 @@ export interface IComponentService extends IServiceEvents {
     /**
      * 添加组件到指定节点，返回添加后的组件信息
      * @param params - 添加组件选项
-     * @param params.nodePathOrUuid - 目标节点路径或 UUID
+     * @param params.nodePath - 目标节点路径
      * @param params.component - 组件类名，支持精确匹配（'cc.Label'）和模糊匹配（'label'）
      * @returns 添加成功后的组件信息
      *
      * @example
      * ```ts
      * // 通过节点路径 + 精确组件名
-     * const comp = await addComponent({ nodePathOrUuid: 'Canvas/MyNode', component: 'cc.Label' });
+     * const comp = await addComponent({ nodePath: 'Canvas/MyNode', component: 'cc.Label' });
      *
-     * // 通过节点 UUID + 模糊组件名
-     * const comp = await addComponent({ nodePathOrUuid: 'abc-123-uuid', component: 'label' });
+     * // 通过节点路径 + 模糊组件名
+     * const comp = await addComponent({ nodePath: 'Canvas/MyNode', component: 'label' });
      * ```
      */
     addComponent(params: IAddComponentOptions): Promise<IComponent>;
@@ -210,7 +210,7 @@ export interface IComponentService extends IServiceEvents {
     /**
      * 创建组件（编辑器使用），与 addComponent 不同的是仅返回是否成功
      * @param params - 添加组件选项
-     * @param params.nodePathOrUuid - 目标节点路径或 UUID
+     * @param params.nodePath - 目标节点路径
      * @param params.component - 组件类名
      * @returns 创建成功返回 true，失败返回 false
      */

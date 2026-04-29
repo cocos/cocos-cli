@@ -63,7 +63,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
             const component = await ComponentProxy.addComponent({
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label'
             });
             componentPath = component.path;

@@ -70,7 +70,7 @@ describe('Component Proxy 测试', () => {
         it('addComponent - 添加节点 - 完整节点名称：cc.Label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label'
             };
             try {
@@ -91,7 +91,7 @@ describe('Component Proxy 测试', () => {
         it('addComponent - 添加节点 - 模糊节点名称：cc.label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.label'
             };
             try {
@@ -112,7 +112,7 @@ describe('Component Proxy 测试', () => {
         it('addComponent - 添加节点 - 模糊节点名称：Label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'Label'
             };
             try {
@@ -134,7 +134,7 @@ describe('Component Proxy 测试', () => {
         it('addComponent - 添加节点 - 模糊节点名称：label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'label'
             };
             try {
@@ -346,7 +346,7 @@ describe('Component Proxy 测试', () => {
         it('queryComponent - 查询存在相同组件', async () => {
             const newNodePath = 'TestNode/new node';
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: newNodePath,
+                nodePath: newNodePath,
                 component: 'label'
             };
             try {
@@ -449,7 +449,7 @@ describe('Component Proxy 测试', () => {
             try {
                 for (const componentName of testComponents) {
                     const componentInfo: IAddComponentOptions = {
-                        nodePathOrUuid: nodePath,
+                        nodePath: nodePath,
                         component: componentName
                     };
 
@@ -492,7 +492,7 @@ describe('Component Proxy 测试', () => {
             try {
                 for (let i = 0; i < testCount; i++) {
                     const componentInfo1: IAddComponentOptions = {
-                        nodePathOrUuid: nodePath,
+                        nodePath: nodePath,
                         component: testComponent
                     };
                     const component = await ComponentProxy.addComponent(componentInfo1);
@@ -521,7 +521,7 @@ describe('Component Proxy 测试', () => {
         // 确保测试了中，没有其他的组件
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: testComponent
             };
             try {
@@ -652,7 +652,7 @@ describe('Component Proxy 测试', () => {
         // 确保测试了中，没有其他的组件
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: testComponent
             };
             try {
@@ -741,7 +741,7 @@ describe('Component Proxy 测试', () => {
                 }
 
                 const componentInfo1: IAddComponentOptions = {
-                    nodePathOrUuid: nodePath,
+                    nodePath: nodePath,
                     component: componentType
                 };
                 try {
@@ -810,7 +810,7 @@ describe('Component Proxy 测试', () => {
                 const testComponent = 'cc.Layout';
                 for (let i = 0; i < nodes.length; ++i) {
                     const componentInfo1: IAddComponentOptions = {
-                        nodePathOrUuid: nodes[i].path,
+                        nodePath: nodes[i].path,
                         component: testComponent,
                     };
                     const component = await ComponentProxy.addComponent(componentInfo1);
@@ -819,7 +819,7 @@ describe('Component Proxy 测试', () => {
                 }
                 for (let i = 0; i < nodes.length; ++i) {
                     const componentInfo1: IAddComponentOptions = {
-                        nodePathOrUuid: nodes[i].path,
+                        nodePath: nodes[i].path,
                         component: testComponent,
                     };
                     const component = await ComponentProxy.addComponent(componentInfo1);
@@ -862,7 +862,7 @@ describe('Component Proxy 测试', () => {
         it('addComponent - 添加多个不允许并存的组件', async () => {
             const testComponent = 'cc.Label';
             const componentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: testComponent,
             };
             let component = await ComponentProxy.addComponent(componentInfo);
@@ -882,7 +882,7 @@ describe('Component Proxy 测试', () => {
             const testComponent = 'cc.Sprite';
             const testConfictsComponent = 'cc.Line';
             const componentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: testComponent,
             };
             let component = await ComponentProxy.addComponent(componentInfo);
@@ -890,7 +890,7 @@ describe('Component Proxy 测试', () => {
             expect(component.path).toBe(`${nodePath}/${testComponent}`);
             try {
                 const componentConficts: IAddComponentOptions = {
-                    nodePathOrUuid: nodePath,
+                    nodePath: nodePath,
                     component: testConfictsComponent,
                 };
                 component = await ComponentProxy.addComponent(componentConficts);
@@ -905,7 +905,7 @@ describe('Component Proxy 测试', () => {
     describe('8. createComponent - 创建组件测试', () => {
         it('createComponent - 创建已知组件应返回 true', async () => {
             const options: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label',
             };
             try {
@@ -922,7 +922,7 @@ describe('Component Proxy 测试', () => {
 
         it('createComponent - 创建不存在组件应抛出异常', async () => {
             const options: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.NonExistentComponent',
             };
             try {
@@ -938,7 +938,7 @@ describe('Component Proxy 测试', () => {
         let componentUuid = '';
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label',
             };
             const component = await ComponentProxy.addComponent(addComponentInfo);
@@ -986,7 +986,7 @@ describe('Component Proxy 测试', () => {
         let componentPath = '';
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label',
             };
             const component = await ComponentProxy.addComponent(addComponentInfo);
@@ -1031,7 +1031,7 @@ describe('Component Proxy 测试', () => {
         let componentPath = '';
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label',
             };
             const component = await ComponentProxy.addComponent(addComponentInfo);
@@ -1132,7 +1132,7 @@ describe('Component Proxy 测试', () => {
 
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label',
             };
             const component = await ComponentProxy.addComponent(addComponentInfo);
@@ -1190,7 +1190,7 @@ describe('Component Proxy 测试', () => {
             const nodeInfo = await NodeProxy.queryNode(queryNodeParam);
 
             const addComponentInfo: IAddComponentOptions = {
-                nodePathOrUuid: nodePath,
+                nodePath: nodePath,
                 component: 'cc.Label',
             };
             const component = await ComponentProxy.addComponent(addComponentInfo);

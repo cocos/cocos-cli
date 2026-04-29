@@ -105,10 +105,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         });
     }
 
-    private async addComponentImpl(nodePathOrUuid: string, component: string): Promise<IComponent> {
-        const node = NodeMgr.getNodeByPath(nodePathOrUuid) ?? NodeMgr.getNode(nodePathOrUuid);
+    private async addComponentImpl(nodePath: string, component: string): Promise<IComponent> {
+        const node = NodeMgr.getNodeByPath(nodePath);
         if (!node) {
-            throw new Error(`add component failed: ${nodePathOrUuid} does not exist`);
+            throw new Error(`add component failed: ${nodePath} does not exist`);
         }
         if (!component || component.length <= 0) {
             throw new Error(`add component failed: ${component} does not exist`);
@@ -205,7 +205,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     async addComponent(params: IAddComponentOptions): Promise<IComponent> {
         try {
             await Service.Editor.lock();
-            return await this.addComponentImpl(params.nodePathOrUuid, params.component);
+            return await this.addComponentImpl(params.nodePath, params.component);
         } catch (error) {
             console.error(error);
             throw error;
@@ -225,14 +225,14 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     async createComponent(params: IAddComponentOptions): Promise<boolean> {
         if (Array.isArray(params.component)) {
             params.component.forEach((id) => {
-                this.createComponent({ nodePathOrUuid: params.nodePathOrUuid, component: id });
+                this.createComponent({ nodePath: params.nodePath, component: id });
             });
             console.warn('don\'t add component to more than one node at one time');
             return false;
         }
-        const node = NodeMgr.getNodeByPath(params.nodePathOrUuid) ?? NodeMgr.getNode(params.nodePathOrUuid);
+        const node = NodeMgr.getNodeByPath(params.nodePath);
         if (!node) {
-            console.warn(`create component failed: ${params.nodePathOrUuid} does not exist`);
+            console.warn(`create component failed: ${params.nodePath} does not exist`);
             return false;
         }
 
