@@ -6,20 +6,13 @@ import {
     IQueryComponentOptions,
     ISetPropertyOptions,
     IPublicComponentService,
-    IExecuteComponentMethodOptions,
-    IQueryClassesOptions,
 } from '../../common';
-import { IProperty } from '../../@types/public';
 
 import { Rpc } from '../rpc';
 
 export const ComponentProxy: IPublicComponentService = {
     addComponent(params: IAddComponentOptions): Promise<IComponent> {
         return Rpc.getInstance().request('Component', 'addComponent', [params]);
-    },
-
-    createComponent(params: IAddComponentOptions): Promise<boolean> {
-        return Rpc.getInstance().request('Component', 'createComponent', [params]);
     },
 
     removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
@@ -37,24 +30,4 @@ export const ComponentProxy: IPublicComponentService = {
     queryAllComponent(): Promise<string[]> {
         return Rpc.getInstance().request('Component', 'queryAllComponent');
     },
-
-    queryClasses(options?: IQueryClassesOptions): Promise<{ name: string }[]> {
-        return Rpc.getInstance().request('Component', 'queryClasses', [options]);
-    },
-
-    queryComponentFunctionOfNode(path: string): Promise<any> {
-        return Rpc.getInstance().request('Component', 'queryComponentFunctionOfNode', [path]);
-    },
-
-    queryComponentHasScript(name: string): Promise<boolean> {
-        return Rpc.getInstance().request('Component', 'queryComponentHasScript', [name]);
-    },
-
-    resetComponent(params: IQueryComponentOptions): Promise<boolean> {
-        return Rpc.getInstance().request('Component', 'resetComponent', [params]);
-    },
-
-    executeComponentMethod(params: IExecuteComponentMethodOptions): Promise<any> {
-        return Rpc.getInstance().request('Component', 'executeComponentMethod', [params]);
-    }
 };

@@ -245,7 +245,16 @@ export interface INodeEvents {
     'node:removed': [Node, IChangeNodeOptions];
 }
 
-export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents> { }
+export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents |
+    'queryNodeDump' |
+    'previewSetNodeProperty' |
+    'cancelPreviewSetNodeProperty' |
+    'setNodeProperty' |
+    'resetNode' |
+    'resetNodeProperty' |
+    'updateNodePropertyFromNull' |
+    'setNodeAndChildrenLayer'
+> { }
 
 /**
  * 节点的相关处理接口

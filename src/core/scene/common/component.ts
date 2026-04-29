@@ -121,7 +121,13 @@ export interface IComponentEvents extends INodeEvents {
  */
 export interface IPublicComponentService extends Omit<IComponentService, keyof IServiceEvents |
     'init' |
-    'unregisterCompMgrEvents'
+    'unregisterCompMgrEvents' |
+    'createComponent' |
+    'resetComponent' |
+    'queryClasses' |
+    'queryComponentFunctionOfNode' |
+    'executeComponentMethod' |
+    'queryComponentHasScript'
 > { }
 
 /**

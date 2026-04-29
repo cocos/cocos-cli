@@ -10,13 +10,43 @@ import {
     IComponent,
     IComponentForEditor,
     IQueryClassesOptions,
+    IExecuteComponentMethodOptions,
     NodeType,
     INode
 } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
+import { Rpc } from '../main-process/rpc';
 import { SceneTestEnv } from './scene-test-env';
+
+// 这些接口未在 IPublicComponentService 中暴露，测试中直接通过 RPC 调用
+const rpcRequest = (method: string, args?: any[]) =>
+    (Rpc.getInstance() as any).request('Component', method, args);
+
+function createComponent(params: IAddComponentOptions): Promise<boolean> {
+    return rpcRequest('createComponent', [params]);
+}
+
+function resetComponent(params: IQueryComponentOptions): Promise<boolean> {
+    return rpcRequest('resetComponent', [params]);
+}
+
+function queryClasses(options?: IQueryClassesOptions): Promise<{ name: string }[]> {
+    return rpcRequest('queryClasses', [options]);
+}
+
+function queryComponentFunctionOfNode(path: string): Promise<any> {
+    return rpcRequest('queryComponentFunctionOfNode', [path]);
+}
+
+function executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<any> {
+    return rpcRequest('executeComponentMethod', [options]);
+}
+
+function queryComponentHasScript(name: string): Promise<boolean> {
+    return rpcRequest('queryComponentHasScript', [name]);
+}
 
 describe('Component Proxy 测试', () => {
     let nodePath = '';
@@ -909,7 +939,7 @@ describe('Component Proxy 测试', () => {
                 component: 'cc.Label',
             };
             try {
-                const result = await ComponentProxy.createComponent(options);
+                const result = await createComponent(options);
                 expect(result).toBe(true);
                 // 删除组件
                 const removeResult = await ComponentProxy.removeComponent({ path: `${nodePath}/cc.Label` });
@@ -926,7 +956,7 @@ describe('Component Proxy 测试', () => {
                 component: 'cc.NonExistentComponent',
             };
             try {
-                await ComponentProxy.createComponent(options);
+                await createComponent(options);
             } catch (e) {
                 expect(e).toBeDefined();
             }
@@ -1010,7 +1040,7 @@ describe('Component Proxy 测试', () => {
             expect(componentInfo?.properties['string'].value).toBe('modified');
 
             // 重置组件
-            const resetResult = await ComponentProxy.resetComponent({ path: componentPath });
+            const resetResult = await resetComponent({ path: componentPath });
             expect(resetResult).toBe(true);
 
             // 验证属性已恢复默认值
@@ -1019,7 +1049,7 @@ describe('Component Proxy 测试', () => {
         });
 
         it('resetComponent - 重置不存在的组件应返回 false', async () => {
-            const result = await ComponentProxy.resetComponent({
+            const result = await resetComponent({
                 path: 'non-existent-path/cc.Label_001',
             });
             expect(result).toBe(false);
@@ -1044,7 +1074,7 @@ describe('Component Proxy 测试', () => {
 
         it('executeComponentMethod - 执行组件上存在的方法', async () => {
             try {
-                await ComponentProxy.executeComponentMethod({
+                await executeComponentMethod({
                     path: componentPath,
                     name: 'onLoad',
                     args: [],
@@ -1056,7 +1086,7 @@ describe('Component Proxy 测试', () => {
         });
 
         it('executeComponentMethod - 执行返回非 undefined 值的方法', async () => {
-            const result = await ComponentProxy.executeComponentMethod({
+            const result = await executeComponentMethod({
                 path: componentPath,
                 name: 'node.getSiblingIndex',
                 args: [],
@@ -1068,7 +1098,7 @@ describe('Component Proxy 测试', () => {
 
     describe('12. queryClasses - 查询注册类名测试', () => {
         it('queryClasses - 无参数查询所有注册类', async () => {
-            const result = await ComponentProxy.queryClasses();
+            const result = await queryClasses();
             expect(result).toBeDefined();
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBeGreaterThan(0);
@@ -1083,7 +1113,7 @@ describe('Component Proxy 测试', () => {
             const options: IQueryClassesOptions = {
                 extends: 'cc.Component',
             };
-            const result = await ComponentProxy.queryClasses(options);
+            const result = await queryClasses(options);
             expect(result).toBeDefined();
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBeGreaterThan(0);
@@ -1096,15 +1126,15 @@ describe('Component Proxy 测试', () => {
             const options: IQueryClassesOptions = {
                 extends: ['cc.Component'],
             };
-            const result = await ComponentProxy.queryClasses(options);
+            const result = await queryClasses(options);
             expect(result).toBeDefined();
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBeGreaterThan(0);
         });
 
         it('queryClasses - excludeSelf 排除自身', async () => {
-            const withSelf = await ComponentProxy.queryClasses({ extends: 'cc.Component' });
-            const withoutSelf = await ComponentProxy.queryClasses({ extends: 'cc.Component', excludeSelf: true });
+            const withSelf = await queryClasses({ extends: 'cc.Component' });
+            const withoutSelf = await queryClasses({ extends: 'cc.Component', excludeSelf: true });
             expect(withSelf).toBeDefined();
             expect(withoutSelf).toBeDefined();
 
@@ -1120,7 +1150,7 @@ describe('Component Proxy 测试', () => {
             const options: IQueryClassesOptions = {
                 extends: 'cc.NonExistentClass',
             };
-            const result = await ComponentProxy.queryClasses(options);
+            const result = await queryClasses(options);
             expect(result).toBeDefined();
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBe(0);
@@ -1143,13 +1173,13 @@ describe('Component Proxy 测试', () => {
         });
 
         it('queryComponentFunctionOfNode - 查询有效节点的组件函数', async () => {
-            const result = await ComponentProxy.queryComponentFunctionOfNode(nodePath);
+            const result = await queryComponentFunctionOfNode(nodePath);
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
         });
 
         it('queryComponentFunctionOfNode - 查询不存在节点返回空对象', async () => {
-            const result = await ComponentProxy.queryComponentFunctionOfNode('non-existent-path');
+            const result = await queryComponentFunctionOfNode('non-existent-path');
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
             expect(Object.keys(result).length).toBe(0);
@@ -1158,22 +1188,22 @@ describe('Component Proxy 测试', () => {
 
     describe('14. queryComponentHasScript - 查询组件是否存在脚本测试', () => {
         it('queryComponentHasScript - 内置组件应返回 true', async () => {
-            const result = await ComponentProxy.queryComponentHasScript('cc.Label');
+            const result = await queryComponentHasScript('cc.Label');
             expect(result).toBe(true);
         });
 
         it('queryComponentHasScript - 另一个内置组件应返回 true', async () => {
-            const result = await ComponentProxy.queryComponentHasScript('cc.Sprite');
+            const result = await queryComponentHasScript('cc.Sprite');
             expect(result).toBe(true);
         });
 
         it('queryComponentHasScript - 不存在的组件应返回 false', async () => {
-            const result = await ComponentProxy.queryComponentHasScript('cc.NonExistentComponent');
+            const result = await queryComponentHasScript('cc.NonExistentComponent');
             expect(result).toBe(false);
         });
 
         it('queryComponentHasScript - 空字符串应返回 false', async () => {
-            const result = await ComponentProxy.queryComponentHasScript('');
+            const result = await queryComponentHasScript('');
             expect(result).toBe(false);
         });
     });
