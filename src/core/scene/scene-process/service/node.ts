@@ -542,7 +542,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.updatePropertyFromNull(options.uuid, options.path);
     }
 
-    public async setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor) {
+    public async setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
         return await nodeMgr.setNodeAndChildrenLayer(options.uuid, options.dump);
     }
 }

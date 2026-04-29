@@ -1,6 +1,7 @@
 import {
     INode,
     INodeTreeItem,
+    INodeForEditor,
     ICreateByNodeTypeParams,
     ICreateByAssetParams,
     IQueryNodeParams,
@@ -10,6 +11,7 @@ import {
     IUpdateNodeResult,
     IDeleteNodeResult,
     IPublicNodeService,
+    ISetPropertyOptionsForEditor,
 } from '../../common';
 import { Rpc } from '../rpc';
 
@@ -31,5 +33,29 @@ export const NodeProxy: IPublicNodeService = {
     },
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
         return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);
-    }
+    },
+    queryNodeDump(uuid: string): Promise<INodeForEditor | null> {
+        return Rpc.getInstance().request('Node', 'queryNodeDump', [uuid]);
+    },
+    previewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'previewSetNodeProperty', [options]);
+    },
+    cancelPreviewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'cancelPreviewSetNodeProperty', [options]);
+    },
+    setNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'setNodeProperty', [options]);
+    },
+    resetNode(uuid: string): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'resetNode', [uuid]);
+    },
+    resetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'resetNodeProperty', [options]);
+    },
+    updateNodePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+        return Rpc.getInstance().request('Node', 'updateNodePropertyFromNull', [options]);
+    },
+    setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
+        return Rpc.getInstance().request('Node', 'setNodeAndChildrenLayer', [options]);
+    },
 };
