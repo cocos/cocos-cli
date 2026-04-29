@@ -9,9 +9,9 @@ import { IProperty } from '../../../@types/public';
 
 const NodeMgr = EditorExtends.Node;
 
-import { EventEmitter } from 'events';
 const { get, set } = require('lodash');
 import { isEditorNode, getNodeName } from './node-utils';
+import { ServiceEvents } from '../core/global-events';
 
 // const { promisify } = require('util');
 // const { basename, extname } = require('path');
@@ -32,6 +32,7 @@ import {
 
 import { EventSourceType, NodeEventType, NodeOperationType } from '../public/event-enum';
 import {
+    type INodeEvents,
     type INodeForEditor,
     IChangeNodeOptions,
 } from '../../../common';
@@ -73,7 +74,7 @@ let stashInstants: any = null;
  *   node.on('add', (node) => {});
  *   node.on('remove', (node) => {});
  */
-export class NodeManager extends EventEmitter {
+export class NodeManager {
     _onNodeAdded?: (...args: any[]) => void;
     _onNodeChanged?: (...args: any[]) => void;
     _onNodeRemoved?: (...args: any[]) => void;
@@ -82,6 +83,12 @@ export class NodeManager extends EventEmitter {
     _onAnchorChanged?: (...args: any[]) => void;
     _onParentChanged?: (...args: any[]) => void;
     _onLightProbeChanged?: (...args: any[]) => void;
+
+    emit<K extends keyof INodeEvents>(event: K, ...args: INodeEvents[K]): void;
+    emit(event: string, ...args: any[]): void;
+    emit(event: string, ...args: any[]) {
+        ServiceEvents.emit(event, ...args);
+    }
 
     private _previewPropertysCache: Map<string, Map<string, any>> = new Map();
     get creatableAssetTypes() {
@@ -318,7 +325,7 @@ export class NodeManager extends EventEmitter {
     remove(uuid: string, node: Node) {
         this.unregisterEventListeners(node);
         if (!isEditorNode(node)) {
-            this.emit('removed', node, { source: EventSourceType.ENGINE });
+            this.emit('node:removed', node, { source: EventSourceType.ENGINE });
         }
     }
 
@@ -1816,7 +1823,7 @@ export class NodeManager extends EventEmitter {
 
         // @ts-ignore
         node._addComponentAt(comp, index);
-        compMgr.emit('component:add', comp);
+        compMgr.emit('add', comp);
 
         return true;
     }

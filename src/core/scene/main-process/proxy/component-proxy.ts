@@ -54,7 +54,7 @@ export const ComponentProxy: IPublicComponentService = {
         return Rpc.getInstance().request('Component', 'resetComponent', [params]);
     },
 
-    executeComponentMethod(params: IExecuteComponentMethodOptions): Promise<boolean> {
+    executeComponentMethod(params: IExecuteComponentMethodOptions): Promise<any> {
         return Rpc.getInstance().request('Component', 'executeComponentMethod', [params]);
     }
 };

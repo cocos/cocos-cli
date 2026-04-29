@@ -57,13 +57,6 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     // private _stagingCameraInfo: any;
     protected _sceneEventListener: ISceneEvents[] = [];
 
-    constructor() {
-        super();
-        compMgr.on('add', this.onAddComponent.bind(this));
-        compMgr.on('remove', this.onRemoveComponent.bind(this));
-        compMgr.on('added', this.onComponentAdded.bind(this));
-        compMgr.on('removed', this.onComponentRemoved.bind(this));
-    }
 
     /**
      * 查询当前正在编辑的模式名字
@@ -658,7 +651,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean> {
+    public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<any> {
         return await compMgr.executeComponentMethod(options.uuid, options.name, options.args);
     }
 }

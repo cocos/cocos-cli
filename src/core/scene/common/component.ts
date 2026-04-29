@@ -260,7 +260,7 @@ export interface IComponentService extends IServiceEvents {
      * @param options.args - 方法参数列表
      * @returns 执行成功返回 true，失败返回 false
      */
-    executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean>;
+    executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<any>;
 
     /**
      * 查询指定名称的组件是否已注册（是否存在对应脚本）

@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import dumpUtil from '../dump';
 const { get } = require('lodash');
 
@@ -6,10 +5,24 @@ const CompMgr = EditorExtends.Component;
 import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
-import { IComponentIdentifier } from '../../../common';
+import { IComponentIdentifier, type IComponentEvents } from '../../../common';
+import { ServiceEvents } from '../core/global-events';
 
-export class CompManager extends EventEmitter {
+/**
+ * 从 IComponentEvents 中提取 component: 前缀的事件，去掉前缀作为短名
+ */
+type ComponentShortEvents = {
+    [K in keyof IComponentEvents as K extends `component:${infer S}` ? S : never]: IComponentEvents[K];
+};
+
+export class CompManager {
     protected _recycleComponent: Record<string, Component> = {};
+
+    emit<K extends keyof ComponentShortEvents>(event: K, ...args: ComponentShortEvents[K]): void;
+    emit(event: string, ...args: any[]): void;
+    emit(event: string, ...args: any[]) {
+        ServiceEvents.emit(`component:${event}`, ...args);
+    }
 
     init() {
         this.registerCompMgrEvents();
@@ -133,7 +146,7 @@ export class CompManager extends EventEmitter {
             return false;
         }
 
-        this.emit('before-remove-component', component);
+        this.emit('before-remove', component);
         component.node.removeComponent(component);
         // 需要立刻执行removeComponent操作，否则会延迟到下一帧
         cc.Object._deferredDestroy();

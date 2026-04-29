@@ -1044,16 +1044,25 @@ describe('Component Proxy 测试', () => {
 
         it('executeComponentMethod - 执行组件上存在的方法', async () => {
             try {
-                const result = await ComponentProxy.executeComponentMethod({
+                await ComponentProxy.executeComponentMethod({
                     uuid: componentUuid,
                     name: 'onLoad',
                     args: [],
                 });
-                expect(typeof result).toBe('boolean');
             } catch (e) {
                 // 某些方法可能在编辑器环境中无法执行，记录但不影响测试
                 console.log(`executeComponentMethod test: ${e}`);
             }
+        });
+
+        it('executeComponentMethod - 执行返回非 undefined 值的方法', async () => {
+            const result = await ComponentProxy.executeComponentMethod({
+                uuid: componentUuid,
+                name: 'node.getSiblingIndex',
+                args: [],
+            });
+            expect(result).toBeDefined();
+            expect(typeof result).toBe('number');
         });
     });
 
