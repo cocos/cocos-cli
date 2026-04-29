@@ -115,4 +115,20 @@ export async function startup(options: {
     await cc.game.run();
     await DecoratorService.Engine.init();
     await serviceManager.initAllServices();
+
+    const canvas = document.getElementById('GameCanvas') as HTMLCanvasElement | null;
+    if (canvas && DecoratorService.Operation) {
+        await new Promise<void>((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '/static/web/input-bridge.js';
+            s.onload = () => resolve();
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+        (globalThis as any).setupInputBridge({
+            canvas,
+            operation: DecoratorService.Operation,
+            engine: DecoratorService.Engine,
+        });
+    }
 }
