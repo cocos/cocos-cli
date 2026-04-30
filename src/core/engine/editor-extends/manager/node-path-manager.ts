@@ -1,3 +1,5 @@
+import { formatUniqueName } from './path-utils';
+
 export class NodePathManager {
     private _uuidToPath: Map<string, string> = new Map();          // UUID -> 路径
     private _pathToUuid: Map<string, string> = new Map();          // 路径 -> UUID
@@ -128,17 +130,17 @@ export class NodePathManager {
             return baseName;
         }
 
-        // 名称已存在，添加自增后缀
-        let counter = nameMap.get(baseName)! + 1;
-        let newName = `${baseName}_${counter}`;
+        // 名称已存在，添加 _001, _002, ... 格式后缀
+        let counter = nameMap.get(baseName)!;
+        let newName = formatUniqueName(baseName, counter);
 
         // 确保新名称也不存在
         while (nameMap.has(newName)) {
             counter++;
-            newName = `${baseName}_${counter}`;
+            newName = formatUniqueName(baseName, counter);
         }
 
-        nameMap.set(baseName, counter);
+        nameMap.set(baseName, counter + 1);
         nameMap.set(newName, 1);
 
         return newName;
