@@ -46,14 +46,10 @@ export class ServerService {
     async start(port?: number) {
         console.log('🚀 开始启动服务器...');
         this.init();
-        this._port = await getAvailablePort(port || this._port);
-        this.server = await this.createServer({
-            port: this._port,
-            useHttps: this.useHttps,
-            keyFile: this.httpsConfig.key,
-            certFile: this.httpsConfig.cert,
-            caFile: this.httpsConfig.ca,
-        }, this.app);
+        const preferredPort = await getAvailablePort(port || this._port);
+        const { server, port: actualPort } = await this.createServerWithRetry(preferredPort);
+        this._port = actualPort;
+        this.server = server;
         socketService.startup(this.server);
         consoleLogService.startup(this.server);
         // 打印服务器地址
@@ -125,6 +121,24 @@ export class ServerService {
 
             server.listen(port);
         });
+    }
+
+    private async createServerWithRetry(port: number): Promise<{ server: HTTPServer | HTTPSServer; port: number }> {
+        try {
+            const server = await this.createServer({
+                port,
+                useHttps: this.useHttps,
+                keyFile: this.httpsConfig.key,
+                certFile: this.httpsConfig.cert,
+                caFile: this.httpsConfig.ca,
+            }, this.app);
+            return { server, port };
+        } catch (err: any) {
+            if (err.code === 'EADDRINUSE') {
+                return this.createServerWithRetry(port + 1);
+            }
+            throw err;
+        }
     }
 
     private printServerUrls() {
