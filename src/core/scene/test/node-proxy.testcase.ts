@@ -540,5 +540,33 @@ describe('Node Proxy 测试', () => {
                 createdNodes.push(node!);
             }
         });
+
+        it('createNode - 删除中间节点后新增应复用已删除的名称', async () => {
+            const baseName = 'GapNode';
+
+            // 添加3个同名节点: GapNode, GapNode_001, GapNode_002
+            const node0 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node1 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node2 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            expect(node0!.path).toBe(baseName);
+            expect(node1!.path).toBe(`${baseName}_001`);
+            expect(node2!.path).toBe(`${baseName}_002`);
+
+            // 删除 _001
+            const deleteResult = await NodeProxy.deleteNode({ path: node1!.path, keepWorldTransform: false });
+            expect(deleteResult).toBeDefined();
+
+            // 再添加2个，第一个应复用 _001，第二个为 _003
+            const node3 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node4 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            expect(node3!.path).toBe(`${baseName}_001`);
+            expect(node4!.path).toBe(`${baseName}_003`);
+
+            // 清理
+            await NodeProxy.deleteNode({ path: node4!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node3!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node2!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node0!.path, keepWorldTransform: false });
+        });
     });
 });

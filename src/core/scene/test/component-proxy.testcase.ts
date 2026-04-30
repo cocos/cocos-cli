@@ -1303,5 +1303,33 @@ describe('Component Proxy 测试', () => {
                 await ComponentProxy.removeComponent({ path: comp.path });
             }
         });
+
+        it('addComponent - 删除中间组件后新增应复用已删除的名称', async () => {
+            const testComponent = 'cc.Layout';
+
+            // 添加3个同类型组件: cc.Layout, cc.Layout_001, cc.Layout_002
+            const comp0 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp1 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp2 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            expect(comp0.path).toBe(`${testNodePath}/${testComponent}`);
+            expect(comp1.path).toBe(`${testNodePath}/${testComponent}_001`);
+            expect(comp2.path).toBe(`${testNodePath}/${testComponent}_002`);
+
+            // 删除 _001
+            const removeResult = await ComponentProxy.removeComponent({ path: comp1.path });
+            expect(removeResult).toBe(true);
+
+            // 再添加2个，第一个应复用 _001，第二个为 _003
+            const comp3 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp4 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            expect(comp3.path).toBe(`${testNodePath}/${testComponent}_001`);
+            expect(comp4.path).toBe(`${testNodePath}/${testComponent}_003`);
+
+            // 清理
+            await ComponentProxy.removeComponent({ path: comp4.path });
+            await ComponentProxy.removeComponent({ path: comp3.path });
+            await ComponentProxy.removeComponent({ path: comp2.path });
+            await ComponentProxy.removeComponent({ path: comp0.path });
+        });
     });
 });

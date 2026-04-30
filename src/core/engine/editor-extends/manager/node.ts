@@ -272,28 +272,17 @@ export default class NodeManager extends EventEmitter {
      * 更新名称计数
      */
     private _updateNameCount(parentUuid: string, oldName: string | null, newName: string | null) {
-        const nameMap = pathManager.getNameMap(parentUuid);
-        if (!nameMap) {
+        const nameSet = pathManager.getNameSet(parentUuid);
+        if (!nameSet) {
             return;
         }
 
-        // 减少旧名称的计数
-        if (oldName && nameMap.has(oldName)) {
-            const count = nameMap.get(oldName)!;
-            if (count > 1) {
-                nameMap.set(oldName, count - 1);
-            } else {
-                nameMap.delete(oldName);
-            }
+        if (oldName) {
+            nameSet.delete(oldName);
         }
 
-        // 增加新名称的计数
         if (newName) {
-            if (!nameMap.has(newName)) {
-                nameMap.set(newName, 1);
-            } else {
-                nameMap.set(newName, nameMap.get(newName)! + 1);
-            }
+            nameSet.add(newName);
         }
     }
 }

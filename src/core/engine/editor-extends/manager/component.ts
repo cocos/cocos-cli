@@ -135,9 +135,15 @@ export default class ComponentManager extends EventEmitter {
 
     _generateUniquePath(component: any) {
         const className = cc.js.getClassName(component);
-        const nodeComponents = component.node.getComponents(className);
         const nodePath = pathManager.getNodePath(component.node.uuid);
-        return `${nodePath}/${formatUniqueName(className, nodeComponents.length - 1)}`;
+        // 从基础名称开始扫描，复用已删除的名称
+        let count = 0;
+        let path = `${nodePath}/${formatUniqueName(className, count)}`;
+        while (this._pathToUuid.has(path)) {
+            count++;
+            path = `${nodePath}/${formatUniqueName(className, count)}`;
+        }
+        return path;
     }
 
     /**
