@@ -326,7 +326,7 @@ class EngineManager implements IEngine {
 
     async initEditorExtensions() {
         // @ts-ignore
-        globalThis.EditorExtends.init();
+        await globalThis.EditorExtends.init();
     }
 
     /**
