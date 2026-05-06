@@ -5,18 +5,6 @@ import type { GizmoMouseEvent } from '../utils/defines';
 import TransformBaseGizmo from './transform-base';
 import PositionController from './position-controller';
 
-/**
- * 获取 Service（惰性访问，避免循环依赖）
- */
-function getService(): any {
-    try {
-        const { Service } = require('../../core/decorator');
-        return Service;
-    } catch (e) {
-        return null;
-    }
-}
-
 function repaintEngine(): void {
     try {
         const { Service } = require('../../core/decorator');
