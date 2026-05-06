@@ -7,6 +7,7 @@ import {
     type ISetPropertyOptionsForEditor,
     NodeType,
 } from '../common';
+import { type ISceneForEditor } from '../common/editor/scene';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { Rpc } from '../main-process/rpc';
@@ -45,7 +46,7 @@ function updateNodePropertyFromNull(options: ISetPropertyOptionsForEditor): Prom
 }
 
 function setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
-    return rpcRequest('setAndChildrenLayer', [options]);
+    return rpcRequest('setNodeAndChildrenLayer', [options]);
 }
 
 describe('Node Dump Proxy 测试', () => {
@@ -85,15 +86,15 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('8. queryNodeDump - 查询节点 dump 数据', () => {
-        it('queryNodeDump - 查询有效节点返回 dump 数据', async () => {
+    describe('8. query - 查询节点 dump 数据', () => {
+        it('query - 查询有效节点返回 dump 数据', async () => {
             const dump = await queryNodeDump(testNode!.path);
             expect(dump).not.toBeNull();
             expect(dump).toBeDefined();
         });
 
-        it('queryNodeDump - dump 包含必要字段', async () => {
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+        it('query - dump 包含必要字段', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(dump).not.toBeNull();
 
             // 基本属性字段
@@ -113,16 +114,25 @@ describe('Node Dump Proxy 测试', () => {
             expect(dump.__type__).toBeDefined();
         });
 
-        it('queryNodeDump - 查询不存在的节点返回 null', async () => {
+        it('query - 查询不存在的节点返回 null', async () => {
             const dump = await queryNodeDump('non-existent-path');
             expect(dump).toBeNull();
         });
+
+        it('query - 不传参数返回根节点 dump 数据', async () => {
+            const dump = await rpcRequest('query', []);
+            expect(dump).not.toBeNull();
+            const sceneResult = dump as ISceneForEditor;
+            expect(sceneResult.__type__).toBeDefined();
+            expect(sceneResult.uuid).toBeDefined();
+            expect(Array.isArray(sceneResult.children)).toBe(true);
+        });
     });
 
-    describe('9. setNodeProperty - 设置节点属性', () => {
-        it('setNodeProperty - 修改节点位置', async () => {
+    describe('9. setProperty - 设置节点属性', () => {
+        it('setProperty - 修改节点位置', async () => {
             // 先获取当前 dump 作为模板
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             const positionDump = { ...dump.position, value: { x: 100, y: 200, z: 0 } };
 
             const options: ISetPropertyOptionsForEditor = {
@@ -134,12 +144,12 @@ describe('Node Dump Proxy 测试', () => {
             expect(result).toBe(true);
 
             // 验证修改生效
-            const updatedDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const updatedDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(updatedDump.position.value).toEqual({ x: 100, y: 200, z: 0 });
         });
 
-        it('setNodeProperty - 修改节点名称', async () => {
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+        it('setProperty - 修改节点名称', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             const nameDump = { ...dump.name, value: 'RenamedNode' };
 
             const result = await setNodeProperty({
@@ -149,7 +159,7 @@ describe('Node Dump Proxy 测试', () => {
             });
             expect(result).toBe(true);
 
-            const updatedDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const updatedDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(updatedDump.name.value).toBe('RenamedNode');
 
             // 还原名称
@@ -161,8 +171,8 @@ describe('Node Dump Proxy 测试', () => {
             });
         });
 
-        it('setNodeProperty - 修改节点 active 状态', async () => {
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+        it('setProperty - 修改节点 active 状态', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             const activeDump = { ...dump.active, value: false };
 
             const result = await setNodeProperty({
@@ -172,7 +182,7 @@ describe('Node Dump Proxy 测试', () => {
             });
             expect(result).toBe(true);
 
-            const updatedDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const updatedDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(updatedDump.active.value).toBe(false);
 
             // 还原
@@ -183,8 +193,8 @@ describe('Node Dump Proxy 测试', () => {
             });
         });
 
-        it('setNodeProperty - 修改节点缩放', async () => {
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+        it('setProperty - 修改节点缩放', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             const scaleDump = { ...dump.scale, value: { x: 2, y: 2, z: 2 } };
 
             const result = await setNodeProperty({
@@ -194,7 +204,7 @@ describe('Node Dump Proxy 测试', () => {
             });
             expect(result).toBe(true);
 
-            const updatedDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const updatedDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(updatedDump.scale.value).toEqual({ x: 2, y: 2, z: 2 });
 
             // 还原
@@ -205,8 +215,8 @@ describe('Node Dump Proxy 测试', () => {
             });
         });
 
-        it('setNodeProperty - 不存在的节点返回 false', async () => {
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+        it('setProperty - 不存在的节点返回 false', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             const result = await setNodeProperty({
                 nodePath: 'non-existent-path',
                 path: 'position',
@@ -216,7 +226,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('10. previewSetNodeProperty / cancelPreviewSetNodeProperty - 预览与取消', () => {
+    describe('10. previewSetProperty / cancelPreviewSetProperty - 预览与取消', () => {
         let labelNodeUuid = '';
         let labelNode: INode | null = null;
 
@@ -245,7 +255,7 @@ describe('Node Dump Proxy 测试', () => {
 
         it('预览修改组件属性后取消，值应恢复', async () => {
             // 获取原始 dump，找到 Label 组件的 string 属性
-            const originalDump: INodeForEditor = await queryNodeDump(labelNode!.path);
+            const originalDump = await queryNodeDump(labelNode!.path) as INodeForEditor;
             expect(originalDump.__comps__.length).toBeGreaterThan(0);
 
             // 找到 cc.Label 组件的索引（通常在 UITransform 之后）
@@ -274,7 +284,7 @@ describe('Node Dump Proxy 测试', () => {
             expect(previewResult).toBe(true);
 
             // 验证预览已生效
-            const previewedDump: INodeForEditor = await queryNodeDump(labelNode!.path);
+            const previewedDump = await queryNodeDump(labelNode!.path) as INodeForEditor;
             const previewedComp = previewedDump.__comps__[labelCompIndex].value as Record<string, any>;
             expect(previewedComp['string'].value).toBe('preview-test-value');
 
@@ -287,13 +297,13 @@ describe('Node Dump Proxy 测试', () => {
             expect(cancelResult).toBe(true);
 
             // 验证已恢复原值
-            const restoredDump: INodeForEditor = await queryNodeDump(labelNode!.path);
+            const restoredDump = await queryNodeDump(labelNode!.path) as INodeForEditor;
             const restoredComp = restoredDump.__comps__[labelCompIndex].value as Record<string, any>;
             expect(restoredComp['string'].value).toBe(originalString);
         });
 
         it('预览修改后正式提交，值应保留', async () => {
-            const originalDump: INodeForEditor = await queryNodeDump(labelNode!.path);
+            const originalDump = await queryNodeDump(labelNode!.path) as INodeForEditor;
 
             let labelCompIndex = -1;
             for (let i = 0; i < originalDump.__comps__.length; i++) {
@@ -324,16 +334,16 @@ describe('Node Dump Proxy 测试', () => {
             expect(commitResult).toBe(true);
 
             // 验证值已保留
-            const committedDump: INodeForEditor = await queryNodeDump(labelNode!.path);
+            const committedDump = await queryNodeDump(labelNode!.path) as INodeForEditor;
             const committedComp = committedDump.__comps__[labelCompIndex].value as Record<string, any>;
             expect(committedComp['string'].value).toBe('committed-value');
         });
     });
 
-    describe('11. resetNode - 重置节点变换', () => {
-        it('resetNode - 修改后重置，变换属性恢复默认', async () => {
+    describe('11. reset - 重置节点变换', () => {
+        it('reset - 修改后重置，变换属性恢复默认', async () => {
             // 先修改位置和缩放
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             await setNodeProperty({
                 nodePath: testNode!.path,
                 path: 'position',
@@ -350,16 +360,16 @@ describe('Node Dump Proxy 测试', () => {
             expect(result).toBe(true);
 
             // 验证变换属性恢复默认
-            const resetDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const resetDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(resetDump.position.value).toEqual({ x: 0, y: 0, z: 0 });
             expect(resetDump.scale.value).toEqual({ x: 1, y: 1, z: 1 });
         });
     });
 
-    describe('12. resetNodeProperty - 重置单个属性', () => {
-        it('resetNodeProperty - 重置位置属性', async () => {
+    describe('12. resetProperty - 重置单个属性', () => {
+        it('resetProperty - 重置位置属性', async () => {
             // 先修改位置
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             await setNodeProperty({
                 nodePath: testNode!.path,
                 path: 'position',
@@ -374,12 +384,12 @@ describe('Node Dump Proxy 测试', () => {
             });
             expect(result).toBe(true);
 
-            const resetDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const resetDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(resetDump.position.value).toEqual({ x: 0, y: 0, z: 0 });
         });
 
-        it('resetNodeProperty - 重置缩放属性', async () => {
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+        it('resetProperty - 重置缩放属性', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             await setNodeProperty({
                 nodePath: testNode!.path,
                 path: 'scale',
@@ -393,7 +403,7 @@ describe('Node Dump Proxy 测试', () => {
             });
             expect(result).toBe(true);
 
-            const resetDump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const resetDump = await queryNodeDump(testNode!.path) as INodeForEditor;
             expect(resetDump.scale.value).toEqual({ x: 1, y: 1, z: 1 });
         });
     });
@@ -444,7 +454,7 @@ describe('Node Dump Proxy 测试', () => {
         });
 
         it('setNodeAndChildrenLayer - 父子节点 layer 统一设置', async () => {
-            const dump: INodeForEditor = await queryNodeDump(parentNode!.path);
+            const dump = await queryNodeDump(parentNode!.path) as INodeForEditor;
             const targetLayer = 1 << 25; // UI_2D layer
             const layerDump = { ...dump.layer, value: targetLayer };
 
@@ -455,21 +465,21 @@ describe('Node Dump Proxy 测试', () => {
             });
 
             // 验证父节点
-            const parentDump: INodeForEditor = await queryNodeDump(parentNode!.path);
+            const parentDump = await queryNodeDump(parentNode!.path) as INodeForEditor;
             expect(parentDump.layer.value).toBe(targetLayer);
 
             // 验证子节点
-            const childDump: INodeForEditor = await queryNodeDump(childNode!.path);
+            const childDump = await queryNodeDump(childNode!.path) as INodeForEditor;
             expect(childDump.layer.value).toBe(targetLayer);
         });
     });
 
-    describe('14. updateNodePropertyFromNull - 初始化 null 属性', () => {
-        it('updateNodePropertyFromNull - 调用不报错', async () => {
+    describe('14. updatePropertyFromNull - 初始化 null 属性', () => {
+        it('updatePropertyFromNull - 调用不报错', async () => {
             // 该接口用于将 null 类型属性初始化为可编辑值
             // 对于 Empty 节点的基本属性（position 等），不存在 null 情况
             // 这里验证接口调用不抛异常即可
-            const dump: INodeForEditor = await queryNodeDump(testNode!.path);
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
             const result = await updateNodePropertyFromNull({
                 nodePath: testNode!.path,
                 path: 'position',

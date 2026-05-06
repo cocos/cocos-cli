@@ -97,7 +97,7 @@ describe('Component Proxy 测试', () => {
     describe('1. 基础组件操作- 添加，查询，设置属性，移除', () => {
         let componentPath = '';
         let componentInfo: IComponent | null;
-        it('addComponent - 添加节点 - 完整节点名称：cc.Label', async () => {
+        it('add - 添加节点 - 完整节点名称：cc.Label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
                 nodePath: nodePath,
@@ -118,7 +118,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('addComponent - 添加节点 - 模糊节点名称：cc.label', async () => {
+        it('add -添加节点 - 模糊节点名称：cc.label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
                 nodePath: nodePath,
@@ -139,7 +139,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('addComponent - 添加节点 - 模糊节点名称：Label', async () => {
+        it('add -添加节点 - 模糊节点名称：Label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
                 nodePath: nodePath,
@@ -161,7 +161,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('addComponent - 添加节点 - 模糊节点名称：label', async () => {
+        it('add -添加节点 - 模糊节点名称：label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
                 nodePath: nodePath,
@@ -179,7 +179,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('queryComponent - 查询组件- 根据 uuid 查询', async () => {
+        it('query - 查询组件- 根据 uuid 查询', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: componentInfo!.uuid
             };
@@ -200,7 +200,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询组件-根据完整组件名查询', async () => {
+        it('query - 查询组件-根据完整组件名查询', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: componentPath
             };
@@ -221,7 +221,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询组件-根据模糊的匹配-Label', async () => {
+        it('query - 查询组件-根据模糊的匹配-Label', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/Label'
             };
@@ -242,7 +242,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询组件-根据模糊的匹配-cc.label', async () => {
+        it('query - 查询组件-根据模糊的匹配-cc.label', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/cc.label'
             };
@@ -263,7 +263,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询组件-根据模糊的匹配-Label', async () => {
+        it('query - 查询组件-根据模糊的匹配-Label', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/Label'
             };
@@ -284,7 +284,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询组件-根据模糊的匹配-label', async () => {
+        it('query - 查询组件-根据模糊的匹配-label', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/label'
             };
@@ -306,7 +306,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('queryComponent - 查询组件-根据模糊的匹配-label不带下标', async () => {
+        it('query - 查询组件-根据模糊的匹配-label不带下标', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/label'
             };
@@ -327,7 +327,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询组件-根据模糊的匹配-cc.label不带下标', async () => {
+        it('query - 查询组件-根据模糊的匹配-cc.label不带下标', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/cc.label'
             };
@@ -348,7 +348,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('queryComponent - 查询不存在组件', async () => {
+        it('query - 查询不存在组件', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: nodePath + '/cc.Button'
             };
@@ -359,7 +359,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('queryComponent - 根据不存在的 URL 查询组件', async () => {
+        it('query - 根据不存在的 URL 查询组件', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: 'db://assets/non-existent-script.ts'
             };
@@ -373,7 +373,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('queryComponent - 查询存在相同组件', async () => {
+        it('query - 查询存在相同组件', async () => {
             const newNodePath = 'TestNode/new node';
             const addComponentInfo: IAddComponentOptions = {
                 nodePath: newNodePath,
@@ -414,7 +414,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('setComponentProperty - 设置组件属性 - string类型', async () => {
+        it('setProperty - 设置组件属性 - string类型', async () => {
             const queryComponent: IQueryComponentOptions = {
                 path: componentPath
             };
@@ -436,7 +436,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('removeComponent - 删除组件', async () => {
+        it('remove - 删除组件', async () => {
             const removeComponentInfo: IRemoveComponentOptions = {
                 path: componentPath
             };
@@ -475,7 +475,7 @@ describe('Component Proxy 测试', () => {
             }
             console.log('组合测试 - 添加多个不同节点 - 结束');
         });
-        it('addComponent - 添加多个不同节点', async () => {
+        it('add -添加多个不同节点', async () => {
             try {
                 for (const componentName of testComponents) {
                     const componentInfo: IAddComponentOptions = {
@@ -518,7 +518,7 @@ describe('Component Proxy 测试', () => {
             }
             console.log('组合测试 - 添加多个相同节点 - 结束');
         });
-        it('addComponent - 添加多个相同节点', async () => {
+        it('add -添加多个相同节点', async () => {
             try {
                 for (let i = 0; i < testCount; i++) {
                     const componentInfo1: IAddComponentOptions = {
@@ -575,7 +575,7 @@ describe('Component Proxy 测试', () => {
             }
             console.log('组合测试 - 添加多个相同节点 - 结束');
         });
-        it('setComponentProperty - 设置组件属性 - number类型', async () => {
+        it('setProperty - 设置组件属性 - number类型', async () => {
             try {
                 expect(componentInfo?.properties['fontSize'].value).toBe(40);
 
@@ -594,7 +594,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 设置组件属性 - enum类型', async () => {
+        it('setProperty - 设置组件属性 - enum类型', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
@@ -610,7 +610,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 设置组件属性 - boolean类型', async () => {
+        it('setProperty - 设置组件属性 - boolean类型', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
@@ -626,7 +626,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 设置组件属性 - color类型', async () => {
+        it('setProperty - 设置组件属性 - color类型', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
@@ -655,7 +655,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 设置组件属性 - 设置枚举类型之外的值', async () => {
+        it('setProperty - 设置组件属性 - 设置枚举类型之外的值', async () => {
             try {
                 const setComponentProperty: ISetPropertyOptions = {
                     componentPath: componentPath,
@@ -706,7 +706,7 @@ describe('Component Proxy 测试', () => {
                 throw e;
             }
         });
-        it('setComponentProperty - 设置组件属性 - 设置SpriteFrame', async () => {
+        it('setProperty - 设置组件属性 - 设置SpriteFrame', async () => {
             try {
                 // 对错误的值 类型 会修改失败，但是返回还是true
                 const setComponentProperty: ISetPropertyOptions = {
@@ -747,7 +747,7 @@ describe('Component Proxy 测试', () => {
             expect(result?.components?.length == 0);
         });
 
-        it('addComponent - 添加内置组件测试 - 这个测试例设计有问题，可以忽略。', async () => {
+        it('add -添加内置组件测试 - 这个测试例设计有问题，可以忽略。', async () => {
             /**
              * 这个测试例设计有问题，因为内置组件太多，有冲突，有重复（依赖创建组件 会有重复），有无法删除组件（UITransform）
              * 这样导致很难排除哪些有依赖，哪些有冲突等，因此，只能通过日志的方式输出，查看哪些组件是冲突的。
@@ -835,7 +835,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('addComponent - 每个组件添加同一个组件，但是最后的组件名是一样的，只是节点名称不一样', async () => {
+        it('add -每个组件添加同一个组件，但是最后的组件名是一样的，只是节点名称不一样', async () => {
             try {
                 const testComponent = 'cc.Layout';
                 for (let i = 0; i < nodes.length; ++i) {
@@ -889,7 +889,7 @@ describe('Component Proxy 测试', () => {
             expect(params).toBeDefined();
         });
 
-        it('addComponent - 添加多个不允许并存的组件', async () => {
+        it('add -添加多个不允许并存的组件', async () => {
             const testComponent = 'cc.Label';
             const componentInfo: IAddComponentOptions = {
                 nodePath: nodePath,
@@ -908,7 +908,7 @@ describe('Component Proxy 测试', () => {
             const result = await ComponentProxy.remove({ path: component.path });
             expect(result).toBe(true);
         });
-        it('addComponent - 添加多个冲突的组件', async () => {
+        it('add -添加多个冲突的组件', async () => {
             const testComponent = 'cc.Sprite';
             const testConfictsComponent = 'cc.Line';
             const componentInfo: IAddComponentOptions = {
@@ -933,7 +933,7 @@ describe('Component Proxy 测试', () => {
     });
 
     describe('8. createComponent - 创建组件测试', () => {
-        it('createComponent - 创建已知组件应返回 true', async () => {
+        it('create - 创建已知组件应返回 true', async () => {
             const options: IAddComponentOptions = {
                 nodePath: nodePath,
                 component: 'cc.Label',
@@ -950,7 +950,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('createComponent - 创建不存在组件应抛出异常', async () => {
+        it('create - 创建不存在组件应抛出异常', async () => {
             const options: IAddComponentOptions = {
                 nodePath: nodePath,
                 component: 'cc.NonExistentComponent',
@@ -979,7 +979,7 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: componentPath });
         });
 
-        it('queryComponent - cli 返回 IComponent 结构', async () => {
+        it('query - cli 返回 IComponent 结构', async () => {
             const params: IQueryComponentOptions = {
                 path: componentPath,
             };
@@ -994,7 +994,7 @@ describe('Component Proxy 测试', () => {
             expect(typeof result.enabled).toBe('boolean');
             expect(result.cid).toBe('cc.Label');
         });
-        it('queryComponent - 返回 IComponentForEditor 结构', async () => {
+        it('query - 返回 IComponentForEditor 结构', async () => {
             const result = await ComponentProxy.query(componentPath) as IComponentForEditor;
             expect(result).toBeDefined();
             // IComponentForEditor 有 value（对象，包含编码后的属性）、type、cid、mountedRoot 等字段
@@ -1010,9 +1010,17 @@ describe('Component Proxy 测试', () => {
                 expect(value['enabled']).toBeDefined();
             }
         });
+        it('query - 传入 uuid 返回 IComponentForEditor 结构', async () => {
+            const result = await ComponentProxy.query(componentUuid) as IComponentForEditor;
+            expect(result).toBeDefined();
+            expect(result.value).toBeDefined();
+            expect(typeof result.value).toBe('object');
+            expect(result.type).toBe('cc.Label');
+            expect(result.cid).toBe('cc.Label');
+        });
     });
 
-    describe('10. resetComponent - 重置组件测试', () => {
+    describe('10. reset - 重置组件测试', () => {
         let componentPath = '';
         beforeAll(async () => {
             const addComponentInfo: IAddComponentOptions = {
@@ -1026,7 +1034,7 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: componentPath });
         });
 
-        it('resetComponent - 修改属性后重置应恢复默认值', async () => {
+        it('reset - 修改属性后重置应恢复默认值', async () => {
             // 先修改属性
             const setComponentProperty: ISetPropertyOptions = {
                 componentPath: componentPath,
@@ -1048,7 +1056,7 @@ describe('Component Proxy 测试', () => {
             expect(componentInfo?.properties['string'].value).toBe('label');
         });
 
-        it('resetComponent - 重置不存在的组件应返回 false', async () => {
+        it('reset - 重置不存在的组件应返回 false', async () => {
             const result = await resetComponent({
                 path: 'non-existent-path/cc.Label_001',
             });
@@ -1056,7 +1064,7 @@ describe('Component Proxy 测试', () => {
         });
     });
 
-    describe('11. executeComponentMethod - 执行组件方法测试', () => {
+    describe('11. executeMethod - 执行组件方法测试', () => {
         let componentUuid = '';
         let componentPath = '';
         beforeAll(async () => {
@@ -1072,7 +1080,7 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: componentPath });
         });
 
-        it('executeComponentMethod - 执行组件上存在的方法', async () => {
+        it('executeMethod - 执行组件上存在的方法', async () => {
             try {
                 await executeComponentMethod({
                     path: componentPath,
@@ -1085,7 +1093,7 @@ describe('Component Proxy 测试', () => {
             }
         });
 
-        it('executeComponentMethod - 执行返回非 undefined 值的方法', async () => {
+        it('executeMethod - 执行返回非 undefined 值的方法', async () => {
             const result = await executeComponentMethod({
                 path: componentPath,
                 name: 'node.getSiblingIndex',
@@ -1157,7 +1165,7 @@ describe('Component Proxy 测试', () => {
         });
     });
 
-    describe('13. queryComponentFunctionOfNode - 查询节点组件函数测试', () => {
+    describe('13. queryFunctionOfNode - 查询节点组件函数测试', () => {
         let componentPath = '';
 
         beforeAll(async () => {
@@ -1172,13 +1180,13 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: componentPath });
         });
 
-        it('queryComponentFunctionOfNode - 查询有效节点的组件函数', async () => {
+        it('queryFunctionOfNode - 查询有效节点的组件函数', async () => {
             const result = await queryComponentFunctionOfNode(nodePath);
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
         });
 
-        it('queryComponentFunctionOfNode - 查询不存在节点返回空对象', async () => {
+        it('queryFunctionOfNode - 查询不存在节点返回空对象', async () => {
             const result = await queryComponentFunctionOfNode('non-existent-path');
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
@@ -1186,23 +1194,23 @@ describe('Component Proxy 测试', () => {
         });
     });
 
-    describe('14. queryComponentHasScript - 查询组件是否存在脚本测试', () => {
-        it('queryComponentHasScript - 内置组件应返回 true', async () => {
+    describe('14. hasScript - 查询组件是否存在脚本测试', () => {
+        it('hasScript - 内置组件应返回 true', async () => {
             const result = await queryComponentHasScript('cc.Label');
             expect(result).toBe(true);
         });
 
-        it('queryComponentHasScript - 另一个内置组件应返回 true', async () => {
+        it('hasScript - 另一个内置组件应返回 true', async () => {
             const result = await queryComponentHasScript('cc.Sprite');
             expect(result).toBe(true);
         });
 
-        it('queryComponentHasScript - 不存在的组件应返回 false', async () => {
+        it('hasScript - 不存在的组件应返回 false', async () => {
             const result = await queryComponentHasScript('cc.NonExistentComponent');
             expect(result).toBe(false);
         });
 
-        it('queryComponentHasScript - 空字符串应返回 false', async () => {
+        it('hasScript - 空字符串应返回 false', async () => {
             const result = await queryComponentHasScript('');
             expect(result).toBe(false);
         });
@@ -1210,7 +1218,6 @@ describe('Component Proxy 测试', () => {
 
     describe('15. setPropertyForEditor - Editor 专属设置属性测试', () => {
         let componentPath = '';
-        let nodeUUid = '';
         beforeAll(async () => {
             const queryNodeParam: IQueryNodeParams = {
                 path: nodePath,
@@ -1226,7 +1233,6 @@ describe('Component Proxy 测试', () => {
             const component = await ComponentProxy.add(addComponentInfo);
 
             componentPath = component.path;
-            nodeUUid = nodeInfo!.nodeId;
         });
         afterAll(async () => {
             await ComponentProxy.remove({ path: componentPath });

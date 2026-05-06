@@ -28,7 +28,7 @@ export const NodeProxy: IPublicNodeService = {
     update(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
         return Rpc.getInstance().request('Node', 'update', [params]);
     },
-    query(params: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
+    query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
         return Rpc.getInstance().request('Node', 'query', [params]);
     },
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {

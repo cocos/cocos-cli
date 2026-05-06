@@ -20,7 +20,6 @@ export interface IMainModule {
 export const Scene = {
     ...EditorProxy,
     ...ScriptProxy,
-
     ...AssetProxy,
     ...EngineProxy,
     ...PrefabProxy,

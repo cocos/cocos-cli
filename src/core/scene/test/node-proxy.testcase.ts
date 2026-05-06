@@ -6,8 +6,10 @@ import {
     type IQueryNodeTreeParams,
     type IUpdateNodeParams,
     type INode,
+    type INodeForEditor,
     NodeType,
 } from '../common';
+import { type ISceneForEditor } from '../common/editor/scene';
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { SceneTestEnv } from './scene-test-env';
@@ -31,7 +33,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('1. 基础节点操作', () => {
-        it('createNode - 创建多级父节点的节点', async () => {
+        it('createByType - 创建多级父节点的节点', async () => {
             const multiParentPath = 'Canvas/TestNode/TestNode2/TestNode3';
             const params: ICreateByNodeTypeParams = {
                 path: multiParentPath,
@@ -47,7 +49,7 @@ describe('Node Proxy 测试', () => {
         });
 
 
-        it('createNode - 创建带预制体的节点', async () => {
+        it('createByAsset - 创建带预制体的节点', async () => {
 
             const params: ICreateByAssetParams = {
                 dbURL: 'db://internal/default_prefab/ui/Label.prefab',
@@ -61,7 +63,7 @@ describe('Node Proxy 测试', () => {
             console.log('Created prefab node path=', prefabNode?.path);
         });
 
-        it('createNode - 创建新节点', async () => {
+        it('createByType - 创建新节点', async () => {
             const params: ICreateByNodeTypeParams = {
                 path: testNodePath,
                 name: 'TestNode',
@@ -80,7 +82,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('2. 节点查询操作（依赖创建的节点）', () => {
-        it('queryNode - 查询节点基本信息', async () => {
+        it('query - 查询节点基本信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IQueryNodeParams = {
@@ -96,7 +98,7 @@ describe('Node Proxy 测试', () => {
             }
         });
 
-        it('queryNode - 查询节点及子节点信息', async () => {
+        it('query - 查询节点及子节点信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IQueryNodeParams = {
@@ -111,8 +113,44 @@ describe('Node Proxy 测试', () => {
         });
     });
 
+    describe('2.1 query - 编辑器模式与空参数查询', () => {
+        it('query - 传入 string 返回 INodeForEditor', async () => {
+            expect(createdNode).not.toBeNull();
+            if (createdNode) {
+                const result = await NodeProxy.query(createdNode.path) as INodeForEditor | null;
+                expect(result).not.toBeNull();
+                expect(result!.name).toBeDefined();
+                expect(result!.name.value).toBe('TestNode');
+                expect(result!.active).toBeDefined();
+                expect(result!.position).toBeDefined();
+                expect(result!.rotation).toBeDefined();
+                expect(result!.scale).toBeDefined();
+                expect(result!.layer).toBeDefined();
+                expect(result!.uuid).toBeDefined();
+                expect(result!.__comps__).toBeDefined();
+                expect(result!.__type__).toBeDefined();
+            }
+        });
+
+        it('query - 不传参数返回根节点 dump 数据', async () => {
+            const result = await NodeProxy.query();
+            expect(result).not.toBeNull();
+            // 根节点是场景，应包含 isScene 字段
+            const sceneResult = result as ISceneForEditor;
+            expect(sceneResult.isScene).toBeTruthy();
+            expect(sceneResult.__type__).toBeDefined();
+            expect(sceneResult.uuid).toBeDefined();
+            expect(Array.isArray(sceneResult.children)).toBe(true);
+        });
+
+        it('query - 传入不存在的路径返回 null', async () => {
+            const result = await NodeProxy.query('non-existent-path');
+            expect(result).toBeNull();
+        });
+    });
+
     describe('3. 节点更新操作（依赖创建的节点）', () => {
-        it('updateNode - 更新节点位置', async () => {
+        it('update - 更新节点位置', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const newPosition: IVec3 = { x: 5, y: 5, z: 5 };
@@ -139,7 +177,7 @@ describe('Node Proxy 测试', () => {
             }
         });
 
-        it('updateNode - 更新节点激活状态', async () => {
+        it('update - 更新节点激活状态', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IUpdateNodeParams = {
@@ -164,7 +202,7 @@ describe('Node Proxy 测试', () => {
             }
         });
 
-        it('updateNode - 更新节点旋转和缩放', async () => {
+        it('update - 更新节点旋转和缩放', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const newScale: IVec3 = { x: 2, y: 2, z: 2 };
@@ -193,7 +231,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('4. 节点删除操作（依赖创建的节点）', () => {
-        it('deleteNode - 删除节点（不保持世界变换）', async () => {
+        it('delete - 删除节点（不保持世界变换）', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IDeleteNodeParams = {
@@ -218,7 +256,7 @@ describe('Node Proxy 测试', () => {
             }
         });
 
-        it('deleteNode - 删除节点（保持世界变换）', async () => {
+        it('delete - 删除节点（保持世界变换）', async () => {
             // 先创建一个新节点用于删除测试
             const createParams: ICreateByNodeTypeParams = {
                 path: 'NodeToDelete',
@@ -243,7 +281,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('5. 边界情况测试', () => {
-        it('queryNode - 查询不存在的节点应返回null', async () => {
+        it('query - 查询不存在的节点应返回null', async () => {
             const params: IQueryNodeParams = {
                 path: '/NonExistentNode',
                 queryChildren: false,
@@ -254,7 +292,7 @@ describe('Node Proxy 测试', () => {
             expect(result).toBeNull();
         });
 
-        it('updateNode - 更新不存在的节点应抛异常', async () => {
+        it('update - 更新不存在的节点应抛异常', async () => {
             const params: IUpdateNodeParams = {
                 path: '/NonExistentNode',
                 name: 'NonExistentNode',
@@ -266,7 +304,7 @@ describe('Node Proxy 测试', () => {
             await expect(NodeProxy.update(params)).rejects.toThrow();
         });
 
-        it('deleteNode - 删除不存在的节点应返回null', async () => {
+        it('delete - 删除不存在的节点应返回null', async () => {
             const params: IDeleteNodeParams = {
                 path: '/NonExistentNode',
                 keepWorldTransform: false
@@ -297,7 +335,7 @@ describe('Node Proxy 测试', () => {
                 throw e;
             }
         });
-        it('createNode - 创建所有内置节点', async () => {
+        it('createByType - 创建所有内置节点', async () => {
             const addCanvas: NodeType[] =
                 [
                     NodeType.SPRITE,

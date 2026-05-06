@@ -253,7 +253,7 @@ export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEve
     'reset' |
     'resetProperty' |
     'updatePropertyFromNull' |
-    'setAndChildrenLayer'
+    'setNodeAndChildrenLayer'
 > { }
 
 /**
@@ -283,13 +283,14 @@ export interface INodeService extends IServiceEvents {
     update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     /**
      * 查询节点信息
+     * - 不传参数时，返回当前场景的 dump 数据（ISceneForEditor）
+     * - 传入 string 时，返回指定路径节点的 dump 数据（编辑器模式，返回 INodeForEditor 数据）
      * - 传入 IQueryNodeParams 时，返回 INode（CLI 模式）
-     * - 传入 string 时，返回 INodeForEditor 或 ISceneForEditor（编辑器模式，dump 数据）
      *
-     * @param params - 查询选项或节点路径字符串
-     * @returns 如果传入 IQueryNodeParams 返回 INode，如果传入 string 返回 INodeForEditor 或 ISceneForEditor，未找到返回 null
+     * @param params - 查询选项、节点路径字符串或不传
+     * @returns 如果传入 IQueryNodeParams 返回 INode，如果传入 string 或不传返回 INodeForEditor 或 ISceneForEditor，未找到返回 null
      */
-    query(params: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null>;
+    query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null>;
 
     /**
      * 查询节点树（层级管理器格式）
@@ -404,14 +405,14 @@ export interface INodeService extends IServiceEvents {
      *
      * @example
      * ```ts
-     * await setAndChildrenLayer({
+     * await setNodeAndChildrenLayer({
      *     nodePath: 'Canvas/MyNode',
      *     path: 'layer',
      *     dump: { value: 1 << 25, type: 'Enum' },
      * });
      * ```
      */
-    setAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
+    setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
 }
 
 ///

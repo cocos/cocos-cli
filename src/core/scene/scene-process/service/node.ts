@@ -365,15 +365,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async query(params: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
-        if (typeof params === 'string') {
+    async query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
+        if (params === undefined || params === null || typeof params === 'string') {
             return this.queryForEditor(params);
         }
         return this.queryForCli(params);
     }
 
-    private async queryForEditor(path: string): Promise<INodeForEditor | ISceneForEditor | null> {
-        const node = NodeMgr.getNodeByPath(path);
+    private async queryForEditor(path?: string): Promise<INodeForEditor | ISceneForEditor | null> {
+        const node = path ? NodeMgr.getNodeByPath(path) : Service.Editor.getRootNode();
         if (!node) {
             return null;
         }
@@ -578,7 +578,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.updatePropertyFromNull(node.uuid, options.path);
     }
 
-    public async setAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
+    public async setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return;
