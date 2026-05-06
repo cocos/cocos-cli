@@ -17,35 +17,35 @@ const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Node', method, args);
 
 function queryNodeDump(path: string): Promise<INodeForEditor | null> {
-    return rpcRequest('queryNodeDump', [path]);
+    return rpcRequest('query', [path]);
 }
 
 function setNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-    return rpcRequest('setNodeProperty', [options]);
+    return rpcRequest('setProperty', [options]);
 }
 
 function previewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-    return rpcRequest('previewSetNodeProperty', [options]);
+    return rpcRequest('previewSetProperty', [options]);
 }
 
 function cancelPreviewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-    return rpcRequest('cancelPreviewSetNodeProperty', [options]);
+    return rpcRequest('cancelPreviewSetProperty', [options]);
 }
 
 function resetNode(path: string): Promise<boolean> {
-    return rpcRequest('resetNode', [path]);
+    return rpcRequest('reset', [path]);
 }
 
 function resetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-    return rpcRequest('resetNodeProperty', [options]);
+    return rpcRequest('resetProperty', [options]);
 }
 
 function updateNodePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean> {
-    return rpcRequest('updateNodePropertyFromNull', [options]);
+    return rpcRequest('updatePropertyFromNull', [options]);
 }
 
 function setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
-    return rpcRequest('setNodeAndChildrenLayer', [options]);
+    return rpcRequest('setAndChildrenLayer', [options]);
 }
 
 describe('Node Dump Proxy 测试', () => {
@@ -62,7 +62,7 @@ describe('Node Dump Proxy 测试', () => {
             name: testNodeName,
             nodeType: NodeType.EMPTY,
         };
-        testNode = await NodeProxy.createNodeByType(params);
+        testNode = await NodeProxy.createByType(params);
         expect(testNode).toBeDefined();
 
         // 通过 queryNode 获取节点 UUID
@@ -71,14 +71,14 @@ describe('Node Dump Proxy 测试', () => {
             queryChildren: false,
             queryComponent: false,
         };
-        const nodeInfo = await NodeProxy.queryNode(queryParams);
+        const nodeInfo = await NodeProxy.query(queryParams) as INode | null;
         expect(nodeInfo).not.toBeNull();
         testNodeUuid = nodeInfo!.nodeId;
     });
 
     afterAll(async () => {
         if (testNode) {
-            await NodeProxy.deleteNode({ path: testNode.path, keepWorldTransform: false });
+            await NodeProxy.delete({ path: testNode.path, keepWorldTransform: false });
         }
         await EditorProxy.close({
             urlOrUUID: SceneTestEnv.sceneURL,
@@ -222,24 +222,24 @@ describe('Node Dump Proxy 测试', () => {
 
         beforeAll(async () => {
             // 创建 Label 节点，自带组件，适合测试多层路径的预览
-            labelNode = await NodeProxy.createNodeByType({
+            labelNode = await NodeProxy.createByType({
                 path: '/',
                 name: 'PreviewTestLabel',
                 nodeType: NodeType.LABEL,
             });
             expect(labelNode).toBeDefined();
 
-            const nodeInfo = await NodeProxy.queryNode({
+            const nodeInfo = await NodeProxy.query({
                 path: labelNode!.path,
                 queryChildren: false,
                 queryComponent: false,
-            });
+            }) as INode | null;
             labelNodeUuid = nodeInfo!.nodeId;
         });
 
         afterAll(async () => {
             if (labelNode) {
-                await NodeProxy.deleteNode({ path: labelNode.path, keepWorldTransform: false });
+                await NodeProxy.delete({ path: labelNode.path, keepWorldTransform: false });
             }
         });
 
@@ -406,7 +406,7 @@ describe('Node Dump Proxy 测试', () => {
 
         beforeAll(async () => {
             // 创建父节点
-            parentNode = await NodeProxy.createNodeByType({
+            parentNode = await NodeProxy.createByType({
                 path: '/',
                 name: 'LayerParent',
                 nodeType: NodeType.EMPTY,
@@ -414,7 +414,7 @@ describe('Node Dump Proxy 测试', () => {
             expect(parentNode).toBeDefined();
 
             // 创建子节点
-            childNode = await NodeProxy.createNodeByType({
+            childNode = await NodeProxy.createByType({
                 path: parentNode!.path,
                 name: 'LayerChild',
                 nodeType: NodeType.EMPTY,
@@ -422,24 +422,24 @@ describe('Node Dump Proxy 测试', () => {
             expect(childNode).toBeDefined();
 
             // 获取 UUID
-            const parentInfo = await NodeProxy.queryNode({
+            const parentInfo = await NodeProxy.query({
                 path: parentNode!.path,
                 queryChildren: false,
                 queryComponent: false,
-            });
+            }) as INode | null;
             parentUuid = parentInfo!.nodeId;
 
-            const childInfo = await NodeProxy.queryNode({
+            const childInfo = await NodeProxy.query({
                 path: childNode!.path,
                 queryChildren: false,
                 queryComponent: false,
-            });
+            }) as INode | null;
             childUuid = childInfo!.nodeId;
         });
 
         afterAll(async () => {
             if (parentNode) {
-                await NodeProxy.deleteNode({ path: parentNode.path, keepWorldTransform: false });
+                await NodeProxy.delete({ path: parentNode.path, keepWorldTransform: false });
             }
         });
 

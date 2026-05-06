@@ -4,6 +4,7 @@ import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabInfo, IPrefabStateInfo } from './prefab';
 import type { IProperty } from '../@types/public';
+import type { ISceneForEditor } from './editor/scene';
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
 export interface INodeTreeComponent {
@@ -246,14 +247,13 @@ export interface INodeEvents {
 }
 
 export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents |
-    'queryNodeDump' |
-    'previewSetNodeProperty' |
-    'cancelPreviewSetNodeProperty' |
-    'setNodeProperty' |
-    'resetNode' |
-    'resetNodeProperty' |
-    'updateNodePropertyFromNull' |
-    'setNodeAndChildrenLayer'
+    'previewSetProperty' |
+    'cancelPreviewSetProperty' |
+    'setProperty' |
+    'reset' |
+    'resetProperty' |
+    'updatePropertyFromNull' |
+    'setAndChildrenLayer'
 > { }
 
 /**
@@ -264,27 +264,32 @@ export interface INodeService extends IServiceEvents {
      * 创建节点
      * @param params
      */
-    createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
+    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
 
     /**
      * 创建节点
      * @param params
      */
-    createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     /**
      * 删除节点
-     * @param params 
+     * @param params
      */
-    deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
+    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     /**
      * 更新节点
      * @param params
      */
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
+    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     /**
-    * 查询节点
-    */
-    queryNode(params: IQueryNodeParams): Promise<INode | null>;
+     * 查询节点信息
+     * - 传入 IQueryNodeParams 时，返回 INode（CLI 模式）
+     * - 传入 string 时，返回 INodeForEditor 或 ISceneForEditor（编辑器模式，dump 数据）
+     *
+     * @param params - 查询选项或节点路径字符串
+     * @returns 如果传入 IQueryNodeParams 返回 INode，如果传入 string 返回 INodeForEditor 或 ISceneForEditor，未找到返回 null
+     */
+    query(params: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null>;
 
     /**
      * 查询节点树（层级管理器格式）
@@ -294,18 +299,9 @@ export interface INodeService extends IServiceEvents {
     // ---- 编辑器相关接口 ----
 
     /**
-     * 查询节点的 dump 数据，返回节点的完整序列化信息（属性、组件、prefab 等）
-     * 用于编辑器 Inspector 面板渲染节点属性
-     *
-     * @param path - 节点路径
-     * @returns 节点的 dump 数据（INodeForEditor），节点不存在时返回 null
-     */
-    queryNodeDump(path: string): Promise<INodeForEditor | null>;
-
-    /**
      * 预览设置节点属性，临时应用属性变更但不记录到 undo 栈
      * 用于编辑器中拖拽滑块等实时预览场景，首次调用时会缓存原始值，
-     * 可通过 cancelPreviewSetNodeProperty 恢复
+     * 可通过 cancelPreviewSetProperty 恢复
      *
      * @param options - 设置属性选项
      * @param options.nodePath - 节点路径
@@ -316,17 +312,17 @@ export interface INodeService extends IServiceEvents {
      * @example
      * ```ts
      * // 预览修改节点位置
-     * await previewSetNodeProperty({
+     * await previewSetProperty({
      *     nodePath: 'Canvas/MyNode',
      *     path: 'position',
      *     dump: { value: { x: 100, y: 200, z: 0 }, type: 'cc.Vec3' },
      * });
      * ```
      */
-    previewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    previewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
 
     /**
-     * 取消预览设置，将节点属性恢复到 previewSetNodeProperty 调用前的值
+     * 取消预览设置，将节点属性恢复到 previewSetProperty 调用前的值
      * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
      *
      * @param options - 设置属性选项
@@ -334,7 +330,7 @@ export interface INodeService extends IServiceEvents {
      * @param options.path - 属性路径
      * @returns 恢复成功返回 true，无缓存的预览数据或节点无效返回 false
      */
-    cancelPreviewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    cancelPreviewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
 
     /**
      * 设置节点属性，会记录到 undo 栈
@@ -347,14 +343,14 @@ export interface INodeService extends IServiceEvents {
      *
      * @example
      * ```ts
-     * await setNodeProperty({
+     * await setProperty({
      *     nodePath: 'Canvas/MyNode',
      *     path: 'position',
      *     dump: { value: { x: 100, y: 200, z: 0 }, type: 'cc.Vec3' },
      * });
      * ```
      */
-    setNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    setProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
 
     /**
      * 重置节点的变换属性（position、rotation、scale、mobility）到默认值
@@ -362,7 +358,7 @@ export interface INodeService extends IServiceEvents {
      * @param path - 节点路径
      * @returns 重置成功返回 true，节点不存在返回 false
      */
-    resetNode(path: string): Promise<boolean>;
+    reset(path: string): Promise<boolean>;
 
     /**
      * 重置节点的单个属性到 CCClass 定义的默认值
@@ -373,7 +369,7 @@ export interface INodeService extends IServiceEvents {
      * @param options.path - 属性路径，如 'position'、'scale'
      * @returns 重置成功返回 true，节点不存在返回 false
      */
-    resetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    resetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
 
     /**
      * 将节点上值为 null 的属性初始化为默认实例
@@ -388,14 +384,14 @@ export interface INodeService extends IServiceEvents {
      * @example
      * ```ts
      * // 将节点上值为 null 的自定义属性初始化
-     * await updateNodePropertyFromNull({
+     * await updatePropertyFromNull({
      *     nodePath: 'Canvas/MyNode',
      *     path: 'customProperty',
      *     dump: {} as IProperty,
      * });
      * ```
      */
-    updateNodePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    updatePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean>;
 
     /**
      * 设置节点及其所有子节点的 layer 属性
@@ -408,14 +404,14 @@ export interface INodeService extends IServiceEvents {
      *
      * @example
      * ```ts
-     * await setNodeAndChildrenLayer({
+     * await setAndChildrenLayer({
      *     nodePath: 'Canvas/MyNode',
      *     path: 'layer',
      *     dump: { value: 1 << 25, type: 'Enum' },
      * });
      * ```
      */
-    setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
+    setAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
 }
 
 ///

@@ -5,6 +5,7 @@ import {
     type IDeleteNodeParams,
     type IDeleteNodeResult,
     type INode,
+    type INodeForEditor,
     type INodeService,
     type IQueryNodeParams,
     type IQueryNodeTreeParams,
@@ -18,6 +19,7 @@ import {
     IChangeNodeOptions,
     ISetPropertyOptionsForEditor
 } from '../../common';
+import { type ISceneForEditor } from '../../common/editor/scene';
 import { Rpc } from '../rpc';
 import { CCClass, CCObject, Node, Prefab, Quat, Vec3, TransformBit, UITransform, LODGroup } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
@@ -37,7 +39,7 @@ const NodeMgr = EditorExtends.Node;
  */
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
-    async createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
+    async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
             let canvasNeeded = params.canvasRequired || false;
@@ -63,7 +65,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
+    async createByAsset(params: ICreateByAssetParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
             const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
@@ -235,7 +237,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return currentParent;
     }
 
-    async deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
+    async delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
         try {
             await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
@@ -262,7 +264,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
+    async update(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
         const updateOperate = () => {
             const node = NodeMgr.getNodeByPath(params.path);
             if (!node) {
@@ -363,7 +365,22 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async queryNode(params: IQueryNodeParams): Promise<INode | null> {
+    async query(params: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
+        if (typeof params === 'string') {
+            return this.queryForEditor(params);
+        }
+        return this.queryForCli(params);
+    }
+
+    private async queryForEditor(path: string): Promise<INodeForEditor | ISceneForEditor | null> {
+        const node = NodeMgr.getNodeByPath(path);
+        if (!node) {
+            return null;
+        }
+        return await nodeMgr.queryDump(node.uuid);
+    }
+
+    private async queryForCli(params: IQueryNodeParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
@@ -513,15 +530,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         EditorExtends.Component.clear();
     }
 
-    public async queryNodeDump(path: string): Promise<any> {
-        const node = NodeMgr.getNodeByPath(path);
-        if (!node) {
-            return null;
-        }
-        return await nodeMgr.queryDump(node.uuid);
-    }
-
-    public async previewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async previewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -529,7 +538,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.previewSetNodeProperty(node.uuid, options.path, options.dump);
     }
 
-    public async cancelPreviewSetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async cancelPreviewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -537,7 +546,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.cancelPreviewSetNodeProperty(node.uuid, options.path);
     }
 
-    public async setNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async setProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -545,7 +554,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.setProperty(node.uuid, options.path, options.dump);
     }
 
-    public async resetNode(path: string): Promise<boolean> {
+    public async reset(path: string): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
             return false;
@@ -553,7 +562,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.resetNode(node.uuid);
     }
 
-    public async resetNodeProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async resetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -561,7 +570,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.resetProperty(node.uuid, options.path);
     }
 
-    public async updateNodePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async updatePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -569,7 +578,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.updatePropertyFromNull(node.uuid, options.path);
     }
 
-    public async setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
+    public async setAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return;

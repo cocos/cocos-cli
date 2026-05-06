@@ -11,23 +11,23 @@ import {
 import { Rpc } from '../rpc';
 
 export const ComponentProxy: IPublicComponentService = {
-    addComponent(params: IAddComponentOptions): Promise<IComponent> {
-        return Rpc.getInstance().request('Component', 'addComponent', [params]);
+    add(params: IAddComponentOptions): Promise<IComponent> {
+        return Rpc.getInstance().request('Component', 'add', [params]);
     },
 
-    removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
-        return Rpc.getInstance().request('Component', 'removeComponent', [params]);
+    remove(params: IRemoveComponentOptions): Promise<boolean> {
+        return Rpc.getInstance().request('Component', 'remove', [params]);
     },
 
-    queryComponent(params: IQueryComponentOptions): Promise<IComponent | IComponentForEditor | null> {
-        return Rpc.getInstance().request('Component', 'queryComponent', [params]);
+    query(params: IQueryComponentOptions): Promise<IComponent | IComponentForEditor | null> {
+        return Rpc.getInstance().request('Component', 'query', [params]);
     },
 
     setProperty(params: ISetPropertyOptions): Promise<boolean> {
         return Rpc.getInstance().request('Component', 'setProperty', [params]);
     },
 
-    queryAllComponent(): Promise<string[]> {
-        return Rpc.getInstance().request('Component', 'queryAllComponent');
+    queryAll(): Promise<string[]> {
+        return Rpc.getInstance().request('Component', 'queryAll');
     },
 };

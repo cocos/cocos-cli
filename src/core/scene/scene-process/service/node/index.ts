@@ -36,6 +36,7 @@ import {
     type INodeForEditor,
     IChangeNodeOptions,
 } from '../../../common';
+import { type ISceneForEditor } from '../../../common/editor/scene';
 
 
 import { loadAny } from './node-create';
@@ -354,7 +355,7 @@ export class NodeManager {
      * 如果节点已被删除 parent = null，则返回 null
      * @param {String} uuid
      */
-    queryDump(uuid: string) {
+    queryDump(uuid: string): INodeForEditor | ISceneForEditor | null {
         // 只查现有场景里的节点，不需要再查回收站里的节点
         const node = NodeMgr.getNodesInScene()[uuid];
         if (!node) {
@@ -368,7 +369,7 @@ export class NodeManager {
      * 不论节点是否被删除
      * @param {String} uuid
      */
-    queryDumpAtAll(uuid: string) {
+    queryDumpAtAll(uuid: string): INodeForEditor | ISceneForEditor | null {
         const node = this.query(uuid);
         if (!node) {
             return null;

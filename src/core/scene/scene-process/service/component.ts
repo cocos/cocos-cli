@@ -105,7 +105,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         });
     }
 
-    private async addComponentImpl(nodePath: string, component: string): Promise<IComponent> {
+    private async addImpl(nodePath: string, component: string): Promise<IComponent> {
         const node = NodeMgr.getNodeByPath(nodePath);
         if (!node) {
             throw new Error(`add component failed: ${nodePath} does not exist`);
@@ -202,10 +202,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return dumpUtil.dumpComponent(comp as Component);
     }
 
-    async addComponent(params: IAddComponentOptions): Promise<IComponent> {
+    async add(params: IAddComponentOptions): Promise<IComponent> {
         try {
             await Service.Editor.lock();
-            return await this.addComponentImpl(params.nodePath, params.component);
+            return await this.addImpl(params.nodePath, params.component);
         } catch (error) {
             console.error(error);
             throw error;
@@ -222,10 +222,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     private requireComponentList: Function[] = [];
 
-    async createComponent(params: IAddComponentOptions): Promise<boolean> {
+    async create(params: IAddComponentOptions): Promise<boolean> {
         if (Array.isArray(params.component)) {
             params.component.forEach((id) => {
-                this.createComponent({ nodePath: params.nodePath, component: id });
+                this.create({ nodePath: params.nodePath, component: id });
             });
             console.warn('don\'t add component to more than one node at one time');
             return false;
@@ -357,7 +357,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
+    async remove(params: IRemoveComponentOptions): Promise<boolean> {
         try {
             await Service.Editor.lock();
 
@@ -381,7 +381,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async queryComponentImpl(params: IQueryComponentOptions, isEditor: boolean = false): Promise<IComponent | IComponentForEditor | null> {
+    async queryImpl(params: IQueryComponentOptions, isEditor: boolean = false): Promise<IComponent | IComponentForEditor | null> {
         const comp = await this.findComponent(params.path);
         if (!comp) {
             console.warn(`Query component failed: ${params.path} does not exist`);
@@ -394,11 +394,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null> {
+    async query(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null> {
         if (typeof params === 'string') {
-            return this.queryComponentImpl({ path: params }, true);
+            return this.queryImpl({ path: params }, true);
         } else {
-            return this.queryComponentImpl(params);
+            return this.queryImpl(params);
         }
     }
 
@@ -427,7 +427,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {*} uuid
      * @return {cc.Node}
      */
-    query(uuid: string | undefined): Node | null {
+    queryNode(uuid: string | undefined): Node | null {
         if (typeof uuid === 'undefined') {
             return null;
         }
@@ -513,7 +513,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return true;
     }
 
-    async queryAllComponent(): Promise<string[]> {
+    async queryAll(): Promise<string[]> {
         const keys = Object.keys(cc.js._registeredClassNames);
         const components: string[] = [];
         keys.forEach((key) => {
@@ -527,7 +527,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return components;
     }
 
-    async queryComponentHasScript(name: string): Promise<boolean> {
+    async hasScript(name: string): Promise<boolean> {
         const classes = await this.queryClasses();
         return classes.some((cls) => cls.name === name);
     }
@@ -563,7 +563,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return classes;
     }
 
-    async queryComponentFunctionOfNode(path: string): Promise<any> {
+    async queryFunctionOfNode(path: string): Promise<any> {
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
             return {};
@@ -576,8 +576,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     private readonly CompMgrEventHandlers = {
-        ['add']: 'add',
-        ['remove']: 'remove',
+        ['add']: 'onCompAdd',
+        ['remove']: 'onCompRemove',
     } as const;
     private compMgrEventHandlers = new Map<string, (...args: []) => void>();
     /**
@@ -607,7 +607,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    add(uuid: string, component: Component) {
+    onCompAdd(uuid: string, component: Component) {
         if (isEditorNode(component.node)) {
             return;
         }
@@ -619,7 +619,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    remove(uuid: string, component: Component) {
+    onCompRemove(uuid: string, component: Component) {
         if (isEditorNode(component.node)) {
             return;
         }
@@ -630,7 +630,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * 重置组件
      * @param uuid component 的 uuid
      */
-    public async resetComponent(params: IQueryComponentOptions): Promise<boolean> {
+    public async reset(params: IQueryComponentOptions): Promise<boolean> {
         try {
             const comp = await this.findComponent(params.path);
             if (!comp) {
@@ -651,7 +651,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<any> {
+    public async executeMethod(options: IExecuteComponentMethodOptions): Promise<any> {
         const comp = compMgr.queryFromPath(options.path);
         if (!comp) {
             return null;
