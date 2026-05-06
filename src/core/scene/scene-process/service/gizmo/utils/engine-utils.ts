@@ -17,6 +17,7 @@ import {
 } from 'cc';
 import type { IAddMeshToNodeOption, ICreateMeshOption, IMeshPrimitive, DynamicMeshPrimitive } from './defines';
 import raycastUtil from './raycast';
+import type { IRaycastResult } from './raycast';
 
 const flat = (arr: any, fn: any) => {
     return arr.map(fn).reduce((acc: any, val: any) => acc.concat(val), []);
@@ -25,6 +26,14 @@ const flat = (arr: any, fn: any) => {
 const cmp = (a: any, b: any) => a.distance - b.distance;
 export const ray = geometry.Ray.create();
 const triangles = gfx.PrimitiveMode.TRIANGLE_LIST;
+
+export class RaycastResults extends Array<IRaycastResult> {
+    ray: geometry.Ray;
+    constructor(r: geometry.Ray) {
+        super();
+        this.ray = r;
+    }
+}
 
 // 这边理论上用WeakMap更好，但是在场景原生化中会有问题，所以先用Map
 const vbMap = new Map();
@@ -415,8 +424,8 @@ export function updateBoundingBox(meshComp: MeshRenderer, minPos?: math.Vec3, ma
     model.createBoundingShape(minPos, maxPos);
 }
 
-export function getRaycastResultsByNodes(nodes: Node[], x: number, y: number, distance = Infinity, forSnap = false, excludeMask?: number): any[] {
-    const results: any[] = [];
+export function getRaycastResultsByNodes(nodes: Node[], x: number, y: number, distance = Infinity, forSnap = false, excludeMask?: number): RaycastResults {
+    const results = new RaycastResults(ray);
     const camera = getEditorCamera();
     if (!camera || !camera.camera) {
         return results;
@@ -447,16 +456,30 @@ export function getRaycastResultsByNodes(nodes: Node[], x: number, y: number, di
     return results;
 }
 
-export function getRaycastResults(rootNode: Node, x: number, y: number, distance = Infinity, excludeMask?: number): any[] {
+export function getRaycastResults(rootNode: Node, x: number, y: number, distance = Infinity, excludeMask?: number): RaycastResults {
     const scene = (rootNode as any).scene?.renderScene as renderer.RenderScene;
     const camera = getEditorCamera();
     if (!camera || !camera.camera || !scene) {
-        return [];
+        return new RaycastResults(ray);
     }
 
     camera.camera.screenPointToRay(ray, x, y);
-    const results: any[] = [];
+    const results = new RaycastResults(ray);
     if (raycastUtil.raycastAllModels(scene, ray, rootNode['_layer'], distance, false, excludeMask)) {
+        results.push(...raycastUtil.rayResultModels);
+        results.sort(cmp);
+    }
+    return results;
+}
+
+export function raycast(scene: any, camera: any, layer: any, x: number, y: number, distance = Infinity, excludeMask?: number): RaycastResults | null {
+    if (!camera || !camera.enabled) {
+        return null;
+    }
+
+    camera.screenPointToRay(ray, x, y);
+    const results = new RaycastResults(ray);
+    if (raycastUtil.raycastAllModels(scene, ray, layer, distance, false, excludeMask)) {
         results.push(...raycastUtil.rayResultModels);
         results.sort(cmp);
     }

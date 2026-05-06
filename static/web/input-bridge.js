@@ -27,6 +27,7 @@ function setupInputBridge(options) {
             deltaX: 0, deltaY: 0,
             wheelDeltaX: 0, wheelDeltaY: 0,
             moveDeltaX: dx, moveDeltaY: dy,
+            movementX: e.movementX || 0, movementY: e.movementY || 0,
             leftButton: (e.buttons & 1) !== 0,
             middleButton: (e.buttons & 4) !== 0,
             rightButton: (e.buttons & 2) !== 0,
@@ -52,7 +53,7 @@ function setupInputBridge(options) {
 
     function dispatchMouse(type, evt) {
         try {
-            var dpr = window.devicePixelRatio || 1;
+            var dpr = (typeof cc !== 'undefined' && cc.screen) ? cc.screen.devicePixelRatio : (window.devicePixelRatio || 1);
             operation.emitMouseEvent(type, evt, dpr);
             if (engine && engine.repaintInEditMode) engine.repaintInEditMode();
         } catch (ex) { /* ignore */ }
@@ -117,6 +118,18 @@ function setupInputBridge(options) {
     function onKeyUp(e) {
         if (isInputElement(e.target)) return;
         dispatchKey('keyup', toKeyEvent(e));
+    }
+
+    // DPR change monitoring — matches editor's bindEvent behavior
+    if (typeof window.matchMedia === 'function') {
+        var updateDPRChangeListener = function () {
+            var dpr = window.devicePixelRatio;
+            window.matchMedia('(resolution: ' + dpr + 'dppx)').addEventListener('change', function () {
+                window.dispatchEvent(new Event('resize'));
+                updateDPRChangeListener();
+            }, { once: true });
+        };
+        updateDPRChangeListener();
     }
 
     canvas.addEventListener('mousedown', onMouseDown);

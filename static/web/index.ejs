@@ -329,6 +329,44 @@
                 <div class="row">
                     <label>Bounds</label>
                     <span id="rectBoundsInfo" class="info-text">-</span>
+        <!-- Component Gizmos -->
+        <div class="panel-section" id="sec-compgizmo">
+            <h3 onclick="toggleSection('sec-compgizmo')">Component Gizmos</h3>
+            <div class="section-body">
+                <div class="row">
+                    <button class="btn btn-primary" onclick="scanGizmoComponents()">Scan Components</button>
+                    <button class="btn" onclick="debugSceneModels()">Debug Models</button>
+                    <span id="gizmoScanStatus" class="info-text">Not scanned</span>
+                </div>
+                <div class="row">
+                    <label>Selected</label>
+                    <span id="gizmoSelInfo" class="info-text">none</span>
+                </div>
+                <div id="gizmoTestList"></div>
+                <div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;">
+                    <div style="color:#aaa;font-size:11px;margin-bottom:2px;">Registry</div>
+                    <div id="gizmoRegistryInfo"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Component Gizmos -->
+        <div class="panel-section" id="sec-compgizmo">
+            <h3 onclick="toggleSection('sec-compgizmo')">Component Gizmos</h3>
+            <div class="section-body">
+                <div class="row">
+                    <button class="btn btn-primary" onclick="scanGizmoComponents()">Scan Components</button>
+                    <button class="btn" onclick="debugSceneModels()">Debug Models</button>
+                    <span id="gizmoScanStatus" class="info-text">Not scanned</span>
+                </div>
+                <div class="row">
+                    <label>Selected</label>
+                    <span id="gizmoSelInfo" class="info-text">none</span>
+                </div>
+                <div id="gizmoTestList"></div>
+                <div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;">
+                    <div style="color:#aaa;font-size:11px;margin-bottom:2px;">Registry</div>
+                    <div id="gizmoRegistryInfo"></div>
                 </div>
             </div>
         </div>
@@ -686,6 +724,10 @@
             refreshState();
             refreshRectInfo();
             await refreshNodeList();
+            // Auto-scan component gizmos
+            if (typeof scanGizmoComponents === 'function') {
+                setTimeout(scanGizmoComponents, 300);
+            }
             // Auto-refresh every 2s
             setInterval(refreshState, 2000);
             setInterval(refreshRectInfo, 2000);

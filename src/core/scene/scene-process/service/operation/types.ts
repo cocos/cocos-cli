@@ -14,6 +14,8 @@ export interface ISceneMouseEvent {
     rightButton: boolean;
     button: number;
     buttons: number;
+    movementX: number;
+    movementY: number;
     ctrlKey: boolean;
     shiftKey: boolean;
     altKey: boolean;

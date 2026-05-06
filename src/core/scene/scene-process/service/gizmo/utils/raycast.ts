@@ -1,7 +1,16 @@
 'use strict';
 
-import { geometry, gfx, Layers, Mat4, Node, renderer, Vec3 } from 'cc';
+import { geometry, gfx, Layers, Mat4, Node, renderer, Vec2, Vec3 } from 'cc';
 import intersect from './geom-utils/intersect';
+
+function getEditorCamera(): any {
+    try {
+        const { Service } = require('../../core/decorator');
+        return Service.Camera?.getCamera?.()?.camera;
+    } catch (e) {
+        return null;
+    }
+}
 
 type IBArray = Uint8Array | Uint16Array | Uint32Array;
 
@@ -85,6 +94,12 @@ const pool = new RecyclePool<IRaycastResult>(() => {
 }, 8);
 const resultModels: IRaycastResult[] = [];
 const resultSingleModel: IRaycastResult[] = [];
+const aabbUI = new geometry.AABB();
+const poolUI = new RecyclePool<IRaycastResult>(() => {
+    return { node: defaultNode, distance: Infinity, hitPoint: new Vec3() };
+}, 8);
+const resultCanvas: IRaycastResult[] = [];
+const resultAll: IRaycastResult[] = [];
 
 const narrowphase = (vb: Float32Array, ib: IBArray | undefined, pm: gfx.PrimitiveMode, sides: boolean, distance = Infinity, hitPos: Vec3) => {
     narrowDis = distance;
@@ -231,13 +246,21 @@ const narrowphaseForSnap = (vb: Float32Array, ib: IBArray | undefined, pm: gfx.P
     }
 };
 
-class Raycast {
+export class Raycast {
     get rayResultModels() {
         return resultModels;
     }
 
     get rayResultSingleModel() {
         return resultSingleModel;
+    }
+
+    get rayResultCanvas() {
+        return resultCanvas;
+    }
+
+    get rayResultAll() {
+        return resultAll;
     }
 
     private narrowPhaseStep(m: renderer.scene.Model, worldRay: ray, distance: number, d: number, forSnap = false): number {
@@ -295,8 +318,12 @@ class Raycast {
     public raycastAllModels(renderScene: renderer.RenderScene, worldRay: ray, mask = Layers.Enum.DEFAULT, distance = Infinity, forSnap: boolean, excludeMask?: number): boolean {
         pool.reset();
         const models: any[][] = [];
+        const editorCamera = getEditorCamera();
         for (const m of renderScene.models) {
             const transform = m.transform;
+            if (editorCamera && (renderScene as any).isCulledByLod?.(editorCamera, m)) {
+                continue;
+            }
             if (excludeMask && m.node.layer & excludeMask) {
                 continue;
             }
@@ -340,6 +367,85 @@ class Raycast {
 
         resultModels.length = pool.length;
         return resultModels.length > 0;
+    }
+
+    public raycastAll(
+        renderScene: renderer.RenderScene,
+        worldRay: ray,
+        mask = Layers.Enum.DEFAULT | Layers.Enum.UI_2D | Layers.Enum.IGNORE_RAYCAST,
+        distance = Infinity,
+        forSnap = false,
+        excludeMask?: number,
+        screenPos?: Vec2,
+    ): boolean {
+        const r_3d = this.raycastAllModels(renderScene, worldRay, mask, distance, forSnap, excludeMask);
+        const r_ui2d = this.raycastAllCanvas(worldRay, mask, distance, excludeMask, screenPos);
+        const isHit = r_3d || r_ui2d;
+        resultAll.length = 0;
+        if (isHit) {
+            Array.prototype.push.apply(resultAll, resultModels);
+            Array.prototype.push.apply(resultAll, resultCanvas);
+        }
+        return isHit;
+    }
+
+    public raycastAllCanvas(worldRay: ray, mask = Layers.Enum.UI_2D, distance = Infinity, excludeMask?: number, screenPos?: Vec2): boolean {
+        poolUI.reset();
+        const scene = (cc as any).director?.getScene?.();
+        const canvasComs = scene?.getComponentsInChildren?.((cc as any).Canvas);
+        if (canvasComs && canvasComs.length > 0) {
+            for (let i = canvasComs.length - 1; i >= 0; i--) {
+                const canvasNode = canvasComs[i].node;
+                if (canvasNode && canvasNode.active) {
+                    this._raycastUI2DNodeRecursiveChildren(worldRay, canvasNode, mask, distance, excludeMask, screenPos);
+                }
+            }
+        }
+        resultCanvas.length = poolUI.length;
+        return resultCanvas.length > 0;
+    }
+
+    private _raycastUI2DNode(worldRay: ray, ui2dNode: Node, mask: number, distance: number, excludeMask?: number, screenPos?: Vec2): IRaycastResult | null {
+        const uiTransform = (ui2dNode as any)._uiProps?.uiTransformComp;
+        if (!uiTransform || !(ui2dNode.layer & mask) || (excludeMask && ui2dNode.layer & excludeMask)) {
+            return null;
+        }
+
+        const uiSkewComp = (ui2dNode as any)._uiProps?._uiSkewComp;
+        if (uiSkewComp && screenPos && uiTransform.hitTest && !uiTransform.hitTest(screenPos)) {
+            return null;
+        }
+
+        if (!uiTransform.getComputeAABB) {
+            return null;
+        }
+        uiTransform.getComputeAABB(aabbUI);
+        const d = intersect.ray_aabb(worldRay, aabbUI);
+
+        if (d <= 0) {
+            return null;
+        } else if (d < distance) {
+            const r = poolUI.add();
+            r.node = ui2dNode;
+            r.distance = d;
+            return r;
+        }
+
+        return null;
+    }
+
+    private _raycastUI2DNodeRecursiveChildren(worldRay: ray, parent: Node, mask: number, distance: number, excludeMask?: number, screenPos?: Vec2) {
+        for (let i = parent.children.length - 1; i >= 0; i--) {
+            const node = parent.children[i];
+            if (node && node.active) {
+                this._raycastUI2DNodeRecursiveChildren(worldRay, node, mask, distance, excludeMask, screenPos);
+            }
+        }
+
+        const result = this._raycastUI2DNode(worldRay, parent, mask, distance, excludeMask, screenPos);
+        if (result) {
+            resultCanvas[poolUI.length - 1] = result;
+        }
     }
 }
 

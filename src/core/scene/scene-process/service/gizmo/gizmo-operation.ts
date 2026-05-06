@@ -1,11 +1,12 @@
 'use strict';
 
-import { CCObject, Color, Layers, Node, Vec3 } from 'cc';
+import { CCObject, Color, Layers, Node, Vec3, director } from 'cc';
 import { OperationPriority } from '../operation/types';
 import type { ISceneMouseEvent, ISceneKeyboardEvent } from '../operation/types';
 import { GizmoMouseEvent } from './utils/defines';
-import { getRaycastResults } from './utils/engine-utils';
+import { getRaycastResults, raycast, RaycastResults } from './utils/engine-utils';
 import { getRaycastResultNodes, getRegionNodes } from './utils/node-utils';
+import { getSelectNode } from './utils/selection-utils';
 
 function getService(): any {
     try {
@@ -40,13 +41,17 @@ function adjustY(y: number): number {
 
 /**
  * Create a GizmoMouseEvent from an ISceneMouseEvent
- * Note: Our GizmoMouseEvent is a plain data class, NOT extending CCEvent
  */
 function createGizmoMouseEvent(type: string, event: ISceneMouseEvent): GizmoMouseEvent {
-    const gme = new GizmoMouseEvent();
-    gme.type = type;
+    const gme = new GizmoMouseEvent(type, true);
     gme.x = event.x;
     gme.y = adjustY(event.y);
+    gme.clientX = event.clientX;
+    gme.clientY = event.clientY;
+    gme.deltaX = event.deltaX;
+    gme.deltaY = event.deltaY;
+    gme.wheelDeltaX = event.wheelDeltaX;
+    gme.wheelDeltaY = event.wheelDeltaY;
     gme.ctrlKey = event.ctrlKey;
     gme.shiftKey = event.shiftKey;
     gme.altKey = event.altKey;
@@ -58,6 +63,8 @@ function createGizmoMouseEvent(type: string, event: ISceneMouseEvent): GizmoMous
     gme.moveDeltaY = -(event.moveDeltaY); // invert Y
     gme.button = event.button;
     gme.buttons = event.buttons;
+    gme.movementX = event.movementX;
+    gme.movementY = event.movementY;
     return gme;
 }
 
@@ -68,16 +75,31 @@ class GizmoOperation {
     private _curMouseDownInfos: { node: Node; hitPoint: Vec3 }[] = [];
     private _gizmoMouseDownEvent: GizmoMouseEvent | null = null;
     private _noGizmoMouseDownEvent: GizmoMouseEvent | null = null;
-    private _mouseDownRaycastGizmos: any[] = [];
+    private _mouseDownRaycastGizmos: RaycastResults | null = null;
     private _anyKeyDown = false;
 
     /**
      * Raycast against gizmo nodes
+     * 与编辑器一致：优先检测右上角 SceneGizmo，再检测 gizmo root
      */
-    private raycastGizmos(x: number, y: number): any[] {
+    private raycastGizmos(x: number, y: number): RaycastResults {
         const gizmoSvc = getServiceProp('Gizmo');
+
+        const sceneGizmoCamera = gizmoSvc?.sceneGizmoCamera?.camera;
+        if (sceneGizmoCamera) {
+            const results = raycast(
+                director.getScene()?.renderScene,
+                sceneGizmoCamera,
+                Layers.Enum.SCENE_GIZMO,
+                x, y,
+            );
+            if (results && results.length > 0) {
+                return results;
+            }
+        }
+
         const gizmoRoot = gizmoSvc?.gizmoRootNode;
-        if (!gizmoRoot) return [];
+        if (!gizmoRoot) return new RaycastResults(null as any);
 
         return getRaycastResults(gizmoRoot, x, y, Infinity, Layers.Enum.IGNORE_RAYCAST);
     }
@@ -133,7 +155,7 @@ class GizmoOperation {
 
     // --- Gizmo-hit handlers ---
 
-    private _onGizmoMouseDown(event: GizmoMouseEvent, results: any[]): boolean {
+    private _onGizmoMouseDown(event: GizmoMouseEvent, results: RaycastResults): boolean {
         // 与 cocos-editor 一致：相机移动中不处理 gizmo 交互
         const cameraCtrl = getServiceProp('Camera')?.controller;
         if (cameraCtrl?.isMoving?.()) return true;
@@ -180,7 +202,7 @@ class GizmoOperation {
         return true;
     }
 
-    private _onGizmoMouseMove(event: GizmoMouseEvent, results: any[]) {
+    private _onGizmoMouseMove(event: GizmoMouseEvent, results: RaycastResults) {
         if (this._curMouseDownInfos.length > 0) {
             const map = new Map<Node, Vec3>();
             results.forEach((info: any) => map.set(info.node, info.hitPoint || new Vec3()));
@@ -248,16 +270,37 @@ class GizmoOperation {
 
     public onMouseWheel() {}
 
-    private _changeMouseHover(event: GizmoMouseEvent, results: any[]): boolean {
+    private _changeMouseHover(event: GizmoMouseEvent, results: RaycastResults): boolean {
         if (this._anyKeyDown) return true;
+
+        // 与编辑器一致：vertexSnap 检查
+        const selection = getServiceProp('Selection');
+        const uuids: string[] = selection?.query?.() ?? [];
+        if (uuids[0]) {
+            const node = getNodeByUuid(uuids[0]);
+            if (node) {
+                const res = getServiceProp('Gizmo')?.callAllGizmoFuncOfNode?.(node, 'onVertexSnapMove', event);
+                if (res === false) {
+                    return false;
+                }
+            }
+        }
 
         let hoverInNode: Node | null = null;
         const tempSet: Set<Node> = new Set();
+        const hitPoint = new Vec3();
 
         if (results.length > 0) {
-            for (const info of results) {
-                event.hitPoint = info.hitPoint;
-                info.node.emit(event.type, event);
+            const ray = results.ray;
+            for (let i = 0; i < results.length; i++) {
+                if (ray) {
+                    Vec3.multiplyScalar(hitPoint, ray.d, results[i].distance);
+                    Vec3.add(hitPoint, ray.o, hitPoint);
+                    event.hitPoint = hitPoint;
+                } else {
+                    event.hitPoint = results[i].hitPoint;
+                }
+                results[i].node.emit(event.type, event);
             }
 
             for (const info of results) {
@@ -274,7 +317,7 @@ class GizmoOperation {
         this._hoverInNodeMap.forEach((_bool, node) => {
             if (!tempSet.has(node)) {
                 event.type = 'hoverOut';
-                (event as any).customData = { hoverInNodeMap: this._hoverInNodeMap };
+                event.customData = { hoverInNodeMap: this._hoverInNodeMap };
                 this._emitEventToNode(node, event);
                 this._hoverInNodeMap.delete(node);
             }
@@ -313,18 +356,20 @@ class GizmoOperation {
             }
             if (!resultNode) return;
 
+            const curSelections = selection?.query?.() ?? [];
+
             if (!event.ctrlKey && !event.shiftKey) {
                 selection?.clear?.();
             }
 
             if (event.ctrlKey) {
-                const selected = selection?.query?.() ?? [];
-                if (selected.includes(resultNode.uuid)) {
+                if (curSelections.includes(resultNode.uuid)) {
                     selection?.unselect?.(resultNode.uuid);
                 } else {
                     selection?.select?.(resultNode.uuid);
                 }
             } else {
+                resultNode = getSelectNode(nodes, curSelections[0]);
                 selection?.select?.(resultNode.uuid);
             }
         } else {
@@ -335,7 +380,7 @@ class GizmoOperation {
     }
 
     private _regionSelectNode(
-        left: number, right: number, top: number, bottom: number, multiple: boolean,
+        left: number, right: number, top: number, bottom: number, _multiple: boolean,
     ) {
         this._showSelectionRegion(left, right, top, bottom);
 
@@ -357,10 +402,8 @@ class GizmoOperation {
             }
             selectSet.delete(node.uuid);
         });
-        if (!multiple) {
-            for (const uuid of selectSet.keys()) {
-                selection?.unselect?.(uuid);
-            }
+        for (const uuid of selectSet.keys()) {
+            selection?.unselect?.(uuid);
         }
     }
 

@@ -77,6 +77,7 @@ export class ServiceManager {
         '4736e978-c8fa-449f-9cf6-fe0158ded9d7', // internal/editor/grid-stroke
         '9d6c6bde-2fe2-44ee-883b-909608948b04', // internal/editor/gizmo
         'e4e4cb19-8dd2-450d-ad20-1a818263b8d3', // internal/editor/light
+        '084eba38-5336-4444-8c8c-aebb75d5c627', // internal/editor/box-height-light
     ];
 
     /**

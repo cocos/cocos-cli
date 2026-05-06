@@ -17,6 +17,20 @@ import './gizmo/components/box-collider';
 import './gizmo/components/directional-light';
 import './gizmo/components/canvas';
 import './gizmo/components/ui-transform';
+import './gizmo/components/sphere-light';
+import './gizmo/components/spot-light';
+import './gizmo/components/sphere-collider';
+import './gizmo/components/capsule-collider';
+import './gizmo/components/cone-collider';
+import './gizmo/components/cylinder-collider';
+import './gizmo/components/plane-collider';
+import './gizmo/components/simplex-collider';
+import './gizmo/components/mesh-collider';
+import './gizmo/components/box-collider-2d';
+import './gizmo/components/circle-collider-2d';
+import './gizmo/components/polygon-collider-2d';
+import './gizmo/components/mesh-renderer';
+import './gizmo/components/skinned-mesh-renderer';
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
 

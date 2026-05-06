@@ -1,4 +1,4 @@
-import { Vec3, Vec2, primitives, Node, Color, MeshRenderer, IVec3Like } from 'cc';
+import { Vec3, Vec2, primitives, Node, Color, MeshRenderer, IVec3Like, Event as CCEvent } from 'cc';
 
 export interface IMeshPrimitive {
     primitiveType?: number; // 图元类型
@@ -116,26 +116,41 @@ export interface IHandleData {
  * 简化版 GizmoMouseEvent
  * 编辑器版本继承自 CCEvent，此处作为独立的纯数据类
  */
-export class GizmoMouseEvent<T extends Record<string, any> = {}> {
-    type = '';
-    x = 0;
-    y = 0;
-    button = 0;
-    buttons = 0;
+export class GizmoMouseEvent<T extends Record<string, any> = {}> extends CCEvent {
     ctrlKey = false;
     shiftKey = false;
     altKey = false;
     metaKey = false;
+
+    x = 0;
+    y = 0;
+    clientX = 0;
+    clientY = 0;
+    deltaX = 0;
+    deltaY = 0;
+    wheelDeltaX = 0;
+    wheelDeltaY = 0;
+    moveDeltaX = 0;
+    moveDeltaY = 0;
+
     leftButton = false;
     middleButton = false;
     rightButton = false;
-    moveDeltaX = 0;
-    moveDeltaY = 0;
+
+    button = 0;
+    buttons = 0;
+
+    movementX = 0;
+    movementY = 0;
+
     hitPoint?: Vec3;
     handleName = '';
     node?: Node;
     customData?: T;
-    propagationStopped = false;
+
+    constructor(type: string, bubbles = true) {
+        super(type, bubbles);
+    }
 }
 
 const zeroFloat32 = new Float32Array();
