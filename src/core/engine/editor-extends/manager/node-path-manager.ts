@@ -1,8 +1,10 @@
+import { formatUniqueName } from './path-utils';
+
 export class NodePathManager {
     private _uuidToPath: Map<string, string> = new Map();          // UUID -> 路径
     private _pathToUuid: Map<string, string> = new Map();          // 路径 -> UUID
     private _lowerPathToUuids: Map<string, Set<string>> = new Map(); // 小写路径 -> UUID集合
-    private _nodeNames: Map<string, Map<string, number>> = new Map(); // 父节点UUID -> (节点名 -> 计数)
+    private _nodeNames: Map<string, Set<string>> = new Map(); // 父节点UUID -> 节点名集合
 
     /**
         * 清理名称中的非法字符
@@ -60,10 +62,10 @@ export class NodePathManager {
         this._nodeNames.delete(uuid);
         const parentUuid = this._getParentUuid(path);
         if (parentUuid && this._nodeNames.has(parentUuid)) {
-            const nameMap = this._nodeNames.get(parentUuid)!;
+            const nameSet = this._nodeNames.get(parentUuid)!;
             const nodeName = path ? path.split('/').pop() : undefined;
             if (nodeName) {
-                nameMap.delete(nodeName);
+                nameSet.delete(nodeName);
             }
         }
     }
@@ -118,28 +120,26 @@ export class NodePathManager {
     ensureUniqueName(parentUuid: string | undefined, baseName: string): string {
         const uuid = parentUuid || '';
         if (!this._nodeNames.has(uuid)) {
-            this._nodeNames.set(uuid, new Map());
+            this._nodeNames.set(uuid, new Set());
         }
 
-        const nameMap = this._nodeNames.get(uuid)!;
+        const nameSet = this._nodeNames.get(uuid)!;
 
-        if (!nameMap.has(baseName)) {
-            nameMap.set(baseName, 1);
+        if (!nameSet.has(baseName)) {
+            nameSet.add(baseName);
             return baseName;
         }
 
-        // 名称已存在，添加自增后缀
-        let counter = nameMap.get(baseName)! + 1;
-        let newName = `${baseName}_${counter}`;
+        // 从 _001 开始扫描，复用已删除的名称
+        let counter = 1;
+        let newName = formatUniqueName(baseName, counter);
 
-        // 确保新名称也不存在
-        while (nameMap.has(newName)) {
+        while (nameSet.has(newName)) {
             counter++;
-            newName = `${baseName}_${counter}`;
+            newName = formatUniqueName(baseName, counter);
         }
 
-        nameMap.set(baseName, counter);
-        nameMap.set(newName, 1);
+        nameSet.add(newName);
 
         return newName;
     }
@@ -200,7 +200,7 @@ export class NodePathManager {
         this._lowerPathToUuids.get(newLowerPath)!.add(uuid);
     }
 
-    getNameMap(uuid: string): Map<string, number> | null {
+    getNameSet(uuid: string): Set<string> | null {
         if (!this._nodeNames.has(uuid)) {
             return null;
         }

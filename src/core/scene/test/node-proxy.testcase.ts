@@ -371,9 +371,9 @@ describe('Node Proxy 测试', () => {
                         }
                     }
                     if (nodeType == NodeType.PAGE_VIEW) {
-                        expect(createdNode?.components?.at(0)?.path).toBe('Canvas/pageView/cc.UITransform_1');
-                        expect(createdNode?.components?.at(1)?.path).toBe('Canvas/pageView/cc.Sprite_1');
-                        expect(createdNode?.components?.at(2)?.path).toBe('Canvas/pageView/cc.PageView_1');
+                        expect(createdNode?.components?.at(0)?.path).toBe('Canvas/pageView/cc.UITransform');
+                        expect(createdNode?.components?.at(1)?.path).toBe('Canvas/pageView/cc.Sprite');
+                        expect(createdNode?.components?.at(2)?.path).toBe('Canvas/pageView/cc.PageView');
                     }
                     if (nodeType == NodeType.TERRAIN) {
                         expect(Array.isArray(createdNode?.children)).toBe(true);
@@ -474,6 +474,99 @@ describe('Node Proxy 测试', () => {
 
             // 清理
             await NodeProxy.deleteNode({ path: created!.path, keepWorldTransform: false });
+        });
+    });
+
+    describe('8. 节点命名规则测试 - 同名节点自动添加后缀', () => {
+        const createdNodes: INode[] = [];
+        const parentPath = '/';
+
+        afterAll(async () => {
+            for (const node of createdNodes.reverse()) {
+                try {
+                    await NodeProxy.deleteNode({ path: node.path, keepWorldTransform: false });
+                } catch (e) {
+                    console.log(`删除节点失败: ${node.path}, ${e}`);
+                }
+            }
+        });
+
+        it('createNode - 唯一名称不添加后缀', async () => {
+            const params: ICreateByNodeTypeParams = {
+                path: parentPath,
+                name: 'UniqueNode',
+                nodeType: NodeType.EMPTY,
+            };
+            const node = await NodeProxy.createNodeByType(params);
+            expect(node).toBeDefined();
+            expect(node!.name).toBe('UniqueNode');
+            expect(node!.path).toBe('UniqueNode');
+            createdNodes.push(node!);
+        });
+
+        it('createNode - 第二个同名节点添加_001后缀', async () => {
+            const params: ICreateByNodeTypeParams = {
+                path: parentPath,
+                name: 'DupNode',
+                nodeType: NodeType.EMPTY,
+            };
+            const node1 = await NodeProxy.createNodeByType(params);
+            expect(node1).toBeDefined();
+            expect(node1!.name).toBe('DupNode');
+            expect(node1!.path).toBe('DupNode');
+            createdNodes.push(node1!);
+
+            const node2 = await NodeProxy.createNodeByType(params);
+            expect(node2).toBeDefined();
+            expect(node2!.name).toBe('DupNode_001');
+            expect(node2!.path).toBe('DupNode_001');
+            createdNodes.push(node2!);
+        });
+
+        it('createNode - 多个同名节点依次添加_001,_002,...后缀', async () => {
+            const totalCount = 5;
+            const baseName = 'MultiDupNode';
+            for (let i = 0; i < totalCount; i++) {
+                const params: ICreateByNodeTypeParams = {
+                    path: parentPath,
+                    name: baseName,
+                    nodeType: NodeType.EMPTY,
+                };
+                const node = await NodeProxy.createNodeByType(params);
+                expect(node).toBeDefined();
+                const expectedName = i === 0 ? baseName : `${baseName}_${String(i).padStart(3, '0')}`;
+                expect(node!.name).toBe(expectedName);
+                expect(node!.path).toBe(expectedName);
+                createdNodes.push(node!);
+            }
+        });
+
+        it('createNode - 删除中间节点后新增应复用已删除的名称', async () => {
+            const baseName = 'GapNode';
+
+            // 添加3个同名节点: GapNode, GapNode_001, GapNode_002
+            const node0 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node1 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node2 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            expect(node0!.path).toBe(baseName);
+            expect(node1!.path).toBe(`${baseName}_001`);
+            expect(node2!.path).toBe(`${baseName}_002`);
+
+            // 删除 _001
+            const deleteResult = await NodeProxy.deleteNode({ path: node1!.path, keepWorldTransform: false });
+            expect(deleteResult).toBeDefined();
+
+            // 再添加2个，第一个应复用 _001，第二个为 _003
+            const node3 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node4 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            expect(node3!.path).toBe(`${baseName}_001`);
+            expect(node4!.path).toBe(`${baseName}_003`);
+
+            // 清理
+            await NodeProxy.deleteNode({ path: node4!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node3!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node2!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node0!.path, keepWorldTransform: false });
         });
     });
 });

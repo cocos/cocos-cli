@@ -76,7 +76,7 @@ describe('Component Proxy 测试', () => {
             try {
                 componentInfo = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = componentInfo.path;
-                expect(componentInfo.path).toBe(`${nodePath}/cc.Label_1`);
+                expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
                 // 删除当前添加的节点，方便后续测试
                 const removeComponentInfo: IRemoveComponentOptions = {
                     path: componentPath
@@ -97,7 +97,7 @@ describe('Component Proxy 测试', () => {
             try {
                 componentInfo = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = componentInfo.path;
-                expect(componentInfo.path).toBe(`${nodePath}/cc.Label_1`);
+                expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
                 // 删除当前添加的节点，方便后续测试
                 const removeComponentInfo: IRemoveComponentOptions = {
                     path: componentPath
@@ -118,7 +118,7 @@ describe('Component Proxy 测试', () => {
             try {
                 componentInfo = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = componentInfo.path;
-                expect(componentInfo.path).toBe(`${nodePath}/cc.Label_1`);
+                expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
 
                 // 删除当前添加的节点，方便后续测试
                 const removeComponentInfo: IRemoveComponentOptions = {
@@ -140,7 +140,7 @@ describe('Component Proxy 测试', () => {
             try {
                 componentInfo = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = componentInfo.path;
-                expect(componentInfo.path).toBe(`${nodePath}/cc.Label_1`);
+                expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
 
                 // 这里不需要删除，配合后续测试
             } catch (e) {
@@ -193,7 +193,7 @@ describe('Component Proxy 测试', () => {
         });
         it('queryComponent - 查询组件-根据模糊的匹配-Label', async () => {
             const queryComponent: IQueryComponentOptions = {
-                path: nodePath + '/Label_1'
+                path: nodePath + '/Label'
             };
             try {
                 componentInfo = await ComponentProxy.queryComponent(queryComponent) as IComponent;
@@ -214,7 +214,7 @@ describe('Component Proxy 测试', () => {
         });
         it('queryComponent - 查询组件-根据模糊的匹配-cc.label', async () => {
             const queryComponent: IQueryComponentOptions = {
-                path: nodePath + '/cc.label_1'
+                path: nodePath + '/cc.label'
             };
             try {
                 componentInfo = await ComponentProxy.queryComponent(queryComponent) as IComponent;
@@ -235,7 +235,7 @@ describe('Component Proxy 测试', () => {
         });
         it('queryComponent - 查询组件-根据模糊的匹配-Label', async () => {
             const queryComponent: IQueryComponentOptions = {
-                path: nodePath + '/Label_1'
+                path: nodePath + '/Label'
             };
             try {
                 componentInfo = await ComponentProxy.queryComponent(queryComponent) as IComponent;
@@ -256,7 +256,7 @@ describe('Component Proxy 测试', () => {
         });
         it('queryComponent - 查询组件-根据模糊的匹配-label', async () => {
             const queryComponent: IQueryComponentOptions = {
-                path: nodePath + '/label_1'
+                path: nodePath + '/label'
             };
             try {
                 componentInfo = await ComponentProxy.queryComponent(queryComponent) as IComponent;
@@ -320,7 +320,7 @@ describe('Component Proxy 测试', () => {
         });
         it('queryComponent - 查询不存在组件', async () => {
             const queryComponent: IQueryComponentOptions = {
-                path: nodePath + '/cc.Button_1'
+                path: nodePath + '/cc.Button'
             };
             try {
                 await ComponentProxy.queryComponent(queryComponent) as IComponent;
@@ -365,19 +365,19 @@ describe('Component Proxy 测试', () => {
 
                 const cameraComponentInfo = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = cameraComponentInfo.path;
-                expect(cameraComponentInfo.path).toBe(`${addComponentInfo.nodePathOrUuid}/cc.Label_1`);
+                expect(cameraComponentInfo.path).toBe(`${addComponentInfo.nodePathOrUuid}/cc.Label`);
 
                 const queryComponent: IQueryComponentOptions = {
-                    path: nodePath + '/cc.label_1'
+                    path: nodePath + '/cc.label'
                 };
                 await ComponentProxy.queryComponent(queryComponent) as IComponent;
 
             } catch (e) {
-                expect(e instanceof Error ? e.message : String(e)).toBe(`This path contains multiple component paths(TestNode/New Node/cc.Label_1,TestNode/new node/cc.Label_1). Please specify which one to use.`);
+                expect(e instanceof Error ? e.message : String(e)).toBe(`This path contains multiple component paths(TestNode/New Node/cc.Label,TestNode/new node/cc.Label). Please specify which one to use.`);
                 console.log((e as Error).message);
                 // 删除当前添加的节点，方便后续测试
                 const removeComponentInfo: IRemoveComponentOptions = {
-                    path: `${newNodePath}/cc.Label_1`
+                    path: `${newNodePath}/cc.Label`
                 };
                 const result = await ComponentProxy.removeComponent(removeComponentInfo);
                 expect(result).toBe(true);
@@ -454,7 +454,7 @@ describe('Component Proxy 测试', () => {
                     };
 
                     const component = await ComponentProxy.addComponent(componentInfo);
-                    expect(component.path).toBe(`${nodePath}/${componentName}_1`);
+                    expect(component.path).toBe(`${nodePath}/${componentName}`);
                     components.push(component);
                     const queryComponentInfo = await ComponentProxy.queryComponent({ path: component.path }) as IComponent;
                     if (queryComponentInfo!.cid) {
@@ -496,7 +496,7 @@ describe('Component Proxy 测试', () => {
                         component: testComponent
                     };
                     const component = await ComponentProxy.addComponent(componentInfo1);
-                    expect(component.path).toBe(`${nodePath}/${testComponent}_${i + 1}`);
+                    expect(component.path).toBe(`${nodePath}/${testComponent}${i === 0 ? '' : '_' + String(i).padStart(3, '0')}`);
                     components.push(component);
                     const queryComponentInfo = await ComponentProxy.queryComponent({ path: component.path }) as IComponent;
                     if (queryComponentInfo!.cid) {
@@ -527,7 +527,7 @@ describe('Component Proxy 测试', () => {
             try {
                 const component = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = component.path;
-                expect(component.path).toBe(`${nodePath}/cc.Label_1`);
+                expect(component.path).toBe(`${nodePath}/cc.Label`);
                 componentInfo = await ComponentProxy.queryComponent({ path: componentPath }) as IComponent;
                 expect(componentInfo).toBeDefined();
                 queryComponent.path = componentPath;
@@ -658,7 +658,7 @@ describe('Component Proxy 测试', () => {
             try {
                 const component = await ComponentProxy.addComponent(addComponentInfo);
                 componentPath = component.path;
-                expect(component.path).toBe(`${nodePath}/cc.Sprite_1`);
+                expect(component.path).toBe(`${nodePath}/cc.Sprite`);
                 componentInfo = await ComponentProxy.queryComponent({ path: componentPath }) as IComponent;
                 expect(componentInfo).toBeDefined();
                 queryComponent.path = componentPath;
@@ -815,7 +815,7 @@ describe('Component Proxy 测试', () => {
                     };
                     const component = await ComponentProxy.addComponent(componentInfo1);
                     expect(component).toBeDefined();
-                    expect(component.path).toBe(`${nodes[i].path}/cc.Layout_1`);
+                    expect(component.path).toBe(`${nodes[i].path}/cc.Layout`);
                 }
                 for (let i = 0; i < nodes.length; ++i) {
                     const componentInfo1: IAddComponentOptions = {
@@ -824,7 +824,7 @@ describe('Component Proxy 测试', () => {
                     };
                     const component = await ComponentProxy.addComponent(componentInfo1);
                     expect(component).toBeDefined();
-                    expect(component.path).toBe(`${nodes[i].path}/cc.Layout_2`);
+                    expect(component.path).toBe(`${nodes[i].path}/cc.Layout_001`);
                 }
             } catch (e) {
                 console.log(`添加多个不同的节点失败，原因：${e}`);
@@ -867,13 +867,13 @@ describe('Component Proxy 测试', () => {
             };
             let component = await ComponentProxy.addComponent(componentInfo);
             expect(component).toBeDefined();
-            expect(component.path).toBe(`${nodePath}/${testComponent}_1`);
+            expect(component.path).toBe(`${nodePath}/${testComponent}`);
             try {
                 component = await ComponentProxy.addComponent(componentInfo);
             } catch (e) {
                 // 添加接受相同组件添加的错误
                 expect(e instanceof Error ? e.message : String(e)).toBe(`Can't add component '${testComponent}' because ${nodeName} already contains the same component.`);
-                expect(component.path).toBe(`${nodePath}/${testComponent}_1`);
+                expect(component.path).toBe(`${nodePath}/${testComponent}`);
             }
             const result = await ComponentProxy.removeComponent({ path: component.path });
             expect(result).toBe(true);
@@ -887,7 +887,7 @@ describe('Component Proxy 测试', () => {
             };
             let component = await ComponentProxy.addComponent(componentInfo);
             expect(component).toBeDefined();
-            expect(component.path).toBe(`${nodePath}/${testComponent}_1`);
+            expect(component.path).toBe(`${nodePath}/${testComponent}`);
             try {
                 const componentConficts: IAddComponentOptions = {
                     nodePathOrUuid: nodePath,
@@ -897,7 +897,7 @@ describe('Component Proxy 测试', () => {
             } catch (e) {
                 // 添加异常冲突
                 expect(e instanceof Error ? e.message : String(e)).toBe(`Can't add component '${testConfictsComponent}' to ${nodeName} because it conflicts with the existing '${testComponent}' derived component.`);
-                expect(component.path).toBe(`${nodePath}/${testComponent}_1`);
+                expect(component.path).toBe(`${nodePath}/${testComponent}`);
             }
         });
     });
@@ -1020,7 +1020,7 @@ describe('Component Proxy 测试', () => {
 
         it('resetComponent - 重置不存在的组件应返回 false', async () => {
             const result = await ComponentProxy.resetComponent({
-                path: 'non-existent-path/cc.Label_1',
+                path: 'non-existent-path/cc.Label_001',
             });
             expect(result).toBe(false);
         });
@@ -1216,6 +1216,120 @@ describe('Component Proxy 测试', () => {
                 }) as IComponent;
                 expect(updated?.properties['string'].value).toBe('pink-test');
             }
+        });
+    });
+
+    describe('16. 组件命名规则测试 - 同类型组件自动添加后缀', () => {
+        let testNodePath = '';
+        beforeAll(async () => {
+            const params: ICreateByNodeTypeParams = {
+                path: 'TestNode',
+                name: 'CompNamingTestNode',
+                nodeType: NodeType.EMPTY,
+                position: { x: 0, y: 0, z: 0 },
+            };
+            const testNode = await NodeProxy.createNodeByType(params);
+            expect(testNode).toBeDefined();
+            testNodePath = testNode!.path;
+        });
+        afterAll(async () => {
+            await NodeProxy.deleteNode({ path: testNodePath, keepWorldTransform: false });
+        });
+
+        it('addComponent - 唯一组件不添加后缀', async () => {
+            const component = await ComponentProxy.addComponent({
+                nodePathOrUuid: testNodePath,
+                component: 'cc.Label',
+            });
+            expect(component).toBeDefined();
+            expect(component.path).toBe(`${testNodePath}/cc.Label`);
+
+            await ComponentProxy.removeComponent({ path: component.path });
+        });
+
+        it('addComponent - 两个不同类型组件各自不添加后缀', async () => {
+            const comp1 = await ComponentProxy.addComponent({
+                nodePathOrUuid: testNodePath,
+                component: 'cc.Label',
+            });
+            const comp2 = await ComponentProxy.addComponent({
+                nodePathOrUuid: testNodePath,
+                component: 'cc.Layout',
+            });
+            expect(comp1.path).toBe(`${testNodePath}/cc.Label`);
+            expect(comp2.path).toBe(`${testNodePath}/cc.Layout`);
+
+            await ComponentProxy.removeComponent({ path: comp2.path });
+            await ComponentProxy.removeComponent({ path: comp1.path });
+        });
+
+        it('addComponent - 第二个同类型组件添加_001后缀', async () => {
+            const comp1 = await ComponentProxy.addComponent({
+                nodePathOrUuid: testNodePath,
+                component: 'cc.Layout',
+            });
+            expect(comp1.path).toBe(`${testNodePath}/cc.Layout`);
+
+            const comp2 = await ComponentProxy.addComponent({
+                nodePathOrUuid: testNodePath,
+                component: 'cc.Layout',
+            });
+            expect(comp2.path).toBe(`${testNodePath}/cc.Layout_001`);
+
+            await ComponentProxy.removeComponent({ path: comp2.path });
+            await ComponentProxy.removeComponent({ path: comp1.path });
+        });
+
+        it('addComponent - 多个同类型组件依次添加_001,_002,...后缀', async () => {
+            const totalCount = 5;
+            const testComponent = 'cc.Layout';
+            const components: IComponentIdentifier[] = [];
+
+            for (let i = 0; i < totalCount; i++) {
+                const comp = await ComponentProxy.addComponent({
+                    nodePathOrUuid: testNodePath,
+                    component: testComponent,
+                });
+                expect(comp).toBeDefined();
+                if (i === 0) {
+                    expect(comp.path).toBe(`${testNodePath}/${testComponent}`);
+                } else {
+                    expect(comp.path).toBe(`${testNodePath}/${testComponent}_${String(i).padStart(3, '0')}`);
+                }
+                components.push(comp);
+            }
+
+            for (const comp of components.reverse()) {
+                await ComponentProxy.removeComponent({ path: comp.path });
+            }
+        });
+
+        it('addComponent - 删除中间组件后新增应复用已删除的名称', async () => {
+            const testComponent = 'cc.Layout';
+
+            // 添加3个同类型组件: cc.Layout, cc.Layout_001, cc.Layout_002
+            const comp0 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp1 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp2 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            expect(comp0.path).toBe(`${testNodePath}/${testComponent}`);
+            expect(comp1.path).toBe(`${testNodePath}/${testComponent}_001`);
+            expect(comp2.path).toBe(`${testNodePath}/${testComponent}_002`);
+
+            // 删除 _001
+            const removeResult = await ComponentProxy.removeComponent({ path: comp1.path });
+            expect(removeResult).toBe(true);
+
+            // 再添加2个，第一个应复用 _001，第二个为 _003
+            const comp3 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp4 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            expect(comp3.path).toBe(`${testNodePath}/${testComponent}_001`);
+            expect(comp4.path).toBe(`${testNodePath}/${testComponent}_003`);
+
+            // 清理
+            await ComponentProxy.removeComponent({ path: comp4.path });
+            await ComponentProxy.removeComponent({ path: comp3.path });
+            await ComponentProxy.removeComponent({ path: comp2.path });
+            await ComponentProxy.removeComponent({ path: comp0.path });
         });
     });
 });

@@ -3,6 +3,7 @@
 import { EventEmitter } from 'events';
 import pathManager from './node-path-manager';
 import { rsort } from 'semver';
+import { formatUniqueName } from './path-utils';
 
 interface MenuItem {
     component: Function,
@@ -134,9 +135,15 @@ export default class ComponentManager extends EventEmitter {
 
     _generateUniquePath(component: any) {
         const className = cc.js.getClassName(component);
-        const nodeComponents = component.node.getComponents(className);
         const nodePath = pathManager.getNodePath(component.node.uuid);
-        return `${nodePath}/${className}_${nodeComponents.length}`;
+        // 从基础名称开始扫描，复用已删除的名称
+        let count = 0;
+        let path = `${nodePath}/${formatUniqueName(className, count)}`;
+        while (this._pathToUuid.has(path)) {
+            count++;
+            path = `${nodePath}/${formatUniqueName(className, count)}`;
+        }
+        return path;
     }
 
     /**
@@ -209,12 +216,6 @@ export default class ComponentManager extends EventEmitter {
         return { code: 0, errMsg: '', uuid: uuid };
     }
 
-    _tryAddUnderscore(componentName: string, componentPath: string): { code: number, errMsg: string, uuid: string } {
-        // 尝试添加 _1, 只支持这个
-        const newFullPath = componentPath + '/' + componentName + '_1';
-        return this._getUuidFromLowercasePath(newFullPath);
-    }
-
     getComponentFromPath(path: string) {
         const uuid = this._pathToUuid.get(path);
         if (uuid) {
@@ -232,46 +233,17 @@ export default class ComponentManager extends EventEmitter {
             const componentName = path.substring(index + 1).toLowerCase();
             const componentPath = path.substring(0, index).toLowerCase();
             if (componentName.startsWith('cc.')) {
-                // 尝试添加_1  a/b/c/cc.xxx_1 => a/b/c/cc.xxx_1
-                if (componentName.lastIndexOf('_') !== -1) {
-                    throw `No component found for this path(${path}).`;
-                }
-                result = this._tryAddUnderscore(componentName, componentPath);
-                if (result.code !== 0) {
-                    if (result.code === -1) {
-                        console.warn(result.errMsg);  // 这是修改后路径打印的日志
-                        throw `No component found for this path(${path}).`; // 这是输出返回提示的日志
-                    } else {
-                        throw result.errMsg;
-                    }
-                    
-                }
-                return this.getComponent(result.uuid);
+                throw `No component found for this path(${path}).`;
             }
-            // 添加'cc.',  a/b/c/xxx_1 => a/b/c/cc.xxx_1
+            // 添加'cc.',  a/b/c/xxx => a/b/c/cc.xxx
             const newFullPath = componentPath + '/cc.' + componentName;
             result = this._getUuidFromLowercasePath(newFullPath);
             if (result.code === 0) {
                 return this.getComponent(result.uuid);
             } else if (result.code === -2) {
-                // 这是已经找到路径，但是有多条
                 throw result.errMsg;
-            } else if (result.code === -1) {
-                // 添加'cc.',  a/b/c/xxx => a/b/c/cc.xxx_1
-                if (componentName.lastIndexOf('_') !== -1) {
-                    throw `No component found for this path(${path}).`;
-                }
-                result = this._tryAddUnderscore('cc.' + componentName, componentPath);
-                if (result.code !== 0) {
-                    if (result.code === -1) {
-                        console.warn(result.errMsg);  // 这是修改后路径打印的日志
-                        throw `No component found for this path(${path}).`; // 这是输出返回提示的日志
-                    } else {
-                        throw result.errMsg;
-                    }
-                }
-                return this.getComponent(result.uuid);
             }
+            throw `No component found for this path(${path}).`;
         }
     }
 
