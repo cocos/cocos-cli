@@ -395,7 +395,7 @@ describe('Component Proxy 测试', () => {
 
                 const cameraComponentInfo = await ComponentProxy.add(addComponentInfo);
                 componentPath = cameraComponentInfo.path;
-                expect(cameraComponentInfo.path).toBe(`${addComponentInfo.nodePathOrUuid}/cc.Label`);
+                expect(cameraComponentInfo.path).toBe(`${addComponentInfo.nodePath}/cc.Label`);
 
                 const queryComponent: IQueryComponentOptions = {
                     path: nodePath + '/cc.label'
@@ -1273,66 +1273,66 @@ describe('Component Proxy 测试', () => {
                 nodeType: NodeType.EMPTY,
                 position: { x: 0, y: 0, z: 0 },
             };
-            const testNode = await NodeProxy.createNodeByType(params);
+            const testNode = await NodeProxy.createByType(params);
             expect(testNode).toBeDefined();
             testNodePath = testNode!.path;
         });
         afterAll(async () => {
-            await NodeProxy.deleteNode({ path: testNodePath, keepWorldTransform: false });
+            await NodeProxy.delete({ path: testNodePath, keepWorldTransform: false });
         });
 
-        it('addComponent - 唯一组件不添加后缀', async () => {
-            const component = await ComponentProxy.addComponent({
-                nodePathOrUuid: testNodePath,
+        it('add - 唯一组件不添加后缀', async () => {
+            const component = await ComponentProxy.add({
+                nodePath: testNodePath,
                 component: 'cc.Label',
             });
             expect(component).toBeDefined();
             expect(component.path).toBe(`${testNodePath}/cc.Label`);
 
-            await ComponentProxy.removeComponent({ path: component.path });
+            await ComponentProxy.remove({ path: component.path });
         });
 
-        it('addComponent - 两个不同类型组件各自不添加后缀', async () => {
-            const comp1 = await ComponentProxy.addComponent({
-                nodePathOrUuid: testNodePath,
+        it('add - 两个不同类型组件各自不添加后缀', async () => {
+            const comp1 = await ComponentProxy.add({
+                nodePath: testNodePath,
                 component: 'cc.Label',
             });
-            const comp2 = await ComponentProxy.addComponent({
-                nodePathOrUuid: testNodePath,
+            const comp2 = await ComponentProxy.add({
+                nodePath: testNodePath,
                 component: 'cc.Layout',
             });
             expect(comp1.path).toBe(`${testNodePath}/cc.Label`);
             expect(comp2.path).toBe(`${testNodePath}/cc.Layout`);
 
-            await ComponentProxy.removeComponent({ path: comp2.path });
-            await ComponentProxy.removeComponent({ path: comp1.path });
+            await ComponentProxy.remove({ path: comp2.path });
+            await ComponentProxy.remove({ path: comp1.path });
         });
 
-        it('addComponent - 第二个同类型组件添加_001后缀', async () => {
-            const comp1 = await ComponentProxy.addComponent({
-                nodePathOrUuid: testNodePath,
+        it('add - 第二个同类型组件添加_001后缀', async () => {
+            const comp1 = await ComponentProxy.add({
+                nodePath: testNodePath,
                 component: 'cc.Layout',
             });
             expect(comp1.path).toBe(`${testNodePath}/cc.Layout`);
 
-            const comp2 = await ComponentProxy.addComponent({
-                nodePathOrUuid: testNodePath,
+            const comp2 = await ComponentProxy.add({
+                nodePath: testNodePath,
                 component: 'cc.Layout',
             });
             expect(comp2.path).toBe(`${testNodePath}/cc.Layout_001`);
 
-            await ComponentProxy.removeComponent({ path: comp2.path });
-            await ComponentProxy.removeComponent({ path: comp1.path });
+            await ComponentProxy.remove({ path: comp2.path });
+            await ComponentProxy.remove({ path: comp1.path });
         });
 
-        it('addComponent - 多个同类型组件依次添加_001,_002,...后缀', async () => {
+        it('add - 多个同类型组件依次添加_001,_002,...后缀', async () => {
             const totalCount = 5;
             const testComponent = 'cc.Layout';
             const components: IComponentIdentifier[] = [];
 
             for (let i = 0; i < totalCount; i++) {
-                const comp = await ComponentProxy.addComponent({
-                    nodePathOrUuid: testNodePath,
+                const comp = await ComponentProxy.add({
+                    nodePath: testNodePath,
                     component: testComponent,
                 });
                 expect(comp).toBeDefined();
@@ -1345,36 +1345,36 @@ describe('Component Proxy 测试', () => {
             }
 
             for (const comp of components.reverse()) {
-                await ComponentProxy.removeComponent({ path: comp.path });
+                await ComponentProxy.remove({ path: comp.path });
             }
         });
 
-        it('addComponent - 删除中间组件后新增应复用已删除的名称', async () => {
+        it('add - 删除中间组件后新增应复用已删除的名称', async () => {
             const testComponent = 'cc.Layout';
 
             // 添加3个同类型组件: cc.Layout, cc.Layout_001, cc.Layout_002
-            const comp0 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
-            const comp1 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
-            const comp2 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp0 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
+            const comp1 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
+            const comp2 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
             expect(comp0.path).toBe(`${testNodePath}/${testComponent}`);
             expect(comp1.path).toBe(`${testNodePath}/${testComponent}_001`);
             expect(comp2.path).toBe(`${testNodePath}/${testComponent}_002`);
 
             // 删除 _001
-            const removeResult = await ComponentProxy.removeComponent({ path: comp1.path });
+            const removeResult = await ComponentProxy.remove({ path: comp1.path });
             expect(removeResult).toBe(true);
 
             // 再添加2个，第一个应复用 _001，第二个为 _003
-            const comp3 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
-            const comp4 = await ComponentProxy.addComponent({ nodePathOrUuid: testNodePath, component: testComponent });
+            const comp3 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
+            const comp4 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
             expect(comp3.path).toBe(`${testNodePath}/${testComponent}_001`);
             expect(comp4.path).toBe(`${testNodePath}/${testComponent}_003`);
 
             // 清理
-            await ComponentProxy.removeComponent({ path: comp4.path });
-            await ComponentProxy.removeComponent({ path: comp3.path });
-            await ComponentProxy.removeComponent({ path: comp2.path });
-            await ComponentProxy.removeComponent({ path: comp0.path });
+            await ComponentProxy.remove({ path: comp4.path });
+            await ComponentProxy.remove({ path: comp3.path });
+            await ComponentProxy.remove({ path: comp2.path });
+            await ComponentProxy.remove({ path: comp0.path });
         });
     });
 });
