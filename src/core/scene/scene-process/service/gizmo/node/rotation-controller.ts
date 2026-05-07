@@ -11,6 +11,7 @@ import {
     updatePositions,
     create3DNode,
     setMeshColor,
+    getRaycastResultsByNodes,
 } from '../utils/engine-utils';
 import { Node, Quat, Vec3, Color, MeshRenderer, Vec2, Mat4 } from 'cc';
 
@@ -283,8 +284,29 @@ class RotationController extends ControllerBase {
         return false;
     }
 
+    isInCutoffBack(axisName: string, x: number, y: number) {
+        const hitAxisNode = this._handleDataMap[axisName]?.normalTorusNode;
+        if (!hitAxisNode || !this._cutoffNode) return false;
+        let results = getRaycastResultsByNodes([this._cutoffNode], x, y);
+        if (results.length > 0) {
+            const cutOffDist = results[0].distance;
+            results = getRaycastResultsByNodes([hitAxisNode], x, y);
+            if (results.length > 0) {
+                const axisDist = results[0].distance;
+                if (axisDist > cutOffDist) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     onMouseDown(event: GizmoMouseEvent) {
         event.propagationStopped = true;
+        if (!(this.transformToolData?.is2D ?? false) && this.isInCutoffBack(event.handleName, event.x, event.y)) {
+            this._isMouseDown = false;
+            return;
+        }
 
         this._mouseDownRot = Quat.clone(this.getRotation());
         this._mouseDeltaPos = new Vec2(0, 0);
@@ -430,6 +452,9 @@ class RotationController extends ControllerBase {
     }
 
     onHoverIn(event: GizmoMouseEvent) {
+        if (!(this.transformToolData?.is2D ?? false) && this.isInCutoffBack(event.handleName, event.x, event.y)) {
+            return;
+        }
         this.setHandleColor(event.handleName, Color.YELLOW);
 
         Object.keys(this._handleDataMap).forEach((key) => {
