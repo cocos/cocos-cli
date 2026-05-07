@@ -80,12 +80,26 @@ class TransformGizmo extends GizmoBase<Component> {
         this._gizmo.show();
     }
 
-    private _eventMap: { [key: string]: () => void } = {
-        toolNameChanged: () => {
-            const toolName = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
-            this.changeTool(toolName as TransformToolDataToolNameType);
-        },
-    };
+    private _eventMap: { [key: string]: () => void } = {};
+
+    private _initEventMap() {
+        if ('toolNameChanged' in this._eventMap) return;
+        this._eventMap.toolNameChanged = () => {
+            const tn = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
+            this.changeTool(tn as TransformToolDataToolNameType);
+        };
+        this._eventMap.viewModeChanged = () => {
+            repaintEngine();
+        };
+        this._eventMap.pivotChanged = () => {
+            (this._gizmo as any).updateControllerTransform?.();
+            repaintEngine();
+        };
+        this._eventMap.coordinateChanged = () => {
+            (this._gizmo as any).updateControllerTransform?.();
+            repaintEngine();
+        };
+    }
 
     init() {
         (this._gizmo as any).init?.();
@@ -102,34 +116,28 @@ class TransformGizmo extends GizmoBase<Component> {
     }
 
     onShow() {
+        if (super.onShow) {
+            super.onShow();
+        }
+
+        this._initEventMap();
+
         const svc = getService();
         const toolName = svc?.Gizmo?.transformToolData?.toolName ?? 'position';
         this.changeTool(toolName as TransformToolDataToolNameType);
 
-        this._eventMap.toolNameChanged = () => {
-            const tn = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
-            this.changeTool(tn as TransformToolDataToolNameType);
-        };
-
-        this._eventMap.viewModeChanged = () => {
-            repaintEngine();
-        };
-        this._eventMap.pivotChanged = () => {
-            (this._gizmo as any).updateControllerTransform?.();
-            repaintEngine();
-        };
-        this._eventMap.coordinateChanged = () => {
-            (this._gizmo as any).updateControllerTransform?.();
-            repaintEngine();
-        };
-
         const ttd = svc?.Gizmo?.transformToolData;
+        // 先移除旧监听，防止重复 onShow 导致监听器累积
+        ttd?.removeListener?.('tool-name-changed', this._eventMap.toolNameChanged);
+        ttd?.removeListener?.('view-mode-changed', this._eventMap.viewModeChanged);
+        ttd?.removeListener?.('pivot-changed', this._eventMap.pivotChanged);
+        ttd?.removeListener?.('coordinate-changed', this._eventMap.coordinateChanged);
+
         ttd?.addListener?.('tool-name-changed', this._eventMap.toolNameChanged);
         ttd?.addListener?.('view-mode-changed', this._eventMap.viewModeChanged);
         ttd?.addListener?.('pivot-changed', this._eventMap.pivotChanged);
         ttd?.addListener?.('coordinate-changed', this._eventMap.coordinateChanged);
 
-        // 直接调用 onShow
         this._gizmo.onShow?.();
     }
 
