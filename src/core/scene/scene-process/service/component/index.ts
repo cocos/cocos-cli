@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import dumpUtil from '../dump';
 const { get } = require('lodash');
 
@@ -5,18 +6,9 @@ const CompMgr = EditorExtends.Component;
 import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
-import { IComponentIdentifier, type IComponentEvents } from '../../../common';
-import { ServiceEvents } from '../core/global-events';
+import { IComponentIdentifier } from '../../../common';
 
-export class CompManager {
-    protected _recycleComponent: Record<string, Component> = {};
-
-    emit<K extends keyof IComponentEvents>(event: K, ...args: IComponentEvents[K]): void;
-    emit(event: string, ...args: any[]): void;
-    emit(event: string, ...args: any[]) {
-        ServiceEvents.emit(event, ...args);
-    }
-
+export class CompManager extends EventEmitter {
     init() {
         this.registerCompMgrEvents();
     }
@@ -57,7 +49,7 @@ export class CompManager {
      * @param {cc.Component} component
      */
     add(uuid: string, component: Component) {
-        this.emit('component:added', component);
+        this.emit('added', component);
     }
 
     /**
@@ -66,7 +58,7 @@ export class CompManager {
      * @param {cc.Component} component
      */
     remove(uuid: string, component: Component) {
-        this.emit('component:removed', component);
+        this.emit('removed', component);
     }
 
     /**
@@ -100,25 +92,6 @@ export class CompManager {
         return CompMgr.getPathFromUuid(uuid);
     }
 
-    addRecycleComponent(uuid: string) {
-        if (this._recycleComponent[uuid]) {
-            delete this._recycleComponent[uuid];
-        }
-    }
-
-    removeRecycleComponent(uuid: string, comp: Component) {
-        this._recycleComponent[comp.uuid] = comp;
-    }
-
-    /**
-     * 在回收站中查询一个组件的实例
-     * @param {*} uuid
-     * @returns {cc.Component}
-     */
-    queryRecycle(uuid: string): Component | null {
-        return this._recycleComponent[uuid] ?? null;
-    }
-
     /**
      * 获取所有在用的组件
      */
@@ -139,12 +112,12 @@ export class CompManager {
             return false;
         }
 
-        this.emit('component:before-remove-component', component);
+        this.emit('before-remove-component', component);
         component.node.removeComponent(component);
         // 需要立刻执行removeComponent操作，否则会延迟到下一帧
         cc.Object._deferredDestroy();
 
-        this.emit('component:remove', component);
+        this.emit('remove', component);
 
         return true;
     }
@@ -264,7 +237,7 @@ export class CompManager {
             return;
         }
 
-        this.emit('component:add', component);
+        this.emit('add', component);
 
         // 一些组件在添加的时候，需要执行部分特殊的逻辑
         if (component.constructor && (utils.addComponentMap as any)[component.constructor.name]) {

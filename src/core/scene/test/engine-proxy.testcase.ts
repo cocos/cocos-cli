@@ -30,7 +30,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            const createdNode = await NodeProxy.createByType({
+            const createdNode = await NodeProxy.createNodeByType({
                 path: '',
                 name: 'TestNode',
                 nodeType: NodeType.EMPTY,
@@ -46,7 +46,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            await NodeProxy.update({
+            await NodeProxy.updateNode({
                 path: nodePath,
                 properties: {
                     position: { x: 5, y: 5, z: 5 }
@@ -62,8 +62,8 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            const component = await ComponentProxy.add({
-                nodePath: nodePath,
+            const component = await ComponentProxy.addComponent({
+                nodePathOrUuid: nodePath,
                 component: 'cc.Label'
             });
             componentPath = component.path;
@@ -93,7 +93,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            await ComponentProxy.remove({ path: componentPath });
+            await ComponentProxy.removeComponent({ path: componentPath });
 
             await eventSceneUpdatePromise;
             await eventSceneTickedPromise;
@@ -104,7 +104,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            await NodeProxy.delete({
+            await NodeProxy.deleteNode({
                 path: nodePath,
                 keepWorldTransform: false
             });

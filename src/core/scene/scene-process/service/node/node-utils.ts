@@ -94,33 +94,6 @@ export function hasOneKindOfComponent(node: Node | Scene, kind: any) {
     return false;
 }
 
-/**
- * 生成一个 node-001 格式的可用节点名称
- * @param name 被检查的名称
- * @param parent 父级节点
- * @returns {string} path 可用名称的文件路径
- */
-export function getNodeName(name: string, parent: Node) {
-    if (!parent || !Array.isArray(parent.children)) {
-        return name;
-    }
-
-    const names = parent.children.map((child: Node) => (child && child.name) || '');
-
-    while (names.includes(name)) {
-        if (/(\d+)$/.test(name)) {
-            name = name.replace(/(\d+)$/, (strA: string, strB: string) => {
-                let num = parseInt(strB, 10);
-                num += 1;
-                return num.toString().padStart(strB.length, '0');
-            });
-        } else {
-            name += '-001';
-        }
-    }
-
-    return name;
-}
 
 /**
  * 设置节点层级
