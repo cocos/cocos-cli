@@ -48,14 +48,6 @@ export interface ITargetOverrideInfo {
     targetInfo: ITargetInfo | null;
 }
 
-export interface ITargetOverrideInfoForEditor {
-    source: string;
-    sourceInfo?: string[];
-    propertyPath: string[];
-    target: string;
-    targetInfo?: string[];
-}
-
 export interface IPrefab {
     name: string;
     uuid: string;

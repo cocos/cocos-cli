@@ -35,7 +35,7 @@ describe('EditorProxy Scene 测试', () => {
             expect(identifier).toBeTruthy();
             if (!identifier) return;
 
-            await NodeProxy.createByType({
+            await NodeProxy.createNodeByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'scene-test-node-uuid',
@@ -94,7 +94,7 @@ describe('EditorProxy Scene 测试', () => {
             await EditorProxy.open({
                 urlOrUUID: SceneTestEnv.sceneURL,
             });
-            await NodeProxy.createByType({
+            await NodeProxy.createNodeByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'scene-test-node-url',
@@ -139,7 +139,7 @@ describe('EditorProxy Scene 测试', () => {
             await EditorProxy.open({
                 urlOrUUID: SceneTestEnv.sceneURL,
             });
-            await NodeProxy.createByType({
+            await NodeProxy.createNodeByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'current-scene-test-node',
