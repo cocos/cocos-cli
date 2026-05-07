@@ -1,4 +1,4 @@
-import { Camera, Color, ISizeLike, Node, Quat, Rect, Vec3, MeshRenderer, UITransform, gfx } from 'cc';
+import { Camera, Color, ISizeLike, Node, Quat, Rect, Vec3, MeshRenderer, SpriteRenderer, UITransform, gfx } from 'cc';
 import CameraControllerBase, { EditorCameraInfo } from './camera-controller-base';
 import { CameraMoveMode, CameraUtils } from './utils';
 import FiniteStateMachine from '../utils/state-machine/finite-state-machine';
@@ -240,6 +240,12 @@ export class CameraController2D extends CameraControllerBase {
         const sceneX = grid.xDirection * grid.xAxisOffset;
         const sceneY = grid.yDirection * grid.yAxisOffset;
 
+        // 反向计算出 contentRect，与编辑器一致
+        this._contentRect.x = ((this._size.width - this._contentRect.width) / 2 - grid.xAxisOffset / grid.xDirection) / scale;
+        this._contentRect.y = ((this._size.height - this._contentRect.height) / 2 - grid.yAxisOffset / grid.yDirection) / scale;
+        this._contentRect.width = this._size.width;
+        this._contentRect.height = this._size.height;
+
         const targetPos = new Vec3(
             this._size.width / 2 / scale - sceneX / scale,
             this._size.height / 2 / scale - sceneY / scale,
@@ -304,6 +310,8 @@ export class CameraController2D extends CameraControllerBase {
 
                 for (const tick of ticks) {
                     if (idx + 2 > _maxTicks * _maxTicks) break;
+                    // 如果显示了中心轴，就跳过绘制网格的垂直中线
+                    if (this.originAxisY_Visible && 0 === tick) continue;
                     // 竖线：固定 x，从 bottom 到 top
                     positions.push(tick, bottom);
                     colors.push(r, g, b, alpha);
@@ -325,6 +333,8 @@ export class CameraController2D extends CameraControllerBase {
 
                 for (const tick of ticks) {
                     if (idx + 2 > _maxTicks * _maxTicks) break;
+                    // 如果显示了中心轴，就跳过绘制网格的横向中线
+                    if (this.originAxisX_Visible && 0 === tick) continue;
                     // 横线：固定 y，从 left 到 right
                     positions.push(left, tick);
                     colors.push(r, g, b, alpha);
@@ -386,6 +396,13 @@ export class CameraController2D extends CameraControllerBase {
         if (update) {
             this.updateOriginAxis();
         }
+
+        try {
+            const { Service } = require('../core/decorator');
+            Service.Engine?.repaintInEditMode?.();
+        } catch (e) {
+            // Engine may not be ready
+        }
     }
 
     updateOriginAxis() {
@@ -424,6 +441,13 @@ export class CameraController2D extends CameraControllerBase {
             CameraUtils.updateVBAttr(this._originAxisHorizontalMeshComp, gfx.AttributeName.ATTR_COLOR, colors);
             CameraUtils.updateIB(this._originAxisHorizontalMeshComp, indices);
         }
+
+        try {
+            const { Service } = require('../core/decorator');
+            Service.Engine?.repaintInEditMode?.();
+        } catch (e) {
+            // Engine may not be ready
+        }
     }
 
     // ---------- 焦点 ----------
@@ -455,7 +479,8 @@ export class CameraController2D extends CameraControllerBase {
                     minX = Math.min(bounds.xMin, minX);
                     minY = Math.min(bounds.yMin, minY);
                 } else {
-                    const meshRenderer = node.getComponent(MeshRenderer) as MeshRenderer | null;
+                    const meshRenderer = node.getComponent(MeshRenderer) as MeshRenderer | null
+                        || node.getComponent(SpriteRenderer) as any;
                     if (meshRenderer && meshRenderer.model && meshRenderer.model.worldBounds) {
                         const b = meshRenderer.model.worldBounds;
                         minX = Math.min(minX, b.center.x - b.halfExtents.x);
@@ -489,7 +514,7 @@ export class CameraController2D extends CameraControllerBase {
         const width = this._size.width;
         const height = this._size.height;
 
-        let newScale = this.smoothScale(delta, this._scale2D);
+        let newScale = this.smoothScale(delta * this._wheelSpeed, this._scale2D);
 
         if (this._grid.hTicks) {
             newScale = clamp(newScale, this._grid.hTicks.minValueScale, this._grid.hTicks.maxValueScale);
@@ -513,13 +538,21 @@ export class CameraController2D extends CameraControllerBase {
     }
 
     onMouseDown(event: ISceneMouseEvent) {
-        // 中键或右键 → 进入平移模式
-        if (event.middleButton || event.rightButton) {
+        // 中键、右键或 view 模式下 → 进入平移模式（与编辑器一致）
+        let isViewMode = false;
+        try {
+            const { Service } = require('../core/decorator');
+            isViewMode = !!Service.Gizmo?.isViewMode;
+        } catch (e) {
+            // Gizmo not ready
+        }
+        if (event.middleButton || event.rightButton || isViewMode) {
             void this._modeFSM.issueCommand(ModeCommand.ToPan);
+            return false;
         }
 
         const currentMode = this._modeFSM.currentState as ModeBase2D;
-        currentMode.onMouseDown(event);
+        return currentMode.onMouseDown(event);
     }
 
     onMouseMove(event: ISceneMouseEvent) {
@@ -535,17 +568,18 @@ export class CameraController2D extends CameraControllerBase {
     }
 
     onMouseUp(event: ISceneMouseEvent) {
-        const currentMode = this._modeFSM.currentState as ModeBase2D;
-        currentMode.onMouseUp(event);
-
-        // 松开按键后返回空闲模式（如果不是空格保持平移）
+        // 与编辑器一致：Pan 模式下松开按键直接回 Idle（除非空格保持）
         if (this._modeFSM.currentState !== this._idleMode && !this._spaceKeyHeld) {
             void this._modeFSM.issueCommand(ModeCommand.ToIdle);
+            return false;
         }
+
+        const currentMode = this._modeFSM.currentState as ModeBase2D;
+        return currentMode.onMouseUp(event);
     }
 
     onMouseWheel(event: ISceneMouseEvent) {
-        const delta = event.wheelDeltaY || event.deltaY;
+        const delta = event.wheelDeltaY * this._wheelBaseScale;
         this.scale(delta, event.x, event.y);
 
         try {
