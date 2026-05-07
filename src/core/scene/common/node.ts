@@ -2,7 +2,7 @@ import type { Node } from 'cc';
 import { IComponent, IComponentIdentifier, IRemovedComponentInfo, ISetPropertyOptionsForEditor } from './component';
 import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
-import { IPrefabInfo, IPrefabStateInfo } from './prefab';
+import { IPrefabInfo, IPrefabStateInfo, ITargetOverrideInfoForEditor } from './prefab';
 import type { IProperty } from '../@types/public';
 import type { ISceneForEditor } from './editor/scene';
 // ====== Hierarchy tree types (for queryNodeTree) ======
@@ -138,6 +138,16 @@ export interface INode extends INodeIdentifier {
     prefab: IPrefabInfo | null;// 是否是预制体
 }
 
+export interface IPrefabForEditor {
+    uuid: string;
+    fileId: string;
+    rootUuid: string;
+    sync: boolean;
+    prefabStateInfo: IPrefabStateInfo;
+    targetOverrides?: ITargetOverrideInfoForEditor[];
+    instance?: IProperty;
+}
+
 export interface INodeForEditor {
     active: IProperty;
     locked: IProperty;
@@ -156,12 +166,12 @@ export interface INodeForEditor {
     layer: IProperty;
     uuid: IProperty;
 
-    children: any[];
-    parent: any;
+    children: IProperty[];
+    parent: IProperty;
 
     __comps__: IProperty[];
     __type__: string;
-    __prefab__?: any;
+    __prefab__?: IPrefabForEditor;
     _prefabInstance?: any;
     removedComponents?: IRemovedComponentInfo[];
     mountedRoot?: string;

@@ -120,7 +120,7 @@ export function encodeNode(node: Node): INodeForEditor {
                     node,
                 );
             })
-            .filter(Boolean),
+            .filter((v): v is IProperty => !!v),
 
         __type__: dumpUtil.getTypeName(ctor),
         __comps__: node['_components'].map((comp: any) => {
@@ -135,17 +135,17 @@ export function encodeNode(node: Node): INodeForEditor {
         data.__prefab__ = {
             uuid: (node['_prefab'].asset && node['_prefab'].asset._uuid) || '',
             fileId: node['_prefab'].fileId,
-            rootUuid: node['_prefab'].root && node['_prefab'].root.uuid,
+            rootUuid: (node['_prefab'].root && node['_prefab'].root.uuid) || '',
             sync: true,
             prefabStateInfo,
         };
 
         if (node['_prefab'].targetOverrides) {
-            data.__prefab__.targetOverrides = encodeTargetOverrides(node['_prefab'].targetOverrides);
+            data.__prefab__!.targetOverrides = encodeTargetOverrides(node['_prefab'].targetOverrides) ?? undefined;
         }
 
         if (node['_prefab'].instance) {
-            data.__prefab__.instance = encodeObject(node['_prefab'].instance, { default: null }, node);
+            data.__prefab__!.instance = encodeObject(node['_prefab'].instance, { default: null }, node);
         }
 
         const removedComponents = prefabUtils.getRemovedComponents(node);
@@ -185,7 +185,7 @@ export function encodeScene(scene: any): ISceneForEditor {
                     ctor: cc.Node,
                 });
             })
-            .filter(Boolean),
+            .filter((v: any): v is IProperty => !!v),
         parent: '',
         __type__: dumpUtil.getTypeName(ctor),
         _globals: {},
@@ -201,7 +201,7 @@ export function encodeScene(scene: any): ISceneForEditor {
     }
 
     if (scene['_prefab']?.targetOverrides) {
-        data.targetOverrides = encodeTargetOverrides(scene['_prefab'].targetOverrides);
+        data.targetOverrides = encodeTargetOverrides(scene['_prefab'].targetOverrides) ?? undefined;
     }
 
     return data;

@@ -1274,7 +1274,7 @@ export class NodeManager {
             const fileId2Uuid = collectChildrenUuid(prefabParent); // 对应新数据上的 uuid
 
             const dump = dumpUtil.dumpNode(newNode) as INodeForEditor;
-            const fileId = dump.__prefab__.fileId;
+            const fileId = dump.__prefab__!.fileId;
             // 现有 prefab 节点
             const prefab = prefabParent ? query(fileId2Uuid[fileId]) : prefabRoot;
 
