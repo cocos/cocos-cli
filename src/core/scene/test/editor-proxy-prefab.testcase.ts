@@ -41,7 +41,7 @@ describe('EditorProxy Prefab 测试', () => {
         it('save - 通过 UUID 保存预制体', async () => {
             expect(identifier).toBeTruthy();
 
-            await NodeProxy.createByType({
+            await NodeProxy.createNodeByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'prefab-test-node-uuid',
@@ -109,7 +109,7 @@ describe('EditorProxy Prefab 测试', () => {
         it('save - 通过 URL 保存预制体', async () => {
             expect(instanceAssetURL).toBeTruthy();
 
-            await NodeProxy.createByType({
+            await NodeProxy.createNodeByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'prefab-test-node-url',
@@ -164,7 +164,7 @@ describe('EditorProxy Prefab 测试', () => {
                 urlOrUUID: SceneTestEnv.prefabURL,
             });
 
-            const node = await NodeProxy.createByType({
+            const node = await NodeProxy.createNodeByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'current-prefab-test-node',
@@ -172,8 +172,8 @@ describe('EditorProxy Prefab 测试', () => {
 
             expect(node).not.toBeNull();
 
-            const label = await ComponentProxy.add({
-                nodePath: node?.path as string,
+            const label = await ComponentProxy.addComponent({
+                nodePathOrUuid: node?.path as string,
                 component: 'cc.Label'
             });
             await ComponentProxy.setProperty({

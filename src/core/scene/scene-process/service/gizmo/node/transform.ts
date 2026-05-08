@@ -102,6 +102,10 @@ class TransformGizmo extends GizmoBase<Component> {
     }
 
     onShow() {
+        if (super.onShow) {
+            super.onShow();
+        }
+
         const svc = getService();
         const toolName = svc?.Gizmo?.transformToolData?.toolName ?? 'position';
         this.changeTool(toolName as TransformToolDataToolNameType);
@@ -134,6 +138,10 @@ class TransformGizmo extends GizmoBase<Component> {
     }
 
     onHide() {
+        if (super.onHide) {
+            super.onHide();
+        }
+
         const svc = getService();
         const ttd = svc?.Gizmo?.transformToolData;
         ttd?.removeListener?.('tool-name-changed', this._eventMap.toolNameChanged);
@@ -162,6 +170,13 @@ class TransformGizmo extends GizmoBase<Component> {
 
     public onKeyUp(event: any) {
         return this._gizmo.onKeyUp?.(event);
+    }
+
+    public onVertexSnapMove(event: any) {
+        if ((this._gizmo as any).onVertexSnapMove) {
+            return (this._gizmo as any).onVertexSnapMove(event);
+        }
+        return;
     }
 
     public onCameraControlModeChanged(mode: number): void {

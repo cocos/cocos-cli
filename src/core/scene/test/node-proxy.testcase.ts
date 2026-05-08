@@ -6,10 +6,8 @@ import {
     type IQueryNodeTreeParams,
     type IUpdateNodeParams,
     type INode,
-    type INodeForEditor,
     NodeType,
 } from '../common';
-import { type ISceneForEditor } from '../common/editor/scene';
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { SceneTestEnv } from './scene-test-env';
@@ -33,7 +31,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('1. 基础节点操作', () => {
-        it('createByType - 创建多级父节点的节点', async () => {
+        it('createNode - 创建多级父节点的节点', async () => {
             const multiParentPath = 'Canvas/TestNode/TestNode2/TestNode3';
             const params: ICreateByNodeTypeParams = {
                 path: multiParentPath,
@@ -42,14 +40,14 @@ describe('Node Proxy 测试', () => {
                 position: testPosition
             };
 
-            createdNode = await NodeProxy.createByType(params);
+            createdNode = await NodeProxy.createNodeByType(params);
             expect(createdNode).toBeDefined();
             expect(createdNode?.name).toBe('TestNode');
             expect(createdNode?.path).toBe(multiParentPath + '/TestNode');
         });
 
 
-        it('createByAsset - 创建带预制体的节点', async () => {
+        it('createNode - 创建带预制体的节点', async () => {
 
             const params: ICreateByAssetParams = {
                 dbURL: 'db://internal/default_prefab/ui/Label.prefab',
@@ -57,13 +55,13 @@ describe('Node Proxy 测试', () => {
                 name: 'PrefabNode',
             };
 
-            const prefabNode = await NodeProxy.createByAsset(params);
+            const prefabNode = await NodeProxy.createNodeByAsset(params);
             expect(prefabNode).toBeDefined();
             expect(prefabNode?.name).toBe('PrefabNode');
             console.log('Created prefab node path=', prefabNode?.path);
         });
 
-        it('createByType - 创建新节点', async () => {
+        it('createNode - 创建新节点', async () => {
             const params: ICreateByNodeTypeParams = {
                 path: testNodePath,
                 name: 'TestNode',
@@ -71,7 +69,7 @@ describe('Node Proxy 测试', () => {
                 position: testPosition
             };
 
-            createdNode = await NodeProxy.createByType(params);
+            createdNode = await NodeProxy.createNodeByType(params);
             expect(createdNode).toBeDefined();
             expect(createdNode?.name).toBe('TestNode');
             // 会在根节点下先创建 TestNode 再创建 Canvas/TestNode (SPRITE 节点会在 Canvas 下创建， 节点重名为 ‘TestNode’)
@@ -82,7 +80,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('2. 节点查询操作（依赖创建的节点）', () => {
-        it('query - 查询节点基本信息', async () => {
+        it('queryNode - 查询节点基本信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IQueryNodeParams = {
@@ -91,14 +89,14 @@ describe('Node Proxy 测试', () => {
                     queryComponent: true
                 };
 
-                const result = await NodeProxy.query(params) as INode | null;
+                const result = await NodeProxy.queryNode(params);
                 expect(result).toBeDefined();
                 expect(result?.path).toBe('TestNode/Canvas/TestNode');
                 expect(result?.name).toBe('TestNode');
             }
         });
 
-        it('query - 查询节点及子节点信息', async () => {
+        it('queryNode - 查询节点及子节点信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IQueryNodeParams = {
@@ -107,50 +105,14 @@ describe('Node Proxy 测试', () => {
                     queryComponent: false
                 };
 
-                const result = await NodeProxy.query(params) as INode | null;
+                const result = await NodeProxy.queryNode(params);
                 expect(result).toBeDefined();
             }
         });
     });
 
-    describe('2.1 query - 编辑器模式与空参数查询', () => {
-        it('query - 传入 string 返回 INodeForEditor', async () => {
-            expect(createdNode).not.toBeNull();
-            if (createdNode) {
-                const result = await NodeProxy.query(createdNode.path) as INodeForEditor | null;
-                expect(result).not.toBeNull();
-                expect(result!.name).toBeDefined();
-                expect(result!.name.value).toBe('TestNode');
-                expect(result!.active).toBeDefined();
-                expect(result!.position).toBeDefined();
-                expect(result!.rotation).toBeDefined();
-                expect(result!.scale).toBeDefined();
-                expect(result!.layer).toBeDefined();
-                expect(result!.uuid).toBeDefined();
-                expect(result!.__comps__).toBeDefined();
-                expect(result!.__type__).toBeDefined();
-            }
-        });
-
-        it('query - 不传参数返回根节点 dump 数据', async () => {
-            const result = await NodeProxy.query();
-            expect(result).not.toBeNull();
-            // 根节点是场景，应包含 isScene 字段
-            const sceneResult = result as ISceneForEditor;
-            expect(sceneResult.isScene).toBeTruthy();
-            expect(sceneResult.__type__).toBeDefined();
-            expect(sceneResult.uuid).toBeDefined();
-            expect(Array.isArray(sceneResult.children)).toBe(true);
-        });
-
-        it('query - 传入不存在的路径返回 null', async () => {
-            const result = await NodeProxy.query('non-existent-path');
-            expect(result).toBeNull();
-        });
-    });
-
     describe('3. 节点更新操作（依赖创建的节点）', () => {
-        it('update - 更新节点位置', async () => {
+        it('updateNode - 更新节点位置', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const newPosition: IVec3 = { x: 5, y: 5, z: 5 };
@@ -162,7 +124,7 @@ describe('Node Proxy 测试', () => {
                     }
                 };
 
-                const result = await NodeProxy.update(params);
+                const result = await NodeProxy.updateNode(params);
                 expect(result).toBeDefined();
                 expect(result?.path).toBe(createdNode.path);
 
@@ -172,12 +134,12 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const updatedNode = await NodeProxy.query(queryParams) as INode | null;
+                const updatedNode = await NodeProxy.queryNode(queryParams);
                 expect(updatedNode?.properties.position).toEqual(newPosition);
             }
         });
 
-        it('update - 更新节点激活状态', async () => {
+        it('updateNode - 更新节点激活状态', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IUpdateNodeParams = {
@@ -188,7 +150,7 @@ describe('Node Proxy 测试', () => {
                     }
                 };
 
-                const result = await NodeProxy.update(params);
+                const result = await NodeProxy.updateNode(params);
                 expect(result).toBeDefined();
 
                 // 验证更新是否生效
@@ -197,12 +159,12 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const updatedNode = await NodeProxy.query(queryParams) as INode | null;
+                const updatedNode = await NodeProxy.queryNode(queryParams);
                 expect(updatedNode?.properties.active).toBe(false);
             }
         });
 
-        it('update - 更新节点旋转和缩放', async () => {
+        it('updateNode - 更新节点旋转和缩放', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const newScale: IVec3 = { x: 2, y: 2, z: 2 };
@@ -215,7 +177,7 @@ describe('Node Proxy 测试', () => {
                     }
                 };
 
-                const result = await NodeProxy.update(params);
+                const result = await NodeProxy.updateNode(params);
                 expect(result).toBeDefined();
 
                 // 验证更新是否生效
@@ -224,14 +186,14 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const updatedNode = await NodeProxy.query(queryParams) as INode | null;
+                const updatedNode = await NodeProxy.queryNode(queryParams);
                 expect(updatedNode?.properties.scale).toEqual(newScale);
             }
         });
     });
 
     describe('4. 节点删除操作（依赖创建的节点）', () => {
-        it('delete - 删除节点（不保持世界变换）', async () => {
+        it('deleteNode - 删除节点（不保持世界变换）', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const params: IDeleteNodeParams = {
@@ -239,7 +201,7 @@ describe('Node Proxy 测试', () => {
                     keepWorldTransform: false
                 };
 
-                const result = await NodeProxy.delete(params);
+                const result = await NodeProxy.deleteNode(params);
                 expect(result).toBeDefined();
                 expect(result?.path).toBe(createdNode.path);
 
@@ -249,14 +211,14 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const deletedNode = await NodeProxy.query(queryParams) as INode | null;
+                const deletedNode = await NodeProxy.queryNode(queryParams);
                 expect(deletedNode).toBeNull();
 
                 createdNode = null;
             }
         });
 
-        it('delete - 删除节点（保持世界变换）', async () => {
+        it('deleteNode - 删除节点（保持世界变换）', async () => {
             // 先创建一个新节点用于删除测试
             const createParams: ICreateByNodeTypeParams = {
                 path: 'NodeToDelete',
@@ -265,7 +227,7 @@ describe('Node Proxy 测试', () => {
                 workMode: '3d'
             };
 
-            const tempNode = await NodeProxy.createByType(createParams);
+            const tempNode = await NodeProxy.createNodeByType(createParams);
             expect(tempNode).toBeDefined();
 
             // 删除该节点
@@ -274,25 +236,25 @@ describe('Node Proxy 测试', () => {
                 keepWorldTransform: true
             };
 
-            const result = await NodeProxy.delete(deleteParams);
+            const result = await NodeProxy.deleteNode(deleteParams);
             expect(result).toBeDefined();
             expect(result?.path).toBe('NodeToDelete/NodeToDelete');
         });
     });
 
     describe('5. 边界情况测试', () => {
-        it('query - 查询不存在的节点应返回null', async () => {
+        it('queryNode - 查询不存在的节点应返回null', async () => {
             const params: IQueryNodeParams = {
                 path: '/NonExistentNode',
                 queryChildren: false,
                 queryComponent: false
             };
 
-            const result = await NodeProxy.query(params) as INode | null;
+            const result = await NodeProxy.queryNode(params);
             expect(result).toBeNull();
         });
 
-        it('update - 更新不存在的节点应抛异常', async () => {
+        it('updateNode - 更新不存在的节点应抛异常', async () => {
             const params: IUpdateNodeParams = {
                 path: '/NonExistentNode',
                 name: 'NonExistentNode',
@@ -301,16 +263,16 @@ describe('Node Proxy 测试', () => {
                 }
             };
 
-            await expect(NodeProxy.update(params)).rejects.toThrow();
+            await expect(NodeProxy.updateNode(params)).rejects.toThrow();
         });
 
-        it('delete - 删除不存在的节点应返回null', async () => {
+        it('deleteNode - 删除不存在的节点应返回null', async () => {
             const params: IDeleteNodeParams = {
                 path: '/NonExistentNode',
                 keepWorldTransform: false
             };
 
-            const result = await NodeProxy.delete(params);
+            const result = await NodeProxy.deleteNode(params);
             expect(result).toBeNull();
         });
     });
@@ -326,7 +288,7 @@ describe('Node Proxy 测试', () => {
                         keepWorldTransform: true
                     };
 
-                    const result = await NodeProxy.delete(deleteParams);
+                    const result = await NodeProxy.deleteNode(deleteParams);
                     expect(result).toBeDefined();
                     expect(result?.path).toBe(node!.path);
                 };
@@ -335,7 +297,7 @@ describe('Node Proxy 测试', () => {
                 throw e;
             }
         });
-        it('createByType - 创建所有内置节点', async () => {
+        it('createNode - 创建所有内置节点', async () => {
             const addCanvas: NodeType[] =
                 [
                     NodeType.SPRITE,
@@ -369,7 +331,7 @@ describe('Node Proxy 测试', () => {
                     continue;
                 }
                 try {
-                    createdNode = await NodeProxy.createByType(params);
+                    createdNode = await NodeProxy.createNodeByType(params);
 
                     expect(createdNode).toBeDefined();
                     allNodes.push(createdNode!);
@@ -470,7 +432,7 @@ describe('Node Proxy 测试', () => {
                 name: 'TreeTestNode',
                 nodeType: NodeType.EMPTY,
             };
-            const created = await NodeProxy.createByType(createParams);
+            const created = await NodeProxy.createNodeByType(createParams);
             expect(created).toBeDefined();
 
             const params: IQueryNodeTreeParams = { path: created!.path };
@@ -480,7 +442,7 @@ describe('Node Proxy 测试', () => {
             expect(subtree!.isScene).toBe(false);
 
             // 清理
-            await NodeProxy.delete({ path: created!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: created!.path, keepWorldTransform: false });
         });
 
         it('queryNodeTree - 查询不存在的路径应返回 null', async () => {
@@ -496,7 +458,7 @@ describe('Node Proxy 测试', () => {
                 name: 'CompTreeTestNode',
                 nodeType: NodeType.SPRITE,
             };
-            const created = await NodeProxy.createByType(createParams);
+            const created = await NodeProxy.createNodeByType(createParams);
             expect(created).toBeDefined();
 
             const tree = await NodeProxy.queryNodeTree({ path: created!.path });
@@ -511,7 +473,7 @@ describe('Node Proxy 测试', () => {
             }
 
             // 清理
-            await NodeProxy.delete({ path: created!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: created!.path, keepWorldTransform: false });
         });
     });
 
@@ -522,46 +484,46 @@ describe('Node Proxy 测试', () => {
         afterAll(async () => {
             for (const node of createdNodes.reverse()) {
                 try {
-                    await NodeProxy.delete({ path: node.path, keepWorldTransform: false });
+                    await NodeProxy.deleteNode({ path: node.path, keepWorldTransform: false });
                 } catch (e) {
                     console.log(`删除节点失败: ${node.path}, ${e}`);
                 }
             }
         });
 
-        it('createByType - 唯一名称不添加后缀', async () => {
+        it('createNode - 唯一名称不添加后缀', async () => {
             const params: ICreateByNodeTypeParams = {
                 path: parentPath,
                 name: 'UniqueNode',
                 nodeType: NodeType.EMPTY,
             };
-            const node = await NodeProxy.createByType(params);
+            const node = await NodeProxy.createNodeByType(params);
             expect(node).toBeDefined();
             expect(node!.name).toBe('UniqueNode');
             expect(node!.path).toBe('UniqueNode');
             createdNodes.push(node!);
         });
 
-        it('createByType - 第二个同名节点添加_001后缀', async () => {
+        it('createNode - 第二个同名节点添加_001后缀', async () => {
             const params: ICreateByNodeTypeParams = {
                 path: parentPath,
                 name: 'DupNode',
                 nodeType: NodeType.EMPTY,
             };
-            const node1 = await NodeProxy.createByType(params);
+            const node1 = await NodeProxy.createNodeByType(params);
             expect(node1).toBeDefined();
             expect(node1!.name).toBe('DupNode');
             expect(node1!.path).toBe('DupNode');
             createdNodes.push(node1!);
 
-            const node2 = await NodeProxy.createByType(params);
+            const node2 = await NodeProxy.createNodeByType(params);
             expect(node2).toBeDefined();
             expect(node2!.name).toBe('DupNode_001');
             expect(node2!.path).toBe('DupNode_001');
             createdNodes.push(node2!);
         });
 
-        it('createByType - 多个同名节点依次添加_001,_002,...后缀', async () => {
+        it('createNode - 多个同名节点依次添加_001,_002,...后缀', async () => {
             const totalCount = 5;
             const baseName = 'MultiDupNode';
             for (let i = 0; i < totalCount; i++) {
@@ -570,7 +532,7 @@ describe('Node Proxy 测试', () => {
                     name: baseName,
                     nodeType: NodeType.EMPTY,
                 };
-                const node = await NodeProxy.createByType(params);
+                const node = await NodeProxy.createNodeByType(params);
                 expect(node).toBeDefined();
                 const expectedName = i === 0 ? baseName : `${baseName}_${String(i).padStart(3, '0')}`;
                 expect(node!.name).toBe(expectedName);
@@ -579,32 +541,32 @@ describe('Node Proxy 测试', () => {
             }
         });
 
-        it('createByType - 删除中间节点后新增应复用已删除的名称', async () => {
+        it('createNode - 删除中间节点后新增应复用已删除的名称', async () => {
             const baseName = 'GapNode';
 
             // 添加3个同名节点: GapNode, GapNode_001, GapNode_002
-            const node0 = await NodeProxy.createByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
-            const node1 = await NodeProxy.createByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
-            const node2 = await NodeProxy.createByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node0 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node1 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node2 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
             expect(node0!.path).toBe(baseName);
             expect(node1!.path).toBe(`${baseName}_001`);
             expect(node2!.path).toBe(`${baseName}_002`);
 
             // 删除 _001
-            const deleteResult = await NodeProxy.delete({ path: node1!.path, keepWorldTransform: false });
+            const deleteResult = await NodeProxy.deleteNode({ path: node1!.path, keepWorldTransform: false });
             expect(deleteResult).toBeDefined();
 
             // 再添加2个，第一个应复用 _001，第二个为 _003
-            const node3 = await NodeProxy.createByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
-            const node4 = await NodeProxy.createByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node3 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
+            const node4 = await NodeProxy.createNodeByType({ path: parentPath, name: baseName, nodeType: NodeType.EMPTY });
             expect(node3!.path).toBe(`${baseName}_001`);
             expect(node4!.path).toBe(`${baseName}_003`);
 
             // 清理
-            await NodeProxy.delete({ path: node4!.path, keepWorldTransform: false });
-            await NodeProxy.delete({ path: node3!.path, keepWorldTransform: false });
-            await NodeProxy.delete({ path: node2!.path, keepWorldTransform: false });
-            await NodeProxy.delete({ path: node0!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node4!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node3!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node2!.path, keepWorldTransform: false });
+            await NodeProxy.deleteNode({ path: node0!.path, keepWorldTransform: false });
         });
     });
 });

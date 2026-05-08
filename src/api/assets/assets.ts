@@ -37,7 +37,9 @@ import {
     TSaveAssetResult,
     TRefreshDirResult,
     SchemaBaseName,
+    SchemaAssetNewName,
     TBaseName,
+    TAssetNewName,
     SchemaRefreshDirResult,
     SchemaCreateAssetByTypeOptions,
     TCreateAssetByTypeOptions,
@@ -563,11 +565,11 @@ export class AssetsApi {
      */
     @tool('assets-rename-asset')
     @title('Rename Asset') // 重命名资源
-    @description('Rename the specified asset file. Supports renaming files and folders, with options to overwrite or automatically rename.') // 重命名指定的资源文件。支持重命名文件和文件夹，可选择是否覆盖或自动重命名。
+    @description('Rename the specified asset in its current directory. The source can be a URL, UUID, or path. The newName parameter only changes the asset name and does not move it across directories; use moveAsset for moving. For file assets, include the extension in newName. Supports overwrite or automatic rename on conflicts.') // 在资源当前目录内重命名指定资源。source 支持 URL、UUID 或路径。newName 仅修改名称，不负责跨目录移动；如需移动请使用 moveAsset。文件资源请在 newName 中包含后缀名。支持冲突时覆盖或自动重命名。
     @result(SchemaAssetInfoResult)
     async renameAsset(
-        @param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath,
-        @param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath,
+        @param(SchemaAssetNewName) newName: TAssetNewName,
         @param(SchemaAssetRenameOptions) options: TAssetRenameOptions = {}
     ): Promise<CommonResultType<TAssetInfoResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -577,7 +579,7 @@ export class AssetsApi {
         };
 
         try {
-            ret.data = await assetManager.renameAsset(source, target, options);
+            ret.data = await assetManager.renameAsset(source, newName, options);
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('rename asset fail:', e instanceof Error ? e.message : String(e));

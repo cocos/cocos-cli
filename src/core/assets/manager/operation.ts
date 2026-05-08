@@ -4,7 +4,7 @@
 
 import { refresh, reimport, queryUrl, Asset } from '@cocos/asset-db';
 import { copy, move, remove, rename, existsSync } from 'fs-extra';
-import { isAbsolute, dirname, basename, join, relative, extname } from 'path';
+import { isAbsolute, dirname, join, relative, extname } from 'path';
 import { IMoveOptions } from '../@types/private';
 import { IAsset, CreateAssetOptions, IExportOptions, IExportData, CreateAssetByTypeOptions, ICreateMenuInfo } from '../@types/protected';
 import { AssetOperationOption, AssetUserDataMap, IAssetInfo, IAssetMeta, ISupportCreateType } from '../@types/public';
@@ -49,6 +49,24 @@ class AssetOperation extends EventEmitter {
             throw new Error(`file ${path} already exists, please use overwrite option to overwrite it or use rename option to auto rename it first.`);
         }
         return path;
+    }
+
+    _checkRenameNewName(asset: IAsset, newName: string) {
+        if (!newName || newName === '.' || newName === '..') {
+            throw new Error('newName must be a single file or directory name');
+        }
+
+        if (
+            newName.startsWith('db://')
+            || isAbsolute(newName)
+            || /[\\/]/.test(newName)
+        ) {
+            throw new Error('newName must be a single file or directory name');
+        }
+
+        if (!asset.isDirectory() && !extname(newName)) {
+            throw new Error('newName must include file extension');
+        }
     }
 
     async saveAssetMeta(uuid: string, meta: IAssetMeta, asset?: IAsset) {
@@ -360,14 +378,14 @@ class AssetOperation extends EventEmitter {
     /**
      * 重命名某个资源
      * @param source 
-     * @param target 
+     * @param newName
      */
-    async renameAsset(source: string, target: string, option?: AssetOperationOption) {
-        return await assetDBManager.addTask(this._renameAsset.bind(this), [source, target, option]);
+    async renameAsset(source: string, newName: string, option?: AssetOperationOption) {
+        return await assetDBManager.addTask(this._renameAsset.bind(this), [source, newName, option]);
     }
 
-    private async _renameAsset(source: string, target: string, option?: AssetOperationOption) {
-        console.debug(`start rename asset from ${source} -> ${target}...`);
+    private async _renameAsset(source: string, newName: string, option?: AssetOperationOption) {
+        console.debug(`start rename asset from ${source} -> ${newName}...`);
         const asset = assetQuery.queryAsset(source);
         if (!asset) {
             throw new Error(`asset in source file ${source} not exists`);
@@ -375,20 +393,16 @@ class AssetOperation extends EventEmitter {
         this._checkReadonly(asset);
         source = asset.source;
         this._checkExists(source);
-        if (target.startsWith('db://')) {
-            target = url2path(target);
-        }
+        this._checkRenameNewName(asset, newName);
+
+        let target = join(dirname(source), newName);
         target = this._checkOverwrite(target, option);
         // 源地址不能被目标地址包含，也不能相等
         if (target.startsWith(join(source, '/'))) {
             throw new Error(`${i18n.t('assets.rename_asset.fail.parent')} \nsource: ${source}\ntarget: ${target}`);
         }
 
-        const uri = {
-            basename: basename(target),
-            dirname: dirname(target),
-        };
-        const temp = join(uri.dirname, '.rename_temp');
+        const temp = join(dirname(target), '.rename_temp');
 
         // 改到临时路径，然后刷新，删除原来的缓存
         await rename(source + '.meta', temp + '.meta');

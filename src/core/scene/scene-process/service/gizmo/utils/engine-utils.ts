@@ -485,3 +485,71 @@ export function raycast(scene: any, camera: any, layer: any, x: number, y: numbe
     }
     return results;
 }
+
+export function raycastAllColliders(camera: any, x: number, y: number): any[] & { ray?: geometry.Ray } {
+    const results: any[] & { ray?: geometry.Ray } = [] as any;
+    if (!camera?.camera) return results;
+    camera.camera.screenPointToRay(ray, x, y);
+    results.ray = ray;
+    const PhysicsSystem = (cc as any).PhysicsSystem;
+    const physicsSystem = PhysicsSystem?.instance;
+    if (!physicsSystem?.raycastAll) return results;
+    if (physicsSystem.raycastAll(ray)) {
+        results.push(...physicsSystem.raycastResults);
+        results.sort(cmp);
+    }
+    return results;
+}
+
+export function getRaycastResultsForSnap(camera: any, x: number, y: number, mask: number = ~Layers.Enum.SCENE_GIZMO): RaycastResults {
+    const scene = (cc as any).director?.getScene();
+    if (!scene || !camera?.camera) return new RaycastResults(ray);
+    const renderScene = (scene as any).renderScene as renderer.RenderScene;
+    if (!renderScene) return new RaycastResults(ray);
+    camera.camera.screenPointToRay(ray, x, y);
+    const results = new RaycastResults(ray);
+    if (raycastUtil.raycastAllModels(renderScene, ray, mask, Infinity, true)) {
+        results.push(...raycastUtil.rayResultModels);
+        results.sort(cmp);
+    }
+    return results;
+}
+
+export function getMeshVertexAroundMouse(node: Node, camera: any, x: number, y: number, radius: number = 30): Vec4[] {
+    if (!camera?.camera || !node) return [];
+    const targetNode = Node.isNode(node) ? node : ((node as any).collider?.node ?? (node as any).node ?? null);
+    if (!targetNode) return [];
+
+    const vertexs: Vec4[] = [];
+    const vertex = new Vec3();
+    const worldPos = new Vec3();
+    const screenPos = new Vec3();
+    const worldMatrix = targetNode.getWorldMatrix();
+
+    const components = targetNode.getComponentsInChildren?.(MeshRenderer) ?? [];
+    components.forEach((renderableCmp: MeshRenderer) => {
+        const mesh = (renderableCmp as any).mesh;
+        const len = mesh?.renderingSubMeshes?.length;
+        for (let i = 0; i < len; i++) {
+            const subMesh = mesh.renderingSubMeshes[i];
+            const geoInfo = subMesh?.geometricInfo;
+            if (geoInfo) {
+                const positions = geoInfo.positions;
+                for (let idx = 0; idx < positions.length; idx += 3) {
+                    vertex.set(positions[idx], positions[idx + 1], positions[idx + 2]);
+                    Vec3.transformMat4(worldPos, vertex, worldMatrix);
+                    camera.camera.worldToScreen(screenPos, worldPos);
+                    const dx = screenPos.x - x;
+                    const dy = screenPos.y - y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    if (length < radius) {
+                        vertexs.push(new Vec4(vertex.x, vertex.y, vertex.z, length));
+                    }
+                }
+            }
+        }
+    });
+
+    vertexs.sort((a, b) => a.w - b.w);
+    return vertexs;
+}

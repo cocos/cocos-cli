@@ -1,0 +1,19 @@
+{
+    "name": "@cocos/cocos-cli-types",
+    "description": "types for cocos cli",
+    "author": "cocos cli",
+    "version": "0.0.1-alpha.24.3",
+    "main": "index.d.ts",
+    "types": "index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./index.d.ts"
+        },
+        "./*": {
+            "types": "./*.d.ts"
+        }
+    },
+    "files": [
+        "*.d.ts"
+    ]
+}

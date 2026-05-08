@@ -67,6 +67,7 @@ function setupInputBridge(options) {
 
     function onMouseDown(e) {
         if (shouldIgnore(e)) return;
+        canvas.focus();
         var rect = canvas.getBoundingClientRect();
         lastX = e.clientX - rect.left;
         lastY = e.clientY - rect.top;
@@ -106,17 +107,11 @@ function setupInputBridge(options) {
         e.preventDefault();
     }
 
-    function isInputElement(el) {
-        return el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA');
-    }
-
     function onKeyDown(e) {
-        if (isInputElement(e.target)) return;
         dispatchKey('keydown', toKeyEvent(e));
     }
 
     function onKeyUp(e) {
-        if (isInputElement(e.target)) return;
         dispatchKey('keyup', toKeyEvent(e));
     }
 
@@ -138,8 +133,8 @@ function setupInputBridge(options) {
     canvas.addEventListener('dblclick', onDblClick);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', onContextMenu);
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keyup', onKeyUp);
+    canvas.addEventListener('keydown', onKeyDown);
+    canvas.addEventListener('keyup', onKeyUp);
 
     return function cleanup() {
         canvas.removeEventListener('mousedown', onMouseDown);
@@ -148,7 +143,7 @@ function setupInputBridge(options) {
         canvas.removeEventListener('dblclick', onDblClick);
         canvas.removeEventListener('wheel', onWheel);
         canvas.removeEventListener('contextmenu', onContextMenu);
-        document.removeEventListener('keydown', onKeyDown);
-        document.removeEventListener('keyup', onKeyUp);
+        canvas.removeEventListener('keydown', onKeyDown);
+        canvas.removeEventListener('keyup', onKeyUp);
     };
 }

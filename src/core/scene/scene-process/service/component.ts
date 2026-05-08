@@ -22,6 +22,7 @@ import { hasOneKindOfComponent } from './node/node-utils';
 import { isEditorNode } from './node/node-utils';
 import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
 import PrefabService from './prefab';
+import { IProperty } from '../../@types/public';
 
 const NodeMgr = EditorExtends.Node;
 enum SceneModeType {
@@ -56,7 +57,15 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     public modeName: SceneModeType = SceneModeType.General;
     // private _stagingCameraInfo: any;
     protected _sceneEventListener: ISceneEvents[] = [];
+    protected _recycleComponent: Record<string, Component> = {};
 
+    constructor() {
+        super();
+        compMgr.on('add', this.onAddComponent.bind(this));
+        compMgr.on('remove', this.onRemoveComponent.bind(this));
+        compMgr.on('added', this.onComponentAdded.bind(this));
+        compMgr.on('removed', this.onComponentRemoved.bind(this));
+    }
 
     /**
      * 查询当前正在编辑的模式名字
@@ -84,7 +93,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         opts.modeName = this.modeName;
         // TODO(qgh): 发送消息
         //this.dispatchEvents('onComponentAdded', comp, opts);
-        compMgr.addRecycleComponent(comp.uuid);
+        if (this._recycleComponent[comp.uuid]) {
+            delete this._recycleComponent[comp.uuid];
+        }
     }
 
     public onComponentRemoved(comp: Component, opts: IOptionBase = {}) {
@@ -93,7 +104,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         // this.dispatchEvents('onComponentRemoved', comp);
         // 编辑器中的this._sceneProxy.getRootNode()实现返回的是null
         PrefabService.onComponentRemovedInGeneralMode(comp, null);
-        compMgr.removeRecycleComponent(comp.uuid, comp);
+        this._recycleComponent[comp.uuid] = comp;
     }
 
     public dispatchEvents(eventName: keyof ISceneEvents, ...args: any[any]) {
@@ -105,10 +116,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         });
     }
 
-    private async addImpl(nodePath: string, component: string): Promise<IComponent> {
-        const node = NodeMgr.getNodeByPath(nodePath);
+    private async addComponentImpl(nodePathOrUuid: string, component: string): Promise<IComponent> {
+        const node = NodeMgr.getNodeByPath(nodePathOrUuid) ?? NodeMgr.getNode(nodePathOrUuid);
         if (!node) {
-            throw new Error(`add component failed: ${nodePath} does not exist`);
+            throw new Error(`add component failed: ${nodePathOrUuid} does not exist`);
         }
         if (!component || component.length <= 0) {
             throw new Error(`add component failed: ${component} does not exist`);
@@ -202,10 +213,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return dumpUtil.dumpComponent(comp as Component);
     }
 
-    async add(params: IAddComponentOptions): Promise<IComponent> {
+    async addComponent(params: IAddComponentOptions): Promise<IComponent> {
         try {
             await Service.Editor.lock();
-            return await this.addImpl(params.nodePath, params.component);
+            return await this.addComponentImpl(params.nodePathOrUuid, params.component);
         } catch (error) {
             console.error(error);
             throw error;
@@ -222,17 +233,17 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     private requireComponentList: Function[] = [];
 
-    async create(params: IAddComponentOptions): Promise<boolean> {
+    async createComponent(params: IAddComponentOptions): Promise<boolean> {
         if (Array.isArray(params.component)) {
             params.component.forEach((id) => {
-                this.create({ nodePath: params.nodePath, component: id });
+                this.createComponent({ nodePathOrUuid: params.nodePathOrUuid, component: id });
             });
             console.warn('don\'t add component to more than one node at one time');
             return false;
         }
-        const node = NodeMgr.getNodeByPath(params.nodePath);
+        const node = NodeMgr.getNodeByPath(params.nodePathOrUuid) ?? NodeMgr.getNode(params.nodePathOrUuid);
         if (!node) {
-            console.warn(`create component failed: ${params.nodePath} does not exist`);
+            console.warn(`create component failed: ${params.nodePathOrUuid} does not exist`);
             return false;
         }
 
@@ -357,7 +368,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async remove(params: IRemoveComponentOptions): Promise<boolean> {
+    async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
         try {
             await Service.Editor.lock();
 
@@ -366,7 +377,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 throw new Error(`Remove component failed: ${params.path} does not exist`);
             }
 
-            this.emit('component:before-remove-component', comp);
+            this.emit('component:before-remove', comp);
             const result = compMgr.removeComponent(comp);
             // 需要立刻执行removeComponent操作，否则会延迟到下一帧
             cc.Object._deferredDestroy();
@@ -381,7 +392,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async queryImpl(params: IQueryComponentOptions, isEditor: boolean = false): Promise<IComponent | IComponentForEditor | null> {
+    async queryComponentImpl(params: IQueryComponentOptions, isEditor: boolean = false): Promise<IComponent | IComponentForEditor | null> {
         const comp = await this.findComponent(params.path);
         if (!comp) {
             console.warn(`Query component failed: ${params.path} does not exist`);
@@ -394,11 +405,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async query(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null> {
+    async queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null> {
         if (typeof params === 'string') {
-            return this.queryImpl({ path: params }, true);
+            return this.queryComponentImpl({ path: params }, true);
         } else {
-            return this.queryImpl(params);
+            return this.queryComponentImpl(params);
         }
     }
 
@@ -415,7 +426,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async setProperty(options: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean> {
-        if ('nodePath' in options) {
+        if ('uuid' in options) {
             return await this.setPropertyForEditor(options as ISetPropertyOptionsForEditor);
         } else {
             return await this.setPropertyForCli(options);
@@ -427,7 +438,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {*} uuid
      * @return {cc.Node}
      */
-    queryNode(uuid: string | undefined): Node | null {
+    query(uuid: string | undefined): Node | null {
         if (typeof uuid === 'undefined') {
             return null;
         }
@@ -438,10 +449,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
 
     async setPropertyForEditor(options: ISetPropertyOptionsForEditor): Promise<boolean> {
         // 多个节点更新值
-        if (Array.isArray(options.nodePath)) {
+        if (Array.isArray(options.uuid)) {
             try {
-                for (let i = 0; i < options.nodePath.length; i++) {
-                    await this.setPropertyForEditor({ nodePath: options.nodePath[i], path: options.path, dump: options.dump, record: options?.record });
+                for (let i = 0; i < options.uuid.length; i++) {
+                    await this.setPropertyForEditor({ uuid: options.uuid[i], path: options.path, dump: options.dump, record: options?.record });
                 }
                 return true;
             } catch (e) {
@@ -449,9 +460,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 return false;
             }
         }
-        const node = NodeMgr.getNodeByPath(options.nodePath);
+        const node = this.query(options.uuid);
         if (!node) {
-            console.warn(`Set property failed: ${options.nodePath} does not exist`);
+            console.warn(`Set property failed: ${options.uuid} does not exist`);
             return false;
         }
 
@@ -513,7 +524,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return true;
     }
 
-    async queryAll(): Promise<string[]> {
+    async queryAllComponent(): Promise<string[]> {
         const keys = Object.keys(cc.js._registeredClassNames);
         const components: string[] = [];
         keys.forEach((key) => {
@@ -527,7 +538,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return components;
     }
 
-    async hasScript(name: string): Promise<boolean> {
+    async queryComponentHasScript(name: string): Promise<boolean> {
         const classes = await this.queryClasses();
         return classes.some((cls) => cls.name === name);
     }
@@ -563,8 +574,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return classes;
     }
 
-    async queryFunctionOfNode(path: string): Promise<any> {
-        const node = NodeMgr.getNodeByPath(path);
+    async queryComponentFunctionOfNode(uuid: string): Promise<any> {
+        const node = NodeMgr.getNode(uuid);
         if (!node) {
             return {};
         }
@@ -576,8 +587,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     private readonly CompMgrEventHandlers = {
-        ['add']: 'onCompAdd',
-        ['remove']: 'onCompRemove',
+        ['add']: 'add',
+        ['remove']: 'remove',
     } as const;
     private compMgrEventHandlers = new Map<string, (...args: []) => void>();
     /**
@@ -607,7 +618,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    onCompAdd(uuid: string, component: Component) {
+    add(uuid: string, component: Component) {
         if (isEditorNode(component.node)) {
             return;
         }
@@ -619,7 +630,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    onCompRemove(uuid: string, component: Component) {
+    remove(uuid: string, component: Component) {
         if (isEditorNode(component.node)) {
             return;
         }
@@ -630,7 +641,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * 重置组件
      * @param uuid component 的 uuid
      */
-    public async reset(params: IQueryComponentOptions): Promise<boolean> {
+    public async resetComponent(params: IQueryComponentOptions): Promise<boolean> {
         try {
             const comp = await this.findComponent(params.path);
             if (!comp) {
@@ -651,11 +662,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    public async executeMethod(options: IExecuteComponentMethodOptions): Promise<any> {
-        const comp = compMgr.queryFromPath(options.path);
-        if (!comp) {
-            return null;
-        }
-        return await compMgr.executeComponentMethod(comp.uuid, options.name, options.args);
+    public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean> {
+        return await compMgr.executeComponentMethod(options.uuid, options.name, options.args);
     }
 }

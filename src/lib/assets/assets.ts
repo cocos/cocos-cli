@@ -226,10 +226,10 @@ export async function querySortedPlugins(
  */
 export async function renameAsset(
     source: string,
-    target: string,
+    newName: string,
     options: AssetOperationOption = {}
 ): Promise<any> {
-    return await assetManager.renameAsset(source, target, options);
+    return await assetManager.renameAsset(source, newName, options);
 }
 
 /**
