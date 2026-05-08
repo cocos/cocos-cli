@@ -3,7 +3,7 @@ import { Node, Component, js, CCClass, Scene } from 'cc';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeComponent, encodeComponentForEditor, encodeScene, encodeNode } from './encode';
+import { encodeObject, encodeComponentForCli, encodeComponent, encodeScene, encodeNode } from './encode';
 import { IComponent, IComponentForEditor, INodeForEditor, ISceneForEditor } from '../../../common';
 
 // import * as dumpDecode from './decode';
@@ -41,7 +41,7 @@ class DumpUtil {
     }
 
     // 生成一个component的dump数据
-    dumpComponent(comp: Component): IComponent;
+    dumpComponent(comp: Component): IComponentForEditor;
     dumpComponent(comp: null | undefined): null;
     dumpComponent(comp: Component | null | undefined) {
         if (!comp) {
@@ -51,13 +51,13 @@ class DumpUtil {
     }
 
     // 生成一个component的dump数据
-    dumpComponentForEditor(comp: Component): IComponentForEditor;
-    dumpComponentForEditor(comp: null | undefined): null;
-    dumpComponentForEditor(comp: Component | null | undefined) {
+    dumpComponentForCli(comp: Component): IComponent;
+    dumpComponentForCli(comp: null | undefined): null;
+    dumpComponentForCli(comp: Component | null | undefined) {
         if (!comp) {
             return null;
         }
-        return encodeComponentForEditor(comp);
+        return encodeComponentForCli(comp);
     }
 
     /**

@@ -13,6 +13,27 @@ import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
 import { MobilityMode, Node, Prefab, Component, js } from 'cc';
 
+const attributeProps = [
+    'enumList',
+    'radioGroup',
+    'bitmaskList',
+    'displayName',
+    'group',
+    'multiline',
+    'step',
+    'slide',
+    'tooltip',
+    'animatable',
+    'unit',
+    'radian',
+    'displayOrder',
+];
+
+const autoI18nAttributeNames = [
+    'displayName',
+    'tooltip',
+] as const;
+
 /**
  * 编码一个 node 数据
  * @param node
@@ -85,14 +106,14 @@ export function encodeNode(node: Node): INodeForEditor {
         ),
         layer: encodeObject(
             node.layer, {
-            displayName: 'i18n:scene.cc.Node.properties.layer.displayName',
-            tooltip: 'i18n:scene.cc.Node.properties.layer.tooltip',
-            default: 1073741824,
-            type: 'Enum',
-            enumList: LayersEnumList,
-            readonly: false,
-            animatable: false,
-        },
+                displayName: 'i18n:scene.cc.Node.properties.layer.displayName',
+                tooltip: 'i18n:scene.cc.Node.properties.layer.tooltip',
+                default: 1073741824,
+                type: 'Enum',
+                enumList: LayersEnumList,
+                readonly: false,
+                animatable: false,
+            },
             node,
             'layer',
         ),
@@ -124,7 +145,7 @@ export function encodeNode(node: Node): INodeForEditor {
 
         __type__: dumpUtil.getTypeName(ctor),
         __comps__: node['_components'].map((comp: any) => {
-            return encodeComponentForEditor(comp);
+            return encodeComponent(comp);
         }),
 
         mountedRoot: prefabUtils.getMountedRoot(node)?.uuid,
@@ -211,7 +232,7 @@ export function encodeScene(scene: any): ISceneForEditor {
  * 编码一个 component
  * @param component
  */
-export function encodeComponent(component: any): IComponent {
+export function encodeComponentForCli(component: any): IComponent {
     const ctor = component.constructor;
 
     const data: IComponent = {
@@ -241,7 +262,7 @@ export function encodeComponent(component: any): IComponent {
                  * 比如 sp.Skeleton 当 skeletonData 属性有数据时取 _animationIndex 属性的 enumList 数据  
                  */
                 const attrs = cc.Class.attr(component, key);
-                const dumpData = encodeObject(component[key], attrs, component, key);
+                const dumpData = encodeObjectForCli(component[key], attrs, component, key);
                 if (dumpData.type !== 'Unknown') {
                     data.properties[key] = dumpData;
                 }
@@ -264,7 +285,7 @@ export function encodeComponent(component: any): IComponent {
  * 详细的编码 component
  * @param component
  */
-export function encodeComponentForEditor(component: any): IComponentForEditor {
+export function encodeComponent(component: any): IComponentForEditor {
     const ctor = component.constructor;
     // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
     const mountedRootNode = prefabUtils.getMountedRoot(component);
@@ -375,7 +396,104 @@ function _checkConstructorRewriteType(data: IProperty, object: any, attributes: 
     }
 }
 
-function _checkAttributes(data: IProperty, attributes: any) {
+function _checkFuncAttribute(attributeName: string, attributes: any, owner: any): any {
+    const attribute = attributes[attributeName];
+    if (attribute === undefined) return;
+
+    if (typeof attribute === 'function') {
+        if (!owner) {
+            console.warn(`try to use ${attributeName} function without owner`);
+        } else {
+            const value = attribute.call(owner);
+            if (typeof value === 'boolean') {
+                return !!value;
+            }
+            return value;
+        }
+    } else if (typeof attribute === 'boolean') {
+        return !!attribute;
+    } else {
+        return attribute;
+    }
+}
+
+function _checkAttributes(data: IProperty, attributes: any, owner: any) {
+    // 处理存在函数写法的属性
+    ['visible', 'min', 'max'].forEach((name: string) => {
+        const attributeName = name as keyof IProperty;
+        const value = _checkFuncAttribute(attributeName, attributes, owner);
+        if (value !== undefined) {
+            data[attributeName] = value;
+        }
+    });
+
+    if (!attributes.ctor && attributes.type) {
+        data.type = '' + attributes.type;
+    }
+
+    if ('enumList' in attributes && attributes.type === 'Enum') {
+        data.type = 'Enum';
+    }
+
+    // 现在跟默认值没关系，明确只有 get 没有 set 的情况下为只读
+    if (attributes && attributes.hasGetter && !attributes.hasSetter) {
+        data.readonly = true;
+    }
+
+    attributeProps.forEach((propName) => {
+        // eslint-disable-next-line no-prototype-builtins
+        if (attributes.hasOwnProperty(propName)) {
+            // @ts-ignore
+            data[propName] = attributes[propName];
+        }
+    });
+
+    // 如果对象类型名以 `cc.` 开始，也就是引擎对象。
+    // 则自动按规则组装出要 i18n 的特性（比如显示名和工具提示）的 i18n 路径，作为 Dump 数据。
+    //
+    // 组装规则如下。对于某个引擎类的某个属性的某个特性，编辑器会按以下的字典路径去查找该特性的 i18n 字符串：
+    // `i18n:ENGINE.classes.<类的 cc-class 名称>.properties.<属性的名称>.<特性的名称>`
+    //
+    if (typeof data.name === 'string' && owner && typeof owner === 'object') {
+        const ownerTypeName = findClassName(owner, data.name);
+        if (ownerTypeName) {
+            for (const autoI18nAttributeName of autoI18nAttributeNames) {
+                // 如果该特性已经被声明，比如 `@property({ tooltip: '' })`，跳过组装。
+                if (Object.prototype.hasOwnProperty.call(attributes, autoI18nAttributeName)) {
+                    continue;
+                }
+                data[autoI18nAttributeName] = `i18n:ENGINE.classes.${ownerTypeName}.properties.${data.name}.${autoI18nAttributeName}`;
+            }
+        }
+    }
+}
+
+/**
+ * 查询指定类名，如果自身没有就向上查询
+ * @param ccClassObject
+ */
+const MAX_RECURSION_DEPTH = 10;// 递归中增加最大递归深度限制，避免无限循环或性能问题
+const TARGET_CLASS_NAME = ['cc.', 'sp.'];
+function findClassName(ccClassObject: any, property: string): string {
+    let depth = 0;
+    let proto = ccClassObject;
+    while (proto && depth < MAX_RECURSION_DEPTH) {
+        const className = js.getClassName(proto);
+
+        if (className &&
+            TARGET_CLASS_NAME.find(key => className.startsWith(key)) &&
+            Object.prototype.hasOwnProperty.call(proto, property)) {
+            return className;
+        }
+        // 通过原型链向上查找
+        proto = Object.getPrototypeOf(proto);
+        depth++;
+    }
+
+    return '';
+}
+
+function _checkAttributesForCli(data: IProperty, attributes: any) {
     if (!attributes.ctor && attributes.type) {
         data.type = '' + attributes.type;
     }
@@ -474,7 +592,169 @@ function _checkObjFlags(node: any, data: INodeForEditor) {
  * @param owner 编码对象所属的对象
  * @param objectKey 输出有效信息，当前数据 key，以便问题排查
  */
-export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string): IProperty {
+export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean): IProperty {
+    const ctor = dumpUtil.getConstructor(object, attributes);
+    let defValue = dumpUtil.getDefault(attributes);
+
+    // 构造器存在，属性也存在
+    if (defValue && typeof defValue === 'object' && defValue.constructor && Array.isArray(defValue.constructor.__props__)) {
+        const result: { [key: string]: any } = {
+            type: dumpUtil.getTypeName(defValue.constructor),
+            value: {},
+        };
+        defValue.constructor.__props__.forEach((key: string) => {
+            const attrs = cc.Class.attr(defValue.constructor, key);
+            const dumpData = encodeObject(defValue[key], attrs, defValue, key);
+            if (dumpData.type !== 'Unknown') {
+                result.value[key] = dumpData;
+            }
+        });
+        defValue = result;
+    }
+
+    let type = dumpUtil.getTypeName(ctor);
+
+    if (owner === null) {
+        // 默认值如果存在，则比对默认值的 ctor 和当前对象的 ctor 是否一致
+        if (attributes.default !== null && attributes.default !== undefined) {
+            const defCtor = dumpUtil.getConstructor(attributes.default, attributes);
+            const defType = dumpUtil.getTypeName(defCtor);
+            if (defType !== type) {
+                type = 'Unknown';
+            }
+        }
+    }
+
+    const data: IProperty = {
+        name: objectKey,
+        value: null,
+        default: defValue,
+        type: type,
+        readonly: !!attributes.readonly,
+        visible: true,
+        animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值
+    };
+
+    //如果有 userData 就把 userData 传递过去
+    if (attributes.userData) {
+        data.userData = attributes.userData;
+    }
+
+    _checkAttributes(data, attributes, owner);
+
+    if (defValue) {
+        if (Array.isArray(defValue)) {
+            data.isArray = true;
+        }
+    }
+
+    if (!data.isArray && Array.isArray(object)) {
+        data.isArray = true;
+    }
+
+    if (data.isArray) {
+        if (!Array.isArray(object) || data.type === 'Array') {
+            data.type = 'Unknown';
+        } else {
+            // 子元素的定义
+            const childAttribute: any = Object.assign({}, attributes);
+
+            // 父级数组属性的修饰器定义不适用于 子元素 的定义，需要调整
+            childAttribute.visible = true;
+            if (childAttribute.readonly && childAttribute.readonly.deep !== undefined) {
+                childAttribute.readonly = childAttribute.readonly.deep;
+            }
+
+            const propertyDefaultValue = dumpUtil.ccClassAttrPropertyDefaultValue(attributes);
+            // 子元素的类型由父级决定，子元素的默认值跟随父级类型的默认值
+            childAttribute.default = getElementDefaultValue(attributes, propertyDefaultValue);
+
+            if (!isTemplate) {
+                data.elementTypeData = encodeObject(childAttribute.default, childAttribute, propertyDefaultValue, undefined, true);
+            }
+
+            const resultValue: any = [];
+            // 未避免有可能出现的内部数据有空，需要用普通的 for 循环，不要使用 forEach\map 等来遍历
+            for (let i = 0; i < object.length; i++) {
+                const item = object[i];
+
+                if (item && item.constructor) {
+                    childAttribute.ctor = item && item.constructor; // 处理子级的类是继承父级类的情况
+                }
+
+                const result = encodeObject(item, childAttribute, owner);
+                if (result.type !== 'Unknown') {
+                    resultValue.push(result);
+                } else {
+                    resultValue.push(data.elementTypeData);
+                }
+            }
+            data.value = resultValue;
+        }
+    } else {
+        const opts: any = {};
+        opts.ctor = ctor;
+
+        if (_encodeByType(data.type, object, data, opts)) {
+            // empty
+        } else if (ArrayBuffer.isView(object)) {
+            _encodeByType('TypedArray', object, data, opts);
+        } else if (cc.js.isChildClassOf(ctor, cc.ValueType)) {
+            _encodeByType('cc.ValueType', object, data, opts);
+        } else if (cc.js.isChildClassOf(ctor, cc.Node)) {
+            // 如果是节点、资源、组件，则生成链接到对象的 uuid
+            _encodeByType('cc.Node', object, data, opts);
+        } else if (cc.js.isChildClassOf(ctor, cc.Component)) {
+            _encodeByType('cc.Component', object, data, opts);
+        } else if (cc.js.isChildClassOf(ctor, cc.Asset)) {
+            _encodeByType('cc.Asset', object, data, opts);
+        } else if (ctor && ctor.__props__) {
+            // 如果构造器存在，且带有 __props__，则开始递归序列化内部属性
+            if (object) {
+                // 构造器存在，属性也存在
+                const result: { [key: string]: any } = {};
+                ctor.__props__.forEach((key: string) => {
+                    const attrs = cc.Class.attr(object, key); // object 是实例，可能有自定义的 attrs
+                    
+                    if (attributes.readonly && attributes.readonly.deep){
+                        attrs.readonly = { deep: true };
+                    }
+
+                    const dumpData = encodeObject(object[key], attrs, object, key);
+                    if (dumpData.type !== 'Unknown') {
+                        result[key] = dumpData;
+                    }
+                    _checkConstructorRewriteType(dumpData, object[key], attrs);
+                });
+                data.value = result;
+            } else {
+                // 构造器存在，但是属性不存在，无法继续递归序列化内部属性
+                data.value = null;
+            }
+        } else {
+            // 上述判断都无法适用的情况下, 直接将 object 赋值给 value
+            if (data.type !== 'Unknown') {
+                data.value = object;
+            }
+        }
+    }
+
+    // 继承链
+    if (ctor) {
+        data.extends = dumpUtil.getTypeInheritanceChain(ctor);
+    }
+
+    return data;
+}
+
+/**
+ * 编码一个对象
+ * @param object 编码对象
+ * @param attributes 属性描述
+ * @param owner 编码对象所属的对象
+ * @param objectKey 输出有效信息，当前数据 key，以便问题排查
+ */
+export function encodeObjectForCli(object: any, attributes: any, owner: any = null, objectKey?: string): IProperty {
     const ctor = dumpUtil.getConstructor(object, attributes);
     // let defValue = dumpUtil.getDefault(attributes);
 
@@ -502,7 +782,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         data.userData = attributes.userData;
     }
 
-    _checkAttributes(data, attributes);
+    _checkAttributesForCli(data, attributes);
 
     if (!data.isArray && Array.isArray(object)) {
         data.isArray = true;
@@ -534,7 +814,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                     childAttribute.ctor = item && item.constructor; // 处理子级的类是继承父级类的情况
                 }
 
-                const result = encodeObject(item, childAttribute, owner);
+                const result = encodeObjectForCli(item, childAttribute, owner);
                 if (result.type !== 'Unknown') {
                     resultValue.push(result);
                 }
@@ -570,7 +850,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                         attrs.readonly = { deep: true };
                     }
 
-                    const dumpData = encodeObject(object[key], attrs, object, key);
+                    const dumpData = encodeObjectForCli(object[key], attrs, object, key);
                     if (dumpData.type !== 'Unknown') {
                         result[key] = dumpData;
                     }
@@ -614,7 +894,6 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
     return null;
 }
 
-
 function encodeTargetOverrides(targetOverrides: any) {
     if (!targetOverrides || targetOverrides.length <= 0) {
         return null;
@@ -639,10 +918,11 @@ function encodeTargetOverrides(targetOverrides: any) {
     return dumpedTargetOverrides;
 }
 
+// export * as default from './encode';
 export default {
     encodeNode,
     encodeScene,
+    encodeComponentForCli,
     encodeComponent,
-    encodeComponentForEditor,
     encodeObject,
 };

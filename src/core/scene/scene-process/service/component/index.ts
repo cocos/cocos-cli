@@ -177,7 +177,7 @@ export class CompManager {
         try {
             const node = new cc.Node();
             const newComp = node.addComponent(component.constructor);
-            const dump = dumpUtil.dumpComponentForEditor(newComp);
+            const dump = dumpUtil.dumpComponent(newComp);
 
             for (const key in dump.value) {
                 if (skipCompProps.includes(key)) {
@@ -206,7 +206,7 @@ export class CompManager {
         if (!comp) {
             return null;
         }
-        return dumpUtil.dumpComponentForEditor(comp);
+        return dumpUtil.dumpComponent(comp);
     }
 
     /**

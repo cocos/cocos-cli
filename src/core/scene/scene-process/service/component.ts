@@ -199,7 +199,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
         this.emit('component:add', comp);
 
-        return dumpUtil.dumpComponent(comp as Component);
+        return dumpUtil.dumpComponentForCli(comp as Component);
     }
 
     async add(params: IAddComponentOptions): Promise<IComponent> {
@@ -388,9 +388,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             return null;
         }
         if (isEditor) {
-            return (dumpUtil.dumpComponentForEditor(comp as Component));
-        } else {
             return (dumpUtil.dumpComponent(comp as Component));
+        } else {
+            return (dumpUtil.dumpComponentForCli(comp as Component));
         }
     }
 
@@ -491,7 +491,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         if (!component) {
             throw new Error(`Failed to set property: Target component(${options.componentPath}) not found`);
         }
-        const compProperties = (dumpUtil.dumpComponent(component as Component));
+        const compProperties = (dumpUtil.dumpComponentForCli(component as Component));
         const properties = Object.entries(options.properties);
 
         const idx = component.node.components.findIndex(comp => comp === component);
