@@ -24,6 +24,7 @@ afterAll(async () => {
 import './editor-proxy-scene.testcase';
 import './editor-proxy-prefab.testcase';
 import './node-proxy.testcase';
+import './node-dump-proxy.testcase';
 import './component-proxy.testcase';
 import './prefab-proxy.testcase';
 import './script-proxy.testcase';
