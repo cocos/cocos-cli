@@ -20,13 +20,12 @@ export interface IMainModule {
 export const Scene = {
     ...EditorProxy,
     ...ScriptProxy,
+    ...NodeProxy,
+    ...ComponentProxy,
     ...AssetProxy,
     ...EngineProxy,
     ...PrefabProxy,
-    // 节点相关的接口
-    Node: NodeProxy,
-    // 组件相关的接口
-    Component: ComponentProxy,
+
     // 场景进程
     worker: sceneWorker,
 };

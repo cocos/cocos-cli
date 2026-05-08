@@ -1,10 +1,10 @@
 'use strict';
-import { Node, Component, js, CCClass, Scene } from 'cc';
+import { Node, Component, js, CCClass } from 'cc';
 import { parsingPath } from './utils';
 import AssetUtil from './asset';
-import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeComponent, encodeComponentForEditor, encodeScene, encodeNode } from './encode';
-import { IComponent, IComponentForEditor, INodeForEditor, ISceneForEditor } from '../../../common';
+import { decodePatch, resetProperty, updatePropertyFromNull } from './decode';
+import { encodeObject, encodeComponent, encodeComponentForEditor } from './encode';
+import { IComponent, IComponentForEditor } from '../../../common';
 
 // import * as dumpDecode from './decode';
 const { get } = require('lodash');
@@ -23,21 +23,6 @@ class DumpUtil {
         const attr = CCClass.Attr.getClassAttrs(data.constructor);
         const ret = encodeObject(data, attr);
         return ret;
-    }
-
-    /**
-     * 生成一个 node 的 dump 数据
-     * @param {*} node
-     */
-    dumpNode(node: Node): INodeForEditor | ISceneForEditor | null {
-        if (!node) {
-            return null;
-        }
-        if (node instanceof Scene) {
-            return encodeScene(node);
-        }
-        return encodeNode(node);
-
     }
 
     // 生成一个component的dump数据
@@ -97,18 +82,6 @@ class DumpUtil {
      */
     updatePropertyFromNull(node: Node | Component, path: string) {
         return updatePropertyFromNull(node, path);
-    }
-
-    /**
-     * 还原一个节点的全部属性
-     * @param {*} node
-     * @param {*} dump
-     */
-    async restoreNode(node: Node, dump: any) {
-        if (dump && dump.isScene) {
-            return await decodeScene(dump, node);
-        }
-        return await decodeNode(dump, node);
     }
 
     /**
