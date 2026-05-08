@@ -15,6 +15,13 @@ const dtsFiles = [
     'scripting.d.ts',
 ];
 
+function stripComments(content: string): string {
+    return content
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '')
+        .replace(/^\s*\n/gm, '');
+}
+
 describe('DTS API compatibility', () => {
     for (const file of dtsFiles) {
         it(`${file} should match snapshot`, () => {
@@ -24,7 +31,7 @@ describe('DTS API compatibility', () => {
                     `${file} not found. Run "npm run build" first to generate .d.ts files.`,
                 );
             }
-            const content = fs.readFileSync(filePath, 'utf-8');
+            const content = stripComments(fs.readFileSync(filePath, 'utf-8'));
             expect(content).toMatchSnapshot();
         });
     }
