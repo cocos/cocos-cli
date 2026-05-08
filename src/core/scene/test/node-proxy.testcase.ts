@@ -147,6 +147,16 @@ describe('Node Proxy 测试', () => {
             const result = await NodeProxy.query('non-existent-path');
             expect(result).toBeNull();
         });
+
+        it('query - 传入 "/" 返回场景根节点', async () => {
+            const result = await NodeProxy.query('/');
+            expect(result).not.toBeNull();
+            const sceneResult = result as ISceneForEditor;
+            expect(sceneResult.isScene).toBeTruthy();
+            expect(sceneResult.__type__).toBeDefined();
+            expect(sceneResult.uuid).toBeDefined();
+            expect(Array.isArray(sceneResult.children)).toBe(true);
+        });
     });
 
     describe('3. 节点更新操作（依赖创建的节点）', () => {

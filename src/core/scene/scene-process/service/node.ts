@@ -373,7 +373,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     private async queryForEditor(path?: string): Promise<INodeForEditor | ISceneForEditor | null> {
-        const node = path ? NodeMgr.getNodeByPath(path) : Service.Editor.getRootNode();
+        const node = (path && path !== '/') ? NodeMgr.getNodeByPath(path) : Service.Editor.getRootNode();
         if (!node) {
             return null;
         }
