@@ -41,7 +41,7 @@ export interface IComponentForEditor extends IProperty {
  * 添加/创建组件的选项
  */
 export interface IAddComponentOptions {
-    nodePathOrUuid: string;
+    nodePath: string;
     component: string;
 }
 
@@ -50,6 +50,10 @@ export interface IAddComponentOptions {
  */
 export interface IRemoveComponentOptions {
     path: string;
+}
+export interface IRemovedComponentInfo {
+    name: string;
+    fileID: string;
 }
 
 /**
@@ -63,7 +67,7 @@ export interface IQueryComponentOptions {
  * CLI 设置组件属性的选项
  */
 export interface ISetPropertyOptions {
-    componentPath: string; // 修改属性的对象的 uuid
+    componentPath: string; // 修改属性的节点路径
     // key: string; // 属性的 key
     properties: {
         [key: string]: null | undefined | number | boolean | string | object | Array<unknown>;
@@ -75,7 +79,7 @@ export interface ISetPropertyOptions {
  * 编辑器设置组件属性的选项
  */
 export interface ISetPropertyOptionsForEditor {
-    uuid: string; // 修改属性的对象的 uuid
+    nodePath: string; // 修改属性的节点路径
     path: string; // 属性挂载对象的搜索路径
     // key: string; // 属性的 key
     dump: IProperty; // 属性 dump 出来的数据
@@ -86,7 +90,7 @@ export interface ISetPropertyOptionsForEditor {
  * 执行组件方法的选项
  */
 export interface IExecuteComponentMethodOptions {
-    uuid: string;
+    path: string; // 组件路径，如 'Canvas/cc.Label_1'
     name: string;
     args: any[];
 }
@@ -104,12 +108,12 @@ export interface IQueryClassesOptions {
  */
 export interface IComponentEvents extends INodeEvents {
     'component:add': [Component];
-    'component:before-remove': [Component];
     'component:remove': [Component];
     'component:set-property': [Component, IChangeNodeOptions];
     'component:added': [Component];
     'component:removed': [Component];
     'component:before-add-component': [string, Node];
+    'component:before-remove-component': [Component];
 }
 
 /**
@@ -117,7 +121,13 @@ export interface IComponentEvents extends INodeEvents {
  */
 export interface IPublicComponentService extends Omit<IComponentService, keyof IServiceEvents |
     'init' |
-    'unregisterCompMgrEvents'
+    'unregisterCompMgrEvents' |
+    'create' |
+    'reset' |
+    'queryClasses' |
+    'queryFunctionOfNode' |
+    'executeMethod' |
+    'hasScript'
 > { }
 
 /**
@@ -127,33 +137,33 @@ export interface IComponentService extends IServiceEvents {
     /**
      * 添加组件到指定节点，返回添加后的组件信息
      * @param params - 添加组件选项
-     * @param params.nodePathOrUuid - 目标节点路径或 UUID
+     * @param params.nodePath - 目标节点路径
      * @param params.component - 组件类名，支持精确匹配（'cc.Label'）和模糊匹配（'label'）
      * @returns 添加成功后的组件信息
      *
      * @example
      * ```ts
      * // 通过节点路径 + 精确组件名
-     * const comp = await addComponent({ nodePathOrUuid: 'Canvas/MyNode', component: 'cc.Label' });
+     * const comp = await add({ nodePath: 'Canvas/MyNode', component: 'cc.Label' });
      *
-     * // 通过节点 UUID + 模糊组件名
-     * const comp = await addComponent({ nodePathOrUuid: 'abc-123-uuid', component: 'label' });
+     * // 通过节点路径 + 模糊组件名
+     * const comp = await add({ nodePath: 'Canvas/MyNode', component: 'label' });
      * ```
      */
-    addComponent(params: IAddComponentOptions): Promise<IComponent>;
+    add(params: IAddComponentOptions): Promise<IComponent>;
 
     /**
      * 删除指定组件
      * @param params - 删除组件选项
-     * @param params.path - 组件路径，支持路径、UUID 或资源 URL
+     * @param params.path - 组件路径
      * @returns 删除成功返回 true，失败返回 false
      */
-    removeComponent(params: IRemoveComponentOptions): Promise<boolean>;
+    remove(params: IRemoveComponentOptions): Promise<boolean>;
 
     /**
      * 设置组件属性
      * - CLI 调用时传入 ISetPropertyOptions，通过 componentPath 定位，属性为扁平键值对
-     * - 编辑器调用时传入 ISetPropertyOptionsForEditor，通过节点 UUID + dump 路径定位，属性为 IProperty 格式
+     * - 编辑器调用时传入 ISetPropertyOptionsForEditor，通过节点路径 + dump 路径定位，属性为 IProperty 格式
      *
      * @param params - 设置属性选项，根据调用方不同传入不同类型
      * @returns 设置成功返回 true，失败返回 false
@@ -166,9 +176,9 @@ export interface IComponentService extends IServiceEvents {
      *     properties: { string: 'Hello', fontSize: 32 },
      * });
      *
-     * // 编辑器方式：通过节点 UUID + dump 路径定位，传 IProperty 格式
+     * // 编辑器方式：通过节点路径 + dump 路径定位，传 IProperty 格式
      * await setProperty({
-     *     uuid: 'node-uuid',
+     *     nodePath: 'Canvas/MyNode',
      *     path: '__comps__.0.string',
      *     dump: { value: 'Hello', type: 'String' },
      * });
@@ -187,38 +197,38 @@ export interface IComponentService extends IServiceEvents {
      * @example
      * ```ts
      * CLI 模式：返回 IComponent（扁平属性）
-     * const comp = await queryComponent({ path: 'Canvas/cc.Label_1' }) as IComponent;
+     * const comp = await query({ path: 'Canvas/cc.Label_1' }) as IComponent;
      *
      * 编辑器模式：直接传 string，这里是uuid，因为与cli重复了，也支持 path 和 url
-     * const comp = await queryComponent('uuid') as IComponentForEditor;
+     * const comp = await query('uuid') as IComponentForEditor;
      * ```
      */
-    queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
+    query(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
 
     /**
      * 获取所有已注册的组件类名，包含内置与自定义组件
      * @returns 组件类名数组，如 ['cc.Label', 'cc.Sprite', 'MyCustomComponent']
      */
-    queryAllComponent(): Promise<string[]>;
+    queryAll(): Promise<string[]>;
 
     // ---- 编辑器相关接口 ----
 
     /**
-     * 创建组件（编辑器使用），与 addComponent 不同的是仅返回是否成功
+     * 创建组件（编辑器使用），与 add 不同的是仅返回是否成功
      * @param params - 添加组件选项
-     * @param params.nodePathOrUuid - 目标节点路径或 UUID
+     * @param params.nodePath - 目标节点路径
      * @param params.component - 组件类名
      * @returns 创建成功返回 true，失败返回 false
      */
-    createComponent(params: IAddComponentOptions): Promise<boolean>;
+    create(params: IAddComponentOptions): Promise<boolean>;
 
     /**
      * 复位组件，将组件所有属性恢复为默认值
      * @param params - 查询组件选项，用于定位要复位的组件
-     * @param params.path - 组件路径，支持路径、UUID 或资源 URL
+     * @param params.path - 组件路径
      * @returns 复位成功返回 true，失败返回 false
      */
-    resetComponent(params: IQueryComponentOptions): Promise<boolean>;
+    reset(params: IQueryComponentOptions): Promise<boolean>;
 
     /**
      * 获取所有注册类名，支持按继承关系过滤
@@ -243,27 +253,27 @@ export interface IComponentService extends IServiceEvents {
 
     /**
      * 查询指定节点上所有组件暴露的可调用函数
-     * @param uuid - 节点 UUID
+     * @param path - 节点路径
      * @returns 节点上组件的函数信息，节点不存在时返回空对象
      */
-    queryComponentFunctionOfNode(uuid: string): Promise<any>;
+    queryFunctionOfNode(path: string): Promise<any>;
 
     /**
      * 执行组件上的指定方法
      * @param options - 执行选项
-     * @param options.uuid - 组件实例的 UUID
+     * @param options.path - 组件路径，如 'Canvas/cc.Label_1'
      * @param options.name - 要执行的方法名，如 'onLoad'、'start'
      * @param options.args - 方法参数列表
      * @returns 执行成功返回 true，失败返回 false
      */
-    executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean>;
+    executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
 
     /**
      * 查询指定名称的组件是否已注册（是否存在对应脚本）
      * @param name - 组件类名，如 'cc.Label'
      * @returns 存在返回 true，不存在返回 false
      */
-    queryComponentHasScript(name: string): Promise<boolean>;
+    hasScript(name: string): Promise<boolean>;
 
     // ---- 内部接口，不对外暴露 ----
 
