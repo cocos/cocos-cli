@@ -1,5 +1,6 @@
 import {
     INode,
+    INodeForEditor,
     INodeTreeItem,
     ICreateByNodeTypeParams,
     ICreateByAssetParams,
@@ -11,25 +12,26 @@ import {
     IDeleteNodeResult,
     IPublicNodeService,
 } from '../../common';
+import { type ISceneForEditor } from '../../common/editor/scene';
 import { Rpc } from '../rpc';
 
 export const NodeProxy: IPublicNodeService = {
-    createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
-        return Rpc.getInstance().request('Node', 'createNodeByType', [params]);
+    createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
+        return Rpc.getInstance().request('Node', 'createByType', [params]);
     },
-    createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null> {
-        return Rpc.getInstance().request('Node', 'createNodeByAsset', [params]);
+    createByAsset(params: ICreateByAssetParams): Promise<INode | null> {
+        return Rpc.getInstance().request('Node', 'createByAsset', [params]);
     },
-    deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
-        return Rpc.getInstance().request('Node', 'deleteNode', [params]);
+    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
+        return Rpc.getInstance().request('Node', 'delete', [params]);
     },
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
-        return Rpc.getInstance().request('Node', 'updateNode', [params]);
+    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
+        return Rpc.getInstance().request('Node', 'update', [params]);
     },
-    queryNode(params: IQueryNodeParams): Promise<INode | null> {
-        return Rpc.getInstance().request('Node', 'queryNode', [params]);
+    query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
+        return Rpc.getInstance().request('Node', 'query', [params]);
     },
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
         return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);
-    }
+    },
 };
