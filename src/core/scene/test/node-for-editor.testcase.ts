@@ -53,7 +53,7 @@ function setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise
     return rpcRequest('setNodeAndChildrenLayer', [options]);
 }
 
-describe('Node Dump Proxy 测试', () => {
+describe('Node ForEditor 接口测试', () => {
     let testNode: INode | null = null;
     let testNodeUuid = '';
     const testNodeName = 'DumpTestNode';
@@ -90,7 +90,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('8. query - 查询节点 dump 数据', () => {
+    describe('1. query - 查询节点 dump 数据', () => {
         it('query - 查询有效节点返回 dump 数据', async () => {
             const dump = await queryNodeDump(testNode!.path);
             expect(dump).not.toBeNull();
@@ -133,7 +133,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('9. setProperty - 设置节点属性', () => {
+    describe('2. setProperty - 设置节点属性', () => {
         it('setProperty - 修改节点位置', async () => {
             // 先获取当前 dump 作为模板
             const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
@@ -230,7 +230,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('10. previewSetProperty / cancelPreviewSetProperty - 预览与取消', () => {
+    describe('3. previewSetProperty / cancelPreviewSetProperty - 预览与取消', () => {
         let labelNodeUuid = '';
         let labelNode: INode | null = null;
 
@@ -344,7 +344,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('11. reset - 重置节点变换', () => {
+    describe('4. reset - 重置节点变换', () => {
         it('reset - 修改后重置，变换属性恢复默认', async () => {
             // 先修改位置和缩放
             const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
@@ -370,7 +370,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('12. resetProperty - 重置单个属性', () => {
+    describe('5. resetProperty - 重置单个属性', () => {
         it('resetProperty - 重置位置属性', async () => {
             // 先修改位置
             const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
@@ -412,7 +412,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('13. setNodeAndChildrenLayer - 递归设置 layer', () => {
+    describe('6. setNodeAndChildrenLayer - 递归设置 layer', () => {
         let parentNode: INode | null = null;
         let childNode: INode | null = null;
         let parentUuid = '';
@@ -478,7 +478,7 @@ describe('Node Dump Proxy 测试', () => {
         });
     });
 
-    describe('14. updatePropertyFromNull - 初始化 null 属性', () => {
+    describe('7. updatePropertyFromNull - 初始化 null 属性', () => {
         it('updatePropertyFromNull - 调用不报错', async () => {
             // 该接口用于将 null 类型属性初始化为可编辑值
             // 对于 Empty 节点的基本属性（position 等），不存在 null 情况
@@ -490,6 +490,142 @@ describe('Node Dump Proxy 测试', () => {
                 dump: dump.position,
             });
             expect(typeof result).toBe('boolean');
+        });
+    });
+
+    describe('8. IProperty - encodeObject 编码字段验证', () => {
+        it('position 属性包含 ForEditor 特有字段', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            const position = dump.position;
+
+            // ForEditor 编码特有字段
+            expect(position.type).toBeDefined();
+            expect(position.visible).toBe(true);
+            expect(typeof position.readonly).toBe('boolean');
+            expect(typeof position.animatable).toBe('boolean');
+            expect(position.default).toBeDefined();
+            expect(position.displayName).toBeDefined();
+        });
+
+        it('position 的 default 值是 Vec3 结构', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            const position = dump.position;
+
+            // default 应该被递归编码为嵌套的 IProperty 结构
+            expect(position.default).toBeDefined();
+            if (typeof position.default === 'object' && position.default !== null) {
+                expect(position.default.type).toBeDefined();
+                expect(position.default.value).toBeDefined();
+            }
+        });
+
+        it('position 的子属性 (x, y, z) 也是 IProperty 结构', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            const positionValue = dump.position.value as Record<string, any>;
+
+            expect(positionValue).toBeDefined();
+            // Vec3 的子属性应该有 value 字段
+            if (positionValue.x && typeof positionValue.x === 'object') {
+                expect(positionValue.x.value).toBeDefined();
+                expect(typeof positionValue.x.value).toBe('number');
+            }
+        });
+
+        it('name 属性 animatable 为 false', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            expect(dump.name.animatable).toBe(false);
+        });
+
+        it('uuid 属性 animatable 为 false', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            expect(dump.uuid.animatable).toBe(false);
+        });
+
+        it('layer 属性是 Enum 类型，带 enumList', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            const layer = dump.layer;
+
+            expect(layer.type).toBe('Enum');
+            expect(layer.enumList).toBeDefined();
+            expect(Array.isArray(layer.enumList)).toBe(true);
+            expect(layer.enumList!.length).toBeGreaterThan(0);
+            // enumList 的每项有 name 和 value
+            const firstEnum = layer.enumList![0];
+            expect(firstEnum.name).toBeDefined();
+            expect(firstEnum.value).toBeDefined();
+        });
+
+        it('mobility 属性是 Enum 类型，带 enumList', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            const mobility = dump.mobility;
+
+            expect(mobility.type).toBe('Enum');
+            expect(mobility.enumList).toBeDefined();
+            expect(Array.isArray(mobility.enumList)).toBe(true);
+            expect(mobility.enumList!.length).toBeGreaterThan(0);
+        });
+
+        it('active 属性的 value 是布尔类型', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+            const active = dump.active;
+
+            expect(typeof active.value).toBe('boolean');
+            expect(active.visible).toBe(true);
+            expect(active.displayName).toBe('Active');
+        });
+
+        it('position/scale/rotation 带有 i18n 格式的 displayName 和 tooltip', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+
+            expect(dump.position.displayName).toMatch(/^i18n:/);
+            expect(dump.position.tooltip).toMatch(/^i18n:/);
+            expect(dump.scale.displayName).toMatch(/^i18n:/);
+            expect(dump.scale.tooltip).toMatch(/^i18n:/);
+            expect(dump.rotation.displayName).toMatch(/^i18n:/);
+            expect(dump.rotation.tooltip).toMatch(/^i18n:/);
+        });
+
+        it('children 是 IProperty 数组', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
+
+            expect(Array.isArray(dump.children)).toBe(true);
+            // 空节点可能没有子节点，验证结构不出错即可
+        });
+
+        it('__comps__ 中的组件 dump 包含 editor 附加信息', async () => {
+            // 创建一个带组件的节点来测试
+            const labelNode = await NodeProxy.createByType({
+                path: '/',
+                name: 'PropertyTestLabel',
+                nodeType: NodeType.LABEL,
+            });
+            expect(labelNode).toBeDefined();
+
+            const dump = await queryNodeDump(labelNode!.path) as INodeForEditor;
+            expect(dump.__comps__.length).toBeGreaterThan(0);
+
+            // 找到 cc.Label 组件
+            const labelComp = dump.__comps__.find(c => c.type === 'cc.Label');
+            expect(labelComp).toBeDefined();
+
+            // 组件 dump 应包含 editor 附加数据
+            if (labelComp?.editor) {
+                expect(typeof labelComp.editor).toBe('object');
+            }
+
+            // 组件 dump 的 value 中的属性也应是 IProperty 结构
+            const compValue = labelComp!.value as Record<string, any>;
+            expect(compValue['string']).toBeDefined();
+            expect(compValue['string'].value).toBeDefined();
+            expect(compValue['string'].type).toBeDefined();
+
+            // 组件应有 extends 继承链
+            if (labelComp?.extends) {
+                expect(Array.isArray(labelComp.extends)).toBe(true);
+                expect(labelComp.extends.length).toBeGreaterThan(0);
+            }
+
+            await NodeProxy.delete({ path: labelNode!.path, keepWorldTransform: false });
         });
     });
 });
