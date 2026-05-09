@@ -5150,7 +5150,7 @@ export declare interface GlTFUserData {
     };
 }
 export declare interface IAddComponentOptions {
-    nodePathOrUuid: string;
+    nodePath: string;
     component: string;
 }
 export declare interface IApplyPrefabChangesParams {
@@ -5303,19 +5303,19 @@ export declare interface IComponentIdentifier {
     enabled: boolean;
 }
 export declare interface IComponentService extends IServiceEvents {
-    addComponent(params: IAddComponentOptions): Promise<IComponent>;
-    removeComponent(params: IRemoveComponentOptions): Promise<boolean>;
+    add(params: IAddComponentOptions): Promise<IComponent>;
+    remove(params: IRemoveComponentOptions): Promise<boolean>;
     setProperty(params: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean>;
-    queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
-    queryAllComponent(): Promise<string[]>;
-    createComponent(params: IAddComponentOptions): Promise<boolean>;
-    resetComponent(params: IQueryComponentOptions): Promise<boolean>;
+    query(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
+    queryAll(): Promise<string[]>;
+    create(params: IAddComponentOptions): Promise<boolean>;
+    reset(params: IQueryComponentOptions): Promise<boolean>;
     queryClasses(options?: IQueryClassesOptions): Promise<{
         name: string;
     }[]>;
-    queryComponentFunctionOfNode(uuid: string): Promise<any>;
-    executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean>;
-    queryComponentHasScript(name: string): Promise<boolean>;
+    queryFunctionOfNode(path: string): Promise<any>;
+    executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
+    hasScript(name: string): Promise<boolean>;
     init(): void;
     unregisterCompMgrEvents(): void;
 }
@@ -5365,7 +5365,7 @@ export declare interface IEngineService extends IServiceEvents {
     repaintInEditMode(): Promise<void>;
 }
 export declare interface IExecuteComponentMethodOptions {
-    uuid: string;
+    path: string;
     name: string;
     args: any[];
 }
@@ -5435,6 +5435,25 @@ export declare interface INode extends INodeIdentifier {
     children?: INode[];
     prefab: IPrefabInfo | null;
 }
+export declare interface INodeForEditor {
+    active: IProperty;
+    locked: IProperty;
+    name: IProperty;
+    position: IProperty;
+    rotation: IProperty;
+    mobility: IProperty;
+    scale: IProperty;
+    layer: IProperty;
+    uuid: IProperty;
+    children: IProperty[];
+    parent: IProperty;
+    __comps__: IProperty[];
+    __type__: string;
+    __prefab__?: IPrefabForEditor;
+    _prefabInstance?: any;
+    removedComponents?: IRemovedComponentInfo[];
+    mountedRoot?: string;
+}
 export declare interface INodeIdentifier {
     nodeId: string;
     path: string;
@@ -5450,12 +5469,19 @@ export declare interface INodeProperties {
     active: boolean;
 }
 export declare interface INodeService extends IServiceEvents {
-    createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
-    createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null>;
-    deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
-    queryNode(params: IQueryNodeParams): Promise<INode | null>;
+    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
+    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
+    query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    previewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    cancelPreviewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    setProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    reset(path: string): Promise<boolean>;
+    resetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    updatePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
 }
 export declare interface INodeTreeComponent {
     isCustom: boolean;
@@ -5496,6 +5522,15 @@ export declare interface IPrefab {
     data: INodeIdentifier;
     optimizationPolicy: OptimizationPolicy;
     persistent: boolean;
+}
+export declare interface IPrefabForEditor {
+    uuid: string;
+    fileId: string;
+    rootUuid: string;
+    sync: boolean;
+    prefabStateInfo: IPrefabStateInfo;
+    targetOverrides?: ITargetOverrideInfoForEditor[];
+    instance?: IProperty;
 }
 export declare interface IPrefabInfo {
     asset?: IPrefab;
@@ -5614,6 +5649,10 @@ export declare interface IReloadOptions {
 export declare interface IRemoveComponentOptions {
     path: string;
 }
+export declare interface IRemovedComponentInfo {
+    name: string;
+    fileID: string;
+}
 export declare interface IRevertToPrefabParams {
     nodePath: string;
 }
@@ -5625,6 +5664,19 @@ export declare interface IScene extends IBaseIdentifier {
     prefab: IPrefabInfo | null;
     children: INode[];
     components: IComponentIdentifier[];
+}
+export declare interface ISceneForEditor {
+    name: IProperty;
+    active: IProperty;
+    locked: IProperty;
+    _globals: Record<string, IProperty>;
+    isScene: boolean;
+    autoReleaseAssets: IProperty;
+    uuid: IProperty;
+    children: IProperty[];
+    parent: string;
+    __type__: string;
+    targetOverrides?: ITargetOverrideInfoForEditor[];
 }
 export declare interface ISceneMouseEvent {
     x: number;
@@ -5700,10 +5752,9 @@ export declare interface IServiceEvents {
     onSetPropertyComponent?(comp: Component): void;
     onComponentAdded?(comp: Component): void;
     onComponentRemoved?(comp: Component): void;
+    onBeforeChangeComponent?(node: Node_2): void;
+    onBeforeAddComponent?(name: string, node: Node_2): void;
     onBeforeRemoveComponent?(comp: Component): void;
-    onComponentBeforeChanged?(node: Node_2): void;
-    onBeforeComponentAdded?(name: string, node: Node_2): void;
-    onComponentChanged?(name: string, opts: IChangeNodeOptions): void;
     onAssetDeleted?(uuid: string): void;
     onAssetChanged?(uuid: string): void;
     onAssetRefreshed?(uuid: string): void;
@@ -5735,7 +5786,7 @@ export declare interface ISetPropertyOptions {
     record?: boolean;
 }
 export declare interface ISetPropertyOptionsForEditor {
-    uuid: string;
+    nodePath: string;
     path: string;
     dump: IProperty;
     record?: boolean;
@@ -5766,6 +5817,13 @@ export declare interface ITargetOverrideInfo {
     propertyPath: string[];
     target: INodeIdentifier | null;
     targetInfo: ITargetInfo | null;
+}
+export declare interface ITargetOverrideInfoForEditor {
+    source: string;
+    sourceInfo?: string[];
+    propertyPath: string[];
+    target: string;
+    targetInfo?: string[];
 }
 export declare interface IUndoService {
     beginRecording(uuids: string[], options?: any): string;
@@ -6969,7 +7027,7 @@ export declare namespace i18n {
     }
 }
 export declare interface IAddComponentOptions {
-    nodePathOrUuid: string;
+    nodePath: string;
     component: string;
 }
 export declare interface IApplyPrefabChangesParams {
@@ -7173,19 +7231,19 @@ export declare interface IComponentIdentifier {
     enabled: boolean;
 }
 export declare interface IComponentService extends IServiceEvents {
-    addComponent(params: IAddComponentOptions): Promise<IComponent>;
-    removeComponent(params: IRemoveComponentOptions): Promise<boolean>;
+    add(params: IAddComponentOptions): Promise<IComponent>;
+    remove(params: IRemoveComponentOptions): Promise<boolean>;
     setProperty(params: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean>;
-    queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
-    queryAllComponent(): Promise<string[]>;
-    createComponent(params: IAddComponentOptions): Promise<boolean>;
-    resetComponent(params: IQueryComponentOptions): Promise<boolean>;
+    query(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
+    queryAll(): Promise<string[]>;
+    create(params: IAddComponentOptions): Promise<boolean>;
+    reset(params: IQueryComponentOptions): Promise<boolean>;
     queryClasses(options?: IQueryClassesOptions): Promise<{
         name: string;
     }[]>;
-    queryComponentFunctionOfNode(uuid: string): Promise<any>;
-    executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean>;
-    queryComponentHasScript(name: string): Promise<boolean>;
+    queryFunctionOfNode(path: string): Promise<any>;
+    executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
+    hasScript(name: string): Promise<boolean>;
     init(): void;
     unregisterCompMgrEvents(): void;
 }
@@ -7316,7 +7374,7 @@ export declare interface IEngineService extends IServiceEvents {
     repaintInEditMode(): Promise<void>;
 }
 export declare interface IExecuteComponentMethodOptions {
-    uuid: string;
+    path: string;
     name: string;
     args: any[];
 }
@@ -7447,6 +7505,25 @@ export declare interface INode extends INodeIdentifier {
     children?: INode[];
     prefab: IPrefabInfo | null;
 }
+export declare interface INodeForEditor {
+    active: IProperty;
+    locked: IProperty;
+    name: IProperty;
+    position: IProperty;
+    rotation: IProperty;
+    mobility: IProperty;
+    scale: IProperty;
+    layer: IProperty;
+    uuid: IProperty;
+    children: IProperty[];
+    parent: IProperty;
+    __comps__: IProperty[];
+    __type__: string;
+    __prefab__?: IPrefabForEditor;
+    _prefabInstance?: any;
+    removedComponents?: IRemovedComponentInfo[];
+    mountedRoot?: string;
+}
 export declare interface INodeIdentifier {
     nodeId: string;
     path: string;
@@ -7462,12 +7539,19 @@ export declare interface INodeProperties {
     active: boolean;
 }
 export declare interface INodeService extends IServiceEvents {
-    createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
-    createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null>;
-    deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
-    queryNode(params: IQueryNodeParams): Promise<INode | null>;
+    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
+    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
+    query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    previewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    cancelPreviewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    setProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    reset(path: string): Promise<boolean>;
+    resetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    updatePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
 }
 export declare interface INodeTreeComponent {
     isCustom: boolean;
@@ -7535,6 +7619,15 @@ export declare interface IPrefab {
     data: INodeIdentifier;
     optimizationPolicy: OptimizationPolicy;
     persistent: boolean;
+}
+export declare interface IPrefabForEditor {
+    uuid: string;
+    fileId: string;
+    rootUuid: string;
+    sync: boolean;
+    prefabStateInfo: IPrefabStateInfo;
+    targetOverrides?: ITargetOverrideInfoForEditor[];
+    instance?: IProperty;
 }
 export declare interface IPrefabInfo {
     asset?: IPrefab;
@@ -7666,6 +7759,10 @@ export declare interface IReloadOptions {
 export declare interface IRemoveComponentOptions {
     path: string;
 }
+export declare interface IRemovedComponentInfo {
+    name: string;
+    fileID: string;
+}
 export declare interface IRevertToPrefabParams {
     nodePath: string;
 }
@@ -7677,6 +7774,19 @@ export declare interface IScene extends IBaseIdentifier {
     prefab: IPrefabInfo | null;
     children: INode[];
     components: IComponentIdentifier[];
+}
+export declare interface ISceneForEditor {
+    name: IProperty;
+    active: IProperty;
+    locked: IProperty;
+    _globals: Record<string, IProperty>;
+    isScene: boolean;
+    autoReleaseAssets: IProperty;
+    uuid: IProperty;
+    children: IProperty[];
+    parent: string;
+    __type__: string;
+    targetOverrides?: ITargetOverrideInfoForEditor[];
 }
 export declare interface ISceneMouseEvent {
     x: number;
@@ -7752,10 +7862,9 @@ export declare interface IServiceEvents {
     onSetPropertyComponent?(comp: Component): void;
     onComponentAdded?(comp: Component): void;
     onComponentRemoved?(comp: Component): void;
+    onBeforeChangeComponent?(node: Node_2): void;
+    onBeforeAddComponent?(name: string, node: Node_2): void;
     onBeforeRemoveComponent?(comp: Component): void;
-    onComponentBeforeChanged?(node: Node_2): void;
-    onBeforeComponentAdded?(name: string, node: Node_2): void;
-    onComponentChanged?(name: string, opts: IChangeNodeOptions): void;
     onAssetDeleted?(uuid: string): void;
     onAssetChanged?(uuid: string): void;
     onAssetRefreshed?(uuid: string): void;
@@ -7787,7 +7896,7 @@ export declare interface ISetPropertyOptions {
     record?: boolean;
 }
 export declare interface ISetPropertyOptionsForEditor {
-    uuid: string;
+    nodePath: string;
     path: string;
     dump: IProperty;
     record?: boolean;
@@ -7849,6 +7958,13 @@ export declare interface ITargetOverrideInfo {
     propertyPath: string[];
     target: INodeIdentifier | null;
     targetInfo: ITargetInfo | null;
+}
+export declare interface ITargetOverrideInfoForEditor {
+    source: string;
+    sourceInfo?: string[];
+    propertyPath: string[];
+    target: string;
+    targetInfo?: string[];
 }
 export declare interface IUerDataConfigItem {
     key?: string; 
