@@ -1,4 +1,4 @@
-import { Canvas, Color, Layers, Node, Vec3 } from 'cc';
+import { Canvas, Color, Layers, Node, Vec3, gfx } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { CameraController2D } from './camera/camera-controller-2d';
@@ -326,16 +326,22 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
                 try {
                     const mainSwapchain = root.mainWindow.swapchain;
                     if (mainSwapchain) {
+                        const renderPassInfo = new gfx.RenderPassInfo(
+                            [new gfx.ColorAttachment(root.mainWindow.swapchain.colorTexture.format)],
+                            new gfx.DepthStencilAttachment(root.mainWindow.swapchain.depthStencilTexture.format),
+                        );
+                        renderPassInfo.colorAttachments[0].barrier = root.device.getGeneralBarrier(new gfx.GeneralBarrierInfo(0, gfx.AccessFlagBit.FRAGMENT_SHADER_READ_TEXTURE));
                         const win = root.createWindow({
                             title: 'CLI Temp',
                             width: 1,
                             height: 1,
+                            renderPassInfo,
                             swapchain: mainSwapchain,
                         });
                         if (win) root.tempWindow = win;
                     }
-                } catch {
-                    // tempWindow 创建失败不影响核心功能
+                } catch (e) {
+                    console.error(e);
                 }
             }
         } catch (e) {
