@@ -42,7 +42,11 @@ jobs:
       
       - name: Setup environment
         uses: ./.github/actions/setup-env
-      
+
+      - name: Generate DTS
+        shell: bash
+        run: npm run generate:dts
+
       - name: Run unit tests
         id: unit-tests
         run: npm run test:quiet
