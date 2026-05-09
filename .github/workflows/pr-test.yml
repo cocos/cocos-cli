@@ -45,7 +45,7 @@ jobs:
 
       - name: Generate DTS
         shell: bash
-        run: npm run generate:dts
+        run: npx tsx workflow/generate-dts.ts
 
       - name: Run unit tests
         id: unit-tests
@@ -54,6 +54,8 @@ jobs:
       - name: Check DTS API compatibility
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           BASE_REF="origin/${{ github.base_ref }}"
           SNAP_FILE="tests/__snapshots__/dts-snapshot.test.ts.snap"
@@ -66,7 +68,6 @@ jobs:
 
           # Check if snapshot file changed compared to base branch
           if git diff --name-only "$BASE_REF"...HEAD | grep -q "$SNAP_FILE"; then
-            PR_TITLE="${{ github.event.pull_request.title }}"
             if [[ "$PR_TITLE" != *"[break]"* ]]; then
               echo "::error::DTS API breaking change detected! The snapshot file changed but the PR title does not contain [break]."
               echo "::error::If this change is intentional, add [break] to your PR title."
