@@ -574,15 +574,47 @@ describe('Node ForEditor 接口测试', () => {
             expect(active.displayName).toBe('Active');
         });
 
-        it('position/scale/rotation 带有 i18n 格式的 displayName 和 tooltip', async () => {
+        it('scene i18n - Node 属性的 displayName 和 tooltip 已翻译', async () => {
             const dump = await queryNodeDump(testNode!.path) as INodeForEditor;
 
-            expect(dump.position.displayName).toMatch(/^i18n:/);
-            expect(dump.position.tooltip).toMatch(/^i18n:/);
-            expect(dump.scale.displayName).toMatch(/^i18n:/);
-            expect(dump.scale.tooltip).toMatch(/^i18n:/);
-            expect(dump.rotation.displayName).toMatch(/^i18n:/);
-            expect(dump.rotation.tooltip).toMatch(/^i18n:/);
+            // scene prefix 的 i18n 应已翻译，不再保留 i18n: 前缀
+            expect(dump.position.displayName).toBe('Position');
+            expect(dump.position.tooltip).toBe('Position coordinates in local space.');
+            expect(dump.scale.displayName).toBe('Scale');
+            expect(dump.scale.tooltip).toBe('The scaling of this node in local space.');
+            expect(dump.rotation.displayName).toBe('Rotation');
+            expect(dump.mobility.displayName).toBe('Mobility');
+            expect(dump.layer.displayName).toBe('Layer');
+        });
+
+        it('ENGINE i18n - 组件属性的 displayName 和 tooltip 已翻译', async () => {
+            const labelNode = await NodeProxy.createByType({
+                path: '/',
+                name: 'I18nTestLabel',
+                nodeType: NodeType.LABEL,
+            });
+            expect(labelNode).toBeDefined();
+
+            const dump = await queryNodeDump(labelNode!.path) as INodeForEditor;
+            const labelComp = dump.__comps__.find(c => c.type === 'cc.Label');
+            expect(labelComp).toBeDefined();
+
+            const compValue = labelComp!.value as Record<string, any>;
+
+            // ENGINE prefix 的 i18n 应已翻译
+            const stringProp = compValue['string'];
+            expect(stringProp.displayName).toBe('string');
+            expect(stringProp.tooltip).toBe('The label text.');
+
+            const fontSizeProp = compValue['fontSize'];
+            expect(fontSizeProp.displayName).toBe('Font Size');
+            expect(fontSizeProp.tooltip).toBe('Font size, in points.');
+
+            // 不应残留 i18n: 前缀
+            expect(stringProp.displayName).not.toMatch(/^i18n:/);
+            expect(fontSizeProp.displayName).not.toMatch(/^i18n:/);
+
+            await NodeProxy.delete({ path: labelNode!.path, keepWorldTransform: false });
         });
 
         it('children 是 IProperty 数组', async () => {

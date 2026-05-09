@@ -4,6 +4,18 @@ import { parseCommandLineArgs } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
 import { serviceManager } from './service/service-manager';
+import i18n from '../../base/i18n';
+
+function _loadSceneI18n() {
+    for (const lang of ['zh', 'en']) {
+        try {
+            const data = require(`./i18n/${lang}`);
+            i18n.registerLanguagePatch(lang, 'scene', data);
+        } catch (error) {
+            console.warn(`[Scene] Failed to load scene i18n for ${lang}:`, error);
+        }
+    }
+}
 
 async function startup() {
     // 监听进程退出事件
@@ -27,6 +39,7 @@ async function startup() {
     serviceManager.initialize(serverURL ?? '');
 
     await Engine.init(enginePath);
+    _loadSceneI18n();
     // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径
     await Engine.initEngine({
         serverURL: serverURL,
