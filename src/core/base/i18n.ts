@@ -55,6 +55,14 @@ class I18n {
         return i18nextInstance.t(key) || name;
     }
 
+    batchTransI18nName(names: string[]): Record<string, string> {
+        const result: Record<string, string> = {};
+        for (const name of names) {
+            result[name] = this.transI18nName(name);
+        }
+        return result;
+    }
+
     /**
      * 动态注册语言包的补丁内容
      * @param language 语言代码，例如 zh、en

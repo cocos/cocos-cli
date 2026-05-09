@@ -12,7 +12,6 @@ import compMgr from '../component/index';
 import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
 import { MobilityMode, Node, Prefab, Component, js } from 'cc';
-import i18n from '../../../../base/i18n';
 
 const attributeProps = [
     'enumList',
@@ -642,13 +641,6 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
     }
 
     _checkAttributes(data, attributes, owner);
-
-    if (typeof data.displayName === 'string') {
-        data.displayName = i18n.transI18nName(data.displayName);
-    }
-    if (typeof data.tooltip === 'string') {
-        data.tooltip = i18n.transI18nName(data.tooltip);
-    }
 
     if (defValue) {
         if (Array.isArray(defValue)) {

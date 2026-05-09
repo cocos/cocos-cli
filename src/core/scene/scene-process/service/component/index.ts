@@ -1,4 +1,4 @@
-import dumpUtil from '../dump';
+import dumpUtil, { translateDumpI18n } from '../dump';
 const { get } = require('lodash');
 
 const CompMgr = EditorExtends.Component;
@@ -201,12 +201,12 @@ export class CompManager {
      *   如果组件不存在，则返回 null
      * @param {String} uuid
      */
-    queryDump(uuid: string) {
+    async queryDump(uuid: string) {
         const comp = this.query(uuid);
         if (!comp) {
             return null;
         }
-        return dumpUtil.dumpComponent(comp);
+        return translateDumpI18n(dumpUtil.dumpComponent(comp));
     }
 
     /**

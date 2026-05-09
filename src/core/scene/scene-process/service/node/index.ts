@@ -16,7 +16,7 @@ import { ServiceEvents } from '../core/global-events';
 // const { promisify } = require('util');
 // const { basename, extname } = require('path');
 // import nodeUtil from '../../../utils/node';
-import dumpUtil from '../dump';
+import dumpUtil, { translateDumpI18n } from '../dump';
 
 // import getComponentFunctionOfNode from '../component/get-component-function-of-node';
 import {
@@ -355,13 +355,13 @@ export class NodeManager {
      * 如果节点已被删除 parent = null，则返回 null
      * @param {String} uuid
      */
-    queryDump(uuid: string): INodeForEditor | ISceneForEditor | null {
+    async queryDump(uuid: string): Promise<INodeForEditor | ISceneForEditor | null> {
         // 只查现有场景里的节点，不需要再查回收站里的节点
         const node = NodeMgr.getNodesInScene()[uuid];
         if (!node) {
             return null;
         }
-        return dumpUtil.dumpNode(node);
+        return translateDumpI18n(dumpUtil.dumpNode(node));
     }
 
     /**
@@ -369,12 +369,12 @@ export class NodeManager {
      * 不论节点是否被删除
      * @param {String} uuid
      */
-    queryDumpAtAll(uuid: string): INodeForEditor | ISceneForEditor | null {
+    async queryDumpAtAll(uuid: string): Promise<INodeForEditor | ISceneForEditor | null> {
         const node = this.query(uuid);
         if (!node) {
             return null;
         }
-        return dumpUtil.dumpNode(node);
+        return translateDumpI18n(dumpUtil.dumpNode(node));
     }
 
     // /**
