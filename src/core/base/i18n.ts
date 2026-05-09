@@ -1,7 +1,5 @@
 'use strict';
 
-import { existsSync, readdirSync } from 'fs';
-import { join, basename } from 'path';
 import i18nextInstance from '../../i18n';
 import type { I18nKeys } from '../../i18n/types/generated';
 
@@ -39,17 +37,22 @@ class I18n {
      * @param title 原始 title 或者带有 i18n 开头的 title
      */
     transI18nName(name: string): string {
-        if (typeof name !== 'string') {
+        if (!name || typeof name !== 'string') {
             return '';
         }
-        if (name.startsWith('i18n:')) {
-            name = name.replace('i18n:', '') as I18nKeys;
-            if (!i18nextInstance.t(name)) {
-                console.debug(`${name} is not defined in i18n`);
-            }
-            return i18nextInstance.t(name) || name;
+        const prefix = 'i18n:';
+        if (!name.startsWith(prefix)) {
+            return name;
         }
-        return name;
+        const key = name.slice(prefix.length);
+        if (!key) {
+            return name;
+        }
+        if (!i18nextInstance.exists(key)) {
+            console.debug(`${name} is not defined in i18n`);
+            return name;
+        }
+        return i18nextInstance.t(key) || name;
     }
 
     /**
