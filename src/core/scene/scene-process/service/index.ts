@@ -12,4 +12,5 @@ export * from './undo';
 export * from './camera';
 export * from './gizmo';
 export * from './scene-view';
+export * from './particle';
 export * from './core/global-events';

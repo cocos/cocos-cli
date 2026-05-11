@@ -47,7 +47,7 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
 
     private _callFocusInEditor(uuid: string): void {
         try {
-            const EditorExtends = (cc as any).EditorExtends;
+            const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
             if (!EditorExtends) return;
             const node = EditorExtends.Node.getNode(uuid);
             if (!node?._components) return;
@@ -63,7 +63,7 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
 
     private _callLostFocusInEditor(uuid: string): void {
         try {
-            const EditorExtends = (cc as any).EditorExtends;
+            const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
             if (!EditorExtends) return;
             const node = EditorExtends.Node.getNode(uuid);
             if (!node?._components) return;
