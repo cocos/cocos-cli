@@ -33,8 +33,8 @@ class I18n {
         return i18nextInstance.t(key, obj);
     }
     /**
-     * 翻译 title
-     * @param title 原始 title 或者带有 i18n 开头的 title
+     * 翻译 name
+     * @param name 原始 name 或者带有 i18n 开头的 name
      */
     transI18nName(name: string): string {
         if (!name || typeof name !== 'string') {

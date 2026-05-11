@@ -1,5 +1,5 @@
 import dumpUtil, { translateDumpI18n } from '../dump';
-const { get } = require('lodash');
+import get from 'lodash/get';
 
 const CompMgr = EditorExtends.Component;
 import utils from './utils';

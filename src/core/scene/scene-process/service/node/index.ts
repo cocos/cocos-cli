@@ -9,7 +9,8 @@ import { IProperty } from '../../../@types/public';
 
 const NodeMgr = EditorExtends.Node;
 
-const { get, set } = require('lodash');
+import get from 'lodash/get';
+import set from 'lodash/set';
 import { isEditorNode, getNodeName } from './node-utils';
 import { ServiceEvents } from '../core/global-events';
 
@@ -789,7 +790,7 @@ export class NodeManager {
         if (path === '_components') {
             const comp = data[index];
             // https://github.com/cocos-creator/3d-tasks/issues/1116
-            compMgr.removeComponent(comp.uuid);
+            compMgr.removeComponent(comp);
         } else {
             // 删除某个 item
             data.splice(index, 1);

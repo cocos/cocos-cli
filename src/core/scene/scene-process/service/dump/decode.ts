@@ -4,8 +4,8 @@ declare const cc: any;
 
 import { ccClassAttrPropertyDefaultValue, getDefault, getTypeInheritanceChain, getTypeName, parsingPath } from './utils';
 
-import lodash from 'lodash';
-const { get, set } = lodash;
+import get from 'lodash/get';
+import set from 'lodash/set';
 import { DumpDefines } from './dump-defines';
 import { Component, editorExtrasTag, Node, Vec3, MobilityMode, Prefab, Quat, assetManager, Animation } from 'cc';
 import { promisify } from 'util';
@@ -13,8 +13,6 @@ import { IComponentForEditor, INodeForEditor, ISceneForEditor, ITargetOverrideIn
 import compMgr from './../component/index';
 import nodeMgr from './../node/index';
 import { IProperty } from '../../../@types/public';
-
-
 
 type TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
 const TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
@@ -151,8 +149,9 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         const compUuid = componentsUuids[i];
 
         if (compUuid && !dumpCompsUuids.includes(compUuid)) {
+            const comp = compMgr.query(compUuid);
             // 删除失败会返回 false, 可能是组件被依赖，会下次再删
-            if (compMgr.removeComponent(compUuid)) {
+            if (!comp || compMgr.removeComponent(comp)) {
                 componentsUuids.splice(i, 1);
             } else {
                 i--;
@@ -265,7 +264,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         /**
          * 需要立即执行 cc.Object._deferredDestroy() 动作
          */
-        compMgr.removeComponent(component.uuid);
+        compMgr.removeComponent(component);
         cc.Object._deferredDestroy();
     }
 }

@@ -1,15 +1,12 @@
 'use strict';
 import { Node, Component, js, CCClass, Scene } from 'cc';
 import { parsingPath } from './utils';
+import get from 'lodash/get';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeComponentForCli, encodeComponent, encodeScene, encodeNode } from './encode';
 import { IComponent, IComponentForEditor, INodeForEditor, ISceneForEditor } from '../../../common';
 import { Rpc } from '../../rpc';
-import { IProperty } from '../../../@types/public';
-
-// import * as dumpDecode from './decode';
-const { get } = require('lodash');
 
 // dump接口,统一下全局引用
 class DumpUtil {

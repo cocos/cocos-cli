@@ -55,7 +55,7 @@ export function encodeNode(node: Node): INodeForEditor {
     // FIXME: avoid using private field
     // TODO：这里的需要知道当前场景是 2D 还是 3D
     //const is2DProject = cce.SceneFacadeManager['_projectType'] === '2d';
-    const is2DProject = true;
+    const is2DProject = false;
 
     const data: INodeForEditor = {
         active: encodeObject(node.active, { displayName: 'Active', default: null }, node),
