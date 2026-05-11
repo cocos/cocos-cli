@@ -182,6 +182,10 @@ export class AssetsApi {
 
         try {
             ret.data = await assetManager.queryAssetMeta(urlOrUUIDOrPath);
+            if (!ret.data) {
+                ret.code = COMMON_STATUS.FAIL;
+                ret.reason = `Asset not found: ${urlOrUUIDOrPath}`;
+            }
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query asset meta fail:', e instanceof Error ? e.message : String(e));
