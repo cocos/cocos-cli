@@ -621,6 +621,9 @@ class AssetHandlerManager {
      * 更新默认配置数据并保存（偏好设置的用户操作修改入口）
      */
     public async updateDefaultUserData(handler: string, key: string, value: any): Promise<void> {
+        if (!this.name2handler[handler]) {
+            throw new Error(`Asset handler not found: ${handler}`);
+        }
         lodash.set(this._userDataCache, `${handler}.${key}`, value);
         this._updateDefaultUserDataToHandler(handler, key, value);
         const combineUserData = {

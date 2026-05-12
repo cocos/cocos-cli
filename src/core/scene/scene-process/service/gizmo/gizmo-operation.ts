@@ -271,7 +271,9 @@ class GizmoOperation {
     public onMouseWheel() {}
 
     private _changeMouseHover(event: GizmoMouseEvent, results: RaycastResults): boolean {
-        if (this._anyKeyDown) return true;
+        if (this._anyKeyDown) {
+            return true;
+        }
 
         // 与编辑器一致：vertexSnap 检查
         const selection = getServiceProp('Selection');

@@ -189,4 +189,92 @@ export class CameraUtils {
         camera.near = 0.1;
         return camera;
     }
+
+    private static _snapTipElement: HTMLElement | null = null;
+    private static _snapTipTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    static showSnapTip(duration = 5000) {
+        if (typeof document === 'undefined') return;
+        if (CameraUtils._snapTipElement) {
+            if (CameraUtils._snapTipTimeout) {
+                clearTimeout(CameraUtils._snapTipTimeout);
+            }
+            if (duration > 0) {
+                CameraUtils._snapTipTimeout = setTimeout(() => CameraUtils.hideSnapTip(), duration);
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.style.cssText = `
+            position: absolute; bottom: 10px; left: 10px;
+            background-color: #00000047; border-radius: 6px;
+            display: flex; flex-direction: column;
+            font-size: 15px; padding: 10px; z-index: 9999;
+            pointer-events: none; font-family: sans-serif;
+        `;
+
+        const snapItems: { label: string; keys: string[] }[] = [
+            { label: 'Vertex Snap', keys: ['V'] },
+            { label: 'Surface Snap', keys: ['Shift', 'Ctrl'] },
+        ];
+
+        snapItems.forEach((item, idx) => {
+            if (idx > 0) {
+                const spacer = document.createElement('div');
+                spacer.style.height = '4px';
+                container.appendChild(spacer);
+            }
+
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; flex-direction: row; align-items: center; justify-content: flex-end;';
+
+            const label = document.createElement('span');
+            label.style.cssText = 'color: white; opacity: 0.6; margin-right: 8px;';
+            label.textContent = item.label;
+            row.appendChild(label);
+
+            const keyGroup = document.createElement('div');
+            keyGroup.style.cssText = 'display: flex; flex-direction: row; align-items: baseline; min-width: 120px;';
+
+            item.keys.forEach((key, ki) => {
+                if (ki > 0) {
+                    const plus = document.createElement('span');
+                    plus.style.cssText = 'font-size: 12px; line-height: 20px; margin: 0 4px; color: rgba(250,250,250,1);';
+                    plus.textContent = '+';
+                    keyGroup.appendChild(plus);
+                }
+                const keyEl = document.createElement('div');
+                keyEl.style.cssText = `
+                    display: flex; align-items: center; justify-content: center;
+                    width: 50px; height: 24px; border-radius: 4px;
+                    background: #0505054D; border: 1px solid #FAFAFA33;
+                    color: #FAFAFA; opacity: 0.7;
+                `;
+                keyEl.textContent = key;
+                keyGroup.appendChild(keyEl);
+            });
+
+            row.appendChild(keyGroup);
+            container.appendChild(row);
+        });
+
+        document.body.appendChild(container);
+        CameraUtils._snapTipElement = container;
+
+        if (duration > 0) {
+            CameraUtils._snapTipTimeout = setTimeout(() => CameraUtils.hideSnapTip(), duration);
+        }
+    }
+
+    static hideSnapTip() {
+        if (CameraUtils._snapTipTimeout) {
+            clearTimeout(CameraUtils._snapTipTimeout);
+            CameraUtils._snapTipTimeout = null;
+        }
+        if (CameraUtils._snapTipElement) {
+            CameraUtils._snapTipElement.remove();
+            CameraUtils._snapTipElement = null;
+        }
+    }
 }

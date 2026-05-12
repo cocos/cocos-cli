@@ -567,31 +567,57 @@ export class CorrectComponent extends Component {
     });
 
     describe('asset-rename', () => {
+        test('should rename asset by newName in the same directory', async () => {
+            const sourceName = generateTestFileName('rename-source', 'txt');
+            const targetName = generateTestFileName('rename-target', 'txt');
+            const sourceUrl = `${context.testRootUrl}/${sourceName}`;
+            const targetPath = join(context.testRootPath, targetName);
+
+            await context.mcpClient.callTool('assets-create-asset', {
+                options: {
+                    target: sourceUrl,
+                    content: TEST_ASSET_CONTENTS.text,
+                },
+            });
+
+            const result = await context.mcpClient.callTool('assets-rename-asset', {
+                source: sourceUrl,
+                newName: targetName,
+                options: {},
+            });
+
+            expect(result.code).toBe(200);
+            validateAssetMoved(join(context.testRootPath, sourceName), targetPath);
+            expect(readFileSync(targetPath, 'utf8')).toEqual(TEST_ASSET_CONTENTS.text);
+        });
+
         test('should handle renaming to existing name', async () => {
-            const name1 = `rename-exist-1-${generateTestId()}`;
-            const name2 = `rename-exist-2-${generateTestId()}`;
+            const name1 = generateTestFileName('rename-exist-1', 'txt');
+            const name2 = generateTestFileName('rename-exist-2', 'txt');
+            const sourceUrl = `${context.testRootUrl}/${name1}`;
 
             // 创建两个资源
             await context.mcpClient.callTool('assets-create-asset', {
                 options: {
-                    target: `${context.testRootUrl}/${name1}`,
+                    target: sourceUrl,
+                    content: 'rename-source',
                 },
             });
 
             await context.mcpClient.callTool('assets-create-asset', {
                 options: {
                     target: `${context.testRootUrl}/${name2}`,
+                    content: 'rename-target',
                 },
             });
 
             // 尝试重命名到已存在的名称
             const result = await context.mcpClient.callTool('assets-rename-asset', {
-                source: `${context.testRootUrl}/${name1}`,
-                target: `${context.testRootUrl}/${name2}`,
+                source: sourceUrl,
+                newName: name2,
                 options: {},
             });
 
-            // 应该失败或使用 rename 选项
             expect(result.code).not.toBe(200);
         });
     });

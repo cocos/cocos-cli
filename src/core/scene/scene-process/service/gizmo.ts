@@ -32,6 +32,8 @@ import './gizmo/components/circle-collider-2d';
 import './gizmo/components/polygon-collider-2d';
 import './gizmo/components/mesh-renderer';
 import './gizmo/components/skinned-mesh-renderer';
+import './gizmo/components/video-player';
+import './gizmo/components/web-view';
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
 

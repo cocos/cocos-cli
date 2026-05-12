@@ -254,6 +254,114 @@ describe('测试 db 的操作接口', function () {
     //     });
     // });
 
+    describe('rename-asset', () => {
+        it('使用 url 重命名普通资源时，第二个参数只接收 newName', async function () {
+            const sourceName = `${name}_rename-file.txt`;
+            const targetName = `${name}_rename-file-next.txt`;
+            const sourcePath = join(databasePath, sourceName);
+            const targetPath = join(databasePath, targetName);
+
+            await assetManager.createAsset({
+                target: sourcePath,
+                content: 'rename-file',
+                overwrite: true,
+            });
+
+            await assetManager.renameAsset(`${TestGlobalEnv.testRootUrl}/${sourceName}`, targetName);
+
+            expect(existsSync(sourcePath)).toStrictEqual(false);
+            expect(existsSync(`${sourcePath}.meta`)).toStrictEqual(false);
+            expect(existsSync(targetPath)).toStrictEqual(true);
+            expect(existsSync(`${targetPath}.meta`)).toStrictEqual(true);
+            expect(readFileSync(targetPath, 'utf8')).toStrictEqual('rename-file');
+        });
+
+        it('使用 uuid 重命名文件夹时，newName 保持在原目录下', async function () {
+            const sourceName = `${name}_rename-folder`;
+            const targetName = `${name}_rename-folder-next`;
+            const sourcePath = join(databasePath, sourceName);
+            const targetPath = join(databasePath, targetName);
+
+            const asset = await assetManager.createAsset({
+                target: sourcePath,
+            });
+
+            await assetManager.renameAsset(asset!.uuid, targetName);
+
+            expect(existsSync(sourcePath)).toStrictEqual(false);
+            expect(existsSync(`${sourcePath}.meta`)).toStrictEqual(false);
+            expect(existsSync(targetPath)).toStrictEqual(true);
+            expect(existsSync(`${targetPath}.meta`)).toStrictEqual(true);
+            expect(statSync(targetPath).isDirectory()).toStrictEqual(true);
+        });
+
+        it('使用绝对路径重命名时，rename 选项会在名称冲突后自动生成新名称', async function () {
+            const sourceName = `${name}_rename-conflict-source.txt`;
+            const targetName = `${name}_rename-conflict-target.txt`;
+            const autoRenamedName = `${name}_rename-conflict-target-001.txt`;
+            const sourcePath = join(databasePath, sourceName);
+            const targetPath = join(databasePath, targetName);
+            const autoRenamedPath = join(databasePath, autoRenamedName);
+
+            await assetManager.createAsset({
+                target: sourcePath,
+                content: 'source-content',
+                overwrite: true,
+            });
+            await assetManager.createAsset({
+                target: targetPath,
+                content: 'target-content',
+                overwrite: true,
+            });
+
+            await assetManager.renameAsset(sourcePath, targetName, {
+                rename: true,
+            });
+
+            expect(existsSync(sourcePath)).toStrictEqual(false);
+            expect(existsSync(targetPath)).toStrictEqual(true);
+            expect(readFileSync(targetPath, 'utf8')).toStrictEqual('target-content');
+            expect(existsSync(autoRenamedPath)).toStrictEqual(true);
+            expect(readFileSync(autoRenamedPath, 'utf8')).toStrictEqual('source-content');
+        });
+
+        it('重命名文件时 newName 必须带后缀名', async function () {
+            const sourceName = `${name}_rename-no-ext.txt`;
+            const sourcePath = join(databasePath, sourceName);
+
+            await assetManager.createAsset({
+                target: sourcePath,
+                content: 'rename-no-ext',
+                overwrite: true,
+            });
+
+            await expect(assetManager.renameAsset(sourcePath, `${name}_rename-no-ext-next`)).rejects.toThrow(
+                'newName must include file extension'
+            );
+
+            expect(existsSync(sourcePath)).toStrictEqual(true);
+            expect(readFileSync(sourcePath, 'utf8')).toStrictEqual('rename-no-ext');
+        });
+
+        it('newName 包含路径分隔符时应该失败', async function () {
+            const sourceName = `${name}_rename-invalid.txt`;
+            const sourcePath = join(databasePath, sourceName);
+
+            await assetManager.createAsset({
+                target: sourcePath,
+                content: 'rename-invalid',
+                overwrite: true,
+            });
+
+            await expect(assetManager.renameAsset(sourcePath, `nested/${name}_rename-invalid-next.txt`)).rejects.toThrow(
+                'newName must be a single file or directory name'
+            );
+
+            expect(existsSync(sourcePath)).toStrictEqual(true);
+            expect(readFileSync(sourcePath, 'utf8')).toStrictEqual('rename-invalid');
+        });
+    });
+
     describe('delete-asset', () => {
         describe('删除文件夹', function () {
 
