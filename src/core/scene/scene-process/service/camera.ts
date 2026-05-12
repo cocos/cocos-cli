@@ -1,4 +1,4 @@
-import { Canvas, Color, Layers, Node, Vec3, gfx } from 'cc';
+import { Camera, Canvas, Color, Layers, Node, Vec3, gfx } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { CameraController2D } from './camera/camera-controller-2d';
@@ -29,6 +29,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     get camera() { return this._camera; }
 
     set is2D(value: boolean) {
+        if (this._controller && this.is2D === value) return;
         if (this._controller) {
             this._controller.active = false;
         }
@@ -38,10 +39,10 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             this.defaultFocus(this._currentUuid);
             this._controllerFirstChange = true;
         }
+        // 同步 transformToolData.is2D，触发 dimension-changed 事件
         const ttd = Service.Gizmo?.transformToolData;
-        if (ttd) {
+        if (ttd && ttd.is2D !== value) {
             ttd.is2D = value;
-            ttd.toolName = value ? 'rect' : 'position';
         }
         Service.Engine.repaintInEditMode();
     }
@@ -74,6 +75,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
                 this._camera = cam;
                 this._controller2D.init(cam);
                 this._controller3D.init(cam);
+                this._controller.active = true;
 
                 this._controller3D.on('mode', (mode: CameraMoveMode) => {
                     this.emit('camera:mode-change', mode);
@@ -353,7 +355,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
      * 新增的 Camera 组件也需要 detach，与原始编辑器 ScenePreview.onComponentAdded 一致
      */
     detachNewSceneCamera(comp: any): void {
-        if (!comp || !comp.camera) return;
+        if (!comp || !(comp instanceof Camera) || !comp.camera) return;
         const editorMask = Layers.makeMaskInclude([
             Layers.Enum.GIZMOS,
             Layers.Enum.SCENE_GIZMO,

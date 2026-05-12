@@ -827,6 +827,15 @@ export class CameraController3D extends CameraControllerBase {
         } else if (event.leftButton && event.altKey) {
             // Alt + 左键：进入旋转模式
             void this.changeMode('orbit');
+        } else if (event.leftButton) {
+            let isViewMode = false;
+            try {
+                const { Service } = require('../core/decorator');
+                isViewMode = !!Service.Gizmo?.isViewMode;
+            } catch (e) { /* Gizmo not ready */ }
+            if (isViewMode) {
+                void this.changeMode('pan');
+            }
         }
 
         const currentMode = this._modeFSM.currentState as ModeBase3D;

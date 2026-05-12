@@ -174,9 +174,14 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             this.emit('gizmo:tool-changed', name);
         });
 
-        // 与 cocos-editor 一致：2D 视图下隐藏 IconGizmo，让 UI 编辑更干净
+        // 与 cocos-editor gizmos.ts 一致：dimension-changed 时切换相机 2D/3D 模式
         this.transformToolData.on('dimension-changed', (is2D: boolean) => {
             this.setIconVisible(!is2D);
+            try {
+                Service.Camera.is2D = is2D;
+            } catch (e) {
+                // Camera not ready yet
+            }
         });
 
         // Listen for camera mode changes to lock/unlock gizmo tool
