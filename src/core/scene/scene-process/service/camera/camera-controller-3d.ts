@@ -10,6 +10,7 @@ import PanMode from './modes/pan-mode';
 import WanderMode from './modes/wander-mode';
 import type ModeBase3D from './modes/mode-base-3d';
 import type { ISceneMouseEvent, ISceneKeyboardEvent } from '../operation/types';
+import { Service } from '../core/decorator';
 
 // ---------- node utility helpers ----------
 
@@ -529,12 +530,7 @@ export class CameraController3D extends CameraControllerBase {
 
         // 判定 pivot 模式
         let pivot = 'center';
-        try {
-            const { Service } = require('../core/decorator');
-            pivot = Service.Gizmo?.transformToolData?.pivot ?? 'center';
-        } catch (e) {
-            // Gizmo may not be initialized
-        }
+        pivot = Service.Gizmo?.transformToolData?.pivot ?? 'center';
 
         let targetPos: Vec3;
         if (pivot === 'pivot' && nodes.length === 1) {
@@ -608,12 +604,7 @@ export class CameraController3D extends CameraControllerBase {
             });
         }
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     focus(nodeUuids: string[], editorCameraInfo?: EditorCameraInfo, immediate = false) {
@@ -640,12 +631,7 @@ export class CameraController3D extends CameraControllerBase {
             this.node.setWorldPosition(this._curEye);
             this.node.setWorldRotation(this._curRot);
             this.updateGrid();
-            try {
-                const { Service } = require('../core/decorator');
-                Service.Engine?.repaintInEditMode?.();
-            } catch (e) {
-                // Engine may not be ready
-            }
+            Service.Engine?.repaintInEditMode?.();
             return;
         }
 
@@ -703,12 +689,7 @@ export class CameraController3D extends CameraControllerBase {
             });
         }
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     // ---------- 对齐 ----------
@@ -730,12 +711,7 @@ export class CameraController3D extends CameraControllerBase {
 
         // 开始撤销记录
         let undoId: string | undefined;
-        try {
-            const { Service } = require('../core/decorator');
-            undoId = Service.Undo?.beginRecording?.(nodeUuids);
-        } catch (e) {
-            // Undo may not be ready
-        }
+        undoId = Service.Undo?.beginRecording?.(nodeUuids);
 
         const camPos = this.node.getWorldPosition();
         const camRot = this.node.getWorldRotation();
@@ -751,20 +727,10 @@ export class CameraController3D extends CameraControllerBase {
 
         // 结束撤销记录
         if (undoId) {
-            try {
-                const { Service } = require('../core/decorator');
-                Service.Undo?.endRecording?.(undoId);
-            } catch (e) {
-                // Undo may not be ready
-            }
+            Service.Undo?.endRecording?.(undoId);
         }
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     alignCameraOrthoHeightToNode(cameras: Camera[]) {
@@ -793,12 +759,7 @@ export class CameraController3D extends CameraControllerBase {
         this.updateViewCenterByDist(-this.viewDist);
         this.updateGrid();
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     // ---------- 鼠标/键盘事件 ----------
@@ -828,11 +789,7 @@ export class CameraController3D extends CameraControllerBase {
             // Alt + 左键：进入旋转模式
             void this.changeMode('orbit');
         } else if (event.leftButton) {
-            let isViewMode = false;
-            try {
-                const { Service } = require('../core/decorator');
-                isViewMode = !!Service.Gizmo?.isViewMode;
-            } catch (e) { /* Gizmo not ready */ }
+            const isViewMode = !!Service.Gizmo?.isViewMode;
             if (isViewMode) {
                 void this.changeMode('pan');
             }
@@ -849,12 +806,7 @@ export class CameraController3D extends CameraControllerBase {
         const currentMode = this._modeFSM.currentState as ModeBase3D;
         currentMode.onMouseMove(event);
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     onMouseUp(event: ISceneMouseEvent) {
@@ -880,12 +832,7 @@ export class CameraController3D extends CameraControllerBase {
             this.smoothScale(delta);
         }
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     onKeyDown(event: ISceneKeyboardEvent) {
@@ -905,12 +852,7 @@ export class CameraController3D extends CameraControllerBase {
 
     onResize(size: ISizeLike) {
         this.updateGrid();
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     // ---------- 网格 ----------
@@ -1023,12 +965,7 @@ export class CameraController3D extends CameraControllerBase {
 
     refresh() {
         this.updateGrid();
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     // ---------- 旋转相机到指定方向 ----------
@@ -1065,12 +1002,7 @@ export class CameraController3D extends CameraControllerBase {
             this.updateGrid();
         });
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     // ---------- 投影相关 ----------
@@ -1111,13 +1043,8 @@ export class CameraController3D extends CameraControllerBase {
         this._camera.orthoHeight = newOrthoHeight;
 
         // 尝试同步到 Gizmo
-        try {
-            const { Service } = require('../core/decorator');
-            if (Service.Gizmo?.transformToolData) {
-                Service.Gizmo.transformToolData.cameraOrthoHeight = newOrthoHeight;
-            }
-        } catch (e) {
-            // Gizmo may not be initialized
+        if (Service.Gizmo?.transformToolData) {
+            Service.Gizmo.transformToolData.cameraOrthoHeight = newOrthoHeight;
         }
     }
 
@@ -1138,12 +1065,7 @@ export class CameraController3D extends CameraControllerBase {
 
         this.updateGrid();
 
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        Service.Engine?.repaintInEditMode?.();
     }
 
     // ---------- 缩放快捷键 ----------
