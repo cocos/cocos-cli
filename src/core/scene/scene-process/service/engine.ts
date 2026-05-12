@@ -194,6 +194,11 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         this._capture = b;
     }
 
+    private _getNodeByPath(path: string): Node | null {
+        const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+        return EditorExtends?.Node?.getNodeByPath?.(path) ?? null;
+    }
+
     private _getNodeByUuid(uuid: string): Node | null {
         const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
         return EditorExtends?.Node?.getNode?.(uuid) ?? null;
@@ -232,7 +237,6 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         const nodeUuids = Service.Selection?.query?.() ?? [];
         if (comp.node && nodeUuids.includes(comp.node.uuid)) {
             this.checkToSetAnimState([comp.node]);
-            // 与 cocos-editor ParticleManager 一致：新增的粒子组件自动播放
             if (this._isParticleSystem3D(comp) && !(comp as any).isPlaying) {
                 (comp as any).play();
             }
@@ -253,28 +257,29 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     // 与 cocos-editor SceneSelection 一致：选中/反选时检查粒子/地形组件
-    onSelectionSelect(uuid: string, uuids: string[]) {
-        const selectedUuids = uuids?.length ? uuids : (Service.Selection?.query?.() ?? []);
+    onSelectionSelect(path: string, paths: string[]) {
         const nodes: Node[] = [];
-        for (const uid of selectedUuids) {
-            const node = this._getNodeByUuid(uid);
+        for (const p of paths) {
+            const node = this._getNodeByPath(p);
             if (node) nodes.push(node);
         }
         this.checkToSetAnimState(nodes);
-        this._playParticlesOnSelect(selectedUuids);
+        const uuids = nodes.map(n => n.uuid);
+        this._playParticlesOnSelect(uuids);
         void this.repaintInEditMode();
     }
 
-    onSelectionUnselect(uuid: string, uuids: string[]) {
-        const selectedUuids = uuids?.length ? uuids : (Service.Selection?.query?.() ?? []);
-        const remaining = selectedUuids.filter((uid: string) => uid !== uuid);
+    onSelectionUnselect(path: string, paths: string[]) {
+        const unselectedNode = this._getNodeByPath(path);
         const nodes: Node[] = [];
-        for (const uid of remaining) {
-            const node = this._getNodeByUuid(uid);
+        for (const p of paths) {
+            const node = this._getNodeByPath(p);
             if (node) nodes.push(node);
         }
-        this.checkToSetAnimState(nodes);
-        this._pauseParticlesOnUnselect(selectedUuids);
+        const remaining = nodes.filter(n => n !== unselectedNode);
+        this.checkToSetAnimState(remaining);
+        const uuids = nodes.map(n => n.uuid);
+        this._pauseParticlesOnUnselect(uuids);
         void this.repaintInEditMode();
     }
 

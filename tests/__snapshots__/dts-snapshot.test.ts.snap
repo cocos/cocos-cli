@@ -5708,8 +5708,8 @@ export declare interface IServiceEvents {
     onAssetChanged?(uuid: string): void;
     onAssetRefreshed?(uuid: string): void;
     onScriptExecutionFinished?(): void;
-    onSelectionSelect?(uuid: string, uuids: string[]): void;
-    onSelectionUnselect?(uuid: string, uuids: string[]): void;
+    onSelectionSelect?(path: string, paths: string[]): void;
+    onSelectionUnselect?(path: string, paths: string[]): void;
     onSelectionClear?(): void;
 }
 export declare interface IServiceManager {
@@ -7760,8 +7760,8 @@ export declare interface IServiceEvents {
     onAssetChanged?(uuid: string): void;
     onAssetRefreshed?(uuid: string): void;
     onScriptExecutionFinished?(): void;
-    onSelectionSelect?(uuid: string, uuids: string[]): void;
-    onSelectionUnselect?(uuid: string, uuids: string[]): void;
+    onSelectionSelect?(path: string, paths: string[]): void;
+    onSelectionUnselect?(path: string, paths: string[]): void;
     onSelectionClear?(): void;
 }
 export declare interface IServiceManager {

@@ -3,6 +3,11 @@
 import { Component, Node } from 'cc';
 import { BaseService, register } from './core';
 
+function getNodeByPath(path: string): Node | null {
+    const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+    return EditorExtends?.Node?.getNodeByPath?.(path) ?? null;
+}
+
 function getNodeByUuid(uuid: string): Node | null {
     const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
     return EditorExtends?.Node?.getNode?.(uuid) ?? null;
@@ -73,8 +78,8 @@ export class ParticleService extends BaseService<Record<string, never>> {
         return result.filter((comp: any) => comp.enabled);
     }
 
-    onSelectionSelect(uuid: string, uuids: string[]) {
-        this._selectedUUIDs = uuids.slice();
+    onSelectionSelect(path: string, paths: string[]) {
+        this._selectedUUIDs = paths.map(p => getNodeByPath(p)?.uuid).filter(Boolean) as string[];
         const components = this._getSelectedParticleSystemComponents();
         const willPlay = components.some(item => !this._stoppedSet.has(item));
         if (willPlay) {
@@ -87,13 +92,14 @@ export class ParticleService extends BaseService<Record<string, never>> {
         });
     }
 
-    onSelectionUnselect(uuid: string, uuids: string[]) {
+    onSelectionUnselect(path: string, paths: string[]) {
+        const remainingUuids = paths.map(p => getNodeByPath(p)?.uuid).filter(Boolean) as string[];
         this._getSelectedParticleSystemComponents().forEach((ps: any) => {
-            if (!uuids.includes(ps.node.uuid) && ps.isPlaying) {
+            if (!remainingUuids.includes(ps.node.uuid) && ps.isPlaying) {
                 ps.pause();
             }
         });
-        this._selectedUUIDs = uuids.slice();
+        this._selectedUUIDs = remainingUuids;
     }
 
     onSelectionClear() {

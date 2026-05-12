@@ -46,7 +46,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             canvasNeeded = paramsArray[0].canvasRequired ? true : false;
             const projectType = paramsArray[0]['project-type'];
             const workMode = params.workMode;
-            if (projectType && workMode && projectType !== workMode && paramsArray.length > 1) {
+            if (projectType && workMode && projectType !== workMode.toLowerCase() && paramsArray.length > 1) {
                 assetUuid = paramsArray[1]['assetUuid'] || null;
                 canvasNeeded = paramsArray[1].canvasRequired ? true : false;
             }
@@ -96,7 +96,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 canvasRequired: canvasNeeded
             });
             resultNode = node;
-            parent = await this.checkCanvasRequired(workMode, Boolean(canvasRequired), parent, params.position as Vec3) as Node;
+            parent = await this.checkCanvasRequired(workMode.toLowerCase(), Boolean(canvasRequired), parent, params.position as Vec3) as Node;
         }
         if (!resultNode) {
             resultNode = new cc.Node();

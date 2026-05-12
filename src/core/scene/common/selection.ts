@@ -12,7 +12,7 @@ export type IPublicSelectionService = Pick<ISelectionService,
 >;
 
 export interface ISelectionEvents {
-    'selection:select': [uuid: string, uuids: string[]];
-    'selection:unselect': [uuid: string, uuids: string[]];
+    'selection:select': [path: string, paths: string[]];
+    'selection:unselect': [path: string, paths: string[]];
     'selection:clear': [];
 }

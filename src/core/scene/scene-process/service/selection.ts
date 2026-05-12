@@ -2,6 +2,22 @@ import { BaseService } from './core';
 import { register } from './core/decorator';
 import type { ISelectionService, ISelectionEvents } from '../../common';
 
+function getNodeMgr() {
+    return ((cc as any).EditorExtends || (globalThis as any).EditorExtends)?.Node;
+}
+
+function uuidToPath(uuid: string): string {
+    const NodeMgr = getNodeMgr();
+    if (!NodeMgr) return '';
+    const node = NodeMgr.getNode?.(uuid);
+    if (!node) return '';
+    return NodeMgr.getNodePath(node) ?? '';
+}
+
+function uuidsToPath(uuids: string[]): string[] {
+    return uuids.map(uuidToPath).filter(Boolean);
+}
+
 @register('Selection')
 export class SelectionService extends BaseService<ISelectionEvents> implements ISelectionService {
     private _uuids: string[] = [];
@@ -11,7 +27,9 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
         if (index !== -1) return;
         this._uuids.unshift(uuid);
         this._callFocusInEditor(uuid);
-        this.broadcast('selection:select', uuid, this._uuids.slice());
+        const path = uuidToPath(uuid);
+        const paths = uuidsToPath(this._uuids);
+        this.broadcast('selection:select', path, paths);
     }
 
     unselect(uuid: string): void {
@@ -19,7 +37,9 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
         if (index === -1) return;
         this._uuids.splice(index, 1);
         this._callLostFocusInEditor(uuid);
-        this.broadcast('selection:unselect', uuid, this._uuids.slice());
+        const path = uuidToPath(uuid);
+        const paths = uuidsToPath(this._uuids);
+        this.broadcast('selection:unselect', path, paths);
     }
 
     clear(): void {
@@ -27,7 +47,9 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
             const uuid = this._uuids.shift();
             if (uuid) {
                 this._callLostFocusInEditor(uuid);
-                this.emit('selection:unselect', uuid, this._uuids.slice());
+                const path = uuidToPath(uuid);
+                const paths = uuidsToPath(this._uuids);
+                this.emit('selection:unselect', path, paths);
             }
         }
         this.broadcast('selection:clear');
@@ -47,9 +69,9 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
 
     private _callFocusInEditor(uuid: string): void {
         try {
-            const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-            if (!EditorExtends) return;
-            const node = EditorExtends.Node.getNode(uuid);
+            const NodeMgr = getNodeMgr();
+            if (!NodeMgr) return;
+            const node = NodeMgr.getNode(uuid);
             if (!node?._components) return;
             for (const comp of node.components) {
                 if (comp?.onFocusInEditor) {
@@ -63,9 +85,9 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
 
     private _callLostFocusInEditor(uuid: string): void {
         try {
-            const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-            if (!EditorExtends) return;
-            const node = EditorExtends.Node.getNode(uuid);
+            const NodeMgr = getNodeMgr();
+            if (!NodeMgr) return;
+            const node = NodeMgr.getNode(uuid);
             if (!node?._components) return;
             for (const comp of node.components) {
                 if (comp?.onLostFocusInEditor) {

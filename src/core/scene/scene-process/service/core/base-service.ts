@@ -40,8 +40,8 @@ export interface IServiceEvents {
     onScriptExecutionFinished?(): void;
 
     // Selection events
-    onSelectionSelect?(uuid: string, uuids: string[]): void;
-    onSelectionUnselect?(uuid: string, uuids: string[]): void;
+    onSelectionSelect?(path: string, paths: string[]): void;
+    onSelectionUnselect?(path: string, paths: string[]): void;
     onSelectionClear?(): void;
 }
 
