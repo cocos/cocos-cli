@@ -1,21 +1,21 @@
-import cc, { Component } from 'cc';
+import cc, { Scene } from 'cc';
 import {
-    IComponent,
     IComponentIdentifier,
     IMountedChildrenInfo,
     IMountedComponentsInfo,
-    INode,
-    IPrefab,
+    IPrefabDetail,
     IPrefabInfo,
     IPrefabInstance,
     IPropertyOverrideInfo,
     ITargetInfo,
-    ITargetOverrideInfo,
+    ITargetOverrideDetail,
     OptimizationPolicy,
 } from '../../../common';
 import compMgr from '../component/index';
 import { prefabUtils } from '../prefab/utils';
-import dumpUtil from '../dump';
+import dumpUtil, { translateDumpI18n } from '../dump';
+import type { INode } from '../../../common';
+import type { IScene } from '../../../common/editor/scene';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -124,7 +124,7 @@ class SceneUtil {
             return result;
         };
 
-        const generatePrefabAsset = (asset: any): IPrefab | undefined => {
+        const generatePrefabAsset = (asset: any): IPrefabDetail | undefined => {
             if (!asset) {
                 return undefined;
             }
@@ -137,7 +137,7 @@ class SceneUtil {
             };
         };
 
-        const generateTargetOverrideInfo = (info: any): ITargetOverrideInfo => {
+        const generateTargetOverrideInfo = (info: any): ITargetOverrideDetail => {
             return {
                 source: info.source ? (info.source.node ? this.generateNodeIdentifier(info.source.node) : this.generateComponentIdentifier(info.source)) : null,
                 sourceInfo: generateTargetInfo(info.sourceInfo),
@@ -182,51 +182,57 @@ class SceneUtil {
         return compMgr.getComponentIdentifier(component);
     }
 
-    /**
-     * 节点 dump 数据
-     * @param node
-     * @param generateChildren
-     */
-    generateNodeInfo(node: cc.Node, generateChildren: boolean, generateComponent = false): INode {
-        const identifier = this.generateNodeIdentifier(node);
-        const nodeInfo: INode = {
-            ...identifier,
-            prefab: this.generatePrefabInfo(node['_prefab']),
-            properties: {
-                active: node.active,
-                position: node.position,
-                rotation: node.rotation,
-                scale: node.scale,
-                layer: node.layer,
-                eulerAngles: node.eulerAngles,
-                mobility: node.mobility,
-            },
-            components: [],
-        };
-        if (node.components) {
-            nodeInfo.components = node.components
-                .map((component: cc.Component) => {
-                    if (generateComponent) {
-                        const path = compMgr.getPathFromUuid(component.uuid);
-                        if (!path) throw Error('can not find component:`${component.uuid}`');
-                        const comp = compMgr.queryFromPath(path);
-                        if (!comp) throw Error('can not find component path: `${path}`');
-                        return dumpUtil.dumpComponentForCli(comp as Component) as IComponent;
-                    } else {
-                        const obj = this.generateComponentInfo(component) as IComponent;
-                        return obj;
-                    }
-                });
+    async generateNodeDump(node: cc.Node): Promise<INode | IScene> {
+        if (node instanceof Scene) {
+            const sceneDump = await translateDumpI18n(dumpUtil.dumpNode(node)) as IScene;
+
+            // hack: 以下字段不属于编辑器 dump 结构（IScene），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
+            const d = sceneDump as any;
+            d.__nodeId__ = node.uuid;
+            d.__path__ = '/';
+            d.__position__ = { x: node.position.x, y: node.position.y, z: node.position.z };
+            d.__rotation__ = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z, w: node.rotation.w };
+            d.__scale__ = { x: node.scale.x, y: node.scale.y, z: node.scale.z };
+            d.__layer__ = node.layer;
+            d.__mobility__ = node.mobility;
+            d.__prefabInfo__ = this.generatePrefabInfo(node['_prefab']);
+            d.__comps__ = [];
+            for (const comp of node.components) {
+                const compDump = await translateDumpI18n(dumpUtil.dumpComponent(comp as cc.Component)) as any;
+                compDump.__identifier__ = this.generateComponentInfo(comp);
+                compDump.__compPrefab__ = (comp as any).__prefab || null;
+                d.__comps__.push(compDump);
+            }
+            d.__childNodes__ = [];
+            for (const child of node.children) {
+                d.__childNodes__.push(await this.generateNodeDump(child) as INode);
+            }
+            return sceneDump;
         }
-        if (generateChildren) {
-            node.children.forEach((child) => {
-                if (!nodeInfo.children) {
-                    nodeInfo.children = [];
-                }
-                nodeInfo.children.push(this.generateNodeInfo(child, true, false));
-            });
+
+        const dump = await translateDumpI18n(dumpUtil.dumpNode(node)) as INode;
+
+        // hack: 以下字段不属于编辑器 dump 结构（INode），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
+        const d = dump as any;
+        d.__nodeId__ = node.uuid;
+        d.__path__ = EditorExtends.Node.getNodePath(node);
+        d.__rotation__ = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z, w: node.rotation.w };
+        d.__prefabInfo__ = this.generatePrefabInfo(node['_prefab']);
+        if (dump.__comps__) {
+            for (let i = 0; i < dump.__comps__.length && i < node.components.length; i++) {
+                const comp = node.components[i];
+                (dump.__comps__[i] as any).__identifier__ = this.generateComponentInfo(comp);
+                (dump.__comps__[i] as any).__compPrefab__ = (comp as any).__prefab || null;
+            }
         }
-        return nodeInfo;
+        d.__childIdentifiers__ = node.children.map((child: cc.Node) => this.generateNodeIdentifier(child));
+
+        d.__childNodes__ = [];
+        for (const child of node.children) {
+            d.__childNodes__.push(await this.generateNodeDump(child));
+        }
+
+        return dump;
     }
 
     /**

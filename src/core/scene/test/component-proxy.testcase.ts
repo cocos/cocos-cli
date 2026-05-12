@@ -5,13 +5,12 @@ import {
     IAddComponentOptions,
     IRemoveComponentOptions,
     IQueryComponentOptions,
-    ISetPropertyOptions,
     IComponentIdentifier,
-    IComponent,
-    IComponentForEditor,
+    IComponentInfo,
     NodeType,
-    INode
+    INodeInfo
 } from '../common';
+import { ISetPropertyOptionsInfo } from '../common/cli/component';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
@@ -65,7 +64,7 @@ describe('Component Proxy 测试', () => {
 
     describe('1. 基础组件操作- 添加，查询，设置属性，移除', () => {
         let componentPath = '';
-        let componentInfo: IComponent | null;
+        let componentInfo: IComponentInfo | null;
         it('add - 添加节点 - 完整节点名称：cc.Label', async () => {
             //console.log("Created prefab node path=", prefabNode?.path);
             const addComponentInfo: IAddComponentOptions = {
@@ -73,7 +72,7 @@ describe('Component Proxy 测试', () => {
                 component: 'cc.Label'
             };
             try {
-                componentInfo = await ComponentProxy.add(addComponentInfo);
+                componentInfo = await ComponentProxy.create(addComponentInfo);
                 componentPath = componentInfo.path;
                 expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
                 // 删除当前添加的节点，方便后续测试
@@ -94,7 +93,7 @@ describe('Component Proxy 测试', () => {
                 component: 'cc.label'
             };
             try {
-                componentInfo = await ComponentProxy.add(addComponentInfo);
+                componentInfo = await ComponentProxy.create(addComponentInfo);
                 componentPath = componentInfo.path;
                 expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
                 // 删除当前添加的节点，方便后续测试
@@ -115,7 +114,7 @@ describe('Component Proxy 测试', () => {
                 component: 'Label'
             };
             try {
-                componentInfo = await ComponentProxy.add(addComponentInfo);
+                componentInfo = await ComponentProxy.create(addComponentInfo);
                 componentPath = componentInfo.path;
                 expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
 
@@ -137,7 +136,7 @@ describe('Component Proxy 测试', () => {
                 component: 'label'
             };
             try {
-                componentInfo = await ComponentProxy.add(addComponentInfo);
+                componentInfo = await ComponentProxy.create(addComponentInfo);
                 componentPath = componentInfo.path;
                 expect(componentInfo.path).toBe(`${nodePath}/cc.Label`);
 
@@ -153,7 +152,7 @@ describe('Component Proxy 测试', () => {
                 path: componentInfo!.uuid
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -174,7 +173,7 @@ describe('Component Proxy 测试', () => {
                 path: componentPath
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -195,7 +194,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/Label'
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -216,7 +215,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/cc.label'
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -237,7 +236,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/Label'
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -258,7 +257,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/label'
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -280,7 +279,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/label'
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -301,7 +300,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/cc.label'
             };
             try {
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 if (componentInfo!.cid) {
                     expect(componentInfo!.cid).toBe('cc.Label');
@@ -322,7 +321,7 @@ describe('Component Proxy 测试', () => {
                 path: nodePath + '/cc.Button'
             };
             try {
-                await ComponentProxy.query(queryComponent) as IComponent;
+                await ComponentProxy.query(queryComponent) as IComponentInfo;
             } catch (e) {
                 expect(e instanceof Error ? e.message : String(e)).toBe(`No component found for this path(${queryComponent.path}).`);
             }
@@ -333,7 +332,7 @@ describe('Component Proxy 测试', () => {
                 path: 'db://assets/non-existent-script.ts'
             };
             try {
-                const result = await ComponentProxy.query(queryComponent) as IComponent;
+                const result = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 // 如果没有抛出异常，则结果应该为 null
                 expect(result).toBeNull();
             } catch (e) {
@@ -362,14 +361,13 @@ describe('Component Proxy 测试', () => {
                     return;
                 }
 
-                const cameraComponentInfo = await ComponentProxy.add(addComponentInfo);
-                componentPath = cameraComponentInfo.path;
+                const cameraComponentInfo = await ComponentProxy.create(addComponentInfo);
                 expect(cameraComponentInfo.path).toBe(`${addComponentInfo.nodePath}/cc.Label`);
 
                 const queryComponent: IQueryComponentOptions = {
                     path: nodePath + '/cc.label'
                 };
-                await ComponentProxy.query(queryComponent) as IComponent;
+                await ComponentProxy.query(queryComponent) as IComponentInfo;
 
             } catch (e) {
                 expect(e instanceof Error ? e.message : String(e)).toBe(`This path contains multiple component paths(TestNode/New Node/cc.Label,TestNode/new node/cc.Label). Please specify which one to use.`);
@@ -388,7 +386,7 @@ describe('Component Proxy 测试', () => {
                 path: componentPath
             };
             try {
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
                         string: 'abc',
@@ -397,7 +395,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties['string'].value).toBe('label');
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['string'].value).toBe('abc');
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
@@ -421,7 +419,7 @@ describe('Component Proxy 测试', () => {
                 path: componentPath
             };
             try {
-                await ComponentProxy.query(queryComponent) as IComponent;
+                await ComponentProxy.query(queryComponent) as IComponentInfo;
             } catch (e) {
                 expect(e instanceof Error ? e.message : String(e)).toBe(`No component found for this path(${queryComponent.path}).`);
             }
@@ -452,10 +450,10 @@ describe('Component Proxy 测试', () => {
                         component: componentName
                     };
 
-                    const component = await ComponentProxy.add(componentInfo);
+                    const component = await ComponentProxy.create(componentInfo);
                     expect(component.path).toBe(`${nodePath}/${componentName}`);
                     components.push(component);
-                    const queryComponentInfo = await ComponentProxy.query({ path: component.path }) as IComponent;
+                    const queryComponentInfo = await ComponentProxy.query({ path: component.path }) as IComponentInfo;
                     if (queryComponentInfo!.cid) {
                         expect(queryComponentInfo!.cid).toBe(componentName);
                     }
@@ -494,10 +492,10 @@ describe('Component Proxy 测试', () => {
                         nodePath: nodePath,
                         component: testComponent
                     };
-                    const component = await ComponentProxy.add(componentInfo1);
+                    const component = await ComponentProxy.create(componentInfo1);
                     expect(component.path).toBe(`${nodePath}/${testComponent}${i === 0 ? '' : '_' + String(i).padStart(3, '0')}`);
                     components.push(component);
-                    const queryComponentInfo = await ComponentProxy.query({ path: component.path }) as IComponent;
+                    const queryComponentInfo = await ComponentProxy.query({ path: component.path }) as IComponentInfo;
                     if (queryComponentInfo!.cid) {
                         expect(queryComponentInfo!.cid).toBe(testComponent);
                     }
@@ -514,7 +512,7 @@ describe('Component Proxy 测试', () => {
     });
     describe('4. 设置组件属性测试 - 设置不同类型的属性', () => {
         const testComponent: string = 'cc.Label';
-        let componentInfo: IComponent | null;
+        let componentInfo: IComponentInfo | null;
         let componentPath: string = '';
         const queryComponent: IQueryComponentOptions = { path: '' };
         // 确保测试了中，没有其他的组件
@@ -524,10 +522,10 @@ describe('Component Proxy 测试', () => {
                 component: testComponent
             };
             try {
-                const component = await ComponentProxy.add(addComponentInfo);
+                const component = await ComponentProxy.create(addComponentInfo);
                 componentPath = component.path;
                 expect(component.path).toBe(`${nodePath}/cc.Label`);
-                componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponent;
+                componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 queryComponent.path = componentPath;
             } catch (e) {
@@ -548,7 +546,7 @@ describe('Component Proxy 测试', () => {
             try {
                 expect(componentInfo?.properties['fontSize'].value).toBe(40);
 
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
                         fontSize: 80,
@@ -556,7 +554,7 @@ describe('Component Proxy 测试', () => {
                 };
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['fontSize'].value).toBe(80);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
@@ -565,14 +563,14 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - enum类型', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: { overflow: 1 },
                 };
                 expect(componentInfo?.properties['overflow'].value).toBe(0);
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['overflow'].value).toBe(1);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
@@ -581,14 +579,14 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - boolean类型', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: { enableOutline: true },
                 };
                 expect(componentInfo?.properties['enableOutline'].value).toBe(false);
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['enableOutline'].value).toBe(true);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
@@ -597,7 +595,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - color类型', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
                         outlineColor: {
@@ -614,7 +612,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties['outlineColor'].value.a).toBe(255);
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
                 expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
                 expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
@@ -626,7 +624,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - 设置枚举类型之外的值', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
                         overflow: 100000
@@ -635,7 +633,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties['overflow'].value).toBe(1);
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['overflow'].value).toBe(100000);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
@@ -645,7 +643,7 @@ describe('Component Proxy 测试', () => {
     });
     describe('4.1 设置Sprite属性测试', () => {
         const testComponent: string = 'cc.Sprite';
-        let componentInfo: IComponent | null;
+        let componentInfo: IComponentInfo | null;
         let componentPath: string = '';
         const queryComponent: IQueryComponentOptions = { path: '' };
         // 确保测试了中，没有其他的组件
@@ -655,10 +653,10 @@ describe('Component Proxy 测试', () => {
                 component: testComponent
             };
             try {
-                const component = await ComponentProxy.add(addComponentInfo);
+                const component = await ComponentProxy.create(addComponentInfo);
                 componentPath = component.path;
                 expect(component.path).toBe(`${nodePath}/cc.Sprite`);
-                componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponent;
+                componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponentInfo;
                 expect(componentInfo).toBeDefined();
                 queryComponent.path = componentPath;
             } catch (e) {
@@ -678,7 +676,7 @@ describe('Component Proxy 测试', () => {
         it('setProperty - 设置组件属性 - 设置SpriteFrame', async () => {
             try {
                 // 对错误的值 类型 会修改失败，但是返回还是true
-                const setComponentProperty: ISetPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
                         spriteFrame: {
@@ -689,7 +687,7 @@ describe('Component Proxy 测试', () => {
                 expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe('');
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
-                componentInfo = await ComponentProxy.query(queryComponent) as IComponent;
+                componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
                 expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe('20835ba4-6145-4fbc-a58a-051ce700aa3e@f9941');
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
@@ -711,7 +709,7 @@ describe('Component Proxy 测试', () => {
                 queryComponent: true
             };
             buildinComponentTypes = await ComponentProxy.queryAll();
-            const result = await NodeProxy.query(params) as INode | null;
+            const result = await NodeProxy.query(params) as INodeInfo | null;
             expect(result).toBeDefined();
             expect(result?.components?.length == 0);
         });
@@ -744,7 +742,7 @@ describe('Component Proxy 测试', () => {
                     component: componentType
                 };
                 try {
-                    const component = await ComponentProxy.add(componentInfo1);
+                    const component = await ComponentProxy.create(componentInfo1);
                     createdComponents.push(component);
                 } catch (e) {
                     // 这里会产生冲突、重复组件(因为依赖会创建一些重复组件，导致测试会异常), 这是正常的异常
@@ -758,7 +756,7 @@ describe('Component Proxy 测试', () => {
                         queryChildren: false,
                         queryComponent: true
                     };
-                    const node = await NodeProxy.query(params) as INode | null;
+                    const node = await NodeProxy.query(params) as INodeInfo | null;
                     for (let i = 0; i < node!.components!.length; ++i) {
                         await ComponentProxy.remove({ path: node!.components!.at(i)!.path });
                     }
@@ -777,7 +775,7 @@ describe('Component Proxy 测试', () => {
     });
     describe('6. 多节点添加同组件-组件不冲突', () => {
         const testCount = 10;
-        const nodes: INode[] = [];
+        const nodes: INodeInfo[] = [];
         beforeAll(async () => {
             for (let i = 0; i < testCount; ++i) {
                 const params: ICreateByNodeTypeParams = {
@@ -812,7 +810,7 @@ describe('Component Proxy 测试', () => {
                         nodePath: nodes[i].path,
                         component: testComponent,
                     };
-                    const component = await ComponentProxy.add(componentInfo1);
+                    const component = await ComponentProxy.create(componentInfo1);
                     expect(component).toBeDefined();
                     expect(component.path).toBe(`${nodes[i].path}/cc.Layout`);
                 }
@@ -821,7 +819,7 @@ describe('Component Proxy 测试', () => {
                         nodePath: nodes[i].path,
                         component: testComponent,
                     };
-                    const component = await ComponentProxy.add(componentInfo1);
+                    const component = await ComponentProxy.create(componentInfo1);
                     expect(component).toBeDefined();
                     expect(component.path).toBe(`${nodes[i].path}/cc.Layout_001`);
                 }
@@ -864,11 +862,11 @@ describe('Component Proxy 测试', () => {
                 nodePath: nodePath,
                 component: testComponent,
             };
-            let component = await ComponentProxy.add(componentInfo);
+            let component = await ComponentProxy.create(componentInfo);
             expect(component).toBeDefined();
             expect(component.path).toBe(`${nodePath}/${testComponent}`);
             try {
-                component = await ComponentProxy.add(componentInfo);
+                component = await ComponentProxy.create(componentInfo);
             } catch (e) {
                 // 添加接受相同组件添加的错误
                 expect(e instanceof Error ? e.message : String(e)).toBe(`Can't add component '${testComponent}' because ${nodeName} already contains the same component.`);
@@ -884,7 +882,7 @@ describe('Component Proxy 测试', () => {
                 nodePath: nodePath,
                 component: testComponent,
             };
-            let component = await ComponentProxy.add(componentInfo);
+            let component = await ComponentProxy.create(componentInfo);
             expect(component).toBeDefined();
             expect(component.path).toBe(`${nodePath}/${testComponent}`);
             try {
@@ -892,7 +890,7 @@ describe('Component Proxy 测试', () => {
                     nodePath: nodePath,
                     component: testConfictsComponent,
                 };
-                component = await ComponentProxy.add(componentConficts);
+                component = await ComponentProxy.create(componentConficts);
             } catch (e) {
                 // 添加异常冲突
                 expect(e instanceof Error ? e.message : String(e)).toBe(`Can't add component '${testConfictsComponent}' to ${nodeName} because it conflicts with the existing '${testComponent}' derived component.`);
@@ -902,7 +900,7 @@ describe('Component Proxy 测试', () => {
     });
 
 
-    describe('9. queryComponent - cli传IQueryComponentOptions，editor直接传uuid', () => {
+    describe('9. query - IComponentInfo 结构验证', () => {
         let componentPath = '';
         let componentUuid = '';
         beforeAll(async () => {
@@ -910,7 +908,7 @@ describe('Component Proxy 测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.add(addComponentInfo);
+            const component = await ComponentProxy.create(addComponentInfo);
             componentPath = component.path;
             componentUuid = component.uuid;
         });
@@ -918,13 +916,12 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: componentPath });
         });
 
-        it('query - cli 返回 IComponent 结构', async () => {
+        it('query - cli 返回 IComponentInfo 结构', async () => {
             const params: IQueryComponentOptions = {
                 path: componentPath,
             };
-            const result = await ComponentProxy.query(params) as IComponent;
+            const result = await ComponentProxy.query(params) as IComponentInfo;
             expect(result).toBeDefined();
-            // IComponent 有 properties、path、uuid、name、enabled 等直接值字段
             expect(result.properties).toBeDefined();
             expect(typeof result.properties).toBe('object');
             expect(result.path).toBeDefined();
@@ -933,34 +930,23 @@ describe('Component Proxy 测试', () => {
             expect(typeof result.enabled).toBe('boolean');
             expect(result.cid).toBe('cc.Label');
         });
-        it('query - 返回 IComponentForEditor 结构', async () => {
-            const result = await ComponentProxy.query(componentPath) as IComponentForEditor;
+
+        it('query - IComponentInfo 字段完整性验证', async () => {
+            const result = await ComponentProxy.query({ path: componentPath }) as IComponentInfo;
             expect(result).toBeDefined();
-            // IComponentForEditor 有 value（对象，包含编码后的属性）、type、cid、mountedRoot 等字段
-            expect(result.value).toBeDefined();
-            expect(typeof result.value).toBe('object');
-            expect(result.type).toBe('cc.Label');
             expect(result.cid).toBe('cc.Label');
-            // value 中包含 uuid、name、enabled 等编码后的属性
-            if (result.value && typeof result.value === 'object' && !Array.isArray(result.value)) {
-                const value = result.value as Record<string, any>;
-                expect(value['uuid']).toBeDefined();
-                expect(value['name']).toBeDefined();
-                expect(value['enabled']).toBeDefined();
-            }
-        });
-        it('query - 传入 uuid 返回 IComponentForEditor 结构', async () => {
-            const result = await ComponentProxy.query(componentUuid) as IComponentForEditor;
-            expect(result).toBeDefined();
-            expect(result.value).toBeDefined();
-            expect(typeof result.value).toBe('object');
+            expect(result.path).toBe(componentPath);
+            expect(result.uuid).toBe(componentUuid);
+            expect(typeof result.name).toBe('string');
             expect(result.type).toBe('cc.Label');
-            expect(result.cid).toBe('cc.Label');
+            expect(typeof result.enabled).toBe('boolean');
+            expect(typeof result.properties).toBe('object');
+            expect(result.prefab).toBeNull();
         });
     });
 
 
-    describe('15. setPropertyForEditor - Editor 专属设置属性测试', () => {
+    describe('15. setProperty - record 参数测试', () => {
         let componentPath = '';
         beforeAll(async () => {
             const queryNodeParam: IQueryNodeParams = {
@@ -968,13 +954,13 @@ describe('Component Proxy 测试', () => {
                 queryChildren: false,
                 queryComponent: false,
             };
-            const nodeInfo = await NodeProxy.query(queryNodeParam) as INode | null;
+            const nodeInfo = await NodeProxy.query(queryNodeParam) as INodeInfo | null;
 
             const addComponentInfo: IAddComponentOptions = {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.add(addComponentInfo);
+            const component = await ComponentProxy.create(addComponentInfo);
 
             componentPath = component.path;
         });
@@ -982,29 +968,19 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: componentPath });
         });
 
-        it('setPropertyForEditor - 设置 string 属性', async () => {
-            // 先查询获取当前 dump 结构
-            const fullComponent = await ComponentProxy.query(componentPath) as IComponentForEditor;
-            expect(fullComponent).toBeDefined();
+        it('setProperty - record:false 设置 string 属性', async () => {
+            const result = await ComponentProxy.setProperty({
+                componentPath: componentPath,
+                properties: { string: 'pink-test' },
+                record: false
+            });
+            expect(result).toBe(true);
 
-            if (fullComponent.value && typeof fullComponent.value === 'object' && !Array.isArray(fullComponent.value)) {
-                const value = fullComponent.value as Record<string, any>;
-                const stringDump = { ...value['string'], value: 'pink-test' };
-
-                const result = await ComponentProxy.setProperty({
-                    nodePath: nodePath,
-                    path: '__comps__.2.string',
-                    dump: stringDump,
-                    record: false
-                });
-                expect(result).toBe(true);
-
-                // 验证修改生效
-                const updated = await ComponentProxy.query({
-                    path: componentPath,
-                }) as IComponent;
-                expect(updated?.properties['string'].value).toBe('pink-test');
-            }
+            // 验证修改生效
+            const updated = await ComponentProxy.query({
+                path: componentPath,
+            }) as IComponentInfo;
+            expect(updated?.properties['string'].value).toBe('pink-test');
         });
     });
 
@@ -1026,7 +1002,7 @@ describe('Component Proxy 测试', () => {
         });
 
         it('add - 唯一组件不添加后缀', async () => {
-            const component = await ComponentProxy.add({
+            const component = await ComponentProxy.create({
                 nodePath: testNodePath,
                 component: 'cc.Label',
             });
@@ -1037,11 +1013,11 @@ describe('Component Proxy 测试', () => {
         });
 
         it('add - 两个不同类型组件各自不添加后缀', async () => {
-            const comp1 = await ComponentProxy.add({
+            const comp1 = await ComponentProxy.create({
                 nodePath: testNodePath,
                 component: 'cc.Label',
             });
-            const comp2 = await ComponentProxy.add({
+            const comp2 = await ComponentProxy.create({
                 nodePath: testNodePath,
                 component: 'cc.Layout',
             });
@@ -1053,13 +1029,13 @@ describe('Component Proxy 测试', () => {
         });
 
         it('add - 第二个同类型组件添加_001后缀', async () => {
-            const comp1 = await ComponentProxy.add({
+            const comp1 = await ComponentProxy.create({
                 nodePath: testNodePath,
                 component: 'cc.Layout',
             });
             expect(comp1.path).toBe(`${testNodePath}/cc.Layout`);
 
-            const comp2 = await ComponentProxy.add({
+            const comp2 = await ComponentProxy.create({
                 nodePath: testNodePath,
                 component: 'cc.Layout',
             });
@@ -1075,7 +1051,7 @@ describe('Component Proxy 测试', () => {
             const components: IComponentIdentifier[] = [];
 
             for (let i = 0; i < totalCount; i++) {
-                const comp = await ComponentProxy.add({
+                const comp = await ComponentProxy.create({
                     nodePath: testNodePath,
                     component: testComponent,
                 });
@@ -1097,9 +1073,9 @@ describe('Component Proxy 测试', () => {
             const testComponent = 'cc.Layout';
 
             // 添加3个同类型组件: cc.Layout, cc.Layout_001, cc.Layout_002
-            const comp0 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
-            const comp1 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
-            const comp2 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
+            const comp0 = await ComponentProxy.create({ nodePath: testNodePath, component: testComponent });
+            const comp1 = await ComponentProxy.create({ nodePath: testNodePath, component: testComponent });
+            const comp2 = await ComponentProxy.create({ nodePath: testNodePath, component: testComponent });
             expect(comp0.path).toBe(`${testNodePath}/${testComponent}`);
             expect(comp1.path).toBe(`${testNodePath}/${testComponent}_001`);
             expect(comp2.path).toBe(`${testNodePath}/${testComponent}_002`);
@@ -1109,8 +1085,8 @@ describe('Component Proxy 测试', () => {
             expect(removeResult).toBe(true);
 
             // 再添加2个，第一个应复用 _001，第二个为 _003
-            const comp3 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
-            const comp4 = await ComponentProxy.add({ nodePath: testNodePath, component: testComponent });
+            const comp3 = await ComponentProxy.create({ nodePath: testNodePath, component: testComponent });
+            const comp4 = await ComponentProxy.create({ nodePath: testNodePath, component: testComponent });
             expect(comp3.path).toBe(`${testNodePath}/${testComponent}_001`);
             expect(comp4.path).toBe(`${testNodePath}/${testComponent}_003`);
 
@@ -1119,6 +1095,79 @@ describe('Component Proxy 测试', () => {
             await ComponentProxy.remove({ path: comp3.path });
             await ComponentProxy.remove({ path: comp2.path });
             await ComponentProxy.remove({ path: comp0.path });
+        });
+    });
+
+    describe('17. 边界情况与错误处理', () => {
+        it('add - 添加到不存在的节点路径应抛异常', async () => {
+            await expect(ComponentProxy.create({
+                nodePath: 'non-existent-path',
+                component: 'cc.Label',
+            })).rejects.toThrow();
+        });
+
+        // it('remove - 移除不存在组件路径', async () => {
+        //     const result = await ComponentProxy.remove({ path: `${nodePath}/cc.NonExistent` });
+        //     expect(result).toBe(false);
+        // });
+
+        // it('query - 查询不存在组件返回 null', async () => {
+        //     const result = await ComponentProxy.query({ path: `${nodePath}/cc.NonExistent` });
+        //     expect(result).toBeNull();
+        // });
+
+        it('setProperty - 设置不存在组件路径应抛异常', async () => {
+            await expect(ComponentProxy.setProperty({
+                componentPath: `${nodePath}/cc.NonExistent`,
+                properties: { string: 'test' },
+            })).rejects.toThrow();
+        });
+
+        it('setProperty - 设置不存在的属性 key 应抛异常', async () => {
+            const comp = await ComponentProxy.create({ nodePath, component: 'cc.Label' });
+            try {
+                await expect(ComponentProxy.setProperty({
+                    componentPath: comp.path,
+                    properties: { nonExistentProp: 42 },
+                })).rejects.toThrow();
+            } finally {
+                await ComponentProxy.remove({ path: comp.path });
+            }
+        });
+
+        it('setProperty - 同时设置多个属性', async () => {
+            const comp = await ComponentProxy.create({ nodePath, component: 'cc.Label' });
+            try {
+                const result = await ComponentProxy.setProperty({
+                    componentPath: comp.path,
+                    properties: { fontSize: 60, string: 'multi-test' },
+                });
+                expect(result).toBe(true);
+
+                const updated = await ComponentProxy.query({ path: comp.path }) as IComponentInfo;
+                expect(updated.properties['fontSize'].value).toBe(60);
+                expect(updated.properties['string'].value).toBe('multi-test');
+            } finally {
+                await ComponentProxy.remove({ path: comp.path });
+            }
+        });
+    });
+
+    describe('18. queryAll - 查询所有组件类型', () => {
+        it('queryAll - 返回字符串数组', async () => {
+            const result = await ComponentProxy.queryAll();
+            expect(Array.isArray(result)).toBe(true);
+            expect(result.length).toBeGreaterThan(0);
+            for (const item of result) {
+                expect(typeof item).toBe('string');
+            }
+        });
+
+        it('queryAll - 包含已知内置组件', async () => {
+            const result = await ComponentProxy.queryAll();
+            expect(result).toContain('cc.Label');
+            expect(result).toContain('cc.Sprite');
+            expect(result).toContain('cc.Button');
         });
     });
 });

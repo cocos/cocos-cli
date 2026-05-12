@@ -1,6 +1,6 @@
 import type { Node } from 'cc';
 import type { IServiceEvents } from '../../scene-process/service/core';
-import type { IPrefabInfo } from './prefab-info';
+import type { IPrefabInfo } from '../cli/prefab';
 import { INode } from '../node';
 import type {
     IApplyPrefabChangesParams,
@@ -18,7 +18,8 @@ export interface IPrefabEvents {
 
 }
 
-export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode'> { }
+export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode'> {
+}
 
 export interface IPrefabService extends IServiceEvents {
     /**

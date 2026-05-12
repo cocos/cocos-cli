@@ -1,10 +1,11 @@
 import type { Node } from 'cc';
-import { IComponent, IComponentIdentifier, IRemovedComponentInfo, ISetPropertyOptionsForEditor } from './component';
+import { IRemovedComponentInfo, ISetPropertyOptions } from './component';
 import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
-import { IPrefabInfo, IPrefabStateInfo, ITargetOverrideInfoForEditor } from './prefab';
+import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
 import type { IProperty } from '../@types/public';
-import type { ISceneForEditor } from './editor/scene';
+import type { IScene } from './editor/scene';
+
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
 export interface INodeTreeComponent {
@@ -116,13 +117,6 @@ export interface INodeProperties {
     // readonly activeInHierarchy: boolean; // 节点在场景中是否激活
 }
 
-// 节点标识符接口
-export interface INodeIdentifier {
-    nodeId: string; // 节点的 id
-    path: string; // 节点在场景中的路径
-    name: string; // 节点名称
-}
-
 // 节点查询参数接口
 export interface IQueryNodeParams {
     path: string; // 查询的节点路径
@@ -130,25 +124,17 @@ export interface IQueryNodeParams {
     queryComponent: boolean; // 是否查询component的详细信息
 }
 
-// 节点查询结果项接口
-export interface INode extends INodeIdentifier {
-    properties: INodeProperties; // 节点属性
-    components?: IComponent[] | IComponentIdentifier[]; // 节点上的组件列表
-    children?: INode[]; // 子节点列表
-    prefab: IPrefabInfo | null;// 是否是预制体
-}
-
-export interface IPrefabForEditor {
+export interface IPrefab {
     uuid: string;
     fileId: string;
     rootUuid: string;
     sync: boolean;
     prefabStateInfo: IPrefabStateInfo;
-    targetOverrides?: ITargetOverrideInfoForEditor[];
+    targetOverrides?: ITargetOverrideInfo[];
     instance?: IProperty;
 }
 
-export interface INodeForEditor {
+export interface INode {
     active: IProperty;
     locked: IProperty;
     name: IProperty;
@@ -171,7 +157,7 @@ export interface INodeForEditor {
 
     __comps__: IProperty[];
     __type__: string;
-    __prefab__?: IPrefabForEditor;
+    __prefab__?: IPrefab;
     _prefabInstance?: any;
     removedComponents?: IRemovedComponentInfo[];
     mountedRoot?: string;
@@ -264,7 +250,8 @@ export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEve
     'resetProperty' |
     'updatePropertyFromNull' |
     'setNodeAndChildrenLayer'
-> { }
+> {
+}
 
 /**
  * 节点的相关处理接口
@@ -293,14 +280,11 @@ export interface INodeService extends IServiceEvents {
     update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     /**
      * 查询节点信息
-     * - 不传参数时，返回当前场景的 dump 数据（ISceneForEditor）
-     * - 传入 string 时，返回指定路径节点的 dump 数据（编辑器模式，返回 INodeForEditor 数据）
-     * - 传入 IQueryNodeParams 时，返回 INode（CLI 模式）
      *
-     * @param params - 查询选项、节点路径字符串或不传
-     * @returns 如果传入 IQueryNodeParams 返回 INode，如果传入 string 或不传返回 INodeForEditor 或 ISceneForEditor，未找到返回 null
+     * @param params - 查询选项
+     * @returns 查询到的节点信息，未找到返回 null
      */
-    query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null>;
+    query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
 
     /**
      * 查询节点树（层级管理器格式）
@@ -330,7 +314,7 @@ export interface INodeService extends IServiceEvents {
      * });
      * ```
      */
-    previewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
 
     /**
      * 取消预览设置，将节点属性恢复到 previewSetProperty 调用前的值
@@ -341,7 +325,7 @@ export interface INodeService extends IServiceEvents {
      * @param options.path - 属性路径
      * @returns 恢复成功返回 true，无缓存的预览数据或节点无效返回 false
      */
-    cancelPreviewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
 
     /**
      * 设置节点属性，会记录到 undo 栈
@@ -361,7 +345,7 @@ export interface INodeService extends IServiceEvents {
      * });
      * ```
      */
-    setProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    setProperty(options: ISetPropertyOptions): Promise<boolean>;
 
     /**
      * 重置节点的变换属性（position、rotation、scale、mobility）到默认值
@@ -380,7 +364,7 @@ export interface INodeService extends IServiceEvents {
      * @param options.path - 属性路径，如 'position'、'scale'
      * @returns 重置成功返回 true，节点不存在返回 false
      */
-    resetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    resetProperty(options: ISetPropertyOptions): Promise<boolean>;
 
     /**
      * 将节点上值为 null 的属性初始化为默认实例
@@ -402,7 +386,7 @@ export interface INodeService extends IServiceEvents {
      * });
      * ```
      */
-    updatePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean>;
+    updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean>;
 
     /**
      * 设置节点及其所有子节点的 layer 属性
@@ -422,7 +406,7 @@ export interface INodeService extends IServiceEvents {
      * });
      * ```
      */
-    setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void>;
+    setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void>;
 }
 
 ///

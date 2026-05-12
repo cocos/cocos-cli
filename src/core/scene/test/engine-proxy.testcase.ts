@@ -1,4 +1,4 @@
-import { IEngineEvents, INode, NodeType, } from '../common';
+import { IEngineEvents, INodeInfo, NodeType, } from '../common';
 
 import * as utils from './utils';
 
@@ -62,7 +62,7 @@ describe('Engine Proxy 测试', () => {
             const eventSceneUpdatePromise = utils.once<IEngineEvents>(sceneWorker, 'engine:update');
             const eventSceneTickedPromise = utils.once<IEngineEvents>(sceneWorker, 'engine:ticked');
 
-            const component = await ComponentProxy.add({
+            const component = await ComponentProxy.create({
                 nodePath: nodePath,
                 component: 'cc.Label'
             });

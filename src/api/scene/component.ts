@@ -17,7 +17,8 @@ import {
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { Scene, ISetPropertyOptions, IComponent } from '../../core/scene';
+import { Scene, IComponentInfo } from '../../core/scene';
+import { ISetPropertyOptionsInfo } from '../../core/scene/common/cli/component';
 
 export class ComponentApi {
 
@@ -30,7 +31,7 @@ export class ComponentApi {
     @result(SchemaComponentResult)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
-            const component = await Scene.Component.add({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
+            const component = await Scene.Component.create({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: component
@@ -80,7 +81,7 @@ export class ComponentApi {
             }
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: componentInfo as IComponent
+                data: componentInfo as IComponentInfo
             };
         } catch (e) {
             return {
@@ -99,7 +100,7 @@ export class ComponentApi {
     @result(SchemaBooleanResult)
     async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         try {
-            const result = await Scene.Component.setProperty(setPropertyOptions as ISetPropertyOptions);
+            const result = await Scene.Component.setProperty(setPropertyOptions as ISetPropertyOptionsInfo);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result

@@ -49,7 +49,8 @@ class I18n {
             return name;
         }
         if (!i18nextInstance.exists(key)) {
-            console.debug(`${name} is not defined in i18n`);
+            // 引擎大部分都没翻译，这样会导致每次调用获取节点信息会答应大量的debug信息，这里暂时去掉。
+            // console.debug(`${name} is not defined in i18n`);
             return name;
         }
         return i18nextInstance.t(key) || name;

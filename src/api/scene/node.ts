@@ -18,7 +18,7 @@ import {
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { ICreateByNodeTypeParams, INode, Scene } from '../../core/scene';
+import { ICreateByNodeTypeParams, INodeInfo, Scene } from '../../core/scene';
 
 export class NodeApi {
 
@@ -142,7 +142,7 @@ export class NodeApi {
         };
 
         try {
-            const result = await Scene.Node.query(options) as INode | null;
+            const result = await Scene.Node.query(options) as INodeInfo | null;
             if (!result) throw new Error(`node not found at path: ${options.path}`);
             ret.data = result;
         } catch (e) {

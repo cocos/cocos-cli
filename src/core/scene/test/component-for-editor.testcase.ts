@@ -9,11 +9,13 @@ import {
     type IAddComponentOptions,
     type IQueryComponentOptions,
     type ISetPropertyOptions,
+    type IComponentInfo,
     type IComponent,
     type IQueryClassesOptions,
     type IExecuteComponentMethodOptions,
     NodeType,
 } from '../common';
+import { type ISetPropertyOptionsInfo } from '../common/cli/component';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
@@ -24,7 +26,7 @@ import { SceneTestEnv } from './scene-test-env';
 const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Component', method, args);
 
-function createComponent(params: IAddComponentOptions): Promise<boolean> {
+function createComponent(params: IAddComponentOptions): Promise<IComponent> {
     return rpcRequest('create', [params]);
 }
 
@@ -47,6 +49,17 @@ function executeComponentMethod(options: IExecuteComponentMethodOptions): Promis
 function queryComponentHasScript(name: string): Promise<boolean> {
     return rpcRequest('hasScript', [name]);
 }
+
+function queryComponentDump(path: string): Promise<IComponent | null> {
+    return rpcRequest('query', [path]);
+}
+
+function setComponentPropertyForEditor(options: ISetPropertyOptions): Promise<boolean> {
+    return rpcRequest('setProperty', [options]);
+}
+
+const rpcNodeRequest = (method: string, args?: any[]) =>
+    (Rpc.getInstance() as any).request('Node', method, args);
 
 describe('Component ForEditor 接口测试', () => {
     let nodePath = '';
@@ -83,14 +96,14 @@ describe('Component ForEditor 接口测试', () => {
     });
 
     describe('1. createComponent - 创建组件测试', () => {
-        it('create - 创建已知组件应返回 true', async () => {
+        it('create - 创建已知组件应返回组件信息', async () => {
             const options: IAddComponentOptions = {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
             try {
                 const result = await createComponent(options);
-                expect(result).toBe(true);
+                expect(result).toBeDefined();
                 // 删除组件
                 const removeResult = await ComponentProxy.remove({ path: `${nodePath}/cc.Label` });
                 expect(removeResult).toBe(true);
@@ -120,7 +133,7 @@ describe('Component ForEditor 接口测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.add(addComponentInfo);
+            const component = await ComponentProxy.create(addComponentInfo);
             componentPath = component.path;
         });
         afterAll(async () => {
@@ -129,7 +142,7 @@ describe('Component ForEditor 接口测试', () => {
 
         it('reset - 修改属性后重置应恢复默认值', async () => {
             // 先修改属性
-            const setComponentProperty: ISetPropertyOptions = {
+            const setComponentProperty: ISetPropertyOptionsInfo = {
                 componentPath: componentPath,
                 properties: { string: 'modified' },
             };
@@ -137,7 +150,7 @@ describe('Component ForEditor 接口测试', () => {
             expect(setResult).toBe(true);
 
             // 确认属性已修改
-            let componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponent;
+            let componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponentInfo;
             expect(componentInfo?.properties['string'].value).toBe('modified');
 
             // 重置组件
@@ -145,7 +158,7 @@ describe('Component ForEditor 接口测试', () => {
             expect(resetResult).toBe(true);
 
             // 验证属性已恢复默认值
-            componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponent;
+            componentInfo = await ComponentProxy.query({ path: componentPath }) as IComponentInfo;
             expect(componentInfo?.properties['string'].value).toBe('label');
         });
 
@@ -165,7 +178,7 @@ describe('Component ForEditor 接口测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.add(addComponentInfo);
+            const component = await ComponentProxy.create(addComponentInfo);
             componentUuid = component.uuid;
             componentPath = component.path;
         });
@@ -266,7 +279,7 @@ describe('Component ForEditor 接口测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.add(addComponentInfo);
+            const component = await ComponentProxy.create(addComponentInfo);
             componentPath = component.path;
         });
         afterAll(async () => {
@@ -305,6 +318,199 @@ describe('Component ForEditor 接口测试', () => {
 
         it('hasScript - 空字符串应返回 false', async () => {
             const result = await queryComponentHasScript('');
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('7. query - 返回 IComponent 原始数据', () => {
+        let componentPath = '';
+        let componentUuid = '';
+
+        beforeAll(async () => {
+            const component = await ComponentProxy.create({
+                nodePath: nodePath,
+                component: 'cc.Label',
+            });
+            componentPath = component.path;
+            componentUuid = component.uuid;
+        });
+        afterAll(async () => {
+            await ComponentProxy.remove({ path: componentPath });
+        });
+
+        it('query - 通过 componentPath 返回 IComponent', async () => {
+            const result = await queryComponentDump(componentPath);
+            expect(result).not.toBeNull();
+            expect(result!.value).toBeDefined();
+            expect(typeof result!.value).toBe('object');
+            expect(result!.type).toBe('cc.Label');
+            expect(result!.cid).toBe('cc.Label');
+            const value = result!.value as Record<string, any>;
+            expect(value['uuid']).toBeDefined();
+            expect(value['name']).toBeDefined();
+            expect(value['enabled']).toBeDefined();
+        });
+
+        it('query - 通过 uuid 返回 IComponent', async () => {
+            const result = await queryComponentDump(componentUuid);
+            expect(result).not.toBeNull();
+            expect(result!.value).toBeDefined();
+            expect(typeof result!.value).toBe('object');
+            expect(result!.type).toBe('cc.Label');
+            expect(result!.cid).toBe('cc.Label');
+        });
+
+        // it('query - 不存在路径返回 null', async () => {
+        //     const result = await queryComponentDump(`${nodePath}/cc.NonExistent`);
+        //     expect(result).toBeNull();
+        // });
+
+        // it('query - 不存在 uuid 返回 null', async () => {
+        //     const result = await queryComponentDump('00000000-0000-0000-0000-000000000000');
+        //     expect(result).toBeNull();
+        // });
+    });
+
+    describe('8. IComponent 字段详细验证', () => {
+        let componentPath = '';
+
+        beforeAll(async () => {
+            const component = await ComponentProxy.create({
+                nodePath: nodePath,
+                component: 'cc.Label',
+            });
+            componentPath = component.path;
+        });
+        afterAll(async () => {
+            await ComponentProxy.remove({ path: componentPath });
+        });
+
+        it('value 包含 uuid/name/enabled 编码后的 IProperty 结构', async () => {
+            const result = await queryComponentDump(componentPath);
+            expect(result).not.toBeNull();
+            const value = result!.value as Record<string, any>;
+
+            expect(value['uuid']).toBeDefined();
+            expect(value['uuid'].value).toBeDefined();
+            expect(value['uuid'].type).toBeDefined();
+
+            expect(value['name']).toBeDefined();
+            expect(value['name'].value).toBeDefined();
+            expect(value['name'].type).toBeDefined();
+
+            expect(value['enabled']).toBeDefined();
+            expect(value['enabled'].value).toBe(true);
+            expect(value['enabled'].type).toBeDefined();
+        });
+
+        it('extends 继承链包含 cc.Component', async () => {
+            const result = await queryComponentDump(componentPath) as any;
+            expect(result).not.toBeNull();
+            if (result.extends) {
+                expect(Array.isArray(result.extends)).toBe(true);
+                expect(result.extends).toContain('cc.Component');
+            }
+        });
+
+        it('组件特有属性 string 是 IProperty 结构', async () => {
+            const result = await queryComponentDump(componentPath);
+            expect(result).not.toBeNull();
+            const value = result!.value as Record<string, any>;
+            const stringProp = value['string'];
+            expect(stringProp).toBeDefined();
+            expect(stringProp.type).toBeDefined();
+            expect(stringProp.value).toBeDefined();
+            expect(typeof stringProp.visible).toBe('boolean');
+            expect(typeof stringProp.readonly).toBe('boolean');
+        });
+
+        it('组件特有属性 fontSize 是 Number 类型', async () => {
+            const result = await queryComponentDump(componentPath);
+            expect(result).not.toBeNull();
+            const value = result!.value as Record<string, any>;
+            const fontSizeProp = value['fontSize'];
+            expect(fontSizeProp).toBeDefined();
+            expect(typeof fontSizeProp.value).toBe('number');
+            expect(fontSizeProp.type).toBeDefined();
+        });
+
+        it('editor 附加数据存在', async () => {
+            const result = await queryComponentDump(componentPath) as any;
+            expect(result).not.toBeNull();
+            if (result.editor) {
+                expect(typeof result.editor).toBe('object');
+            }
+        });
+    });
+
+    describe('9. setProperty - ISetPropertyOptions 格式', () => {
+        let componentPath = '';
+        let compIndex = -1;
+
+        beforeAll(async () => {
+            const component = await ComponentProxy.create({
+                nodePath: nodePath,
+                component: 'cc.Label',
+            });
+            componentPath = component.path;
+
+            // 查询组件索引
+            const nodeTree: any = await rpcNodeRequest('queryNodeTree', [{ path: nodePath }]);
+            const compDump = await queryComponentDump(componentPath);
+            const compUuid = (compDump?.value as any)?.uuid?.value;
+            compIndex = nodeTree.components.findIndex((c: any) => c.value === compUuid);
+        });
+        afterAll(async () => {
+            await ComponentProxy.remove({ path: componentPath });
+        });
+
+        it('setProperty - 通过编辑器格式设置组件 string 属性', async () => {
+            const compDump = await queryComponentDump(componentPath);
+            const value = compDump!.value as Record<string, any>;
+            const stringDump = { ...value['string'], value: 'editor-format-test' };
+
+            const result = await setComponentPropertyForEditor({
+                nodePath: nodePath,
+                path: `__comps__.${compIndex}.string`,
+                dump: stringDump,
+                record: false,
+            });
+            expect(result).toBe(true);
+
+            // 验证修改生效
+            const updated = await queryComponentDump(componentPath);
+            const updatedValue = updated!.value as Record<string, any>;
+            expect(updatedValue['string'].value).toBe('editor-format-test');
+        });
+
+        it('setProperty - 通过编辑器格式设置组件 fontSize 属性', async () => {
+            const compDump = await queryComponentDump(componentPath);
+            const value = compDump!.value as Record<string, any>;
+            const fontSizeDump = { ...value['fontSize'], value: 72 };
+
+            const result = await setComponentPropertyForEditor({
+                nodePath: nodePath,
+                path: `__comps__.${compIndex}.fontSize`,
+                dump: fontSizeDump,
+                record: false,
+            });
+            expect(result).toBe(true);
+
+            const updated = await queryComponentDump(componentPath);
+            const updatedValue = updated!.value as Record<string, any>;
+            expect(updatedValue['fontSize'].value).toBe(72);
+        });
+
+        it('setProperty - 不存在节点返回 false', async () => {
+            const compDump = await queryComponentDump(componentPath);
+            const value = compDump!.value as Record<string, any>;
+
+            const result = await setComponentPropertyForEditor({
+                nodePath: 'non-existent-path',
+                path: `__comps__.0.string`,
+                dump: value['string'],
+                record: false,
+            });
             expect(result).toBe(false);
         });
     });

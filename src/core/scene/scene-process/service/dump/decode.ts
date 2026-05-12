@@ -9,7 +9,7 @@ import set from 'lodash/set';
 import { DumpDefines } from './dump-defines';
 import { Component, editorExtrasTag, Node, Vec3, MobilityMode, Prefab, Quat, assetManager, Animation } from 'cc';
 import { promisify } from 'util';
-import { IComponentForEditor, INodeForEditor, ISceneForEditor, ITargetOverrideInfoForEditor } from '../../../common';
+import { IComponent, INode, IScene, ITargetOverrideInfo } from '../../../common';
 import compMgr from './../component/index';
 import nodeMgr from './../node/index';
 import { IProperty } from '../../../@types/public';
@@ -23,7 +23,7 @@ const PrefabInfo = Prefab._utils.PrefabInfo;
 
 function decodeChildren(children: any[], node: any) {
     const dumpChildrenUuids: string[] = children.map((child: any) => child.value.uuid);
-    const nodeChildrenUuids: string[] = node.children.map((child: INodeForEditor) => child.uuid);
+    const nodeChildrenUuids: string[] = node.children.map((child: INode) => child.uuid);
 
     /**
      * 出于性能考虑，不去移动两个数组共有的节点
@@ -171,7 +171,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
     node['_components'].length = 0; // 先清空节点上的组件
 
     for (let i = 0; i < dumpComps.length; i++) {
-        const dumpComp: IComponentForEditor = dumpComps[i];
+        const dumpComp: IComponent = dumpComps[i];
 
         if (!dumpComp.value || !dumpComp.value.uuid) {
             continue;
@@ -317,7 +317,7 @@ async function decodePrefab(dumpPrefab: any, node: any) {
  * @param dump
  * @param scene
  */
-export async function decodeScene(dump: ISceneForEditor, scene?: any) {
+export async function decodeScene(dump: IScene, scene?: any) {
     if (!dump) {
         return;
     }
@@ -347,7 +347,7 @@ export async function decodeScene(dump: ISceneForEditor, scene?: any) {
  * @param dump
  * @param node
  */
-export async function decodeNode(dump: INodeForEditor, node?: Node, excludeComps?: any) {
+export async function decodeNode(dump: INode, node?: Node, excludeComps?: any) {
     if (!dump) {
         return null;
     }
@@ -678,9 +678,9 @@ export function updatePropertyFromNull(node: any, path: string) {
     }
 }
 
-export function decodeTargetOverrides(dumpedTargetOverrides: ITargetOverrideInfoForEditor[]) {
+export function decodeTargetOverrides(dumpedTargetOverrides: ITargetOverrideInfo[]) {
     const targetOverrides: TargetOverrideInfo[] = [];
-    dumpedTargetOverrides.forEach((itr: ITargetOverrideInfoForEditor) => {
+    dumpedTargetOverrides.forEach((itr: ITargetOverrideInfo) => {
         const targetOverride = new TargetOverrideInfo();
         targetOverride.source = nodeMgr.query(itr.source);
         if (itr.sourceInfo) {

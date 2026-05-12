@@ -1,7 +1,6 @@
 import type { Component, Node } from 'cc';
 import type { IPropertyValueType, IProperty } from '../@types/public';
 import type { IServiceEvents } from '../scene-process/service/core';
-import type { ICompPrefabInfo } from './prefab';
 import type { IChangeNodeOptions, INodeEvents } from './node';
 
 /**
@@ -17,18 +16,10 @@ export interface IComponentIdentifier {
 }
 
 /**
- * CLI 使用的组件信息，属性值以扁平的 key-value 形式呈现
- */
-export interface IComponent extends IComponentIdentifier {
-    properties: { [key: string]: IPropertyValueType };
-    prefab: ICompPrefabInfo | null;
-}
-
-/**
  * 编辑器使用的组件详细信息，属性值以 IProperty 编码形式呈现，
  * 包含 type、readonly、default 等元信息，用于编辑器 Inspector 面板渲染
  */
-export interface IComponentForEditor extends IProperty {
+export interface IComponent extends IProperty {
     value: {
         enabled: IPropertyValueType;
         uuid: IPropertyValueType;
@@ -64,21 +55,9 @@ export interface IQueryComponentOptions {
 }
 
 /**
- * CLI 设置组件属性的选项
- */
-export interface ISetPropertyOptions {
-    componentPath: string; // 修改属性的节点路径
-    // key: string; // 属性的 key
-    properties: {
-        [key: string]: null | undefined | number | boolean | string | object | Array<unknown>;
-    }; // 属性 dump 出来的数据
-    record?: boolean;// 是否记录undo
-}
-
-/**
  * 编辑器设置组件属性的选项
  */
-export interface ISetPropertyOptionsForEditor {
+export interface ISetPropertyOptions {
     nodePath: string; // 修改属性的节点路径
     path: string; // 属性挂载对象的搜索路径
     // key: string; // 属性的 key
@@ -122,13 +101,13 @@ export interface IComponentEvents extends INodeEvents {
 export interface IPublicComponentService extends Omit<IComponentService, keyof IServiceEvents |
     'init' |
     'unregisterCompMgrEvents' |
-    'create' |
     'reset' |
     'queryClasses' |
     'queryFunctionOfNode' |
     'executeMethod' |
     'hasScript'
-> { }
+> {
+}
 
 /**
  * 组件服务接口，定义了所有组件相关的操作方法
@@ -144,13 +123,13 @@ export interface IComponentService extends IServiceEvents {
      * @example
      * ```ts
      * // 通过节点路径 + 精确组件名
-     * const comp = await add({ nodePath: 'Canvas/MyNode', component: 'cc.Label' });
+     * const comp = await create({ nodePath: 'Canvas/MyNode', component: 'cc.Label' });
      *
      * // 通过节点路径 + 模糊组件名
-     * const comp = await add({ nodePath: 'Canvas/MyNode', component: 'label' });
+     * const comp = await create({ nodePath: 'Canvas/MyNode', component: 'label' });
      * ```
      */
-    add(params: IAddComponentOptions): Promise<IComponent>;
+    create(params: IAddComponentOptions): Promise<IComponent>;
 
     /**
      * 删除指定组件
@@ -161,22 +140,14 @@ export interface IComponentService extends IServiceEvents {
     remove(params: IRemoveComponentOptions): Promise<boolean>;
 
     /**
-     * 设置组件属性
-     * - CLI 调用时传入 ISetPropertyOptions，通过 componentPath 定位，属性为扁平键值对
-     * - 编辑器调用时传入 ISetPropertyOptionsForEditor，通过节点路径 + dump 路径定位，属性为 IProperty 格式
+     * 设置组件属性（编辑器格式）
+     * 通过节点路径 + dump 路径定位，属性为 IProperty 格式
      *
-     * @param params - 设置属性选项，根据调用方不同传入不同类型
+     * @param params - 设置属性选项
      * @returns 设置成功返回 true，失败返回 false
      *
      * @example
      * ```ts
-     * // CLI 方式：通过 componentPath 定位，直接传属性键值对
-     * await setProperty({
-     *     componentPath: 'Canvas/cc.Label_1',
-     *     properties: { string: 'Hello', fontSize: 32 },
-     * });
-     *
-     * // 编辑器方式：通过节点路径 + dump 路径定位，传 IProperty 格式
      * await setProperty({
      *     nodePath: 'Canvas/MyNode',
      *     path: '__comps__.0.string',
@@ -184,26 +155,26 @@ export interface IComponentService extends IServiceEvents {
      * });
      * ```
      */
-    setProperty(params: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean>;
+    setProperty(params: ISetPropertyOptions): Promise<boolean>;
 
     /**
      * 查询组件信息
-     * - 传入 IQueryComponentOptions 时，返回 IComponent 或 IComponent
-     * - 传入 string 时，返回 IComponentForEditor
+     * - 传入 IQueryComponentOptions 时，返回 IComponentInfo
+     * - 传入 string 时，返回 IComponent
      *
      * @param params - 查询选项或组件路径字符串
-     * @returns 如果传入的是 IQueryComponentOptions 时返回 IComponent，如果传入是string时返回 IComponentForEditor，未找到返回 null
+     * @returns 如果传入的是 IQueryComponentOptions 时返回 IComponentInfo，如果传入是string时返回 IComponent，未找到返回 null
      *
      * @example
      * ```ts
-     * CLI 模式：返回 IComponent（扁平属性）
-     * const comp = await query({ path: 'Canvas/cc.Label_1' }) as IComponent;
+     * CLI 模式：返回 IComponentInfo（扁平属性）
+     * const comp = await query({ path: 'Canvas/cc.Label_1' }) as IComponentInfo;
      *
      * 编辑器模式：直接传 string，这里是uuid，因为与cli重复了，也支持 path 和 url
-     * const comp = await query('uuid') as IComponentForEditor;
+     * const comp = await query('uuid') as IComponent;
      * ```
      */
-    query(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null>;
+    query(params: IQueryComponentOptions | string): Promise<IComponent | null>;
 
     /**
      * 获取所有已注册的组件类名，包含内置与自定义组件
@@ -212,15 +183,6 @@ export interface IComponentService extends IServiceEvents {
     queryAll(): Promise<string[]>;
 
     // ---- 编辑器相关接口 ----
-
-    /**
-     * 创建组件（编辑器使用），与 add 不同的是仅返回是否成功
-     * @param params - 添加组件选项
-     * @param params.nodePath - 目标节点路径
-     * @param params.component - 组件类名
-     * @returns 创建成功返回 true，失败返回 false
-     */
-    create(params: IAddComponentOptions): Promise<boolean>;
 
     /**
      * 复位组件，将组件所有属性恢复为默认值

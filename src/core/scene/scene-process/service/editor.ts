@@ -6,12 +6,11 @@ import {
     ICreateOptions,
     IEditorEvents,
     IEditorService,
-    INode,
     IOpenOptions,
     IReloadOptions,
     ISaveOptions,
-    IScene,
     ReloadResult,
+    TEditorEntity,
 } from '../../common';
 import { PrefabEditor, SceneEditor } from './editors';
 import { IAssetInfo } from '../../../assets/@types/public';
@@ -24,8 +23,8 @@ import { Rpc } from '../rpc';
 @register('Editor')
 export class EditorService extends BaseService<IEditorEvents> implements IEditorService {
     private needReloadAgain: IReloadOptions | null = null;
-    private lastSceneOrNode: IScene | INode | undefined;
-    private reloadPromise: Promise<IScene | INode> | null = null;
+    private lastSceneOrNode: TEditorEntity | undefined;
+    private reloadPromise: Promise<TEditorEntity> | null = null;
     private currentEditorUuid: string | null = null; // 当前打开的编辑器 UUID
     private editorMap: Map<string, SceneEditor | PrefabEditor> = new Map(); // uuid -> editor
 
@@ -97,7 +96,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         }
     }
 
-    async queryCurrent(): Promise<IScene | INode | null> {
+    async queryCurrent(): Promise<TEditorEntity | null> {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         console.log(`current editor: ${this.currentEditorUuid} `);
         return editor ? await editor.encode() : null;
@@ -108,8 +107,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? editor.getRootNode() : null;
     }
 
-    async open(params: IOpenOptions): Promise<IScene | INode> {
-        const { urlOrUUID, simpleNode = true } = params;
+    async open(params: IOpenOptions): Promise<TEditorEntity> {
+        const { urlOrUUID } = params;
 
         const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
         if (!assetInfo) {
@@ -156,7 +155,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 editor = this.createEditor(assetInfo.type);
                 this.editorMap.set(uuid, editor);
             }
-            const encode = await editor.open(assetInfo, simpleNode);
+            const encode = await editor.open(assetInfo);
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
             this.emit('editor:open');

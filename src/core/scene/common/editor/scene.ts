@@ -1,20 +1,7 @@
-import type { INode } from '../node';
-import type { IComponentIdentifier } from '../component';
-import type { IBaseIdentifier } from './base';
-import { IPrefabInfo, ITargetOverrideInfoForEditor } from '../prefab';
+import { ITargetOverrideInfo } from '../prefab';
 import { IProperty } from '../../@types/public';
 
-/**
- * 场景信息
- */
-export interface IScene extends IBaseIdentifier {
-    name: string;
-    prefab: IPrefabInfo | null,
-    children: INode[];
-    components: IComponentIdentifier[];
-}
-
-export interface ISceneForEditor {
+export interface IScene {
     name: IProperty;
     active: IProperty;
     locked: IProperty;
@@ -26,5 +13,5 @@ export interface ISceneForEditor {
     children: IProperty[];
     parent: string;
     __type__: string;
-    targetOverrides?: ITargetOverrideInfoForEditor[];
+    targetOverrides?: ITargetOverrideInfo[];
 }

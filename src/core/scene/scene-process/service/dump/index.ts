@@ -4,8 +4,8 @@ import { parsingPath } from './utils';
 import get from 'lodash/get';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeComponentForCli, encodeComponent, encodeScene, encodeNode } from './encode';
-import { IComponent, IComponentForEditor, INodeForEditor, ISceneForEditor } from '../../../common';
+import { encodeObject, encodeComponent, encodeScene, encodeNode } from './encode';
+import { IComponent, INode, IScene } from '../../../common';
 import { Rpc } from '../../rpc';
 
 // dump接口,统一下全局引用
@@ -28,7 +28,7 @@ class DumpUtil {
      * 生成一个 node 的 dump 数据
      * @param {*} node
      */
-    dumpNode(node: Node): INodeForEditor | ISceneForEditor | null {
+    dumpNode(node: Node): INode | IScene | null {
         if (!node) {
             return null;
         }
@@ -40,23 +40,13 @@ class DumpUtil {
     }
 
     // 生成一个component的dump数据
-    dumpComponent(comp: Component): IComponentForEditor;
+    dumpComponent(comp: Component): IComponent;
     dumpComponent(comp: null | undefined): null;
     dumpComponent(comp: Component | null | undefined) {
         if (!comp) {
             return null;
         }
         return encodeComponent(comp);
-    }
-
-    // 生成一个component的dump数据
-    dumpComponentForCli(comp: Component): IComponent;
-    dumpComponentForCli(comp: null | undefined): null;
-    dumpComponentForCli(comp: Component | null | undefined) {
-        if (!comp) {
-            return null;
-        }
-        return encodeComponentForCli(comp);
     }
 
     /**

@@ -34,10 +34,10 @@ import {
 import { EventSourceType, NodeEventType, NodeOperationType } from '../public/event-enum';
 import {
     type INodeEvents,
-    type INodeForEditor,
+    type INode,
     IChangeNodeOptions,
 } from '../../../common';
-import { type ISceneForEditor } from '../../../common/editor/scene';
+import { type IScene } from '../../../common/editor/scene';
 
 
 import { loadAny } from './node-create';
@@ -356,7 +356,7 @@ export class NodeManager {
      * 如果节点已被删除 parent = null，则返回 null
      * @param {String} uuid
      */
-    async queryDump(uuid: string): Promise<INodeForEditor | ISceneForEditor | null> {
+    async queryDump(uuid: string): Promise<INode | IScene | null> {
         // 只查现有场景里的节点，不需要再查回收站里的节点
         const node = NodeMgr.getNodesInScene()[uuid];
         if (!node) {
@@ -370,7 +370,7 @@ export class NodeManager {
      * 不论节点是否被删除
      * @param {String} uuid
      */
-    async queryDumpAtAll(uuid: string): Promise<INodeForEditor | ISceneForEditor | null> {
+    async queryDumpAtAll(uuid: string): Promise<INode | IScene | null> {
         const node = this.query(uuid);
         if (!node) {
             return null;
@@ -1274,7 +1274,7 @@ export class NodeManager {
             const fileId2Index = collectChildrenIndex(parentNode); // 对应新数据上的子集排列
             const fileId2Uuid = collectChildrenUuid(prefabParent); // 对应新数据上的 uuid
 
-            const dump = dumpUtil.dumpNode(newNode) as INodeForEditor;
+            const dump = dumpUtil.dumpNode(newNode) as INode;
             const fileId = dump.__prefab__!.fileId;
             // 现有 prefab 节点
             const prefab = prefabParent ? query(fileId2Uuid[fileId]) : prefabRoot;
@@ -1300,7 +1300,7 @@ export class NodeManager {
                     }
                 }
 
-                const prefabDump = dumpUtil.dumpNode(prefab) as INodeForEditor;
+                const prefabDump = dumpUtil.dumpNode(prefab) as INode;
 
                 // 删除不必要的字段
                 // Prefab 里的 dump 为什么需要删除 uuid

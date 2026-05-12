@@ -5,12 +5,29 @@ import {
     IPublicEditorService,
     IReloadOptions,
     ISaveOptions,
+    ISceneInfo,
+    INodeInfo,
 } from '../../common';
 import { Rpc } from '../rpc';
+import { DumpConverter, IDumpConvertOptions } from './dump-converter';
 
-export const EditorProxy: IPublicEditorService = {
-    open(params: IOpenOptions) {
-        return Rpc.getInstance().request('Editor', 'open', [params]);
+export interface IEditorProxy extends Omit<IPublicEditorService, 'open' | 'queryCurrent'> {
+    open(params: IOpenOptions): Promise<ISceneInfo | INodeInfo>;
+    queryCurrent(): Promise<ISceneInfo | INodeInfo | null>;
+}
+
+function convertEditorResult(dump: any, options?: IDumpConvertOptions): ISceneInfo | INodeInfo {
+    if ('isScene' in dump && dump.isScene) {
+        return DumpConverter.toScene(dump, options);
+    }
+    return DumpConverter.toNode(dump, options);
+}
+
+export const EditorProxy: IEditorProxy = {
+    async open(params: IOpenOptions) {
+        const result: any = await Rpc.getInstance().request('Editor', 'open', [params]);
+        const children = !(params.simpleNode ?? true);
+        return convertEditorResult(result, { children });
     },
     close(params: ICloseOptions) {
         return Rpc.getInstance().request('Editor', 'close', [params]);
@@ -24,8 +41,10 @@ export const EditorProxy: IPublicEditorService = {
     create(params: ICreateOptions) {
         return Rpc.getInstance().request('Editor', 'create', [params]);
     },
-    queryCurrent() {
-        return Rpc.getInstance().request('Editor', 'queryCurrent');
+    async queryCurrent() {
+        const result: any = await Rpc.getInstance().request('Editor', 'queryCurrent');
+        if (!result) return null;
+        return convertEditorResult(result, { children: true });
     },
     hasOpen() {
         return Rpc.getInstance().request('Editor', 'hasOpen');

@@ -5,18 +5,17 @@ import {
     type IQueryNodeParams,
     type IQueryNodeTreeParams,
     type IUpdateNodeParams,
-    type INode,
-    type INodeForEditor,
+    type INodeInfo,
     NodeType,
+    MobilityMode,
 } from '../common';
-import { type ISceneForEditor } from '../common/editor/scene';
 import { IVec3 } from '../common/value-types';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 
 describe('Node Proxy 测试', () => {
-    let createdNode: INode | null = null;
+    let createdNode: INodeInfo | null = null;
     const testNodePath = '/TestNode';
     const testPosition: IVec3 = { x: 1, y: 2, z: 0 };
 
@@ -91,7 +90,7 @@ describe('Node Proxy 测试', () => {
                     queryComponent: true
                 };
 
-                const result = await NodeProxy.query(params) as INode | null;
+                const result = await NodeProxy.query(params) as INodeInfo | null;
                 expect(result).toBeDefined();
                 expect(result?.path).toBe('TestNode/Canvas/TestNode');
                 expect(result?.name).toBe('TestNode');
@@ -107,57 +106,59 @@ describe('Node Proxy 测试', () => {
                     queryComponent: false
                 };
 
-                const result = await NodeProxy.query(params) as INode | null;
+                const result = await NodeProxy.query(params) as INodeInfo | null;
                 expect(result).toBeDefined();
             }
         });
-    });
 
-    describe('2.1 query - 编辑器模式与空参数查询', () => {
-        it('query - 传入 string 返回 INodeForEditor', async () => {
+        it('query - 不传参数返回场景根节点 INodeInfo', async () => {
+            const result = await NodeProxy.query();
+            expect(result).not.toBeNull();
+            const node = result as INodeInfo;
+            expect(node.nodeId).toBeDefined();
+            expect(node.path).toBe('/');
+            expect(node.properties).toBeDefined();
+            expect(node.children).toBeDefined();
+            expect(Array.isArray(node.children)).toBe(true);
+        });
+
+        it('query - 传入 "/" 返回场景根节点 INodeInfo', async () => {
+            const result = await NodeProxy.query({ path: '/', queryChildren: false, queryComponent: false });
+            expect(result).not.toBeNull();
+            const node = result as INodeInfo;
+            expect(node.nodeId).toBeDefined();
+            expect(node.path).toBe('/');
+            expect(node.properties).toBeDefined();
+        });
+
+        it('query - queryComponent:true 返回组件详细信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
-                const result = await NodeProxy.query(createdNode.path) as INodeForEditor | null;
-                expect(result).not.toBeNull();
-                expect(result!.name).toBeDefined();
-                expect(result!.name.value).toBe('TestNode');
-                expect(result!.active).toBeDefined();
-                expect(result!.position).toBeDefined();
-                expect(result!.rotation).toBeDefined();
-                expect(result!.scale).toBeDefined();
-                expect(result!.layer).toBeDefined();
-                expect(result!.uuid).toBeDefined();
-                expect(result!.__comps__).toBeDefined();
-                expect(result!.__type__).toBeDefined();
+                const result = await NodeProxy.query({
+                    path: createdNode.path,
+                    queryChildren: false,
+                    queryComponent: true,
+                }) as INodeInfo | null;
+                expect(result).toBeDefined();
+                expect(result?.components).toBeDefined();
+                expect(Array.isArray(result?.components)).toBe(true);
             }
         });
 
-        it('query - 不传参数返回根节点 dump 数据', async () => {
-            const result = await NodeProxy.query();
-            expect(result).not.toBeNull();
-            // 根节点是场景，应包含 isScene 字段
-            const sceneResult = result as ISceneForEditor;
-            expect(sceneResult.isScene).toBeTruthy();
-            expect(sceneResult.__type__).toBeDefined();
-            expect(sceneResult.uuid).toBeDefined();
-            expect(Array.isArray(sceneResult.children)).toBe(true);
-        });
-
-        it('query - 传入不存在的路径返回 null', async () => {
-            const result = await NodeProxy.query('non-existent-path');
-            expect(result).toBeNull();
-        });
-
-        it('query - 传入 "/" 返回场景根节点', async () => {
-            const result = await NodeProxy.query('/');
-            expect(result).not.toBeNull();
-            const sceneResult = result as ISceneForEditor;
-            expect(sceneResult.isScene).toBeTruthy();
-            expect(sceneResult.__type__).toBeDefined();
-            expect(sceneResult.uuid).toBeDefined();
-            expect(Array.isArray(sceneResult.children)).toBe(true);
+        it('query - queryChildren:true queryComponent:true 同时查询', async () => {
+            expect(createdNode).not.toBeNull();
+            if (createdNode) {
+                const result = await NodeProxy.query({
+                    path: createdNode.path,
+                    queryChildren: true,
+                    queryComponent: true,
+                }) as INodeInfo | null;
+                expect(result).toBeDefined();
+                expect(result?.components).toBeDefined();
+            }
         });
     });
+
 
     describe('3. 节点更新操作（依赖创建的节点）', () => {
         it('update - 更新节点位置', async () => {
@@ -182,7 +183,7 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const updatedNode = await NodeProxy.query(queryParams) as INode | null;
+                const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.position).toEqual(newPosition);
             }
         });
@@ -207,7 +208,7 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const updatedNode = await NodeProxy.query(queryParams) as INode | null;
+                const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.active).toBe(false);
             }
         });
@@ -234,8 +235,77 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const updatedNode = await NodeProxy.query(queryParams) as INode | null;
+                const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.scale).toEqual(newScale);
+            }
+        });
+
+        it('update - 更新节点名称', async () => {
+            expect(createdNode).not.toBeNull();
+            if (createdNode) {
+                const params: IUpdateNodeParams = {
+                    path: createdNode.path,
+                    name: 'RenamedTestNode',
+                };
+
+                const result = await NodeProxy.update(params);
+                expect(result).toBeDefined();
+
+                const queryParams: IQueryNodeParams = {
+                    path: result.path,
+                    queryChildren: false,
+                    queryComponent: false,
+                };
+                const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
+                expect(updatedNode?.name).toBe('RenamedTestNode');
+                createdNode = updatedNode;
+            }
+        });
+
+        it('update - 更新节点 mobility', async () => {
+            expect(createdNode).not.toBeNull();
+            if (createdNode) {
+                const params: IUpdateNodeParams = {
+                    path: createdNode.path,
+                    properties: {
+                        mobility: MobilityMode.Movable,
+                    },
+                };
+
+                const result = await NodeProxy.update(params);
+                expect(result).toBeDefined();
+
+                const queryParams: IQueryNodeParams = {
+                    path: createdNode.path,
+                    queryChildren: false,
+                    queryComponent: false,
+                };
+                const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
+                expect(updatedNode?.properties.mobility).toBe(MobilityMode.Movable);
+            }
+        });
+
+        it('update - 更新节点 layer', async () => {
+            expect(createdNode).not.toBeNull();
+            if (createdNode) {
+                const targetLayer = 1 << 25;
+                const params: IUpdateNodeParams = {
+                    path: createdNode.path,
+                    properties: {
+                        layer: targetLayer,
+                    },
+                };
+
+                const result = await NodeProxy.update(params);
+                expect(result).toBeDefined();
+
+                const queryParams: IQueryNodeParams = {
+                    path: createdNode.path,
+                    queryChildren: false,
+                    queryComponent: false,
+                };
+                const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
+                expect(updatedNode?.properties.layer).toBe(targetLayer);
             }
         });
     });
@@ -259,7 +329,7 @@ describe('Node Proxy 测试', () => {
                     queryChildren: false,
                     queryComponent: true
                 };
-                const deletedNode = await NodeProxy.query(queryParams) as INode | null;
+                const deletedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(deletedNode).toBeNull();
 
                 createdNode = null;
@@ -298,7 +368,7 @@ describe('Node Proxy 测试', () => {
                 queryComponent: false
             };
 
-            const result = await NodeProxy.query(params) as INode | null;
+            const result = await NodeProxy.query(params) as INodeInfo | null;
             expect(result).toBeNull();
         });
 
@@ -326,7 +396,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('6. 添加所有内置的节点', () => {
-        const allNodes: INode[] = [];
+        const allNodes: INodeInfo[] = [];
         afterAll(async () => {
             try {
                 for (const node of allNodes) {
@@ -526,7 +596,7 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('8. 节点命名规则测试 - 同名节点自动添加后缀', () => {
-        const createdNodes: INode[] = [];
+        const createdNodes: INodeInfo[] = [];
         const parentPath = '/';
 
         afterAll(async () => {

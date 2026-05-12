@@ -5,7 +5,6 @@ import {
     type IDeleteNodeParams,
     type IDeleteNodeResult,
     type INode,
-    type INodeForEditor,
     type INodeService,
     type IQueryNodeParams,
     type IQueryNodeTreeParams,
@@ -15,17 +14,15 @@ import {
     type IUpdateNodeResult,
     NodeType,
     NodeEventType,
-    EventSourceType,
-    IChangeNodeOptions,
-    ISetPropertyOptionsForEditor
+    ISetPropertyOptions
 } from '../../common';
-import { type ISceneForEditor } from '../../common/editor/scene';
+import { type IScene } from '../../common/editor/scene';
 import { Rpc } from '../rpc';
 import { CCClass, CCObject, Node, Prefab, Quat, Vec3, TransformBit, UITransform, LODGroup } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, setLayer } from './node/node-utils';
-import { sceneUtils } from './scene/utils';
 import { prefabUtils } from './prefab/utils';
+import { sceneUtils } from './scene/utils';
 import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
 import { parseReadonlyDef } from 'zod-to-json-schema';
@@ -162,7 +159,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
         }
 
-        return sceneUtils.generateNodeInfo(resultNode, true);
+        return sceneUtils.generateNodeDump(resultNode) as Promise<INode>;
     }
 
     /**
@@ -365,36 +362,17 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async query(params?: IQueryNodeParams | string): Promise<INode | INodeForEditor | ISceneForEditor | null> {
-        if (params === undefined || params === null || typeof params === 'string') {
-            return this.queryForEditor(params);
-        }
-        return this.queryForCli(params);
-    }
-
-    private async queryForEditor(path?: string): Promise<INodeForEditor | ISceneForEditor | null> {
-        const node = (path && path !== '/') ? NodeMgr.getNodeByPath(path) : Service.Editor.getRootNode();
-        if (!node) {
-            return null;
-        }
-        return await nodeMgr.queryDump(node.uuid);
-    }
-
-    private async queryForCli(params: IQueryNodeParams): Promise<INode | null> {
+    async query(params?: IQueryNodeParams): Promise<INode | IScene | null> {
         try {
             await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to query node: the scene is not opened.');
             }
-            let node = NodeMgr.getNodeByPath(params.path);
-            if (!params.path || params.path === '/') {
-                node = root;
-            }
-            if (!node) {
-                return null;
-            }
-            return sceneUtils.generateNodeInfo(node, !!params.queryChildren, !!params.queryComponent);
+            const path = params?.path;
+            const node = (path && path !== '/') ? NodeMgr.getNodeByPath(path) : root;
+            if (!node) return null;
+            return await sceneUtils.generateNodeDump(node);
         } catch (error) {
             console.error(error);
             throw error;
@@ -530,7 +508,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         EditorExtends.Component.clear();
     }
 
-    public async previewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async previewSetProperty(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -538,7 +516,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.previewSetNodeProperty(node.uuid, options.path, options.dump);
     }
 
-    public async cancelPreviewSetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -546,7 +524,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.cancelPreviewSetNodeProperty(node.uuid, options.path);
     }
 
-    public async setProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async setProperty(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -562,7 +540,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.resetNode(node.uuid);
     }
 
-    public async resetProperty(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async resetProperty(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -570,7 +548,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.resetProperty(node.uuid, options.path);
     }
 
-    public async updatePropertyFromNull(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    public async updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
@@ -578,7 +556,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.updatePropertyFromNull(node.uuid, options.path);
     }
 
-    public async setNodeAndChildrenLayer(options: ISetPropertyOptionsForEditor): Promise<void> {
+    public async setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return;

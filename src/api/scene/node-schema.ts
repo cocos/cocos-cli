@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { NodeType } from '../../core/scene';
-import { INode } from '../../core/scene';
+import { INodeInfo } from '../../core/scene';
 import { SchemaQuat, SchemaVec3 } from '../base/schema-value-types';
 import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaPrefabInfo } from './prefab-info-schema';
@@ -34,7 +34,7 @@ export const SchemaComponentOrDetail = z.union([
     SchemaComponentIdentifier
 ]).describe('components on the node'); // 节点上的组件信息
 
-export const SchemaNode: z.ZodType<INode> = SchemaNodeIdentifier.extend({
+export const SchemaNode: z.ZodType<INodeInfo> = SchemaNodeIdentifier.extend({
     properties: SchemaNodeProperty.describe('Node properties'), // 节点属性
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab information'), // 预制体信息
     children: z.array(z.lazy(() => SchemaNode)).optional().describe('List of child nodes'), // 子节点列表
@@ -55,7 +55,7 @@ export const SchemaNodeQuery = z.object({
 }).describe('To configure options for node query, the Scene must be open first. The result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的结果
-export const SchemaNodeQueryResult: z.ZodType<INode> = SchemaNode;
+export const SchemaNodeQueryResult: z.ZodType<INodeInfo> = SchemaNode;
 
 //节点更新的参数
 export const SchemaNodeUpdate = z.object({

@@ -1,4 +1,4 @@
-import { IScene } from './scene';
+import type { IScene } from './scene';
 import type { Node, Scene } from 'cc';
 import type { INode } from '../node';
 import type { ICloseOptions, ICreateOptions, IOpenOptions, IReloadOptions, ISaveOptions } from './options';
