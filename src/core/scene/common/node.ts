@@ -135,6 +135,7 @@ export interface IPrefab {
 }
 
 export interface INode {
+    path: string;
     active: IProperty;
     locked: IProperty;
     name: IProperty;

@@ -2,6 +2,7 @@ import { ITargetOverrideInfo } from '../prefab';
 import { IProperty } from '../../@types/public';
 
 export interface IScene {
+    path: string;
     name: IProperty;
     active: IProperty;
     locked: IProperty;

@@ -78,6 +78,7 @@ export function encodeNode(node: Node): INode {
     const is2DProject = false;
 
     const data: INode = {
+        path: EditorExtends.Node.getNodePath(node),
         active: encodeObject(node.active, { displayName: 'Active', default: null }, node),
         locked: encodeObject(Boolean(node.objFlags & cc.Object.Flags.LockedInEditor), { displayName: 'Locked', default: false, animatable: false }, node),
         name: encodeObject(node.name, { displayName: 'Name', default: null, animatable: false }, node),
@@ -185,6 +186,22 @@ export function encodeNode(node: Node): INode {
     // 根据 flag 调整 readyonly
     _checkObjFlags(node, data);
 
+    // 填充 path，供 inspector setProperty 使用
+    for (const [key, val] of Object.entries(data)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && 'type' in val && 'value' in val) {
+            (val as IProperty).path = key;
+        }
+    }
+    data.__comps__.forEach((comp, index) => {
+        if (comp.value && typeof comp.value === 'object' && !Array.isArray(comp.value)) {
+            for (const [key, prop] of Object.entries(comp.value as Record<string, unknown>)) {
+                if (prop && typeof prop === 'object' && !Array.isArray(prop) && 'type' in prop && 'value' in prop) {
+                    (prop as IProperty).path = `__comps__.${index}.${key}`;
+                }
+            }
+        }
+    });
+
     return data;
 }
 
@@ -196,6 +213,7 @@ export function encodeScene(scene: any): IScene {
     const ctor = scene.constructor;
 
     const data: IScene = {
+        path: '/',
         active: encodeObject(scene.active, { default: null }),
         locked: encodeObject(false, { default: false }),
         name: encodeObject(scene.name || ctor.name, { default: null }),
@@ -230,6 +248,18 @@ export function encodeScene(scene: any): IScene {
         data.targetOverrides = encodeTargetOverrides(scene['_prefab'].targetOverrides) ?? undefined;
     }
 
+    // 填充 path，供 inspector setProperty 使用
+    for (const [key, val] of Object.entries(data)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && 'type' in val && 'value' in val) {
+            (val as IProperty).path = key;
+        }
+    }
+    for (const [key, val] of Object.entries(data._globals)) {
+        if (val && typeof val === 'object' && 'type' in val && 'value' in val) {
+            (val as IProperty).path = `_globals.${key}`;
+        }
+    }
+
     return data;
 }
 
@@ -258,6 +288,7 @@ export function encodeComponent(component: any): IComponent {
             name: encodeObject(component.name, { default: null, visible: false }, component),
             enabled: encodeObject(component.enabled, { default: null, visible: false }, component),
         },
+        path: compMgr.getPathFromUuid(component.uuid) ?? 'unknown',
         default: undefined,
         type: dumpUtil.getTypeName(ctor),
         readonly: false,
@@ -567,6 +598,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         value: null,
         default: defValue,
         type: type,
+        path: '',
         readonly: !!attributes.readonly,
         visible: true,
         animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值

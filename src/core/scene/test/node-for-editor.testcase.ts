@@ -643,4 +643,82 @@ describe('Node ForEditor 接口测试', () => {
             await NodeProxy.delete({ path: labelNode!.path, keepWorldTransform: false });
         });
     });
+
+    describe('9. dump path 属性填充验证', () => {
+        it('节点 dump 的 path 字段是节点树路径', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INode;
+            expect(typeof dump.path).toBe('string');
+            expect(dump.path.length).toBeGreaterThan(0);
+            expect(dump.path).toContain(testNodeName);
+        });
+
+        it('场景根节点 dump 的 path 为 "/"', async () => {
+            const dump = await rpcRequest('query', []) as IScene;
+            expect(dump.path).toBe('/');
+        });
+
+        it('节点顶层 IProperty 字段的 path 等于其 key 名', async () => {
+            const dump = await queryNodeDump(testNode!.path) as INode;
+
+            expect(dump.active.path).toBe('active');
+            expect(dump.locked.path).toBe('locked');
+            expect(dump.name.path).toBe('name');
+            expect(dump.position.path).toBe('position');
+            expect(dump.rotation.path).toBe('rotation');
+            expect(dump.scale.path).toBe('scale');
+            expect(dump.mobility.path).toBe('mobility');
+            expect(dump.layer.path).toBe('layer');
+            expect(dump.uuid.path).toBe('uuid');
+        });
+
+        it('组件属性的 path 格式为 __comps__.{index}.{key}', async () => {
+            const labelNode = await NodeProxy.createByType({
+                path: '/',
+                name: 'PathTestLabel',
+                nodeType: NodeType.LABEL,
+            });
+            expect(labelNode).toBeDefined();
+
+            const dump = await queryNodeDump(labelNode!.path) as INode;
+            expect(dump.__comps__.length).toBeGreaterThan(0);
+
+            let labelCompIndex = -1;
+            for (let i = 0; i < dump.__comps__.length; i++) {
+                if (dump.__comps__[i].type === 'cc.Label') {
+                    labelCompIndex = i;
+                    break;
+                }
+            }
+            expect(labelCompIndex).toBeGreaterThanOrEqual(0);
+
+            const compValue = dump.__comps__[labelCompIndex].value as Record<string, any>;
+            expect(compValue['string']).toBeDefined();
+            expect(compValue['string'].path).toBe(`__comps__.${labelCompIndex}.string`);
+
+            expect(compValue['enabled']).toBeDefined();
+            expect(compValue['enabled'].path).toBe(`__comps__.${labelCompIndex}.enabled`);
+
+            await NodeProxy.delete({ path: labelNode!.path, keepWorldTransform: false });
+        });
+
+        it('场景顶层 IProperty 字段的 path 等于其 key 名', async () => {
+            const dump = await rpcRequest('query', []) as IScene;
+
+            expect(dump.active.path).toBe('active');
+            expect(dump.name.path).toBe('name');
+            expect(dump.uuid.path).toBe('uuid');
+        });
+
+        it('场景 _globals 属性的 path 格式为 _globals.{key}', async () => {
+            const dump = await rpcRequest('query', []) as IScene;
+
+            if (dump._globals && typeof dump._globals === 'object') {
+                for (const [key, val] of Object.entries(dump._globals)) {
+                    if (val && typeof val === 'object' && 'type' in val && 'value' in val) {
+                        expect((val as any).path).toBe(`_globals.${key}`);
+                    }
+                }
+            }
+        });
+    });
 });
