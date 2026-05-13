@@ -10,15 +10,15 @@ import { ISetPropertyOptionsInfo } from '../../common/cli/component';
 import { Rpc } from '../rpc';
 import { DumpConverter } from './dump-converter';
 
-export interface IComponentProxy extends Omit<IPublicComponentService, 'create' | 'query' | 'setProperty'> {
-    create(params: IAddComponentOptions): Promise<IComponentInfo>;
+export interface IComponentProxy extends Omit<IPublicComponentService, 'add' | 'query' | 'setProperty'> {
+    add(params: IAddComponentOptions): Promise<IComponentInfo>;
     query(params: IQueryComponentOptions): Promise<IComponentInfo | null>;
     setProperty(params: ISetPropertyOptionsInfo): Promise<boolean>;
 }
 
 export const ComponentProxy: IComponentProxy = {
-    async create(params: IAddComponentOptions): Promise<IComponentInfo> {
-        const result: any = await Rpc.getInstance().request('Component', 'create', [params]);
+    async add(params: IAddComponentOptions): Promise<IComponentInfo> {
+        const result: any = await Rpc.getInstance().request('Component', 'add', [params]);
         return DumpConverter.toComponent(result);
     },
 

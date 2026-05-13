@@ -27,7 +27,7 @@ const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Component', method, args);
 
 function createComponent(params: IAddComponentOptions): Promise<IComponent> {
-    return rpcRequest('create', [params]);
+    return rpcRequest('add', [params]);
 }
 
 function resetComponent(params: IQueryComponentOptions): Promise<boolean> {
@@ -133,7 +133,7 @@ describe('Component ForEditor 接口测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.create(addComponentInfo);
+            const component = await ComponentProxy.add(addComponentInfo);
             componentPath = component.path;
         });
         afterAll(async () => {
@@ -178,7 +178,7 @@ describe('Component ForEditor 接口测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.create(addComponentInfo);
+            const component = await ComponentProxy.add(addComponentInfo);
             componentUuid = component.uuid;
             componentPath = component.path;
         });
@@ -279,7 +279,7 @@ describe('Component ForEditor 接口测试', () => {
                 nodePath: nodePath,
                 component: 'cc.Label',
             };
-            const component = await ComponentProxy.create(addComponentInfo);
+            const component = await ComponentProxy.add(addComponentInfo);
             componentPath = component.path;
         });
         afterAll(async () => {
@@ -327,7 +327,7 @@ describe('Component ForEditor 接口测试', () => {
         let componentUuid = '';
 
         beforeAll(async () => {
-            const component = await ComponentProxy.create({
+            const component = await ComponentProxy.add({
                 nodePath: nodePath,
                 component: 'cc.Label',
             });
@@ -375,7 +375,7 @@ describe('Component ForEditor 接口测试', () => {
         let componentPath = '';
 
         beforeAll(async () => {
-            const component = await ComponentProxy.create({
+            const component = await ComponentProxy.add({
                 nodePath: nodePath,
                 component: 'cc.Label',
             });
@@ -448,7 +448,7 @@ describe('Component ForEditor 接口测试', () => {
         let compIndex = -1;
 
         beforeAll(async () => {
-            const component = await ComponentProxy.create({
+            const component = await ComponentProxy.add({
                 nodePath: nodePath,
                 component: 'cc.Label',
             });

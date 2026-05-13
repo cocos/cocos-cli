@@ -123,13 +123,13 @@ export interface IComponentService extends IServiceEvents {
      * @example
      * ```ts
      * // 通过节点路径 + 精确组件名
-     * const comp = await create({ nodePath: 'Canvas/MyNode', component: 'cc.Label' });
+     * const comp = await add({ nodePath: 'Canvas/MyNode', component: 'cc.Label' });
      *
      * // 通过节点路径 + 模糊组件名
-     * const comp = await create({ nodePath: 'Canvas/MyNode', component: 'label' });
+     * const comp = await add({ nodePath: 'Canvas/MyNode', component: 'label' });
      * ```
      */
-    create(params: IAddComponentOptions): Promise<IComponent>;
+    add(params: IAddComponentOptions): Promise<IComponent>;
 
     /**
      * 删除指定组件

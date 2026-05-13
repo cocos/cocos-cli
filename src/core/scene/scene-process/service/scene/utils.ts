@@ -188,7 +188,6 @@ class SceneUtil {
 
             // hack: 以下字段不属于编辑器 dump 结构（IScene），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
             const d = sceneDump as any;
-            d.__nodeId__ = node.uuid;
             d.__path__ = '/';
             d.__position__ = { x: node.position.x, y: node.position.y, z: node.position.z };
             d.__rotation__ = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z, w: node.rotation.w };
@@ -199,7 +198,7 @@ class SceneUtil {
             d.__comps__ = [];
             for (const comp of node.components) {
                 const compDump = await translateDumpI18n(dumpUtil.dumpComponent(comp as cc.Component)) as any;
-                compDump.__identifier__ = this.generateComponentInfo(comp);
+                compDump.__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
                 compDump.__compPrefab__ = (comp as any).__prefab || null;
                 d.__comps__.push(compDump);
             }
@@ -214,18 +213,16 @@ class SceneUtil {
 
         // hack: 以下字段不属于编辑器 dump 结构（INode），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
         const d = dump as any;
-        d.__nodeId__ = node.uuid;
         d.__path__ = EditorExtends.Node.getNodePath(node);
         d.__rotation__ = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z, w: node.rotation.w };
         d.__prefabInfo__ = this.generatePrefabInfo(node['_prefab']);
         if (dump.__comps__) {
             for (let i = 0; i < dump.__comps__.length && i < node.components.length; i++) {
                 const comp = node.components[i];
-                (dump.__comps__[i] as any).__identifier__ = this.generateComponentInfo(comp);
+                (dump.__comps__[i] as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
                 (dump.__comps__[i] as any).__compPrefab__ = (comp as any).__prefab || null;
             }
         }
-        d.__childIdentifiers__ = node.children.map((child: cc.Node) => this.generateNodeIdentifier(child));
 
         d.__childNodes__ = [];
         for (const child of node.children) {

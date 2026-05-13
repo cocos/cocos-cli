@@ -49,7 +49,7 @@ export class DumpConverter {
         const d = dump as any;
         const children = options?.children ?? true;
         return {
-            nodeId: d.__nodeId__ || dump.uuid.value as string,
+            nodeId: dump.uuid.value as string,
             path: options?.path || d.__path__ || '/',
             name: dump.name.value as string,
             properties: {
@@ -73,7 +73,7 @@ export class DumpConverter {
         const children = options?.children ?? true;
         const fullComponents = options?.fullComponents ?? false;
         return {
-            nodeId: d.__nodeId__ || dump.uuid.value as string,
+            nodeId: dump.uuid.value as string,
             path: options?.path || d.__path__ || '',
             name: dump.name.value as string,
             properties: {
@@ -97,7 +97,6 @@ export class DumpConverter {
 
     static toComponent(dump: IComponent): IComponentInfo {
         const d = dump as any;
-        const identifier = d.__identifier__;
         const properties: { [key: string]: IPropertyValueType } = {};
 
         if (dump.value && typeof dump.value === 'object') {
@@ -110,12 +109,12 @@ export class DumpConverter {
         }
 
         return {
-            cid: identifier?.cid || d.cid || '',
-            path: identifier?.path || '',
-            uuid: identifier?.uuid || (dump.value?.uuid as any)?.value || '',
-            name: identifier?.name || (dump.value?.name as any)?.value || '',
-            type: dump.type || identifier?.type || '',
-            enabled: identifier?.enabled ?? (dump.value?.enabled as any)?.value ?? true,
+            cid: d.cid || '',
+            path: d.__component_path__ || '',
+            uuid: (dump.value?.uuid as any)?.value || '',
+            name: (dump.value?.name as any)?.value || '',
+            type: dump.type || '',
+            enabled: (dump.value?.enabled as any)?.value ?? true,
             properties,
             prefab: d.__compPrefab__ ?? null,
         };
@@ -123,14 +122,13 @@ export class DumpConverter {
 
     static toComponentIdentifier(dump: IComponent): IComponentIdentifier {
         const d = dump as any;
-        const identifier = d.__identifier__;
         return {
-            cid: identifier?.cid || d.cid || '',
-            path: identifier?.path || '',
-            uuid: identifier?.uuid || (dump.value?.uuid as any)?.value || '',
-            name: identifier?.name || (dump.value?.name as any)?.value || '',
-            type: dump.type || identifier?.type || '',
-            enabled: identifier?.enabled ?? (dump.value?.enabled as any)?.value ?? true,
+            cid: d.cid || '',
+            path: d.__component_path__ || '',
+            uuid: (dump.value?.uuid as any)?.value || '',
+            name: (dump.value?.name as any)?.value || '',
+            type: dump.type || '',
+            enabled: (dump.value?.enabled as any)?.value ?? true,
         };
     }
 

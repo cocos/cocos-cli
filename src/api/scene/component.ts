@@ -31,7 +31,7 @@ export class ComponentApi {
     @result(SchemaComponentResult)
     async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
         try {
-            const component = await Scene.Component.create({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
+            const component = await Scene.Component.add({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: component
