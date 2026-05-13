@@ -8,6 +8,7 @@ import type {
     IComponentIdentifier,
     IPrefab,
     IPrefabInfo,
+    ITargetOverrideDetail,
     ISceneInfo,
 } from '../../common';
 import type { IScene } from '../../common/editor/scene';
@@ -37,7 +38,7 @@ export class DumpConverter {
             assetUuid: identifier.assetUuid ?? '',
             assetUrl: identifier.assetUrl ?? '',
             name: dump.name.value as string,
-            prefab: d.__prefabInfo__ ?? null,
+            prefab: DumpConverter.convertPrefab(d.__prefab__),
             children: children
                 ? (d.__childNodes__?.map((c: INode) => DumpConverter.toNode(c, options)) ?? [])
                 : [],
@@ -64,7 +65,7 @@ export class DumpConverter {
             children: children
                 ? d.__childNodes__?.map((c: INode) => DumpConverter.toNode(c, options))
                 : undefined,
-            prefab: null,
+            prefab: DumpConverter.convertPrefab(d.__prefab__),
         };
     }
 
@@ -91,7 +92,7 @@ export class DumpConverter {
             children: children
                 ? d.__childNodes__?.map((c: any) => DumpConverter.toNode(c, options))
                 : undefined,
-            prefab: d.__prefabInfo__ ?? DumpConverter.convertPrefab(dump.__prefab__) ?? null,
+            prefab: DumpConverter.convertPrefab(dump.__prefab__),
         };
     }
 
@@ -132,13 +133,66 @@ export class DumpConverter {
         };
     }
 
-    private static convertPrefab(prefab?: IPrefab): IPrefabInfo | null {
+    static convertPrefab(prefab?: IPrefab): IPrefabInfo | null {
         if (!prefab) return null;
+        const d = prefab as any;
         return {
+            asset: d.__asset__ ?? undefined,
+            root: d.__root__?.nodeId ? d.__root__ : undefined,
+            instance: DumpConverter.convertPrefabInstance(prefab.instance, d.__instance__),
             fileId: prefab.fileId,
-            targetOverrides: [],
-            nestedPrefabInstanceRoots: [],
+            targetOverrides: DumpConverter.convertTargetOverrides(prefab.targetOverrides),
+            nestedPrefabInstanceRoots: d.__nested_roots__ ?? [],
         };
+    }
+
+    private static convertTargetOverrides(overrides?: IPrefab['targetOverrides']): ITargetOverrideDetail[] {
+        if (!overrides) return [];
+        return overrides.map(info => {
+            const d = info as any;
+            return {
+                source: d.__source__ ?? null,
+                sourceInfo: info.sourceInfo ? { localID: info.sourceInfo } : null,
+                propertyPath: info.propertyPath,
+                target: d.__target__ ?? null,
+                targetInfo: info.targetInfo ? { localID: info.targetInfo } : null,
+            };
+        });
+    }
+
+    private static convertPrefabInstance(instanceDump: any, enriched: any): any {
+        if (!instanceDump?.value) return undefined;
+        const v = instanceDump.value;
+        return {
+            fileId: v.fileId?.value ?? '',
+            prefabRootNode: enriched?.prefabRootNode ?? undefined,
+            mountedChildren: (v.mountedChildren?.value ?? []).map((mc: any, i: number) => ({
+                targetInfo: DumpConverter.extractTargetInfo(mc.value?.targetInfo),
+                nodes: enriched?.mountedChildren?.[i]?.nodes ?? [],
+            })),
+            mountedComponents: (v.mountedComponents?.value ?? []).map((mc: any, i: number) => ({
+                targetInfo: DumpConverter.extractTargetInfo(mc.value?.targetInfo),
+                components: enriched?.mountedComponents?.[i]?.components ?? [],
+            })),
+            propertyOverrides: (v.propertyOverrides?.value ?? []).map((po: any) => ({
+                targetInfo: DumpConverter.extractTargetInfo(po.value?.targetInfo),
+                propertyPath: po.value?.propertyPath ?? [],
+            })),
+            removedComponents: (v.removedComponents?.value ?? []).map((rc: any) => ({
+                localID: DumpConverter.extractLocalID(rc),
+            })),
+        };
+    }
+
+    private static extractTargetInfo(prop: any): any {
+        if (!prop?.value) return null;
+        return { localID: DumpConverter.extractLocalID(prop) };
+    }
+
+    private static extractLocalID(prop: any): string[] {
+        const localID = prop?.value?.localID;
+        if (!localID?.value || !Array.isArray(localID.value)) return [];
+        return localID.value.map((item: any) => String(item.value ?? ''));
     }
 
     private static eulerToQuat(euler: any): { x: number; y: number; z: number; w: number } {

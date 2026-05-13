@@ -1,5 +1,5 @@
 import type { INodeIdentifier } from './node';
-import type { IComponentIdentifier } from '../component';
+import type { IComponentIdentifier } from './component';
 
 export enum OptimizationPolicy {
     AUTO = 0,

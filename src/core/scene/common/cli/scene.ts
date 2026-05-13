@@ -1,5 +1,5 @@
 import type { INodeInfo } from './node';
-import type { IComponentIdentifier } from '../component';
+import type { IComponentIdentifier } from './component';
 import type { IBaseIdentifier } from '../editor/base';
 import type { IPrefabInfo } from './prefab';
 

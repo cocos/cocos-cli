@@ -18,15 +18,13 @@ import {
 } from '../../common';
 import { type IScene } from '../../common/editor/scene';
 import { Rpc } from '../rpc';
-import { CCClass, CCObject, Node, Prefab, Quat, Vec3, TransformBit, UITransform, LODGroup } from 'cc';
+import { CCClass, CCObject, Node, Prefab, Quat, Vec3 } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, setLayer } from './node/node-utils';
 import { prefabUtils } from './prefab/utils';
 import { sceneUtils } from './scene/utils';
 import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
-import { parseReadonlyDef } from 'zod-to-json-schema';
-import node from './node/index';
 
 const NodeMgr = EditorExtends.Node;
 

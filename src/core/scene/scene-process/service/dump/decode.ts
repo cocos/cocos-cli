@@ -298,7 +298,6 @@ async function decodePrefab(dumpPrefab: any, node: any) {
     info.fileId = dumpPrefab.fileId || node.uuid;
     if (dumpPrefab.instance) {
         await decodePatch('instance', dumpPrefab.instance, info);
-
     } else {
         info.instance = undefined;
     }

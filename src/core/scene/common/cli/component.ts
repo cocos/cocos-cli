@@ -1,6 +1,14 @@
-import type { IComponentIdentifier } from '../component';
 import type { IPropertyValueType } from '../../@types/public';
 import type { ICompPrefabInfo } from '../prefab';
+
+export interface IComponentIdentifier {
+    cid: string;
+    path: string;
+    uuid: string;
+    name: string;
+    type: string;
+    enabled: boolean;
+}
 
 export interface IComponentInfo extends IComponentIdentifier {
     properties: { [key: string]: IPropertyValueType };

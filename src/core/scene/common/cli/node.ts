@@ -1,6 +1,5 @@
 import type { INodeProperties } from '../node';
-import type { IComponentInfo } from './component';
-import type { IComponentIdentifier } from '../component';
+import type { IComponentInfo, IComponentIdentifier } from './component';
 import type { IPrefabInfo } from './prefab';
 
 export interface INodeIdentifier {

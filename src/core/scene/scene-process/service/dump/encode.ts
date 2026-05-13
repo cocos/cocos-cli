@@ -7,7 +7,7 @@ import dumpUtil from './utils';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
-import { IComponent, INode, IScene, ITargetOverrideInfo } from '../../../common';
+import { IComponent, INode, IPrefab, IScene, ITargetOverrideInfo } from '../../../common';
 import compMgr from '../component/index';
 import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
@@ -33,6 +33,26 @@ const autoI18nAttributeNames = [
     'displayName',
     'tooltip',
 ] as const;
+
+export function encodePrefab(node: Node): IPrefab | null {
+    if (!node['_prefab']) return null;
+    const prefabStateInfo = prefabUtils.getPrefabStateInfo(node);
+    const rootNode = node['_prefab'].root;
+    const result: IPrefab = {
+        uuid: (node['_prefab'].asset && node['_prefab'].asset._uuid) || '',
+        fileId: node['_prefab'].fileId,
+        rootUuid: rootNode?.uuid || '',
+        sync: true,
+        prefabStateInfo,
+    };
+    if (node['_prefab'].targetOverrides) {
+        result.targetOverrides = encodeTargetOverrides(node['_prefab'].targetOverrides) ?? undefined;
+    }
+    if (node['_prefab'].instance) {
+        result.instance = encodeObject(node['_prefab'].instance, { default: null }, node);
+    }
+    return result;
+}
 
 /**
  * 编码一个 node 数据
@@ -152,22 +172,7 @@ export function encodeNode(node: Node): INode {
     };
 
     if (node['_prefab']) {
-        const prefabStateInfo = prefabUtils.getPrefabStateInfo(node);
-        data.__prefab__ = {
-            uuid: (node['_prefab'].asset && node['_prefab'].asset._uuid) || '',
-            fileId: node['_prefab'].fileId,
-            rootUuid: (node['_prefab'].root && node['_prefab'].root.uuid) || '',
-            sync: true,
-            prefabStateInfo,
-        };
-
-        if (node['_prefab'].targetOverrides) {
-            data.__prefab__!.targetOverrides = encodeTargetOverrides(node['_prefab'].targetOverrides) ?? undefined;
-        }
-
-        if (node['_prefab'].instance) {
-            data.__prefab__!.instance = encodeObject(node['_prefab'].instance, { default: null }, node);
-        }
+        data.__prefab__ = encodePrefab(node)!;
 
         const removedComponents = prefabUtils.getRemovedComponents(node);
         if (removedComponents.length > 0) {

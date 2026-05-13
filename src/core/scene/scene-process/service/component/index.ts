@@ -5,7 +5,7 @@ const CompMgr = EditorExtends.Component;
 import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
-import { IComponentIdentifier, type IComponentEvents } from '../../../common';
+import { type IComponentEvents } from '../../../common';
 import { ServiceEvents } from '../core/global-events';
 
 export class CompManager {
@@ -82,18 +82,6 @@ export class CompManager {
 
     queryFromPath(path: string): Component | null {
         return CompMgr.getComponentFromPath(path) || null;
-    }
-
-    getComponentIdentifier(component: Component): IComponentIdentifier {
-        const path = this.getPathFromUuid(component.uuid);
-        return {
-            cid: (component as any).__cid__,
-            type: cc.js.getClassName(component.constructor),
-            uuid: component.uuid,
-            name: component.name,
-            enabled: component.enabled ? true : false,//enalbed maybe undefined.
-            path: path === null ? '' : path,
-        };
     }
 
     getPathFromUuid(uuid: string): string | null {

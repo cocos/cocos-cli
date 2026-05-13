@@ -4,18 +4,6 @@ import type { IServiceEvents } from '../scene-process/service/core';
 import type { IChangeNodeOptions, INodeEvents } from './node';
 
 /**
- * 组件标识信息，包含组件的基本标识字段
- */
-export interface IComponentIdentifier {
-    cid: string;
-    path: string;
-    uuid: string;
-    name: string;
-    type: string;
-    enabled: boolean;
-}
-
-/**
  * 编辑器使用的组件详细信息，属性值以 IProperty 编码形式呈现，
  * 包含 type、readonly、default 等元信息，用于编辑器 Inspector 面板渲染
  */
