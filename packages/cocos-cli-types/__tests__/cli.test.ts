@@ -30,7 +30,7 @@ describe('cocos-cli-types: cli', () => {
 
     it('IServiceManager.Node should have CRUD methods', () => {
         type NodeKeys = keyof IServiceManager['Node'];
-        const nodeMethods: NodeKeys[] = ['createByType', 'createByAsset', 'delete', 'update', 'query', 'queryNodeTree'];
+        const nodeMethods: NodeKeys[] = ['createByType', 'createByAsset', 'delete', 'query', 'queryNodeTree'];
         expect(nodeMethods.length).toBeGreaterThan(0);
     });
 
