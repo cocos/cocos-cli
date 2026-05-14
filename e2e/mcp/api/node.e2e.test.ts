@@ -428,7 +428,7 @@ describe('MCP Node API', () => {
                     properties: {
                         position: { x: 200, y: 300, z: 10 },
                         scale: { x: 2.5, y: 1.5, z: 1.0 },
-                        rotation: { x: 0, y: 0, z: 0.3826834, w: 0.9238795 }, // 45度旋转的四元数表示
+                        rotation: { x: 0, y: 0, z: 45 }, // 45度绕Z轴旋转（欧拉角）
                         active: false
                     }
                 }
@@ -456,11 +456,10 @@ describe('MCP Node API', () => {
                 expect(multiVerifyResult.data.properties.scale?.y).toBe(1.5);
                 expect(multiVerifyResult.data.properties.scale?.z).toBe(1.0);
                 
-                // 验证旋转属性（四元数）
+                // 验证旋转属性（欧拉角）
                 expect(multiVerifyResult.data.properties.rotation?.x).toBeCloseTo(0, 5);
                 expect(multiVerifyResult.data.properties.rotation?.y).toBeCloseTo(0, 5);
-                expect(multiVerifyResult.data.properties.rotation?.z).toBeCloseTo(0.3826834, 5);
-                expect(multiVerifyResult.data.properties.rotation?.w).toBeCloseTo(0.9238795, 5);
+                expect(multiVerifyResult.data.properties.rotation?.z).toBeCloseTo(45, 5);
                 
                 // 验证激活状态
                 expect(multiVerifyResult.data.properties.active).toBe(false);
@@ -499,11 +498,10 @@ describe('MCP Node API', () => {
                 expect(partialVerifyResult.data.properties.scale?.x).toBe(2.5);
                 expect(partialVerifyResult.data.properties.scale?.y).toBe(1.5);
                 expect(partialVerifyResult.data.properties.scale?.z).toBe(1.0);
-                // 验证旋转属性保持不变（四元数）
+                // 验证旋转属性保持不变（欧拉角）
                 expect(partialVerifyResult.data.properties.rotation?.x).toBeCloseTo(0, 5);
                 expect(partialVerifyResult.data.properties.rotation?.y).toBeCloseTo(0, 5);
-                expect(partialVerifyResult.data.properties.rotation?.z).toBeCloseTo(0.3826834, 5);
-                expect(partialVerifyResult.data.properties.rotation?.w).toBeCloseTo(0.9238795, 5);
+                expect(partialVerifyResult.data.properties.rotation?.z).toBeCloseTo(45, 5);
             }
 
             // 9. 删除节点

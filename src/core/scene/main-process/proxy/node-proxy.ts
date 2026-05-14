@@ -43,8 +43,7 @@ export const NodeProxy: INodeProxy = {
         if (params.properties) {
             const p = params.properties;
             if (p.position) properties.position = p.position;
-            if (p.eulerAngles) properties.rotation = p.eulerAngles;
-            if (p.rotation) properties.rotation = DumpConverter.quatToEuler(p.rotation);
+            if (p.rotation) properties.rotation = p.rotation;
             if (p.scale) properties.scale = p.scale;
             if (p.active !== undefined) properties.active = p.active;
             if (p.mobility !== undefined) properties.mobility = p.mobility;

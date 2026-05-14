@@ -432,8 +432,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const appliedRotation = {
                 x: 0,
                 y: 0,
-                z: 1,
-                w: 1,
+                z: 45,
             };
             const appliedName = `${originalName}-Renamed`;
 
@@ -475,8 +474,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const overriddenRotation = {
                 x: 0,
                 y: 0,
-                z: 0.7071068,
-                w: 0.7071068,
+                z: 90,
             };
 
             const secondUpdateResult = await NodeProxy.update({
@@ -518,7 +516,6 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(revertedProps.rotation?.x).toBeCloseTo(overriddenRotation.x, 5);
             expect(revertedProps.rotation?.y).toBeCloseTo(overriddenRotation.y, 5);
             expect(revertedProps.rotation?.z).toBeCloseTo(overriddenRotation.z, 5);
-            expect(revertedProps.rotation?.w).toBeCloseTo(overriddenRotation.w, 5);
             // name 应该保持不变（应用后的值）
             expect(revertedQuery.name).toBe(appliedName);
         });
@@ -792,8 +789,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const appliedRotation = {
                 x: 0,
                 y: 0,
-                z: 0.3826834,
-                w: 0.9238795,
+                z: 45,
             };
             const renamedNode = `${nodeName}-Renamed`;
 
@@ -829,8 +825,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const changedRotation = {
                 x: 0,
                 y: 0,
-                z: 0.7071068,
-                w: 0.7071068,
+                z: 90,
             };
 
             const secondUpdateResult = await NodeProxy.update({
@@ -870,7 +865,6 @@ describe('Prefab Proxy In Scene 测试', () => {
                 expect(props.rotation?.x).toBeCloseTo(changedRotation.x, 5);
                 expect(props.rotation?.y).toBeCloseTo(changedRotation.y, 5);
                 expect(props.rotation?.z).toBeCloseTo(changedRotation.z, 5);
-                expect(props.rotation?.w).toBeCloseTo(changedRotation.w, 5);
             }
             expect(queryNodeResult?.name).toBe(renamedNode);
 

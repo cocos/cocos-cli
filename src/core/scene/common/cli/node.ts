@@ -1,4 +1,4 @@
-import type { IVec3, IQuat } from '../value-types';
+import type { IVec3 } from '../value-types';
 import type { MobilityMode } from '../node';
 import type { IComponentInfo, IComponentIdentifier } from './component';
 import type { IPrefabInfo } from './prefab';
@@ -6,8 +6,7 @@ import type { IPrefabInfo } from './prefab';
 // 节点基础属性接口
 export interface INodeProperties {
     position: IVec3; // 节点位置
-    rotation: IQuat; // 节点旋转, 四元数
-    eulerAngles: IVec3; // 节点旋转，欧拉角
+    rotation: IVec3; // 节点旋转，欧拉角
     scale: IVec3; // 节点缩放
     mobility: MobilityMode; // 节点的移动性
     layer: number; // 节点所在的层级

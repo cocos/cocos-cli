@@ -222,7 +222,7 @@ describe('Node Proxy 测试', () => {
                     name: 'TestNode',
                     properties: {
                         scale: newScale,
-                        eulerAngles: { x: 0, y: 45, z: 0 }
+                        rotation: { x: 0, y: 45, z: 0 }
                     }
                 };
 

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { NodeType } from '../../core/scene';
 import { INodeInfo } from '../../core/scene';
-import { SchemaQuat, SchemaVec3 } from '../base/schema-value-types';
+import { SchemaVec3 } from '../base/schema-value-types';
 import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaPrefabInfo } from './prefab-info-schema';
 import { SchemaUrl } from '../base/schema-identifier';
@@ -12,10 +12,7 @@ import { SchemaComponent } from './component-schema';
 export const SchemaNodeProperty = z.object({
     position: SchemaVec3.describe('Node position'), // 节点位置
     // worldPosition: Vec3Schema.describe('节点位置'),
-    rotation: SchemaQuat.describe('Node rotation, quaternion'), // 节点旋转, 四元数
-    // worldRotation: QuatSchema.describe('节点旋转, 四元数'),
-    eulerAngles: SchemaVec3.describe('Node rotation, Euler angles'), // 节点旋转，欧拉角
-    // angle: z.number().describe('本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上'),
+    rotation: SchemaVec3.describe('Node rotation, Euler angles'), // 节点旋转，欧拉角
     scale: SchemaVec3.describe('Node scale'), // 节点缩放
     // worldScale: Vec3Schema.describe('节点缩放'),
     // worldMatrix: Mat4Schema.describe('节点的世界变换矩阵'),
