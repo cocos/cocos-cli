@@ -475,8 +475,8 @@ describe('Prefab Proxy In Scene 测试', () => {
             const overriddenRotation = {
                 x: 0,
                 y: 0,
-                z: 1.2,
-                w: 1.2,
+                z: 0.7071068,
+                w: 0.7071068,
             };
 
             const secondUpdateResult = await NodeProxy.update({
@@ -515,7 +515,10 @@ describe('Prefab Proxy In Scene 测试', () => {
             // position 还是 revert 更新的数值
             expect(revertedProps.position).toEqual(overriddenPos);
             // rotation  还是 revert 更新的数值
-            expect(revertedProps.rotation).toEqual(overriddenRotation);
+            expect(revertedProps.rotation?.x).toBeCloseTo(overriddenRotation.x, 5);
+            expect(revertedProps.rotation?.y).toBeCloseTo(overriddenRotation.y, 5);
+            expect(revertedProps.rotation?.z).toBeCloseTo(overriddenRotation.z, 5);
+            expect(revertedProps.rotation?.w).toBeCloseTo(overriddenRotation.w, 5);
             // name 应该保持不变（应用后的值）
             expect(revertedQuery.name).toBe(appliedName);
         });
@@ -864,7 +867,10 @@ describe('Prefab Proxy In Scene 测试', () => {
                 // position 不会被 revert
                 expect(props.position).toEqual(changedPosition);
                 // rotation 不会被 revert
-                expect(props.rotation).toEqual(changedRotation);
+                expect(props.rotation?.x).toBeCloseTo(changedRotation.x, 5);
+                expect(props.rotation?.y).toBeCloseTo(changedRotation.y, 5);
+                expect(props.rotation?.z).toBeCloseTo(changedRotation.z, 5);
+                expect(props.rotation?.w).toBeCloseTo(changedRotation.w, 5);
             }
             expect(queryNodeResult?.name).toBe(renamedNode);
 

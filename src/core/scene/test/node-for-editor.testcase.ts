@@ -182,23 +182,30 @@ describe('Node ForEditor 接口测试', () => {
             const dump = await queryNodeDump(testNode!.path) as INode;
             const nameDump = { ...dump.name, value: 'RenamedNode' };
 
+            const oldPath = testNode!.path;
             const result = await setNodeProperty({
-                nodePath: testNode!.path,
+                nodePath: oldPath,
                 path: 'name',
                 dump: nameDump,
             });
             expect(result).toBe(true);
 
-            const updatedDump = await queryNodeDump(testNode!.path) as INode;
+            const segments = oldPath.split('/');
+            segments[segments.length - 1] = 'RenamedNode';
+            const newPath = segments.join('/');
+            testNode!.path = newPath;
+
+            const updatedDump = await queryNodeDump(newPath) as INode;
             expect(updatedDump.name.value).toBe('RenamedNode');
 
             // 还原名称
             const restoreDump = { ...updatedDump.name, value: testNodeName };
             await setNodeProperty({
-                nodePath: testNode!.path,
+                nodePath: newPath,
                 path: 'name',
                 dump: restoreDump,
             });
+            testNode!.path = oldPath;
         });
 
         it('setProperty - 修改节点 active 状态', async () => {

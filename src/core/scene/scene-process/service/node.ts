@@ -10,8 +10,6 @@ import {
     type IQueryNodeTreeParams,
     type INodeTreeItem,
     type INodeEvents,
-    type IUpdateNodeParams,
-    type IUpdateNodeResult,
     NodeType,
     NodeEventType,
     ISetPropertyOptions
@@ -259,107 +257,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async update(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
-        const updateOperate = () => {
-            const node = NodeMgr.getNodeByPath(params.path);
-            if (!node) {
-                throw new Error(`更新节点失败，无法通过 ${params.path} 查询到节点`);
-            }
-
-            this.emit('node:before-change', node);
-            // TODO 少了 parent 属性的设置
-            // if (path === 'parent' && node.parent) {
-            //   // 发送节点修改消息
-            //   // this.emit('before-change', node.parent);
-            // }
-
-            if (params.name && params.name !== node.name) {
-                NodeMgr.updateNodeName(node.uuid, params.name);
-            }
-            // TODO 这里需要按照 3x 用 setProperty 的方式去赋值，因为 prefab 那边需要 path
-            const paths: string[] = [];
-            if (params.properties) {
-                const options = params.properties;
-                if (options.active !== undefined) {
-                    node.active = options.active;
-                    paths.push('active');
-                }
-                if (options.position) {
-                    node.setPosition(options.position as Vec3);
-                    paths.push('position');
-                }
-                // if (options.worldPosition) {
-                //     node.setWorldPosition(options.worldPosition as Vec3);
-                // }
-                if (options.rotation) {
-                    node.rotation = options.rotation as Quat;
-                    paths.push('rotation');
-                }
-                // if (options.worldRotation) {
-                //     node.worldRotation = options.worldRotation as Quat;
-                // }
-                if (options.eulerAngles) {
-                    node.eulerAngles = options.eulerAngles as Vec3;
-                    paths.push('eulerAngles');
-                }
-                // if (options.angle) {
-                //     node.angle = options.angle;
-                // }
-                if (options.scale) {
-                    node.scale = options.scale as Vec3;
-                    paths.push('scale');
-                }
-                // if (options.worldScale) {
-                //     node.worldScale = options.worldScale as Vec3;
-                // }
-                // if (options.forward) {
-                //     node.forward = options.forward as Vec3;
-                // }
-                if (options.mobility) {
-                    node.mobility = options.mobility;
-                    paths.push('mobility');
-                }
-                if (options.layer) {
-                    node.layer = options.layer;
-                    paths.push('layer');
-                }
-                // if (options.hasChangedFlags) {
-                //     node.hasChangedFlags = options.hasChangedFlags;
-                // }
-            }
-
-            const info = {
-                path: NodeMgr.getNodePath(node),
-            };
-
-            for (const path of paths) {
-                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: path });
-            }
-
-            // TODO 少了 parent 属性的设置
-            // 改变父子关系
-            // if (path === 'parent' && node.parent) {
-            //     // 发送节点修改消息
-            //     this.emit('change', node.parent, { type: NodeOperationType.SET_PROPERTY, propPath: 'children', record: record });
-            // }
-            return info;
-        };
-
-        try {
-            await Service.Editor.lock();
-            const node = Service.Editor.getRootNode();
-            if (!node) {
-                throw new Error('Failed to update node: the scene is not opened.');
-            }
-            return updateOperate();
-        } catch (error) {
-            console.error(error);
-            throw error;
-        } finally {
-            Service.Editor.unlock();
-        }
-    }
-
     async query(params?: IQueryNodeParams): Promise<INode | IScene | null> {
         try {
             await Service.Editor.lock();
@@ -526,6 +423,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;
+        }
+        if (options.path === 'name' && options.dump.value !== node.name) {
+            // 这里相当于是做个hack的补充功能，因为setProperty并没有改变path。
+            // 而在cli上是期望改变path的，后期感觉可以通过node:change消息来实现这个功能
+            this.emit('node:before-change', node);
+            NodeMgr.updateNodeName(node.uuid, options.dump.value as string);
+            this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: 'name' });
+            return true;
         }
         return await nodeMgr.setProperty(node.uuid, options.path, options.dump);
     }

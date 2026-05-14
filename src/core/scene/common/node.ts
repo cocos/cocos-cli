@@ -275,11 +275,6 @@ export interface INodeService extends IServiceEvents {
      */
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     /**
-     * 更新节点
-     * @param params
-     */
-    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
-    /**
      * 查询节点信息
      *
      * @param params - 查询选项

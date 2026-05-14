@@ -5423,20 +5423,10 @@ export declare interface INode {
     removedComponents?: IRemovedComponentInfo[];
     mountedRoot?: string;
 }
-export declare interface INodeProperties {
-    position: IVec3;
-    rotation: IQuat;
-    eulerAngles: IVec3;
-    scale: IVec3;
-    mobility: MobilityMode;
-    layer: number;
-    active: boolean;
-}
 export declare interface INodeService extends IServiceEvents {
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -5554,12 +5544,6 @@ export declare type IPropertyLock = {
     message: string 
 };
 export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
-export declare interface IQuat {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-}
 export declare interface IQueryClassesOptions {
     extends?: string | string[];
     excludeSelf?: boolean;
@@ -5753,14 +5737,6 @@ export declare interface IUnpackPrefabInstanceParams {
     nodePath: string;
     recursive?: boolean;
 }
-export declare interface IUpdateNodeParams {
-    path: string;
-    name?: string;
-    properties?: Partial<INodeProperties>;
-}
-export declare interface IUpdateNodeResult {
-    path: string;
-}
 export declare interface IVec3 {
     x: number;
     y: number;
@@ -5840,11 +5816,6 @@ export declare interface MeshSimplifyOptions {
     autoErrorRate?: boolean;
     errorRate?: number;
     lockBoundary?: boolean;
-}
-export declare enum MobilityMode {
-    Static = 0,
-    Stationary = 1,
-    Movable = 2
 }
 export declare enum NodeEventType {
     TRANSFORM_CHANGED = "transform-changed",
@@ -7402,20 +7373,10 @@ export declare interface INode {
     removedComponents?: IRemovedComponentInfo[];
     mountedRoot?: string;
 }
-export declare interface INodeProperties {
-    position: IVec3;
-    rotation: IQuat;
-    eulerAngles: IVec3;
-    scale: IVec3;
-    mobility: MobilityMode;
-    layer: number;
-    active: boolean;
-}
 export declare interface INodeService extends IServiceEvents {
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -7573,12 +7534,6 @@ export declare type IPropertyLock = {
     message: string 
 };
 export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
-export declare interface IQuat {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-}
 export declare interface IQueryClassesOptions {
     extends?: string | string[];
     excludeSelf?: boolean;
@@ -7819,14 +7774,6 @@ export declare interface IUnpackPrefabInstanceParams {
     nodePath: string;
     recursive?: boolean;
 }
-export declare interface IUpdateNodeParams {
-    path: string;
-    name?: string;
-    properties?: Partial<INodeProperties>;
-}
-export declare interface IUpdateNodeResult {
-    path: string;
-}
 export declare interface IVec3 {
     x: number;
     y: number;
@@ -7936,11 +7883,6 @@ export declare function migrateFromProject(): Promise<IConfiguration>;
 export declare interface Migration {
     version: string;
     migrate(moduleCache: Record<string, boolean>): Record<string, boolean>;
-}
-export declare enum MobilityMode {
-    Static = 0,
-    Stationary = 1,
-    Movable = 2
 }
 export declare interface ModuleRenderConfig {
     $schema?: string;

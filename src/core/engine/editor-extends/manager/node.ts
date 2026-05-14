@@ -136,7 +136,7 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodePath(node: Node): string {
-        return pathManager.getNodePath(node.uuid);
+        return pathManager.getNodePath(node.uuid) || '/';
     }
 
     getNodeUuidByPath(path: string): string | null {

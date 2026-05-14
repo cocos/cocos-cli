@@ -55,12 +55,12 @@ export class DumpConverter {
             name: dump.name.value as string,
             properties: {
                 active: dump.active.value as boolean,
-                position: d.__position__ || { x: 0, y: 0, z: 0 },
-                rotation: d.__rotation__ || { x: 0, y: 0, z: 0, w: 1 },
-                eulerAngles: { x: 0, y: 0, z: 0 },
-                scale: d.__scale__ || { x: 1, y: 1, z: 1 },
-                mobility: d.__mobility__ ?? 0,
-                layer: d.__layer__ ?? 0,
+                position: d.position?.value ?? { x: 0, y: 0, z: 0 },
+                rotation: d.rotation?.value ? DumpConverter.eulerToQuat(d.rotation.value) : { x: 0, y: 0, z: 0, w: 1 },
+                eulerAngles: d.rotation?.value ?? { x: 0, y: 0, z: 0 },
+                scale: d.scale?.value ?? { x: 1, y: 1, z: 1 },
+                mobility: d.mobility?.value ?? 0,
+                layer: d.layer?.value ?? 0,
             },
             children: children
                 ? d.__childNodes__?.map((c: INode) => DumpConverter.toNode(c, options))
@@ -80,7 +80,7 @@ export class DumpConverter {
             properties: {
                 active: dump.active.value as boolean,
                 position: dump.position.value,
-                rotation: d.__rotation__ || DumpConverter.eulerToQuat(dump.rotation.value),
+                rotation: DumpConverter.eulerToQuat(dump.rotation.value),
                 eulerAngles: dump.rotation.value,
                 scale: dump.scale.value,
                 mobility: dump.mobility.value as number,
@@ -195,6 +195,26 @@ export class DumpConverter {
         return localID.value.map((item: any) => String(item.value ?? ''));
     }
 
+    static quatToEuler(quat: { x: number; y: number; z: number; w: number }): { x: number; y: number; z: number } {
+        const { x, y, z, w } = quat;
+        const RAD2DEG = 180 / Math.PI;
+        const test = x * y + z * w;
+        if (test > 0.499999) {
+            return { x: 0, y: RAD2DEG * 2 * Math.atan2(x, w), z: 90 };
+        }
+        if (test < -0.499999) {
+            return { x: 0, y: -RAD2DEG * 2 * Math.atan2(x, w), z: -90 };
+        }
+        const sqx = x * x;
+        const sqy = y * y;
+        const sqz = z * z;
+        return {
+            x: RAD2DEG * Math.atan2(2 * x * w - 2 * y * z, 1 - 2 * sqx - 2 * sqz),
+            y: RAD2DEG * Math.atan2(2 * y * w - 2 * x * z, 1 - 2 * sqy - 2 * sqz),
+            z: RAD2DEG * Math.asin(2 * test),
+        };
+    }
+
     private static eulerToQuat(euler: any): { x: number; y: number; z: number; w: number } {
         if (!euler || typeof euler !== 'object') return { x: 0, y: 0, z: 0, w: 1 };
         const DEG2RAD = Math.PI / 180;
@@ -206,9 +226,9 @@ export class DumpConverter {
         const cz = Math.cos(halfZ), sz = Math.sin(halfZ);
         return {
             x: sx * cy * cz + cx * sy * sz,
-            y: cx * sy * cz - sx * cy * sz,
+            y: cx * sy * cz + sx * cy * sz,
             z: cx * cy * sz - sx * sy * cz,
-            w: cx * cy * cz + sx * sy * sz,
+            w: cx * cy * cz - sx * sy * sz,
         };
     }
 }

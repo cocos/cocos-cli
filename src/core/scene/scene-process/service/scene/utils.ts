@@ -147,12 +147,7 @@ class SceneUtil {
 
             // hack: 以下字段不属于编辑器 dump 结构（IScene），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
             const d = sceneDump as any;
-            d.__path__ = '/';
-            d.__position__ = { x: node.position.x, y: node.position.y, z: node.position.z };
-            d.__rotation__ = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z, w: node.rotation.w };
-            d.__scale__ = { x: node.scale.x, y: node.scale.y, z: node.scale.z };
-            d.__layer__ = node.layer;
-            d.__mobility__ = node.mobility;
+            d.__path__ = EditorExtends.Node.getNodePath(node);
             d.__prefab__ = encodePrefab(node as any);
             if (d.__prefab__) {
                 this.enrichPrefabDump(d.__prefab__, node['_prefab']);
@@ -176,7 +171,6 @@ class SceneUtil {
         // hack: 以下字段不属于编辑器 dump 结构（INode），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
         const d = dump as any;
         d.__path__ = EditorExtends.Node.getNodePath(node);
-        d.__rotation__ = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z, w: node.rotation.w };
         if (dump.__prefab__) {
             this.enrichPrefabDump(dump.__prefab__, node['_prefab']);
         }
