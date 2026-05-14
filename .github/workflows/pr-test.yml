@@ -51,6 +51,13 @@ jobs:
         id: unit-tests
         run: npm run test:quiet
 
+      - name: Run DTS tests
+        shell: bash
+        run: |
+          cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
+          npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
+          npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
+
       - name: Check DTS API compatibility
         if: github.event_name == 'pull_request'
         shell: bash
