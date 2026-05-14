@@ -355,7 +355,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
      * 新增的 Camera 组件也需要 detach，与原始编辑器 ScenePreview.onComponentAdded 一致
      */
     detachNewSceneCamera(comp: any): void {
-        if (!comp || !(comp instanceof Camera) || !comp.camera) return;
+        if (!comp || !(comp instanceof Camera)) return;
         const editorMask = Layers.makeMaskInclude([
             Layers.Enum.GIZMOS,
             Layers.Enum.SCENE_GIZMO,
