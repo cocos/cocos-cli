@@ -86,7 +86,7 @@ export interface IComponentEvents extends INodeEvents {
 /**
  * 组件服务的公开接口，排除了内部方法和事件相关接口
  */
-export interface IPublicComponentService extends Omit<IComponentService, keyof IServiceEvents |
+export type IPublicComponentService = Omit<IComponentService, keyof IServiceEvents |
     'init' |
     'unregisterCompMgrEvents' |
     'reset' |
@@ -94,8 +94,7 @@ export interface IPublicComponentService extends Omit<IComponentService, keyof I
     'queryFunctionOfNode' |
     'executeMethod' |
     'hasScript'
-> {
-}
+>;
 
 /**
  * 组件服务接口，定义了所有组件相关的操作方法

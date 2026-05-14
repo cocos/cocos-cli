@@ -1,6 +1,6 @@
 import type { Node } from 'cc';
 import { IRemovedComponentInfo, ISetPropertyOptions } from './component';
-import { IVec3, IQuat } from './value-types';
+import { IVec3 } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
 import type { IProperty } from '../@types/public';
@@ -96,27 +96,6 @@ export enum MobilityMode {
     Movable = 2
 }
 
-// 节点基础属性接口
-export interface INodeProperties {
-    position: IVec3; // 节点位置
-    // worldPosition: IVec3; // 节点世界位置
-    rotation: IQuat; // 节点旋转, 四元数
-    // worldRotation: IQuat; // 节点世界旋转, 四元数
-    eulerAngles: IVec3; // 节点旋转，欧拉角
-    // angle: number; // 本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上
-    scale: IVec3; // 节点缩放
-    // worldScale: IVec3; // 节点世界缩放
-    // worldMatrix: IMat4; // 节点的世界变换矩阵
-    // forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
-    // up: IVec3; // 当前节点在世界空间中朝上的方向向量
-    // right: IVec3; // 当前节点在世界空间中朝右的方向向量
-    mobility: MobilityMode; // 节点的移动性
-    layer: number; // 节点所在的层级
-    // hasChangedFlags: number; // 这个节点的空间变换信息在当前帧内是否有变过？
-    active: boolean; // 节点是否激活
-    // readonly activeInHierarchy: boolean; // 节点在场景中是否激活
-}
-
 // 节点查询参数接口
 export interface IQueryNodeParams {
     path: string; // 查询的节点路径
@@ -162,18 +141,6 @@ export interface INode {
     _prefabInstance?: any;
     removedComponents?: IRemovedComponentInfo[];
     mountedRoot?: string;
-}
-
-// 节点更新参数接口
-export interface IUpdateNodeParams {
-    path: string;
-    name?: string;
-    properties?: Partial<INodeProperties>; // 节点属性
-}
-
-// 节点更新结果接口
-export interface IUpdateNodeResult {
-    path: string; // 节点相对根节点路径
 }
 
 // 节点删除参数接口
@@ -243,7 +210,7 @@ export interface INodeEvents {
     'node:removed': [Node, IChangeNodeOptions];
 }
 
-export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents |
+export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
     'previewSetProperty' |
     'cancelPreviewSetProperty' |
     'setProperty' |
@@ -251,8 +218,7 @@ export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEve
     'resetProperty' |
     'updatePropertyFromNull' |
     'setNodeAndChildrenLayer'
-> {
-}
+>;
 
 /**
  * 节点的相关处理接口
