@@ -138,15 +138,34 @@ export class SceneWorker {
 
     async stop() {
         if (!this.process) return true;
-        this.isManualStop = true; // 标记为手动停止
+        this.isManualStop = true;
         return new Promise<boolean>((resolve) => {
+            const timeout = setTimeout(() => {
+                console.warn('Scene process stop timed out, force killing...');
+                try { this.process?.kill('SIGTERM'); } catch (e) { /* ignore */ }
+                this.clear();
+                resolve(true);
+            }, 10000);
+
             this.process.once('exit', () => {
+                clearTimeout(timeout);
                 console.log('Scene process stopped.');
                 this.clear();
                 resolve(true);
             });
-            this.process.once('error', () => resolve(false));
-            this.process.send(SceneWorker.ExitWorkerEvent);
+            this.process.once('error', () => {
+                clearTimeout(timeout);
+                resolve(false);
+            });
+
+            try {
+                this.process.send(SceneWorker.ExitWorkerEvent);
+            } catch (e) {
+                clearTimeout(timeout);
+                try { this.process.kill('SIGTERM'); } catch (_) { /* ignore */ }
+                this.clear();
+                resolve(true);
+            }
         });
     }
 
