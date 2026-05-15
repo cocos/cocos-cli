@@ -78,7 +78,7 @@ class ControllerUtils {
         // head
         const headOpts = { cullMode: CullMode.BACK };
         Object.assign(headOpts, opts);
-        const coneData = ControllerShape.calcConeData(headRadius, headHeight);
+        const coneData = ControllerShape.calcConeData(headRadius, headHeight, { capped: false });
         const coneNode = this.createShapeByData(coneData, color, headOpts);
         coneNode.parent = axisNode;
         coneNode.name = 'ArrowHead';

@@ -326,7 +326,7 @@ class ComponentOperation {
     }
 
     public async cloneComponentToNode(node: Node, clonedComp: Component) {
-        const copyCompDump = dumpUtil.dumpComponentForEditor(clonedComp);
+        const copyCompDump = dumpUtil.dumpComponent(clonedComp);
         // 不要同步_objFlags，否则因为没有onEnable的标记会导致onDisable不被调用
         // delete copyCompDump.value._objFlags;
         const newComp = node.addComponent(js.getClassName(clonedComp));

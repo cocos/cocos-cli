@@ -10,8 +10,8 @@ import type {
     IGetPrefabInfoParams,
     IIsPrefabInstanceParams,
     INode,
+    IPrefab,
     IPrefabEvents,
-    IPrefabInfo,
     IPrefabService,
     IRevertToPrefabParams,
     IUnpackPrefabInstanceParams,
@@ -51,7 +51,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             if (!node) {
                 throw new Error('创建预制体资源失败，返回结果为 null');
             }
-            return sceneUtils.generateNodeInfo(node, false);
+            return await sceneUtils.generateNodeDump(node) as INode;
         } catch (e) {
             console.error(`创建预制体失败: 节点路径: ${params.nodePath} 资源 URL: ${params.dbURL} 错误信息:`, e);
             throw e;
@@ -106,7 +106,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             }
 
             this.unWrapPrefabInstance(node.uuid, !!params.recursive);
-            return sceneUtils.generateNodeInfo(node, true);
+            return await sceneUtils.generateNodeDump(node) as INode;
         } catch (e) {
             console.error(`解耦为普通节点失败：节点路径 ${params.nodePath} 是否递归: ${params.recursive} 错误信息:`, e);
             throw e;
@@ -129,14 +129,14 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 获取节点的预制体信息
      */
-    async getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefabInfo | null> {
+    async getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null> {
         try {
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             const prefabInfo = prefabUtils.getPrefab(node);
             if (!prefabInfo) {
                 return null;
             }
-            return sceneUtils.generatePrefabInfo(prefabInfo) as IPrefabInfo;
+            return sceneUtils.generatePrefabDump(node);
         } catch (e) {
             console.error(`获取节点的预制体信息失败：节点路径 ${params.nodePath} 错误信息:`, e);
             throw e;

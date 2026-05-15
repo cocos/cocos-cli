@@ -7,60 +7,258 @@ import dumpUtil from './utils';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
-import { IComponent, IComponentForEditor } from '../../../common';
+import { IComponent, INode, IPrefab, IScene, ITargetOverrideInfo } from '../../../common';
 import compMgr from '../component/index';
 import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
+import { MobilityMode, Node, Prefab, Component, js } from 'cc';
+
+const attributeProps = [
+    'enumList',
+    'radioGroup',
+    'bitmaskList',
+    'displayName',
+    'group',
+    'multiline',
+    'step',
+    'slide',
+    'tooltip',
+    'animatable',
+    'unit',
+    'radian',
+    'displayOrder',
+];
+
+const autoI18nAttributeNames = [
+    'displayName',
+    'tooltip',
+] as const;
+
+export function encodePrefab(node: Node): IPrefab | null {
+    if (!node['_prefab']) return null;
+    const prefabStateInfo = prefabUtils.getPrefabStateInfo(node);
+    const rootNode = node['_prefab'].root;
+    const result: IPrefab = {
+        uuid: (node['_prefab'].asset && node['_prefab'].asset._uuid) || '',
+        fileId: node['_prefab'].fileId,
+        rootUuid: rootNode?.uuid || '',
+        sync: true,
+        prefabStateInfo,
+    };
+    if (node['_prefab'].targetOverrides) {
+        result.targetOverrides = encodeTargetOverrides(node['_prefab'].targetOverrides) ?? undefined;
+    }
+    if (node['_prefab'].instance) {
+        result.instance = encodeObject(node['_prefab'].instance, { default: null }, node);
+    }
+    return result;
+}
 
 /**
- * 编码一个 component
- * @param component
+ * 编码一个 node 数据
+ * @param node
  */
-export function encodeComponent(component: any): IComponent {
-    const ctor = component.constructor;
+export function encodeNode(node: Node): INode {
+    const ctor = node.constructor;
 
-    const data: IComponent = {
-        properties: {},
-        path: compMgr.getPathFromUuid(component.uuid) || '',
-        uuid: component.uuid,
-        name: component.name,
-        enabled: component.enabled,
-        type: dumpUtil.getTypeName(ctor),
-        cid: component.__cid__,
-        prefab: component.__prefab
-    };
+    const LayersEnumList = Object.keys(cc.Layers.Enum).map((key, index) => {
+        return { name: key, value: cc.Layers.Enum[key] };
+    });
+    LayersEnumList.sort((a, b) => {
+        return a.value - b.value;
+    });
 
-    // 遍历组件内所有属性
-    ctor.__props__.forEach((key: string) => {
-        try {
-            if (key in component) {
-                /**
-                 * 过滤私有属性与内置属性
-                 */
-                if (key.startsWith('_') || key.startsWith('__')) {
+    const MobilityModeEnumList = Object.keys(MobilityMode).map((key, index) => {
+        return { name: key, value: MobilityMode[key as keyof typeof MobilityMode] };
+    });
+
+    // FIXME: avoid using private field
+    // TODO：这里的需要知道当前场景是 2D 还是 3D
+    //const is2DProject = cce.SceneFacadeManager['_projectType'] === '2d';
+    const is2DProject = false;
+
+    const data: INode = {
+        path: EditorExtends.Node.getNodePath(node),
+        active: encodeObject(node.active, { displayName: 'Active', default: null }, node),
+        locked: encodeObject(Boolean(node.objFlags & cc.Object.Flags.LockedInEditor), { displayName: 'Locked', default: false, animatable: false }, node),
+        name: encodeObject(node.name, { displayName: 'Name', default: null, animatable: false }, node),
+        position: encodeObject(
+            node.position,
+            {
+                displayName: 'i18n:scene.cc.Node.properties.position.displayName',
+                default: new cc.math.Vec3(),
+                tooltip: 'i18n:scene.cc.Node.properties.position.tooltip',
+            },
+            node,
+            'position',
+        ),
+        rotation: encodeObject(
+            node.eulerAngles,
+            {
+                name: 'eulerAngles',
+                displayName: 'i18n:scene.cc.Node.properties.eulerAngles.displayName',
+                default: new cc.math.Vec3(),
+                tooltip: `i18n:scene.cc.Node.properties.eulerAngles.${is2DProject ? 'tooltip2D' : 'tooltip3D'}`,
+            },
+            node,
+            is2DProject ? 'angle' : 'eulerAngles',
+        ),
+        scale: encodeObject(
+            node.scale,
+            {
+                displayName: 'i18n:scene.cc.Node.properties.scale.displayName',
+                default: new cc.math.Vec3(1, 1, 1),
+                tooltip: 'i18n:scene.cc.Node.properties.scale.tooltip',
+            },
+            node,
+            'scale',
+        ),
+        mobility: encodeObject(
+            node.mobility,
+            {
+                displayName: 'i18n:scene.cc.Node.properties.mobility.displayName',
+                tooltip: 'i18n:scene.cc.Node.properties.mobility.tooltip',
+                default: 0,
+                type: 'Enum',
+                enumList: MobilityModeEnumList,
+            },
+            node,
+            'mobility',
+        ),
+        layer: encodeObject(
+            node.layer, {
+                displayName: 'i18n:scene.cc.Node.properties.layer.displayName',
+                tooltip: 'i18n:scene.cc.Node.properties.layer.tooltip',
+                default: 1073741824,
+                type: 'Enum',
+                enumList: LayersEnumList,
+                readonly: false,
+                animatable: false,
+            },
+            node,
+            'layer',
+        ),
+        uuid: encodeObject(node.uuid, { displayName: 'UUID', default: null, animatable: false }, node),
+
+        parent: encodeObject(
+            node.parent,
+            {
+                ctor: cc.Node,
+            },
+            node,
+        ),
+
+        children: node.children
+            .map((child: any) => {
+                if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
                     return;
                 }
-                /**
-                 * 此处 cc.Class.attr(component, key) 中的 component 不能用 ctor 替代
-                 * 因为 ctor 是基类定义，component 是子类，子类的 __attr__ 存了一些自己数据了
-                 * 比如 sp.Skeleton 当 skeletonData 属性有数据时取 _animationIndex 属性的 enumList 数据  
-                 */
-                const attrs = cc.Class.attr(component, key);
-                const dumpData = encodeObject(component[key], attrs, component, key);
-                if (dumpData.type !== 'Unknown') {
-                    data.properties[key] = dumpData;
+
+                return encodeObject(
+                    child,
+                    {
+                        ctor: cc.Node,
+                    },
+                    node,
+                );
+            })
+            .filter((v): v is IProperty => !!v),
+
+        __type__: dumpUtil.getTypeName(ctor),
+        __comps__: node['_components'].map((comp: any) => {
+            return encodeComponent(comp);
+        }),
+
+        mountedRoot: prefabUtils.getMountedRoot(node)?.uuid,
+    };
+
+    if (node['_prefab']) {
+        data.__prefab__ = encodePrefab(node)!;
+
+        const removedComponents = prefabUtils.getRemovedComponents(node);
+        if (removedComponents.length > 0) {
+            data.removedComponents = removedComponents.map((comp: Component) => {
+                return { name: js.getClassName(comp), fileID: comp.__prefab!.fileId };
+            });
+        }
+    }
+
+    // 根据 flag 调整 readyonly
+    _checkObjFlags(node, data);
+
+    // 填充 path，供 inspector setProperty 使用
+    for (const [key, val] of Object.entries(data)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && 'type' in val && 'value' in val) {
+            (val as IProperty).path = key;
+        }
+    }
+    data.__comps__.forEach((comp, index) => {
+        if (comp.value && typeof comp.value === 'object' && !Array.isArray(comp.value)) {
+            for (const [key, prop] of Object.entries(comp.value as Record<string, unknown>)) {
+                if (prop && typeof prop === 'object' && !Array.isArray(prop) && 'type' in prop && 'value' in prop) {
+                    (prop as IProperty).path = `__comps__.${index}.${key}`;
                 }
-                _checkConstructorRewriteType(dumpData, component[key], attrs);
             }
-        } catch (error) {
-            // tslint:disable-next-line:max-line-length
-            console.warn(
-                `Component property dump failed:\n  Node: ${component.node.name}(${component.node.uuid})\n Component: ${data.type}(${component.uuid})\n Property: ${key}`,
-            );
-            console.warn(error);
-            delete data.properties[key];
         }
     });
+
+    return data;
+}
+
+/**
+ * 编码一个场景数据
+ * @param scene
+ */
+export function encodeScene(scene: any): IScene {
+    const ctor = scene.constructor;
+
+    const data: IScene = {
+        path: '/',
+        active: encodeObject(scene.active, { default: null }),
+        locked: encodeObject(false, { default: false }),
+        name: encodeObject(scene.name || ctor.name, { default: null }),
+        uuid: encodeObject(scene.uuid, { default: null }),
+        autoReleaseAssets: encodeObject(scene.autoReleaseAssets, { displayName: 'Auto Release Assets', default: false }),
+        children: scene.children
+            .map((child: any) => {
+                if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
+                    return;
+                }
+
+                return encodeObject(child, {
+                    ctor: cc.Node,
+                });
+            })
+            .filter((v: any): v is IProperty => !!v),
+        parent: '',
+        __type__: dumpUtil.getTypeName(ctor),
+        _globals: {},
+        isScene: true,
+    };
+
+    // 遍历 scene._globals 内所有属性
+    if (scene._globals) {
+        scene._globals.constructor.__props__.map((key: string) => {
+            const attrs = cc.Class.attr(scene._globals.constructor, key);
+            data._globals[key] = encodeObject(scene._globals[key], attrs, scene._globals);
+        });
+    }
+
+    if (scene['_prefab']?.targetOverrides) {
+        data.targetOverrides = encodeTargetOverrides(scene['_prefab'].targetOverrides) ?? undefined;
+    }
+
+    // 填充 path，供 inspector setProperty 使用
+    for (const [key, val] of Object.entries(data)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && 'type' in val && 'value' in val) {
+            (val as IProperty).path = key;
+        }
+    }
+    for (const [key, val] of Object.entries(data._globals)) {
+        if (val && typeof val === 'object' && 'type' in val && 'value' in val) {
+            (val as IProperty).path = `_globals.${key}`;
+        }
+    }
 
     return data;
 }
@@ -69,7 +267,7 @@ export function encodeComponent(component: any): IComponent {
  * 详细的编码 component
  * @param component
  */
-export function encodeComponentForEditor(component: any): IComponentForEditor {
+export function encodeComponent(component: any): IComponent {
     const ctor = component.constructor;
     // 嵌套预制体中的mountedComponent并不是mounted;需要做区分
     const mountedRootNode = prefabUtils.getMountedRoot(component);
@@ -84,12 +282,13 @@ export function encodeComponentForEditor(component: any): IComponentForEditor {
             }
         }
     }
-    const data: IComponentForEditor = {
+    const data: IComponent = {
         value: {
             uuid: encodeObject(component.uuid, { default: null, visible: false }, component),
             name: encodeObject(component.name, { default: null, visible: false }, component),
             enabled: encodeObject(component.enabled, { default: null, visible: false }, component),
         },
+        path: compMgr.getPathFromUuid(component.uuid) ?? 'unknown',
         default: undefined,
         type: dumpUtil.getTypeName(ctor),
         readonly: false,
@@ -180,7 +379,37 @@ function _checkConstructorRewriteType(data: IProperty, object: any, attributes: 
     }
 }
 
-function _checkAttributes(data: IProperty, attributes: any) {
+function _checkFuncAttribute(attributeName: string, attributes: any, owner: any): any {
+    const attribute = attributes[attributeName];
+    if (attribute === undefined) return;
+
+    if (typeof attribute === 'function') {
+        if (!owner) {
+            console.warn(`try to use ${attributeName} function without owner`);
+        } else {
+            const value = attribute.call(owner);
+            if (typeof value === 'boolean') {
+                return !!value;
+            }
+            return value;
+        }
+    } else if (typeof attribute === 'boolean') {
+        return !!attribute;
+    } else {
+        return attribute;
+    }
+}
+
+function _checkAttributes(data: IProperty, attributes: any, owner: any) {
+    // 处理存在函数写法的属性
+    ['visible', 'min', 'max'].forEach((name: string) => {
+        const attributeName = name as keyof IProperty;
+        const value = _checkFuncAttribute(attributeName, attributes, owner);
+        if (value !== undefined) {
+            data[attributeName] = value;
+        }
+    });
+
     if (!attributes.ctor && attributes.type) {
         data.type = '' + attributes.type;
     }
@@ -193,6 +422,58 @@ function _checkAttributes(data: IProperty, attributes: any) {
     if (attributes && attributes.hasGetter && !attributes.hasSetter) {
         data.readonly = true;
     }
+
+    attributeProps.forEach((propName) => {
+        // eslint-disable-next-line no-prototype-builtins
+        if (attributes.hasOwnProperty(propName)) {
+            // @ts-ignore
+            data[propName] = attributes[propName];
+        }
+    });
+
+    // 如果对象类型名以 `cc.` 开始，也就是引擎对象。
+    // 则自动按规则组装出要 i18n 的特性（比如显示名和工具提示）的 i18n 路径，作为 Dump 数据。
+    //
+    // 组装规则如下。对于某个引擎类的某个属性的某个特性，编辑器会按以下的字典路径去查找该特性的 i18n 字符串：
+    // `i18n:ENGINE.classes.<类的 cc-class 名称>.properties.<属性的名称>.<特性的名称>`
+    //
+    if (typeof data.name === 'string' && owner && typeof owner === 'object') {
+        const ownerTypeName = findClassName(owner, data.name);
+        if (ownerTypeName) {
+            for (const autoI18nAttributeName of autoI18nAttributeNames) {
+                // 如果该特性已经被声明，比如 `@property({ tooltip: '' })`，跳过组装。
+                if (Object.prototype.hasOwnProperty.call(attributes, autoI18nAttributeName)) {
+                    continue;
+                }
+                data[autoI18nAttributeName] = `i18n:ENGINE.classes.${ownerTypeName}.properties.${data.name}.${autoI18nAttributeName}`;
+            }
+        }
+    }
+}
+
+/**
+ * 查询指定类名，如果自身没有就向上查询
+ * @param ccClassObject
+ */
+const MAX_RECURSION_DEPTH = 10;// 递归中增加最大递归深度限制，避免无限循环或性能问题
+const TARGET_CLASS_NAME = ['cc.', 'sp.'];
+function findClassName(ccClassObject: any, property: string): string {
+    let depth = 0;
+    let proto = ccClassObject;
+    while (proto && depth < MAX_RECURSION_DEPTH) {
+        const className = js.getClassName(proto);
+
+        if (className &&
+            TARGET_CLASS_NAME.find(key => className.startsWith(key)) &&
+            Object.prototype.hasOwnProperty.call(proto, property)) {
+            return className;
+        }
+        // 通过原型链向上查找
+        proto = Object.getPrototypeOf(proto);
+        depth++;
+    }
+
+    return '';
 }
 
 function _encodeByType(type: string | undefined, object: any, data: IProperty, opts?: any) {
@@ -206,6 +487,71 @@ function _encodeByType(type: string | undefined, object: any, data: IProperty, o
     return false;
 }
 
+/**
+ * hack：处理 component 的 .objFlags 设置，需要传递给 node
+ * 比如 Canvas 的 IsPositionLocked 要传给 node，position.readonly = true
+ * 比如 Canvas 的 IsSizeLocked 要传给 UITransform, contentsize = true
+ * 暂时处理以下逻辑，后续可增删
+ */
+function _checkObjFlags(node: any, data: INode) {
+    let IsPositionLocked = false;
+    let IsSizeLocked = false;
+    let IsAnchorLocked = false;
+    let IsScaleLocked = false;
+    let IsRotationLocked = false;
+    node['_components'].forEach((component: any) => {
+        if (component.objFlags & cc.Object.Flags.IsPositionLocked) {
+            IsPositionLocked = true;
+        }
+
+        if (component.objFlags & cc.Object.Flags.IsSizeLocked) {
+            IsSizeLocked = true;
+        }
+
+        if (component.objFlags & cc.Object.Flags.IsAnchorLocked) {
+            IsAnchorLocked = true;
+        }
+
+        if (component.objFlags & cc.Object.Flags.IsScaleLocked) {
+            IsScaleLocked = true;
+        }
+
+        if (component.objFlags & cc.Object.Flags.IsRotationLocked) {
+            IsRotationLocked = true;
+        }
+    });
+
+    if (IsPositionLocked) {
+        data.position.readonly = true;
+    }
+    if (IsScaleLocked) {
+        data.scale.readonly = true;
+    }
+
+    if (IsRotationLocked) {
+        data.rotation.readonly = true;
+    }
+
+    const uiTransformComponents: any = [];
+    data.__comps__.forEach((comp: any) => {
+        if (comp.cid === 'cc.UITransform') {
+            uiTransformComponents.push(comp);
+        }
+    });
+
+    if (uiTransformComponents.length) {
+        if (IsSizeLocked) {
+            uiTransformComponents.forEach((comp: any) => {
+                comp.value.contentSize.readonly = true;
+            });
+        }
+        if (IsAnchorLocked) {
+            uiTransformComponents.forEach((comp: any) => {
+                comp.value.anchorPoint.readonly = true;
+            });
+        }
+    }
+}
 
 /**
  * 编码一个对象
@@ -214,9 +560,25 @@ function _encodeByType(type: string | undefined, object: any, data: IProperty, o
  * @param owner 编码对象所属的对象
  * @param objectKey 输出有效信息，当前数据 key，以便问题排查
  */
-export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string): IProperty {
+export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean): IProperty {
     const ctor = dumpUtil.getConstructor(object, attributes);
-    // let defValue = dumpUtil.getDefault(attributes);
+    let defValue = dumpUtil.getDefault(attributes);
+
+    // 构造器存在，属性也存在
+    if (defValue && typeof defValue === 'object' && defValue.constructor && Array.isArray(defValue.constructor.__props__)) {
+        const result: { [key: string]: any } = {
+            type: dumpUtil.getTypeName(defValue.constructor),
+            value: {},
+        };
+        defValue.constructor.__props__.forEach((key: string) => {
+            const attrs = cc.Class.attr(defValue.constructor, key);
+            const dumpData = encodeObject(defValue[key], attrs, defValue, key);
+            if (dumpData.type !== 'Unknown') {
+                result.value[key] = dumpData;
+            }
+        });
+        defValue = result;
+    }
 
     let type = dumpUtil.getTypeName(ctor);
 
@@ -234,7 +596,12 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
     const data: IProperty = {
         name: objectKey,
         value: null,
+        default: defValue,
         type: type,
+        path: '',
+        readonly: !!attributes.readonly,
+        visible: true,
+        animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值
     };
 
     //如果有 userData 就把 userData 传递过去
@@ -242,7 +609,13 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         data.userData = attributes.userData;
     }
 
-    _checkAttributes(data, attributes);
+    _checkAttributes(data, attributes, owner);
+
+    if (defValue) {
+        if (Array.isArray(defValue)) {
+            data.isArray = true;
+        }
+    }
 
     if (!data.isArray && Array.isArray(object)) {
         data.isArray = true;
@@ -265,6 +638,10 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
             // 子元素的类型由父级决定，子元素的默认值跟随父级类型的默认值
             childAttribute.default = getElementDefaultValue(attributes, propertyDefaultValue);
 
+            if (!isTemplate) {
+                data.elementTypeData = encodeObject(childAttribute.default, childAttribute, propertyDefaultValue, undefined, true);
+            }
+
             const resultValue: any = [];
             // 未避免有可能出现的内部数据有空，需要用普通的 for 循环，不要使用 forEach\map 等来遍历
             for (let i = 0; i < object.length; i++) {
@@ -277,6 +654,8 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 const result = encodeObject(item, childAttribute, owner);
                 if (result.type !== 'Unknown') {
                     resultValue.push(result);
+                } else {
+                    resultValue.push(data.elementTypeData);
                 }
             }
             data.value = resultValue;
@@ -305,8 +684,8 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 const result: { [key: string]: any } = {};
                 ctor.__props__.forEach((key: string) => {
                     const attrs = cc.Class.attr(object, key); // object 是实例，可能有自定义的 attrs
-
-                    if (attributes.readonly && attributes.readonly.deep) {
+                    
+                    if (attributes.readonly && attributes.readonly.deep){
                         attrs.readonly = { deep: true };
                     }
 
@@ -327,6 +706,11 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 data.value = object;
             }
         }
+    }
+
+    // 继承链
+    if (ctor) {
+        data.extends = dumpUtil.getTypeInheritanceChain(ctor);
     }
 
     return data;
@@ -354,8 +738,34 @@ function getElementDefaultValueFromParentInitializer(parentInitializer: unknown)
     return null;
 }
 
+function encodeTargetOverrides(targetOverrides: any) {
+    if (!targetOverrides || targetOverrides.length <= 0) {
+        return null;
+    }
+
+    const dumpedTargetOverrides: ITargetOverrideInfo[] = [];
+    targetOverrides.forEach((itr: Prefab._utils.TargetOverrideInfo) => {
+        if (!itr.source || !itr.target) {
+            return;
+        }
+        const dumpOverride = {
+            source: itr.source.uuid,
+            sourceInfo: itr.sourceInfo ? itr.sourceInfo.localID : undefined,
+            propertyPath: itr.propertyPath,
+            target: itr.target.uuid,
+            targetInfo: itr.targetInfo ? itr.targetInfo.localID : undefined,
+        };
+
+        dumpedTargetOverrides.push(dumpOverride);
+    });
+
+    return dumpedTargetOverrides;
+}
+
+// export * as default from './encode';
 export default {
+    encodeNode,
+    encodeScene,
     encodeComponent,
-    encodeComponentForEditor,
     encodeObject,
 };

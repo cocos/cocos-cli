@@ -105,8 +105,8 @@ export abstract class BaseEditor {
     }
 
     // 抽象方法，子类必须实现
-    abstract encode(simpleNode?: boolean, entity?: IEditorTarget): Promise<TEditorEntity>;
-    abstract open(asset: IAssetInfo, simpleNode?: boolean): Promise<TEditorEntity>;
+    abstract encode(entity?: IEditorTarget): Promise<TEditorEntity>;
+    abstract open(asset: IAssetInfo): Promise<TEditorEntity>;
     abstract close(): Promise<boolean>;
     abstract save(): Promise<IAssetInfo>;
     /**

@@ -84,6 +84,8 @@ export interface IAddMeshToNodeOption extends IMaterialOption {
     /** 节点名称 */
     name?: string;
     instancing?: boolean; // 是否开启instancing以使用合批渲染
+    /** 深度模板状态覆盖 */
+    depthStencilState?: Record<string, any>;
 }
 
 export interface IAddQuadToNodeOptions extends IAddMeshToNodeOption {

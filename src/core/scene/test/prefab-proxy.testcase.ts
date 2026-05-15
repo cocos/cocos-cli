@@ -11,9 +11,9 @@ import type {
     IGetPrefabInfoParams,
     ICreateByNodeTypeParams,
     ICreateByAssetParams,
-    INode,
+    INodeInfo,
     IPrefabInfo,
-    IComponent
+    IComponentInfo
 } from '../common';
 import { NodeType } from '../common';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
@@ -34,7 +34,7 @@ describe('Prefab Proxy In Scene 测试', () => {
     }
 
     let testNodePath = '';
-    let testNodePrefabNode: INode | null = null;// TestPrefabNode 转换成的 prefab node
+    let testNodePrefabNode: INodeInfo | null = null;// TestPrefabNode 转换成的 prefab node
     let duplicateURL = '';
 
     const prefabAssetName = 'TestPrefab';
@@ -85,7 +85,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 position: { x: 10, y: 20, z: 0 }
             };
 
-            const testNode = await NodeProxy.createNodeByType(createParams);
+            const testNode = await NodeProxy.createByType(createParams);
             expect(testNode).toBeDefined();
             expect(testNode?.name).toBe('TestPrefabNode');
             if (testNode) {
@@ -144,7 +144,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 name: 'PrefabInstanceNode-CreatePrefabFromNode'
             };
 
-            const prefabInstanceNode = await NodeProxy.createNodeByAsset(createParams);
+            const prefabInstanceNode = await NodeProxy.createByAsset(createParams);
             expect(prefabInstanceNode).toBeDefined();
             expect(prefabInstanceNode?.prefab).toBeDefined();
             expect(prefabInstanceNode?.prefab?.asset).toBeDefined();
@@ -170,7 +170,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 position: { x: 10, y: 20, z: 0 }
             };
 
-            const normalNode = await NodeProxy.createNodeByType(createParams);
+            const normalNode = await NodeProxy.createByType(createParams);
             expect(normalNode).toBeTruthy();
 
             const params: IIsPrefabInstanceParams = {
@@ -212,7 +212,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 position: { x: 10, y: 20, z: 0 }
             };
 
-            const normalNode = await NodeProxy.createNodeByType(createParams);
+            const normalNode = await NodeProxy.createByType(createParams);
             expect(normalNode).toBeTruthy();
 
             const params: IGetPrefabInfoParams = {
@@ -237,7 +237,7 @@ describe('Prefab Proxy In Scene 测试', () => {
         it('修改预制体实例与身上组件的属性', async () => {
             expect(testNodePrefabNode).toBeTruthy();
             if (testNodePrefabNode) {
-                const uNode = await NodeProxy.updateNode({
+                const uNode = await NodeProxy.update({
                     path: testNodePrefabNode.path,
                     properties: {
                         position: position
@@ -245,7 +245,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 });
 
                 expect(uNode).toBeTruthy();
-                const node = await NodeProxy.queryNode({ path: uNode?.path as string, queryChildren: false, queryComponent: false });
+                const node = await NodeProxy.query({ path: uNode?.path as string, queryChildren: false, queryComponent: false }) as INodeInfo | null;
 
                 expect(node).toBeTruthy();
                 expect(node?.components?.length).toBeGreaterThan(0);
@@ -279,7 +279,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 position: { x: 10, y: 20, z: 0 }
             };
 
-            const normalNode = await NodeProxy.createNodeByType(createParams);
+            const normalNode = await NodeProxy.createByType(createParams);
             expect(normalNode).toBeTruthy();
             if (normalNode) {
                 const params: IApplyPrefabChangesParams = {
@@ -306,7 +306,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     name: 'PrefabInstanceNode-applyPrefabChanges'
                 };
 
-                const prefabInstanceNode = await NodeProxy.createNodeByAsset(createParams);
+                const prefabInstanceNode = await NodeProxy.createByAsset(createParams);
                 expect(prefabInstanceNode).toBeTruthy();
                 expect(prefabInstanceNode?.properties.position).toEqual(position);
                 expect(prefabInstanceNode?.components?.length).toBeGreaterThan(0);
@@ -314,9 +314,9 @@ describe('Prefab Proxy In Scene 测试', () => {
                 const path = prefabInstanceNode && prefabInstanceNode.components && prefabInstanceNode.components[0].path || '';
                 expect(path).toBeTruthy();
 
-                const component = await ComponentProxy.queryComponent({
+                const component = await ComponentProxy.query({
                     path: path,
-                }) as IComponent;
+                }) as IComponentInfo;
 
                 expect(prefabInstanceNode).toBeTruthy();
                 expect(component?.properties.contentSize.value).toEqual(contentSize);
@@ -338,7 +338,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 position: { x: 10, y: 20, z: 0 }
             };
 
-            const normalNode = await NodeProxy.createNodeByType(createParams);
+            const normalNode = await NodeProxy.createByType(createParams);
             expect(normalNode).toBeTruthy();
             if (normalNode) {
                 const params: IRevertToPrefabParams = {
@@ -354,11 +354,11 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(testNodePrefabNode).toBeTruthy();
             if (testNodePrefabNode) {
 
-                const node = await NodeProxy.queryNode({ path: testNodePrefabNode.path, queryChildren: false, queryComponent: false });
+                const node = await NodeProxy.query({ path: testNodePrefabNode.path, queryChildren: false, queryComponent: false }) as INodeInfo | null;
                 expect(node).toBeTruthy();
                 if (!node) return;
 
-                const uNode = await NodeProxy.updateNode({
+                const uNode = await NodeProxy.update({
                     path: testNodePrefabNode.path,
                     properties: {
                         position: position
@@ -376,7 +376,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 const result = await PrefabProxy.revertToPrefab(params);
                 expect(result).toBe(true);
 
-                const node2 = await NodeProxy.queryNode({ path: path, queryChildren: false, queryComponent: false });
+                const node2 = await NodeProxy.query({ path: path, queryChildren: false, queryComponent: false }) as INodeInfo | null;
                 expect(node.properties.position).toEqual(node2?.properties.position);
             }
         });
@@ -390,7 +390,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const testNode = await NodeProxy.createNodeByType(createParams);
+            const testNode = await NodeProxy.createByType(createParams);
             expect(testNode).toBeTruthy();
             if (!testNode) return;
 
@@ -408,7 +408,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const prefabNodePath = prefabNode.path;
 
             // 获取初始属性
-            const initialQuery = await NodeProxy.queryNode({ path: prefabNodePath, queryChildren: false, queryComponent: false });
+            const initialQuery = await NodeProxy.query({ path: prefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
             expect(initialQuery).toBeTruthy();
             if (!initialQuery) return;
 
@@ -432,12 +432,11 @@ describe('Prefab Proxy In Scene 测试', () => {
             const appliedRotation = {
                 x: 0,
                 y: 0,
-                z: 1,
-                w: 1,
+                z: 45,
             };
             const appliedName = `${originalName}-Renamed`;
 
-            const firstUpdateResult = await NodeProxy.updateNode({
+            const firstUpdateResult = await NodeProxy.update({
                 path: prefabNodePath,
                 name: appliedName,
                 properties: {
@@ -475,11 +474,10 @@ describe('Prefab Proxy In Scene 测试', () => {
             const overriddenRotation = {
                 x: 0,
                 y: 0,
-                z: 1.2,
-                w: 1.2,
+                z: 90,
             };
 
-            const secondUpdateResult = await NodeProxy.updateNode({
+            const secondUpdateResult = await NodeProxy.update({
                 path: updatedPrefabNodePath,
                 properties: {
                     scale: overriddenScale,
@@ -495,14 +493,14 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: updatedPrefabNodePath,
             };
 
-            const queryNode = await NodeProxy.queryNode({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false });
+            const queryNode = await NodeProxy.query({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
             queryNode && console.log(queryNode.properties);
 
             const revertResult = await PrefabProxy.revertToPrefab(revertParams);
             expect(revertResult).toBe(true);
 
             // 验证还原后的属性
-            const revertedQuery = await NodeProxy.queryNode({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false });
+            const revertedQuery = await NodeProxy.query({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
             expect(revertedQuery).toBeTruthy();
             if (!revertedQuery) return;
 
@@ -515,7 +513,9 @@ describe('Prefab Proxy In Scene 测试', () => {
             // position 还是 revert 更新的数值
             expect(revertedProps.position).toEqual(overriddenPos);
             // rotation  还是 revert 更新的数值
-            expect(revertedProps.rotation).toEqual(overriddenRotation);
+            expect(revertedProps.rotation?.x).toBeCloseTo(overriddenRotation.x, 5);
+            expect(revertedProps.rotation?.y).toBeCloseTo(overriddenRotation.y, 5);
+            expect(revertedProps.rotation?.z).toBeCloseTo(overriddenRotation.z, 5);
             // name 应该保持不变（应用后的值）
             expect(revertedQuery.name).toBe(appliedName);
         });
@@ -529,7 +529,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const parentNode = await NodeProxy.createNodeByType(createParentParams);
+            const parentNode = await NodeProxy.createByType(createParentParams);
             expect(parentNode).toBeTruthy();
             if (!parentNode) return;
 
@@ -541,7 +541,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const childNode = await NodeProxy.createNodeByType(createChildParams);
+            const childNode = await NodeProxy.createByType(createChildParams);
             expect(childNode).toBeTruthy();
             if (!childNode) return;
 
@@ -559,11 +559,11 @@ describe('Prefab Proxy In Scene 测试', () => {
             const prefabNodePath = prefabNode.path;
 
             // 查询节点及其子节点，确认子节点存在（创建预制体后，父节点名称已改变，子节点 path 也会改变）
-            const beforeRevertQuery = await NodeProxy.queryNode({
+            const beforeRevertQuery = await NodeProxy.query({
                 path: prefabNodePath,
                 queryChildren: true,
                 queryComponent: false
-            });
+            }) as INodeInfo | null;
             expect(beforeRevertQuery).toBeTruthy();
             if (!beforeRevertQuery) return;
 
@@ -583,7 +583,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(originalChildPath).not.toBe('');
 
             // 修改父节点属性
-            const updateResult = await NodeProxy.updateNode({
+            const updateResult = await NodeProxy.update({
                 path: prefabNodePath,
                 properties: {
                     position: { x: 100, y: 100, z: 100 },
@@ -600,11 +600,11 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(revertResult).toBe(true);
 
             // 查询节点及其子节点，验证子节点的 path 保持不变
-            const afterRevertQuery = await NodeProxy.queryNode({
+            const afterRevertQuery = await NodeProxy.query({
                 path: prefabNodePath,
                 queryChildren: true,
                 queryComponent: false
-            });
+            }) as INodeInfo | null;
             expect(afterRevertQuery).toBeTruthy();
             if (!afterRevertQuery) return;
 
@@ -633,7 +633,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     recursive: true
                 };
 
-                const unpackedNode: INode | null = await PrefabProxy.unpackPrefabInstance(params);
+                const unpackedNode: INodeInfo | null = await PrefabProxy.unpackPrefabInstance(params);
                 expect(unpackedNode).toBeTruthy();
                 if (!unpackedNode) return;
 
@@ -663,7 +663,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     name: 'PrefabInstanceNode2'
                 };
 
-                const prefabInstance2 = await NodeProxy.createNodeByAsset(createParams);
+                const prefabInstance2 = await NodeProxy.createByAsset(createParams);
                 expect(prefabInstance2).toBeDefined();
 
                 if (prefabInstance2) {
@@ -687,7 +687,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const normalNode = await NodeProxy.createNodeByType(createParams);
+            const normalNode = await NodeProxy.createByType(createParams);
             expect(normalNode).toBeTruthy();
             if (!normalNode) return;
 
@@ -711,7 +711,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const testNode = await NodeProxy.createNodeByType(createNodeParams);
+            const testNode = await NodeProxy.createByType(createNodeParams);
             expect(testNode).toBeTruthy();
             if (!testNode) return;
 
@@ -758,7 +758,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const anotherNode = await NodeProxy.createNodeByType(anotherNodeParams);
+            const anotherNode = await NodeProxy.createByType(anotherNodeParams);
             expect(anotherNode).toBeTruthy();
             if (!anotherNode) return;
 
@@ -789,12 +789,11 @@ describe('Prefab Proxy In Scene 测试', () => {
             const appliedRotation = {
                 x: 0,
                 y: 0,
-                z: 0.3826834,
-                w: 0.9238795,
+                z: 45,
             };
             const renamedNode = `${nodeName}-Renamed`;
 
-            const initialUpdateResult = await NodeProxy.updateNode({
+            const initialUpdateResult = await NodeProxy.update({
                 path: nodePath,
                 name: renamedNode,
                 properties: {
@@ -826,11 +825,10 @@ describe('Prefab Proxy In Scene 测试', () => {
             const changedRotation = {
                 x: 0,
                 y: 0,
-                z: 0.7071068,
-                w: 0.7071068,
+                z: 90,
             };
 
-            const secondUpdateResult = await NodeProxy.updateNode({
+            const secondUpdateResult = await NodeProxy.update({
                 path: nodePath,
                 properties: {
                     position: changedPosition,
@@ -852,7 +850,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(revertResult).toBe(true);
 
             // 验证还原后的属性
-            const queryNodeResult = await NodeProxy.queryNode({ path: nodePath, queryChildren: false, queryComponent: false });
+            const queryNodeResult = await NodeProxy.query({ path: nodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
             expect(queryNodeResult).not.toBeNull();
             if (queryNodeResult) {
                 const props = queryNodeResult.properties;
@@ -864,7 +862,9 @@ describe('Prefab Proxy In Scene 测试', () => {
                 // position 不会被 revert
                 expect(props.position).toEqual(changedPosition);
                 // rotation 不会被 revert
-                expect(props.rotation).toEqual(changedRotation);
+                expect(props.rotation?.x).toBeCloseTo(changedRotation.x, 5);
+                expect(props.rotation?.y).toBeCloseTo(changedRotation.y, 5);
+                expect(props.rotation?.z).toBeCloseTo(changedRotation.z, 5);
             }
             expect(queryNodeResult?.name).toBe(renamedNode);
 
@@ -895,7 +895,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const parentNode = await NodeProxy.createNodeByType(parentNodeParams);
+            const parentNode = await NodeProxy.createByType(parentNodeParams);
             expect(parentNode).toBeTruthy();
             if (!parentNode) return;
 
@@ -907,7 +907,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const childNode = await NodeProxy.createNodeByType(childNodeParams);
+            const childNode = await NodeProxy.createByType(childNodeParams);
             expect(childNode).toBeTruthy();
 
             // 从父节点创建预制体（包含子节点）
@@ -971,7 +971,7 @@ describe('Prefab Proxy In Scene 测试', () => {
         });
 
         it('测试重复创建预制体（覆盖测试）', async () => {
-            const node = await NodeProxy.createNodeByType({
+            const node = await NodeProxy.createByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'Duplicate-Node'
@@ -1015,7 +1015,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const testNode = await NodeProxy.createNodeByType(createNodeParams);
+            const testNode = await NodeProxy.createByType(createNodeParams);
             expect(testNode).toBeTruthy();
             if (!testNode) return;
 
@@ -1058,7 +1058,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodeType: NodeType.EMPTY,
             };
 
-            const testNode = await NodeProxy.createNodeByType(createNodeParams);
+            const testNode = await NodeProxy.createByType(createNodeParams);
             expect(testNode).toBeTruthy();
             if (!testNode) return;
 
@@ -1079,7 +1079,7 @@ describe('Prefab Proxy In Scene 测试', () => {
 
             // 多次修改和应用
             for (let i = 0; i < 3; i++) {
-                const updateResult = await NodeProxy.updateNode({
+                const updateResult = await NodeProxy.update({
                     path: prefabNodePath,
                     properties: {
                         position: {
@@ -1100,7 +1100,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             }
 
             // 修改后还原
-            const finalUpdateResult = await NodeProxy.updateNode({
+            const finalUpdateResult = await NodeProxy.update({
                 path: prefabNodePath,
                 properties: {
                     position: { x: 999, y: 999, z: basePos.z ?? 0 },

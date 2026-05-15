@@ -364,8 +364,7 @@ describe('MCP Prefab API', () => {
             const overriddenRotation = {
                 x: 0,
                 y: 0,
-                z: 0.7071068, // 90° 绕 Z 轴
-                w: 0.7071068,
+                z: 90,
             };
             const overriddenScale = {
                 x: originalScale.x + 2,
@@ -416,7 +415,6 @@ describe('MCP Prefab API', () => {
             expect(revertedProps.rotation?.x).toBeCloseTo(overriddenRotation.x, 5);
             expect(revertedProps.rotation?.y).toBeCloseTo(overriddenRotation.y, 5);
             expect(revertedProps.rotation?.z).toBeCloseTo(overriddenRotation.z, 5);
-            expect(revertedProps.rotation?.w).toBeCloseTo(overriddenRotation.w, 5);
             expect(revertedQuery.data?.name).toBe(overriddenName);
         });
 
@@ -649,8 +647,7 @@ describe('MCP Prefab API', () => {
             const appliedRotation = {
                 x: 0,
                 y: 0,
-                z: 0.3826834,
-                w: 0.9238795,
+                z: 45,
             };
             const renamedNode = `${nodeName}-Renamed`;
             const initialUpdateResult = await mcpClient.callTool('scene-update-node', {
@@ -686,8 +683,7 @@ describe('MCP Prefab API', () => {
             const changedRotation = {
                 x: 0,
                 y: 0,
-                z: 0.7071068,
-                w: 0.7071068,
+                z: 90,
             };
             const secondUpdateResult = await mcpClient.callTool('scene-update-node', {
                 options: {

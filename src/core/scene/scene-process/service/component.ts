@@ -4,17 +4,16 @@ import { register, Service, BaseService } from './core';
 import {
     IComponentEvents,
     IAddComponentOptions,
-    IComponent,
     IComponentService,
     IQueryComponentOptions,
     IRemoveComponentOptions,
-    ISetPropertyOptions, NodeEventType,
+    NodeEventType,
     IExecuteComponentMethodOptions,
-    IComponentForEditor,
+    IComponent,
     IQueryClassesOptions,
-    ISetPropertyOptionsForEditor
+    ISetPropertyOptions
 } from '../../common';
-import dumpUtil from './dump';
+import dumpUtil, { translateDumpI18n } from './dump';
 import compMgr from './component/index';
 import componentUtils from './component/utils';
 import getComponentFunctionOfNode from './component/get-component-function-of-node';
@@ -22,7 +21,6 @@ import { hasOneKindOfComponent } from './node/node-utils';
 import { isEditorNode } from './node/node-utils';
 import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
 import PrefabService from './prefab';
-import { IProperty } from '../../@types/public';
 
 const NodeMgr = EditorExtends.Node;
 enum SceneModeType {
@@ -57,15 +55,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     public modeName: SceneModeType = SceneModeType.General;
     // private _stagingCameraInfo: any;
     protected _sceneEventListener: ISceneEvents[] = [];
-    protected _recycleComponent: Record<string, Component> = {};
 
-    constructor() {
-        super();
-        compMgr.on('add', this.onAddComponent.bind(this));
-        compMgr.on('remove', this.onRemoveComponent.bind(this));
-        compMgr.on('added', this.onComponentAdded.bind(this));
-        compMgr.on('removed', this.onComponentRemoved.bind(this));
-    }
 
     /**
      * 查询当前正在编辑的模式名字
@@ -93,9 +83,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         opts.modeName = this.modeName;
         // TODO(qgh): 发送消息
         //this.dispatchEvents('onComponentAdded', comp, opts);
-        if (this._recycleComponent[comp.uuid]) {
-            delete this._recycleComponent[comp.uuid];
-        }
+        compMgr.addRecycleComponent(comp.uuid);
     }
 
     public onComponentRemoved(comp: Component, opts: IOptionBase = {}) {
@@ -104,7 +92,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         // this.dispatchEvents('onComponentRemoved', comp);
         // 编辑器中的this._sceneProxy.getRootNode()实现返回的是null
         PrefabService.onComponentRemovedInGeneralMode(comp, null);
-        this._recycleComponent[comp.uuid] = comp;
+        compMgr.removeRecycleComponent(comp.uuid, comp);
     }
 
     public dispatchEvents(eventName: keyof ISceneEvents, ...args: any[any]) {
@@ -116,22 +104,17 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         });
     }
 
-    private async addComponentImpl(nodePathOrUuid: string, component: string): Promise<IComponent> {
-        const node = NodeMgr.getNodeByPath(nodePathOrUuid) ?? NodeMgr.getNode(nodePathOrUuid);
-        if (!node) {
-            throw new Error(`add component failed: ${nodePathOrUuid} does not exist`);
-        }
-        if (!component || component.length <= 0) {
-            throw new Error(`add component failed: ${component} does not exist`);
-        }
-        // 需要单独处理 missing script
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    private requireComponentList: Function[] = [];
+
+    private async resolveComponentCtor(component: string): Promise<Constructor<Component>> {
         if (component === 'MissingScript' || component === 'cc.MissingScript') {
-            throw new Error('Reset Component failed: MissingScript does not exist');
+            throw new Error('MissingScript does not exist');
         }
 
-        // 处理 URL 与 Uuid
         const isURL = component.startsWith('db://');
         const isUuid = componentUtils.isUUID(component);
+        let resolvedName = component;
         let uuid;
         if (isUuid) {
             uuid = component;
@@ -140,174 +123,122 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
 
         let ctor = null;
-        let comp = null;
         if (uuid) {
             const cid = await Service.Script.queryScriptCid(uuid);
             if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
-                component = cid;
-                ctor = cc.js.getClassById(cid);
+                resolvedName = cid;
+                ctor = cc.js.getClassById(cid) || cc.js.getClassByName(cid);
                 if (!ctor) {
-                    ctor = cc.js.getClassByName(cid);
-                }
-                if (!ctor) {
-                    // 理论上不会出现这个错误，出现了需要定位下
-                    throw `Component script(${cid}) name exists but constructor does not exist.`;
+                    throw new Error(`Component script(${cid}) name exists but constructor does not exist.`);
                 }
             } else {
-                // uuid存在，脚本也存在，但是组件ID不存在，则表示异常
                 const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
                 if (assetInfo?.file && assetInfo?.file.length > 0) {
-                    throw `Check if the script(${uuid}) contains any errors.`;
+                    throw new Error(`Check if the script(${uuid}) contains any errors.`);
                 }
             }
         } else {
-            ctor = cc.js.getClassById(component);
-            if (!ctor) {
-                ctor = cc.js.getClassByName(component);
-            }
+            ctor = cc.js.getClassById(resolvedName) || cc.js.getClassByName(resolvedName);
         }
 
         if (!ctor) {
-            // 首字母是否大写
-            const isStartWithUppercase = (component.charAt(0) == component.charAt(0).toUpperCase());
+            const isStartWithUppercase = resolvedName.charAt(0) === resolvedName.charAt(0).toUpperCase();
             if (!isStartWithUppercase) {
-                // 首字母大写查询
-                const fullName = component.charAt(0).toUpperCase() + component.slice(1);
-                ctor = cc.js.getClassByName(fullName);
+                ctor = cc.js.getClassByName(resolvedName.charAt(0).toUpperCase() + resolvedName.slice(1));
             }
             if (!ctor && !isUuid && !isURL) {
-                if (!component.startsWith('cc.')) {
-                    // 添加 'cc.' 查询
-                    const fullName = 'cc.' + component;
-                    ctor = cc.js.getClassByName(fullName);
+                if (!resolvedName.startsWith('cc.')) {
+                    ctor = cc.js.getClassByName('cc.' + resolvedName);
                     if (!ctor && !isStartWithUppercase) {
-                        // 添加 cc. 并且后面首字母大写
-                        const fullName = 'cc.' + component.charAt(0).toUpperCase() + component.slice(1);
-                        ctor = cc.js.getClassByName(fullName);
+                        ctor = cc.js.getClassByName('cc.' + resolvedName.charAt(0).toUpperCase() + resolvedName.slice(1));
                     }
-                } else if (component.length > 3 && component.charAt(3) != component.charAt(0).toUpperCase()) {
-                    // 如果是 cc.lalel 直接更换为 cc.Label 查询
-                    const fullName = component.slice(0, 3) + component.at(3)?.toUpperCase() + component.slice(4);
-                    ctor = cc.js.getClassByName(fullName);
+                } else if (resolvedName.length > 3 && resolvedName.charAt(3) !== resolvedName.charAt(3).toUpperCase()) {
+                    ctor = cc.js.getClassByName(resolvedName.slice(0, 3) + resolvedName.charAt(3).toUpperCase() + resolvedName.slice(4));
                 }
             }
         }
+
         if (!ctor) {
-            console.error(`ctor with name ${component} is not found `);
             if (isUuid) {
-                throw new Error(`Target Component('${component}') Not Found. Hint: Please use the correct component uuid`);
+                throw new Error(`Target Component('${resolvedName}') Not Found. Hint: Please use the correct component uuid`);
             } else if (isURL) {
-                throw new Error(`Target Component('${component}') Not Found. Hint: Please use the correct component url`);
+                throw new Error(`Target Component('${resolvedName}') Not Found. Hint: Please use the correct component url`);
             } else {
-                throw new Error(`Target Component('${component}') Not Found. Hint: Please use the correct component name`);
+                throw new Error(`Target Component('${resolvedName}') Not Found. Hint: Please use the correct component name`);
             }
         }
-        if (cc.js.isChildClassOf(ctor, Component)) {
-            comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
-        } else {
-            console.error(`ctor with name ${component} is not child class of Component `);
+        if (!cc.js.isChildClassOf(ctor, Component)) {
             throw new Error(`Constructor has been found, but it is not component-based.`);
         }
-        this.emit('component:add', comp);
-
-        return dumpUtil.dumpComponent(comp as Component);
+        return ctor as Constructor<Component>;
     }
 
-    async addComponent(params: IAddComponentOptions): Promise<IComponent> {
+    async add(params: IAddComponentOptions): Promise<IComponent> {
         try {
             await Service.Editor.lock();
-            return await this.addComponentImpl(params.nodePathOrUuid, params.component);
+
+            if (Array.isArray(params.component)) {
+                let lastDump: IComponent | null = null;
+                for (const id of params.component) {
+                    lastDump = await this.add({ nodePath: params.nodePath, component: id });
+                }
+                return lastDump!;
+            }
+
+            const node = NodeMgr.getNodeByPath(params.nodePath);
+            if (!node) {
+                throw new Error(`create component failed: ${params.nodePath} does not exist`);
+            }
+            if (!params.component || params.component.length <= 0) {
+                throw new Error(`create component failed: component name cannot be empty`);
+            }
+
+            const ctor = await this.resolveComponentCtor(params.component);
+
+            this.emit('node:before-change', node);
+            this.emit('component:before-add-component', params.component, node);
+
+            // 处理 requireComponent 依赖链
+            let iterateObj = ctor as any;
+            if (iterateObj._requireComponent) {
+                while (iterateObj._requireComponent) {
+                    this.requireComponentList.push(iterateObj._requireComponent);
+                    iterateObj = iterateObj._requireComponent;
+                }
+            }
+
+            const comp = node.addComponent(ctor);
+            this.requireComponentList = [];
+
+            // prefab 模式下的 Canvas 创建
+            const mode = this.queryMode();
+            if (mode === 'prefab') {
+                const rootNode = Service.Editor.getRootNode();
+                if (rootNode && hasOneKindOfComponent(node, UITransform) && !hasOneKindOfComponent(rootNode, Canvas)) {
+                    createShouldHideInHierarchyCanvasNode(director.getScene()!).then((target) => {
+                        rootNode.parent = target;
+                    });
+                }
+            }
+
+            this.checkComponentsCollision(node);
+            this.checkDynamicBodyShape(node);
+
+            this.emit('component:add', comp);
+            compMgr.onComponentAddedFromEditor(comp);
+            this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
+
+            const dump = await translateDumpI18n(dumpUtil.dumpComponent(comp as Component)) as IComponent;
+            // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
+            (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
+            (dump as any).__compPrefab__ = (comp as any).__prefab || null;
+            return dump;
         } catch (error) {
             console.error(error);
             throw error;
         } finally {
             Service.Editor.unlock();
         }
-    }
-
-
-    /**
-     * 创建组件
-     * @param params
-     */
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-    private requireComponentList: Function[] = [];
-
-    async createComponent(params: IAddComponentOptions): Promise<boolean> {
-        if (Array.isArray(params.component)) {
-            params.component.forEach((id) => {
-                this.createComponent({ nodePathOrUuid: params.nodePathOrUuid, component: id });
-            });
-            console.warn('don\'t add component to more than one node at one time');
-            return false;
-        }
-        const node = NodeMgr.getNodeByPath(params.nodePathOrUuid) ?? NodeMgr.getNode(params.nodePathOrUuid);
-        if (!node) {
-            console.warn(`create component failed: ${params.nodePathOrUuid} does not exist`);
-            return false;
-        }
-
-        if (params.component) {
-            // 发送节点修改消息
-            this.emit('node:before-change', node);
-            this.emit('component:before-add-component', params.component, node);
-
-            let comp = null;
-            try {
-                // 需要单独处理 missing script
-                if (params.component === 'MissingScript' || params.component === 'cc.MissingScript') {
-                    throw new Error('Reset Component failed: MissingScript does not exist');
-                }
-
-                /**
-                 * 增加编辑器对外 create-component 接口的兼容性
-                 * getClassById(string) 查不到的时候，再查一次 getClassByName(string)
-                 */
-                let ctor = cc.js.getClassById(params.component);
-                if (!ctor) {
-                    ctor = cc.js.getClassByName(params.component);
-                }
-                if (cc.js.isChildClassOf(ctor, Component)) {
-                    let iterateObj = ctor as any;
-                    if (iterateObj._requireComponent) {
-                        while (iterateObj._requireComponent) {
-                            this.requireComponentList.push(iterateObj._requireComponent);
-                            iterateObj = iterateObj._requireComponent;
-                        }
-                    }
-                    comp = node.addComponent(ctor as Constructor<Component>); // 触发引擎上节点添加组件
-                    this.requireComponentList = [];
-                } else {
-                    console.error(`ctor with name ${params.component} is not child class of Component `);
-                }
-                const mode = this.queryMode();
-                if (mode === 'prefab') {
-                    // 理论上应该使用
-                    const rootNode = Service.Editor.getRootNode();
-                    if (rootNode && hasOneKindOfComponent(node, UITransform) && !hasOneKindOfComponent(rootNode, Canvas)) {
-                        // 为了显示，节点结构为：scene node > canvas node > prefab root node
-                        createShouldHideInHierarchyCanvasNode(director.getScene()!).then((target) => {
-                            rootNode.parent = target;
-                        });
-                    }
-                }
-                this.checkComponentsCollision(node);
-                this.checkDynamicBodyShape(node);
-            } catch (error) {
-                console.error(error);
-            }
-            if (comp) {
-                compMgr.onComponentAddedFromEditor(comp);
-            }
-
-            // 发送节点修改消息
-            this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
-        } else {
-            console.warn(`create component failed: ${params.component} does not exist`);
-            return false;
-        }
-
-        return true;
     }
 
 
@@ -368,7 +299,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async removeComponent(params: IRemoveComponentOptions): Promise<boolean> {
+    async remove(params: IRemoveComponentOptions): Promise<boolean> {
         try {
             await Service.Editor.lock();
 
@@ -377,7 +308,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 throw new Error(`Remove component failed: ${params.path} does not exist`);
             }
 
-            this.emit('component:before-remove', comp);
+            this.emit('component:before-remove-component', comp);
             const result = compMgr.removeComponent(comp);
             // 需要立刻执行removeComponent操作，否则会延迟到下一帧
             cc.Object._deferredDestroy();
@@ -392,67 +323,33 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    async queryComponentImpl(params: IQueryComponentOptions, isEditor: boolean = false): Promise<IComponent | IComponentForEditor | null> {
+    async queryImpl(params: IQueryComponentOptions): Promise<IComponent | null> {
         const comp = await this.findComponent(params.path);
         if (!comp) {
             console.warn(`Query component failed: ${params.path} does not exist`);
             return null;
         }
-        if (isEditor) {
-            return (dumpUtil.dumpComponentForEditor(comp as Component));
-        } else {
-            return (dumpUtil.dumpComponent(comp as Component));
-        }
+        const dump = await translateDumpI18n(dumpUtil.dumpComponent(comp as Component)) as IComponent;
+        // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
+        (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
+        (dump as any).__compPrefab__ = (comp as any).__prefab || null;
+        return dump;
     }
 
-    async queryComponent(params: IQueryComponentOptions | string): Promise<IComponent | IComponentForEditor | null> {
+    async query(params: IQueryComponentOptions | string): Promise<IComponent | null> {
         if (typeof params === 'string') {
-            return this.queryComponentImpl({ path: params }, true);
+            return this.queryImpl({ path: params });
         } else {
-            return this.queryComponentImpl(params);
+            return this.queryImpl(params);
         }
     }
 
-    async setPropertyForCli(options: ISetPropertyOptions): Promise<boolean> {
-        try {
-            await Service.Editor.lock();
-            return this.setPropertyImp(options);
-        } catch (error) {
-            console.error(error);
-            throw error;
-        } finally {
-            Service.Editor.unlock();
-        }
-    }
-
-    async setProperty(options: ISetPropertyOptions | ISetPropertyOptionsForEditor): Promise<boolean> {
-        if ('uuid' in options) {
-            return await this.setPropertyForEditor(options as ISetPropertyOptionsForEditor);
-        } else {
-            return await this.setPropertyForCli(options);
-        }
-    }
-
-    /**
-     * 查询一个节点的实例
-     * @param {*} uuid
-     * @return {cc.Node}
-     */
-    query(uuid: string | undefined): Node | null {
-        if (typeof uuid === 'undefined') {
-            return null;
-        }
-        // TODO(qgh): nodeMgr应该添加queryRecycleNode
-        // return NodeMgr.getNode(uuid) ?? NodeMgr.queryRecycleNode(uuid);
-        return NodeMgr.getNode(uuid);
-    }
-
-    async setPropertyForEditor(options: ISetPropertyOptionsForEditor): Promise<boolean> {
+    async setProperty(options: ISetPropertyOptions): Promise<boolean> {
         // 多个节点更新值
-        if (Array.isArray(options.uuid)) {
+        if (Array.isArray(options.nodePath)) {
             try {
-                for (let i = 0; i < options.uuid.length; i++) {
-                    await this.setPropertyForEditor({ uuid: options.uuid[i], path: options.path, dump: options.dump, record: options?.record });
+                for (let i = 0; i < options.nodePath.length; i++) {
+                    await this.setProperty({ nodePath: options.nodePath[i], path: options.path, dump: options.dump, record: options?.record });
                 }
                 return true;
             } catch (e) {
@@ -460,9 +357,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 return false;
             }
         }
-        const node = this.query(options.uuid);
+        const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
-            console.warn(`Set property failed: ${options.uuid} does not exist`);
+            console.warn(`Set property failed: ${options.nodePath} does not exist`);
             return false;
         }
 
@@ -497,34 +394,21 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return true;
     }
 
-    private async setPropertyImp(options: ISetPropertyOptions): Promise<boolean> {
-        const component = compMgr.queryFromPath(options.componentPath);
-        if (!component) {
-            throw new Error(`Failed to set property: Target component(${options.componentPath}) not found`);
+    /**
+     * 查询一个节点的实例
+     * @param {*} uuid
+     * @return {cc.Node}
+     */
+    queryNode(uuid: string | undefined): Node | null {
+        if (typeof uuid === 'undefined') {
+            return null;
         }
-        const compProperties = (dumpUtil.dumpComponent(component as Component));
-        const properties = Object.entries(options.properties);
-
-        const idx = component.node.components.findIndex(comp => comp === component);
-        for (const [key, value] of properties) {
-            if (!compProperties.properties[key]) {
-                throw new Error(`Failed to set property: Target property(${key}) not found`);
-                // continue;
-            }
-            const compProperty = compProperties.properties[key];
-            compProperty.value = value;
-            // 恢复数据
-            await dumpUtil.restoreProperty(component, key, compProperty);
-
-            this.emit('component:set-property', component, {
-                type: NodeEventType.SET_PROPERTY,
-                propPath: `__comps__.${idx}.${key}`,
-            });
-        }
-        return true;
+        // TODO(qgh): nodeMgr应该添加queryRecycleNode
+        // return NodeMgr.getNode(uuid) ?? NodeMgr.queryRecycleNode(uuid);
+        return NodeMgr.getNode(uuid);
     }
 
-    async queryAllComponent(): Promise<string[]> {
+    async queryAll(): Promise<string[]> {
         const keys = Object.keys(cc.js._registeredClassNames);
         const components: string[] = [];
         keys.forEach((key) => {
@@ -538,7 +422,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return components;
     }
 
-    async queryComponentHasScript(name: string): Promise<boolean> {
+    async hasScript(name: string): Promise<boolean> {
         const classes = await this.queryClasses();
         return classes.some((cls) => cls.name === name);
     }
@@ -574,8 +458,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return classes;
     }
 
-    async queryComponentFunctionOfNode(uuid: string): Promise<any> {
-        const node = NodeMgr.getNode(uuid);
+    async queryFunctionOfNode(path: string): Promise<any> {
+        const node = NodeMgr.getNodeByPath(path);
         if (!node) {
             return {};
         }
@@ -587,8 +471,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     private readonly CompMgrEventHandlers = {
-        ['add']: 'add',
-        ['remove']: 'remove',
+        ['add']: 'onCompAdd',
+        ['remove']: 'onCompRemove',
     } as const;
     private compMgrEventHandlers = new Map<string, (...args: []) => void>();
     /**
@@ -618,7 +502,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    add(uuid: string, component: Component) {
+    onCompAdd(uuid: string, component: Component) {
         if (isEditorNode(component.node)) {
             return;
         }
@@ -630,7 +514,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    remove(uuid: string, component: Component) {
+    onCompRemove(uuid: string, component: Component) {
         if (isEditorNode(component.node)) {
             return;
         }
@@ -641,7 +525,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * 重置组件
      * @param uuid component 的 uuid
      */
-    public async resetComponent(params: IQueryComponentOptions): Promise<boolean> {
+    public async reset(params: IQueryComponentOptions): Promise<boolean> {
         try {
             const comp = await this.findComponent(params.path);
             if (!comp) {
@@ -662,7 +546,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
-    public async executeComponentMethod(options: IExecuteComponentMethodOptions): Promise<boolean> {
-        return await compMgr.executeComponentMethod(options.uuid, options.name, options.args);
+    public async executeMethod(options: IExecuteComponentMethodOptions): Promise<any> {
+        const comp = compMgr.queryFromPath(options.path);
+        if (!comp) {
+            return null;
+        }
+        return await compMgr.executeComponentMethod(comp.uuid, options.name, options.args);
     }
 }

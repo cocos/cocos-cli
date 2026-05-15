@@ -10,6 +10,24 @@ export interface ICameraConfig {
     enableAcceleration: boolean;
 }
 
+export interface IGizmoConfig {
+    is2D: boolean;
+    is3DIcon: boolean;
+    iconSize: number;
+    transformToolName: string;
+    pivot: string;
+    coordinate: string;
+    toolsVisibility3d: boolean;
+    snapConfigs?: {
+        position: { x: number; y: number; z: number };
+        rotation: number;
+        scale: number;
+        isPositionSnapEnabled: boolean;
+        isRotationSnapEnabled: boolean;
+        isScaleSnapEnabled: boolean;
+    };
+}
+
 export interface ISceneConfig {
     /**
      * 是否循环
@@ -19,6 +37,10 @@ export interface ISceneConfig {
      * 编辑器相机配置，与 cocos-editor scene/package.json profile 一致
      */
     camera: ICameraConfig;
+    /**
+     * Gizmo 配置，与 cocos-editor gizmos-infos profile 一致
+     */
+    gizmo: IGizmoConfig;
 }
 
 class SceneConfig {
@@ -32,6 +54,15 @@ class SceneConfig {
             wheelSpeed: 0.01,
             wanderSpeed: 10,
             enableAcceleration: true,
+        },
+        gizmo: {
+            is2D: false,
+            is3DIcon: false,
+            iconSize: 2,
+            transformToolName: 'position',
+            pivot: 'pivot',
+            coordinate: 'local',
+            toolsVisibility3d: true,
         },
     };
 

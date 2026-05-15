@@ -190,10 +190,17 @@ class ComponentUtils {
         },
 
         Camera(component: Camera, node: Node) {
-            component.visibility = Layers.makeMaskInclude([Layers.Enum.UI_3D, Layers.Enum.UI_2D]);
-            component.projection = Camera.ProjectionType.ORTHO;
-            component.near = 0;
-            component.clearFlags = Camera.ClearFlag.DEPTH_ONLY;
+            const { Service } = require('../core/decorator');
+            if (Service.Camera?.is2D) {
+                component.visibility = Layers.makeMaskInclude([Layers.Enum.UI_3D, Layers.Enum.UI_2D]);
+                component.projection = Camera.ProjectionType.ORTHO;
+                component.near = 0;
+                component.clearFlags = Camera.ClearFlag.DEPTH_ONLY;
+            } else {
+                component.visibility = Layers.Enum.DEFAULT;
+                component.projection = Camera.ProjectionType.PERSPECTIVE;
+                component.clearFlags = Camera.ClearFlag.SKYBOX;
+            }
         },
     };
 

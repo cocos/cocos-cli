@@ -1,7 +1,6 @@
 import type { Node } from 'cc';
 import type { IServiceEvents } from '../../scene-process/service/core';
-import type { IPrefabInfo } from './prefab-info';
-import { INode } from '../node';
+import { INode, IPrefab } from '../node';
 import type {
     IApplyPrefabChangesParams,
     ICreatePrefabFromNodeParams,
@@ -18,7 +17,8 @@ export interface IPrefabEvents {
 
 }
 
-export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode'> { }
+export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode'> {
+}
 
 export interface IPrefabService extends IServiceEvents {
     /**
@@ -49,7 +49,7 @@ export interface IPrefabService extends IServiceEvents {
     /**
      * 获取节点的预制体信息
      */
-    getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefabInfo | null>;
+    getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
 
     /**
      * 移除 prefab info

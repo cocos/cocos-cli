@@ -44,12 +44,18 @@ jobs:
         uses: ./.github/actions/setup-env
 
       - name: Generate DTS
-        shell: bash
-        run: npx tsx workflow/generate-dts.ts
+        run: npm run generate:dts:ci
 
       - name: Run unit tests
         id: unit-tests
         run: npm run test:quiet
+
+      - name: Run DTS tests
+        shell: bash
+        run: |
+          cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
+          npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
+          npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
 
       - name: Check DTS API compatibility
         if: github.event_name == 'pull_request'

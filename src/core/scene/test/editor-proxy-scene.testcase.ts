@@ -1,4 +1,4 @@
-import { IBaseIdentifier, IScene, NodeType, TEditorEntity, ReloadResult } from '../common';
+import { IBaseIdentifier, INodeInfo, ISceneInfo, NodeType, ReloadResult } from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -8,7 +8,7 @@ import { assetManager } from '../../assets';
 describe('EditorProxy Scene 测试', () => {
     describe('场景操作', () => {
         let identifier: IBaseIdentifier | null = null;
-        let entity: TEditorEntity | null = null;
+        let entity: ISceneInfo | INodeInfo | null = null;
 
         it('create - 创建新场景', async () => {
             identifier = await EditorProxy.create({
@@ -26,7 +26,7 @@ describe('EditorProxy Scene 测试', () => {
 
             const result = await EditorProxy.open({
                 urlOrUUID: identifier.assetUuid
-            }) as IScene;
+            }) as ISceneInfo;
             expect(result).toBeDefined();
             expect(result.assetUuid).toBe(identifier.assetUuid);
         });
@@ -35,7 +35,7 @@ describe('EditorProxy Scene 测试', () => {
             expect(identifier).toBeTruthy();
             if (!identifier) return;
 
-            await NodeProxy.createNodeByType({
+            await NodeProxy.createByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'scene-test-node-uuid',
@@ -85,7 +85,7 @@ describe('EditorProxy Scene 测试', () => {
 
             entity = await EditorProxy.open({
                 urlOrUUID: identifier.assetUrl
-            }) as IScene;
+            }) as ISceneInfo;
             expect(entity).toBeDefined();
             expect(entity.assetUrl).toBe(identifier.assetUrl);
         });
@@ -94,7 +94,7 @@ describe('EditorProxy Scene 测试', () => {
             await EditorProxy.open({
                 urlOrUUID: SceneTestEnv.sceneURL,
             });
-            await NodeProxy.createNodeByType({
+            await NodeProxy.createByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'scene-test-node-url',
@@ -139,7 +139,7 @@ describe('EditorProxy Scene 测试', () => {
             await EditorProxy.open({
                 urlOrUUID: SceneTestEnv.sceneURL,
             });
-            await NodeProxy.createNodeByType({
+            await NodeProxy.createByType({
                 path: '',
                 nodeType: NodeType.EMPTY,
                 name: 'current-scene-test-node',
@@ -192,7 +192,7 @@ describe('EditorProxy Scene 测试', () => {
 
             const result = await EditorProxy.open({
                 urlOrUUID: identifierA.assetUuid
-            }) as IScene;
+            }) as ISceneInfo;
             expect(result).toBeDefined();
             expect(result.assetUuid).toBe(identifierA.assetUuid);
         });
@@ -223,7 +223,7 @@ describe('EditorProxy Scene 测试', () => {
 
             const result = await EditorProxy.open({
                 urlOrUUID: identifierB.assetUuid
-            }) as IScene;
+            }) as ISceneInfo;
             expect(result).toBeDefined();
             expect(result.assetUuid).toBe(identifierB.assetUuid);
         });

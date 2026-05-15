@@ -1,14 +1,22 @@
-import { EventEmitter } from 'events';
-import dumpUtil from '../dump';
-const { get } = require('lodash');
+import dumpUtil, { translateDumpI18n } from '../dump';
+import get from 'lodash/get';
 
 const CompMgr = EditorExtends.Component;
 import utils from './utils';
 import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
-import { IComponentIdentifier } from '../../../common';
+import { type IComponentEvents } from '../../../common';
+import { ServiceEvents } from '../core/global-events';
 
-export class CompManager extends EventEmitter {
+export class CompManager {
+    protected _recycleComponent: Record<string, Component> = {};
+
+    emit<K extends keyof IComponentEvents>(event: K, ...args: IComponentEvents[K]): void;
+    emit(event: string, ...args: any[]): void;
+    emit(event: string, ...args: any[]) {
+        ServiceEvents.emit(event, ...args);
+    }
+
     init() {
         this.registerCompMgrEvents();
     }
@@ -49,7 +57,7 @@ export class CompManager extends EventEmitter {
      * @param {cc.Component} component
      */
     add(uuid: string, component: Component) {
-        this.emit('added', component);
+        this.emit('component:added', component);
     }
 
     /**
@@ -58,7 +66,7 @@ export class CompManager extends EventEmitter {
      * @param {cc.Component} component
      */
     remove(uuid: string, component: Component) {
-        this.emit('removed', component);
+        this.emit('component:removed', component);
     }
 
     /**
@@ -76,20 +84,27 @@ export class CompManager extends EventEmitter {
         return CompMgr.getComponentFromPath(path) || null;
     }
 
-    getComponentIdentifier(component: Component): IComponentIdentifier {
-        const path = this.getPathFromUuid(component.uuid);
-        return {
-            cid: (component as any).__cid__,
-            type: cc.js.getClassName(component.constructor),
-            uuid: component.uuid,
-            name: component.name,
-            enabled: component.enabled ? true : false,//enalbed maybe undefined.
-            path: path === null ? '' : path,
-        };
-    }
-
     getPathFromUuid(uuid: string): string | null {
         return CompMgr.getPathFromUuid(uuid);
+    }
+
+    addRecycleComponent(uuid: string) {
+        if (this._recycleComponent[uuid]) {
+            delete this._recycleComponent[uuid];
+        }
+    }
+
+    removeRecycleComponent(uuid: string, comp: Component) {
+        this._recycleComponent[comp.uuid] = comp;
+    }
+
+    /**
+     * 在回收站中查询一个组件的实例
+     * @param {*} uuid
+     * @returns {cc.Component}
+     */
+    queryRecycle(uuid: string): Component | null {
+        return this._recycleComponent[uuid] ?? null;
     }
 
     /**
@@ -112,12 +127,12 @@ export class CompManager extends EventEmitter {
             return false;
         }
 
-        this.emit('before-remove-component', component);
+        this.emit('component:before-remove-component', component);
         component.node.removeComponent(component);
         // 需要立刻执行removeComponent操作，否则会延迟到下一帧
         cc.Object._deferredDestroy();
 
-        this.emit('remove', component);
+        this.emit('component:remove', component);
 
         return true;
     }
@@ -150,7 +165,7 @@ export class CompManager extends EventEmitter {
         try {
             const node = new cc.Node();
             const newComp = node.addComponent(component.constructor);
-            const dump = dumpUtil.dumpComponentForEditor(newComp);
+            const dump = dumpUtil.dumpComponent(newComp);
 
             for (const key in dump.value) {
                 if (skipCompProps.includes(key)) {
@@ -174,12 +189,12 @@ export class CompManager extends EventEmitter {
      *   如果组件不存在，则返回 null
      * @param {String} uuid
      */
-    queryDump(uuid: string) {
+    async queryDump(uuid: string) {
         const comp = this.query(uuid);
         if (!comp) {
             return null;
         }
-        return dumpUtil.dumpComponentForEditor(comp);
+        return translateDumpI18n(dumpUtil.dumpComponent(comp));
     }
 
     /**
@@ -237,7 +252,7 @@ export class CompManager extends EventEmitter {
             return;
         }
 
-        this.emit('add', component);
+        this.emit('component:add', component);
 
         // 一些组件在添加的时候，需要执行部分特殊的逻辑
         if (component.constructor && (utils.addComponentMap as any)[component.constructor.name]) {

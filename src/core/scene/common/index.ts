@@ -1,4 +1,5 @@
 export * from './const';
+export * from './cli';
 export * from './node';
 export * from './prefab';
 export * from './editor';

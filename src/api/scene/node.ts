@@ -18,7 +18,7 @@ import {
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { ICreateByNodeTypeParams, Scene } from '../../core/scene';
+import { ICreateByNodeTypeParams, INodeInfo, Scene } from '../../core/scene';
 
 export class NodeApi {
 
@@ -35,7 +35,7 @@ export class NodeApi {
             data: undefined,
         };
         try {
-            const resultNode = await Scene.createNodeByType(options as ICreateByNodeTypeParams);
+            const resultNode = await Scene.Node.createByType(options as ICreateByNodeTypeParams);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -62,7 +62,7 @@ export class NodeApi {
             data: undefined,
         };
         try {
-            const resultNode = await Scene.createNodeByAsset(options);
+            const resultNode = await Scene.Node.createByAsset(options);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -90,7 +90,7 @@ export class NodeApi {
         };
 
         try {
-            const result = await Scene.deleteNode(options);
+            const result = await Scene.Node.delete(options);
             if (!result) throw new Error(`node not found at path: ${options.path}`);
             ret.data = {
                 path: result.path,
@@ -114,7 +114,7 @@ export class NodeApi {
     @result(SchemaNodeUpdateResult)
     async updateNode(@param(SchemaNodeUpdate) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
         try {
-            const data = await Scene.updateNode(options);
+            const data = await Scene.Node.update(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -142,7 +142,7 @@ export class NodeApi {
         };
 
         try {
-            const result = await Scene.queryNode(options);
+            const result = await Scene.Node.query(options) as INodeInfo | null;
             if (!result) throw new Error(`node not found at path: ${options.path}`);
             ret.data = result;
         } catch (e) {

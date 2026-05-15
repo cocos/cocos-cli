@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 import { NodeType } from '../../core/scene';
-import { INode } from '../../core/scene';
-import { SchemaQuat, SchemaVec3 } from '../base/schema-value-types';
+import { INodeInfo } from '../../core/scene';
+import { SchemaVec3 } from '../base/schema-value-types';
 import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaPrefabInfo } from './prefab-info-schema';
 import { SchemaUrl } from '../base/schema-identifier';
@@ -12,10 +12,7 @@ import { SchemaComponent } from './component-schema';
 export const SchemaNodeProperty = z.object({
     position: SchemaVec3.describe('Node position'), // 节点位置
     // worldPosition: Vec3Schema.describe('节点位置'),
-    rotation: SchemaQuat.describe('Node rotation, quaternion'), // 节点旋转, 四元数
-    // worldRotation: QuatSchema.describe('节点旋转, 四元数'),
-    eulerAngles: SchemaVec3.describe('Node rotation, Euler angles'), // 节点旋转，欧拉角
-    // angle: z.number().describe('本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上'),
+    rotation: SchemaVec3.describe('Node rotation, Euler angles'), // 节点旋转，欧拉角
     scale: SchemaVec3.describe('Node scale'), // 节点缩放
     // worldScale: Vec3Schema.describe('节点缩放'),
     // worldMatrix: Mat4Schema.describe('节点的世界变换矩阵'),
@@ -34,7 +31,7 @@ export const SchemaComponentOrDetail = z.union([
     SchemaComponentIdentifier
 ]).describe('components on the node'); // 节点上的组件信息
 
-export const SchemaNode: z.ZodType<INode> = SchemaNodeIdentifier.extend({
+export const SchemaNode: z.ZodType<INodeInfo> = SchemaNodeIdentifier.extend({
     properties: SchemaNodeProperty.describe('Node properties'), // 节点属性
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab information'), // 预制体信息
     children: z.array(z.lazy(() => SchemaNode)).optional().describe('List of child nodes'), // 子节点列表
@@ -55,7 +52,7 @@ export const SchemaNodeQuery = z.object({
 }).describe('To configure options for node query, the Scene must be open first. The result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的结果
-export const SchemaNodeQueryResult: z.ZodType<INode> = SchemaNode;
+export const SchemaNodeQueryResult: z.ZodType<INodeInfo> = SchemaNode;
 
 //节点更新的参数
 export const SchemaNodeUpdate = z.object({

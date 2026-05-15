@@ -1,4 +1,4 @@
-import { Camera, Canvas, Color, Layers, Node, Vec3, gfx } from 'cc';
+import { Camera, Canvas, Color, Layers, Vec3, gfx } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { CameraController2D } from './camera/camera-controller-2d';
@@ -355,7 +355,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
      * 新增的 Camera 组件也需要 detach，与原始编辑器 ScenePreview.onComponentAdded 一致
      */
     detachNewSceneCamera(comp: any): void {
-        if (!comp || !(comp instanceof Camera) || !comp.camera) return;
+        if (!comp || !(comp instanceof Camera)) return;
         const editorMask = Layers.makeMaskInclude([
             Layers.Enum.GIZMOS,
             Layers.Enum.SCENE_GIZMO,

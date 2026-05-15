@@ -28,6 +28,7 @@
         "check:e2e-coverage:report": "tsx e2e/scripts/check-coverage.ts --save",
         "generate:mcp-types": "node --max-old-space-size=4096 node_modules/tsx/dist/cli.mjs e2e/scripts/generate-mcp-types.ts",
         "generate:dts": "tsx workflow/generate-dts.ts && npx jest tests/dts-snapshot.test.ts -u",
+        "generate:dts:ci": "tsx workflow/generate-dts.ts",
         "install:engine": "cd ./packages/engine && npm i",
         "compiler": "FORCE_UPDATE=true npm i",
         "compiler:engine": "node --max-old-space-size=8192 workflow/compiler-engine.js --force",

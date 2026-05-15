@@ -33,8 +33,8 @@ class I18n {
         return i18nextInstance.t(key, obj);
     }
     /**
-     * 翻译 title
-     * @param title 原始 title 或者带有 i18n 开头的 title
+     * 翻译 name
+     * @param name 原始 name 或者带有 i18n 开头的 name
      */
     transI18nName(name: string): string {
         if (!name || typeof name !== 'string') {
@@ -49,10 +49,19 @@ class I18n {
             return name;
         }
         if (!i18nextInstance.exists(key)) {
-            console.debug(`${name} is not defined in i18n`);
+            // 引擎大部分都没翻译，这样会导致每次调用获取节点信息会答应大量的debug信息，这里暂时去掉。
+            // console.debug(`${name} is not defined in i18n`);
             return name;
         }
         return i18nextInstance.t(key) || name;
+    }
+
+    batchTransI18nName(names: string[]): Record<string, string> {
+        const result: Record<string, string> = {};
+        for (const name of names) {
+            result[name] = this.transI18nName(name);
+        }
+        return result;
     }
 
     /**

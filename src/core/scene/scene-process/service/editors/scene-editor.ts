@@ -1,5 +1,5 @@
 import { Scene, SceneAsset, Component, Node } from 'cc';
-import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode, IScene } from '../../../common';
+import { type IBaseIdentifier, ICreateOptions, IEditorTarget, IScene } from '../../../common';
 import { Rpc } from '../../rpc';
 import { sceneUtils } from '../scene/utils';
 import { BaseEditor } from './base-editor';
@@ -13,37 +13,22 @@ import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
  */
 export class SceneEditor extends BaseEditor {
 
-    async encode(simpleNode?: boolean, entity?: IEditorTarget | null): Promise<IScene> {
+    async encode(entity?: IEditorTarget | null): Promise<IScene> {
         entity = entity ?? this.entity;
         if (!entity) {
             throw new Error('encode 失败，没有打开场景');
         }
-        simpleNode = simpleNode ?? true;
-        return {
-            ...entity.identifier,
-            name: entity.instance.name,
-            prefab: sceneUtils.generatePrefabInfo(entity.instance['_prefab']),
-            children: entity.instance.children
-                .map((node: Node) => {
-                    if(simpleNode) {
-                        return sceneUtils.generateNodeIdentifier(node);
-                    } else {
-                        return sceneUtils.generateNodeInfo(node, true);
-                    }
-                })
-                .filter(child => child !== null) as INode[],
-            components: entity.instance.components
-                .map((component: Component) => {
-                    return sceneUtils.generateComponentInfo(component);
-                })
-        };
+        const scene = await sceneUtils.generateNodeDump(entity.instance) as IScene;
+        const d = scene as any;
+        d.__identifier__ = entity.identifier;
+        return scene;
     }
 
-    async open(asset: IAssetInfo, simpleNode?: boolean): Promise<IScene> {
+    async open(asset: IAssetInfo): Promise<IScene> {
         const identifier = this.getIdentifier(asset);
 
         if (this.entity?.identifier.assetUuid === identifier.assetUuid) {
-            return await this.encode(simpleNode);
+            return await this.encode();
         }
 
         const sceneAsset = await sceneUtils.loadAny<SceneAsset>(identifier.assetUuid);
@@ -54,7 +39,7 @@ export class SceneEditor extends BaseEditor {
             identifier,
         });
 
-        return this.encode(simpleNode);
+        return this.encode();
     }
 
     async close(): Promise<boolean> {

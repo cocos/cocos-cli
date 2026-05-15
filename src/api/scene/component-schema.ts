@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { IComponent } from '../../core/scene';
+import type { IComponentInfo } from '../../core/scene';
 import { SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaCompPrefabInfo } from './prefab-info-schema';
 
@@ -109,7 +109,7 @@ export const SchemaSetPropertyOptions = z.object({
     )
 }).describe('Information required to set component properties'); // 设置组件属性所需要的信息
 
-export const SchemaComponent: z.ZodType<IComponent> = SchemaComponentIdentifier.extend({
+export const SchemaComponent: z.ZodType<IComponentInfo> = SchemaComponentIdentifier.extend({
     properties: z.record(
         z.string().describe('Property name'), // 属性名称
         SchemaProperty,

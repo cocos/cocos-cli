@@ -1,13 +1,12 @@
 'use strict';
-import { Node, Component, js, CCClass } from 'cc';
+import { Node, Component, js, CCClass, Scene } from 'cc';
 import { parsingPath } from './utils';
+import get from 'lodash/get';
 import AssetUtil from './asset';
-import { decodePatch, resetProperty, updatePropertyFromNull } from './decode';
-import { encodeObject, encodeComponent, encodeComponentForEditor } from './encode';
-import { IComponent, IComponentForEditor } from '../../../common';
-
-// import * as dumpDecode from './decode';
-const { get } = require('lodash');
+import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
+import { encodeObject, encodeComponent, encodeScene, encodeNode } from './encode';
+import { IComponent, INode, IScene } from '../../../common';
+import { Rpc } from '../../rpc';
 
 // dump接口,统一下全局引用
 class DumpUtil {
@@ -25,6 +24,21 @@ class DumpUtil {
         return ret;
     }
 
+    /**
+     * 生成一个 node 的 dump 数据
+     * @param {*} node
+     */
+    dumpNode(node: Node): INode | IScene | null {
+        if (!node) {
+            return null;
+        }
+        if (node instanceof Scene) {
+            return encodeScene(node);
+        }
+        return encodeNode(node);
+
+    }
+
     // 生成一个component的dump数据
     dumpComponent(comp: Component): IComponent;
     dumpComponent(comp: null | undefined): null;
@@ -33,16 +47,6 @@ class DumpUtil {
             return null;
         }
         return encodeComponent(comp);
-    }
-
-    // 生成一个component的dump数据
-    dumpComponentForEditor(comp: Component): IComponentForEditor;
-    dumpComponentForEditor(comp: null | undefined): null;
-    dumpComponentForEditor(comp: Component | null | undefined) {
-        if (!comp) {
-            return null;
-        }
-        return encodeComponentForEditor(comp);
     }
 
     /**
@@ -85,6 +89,18 @@ class DumpUtil {
     }
 
     /**
+     * 还原一个节点的全部属性
+     * @param {*} node
+     * @param {*} dump
+     */
+    async restoreNode(node: Node, dump: any) {
+        if (dump && dump.isScene) {
+            return await decodeScene(dump, node);
+        }
+        return await decodeNode(dump, node);
+    }
+
+    /**
      * 解析节点的访问路径
      * @param path 
      * @returns 
@@ -117,6 +133,72 @@ class DumpUtil {
         return value;
     }
 
+}
+
+function collectI18nKeys(obj: any, keys: Set<string>) {
+    if (!obj || typeof obj !== 'object') return;
+    if (typeof obj.displayName === 'string' && obj.displayName.startsWith('i18n:')) {
+        keys.add(obj.displayName);
+    }
+    if (typeof obj.tooltip === 'string' && obj.tooltip.startsWith('i18n:')) {
+        keys.add(obj.tooltip);
+    }
+    if (obj.value && typeof obj.value === 'object') {
+        if (Array.isArray(obj.value)) {
+            for (const item of obj.value) {
+                collectI18nKeys(item, keys);
+            }
+        } else {
+            for (const key in obj.value) {
+                collectI18nKeys(obj.value[key], keys);
+            }
+        }
+    }
+    if (Array.isArray(obj.__comps__)) {
+        for (const comp of obj.__comps__) {
+            collectI18nKeys(comp, keys);
+        }
+    }
+}
+
+function applyI18nTranslations(obj: any, translations: Record<string, string>) {
+    if (!obj || typeof obj !== 'object') return;
+    if (typeof obj.displayName === 'string' && translations[obj.displayName] !== undefined) {
+        obj.displayName = translations[obj.displayName];
+    }
+    if (typeof obj.tooltip === 'string' && translations[obj.tooltip] !== undefined) {
+        obj.tooltip = translations[obj.tooltip];
+    }
+    if (obj.value && typeof obj.value === 'object') {
+        if (Array.isArray(obj.value)) {
+            for (const item of obj.value) {
+                applyI18nTranslations(item, translations);
+            }
+        } else {
+            for (const key in obj.value) {
+                applyI18nTranslations(obj.value[key], translations);
+            }
+        }
+    }
+    if (Array.isArray(obj.__comps__)) {
+        for (const comp of obj.__comps__) {
+            applyI18nTranslations(comp, translations);
+        }
+    }
+}
+
+export async function translateDumpI18n<T>(dump: T): Promise<T> {
+    if (!dump) return dump;
+    const keys = new Set<string>();
+    collectI18nKeys(dump, keys);
+    if (keys.size === 0) return dump;
+    try {
+        const translations = await Rpc.getInstance().request('i18n', 'batchTransI18nName', [Array.from(keys)]);
+        applyI18nTranslations(dump, translations);
+    } catch (e) {
+        console.warn('[Dump] Failed to translate i18n keys via RPC:', e);
+    }
+    return dump;
 }
 
 export default new DumpUtil();

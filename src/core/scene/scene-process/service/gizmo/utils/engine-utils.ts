@@ -266,6 +266,9 @@ export function addMeshToNode(node: Node, mesh: any, opts: IAddMeshToNodeOption 
     if (opts.cullMode) {
         states.rasterizerState = { cullMode: opts.cullMode };
     }
+    if (opts.depthStencilState) {
+        states.depthStencilState = opts.depthStencilState;
+    }
     if (pm !== triangles) {
         states.primitive = pm;
     }

@@ -1,8 +1,10 @@
 import type { Node } from 'cc';
-import { IComponent, IComponentIdentifier } from './component';
-import { IVec3, IQuat } from './value-types';
+import { IRemovedComponentInfo, ISetPropertyOptions } from './component';
+import { IVec3 } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
-import { IPrefabInfo, IPrefabStateInfo } from './prefab';
+import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
+import type { IProperty } from '../@types/public';
+import type { IScene } from './editor/scene';
 
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
@@ -94,34 +96,6 @@ export enum MobilityMode {
     Movable = 2
 }
 
-// 节点基础属性接口
-export interface INodeProperties {
-    position: IVec3; // 节点位置
-    // worldPosition: IVec3; // 节点世界位置
-    rotation: IQuat; // 节点旋转, 四元数
-    // worldRotation: IQuat; // 节点世界旋转, 四元数
-    eulerAngles: IVec3; // 节点旋转，欧拉角
-    // angle: number; // 本地坐标系下的旋转，用欧拉角表示，但是限定在 z 轴上
-    scale: IVec3; // 节点缩放
-    // worldScale: IVec3; // 节点世界缩放
-    // worldMatrix: IMat4; // 节点的世界变换矩阵
-    // forward: IVec3; // 节点的前方向向量, 默认前方为 -z 方向
-    // up: IVec3; // 当前节点在世界空间中朝上的方向向量
-    // right: IVec3; // 当前节点在世界空间中朝右的方向向量
-    mobility: MobilityMode; // 节点的移动性
-    layer: number; // 节点所在的层级
-    // hasChangedFlags: number; // 这个节点的空间变换信息在当前帧内是否有变过？
-    active: boolean; // 节点是否激活
-    // readonly activeInHierarchy: boolean; // 节点在场景中是否激活
-}
-
-// 节点标识符接口
-export interface INodeIdentifier {
-    nodeId: string; // 节点的 id
-    path: string; // 节点在场景中的路径
-    name: string; // 节点名称
-}
-
 // 节点查询参数接口
 export interface IQueryNodeParams {
     path: string; // 查询的节点路径
@@ -129,24 +103,44 @@ export interface IQueryNodeParams {
     queryComponent: boolean; // 是否查询component的详细信息
 }
 
-// 节点查询结果项接口
-export interface INode extends INodeIdentifier {
-    properties: INodeProperties; // 节点属性
-    components?: IComponent[] | IComponentIdentifier[]; // 节点上的组件列表
-    children?: INode[]; // 子节点列表
-    prefab: IPrefabInfo | null;// 是否是预制体
+export interface IPrefab {
+    uuid: string;
+    fileId: string;
+    rootUuid: string;
+    sync: boolean;
+    prefabStateInfo: IPrefabStateInfo;
+    targetOverrides?: ITargetOverrideInfo[];
+    instance?: IProperty;
 }
 
-// 节点更新参数接口
-export interface IUpdateNodeParams {
+export interface INode {
     path: string;
-    name?: string;
-    properties?: Partial<INodeProperties>; // 节点属性
-}
+    active: IProperty;
+    locked: IProperty;
+    name: IProperty;
+    position: IProperty;
 
-// 节点更新结果接口
-export interface IUpdateNodeResult {
-    path: string; // 节点相对根节点路径
+    /**
+     * 此为 dump 数据，非 node.rotation
+     * 实际指向 node.eulerAngles
+     * rotation 为了给用户更友好的文案
+     */
+    rotation: IProperty;
+    mobility: IProperty;
+
+    scale: IProperty;
+    layer: IProperty;
+    uuid: IProperty;
+
+    children: IProperty[];
+    parent: IProperty;
+
+    __comps__: IProperty[];
+    __type__: string;
+    __prefab__?: IPrefab;
+    _prefabInstance?: any;
+    removedComponents?: IRemovedComponentInfo[];
+    mountedRoot?: string;
 }
 
 // 节点删除参数接口
@@ -216,7 +210,15 @@ export interface INodeEvents {
     'node:removed': [Node, IChangeNodeOptions];
 }
 
-export interface IPublicNodeService extends Omit<INodeService, keyof IServiceEvents> {}
+export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
+    'previewSetProperty' |
+    'cancelPreviewSetProperty' |
+    'setProperty' |
+    'reset' |
+    'resetProperty' |
+    'updatePropertyFromNull' |
+    'setNodeAndChildrenLayer'
+>;
 
 /**
  * 节点的相关处理接口
@@ -226,32 +228,147 @@ export interface INodeService extends IServiceEvents {
      * 创建节点
      * @param params
      */
-    createNodeByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
+    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
 
     /**
      * 创建节点
      * @param params
      */
-    createNodeByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     /**
      * 删除节点
-     * @param params 
-     */
-    deleteNode(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    /**
-     * 更新节点
      * @param params
      */
-    updateNode(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
+    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     /**
-    * 查询节点
-    */
-    queryNode(params: IQueryNodeParams): Promise<INode | null>;
+     * 查询节点信息
+     *
+     * @param params - 查询选项
+     * @returns 查询到的节点信息，未找到返回 null
+     */
+    query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
 
     /**
      * 查询节点树（层级管理器格式）
      */
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+
+    // ---- 编辑器相关接口 ----
+
+    /**
+     * 预览设置节点属性，临时应用属性变更但不记录到 undo 栈
+     * 用于编辑器中拖拽滑块等实时预览场景，首次调用时会缓存原始值，
+     * 可通过 cancelPreviewSetProperty 恢复
+     *
+     * @param options - 设置属性选项
+     * @param options.nodePath - 节点路径
+     * @param options.path - 属性路径，如 'position'、'scale'
+     * @param options.dump - 属性的 dump 数据
+     * @returns 设置成功返回 true，节点或属性路径无效返回 false
+     *
+     * @example
+     * ```ts
+     * // 预览修改节点位置
+     * await previewSetProperty({
+     *     nodePath: 'Canvas/MyNode',
+     *     path: 'position',
+     *     dump: { value: { x: 100, y: 200, z: 0 }, type: 'cc.Vec3' },
+     * });
+     * ```
+     */
+    previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+
+    /**
+     * 取消预览设置，将节点属性恢复到 previewSetProperty 调用前的值
+     * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
+     *
+     * @param options - 设置属性选项
+     * @param options.nodePath - 节点路径
+     * @param options.path - 属性路径
+     * @returns 恢复成功返回 true，无缓存的预览数据或节点无效返回 false
+     */
+    cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+
+    /**
+     * 设置节点属性，会记录到 undo 栈
+     *
+     * @param options - 设置属性选项
+     * @param options.nodePath - 节点路径
+     * @param options.path - 属性路径，如 'position'、'rotation'、'layer'
+     * @param options.dump - 属性的 dump 数据
+     * @returns 设置成功返回 true，节点不存在返回 false
+     *
+     * @example
+     * ```ts
+     * await setProperty({
+     *     nodePath: 'Canvas/MyNode',
+     *     path: 'position',
+     *     dump: { value: { x: 100, y: 200, z: 0 }, type: 'cc.Vec3' },
+     * });
+     * ```
+     */
+    setProperty(options: ISetPropertyOptions): Promise<boolean>;
+
+    /**
+     * 重置节点的变换属性（position、rotation、scale、mobility）到默认值
+     *
+     * @param path - 节点路径
+     * @returns 重置成功返回 true，节点不存在返回 false
+     */
+    reset(path: string): Promise<boolean>;
+
+    /**
+     * 重置节点的单个属性到 CCClass 定义的默认值
+     * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
+     *
+     * @param options - 设置属性选项
+     * @param options.nodePath - 节点路径
+     * @param options.path - 属性路径，如 'position'、'scale'
+     * @returns 重置成功返回 true，节点不存在返回 false
+     */
+    resetProperty(options: ISetPropertyOptions): Promise<boolean>;
+
+    /**
+     * 将节点上值为 null 的属性初始化为默认实例
+     * 当属性为 null 且有定义构造函数类型时，会创建该类型的新实例
+     * 仅使用 options.nodePath 和 options.path，options.dump 不会被使用
+     *
+     * @param options - 设置属性选项
+     * @param options.nodePath - 节点路径
+     * @param options.path - 属性路径
+     * @returns 初始化成功返回 true，节点不存在返回 false
+     *
+     * @example
+     * ```ts
+     * // 将节点上值为 null 的自定义属性初始化
+     * await updatePropertyFromNull({
+     *     nodePath: 'Canvas/MyNode',
+     *     path: 'customProperty',
+     *     dump: {} as IProperty,
+     * });
+     * ```
+     */
+    updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean>;
+
+    /**
+     * 设置节点及其所有子节点的 layer 属性
+     * 递归将相同的 layer 值应用到整个节点子树
+     * 仅使用 options.nodePath 和 options.dump，options.path 不会被使用（内部固定为 'layer'）
+     *
+     * @param options - 设置属性选项
+     * @param options.nodePath - 节点路径
+     * @param options.dump - layer 属性的 dump 数据
+     *
+     * @example
+     * ```ts
+     * await setNodeAndChildrenLayer({
+     *     nodePath: 'Canvas/MyNode',
+     *     path: 'layer',
+     *     dump: { value: 1 << 25, type: 'Enum' },
+     * });
+     * ```
+     */
+    setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void>;
 }
 
 ///

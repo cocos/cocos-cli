@@ -15,6 +15,8 @@ beforeAll(async () => {
     console.log('创建场景测试目录:', SceneTestEnv.cacheDirectory);
     const TestUtils = await import('../../test/global-setup');
     await TestUtils.globalSetup();
+    const { loadSceneI18n } = await import('../index');
+    await loadSceneI18n();
 });
 
 afterAll(async () => {
@@ -24,7 +26,9 @@ afterAll(async () => {
 import './editor-proxy-scene.testcase';
 import './editor-proxy-prefab.testcase';
 import './node-proxy.testcase';
+import './node-for-editor.testcase';
 import './component-proxy.testcase';
+import './component-for-editor.testcase';
 import './prefab-proxy.testcase';
 import './script-proxy.testcase';
 import './engine-proxy.testcase';
