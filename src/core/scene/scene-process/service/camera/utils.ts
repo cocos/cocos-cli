@@ -277,4 +277,175 @@ export class CameraUtils {
             CameraUtils._snapTipElement = null;
         }
     }
+
+    private static _wanderTipElement: HTMLElement | null = null;
+    private static _wanderTipTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    static showWanderTip(duration = 5000) {
+        if (typeof document === 'undefined') return;
+        if (CameraUtils._wanderTipElement) {
+            if (CameraUtils._wanderTipTimeout) {
+                clearTimeout(CameraUtils._wanderTipTimeout);
+            }
+            if (duration > 0) {
+                CameraUtils._wanderTipTimeout = setTimeout(() => CameraUtils.hideWanderTip(), duration);
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.style.cssText = `
+            position: absolute; bottom: 10px; left: 10px;
+            background-color: #00000047; border-radius: 6px;
+            display: flex; flex-direction: column;
+            align-content: flex-end; flex-wrap: nowrap; justify-content: flex-start;
+            font-size: 15px; padding-top: 6px; padding-bottom: 6px;
+            z-index: 9999; pointer-events: none; font-family: sans-serif;
+        `;
+
+        const keyCss = `
+            display: flex; align-items: center; justify-content: center;
+            width: 32px; height: 24px; border-radius: 4px;
+            background: #0505054D; border: 1px solid #FAFAFA33;
+            color: #FAFAFA; position: relative; margin-right: 4px; opacity: 0.7;
+        `;
+
+        const wanderKeys = [
+            { key: 'Q', arrow: '▼' },
+            { key: 'W', arrow: '+' },
+            { key: 'E', arrow: '▲' },
+            { key: 'A', arrow: '◀' },
+            { key: 'S', arrow: '-' },
+            { key: 'D', arrow: '▶' },
+        ];
+
+        const shortcutRow = document.createElement('div');
+        shortcutRow.style.cssText = `
+            display: flex; flex-direction: row; flex-wrap: nowrap;
+            align-items: flex-start; justify-content: flex-end;
+            padding: 0 12px;
+        `;
+
+        const label = document.createElement('span');
+        label.style.cssText = 'color: white; opacity: 0.6; margin-right: 8px; line-height: 56px;';
+        label.textContent = 'Camera Wander';
+        shortcutRow.appendChild(label);
+
+        const keyGrid = document.createElement('div');
+        keyGrid.style.cssText = `
+            display: inline-flex; justify-content: center;
+            max-width: 120px; flex-wrap: wrap;
+        `;
+
+        wanderKeys.forEach((item) => {
+            const keyEl = document.createElement('div');
+            keyEl.style.cssText = keyCss;
+            keyEl.textContent = item.key;
+
+            const indicator = document.createElement('span');
+            indicator.style.cssText = `
+                position: absolute; font-size: 8px; top: 35%; right: 2px;
+                color: #A3A3A3; line-height: 1;
+            `;
+            indicator.textContent = item.arrow;
+            keyEl.appendChild(indicator);
+
+            keyGrid.appendChild(keyEl);
+        });
+
+        shortcutRow.appendChild(keyGrid);
+        container.appendChild(shortcutRow);
+
+        const addSpacer = () => {
+            const spacer = document.createElement('div');
+            spacer.style.cssText = 'width: 100%; height: 4px;';
+            container.appendChild(spacer);
+        };
+
+        const addKeywordRow = (text: string, keyText: string, keyWidth: string) => {
+            addSpacer();
+            const row = document.createElement('div');
+            row.style.cssText = `
+                display: flex; flex-direction: row; flex-wrap: nowrap;
+                align-items: center; justify-content: flex-end; padding: 0 12px;
+            `;
+            const rowLabel = document.createElement('span');
+            rowLabel.style.cssText = 'color: white; opacity: 0.6; margin-right: 8px;';
+            rowLabel.textContent = text;
+            row.appendChild(rowLabel);
+
+            const keyEl = document.createElement('div');
+            keyEl.style.cssText = keyCss + `width: ${keyWidth}; min-width: ${keyWidth};`;
+            keyEl.textContent = keyText;
+            row.appendChild(keyEl);
+
+            container.appendChild(row);
+        };
+
+        addKeywordRow('Speed', 'Shift', '80px');
+        addKeywordRow('Speed Up', 'Wheel Up', '100%');
+        addKeywordRow('Speed Down', 'Wheel Down', '100%');
+
+        document.body.appendChild(container);
+        CameraUtils._wanderTipElement = container;
+
+        if (duration > 0) {
+            CameraUtils._wanderTipTimeout = setTimeout(() => CameraUtils.hideWanderTip(), duration);
+        }
+    }
+
+    static hideWanderTip() {
+        if (CameraUtils._wanderTipTimeout) {
+            clearTimeout(CameraUtils._wanderTipTimeout);
+            CameraUtils._wanderTipTimeout = null;
+        }
+        if (CameraUtils._wanderTipElement) {
+            CameraUtils._wanderTipElement.remove();
+            CameraUtils._wanderTipElement = null;
+        }
+    }
+
+    private static _speedToastElement: HTMLElement | null = null;
+    private static _speedToastTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    static showWanderSpeedToast(speedScale: number, speed: number) {
+        if (typeof document === 'undefined') return;
+
+        const text = `${speedScale.toFixed(2)}x (${speed.toFixed(2)})`;
+
+        if (CameraUtils._speedToastElement) {
+            CameraUtils._speedToastElement.textContent = text;
+            if (CameraUtils._speedToastTimeout) {
+                clearTimeout(CameraUtils._speedToastTimeout);
+            }
+            CameraUtils._speedToastTimeout = setTimeout(() => CameraUtils._hideSpeedToast(), 500);
+            return;
+        }
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.3); width: 200px; height: 100px;
+            font-size: 26px; color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px; border: 0;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999; pointer-events: none; font-family: sans-serif;
+        `;
+        toast.textContent = text;
+
+        document.body.appendChild(toast);
+        CameraUtils._speedToastElement = toast;
+        CameraUtils._speedToastTimeout = setTimeout(() => CameraUtils._hideSpeedToast(), 500);
+    }
+
+    private static _hideSpeedToast() {
+        if (CameraUtils._speedToastTimeout) {
+            clearTimeout(CameraUtils._speedToastTimeout);
+            CameraUtils._speedToastTimeout = null;
+        }
+        if (CameraUtils._speedToastElement) {
+            CameraUtils._speedToastElement.remove();
+            CameraUtils._speedToastElement = null;
+        }
+    }
 }

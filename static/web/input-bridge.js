@@ -14,13 +14,14 @@ function setupInputBridge(options) {
     var engine = options.engine;
     var shouldIgnore = options.shouldIgnore || function () { return false; };
     var lastX = 0, lastY = 0;
+    var pointerLocked = false;
 
     function toMouseEvent(e, extra) {
         var rect = canvas.getBoundingClientRect();
         var x = e.clientX - rect.left;
         var y = e.clientY - rect.top;
-        var dx = x - lastX;
-        var dy = y - lastY;
+        var dx = pointerLocked ? (e.movementX || 0) : (x - lastX);
+        var dy = pointerLocked ? (e.movementY || 0) : (y - lastY);
         var evt = {
             x: x, y: y,
             clientX: e.clientX, clientY: e.clientY,
@@ -115,6 +116,10 @@ function setupInputBridge(options) {
         dispatchKey('keyup', toKeyEvent(e));
     }
 
+    function onPointerLockChange() {
+        pointerLocked = document.pointerLockElement === canvas;
+    }
+
     // DPR change monitoring — matches editor's bindEvent behavior
     if (typeof window.matchMedia === 'function') {
         var updateDPRChangeListener = function () {
@@ -135,6 +140,7 @@ function setupInputBridge(options) {
     canvas.addEventListener('contextmenu', onContextMenu);
     canvas.addEventListener('keydown', onKeyDown);
     canvas.addEventListener('keyup', onKeyUp);
+    document.addEventListener('pointerlockchange', onPointerLockChange);
 
     return function cleanup() {
         canvas.removeEventListener('mousedown', onMouseDown);
@@ -145,5 +151,9 @@ function setupInputBridge(options) {
         canvas.removeEventListener('contextmenu', onContextMenu);
         canvas.removeEventListener('keydown', onKeyDown);
         canvas.removeEventListener('keyup', onKeyUp);
+        document.removeEventListener('pointerlockchange', onPointerLockChange);
+        if (pointerLocked) {
+            document.exitPointerLock();
+        }
     };
 }

@@ -30,10 +30,25 @@ export class OperationService extends BaseService<IOperationEvents> {
 
     requestPointerLock(): void {
         this.broadcast('pointer-lock', true);
+        try {
+            const canvas = (cc as any).game?.canvas;
+            if (canvas && canvas.requestPointerLock) {
+                canvas.requestPointerLock();
+            }
+        } catch (e) {
+            // canvas may not be ready
+        }
     }
 
     exitPointerLock(): void {
         this.broadcast('pointer-lock', false);
+        try {
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+        } catch (e) {
+            // ignore
+        }
     }
 
     changePointer(type: string): void {

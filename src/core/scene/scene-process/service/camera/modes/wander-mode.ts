@@ -1,6 +1,6 @@
 import { Quat, Vec3, math } from 'cc';
 import ModeBase3D from './mode-base-3d';
-import { CameraMoveMode } from '../utils';
+import { CameraMoveMode, CameraUtils } from '../utils';
 import { AnimVec3 } from '../animate-value';
 import type { ISceneMouseEvent, ISceneKeyboardEvent } from '../../operation/types';
 import type { CameraController3D } from '../camera-controller-3d';
@@ -93,6 +93,7 @@ class WanderMode extends ModeBase3D {
         }
 
         this._cameraCtrl.emit('camera-move-mode', CameraMoveMode.WANDER);
+        CameraUtils.showWanderTip();
 
         try {
             const { Service } = require('../../core/decorator');
@@ -103,6 +104,7 @@ class WanderMode extends ModeBase3D {
     }
 
     public async exit() {
+        CameraUtils.hideWanderTip();
         try {
             const { Service } = require('../../core/decorator');
             Service.Operation?.exitPointerLock?.();
@@ -138,6 +140,7 @@ class WanderMode extends ModeBase3D {
             speed = Math.min(2, speed);
         }
         this.wanderSpeed = parseFloat(wheel2Speed(speed).toFixed(2));
+        CameraUtils.showWanderSpeedToast(speed, this.wanderSpeed);
     }
 
     onKeyDown(event: ISceneKeyboardEvent) {
