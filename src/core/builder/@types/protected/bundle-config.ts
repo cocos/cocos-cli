@@ -31,6 +31,11 @@ export interface BundleRenderConfig {
     // TODO 平台插件注册 config 机制
 }
 
+export interface BundleQueryConfig {
+    displayName: string;
+    platformConfigs: Record<string, PlatformBundleConfig>;
+}
+
 export interface PlatformTypeInfo {
     icon: string;
     displayName: string;

@@ -229,6 +229,18 @@ export function queryBuildConfig() {
     return builderConfig.getProject<BuildConfiguration>();
 }
 
+export function queryBundleConfig() {
+    return pluginManager.queryBundleConfig();
+}
+
+export function queryTextureCompressConfig() {
+    return pluginManager.queryTextureCompressConfig();
+}
+
+export function getRegisteredPlatforms() {
+    return pluginManager.getRegisteredPlatforms();
+}
+
 export async function queryDefaultBuildConfigByPlatform(platform: Platform) {
     return await pluginManager.getOptionsByPlatform(platform);
 }

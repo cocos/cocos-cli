@@ -59,6 +59,24 @@ export async function queryDefaultBuildConfigByPlatform(platform: Platform) {
     return builder.queryDefaultBuildConfigByPlatform(platform);
 }
 
+// 获取分包配置
+export async function queryBundleConfig() {
+    const builder = await import('../../core/builder');
+    return builder.queryBundleConfig();
+}
+
+// 获取纹理压缩配置
+export async function queryTextureCompressConfig() {
+    const builder = await import('../../core/builder');
+    return builder.queryTextureCompressConfig();
+}
+
+// 获取注册的平台
+export async function getRegisteredPlatforms() {
+    const builder = await import('../../core/builder');
+    return builder.getRegisteredPlatforms();
+}
+
 export async function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult> {
     const builder = await import('../../core/builder');
     return builder.getPreviewSettings(options);

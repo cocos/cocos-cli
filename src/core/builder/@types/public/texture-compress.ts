@@ -114,6 +114,18 @@ export interface ISupportFormat {
     rgb: ITextureCompressType[];
     rgba: ITextureCompressType[];
 }
+
+export interface TextureCompressRenderConfig {
+    displayName: string;
+    platformConfigs: Record<string, PlatformTextureCompressConfig>;
+}
+
+export interface PlatformTextureCompressConfig {
+    platformName: string;
+    platformType: ITextureCompressPlatform;
+    support: ISupportFormat;
+}
+
 export interface IConfigGroupsInfo {
     defaultSupport?: ISupportFormat,
     support: ISupportFormat,

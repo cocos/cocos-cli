@@ -4,12 +4,13 @@ import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting } from '../
 import { NATIVE_PLATFORM, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
-import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType } from '../@types';
-import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo } from '../@types/protected';
+import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType, TextureCompressRenderConfig } from '../@types';
+import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, BundleQueryConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo } from '../@types/protected';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
 import { configGroups } from '../share/texture-compress';
+import { BundlePlatformTypes } from '../share/bundle-utils';
 import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
 import { createBuilderPlatformMetadataNodes } from '../share/metadata';
@@ -303,11 +304,18 @@ export class PluginManager extends EventEmitter {
         const i18nPath = join(path, 'i18n');
         if (existsSync(i18nPath)) {
             try {
+                const patchPath = registerInfo.pkgName || platform;
                 readdirSync(i18nPath).forEach((file) => {
+                    const filePath = join(i18nPath, file);
+                    console.warn('_registerI18n filePath',filePath);
                     if (file.endsWith('.json')) {
                         const lang = basename(file, '.json');
-                        const path = registerInfo.pkgName || platform;
-                        i18n.registerLanguagePatch(lang, path, readJSONSync(join(i18nPath, file)));
+                        i18n.registerLanguagePatch(lang, patchPath, readJSONSync(filePath));
+                    } else if (file.endsWith('.js')) {
+                        const lang = basename(file, '.js');
+                        const resolved = require.resolve(filePath);
+                        const data = require(resolved);
+                        i18n.registerLanguagePatch(lang, patchPath, data);
                     }
                 });
             } catch (error) {
@@ -577,6 +585,67 @@ export class PluginManager extends EventEmitter {
             native: Object.keys(this.platformConfig).filter((platform) => NATIVE_PLATFORM.includes(platform as Platform)),
             config: this.platformConfig,
         };
+    }
+
+    public getRegisteredPlatforms(): string[] {
+        return Object.keys(this.platformConfig);
+    }
+
+    /**
+     * 查询所有平台的 Bundle 配置，按平台类型分组
+     */
+    public queryBundleConfig(): Record<string, BundleQueryConfig> {
+        const result: Record<string, BundleQueryConfig> = {};
+
+        for (const [platform, bundleConfig] of Object.entries(this.bundleConfigs)) {
+            const platformType = bundleConfig.platformType;
+            if (!result[platformType]) {
+                const typeInfo = BundlePlatformTypes[platformType as keyof typeof BundlePlatformTypes];
+                result[platformType] = {
+                    displayName: typeInfo ? i18n.transI18nName(typeInfo.displayName) : platformType,
+                    platformConfigs: {},
+                };
+            }
+
+            const platformName = this.platformConfig[platform]?.name || platform;
+            result[platformType].platformConfigs[platform] = {
+                platformName: i18n.transI18nName(platformName),
+                platformType: bundleConfig.platformType,
+                supportOptions: bundleConfig.supportOptions,
+            };
+        }
+
+        return result;
+    }
+
+    /**
+     * 查询所有平台的纹理压缩配置，按纹理压缩平台类型分组
+     */
+    public queryTextureCompressConfig(): Record<string, TextureCompressRenderConfig> {
+        const result: Record<string, TextureCompressRenderConfig> = {};
+
+        for (const [platform, config] of Object.entries(this.platformConfig)) {
+            if (!config.texture) {
+                continue;
+            }
+            const platformType = config.texture.platformType;
+            if (!result[platformType]) {
+                const groupInfo = configGroups[platformType];
+                result[platformType] = {
+                    displayName: groupInfo ? groupInfo.displayName : platformType,
+                    platformConfigs: {},
+                };
+            }
+
+            const platformName = config.name || platform;
+            result[platformType].platformConfigs[platform] = {
+                platformName: i18n.transI18nName(platformName),
+                platformType: config.texture.platformType,
+                support: config.texture.support,
+            };
+        }
+
+        return result;
     }
 
     /**

@@ -91,6 +91,7 @@ class I18n {
             Object.keys(obj).forEach((key) => {
                 const value = obj[key];
                 const currentKey = prefix ? `${prefix}.${key}` : key;
+                console.warn('registerLanguagePatch currentKey', currentKey);
                 if (value && typeof value === 'object' && !Array.isArray(value)) {
                     flatten(value, currentKey);
                 } else {
