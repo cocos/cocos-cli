@@ -307,7 +307,6 @@ export class PluginManager extends EventEmitter {
                 const patchPath = registerInfo.pkgName || platform;
                 readdirSync(i18nPath).forEach((file) => {
                     const filePath = join(i18nPath, file);
-                    console.warn('_registerI18n filePath',filePath);
                     if (file.endsWith('.json')) {
                         const lang = basename(file, '.json');
                         i18n.registerLanguagePatch(lang, patchPath, readJSONSync(filePath));
