@@ -1297,6 +1297,10 @@ export declare class BundleManager extends BuildTaskBase implements IBundleManag
     runBuildTask(handle: Function, increment: number): Promise<void>;
 }
 export declare type BundlePlatformType = 'native' | 'miniGame' | 'web';
+export declare interface BundleQueryConfig {
+    displayName: string;
+    platformConfigs: Record<string, PlatformBundleConfig>;
+}
 export declare interface BundleRenderConfig {
     platformTypeInfo: PlatformTypeInfo;
     platformConfigs: Record<string, PlatformBundleConfig>;
@@ -1665,6 +1669,7 @@ export declare interface GetManualChunkApi {
 }
 export declare type GetModuleInfo = (moduleId: string) => ModuleInfo | null;
 export declare function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult>;
+export declare function getRegisteredPlatforms(): Promise<string[]>;
 export declare type GlobalsOption = { [name: string]: string } | ((name: string) => string);
 export declare interface GltfAnimationAssetUserData {
     gltfIndex: number;
@@ -3893,6 +3898,11 @@ export declare interface PlatformPackageOptionMap {
 export declare interface PlatformPackageOptions {
     [packageName: string]: Record<string, any>;
 }
+export declare interface PlatformTextureCompressConfig {
+    platformName: string;
+    platformType: ITextureCompressPlatform;
+    support: ISupportFormat;
+}
 export declare type PlatformType = Uppercase<keyof typeof WebPlatform | keyof typeof MinigamePlatform | keyof typeof NativePlatform> | 'HTML5' | 'NATIVE' | 'NODEJS' | 'INVALID_PLATFORM';
 export declare type PlatformType_2 = StatsQuery.ConstantManager.PlatformType;
 export declare interface PlatformTypeInfo {
@@ -3988,6 +3998,9 @@ export declare class PluginManager extends EventEmitter {
         native: string[];
         config: Record<string, IPlatformConfig>;
     };
+    getRegisteredPlatforms(): string[];
+    queryBundleConfig(): Record<string, BundleQueryConfig>;
+    queryTextureCompressConfig(): Record<string, TextureCompressRenderConfig>;
     getBuildStageWithHookTasks(platform: Platform | string, taskName: string): IBuildStageItem | null;
     getBuildStageConfigByPlatform(platform: Platform): Record<string, any> | null;
     private sortPkgNameWidthPriority;
@@ -4048,7 +4061,9 @@ export declare interface PreviewPackResult {
 }
 export declare type PureModulesOption = boolean | string[] | IsPureModule;
 export declare function queryBuildConfig(): Promise<BuildConfiguration>;
+export declare function queryBundleConfig(): Promise<Record<string, BundleQueryConfig>>;
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;
+export declare function queryTextureCompressConfig(): Promise<Record<string, TextureCompressRenderConfig>>;
 export declare type RenderChunkHook = (
 	this: PluginContext,
 	code: string,
@@ -4735,6 +4750,10 @@ export declare class TextureCompress_2 extends EventEmitter_2 {
     _step(): Promise<any>;
     private customCompressImage;
     compressImageByConfig(optionItem: ICompressConfig): Promise<void>;
+}
+export declare interface TextureCompressRenderConfig {
+    displayName: string;
+    platformConfigs: Record<string, PlatformTextureCompressConfig>;
 }
 export declare interface TextureCubeAssetUserData extends TextureBaseAssetUserData {
     imageDatabaseUri?: string;
