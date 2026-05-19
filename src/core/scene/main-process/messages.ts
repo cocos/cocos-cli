@@ -16,7 +16,7 @@ export async function listenModuleMessages() {
         switch (asset.meta.importer) {
             case 'typescript':
             case 'javascript':
-                void ScriptProxy.loadScript();
+                void ScriptProxy.load();
                 break;
         }
     });
@@ -25,21 +25,21 @@ export async function listenModuleMessages() {
         switch (asset.meta.importer) {
             case 'typescript':
             case 'javascript': {
-                void ScriptProxy.scriptChange();
+                void ScriptProxy.change();
                 break;
             }
         }
-        AssetProxy.assetChanged(asset.uuid).catch((err) => {});
+        AssetProxy.changed(asset.uuid).catch((err) => {});
     });
 
     assetManager.on('asset-delete', (asset: IAsset) => {
         switch (asset.meta.importer) {
             case 'typescript':
             case 'javascript': {
-                void ScriptProxy.removeScript();
+                void ScriptProxy.remove();
                 break;
             }
         }
-        AssetProxy.assetDeleted(asset.uuid).catch((err) => {});
+        AssetProxy.deleted(asset.uuid).catch((err) => {});
     });
 }

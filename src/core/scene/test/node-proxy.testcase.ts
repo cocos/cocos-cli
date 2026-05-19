@@ -1,9 +1,9 @@
 import {
-    type ICreateByAssetParams,
-    type ICreateByNodeTypeParams,
-    type IDeleteNodeParams,
-    type IQueryNodeParams,
-    type IQueryNodeTreeParams,
+    type ICreateByAssetOptions,
+    type ICreateByNodeTypeOptions,
+    type IDeleteNodeOptions,
+    type IQueryNodeOptions,
+    type IQueryNodeTreeOptions,
     type IUpdateNodeParams,
     type INodeInfo,
     NodeType,
@@ -34,7 +34,7 @@ describe('Node Proxy 测试', () => {
     describe('1. 基础节点操作', () => {
         it('createByType - 创建多级父节点的节点', async () => {
             const multiParentPath = 'Canvas/TestNode/TestNode2/TestNode3';
-            const params: ICreateByNodeTypeParams = {
+            const params: ICreateByNodeTypeOptions = {
                 path: multiParentPath,
                 name: 'TestNode',
                 nodeType: NodeType.SPRITE,
@@ -50,7 +50,7 @@ describe('Node Proxy 测试', () => {
 
         it('createByAsset - 创建带预制体的节点', async () => {
 
-            const params: ICreateByAssetParams = {
+            const params: ICreateByAssetOptions = {
                 dbURL: 'db://internal/default_prefab/ui/Label.prefab',
                 path: testNodePath,
                 name: 'PrefabNode',
@@ -63,7 +63,7 @@ describe('Node Proxy 测试', () => {
         });
 
         it('createByType - 创建新节点', async () => {
-            const params: ICreateByNodeTypeParams = {
+            const params: ICreateByNodeTypeOptions = {
                 path: testNodePath,
                 name: 'TestNode',
                 nodeType: NodeType.SPRITE,
@@ -84,7 +84,7 @@ describe('Node Proxy 测试', () => {
         it('query - 查询节点基本信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
-                const params: IQueryNodeParams = {
+                const params: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: true
@@ -100,7 +100,7 @@ describe('Node Proxy 测试', () => {
         it('query - 查询节点及子节点信息', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
-                const params: IQueryNodeParams = {
+                const params: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: true,
                     queryComponent: false
@@ -178,7 +178,7 @@ describe('Node Proxy 测试', () => {
                 expect(result?.path).toBe(createdNode.path);
 
                 // 验证更新是否生效
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: true
@@ -203,7 +203,7 @@ describe('Node Proxy 测试', () => {
                 expect(result).toBeDefined();
 
                 // 验证更新是否生效
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: true
@@ -230,7 +230,7 @@ describe('Node Proxy 测试', () => {
                 expect(result).toBeDefined();
 
                 // 验证更新是否生效
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: true
@@ -251,7 +251,7 @@ describe('Node Proxy 测试', () => {
                 const result = await NodeProxy.update(params);
                 expect(result).toBeDefined();
 
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: result.path,
                     queryChildren: false,
                     queryComponent: false,
@@ -275,7 +275,7 @@ describe('Node Proxy 测试', () => {
                 const result = await NodeProxy.update(params);
                 expect(result).toBeDefined();
 
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: false,
@@ -299,7 +299,7 @@ describe('Node Proxy 测试', () => {
                 const result = await NodeProxy.update(params);
                 expect(result).toBeDefined();
 
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: false,
@@ -314,7 +314,7 @@ describe('Node Proxy 测试', () => {
         it('delete - 删除节点（不保持世界变换）', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
-                const params: IDeleteNodeParams = {
+                const params: IDeleteNodeOptions = {
                     path: createdNode.path,
                     keepWorldTransform: false
                 };
@@ -324,7 +324,7 @@ describe('Node Proxy 测试', () => {
                 expect(result?.path).toBe(createdNode.path);
 
                 // 验证节点是否已被删除
-                const queryParams: IQueryNodeParams = {
+                const queryParams: IQueryNodeOptions = {
                     path: createdNode.path,
                     queryChildren: false,
                     queryComponent: true
@@ -338,7 +338,7 @@ describe('Node Proxy 测试', () => {
 
         it('delete - 删除节点（保持世界变换）', async () => {
             // 先创建一个新节点用于删除测试
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: 'NodeToDelete',
                 name: 'NodeToDelete',
                 nodeType: NodeType.SPHERE,
@@ -349,7 +349,7 @@ describe('Node Proxy 测试', () => {
             expect(tempNode).toBeDefined();
 
             // 删除该节点
-            const deleteParams: IDeleteNodeParams = {
+            const deleteParams: IDeleteNodeOptions = {
                 path: tempNode!.path,
                 keepWorldTransform: true
             };
@@ -362,7 +362,7 @@ describe('Node Proxy 测试', () => {
 
     describe('5. 边界情况测试', () => {
         it('query - 查询不存在的节点应返回null', async () => {
-            const params: IQueryNodeParams = {
+            const params: IQueryNodeOptions = {
                 path: '/NonExistentNode',
                 queryChildren: false,
                 queryComponent: false
@@ -385,7 +385,7 @@ describe('Node Proxy 测试', () => {
         });
 
         it('delete - 删除不存在的节点应返回null', async () => {
-            const params: IDeleteNodeParams = {
+            const params: IDeleteNodeOptions = {
                 path: '/NonExistentNode',
                 keepWorldTransform: false
             };
@@ -401,7 +401,7 @@ describe('Node Proxy 测试', () => {
             try {
                 for (const node of allNodes) {
                     // 删除该节点
-                    const deleteParams: IDeleteNodeParams = {
+                    const deleteParams: IDeleteNodeOptions = {
                         path: node!.path,
                         keepWorldTransform: true
                     };
@@ -440,7 +440,7 @@ describe('Node Proxy 测试', () => {
                 ];
             const nodeTypes = Object.values(NodeType);
             for (const nodeType of nodeTypes) {
-                const params: ICreateByNodeTypeParams = {
+                const params: ICreateByNodeTypeOptions = {
                     path: '/',
                     nodeType: nodeType,
                     position: testPosition,
@@ -509,7 +509,7 @@ describe('Node Proxy 测试', () => {
 
     describe('7. queryNodeTree - 查询节点树', () => {
         it('queryNodeTree - 查询整棵场景树', async () => {
-            const params: IQueryNodeTreeParams = {};
+            const params: IQueryNodeTreeOptions = {};
             const tree = await NodeProxy.queryNodeTree(params);
             expect(tree).toBeDefined();
             expect(tree).not.toBeNull();
@@ -545,7 +545,7 @@ describe('Node Proxy 测试', () => {
 
         it('queryNodeTree - 通过 path 查询子树', async () => {
             // 先创建一个节点用于查询
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '/',
                 name: 'TreeTestNode',
                 nodeType: NodeType.EMPTY,
@@ -553,7 +553,7 @@ describe('Node Proxy 测试', () => {
             const created = await NodeProxy.createByType(createParams);
             expect(created).toBeDefined();
 
-            const params: IQueryNodeTreeParams = { path: created!.path };
+            const params: IQueryNodeTreeOptions = { path: created!.path };
             const subtree = await NodeProxy.queryNodeTree(params);
             expect(subtree).not.toBeNull();
             expect(subtree!.name).toBe('TreeTestNode');
@@ -564,14 +564,14 @@ describe('Node Proxy 测试', () => {
         });
 
         it('queryNodeTree - 查询不存在的路径应返回 null', async () => {
-            const params: IQueryNodeTreeParams = { path: '/NonExistentTreeNode' };
+            const params: IQueryNodeTreeOptions = { path: '/NonExistentTreeNode' };
             const result = await NodeProxy.queryNodeTree(params);
             expect(result).toBeNull();
         });
 
         it('queryNodeTree - 组件信息包含 type 和 extends', async () => {
             // 创建一个带组件的节点
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '/',
                 name: 'CompTreeTestNode',
                 nodeType: NodeType.SPRITE,
@@ -610,7 +610,7 @@ describe('Node Proxy 测试', () => {
         });
 
         it('createByType - 唯一名称不添加后缀', async () => {
-            const params: ICreateByNodeTypeParams = {
+            const params: ICreateByNodeTypeOptions = {
                 path: parentPath,
                 name: 'UniqueNode',
                 nodeType: NodeType.EMPTY,
@@ -623,7 +623,7 @@ describe('Node Proxy 测试', () => {
         });
 
         it('createByType - 第二个同名节点添加_001后缀', async () => {
-            const params: ICreateByNodeTypeParams = {
+            const params: ICreateByNodeTypeOptions = {
                 path: parentPath,
                 name: 'DupNode',
                 nodeType: NodeType.EMPTY,
@@ -645,7 +645,7 @@ describe('Node Proxy 测试', () => {
             const totalCount = 5;
             const baseName = 'MultiDupNode';
             for (let i = 0; i < totalCount; i++) {
-                const params: ICreateByNodeTypeParams = {
+                const params: ICreateByNodeTypeOptions = {
                     path: parentPath,
                     name: baseName,
                     nodeType: NodeType.EMPTY,

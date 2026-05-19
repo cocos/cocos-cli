@@ -7,6 +7,7 @@ import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { type IComponentEvents } from '../../../common';
 import { ServiceEvents } from '../core/global-events';
+import { isEditorNode } from '../node/node-utils';
 
 export class CompManager {
     protected _recycleComponent: Record<string, Component> = {};
@@ -20,28 +21,35 @@ export class CompManager {
     init() {
         this.registerCompMgrEvents();
     }
-    _onCompAdded?: (uuid: string, component: Component) => void;
-    _onCompRemoved?: (uuid: string, component: Component) => void;
+    private readonly CompMgrEventHandlers = {
+        ['add']: 'onCompAdd',
+        ['remove']: 'onCompRemove',
+    } as const;
+    private compMgrEventHandlers = new Map<string, (...args: []) => void>();
+
     /**
      * 注册引擎Component管理相关事件的监听
      */
     registerCompMgrEvents() {
-        this._onCompAdded = this.add.bind(this);
-        CompMgr.on('add', this._onCompAdded);
-        this._onCompRemoved = this.remove.bind(this);
-        CompMgr.on('remove', this._onCompRemoved);
+        this.unregisterCompMgrEvents();
+        Object.entries(this.CompMgrEventHandlers).forEach(([eventType, handlerName]) => {
+            const handler = (this as any)[handlerName].bind(this);
+            CompMgr.on(eventType, handler);
+            this.compMgrEventHandlers.set(eventType, handler);
+        });
     }
 
     /**
      * 反注册引擎Component管理相关事件的监听
      */
     unregisterCompMgrEvents() {
-        if (this._onCompAdded) {
-            CompMgr.off('add', this._onCompAdded);
-        }
-        if (this._onCompRemoved) {
-            CompMgr.off('remove', this._onCompRemoved);
-        }
+        Object.keys(this.CompMgrEventHandlers).forEach(eventType => {
+            const handler = this.compMgrEventHandlers.get(eventType);
+            if (handler) {
+                CompMgr.off(eventType, handler);
+                this.compMgrEventHandlers.delete(eventType);
+            }
+        });
     }
 
     /**
@@ -56,7 +64,10 @@ export class CompManager {
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    add(uuid: string, component: Component) {
+    onCompAdd(uuid: string, component: Component) {
+        if (isEditorNode(component.node)) {
+            return;
+        }
         this.emit('component:added', component);
     }
 
@@ -65,7 +76,10 @@ export class CompManager {
      * @param {String} uuid
      * @param {cc.Component} component
      */
-    remove(uuid: string, component: Component) {
+    onCompRemove(uuid: string, component: Component) {
+        if (isEditorNode(component.node)) {
+            return;
+        }
         this.emit('component:removed', component);
     }
 

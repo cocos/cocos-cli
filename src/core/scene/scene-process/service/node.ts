@@ -1,13 +1,13 @@
 import { register, BaseService, Service } from './core';
 import {
-    type ICreateByAssetParams,
-    type ICreateByNodeTypeParams,
-    type IDeleteNodeParams,
+    type ICreateByAssetOptions,
+    type ICreateByNodeTypeOptions,
+    type IDeleteNodeOptions,
     type IDeleteNodeResult,
     type INode,
     type INodeService,
-    type IQueryNodeParams,
-    type IQueryNodeTreeParams,
+    type IQueryNodeOptions,
+    type IQueryNodeTreeOptions,
     type INodeTreeItem,
     type INodeEvents,
     NodeType,
@@ -32,11 +32,11 @@ const NodeMgr = EditorExtends.Node;
  */
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
-    async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
+    async createByType(options: ICreateByNodeTypeOptions): Promise<INode | null> {
         try {
             await Service.Editor.lock();
-            let canvasNeeded = params.canvasRequired || false;
-            const nodeType = params.nodeType as string;
+            let canvasNeeded = options.canvasRequired || false;
+            const nodeType = options.nodeType as string;
             const paramsArray = NodeConfig[nodeType];
             if (!paramsArray || paramsArray.length < 0) {
                 throw new Error(`Node type '${nodeType}' is not implemented`);
@@ -44,12 +44,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             let assetUuid = paramsArray[0].assetUuid || null;
             canvasNeeded = paramsArray[0].canvasRequired ? true : false;
             const projectType = paramsArray[0]['project-type'];
-            const workMode = params.workMode;
+            const workMode = options.workMode;
             if (projectType && workMode && projectType !== workMode.toLowerCase() && paramsArray.length > 1) {
                 assetUuid = paramsArray[1]['assetUuid'] || null;
                 canvasNeeded = paramsArray[1].canvasRequired ? true : false;
             }
-            return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+            return await this._createNode(assetUuid, canvasNeeded, options.nodeType == NodeType.EMPTY, options);
         } catch (error) {
             console.error(error);
             throw error;
@@ -58,15 +58,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async createByAsset(params: ICreateByAssetParams): Promise<INode | null> {
+    async createByAsset(options: ICreateByAssetOptions): Promise<INode | null> {
         try {
             await Service.Editor.lock();
-            const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
+            const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [options.dbURL]);
             if (!assetUuid) {
-                throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
+                throw new Error(`Asset not found for dbURL: ${options.dbURL}`);
             }
-            const canvasNeeded = params.canvasRequired || false;
-            return await this._createNode(assetUuid, canvasNeeded, false, params);
+            const canvasNeeded = options.canvasRequired || false;
+            return await this._createNode(assetUuid, canvasNeeded, false, options);
         } catch (error) {
             console.error(error);
             throw error;
@@ -75,15 +75,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<INode | null> {
+    async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, options: ICreateByNodeTypeOptions | ICreateByAssetOptions): Promise<INode | null> {
         const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
         }
 
-        const workMode = params.workMode || '2d';
+        const workMode = options.workMode || '2d';
         // 使用增强的路径处理方法
-        let parent = await this._getOrCreateNodeByPath(params.path, currentScene);
+        let parent = await this._getOrCreateNodeByPath(options.path, currentScene);
         if (!parent) {
             parent = currentScene;
         }
@@ -95,7 +95,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 canvasRequired: canvasNeeded
             });
             resultNode = node;
-            parent = await this.checkCanvasRequired(workMode.toLowerCase(), Boolean(canvasRequired), parent, params.position as Vec3) as Node;
+            parent = await this.checkCanvasRequired(workMode.toLowerCase(), Boolean(canvasRequired), parent, options.position as Vec3) as Node;
         }
         if (!resultNode) {
             resultNode = new cc.Node();
@@ -110,12 +110,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
          * 是否要 unlink 为普通节点
          * 有 nodeType 说明是内置资源创建的，需要移除 prefab info
          */
-        if ('nodeType' in params) {
+        if ('nodeType' in options) {
             Service.Prefab.removePrefabInfoFromNode(resultNode, true);
         }
 
-        if (params.name) {
-            resultNode.name = params.name;
+        if (options.name) {
+            resultNode.name = options.name;
         }
 
         this.emit('node:before-add', resultNode);
@@ -132,11 +132,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         // Compared to the editor, the position is set via API, so local coordinates are used here.
-        if (params.position) {
-            resultNode.setPosition(params.position);
+        if (options.position) {
+            resultNode.setPosition(options.position);
         }
 
-        resultNode.setParent(parent, params.keepWorldTransform);
+        resultNode.setParent(parent, options.keepWorldTransform);
         // setParent 后，node的path可能会变，node的name需要同步path中对应的name
         const path = NodeMgr.getNodePath(resultNode);
         const name = path.split('/').pop();
@@ -230,7 +230,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return currentParent;
     }
 
-    async delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
+    async delete(options: IDeleteNodeOptions): Promise<IDeleteNodeResult | null> {
         try {
             await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
@@ -238,13 +238,13 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 throw new Error('Failed to delete node: the scene is not opened.');
             }
 
-            const path = params.path;
+            const path = options.path;
             const node = NodeMgr.getNodeByPath(path);
             if (!node) {
                 return null;
             }
 
-            nodeMgr.baseRemoveNode(node, params.keepWorldTransform);
+            nodeMgr.baseRemoveNode(node, options.keepWorldTransform);
 
             return {
                 path: path,
@@ -257,14 +257,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async query(params?: IQueryNodeParams): Promise<INode | IScene | null> {
+    async query(options?: IQueryNodeOptions): Promise<INode | IScene | null> {
         try {
             await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to query node: the scene is not opened.');
             }
-            const path = params?.path;
+            const path = options?.path;
             const node = (path && path !== '/') ? NodeMgr.getNodeByPath(path) : root;
             if (!node) return null;
             return await sceneUtils.generateNodeDump(node, {
@@ -279,7 +279,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
-    async queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
+    async queryNodeTree(options: IQueryNodeTreeOptions): Promise<INodeTreeItem | null> {
         try {
             await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
@@ -323,8 +323,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             };
 
             let node: Node | null = root;
-            if (params.path) {
-                node = NodeMgr.getNodeByPath(params.path);
+            if (options.path) {
+                node = NodeMgr.getNodeByPath(options.path);
             }
             if (!node) {
                 return null;
@@ -474,4 +474,3 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return nodeMgr.getPathByUuid(uuid);
     }
 }
-

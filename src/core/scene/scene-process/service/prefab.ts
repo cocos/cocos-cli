@@ -16,7 +16,7 @@ import type {
     IRevertToPrefabParams,
     IUnpackPrefabInstanceParams,
 } from '../../common';
-import { validateCreatePrefabParams, validateNodePathParams } from './prefab/validate-params';
+import { validateCreateParams, validateNodePathParams } from './prefab/validate-params';
 import { sceneUtils } from './scene/utils';
 import { Rpc } from '../rpc';
 
@@ -31,10 +31,10 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 将节点转换为预制体资源
      */
-    async createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode> {
+    async createFromNode(params: ICreatePrefabFromNodeParams): Promise<INode> {
         try {
 
-            validateCreatePrefabParams(params);
+            validateCreateParams(params);
 
             const nodeUuid = EditorExtends.Node.getNodeUuidByPathOrThrow(params.nodePath);
 
@@ -61,7 +61,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 将节点的修改应用回预制体资源
      */
-    async applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean> {
+    async applyChanges(params: IApplyPrefabChangesParams): Promise<boolean> {
         try {
             validateNodePathParams(params);
 
@@ -82,7 +82,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 重置节点到预制体原始状态
      */
-    async revertToPrefab(params: IRevertToPrefabParams): Promise<boolean> {
+    async revert(params: IRevertToPrefabParams): Promise<boolean> {
         try {
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
@@ -96,7 +96,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 解耦预制体实例，使其成为普通节点
      */
-    async unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode> {
+    async unpack(params: IUnpackPrefabInstanceParams): Promise<INode> {
         try {
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
@@ -116,7 +116,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 检查节点是否为预制体实例
      */
-    async isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean> {
+    async isInstance(params: IIsPrefabInstanceParams): Promise<boolean> {
         try {
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             return !!prefabUtils.getPrefab(node)?.instance;
@@ -129,7 +129,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     /**
      * 获取节点的预制体信息
      */
-    async getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null> {
+    async getInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null> {
         try {
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             const prefabInfo = prefabUtils.getPrefab(node);
@@ -316,12 +316,6 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             }, 500);
         }
     }
-
-    /**
-     * 将一个节点恢复到关联的 prefab 的状态
-     * @param {*} nodeUuid
-     */
-    public revert(nodeUuid: string) { }
 
     /**
      * 将一个节点的修改，应用到关联的 prefab 上

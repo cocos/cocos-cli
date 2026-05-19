@@ -39,18 +39,18 @@ describe('Script Proxy 测试', () => {
         expect(true).toBe(true);
     });
 
-    it('queryScriptName', async () => {
+    it('queryName', async () => {
         let scriptName: string | null = null;
         if (assetInfo) {
-            scriptName = await ScriptProxy.queryScriptName(assetInfo.uuid);
+            scriptName = await ScriptProxy.queryName(assetInfo.uuid);
         }
         expect(scriptName).toBeTruthy();
     });
 
-    it('queryScriptCid', async () => {
+    it('queryCid', async () => {
         let scriptCid: string | null = null;
         if (assetInfo) {
-            scriptCid = await ScriptProxy.queryScriptCid(assetInfo.uuid);
+            scriptCid = await ScriptProxy.queryCid(assetInfo.uuid);
         }
         expect(scriptCid).toBeTruthy();
     });

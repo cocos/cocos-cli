@@ -4,7 +4,7 @@
   后续需要迁移
  */
 import type {
-    ICreateByNodeTypeParams,
+    ICreateByNodeTypeOptions,
     ICreatePrefabFromNodeParams,
     IGetPrefabInfoParams,
     INode,
@@ -91,7 +91,7 @@ describe('Prefab ForEditor 接口测试', () => {
                 overwrite: true,
             };
 
-            prefabNodeDump = await rpcPrefabRequest('createPrefabFromNode', [params]);
+            prefabNodeDump = await rpcPrefabRequest('createFromNode', [params]);
         });
 
         it('返回有效的 INode 结构', () => {
@@ -143,7 +143,7 @@ describe('Prefab ForEditor 接口测试', () => {
             expect(buttonNode).toBeDefined();
 
             // 将 Button 节点转换为内部预制体
-            const innerResult: any = await rpcPrefabRequest('createPrefabFromNode', [{
+            const innerResult: any = await rpcPrefabRequest('createFromNode', [{
                 nodePath: buttonNode!.path,
                 dbURL: innerPrefabURL,
                 overwrite: true,
@@ -167,7 +167,7 @@ describe('Prefab ForEditor 接口测试', () => {
             expect(nestedInstance).toBeDefined();
 
             // 将外部节点转换为预制体（包含嵌套预制体实例）
-            const outerResult: any = await rpcPrefabRequest('createPrefabFromNode', [{
+            const outerResult: any = await rpcPrefabRequest('createFromNode', [{
                 nodePath: outerNode!.path,
                 dbURL: outerPrefabURL,
                 overwrite: true,
@@ -176,7 +176,7 @@ describe('Prefab ForEditor 接口测试', () => {
             outerNodePath = outerResult.path || outerResult.__path__ || outerNode!.path;
 
             // 获取外部预制体的 prefab 信息
-            prefabDump = await rpcPrefabRequest('getPrefabInfo', [{
+            prefabDump = await rpcPrefabRequest('getInfo', [{
                 nodePath: outerNodePath,
             } as IGetPrefabInfoParams]);
         });
@@ -236,7 +236,7 @@ describe('Prefab ForEditor 接口测试', () => {
             nodePath = testNode!.path;
 
             // 创建预制体
-            const createResult: any = await rpcPrefabRequest('createPrefabFromNode', [{
+            const createResult: any = await rpcPrefabRequest('createFromNode', [{
                 nodePath: nodePath,
                 dbURL: prefabURL,
                 overwrite: true,
@@ -260,7 +260,7 @@ describe('Prefab ForEditor 接口测试', () => {
             expect(setResult).toBe(true);
 
             // 通过 getPrefabInfo 获取预制体信息（原始 dump）
-            const prefabDump: any = await rpcPrefabRequest('getPrefabInfo', [{
+            const prefabDump: any = await rpcPrefabRequest('getInfo', [{
                 nodePath: nodePath,
             } as IGetPrefabInfoParams]);
             expect(prefabDump).not.toBeNull();
@@ -282,7 +282,7 @@ describe('Prefab ForEditor 接口测试', () => {
 
         it('应用修改后再修改，propertyPath 依然是 string[]', async () => {
             // 先应用修改
-            const applyResult = await rpcPrefabRequest('applyPrefabChanges', [{
+            const applyResult = await rpcPrefabRequest('applyChanges', [{
                 nodePath: nodePath,
             } as IApplyPrefabChangesParams]);
             expect(applyResult).toBe(true);
@@ -297,7 +297,7 @@ describe('Prefab ForEditor 接口测试', () => {
             });
 
             // 获取并转换
-            const prefabDump: any = await rpcPrefabRequest('getPrefabInfo', [{
+            const prefabDump: any = await rpcPrefabRequest('getInfo', [{
                 nodePath: nodePath,
             } as IGetPrefabInfoParams]);
             expect(prefabDump).not.toBeNull();
@@ -328,7 +328,7 @@ describe('Prefab ForEditor 接口测试', () => {
             expect(buttonNode).toBeDefined();
 
             const innerPrefabURL = getURL('to-inner-prefab', '.prefab');
-            const innerResult: any = await rpcPrefabRequest('createPrefabFromNode', [{
+            const innerResult: any = await rpcPrefabRequest('createFromNode', [{
                 nodePath: buttonNode!.path,
                 dbURL: innerPrefabURL,
                 overwrite: true,
@@ -352,7 +352,7 @@ describe('Prefab ForEditor 接口测试', () => {
 
             // 创建外部预制体
             const outerPrefabURL = getURL('to-outer-prefab', '.prefab');
-            const outerResult: any = await rpcPrefabRequest('createPrefabFromNode', [{
+            const outerResult: any = await rpcPrefabRequest('createFromNode', [{
                 nodePath: outerNode!.path,
                 dbURL: outerPrefabURL,
                 overwrite: true,
@@ -362,7 +362,7 @@ describe('Prefab ForEditor 接口测试', () => {
             const outerNodePath = outerResult.path || outerResult.__path__ || outerNode!.path;
 
             // 获取外部预制体信息
-            const prefabDump: any = await rpcPrefabRequest('getPrefabInfo', [{
+            const prefabDump: any = await rpcPrefabRequest('getInfo', [{
                 nodePath: outerNodePath,
             } as IGetPrefabInfoParams]);
             expect(prefabDump).not.toBeNull();
@@ -393,7 +393,7 @@ describe('Prefab ForEditor 接口测试', () => {
             expect(testNode).toBeDefined();
 
             const prefabURL = getURL('convert-test-prefab', '.prefab');
-            const createResult: any = await rpcPrefabRequest('createPrefabFromNode', [{
+            const createResult: any = await rpcPrefabRequest('createFromNode', [{
                 nodePath: testNode!.path,
                 dbURL: prefabURL,
                 overwrite: true,
@@ -402,7 +402,7 @@ describe('Prefab ForEditor 接口测试', () => {
 
             const nodePath = createResult.path || createResult.__path__ || testNode!.path;
 
-            const prefabDump: any = await rpcPrefabRequest('getPrefabInfo', [{
+            const prefabDump: any = await rpcPrefabRequest('getInfo', [{
                 nodePath: nodePath,
             } as IGetPrefabInfoParams]);
             expect(prefabDump).not.toBeNull();

@@ -4,8 +4,8 @@
   后续需要迁移
  */
 import {
-    type ICreateByNodeTypeParams,
-    type IQueryNodeParams,
+    type ICreateByNodeTypeOptions,
+    type IQueryNodeOptions,
     type INodeInfo,
     type INode,
     type ISetPropertyOptions,
@@ -62,7 +62,7 @@ describe('Node ForEditor 接口测试', () => {
         await EditorProxy.open({
             urlOrUUID: SceneTestEnv.sceneURL,
         });
-        const params: ICreateByNodeTypeParams = {
+        const params: ICreateByNodeTypeOptions = {
             path: '/',
             name: testNodeName,
             nodeType: NodeType.EMPTY,
@@ -71,7 +71,7 @@ describe('Node ForEditor 接口测试', () => {
         expect(testNode).toBeDefined();
 
         // 通过 queryNode 获取节点 UUID
-        const queryParams: IQueryNodeParams = {
+        const queryParams: IQueryNodeOptions = {
             path: testNode!.path,
             queryChildren: false,
             queryComponent: false,

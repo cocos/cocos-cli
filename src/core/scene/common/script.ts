@@ -11,11 +11,11 @@ export interface IPublicScriptService extends Omit<IScriptService, keyof IServic
 
 export interface IScriptService extends IServiceEvents {
     investigatePackerDriver(): Promise<void>;
-    loadScript(): Promise<void>;
-    removeScript(): Promise<void>;
-    scriptChange(): Promise<void>;
-    queryScriptCid(uuid: string): Promise<string | null>;
-    queryScriptName(uuid: string): Promise<string | null>;
+    load(): Promise<void>;
+    remove(): Promise<void>;
+    change(): Promise<void>;
+    queryCid(uuid: string): Promise<string | null>;
+    queryName(uuid: string): Promise<string | null>;
     isCustomComponent(classConstructor: Function): boolean;
     suspend(condition: Promise<any>): void;
 }

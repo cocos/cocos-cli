@@ -30,7 +30,7 @@ export interface INodeTreeItem {
     components: INodeTreeComponent[];
 }
 
-export interface IQueryNodeTreeParams {
+export interface IQueryNodeTreeOptions {
     path?: string;
 }
 
@@ -97,7 +97,7 @@ export enum MobilityMode {
 }
 
 // 节点查询参数接口
-export interface IQueryNodeParams {
+export interface IQueryNodeOptions {
     path: string; // 查询的节点路径
     queryChildren: boolean; // 是否查询子节点信息
     queryComponent: boolean; // 是否查询component的详细信息
@@ -144,7 +144,7 @@ export interface INode {
 }
 
 // 节点删除参数接口
-export interface IDeleteNodeParams {
+export interface IDeleteNodeOptions {
     path: string; // 节点相对路径
     keepWorldTransform?: boolean; // 保持世界变换
 }
@@ -166,7 +166,7 @@ export interface IDeleteNodeResult {
 //     canvasRequired?: boolean;
 // }
 
-interface IBaseCreateNodeParams {
+interface IBaseCreateNodeOptions {
     path: string;
     name?: string;
     workMode?: '2d' | '3d';
@@ -175,11 +175,11 @@ interface IBaseCreateNodeParams {
     canvasRequired?: boolean;
 }
 
-export interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
+export interface ICreateByNodeTypeOptions extends IBaseCreateNodeOptions {
     nodeType: NodeType;
 }
 
-export interface ICreateByAssetParams extends IBaseCreateNodeParams {
+export interface ICreateByAssetOptions extends IBaseCreateNodeOptions {
     dbURL: string;
 }
 
@@ -228,30 +228,30 @@ export interface INodeService extends IServiceEvents {
      * 创建节点
      * @param params
      */
-    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
+    createByType(params: ICreateByNodeTypeOptions): Promise<INode | null>;
 
     /**
      * 创建节点
      * @param params
      */
-    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetOptions): Promise<INode | null>;
     /**
      * 删除节点
      * @param params
      */
-    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
+    delete(params: IDeleteNodeOptions): Promise<IDeleteNodeResult | null>;
     /**
      * 查询节点信息
      *
      * @param params - 查询选项
      * @returns 查询到的节点信息，未找到返回 null
      */
-    query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
+    query(params?: IQueryNodeOptions): Promise<INode | IScene | null>;
 
     /**
      * 查询节点树（层级管理器格式）
      */
-    queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    queryNodeTree(params: IQueryNodeTreeOptions): Promise<INodeTreeItem | null>;
 
     // ---- 编辑器相关接口 ----
 

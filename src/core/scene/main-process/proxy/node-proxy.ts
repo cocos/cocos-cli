@@ -1,10 +1,10 @@
 import {
     INodeTreeItem,
-    ICreateByNodeTypeParams,
-    ICreateByAssetParams,
-    IQueryNodeParams,
-    IQueryNodeTreeParams,
-    IDeleteNodeParams,
+    ICreateByNodeTypeOptions,
+    ICreateByAssetOptions,
+    IQueryNodeOptions,
+    IQueryNodeTreeOptions,
+    IDeleteNodeOptions,
     IDeleteNodeResult,
     IUpdateNodeParams,
     IUpdateNodeResult,
@@ -15,33 +15,33 @@ import { Rpc } from '../rpc';
 import { DumpConverter } from './dump-converter';
 
 export interface INodeProxy extends Omit<IPublicNodeService, 'createByType' | 'createByAsset' | 'query' | 'getPathByUuid'> {
-    createByType(params: ICreateByNodeTypeParams): Promise<INodeInfo | null>;
-    createByAsset(params: ICreateByAssetParams): Promise<INodeInfo | null>;
-    query(params?: IQueryNodeParams): Promise<INodeInfo | null>;
-    update(params: IUpdateNodeParams): Promise<IUpdateNodeResult>;
+    createByType(options: ICreateByNodeTypeOptions): Promise<INodeInfo | null>;
+    createByAsset(options: ICreateByAssetOptions): Promise<INodeInfo | null>;
+    query(options?: IQueryNodeOptions): Promise<INodeInfo | null>;
+    update(options: IUpdateNodeParams): Promise<IUpdateNodeResult>;
 }
 
 export const NodeProxy: INodeProxy = {
-    async createByType(params: ICreateByNodeTypeParams): Promise<INodeInfo | null> {
-        const result: any = await Rpc.getInstance().request('Node', 'createByType', [params]);
+    async createByType(options: ICreateByNodeTypeOptions): Promise<INodeInfo | null> {
+        const result: any = await Rpc.getInstance().request('Node', 'createByType', [options]);
         return result ? DumpConverter.toNode(result, { children: true }) : null;
     },
-    async createByAsset(params: ICreateByAssetParams): Promise<INodeInfo | null> {
-        const result: any = await Rpc.getInstance().request('Node', 'createByAsset', [params]);
+    async createByAsset(options: ICreateByAssetOptions): Promise<INodeInfo | null> {
+        const result: any = await Rpc.getInstance().request('Node', 'createByAsset', [options]);
         return result ? DumpConverter.toNode(result, { children: true }) : null;
     },
-    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
-        return Rpc.getInstance().request('Node', 'delete', [params]);
+    delete(options: IDeleteNodeOptions): Promise<IDeleteNodeResult | null> {
+        return Rpc.getInstance().request('Node', 'delete', [options]);
     },
-    async update(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
-        const nodeDump: any = await Rpc.getInstance().request('Node', 'query', [{ path: params.path, queryChildren: false, queryComponent: false }]);
+    async update(options: IUpdateNodeParams): Promise<IUpdateNodeResult> {
+        const nodeDump: any = await Rpc.getInstance().request('Node', 'query', [{ path: options.path, queryChildren: false, queryComponent: false }]);
         if (!nodeDump) {
-            throw new Error(`Node not found: ${params.path}`);
+            throw new Error(`Node not found: ${options.path}`);
         }
 
         const properties: Record<string, any> = {};
-        if (params.properties) {
-            const p = params.properties;
+        if (options.properties) {
+            const p = options.properties;
             if (p.position) properties.position = p.position;
             if (p.rotation) properties.rotation = p.rotation;
             if (p.scale) properties.scale = p.scale;
@@ -56,36 +56,36 @@ export const NodeProxy: INodeProxy = {
                 throw new Error(`Property '${key}' not found on node`);
             }
             await (Rpc.getInstance() as any).request('Node', 'setProperty', [{
-                nodePath: params.path,
+                nodePath: options.path,
                 path: key,
                 dump: { ...propDef, value },
             }]);
         }
 
-        let currentPath = params.path;
-        if (params.name) {
+        let currentPath = options.path;
+        if (options.name) {
             const nameDef = nodeDump.name;
             if (!nameDef) {
                 throw new Error('Property \'name\' not found on node');
             }
             await (Rpc.getInstance() as any).request('Node', 'setProperty', [{
-                nodePath: params.path,
+                nodePath: options.path,
                 path: 'name',
-                dump: { ...nameDef, value: params.name },
+                dump: { ...nameDef, value: options.name },
             }]);
             const segments = currentPath.split('/');
-            segments[segments.length - 1] = params.name;
+            segments[segments.length - 1] = options.name;
             currentPath = segments.join('/');
         }
 
         return { path: currentPath };
     },
-    async query(params?: IQueryNodeParams): Promise<INodeInfo | null> {
-        const result: any = await Rpc.getInstance().request('Node', 'query', [params]);
+    async query(options?: IQueryNodeOptions): Promise<INodeInfo | null> {
+        const result: any = await Rpc.getInstance().request('Node', 'query', [options]);
         if (!result) return null;
-        return DumpConverter.toNode(result, { path: params?.path, fullComponents: true });
+        return DumpConverter.toNode(result, { path: options?.path, fullComponents: true });
     },
-    queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
-        return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);
+    queryNodeTree(options: IQueryNodeTreeOptions): Promise<INodeTreeItem | null> {
+        return Rpc.getInstance().request('Node', 'queryNodeTree', [options]);
     },
 };

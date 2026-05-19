@@ -18,7 +18,6 @@ import compMgr from './component/index';
 import componentUtils from './component/utils';
 import getComponentFunctionOfNode from './component/get-component-function-of-node';
 import { hasOneKindOfComponent } from './node/node-utils';
-import { isEditorNode } from './node/node-utils';
 import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
 import PrefabService from './prefab';
 
@@ -124,7 +123,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
 
         let ctor = null;
         if (uuid) {
-            const cid = await Service.Script.queryScriptCid(uuid);
+            const cid = await Service.Script.queryCid(uuid);
             if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
                 resolvedName = cid;
                 ctor = cc.js.getClassById(cid) || cc.js.getClassByName(cid);
@@ -467,58 +466,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     public init() {
-        this.registerCompMgrEvents();
-    }
-
-    private readonly CompMgrEventHandlers = {
-        ['add']: 'onCompAdd',
-        ['remove']: 'onCompRemove',
-    } as const;
-    private compMgrEventHandlers = new Map<string, (...args: []) => void>();
-    /**
-     * 注册引擎 Node 管理相关事件的监听
-     */
-    registerCompMgrEvents() {
-        this.unregisterCompMgrEvents();
-        Object.entries(this.CompMgrEventHandlers).forEach(([eventType, handlerName]) => {
-            const handler = (this as any)[handlerName].bind(this);
-            EditorExtends.Component.on(eventType, handler);
-            this.compMgrEventHandlers.set(eventType, handler);
-        });
+        compMgr.init();
     }
 
     unregisterCompMgrEvents() {
-        Object.keys(this.CompMgrEventHandlers).forEach(eventType => {
-            const handler = this.compMgrEventHandlers.get(eventType);
-            if (handler) {
-                EditorExtends.Component.off(eventType, handler);
-                this.compMgrEventHandlers.delete(eventType);
-            }
-        });
-    }
-
-    /**
-     * 添加到组件缓存
-     * @param {String} uuid
-     * @param {cc.Component} component
-     */
-    onCompAdd(uuid: string, component: Component) {
-        if (isEditorNode(component.node)) {
-            return;
-        }
-        this.emit('component:added', component);
-    }
-
-    /**
-     * 移除组件缓存
-     * @param {String} uuid
-     * @param {cc.Component} component
-     */
-    onCompRemove(uuid: string, component: Component) {
-        if (isEditorNode(component.node)) {
-            return;
-        }
-        this.emit('component:removed', component);
+        compMgr.unregisterCompMgrEvents();
     }
 
     /**

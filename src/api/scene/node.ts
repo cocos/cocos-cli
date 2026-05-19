@@ -1,9 +1,9 @@
 import {
-    SchemaNodeCreateByAsset,
-    SchemaNodeCreateByType,
-    SchemaNodeUpdate,
-    SchemaNodeDelete,
-    SchemaNodeQuery,
+    SchemaNodeCreateByAssetOptions,
+    SchemaNodeCreateByTypeOptions,
+    SchemaNodeUpdateOptions,
+    SchemaNodeDeleteOptions,
+    SchemaNodeQueryOptions,
     TNodeDetail,
     TNodeUpdateResult,
     TNodeDeleteResult,
@@ -18,7 +18,7 @@ import {
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { ICreateByNodeTypeParams, INodeInfo, Scene } from '../../core/scene';
+import { ICreateByNodeTypeOptions, INodeInfo, Scene } from '../../core/scene';
 
 export class NodeApi {
 
@@ -29,13 +29,13 @@ export class NodeApi {
     @title('Create Node By Type') // 根据类型创建节点
     @description('Create a node named name with type nodeType under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed.') // 在当前打开的场景中的 path 路径下创建一个名字为 name，类型为 nodeType 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点。
     @result(SchemaNodeQueryResult)
-    async createNodeByType(@param(SchemaNodeCreateByType) options: TCreateNodeByTypeOptions): Promise<CommonResultType<TNodeDetail>> {
+    async createNodeByType(@param(SchemaNodeCreateByTypeOptions) options: TCreateNodeByTypeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
             code: COMMON_STATUS.SUCCESS,
             data: undefined,
         };
         try {
-            const resultNode = await Scene.Node.createByType(options as ICreateByNodeTypeParams);
+            const resultNode = await Scene.Node.createByType(options as ICreateByNodeTypeOptions);
             if (resultNode) {
                 ret.data = resultNode;
             }
@@ -56,7 +56,7 @@ export class NodeApi {
     @title('Create Node By Asset') // 根据资源创建节点
     @description('Create a node named name using dbURL asset under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed. Example of resource dbURL format: db://assets/sample.prefab') // 在当前打开的场景中的 path 路径下使用 dbURL 资源，创建一个名字为 name 的节点，节点的路径必须是唯一的，如果有多级节点没创建，会自动补全空节点，资源的 dbURL 格式举例：db://assets/sample.prefab
     @result(SchemaNodeQueryResult)
-    async createNodeByAsset(@param(SchemaNodeCreateByAsset) options: TCreateNodeByAssetOptions): Promise<CommonResultType<TNodeDetail>> {
+    async createNodeByAsset(@param(SchemaNodeCreateByAssetOptions) options: TCreateNodeByAssetOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
             code: COMMON_STATUS.SUCCESS,
             data: undefined,
@@ -83,7 +83,7 @@ export class NodeApi {
     @title('Delete Node') // 删除节点
     @description('Delete a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中删除节点，需要传入节点的路径，比如：Canvas/Node1
     @result(SchemaNodeDeleteResult)
-    async deleteNode(@param(SchemaNodeDelete) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDeleteResult>> {
+    async deleteNode(@param(SchemaNodeDeleteOptions) options: TDeleteNodeOptions): Promise<CommonResultType<TNodeDeleteResult>> {
         const ret: CommonResultType<TNodeDeleteResult> = {
             code: COMMON_STATUS.SUCCESS,
             data: undefined,
@@ -112,7 +112,7 @@ export class NodeApi {
     @title('Update Node') // 更新节点
     @description('Update a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中更新节点，需要传入节点的路径，比如：Canvas/Node1
     @result(SchemaNodeUpdateResult)
-    async updateNode(@param(SchemaNodeUpdate) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
+    async updateNode(@param(SchemaNodeUpdateOptions) options: TUpdateNodeOptions): Promise<CommonResultType<TNodeUpdateResult>> {
         try {
             const data = await Scene.Node.update(options);
             return {
@@ -135,7 +135,7 @@ export class NodeApi {
     @title('Query Node') // 查询节点
     @description('Query a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中查询节点，需要传入节点的路径，比如：Canvas/Node1
     @result(SchemaNodeQueryResult)
-    async queryNode(@param(SchemaNodeQuery) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
+    async queryNode(@param(SchemaNodeQueryOptions) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {
             code: COMMON_STATUS.SUCCESS,
             data: undefined,
