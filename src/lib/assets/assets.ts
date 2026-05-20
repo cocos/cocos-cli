@@ -280,6 +280,16 @@ export async function updateAssetUserData(
 }
 
 /**
+ * Save Asset Meta // 保存资源 Meta 数据
+ */
+export async function saveAssetMeta(
+    uuid: string,
+    meta: IAssetMeta<'unknown'>
+): Promise<void> {
+    return await assetManager.saveAssetMeta(uuid, meta);
+}
+
+/**
  * Query Asset Config Map // 查询资源配置映射表
  */
 export async function queryAssetConfigMap(): Promise<Record<string, IAssetConfig>> {
