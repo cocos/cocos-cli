@@ -36,6 +36,10 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
         sceneViewData.on('is-scene-light-on', (isOn: boolean) => {
             this._onIsSceneLightOn(isOn);
         });
+
+        void this.initFromConfig().then(() => {
+            this._onIsSceneLightOn(sceneViewData.isSceneLightOn);
+        });
     }
 
     async initFromConfig(): Promise<void> {
@@ -48,6 +52,7 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
 
     setSceneLightOn(enable: boolean): void {
         sceneViewData.isSceneLightOn = enable;
+        void sceneViewData.saveConfig();
     }
 
     querySceneLightOn(): boolean {
