@@ -267,7 +267,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             const path = params?.path;
             const node = (path && path !== '/') ? NodeMgr.getNodeByPath(path) : root;
             if (!node) return null;
-            return await sceneUtils.generateNodeDump(node);
+            return await sceneUtils.generateNodeDump(node, {
+                queryChildren: params?.queryChildren,
+                queryComponent: params?.queryComponent,
+            });
         } catch (error) {
             console.error(error);
             throw error;
