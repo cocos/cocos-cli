@@ -10,7 +10,6 @@ export interface IGizmoService {
     transformToolData: any;
     transformToolName: string;
     isViewMode: boolean;
-    viewMode: string;
     is2D: boolean;
 
     init(): void;
