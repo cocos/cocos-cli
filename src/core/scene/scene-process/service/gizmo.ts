@@ -301,6 +301,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         });
         this.transformToolData.on('coordinate-changed', () => { this.saveConfig(); });
         this.transformToolData.on('pivot-changed', () => { this.saveConfig(); });
+        this.transformToolData.on('view-mode-changed', () => { this.saveConfig(); });
 
         // 与 cocos-editor gizmos.ts 一致：dimension-changed → 同步相机 + 回调
         this.transformToolData.on('dimension-changed', (is2D: boolean) => {
@@ -382,6 +383,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 if (config.is3DIcon !== undefined) this.setIconGizmo3D(config.is3DIcon);
                 if (config.iconSize !== undefined) this.setIconGizmoSize(config.iconSize);
                 if (config.transformToolName !== undefined) this.transformToolName = config.transformToolName;
+                if (config.viewMode !== undefined) this.viewMode = config.viewMode;
                 if (config.pivot !== undefined) this.setPivot(config.pivot);
                 if (config.coordinate !== undefined) this.setCoordinate(config.coordinate);
                 if (config.toolsVisibility3d !== undefined) {
@@ -410,6 +412,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 is3DIcon: this.isIconGizmo3D(),
                 iconSize: this.queryIconGizmoSize(),
                 transformToolName: this.transformToolName,
+                viewMode: this.viewMode,
                 pivot: this.pivot,
                 coordinate: this.coordinate,
                 toolsVisibility3d: this.queryToolsVisibility3d(),

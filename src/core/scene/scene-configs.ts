@@ -35,6 +35,7 @@ export interface IGizmoConfig {
     is3DIcon: boolean;
     iconSize: number;
     transformToolName: string;
+    viewMode: 'view' | 'select';
     pivot: string;
     coordinate: string;
     toolsVisibility3d: boolean;
@@ -104,6 +105,7 @@ class SceneConfig {
             is3DIcon: false,
             iconSize: 2,
             transformToolName: 'position',
+            viewMode: 'select',
             pivot: 'pivot',
             coordinate: 'local',
             toolsVisibility3d: true,

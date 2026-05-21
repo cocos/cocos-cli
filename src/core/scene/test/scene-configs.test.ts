@@ -58,6 +58,7 @@ describe('SceneConfig', () => {
             const gizmo = await sceneConfigInstance.get<Record<string, any>>('gizmo');
             expect(gizmo.is2D).toBe(false);
             expect(gizmo.transformToolName).toBe('position');
+            expect(gizmo.viewMode).toBe('select');
             expect(gizmo.pivot).toBe('pivot');
             expect(gizmo.coordinate).toBe('local');
             expect(gizmo.toolsVisibility3d).toBe(true);
@@ -90,6 +91,11 @@ describe('SceneConfig', () => {
         it('should update gizmo boolean flag', async () => {
             await sceneConfigInstance.set('gizmo.is2D', true);
             expect(await sceneConfigInstance.get('gizmo.is2D')).toBe(true);
+        });
+
+        it('should update gizmo viewMode', async () => {
+            await sceneConfigInstance.set('gizmo.viewMode', 'view');
+            expect(await sceneConfigInstance.get('gizmo.viewMode')).toBe('view');
         });
 
         it('should update gizmo snapConfigs as a whole object', async () => {
