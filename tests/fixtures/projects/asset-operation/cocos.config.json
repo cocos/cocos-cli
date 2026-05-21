@@ -1203,5 +1203,32 @@
                 "visible": true
             }
         }
+    },
+    "scene": {
+        "gizmo": {
+            "is2D": false,
+            "is3DIcon": false,
+            "iconSize": 2,
+            "transformToolName": "position",
+            "pivot": "pivot",
+            "coordinate": "local",
+            "toolsVisibility3d": true,
+            "snapConfigs": {
+                "position": {
+                    "x": 1,
+                    "y": 1,
+                    "z": 1
+                },
+                "rotation": 1,
+                "scale": 1,
+                "isPositionSnapEnabled": false,
+                "isRotationSnapEnabled": false,
+                "isScaleSnapEnabled": false
+            },
+            "rectSnapConfig": {
+                "enableSnapping": true,
+                "snapThreshold": 4
+            }
+        }
     }
 }
