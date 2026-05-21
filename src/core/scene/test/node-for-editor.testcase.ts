@@ -22,7 +22,7 @@ const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Node', method, args);
 
 function queryNodeDump(path: string): Promise<INode | null> {
-    return rpcRequest('query', [{ path, queryChildren: false, queryComponent: false }]);
+    return rpcRequest('query', [{ path, queryChildren: false, queryComponent: true }]);
 }
 
 function setNodeProperty(options: ISetPropertyOptions): Promise<boolean> {
@@ -92,7 +92,7 @@ describe('Node ForEditor 接口测试', () => {
 
     describe('1. query - 查询节点 dump 数据', () => {
         it('query - 传入 path 返回 INode', async () => {
-            const result = await rpcRequest('query', [{ path: testNode!.path, queryChildren: false, queryComponent: false }]) as INode | null;
+            const result = await rpcRequest('query', [{ path: testNode!.path, queryChildren: false, queryComponent: true }]) as INode | null;
             expect(result).not.toBeNull();
             expect(result!.name).toBeDefined();
             expect(result!.name.value).toBe(testNodeName);

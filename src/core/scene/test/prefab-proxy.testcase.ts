@@ -245,7 +245,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 });
 
                 expect(uNode).toBeTruthy();
-                const node = await NodeProxy.query({ path: uNode?.path as string, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+                const node = await NodeProxy.query({ path: uNode?.path as string, queryChildren: false, queryComponent: true }) as INodeInfo | null;
 
                 expect(node).toBeTruthy();
                 expect(node?.components?.length).toBeGreaterThan(0);

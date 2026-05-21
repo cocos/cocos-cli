@@ -664,7 +664,8 @@ describe('MCP Node API', () => {
                     const queryResult = await mcpClient.callTool('scene-query-node', {
                         options: {
                             path: createResult.data.path,
-                            queryChildren: false
+                            queryChildren: false,
+                            queryComponent: true
                         }
                     });
 
