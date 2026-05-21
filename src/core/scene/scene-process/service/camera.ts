@@ -8,7 +8,7 @@ import { CameraMoveMode, CameraUtils } from './camera/utils';
 import EditorCameraComponent from './camera/editor-camera-component';
 import { OperationPriority } from './operation/types';
 import { Rpc } from '../rpc';
-import type { ICameraEvents, ICameraService } from '../../common';
+import type { ICameraConfigData, ICameraEvents, ICameraService, IOriginAxesConfig } from '../../common';
 
 /**
  * 相机服务，管理编辑器相机的 2D/3D 控制器切换、输入事件绑定和相机属性
@@ -129,24 +129,106 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     async initFromConfig(): Promise<void> {
         try {
             const rpc = Rpc.getInstance();
-            const config: any = await rpc.request('sceneConfigInstance', 'get', ['camera']);
+            const config = await rpc.request('sceneConfigInstance', 'get', ['camera']) as ICameraConfigData | undefined;
             if (config) {
-                if (config.color !== undefined) this.setCameraProperty({ clearColor: config.color });
-                if (config.fov !== undefined) this.setCameraProperty({ fov: config.fov });
-                if (config.far !== undefined) {
-                    this._controller3D.far = config.far;
-                    this._camera.far = config.far;
+                if (!(config as any).originAxis2D && (config as any).originAxes) {
+                    (config as any).originAxis2D = {
+                        ...(config as any).originAxes,
+                        z: false,
+                    };
                 }
-                if (config.near !== undefined) {
-                    this._controller3D.near = config.near;
-                    this._camera.near = config.near;
+                if (!(config as any).originAxis3D && (config as any).originAxes) {
+                    (config as any).originAxis3D = (config as any).originAxes;
                 }
-                if (config.wheelSpeed !== undefined) this._controller3D.wheelSpeed = config.wheelSpeed;
-                if (config.wanderSpeed !== undefined) this._controller3D.wanderSpeed = config.wanderSpeed;
-                if (config.enableAcceleration !== undefined) this._controller3D.enableAcceleration = config.enableAcceleration;
+                this._applyConfig(config, false);
             }
         } catch {
             // 配置不可用时使用默认值
+        }
+    }
+
+    private _setGridColor(color: number[]): void {
+        const [r = 166, g = 166, b = 166] = color;
+        this._controller2D.lineColor = new Color(r, g, b, 255);
+        (this._controller3D as any).lineColor = new Color(r, g, b, 50);
+        this._controller2D.updateGrid();
+        this._controller3D.updateGrid();
+    }
+
+    private _setOriginAxes2D(originAxes: Partial<IOriginAxesConfig>): void {
+        (this._controller2D as any).updateOriginAxisByConfig?.({
+            x: originAxes.x,
+            y: originAxes.y,
+        });
+    }
+
+    private _setOriginAxes3D(originAxes: Partial<IOriginAxesConfig>): void {
+        (this._controller3D as any).updateOriginAxisByConfig?.(originAxes);
+    }
+
+    private _queryOriginAxes2D(): IOriginAxesConfig {
+        return {
+            x: Boolean((this._controller2D as any).originAxisX_Visible ?? true),
+            y: Boolean((this._controller2D as any).originAxisY_Visible ?? true),
+            z: Boolean((this._controller2D as any).originAxisZ_Visible ?? false),
+        };
+    }
+
+    private _queryOriginAxes3D(): IOriginAxesConfig {
+        return {
+            x: Boolean((this._controller3D as any).originAxisX_Visible ?? true),
+            y: Boolean((this._controller3D as any).originAxisY_Visible ?? false),
+            z: Boolean((this._controller3D as any).originAxisZ_Visible ?? true),
+        };
+    }
+
+    private _queryGridColor(): number[] {
+        const lineColor = (this._controller3D as any).lineColor ?? this._controller2D.lineColor;
+        return [
+            Math.round(lineColor?.r ?? 166),
+            Math.round(lineColor?.g ?? 166),
+            Math.round(lineColor?.b ?? 166),
+            255,
+        ];
+    }
+
+    private _applyConfig(config: Partial<ICameraConfigData>, persist: boolean): void {
+        if (config.color !== undefined) this.setCameraProperty({ clearColor: config.color }, false);
+        if (config.fov !== undefined) this.setCameraProperty({ fov: config.fov }, false);
+        if (config.far !== undefined) {
+            this._controller3D.far = config.far;
+            this._camera.far = config.far;
+        }
+        if (config.near !== undefined) {
+            this._controller3D.near = config.near;
+            this._camera.near = config.near;
+        }
+        if (config.wheelSpeed !== undefined) this._controller3D.wheelSpeed = config.wheelSpeed;
+        if (config.wanderSpeed !== undefined) this._controller3D.wanderSpeed = config.wanderSpeed;
+        if (config.enableAcceleration !== undefined) this._controller3D.enableAcceleration = config.enableAcceleration;
+        if (config.aperture !== undefined || config.shutter !== undefined || config.iso !== undefined) {
+            this.setCameraProperty({
+                aperture: config.aperture,
+                shutter: config.shutter,
+                iso: config.iso,
+            }, false);
+        }
+        if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
+        if (config.gridColor !== undefined) this._setGridColor(config.gridColor);
+        if (config.originAxis2D !== undefined) this._setOriginAxes2D(config.originAxis2D);
+        if (config.originAxis3D !== undefined) this._setOriginAxes3D(config.originAxis3D);
+        Service.Engine.repaintInEditMode();
+        if (persist) {
+            void this._saveConfig();
+        }
+    }
+
+    private async _saveConfig(): Promise<void> {
+        try {
+            const rpc = Rpc.getInstance();
+            await rpc.request('sceneConfigInstance', 'set', ['camera', this.queryConfig()]);
+        } catch {
+            // Config persistence not available
         }
     }
 
@@ -200,7 +282,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         this._controller?.changeProjection();
     }
 
-    setGridVisible(value: boolean): void {
+    setGridVisible(value: boolean, persist = true): void {
         if (value === undefined || value === null) return;
         this._controller2D.isGridVisible = value;
         this._controller3D.isGridVisible = value;
@@ -209,13 +291,16 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             : this._controller3D;
         deActiveCtrl.showGrid(false);
         Service.Engine.repaintInEditMode();
+        if (persist) {
+            void this._saveConfig();
+        }
     }
 
     isGridVisible(): boolean {
         return this._controller?.isGridVisible ?? true;
     }
 
-    setCameraProperty(options: any): void {
+    setCameraProperty(options: any, persist = true): void {
         if (typeof options !== 'object' || !this._camera) return;
         Object.keys(options).forEach((key) => {
             if (options[key] == null) return;
@@ -235,6 +320,9 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             }
         });
         Service.Engine.repaintInEditMode();
+        if (persist) {
+            void this._saveConfig();
+        }
     }
 
     resetCameraProperty(): void {
@@ -248,6 +336,34 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             this.setCameraProperty({ fov: 45, far: 10000, near: 0.01, clearColor: [48, 48, 48, 255] });
         }
         Service.Engine.repaintInEditMode();
+    }
+
+    queryConfig(): ICameraConfigData {
+        const clearColor = this._camera?.clearColor;
+        const camera: any = this._camera;
+        return {
+            color: clearColor
+                ? [Math.round(clearColor.r), Math.round(clearColor.g), Math.round(clearColor.b), Math.round(clearColor.a)]
+                : [48, 48, 48, 255],
+            fov: this._camera?.fov ?? 45,
+            far: this._camera?.far ?? this._controller3D.far,
+            near: this._camera?.near ?? this._controller3D.near,
+            wheelSpeed: this._controller3D.wheelSpeed,
+            wanderSpeed: this._controller3D.wanderSpeed,
+            enableAcceleration: this._controller3D.enableAcceleration,
+            aperture: typeof camera?.aperture === 'number' ? camera.aperture : 19,
+            shutter: typeof camera?.shutter === 'number' ? camera.shutter : 7,
+            iso: typeof camera?.iso === 'number' ? camera.iso : 0,
+            gridVisible: this.isGridVisible(),
+            gridColor: this._queryGridColor(),
+            originAxis2D: this._queryOriginAxes2D(),
+            originAxis3D: this._queryOriginAxes3D(),
+        };
+    }
+
+    updateConfig(config: Partial<ICameraConfigData>): void {
+        if (!config || typeof config !== 'object') return;
+        this._applyConfig(config, true);
     }
 
     getCameraFov(): number {

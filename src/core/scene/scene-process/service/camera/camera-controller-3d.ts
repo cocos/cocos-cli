@@ -200,6 +200,14 @@ export class CameraController3D extends CameraControllerBase {
     public mousePressing = false;
     public lastFocusNodeUUID: string[] = [];
 
+    public get lineColor() {
+        return this._lineColor;
+    }
+
+    public set lineColor(value: Color) {
+        this._lineColor = value;
+    }
+
     public get sceneViewCenter() {
         return this._sceneViewCenter;
     }

@@ -9,10 +9,11 @@ import GizmoDefines from './gizmo/gizmo-defines';
 import GizmoBase from './gizmo/base/gizmo-base';
 import GizmoOperation from './gizmo/gizmo-operation';
 import { create3DNode } from './gizmo/utils/engine-utils';
+import { rectTransformSnapping } from './gizmo/utils/rect-transform-snapping';
 import WorldAxisController from './gizmo/controller/world-axis';
 import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
-import type { IGizmoEvents, IGizmoService, IChangeNodeOptions } from '../../common';
+import type { IGizmoEvents, IGizmoService, IChangeNodeOptions, IRectSnapConfigData } from '../../common';
 
 // Import component gizmo modules so they self-register via registerGizmo()
 import './gizmo/components/camera';
@@ -310,6 +311,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
             this.onDimensionChanged(is2D);
             ServiceEvents.broadcast('scene:dimension-changed', is2D);
+            this.saveConfig();
         });
 
         // 与 cocos-editor gizmos.ts 一致：只在 IDLE 解锁、WANDER 锁定
@@ -390,6 +392,9 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 if (config.snapConfigs) {
                     this.transformToolData.snapConfigs.initFromData(config.snapConfigs);
                 }
+                if (config.rectSnapConfig) {
+                    rectTransformSnapping.initFromData(config.rectSnapConfig);
+                }
             }
         } catch {
             // 配置不可用时使用默认值
@@ -409,6 +414,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 coordinate: this.coordinate,
                 toolsVisibility3d: this.queryToolsVisibility3d(),
                 snapConfigs: this.transformToolData.snapConfigs.getPureDataObject(),
+                rectSnapConfig: rectTransformSnapping.getPureDataObject(),
             };
             await rpc.request('sceneConfigInstance', 'set', ['gizmo', gizmoConfig]);
         } catch {
@@ -465,6 +471,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         }
         Service.Engine?.repaintInEditMode?.();
+        void this.saveConfig();
     }
 
     isIconGizmo3D(): boolean {
@@ -481,6 +488,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         Service.Engine?.repaintInEditMode?.();
+        void this.saveConfig();
     }
 
     queryIconGizmoSize(): number {
@@ -497,6 +505,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         Service.Engine?.repaintInEditMode?.();
+        void this.saveConfig();
     }
 
     setIconVisible(visible: boolean): void {
@@ -536,6 +545,19 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
 
     setTransformSnapConfigs(name: string, value: any): void {
         (this.transformToolData.snapConfigs as any)[name] = value;
+    }
+
+    queryRectSnapConfig(): IRectSnapConfigData {
+        return rectTransformSnapping.getPureDataObject();
+    }
+
+    setRectSnapConfig(config: Partial<IRectSnapConfigData>): void {
+        rectTransformSnapping.initFromData({
+            ...rectTransformSnapping.getPureDataObject(),
+            ...config,
+        });
+        Service.Engine?.repaintInEditMode?.();
+        void this.saveConfig();
     }
 
     // ── Pool management (与 cocos-editor GizmoPool 一致) ────────────────────────

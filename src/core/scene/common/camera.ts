@@ -1,5 +1,28 @@
 import type { Vec3 } from 'cc';
 
+export interface IOriginAxesConfig {
+    x: boolean;
+    y: boolean;
+    z: boolean;
+}
+
+export interface ICameraConfigData {
+    color: number[];
+    fov: number;
+    far: number;
+    near: number;
+    wheelSpeed: number;
+    wanderSpeed: number;
+    enableAcceleration: boolean;
+    aperture: number;
+    shutter: number;
+    iso: number;
+    gridVisible: boolean;
+    gridColor: number[];
+    originAxis2D: IOriginAxesConfig;
+    originAxis3D: IOriginAxesConfig;
+}
+
 export interface ICameraService {
     init(): void;
     initFromConfig(): Promise<void>;
@@ -12,6 +35,8 @@ export interface ICameraService {
     isGridVisible(): boolean;
     setCameraProperty(options: any): void;
     resetCameraProperty(): void;
+    queryConfig(): ICameraConfigData;
+    updateConfig(config: Partial<ICameraConfigData>): void;
     getCameraFov(): number;
     zoomUp(): void;
     zoomDown(): void;
@@ -24,6 +49,7 @@ export interface ICameraService {
 export type IPublicCameraService = Pick<ICameraService,
     'focus' | 'defaultFocus' | 'rotateCameraToDir' | 'changeProjection' |
     'setGridVisible' | 'isGridVisible' | 'setCameraProperty' | 'resetCameraProperty' |
+    'queryConfig' | 'updateConfig' |
     'getCameraFov' | 'zoomUp' | 'zoomDown' | 'zoomReset' |
     'alignNodeToSceneView' | 'alignSceneViewToNode'
 > & { is2D: boolean };

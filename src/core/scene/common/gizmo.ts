@@ -1,3 +1,8 @@
+export interface IRectSnapConfigData {
+    enableSnapping: boolean;
+    snapThreshold: number;
+}
+
 export interface IGizmoService {
     gizmoRootNode: any;
     foregroundNode: any;
@@ -5,6 +10,7 @@ export interface IGizmoService {
     transformToolData: any;
     transformToolName: string;
     isViewMode: boolean;
+    viewMode: string;
     is2D: boolean;
 
     init(): void;
@@ -33,6 +39,8 @@ export interface IGizmoService {
     // 与 cocos-editor TransformGizmoManager 一致：snap 配置
     queryTransformSnapConfigs(): any;
     setTransformSnapConfigs(name: string, value: any): void;
+    queryRectSnapConfig(): IRectSnapConfigData;
+    setRectSnapConfig(config: Partial<IRectSnapConfigData>): void;
 
     // 与 cocos-editor SelectionGizmoManager 一致：选中查询
     querySelectNodes(): any[];
@@ -51,7 +59,8 @@ export type IPublicGizmoService = Pick<IGizmoService,
     'queryToolsVisibility3d' | 'setToolsVisibility3d' |
     'isIconGizmo3D' | 'setIconGizmo3D' |
     'queryIconGizmoSize' | 'setIconGizmoSize' |
-    'queryTransformSnapConfigs' | 'setTransformSnapConfigs'
+    'queryTransformSnapConfigs' | 'setTransformSnapConfigs' |
+    'queryRectSnapConfig' | 'setRectSnapConfig'
 >;
 
 export interface IGizmoEvents {

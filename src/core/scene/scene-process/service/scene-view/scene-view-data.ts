@@ -1,6 +1,7 @@
 'use strict';
 
 import { EventEmitter } from 'events';
+import { Rpc } from '../../rpc';
 
 export interface IResolutionData {
     width: number;
@@ -44,11 +45,26 @@ class SceneViewData extends EventEmitter {
     }
 
     async initFromConfig(): Promise<void> {
-        // CLI stub: no persisted config
+        try {
+            const rpc = Rpc.getInstance();
+            const config = await rpc.request('sceneConfigInstance', 'get', ['sceneView']) as { sceneLightOn?: boolean } | undefined;
+            if (typeof config?.sceneLightOn === 'boolean') {
+                this._isSceneLightOn = config.sceneLightOn;
+            }
+        } catch {
+            // Config persistence not available
+        }
     }
 
     async saveConfig(): Promise<void> {
-        // CLI stub: no persisted config
+        try {
+            const rpc = Rpc.getInstance();
+            await rpc.request('sceneConfigInstance', 'set', ['sceneView', {
+                sceneLightOn: this._isSceneLightOn,
+            }]);
+        } catch {
+            // Config persistence not available
+        }
     }
 }
 

@@ -8,6 +8,26 @@ export interface ICameraConfig {
     wheelSpeed: number;
     wanderSpeed: number;
     enableAcceleration: boolean;
+    aperture: number;
+    shutter: number;
+    iso: number;
+    gridVisible: boolean;
+    gridColor: number[];
+    originAxis2D: {
+        x: boolean;
+        y: boolean;
+        z: boolean;
+    };
+    originAxis3D: {
+        x: boolean;
+        y: boolean;
+        z: boolean;
+    };
+}
+
+export interface IRectSnapConfig {
+    enableSnapping: boolean;
+    snapThreshold: number;
 }
 
 export interface IGizmoConfig {
@@ -26,6 +46,11 @@ export interface IGizmoConfig {
         isRotationSnapEnabled: boolean;
         isScaleSnapEnabled: boolean;
     };
+    rectSnapConfig?: IRectSnapConfig;
+}
+
+export interface ISceneViewConfig {
+    sceneLightOn: boolean;
 }
 
 export interface ISceneConfig {
@@ -41,6 +66,10 @@ export interface ISceneConfig {
      * Gizmo 配置，与 cocos-editor gizmos-infos profile 一致
      */
     gizmo: IGizmoConfig;
+    /**
+     * SceneView 配置
+     */
+    sceneView: ISceneViewConfig;
 }
 
 class SceneConfig {
@@ -54,6 +83,21 @@ class SceneConfig {
             wheelSpeed: 0.01,
             wanderSpeed: 10,
             enableAcceleration: true,
+            aperture: 19,
+            shutter: 7,
+            iso: 0,
+            gridVisible: true,
+            gridColor: [166, 166, 166, 255],
+            originAxis2D: {
+                x: true,
+                y: true,
+                z: false,
+            },
+            originAxis3D: {
+                x: true,
+                y: false,
+                z: true,
+            },
         },
         gizmo: {
             is2D: false,
@@ -63,6 +107,13 @@ class SceneConfig {
             pivot: 'pivot',
             coordinate: 'local',
             toolsVisibility3d: true,
+            rectSnapConfig: {
+                enableSnapping: true,
+                snapThreshold: 4,
+            },
+        },
+        sceneView: {
+            sceneLightOn: true,
         },
     };
 

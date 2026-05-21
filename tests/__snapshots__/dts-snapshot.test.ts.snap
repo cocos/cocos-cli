@@ -5302,6 +5302,22 @@ export declare interface IBaseIdentifier {
     assetUrl: string;
     assetType: string;
 }
+export declare interface ICameraConfigData {
+    color: number[];
+    fov: number;
+    far: number;
+    near: number;
+    wheelSpeed: number;
+    wanderSpeed: number;
+    enableAcceleration: boolean;
+    aperture: number;
+    shutter: number;
+    iso: number;
+    gridVisible: boolean;
+    gridColor: number[];
+    originAxis2D: IOriginAxesConfig;
+    originAxis3D: IOriginAxesConfig;
+}
 export declare interface ICameraService {
     init(): void;
     initFromConfig(): Promise<void>;
@@ -5314,6 +5330,8 @@ export declare interface ICameraService {
     isGridVisible(): boolean;
     setCameraProperty(options: any): void;
     resetCameraProperty(): void;
+    queryConfig(): ICameraConfigData;
+    updateConfig(config: Partial<ICameraConfigData>): void;
     getCameraFov(): number;
     zoomUp(): void;
     zoomDown(): void;
@@ -5425,6 +5443,7 @@ export declare interface IGizmoService {
     transformToolData: any;
     transformToolName: string;
     isViewMode: boolean;
+    viewMode: string;
     is2D: boolean;
     init(): void;
     initFromConfig(): Promise<void>;
@@ -5448,6 +5467,8 @@ export declare interface IGizmoService {
     setIconGizmoSize(size: number): void;
     queryTransformSnapConfigs(): any;
     setTransformSnapConfigs(name: string, value: any): void;
+    queryRectSnapConfig(): IRectSnapConfigData;
+    setRectSnapConfig(config: Partial<IRectSnapConfigData>): void;
     querySelectNodes(): any[];
     hasSelected(uuid: string): boolean;
     onResize(): void;
@@ -5543,6 +5564,11 @@ export declare interface IOperationService {
     exitPointerLock(): void;
     changePointer(type: string): void;
 }
+export declare interface IOriginAxesConfig {
+    x: boolean;
+    y: boolean;
+    z: boolean;
+}
 export declare interface IPrefab {
     uuid: string;
     fileId: string;
@@ -5631,6 +5657,10 @@ export declare interface IQueryNodeParams {
 }
 export declare interface IQueryNodeTreeParams {
     path?: string;
+}
+export declare interface IRectSnapConfigData {
+    enableSnapping: boolean;
+    snapThreshold: number;
 }
 export declare interface IRedirectInfo {
     type: string;
@@ -5765,6 +5795,7 @@ export declare interface IServiceManager {
     Camera: ICameraService;
     Gizmo: IGizmoService;
     SceneView: ISceneViewService;
+    UI: IUIService;
 }
 export declare interface ISetPropertyOptions {
     nodePath: string;
@@ -5795,6 +5826,10 @@ export declare interface ITargetOverrideInfo {
     propertyPath: string[];
     target: string;
     targetInfo?: string[];
+}
+export declare interface IUIService {
+    alignSelection(type: UIAlignType): void;
+    distributeSelection(type: UIAlignType): void;
 }
 export declare interface IUndoService {
     beginRecording(uuids: string[], options?: any): string;
@@ -6137,6 +6172,7 @@ export declare interface TextureCubeAssetUserData extends TextureBaseAssetUserDa
     bottom?: string;
 }
 export declare type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
+export declare type UIAlignType = 'top' | 'v-center' | 'bottom' | 'left' | 'h-center' | 'right';
 export declare interface Vec2 {
     x: number;
     y: number;
@@ -7146,6 +7182,22 @@ export declare interface IBaseIdentifier {
     assetUrl: string;
     assetType: string;
 }
+export declare interface ICameraConfigData {
+    color: number[];
+    fov: number;
+    far: number;
+    near: number;
+    wheelSpeed: number;
+    wanderSpeed: number;
+    enableAcceleration: boolean;
+    aperture: number;
+    shutter: number;
+    iso: number;
+    gridVisible: boolean;
+    gridColor: number[];
+    originAxis2D: IOriginAxesConfig;
+    originAxis3D: IOriginAxesConfig;
+}
 export declare interface ICameraService {
     init(): void;
     initFromConfig(): Promise<void>;
@@ -7158,6 +7210,8 @@ export declare interface ICameraService {
     isGridVisible(): boolean;
     setCameraProperty(options: any): void;
     resetCameraProperty(): void;
+    queryConfig(): ICameraConfigData;
+    updateConfig(config: Partial<ICameraConfigData>): void;
     getCameraFov(): number;
     zoomUp(): void;
     zoomDown(): void;
@@ -7399,6 +7453,7 @@ export declare interface IGizmoService {
     transformToolData: any;
     transformToolName: string;
     isViewMode: boolean;
+    viewMode: string;
     is2D: boolean;
     init(): void;
     initFromConfig(): Promise<void>;
@@ -7422,6 +7477,8 @@ export declare interface IGizmoService {
     setIconGizmoSize(size: number): void;
     queryTransformSnapConfigs(): any;
     setTransformSnapConfigs(name: string, value: any): void;
+    queryRectSnapConfig(): IRectSnapConfigData;
+    setRectSnapConfig(config: Partial<IRectSnapConfigData>): void;
     querySelectNodes(): any[];
     hasSelected(uuid: string): boolean;
     onResize(): void;
@@ -7561,6 +7618,11 @@ export declare interface IOperationService {
     exitPointerLock(): void;
     changePointer(type: string): void;
 }
+export declare interface IOriginAxesConfig {
+    x: boolean;
+    y: boolean;
+    z: boolean;
+}
 export declare interface IPhysicsConfig {
     gravity: IVec3Like; 
     allowSleep: boolean; 
@@ -7689,6 +7751,10 @@ export declare interface IQueryNodeParams {
 }
 export declare interface IQueryNodeTreeParams {
     path?: string;
+}
+export declare interface IRectSnapConfigData {
+    enableSnapping: boolean;
+    snapThreshold: number;
 }
 export declare interface IRedirectInfo {
     type: string;
@@ -7823,6 +7889,7 @@ export declare interface IServiceManager {
     Camera: ICameraService;
     Gizmo: IGizmoService;
     SceneView: ISceneViewService;
+    UI: IUIService;
 }
 export declare interface ISetPropertyOptions {
     nodePath: string;
@@ -7900,6 +7967,10 @@ export declare interface IUerDataConfigItem {
             value: string;
         }>;
     };
+}
+export declare interface IUIService {
+    alignSelection(type: UIAlignType): void;
+    distributeSelection(type: UIAlignType): void;
 }
 export declare interface IUndoService {
     beginRecording(uuids: string[], options?: any): string;
@@ -8470,6 +8541,7 @@ export declare interface ThumbnailInfo {
 }
 export declare type ThumbnailSize = 'large' | 'small' | 'middle' | 'origin';
 export declare type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
+export declare type UIAlignType = 'top' | 'v-center' | 'bottom' | 'left' | 'h-center' | 'right';
 export declare function unregister(): Promise<void>;
 export declare function updateAssetUserData(urlOrUuidOrPath: string, path: string, value: any): Promise<any>;
 export declare function updateDefaultUserData(handler: string, path: string, value: any): Promise<void>;
