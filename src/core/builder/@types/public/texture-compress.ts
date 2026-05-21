@@ -135,6 +135,14 @@ export interface IConfigGroupsInfo {
 }
 export type IConfigGroups = Record<ITextureCompressPlatform, IConfigGroupsInfo>;
 
+export interface TextureCompressFullRenderConfig {
+    configGroups: IConfigGroups;
+    textureFormatConfigs: Record<string, ITextureFormatConfig>;
+    formatsInfo: Record<string, ITextureFormatInfo>;
+    defaultSupport: ISupportFormat;
+    platformRenderConfigs: Record<string, TextureCompressRenderConfig>;
+}
+
 export type IPVRQuality = 'fastest' | 'fast' | 'normal' | 'high' | 'best';
 export type IETCQuality = 'slow' | 'fast';
 export type IASTCQuality = 'veryfast' | 'fast' | 'medium' | 'thorough' | 'exhaustive';

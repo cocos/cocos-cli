@@ -4,12 +4,12 @@ import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting } from '../
 import { NATIVE_PLATFORM, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
-import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType, TextureCompressRenderConfig } from '../@types';
+import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType, TextureCompressRenderConfig, TextureCompressFullRenderConfig } from '../@types';
 import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, BundleQueryConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo } from '../@types/protected';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
-import { configGroups } from '../share/texture-compress';
+import { configGroups, textureFormatConfigs, formatsInfo, defaultSupport } from '../share/texture-compress';
 import { BundlePlatformTypes } from '../share/bundle-utils';
 import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
@@ -620,31 +620,37 @@ export class PluginManager extends EventEmitter {
     /**
      * 查询所有平台的纹理压缩配置，按纹理压缩平台类型分组
      */
-    public queryTextureCompressConfig(): Record<string, TextureCompressRenderConfig> {
-        const result: Record<string, TextureCompressRenderConfig> = {};
+    public queryTextureCompressConfig(): TextureCompressFullRenderConfig {
+        const platformRenderConfigs: Record<string, TextureCompressRenderConfig> = {};
 
         for (const [platform, config] of Object.entries(this.platformConfig)) {
             if (!config.texture) {
                 continue;
             }
             const platformType = config.texture.platformType;
-            if (!result[platformType]) {
+            if (!platformRenderConfigs[platformType]) {
                 const groupInfo = configGroups[platformType];
-                result[platformType] = {
+                platformRenderConfigs[platformType] = {
                     displayName: groupInfo ? groupInfo.displayName : platformType,
                     platformConfigs: {},
                 };
             }
 
             const platformName = config.name || platform;
-            result[platformType].platformConfigs[platform] = {
+            platformRenderConfigs[platformType].platformConfigs[platform] = {
                 platformName: i18n.transI18nName(platformName),
                 platformType: config.texture.platformType,
                 support: config.texture.support,
             };
         }
 
-        return result;
+        return {
+            configGroups,
+            textureFormatConfigs,
+            formatsInfo,
+            defaultSupport,
+            platformRenderConfigs,
+        };
     }
 
     /**
