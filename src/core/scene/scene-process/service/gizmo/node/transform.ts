@@ -166,6 +166,7 @@ class TransformGizmo extends GizmoBase<Component> {
                 ttd?.removeListener?.('pivot-changed', em.pivotChanged);
                 ttd?.removeListener?.('coordinate-changed', em.coordinateChanged);
             }
+            TransformGizmo._sharedEventMap = null;
         }
 
         this._gizmo.onHide?.();
@@ -176,6 +177,21 @@ class TransformGizmo extends GizmoBase<Component> {
     }
 
     public onDestroy(): void {
+        if (TransformGizmo._activeInstances.has(this)) {
+            TransformGizmo._activeInstances.delete(this);
+            if (TransformGizmo._activeInstances.size === 0) {
+                const svc = getService();
+                const ttd = svc?.Gizmo?.transformToolData;
+                const em = TransformGizmo._sharedEventMap;
+                if (em) {
+                    ttd?.removeListener?.('tool-name-changed', em.toolNameChanged);
+                    ttd?.removeListener?.('view-mode-changed', em.viewModeChanged);
+                    ttd?.removeListener?.('pivot-changed', em.pivotChanged);
+                    ttd?.removeListener?.('coordinate-changed', em.coordinateChanged);
+                }
+                TransformGizmo._sharedEventMap = null;
+            }
+        }
         this._gizmo.onDestroy?.();
     }
 
