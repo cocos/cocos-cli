@@ -181,12 +181,14 @@ class SceneUtil {
         if (dump.__prefab__) {
             this.enrichPrefabDump(dump.__prefab__, node['_prefab']);
         }
-        if (dump.__comps__) {
+        if (queryComponent && dump.__comps__) {
             for (let i = 0; i < dump.__comps__.length && i < node.components.length; i++) {
                 const comp = node.components[i];
                 (dump.__comps__[i] as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
                 (dump.__comps__[i] as any).__compPrefab__ = (comp as any).__prefab || null;
             }
+        } else {
+            d.__comps__ = [];
         }
 
         d.__childNodes__ = [];
