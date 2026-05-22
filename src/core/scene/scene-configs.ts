@@ -1,5 +1,11 @@
 import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../configuration';
 
+export interface IOriginAxesConfig {
+    x: boolean;
+    y: boolean;
+    z: boolean;
+}
+
 export interface ICameraConfig {
     color: number[];
     fov: number;
@@ -11,18 +17,6 @@ export interface ICameraConfig {
     aperture: number;
     shutter: number;
     iso: number;
-    gridVisible: boolean;
-    gridColor: number[];
-    originAxis2D: {
-        x: boolean;
-        y: boolean;
-        z: boolean;
-    };
-    originAxis3D: {
-        x: boolean;
-        y: boolean;
-        z: boolean;
-    };
 }
 
 export interface IRectSnapConfig {
@@ -39,6 +33,10 @@ export interface IGizmoConfig {
     pivot: string;
     coordinate: string;
     toolsVisibility3d: boolean;
+    gridVisible: boolean;
+    gridColor: number[];
+    originAxis2D: IOriginAxesConfig;
+    originAxis3D: IOriginAxesConfig;
     snapConfigs?: {
         position: { x: number; y: number; z: number };
         rotation: number;
@@ -87,6 +85,16 @@ class SceneConfig {
             aperture: 19,
             shutter: 7,
             iso: 0,
+        },
+        gizmo: {
+            is2D: false,
+            is3DIcon: false,
+            iconSize: 2,
+            transformToolName: 'position',
+            viewMode: 'select',
+            pivot: 'pivot',
+            coordinate: 'local',
+            toolsVisibility3d: true,
             gridVisible: true,
             gridColor: [166, 166, 166, 255],
             originAxis2D: {
@@ -99,16 +107,6 @@ class SceneConfig {
                 y: false,
                 z: true,
             },
-        },
-        gizmo: {
-            is2D: false,
-            is3DIcon: false,
-            iconSize: 2,
-            transformToolName: 'position',
-            viewMode: 'select',
-            pivot: 'pivot',
-            coordinate: 'local',
-            toolsVisibility3d: true,
             rectSnapConfig: {
                 enableSnapping: true,
                 snapThreshold: 4,

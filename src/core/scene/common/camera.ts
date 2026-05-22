@@ -1,27 +1,7 @@
 import type { Vec3 } from 'cc';
+import type { ICameraConfig, IOriginAxesConfig } from '../scene-configs';
 
-export interface IOriginAxesConfig {
-    x: boolean;
-    y: boolean;
-    z: boolean;
-}
-
-export interface ICameraConfigData {
-    color: number[];
-    fov: number;
-    far: number;
-    near: number;
-    wheelSpeed: number;
-    wanderSpeed: number;
-    enableAcceleration: boolean;
-    aperture: number;
-    shutter: number;
-    iso: number;
-    gridVisible: boolean;
-    gridColor: number[];
-    originAxis2D: IOriginAxesConfig;
-    originAxis3D: IOriginAxesConfig;
-}
+export type { ICameraConfig, IOriginAxesConfig };
 
 export interface ICameraService {
     init(): void;
@@ -35,8 +15,8 @@ export interface ICameraService {
     isGridVisible(): boolean;
     setCameraProperty(options: any): void;
     resetCameraProperty(): void;
-    queryConfig(): ICameraConfigData;
-    updateConfig(config: Partial<ICameraConfigData>): void;
+    queryConfig(): ICameraConfig;
+    updateConfig(config: Partial<ICameraConfig>): void;
     getCameraFov(): number;
     zoomUp(): void;
     zoomDown(): void;

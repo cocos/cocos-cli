@@ -8,7 +8,8 @@ import { CameraMoveMode, CameraUtils } from './camera/utils';
 import EditorCameraComponent from './camera/editor-camera-component';
 import { OperationPriority } from './operation/types';
 import { Rpc } from '../rpc';
-import type { ICameraConfigData, ICameraEvents, ICameraService, IOriginAxesConfig } from '../../common';
+import type { ICameraConfig, ICameraEvents, ICameraService, IOriginAxesConfig } from '../../common';
+import type { IGizmoConfig } from '../../scene-configs';
 
 /**
  * 相机服务，管理编辑器相机的 2D/3D 控制器切换、输入事件绑定和相机属性
@@ -129,22 +130,25 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     async initFromConfig(): Promise<void> {
         try {
             const rpc = Rpc.getInstance();
-            const config = await rpc.request('sceneConfigInstance', 'get', ['camera']) as ICameraConfigData | undefined;
+            const config = await rpc.request('sceneConfigInstance', 'get', ['camera']) as ICameraConfig | undefined;
             if (config) {
-                if (!(config as any).originAxis2D && (config as any).originAxes) {
-                    (config as any).originAxis2D = {
-                        ...(config as any).originAxes,
-                        z: false,
-                    };
-                }
-                if (!(config as any).originAxis3D && (config as any).originAxes) {
-                    (config as any).originAxis3D = (config as any).originAxes;
-                }
                 this._applyConfig(config, false);
+            }
+            const gizmoConfig = await rpc.request('sceneConfigInstance', 'get', ['gizmo']) as Partial<IGizmoConfig> | undefined;
+            if (gizmoConfig) {
+                this._applyGizmoDisplay(gizmoConfig);
             }
         } catch {
             // 配置不可用时使用默认值
         }
+    }
+
+    private _applyGizmoDisplay(config: Partial<IGizmoConfig>): void {
+        if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
+        if (config.gridColor !== undefined) this._setGridColor(config.gridColor);
+        if (config.originAxis2D !== undefined) this._setOriginAxes2D(config.originAxis2D);
+        if (config.originAxis3D !== undefined) this._setOriginAxes3D(config.originAxis3D);
+        Service.Engine.repaintInEditMode();
     }
 
     private _setGridColor(color: number[]): void {
@@ -166,33 +170,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         (this._controller3D as any).updateOriginAxisByConfig?.(originAxes);
     }
 
-    private _queryOriginAxes2D(): IOriginAxesConfig {
-        return {
-            x: Boolean((this._controller2D as any).originAxisX_Visible ?? true),
-            y: Boolean((this._controller2D as any).originAxisY_Visible ?? true),
-            z: Boolean((this._controller2D as any).originAxisZ_Visible ?? false),
-        };
-    }
-
-    private _queryOriginAxes3D(): IOriginAxesConfig {
-        return {
-            x: Boolean((this._controller3D as any).originAxisX_Visible ?? true),
-            y: Boolean((this._controller3D as any).originAxisY_Visible ?? false),
-            z: Boolean((this._controller3D as any).originAxisZ_Visible ?? true),
-        };
-    }
-
-    private _queryGridColor(): number[] {
-        const lineColor = (this._controller3D as any).lineColor ?? this._controller2D.lineColor;
-        return [
-            Math.round(lineColor?.r ?? 166),
-            Math.round(lineColor?.g ?? 166),
-            Math.round(lineColor?.b ?? 166),
-            255,
-        ];
-    }
-
-    private _applyConfig(config: Partial<ICameraConfigData>, persist: boolean): void {
+    private _applyConfig(config: Partial<ICameraConfig>, persist: boolean): void {
         if (config.color !== undefined) this.setCameraProperty({ clearColor: config.color }, false);
         if (config.fov !== undefined) this.setCameraProperty({ fov: config.fov }, false);
         if (config.far !== undefined) {
@@ -213,10 +191,6 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
                 iso: config.iso,
             }, false);
         }
-        if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
-        if (config.gridColor !== undefined) this._setGridColor(config.gridColor);
-        if (config.originAxis2D !== undefined) this._setOriginAxes2D(config.originAxis2D);
-        if (config.originAxis3D !== undefined) this._setOriginAxes3D(config.originAxis3D);
         Service.Engine.repaintInEditMode();
         if (persist) {
             void this._saveConfig();
@@ -292,7 +266,8 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         deActiveCtrl.showGrid(false);
         Service.Engine.repaintInEditMode();
         if (persist) {
-            void this._saveConfig();
+            const rpc = Rpc.getInstance();
+            void rpc.request('sceneConfigInstance', 'set', ['gizmo.gridVisible', value]).catch(() => {});
         }
     }
 
@@ -338,7 +313,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         Service.Engine.repaintInEditMode();
     }
 
-    queryConfig(): ICameraConfigData {
+    queryConfig(): ICameraConfig {
         const clearColor = this._camera?.clearColor;
         const camera: any = this._camera;
         return {
@@ -354,14 +329,10 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             aperture: typeof camera?.aperture === 'number' ? camera.aperture : 19,
             shutter: typeof camera?.shutter === 'number' ? camera.shutter : 7,
             iso: typeof camera?.iso === 'number' ? camera.iso : 0,
-            gridVisible: this.isGridVisible(),
-            gridColor: this._queryGridColor(),
-            originAxis2D: this._queryOriginAxes2D(),
-            originAxis3D: this._queryOriginAxes3D(),
         };
     }
 
-    updateConfig(config: Partial<ICameraConfigData>): void {
+    updateConfig(config: Partial<ICameraConfig>): void {
         if (!config || typeof config !== 'object') return;
         this._applyConfig(config, true);
     }

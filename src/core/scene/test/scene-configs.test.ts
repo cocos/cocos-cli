@@ -43,15 +43,11 @@ describe('SceneConfig', () => {
             expect(camera.near).toBe(0.01);
             expect(camera.color).toEqual([48, 48, 48, 255]);
             expect(camera.enableAcceleration).toBe(true);
-            expect(camera.gridVisible).toBe(true);
         });
 
         it('should get nested camera properties via dot path', async () => {
             expect(await sceneConfigInstance.get('camera.fov')).toBe(45);
             expect(await sceneConfigInstance.get('camera.wheelSpeed')).toBe(0.01);
-            expect(await sceneConfigInstance.get('camera.originAxis3D')).toEqual({
-                x: true, y: false, z: true,
-            });
         });
 
         it('should get gizmo config', async () => {
@@ -62,6 +58,10 @@ describe('SceneConfig', () => {
             expect(gizmo.pivot).toBe('pivot');
             expect(gizmo.coordinate).toBe('local');
             expect(gizmo.toolsVisibility3d).toBe(true);
+            expect(gizmo.gridVisible).toBe(true);
+            expect(gizmo.gridColor).toEqual([166, 166, 166, 255]);
+            expect(gizmo.originAxis2D).toEqual({ x: true, y: true, z: false });
+            expect(gizmo.originAxis3D).toEqual({ x: true, y: false, z: true });
         });
 
         it('should get deeply nested gizmo properties', async () => {

@@ -407,7 +407,9 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
     async saveConfig(): Promise<void> {
         try {
             const rpc = Rpc.getInstance();
+            const current = await rpc.request('sceneConfigInstance', 'get', ['gizmo']) as Record<string, any> ?? {};
             const gizmoConfig = {
+                ...current,
                 is2D: this.is2D,
                 is3DIcon: this.isIconGizmo3D(),
                 iconSize: this.queryIconGizmoSize(),

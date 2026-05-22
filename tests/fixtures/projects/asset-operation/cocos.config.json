@@ -1210,9 +1210,31 @@
             "is3DIcon": false,
             "iconSize": 2,
             "transformToolName": "position",
+            "viewMode": "select",
             "pivot": "pivot",
             "coordinate": "local",
             "toolsVisibility3d": true,
+            "gridVisible": true,
+            "gridColor": [
+                166,
+                166,
+                166,
+                255
+            ],
+            "originAxis2D": {
+                "x": true,
+                "y": true,
+                "z": false
+            },
+            "originAxis3D": {
+                "x": true,
+                "y": false,
+                "z": true
+            },
+            "rectSnapConfig": {
+                "enableSnapping": true,
+                "snapThreshold": 4
+            },
             "snapConfigs": {
                 "position": {
                     "x": 1,
@@ -1224,10 +1246,6 @@
                 "isPositionSnapEnabled": false,
                 "isRotationSnapEnabled": false,
                 "isScaleSnapEnabled": false
-            },
-            "rectSnapConfig": {
-                "enableSnapping": true,
-                "snapThreshold": 4
             }
         }
     }
