@@ -5302,7 +5302,7 @@ export declare interface IBaseIdentifier {
     assetUrl: string;
     assetType: string;
 }
-export declare interface ICameraConfigData {
+export declare interface ICameraConfig {
     color: number[];
     fov: number;
     far: number;
@@ -5313,10 +5313,6 @@ export declare interface ICameraConfigData {
     aperture: number;
     shutter: number;
     iso: number;
-    gridVisible: boolean;
-    gridColor: number[];
-    originAxis2D: IOriginAxesConfig;
-    originAxis3D: IOriginAxesConfig;
 }
 export declare interface ICameraService {
     init(): void;
@@ -5330,8 +5326,8 @@ export declare interface ICameraService {
     isGridVisible(): boolean;
     setCameraProperty(options: any): void;
     resetCameraProperty(): void;
-    queryConfig(): ICameraConfigData;
-    updateConfig(config: Partial<ICameraConfigData>): void;
+    queryConfig(): ICameraConfig;
+    updateConfig(config: Partial<ICameraConfig>): void;
     getCameraFov(): number;
     zoomUp(): void;
     zoomDown(): void;
@@ -5562,11 +5558,6 @@ export declare interface IOperationService {
     requestPointerLock(): void;
     exitPointerLock(): void;
     changePointer(type: string): void;
-}
-export declare interface IOriginAxesConfig {
-    x: boolean;
-    y: boolean;
-    z: boolean;
 }
 export declare interface IPrefab {
     uuid: string;
@@ -7181,7 +7172,7 @@ export declare interface IBaseIdentifier {
     assetUrl: string;
     assetType: string;
 }
-export declare interface ICameraConfigData {
+export declare interface ICameraConfig {
     color: number[];
     fov: number;
     far: number;
@@ -7192,10 +7183,6 @@ export declare interface ICameraConfigData {
     aperture: number;
     shutter: number;
     iso: number;
-    gridVisible: boolean;
-    gridColor: number[];
-    originAxis2D: IOriginAxesConfig;
-    originAxis3D: IOriginAxesConfig;
 }
 export declare interface ICameraService {
     init(): void;
@@ -7209,8 +7196,8 @@ export declare interface ICameraService {
     isGridVisible(): boolean;
     setCameraProperty(options: any): void;
     resetCameraProperty(): void;
-    queryConfig(): ICameraConfigData;
-    updateConfig(config: Partial<ICameraConfigData>): void;
+    queryConfig(): ICameraConfig;
+    updateConfig(config: Partial<ICameraConfig>): void;
     getCameraFov(): number;
     zoomUp(): void;
     zoomDown(): void;
@@ -7615,11 +7602,6 @@ export declare interface IOperationService {
     requestPointerLock(): void;
     exitPointerLock(): void;
     changePointer(type: string): void;
-}
-export declare interface IOriginAxesConfig {
-    x: boolean;
-    y: boolean;
-    z: boolean;
 }
 export declare interface IPhysicsConfig {
     gravity: IVec3Like; 
