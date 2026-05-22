@@ -68,6 +68,68 @@ jest.mock('../share/builder-config', () => ({
 
 jest.mock('../share/texture-compress', () => {
     const defaultSupport = { rgb: ['jpg', 'webp'], rgba: ['png', 'webp'] };
+    const textureFormatConfigs: Record<string, any> = {
+        pvr: {
+            displayName: 'PVRTC', suffix: '.pvr', parallelism: true, childProcess: true,
+            options: { quality: { default: 'normal', type: 'enum', items: [{ value: 'fastest' }, { value: 'fast' }, { value: 'normal' }, { value: 'high' }, { value: 'best' }] } },
+            formats: [
+                { value: 'pvrtc_2bits_rgb', formatSuffix: 'RGB_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB' },
+                { value: 'pvrtc_2bits_rgba', formatSuffix: 'RGBA_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGBA', alpha: true },
+                { value: 'pvrtc_2bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB Separate A', alpha: true },
+                { value: 'pvrtc_4bits_rgb', formatSuffix: 'RGB_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB' },
+                { value: 'pvrtc_4bits_rgba', formatSuffix: 'RGBA_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGBA', alpha: true },
+                { value: 'pvrtc_4bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB Separate A', alpha: true },
+            ],
+        },
+        etc: {
+            displayName: 'ETC', suffix: '.pkm', parallelism: false, childProcess: true,
+            options: { quality: { default: 'fast', type: 'enum', items: [{ value: 'slow' }, { value: 'fast' }] } },
+            formats: [
+                { value: 'etc1_rgb', formatSuffix: 'RGB_ETC1', displayName: 'ETC1 RGB' },
+                { value: 'etc1_rgb_a', formatSuffix: 'RGBA_ETC1', displayName: 'ETC1 RGB Separate A', alpha: true },
+                { value: 'etc2_rgb', formatSuffix: 'RGB_ETC2', displayName: 'ETC2 RGB' },
+                { value: 'etc2_rgba', formatSuffix: 'RGBA_ETC2', displayName: 'ETC2 RGBA', alpha: true },
+            ],
+        },
+        astc: {
+            displayName: 'ASTC', suffix: '.astc', parallelism: false, childProcess: true,
+            options: { quality: { default: 'medium', type: 'enum', items: [{ value: 'veryfast' }, { value: 'fast' }, { value: 'medium' }, { value: 'thorough' }, { value: 'exhaustive' }] } },
+            formats: [
+                { value: 'astc_4x4', formatSuffix: 'RGBA_ASTC_4x4', displayName: 'ASTC 4x4', alpha: true },
+                { value: 'astc_5x5', formatSuffix: 'RGBA_ASTC_5x5', displayName: 'ASTC 5x5', alpha: true },
+                { value: 'astc_6x6', formatSuffix: 'RGBA_ASTC_6x6', displayName: 'ASTC 6x6', alpha: true },
+                { value: 'astc_8x8', formatSuffix: 'RGBA_ASTC_8x8', displayName: 'ASTC 8x8', alpha: true },
+                { value: 'astc_10x5', formatSuffix: 'RGBA_ASTC_10x5', displayName: 'ASTC 10x5', alpha: true },
+                { value: 'astc_10x10', formatSuffix: 'RGBA_ASTC_10x10', displayName: 'ASTC 10x10', alpha: true },
+                { value: 'astc_12x12', formatSuffix: 'RGBA_ASTC_12x12', displayName: 'ASTC 12x12', alpha: true },
+            ],
+        },
+        png: {
+            displayName: 'PNG', suffix: '.png', parallelism: true,
+            options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
+            formats: [{ displayName: 'PNG', value: 'png', alpha: true }],
+        },
+        jpg: {
+            displayName: 'JPG', suffix: '.jpg', parallelism: true,
+            options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
+            formats: [{ displayName: 'JPG', value: 'jpg', alpha: false }],
+        },
+        webp: {
+            displayName: 'WEBP', suffix: '.webp', parallelism: true, childProcess: true,
+            options: { quality: { default: 80, type: 'number', minimum: 10, maximum: 100, step: 1 } },
+            formats: [{ displayName: 'WEBP', value: 'webp', alpha: true }],
+        },
+    };
+    const formatsInfo: Record<string, any> = {};
+    for (const [key, config] of Object.entries(textureFormatConfigs)) {
+        if (config.formats) {
+            for (const fmt of config.formats) {
+                formatsInfo[fmt.value] = { formatType: key, ...fmt };
+            }
+        } else {
+            formatsInfo[key] = { displayName: config.displayName, value: key, formatType: key };
+        }
+    }
     return {
         defaultSupport,
         configGroups: {
@@ -77,59 +139,8 @@ jest.mock('../share/texture-compress', () => {
             miniGame: { defaultSupport, support: { rgb: [...defaultSupport.rgb], rgba: [...defaultSupport.rgba] }, displayName: 'Mini Game', icon: 'mini-game', supportOverwrite: true },
             'harmonyos-next': { defaultSupport, support: { rgb: [...defaultSupport.rgb], rgba: [...defaultSupport.rgba] }, displayName: 'HarmonyOS', icon: 'harmony-os' },
         },
-        textureFormatConfigs: {
-            pvr: {
-                displayName: 'PVRTC', suffix: '.pvr', parallelism: true, childProcess: true,
-                options: { quality: { default: 'normal', type: 'enum', items: [{ value: 'fastest' }, { value: 'fast' }, { value: 'normal' }, { value: 'high' }, { value: 'best' }] } },
-                formats: [
-                    { value: 'pvrtc_2bits_rgb', formatSuffix: 'RGB_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB' },
-                    { value: 'pvrtc_2bits_rgba', formatSuffix: 'RGBA_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGBA', alpha: true },
-                    { value: 'pvrtc_2bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB Separate A', alpha: true },
-                    { value: 'pvrtc_4bits_rgb', formatSuffix: 'RGB_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB' },
-                    { value: 'pvrtc_4bits_rgba', formatSuffix: 'RGBA_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGBA', alpha: true },
-                    { value: 'pvrtc_4bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB Separate A', alpha: true },
-                ],
-            },
-            etc: {
-                displayName: 'ETC', suffix: '.pkm', parallelism: false, childProcess: true,
-                options: { quality: { default: 'fast', type: 'enum', items: [{ value: 'slow' }, { value: 'fast' }] } },
-                formats: [
-                    { value: 'etc1_rgb', formatSuffix: 'RGB_ETC1', displayName: 'ETC1 RGB' },
-                    { value: 'etc1_rgb_a', formatSuffix: 'RGBA_ETC1', displayName: 'ETC1 RGB Separate A', alpha: true },
-                    { value: 'etc2_rgb', formatSuffix: 'RGB_ETC2', displayName: 'ETC2 RGB' },
-                    { value: 'etc2_rgba', formatSuffix: 'RGBA_ETC2', displayName: 'ETC2 RGBA', alpha: true },
-                ],
-            },
-            astc: {
-                displayName: 'ASTC', suffix: '.astc', parallelism: false, childProcess: true,
-                options: { quality: { default: 'medium', type: 'enum', items: [{ value: 'veryfast' }, { value: 'fast' }, { value: 'medium' }, { value: 'thorough' }, { value: 'exhaustive' }] } },
-                formats: [
-                    { value: 'astc_4x4', formatSuffix: 'RGBA_ASTC_4x4', displayName: 'ASTC 4x4', alpha: true },
-                    { value: 'astc_5x5', formatSuffix: 'RGBA_ASTC_5x5', displayName: 'ASTC 5x5', alpha: true },
-                    { value: 'astc_6x6', formatSuffix: 'RGBA_ASTC_6x6', displayName: 'ASTC 6x6', alpha: true },
-                    { value: 'astc_8x8', formatSuffix: 'RGBA_ASTC_8x8', displayName: 'ASTC 8x8', alpha: true },
-                    { value: 'astc_10x5', formatSuffix: 'RGBA_ASTC_10x5', displayName: 'ASTC 10x5', alpha: true },
-                    { value: 'astc_10x10', formatSuffix: 'RGBA_ASTC_10x10', displayName: 'ASTC 10x10', alpha: true },
-                    { value: 'astc_12x12', formatSuffix: 'RGBA_ASTC_12x12', displayName: 'ASTC 12x12', alpha: true },
-                ],
-            },
-            png: {
-                displayName: 'PNG', suffix: '.png', parallelism: true,
-                options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
-                formats: [{ displayName: 'PNG', value: 'png', alpha: true }],
-            },
-            jpg: {
-                displayName: 'JPG', suffix: '.jpg', parallelism: true,
-                options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
-                formats: [{ displayName: 'JPG', value: 'jpg', alpha: false }],
-            },
-            webp: {
-                displayName: 'WEBP', suffix: '.webp', parallelism: true, childProcess: true,
-                options: { quality: { default: 80, type: 'number', minimum: 10, maximum: 100, step: 1 } },
-                formats: [{ displayName: 'WEBP', value: 'webp', alpha: true }],
-            },
-        },
-        formatsInfo: {},
+        textureFormatConfigs,
+        formatsInfo,
     };
 });
 
@@ -972,9 +983,14 @@ describe('纹理压缩完整测试', () => {
             expect(Object.keys(result.platformRenderConfigs)).toEqual(['android']);
         });
 
-        it('无任何平台注册时应返回空对象', () => {
+        it('无任何平台注册时 platformRenderConfigs 应为空', () => {
             (pm as any).platformConfig = {};
-            expect(pm.queryTextureCompressConfig()).toEqual({});
+            const result = pm.queryTextureCompressConfig();
+            expect(result.platformRenderConfigs).toEqual({});
+            expect(result.configGroups).toBeDefined();
+            expect(result.textureFormatConfigs).toBeDefined();
+            expect(result.formatsInfo).toBeDefined();
+            expect(result.defaultSupport).toBeDefined();
         });
 
         it('返回结果应符合 TextureCompressRenderConfig 类型结构', () => {
