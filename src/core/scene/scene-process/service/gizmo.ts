@@ -14,6 +14,7 @@ import WorldAxisController from './gizmo/controller/world-axis';
 import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
 import type { IGizmoEvents, IGizmoService, IChangeNodeOptions, IRectSnapConfigData } from '../../common';
+import type { IOriginAxesConfig } from '../../scene-configs';
 
 // Import component gizmo modules so they self-register via registerGizmo()
 import './gizmo/components/camera';
@@ -45,6 +46,9 @@ class GizmoConfig {
     static toolsVisibility3d = true;
     static isIconGizmo3D = false;
     static iconGizmoSize = 2;
+    static gridColor: number[] = [166, 166, 166, 255];
+    static originAxis2D: IOriginAxesConfig = { x: true, y: true, z: false };
+    static originAxis3D: IOriginAxesConfig = { x: true, y: false, z: true };
 }
 
 // WeakMaps to associate components with their gizmo instances
@@ -397,6 +401,9 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 if (config.rectSnapConfig) {
                     rectTransformSnapping.initFromData(config.rectSnapConfig);
                 }
+                if (config.gridColor !== undefined) GizmoConfig.gridColor = config.gridColor;
+                if (config.originAxis2D !== undefined) GizmoConfig.originAxis2D = config.originAxis2D;
+                if (config.originAxis3D !== undefined) GizmoConfig.originAxis3D = config.originAxis3D;
             }
         } catch {
             // 配置不可用时使用默认值
@@ -420,6 +427,9 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 toolsVisibility3d: this.queryToolsVisibility3d(),
                 snapConfigs: this.transformToolData.snapConfigs.getPureDataObject(),
                 rectSnapConfig: rectTransformSnapping.getPureDataObject(),
+                gridColor: this.queryGridColor(),
+                originAxis2D: this.queryOriginAxes2D(),
+                originAxis3D: this.queryOriginAxes3D(),
             };
             await rpc.request('sceneConfigInstance', 'set', ['gizmo', gizmoConfig]);
         } catch {
@@ -510,6 +520,39 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         Service.Engine?.repaintInEditMode?.();
+        void this.saveConfig();
+    }
+
+    queryGridColor(): number[] {
+        return GizmoConfig.gridColor;
+    }
+
+    setGridColor(color: number[]): void {
+        if (!color) return;
+        GizmoConfig.gridColor = [...color];
+        Service.Camera?.setGridColor?.(color);
+        void this.saveConfig();
+    }
+
+    queryOriginAxes2D(): IOriginAxesConfig {
+        return GizmoConfig.originAxis2D;
+    }
+
+    setOriginAxes2D(config: IOriginAxesConfig): void {
+        if (!config) return;
+        GizmoConfig.originAxis2D = { ...config };
+        Service.Camera?.setOriginAxes2D?.(config);
+        void this.saveConfig();
+    }
+
+    queryOriginAxes3D(): IOriginAxesConfig {
+        return GizmoConfig.originAxis3D;
+    }
+
+    setOriginAxes3D(config: IOriginAxesConfig): void {
+        if (!config) return;
+        GizmoConfig.originAxis3D = { ...config };
+        Service.Camera?.setOriginAxes3D?.(config);
         void this.saveConfig();
     }
 

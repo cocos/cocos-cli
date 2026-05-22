@@ -5334,6 +5334,9 @@ export declare interface ICameraService {
     zoomReset(): void;
     alignNodeToSceneView(nodes: string[]): void;
     alignSceneViewToNode(nodes: string[]): void;
+    setGridColor(color: number[]): void;
+    setOriginAxes2D(config: IOriginAxesConfig): void;
+    setOriginAxes3D(config: IOriginAxesConfig): void;
     onUpdate(deltaTime: number): void;
 }
 export declare interface IChangeNodeOptions {
@@ -5460,6 +5463,12 @@ export declare interface IGizmoService {
     setIconGizmo3D(value: boolean): void;
     queryIconGizmoSize(): number;
     setIconGizmoSize(size: number): void;
+    queryGridColor(): number[];
+    setGridColor(color: number[]): void;
+    queryOriginAxes2D(): IOriginAxesConfig;
+    setOriginAxes2D(config: IOriginAxesConfig): void;
+    queryOriginAxes3D(): IOriginAxesConfig;
+    setOriginAxes3D(config: IOriginAxesConfig): void;
     queryTransformSnapConfigs(): any;
     setTransformSnapConfigs(name: string, value: any): void;
     queryRectSnapConfig(): IRectSnapConfigData;
@@ -5558,6 +5567,11 @@ export declare interface IOperationService {
     requestPointerLock(): void;
     exitPointerLock(): void;
     changePointer(type: string): void;
+}
+export declare interface IOriginAxesConfig {
+    x: boolean;
+    y: boolean;
+    z: boolean;
 }
 export declare interface IPrefab {
     uuid: string;
@@ -7204,6 +7218,9 @@ export declare interface ICameraService {
     zoomReset(): void;
     alignNodeToSceneView(nodes: string[]): void;
     alignSceneViewToNode(nodes: string[]): void;
+    setGridColor(color: number[]): void;
+    setOriginAxes2D(config: IOriginAxesConfig): void;
+    setOriginAxes3D(config: IOriginAxesConfig): void;
     onUpdate(deltaTime: number): void;
 }
 export declare interface IChangeNodeOptions {
@@ -7460,6 +7477,12 @@ export declare interface IGizmoService {
     setIconGizmo3D(value: boolean): void;
     queryIconGizmoSize(): number;
     setIconGizmoSize(size: number): void;
+    queryGridColor(): number[];
+    setGridColor(color: number[]): void;
+    queryOriginAxes2D(): IOriginAxesConfig;
+    setOriginAxes2D(config: IOriginAxesConfig): void;
+    queryOriginAxes3D(): IOriginAxesConfig;
+    setOriginAxes3D(config: IOriginAxesConfig): void;
     queryTransformSnapConfigs(): any;
     setTransformSnapConfigs(name: string, value: any): void;
     queryRectSnapConfig(): IRectSnapConfigData;
@@ -7602,6 +7625,11 @@ export declare interface IOperationService {
     requestPointerLock(): void;
     exitPointerLock(): void;
     changePointer(type: string): void;
+}
+export declare interface IOriginAxesConfig {
+    x: boolean;
+    y: boolean;
+    z: boolean;
 }
 export declare interface IPhysicsConfig {
     gravity: IVec3Like; 

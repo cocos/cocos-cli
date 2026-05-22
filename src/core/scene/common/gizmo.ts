@@ -1,3 +1,7 @@
+import type { IOriginAxesConfig } from '../scene-configs';
+
+export type { IOriginAxesConfig };
+
 export interface IRectSnapConfigData {
     enableSnapping: boolean;
     snapThreshold: number;
@@ -35,6 +39,14 @@ export interface IGizmoService {
     queryIconGizmoSize(): number;
     setIconGizmoSize(size: number): void;
 
+    // 与 cocos-editor GizmoConfig 一致：显示配置方法
+    queryGridColor(): number[];
+    setGridColor(color: number[]): void;
+    queryOriginAxes2D(): IOriginAxesConfig;
+    setOriginAxes2D(config: IOriginAxesConfig): void;
+    queryOriginAxes3D(): IOriginAxesConfig;
+    setOriginAxes3D(config: IOriginAxesConfig): void;
+
     // 与 cocos-editor TransformGizmoManager 一致：snap 配置
     queryTransformSnapConfigs(): any;
     setTransformSnapConfigs(name: string, value: any): void;
@@ -58,6 +70,9 @@ export type IPublicGizmoService = Pick<IGizmoService,
     'queryToolsVisibility3d' | 'setToolsVisibility3d' |
     'isIconGizmo3D' | 'setIconGizmo3D' |
     'queryIconGizmoSize' | 'setIconGizmoSize' |
+    'queryGridColor' | 'setGridColor' |
+    'queryOriginAxes2D' | 'setOriginAxes2D' |
+    'queryOriginAxes3D' | 'setOriginAxes3D' |
     'queryTransformSnapConfigs' | 'setTransformSnapConfigs' |
     'queryRectSnapConfig' | 'setRectSnapConfig'
 >;

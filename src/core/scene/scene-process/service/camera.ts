@@ -145,29 +145,32 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
     private _applyGizmoDisplay(config: Partial<IGizmoConfig>): void {
         if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
-        if (config.gridColor !== undefined) this._setGridColor(config.gridColor);
-        if (config.originAxis2D !== undefined) this._setOriginAxes2D(config.originAxis2D);
-        if (config.originAxis3D !== undefined) this._setOriginAxes3D(config.originAxis3D);
+        if (config.gridColor !== undefined) this.setGridColor(config.gridColor);
+        if (config.originAxis2D !== undefined) this.setOriginAxes2D(config.originAxis2D);
+        if (config.originAxis3D !== undefined) this.setOriginAxes3D(config.originAxis3D);
         Service.Engine.repaintInEditMode();
     }
 
-    private _setGridColor(color: number[]): void {
+    setGridColor(color: number[]): void {
         const [r = 166, g = 166, b = 166] = color;
         this._controller2D.lineColor = new Color(r, g, b, 255);
         (this._controller3D as any).lineColor = new Color(r, g, b, 50);
         this._controller2D.updateGrid();
         this._controller3D.updateGrid();
+        Service.Engine?.repaintInEditMode?.();
     }
 
-    private _setOriginAxes2D(originAxes: Partial<IOriginAxesConfig>): void {
+    setOriginAxes2D(originAxes: IOriginAxesConfig): void {
         (this._controller2D as any).updateOriginAxisByConfig?.({
             x: originAxes.x,
             y: originAxes.y,
         });
+        Service.Engine?.repaintInEditMode?.();
     }
 
-    private _setOriginAxes3D(originAxes: Partial<IOriginAxesConfig>): void {
+    setOriginAxes3D(originAxes: IOriginAxesConfig): void {
         (this._controller3D as any).updateOriginAxisByConfig?.(originAxes);
+        Service.Engine?.repaintInEditMode?.();
     }
 
     private _applyConfig(config: Partial<ICameraConfig>, persist: boolean): void {

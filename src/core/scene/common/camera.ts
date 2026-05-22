@@ -23,6 +23,9 @@ export interface ICameraService {
     zoomReset(): void;
     alignNodeToSceneView(nodes: string[]): void;
     alignSceneViewToNode(nodes: string[]): void;
+    setGridColor(color: number[]): void;
+    setOriginAxes2D(config: IOriginAxesConfig): void;
+    setOriginAxes3D(config: IOriginAxesConfig): void;
     onUpdate(deltaTime: number): void;
 }
 
@@ -31,7 +34,8 @@ export type IPublicCameraService = Pick<ICameraService,
     'setGridVisible' | 'isGridVisible' | 'setCameraProperty' | 'resetCameraProperty' |
     'queryConfig' | 'updateConfig' |
     'getCameraFov' | 'zoomUp' | 'zoomDown' | 'zoomReset' |
-    'alignNodeToSceneView' | 'alignSceneViewToNode'
+    'alignNodeToSceneView' | 'alignSceneViewToNode' |
+    'setGridColor' | 'setOriginAxes2D' | 'setOriginAxes3D'
 > & { is2D: boolean };
 
 export interface ICameraEvents {
