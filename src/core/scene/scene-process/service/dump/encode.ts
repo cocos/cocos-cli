@@ -348,8 +348,8 @@ export function encodeComponent(component: any): IComponent {
         if (component instanceof cc._MissingScript) {
             const compData = component['_$erialized'];
             let uuid = compData && compData['__type__'];
-            uuid = uuid && EditorExtends.UuidUtils.decompressUuid(component._$erialized.__type__);
-            scriptType.visible = !!(uuid && EditorExtends.UuidUtils.isUuid(uuid));
+            uuid = uuid && EditorExtends.UuidUtils.decompressUUID(component._$erialized.__type__);
+            scriptType.visible = !!(uuid && EditorExtends.UuidUtils.isUUID(uuid));
             scriptType.value = { uuid };
         } else {
             scriptType.visible = !!component.__scriptUuid;

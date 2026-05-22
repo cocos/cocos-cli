@@ -116,7 +116,9 @@ window.EditorExtends = {
         compressUuid: function (u) { return u; },
         compressUUID: function (u) { return u; },
         decompressUuid: function (u) { return u; },
+        decompressUUID: function (u) { return u; },
         isUuid: function () { return false; },
+        isUUID: function () { return false; },
     },
     Component: {
         allow: false,
