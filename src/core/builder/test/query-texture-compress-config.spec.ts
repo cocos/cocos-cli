@@ -1012,9 +1012,9 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.getTexturePlatformConfigs();
-            expect(Object.keys(result.platformRenderConfigs).sort()).toEqual(['android', 'ios']);
-            expect(result.platformRenderConfigs.android.name).toBe('Android');
-            expect(result.platformRenderConfigs.android.textureCompressConfig).toEqual(REAL_PLATFORM_CONFIGS.android.texture);
+            expect(Object.keys(result).sort()).toEqual(['android', 'ios']);
+            expect(result.android.name).toBe('Android');
+            expect(result.android.textureCompressConfig).toEqual(REAL_PLATFORM_CONFIGS.android.texture);
         });
 
         it('没有 texture 的平台也应在结果中（textureCompressConfig 为 undefined）', () => {
@@ -1249,7 +1249,10 @@ describe('纹理压缩完整测试', () => {
     });
 
     describe('TextureCompressFullRenderConfig 顶层字段', () => {
+        let pm: PluginManager;
+
         beforeEach(() => {
+            pm = createPluginManager();
             (pm as any).platformConfig = {};
             for (const [platform, data] of Object.entries(REAL_PLATFORM_CONFIGS)) {
                 (pm as any).platformConfig[platform] = {
