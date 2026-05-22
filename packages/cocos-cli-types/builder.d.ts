@@ -5836,17 +5836,17 @@ export declare class TextureCompress_2 extends EventEmitter_2 {
     compressImageByConfig(optionItem: ICompressConfig): Promise<void>;
 }
 
-export declare interface TextureCompressRenderConfig {
-    displayName: string;
-    platformConfigs: Record<string, PlatformTextureCompressConfig>;
-}
-
 export declare interface TextureCompressFullRenderConfig {
     configGroups: IConfigGroups;
     textureFormatConfigs: Record<string, ITextureFormatConfig>;
     formatsInfo: Record<string, ITextureFormatInfo>;
     defaultSupport: ISupportFormat;
     platformRenderConfigs: Record<string, TextureCompressRenderConfig>;
+}
+
+export declare interface TextureCompressRenderConfig {
+    displayName: string;
+    platformConfigs: Record<string, PlatformTextureCompressConfig>;
 }
 
 export declare interface TextureCubeAssetUserData extends TextureBaseAssetUserData {

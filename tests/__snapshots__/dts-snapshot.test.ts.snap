@@ -4039,7 +4039,7 @@ export declare class PluginManager extends EventEmitter {
     };
     getRegisteredPlatforms(): string[];
     queryBundleConfig(): Record<string, BundleQueryConfig>;
-    queryTextureCompressConfig(): Record<string, TextureCompressRenderConfig>;
+    queryTextureCompressConfig(): TextureCompressFullRenderConfig;
     getBuildStageWithHookTasks(platform: Platform | string, taskName: string): IBuildStageItem | null;
     getBuildStageConfigByPlatform(platform: Platform): Record<string, any> | null;
     private sortPkgNameWidthPriority;
@@ -4102,7 +4102,7 @@ export declare type PureModulesOption = boolean | string[] | IsPureModule;
 export declare function queryBuildConfig(): Promise<BuildConfiguration>;
 export declare function queryBundleConfig(): Promise<Record<string, BundleQueryConfig>>;
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;
-export declare function queryTextureCompressConfig(): Promise<Record<string, TextureCompressRenderConfig>>;
+export declare function queryTextureCompressConfig(): Promise<TextureCompressFullRenderConfig>;
 export declare type RenderChunkHook = (
 	this: PluginContext,
 	code: string,
@@ -4789,6 +4789,13 @@ export declare class TextureCompress_2 extends EventEmitter_2 {
     _step(): Promise<any>;
     private customCompressImage;
     compressImageByConfig(optionItem: ICompressConfig): Promise<void>;
+}
+export declare interface TextureCompressFullRenderConfig {
+    configGroups: IConfigGroups;
+    textureFormatConfigs: Record<string, ITextureFormatConfig>;
+    formatsInfo: Record<string, ITextureFormatInfo>;
+    defaultSupport: ISupportFormat;
+    platformRenderConfigs: Record<string, TextureCompressRenderConfig>;
 }
 export declare interface TextureCompressRenderConfig {
     displayName: string;
