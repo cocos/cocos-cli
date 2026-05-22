@@ -1276,7 +1276,7 @@ describe('纹理压缩完整测试', () => {
             const groupKeys = Object.keys(result.configGroups).sort();
             expect(groupKeys).toEqual(['android', 'harmonyos-next', 'ios', 'miniGame', 'web']);
             for (const key of groupKeys) {
-                const group: IConfigGroupsInfo = result.configGroups[key];
+                const group = result.configGroups[key as ITextureCompressPlatform];
                 expect(group.displayName).toBeDefined();
                 expect(group.icon).toBeDefined();
             }
