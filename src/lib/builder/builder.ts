@@ -71,6 +71,12 @@ export async function queryTextureCompressConfig() {
     return builder.queryTextureCompressConfig();
 }
 
+// 查询指定 Bundle 中实际会被打包的资源列表
+export async function queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('../../core/builder/@types').BundleFilterConfig[]) {
+    const builder = await import('../../core/builder');
+    return builder.queryAssetsInBundle(uuid, bundleFilterConfig);
+}
+
 // 获取注册的平台
 export async function getRegisteredPlatforms() {
     const builder = await import('../../core/builder');

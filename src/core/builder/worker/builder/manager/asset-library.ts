@@ -9,11 +9,14 @@ import { recursively } from '../utils';
 import assert from 'assert';
 import { getCCONFormatAssetInLibrary, outputCCONFormat } from '../utils/cconb';
 import { IAssetInfo, IMetaMap, ISerializedOptions, IUuidDependMap, } from '../../../@types/protected';
+import { BundleFilterConfig } from '../../../@types';
 import assetManager from '../../../../assets/manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../assets/@types/protected';
 import assetDBManager from '../../../../assets/manager/asset-db';
 import builderConfig from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
+import { filterAssetWithBundleConfig } from '../utils/bundle';
+import { initBundleConfig } from '../asset-handler/bundle/utils';
 
 // 版本号记录
 const CACHE_VERSION = '1.0.1';
@@ -159,6 +162,33 @@ class BuildAssetLibrary {
 
     public queryAssetsByOptions(options: QueryAssetsOption): IAsset[] {
         return assetManager.queryAssets(options);
+    }
+
+    /**
+     * 查询指定 Bundle 文件夹中实际会被打包的资源列表
+     * @param uuid Bundle 文件夹的 uuid
+     * @param bundleFilterConfig 可选的过滤配置，不传则使用 Bundle 自身的过滤配置
+     * @returns 符合条件的资源 URL 列表
+     */
+    public queryAssetsInBundle(uuid: string, bundleFilterConfig?: BundleFilterConfig[]): string[] {
+        const bundleAsset = this.getAsset(uuid);
+        if (!bundleAsset) {
+            console.warn(`Can not find bundle asset(${uuid})`);
+            return [];
+        }
+        bundleFilterConfig = bundleFilterConfig || bundleAsset.meta.userData.bundleFilterConfig;
+        const allAssets = this.queryAssetsByOptions({ pattern: bundleAsset.url + '/**/*' });
+        const allAssetInfos: IAssetInfoFromDB[] = [];
+        for (const asset of allAssets) {
+            recursively(asset, (a: IAsset) => {
+                allAssetInfos.push(this.getAssetInfo(a.uuid) as unknown as IAssetInfoFromDB);
+            });
+        }
+        if (!bundleFilterConfig || !bundleFilterConfig.length) {
+            return allAssetInfos.map((info) => info.url);
+        }
+        const configs = initBundleConfig(bundleFilterConfig);
+        return filterAssetWithBundleConfig(allAssetInfos, configs).map((info) => info.url);
     }
 
     public async queryAssetUsers(uuid: string): Promise<string[]> {

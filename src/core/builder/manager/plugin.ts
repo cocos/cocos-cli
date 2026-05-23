@@ -580,10 +580,14 @@ export class PluginManager extends EventEmitter {
     }
 
     public queryPlatformConfig() {
-        return {
-            native: Object.keys(this.platformConfig).filter((platform) => NATIVE_PLATFORM.includes(platform as Platform)),
-            config: this.platformConfig,
-        };
+        return Object.entries(this.platformConfig).map(([platform, config]) => ({
+            platform,
+            displayName: config.name || platform,
+            platformType: config.platformType,
+            isNative: NATIVE_PLATFORM.includes(platform as Platform),
+            createTemplateLabel: config.createTemplateLabel,
+            supportTextureCompress: !!config.texture,
+        }));
     }
 
     public getRegisteredPlatforms(): string[] {
