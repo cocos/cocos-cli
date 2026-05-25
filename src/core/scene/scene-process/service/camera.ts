@@ -35,15 +35,15 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             this._controller.active = false;
         }
         this._controller = value ? this._controller2D : this._controller3D;
+        // 先同步 ttd.is2D 再激活控制器，确保 gizmo adjustControllerSize 使用正确的维度状态
+        const ttd = Service.Gizmo?.transformToolData;
+        if (ttd && ttd.is2D !== value) {
+            ttd.is2D = value;
+        }
         this._controller.active = true;
         if (!this._controllerFirstChange && this._currentUuid) {
             this.defaultFocus(this._currentUuid);
             this._controllerFirstChange = true;
-        }
-        // 同步 transformToolData.is2D，触发 dimension-changed 事件
-        const ttd = Service.Gizmo?.transformToolData;
-        if (ttd && ttd.is2D !== value) {
-            ttd.is2D = value;
         }
         Service.Engine.repaintInEditMode();
     }
