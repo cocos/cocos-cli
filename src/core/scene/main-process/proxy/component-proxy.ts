@@ -10,7 +10,7 @@ import { ISetPropertyOptionsInfo } from '../../common/cli/component';
 import { Rpc } from '../rpc';
 import { DumpConverter } from './dump-converter';
 
-export interface IComponentProxy extends Omit<IPublicComponentService, 'add' | 'query' | 'setProperty'> {
+export interface IComponentProxy extends Omit<IPublicComponentService, 'add' | 'query' | 'setProperty' | 'getPathByUuid'> {
     add(params: IAddComponentOptions): Promise<IComponentInfo>;
     query(params: IQueryComponentOptions): Promise<IComponentInfo | null>;
     setProperty(params: ISetPropertyOptionsInfo): Promise<boolean>;

@@ -553,4 +553,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
         return await compMgr.executeComponentMethod(comp.uuid, options.name, options.args);
     }
+
+    public getPathByUuid(uuid: string): string {
+        return compMgr.getPathFromUuid(uuid);
+    }
 }

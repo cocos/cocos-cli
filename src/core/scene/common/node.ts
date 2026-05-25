@@ -369,6 +369,14 @@ export interface INodeService extends IServiceEvents {
      * ```
      */
     setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void>;
+
+    /**
+     * 通过 uuid 获取节点的层级路径
+     *
+     * @param uuid - 节点的 uuid
+     * @returns 节点路径，节点不存在时返回空字符串
+     */
+    getPathByUuid(uuid: string): string;
 }
 
 ///

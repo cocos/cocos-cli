@@ -469,5 +469,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
         return await nodeMgr.setNodeAndChildrenLayer(node.uuid, options.dump);
     }
+
+    public getPathByUuid(uuid: string): string {
+        return nodeMgr.getPathByUuid(uuid);
+    }
 }
 

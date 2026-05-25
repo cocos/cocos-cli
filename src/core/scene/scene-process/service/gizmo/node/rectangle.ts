@@ -217,15 +217,19 @@ class RectGizmo extends TransformBaseGizmo {
                 const camera = svc?.Camera?.getCamera?.()?.camera;
                 const mask = Layers.makeMaskExclude([Layers.Enum.GIZMOS, Layers.Enum.SCENE_GIZMO]);
                 const results = getRaycastResultNodes(camera, event.x, event.y, mask);
+                const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
                 const firstSelection = selected[0];
                 for (let i = 0; i < results.length; i++) {
-                    if (results[i] && firstSelection === results[i].uuid) {
+                    const resultPath = EditorExtends?.Node?.getNodePath?.(results[i]) ?? '';
+                    if (results[i] && firstSelection === resultPath) {
                         if (i === results.length - 1) {
+                            const nextPath = EditorExtends?.Node?.getNodePath?.(results[0]) ?? '';
                             svc?.Selection?.unselect?.(firstSelection);
-                            svc?.Selection?.select?.(results[0].uuid);
-                        } else if (results[i + 1]?.uuid) {
+                            if (nextPath) svc?.Selection?.select?.(nextPath);
+                        } else if (results[i + 1]) {
+                            const nextPath = EditorExtends?.Node?.getNodePath?.(results[i + 1]) ?? '';
                             svc?.Selection?.unselect?.(firstSelection);
-                            svc?.Selection?.select?.(results[i + 1].uuid);
+                            if (nextPath) svc?.Selection?.select?.(nextPath);
                         }
                         break;
                     }

@@ -343,6 +343,12 @@ export class NodeManager {
         return NodeMgr.getNode(uuid);
     }
 
+    getPathByUuid(uuid: string): string {
+        const node = NodeMgr.getNode(uuid);
+        if (!node) return '';
+        return NodeMgr.getNodePath(node) ?? '';
+    }
+
     /**
      * 查询受管理的所有节点的 uuid 数组
      */

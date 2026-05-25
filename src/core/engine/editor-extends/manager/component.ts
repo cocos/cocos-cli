@@ -247,7 +247,7 @@ export default class ComponentManager extends EventEmitter {
         }
     }
 
-    getPathFromUuid(uuid: string) {
+    getPathFromUuid(uuid: string): string {
         return this._uuidToPath.get(uuid) || '';
     }
 

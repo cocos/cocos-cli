@@ -224,6 +224,14 @@ export interface IComponentService extends IServiceEvents {
      */
     hasScript(name: string): Promise<boolean>;
 
+    /**
+     * 通过 uuid 获取组件的路径
+     *
+     * @param uuid - 组件的 uuid
+     * @returns 组件路径，组件不存在时返回空字符串
+     */
+    getPathByUuid(uuid: string): string;
+
     // ---- 内部接口，不对外暴露 ----
 
     init(): void;

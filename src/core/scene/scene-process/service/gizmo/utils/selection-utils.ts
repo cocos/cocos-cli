@@ -44,14 +44,15 @@ function getEditingRootNode(): Node | null {
     }
 }
 
-export function getSelectNode(rayResultNodes: Node[], selectionNodeUuid: string): Node {
+export function getSelectNode(rayResultNodes: Node[], selectionNodePath: string): Node {
     const nodes: Node[] = rayResultNodes;
+    const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
     let rootNode: Node | null = null;
     rootNode = getUIRootNode(rayResultNodes[0]);
     if (!rootNode) {
         rootNode = getPrefabRootNode(rayResultNodes[0]);
         if (rootNode &&
-            (!selectionNodeUuid || selectionNodeUuid === rootNode.uuid) &&
+            (!selectionNodePath || selectionNodePath === (EditorExtends?.Node?.getNodePath?.(rootNode) ?? '')) &&
             getEditingRootNode() === rootNode) {
             return rayResultNodes[0];
         }
@@ -64,9 +65,10 @@ export function getSelectNode(rayResultNodes: Node[], selectionNodeUuid: string)
         nodes.unshift(rootNode);
     }
     let resultNode = nodes[0];
-    if (selectionNodeUuid) {
+    if (selectionNodePath) {
         for (let i = 0; i < nodes.length; i++) {
-            if (nodes[i] && selectionNodeUuid === nodes[i].uuid) {
+            const nodePath = EditorExtends?.Node?.getNodePath?.(nodes[i]) ?? '';
+            if (nodes[i] && selectionNodePath === nodePath) {
                 resultNode = nodes[i + 1];
                 resultNode = resultNode || nodes[0];
                 break;

@@ -26,10 +26,10 @@ class TransformBaseGizmo extends GizmoBase<Component> {
 
     public get nodes(): Node[] {
         const svc = getService();
-        const uuids: string[] = svc?.Selection?.query?.() ?? [];
-        const nodes = uuids.map((uuid: string) => {
+        const paths: string[] = svc?.Selection?.query?.() ?? [];
+        const nodes = paths.map((path: string) => {
             const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-            return EditorExtends?.Node?.getNode?.(uuid) ?? null;
+            return EditorExtends?.Node?.getNodeByPath?.(path) ?? null;
         });
         return nodes.filter((node: Node | null) => {
             if (node === null || !node.isValid || this.isNodeLocked(node)) {

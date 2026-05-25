@@ -1,9 +1,18 @@
 import { BaseService } from './core';
 import { register } from './core/decorator';
-import type { ISelectionService, ISelectionEvents } from '../../common';
+import { ServiceEvents } from './core/global-events';
+import type { ISelectionService, ISelectionEvents, IChangeNodeOptions } from '../../common';
+import { NodeEventType } from '../../common';
+import type { Node } from 'cc';
 
 function getNodeMgr() {
     return ((cc as any).EditorExtends || (globalThis as any).EditorExtends)?.Node;
+}
+
+function pathToUuid(path: string): string {
+    const NodeMgr = getNodeMgr();
+    if (!NodeMgr) return '';
+    return NodeMgr.getNodeUuidByPath?.(path) ?? '';
 }
 
 function uuidToPath(uuid: string): string {
@@ -14,57 +23,95 @@ function uuidToPath(uuid: string): string {
     return NodeMgr.getNodePath(node) ?? '';
 }
 
-function uuidsToPath(uuids: string[]): string[] {
-    return uuids.map(uuidToPath).filter(Boolean);
+interface SelectionEntry {
+    path: string;
+    uuid: string;
 }
 
 @register('Selection')
 export class SelectionService extends BaseService<ISelectionEvents> implements ISelectionService {
-    private _uuids: string[] = [];
+    private _selections: SelectionEntry[] = [];
+    private _onNodeChangedHandler?: (node: Node, opts: IChangeNodeOptions) => void;
 
-    select(uuid: string): void {
-        const index = this._uuids.indexOf(uuid);
-        if (index !== -1) return;
-        this._uuids.unshift(uuid);
-        this._callFocusInEditor(uuid);
-        const path = uuidToPath(uuid);
-        const paths = uuidsToPath(this._uuids);
-        this.broadcast('selection:select', path, paths);
+    init() {
+        this._onNodeChangedHandler = (node: Node, opts: IChangeNodeOptions) => {
+            if (opts.type === NodeEventType.SET_PROPERTY && opts.propPath === 'name') {
+                this._onNodePathChanged(node);
+            } else if (opts.type === NodeEventType.PARENT_CHANGED) {
+                this._onNodePathChanged(node);
+            }
+        };
+        ServiceEvents.on('node:change', this._onNodeChangedHandler);
     }
 
-    unselect(uuid: string): void {
-        const index = this._uuids.indexOf(uuid);
+    destroy() {
+        if (this._onNodeChangedHandler) {
+            ServiceEvents.off('node:change', this._onNodeChangedHandler);
+            this._onNodeChangedHandler = undefined;
+        }
+    }
+
+    private _onNodePathChanged(node: Node) {
+        const uuid = node.uuid;
+        const newPath = uuidToPath(uuid);
+        if (!newPath) return;
+
+        for (const entry of this._selections) {
+            if (entry.uuid === uuid) {
+                entry.path = newPath;
+            }
+        }
+    }
+
+    select(path: string): void {
+        const index = this._selections.findIndex(e => e.path === path);
+        if (index !== -1) return;
+        const uuid = pathToUuid(path);
+        this._selections.unshift({ path, uuid });
+        if (uuid) {
+            this._callFocusInEditor(uuid);
+        }
+        this.broadcast('selection:select', path, this._getPaths());
+    }
+
+    unselect(path: string): void {
+        const index = this._selections.findIndex(e => e.path === path);
         if (index === -1) return;
-        this._uuids.splice(index, 1);
-        this._callLostFocusInEditor(uuid);
-        const path = uuidToPath(uuid);
-        const paths = uuidsToPath(this._uuids);
-        this.broadcast('selection:unselect', path, paths);
+        const entry = this._selections[index];
+        this._selections.splice(index, 1);
+        if (entry.uuid) {
+            this._callLostFocusInEditor(entry.uuid);
+        }
+        this.broadcast('selection:unselect', path, this._getPaths());
     }
 
     clear(): void {
-        while (this._uuids.length > 0) {
-            const uuid = this._uuids.shift();
-            if (uuid) {
-                this._callLostFocusInEditor(uuid);
-                const path = uuidToPath(uuid);
-                const paths = uuidsToPath(this._uuids);
-                this.emit('selection:unselect', path, paths);
+        while (this._selections.length > 0) {
+            const entry = this._selections.shift();
+            if (entry) {
+                if (entry.uuid) {
+                    this._callLostFocusInEditor(entry.uuid);
+                }
+                this.emit('selection:unselect', entry.path, this._getPaths());
             }
         }
         this.broadcast('selection:clear');
     }
 
     query(): string[] {
-        return this._uuids.slice();
+        return this._selections.map(e => e.path);
     }
 
-    isSelect(uuid: string): boolean {
-        return this._uuids.indexOf(uuid) !== -1;
+    isSelect(path: string): boolean {
+        return this._selections.some(e => e.path === path);
     }
 
     reset(): void {
-        this._uuids.length = 0;
+        this._selections.length = 0;
+    }
+
+    private _getPaths(): string[] {
+        return this._selections.map(e => e.path);
     }
 
     private _callFocusInEditor(uuid: string): void {

@@ -84,7 +84,7 @@ export class CompManager {
         return CompMgr.getComponentFromPath(path) || null;
     }
 
-    getPathFromUuid(uuid: string): string | null {
+    getPathFromUuid(uuid: string): string {
         return CompMgr.getPathFromUuid(uuid);
     }
 

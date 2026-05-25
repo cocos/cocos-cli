@@ -5383,6 +5383,7 @@ export declare interface IComponentService extends IServiceEvents {
     queryFunctionOfNode(path: string): Promise<any>;
     executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
     hasScript(name: string): Promise<boolean>;
+    getPathByUuid(uuid: string): string;
     init(): void;
     unregisterCompMgrEvents(): void;
 }
@@ -5542,6 +5543,7 @@ export declare interface INodeService extends IServiceEvents {
     resetProperty(options: ISetPropertyOptions): Promise<boolean>;
     updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean>;
     setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void>;
+    getPathByUuid(uuid: string): string;
 }
 export declare interface INodeTreeComponent {
     isCustom: boolean;
@@ -5756,11 +5758,11 @@ export declare interface IScriptService extends IServiceEvents {
     suspend(condition: Promise<any>): void;
 }
 export declare interface ISelectionService {
-    select(uuid: string): void;
-    unselect(uuid: string): void;
+    select(path: string): void;
+    unselect(path: string): void;
     clear(): void;
     query(): string[];
-    isSelect(uuid: string): boolean;
+    isSelect(path: string): boolean;
     reset(): void;
 }
 export declare interface IServiceEvents {
@@ -7298,6 +7300,7 @@ export declare interface IComponentService extends IServiceEvents {
     queryFunctionOfNode(path: string): Promise<any>;
     executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
     hasScript(name: string): Promise<boolean>;
+    getPathByUuid(uuid: string): string;
     init(): void;
     unregisterCompMgrEvents(): void;
 }
@@ -7601,6 +7604,7 @@ export declare interface INodeService extends IServiceEvents {
     resetProperty(options: ISetPropertyOptions): Promise<boolean>;
     updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean>;
     setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void>;
+    getPathByUuid(uuid: string): string;
 }
 export declare interface INodeTreeComponent {
     isCustom: boolean;
@@ -7855,11 +7859,11 @@ export declare interface IScriptService extends IServiceEvents {
     suspend(condition: Promise<any>): void;
 }
 export declare interface ISelectionService {
-    select(uuid: string): void;
-    unselect(uuid: string): void;
+    select(path: string): void;
+    unselect(path: string): void;
     clear(): void;
     query(): string[];
-    isSelect(uuid: string): boolean;
+    isSelect(path: string): boolean;
     reset(): void;
 }
 export declare interface IServiceEvents {

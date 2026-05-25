@@ -65,7 +65,11 @@ class IconGizmoBase<T extends Component = Component> extends GizmoBase<T> {
         if (this.target) {
             try {
                 const { Service } = require('../../core/decorator');
-                Service.Selection?.select(this.target.node.uuid);
+                const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+                const path = EditorExtends?.Node?.getNodePath?.(this.target.node) ?? '';
+                if (path) {
+                    Service.Selection?.select(path);
+                }
             } catch (e) {
                 // not ready
             }

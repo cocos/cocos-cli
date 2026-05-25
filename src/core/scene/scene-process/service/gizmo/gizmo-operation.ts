@@ -30,6 +30,11 @@ function getNodeByUuid(uuid: string): Node | null {
     return EditorExtends?.Node?.getNode?.(uuid) ?? null;
 }
 
+function getNodePath(node: Node): string {
+    const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+    return EditorExtends?.Node?.getNodePath?.(node) ?? '';
+}
+
 /**
  * 与编辑器 adjustY 一致：将浏览器 Y（从顶部向下）翻转为屏幕坐标 Y（从底部向上）
  */
@@ -365,14 +370,15 @@ class GizmoOperation {
             }
 
             if (event.ctrlKey) {
-                if (curSelections.includes(resultNode.uuid)) {
-                    selection?.unselect?.(resultNode.uuid);
+                const resultPath = getNodePath(resultNode);
+                if (curSelections.includes(resultPath)) {
+                    selection?.unselect?.(resultPath);
                 } else {
-                    selection?.select?.(resultNode.uuid);
+                    selection?.select?.(resultPath);
                 }
             } else {
                 resultNode = getSelectNode(nodes, curSelections[0]);
-                selection?.select?.(resultNode.uuid);
+                selection?.select?.(getNodePath(resultNode));
             }
         } else {
             if (event.leftButton && !event.ctrlKey && !event.shiftKey) {
@@ -399,13 +405,14 @@ class GizmoOperation {
 
         const selectSet = new Set<string>(selection?.query?.() ?? []);
         nodes.forEach((node: Node) => {
-            if (!selectSet.has(node.uuid)) {
-                selection?.select?.(node.uuid);
+            const nodePath = getNodePath(node);
+            if (!selectSet.has(nodePath)) {
+                selection?.select?.(nodePath);
             }
-            selectSet.delete(node.uuid);
+            selectSet.delete(nodePath);
         });
-        for (const uuid of selectSet.keys()) {
-            selection?.unselect?.(uuid);
+        for (const path of selectSet.keys()) {
+            selection?.unselect?.(path);
         }
     }
 

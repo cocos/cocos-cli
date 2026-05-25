@@ -1,9 +1,9 @@
 export interface ISelectionService {
-    select(uuid: string): void;
-    unselect(uuid: string): void;
+    select(path: string): void;
+    unselect(path: string): void;
     clear(): void;
     query(): string[];
-    isSelect(uuid: string): boolean;
+    isSelect(path: string): boolean;
     reset(): void;
 }
 

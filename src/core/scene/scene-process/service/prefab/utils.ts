@@ -78,7 +78,7 @@ class PrefabUtil {
     // 发送节点修改消息
     public fireChangeMsg(node: Node | Scene, opts: any = {}) {
         opts.type = NodeEventType.PREFAB_INFO_CHANGED;
-        ServiceEvents.emit<INodeEvents>('node:change', node);
+        ServiceEvents.emit<INodeEvents>('node:change', node, opts);
     }
 
     public getPrefabAssetNodeInstance(prefabInfo: PrefabInfo) {
