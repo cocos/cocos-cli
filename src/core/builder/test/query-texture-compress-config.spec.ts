@@ -17,6 +17,7 @@ import {
     ISupportFormat,
     IConfigGroupsInfo,
     TextureCompressRenderConfig,
+    TextureCompressFullRenderConfig,
     PlatformTextureCompressConfig,
     PlatformCompressConfig,
     IPVRQuality,
@@ -67,6 +68,68 @@ jest.mock('../share/builder-config', () => ({
 
 jest.mock('../share/texture-compress', () => {
     const defaultSupport = { rgb: ['jpg', 'webp'], rgba: ['png', 'webp'] };
+    const textureFormatConfigs: Record<string, any> = {
+        pvr: {
+            displayName: 'PVRTC', suffix: '.pvr', parallelism: true, childProcess: true,
+            options: { quality: { default: 'normal', type: 'enum', items: [{ value: 'fastest' }, { value: 'fast' }, { value: 'normal' }, { value: 'high' }, { value: 'best' }] } },
+            formats: [
+                { value: 'pvrtc_2bits_rgb', formatSuffix: 'RGB_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB' },
+                { value: 'pvrtc_2bits_rgba', formatSuffix: 'RGBA_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGBA', alpha: true },
+                { value: 'pvrtc_2bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB Separate A', alpha: true },
+                { value: 'pvrtc_4bits_rgb', formatSuffix: 'RGB_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB' },
+                { value: 'pvrtc_4bits_rgba', formatSuffix: 'RGBA_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGBA', alpha: true },
+                { value: 'pvrtc_4bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB Separate A', alpha: true },
+            ],
+        },
+        etc: {
+            displayName: 'ETC', suffix: '.pkm', parallelism: false, childProcess: true,
+            options: { quality: { default: 'fast', type: 'enum', items: [{ value: 'slow' }, { value: 'fast' }] } },
+            formats: [
+                { value: 'etc1_rgb', formatSuffix: 'RGB_ETC1', displayName: 'ETC1 RGB' },
+                { value: 'etc1_rgb_a', formatSuffix: 'RGBA_ETC1', displayName: 'ETC1 RGB Separate A', alpha: true },
+                { value: 'etc2_rgb', formatSuffix: 'RGB_ETC2', displayName: 'ETC2 RGB' },
+                { value: 'etc2_rgba', formatSuffix: 'RGBA_ETC2', displayName: 'ETC2 RGBA', alpha: true },
+            ],
+        },
+        astc: {
+            displayName: 'ASTC', suffix: '.astc', parallelism: false, childProcess: true,
+            options: { quality: { default: 'medium', type: 'enum', items: [{ value: 'veryfast' }, { value: 'fast' }, { value: 'medium' }, { value: 'thorough' }, { value: 'exhaustive' }] } },
+            formats: [
+                { value: 'astc_4x4', formatSuffix: 'RGBA_ASTC_4x4', displayName: 'ASTC 4x4', alpha: true },
+                { value: 'astc_5x5', formatSuffix: 'RGBA_ASTC_5x5', displayName: 'ASTC 5x5', alpha: true },
+                { value: 'astc_6x6', formatSuffix: 'RGBA_ASTC_6x6', displayName: 'ASTC 6x6', alpha: true },
+                { value: 'astc_8x8', formatSuffix: 'RGBA_ASTC_8x8', displayName: 'ASTC 8x8', alpha: true },
+                { value: 'astc_10x5', formatSuffix: 'RGBA_ASTC_10x5', displayName: 'ASTC 10x5', alpha: true },
+                { value: 'astc_10x10', formatSuffix: 'RGBA_ASTC_10x10', displayName: 'ASTC 10x10', alpha: true },
+                { value: 'astc_12x12', formatSuffix: 'RGBA_ASTC_12x12', displayName: 'ASTC 12x12', alpha: true },
+            ],
+        },
+        png: {
+            displayName: 'PNG', suffix: '.png', parallelism: true,
+            options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
+            formats: [{ displayName: 'PNG', value: 'png', alpha: true }],
+        },
+        jpg: {
+            displayName: 'JPG', suffix: '.jpg', parallelism: true,
+            options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
+            formats: [{ displayName: 'JPG', value: 'jpg', alpha: false }],
+        },
+        webp: {
+            displayName: 'WEBP', suffix: '.webp', parallelism: true, childProcess: true,
+            options: { quality: { default: 80, type: 'number', minimum: 10, maximum: 100, step: 1 } },
+            formats: [{ displayName: 'WEBP', value: 'webp', alpha: true }],
+        },
+    };
+    const formatsInfo: Record<string, any> = {};
+    for (const [key, config] of Object.entries(textureFormatConfigs)) {
+        if (config.formats) {
+            for (const fmt of config.formats) {
+                formatsInfo[fmt.value] = { formatType: key, ...fmt };
+            }
+        } else {
+            formatsInfo[key] = { displayName: config.displayName, value: key, formatType: key };
+        }
+    }
     return {
         defaultSupport,
         configGroups: {
@@ -76,59 +139,8 @@ jest.mock('../share/texture-compress', () => {
             miniGame: { defaultSupport, support: { rgb: [...defaultSupport.rgb], rgba: [...defaultSupport.rgba] }, displayName: 'Mini Game', icon: 'mini-game', supportOverwrite: true },
             'harmonyos-next': { defaultSupport, support: { rgb: [...defaultSupport.rgb], rgba: [...defaultSupport.rgba] }, displayName: 'HarmonyOS', icon: 'harmony-os' },
         },
-        textureFormatConfigs: {
-            pvr: {
-                displayName: 'PVRTC', suffix: '.pvr', parallelism: true, childProcess: true,
-                options: { quality: { default: 'normal', type: 'enum', items: [{ value: 'fastest' }, { value: 'fast' }, { value: 'normal' }, { value: 'high' }, { value: 'best' }] } },
-                formats: [
-                    { value: 'pvrtc_2bits_rgb', formatSuffix: 'RGB_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB' },
-                    { value: 'pvrtc_2bits_rgba', formatSuffix: 'RGBA_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGBA', alpha: true },
-                    { value: 'pvrtc_2bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_2BPPV1', displayName: 'PVRTC 2bits RGB Separate A', alpha: true },
-                    { value: 'pvrtc_4bits_rgb', formatSuffix: 'RGB_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB' },
-                    { value: 'pvrtc_4bits_rgba', formatSuffix: 'RGBA_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGBA', alpha: true },
-                    { value: 'pvrtc_4bits_rgb_a', formatSuffix: 'RGB_A_PVRTC_4BPPV1', displayName: 'PVRTC 4bits RGB Separate A', alpha: true },
-                ],
-            },
-            etc: {
-                displayName: 'ETC', suffix: '.pkm', parallelism: false, childProcess: true,
-                options: { quality: { default: 'fast', type: 'enum', items: [{ value: 'slow' }, { value: 'fast' }] } },
-                formats: [
-                    { value: 'etc1_rgb', formatSuffix: 'RGB_ETC1', displayName: 'ETC1 RGB' },
-                    { value: 'etc1_rgb_a', formatSuffix: 'RGBA_ETC1', displayName: 'ETC1 RGB Separate A', alpha: true },
-                    { value: 'etc2_rgb', formatSuffix: 'RGB_ETC2', displayName: 'ETC2 RGB' },
-                    { value: 'etc2_rgba', formatSuffix: 'RGBA_ETC2', displayName: 'ETC2 RGBA', alpha: true },
-                ],
-            },
-            astc: {
-                displayName: 'ASTC', suffix: '.astc', parallelism: false, childProcess: true,
-                options: { quality: { default: 'medium', type: 'enum', items: [{ value: 'veryfast' }, { value: 'fast' }, { value: 'medium' }, { value: 'thorough' }, { value: 'exhaustive' }] } },
-                formats: [
-                    { value: 'astc_4x4', formatSuffix: 'RGBA_ASTC_4x4', displayName: 'ASTC 4x4', alpha: true },
-                    { value: 'astc_5x5', formatSuffix: 'RGBA_ASTC_5x5', displayName: 'ASTC 5x5', alpha: true },
-                    { value: 'astc_6x6', formatSuffix: 'RGBA_ASTC_6x6', displayName: 'ASTC 6x6', alpha: true },
-                    { value: 'astc_8x8', formatSuffix: 'RGBA_ASTC_8x8', displayName: 'ASTC 8x8', alpha: true },
-                    { value: 'astc_10x5', formatSuffix: 'RGBA_ASTC_10x5', displayName: 'ASTC 10x5', alpha: true },
-                    { value: 'astc_10x10', formatSuffix: 'RGBA_ASTC_10x10', displayName: 'ASTC 10x10', alpha: true },
-                    { value: 'astc_12x12', formatSuffix: 'RGBA_ASTC_12x12', displayName: 'ASTC 12x12', alpha: true },
-                ],
-            },
-            png: {
-                displayName: 'PNG', suffix: '.png', parallelism: true,
-                options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
-                formats: [{ displayName: 'PNG', value: 'png', alpha: true }],
-            },
-            jpg: {
-                displayName: 'JPG', suffix: '.jpg', parallelism: true,
-                options: { quality: { default: 80, type: 'number', step: 1, maximum: 100, minimum: 10 } },
-                formats: [{ displayName: 'JPG', value: 'jpg', alpha: false }],
-            },
-            webp: {
-                displayName: 'WEBP', suffix: '.webp', parallelism: true, childProcess: true,
-                options: { quality: { default: 80, type: 'number', minimum: 10, maximum: 100, step: 1 } },
-                formats: [{ displayName: 'WEBP', value: 'webp', alpha: true }],
-            },
-        },
-        formatsInfo: {},
+        textureFormatConfigs,
+        formatsInfo,
     };
 });
 
@@ -877,7 +889,7 @@ describe('纹理压缩完整测试', () => {
             }
 
             const result = pm.queryTextureCompressConfig();
-            expect(Object.keys(result).sort()).toEqual(['android', 'harmonyos-next', 'ios', 'miniGame', 'web']);
+            expect(Object.keys(result.platformRenderConfigs).sort()).toEqual(['android', 'harmonyos-next', 'ios', 'miniGame', 'web']);
         });
 
         it('miniGame 分组应包含全部 13 个小游戏平台', () => {
@@ -890,9 +902,9 @@ describe('纹理压缩完整测试', () => {
             }
 
             const result = pm.queryTextureCompressConfig();
-            expect(result.miniGame).toBeDefined();
-            expect(result.miniGame.displayName).toBe('Mini Game');
-            const miniGamePlatforms = Object.keys(result.miniGame.platformConfigs).sort();
+            expect(result.platformRenderConfigs.miniGame).toBeDefined();
+            expect(result.platformRenderConfigs.miniGame.displayName).toBe('Mini Game');
+            const miniGamePlatforms = Object.keys(result.platformRenderConfigs.miniGame.platformConfigs).sort();
             expect(miniGamePlatforms).toEqual(ALL_MINI_GAME_PLATFORMS.slice().sort());
             expect(miniGamePlatforms).toHaveLength(13);
         });
@@ -905,19 +917,19 @@ describe('纹理压缩完整测试', () => {
             });
 
             const result = pm.queryTextureCompressConfig();
-            expect(result.miniGame.platformConfigs.wechatgame.platformName).toBe('微信小游戏');
-            expect(result.miniGame.platformConfigs['bytedance-mini-game'].platformName).toBe('抖音小游戏');
-            expect(result.miniGame.platformConfigs['alipay-mini-game'].platformName).toBe('支付宝小游戏');
-            expect(result.miniGame.platformConfigs['taobao-mini-game'].platformName).toBe('淘宝小游戏');
-            expect(result.miniGame.platformConfigs['xiaomi-quick-game'].platformName).toBe('小米快游戏');
-            expect(result.miniGame.platformConfigs['oppo-mini-game'].platformName).toBe('OPPO 小游戏');
-            expect(result.miniGame.platformConfigs['vivo-mini-game'].platformName).toBe('vivo 小游戏');
-            expect(result.miniGame.platformConfigs['huawei-quick-game'].platformName).toBe('华为快游戏');
-            expect(result.miniGame.platformConfigs['honor-mini-game'].platformName).toBe('荣耀小游戏');
-            expect(result.miniGame.platformConfigs['migu-mini-game'].platformName).toBe('咪咕小游戏');
-            expect(result.miniGame.platformConfigs['sud-mini-game'].platformName).toBe('SUD');
-            expect(result.miniGame.platformConfigs['sudv2-mini-game'].platformName).toBe('SUDv2');
-            expect(result.miniGame.platformConfigs['fb-instant-games'].platformName).toBe('Facebook Instant Games');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs.wechatgame.platformName).toBe('微信小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['bytedance-mini-game'].platformName).toBe('抖音小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['alipay-mini-game'].platformName).toBe('支付宝小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['taobao-mini-game'].platformName).toBe('淘宝小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['xiaomi-quick-game'].platformName).toBe('小米快游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['oppo-mini-game'].platformName).toBe('OPPO 小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['vivo-mini-game'].platformName).toBe('vivo 小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['huawei-quick-game'].platformName).toBe('华为快游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['honor-mini-game'].platformName).toBe('荣耀小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['migu-mini-game'].platformName).toBe('咪咕小游戏');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['sud-mini-game'].platformName).toBe('SUD');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['sudv2-mini-game'].platformName).toBe('SUDv2');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs['fb-instant-games'].platformName).toBe('Facebook Instant Games');
         });
 
         it('android 分组应包含 android 和 google-play 两个平台', () => {
@@ -927,7 +939,7 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(Object.keys(result.android.platformConfigs).sort()).toEqual(['android', 'google-play']);
+            expect(Object.keys(result.platformRenderConfigs.android.platformConfigs).sort()).toEqual(['android', 'google-play']);
         });
 
         it('web 分组应包含 web-mobile 和 web-desktop 两个平台', () => {
@@ -937,8 +949,8 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(Object.keys(result.web.platformConfigs).sort()).toEqual(['web-desktop', 'web-mobile']);
-            expect(result.web.displayName).toBe('Web');
+            expect(Object.keys(result.platformRenderConfigs.web.platformConfigs).sort()).toEqual(['web-desktop', 'web-mobile']);
+            expect(result.platformRenderConfigs.web.displayName).toBe('Web');
         });
 
         it('web-desktop 在 web 分组中 support 应为空数组', () => {
@@ -947,8 +959,8 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(result.web.platformConfigs['web-desktop'].support.rgb).toEqual([]);
-            expect(result.web.platformConfigs['web-desktop'].support.rgba).toEqual([]);
+            expect(result.platformRenderConfigs.web.platformConfigs['web-desktop'].support.rgb).toEqual([]);
+            expect(result.platformRenderConfigs.web.platformConfigs['web-desktop'].support.rgba).toEqual([]);
         });
 
         it('i18n 名称应被正确翻译', () => {
@@ -957,7 +969,7 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(result.android.platformConfigs.android.platformName).toBe('Android');
+            expect(result.platformRenderConfigs.android.platformConfigs.android.platformName).toBe('Android');
         });
 
         it('没有 texture 配置的平台应被跳过', () => {
@@ -968,12 +980,17 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(Object.keys(result)).toEqual(['android']);
+            expect(Object.keys(result.platformRenderConfigs)).toEqual(['android']);
         });
 
-        it('无任何平台注册时应返回空对象', () => {
+        it('无任何平台注册时 platformRenderConfigs 应为空', () => {
             (pm as any).platformConfig = {};
-            expect(pm.queryTextureCompressConfig()).toEqual({});
+            const result = pm.queryTextureCompressConfig();
+            expect(result.platformRenderConfigs).toEqual({});
+            expect(result.configGroups).toBeDefined();
+            expect(result.textureFormatConfigs).toBeDefined();
+            expect(result.formatsInfo).toBeDefined();
+            expect(result.defaultSupport).toBeDefined();
         });
 
         it('返回结果应符合 TextureCompressRenderConfig 类型结构', () => {
@@ -982,7 +999,7 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            const config: TextureCompressRenderConfig = result.ios;
+            const config: TextureCompressRenderConfig = result.platformRenderConfigs.ios;
 
             expect(typeof config.displayName).toBe('string');
             expect(typeof config.platformConfigs).toBe('object');
@@ -1189,8 +1206,8 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(result.unknownType).toBeDefined();
-            expect(result.unknownType.displayName).toBe('unknownType');
+            expect(result.platformRenderConfigs.unknownType).toBeDefined();
+            expect(result.platformRenderConfigs.unknownType.displayName).toBe('unknownType');
         });
 
         it('全部 13 个真实小游戏平台应合并到同一个 miniGame 分组中', () => {
@@ -1201,9 +1218,9 @@ describe('纹理压缩完整测试', () => {
             });
 
             const result = pm.queryTextureCompressConfig();
-            expect(Object.keys(result)).toEqual(['miniGame']);
-            expect(Object.keys(result.miniGame.platformConfigs)).toHaveLength(13);
-            expect(result.miniGame.displayName).toBe('Mini Game');
+            expect(Object.keys(result.platformRenderConfigs)).toEqual(['miniGame']);
+            expect(Object.keys(result.platformRenderConfigs.miniGame.platformConfigs)).toHaveLength(13);
+            expect(result.platformRenderConfigs.miniGame.displayName).toBe('Mini Game');
         });
 
         it('平台 support 为空数组时查询不应报错', () => {
@@ -1215,8 +1232,8 @@ describe('纹理压缩完整测试', () => {
             };
 
             const result = pm.queryTextureCompressConfig();
-            expect(result.web.platformConfigs['empty-platform'].support.rgb).toEqual([]);
-            expect(result.web.platformConfigs['empty-platform'].support.rgba).toEqual([]);
+            expect(result.platformRenderConfigs.web.platformConfigs['empty-platform'].support.rgb).toEqual([]);
+            expect(result.platformRenderConfigs.web.platformConfigs['empty-platform'].support.rgba).toEqual([]);
         });
 
         it('同一个 platformType 下注册大量平台时 platformConfigs 应完整', () => {
@@ -1230,7 +1247,7 @@ describe('纹理压缩完整测试', () => {
             (pm as any).platformConfig = platforms;
 
             const result = pm.queryTextureCompressConfig();
-            expect(Object.keys(result.miniGame.platformConfigs)).toHaveLength(10);
+            expect(Object.keys(result.platformRenderConfigs.miniGame.platformConfigs)).toHaveLength(10);
         });
 
         it('平台未提供 name 时应回退使用平台 key 作为 platformName', () => {
@@ -1243,7 +1260,67 @@ describe('纹理压缩完整测试', () => {
                 },
             };
             const result = pm.queryTextureCompressConfig();
-            expect(result.web.platformConfigs['unknown-platform'].platformName).toBe('unknown-platform');
+            expect(result.platformRenderConfigs.web.platformConfigs['unknown-platform'].platformName).toBe('unknown-platform');
+        });
+    });
+
+    describe('TextureCompressFullRenderConfig 顶层字段', () => {
+        let pm: PluginManager;
+
+        beforeEach(() => {
+            pm = createPluginManager();
+            (pm as any).platformConfig = {};
+            for (const [platform, data] of Object.entries(REAL_PLATFORM_CONFIGS)) {
+                (pm as any).platformConfig[platform] = {
+                    name: data.name,
+                    texture: data.texture,
+                };
+            }
+        });
+
+        it('返回结果应包含所有 TextureCompressFullRenderConfig 必要字段', () => {
+            const result: TextureCompressFullRenderConfig = pm.queryTextureCompressConfig();
+            expect(result.configGroups).toBeDefined();
+            expect(result.textureFormatConfigs).toBeDefined();
+            expect(result.formatsInfo).toBeDefined();
+            expect(result.defaultSupport).toBeDefined();
+            expect(result.platformRenderConfigs).toBeDefined();
+        });
+
+        it('configGroups 应包含所有平台分组信息', () => {
+            const result = pm.queryTextureCompressConfig();
+            const groupKeys = Object.keys(result.configGroups).sort();
+            expect(groupKeys).toEqual(['android', 'harmonyos-next', 'ios', 'miniGame', 'web']);
+            for (const key of groupKeys) {
+                const group = result.configGroups[key as ITextureCompressPlatform];
+                expect(group.displayName).toBeDefined();
+                expect(group.icon).toBeDefined();
+            }
+        });
+
+        it('formatsInfo 应包含纹理格式信息且每项有 displayName 和 value', () => {
+            const result = pm.queryTextureCompressConfig();
+            expect(Object.keys(result.formatsInfo).length).toBeGreaterThan(0);
+            for (const [key, info] of Object.entries(result.formatsInfo)) {
+                expect(info.displayName).toBeDefined();
+                expect(info.value).toBe(key);
+            }
+        });
+
+        it('textureFormatConfigs 应包含格式类型配置', () => {
+            const result = pm.queryTextureCompressConfig();
+            expect(Object.keys(result.textureFormatConfigs).length).toBeGreaterThan(0);
+            for (const config of Object.values(result.textureFormatConfigs)) {
+                expect(config.displayName).toBeDefined();
+                expect(config.formats).toBeDefined();
+                expect(Array.isArray(config.formats)).toBe(true);
+            }
+        });
+
+        it('defaultSupport 应包含 rgb 和 rgba 数组', () => {
+            const result = pm.queryTextureCompressConfig();
+            expect(Array.isArray(result.defaultSupport.rgb)).toBe(true);
+            expect(Array.isArray(result.defaultSupport.rgba)).toBe(true);
         });
     });
 });
