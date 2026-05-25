@@ -4034,9 +4034,13 @@ export declare class PluginManager extends EventEmitter {
     getOptionsByPlatform<P extends Platform | string>(platform: P): Promise<IBuildTaskOption>;
     getTexturePlatformConfigs(): Record<string, ITextureCompressConfig>;
     queryPlatformConfig(): {
-        native: string[];
-        config: Record<string, IPlatformConfig>;
-    };
+        platform: string;
+        displayName: string;
+        platformType: PlatformType;
+        isNative: boolean;
+        createTemplateLabel: string;
+        supportTextureCompress: boolean;
+    }[];
     getRegisteredPlatforms(): string[];
     queryBundleConfig(): Record<string, BundleQueryConfig>;
     queryTextureCompressConfig(): TextureCompressFullRenderConfig;
@@ -4099,6 +4103,7 @@ export declare interface PreviewPackResult {
     atlases: IAtlasInfo[];
 }
 export declare type PureModulesOption = boolean | string[] | IsPureModule;
+export declare function queryAssetsInBundle(uuid: string, bundleFilterConfig?: BundleFilterConfig[]): Promise<string[]>;
 export declare function queryBuildConfig(): Promise<BuildConfiguration>;
 export declare function queryBundleConfig(): Promise<Record<string, BundleQueryConfig>>;
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;
