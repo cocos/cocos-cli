@@ -25,6 +25,7 @@ jobs:
         uses: ./.github/actions/setup-env
 
       - name: Generate DTS
+        shell: bash
         run: npm run generate:dts:ci
 
       - name: Run DTS tests
