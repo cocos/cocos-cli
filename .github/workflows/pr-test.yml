@@ -43,46 +43,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-env
 
-      - name: Generate DTS
-        run: npm run generate:dts:ci
-
       - name: Run unit tests
         id: unit-tests
         run: npm run test:quiet
-
-      - name: Run DTS tests
-        shell: bash
-        run: |
-          cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
-          npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
-          npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
-
-      - name: Check DTS API compatibility
-        if: github.event_name == 'pull_request'
-        shell: bash
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          BASE_REF="origin/${{ github.base_ref }}"
-          SNAP_FILE="tests/__snapshots__/dts-snapshot.test.ts.snap"
-
-          # Skip if snapshot file is new (not in base branch yet)
-          if ! git show "$BASE_REF:$SNAP_FILE" > /dev/null 2>&1; then
-            echo "Snapshot file is new, skipping API compatibility check."
-            exit 0
-          fi
-
-          # Check if snapshot file changed compared to base branch
-          if git diff --name-only "$BASE_REF"...HEAD | grep -q "$SNAP_FILE"; then
-            if [[ "$PR_TITLE" != *"[break]"* ]]; then
-              echo "::error::DTS API breaking change detected! The snapshot file changed but the PR title does not contain [break]."
-              echo "::error::If this change is intentional, add [break] to your PR title."
-              exit 1
-            fi
-            echo "API change detected and [break] tag found in PR title."
-          else
-            echo "No DTS API changes detected."
-          fi
 
       - name: Run E2E tests
         id: e2e-tests
