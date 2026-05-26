@@ -186,7 +186,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
      * 传入一个 uuid 返回这个 uuid 对应的脚本组件名字
      * @param uuid
      */
-    async queryScriptName(uuid: string) {
+    async queryName(uuid: string) {
         const compressUuid = utils.UUID.compressUUID(uuid, false);
         const list = this._executor.queryClassesInModule(compressUuid);
         if (!list) {
@@ -200,7 +200,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
      * 传入一个 uuid 返回这个 uuid 对应的脚本的 cid
      * @param uuid
      */
-    async queryScriptCid(uuid: string) {
+    async queryCid(uuid: string) {
         const compressUuid = utils.UUID.compressUUID(uuid, false);
         const list = this._executor.queryClassesInModule(compressUuid);
         if (!list) {
@@ -223,21 +223,21 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
     /**
      * 加载脚本时触发
      */
-    async loadScript() {
+    async load() {
         this._syncPluginScriptListAsync();
     }
 
     /**
      * 删除脚本时触发
      */
-    async removeScript() {
+    async remove() {
         this._syncPluginScriptListAsync();
     }
 
     /**
      * 脚本发生变化时触发
      */
-    async scriptChange() {
+    async change() {
         this._syncPluginScriptListAsync();
     }
 

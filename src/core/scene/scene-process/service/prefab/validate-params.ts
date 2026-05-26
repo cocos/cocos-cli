@@ -3,7 +3,7 @@ import type { IApplyPrefabChangesParams, ICreatePrefabFromNodeParams } from '../
 const PREFAB_EXTENSION = '.prefab';
 const ASSET_URL_PREFIX = 'db://';
 
-export function validateCreatePrefabParams(params: ICreatePrefabFromNodeParams): void {
+export function validateCreateParams(params: ICreatePrefabFromNodeParams): void {
     if (!params?.nodePath?.trim()) {
         throw new Error('节点路径不能为空或纯空格');
     }

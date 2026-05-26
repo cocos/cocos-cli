@@ -45,7 +45,7 @@ export const SchemaNodeSearch = SchemaNodeIdentifier.extend({
 }).describe('Query options for nodes, the result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的参数
-export const SchemaNodeQuery = z.object({
+export const SchemaNodeQueryOptions = z.object({
     path: z.string().describe('Node path, root path is "/"'), // 节点路径
     queryChildren: z.boolean().default(false).describe('Whether to query child node information'), // 是否查询子节点信息
     queryComponent: z.boolean().default(false).describe('Whether to query component`s detailed information, the child component only returns concise information.'), // 是否查询组件信息,子节点只返回简易的信息
@@ -55,7 +55,7 @@ export const SchemaNodeQuery = z.object({
 export const SchemaNodeQueryResult: z.ZodType<INodeInfo> = SchemaNode;
 
 //节点更新的参数
-export const SchemaNodeUpdate = z.object({
+export const SchemaNodeUpdateOptions = z.object({
     path: z.string().describe('Relative path of the node'), // 节点相对路径
     name: z.string().optional().describe('Name of the node to update'), // 更新的节点名称
     properties: SchemaNodeProperty.partial().optional().describe('Node properties to update, can update partial properties'), // 要更新的节点属性，可以只更新部分属性
@@ -72,7 +72,7 @@ export const SchemaNodeDeleteResult = z.object({
 });
 
 // 删除节点的参数
-export const SchemaNodeDelete = z.object({
+export const SchemaNodeDeleteOptions = z.object({
     path: z.string().describe('Relative path of the node'), // 节点相对路径
     keepWorldTransform: z.boolean().optional().describe('Keep world transform'), // 保持世界变换
 }).describe('To configure options for node deletion, the Scene must be open first.'); // 删除节点的选项参数，需先打开场景
@@ -86,20 +86,20 @@ const SchemaNodeCreateBase = z.object({
     canvasRequired: z.boolean().optional().describe('Whether Canvas is required'), // 是否需要 Canvas
 }).describe('To configure options for node creation, the Scene must be open first.'); // 创建节点的选项参数, 需先打开场景;
 
-export const SchemaNodeCreateByAsset = SchemaNodeCreateBase.extend({
+export const SchemaNodeCreateByAssetOptions = SchemaNodeCreateBase.extend({
     dbURL: SchemaUrl.describe('Prefab asset path, if created from a prefab, please pass this parameter, format is custom db path e.g. db://assets/abc.prefab'), // 预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab
 });
 
-export const SchemaNodeCreateByType = SchemaNodeCreateBase.extend({
+export const SchemaNodeCreateByTypeOptions = SchemaNodeCreateBase.extend({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('Node type'), // 节点类型
 });
 
 // 类型导出
-export type TDeleteNodeOptions = z.infer<typeof SchemaNodeDelete>;
-export type TUpdateNodeOptions = z.infer<typeof SchemaNodeUpdate>;
-export type TCreateNodeByAssetOptions = z.infer<typeof SchemaNodeCreateByAsset>;
-export type TCreateNodeByTypeOptions = z.infer<typeof SchemaNodeCreateByType>;
-export type TQueryNodeOptions = z.infer<typeof SchemaNodeQuery>;
+export type TDeleteNodeOptions = z.infer<typeof SchemaNodeDeleteOptions>;
+export type TUpdateNodeOptions = z.infer<typeof SchemaNodeUpdateOptions>;
+export type TCreateNodeByAssetOptions = z.infer<typeof SchemaNodeCreateByAssetOptions>;
+export type TCreateNodeByTypeOptions = z.infer<typeof SchemaNodeCreateByTypeOptions>;
+export type TQueryNodeOptions = z.infer<typeof SchemaNodeQueryOptions>;
 export type TNodeDetail = z.infer<typeof SchemaNodeQueryResult>;
 export type TNodeUpdateResult = z.infer<typeof SchemaNodeUpdateResult>;
 export type TNodeDeleteResult = z.infer<typeof SchemaNodeDeleteResult>;

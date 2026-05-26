@@ -4,8 +4,8 @@
   后续需要迁移
  */
 import {
-    type ICreateByNodeTypeParams,
-    type IDeleteNodeParams,
+    type ICreateByNodeTypeOptions,
+    type IDeleteNodeOptions,
     type IAddComponentOptions,
     type IQueryComponentOptions,
     type ISetPropertyOptions,
@@ -15,7 +15,7 @@ import {
     type IExecuteComponentMethodOptions,
     NodeType,
 } from '../common';
-import { type ISetPropertyOptionsInfo } from '../common/cli/component';
+import { type ISetComponentPropertyOptions } from '../common/cli/component';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
@@ -68,7 +68,7 @@ describe('Component ForEditor 接口测试', () => {
         await EditorProxy.open({
             urlOrUUID: SceneTestEnv.sceneURL,
         });
-        const params: ICreateByNodeTypeParams = {
+        const params: ICreateByNodeTypeOptions = {
             path: 'TestNode',
             nodeType: NodeType.EMPTY,
             position: { x: 1, y: 2, z: 0 },
@@ -83,7 +83,7 @@ describe('Component ForEditor 接口测试', () => {
 
     afterAll(async () => {
         try {
-            const params: IDeleteNodeParams = {
+            const params: IDeleteNodeOptions = {
                 path: nodePath,
                 keepWorldTransform: false,
             };
@@ -142,7 +142,7 @@ describe('Component ForEditor 接口测试', () => {
 
         it('reset - 修改属性后重置应恢复默认值', async () => {
             // 先修改属性
-            const setComponentProperty: ISetPropertyOptionsInfo = {
+            const setComponentProperty: ISetComponentPropertyOptions = {
                 componentPath: componentPath,
                 properties: { string: 'modified' },
             };

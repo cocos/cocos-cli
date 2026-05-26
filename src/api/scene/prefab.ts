@@ -33,7 +33,7 @@ export class PrefabApi {
     @result(SchemaNode)
     async createPrefabFromNode(@param(SchemaCreatePrefabFromNodeOptions) options: TCreatePrefabFromNodeOptions): Promise<CommonResultType<TNode>> {
         try {
-            const data = await Scene.createPrefabFromNode(options);
+            const data = await Scene.Prefab.createFromNode(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -53,7 +53,7 @@ export class PrefabApi {
     @result(SchemaApplyPrefabChangesResult)
     async applyPrefabChanges(@param(SchemaApplyPrefabChangesOptions) options: TApplyPrefabChangesOptions): Promise<CommonResultType<TApplyPrefabChangesResult>> {
         try {
-            const data = await Scene.applyPrefabChanges(options);
+            const data = await Scene.Prefab.applyChanges(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -73,7 +73,7 @@ export class PrefabApi {
     @result(SchemaRevertToPrefabResult)
     async revertToPrefab(@param(SchemaRevertToPrefabOptions) options: TRevertToPrefabOptions): Promise<CommonResultType<TRevertToPrefabResult>> {
         try {
-            const data = await Scene.revertToPrefab(options);
+            const data = await Scene.Prefab.revert(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -93,7 +93,7 @@ export class PrefabApi {
     @result(SchemaNode)
     async unpackPrefabInstance(@param(SchemaUnpackPrefabInstanceOptions) options: TUnpackPrefabInstanceOptions): Promise<CommonResultType<TNode>> {
         try {
-            const data = await Scene.unpackPrefabInstance(options);
+            const data = await Scene.Prefab.unpack(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -113,7 +113,7 @@ export class PrefabApi {
     @result(SchemaIsPrefabInstanceResult)
     async isPrefabInstance(@param(SchemaIsPrefabInstanceOptions) options: TIsPrefabInstanceOptions): Promise<CommonResultType<TIsPrefabInstanceResult>> {
         try {
-            const data = await Scene.isPrefabInstance(options);
+            const data = await Scene.Prefab.isInstance(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,
@@ -133,7 +133,7 @@ export class PrefabApi {
     @result(SchemaGetPrefabResult)
     async getPrefabInfo(@param(SchemaGetPrefabInfoOptions) options: TGetPrefabInfoParams): Promise<CommonResultType<TGetPrefabResult>> {
         try {
-            const data = await Scene.getPrefabInfo(options);
+            const data = await Scene.Prefab.getInfo(options);
             return {
                 data: data,
                 code: COMMON_STATUS.SUCCESS,

@@ -9,8 +9,8 @@ import type {
     IUnpackPrefabInstanceParams,
     IIsPrefabInstanceParams,
     IGetPrefabInfoParams,
-    ICreateByNodeTypeParams,
-    ICreateByAssetParams,
+    ICreateByNodeTypeOptions,
+    ICreateByAssetOptions,
     INodeInfo,
     IPrefabInfo,
     IComponentInfo
@@ -78,7 +78,7 @@ describe('Prefab Proxy In Scene 测试', () => {
 
     describe('1. 预制体创建测试', () => {
         it('createPrefabFromNode - 创建普通节点用于转换为预制体', async () => {
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '/TestPrefabNode',
                 name: 'TestPrefabNode',
                 nodeType: NodeType.SPRITE,
@@ -100,7 +100,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: prefabAssetURL
             };
 
-            await expect(PrefabProxy.createPrefabFromNode(invalidParams1)).rejects.toThrow();
+            await expect(PrefabProxy.createFromNode(invalidParams1)).rejects.toThrow();
 
             // 测试空资源URL
             const invalidParams2: ICreatePrefabFromNodeParams = {
@@ -108,7 +108,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: ''
             };
 
-            await expect(PrefabProxy.createPrefabFromNode(invalidParams2)).rejects.toThrow();
+            await expect(PrefabProxy.createFromNode(invalidParams2)).rejects.toThrow();
 
             // 测试无效的资源 URL 格式
             const invalidParams3: ICreatePrefabFromNodeParams = {
@@ -116,7 +116,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: 'invalid-url'
             };
 
-            await expect(PrefabProxy.createPrefabFromNode(invalidParams3)).rejects.toThrow();
+            await expect(PrefabProxy.createFromNode(invalidParams3)).rejects.toThrow();
         });
 
         it('createPrefabFromNode - 将节点转换为预制体资源', async () => {
@@ -128,7 +128,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 overwrite: true
             };
 
-            testNodePrefabNode = await PrefabProxy.createPrefabFromNode(params);
+            testNodePrefabNode = await PrefabProxy.createFromNode(params);
             expect(testNodePrefabNode).toBeDefined();
             expect(testNodePrefabNode?.prefab).toBeDefined();
             // 最终节点名，是根据 url 的名字来的
@@ -138,7 +138,7 @@ describe('Prefab Proxy In Scene 测试', () => {
 
     describe('2. 预制体实例测试', () => {
         it('是否能通过 createPrefabFromNode 创建的预制体资源进程创建节点', async () => {
-            const createParams: ICreateByAssetParams = {
+            const createParams: ICreateByAssetOptions = {
                 dbURL: prefabAssetURL,
                 path: '',
                 name: 'PrefabInstanceNode-CreatePrefabFromNode'
@@ -158,12 +158,12 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: testNodePrefabNode.path
                 };
 
-                const isPrefab = await PrefabProxy.isPrefabInstance(params);
+                const isPrefab = await PrefabProxy.isInstance(params);
                 expect(isPrefab).toBe(true);
             }
 
             // 测试普通节点
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: 'TestPrefabNode-isPrefabInstance',
                 nodeType: NodeType.SPRITE,
@@ -177,7 +177,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: normalNode?.path as string
             };
 
-            const isPrefab = await PrefabProxy.isPrefabInstance(params);
+            const isPrefab = await PrefabProxy.isInstance(params);
             expect(isPrefab).toBe(false);
         });
 
@@ -186,7 +186,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: ''
             };
 
-            await expect(PrefabProxy.isPrefabInstance(invalidParams)).rejects.toThrow();
+            await expect(PrefabProxy.isInstance(invalidParams)).rejects.toThrow();
 
         });
 
@@ -197,7 +197,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: testNodePrefabNode.path
                 };
 
-                const prefabInfo: IPrefabInfo | null = await PrefabProxy.getPrefabInfo(params);
+                const prefabInfo: IPrefabInfo | null = await PrefabProxy.getInfo(params);
                 expect(prefabInfo).toBeDefined();
                 if (prefabInfo) {
                     expect(prefabInfo.fileId).toBeDefined();
@@ -205,7 +205,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             }
 
             // 测试普通节点
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: 'TestPrefabNode-getPrefabInfo',
                 nodeType: NodeType.SPRITE,
@@ -219,7 +219,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: normalNode?.path as string
             };
 
-            const prefabInfo = await PrefabProxy.getPrefabInfo(params);
+            const prefabInfo = await PrefabProxy.getInfo(params);
             expect(prefabInfo).toBeNull();
         });
 
@@ -228,7 +228,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: ''
             };
 
-            await expect(PrefabProxy.getPrefabInfo(invalidParams)).rejects.toThrow();
+            await expect(PrefabProxy.getInfo(invalidParams)).rejects.toThrow();
 
         });
     });
@@ -269,10 +269,10 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: ''
             };
 
-            await expect(PrefabProxy.applyPrefabChanges(invalidParams)).rejects.toThrow();
+            await expect(PrefabProxy.applyChanges(invalidParams)).rejects.toThrow();
 
             // 测试普通节点
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: 'TestPrefabNode-applyPrefabChanges',
                 nodeType: NodeType.SPRITE,
@@ -286,7 +286,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: normalNode.path
                 };
 
-                await expect(PrefabProxy.applyPrefabChanges(params)).rejects.toThrow();
+                await expect(PrefabProxy.applyChanges(params)).rejects.toThrow();
             }
         });
 
@@ -297,10 +297,10 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: testNodePrefabNode.path
                 };
 
-                const result = await PrefabProxy.applyPrefabChanges(params);
+                const result = await PrefabProxy.applyChanges(params);
                 expect(result).toBe(true);
 
-                const createParams: ICreateByAssetParams = {
+                const createParams: ICreateByAssetOptions = {
                     dbURL: prefabAssetURL,
                     path: '',
                     name: 'PrefabInstanceNode-applyPrefabChanges'
@@ -328,10 +328,10 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: ''
             };
 
-            await expect(PrefabProxy.revertToPrefab(invalidParams)).rejects.toThrow();
+            await expect(PrefabProxy.revert(invalidParams)).rejects.toThrow();
 
             // 测试普通节点
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: 'TestPrefabNode-revertToPrefab',
                 nodeType: NodeType.SPRITE,
@@ -345,7 +345,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: normalNode.path
                 };
 
-                const done = await PrefabProxy.revertToPrefab(params);
+                const done = await PrefabProxy.revert(params);
                 expect(done).toBe(false);
             }
         });
@@ -373,7 +373,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: path
                 };
 
-                const result = await PrefabProxy.revertToPrefab(params);
+                const result = await PrefabProxy.revert(params);
                 expect(result).toBe(true);
 
                 const node2 = await NodeProxy.query({ path: path, queryChildren: false, queryComponent: false }) as INodeInfo | null;
@@ -384,7 +384,7 @@ describe('Prefab Proxy In Scene 测试', () => {
         it('revertToPrefab - 还原 scale 但保留 position 和 rotation overrides', async () => {
             // 创建新节点用于测试
             const nodeName = 'PrefabRevertNode';
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: nodeName,
                 nodeType: NodeType.EMPTY,
@@ -401,7 +401,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: revertPrefabURL,
             };
 
-            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            const prefabNode = await PrefabProxy.createFromNode(createPrefabParams);
             expect(prefabNode).toBeTruthy();
             if (!prefabNode) return;
 
@@ -455,7 +455,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: updatedPrefabNodePath,
             };
 
-            const applyResult = await PrefabProxy.applyPrefabChanges(applyParams);
+            const applyResult = await PrefabProxy.applyChanges(applyParams);
             expect(applyResult).toBe(true);
 
             // 第二步：再次设置 scale 为 10（不应用）
@@ -496,7 +496,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const queryNode = await NodeProxy.query({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
             queryNode && console.log(queryNode.properties);
 
-            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            const revertResult = await PrefabProxy.revert(revertParams);
             expect(revertResult).toBe(true);
 
             // 验证还原后的属性
@@ -523,7 +523,7 @@ describe('Prefab Proxy In Scene 测试', () => {
         it('revertToPrefab - 保证子节点的 path 不变', async () => {
             // 创建父节点
             const parentNodeName = 'ParentNodeForRevert';
-            const createParentParams: ICreateByNodeTypeParams = {
+            const createParentParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: parentNodeName,
                 nodeType: NodeType.EMPTY,
@@ -535,7 +535,7 @@ describe('Prefab Proxy In Scene 测试', () => {
 
             // 创建子节点
             const childNodeName = 'ChildNodeForRevert';
-            const createChildParams: ICreateByNodeTypeParams = {
+            const createChildParams: ICreateByNodeTypeOptions = {
                 path: parentNode.path,
                 name: childNodeName,
                 nodeType: NodeType.EMPTY,
@@ -552,7 +552,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: revertChildPrefabURL,
             };
 
-            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            const prefabNode = await PrefabProxy.createFromNode(createPrefabParams);
             expect(prefabNode).toBeTruthy();
             if (!prefabNode) return;
 
@@ -596,7 +596,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: prefabNodePath,
             };
 
-            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            const revertResult = await PrefabProxy.revert(revertParams);
             expect(revertResult).toBe(true);
 
             // 查询节点及其子节点，验证子节点的 path 保持不变
@@ -633,14 +633,14 @@ describe('Prefab Proxy In Scene 测试', () => {
                     recursive: true
                 };
 
-                const unpackedNode: INodeInfo | null = await PrefabProxy.unpackPrefabInstance(params);
+                const unpackedNode: INodeInfo | null = await PrefabProxy.unpack(params);
                 expect(unpackedNode).toBeTruthy();
                 if (!unpackedNode) return;
 
                 expect(unpackedNode.path).toBe(testNodePrefabNode.path);
 
                 // 验证解耦后不再是预制体实例
-                const isPrefabAfterUnpack = await PrefabProxy.isPrefabInstance({
+                const isPrefabAfterUnpack = await PrefabProxy.isInstance({
                     nodePath: unpackedNode.path
                 });
                 expect(isPrefabAfterUnpack).toBe(false);
@@ -651,13 +651,13 @@ describe('Prefab Proxy In Scene 测试', () => {
             const invalidParams: IUnpackPrefabInstanceParams = {
                 nodePath: ''
             };
-            await expect(PrefabProxy.unpackPrefabInstance(invalidParams)).rejects.toThrow();
+            await expect(PrefabProxy.unpack(invalidParams)).rejects.toThrow();
         });
 
         it('unpackPrefabInstance - 非递归解耦测试', async () => {
             // 创建另一个预制体实例用于非递归测试
             if (testNodePrefabNode) {
-                const createParams: ICreateByAssetParams = {
+                const createParams: ICreateByAssetOptions = {
                     dbURL: prefabAssetURL,
                     path: '/PrefabInstance2',
                     name: 'PrefabInstanceNode2'
@@ -672,7 +672,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                         recursive: false
                     };
 
-                    const unpackedNode = await PrefabProxy.unpackPrefabInstance(params);
+                    const unpackedNode = await PrefabProxy.unpack(params);
                     expect(unpackedNode).toBeDefined();
                 }
             }
@@ -681,7 +681,7 @@ describe('Prefab Proxy In Scene 测试', () => {
         it('unpackPrefabInstance - 对非预制体节点进行解包操作', async () => {
             // 创建普通节点（非预制体实例）
             const nodeName = 'NonPrefabUnpackNode';
-            const createParams: ICreateByNodeTypeParams = {
+            const createParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: nodeName,
                 nodeType: NodeType.EMPTY,
@@ -697,7 +697,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 recursive: false,
             };
 
-            await expect(PrefabProxy.unpackPrefabInstance(params)).rejects.toThrow();
+            await expect(PrefabProxy.unpack(params)).rejects.toThrow();
         });
     });
 
@@ -705,7 +705,7 @@ describe('Prefab Proxy In Scene 测试', () => {
         it('完整的预制体工作流测试', async () => {
             // 1. 创建节点
             const nodeName = 'WorkflowNode';
-            const createNodeParams: ICreateByNodeTypeParams = {
+            const createNodeParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: nodeName,
                 nodeType: NodeType.EMPTY,
@@ -726,7 +726,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: workflowPrefabURL,
             };
 
-            const createPrefabResult = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            const createPrefabResult = await PrefabProxy.createFromNode(createPrefabParams);
             expect(createPrefabResult).toBeTruthy();
             if (!createPrefabResult) return;
 
@@ -739,7 +739,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 overwrite: true,
             };
 
-            const overwriteResult = await PrefabProxy.createPrefabFromNode(overwriteParams);
+            const overwriteResult = await PrefabProxy.createFromNode(overwriteParams);
             expect(overwriteResult).toBeTruthy();
 
             // 4. 检查节点是否为预制体实例
@@ -747,12 +747,12 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: nodePath,
             };
 
-            const isInstanceResult = await PrefabProxy.isPrefabInstance(isInstanceParams);
+            const isInstanceResult = await PrefabProxy.isInstance(isInstanceParams);
             expect(isInstanceResult).toBe(true);
 
             // 5. 检查普通节点
             const anotherNodeName = 'AnotherNode';
-            const anotherNodeParams: ICreateByNodeTypeParams = {
+            const anotherNodeParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: anotherNodeName,
                 nodeType: NodeType.EMPTY,
@@ -766,7 +766,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: anotherNode.path,
             };
 
-            const isNotInstanceResult = await PrefabProxy.isPrefabInstance(isNotInstanceParams);
+            const isNotInstanceResult = await PrefabProxy.isInstance(isNotInstanceParams);
             expect(isNotInstanceResult).toBe(false);
 
             // 6. 获取预制体信息
@@ -774,7 +774,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: nodePath,
             };
 
-            const getInfoResult = await PrefabProxy.getPrefabInfo(getInfoParams);
+            const getInfoResult = await PrefabProxy.getInfo(getInfoParams);
             expect(getInfoResult).not.toBeNull();
             if (getInfoResult) {
                 expect(typeof getInfoResult.fileId).toBe('string');
@@ -812,7 +812,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: nodePath,
             };
 
-            const applyChangesResult = await PrefabProxy.applyPrefabChanges(applyChangesParams);
+            const applyChangesResult = await PrefabProxy.applyChanges(applyChangesParams);
             expect(applyChangesResult).toBe(true);
 
             // 9. 再次修改预制体实例
@@ -846,7 +846,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: nodePath,
             };
 
-            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            const revertResult = await PrefabProxy.revert(revertParams);
             expect(revertResult).toBe(true);
 
             // 验证还原后的属性
@@ -874,7 +874,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 recursive: false,
             };
 
-            const unpackResult = await PrefabProxy.unpackPrefabInstance(unpackParams);
+            const unpackResult = await PrefabProxy.unpack(unpackParams);
             expect(unpackResult).toBeDefined();
 
             // 12. 验证不再是预制体实例
@@ -882,14 +882,14 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: nodePath,
             };
 
-            const isUnpackedInstanceResult = await PrefabProxy.isPrefabInstance(isUnpackedInstanceParams);
+            const isUnpackedInstanceResult = await PrefabProxy.isInstance(isUnpackedInstanceParams);
             expect(isUnpackedInstanceResult).toBe(false);
         });
 
         it('嵌套预制体操作测试', async () => {
             // 创建父节点
             const parentNodeName = 'ParentNode';
-            const parentNodeParams: ICreateByNodeTypeParams = {
+            const parentNodeParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: parentNodeName,
                 nodeType: NodeType.EMPTY,
@@ -901,7 +901,7 @@ describe('Prefab Proxy In Scene 测试', () => {
 
             // 创建子节点
             const childNodeName = 'ChildNode';
-            const childNodeParams: ICreateByNodeTypeParams = {
+            const childNodeParams: ICreateByNodeTypeOptions = {
                 path: parentNode.path,
                 name: childNodeName,
                 nodeType: NodeType.EMPTY,
@@ -917,7 +917,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: nestedPrefabURL,
             };
 
-            const createPrefabResult = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            const createPrefabResult = await PrefabProxy.createFromNode(createPrefabParams);
             expect(createPrefabResult).toBeTruthy();
             if (!createPrefabResult) return;
 
@@ -926,7 +926,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: createPrefabResult.path,
             };
 
-            const isParentInstanceResult = await PrefabProxy.isPrefabInstance(isParentInstanceParams);
+            const isParentInstanceResult = await PrefabProxy.isInstance(isParentInstanceParams);
             expect(isParentInstanceResult).toBe(true);
         });
     });
@@ -935,19 +935,19 @@ describe('Prefab Proxy In Scene 测试', () => {
         it('测试不存在的节点路径', async () => {
             const nonExistentPath = '/NonExistentNode';
 
-            await expect(PrefabProxy.isPrefabInstance({ nodePath: nonExistentPath }))
+            await expect(PrefabProxy.isInstance({ nodePath: nonExistentPath }))
                 .rejects.toThrow();
 
-            await expect(PrefabProxy.getPrefabInfo({ nodePath: nonExistentPath }))
+            await expect(PrefabProxy.getInfo({ nodePath: nonExistentPath }))
                 .rejects.toThrow();
 
-            await expect(PrefabProxy.applyPrefabChanges({ nodePath: nonExistentPath }))
+            await expect(PrefabProxy.applyChanges({ nodePath: nonExistentPath }))
                 .rejects.toThrow();
 
-            await expect(PrefabProxy.revertToPrefab({ nodePath: nonExistentPath }))
+            await expect(PrefabProxy.revert({ nodePath: nonExistentPath }))
                 .rejects.toThrow();
 
-            await expect(PrefabProxy.unpackPrefabInstance({ nodePath: nonExistentPath }))
+            await expect(PrefabProxy.unpack({ nodePath: nonExistentPath }))
                 .rejects.toThrow();
         });
 
@@ -966,7 +966,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: testNodePrefabNode?.path as string,
                     dbURL: invalidURL
                 };
-                await expect(PrefabProxy.createPrefabFromNode(params)).rejects.toThrow();
+                await expect(PrefabProxy.createFromNode(params)).rejects.toThrow();
             }
         });
 
@@ -986,7 +986,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: duplicateURL,
                 overwrite: false
             };
-            const result1 = await PrefabProxy.createPrefabFromNode(params1);
+            const result1 = await PrefabProxy.createFromNode(params1);
             expect(result1).toBeTruthy();
             if (!result1) return;
 
@@ -996,20 +996,20 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: duplicateURL,
                 overwrite: true
             };
-            const result3 = await PrefabProxy.createPrefabFromNode(params2);
+            const result3 = await PrefabProxy.createFromNode(params2);
             expect(result3).toBeTruthy();
             if (!result3) return;
 
             expect(result3.name).toBe(result1.name);
 
             // 不覆盖，成功会改名 -001
-            await expect(PrefabProxy.createPrefabFromNode(params1)).rejects.toThrow();
+            await expect(PrefabProxy.createFromNode(params1)).rejects.toThrow();
         });
 
         it('测试对已解包的节点进行 applyChanges 操作', async () => {
             // 创建节点
             const nodeName = 'UnpackedNode';
-            const createNodeParams: ICreateByNodeTypeParams = {
+            const createNodeParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: nodeName,
                 nodeType: NodeType.EMPTY,
@@ -1026,7 +1026,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: unpackedPrefabURL,
             };
 
-            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            const prefabNode = await PrefabProxy.createFromNode(createPrefabParams);
             expect(prefabNode).toBeTruthy();
             if (!prefabNode) return;
 
@@ -1038,7 +1038,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 recursive: false,
             };
 
-            const unpackResult = await PrefabProxy.unpackPrefabInstance(unpackParams);
+            const unpackResult = await PrefabProxy.unpack(unpackParams);
             expect(unpackResult).toBeDefined();
 
             // 尝试对已解包的节点应用更改（应该失败）
@@ -1046,13 +1046,13 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: prefabNodePath,
             };
 
-            await expect(PrefabProxy.applyPrefabChanges(applyParams)).rejects.toThrow();
+            await expect(PrefabProxy.applyChanges(applyParams)).rejects.toThrow();
         });
 
         it('测试多次应用和还原操作', async () => {
             // 创建节点
             const nodeName = 'MultiOpNode';
-            const createNodeParams: ICreateByNodeTypeParams = {
+            const createNodeParams: ICreateByNodeTypeOptions = {
                 path: '',
                 name: nodeName,
                 nodeType: NodeType.EMPTY,
@@ -1071,7 +1071,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 dbURL: multiOpPrefabURL,
             };
 
-            const prefabNode = await PrefabProxy.createPrefabFromNode(createPrefabParams);
+            const prefabNode = await PrefabProxy.createFromNode(createPrefabParams);
             expect(prefabNode).toBeTruthy();
             if (!prefabNode) return;
 
@@ -1095,7 +1095,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                     nodePath: prefabNodePath,
                 };
 
-                const applyResult = await PrefabProxy.applyPrefabChanges(applyParams);
+                const applyResult = await PrefabProxy.applyChanges(applyParams);
                 expect(applyResult).toBe(true);
             }
 
@@ -1112,7 +1112,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: prefabNodePath,
             };
 
-            const revertResult = await PrefabProxy.revertToPrefab(revertParams);
+            const revertResult = await PrefabProxy.revert(revertParams);
             expect(revertResult).toBe(true);
         });
     });

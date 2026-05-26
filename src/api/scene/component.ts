@@ -1,13 +1,13 @@
 import {
-    SchemaAddComponentInfo,
+    SchemaAddComponentOptions,
     SchemaSetPropertyOptions,
     SchemaComponentResult,
     SchemaBooleanResult,
     SchemaQueryAllComponentResult,
-    SchemaQueryComponent,
-    SchemaRemoveComponent,
+    SchemaQueryComponentOptions,
+    SchemaRemoveComponentOptions,
 
-    TAddComponentInfo,
+    TAddComponentOptions,
     TSetPropertyOptions,
     TComponentResult,
     TQueryAllComponentResult,
@@ -18,7 +18,7 @@ import {
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene, IComponentInfo } from '../../core/scene';
-import { ISetPropertyOptionsInfo } from '../../core/scene/common/cli/component';
+import { ISetComponentPropertyOptions } from '../../core/scene/common/cli/component';
 
 export class ComponentApi {
 
@@ -29,9 +29,9 @@ export class ComponentApi {
     @title('Add component') // 添加组件
     @description('Add component to node, input node name, component type, built-in or custom component. Returns all component details on success. Can query all component names via scene-query-all-component') // 添加组件到节点中，输入节点名，组件类型，内置组件或自定义组件, 成功返回所有的组件详细信息，可以通过 scene-query-all-component 查询到所有组件的名称
     @result(SchemaComponentResult)
-    async addComponent(@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo): Promise<CommonResultType<TComponentResult>> {
+    async addComponent(@param(SchemaAddComponentOptions) options: TAddComponentOptions): Promise<CommonResultType<TComponentResult>> {
         try {
-            const component = await Scene.Component.add({ nodePath: addComponentInfo.nodePath, component: addComponentInfo.component });
+            const component = await Scene.Component.add({ nodePath: options.nodePath, component: options.component });
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: component
@@ -51,9 +51,9 @@ export class ComponentApi {
     @title('Remove component') // 删除组件
     @description('Remove node component, returns true on success, false on failure') // 删除节点组件，移除成功返回 true， 移除失败返回 false
     @result(SchemaBooleanResult)
-    async removeComponent(@param(SchemaRemoveComponent) component: TRemoveComponentOptions): Promise<CommonResultType<boolean>> {
+    async removeComponent(@param(SchemaRemoveComponentOptions) options: TRemoveComponentOptions): Promise<CommonResultType<boolean>> {
         try {
-            const result = await Scene.Component.remove(component);
+            const result = await Scene.Component.remove(options);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result
@@ -73,11 +73,11 @@ export class ComponentApi {
     @title('Query component') // 查询组件
     @description('Query component info, returns all properties of the component') // 查询组件信息，返回组件的所有属性
     @result(SchemaComponentResult)
-    async queryComponent(@param(SchemaQueryComponent) component: TQueryComponentOptions): Promise<CommonResultType<TComponentResult | null>> {
+    async queryComponent(@param(SchemaQueryComponentOptions) options: TQueryComponentOptions): Promise<CommonResultType<TComponentResult | null>> {
         try {
-            const componentInfo = await Scene.Component.query(component);
+            const componentInfo = await Scene.Component.query(options);
             if (!componentInfo) {
-                throw new Error(`component not found: ${component.path}`);
+                throw new Error(`component not found: ${options.path}`);
             }
             return {
                 code: COMMON_STATUS.SUCCESS,
@@ -98,9 +98,9 @@ export class ComponentApi {
     @title('Set component property') // 设置组件属性
     @description('Set component property. Input component path (unique index of component), property name, property value to modify corresponding property info. Property types can be queried via scene-query-component') // 设置组件属性，输入组件path（唯一索引的组件）、属性名称、属性值，修改对应属性的信息，属性的类型可以通过 scene-query-component 查询到
     @result(SchemaBooleanResult)
-    async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
+    async setProperty(@param(SchemaSetPropertyOptions) options?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         try {
-            const result = await Scene.Component.setProperty(setPropertyOptions as ISetPropertyOptionsInfo);
+            const result = await Scene.Component.setProperty(options as ISetComponentPropertyOptions);
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: result

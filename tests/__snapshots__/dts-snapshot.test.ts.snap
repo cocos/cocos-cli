@@ -5273,8 +5273,8 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
     name?: string;
 }
 export declare interface IAssetService extends IServiceEvents {
-    assetChanged(uuid: string): Promise<void>;
-    assetDeleted(uuid: string): Promise<void>;
+    changed(uuid: string): Promise<void>;
+    deleted(uuid: string): Promise<void>;
 }
 export declare type IAssetType =
 | ISupportCreateCCType
@@ -5301,7 +5301,7 @@ export declare type IAssetType =
 | 'dragonBones.DragonBonesAtlasAsset' 
 | 'RenderStage'            
 | 'RenderFlow';
-export declare interface IBaseCreateNodeParams {
+export declare interface IBaseCreateNodeOptions {
     path: string;
     name?: string;
     workMode?: '2d' | '3d';
@@ -5392,10 +5392,10 @@ export declare interface IComponentService extends IServiceEvents {
     init(): void;
     unregisterCompMgrEvents(): void;
 }
-export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
+export declare interface ICreateByAssetOptions extends IBaseCreateNodeOptions {
     dbURL: string;
 }
-export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
+export declare interface ICreateByNodeTypeOptions extends IBaseCreateNodeOptions {
     nodeType: NodeType;
 }
 export declare interface ICreateOptions {
@@ -5410,7 +5410,7 @@ export declare interface ICreatePrefabFromNodeParams {
     overwrite?: boolean;
 }
 export declare type ICreateType = typeof CREATE_TYPES[number];
-export declare interface IDeleteNodeParams {
+export declare interface IDeleteNodeOptions {
     path: string;
     keepWorldTransform?: boolean;
 }
@@ -5536,11 +5536,11 @@ export declare interface INode {
     mountedRoot?: string;
 }
 export declare interface INodeService extends IServiceEvents {
-    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
-    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
-    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
-    queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    createByType(params: ICreateByNodeTypeOptions): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetOptions): Promise<INode | null>;
+    delete(params: IDeleteNodeOptions): Promise<IDeleteNodeResult | null>;
+    query(params?: IQueryNodeOptions): Promise<INode | IScene | null>;
+    queryNodeTree(params: IQueryNodeTreeOptions): Promise<INodeTreeItem | null>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     setProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -5598,12 +5598,12 @@ export declare interface IPrefab {
     instance?: IProperty;
 }
 export declare interface IPrefabService extends IServiceEvents {
-    createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
-    applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
-    revertToPrefab(params: IRevertToPrefabParams): Promise<boolean>;
-    unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode>;
-    isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
-    getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
+    createFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
+    applyChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
+    revert(params: IRevertToPrefabParams): Promise<boolean>;
+    unpack(params: IUnpackPrefabInstanceParams): Promise<INode>;
+    isInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
+    getInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
     removePrefabInfoFromNode(node: Node_2, removeNested?: boolean): void;
 }
 export declare interface IPrefabStateInfo {
@@ -5669,12 +5669,12 @@ export declare interface IQueryClassesOptions {
 export declare interface IQueryComponentOptions {
     path: string;
 }
-export declare interface IQueryNodeParams {
+export declare interface IQueryNodeOptions {
     path: string;
     queryChildren: boolean;
     queryComponent: boolean;
 }
-export declare interface IQueryNodeTreeParams {
+export declare interface IQueryNodeTreeOptions {
     path?: string;
 }
 export declare interface IRectSnapConfigData {
@@ -5754,11 +5754,11 @@ export declare interface ISceneViewService {
 }
 export declare interface IScriptService extends IServiceEvents {
     investigatePackerDriver(): Promise<void>;
-    loadScript(): Promise<void>;
-    removeScript(): Promise<void>;
-    scriptChange(): Promise<void>;
-    queryScriptCid(uuid: string): Promise<string | null>;
-    queryScriptName(uuid: string): Promise<string | null>;
+    load(): Promise<void>;
+    remove(): Promise<void>;
+    change(): Promise<void>;
+    queryCid(uuid: string): Promise<string | null>;
+    queryName(uuid: string): Promise<string | null>;
     isCustomComponent(classConstructor: Function): boolean;
     suspend(condition: Promise<any>): void;
 }
@@ -7146,8 +7146,8 @@ export declare interface IAssetRenameOptions extends IAssetOperationOptionsBase 
     overwrite?: boolean;
 }
 export declare interface IAssetService extends IServiceEvents {
-    assetChanged(uuid: string): Promise<void>;
-    assetDeleted(uuid: string): Promise<void>;
+    changed(uuid: string): Promise<void>;
+    deleted(uuid: string): Promise<void>;
 }
 export declare type IAssetType =
 | ISupportCreateCCType
@@ -7188,7 +7188,7 @@ export declare interface IBaseConfiguration extends EventEmitterMethods {
     remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
     save(): Promise<boolean>;
 }
-export declare interface IBaseCreateNodeParams {
+export declare interface IBaseCreateNodeOptions {
     path: string;
     name?: string;
     workMode?: '2d' | '3d';
@@ -7312,10 +7312,10 @@ export declare interface IComponentService extends IServiceEvents {
 export declare interface IConfiguration {
     [key: string]: any;
 }
-export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
+export declare interface ICreateByAssetOptions extends IBaseCreateNodeOptions {
     dbURL: string;
 }
-export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
+export declare interface ICreateByNodeTypeOptions extends IBaseCreateNodeOptions {
     nodeType: NodeType;
 }
 export declare interface ICreateMenuInfo {
@@ -7361,7 +7361,7 @@ export declare type IDefaultConfig = {
     diyConfig: (cache: Record<string, IDisplayModuleCache>, flags: IFlags_2, includeModules: string[]) => void;
 }
 export declare type IDefaultConfigKeys = 'defaultConfig' | 'default2d' | 'default3d' | 'defaultNative' | 'defaultSmallGames'
-export declare interface IDeleteNodeParams {
+export declare interface IDeleteNodeOptions {
     path: string;
     keepWorldTransform?: boolean;
 }
@@ -7597,11 +7597,11 @@ export declare interface INode {
     mountedRoot?: string;
 }
 export declare interface INodeService extends IServiceEvents {
-    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
-    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
-    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
-    queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    createByType(params: ICreateByNodeTypeOptions): Promise<INode | null>;
+    createByAsset(params: ICreateByAssetOptions): Promise<INode | null>;
+    delete(params: IDeleteNodeOptions): Promise<IDeleteNodeResult | null>;
+    query(params?: IQueryNodeOptions): Promise<INode | IScene | null>;
+    queryNodeTree(params: IQueryNodeTreeOptions): Promise<INodeTreeItem | null>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     setProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -7686,12 +7686,12 @@ export declare interface IPrefab {
     instance?: IProperty;
 }
 export declare interface IPrefabService extends IServiceEvents {
-    createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
-    applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
-    revertToPrefab(params: IRevertToPrefabParams): Promise<boolean>;
-    unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode>;
-    isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
-    getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
+    createFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
+    applyChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
+    revert(params: IRevertToPrefabParams): Promise<boolean>;
+    unpack(params: IUnpackPrefabInstanceParams): Promise<INode>;
+    isInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
+    getInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
     removePrefabInfoFromNode(node: Node_2, removeNested?: boolean): void;
 }
 export declare interface IPrefabStateInfo {
@@ -7770,12 +7770,12 @@ export declare interface IQueryClassesOptions {
 export declare interface IQueryComponentOptions {
     path: string;
 }
-export declare interface IQueryNodeParams {
+export declare interface IQueryNodeOptions {
     path: string;
     queryChildren: boolean;
     queryComponent: boolean;
 }
-export declare interface IQueryNodeTreeParams {
+export declare interface IQueryNodeTreeOptions {
     path?: string;
 }
 export declare interface IRectSnapConfigData {
@@ -7855,11 +7855,11 @@ export declare interface ISceneViewService {
 }
 export declare interface IScriptService extends IServiceEvents {
     investigatePackerDriver(): Promise<void>;
-    loadScript(): Promise<void>;
-    removeScript(): Promise<void>;
-    scriptChange(): Promise<void>;
-    queryScriptCid(uuid: string): Promise<string | null>;
-    queryScriptName(uuid: string): Promise<string | null>;
+    load(): Promise<void>;
+    remove(): Promise<void>;
+    change(): Promise<void>;
+    queryCid(uuid: string): Promise<string | null>;
+    queryName(uuid: string): Promise<string | null>;
     isCustomComponent(classConstructor: Function): boolean;
     suspend(condition: Promise<any>): void;
 }

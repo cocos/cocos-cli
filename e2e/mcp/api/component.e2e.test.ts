@@ -79,7 +79,7 @@ describe('MCP Component API', () => {
         it('should add component successfully', async () => {
             // 添加Label组件
             const addResult = await mcpClient.callTool('scene-add-component', {
-                addComponentInfo: {
+                options: {
                     nodePath: testNodePath,
                     component: 'cc.Label',
                 },
@@ -95,7 +95,7 @@ describe('MCP Component API', () => {
         it('should query component successfully', async () => {
             // 先添加组件
             const addResult = await mcpClient.callTool('scene-add-component', {
-                addComponentInfo: {
+                options: {
                     nodePath: testNodePath,
                     component: 'cc.Label',
                 },
@@ -108,7 +108,7 @@ describe('MCP Component API', () => {
 
             // 查询组件
             const queryResult = await mcpClient.callTool('scene-query-component', {
-                component: { path: componentPath }
+                options: { path: componentPath }
             });
             expect(queryResult.code).toBe(200);
             expect(queryResult.data).toBeDefined();
@@ -122,7 +122,7 @@ describe('MCP Component API', () => {
         it('should set component property successfully', async () => {
             // 先添加组件
             const addResult = await mcpClient.callTool('scene-add-component', {
-                addComponentInfo: {
+                options: {
                     nodePath: testNodePath,
                     component: 'cc.Label',
                 },
@@ -135,7 +135,7 @@ describe('MCP Component API', () => {
 
             // 查询组件初始属性
             const queryResult = await mcpClient.callTool('scene-query-component', {
-                component: { path: componentPath }
+                options: { path: componentPath }
             });
             expect(queryResult.code).toBe(200);
             expect(queryResult.data).toBeDefined();
@@ -144,7 +144,7 @@ describe('MCP Component API', () => {
 
             // 设置组件属性
             const setResult = await mcpClient.callTool('scene-set-component-property', {
-                setPropertyOptions: {
+                options: {
                     componentPath: componentPath,
                     properties: {
                         string: 'Hello World'
@@ -155,7 +155,7 @@ describe('MCP Component API', () => {
 
             // 验证属性已更改
             const queryAfterSet = await mcpClient.callTool('scene-query-component', {
-                component: { path: componentPath }
+                options: { path: componentPath }
             });
             expect(queryAfterSet.code).toBe(200);
             expect(queryAfterSet.data).toBeDefined();
@@ -166,7 +166,7 @@ describe('MCP Component API', () => {
         it('should delete component successfully', async () => {
             // 先添加组件
             const addResult = await mcpClient.callTool('scene-add-component', {
-                addComponentInfo: {
+                options: {
                     nodePath: testNodePath,
                     component: 'cc.Label',
                 },
@@ -178,13 +178,13 @@ describe('MCP Component API', () => {
 
             // 删除组件
             const deleteResult = await mcpClient.callTool('scene-delete-component', {
-                component: { path: componentPath }
+                options: { path: componentPath }
             });
             expect(deleteResult.code).toBe(200);
 
             // 验证组件已删除 - 查询应该返回null或失败
             const queryAfterDelete = await mcpClient.callTool('scene-query-component', {
-                component: { path: componentPath }
+                options: { path: componentPath }
             });
             // 组件删除后查询应该失败或返回null
             expect(queryAfterDelete.code).not.toBe(200);
@@ -199,7 +199,7 @@ describe('MCP Component API', () => {
             // 添加多个不同类型的组件
             for (const componentType of componentTypes) {
                 const addResult = await mcpClient.callTool('scene-add-component', {
-                    addComponentInfo: {
+                    options: {
                         nodePath: testNodePath,
                         component: componentType,
                     },
@@ -212,7 +212,7 @@ describe('MCP Component API', () => {
 
                 // 验证组件已添加
                 const queryResult = await mcpClient.callTool('scene-query-component', {
-                    component: { path: addResult.data.path }
+                    options: { path: addResult.data.path }
                 });
                 expect(queryResult.code).toBe(200);
                 expect(queryResult.data).toBeDefined();
@@ -223,7 +223,7 @@ describe('MCP Component API', () => {
             // 清理添加的组件
             for (const componentPath of addedComponents) {
                 await mcpClient.callTool('scene-delete-component', {
-                    component: { path: componentPath }
+                    options: { path: componentPath }
                 });
             }
         });

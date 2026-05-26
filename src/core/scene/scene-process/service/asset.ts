@@ -10,7 +10,7 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
      * 主进程监听 asset 事件，所触发事件
      * @param uuid
      */
-    public async assetChanged(uuid: string) {
+    public async changed(uuid: string) {
         this.releaseAsset(uuid);
         await assetWatcherManager.onAssetChanged(uuid);
         this.emit('asset:change', uuid);
@@ -20,7 +20,7 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
      * 主进程监听 asset 事件，所触发事件
      * @param uuid
      */
-    public async assetDeleted(uuid: string) {
+    public async deleted(uuid: string) {
         assetWatcherManager.onAssetDeleted(uuid);
         this.emit('asset:deleted', uuid);
     }

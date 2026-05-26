@@ -1,7 +1,7 @@
 import {
-    ICreateByNodeTypeParams,
-    IDeleteNodeParams,
-    IQueryNodeParams,
+    ICreateByNodeTypeOptions,
+    IDeleteNodeOptions,
+    IQueryNodeOptions,
     IAddComponentOptions,
     IRemoveComponentOptions,
     IQueryComponentOptions,
@@ -10,7 +10,7 @@ import {
     NodeType,
     INodeInfo
 } from '../common';
-import { ISetPropertyOptionsInfo } from '../common/cli/component';
+import { ISetComponentPropertyOptions } from '../common/cli/component';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
@@ -30,7 +30,7 @@ describe('Component Proxy 测试', () => {
         // };
 
         // const prefabNode = await NodeProxy.createNodeByAsset(params);
-        const params: ICreateByNodeTypeParams = {
+        const params: ICreateByNodeTypeOptions = {
             path: 'TestNode',
             nodeType: NodeType.EMPTY,
             position: { x: 1, y: 2, z: 0 },
@@ -48,7 +48,7 @@ describe('Component Proxy 测试', () => {
     });
     afterAll(async () => {
         try {
-            const params: IDeleteNodeParams = {
+            const params: IDeleteNodeOptions = {
                 path: nodePath,
                 keepWorldTransform: false
             };
@@ -348,7 +348,7 @@ describe('Component Proxy 测试', () => {
                 component: 'label'
             };
             try {
-                const params: ICreateByNodeTypeParams = {
+                const params: ICreateByNodeTypeOptions = {
                     path: 'TestNode',
                     name: 'new node',
                     nodeType: NodeType.EMPTY,
@@ -386,7 +386,7 @@ describe('Component Proxy 测试', () => {
                 path: componentPath
             };
             try {
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: {
                         string: 'abc',
@@ -546,7 +546,7 @@ describe('Component Proxy 测试', () => {
             try {
                 expect(componentInfo?.properties['fontSize'].value).toBe(40);
 
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: {
                         fontSize: 80,
@@ -563,7 +563,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - enum类型', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: { overflow: 1 },
                 };
@@ -579,7 +579,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - boolean类型', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: { enableOutline: true },
                 };
@@ -595,7 +595,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - color类型', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: {
                         outlineColor: {
@@ -624,7 +624,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - 设置枚举类型之外的值', async () => {
             try {
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: {
                         overflow: 100000
@@ -676,7 +676,7 @@ describe('Component Proxy 测试', () => {
         it('setProperty - 设置组件属性 - 设置SpriteFrame', async () => {
             try {
                 // 对错误的值 类型 会修改失败，但是返回还是true
-                const setComponentProperty: ISetPropertyOptionsInfo = {
+                const setComponentProperty: ISetComponentPropertyOptions = {
                     componentPath: componentPath,
                     properties: {
                         spriteFrame: {
@@ -703,7 +703,7 @@ describe('Component Proxy 测试', () => {
         const actuallyExcludedTypes: string[] = [];
 
         beforeAll(async () => {
-            const params: IQueryNodeParams = {
+            const params: IQueryNodeOptions = {
                 path: nodePath,
                 queryChildren: false,
                 queryComponent: true
@@ -751,7 +751,7 @@ describe('Component Proxy 测试', () => {
                 }
 
                 try {
-                    const params: IQueryNodeParams = {
+                    const params: IQueryNodeOptions = {
                         path: nodePath,
                         queryChildren: false,
                         queryComponent: true
@@ -778,7 +778,7 @@ describe('Component Proxy 测试', () => {
         const nodes: INodeInfo[] = [];
         beforeAll(async () => {
             for (let i = 0; i < testCount; ++i) {
-                const params: ICreateByNodeTypeParams = {
+                const params: ICreateByNodeTypeOptions = {
                     path: 'TestNode',
                     nodeType: NodeType.EMPTY,
                     position: { x: 1, y: 2, z: 0 },
@@ -793,7 +793,7 @@ describe('Component Proxy 测试', () => {
         });
         afterAll(async () => {
             for (let i = 0; i < nodes.length; ++i) {
-                const params: IDeleteNodeParams = {
+                const params: IDeleteNodeOptions = {
                     path: nodes[i].path,
                     keepWorldTransform: false
                 };
@@ -834,7 +834,7 @@ describe('Component Proxy 测试', () => {
         let nodeName: string = '';
         let nodePath: string = '';
         beforeAll(async () => {
-            const params: ICreateByNodeTypeParams = {
+            const params: ICreateByNodeTypeOptions = {
                 path: 'TestNode',
                 nodeType: NodeType.EMPTY,
                 position: { x: 1, y: 2, z: 0 },
@@ -848,7 +848,7 @@ describe('Component Proxy 测试', () => {
             nodePath = testNode.path;
         });
         afterAll(async () => {
-            const params: IDeleteNodeParams = {
+            const params: IDeleteNodeOptions = {
                 path: nodePath,
                 keepWorldTransform: false
             };
@@ -949,7 +949,7 @@ describe('Component Proxy 测试', () => {
     describe('15. setProperty - record 参数测试', () => {
         let componentPath = '';
         beforeAll(async () => {
-            const queryNodeParam: IQueryNodeParams = {
+            const queryNodeParam: IQueryNodeOptions = {
                 path: nodePath,
                 queryChildren: false,
                 queryComponent: false,
@@ -987,7 +987,7 @@ describe('Component Proxy 测试', () => {
     describe('16. 组件命名规则测试 - 同类型组件自动添加后缀', () => {
         let testNodePath = '';
         beforeAll(async () => {
-            const params: ICreateByNodeTypeParams = {
+            const params: ICreateByNodeTypeOptions = {
                 path: 'TestNode',
                 name: 'CompNamingTestNode',
                 nodeType: NodeType.EMPTY,

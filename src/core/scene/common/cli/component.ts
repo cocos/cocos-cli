@@ -18,7 +18,7 @@ export interface IComponentInfo extends IComponentIdentifier {
 /**
  * CLI 设置组件属性的选项
  */
-export interface ISetPropertyOptionsInfo {
+export interface ISetComponentPropertyOptions {
     componentPath: string;
     properties: {
         [key: string]: null | undefined | number | boolean | string | object | Array<unknown>;

@@ -2,22 +2,22 @@ import { IPublicScriptService } from '../../common';
 import { Rpc } from '../rpc';
 
 export const ScriptProxy: IPublicScriptService = {
-    removeScript(): Promise<void> {
-        return Rpc.getInstance().request('Script', 'removeScript');
+    remove(): Promise<void> {
+        return Rpc.getInstance().request('Script', 'remove');
     },
-    scriptChange(): Promise<void> {
-        return Rpc.getInstance().request('Script', 'scriptChange');
+    change(): Promise<void> {
+        return Rpc.getInstance().request('Script', 'change');
     },
     investigatePackerDriver(): Promise<void> {
         return Rpc.getInstance().request('Script', 'investigatePackerDriver');
     },
-    loadScript(): Promise<void> {
-        return Rpc.getInstance().request('Script', 'loadScript');
+    load(): Promise<void> {
+        return Rpc.getInstance().request('Script', 'load');
     },
-    queryScriptCid(uuid: string): Promise<string | null> {
-        return Rpc.getInstance().request('Script', 'queryScriptCid', [uuid]);
+    queryCid(uuid: string): Promise<string | null> {
+        return Rpc.getInstance().request('Script', 'queryCid', [uuid]);
     },
-    queryScriptName(uuid: string): Promise<string | null> {
-        return Rpc.getInstance().request('Script', 'queryScriptName', [uuid]);
+    queryName(uuid: string): Promise<string | null> {
+        return Rpc.getInstance().request('Script', 'queryName', [uuid]);
     }
 };

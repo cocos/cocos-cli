@@ -24,32 +24,32 @@ export interface IPrefabService extends IServiceEvents {
     /**
      * 将节点转换为预制体资源
      */
-    createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
+    createFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
 
     /**
      * 将节点的修改应用回预制体资源
      */
-    applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
+    applyChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
 
     /**
      * 重置节点到预制体原始状态
      */
-    revertToPrefab(params: IRevertToPrefabParams): Promise<boolean>;
+    revert(params: IRevertToPrefabParams): Promise<boolean>;
 
     /**
      * 解耦预制体实例，使其成为普通节点
      */
-    unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode>;
+    unpack(params: IUnpackPrefabInstanceParams): Promise<INode>;
 
     /**
      * 检查节点是否为预制体实例
      */
-    isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
+    isInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
 
     /**
      * 获取节点的预制体信息
      */
-    getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
+    getInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
 
     /**
      * 移除 prefab info

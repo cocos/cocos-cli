@@ -4,18 +4,18 @@ import { SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaCompPrefabInfo } from './prefab-info-schema';
 
 // Create component information // 创建组件信息
-export const SchemaAddComponentInfo = z.object({
+export const SchemaAddComponentOptions = z.object({
     nodePath: z.string().describe('Node path'), // 节点路径
     component: z.string().describe('Component name, supports component name, component resource URL and UUID'), // 组件名称，支持组件名称、组件资源的 URL 与 UUID
 }).describe('Information for adding a component'); // 添加组件的信息
 
 // Remove component // 移除组件
-export const SchemaRemoveComponent = z.object({
+export const SchemaRemoveComponentOptions = z.object({
     path: z.string().describe('Path of the component, including node path'), // 组件的路径，包含节点路径
 }).describe('Information required to remove a component'); // 移除组件需要的信息
 
 // Query component // 查询组件
-export const SchemaQueryComponent = z.object({
+export const SchemaQueryComponentOptions = z.object({
     path: z.string().describe('Path of the component, including node path'), // 组件的路径，包含节点路径
 }).describe('Information required to query a component'); // 查询组件需要的信息
 
@@ -123,10 +123,10 @@ export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).descri
 export const SchemaBooleanResult = z.boolean().describe('Interface return result'); // 接口返回结果
 
 // Type export // 类型导出
-export type TAddComponentInfo = z.infer<typeof SchemaAddComponentInfo>;
+export type TAddComponentOptions = z.infer<typeof SchemaAddComponentOptions>;
 export type TComponentIdentifier = z.infer<typeof SchemaComponentIdentifier>;
-export type TRemoveComponentOptions = z.infer<typeof SchemaRemoveComponent>;
-export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponent>;
+export type TRemoveComponentOptions = z.infer<typeof SchemaRemoveComponentOptions>;
+export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponentOptions>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
 export type TQueryAllComponentResult = z.infer<typeof SchemaQueryAllComponentResult>;

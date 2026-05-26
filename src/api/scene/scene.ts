@@ -41,7 +41,7 @@ export class SceneApi {
     @result(SchemaCurrentResult)
     async queryCurrent(): Promise<CommonResultType<TCurrentResult>> {
         try {
-            const data = await Scene.queryCurrent();
+            const data = await Scene.Editor.queryCurrent();
             const result = {
                 data: data as TCurrentResult,
                 code: COMMON_STATUS.SUCCESS,
@@ -66,7 +66,7 @@ export class SceneApi {
     @result(SchemaOpenResult)
     async open(@param(SchemaOpenOptions) options: TOpenOptions): Promise<CommonResultType<TOpenResult>> {
         try {
-            const data = await Scene.open({ urlOrUUID: options.dbURLOrUUID, simpleNode: options.simpleNode });
+            const data = await Scene.Editor.open({ urlOrUUID: options.dbURLOrUUID, simpleNode: options.simpleNode });
             return {
                 data: data as TOpenResult,
                 code: COMMON_STATUS.SUCCESS,
@@ -86,7 +86,7 @@ export class SceneApi {
     @result(SchemaCloseResult)
     async close(): Promise<CommonResultType<TCloseResult>> {
         try {
-            const data = await Scene.close({});
+            const data = await Scene.Editor.close({});
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
@@ -106,7 +106,7 @@ export class SceneApi {
     @result(SchemaSaveResult)
     async save(): Promise<CommonResultType<TSaveResult>> {
         try {
-            const data = await Scene.save({});
+            const data = await Scene.Editor.save({});
             return {
                 data,
                 code: COMMON_STATUS.SUCCESS,
@@ -126,7 +126,7 @@ export class SceneApi {
     @result(SchemaCreateResult)
     async createScene(@param(SchemaCreateOptions) options: TCreateOptions): Promise<CommonResultType<TCreateResult>> {
         try {
-            const data = await Scene.create({
+            const data = await Scene.Editor.create({
                 type: 'scene',
                 baseName: options.baseName,
                 targetDirectory: options.dbURL,
@@ -152,7 +152,7 @@ export class SceneApi {
     @result(SchemaReload)
     async reloadScene(): Promise<CommonResultType<TReload>> {
         try {
-            const data = await Scene.reload({});
+            const data = await Scene.Editor.reload({});
             return {
                 code: COMMON_STATUS.SUCCESS,
                 data: data as TReload,

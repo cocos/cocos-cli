@@ -30,6 +30,7 @@ import './node-for-editor.testcase';
 import './component-proxy.testcase';
 import './component-for-editor.testcase';
 import './prefab-proxy.testcase';
+import './prefab-for-editor.testcase';
 import './script-proxy.testcase';
 import './engine-proxy.testcase';
 import './scene-exit.testcase';

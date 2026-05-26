@@ -2,10 +2,10 @@ import { IPublicAssetService } from '../../common';
 import { Rpc } from '../rpc';
 
 export const AssetProxy: IPublicAssetService = {
-    assetChanged(uuid: string): Promise<void> {
-        return Rpc.getInstance().request('Asset', 'assetChanged', [uuid]);
+    changed(uuid: string): Promise<void> {
+        return Rpc.getInstance().request('Asset', 'changed', [uuid]);
     },
-    assetDeleted(uuid: string): Promise<void> {
-        return Rpc.getInstance().request('Asset', 'assetDeleted', [uuid]);
+    deleted(uuid: string): Promise<void> {
+        return Rpc.getInstance().request('Asset', 'deleted', [uuid]);
     },
 };
