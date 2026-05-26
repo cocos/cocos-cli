@@ -33,6 +33,7 @@ jobs:
           cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
           npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
           npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
+          npx jest tests/dts-snapshot.test.ts --no-cache
 
       - name: Check DTS API compatibility
         shell: bash
