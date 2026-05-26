@@ -372,7 +372,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
 
         // 恢复数据
         try {
-            await dumpUtil.restoreProperty(node, options.path, options.dump, true);
+            await dumpUtil.restoreProperty(node, options.path, options.dump);
         } catch (e) {
             console.error(e);
             return false;

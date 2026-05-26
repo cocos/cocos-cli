@@ -60,10 +60,20 @@ export const ComponentProxy: IComponentProxy = {
             if (!propDef) {
                 throw new Error(`Property '${key}' not found on component`);
             }
+            let dumpValue: any;
+            if (propDef.isArray && propDef.elementTypeData && Array.isArray(value)) {
+                dumpValue = (value as any[]).map((item, i) => ({
+                    ...propDef.elementTypeData,
+                    name: String(i),
+                    value: item,
+                }));
+            } else {
+                dumpValue = value;
+            }
             await Rpc.getInstance().request('Component', 'setProperty', [{
                 nodePath,
                 path: `__comps__.${compIndex}.${key}`,
-                dump: { ...propDef, value },
+                dump: { ...propDef, value: dumpValue },
                 record: params.record,
             }] as any);
         }

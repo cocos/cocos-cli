@@ -172,7 +172,7 @@ export class CompManager {
                     continue;
                 }
 
-                await dumpUtil.restoreProperty(component, key, dump.value[key], true);
+                await dumpUtil.restoreProperty(component, key, dump.value[key]);
             }
             component?.resetInEditor?.();
             component?.onRestore?.();

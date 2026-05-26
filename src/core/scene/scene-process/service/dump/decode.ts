@@ -404,7 +404,7 @@ async function _decodeByType(type: string, node: any, info: any, dump: any, opts
  * @param dump
  * @param node
  */
-export async function decodePatch(path: string, dump: any, node: any, forEditor: boolean = false) {
+export async function decodePatch(path: string, dump: any, node: any) {
     // 将 dump path 转成实际的 node search path
     const info = parsingPath(path, node);
     const parentInfo = parsingPath(info.search, node);
@@ -495,16 +495,7 @@ export async function decodePatch(path: string, dump: any, node: any, forEditor:
                  * 如果后续发现真的有一些场景需要请修改本条注释
                  */
                 arrayValue[i] = ccClassAttrPropertyDefaultValue(attr);
-                if (!forEditor) {
-                    // 这是针对cli的特殊处理
-                    const dumpItem = {
-                        type: dump.type,
-                        value: dump.value[i]
-                    };
-                    await decodePatch(`${i}`, dumpItem, arrayValue, forEditor);
-                } else {
-                    await decodePatch(`${i}`, dump.value[i], arrayValue, forEditor);
-                }
+                await decodePatch(`${i}`, dump.value[i], arrayValue);
             }
 
             data[info.key] = arrayValue;
@@ -514,9 +505,8 @@ export async function decodePatch(path: string, dump: any, node: any, forEditor:
     } else {
         const opts: any = {};
         opts.ccType = ccType;
-        if (forEditor) {
-            opts.suppressError = true;
-        }
+        // TODO(qgh):对于Editor，传入空的资产uuid，不会报错，但是cli需要报错。对于cli的报错需要实现
+        opts.suppressError = true;
         // 特殊属性
         if (info.key in nodeSpecialPropertyDefaultValue) {
             setNodeSpecialProperty(node, info.key, dump.value);
@@ -552,7 +542,7 @@ export async function decodePatch(path: string, dump: any, node: any, forEditor:
                     const key = ccType.__props__[i];
                     const item = dump.value[key];
                     if (item) {
-                        await decodePatch(`${path}.${key}`, item, node, forEditor);
+                        await decodePatch(`${path}.${key}`, item, node);
                     }
                 }
             } else if (dump.value === null) {
@@ -564,7 +554,7 @@ export async function decodePatch(path: string, dump: any, node: any, forEditor:
                         continue;
                     }
 
-                    await decodePatch(key, dump.value[key], data[info.key], forEditor);
+                    await decodePatch(key, dump.value[key], data[info.key]);
                 }
             } else {
                 data[info.key] = dump.value;

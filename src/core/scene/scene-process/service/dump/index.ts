@@ -13,7 +13,7 @@ class DumpUtil {
     // 获取节点的某个属性
     dumpProperty(node: Node, path: string) {
         if (path === '') {
-            //return this.dumpNode(node);
+            return this.dumpNode(node);
         }
         // 通过路径找到对象，然后dump这个对象
         const info = parsingPath(path, node);
@@ -55,18 +55,18 @@ class DumpUtil {
      * @param path
      * @param dump
      */
-    async restoreProperty(node: Node | Component, path: string, dump: any, forEditor: boolean = false) {
+    async restoreProperty(node: Node | Component, path: string, dump: any) {
         // 还原整个 component
         if (/^__comps__\.\d+$/.test(path)) {
             if (typeof dump.value === 'object') {
                 for (const key in dump.value) {
                     // @ts-ignore
-                    await decodePatch(`${path}.${key}`, dump.value[key], node, forEditor);
+                    await decodePatch(`${path}.${key}`, dump.value[key], node);
                 }
             }
         } else {
             // 还原单个属性
-            return decodePatch(path, dump, node, forEditor);
+            return decodePatch(path, dump, node);
         }
     }
 
@@ -112,8 +112,8 @@ class DumpUtil {
     /**
      * encodeObject
      */
-    encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string) {
-        return encodeObject(object, attributes, owner, objectKey);
+    encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean) {
+        return encodeObject(object, attributes, owner, objectKey, isTemplate);
     }
 
     /**

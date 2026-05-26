@@ -696,6 +696,59 @@ describe('Component Proxy 测试', () => {
         });
     });
 
+    describe('4.2 设置组件属性测试 - array类型', () => {
+        let animCompPath = '';
+        beforeAll(async () => {
+            const comp = await ComponentProxy.add({ nodePath, component: 'cc.Animation' });
+            animCompPath = comp.path;
+        });
+        afterAll(async () => {
+            await ComponentProxy.remove({ path: animCompPath });
+        });
+
+        it('setProperty - 设置组件属性 - array类型 (clips 设为空数组)', async () => {
+            try {
+                const setComponentProperty: ISetComponentPropertyOptions = {
+                    componentPath: animCompPath,
+                    properties: {
+                        clips: []
+                    }
+                };
+                const result = await ComponentProxy.setProperty(setComponentProperty);
+                expect(result).toBe(true);
+                const updated = await ComponentProxy.query({ path: animCompPath }) as IComponentInfo;
+                expect(Array.isArray(updated.properties['clips'].value)).toBe(true);
+                expect(updated.properties['clips'].value.length).toBe(0);
+            } catch (e) {
+                console.log(`setComponentProperty array test error: ${e}`);
+                throw e;
+            }
+        });
+
+        it('setProperty - 设置组件属性 - array类型 (clips 设为包含3个空资源的数组)', async () => {
+            try {
+                const setComponentProperty: ISetComponentPropertyOptions = {
+                    componentPath: animCompPath,
+                    properties: {
+                        clips: [
+                            { uuid: '' },
+                            { uuid: '' },
+                            { uuid: '' },
+                        ]
+                    }
+                };
+                const result = await ComponentProxy.setProperty(setComponentProperty);
+                expect(result).toBe(true);
+                const updated = await ComponentProxy.query({ path: animCompPath }) as IComponentInfo;
+                expect(Array.isArray(updated.properties['clips'].value)).toBe(true);
+                expect(updated.properties['clips'].value.length).toBe(3);
+            } catch (e) {
+                console.log(`setComponentProperty array test error: ${e}`);
+                throw e;
+            }
+        });
+    });
+
     describe('5. 创建内置的组件', () => {
         let buildinComponentTypes: string[] = [];
         const createdComponents: IComponentIdentifier[] = [];
