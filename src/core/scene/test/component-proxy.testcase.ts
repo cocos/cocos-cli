@@ -708,7 +708,7 @@ describe('Component Proxy 测试', () => {
 
         it('setProperty - 设置组件属性 - array类型 (clips 设为空数组)', async () => {
             try {
-                const setComponentProperty: ISetComponentPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: animCompPath,
                     properties: {
                         clips: []
@@ -727,7 +727,7 @@ describe('Component Proxy 测试', () => {
 
         it('setProperty - 设置组件属性 - array类型 (clips 设为包含3个空资源的数组)', async () => {
             try {
-                const setComponentProperty: ISetComponentPropertyOptions = {
+                const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: animCompPath,
                     properties: {
                         clips: [
