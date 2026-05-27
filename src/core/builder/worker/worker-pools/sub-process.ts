@@ -15,7 +15,7 @@ process.on('message', async function (msgInfo: IMessageInfo) {
     if (msgInfo.type === 'execute-script' && process.send) {
         const res = await executeScript(msgInfo.path, msgInfo.method, msgInfo.args);
         process.send({
-            data: (res instanceof Error) ? null : res,
+            data: (res instanceof Error) ? res.message : res,
             code: (res instanceof Error) ? -1 : 0,
             type: 'execute-script-end',
         });

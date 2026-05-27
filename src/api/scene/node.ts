@@ -133,7 +133,7 @@ export class NodeApi {
     */
     @tool('scene-query-node')
     @title('Query Node') // 查询节点
-    @description('Query a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1') // 在当前打开的场景中查询节点，需要传入节点的路径，比如：Canvas/Node1
+    @description('Query a node (NOT a component) in the currently opened scene. The path must be a node path like "Canvas/Node1" — do NOT append a component type (e.g. do NOT use "Canvas/Node1/cc.Label"). To query a component, use scene-query-component instead.') // 在当前打开的场景中查询节点（不是组件），需要传入节点路径，比如：Canvas/Node1。不要追加组件类型名称（例如不要用 Canvas/Node1/cc.Label），如需查询组件请使用 scene-query-component
     @result(SchemaNodeQueryResult)
     async queryNode(@param(SchemaNodeQuery) options: TQueryNodeOptions): Promise<CommonResultType<TNodeDetail>> {
         const ret: CommonResultType<TNodeDetail> = {

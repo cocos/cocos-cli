@@ -71,7 +71,7 @@ export class ComponentApi {
      */
     @tool('scene-query-component')
     @title('Query component') // 查询组件
-    @description('Query component info, returns all properties of the component') // 查询组件信息，返回组件的所有属性
+    @description('Query a component (NOT a node) on a node. The path must be a component path = node path + "/" + component type name, e.g. "Canvas/Node1/cc.Label". Do NOT pass a bare node path like "Canvas/Node1" — that has no component type suffix and will fail. To query a node use scene-query-node instead.') // 查询组件信息（不是节点），路径必须是组件路径 = 节点路径 + "/" + 组件类型名称，例如 Canvas/Node1/cc.Label。不要传裸节点路径，如需查询节点请使用 scene-query-node
     @result(SchemaComponentResult)
     async queryComponent(@param(SchemaQueryComponent) component: TQueryComponentOptions): Promise<CommonResultType<TComponentResult | null>> {
         try {

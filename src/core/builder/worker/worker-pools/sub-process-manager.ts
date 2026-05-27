@@ -179,7 +179,7 @@ class WorkerTask {
         child.on('message', (m: ChildProcessMessageInfo) => {
             if (m && m.type === 'execute-script-end') {
                 processPool.notRunning(child);
-                m.code === 0 ? this.resolve(m.data) : this.reject(new Error(`execute-task ${this.name} failed with code ${m.code}!`));
+                m.code === 0 ? this.resolve(m.data) : this.reject(new Error(`execute-task [${this.name}] failed with code ${m.code}!\n  Reason: ${m.data ?? 'unknown'}`.trimEnd()));
             }
         });
         child.on('error', (err) => {

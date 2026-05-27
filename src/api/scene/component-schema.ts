@@ -11,12 +11,12 @@ export const SchemaAddComponentInfo = z.object({
 
 // Remove component // 移除组件
 export const SchemaRemoveComponent = z.object({
-    path: z.string().describe('Path of the component, including node path'), // 组件的路径，包含节点路径
+    path: z.string().describe('Component path = node path + "/" + component type name, e.g. "Canvas/Node1/cc.Label" or "Canvas/Node1/cc.Sprite". Must end with the component type (e.g. cc.Label, cc.Sprite). Do NOT pass a bare node path like "Canvas/Node1".'), // 组件路径 = 节点路径 + "/" + 组件类型名称
 }).describe('Information required to remove a component'); // 移除组件需要的信息
 
 // Query component // 查询组件
 export const SchemaQueryComponent = z.object({
-    path: z.string().describe('Path of the component, including node path'), // 组件的路径，包含节点路径
+    path: z.string().describe('Component path = node path + "/" + component type name, e.g. "Canvas/Node1/cc.Label" or "Canvas/Node1/cc.Sprite". Must end with the component type (e.g. cc.Label, cc.Sprite). Do NOT pass a bare node path like "Canvas/Node1".'), // 组件路径 = 节点路径 + "/" + 组件类型名称
 }).describe('Information required to query a component'); // 查询组件需要的信息
 
 // Vec2
