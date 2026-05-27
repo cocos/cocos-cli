@@ -57,13 +57,13 @@ function filterTopLevelNodes(nodes: Node[]): Node[] {
 @register('UI')
 export class UIService extends BaseService<IUIEvents> implements IUIService {
     public alignSelection(type: UIAlignType) {
-        const curSelectPaths = Service.Selection.query();
+        const selectPaths = Service.Selection.query();
 
-        if (curSelectPaths.length <= 1) {
+        if (selectPaths.length <= 1) {
             return;
         }
 
-        let selectedNodes: Node[] = curSelectPaths.map((path: string) => {
+        let selectedNodes: Node[] = selectPaths.map((path: string) => {
             return getNodeByPath(path);
         }).filter(Boolean) as Node[];
 
@@ -127,13 +127,13 @@ export class UIService extends BaseService<IUIEvents> implements IUIService {
     }
 
     public distributeSelection(type: UIAlignType) {
-        const curSelectPaths = Service.Selection.query();
+        const selectPaths = Service.Selection.query();
 
-        if (curSelectPaths.length <= 1) {
+        if (selectPaths.length <= 1) {
             return;
         }
 
-        let selectedNodes = curSelectPaths.map((path: string) => {
+        let selectedNodes = selectPaths.map((path: string) => {
             return getNodeByPath(path);
         }).filter(Boolean) as Node[];
 
