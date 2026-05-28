@@ -46,7 +46,7 @@ export const SchemaNodeSearch = SchemaNodeIdentifier.extend({
 
 // 查询节点的参数
 export const SchemaNodeQuery = z.object({
-    path: z.string().describe('Node path, root path is "/"'), // 节点路径
+    path: z.string().describe('Node path only — format: "ParentNode/ChildNode", e.g. "Canvas/Node1". Root is "/". Do NOT include a component type suffix (e.g. do NOT use "Canvas/Node1/cc.Label"). To query a component use scene-query-component with a component path.'), // 节点路径
     queryChildren: z.boolean().default(false).describe('Whether to query child node information'), // 是否查询子节点信息
     queryComponent: z.boolean().default(false).describe('Whether to query component`s detailed information, the child component only returns concise information.'), // 是否查询组件信息,子节点只返回简易的信息
 }).describe('To configure options for node query, the Scene must be open first. The result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
