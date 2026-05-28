@@ -8,7 +8,7 @@ export class BuilderApi {
 
     @tool('builder-build')
     @title('Build Project') // 构建项目
-    @description('Build the project into a game package for the specified platform based on options. If build options are already set in the project, no parameters are needed.') // 根据选项将项目构建成指定平台游戏包, 如项目内已经设置好构建选项，则不需要传入参数
+    @description('Compile and package the project for the specified platform (e.g. web-mobile, android, ios). This is a BUILD step only — it does NOT launch or run the game. To launch the built game afterward, use builder-run separately.') // 将项目编译并打包为指定平台的游戏包（例如 web-mobile、android、ios），这是构建步骤，不会启动或运行游戏。如需启动游戏请单独使用 builder-run
     @result(SchemaBuildResult)
     async build(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildOption) options?: TBuildOption) {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -103,7 +103,7 @@ export class BuilderApi {
 
     @tool('builder-run')
     @title('Run Build Result') // 运行构建结果
-    @description('Run the built game, effects vary by platform') // 运行构建后的游戏，不同平台的效果不同
+    @description('Launch and run a previously built game package. This is NOT a build step — it requires that builder-build has already completed successfully. Do NOT call this instead of builder-build; the two are separate sequential steps: build first, then run.') // 启动并运行已经构建好的游戏包，这不是构建步骤——需要先成功执行过 builder-build。不要用此命令代替 builder-build，两者是独立的顺序步骤：先构建，再运行
     @result(SchemaBuildResult)
     async run(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest): Promise<CommonResultType<IRunResultData>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
