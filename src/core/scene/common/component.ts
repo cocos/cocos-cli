@@ -92,6 +92,7 @@ export type IPublicComponentService = Omit<IComponentService, keyof IServiceEven
     'reset' |
     'queryClasses' |
     'queryFunctionOfNode' |
+    'queryComponents' |
     'executeMethod' |
     'hasScript'
 >;
@@ -206,6 +207,12 @@ export interface IComponentService extends IServiceEvents {
      * @returns 节点上组件的函数信息，节点不存在时返回空对象
      */
     queryFunctionOfNode(path: string): Promise<any>;
+
+    /**
+     * 查询所有已注册的组件菜单项
+     * @returns 组件菜单项数组，包含类名、类 ID 和菜单路径
+     */
+    queryComponents(): Promise<Array<{ name: string; cid: string; path: string }>>;
 
     /**
      * 执行组件上的指定方法

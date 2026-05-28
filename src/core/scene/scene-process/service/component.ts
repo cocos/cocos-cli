@@ -466,6 +466,26 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return getComponentFunctionOfNode(node);
     }
 
+    async queryComponents(): Promise<Array<{ name: string; cid: string; path: string }>> {
+        // TODO: 需要根据 cocos.config.json 的 include modules 是否包含 3d 做过滤
+        // 参考 app/builtin/scene/source/script/3d/manager/scene/scene-manager.ts
+        const menus = EditorExtends.Component.getMenus();
+        if (menus.length > 0) {
+            return menus.map((item: any) => ({
+                name: cc.js.getClassName(item.component),
+                cid: cc.js.getClassId(item.component),
+                path: item.menuPath,
+            }));
+        }
+        // TODO: 这个是兜底的，等 EditorExtends.Component.getMenus() 完全实现了之后就可以删除了
+        const classes = await this.queryClasses({ extends: 'cc.Component', excludeSelf: true });
+        return classes.map(cls => ({
+            name: cls.name,
+            cid: '',
+            path: cls.name,
+        }));
+    }
+
     public init() {
         this.registerCompMgrEvents();
     }
