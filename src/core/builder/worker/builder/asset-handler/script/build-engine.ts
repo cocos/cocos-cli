@@ -4,6 +4,7 @@
 import { buildEngine, StatsQuery } from '@cocos/ccbuild';
 import { dirname, join } from 'path';
 import { ensureDir, remove, writeFile, writeJSON } from 'fs-extra';
+import { realpathSync } from 'fs';
 
 const defaultOptions: buildEngineOptions = {
     engine: '', // 内置引擎模块地址
@@ -40,6 +41,24 @@ export interface buildEngineOptions extends buildEngine.Options {
  */
 export async function buildEngineCommand(options: buildEngineOptions) {
     const buildOptions: buildEngineOptions = Object.assign({}, defaultOptions, options || {});
+
+    // 将引擎路径归一化为文件系统实际的大小写
+    // rollup-plugin-node-resolve 的 jail 检查使用 fs.realpath.native 获取真实路径，
+    // 再与 path.resolve 得到的路径做大小写敏感的 indexOf 比较。
+    // 当宿主进程（如 pink.exe）传入的路径大小写与文件系统不一致时，该检查会静默失败，
+    // 导致 DebugInfos.json 等相对路径模块无法解析。
+    if (buildOptions.engine) {
+        try {
+            let realEngine = realpathSync.native(buildOptions.engine);
+            if (realEngine.startsWith('\\\\?\\')) {
+                realEngine = realEngine.slice(4);
+            }
+            buildOptions.engine = realEngine;
+        } catch (e) {
+            console.warn('Failed to normalize engine path:', e);
+        }
+    }
+
     // TODO features 的校验与默认值
     const { features, out } = buildOptions;
     await remove(out);
