@@ -12,6 +12,7 @@ import compMgr from '../component/index';
 import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
 import { MobilityMode, Node, Prefab, Component, js } from 'cc';
+import i18n from '../../i18n';
 
 const attributeProps = [
     'enumList',
@@ -448,6 +449,15 @@ function _checkAttributes(data: IProperty, attributes: any, owner: any) {
                 }
                 data[autoI18nAttributeName] = `i18n:ENGINE.classes.${ownerTypeName}.properties.${data.name}.${autoI18nAttributeName}`;
             }
+        }
+    }
+
+    // Resolve i18n:* keys for displayName/tooltip via the local i18next instance.
+    // Strip the "i18n:" prefix and delegate to i18n.t (returns the key itself on miss).
+    for (const propName of autoI18nAttributeNames) {
+        const value = data[propName];
+        if (typeof value === 'string' && value.startsWith('i18n:')) {
+            data[propName] = i18n.t(value.slice(5) as any);
         }
     }
 }

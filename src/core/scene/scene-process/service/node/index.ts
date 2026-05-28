@@ -17,7 +17,7 @@ import { ServiceEvents } from '../core/global-events';
 // const { promisify } = require('util');
 // const { basename, extname } = require('path');
 // import nodeUtil from '../../../utils/node';
-import dumpUtil, { translateDumpI18n } from '../dump';
+import dumpUtil from '../dump';
 
 // import getComponentFunctionOfNode from '../component/get-component-function-of-node';
 import {
@@ -368,7 +368,7 @@ export class NodeManager {
         if (!node) {
             return null;
         }
-        return translateDumpI18n(dumpUtil.dumpNode(node));
+        return dumpUtil.dumpNode(node);
     }
 
     /**
@@ -381,7 +381,7 @@ export class NodeManager {
         if (!node) {
             return null;
         }
-        return translateDumpI18n(dumpUtil.dumpNode(node));
+        return dumpUtil.dumpNode(node);
     }
 
     // /**

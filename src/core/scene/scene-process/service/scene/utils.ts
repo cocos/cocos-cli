@@ -1,7 +1,7 @@
 import cc, { Scene } from 'cc';
 import compMgr from '../component/index';
 import { prefabUtils } from '../prefab/utils';
-import dumpUtil, { translateDumpI18n } from '../dump';
+import dumpUtil from '../dump';
 import { encodePrefab } from '../dump/encode';
 import type { INode, IPrefab } from '../../../common';
 import type { IScene } from '../../../common/editor/scene';
@@ -146,7 +146,7 @@ class SceneUtil {
         const queryComponent = options?.queryComponent ?? true;
 
         if (node instanceof Scene) {
-            const sceneDump = await translateDumpI18n(dumpUtil.dumpNode(node)) as IScene;
+            const sceneDump = dumpUtil.dumpNode(node) as IScene;
 
             // hack: 以下字段不属于编辑器 dump 结构（IScene），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
             const d = sceneDump as any;
@@ -158,7 +158,7 @@ class SceneUtil {
             d.__comps__ = [];
             if (queryComponent) {
                 for (const comp of node.components) {
-                    const compDump = await translateDumpI18n(dumpUtil.dumpComponent(comp as cc.Component)) as any;
+                    const compDump = dumpUtil.dumpComponent(comp as cc.Component) as any;
                     compDump.__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
                     compDump.__compPrefab__ = (comp as any).__prefab || null;
                     d.__comps__.push(compDump);
@@ -173,7 +173,7 @@ class SceneUtil {
             return sceneDump;
         }
 
-        const dump = await translateDumpI18n(dumpUtil.dumpNode(node)) as INode;
+        const dump = dumpUtil.dumpNode(node) as INode;
 
         // hack: 以下字段不属于编辑器 dump 结构（INode），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
         const d = dump as any;

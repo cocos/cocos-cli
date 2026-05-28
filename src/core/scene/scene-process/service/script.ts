@@ -127,7 +127,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             ) {
                 this.customComponents.add(classConstructor);
                 EditorExtends.Component.addMenu(
-                    classConstructor, 'i18n:menu.custom_script/' + className, -1);
+                    classConstructor, 'i18n:ENGINE.menu.custom_script/' + className, -1);
             }
         });
         const serializedPackLoaderContext = await Rpc.getInstance().request('programming', 'getPackerDriverLoaderContext', ['editor']);

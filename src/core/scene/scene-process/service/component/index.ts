@@ -1,4 +1,4 @@
-import dumpUtil, { translateDumpI18n } from '../dump';
+import dumpUtil from '../dump';
 import get from 'lodash/get';
 
 const CompMgr = EditorExtends.Component;
@@ -194,7 +194,7 @@ export class CompManager {
         if (!comp) {
             return null;
         }
-        return translateDumpI18n(dumpUtil.dumpComponent(comp));
+        return dumpUtil.dumpComponent(comp);
     }
 
     /**

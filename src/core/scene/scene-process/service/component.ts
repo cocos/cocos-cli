@@ -13,7 +13,7 @@ import {
     IQueryClassesOptions,
     ISetPropertyOptions
 } from '../../common';
-import dumpUtil, { translateDumpI18n } from './dump';
+import dumpUtil from './dump';
 import compMgr from './component/index';
 import componentUtils from './component/utils';
 import getComponentFunctionOfNode from './component/get-component-function-of-node';
@@ -228,7 +228,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             compMgr.onComponentAddedFromEditor(comp);
             this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
 
-            const dump = await translateDumpI18n(dumpUtil.dumpComponent(comp as Component)) as IComponent;
+            const dump = dumpUtil.dumpComponent(comp as Component) as IComponent;
             // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
             (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
             (dump as any).__compPrefab__ = (comp as any).__prefab || null;
@@ -329,7 +329,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             console.warn(`Query component failed: ${params.path} does not exist`);
             return null;
         }
-        const dump = await translateDumpI18n(dumpUtil.dumpComponent(comp as Component)) as IComponent;
+        const dump = dumpUtil.dumpComponent(comp as Component) as IComponent;
         // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
         (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
         (dump as any).__compPrefab__ = (comp as any).__prefab || null;
