@@ -1,0 +1,84 @@
+name: Check DTS
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  check-dts:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.17.0'
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
+
+      - name: Generate DTS
+        shell: bash
+        run: npm run generate:dts:ci
+
+      - name: Run DTS tests
+        shell: bash
+        run: |
+          cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
+          npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
+          npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
+          npx jest tests/dts-snapshot.test.ts --no-cache --testPathIgnorePatterns='[]' -u
+
+      - name: Check DTS API compatibility
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          BASE_REF="origin/${{ github.base_ref }}"
+          SNAP_FILE="tests/__snapshots__/dts-snapshot.test.ts.snap"
+
+          # Skip if snapshot file is new (not in base branch yet)
+          if ! git show "$BASE_REF:$SNAP_FILE" > /dev/null 2>&1; then
+            echo "Snapshot file is new, skipping API compatibility check."
+            exit 0
+          fi
+
+          # Check if snapshot file changed compared to base branch
+          if ! git diff --name-only "$BASE_REF"...HEAD | grep -q "$SNAP_FILE"; then
+            echo "No DTS API changes detected."
+            exit 0
+          fi
+
+          # Snapshot changed — check whether it's additive-only or breaking
+          # Extract only removed lines (old API lines that were deleted or modified)
+          # Ignore snapshot metadata lines (exports, snapshot headers)
+          DELETED_LINES=$(git diff "$BASE_REF"...HEAD -- "$SNAP_FILE" \
+            | grep '^-' \
+            | grep -v '^---' \
+            | grep -v '^-exports\[' \
+            | grep -v '^-$' \
+            | grep -v '^\-[[:space:]]*$' \
+            | grep -v '^\-`;$' \
+            || true)
+
+          if [ -z "$DELETED_LINES" ]; then
+            echo "DTS API changes are additive only (new interfaces/methods). No [break] required."
+            exit 0
+          fi
+
+          # There are deleted/modified lines — this is a breaking change
+          if [[ "$PR_TITLE" != *"[break]"* ]]; then
+            echo "::error::DTS API breaking change detected! Existing API signatures were modified or removed."
+            echo "::error::If this change is intentional, add [break] to your PR title."
+            echo "Changed lines:"
+            echo "$DELETED_LINES"
+            exit 1
+          fi
+          echo "API breaking change detected and [break] tag found in PR title."

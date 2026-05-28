@@ -12,9 +12,9 @@ interface Item {
     bounds: Rect;
 }
 
-function getNodeByUuid(uuid: string): Node | null {
+function getNodeByPath(path: string): Node | null {
     const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-    return EditorExtends?.Node?.getNode?.(uuid) ?? null;
+    return EditorExtends?.Node?.getNodeByPath?.(path) ?? null;
 }
 
 function getWorldBounds(node: Node): Rect {
@@ -57,14 +57,14 @@ function filterTopLevelNodes(nodes: Node[]): Node[] {
 @register('UI')
 export class UIService extends BaseService<IUIEvents> implements IUIService {
     public alignSelection(type: UIAlignType) {
-        const curSelectUuids = Service.Selection.query();
+        const selectPaths = Service.Selection.query();
 
-        if (curSelectUuids.length <= 1) {
+        if (selectPaths.length <= 1) {
             return;
         }
 
-        let selectedNodes: Node[] = curSelectUuids.map((id: string) => {
-            return getNodeByUuid(id);
+        let selectedNodes: Node[] = selectPaths.map((path: string) => {
+            return getNodeByPath(path);
         }).filter(Boolean) as Node[];
 
         selectedNodes = filterTopLevelNodes(selectedNodes);
@@ -127,14 +127,14 @@ export class UIService extends BaseService<IUIEvents> implements IUIService {
     }
 
     public distributeSelection(type: UIAlignType) {
-        const curSelectUuids = Service.Selection.query();
+        const selectPaths = Service.Selection.query();
 
-        if (curSelectUuids.length <= 1) {
+        if (selectPaths.length <= 1) {
             return;
         }
 
-        let selectedNodes = curSelectUuids.map((id: string) => {
-            return getNodeByUuid(id);
+        let selectedNodes = selectPaths.map((path: string) => {
+            return getNodeByPath(path);
         }).filter(Boolean) as Node[];
 
         selectedNodes = filterTopLevelNodes(selectedNodes);

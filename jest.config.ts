@@ -11,6 +11,10 @@ const config: Config.InitialOptions = {
     transform: {
         '^.+\\.(ts|tsx)$': 'ts-jest'
     },
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        '<rootDir>/tests/dts-snapshot\\.test\\.ts',
+    ],
     collectCoverageFrom: [
         'src/core/**/*.{ts,tsx}',
         '!src/core/**/*.d.ts',
