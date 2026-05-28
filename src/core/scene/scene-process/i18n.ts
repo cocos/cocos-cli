@@ -7,28 +7,43 @@ const i18n = new I18n(i18next.createInstance());
 let _ready = false;
 let _initPromise: Promise<void> | null = null;
 
+function flattenBundle(obj: Record<string, any>): Record<string, any> {
+    const out: Record<string, any> = {};
+    const walk = (cur: Record<string, any>, prefix: string) => {
+        for (const key of Object.keys(cur)) {
+            const value = cur[key];
+            const currentKey = prefix ? `${prefix}.${key}` : key;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                walk(value, currentKey);
+            } else {
+                out[currentKey] = value;
+            }
+        }
+    };
+    walk(obj, '');
+    return out;
+}
+
 export function initLocalI18n(): Promise<void> {
     if (_initPromise) return _initPromise;
     _initPromise = (async () => {
         try {
             const { lang, data } = await Rpc.getInstance().request('i18n', 'getBundle', []) as {
                 lang: string;
-                data: Record<string, unknown>;
+                data: Record<string, Record<string, any>>;
             };
             if (!_ready) {
                 await i18n.instance.init({
                     lng: lang,
                     fallbackLng: 'en',
-                    resources: { [lang]: { translation: data } },
+                    resources: { [lang]: { translation: {} } },
                 });
-                await i18n.setLanguage(lang);
                 _ready = true;
-            } else {
-                i18n.instance.addResources(lang, 'translation', data);
-                if (i18n._lang !== lang) {
-                    await i18n.setLanguage(lang);
-                }
             }
+            for (const [l, bundle] of Object.entries(data)) {
+                i18n.instance.addResources(l, 'translation', flattenBundle(bundle));
+            }
+            await i18n.setLanguage(lang);
         } catch (e) {
             console.warn('[i18n] Failed to init local i18n bundle:', e);
         }

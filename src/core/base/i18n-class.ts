@@ -62,14 +62,17 @@ export class I18n {
     }
 
     /**
-     * 导出当前语言的全部翻译资源（含动态 patch），供跨进程复用。
-     * 返回的 data 保持 i18next 内部结构（嵌套对象），让接收方用 i18next.init/addResources 重建实例。
+     * 导出所有语言的原始翻译资源（i18next 内部 nested 结构），供远端进程重建本地实例。
+     *
+     * 返回 `{ lang: 当前语言, data: { en: <raw bundle>, zh: <raw bundle> } }`。
+     * 接收方负责 flatten / 注入 i18next（见 scene-process/i18n.ts）。
      */
-    getBundle(): { lang: string; data: Record<string, unknown> } {
-        return {
-            lang: this._lang,
-            data: (this._instance.getResourceBundle(this._lang, 'translation') ?? {}) as Record<string, unknown>,
-        };
+    getBundle(): { lang: string; data: Record<string, Record<string, any>> } {
+        const result: Record<string, Record<string, any>> = {};
+        for (const lang of ['en', 'zh']) {
+            result[lang] = (this._instance.getResourceBundle(lang, 'translation') ?? {}) as Record<string, any>;
+        }
+        return { lang: this._lang, data: result };
     }
 
     /**
