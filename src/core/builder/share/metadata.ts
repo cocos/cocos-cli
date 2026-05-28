@@ -2,6 +2,7 @@ import lodash from 'lodash';
 import type { IBuildCacheUseConfig } from '../@types';
 import type { BuildConfiguration } from '../@types/config-export';
 import type { ICocosConfigurationNode, IConfigurationItem } from '../../configuration/script/metadata';
+import { DefaultBundleConfig } from './bundle-utils';
 import {
     convertConfigItem,
     createNode,
@@ -133,9 +134,14 @@ function createBuilderBundleConfigNode(
     defaults: BuildConfiguration['bundleConfig'],
     order: number
 ): ICocosConfigurationNode {
+    const customDefaults = {
+        default: DefaultBundleConfig,
+        ...defaults.custom,
+    };
+
     return createNode('builder.bundleConfig', 'i18n:configuration.builder.bundleConfig.title', 'builder', {
-        'builder.bundleConfig': objectSchema(undefined, {
-            default: defaults,
+        'builder.bundleConfig.custom': objectSchema(undefined, {
+            default: customDefaults,
             title: 'i18n:configuration.builder.bundleConfig.title',
             description: 'i18n:configuration.builder.bundleConfig.description',
         }),

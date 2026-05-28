@@ -7,6 +7,7 @@ interface IMetadataRuntime {
     project: typeof import('../../project').default;
     Engine: typeof import('../../engine').Engine;
     builderConfig: typeof import('../../builder/share/builder-config').default;
+    DefaultBundleConfig: typeof import('../../builder/share/bundle-utils').DefaultBundleConfig;
     pluginManager: typeof import('../../builder/manager/plugin').pluginManager;
     assetConfig: typeof import('../../assets/asset-config').default;
     scriptConfig: typeof import('../../scripting/shared/query-shared-settings').scriptConfig;
@@ -43,6 +44,7 @@ async function loadFreshRuntime(): Promise<IMetadataRuntime> {
         const project = (require('../../project') as typeof import('../../project')).default;
         const { Engine } = require('../../engine') as typeof import('../../engine');
         const builderConfig = (require('../../builder/share/builder-config') as typeof import('../../builder/share/builder-config')).default;
+        const { DefaultBundleConfig } = require('../../builder/share/bundle-utils') as typeof import('../../builder/share/bundle-utils');
         const { pluginManager } = require('../../builder/manager/plugin') as typeof import('../../builder/manager/plugin');
         const assetConfig = (require('../../assets/asset-config') as typeof import('../../assets/asset-config')).default;
         const { scriptConfig } = require('../../scripting/shared/query-shared-settings') as typeof import('../../scripting/shared/query-shared-settings');
@@ -53,6 +55,7 @@ async function loadFreshRuntime(): Promise<IMetadataRuntime> {
             project,
             Engine,
             builderConfig,
+            DefaultBundleConfig,
             pluginManager,
             assetConfig,
             scriptConfig,
@@ -141,15 +144,19 @@ describe('configuration metadata', () => {
         const textureCompressNode = findNode(beforePlatformRegister, 'builder.textureCompressConfig');
         const bundleConfigNode = findNode(beforePlatformRegister, 'builder.bundleConfig');
         const textureCompressProperty = findProperty(textureCompressNode, 'builder.textureCompressConfig');
-        const bundleConfigProperty = findProperty(bundleConfigNode, 'builder.bundleConfig');
+        const bundleConfigProperty = findProperty(bundleConfigNode, 'builder.bundleConfig.custom');
 
         expect(findNode(beforePlatformRegister, 'builder.common')).toBeDefined();
         expect(findNode(beforePlatformRegister, 'builder.useCacheConfig')).toBeDefined();
         expect(textureCompressProperty.type).toBe('object');
         expect(textureCompressProperty.default).toEqual(runtime.builderConfig.getDefaultConfig().textureCompressConfig);
         expect(textureCompressProperty.properties).toBeUndefined();
+        expect(bundleConfigNode.properties['builder.bundleConfig']).toBeUndefined();
         expect(bundleConfigProperty.type).toBe('object');
-        expect(bundleConfigProperty.default).toEqual(runtime.builderConfig.getDefaultConfig().bundleConfig);
+        expect(bundleConfigProperty.default).toEqual({
+            default: runtime.DefaultBundleConfig,
+            ...runtime.builderConfig.getDefaultConfig().bundleConfig.custom,
+        });
         expect(bundleConfigProperty.properties).toBeUndefined();
         expect(tryFindNode(beforePlatformRegister, 'builder.platforms.web-mobile')).toBeUndefined();
 
