@@ -452,16 +452,10 @@ function _checkAttributes(data: IProperty, attributes: any, owner: any) {
         }
     }
 
-    // Resolve i18n:* keys for displayName/tooltip via the local i18next instance.
-    // Mirror main-process transI18nName semantics: only rewrite when the key
-    // exists in the bundle; on miss preserve the original `i18n:...` string so
-    // the front-end can still apply its own fallback handling.
     for (const propName of autoI18nAttributeNames) {
         const value = data[propName];
-        if (typeof value !== 'string' || !value.startsWith('i18n:')) continue;
-        const key = value.slice(5);
-        if (i18n.instance.exists(key)) {
-            data[propName] = i18n.t(key as any);
+        if (typeof value === 'string') {
+            data[propName] = i18n.transI18nName(value);
         }
     }
 }
