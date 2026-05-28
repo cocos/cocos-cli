@@ -5386,6 +5386,11 @@ export declare interface IComponentService extends IServiceEvents {
         name: string;
     }[]>;
     queryFunctionOfNode(path: string): Promise<any>;
+    queryComponents(): Promise<Array<{
+        name: string;
+        cid: string;
+        path: string;
+    }>>;
     executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
     hasScript(name: string): Promise<boolean>;
     getPathByUuid(uuid: string): string;
@@ -7303,6 +7308,11 @@ export declare interface IComponentService extends IServiceEvents {
         name: string;
     }[]>;
     queryFunctionOfNode(path: string): Promise<any>;
+    queryComponents(): Promise<Array<{
+        name: string;
+        cid: string;
+        path: string;
+    }>>;
     executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
     hasScript(name: string): Promise<boolean>;
     getPathByUuid(uuid: string): string;

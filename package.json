@@ -27,7 +27,7 @@
         "check:e2e-coverage": "tsx e2e/scripts/check-coverage.ts",
         "check:e2e-coverage:report": "tsx e2e/scripts/check-coverage.ts --save",
         "generate:mcp-types": "node --max-old-space-size=4096 node_modules/tsx/dist/cli.mjs e2e/scripts/generate-mcp-types.ts",
-        "generate:dts": "node node_modules/tsx/dist/cli.mjs workflow/generate-dts.ts && npx jest tests/dts-snapshot.test.ts -u",
+        "generate:dts": "node node_modules/tsx/dist/cli.mjs workflow/generate-dts.ts && npx jest --roots packages/cocos-cli-types --testPathPattern dts-snapshot -u",
         "generate:dts:ci": "node node_modules/tsx/dist/cli.mjs workflow/generate-dts.ts",
         "install:engine": "cd ./packages/engine && npm i",
         "compiler": "FORCE_UPDATE=true npm i",
