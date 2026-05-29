@@ -119,6 +119,12 @@ const tools = {
     ]
 };
 
+const skipCI = [
+    'xiaomi-pack-tools',
+    'quickgame-toolkit',
+    'huawei-rpk-tools',
+];
+
 // 工具类
 class ToolDownloader {
     constructor() {
@@ -307,6 +313,14 @@ class ToolDownloader {
     async processTool(tool, index, total) {
         const progress = `[${index + 1}/${total}]`;
         console.log(`\n${progress} 处理: ${tool.dist}`);
+
+        const isCI = Boolean(process.env['CI']);
+        if (isCI) {
+            if (skipCI.includes(tool.dist)) {
+                console.log(`✅ ${tool.dist} CI跳过处理`);
+                return { success: true, skipped: false };
+            }
+        }
 
         try {
             // 生成文件路径
