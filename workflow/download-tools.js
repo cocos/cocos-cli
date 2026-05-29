@@ -318,7 +318,7 @@ class ToolDownloader {
         if (isCI) {
             if (skipCI.includes(tool.dist)) {
                 console.log(`✅ ${tool.dist} CI跳过处理`);
-                return { success: true, skipped: false };
+                return { success: true, skipped: true };
             }
         }
 
