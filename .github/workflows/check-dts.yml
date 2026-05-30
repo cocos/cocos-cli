@@ -33,8 +33,8 @@ jobs:
         run: |
           cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
           npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
-          npx jest --roots packages/cocos-cli-types --testPathPattern dts-snapshot --no-cache -u
           npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
+          npx jest tests/dts-snapshot.test.ts --no-cache --testPathIgnorePatterns='[]' -u
 
       - name: Check DTS API compatibility
         shell: bash
@@ -42,7 +42,7 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           BASE_REF="origin/${{ github.base_ref }}"
-          SNAP_FILE="packages/cocos-cli-types/__tests__/__snapshots__/dts-snapshot.test.ts.snap"
+          SNAP_FILE="tests/__snapshots__/dts-snapshot.test.ts.snap"
 
           # Skip if snapshot file is new (not in base branch yet)
           if ! git show "$BASE_REF:$SNAP_FILE" > /dev/null 2>&1; then

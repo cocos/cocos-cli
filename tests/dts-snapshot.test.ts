@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const dtsRoot = path.resolve(__dirname, '..');
+const dtsRoot = path.resolve(__dirname, '../packages/cocos-cli-types');
 
 const dtsFiles = [
     'index.d.ts',

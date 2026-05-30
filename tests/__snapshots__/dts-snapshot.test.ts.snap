@@ -1037,9 +1037,6 @@ export declare interface BitmapFontAssetUserData {
 }
 export declare type BreakType = 'cancel' | 'crashed' | 'refreshed' | 'interrupted' | '';
 export declare function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData>;
-export declare interface BuildBundleConfiguration {
-    custom: CustomBundleConfigMap;
-}
 export declare function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData>;
 export declare interface BuildCheckResult {
     error: string;
@@ -1053,7 +1050,9 @@ export declare interface BuildConfiguration {
         'web-mobile'?: WebMobileBuildOptions & OverwriteProjectSettings;
     };
     useCacheConfig?: IBuildCacheUseConfig;
-    bundleConfig: BuildBundleConfiguration;
+    bundleConfig: {
+        custom: Record<string, IBundleOptions>;
+    };
     textureCompressConfig: UserCompressConfig;
 }
 export declare class BuilderAssetCache implements BuilderCache {
@@ -1266,9 +1265,6 @@ export declare interface BundleConfigItem {
     isRemote?: boolean;
     compressionType: BundleCompressionType;
 }
-export declare interface BundleConfigItemMap {
-    [platform: string]: BundleConfigItem;
-}
 export declare type BundleConfigProperty = 'compressionType' | 'isRemote';
 export declare interface BundleFilterConfig {
     range: 'include' | 'exclude';
@@ -1468,11 +1464,8 @@ export declare interface CustomBundleConfigItem {
         compressionType: BundleCompressionType;
         isRemote?: boolean;
     };
-    overwriteSettings?: BundleConfigItemMap;
+    overwriteSettings?: Record<string, BundleConfigItem>;
     configMode?: 'auto' | 'fallback' | 'overwrite';
-}
-export declare interface CustomBundleConfigMap {
-    [bundleName: string]: CustomBundleConfig;
 }
 export declare class CustomConsole {
     constructor(level?: LogLevel);
@@ -5393,11 +5386,6 @@ export declare interface IComponentService extends IServiceEvents {
         name: string;
     }[]>;
     queryFunctionOfNode(path: string): Promise<any>;
-    queryComponents(): Promise<Array<{
-        name: string;
-        cid: string;
-        path: string;
-    }>>;
     executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
     hasScript(name: string): Promise<boolean>;
     getPathByUuid(uuid: string): string;
@@ -7315,11 +7303,6 @@ export declare interface IComponentService extends IServiceEvents {
         name: string;
     }[]>;
     queryFunctionOfNode(path: string): Promise<any>;
-    queryComponents(): Promise<Array<{
-        name: string;
-        cid: string;
-        path: string;
-    }>>;
     executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
     hasScript(name: string): Promise<boolean>;
     getPathByUuid(uuid: string): string;
@@ -8214,21 +8197,8 @@ export declare enum NormalImportSetting {
 export declare function onAssetAdded(listener: (info: IAssetInfo) => void): () => void;
 export declare function onAssetChanged(listener: (info: IAssetInfo) => void): () => void;
 export declare function onAssetRemoved(listener: (info: IAssetInfo) => void): () => void;
-export declare function onCompiled(listener: (e: {
-    scope: string;
-}) => void): () => void;
-export declare function onCompileStart(listener: (e: {
-    scope: string;
-    taskId?: string;
-}) => void): () => void;
 export declare function onDBReady(listener: (dbInfo: IAssetDBInfo) => void): () => void;
 export declare function onDidSave(callback: () => void): () => void;
-export declare function onPackBuildEnd(listener: (e: {
-    targetName: string;
-}) => void): () => void;
-export declare function onPackBuildStart(listener: (e: {
-    targetName: string;
-}) => void): () => void;
 export declare function onProgress(listener: (current: number, total: number, url: string, state: 'processing' | 'success' | 'failed') => void): () => void;
 export declare function onReady(listener: () => void): () => void;
 export declare function open_2(projectPath: string): Promise<void>;
@@ -8458,10 +8428,6 @@ export declare namespace Scripting {
         initProgrammingFacet,
         getProgrammingFacet,
         startCompileScript,
-        onCompileStart,
-        onCompiled,
-        onPackBuildStart,
-        onPackBuildEnd,
         SharedSettings,
         IPluginScriptInfo,
         FilterPluginOptions
@@ -8730,19 +8696,6 @@ export declare function initProgrammingFacet(): Promise<ProgrammingFacet>;
 export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
-export declare function onCompiled(listener: (e: {
-    scope: string;
-}) => void): () => void;
-export declare function onCompileStart(listener: (e: {
-    scope: string;
-    taskId?: string;
-}) => void): () => void;
-export declare function onPackBuildEnd(listener: (e: {
-    targetName: string;
-}) => void): () => void;
-export declare function onPackBuildStart(listener: (e: {
-    targetName: string;
-}) => void): () => void;
 export declare interface PluginScriptInfo {
     file: string;
     uuid: string;
