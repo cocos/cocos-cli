@@ -1,6 +1,6 @@
 'use strict';
 
-import { readJSON, existsSync, outputJSON, removeSync, copy } from 'fs-extra';
+import { readJSON, existsSync, outputJSON, removeSync, copy, statSync } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 import { CCON } from 'cc/editor/serialization';
 import { transformCCON } from './cconb-utils';
@@ -280,7 +280,7 @@ class BuildAssetLibrary {
         }
         // 构建缓存的文件夹
         const cacheFile = join(this.getAssetTempDirByUuid(uuid)!, `${options.debug ? 'debug' : 'release'}.json`);
-        if (this.checkUseCache(asset) && existsSync(cacheFile)) {
+        if (this.checkUseCache(asset) && this.checkSerializedCacheValid(asset, cacheFile)) {
             try {
                 return await readJSON(cacheFile);
             } catch (error) {
@@ -305,6 +305,7 @@ class BuildAssetLibrary {
                     spaces: 4,
                 });
                 this.assetMtimeCache[asset.uuid] = assetManager.queryAssetProperty(asset, 'mtime');
+                await this.saveMtimeCache();
             }
         } catch (error) {
             unExpectException(error);
@@ -318,16 +319,17 @@ class BuildAssetLibrary {
      * @param debug
      */
     public async outputAssets(uuid: string, dest: string, debug: boolean) {
+        const asset = this.getAsset(uuid);
         const cacheFile = join(this.getAssetTempDirByUuid(uuid)!, `${debug ? 'debug' : 'release'}.json`);
         try {
-            if (this.checkCanSaveCache(uuid)) {
+            if (asset && this.checkUseCache(asset) && this.checkCanSaveCache(uuid) && this.checkSerializedCacheValid(asset, cacheFile)) {
                 await copy(cacheFile, dest);
                 return;
             }
         } catch (error) {
             unExpectException(error);
         }
-        const jsonObject = this.getSerializedJSON(uuid, {
+        const jsonObject = await this.getSerializedJSON(uuid, {
             debug,
         });
         if (!jsonObject) {
@@ -335,7 +337,7 @@ class BuildAssetLibrary {
         }
         try {
             await outputJSON(cacheFile, jsonObject);
-            copy(cacheFile, dest);
+            await copy(cacheFile, dest);
         } catch (error) {
             unExpectException(error);
             await outputJSON(dest, jsonObject);
@@ -554,6 +556,53 @@ class BuildAssetLibrary {
             return false;
         }
         return true;
+    }
+
+    private checkSerializedCacheValid(asset: IAsset, cacheFile: string): boolean {
+        if (!existsSync(cacheFile)) {
+            return false;
+        }
+
+        const currentMtime = assetManager.queryAssetProperty(asset, 'mtime');
+        const cachedMtime = this.assetMtimeCache[asset.uuid];
+        if (currentMtime !== null && currentMtime !== undefined) {
+            if (cachedMtime === undefined) {
+                console.debug(`Serialized cache is stale because asset mtime cache is missing: {asset(${asset.uuid})}`);
+                return false;
+            }
+            if (cachedMtime !== currentMtime) {
+                console.debug(`Serialized cache is stale by asset mtime: {asset(${asset.uuid})}`);
+                return false;
+            }
+        }
+
+        let cacheMtime = 0;
+        try {
+            cacheMtime = statSync(cacheFile).mtimeMs;
+        } catch (error) {
+            unExpectException(error);
+            return false;
+        }
+
+        for (const file of this.getAssetLibraryFiles(asset)) {
+            try {
+                if (existsSync(file) && statSync(file).mtimeMs > cacheMtime) {
+                    console.debug(`Serialized cache is stale by library file: {asset(${asset.uuid})}`);
+                    return false;
+                }
+            } catch (error) {
+                unExpectException(error);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private getAssetLibraryFiles(asset: IAsset): string[] {
+        return asset.meta.files.map((file) => {
+            return file.startsWith('.') ? `${asset.library}${file}` : join(asset.library, file);
+        });
     }
 
     private checkCanSaveCache(uuid: string): boolean {
