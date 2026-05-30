@@ -280,7 +280,7 @@ class AssetDBManager extends EventEmitter {
         console.debug(`create db ${info.name} success in ${info.library}`);
 
          // 初始化一些脚本需要的数据库信息
-         await scripting.updateDatabases({dbID: info.name, target: info.target}, DBChangeType.add);
+         scripting.updateDatabases({dbID: info.name, target: info.target}, DBChangeType.add);
         return db;
     }
 

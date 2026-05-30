@@ -93,8 +93,6 @@ const globalEnv = new GlobalEnv();
 export class ScriptService extends BaseService<IScriptEvents> implements IScriptService {
     private _executor!: Executor;
 
-    private _isInited: boolean = false;
-
     private _suspendPromise: Promise<void> | null = null;
 
     private _syncPluginScripts: AsyncIterationConcurrency1;
@@ -121,8 +119,6 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
     }
 
     async init() {
-        if (this._isInited) return;
-        this._isInited = true;
         EditorExtends.on('class-registered', (classConstructor: Function, metadata: any, className: string) => {
             console.log('classRegistered', className);
             console.log('class-registered ' + cc.js.isChildClassOf(classConstructor, cc.Component));
@@ -148,31 +144,6 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
                 return await loadDynamic(id) as Record<string, unknown>;
             },
             quickPackLoaderContext,
-            // 浏览器环境下提供自定义 evaluator：默认 evaluator 用 require.resolve + vm.compileFunction，
-            // 在浏览器中不可用。通过 fetch 获取 chunk 内容，用 new Function 执行。
-            // 执行前临时切换 globalThis.System 为 System-B（__internalSystem），
-            // 确保 System.register() 走 ExecutorSystem 的 patched register。
-            packModuleEvaluator: typeof window !== 'undefined' && (globalThis as any).__internalSystem ? {
-                async evaluate(file: string) {
-                    const normalized = file.replace(/\\/g, '/');
-                    const marker = 'packer-driver/targets/';
-                    const idx = normalized.indexOf(marker);
-                    if (idx === -1) return;
-                    const relativePath = normalized.substring(idx + marker.length);
-                    const serverURL = ((window as any).WebEnv && (window as any).WebEnv.serverURL) || '';
-                    const url = serverURL + '/scripting/pack-workspace/' + relativePath;
-                    const response = await fetch(url);
-                    if (!response.ok) return;
-                    const source = await response.text();
-                    const savedSystem = (globalThis as any).System;
-                    (globalThis as any).System = (globalThis as any).__internalSystem;
-                    try {
-                        new Function(source)();
-                    } finally {
-                        (globalThis as any).System = savedSystem;
-                    }
-                },
-            } : undefined,
             beforeUnregisterClass: (classConstructor) => {
                 // 清除 menu 里面的缓存
                 this.customComponents.delete(classConstructor);
@@ -208,7 +179,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
     }
 
     async investigatePackerDriver() {
-        await this._reloadScripts.nextIteration();
+        void this._executeAsync();
     }
 
     /**
@@ -282,9 +253,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             this._suspendPromise = null;
 
             return globalEnv.record(
-                () => this._executor.reload().catch((err) => {
-                    console.warn('[ScriptService] Executor reload failed:', err);
-                }).finally(() => {
+                () => this._executor.reload().finally(() => {
                     this.emit('script:execution-finished');
                 }),
             );
