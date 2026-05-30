@@ -54,7 +54,9 @@ async function mockNpmModules() {
     // tsc cli
     await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
     //download tools
-    await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag].filter(Boolean));
+    if (!process.env.SKIP_DOWNLOAD_TOOLS) {
+        await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag].filter(Boolean));
+    }
 }
 
 mockNpmModules().then(() => {
