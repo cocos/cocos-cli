@@ -365,6 +365,15 @@ class ToolDownloader {
             }
 
             console.log(`✅ ${tool.dist} 处理完成`);
+
+            // 在 CI 环境下打印目录结构，方便调试
+            if (process.env.GITHUB_ACTIONS) {
+                try {
+                    const files = fs.readdirSync(targetDir);
+                    console.log(`🔎 [${tool.dist}] 目录内容: ${files.join(', ')}`);
+                } catch (err) {}
+            }
+
             return { success: true, skipped: false };
 
         } catch (error) {

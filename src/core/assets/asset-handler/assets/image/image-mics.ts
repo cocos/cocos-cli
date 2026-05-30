@@ -1,10 +1,10 @@
 'use strict';
 
-import { join, dirname, basename, extname, sep, normalize } from 'path';
+import { join, dirname, basename, sep, normalize } from 'path';
 
 import { PNG } from 'pngjs';
 import TGA from 'tga-js';
-import { readFile, ensureDirSync, existsSync } from 'fs-extra';
+import { ensureDirSync, existsSync } from 'fs-extra';
 import PSD from 'psd.js';
 import Sharp from 'sharp';
 import { GlobalPaths } from '../../../../../global';
@@ -99,7 +99,7 @@ export async function convertHDROrEXR(extName: string, source: string, uuid: str
         // 先尝试使用 cmft
         try {
             return await convertWithCmft(source, dist, '_withexr');
-        } catch (error) {
+        } catch (ignored) {
             // 如果使用 cmft 直接转失败，则先转 hdr 再使用 cmft 处理
             const res = await convertImageToHDR(source, uuid, temp);
             return await convertWithCmft(res.source, dist);
@@ -118,6 +118,9 @@ export async function convertHDR(source: string, uuid: string, temp: string) {
 export async function convertWithCmft(file: string, dist: string, version = ''): Promise<{ extName: string; source: string }> {
     // https://github.com/dariomanesku/cmft
     let tools = join(GlobalPaths.staticDir, `tools/cmft/cmftRelease64${version}${process.platform === 'win32' ? '.exe' : ''}`);
+    if (!existsSync(tools)) {
+        tools = join(GlobalPaths.staticDir, `tools/cmft/cmft${version}${process.platform === 'win32' ? '.exe' : ''}`);
+    }
     if (!existsSync(tools)) {
         tools = join(GlobalPaths.staticDir, `tools/cmft/cmftRelease64${process.platform === 'win32' ? '.exe' : ''}`);
     }

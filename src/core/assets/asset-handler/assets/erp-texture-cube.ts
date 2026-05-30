@@ -142,7 +142,13 @@ export const ERPTextureCubeHandler: AssetHandler = {
 
                         console.log(`Start to bake asset {asset[${asset.uuid}](${asset.uuid})}`);
 
-                        const cmdTool = join(GlobalPaths.staticDir, 'tools/cmft/cmftRelease64') + (process.platform === 'win32' ? '.exe' : '');
+                        let cmdTool = join(GlobalPaths.staticDir, 'tools/cmft/cmftRelease64') + (process.platform === 'win32' ? '.exe' : '');
+                        if (process.platform !== 'win32' && !existsSync(cmdTool)) {
+                            const fallback = join(GlobalPaths.staticDir, 'tools/cmft/cmft');
+                            if (existsSync(fallback)) {
+                                cmdTool = fallback;
+                            }
+                        }
                         await utils.Process.quickSpawn(cmdTool, vectorParams, {
                             stdio: 'inherit',
                         });
