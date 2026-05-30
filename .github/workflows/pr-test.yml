@@ -43,7 +43,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-env
         env:
-          SKIP_DOWNLOAD_TOOLS: 'true'
+          MINIMAL_DOWNLOAD_TOOLS: 'true'
 
       - name: Run unit tests
         id: unit-tests

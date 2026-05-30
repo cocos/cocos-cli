@@ -51,7 +51,7 @@ export async function compressWebp(option: ICompressConfig) {
     console.debug('start compress webp', src, dest, format);
     let webpTool = Path.join(GlobalPaths.staticDir, 'tools/libwebp_darwin/bin/cwebp');
     if (process.platform === 'win32') {
-        webpTool = Path.join(GlobalPaths.staticDir, 'libwebp_win32/bin/cwebp.exe');
+        webpTool = Path.join(GlobalPaths.staticDir, 'tools/libwebp_win32/bin/cwebp.exe');
     }
     const args = [src, '-o', dest, '-q', String(compressOptions.quality), '-quiet', '-exact'];
     console.debug(`webp compress command : ${webpTool} ${args.join(' ')}`);
@@ -74,7 +74,7 @@ export async function compressPVR(option: ICompressConfig) {
         await createAlphaAtlas(src, tempDest);
         src = tempDest;
     }
-    const { dest, format, compressOptions } = option;builderConfig;
+    const { dest, format, compressOptions } = option;
     // 工具可能不会自动生成输出目录文件夹
     ensureDirSync(dirname(dest));
     // https://github.com/cocos/cocos-editor/pull/1046

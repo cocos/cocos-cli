@@ -23,6 +23,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup-env
+        env:
+          MINIMAL_DOWNLOAD_TOOLS: 'true'
 
       - name: Generate DTS
         shell: bash

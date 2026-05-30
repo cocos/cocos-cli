@@ -353,6 +353,17 @@ class ToolDownloader {
             // 清理临时文件
             fs.unlinkSync(tempFilePath);
 
+            // macOS 下修复权限
+            if (this.platform === 'darwin') {
+                try {
+                    const { execSync } = require('child_process');
+                    execSync(`chmod -R +x "${targetDir}"`, { stdio: 'pipe' });
+                    console.log(`🔑 已修复权限: ${tool.dist}`);
+                } catch (err) {
+                    console.warn(`⚠️ 权限修复失败: ${err.message}`);
+                }
+            }
+
             console.log(`✅ ${tool.dist} 处理完成`);
             return { success: true, skipped: false };
 
