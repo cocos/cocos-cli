@@ -14,14 +14,17 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/PVRTexToolCLI_win32_20251028.zip',
             dist: 'PVRTexTool_win32',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/mali_win32.zip',
             dist: 'mali_win32',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/libwebp_win32.zip',
             dist: 'libwebp_win32',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/openSSLWin64.zip',
@@ -34,6 +37,7 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/astcenc/astcenc-win32-5.2.0-250220.zip',
             dist: 'astc-encoder',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/xiaomi-pack-tools-win32-202404.zip',
@@ -50,6 +54,7 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmft_win32_x64-20230323.zip',
             dist: 'cmft',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-windows-x86_64.zip',
@@ -65,18 +70,22 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/PVRTexToolCLI_darwin_20251028.zip',
             dist: 'PVRTexTool_darwin',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/mali_darwin.zip',
             dist: 'mali_darwin',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/libwebp-1.4.0-mac-universal.zip',
             dist: 'libwebp_darwin',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/astcenc/astcenc-darwin-5.2.0-250220.zip',
             dist: 'astc-encoder',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/xiaomi-pack-tools-darwin-202404.zip',
@@ -93,6 +102,7 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmft-darwin-20231124.zip',
             dist: 'cmft',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-macos-universal.zip',
@@ -127,6 +137,11 @@ class ToolDownloader {
         this.toolsDir = path.join(this.projectRoot, 'static', 'tools');
         this.tempDir = path.join(this.projectRoot, '.temp');
         this.platform = process.platform;
+        this.minimal = process.argv.includes('--minimal');
+
+        if (this.minimal) {
+            console.log('🚀 正在以最小依赖模式 (minimal) 运行，仅下载测试必需工具...');
+        }
     }
 
     // 确保目录存在
@@ -381,7 +396,11 @@ class ToolDownloader {
         // 获取工具列表
         const platformTools = tools[this.platform] || [];
         const commonTools = tools.common || [];
-        const allTools = [...platformTools, ...commonTools];
+        let allTools = [...platformTools, ...commonTools];
+
+        if (this.minimal) {
+            allTools = allTools.filter(tool => tool.essential);
+        }
 
         console.log(`📋 需要下载 ${allTools.length} 个工具文件\n`);
 

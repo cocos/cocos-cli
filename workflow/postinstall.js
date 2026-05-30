@@ -55,7 +55,8 @@ async function mockNpmModules() {
     await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
     //download tools
     if (!process.env.SKIP_DOWNLOAD_TOOLS) {
-        await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag].filter(Boolean));
+        const minimalFlag = process.env.MINIMAL_DOWNLOAD_TOOLS ? '--minimal' : '';
+        await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag, minimalFlag].filter(Boolean));
     }
 }
 
