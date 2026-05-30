@@ -121,7 +121,28 @@ export default {
                     try {
                         const resource = await facet.loadPackResource(facet.packImportMapURL);
                         if (resource.type === 'json') {
-                            return res.json(resource.json);
+                            const importMap = resource.json as any;
+                            // 移除 cce:/internal/x/cc 映射和相关 scope：
+                            // pack 的 cc chunk 依赖 cce:/internal/x/cc-fu/*（engine feature units），
+                            // 浏览器中 System-A 无法解析这些协议。
+                            // 让 System-A 使用全局 import map 的 cc → q-bundled:///virtual/cc.js。
+                            if (importMap.imports) {
+                                const ccChunkUrl = importMap.imports['cce:/internal/x/cc'];
+                                delete importMap.imports['cce:/internal/x/cc'];
+                                // 移除 cc chunk 的 scope（包含 cc-fu/* 依赖）
+                                if (ccChunkUrl && importMap.scopes) {
+                                    delete importMap.scopes[ccChunkUrl];
+                                }
+                                // 移除其他 scope 中对 cc chunk 的引用，改用全局 cc
+                                if (importMap.scopes) {
+                                    for (const scope of Object.values(importMap.scopes) as Record<string, string>[]) {
+                                        if (scope.cc === ccChunkUrl) {
+                                            delete scope.cc;
+                                        }
+                                    }
+                                }
+                            }
+                            return res.json(importMap);
                         }
                         return next(new Error('Unexpected pack resource type'));
                     } catch (err) {

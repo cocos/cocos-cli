@@ -49,4 +49,27 @@ export async function startCompileScript(assetChanges?: AssetChangeInfo[]) {
     });
 }
 
+export function onCompileStart(listener: (e: { scope: string; taskId?: string }) => void): () => void {
+    const wrapped = (scope: string, taskId?: string) => listener({ scope, taskId });
+    scripting.on('compile-start', wrapped);
+    return () => { scripting.off('compile-start', wrapped); };
+}
+
+export function onCompiled(listener: (e: { scope: string }) => void): () => void {
+    const wrapped = (scope: string) => listener({ scope });
+    scripting.on('compiled', wrapped);
+    return () => { scripting.off('compiled', wrapped); };
+}
+
+export function onPackBuildStart(listener: (e: { targetName: string }) => void): () => void {
+    const wrapped = (targetName: string) => listener({ targetName });
+    scripting.on('pack-build-start', wrapped);
+    return () => { scripting.off('pack-build-start', wrapped); };
+}
+
+export function onPackBuildEnd(listener: (e: { targetName: string }) => void): () => void {
+    const wrapped = (targetName: string) => listener({ targetName });
+    scripting.on('pack-build-end', wrapped);
+    return () => { scripting.off('pack-build-end', wrapped); };
+}
 

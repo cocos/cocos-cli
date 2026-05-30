@@ -232,9 +232,9 @@ async function buildSceneBundle() {
                             export const mkdirSync = realMod.mkdirSync || function() {};
                             export const rmdir = realMod.rmdir || function(p, o, cb) { var fn = typeof o === 'function' ? o : cb; fn && fn(null); };
                             export const rmdirSync = realMod.rmdirSync || function() {};
-                            export const realpath = realMod.realpath || function(p, o, cb) { 
-                                var fn = typeof o === 'function' ? o : cb; 
-                                if (typeof fn === 'function') fn(null, p); 
+                            export const realpath = realMod.realpath || function(p, o, cb) {
+                                var fn = typeof o === 'function' ? o : cb;
+                                if (typeof fn === 'function') fn(null, p);
                             };
                             export const realpathSync = realMod.realpathSync || function(p) { return p; };
                             export const utimes = realMod.utimes || function(p, a, m, cb) { cb && cb(null); };
@@ -344,6 +344,21 @@ async function buildSceneBundle() {
                         marker + '\n\t\t\tvar EditorExtends = editorExtends;'
                     );
                     return { code: fixed, map: null };
+                }
+            },
+            {
+                // reload 时清除 System-A 中的 pack chunk 缓存。
+                // 双实例下 _invalidateAllPackMods 只删 System-B 的 pack:/// URL，
+                // System-A 中通过 DOM import map 加载的 HTTP chunk 不会被删除，
+                // 导致 re-import 返回缓存，类不重新注册。
+                name: 'clear-pack-chunks-before-reimport',
+                renderChunk(code) {
+                    return { code: code.replace(
+                        "await System.import('cce:/internal/x/prerequisite-imports')",
+                        "/* 清除 System-A 中的 pack chunk 缓存 */ " +
+                        "(function() { try { for (var e of System.entries()) { if (e[0].indexOf('/chunks/') !== -1) System.delete(e[0]); } } catch(_e) {} })(); " +
+                        "await System.import('cce:/internal/x/prerequisite-imports')"
+                    ), map: null };
                 }
             },
             nodeResolve({
