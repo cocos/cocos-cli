@@ -8214,8 +8214,21 @@ export declare enum NormalImportSetting {
 export declare function onAssetAdded(listener: (info: IAssetInfo) => void): () => void;
 export declare function onAssetChanged(listener: (info: IAssetInfo) => void): () => void;
 export declare function onAssetRemoved(listener: (info: IAssetInfo) => void): () => void;
+export declare function onCompiled(listener: (e: {
+    scope: string;
+}) => void): () => void;
+export declare function onCompileStart(listener: (e: {
+    scope: string;
+    taskId?: string;
+}) => void): () => void;
 export declare function onDBReady(listener: (dbInfo: IAssetDBInfo) => void): () => void;
 export declare function onDidSave(callback: () => void): () => void;
+export declare function onPackBuildEnd(listener: (e: {
+    targetName: string;
+}) => void): () => void;
+export declare function onPackBuildStart(listener: (e: {
+    targetName: string;
+}) => void): () => void;
 export declare function onProgress(listener: (current: number, total: number, url: string, state: 'processing' | 'success' | 'failed') => void): () => void;
 export declare function onReady(listener: () => void): () => void;
 export declare function open_2(projectPath: string): Promise<void>;
@@ -8445,6 +8458,10 @@ export declare namespace Scripting {
         initProgrammingFacet,
         getProgrammingFacet,
         startCompileScript,
+        onCompileStart,
+        onCompiled,
+        onPackBuildStart,
+        onPackBuildEnd,
         SharedSettings,
         IPluginScriptInfo,
         FilterPluginOptions
@@ -8713,6 +8730,19 @@ export declare function initProgrammingFacet(): Promise<ProgrammingFacet>;
 export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
+export declare function onCompiled(listener: (e: {
+    scope: string;
+}) => void): () => void;
+export declare function onCompileStart(listener: (e: {
+    scope: string;
+    taskId?: string;
+}) => void): () => void;
+export declare function onPackBuildEnd(listener: (e: {
+    targetName: string;
+}) => void): () => void;
+export declare function onPackBuildStart(listener: (e: {
+    targetName: string;
+}) => void): () => void;
 export declare interface PluginScriptInfo {
     file: string;
     uuid: string;
