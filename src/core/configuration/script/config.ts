@@ -1,13 +1,15 @@
 import * as utils from './utils';
-import { ConfigurationScope, MessageType } from './interface';
+import { ConfigurationEventName, ConfigurationScope, TypedEventEmitter } from './interface';
 import { EventEmitter } from 'events';
 
-type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
+export type BaseConfigurationEvents = {
+    [ConfigurationEventName.Save]: [instance: IBaseConfiguration];
+};
 
 /**
  * 配置基类接口
  */
-export interface IBaseConfiguration extends EventEmitterMethods {
+export interface IBaseConfiguration extends TypedEventEmitter<BaseConfigurationEvents> {
     /**
      * 模块名
      */
@@ -58,6 +60,30 @@ export interface IBaseConfiguration extends EventEmitterMethods {
  */
 export class BaseConfiguration extends EventEmitter implements IBaseConfiguration {
     protected configs: Record<string, any> = {};
+
+    public on<K extends keyof BaseConfigurationEvents>(eventName: K, listener: (...args: BaseConfigurationEvents[K]) => void): this;
+    public on(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    public on(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.on(eventName, listener);
+    }
+
+    public off<K extends keyof BaseConfigurationEvents>(eventName: K, listener: (...args: BaseConfigurationEvents[K]) => void): this;
+    public off(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    public off(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.off(eventName, listener);
+    }
+
+    public once<K extends keyof BaseConfigurationEvents>(eventName: K, listener: (...args: BaseConfigurationEvents[K]) => void): this;
+    public once(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    public once(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.once(eventName, listener);
+    }
+
+    public emit<K extends keyof BaseConfigurationEvents>(eventName: K, ...args: BaseConfigurationEvents[K]): boolean;
+    public emit(eventName: string | symbol, ...args: any[]): boolean;
+    public emit(eventName: string | symbol, ...args: any[]): boolean {
+        return super.emit(eventName, ...args);
+    }
 
     constructor(
         public readonly moduleName: string,
@@ -150,7 +176,7 @@ export class BaseConfiguration extends EventEmitter implements IBaseConfiguratio
     }
 
     public async save() {
-        this.emit(MessageType.Save, this);
+        this.emit(ConfigurationEventName.Save, this);
         return true;
     }
 }

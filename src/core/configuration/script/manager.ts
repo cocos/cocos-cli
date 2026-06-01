@@ -1,15 +1,22 @@
 import { gt } from 'semver';
-import path, { join, relative } from 'path';
+import path, { join } from 'path';
 import fse from 'fs-extra';
 import { newConsole } from '../../base/console';
 import * as utils from './utils';
-import { IConfiguration, ConfigurationScope, MessageType } from './interface';
+import { IConfiguration, ConfigurationEventName, ConfigurationScope, TypedEventEmitter } from './interface';
 import { CocosMigrationManager } from '../migration';
 import { configurationRegistry } from './registry';
 import { IBaseConfiguration } from './config';
 import EventEmitter from 'events';
 
-export interface IConfigurationManager {
+export type ConfigurationManagerEvents = {
+    [ConfigurationEventName.Reload]: [config: IConfiguration];
+    [ConfigurationEventName.Update]: [key: string, value: any, scope: ConfigurationScope];
+    [ConfigurationEventName.Remove]: [key: string, scope: ConfigurationScope];
+    [ConfigurationEventName.Save]: [config: IConfiguration];
+};
+
+export interface IConfigurationManager extends TypedEventEmitter<ConfigurationManagerEvents> {
     /**
      * 初始化配置管理器
      */
@@ -70,6 +77,30 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
     static SchemaPathSource = join(__dirname, '../../../../dist/cocos.config.schema.json');
     static relativeSchemaPath = `./temp/cli/${path.basename(ConfigurationManager.SchemaPathSource)}`;
 
+    public on<K extends keyof ConfigurationManagerEvents>(eventName: K, listener: (...args: ConfigurationManagerEvents[K]) => void): this;
+    public on(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    public on(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.on(eventName, listener);
+    }
+
+    public off<K extends keyof ConfigurationManagerEvents>(eventName: K, listener: (...args: ConfigurationManagerEvents[K]) => void): this;
+    public off(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    public off(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.off(eventName, listener);
+    }
+
+    public once<K extends keyof ConfigurationManagerEvents>(eventName: K, listener: (...args: ConfigurationManagerEvents[K]) => void): this;
+    public once(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    public once(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.once(eventName, listener);
+    }
+
+    public emit<K extends keyof ConfigurationManagerEvents>(eventName: K, ...args: ConfigurationManagerEvents[K]): boolean;
+    public emit(eventName: string | symbol, ...args: any[]): boolean;
+    public emit(eventName: string | symbol, ...args: any[]): boolean {
+        return super.emit(eventName, ...args);
+    }
+
     private initialized: boolean = false;
     private projectPath: string = '';
     private configPath: string = '';
@@ -96,8 +127,8 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
             return;
         }
 
-        configurationRegistry.on(MessageType.Registry, this.onRegistryConfigurationBind);
-        configurationRegistry.on(MessageType.UnRegistry, this.onUnRegistryConfigurationBind);
+        configurationRegistry.on(ConfigurationEventName.Registry, this.onRegistryConfigurationBind);
+        configurationRegistry.on(ConfigurationEventName.UnRegistry, this.onUnRegistryConfigurationBind);
 
         this.projectPath = projectPath;
         this.configPath = path.join(projectPath, ConfigurationManager.name);
@@ -118,33 +149,33 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
      */
     public async reload(): Promise<void> {
         await this.load();
-        this.emit(MessageType.Reload, this.projectConfig);
+        this.emit(ConfigurationEventName.Reload, this.projectConfig);
     }
 
-    private onRegistryConfiguration(instance: IBaseConfiguration): void {
-        if (!this.configurationMap.has(instance.moduleName)) {
+    private onRegistryConfiguration(configInstance: IBaseConfiguration): void {
+        if (!this.configurationMap.has(configInstance.moduleName)) {
             // 从 projectConfig 中获取现有配置并初始化到配置实例中
-            const existingConfig = this.projectConfig[instance.moduleName];
+            const existingConfig = this.projectConfig[configInstance.moduleName];
             if (existingConfig && typeof existingConfig === 'object') {
                 // 将现有配置设置到配置实例的 configs 中
-                this.initializeConfigFromProject(instance, existingConfig);
+                this.initializeConfigFromProject(configInstance, existingConfig);
             }
 
             const bind = async (configInstance: IBaseConfiguration) => {
                 this.projectConfig[configInstance.moduleName] = configInstance.getAll();
                 await this.save();
             };
-            instance.on(MessageType.Save, bind);
-            this.configurationMap.set(instance.moduleName, bind);
+            configInstance.on(ConfigurationEventName.Save, bind);
+            this.configurationMap.set(configInstance.moduleName, bind);
         }
     }
 
-    private onUnRegistryConfiguration(instances: IBaseConfiguration): void {
-        const bind = this.configurationMap.get(instances.moduleName);
+    private onUnRegistryConfiguration(configInstance: IBaseConfiguration): void {
+        const bind = this.configurationMap.get(configInstance.moduleName);
         if (bind) {
             // TODO 是否需要删除
-            instances.off(MessageType.Save, bind);
-            this.configurationMap.delete(instances.moduleName);
+            configInstance.off(ConfigurationEventName.Save, bind);
+            this.configurationMap.delete(configInstance.moduleName);
         }
     }
 
@@ -255,7 +286,7 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
             await this.getInstance(moduleName).set(actualKey, value, scope);
-            this.emit(MessageType.Update, key, value, scope);
+            this.emit(ConfigurationEventName.Update, key, value, scope);
             return true;
         } catch (error) {
             throw new Error(`[Configuration] 更新配置失败：${error}`);
@@ -271,7 +302,7 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
         try {
             await this.ensureInitialized();
             const { moduleName, actualKey } = this.parseKey(key);
-            this.emit(MessageType.Remove, key, scope);
+            this.emit(ConfigurationEventName.Remove, key, scope);
             return await this.getInstance(moduleName).remove(actualKey, scope);
         } catch (error) {
             throw new Error(`[Configuration] 移除配置失败：${error}`);
@@ -294,7 +325,9 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
         try {
             if (await fse.pathExists(this.configPath)) {
                 this.projectConfig = await fse.readJSON(this.configPath);
-                this.projectConfig.version && (this.version = this.projectConfig.version);
+                if (this.projectConfig.version) {
+                    this.version = this.projectConfig.version;
+                }
                 newConsole.debug(`[Configuration] 已加载项目配置: ${this.configPath}`, this.projectConfig);
             } else {
                 newConsole.debug(`[Configuration] 项目配置文件不存在，将创建新文件: ${this.configPath}`);
@@ -324,7 +357,7 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
                     this.projectConfig.$schema = ConfigurationManager.relativeSchemaPath;
                     // 保存配置文件
                     await fse.writeJSON(this.configPath, this.projectConfig, { spaces: 4 });
-                    this.emit(MessageType.Save, this.projectConfig);
+                    this.emit(ConfigurationEventName.Save, this.projectConfig);
                     newConsole.debug(`[Configuration] 已保存项目配置: ${this.configPath}`);
                 } catch (error) {
                     newConsole.error(`[Configuration] 保存项目配置失败: ${this.configPath} - ${error}`);
