@@ -46,10 +46,12 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/lightmap-tools-win32-230525.zip',
             dist: 'lightmap-tools',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/uvunwrap_win32_221025.zip',
             dist: 'LightFX',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmft_win32_x64-20230323.zip',
@@ -59,6 +61,7 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-windows-x86_64.zip',
             dist: 'cmake',
+            essential: true,
         },
         // 注意：windows-process-tree 的 URL 可能已失效，暂时注释
         // {
@@ -94,10 +97,12 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/lightmap-tools-darwin-20241217.zip',
             dist: 'lightmap-tools',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/uvunwrap_darwin_20241217.zip',
             dist: 'LightFX',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmft-darwin-20231124.zip',
@@ -107,6 +112,7 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-macos-universal.zip',
             dist: 'cmake',
+            essential: true,
         },
         {
             url: 'http://download.cocos.com/CocosSDK/tools/process-info-20231116-darwin.zip',
@@ -371,7 +377,7 @@ class ToolDownloader {
                 try {
                     const files = fs.readdirSync(targetDir);
                     console.log(`🔎 [${tool.dist}] 目录内容: ${files.join(', ')}`);
-                } catch (err) {}
+                } catch {}
             }
 
             return { success: true, skipped: false };
