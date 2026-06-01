@@ -3,6 +3,7 @@ import { join } from 'path';
 import { EngineLoader } from 'cc/loader.js';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import type { IEngineProjectConfig } from '../@types/config';
+import { configurationManager } from '../../configuration';
 
 [
     'cc',
@@ -35,6 +36,7 @@ describe('Engine', () => {
     let engine: IEngine;
 
     beforeEach(async () => {
+        await configurationManager.initialize(TestGlobalEnv.projectRoot);
         // 在每个测试用例之前初始化 engine
         engine = await Engine.init(TestGlobalEnv.engineRoot);
     });
@@ -63,13 +65,25 @@ describe('Engine', () => {
     });
 
     it('getConfig should return updated config after _configInstance.set()', async () => {
-        const originalModules = Engine.getConfig().includeModules;
-        const newModules = [...originalModules, '__test_config_sync__'];
+        const configInstance = Engine['_configInstance'];
+        const projectConfig = configInstance.getAll() as Partial<IEngineProjectConfig> | undefined;
+        const originalDesignResolution = projectConfig?.designResolution
+            ? { ...projectConfig.designResolution }
+            : undefined;
+        const nextWidth = (Engine.getConfig().designResolution?.width || 0) + 1;
 
-        // @ts-ignore - accessing private for test
-        await Engine['_configInstance'].set('includeModules', newModules);
+        try {
+            await configInstance.set('designResolution.width', nextWidth);
 
-        // Save 事件同步更新 _config 缓存，getConfig 应返回新值
-        expect(Engine.getConfig().includeModules).toEqual(newModules);
+            // Save 事件同步更新 _config 缓存，getConfig 应返回新值
+            expect(Engine.getConfig().designResolution.width).toBe(nextWidth);
+        } finally {
+            if (originalDesignResolution) {
+                await configInstance.set('designResolution', originalDesignResolution);
+            } else {
+                await configInstance.remove('designResolution');
+            }
+            await configurationManager.save(true);
+        }
     }, 30000);
 });
