@@ -452,10 +452,34 @@ function _checkAttributes(data: IProperty, attributes: any, owner: any) {
         }
     }
 
-    for (const propName of autoI18nAttributeNames) {
-        const value = data[propName];
+    translateI18nStringsDeep(data);
+}
+
+// Engine property attributes are user-defined and their structure is unpredictable.
+// For example, @group({ name: 'i18n:...', displayOrder: 0 }) or any custom decorator
+// can embed i18n strings at arbitrary nesting levels. Checking only top-level fields
+// (displayName / tooltip) would silently miss these. We therefore traverse the entire
+// attribute object and translate every string that carries the 'i18n:' prefix.
+function translateI18nStringsDeep(obj: any, depth = 0): void {
+    if (!obj || typeof obj !== 'object') return;
+    if (depth > 10) {
+        console.warn('[translateI18nStringsDeep] Max recursion depth exceeded; nested i18n strings at this level will not be translated:', obj);
+        return;
+    }
+    for (const key of Object.keys(obj)) {
+        const value = obj[key];
         if (typeof value === 'string') {
-            data[propName] = i18n.transI18nName(value);
+            obj[key] = i18n.transI18nName(value);
+        } else if (Array.isArray(value)) {
+            for (let i = 0; i < value.length; i++) {
+                if (typeof value[i] === 'string') {
+                    value[i] = i18n.transI18nName(value[i]);
+                } else {
+                    translateI18nStringsDeep(value[i], depth + 1);
+                }
+            }
+        } else {
+            translateI18nStringsDeep(value, depth + 1);
         }
     }
 }
