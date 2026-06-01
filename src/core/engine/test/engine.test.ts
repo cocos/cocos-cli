@@ -2,6 +2,7 @@ import { Engine, IEngine } from '../index';
 import { join } from 'path';
 import { EngineLoader } from 'cc/loader.js';
 import { TestGlobalEnv } from '../../../tests/global-env';
+import type { IEngineProjectConfig } from '../@types/config';
 
 [
     'cc',
@@ -49,4 +50,26 @@ describe('Engine', () => {
         // @ts-ignore
         expect(ccm).toBeDefined();
     }, 1000 * 60 * 50);
+
+    it('getConfig should expose the selected module config at top level', () => {
+        const config = Engine.getConfig() as ReturnType<typeof Engine.getConfig> & IEngineProjectConfig;
+        const selectedConfigKey = config.globalConfigKey || Object.keys(config.configs || {})[0];
+
+        expect(selectedConfigKey).toBeDefined();
+        expect(config.configs?.[selectedConfigKey]).toBeDefined();
+        expect(config.includeModules).toEqual(config.configs![selectedConfigKey].includeModules);
+        expect(config.flags).toEqual(config.configs![selectedConfigKey].flags);
+        expect(config.noDeprecatedFeatures).toEqual(config.configs![selectedConfigKey].noDeprecatedFeatures);
+    });
+
+    it('getConfig should return updated config after _configInstance.set()', async () => {
+        const originalModules = Engine.getConfig().includeModules;
+        const newModules = [...originalModules, '__test_config_sync__'];
+
+        // @ts-ignore - accessing private for test
+        await Engine['_configInstance'].set('includeModules', newModules);
+
+        // Save 事件同步更新 _config 缓存，getConfig 应返回新值
+        expect(Engine.getConfig().includeModules).toEqual(newModules);
+    }, 30000);
 });
