@@ -49,4 +49,15 @@ describe('Engine', () => {
         // @ts-ignore
         expect(ccm).toBeDefined();
     }, 1000 * 60 * 50);
+
+    it('getConfig should return updated config after _configInstance.set()', async () => {
+        const originalModules = Engine.getConfig().includeModules;
+        const newModules = [...originalModules, '__test_config_sync__'];
+
+        // @ts-ignore - accessing private for test
+        await Engine['_configInstance'].set('includeModules', newModules);
+
+        // Save 事件同步更新 _config 缓存，getConfig 应返回新值
+        expect(Engine.getConfig().includeModules).toEqual(newModules);
+    }, 30000);
 });

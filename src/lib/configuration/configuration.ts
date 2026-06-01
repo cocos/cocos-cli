@@ -1,7 +1,9 @@
 import type { IConfiguration, ConfigurationScope } from '../../core/configuration/script/interface';
+import { ConfigurationEventName } from '../../core/configuration/script/interface';
 import type { ICocosConfigurationNode } from '../../core/configuration/script/metadata';
 
-export { IConfiguration, ConfigurationScope } from '../../core/configuration/script/interface';
+export { ConfigurationEventName };
+export type { AnyArgs, IConfiguration, ConfigurationScope, TypedEventEmitter } from '../../core/configuration/script/interface';
 export { IBaseConfiguration } from '../../core/configuration/script/config';
 
 export async function init(projectPath: string): Promise<void> {
@@ -59,8 +61,8 @@ export function onDidSave(callback: () => void): () => void {
     // 同步引入：调用时 configurationManager 必定已初始化
     const { configurationManager } = require('../../core/configuration/index');
     const handler = () => callback();
-    configurationManager.on('configuration:save', handler);
-    return () => configurationManager.off('configuration:save', handler);
+    configurationManager.on(ConfigurationEventName.Save, handler);
+    return () => configurationManager.off(ConfigurationEventName.Save, handler);
 }
 
 // ==================== Metadata ====================

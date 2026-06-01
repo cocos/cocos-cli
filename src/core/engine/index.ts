@@ -1,11 +1,11 @@
 import fse from 'fs-extra';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { EngineInfo } from './@types/public';
-import { IEngineConfig, IEngineProjectConfig, IInitEngineInfo } from './@types/config';
+import { IEngineConfig, IInitEngineInfo } from './@types/config';
 import { IModuleConfig, ModuleRenderConfig } from './@types/modules';
 import { join } from 'path';
-import { cloneDeep } from 'lodash';
-import { configurationRegistry, IBaseConfiguration } from '../configuration';
+import { cloneDeep, merge } from 'lodash';
+import { ConfigurationEventName, configurationRegistry, IBaseConfiguration } from '../configuration';
 import { assetManager } from '../assets';
 import { getEngineDynamicConfigContribution, getEngineRenderConfig, getLocalizedEngineRenderConfig } from './dynamic-metadata';
 import { createEngineMetadataNodes } from './metadata';
@@ -290,7 +290,6 @@ class EngineManager implements IEngine {
         this._info.tmpDir = join(enginePath, '.temp');
         this._loadEngineI18n(enginePath);
         this._defaultConfig = this.resolveDefaultConfig(this._info.typescript.path);
-        this._config = this.defaultConfig;
         const configInstance = await configurationRegistry.register('engine', {
             defaults: this.defaultConfig,
             nodes: () => createEngineMetadataNodes({
@@ -299,21 +298,16 @@ class EngineManager implements IEngine {
             }),
         });
         this._configInstance = configInstance;
+        const syncConfig = () => {
+            this._config = merge(
+                cloneDeep(configInstance.getDefaultConfig() || {}),
+                configInstance.getAll() || {},
+            ) as IEngineConfig;
+        };
+        syncConfig();
+        configInstance.on(ConfigurationEventName.Save, syncConfig);
         this._init = true;
-        await this.updateConfig();
         return this;
-    }
-
-    async updateConfig() {
-        const projectConfig = await this._configInstance.get<IEngineProjectConfig>();
-        this._config = projectConfig;
-        if (!projectConfig.configs || Object.keys(projectConfig.configs).length === 0) {
-            return this;
-        }
-        const globalConfigKey = projectConfig.globalConfigKey || Object.keys(projectConfig.configs)[0];
-        this._config.includeModules = projectConfig.configs[globalConfigKey].includeModules;
-        this._config.flags = projectConfig.configs[globalConfigKey].flags;
-        this._config.noDeprecatedFeatures = projectConfig.configs[globalConfigKey].noDeprecatedFeatures;
     }
 
     async importEditorExtensions() {

@@ -6225,13 +6225,23 @@ export { }
 `;
 
 exports[`DTS API compatibility configuration.d.ts should match snapshot 1`] = `
-"import { EventEmitter } from 'events';
+"export declare type AnyArgs = any[];
+export declare type BaseConfigurationEvents = {
+    [ConfigurationEventName.Save]: [instance: IBaseConfiguration];
+};
+export declare const ConfigurationEventName: {
+    readonly Save: "configuration:save";
+    readonly Registry: "configuration:registry";
+    readonly UnRegistry: "configuration:unregistry";
+    readonly Reload: "configuration:reload";
+    readonly Update: "configuration:update";
+    readonly Remove: "configuration:remove";
+};
 export declare type ConfigurationScope = 'default' | 'project';
-export declare type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
 export declare function get<T>(key: string, scope?: ConfigurationScope): Promise<T>;
 export declare function getConfigPath(): Promise<string>;
 export declare function getMetadata(): Promise<ICocosConfigurationNode[]>;
-export declare interface IBaseConfiguration extends EventEmitterMethods {
+export declare interface IBaseConfiguration extends TypedEventEmitter<BaseConfigurationEvents> {
     moduleName: string;
     getDefaultConfig(): Record<string, any> | undefined;
     mergeDefaultConfig(defaultConfig?: Record<string, any>): void;
@@ -6275,6 +6285,12 @@ export declare function reload(): Promise<void>;
 export declare function remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 export declare function save(force?: boolean): Promise<void>;
 export declare function set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+export declare interface TypedEventEmitter<T extends Record<string, AnyArgs>> {
+    on<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    off<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    once<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    emit<K extends keyof T>(eventName: K, ...args: T[K]): boolean;
+}
 export { }
 "
 `;
@@ -6522,7 +6538,6 @@ exports[`DTS API compatibility index.d.ts should match snapshot 1`] = `
 "import { __private } from 'cc';
 import { ChunkInfo } from '@cocos/creator-programming-quick-pack/lib/loader';
 import type { Component } from 'cc';
-import { EventEmitter } from 'events';
 import { default as i18n_2 } from 'i18next';
 import { NextFunction } from 'express';
 import type { Node as Node_2 } from 'cc';
@@ -6557,6 +6572,7 @@ export declare interface AnimationImportSetting {
         };
     }>;
 }
+export declare type AnyArgs = any[];
 export declare const ASSET_HANDLER_TYPES: string[];
 export declare enum AssetActionEnum {
     'add' = 0,
@@ -6762,6 +6778,9 @@ export declare namespace Base {
         init_2 as init
     }
 }
+export declare type BaseConfigurationEvents = {
+    [ConfigurationEventName.Save]: [instance: IBaseConfiguration];
+};
 export declare interface BaseItem {
     label?: string;
     description?: string;
@@ -6817,6 +6836,14 @@ export declare namespace Configuration {
         ICocosConfigurationPropertySchema
     }
 }
+export declare const ConfigurationEventName: {
+    readonly Save: "configuration:save";
+    readonly Registry: "configuration:registry";
+    readonly UnRegistry: "configuration:unregistry";
+    readonly Reload: "configuration:reload";
+    readonly Update: "configuration:update";
+    readonly Remove: "configuration:remove";
+};
 export declare type ConfigurationScope = 'default' | 'project';
 export declare const CREATE_TYPES: readonly ["scene", "prefab"];
 export declare function createAsset(options: CreateAssetOptions): Promise<IAssetInfo>;
@@ -6913,7 +6940,6 @@ export declare interface EngineInfo {
     tmpDir: string;
     version: string;
 }
-export declare type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
 export declare interface ExecuteAssetDBScriptMethodOptions {
     name: string;
     method: string;
@@ -7190,7 +7216,7 @@ export declare interface IAssetWriteFileOptions extends IAssetOperationOptionsBa
     create?: boolean;
     overwrite?: boolean;
 }
-export declare interface IBaseConfiguration extends EventEmitterMethods {
+export declare interface IBaseConfiguration extends TypedEventEmitter<BaseConfigurationEvents> {
     moduleName: string;
     getDefaultConfig(): Record<string, any> | undefined;
     mergeDefaultConfig(defaultConfig?: Record<string, any>): void;
@@ -8602,6 +8628,12 @@ export declare interface ThumbnailInfo {
 }
 export declare type ThumbnailSize = 'large' | 'small' | 'middle' | 'origin';
 export declare type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
+export declare interface TypedEventEmitter<T extends Record<string, AnyArgs>> {
+    on<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    off<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    once<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    emit<K extends keyof T>(eventName: K, ...args: T[K]): boolean;
+}
 export declare type UIAlignType = 'top' | 'v-center' | 'bottom' | 'left' | 'h-center' | 'right';
 export declare function unregister(): Promise<void>;
 export declare function updateAssetUserData(urlOrUuidOrPath: string, path: string, value: any): Promise<any>;

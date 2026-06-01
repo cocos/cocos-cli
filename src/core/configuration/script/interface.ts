@@ -4,7 +4,7 @@
  */
 export type ConfigurationScope = 'default' | 'project';
 
-export const MessageType = {
+export const ConfigurationEventName = {
     Save: 'configuration:save',
     Registry: 'configuration:registry',
     UnRegistry: 'configuration:unregistry',
@@ -12,6 +12,19 @@ export const MessageType = {
     Update: 'configuration:update',
     Remove: 'configuration:remove',
 } as const;
+
+export type AnyArgs = any[];
+
+/**
+ * 类型化的事件发射器接口
+ * 替代 Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>
+ */
+export interface TypedEventEmitter<T extends Record<string, AnyArgs>> {
+    on<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    off<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    once<K extends keyof T>(eventName: K, listener: (...args: T[K]) => void): this;
+    emit<K extends keyof T>(eventName: K, ...args: T[K]): boolean;
+}
 
 /**
  * 配置的格式

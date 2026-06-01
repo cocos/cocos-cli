@@ -1,5 +1,4 @@
 import { BaseConfiguration } from '../script/config';
-import { MessageType } from '../script/interface';
 
 describe('BaseConfiguration', () => {
     let config: BaseConfiguration;
@@ -136,23 +135,23 @@ describe('BaseConfiguration', () => {
             const emitSpy = jest.spyOn(config, 'emit');
             const result = await config.save();
             expect(result).toBe(true);
-            expect(emitSpy).toHaveBeenCalledWith(MessageType.Save, config);
+            expect(emitSpy).toHaveBeenCalledWith('configuration:save', config);
         });
 
         it('should handle event listeners', () => {
             const listener = jest.fn();
-            config.on(MessageType.Save, listener);
-            config.emit(MessageType.Save, config);
+            config.on('configuration:save', listener);
+            config.emit('configuration:save', config);
             expect(listener).toHaveBeenCalledWith(config);
 
-            config.off(MessageType.Save, listener);
-            config.emit(MessageType.Save, config);
+            config.off('configuration:save', listener);
+            config.emit('configuration:save', config);
             expect(listener).toHaveBeenCalledTimes(1);
 
             const onceListener = jest.fn();
-            config.once(MessageType.Save, onceListener);
-            config.emit(MessageType.Save, config);
-            config.emit(MessageType.Save, config);
+            config.once('configuration:save', onceListener);
+            config.emit('configuration:save', config);
+            config.emit('configuration:save', config);
             expect(onceListener).toHaveBeenCalledTimes(1);
         });
     });

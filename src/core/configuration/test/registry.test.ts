@@ -1,7 +1,6 @@
 import { ConfigurationRegistry } from '../script/registry';
 import { BaseConfiguration } from '../script/config';
 import { IBaseConfiguration } from '../script/config';
-import { MessageType } from '../script/interface';
 import type { ICocosConfigurationNode } from '../script/metadata';
 import i18n from '../../base/i18n';
 
@@ -69,7 +68,7 @@ describe('ConfigurationRegistry', () => {
             expect(instance).toBeInstanceOf(BaseConfiguration);
             expect(instance.moduleName).toBe(moduleName);
             expect(registry.getInstance(moduleName)).toBe(instance);
-            expect(emitSpy).toHaveBeenCalledWith(MessageType.Registry, expect.any(BaseConfiguration));
+            expect(emitSpy).toHaveBeenCalledWith('configuration:registry', expect.any(BaseConfiguration));
             
             // Register with default config
             const instanceWithConfig = await registry.register('module2', defaultConfig);
@@ -108,7 +107,7 @@ describe('ConfigurationRegistry', () => {
             
             await registry.unregister(moduleName);
             expect(registry.getInstance(moduleName)).toBeUndefined();
-            expect(emitSpy).toHaveBeenCalledWith(MessageType.UnRegistry, instance);
+            expect(emitSpy).toHaveBeenCalledWith('configuration:unregistry', instance);
         });
 
         it('should handle multiple unregistrations and non-existent modules', async () => {
@@ -134,8 +133,8 @@ describe('ConfigurationRegistry', () => {
             const registryListener = jest.fn();
             const unregistryListener = jest.fn();
             
-            registry.on(MessageType.Registry, registryListener);
-            registry.on(MessageType.UnRegistry, unregistryListener);
+            registry.on('configuration:registry', registryListener);
+            registry.on('configuration:unregistry', unregistryListener);
             
             await registry.register(moduleName);
             expect(registryListener).toHaveBeenCalledWith(expect.any(BaseConfiguration));
@@ -144,13 +143,13 @@ describe('ConfigurationRegistry', () => {
             expect(unregistryListener).toHaveBeenCalledWith(expect.any(BaseConfiguration));
             
             // Test listener removal
-            registry.off(MessageType.Registry, registryListener);
+            registry.off('configuration:registry', registryListener);
             await registry.register('module2');
             expect(registryListener).toHaveBeenCalledTimes(1); // Only called once before removal
             
             // Test once listener
             const onceListener = jest.fn();
-            registry.once(MessageType.Registry, onceListener);
+            registry.once('configuration:registry', onceListener);
             await registry.register('module3');
             await registry.register('module4');
             expect(onceListener).toHaveBeenCalledTimes(1);
@@ -222,7 +221,7 @@ describe('ConfigurationRegistry', () => {
             const errorListener = jest.fn().mockImplementation(() => {
                 throw new Error('Listener error');
             });
-            registry.on(MessageType.Registry, errorListener);
+            registry.on('configuration:registry', errorListener);
             
             try {
                 await registry.register('error-module');
@@ -295,7 +294,7 @@ describe('ConfigurationRegistry', () => {
             const customInstance = new BaseConfiguration('eventModule', { key: 'value' });
             const eventSpy = jest.fn();
             
-            registry.on(MessageType.Registry, eventSpy);
+            registry.on('configuration:registry', eventSpy);
             await registry.register('eventModule', customInstance);
 
             expect(eventSpy).toHaveBeenCalledWith(customInstance);

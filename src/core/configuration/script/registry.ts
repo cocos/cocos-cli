@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { newConsole } from '../../base/console';
 import { BaseConfiguration, IBaseConfiguration } from './config';
-import { MessageType } from './interface';
+import { ConfigurationEventName, TypedEventEmitter } from './interface';
 import type {
     ICocosConfigurationMetadataRegistration,
     ICocosConfigurationNode,
@@ -14,7 +14,12 @@ export interface IConfigurationRegistration {
     nodes?: ICocosConfigurationMetadataRegistration;
 }
 
-export interface IConfigurationRegistry {
+export type ConfigurationRegistryEvents = {
+    [ConfigurationEventName.Registry]: [instance: IBaseConfiguration];
+    [ConfigurationEventName.UnRegistry]: [instance: IBaseConfiguration];
+};
+
+export interface IConfigurationRegistry extends TypedEventEmitter<ConfigurationRegistryEvents> {
     getInstances(): Record<string, IBaseConfiguration>;
     getInstance(moduleName: string): IBaseConfiguration | undefined;
 
@@ -179,6 +184,26 @@ export class ConfigurationRegistry extends EventEmitter implements IConfiguratio
     private instances: Record<string, IBaseConfiguration> = {};
     private registrations: Record<string, IConfigurationRegistration> = {};
 
+    public on<K extends keyof ConfigurationRegistryEvents>(eventName: K, listener: (...args: ConfigurationRegistryEvents[K]) => void): this;
+    public on(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.on(eventName, listener);
+    }
+
+    public off<K extends keyof ConfigurationRegistryEvents>(eventName: K, listener: (...args: ConfigurationRegistryEvents[K]) => void): this;
+    public off(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.off(eventName, listener);
+    }
+
+    public once<K extends keyof ConfigurationRegistryEvents>(eventName: K, listener: (...args: ConfigurationRegistryEvents[K]) => void): this;
+    public once(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.once(eventName, listener);
+    }
+
+    public emit<K extends keyof ConfigurationRegistryEvents>(eventName: K, ...args: ConfigurationRegistryEvents[K]): boolean;
+    public emit(eventName: string | symbol, ...args: any[]): boolean {
+        return super.emit(eventName, ...args);
+    }
+
     public getInstances(): Record<string, IBaseConfiguration> {
         return this.instances;
     }
@@ -242,13 +267,13 @@ export class ConfigurationRegistry extends EventEmitter implements IConfiguratio
         }
 
         this.instances[moduleName] = nextInstance;
-        this.emit(MessageType.Registry, nextInstance);
+        this.emit(ConfigurationEventName.Registry, nextInstance);
         return nextInstance as IBaseConfiguration | T;
     }
 
     public async unregister(moduleName: string): Promise<void> {
         const instance = this.instances[moduleName];
-        this.emit(MessageType.UnRegistry, instance);
+        this.emit(ConfigurationEventName.UnRegistry, instance);
         delete this.instances[moduleName];
         delete this.registrations[moduleName];
     }

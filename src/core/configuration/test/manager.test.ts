@@ -1,6 +1,5 @@
 import { ConfigurationManager } from '../script/manager';
 import { configurationRegistry } from '../script/registry';
-import { MessageType } from '../script/interface';
 import * as fse from 'fs-extra';
 import * as path from 'path';
 import { CocosMigrationManager } from '../migration';
@@ -64,8 +63,8 @@ describe('ConfigurationManager', () => {
             await manager.initialize(projectPath);
             expect(manager['initialized']).toBe(true);
             expect(manager['configPath']).toBe(configPath);
-            expect(mockRegistry.on).toHaveBeenCalledWith(MessageType.Registry, expect.any(Function));
-            expect(mockRegistry.on).toHaveBeenCalledWith(MessageType.UnRegistry, expect.any(Function));
+            expect(mockRegistry.on).toHaveBeenCalledWith('configuration:registry', expect.any(Function));
+            expect(mockRegistry.on).toHaveBeenCalledWith('configuration:unregistry', expect.any(Function));
             // 由于 projectConfig 初始为空，save 方法会直接返回，所以不会调用 writeJSON 或 ensureDir
             // 这是正确的行为，因为空的配置不需要保存
 
@@ -271,12 +270,12 @@ describe('ConfigurationManager', () => {
             };
 
             const onRegistryHandler = mockRegistry.on.mock.calls.find(
-                call => call[0] === MessageType.Registry
+                call => call[0] === 'configuration:registry'
             )?.[1] as Function;
 
             expect(onRegistryHandler).toBeDefined();
             await onRegistryHandler(mockInstance);
-            expect(mockInstance.on).toHaveBeenCalledWith(MessageType.Save, expect.any(Function));
+            expect(mockInstance.on).toHaveBeenCalledWith('configuration:save', expect.any(Function));
             expect(manager['configurationMap'].has('testModule')).toBe(true);
 
             // Unregistry event
@@ -286,7 +285,7 @@ describe('ConfigurationManager', () => {
             };
 
             const onUnRegistryHandler = mockRegistry.on.mock.calls.find(
-                call => call[0] === MessageType.UnRegistry
+                call => call[0] === 'configuration:unregistry'
             )?.[1] as Function;
 
             expect(onUnRegistryHandler).toBeDefined();
@@ -485,7 +484,7 @@ describe('ConfigurationManager', () => {
 
             // 获取注册事件处理器
             const onRegistryHandler = mockRegistry.on.mock.calls.find(
-                call => call[0] === MessageType.Registry
+                call => call[0] === 'configuration:registry'
             )?.[1] as Function;
 
             expect(onRegistryHandler).toBeDefined();
@@ -504,7 +503,7 @@ describe('ConfigurationManager', () => {
 
             // 模拟 Save 事件触发（当配置被修改时）
             const saveHandler = mockInstance.on.mock.calls.find(
-                call => call[0] === MessageType.Save
+                call => call[0] === 'configuration:save'
             )?.[1] as Function;
 
             expect(saveHandler).toBeDefined();
@@ -551,7 +550,7 @@ describe('ConfigurationManager', () => {
 
             // 获取注册事件处理器
             const onRegistryHandler = mockRegistry.on.mock.calls.find(
-                call => call[0] === MessageType.Registry
+                call => call[0] === 'configuration:registry'
             )?.[1] as Function;
 
             expect(onRegistryHandler).toBeDefined();
