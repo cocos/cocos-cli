@@ -3841,6 +3841,7 @@ export declare interface PacStoreInfo {
     }[];
     options: IPackOptions;
 }
+export declare function packAutoAtlas(pacUuid: string, option?: Partial<IPackOptions>): Promise<PreviewPackResult | null>;
 export declare type ParallelPluginHooks = Exclude<
 	keyof FunctionPluginHooks | AddonHooks,
 	FirstPluginHooks | SequentialPluginHooks
@@ -4111,6 +4112,7 @@ export declare interface PreviewPackResult {
 }
 export declare type PureModulesOption = boolean | string[] | IsPureModule;
 export declare function queryAssetsInBundle(uuid: string, bundleFilterConfig?: BundleFilterConfig[]): Promise<string[]>;
+export declare function queryAutoAtlasFileCache(pacUuid: string): Promise<PreviewPackResult | null>;
 export declare function queryBuildConfig(): Promise<BuildConfiguration>;
 export declare function queryBundleConfig(): Promise<Record<string, BundleQueryConfig>>;
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;

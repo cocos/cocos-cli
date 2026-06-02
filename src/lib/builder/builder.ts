@@ -1,4 +1,4 @@
-import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from '../../core/builder/@types/private';
+import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
 
 export type * from '../../core/builder/@types/private';
@@ -86,6 +86,16 @@ export async function getRegisteredPlatforms() {
 export async function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult> {
     const builder = await import('../../core/builder');
     return builder.getPreviewSettings(options);
+}
+
+export async function packAutoAtlas(pacUuid: string, option?: Partial<IPackOptions>): Promise<PreviewPackResult | null> {
+    const texturePacker = await import('../../core/builder/worker/builder/asset-handler/texture-packer');
+    return texturePacker.packAutoAtlas(pacUuid, option);
+}
+
+export async function queryAutoAtlasFileCache(pacUuid: string): Promise<PreviewPackResult | null> {
+    const texturePacker = await import('../../core/builder/worker/builder/asset-handler/texture-packer');
+    return texturePacker.queryAutoAtlasFileCache(pacUuid);
 }
 
 export { pluginManager } from '../../core/builder/manager/plugin';
