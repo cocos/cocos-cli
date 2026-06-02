@@ -169,6 +169,10 @@
             <h3 onclick="toggleSection('sec-scene')">Scene</h3>
             <div class="section-body">
                 <div class="row">
+                    <label>UUID/URL</label>
+                    <input type="text" id="sceneInput" placeholder="db://assets/... or UUID" style="flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 4px;font-size:11px;">
+                </div>
+                <div class="row">
                     <button class="btn btn-primary" id="btnLoad" onclick="doLoadScene()">Load Scene</button>
                     <span id="sceneStatus" class="info-text">Not loaded</span>
                 </div>
@@ -427,15 +431,16 @@
         async function doLoadScene() {
             const btn = document.getElementById('btnLoad');
             const status = document.getElementById('sceneStatus');
+            const sceneInput = document.getElementById('sceneInput').value.trim();
             btn.disabled = true;
             status.textContent = 'Loading...';
             status.className = 'info-text status-warn';
             try {
                 await import("/static/web/load-scene.js");
-                await window.loadScene(WebEnv.serverURL);
+                await window.loadScene(WebEnv.serverURL, sceneInput || undefined);
                 status.textContent = 'Loaded';
                 status.className = 'info-text status-ok';
-                log('Scene loaded', 'status-ok');
+                log('Scene loaded' + (sceneInput ? ': ' + sceneInput : ''), 'status-ok');
                 setTimeout(() => { initPanel(); }, 500);
             } catch (e) {
                 status.textContent = 'Failed';

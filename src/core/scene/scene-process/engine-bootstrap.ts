@@ -16,6 +16,14 @@ if (EditorExtends.UuidUtils) {
     U.uuid = U.uuid || U.generate;
 }
 
+// 将 stub EditorExtends 中引擎启动阶段注册的 menu 迁移到真实实现
+const stubEditorExtends = (globalThis as any).EditorExtends;
+if (stubEditorExtends?.Component?._menus?.length) {
+    for (const item of stubEditorExtends.Component._menus) {
+        EditorExtends.Component.addMenu(item.component, item.menuPath, item.priority);
+    }
+}
+
 (globalThis as any).EditorExtends = EditorExtends;
 
 export { serviceManager, EditorExtends };

@@ -43,6 +43,9 @@ export default async function boot () {
     const SceneBundle = await System.import('/static/web/scene-bundle.js');
     const { startup } = SceneBundle;
 
+    // scene-bundle 的 systemjs-bridge 将 System 替换为 Executor 内部实例
+    // 保存为 __internalSystem 供 ScriptService 的 packModuleEvaluator 使用
+    globalThis.__internalSystem = globalThis.System;
     globalThis.System = _originalSystem;
     await startup({
         enginePath: env.enginePath,

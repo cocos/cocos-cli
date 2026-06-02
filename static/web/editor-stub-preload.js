@@ -122,9 +122,14 @@ window.EditorExtends = {
     },
     Component: {
         allow: false,
-        addMenu: function () { },
-        removeMenu: function () { },
-        getMenus: function () { return []; },
+        _menus: [],
+        addMenu: function (component, path, priority) {
+            this._menus.push({ component: component, menuPath: path, priority: priority || 0 });
+        },
+        removeMenu: function (component) {
+            this._menus = this._menus.filter(function (item) { return item.component !== component; });
+        },
+        getMenus: function () { return this._menus; },
         add: function () { },
         remove: function () { },
         clear: function () { },
