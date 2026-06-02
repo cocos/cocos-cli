@@ -70,7 +70,7 @@ export async function compressPVR(option: ICompressConfig) {
     console.debug('start compress pvr', option);
     let src = option.src;
     if (option.format.endsWith('rgb_a')) {
-        const tempDest = Path.join(builderConfig.projectTempDir, 'builder', 'CompressTexture', 'pvr_alpha', option.uuid + Path.extname(src));
+        const tempDest = Path.join(builderConfig.projectTempDir, 'CompressTexture', 'pvr_alpha', option.uuid + Path.extname(src));
         await createAlphaAtlas(src, tempDest);
         src = tempDest;
     }
@@ -163,7 +163,7 @@ export async function compressEtc(option: ICompressConfig) {
         // 理论上同一资源的 alpha 贴图可以复用，且应该走 getAssetTempDirByUuid 使用缓存即可，但由于这个工具需要单独可以走测试例试，所以暂时先不走通用地址
         // 理论上 etc 和 pvr 的 alpha 贴图也可以复用，但由于可能存在并发的权限问题，暂不复用
         // NOTE: 注意，这里的图片名称必须和 dest 保持一致，因为此压缩工具压缩出来的结果无法改变图片名称
-        const tempDest = Path.join(builderConfig.projectTempDir, 'builder', 'CompressTexture', 'etc_alpha', uuid, Path.basename(dest, Path.extname(dest)) + Path.extname(src));
+        const tempDest = Path.join(builderConfig.projectTempDir, 'CompressTexture', 'etc_alpha', uuid, Path.basename(dest, Path.extname(dest)) + Path.extname(src));
         await createAlphaAtlas(src, tempDest);
         src = tempDest;
     }

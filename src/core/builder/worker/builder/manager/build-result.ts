@@ -27,7 +27,7 @@ class Paths implements IBuildPaths {
         this.dir = dir || '';
         this.output = this.dir;
         this.compileConfig = join(dir, BuildGlobalInfo.buildOptionsFileName);
-        this.tempDir = join(builderConfig.projectTempDir, 'builder', platform);
+        this.tempDir = join(builderConfig.projectTempDir, platform);
         this.projectRoot = builderConfig.projectRoot;
     }
 
