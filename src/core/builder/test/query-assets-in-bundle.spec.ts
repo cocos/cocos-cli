@@ -13,7 +13,7 @@ jest.mock('../../base/i18n', () => {
 
 jest.mock('../share/builder-config', () => ({
     __esModule: true,
-    default: { projectTempDir: '/tmp/test', commonOptionConfigs: {} },
+    default: { projectRoot: 'test-project', projectTempDir: 'project-temp', commonOptionConfigs: {} },
 }));
 
 jest.mock('../share/texture-compress', () => ({
@@ -25,7 +25,7 @@ jest.mock('../../configuration', () => ({
 }));
 
 jest.mock('../../../global', () => ({
-    GlobalPaths: { workspace: '/tmp/test-workspace' },
+    GlobalPaths: { workspace: 'test-workspace' },
 }));
 
 // Mock assetManager
@@ -37,6 +37,7 @@ const mockQueryAssetMeta = jest.fn();
 const mockQueryAssetDependencies = jest.fn();
 const mockQueryAssetUsers = jest.fn();
 const mockUrl2uuid = jest.fn();
+const mockPacSpriteFrames = new Map<string, Array<{ uuid: string }>>();
 
 jest.mock('../../assets/manager/asset', () => ({
     __esModule: true,
@@ -58,6 +59,38 @@ jest.mock('../../assets/manager/asset-db', () => ({
     default: { assetDBMap: {} },
 }));
 
+jest.mock('../worker/builder/asset-handler/texture-packer/packer', () => ({
+    packer: jest.fn(),
+}));
+
+jest.mock('../worker/builder/asset-handler/texture-packer/pac-info', () => ({
+    PacInfo: class {
+        uuid: string;
+        path: string;
+        spriteFrameInfos: Array<{ uuid: string }> = [];
+        spriteFrames: any[] = [];
+        packOptions = { mode: 'build' };
+        storeInfo: any;
+
+        constructor(pacAsset: any) {
+            this.uuid = pacAsset.uuid;
+            this.path = pacAsset.url;
+            this.storeInfo = {
+                pac: {
+                    uuid: pacAsset.uuid,
+                },
+                sprites: [],
+                options: this.packOptions,
+            };
+        }
+
+        async initSpriteFramesWithRange() {
+            this.spriteFrameInfos = mockPacSpriteFrames.get(this.uuid) || [];
+            return this;
+        }
+    },
+}));
+
 // Mock cc modules
 jest.mock('cc', () => ({
     deserialize: jest.fn(),
@@ -77,7 +110,7 @@ function makeAsset(uuid: string, url: string, subAssets?: Record<string, any>, u
         uuid,
         url,
         source: url,
-        library: `/tmp/library/${uuid}`,
+        library: `library/${uuid}`,
         invalid: false,
         subAssets: subAssets || {},
         meta: {
@@ -114,14 +147,14 @@ describe('BuildAssetLibrary.queryAssetsInBundle', () => {
         const asset = makeAsset('abcdef0123456789', 'db://assets/cache.json') as any;
         asset._assetDB = {
             options: {
-                temp: 'C:/project/temp/cli/asset-db/assets',
+                name: 'assets',
             },
         };
         mockQueryAsset.mockReturnValue(asset);
 
         const result = buildAssetLibrary.getAssetTempDirByUuid(asset.uuid).replace(/\\/g, '/');
 
-        expect(result).toBe('C:/project/temp/cli/asset-db/assets/ab/abcdef0123456789/build1.0.1');
+        expect(result).toBe('project-temp/asset-db/assets/ab/abcdef0123456789/build1.0.1');
     });
 
     it('should return all asset URLs when no bundleFilterConfig', async () => {
@@ -318,5 +351,69 @@ describe('BuildAssetLibrary.queryAssetsInBundle', () => {
         const result = buildAssetLibrary.queryAssetsInBundle('bundle-uuid');
 
         expect(result).toEqual([]);
+    });
+});
+
+describe('TexturePacker.querySpriteToAutoAtlas', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.resetModules();
+        mockPacSpriteFrames.clear();
+    });
+
+    async function getTexturePacker() {
+        return import('../worker/builder/asset-handler/texture-packer');
+    }
+
+    it('should return the auto atlas that contains an assets sprite frame', async () => {
+        const spriteUuid = '0a2f8577-9298-44ff-93d0-8a055f252cb0@f9941';
+        const pacUuid = '474408c2-fb2d-45b7-9f90-b42ac2fae5df';
+        const spriteAsset = makeAsset(spriteUuid, 'db://assets/sheep/sheep_0.png@f9941') as any;
+        spriteAsset._assetDB = {
+            options: {
+                name: 'assets',
+            },
+        };
+        const pacAsset = makeAsset(pacUuid, 'db://assets/sheep/sheep.pac') as any;
+
+        mockPacSpriteFrames.set(pacUuid, [
+            { uuid: spriteUuid },
+            { uuid: 'other-sprite-frame' },
+        ]);
+        mockQueryAsset.mockImplementation((uuid: string) => {
+            if (uuid === spriteUuid) {
+                return spriteAsset;
+            }
+            return null;
+        });
+        mockQueryAssets.mockReturnValue([pacAsset]);
+
+        const { querySpriteToAutoAtlas } = await getTexturePacker();
+        const result = await querySpriteToAutoAtlas(spriteUuid);
+
+        expect(mockQueryAssets).toHaveBeenCalledWith({
+            pattern: 'db://assets/**/*.pac',
+        });
+        expect(result).toEqual({
+            uuid: pacUuid,
+            url: 'db://assets/sheep/sheep.pac',
+        });
+    });
+
+    it('should return null for internal db sprite frames', async () => {
+        const spriteUuid = '951249e0-9f16-456d-8b85-a6ca954da16b@f9941';
+        const spriteAsset = makeAsset(spriteUuid, 'db://internal/default_file_content/sprite.png@f9941') as any;
+        spriteAsset._assetDB = {
+            options: {
+                name: 'internal',
+            },
+        };
+        mockQueryAsset.mockReturnValue(spriteAsset);
+
+        const { querySpriteToAutoAtlas } = await getTexturePacker();
+        const result = await querySpriteToAutoAtlas(spriteUuid);
+
+        expect(result).toBeNull();
+        expect(mockQueryAssets).not.toHaveBeenCalled();
     });
 });
