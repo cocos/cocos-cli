@@ -141,10 +141,19 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
         const quickPackLoaderContext = QuickPackLoaderContext.deserialize(serializedPackLoaderContext);
 
         const cceModuleMap = await Rpc.getInstance().request('programming', 'queryCCEModuleMap');
+        const isWebEnv = typeof (globalThis as any).EditorExtends !== 'undefined' && typeof System !== 'undefined' && typeof System.import === 'function' && !(process as any)?.versions?.node;
+        let loadDynamic: any;
+        if (!isWebEnv) {
+            const preload = await import('cc/preload');
+            loadDynamic = preload.loadDynamic;
+        }
         this._executor = await Executor.create({
             // @ts-ignore
             importEngineMod: async (id) => {
-                return await System.import(id) as Record<string, unknown>;
+                if (isWebEnv) {
+                    return await System.import(id) as Record<string, unknown>;
+                }
+                return await loadDynamic!(id) as Record<string, unknown>;
             },
             quickPackLoaderContext,
             beforeUnregisterClass: (classConstructor) => {
@@ -170,8 +179,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
         });
 
         globalThis.self = window;
-        const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-        if (!isBrowser && typeof require !== 'undefined' && require.resolve) {
+        if (!isWebEnv && typeof require !== 'undefined' && require.resolve) {
             this._executor.addPolyfillFile(require.resolve('@cocos/build-polyfills/prebuilt/editor/bundle'));
         }
         // 同步插件脚本列表
