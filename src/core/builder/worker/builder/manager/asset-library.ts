@@ -13,7 +13,6 @@ import { BundleFilterConfig } from '../../../@types';
 import assetManager from '../../../../assets/manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../assets/@types/protected';
 import assetDBManager from '../../../../assets/manager/asset-db';
-import builderConfig from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
 import { filterAssetWithBundleConfig } from '../utils/bundle';
 import { initBundleConfig } from '../asset-handler/bundle/utils';
@@ -45,10 +44,6 @@ class BuildAssetLibrary {
 
     private meta: IMetaMap = {};
 
-    // 缓存地址
-    private assetMtimeCache: Record<string, number> = {};
-    private assetMtimeCacheFile: string = join(builderConfig.projectTempDir, 'assets-mtime.json');
-
     // 是否使用缓存开关
     public useCache = true;
 
@@ -67,18 +62,6 @@ class BuildAssetLibrary {
         keepNodeUuid: false, // 序列化后是否保留节点组件的 uuid 数据
     };
 
-    async initMtimeCache() {
-        if (existsSync(this.assetMtimeCacheFile)) {
-            try {
-                this.assetMtimeCache = (await readJSON(this.assetMtimeCacheFile)) || {};
-            } catch (error) { }
-        }
-    }
-
-    async saveMtimeCache() {
-        await outputJSON(this.assetMtimeCacheFile, this.assetMtimeCache);
-    }
-
     /**
      * 资源管理器初始化
      */
@@ -88,7 +71,6 @@ class BuildAssetLibrary {
         this.defaultSerializedOptions.keepNodeUuid = false;
         this.useCache = true;
         console.debug(`init custom config: keepNodeUuid: ${this.defaultSerializedOptions.keepNodeUuid}, useCache: ${this.useCache}`);
-        await this.initMtimeCache();
     }
 
     /**
@@ -302,7 +284,6 @@ class BuildAssetLibrary {
                 await outputJSON(cacheFile, jsonObject, {
                     spaces: 4,
                 });
-                this.assetMtimeCache[asset.uuid] = assetManager.queryAssetProperty(asset, 'mtime');
             }
         } catch (error) {
             unExpectException(error);
