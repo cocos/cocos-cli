@@ -125,7 +125,10 @@ describe('lib/builder auto atlas preview APIs', () => {
             dirty: true,
         });
         expect(result?.unpackedImages).toHaveLength(1);
-        expect(result).toMatchSnapshot();
+        expect(result).toEqual(makePreviewPackResult({
+            uuid: pacUuid,
+            dirty: true,
+        }));
     });
 
     it('returns generated cache after packing preview', async () => {
@@ -138,7 +141,10 @@ describe('lib/builder auto atlas preview APIs', () => {
             atlasImagePaths: [atlasImagePath],
             dirty: false,
         });
-        expect(result).toMatchSnapshot();
+        expect(result).toEqual(makePreviewPackResult({
+            uuid: pacUuid,
+            dirty: false,
+        }));
     });
 
     it('marks repeated preview query as clean when cache exists', async () => {
@@ -157,7 +163,11 @@ describe('lib/builder auto atlas preview APIs', () => {
 
         expect(result?.storeInfo.sprites).toHaveLength(4);
         expect(result?.storeInfo.sprites.every((sprite) => sprite.name.startsWith('sheep_'))).toBe(true);
-        expect(result).toMatchSnapshot();
+        expect(result).toEqual(makePreviewPackResult({
+            uuid: nestedPacUuid,
+            dirty: true,
+            spriteNames: ['sheep_0', 'sheep_1', 'sheep_2', 'sheep_3'],
+        }));
     });
 
     it('passes custom pack options and marks first custom preview as dirty', async () => {
@@ -174,7 +184,13 @@ describe('lib/builder auto atlas preview APIs', () => {
         });
         expect(result?.dirty).toBe(true);
         expect(result?.unpackedImages).toHaveLength(2);
-        expect(result).toMatchSnapshot();
+        expect(result).toEqual(makePreviewPackResult({
+            uuid: pacUuid,
+            dirty: true,
+            maxWidth: 160,
+            maxHeight: 1024,
+            unpackedImages: 2,
+        }));
     });
 
     it('marks repeated custom preview query as clean', async () => {
