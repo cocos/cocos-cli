@@ -3832,6 +3832,7 @@ export declare class PacInfo implements IPacInfo {
     private queryInvalidSpriteAssets;
     toJSON(): void;
 }
+export declare function packAutoAtlas(pacUuid: string, option?: Partial<IPackOptions>): Promise<PreviewPackResult | null>;
 export declare interface PacStoreInfo {
     pac: StoreInfo;
     sprites: ISpriteFrameInfo[];
@@ -3841,7 +3842,6 @@ export declare interface PacStoreInfo {
     }[];
     options: IPackOptions;
 }
-export declare function packAutoAtlas(pacUuid: string, option?: Partial<IPackOptions>): Promise<PreviewPackResult | null>;
 export declare type ParallelPluginHooks = Exclude<
 	keyof FunctionPluginHooks | AddonHooks,
 	FirstPluginHooks | SequentialPluginHooks
