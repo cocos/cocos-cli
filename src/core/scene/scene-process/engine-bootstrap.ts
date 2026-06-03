@@ -16,14 +16,6 @@ if (EditorExtends.UuidUtils) {
     U.uuid = U.uuid || U.generate;
 }
 
-// 将 Proxy 的目标从 stub 切换到真实实现
-// stub 阶段引擎 @menu 装饰器积累的 _menus 需要保留
-const stub = (globalThis as any)._editorExtendsStub;
-if (stub?.Component?._menus?.length) {
-    (EditorExtends.Component as any)._menus = stub.Component._menus;
-}
-(globalThis as any)._editorExtendsStub = EditorExtends;
-
 export { serviceManager, EditorExtends };
 export const Service = DecoratorService;
 

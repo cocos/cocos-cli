@@ -35,6 +35,7 @@ export default async function boot () {
     });
 
     await import('/static/web/editor-stub-preload.js');
+    await import('/static/web/editor-extends.bundle.js');
     await import('/scripting/engine-dist/bundled/index.js');
 
     const _originalSystem = System;
