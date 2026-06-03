@@ -29,6 +29,7 @@ static/tools/
 static/web/scene-bundle.js
 static/web/scene-bundle.js.map
 static/web/polyfills.bundle.js
+static/web/editor-extends.bundle.js
 
 # 构建文件
 /dist
