@@ -148,7 +148,6 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             },
             quickPackLoaderContext,
             beforeUnregisterClass: (classConstructor) => {
-                console.log('[beforeUnregisterClass]', (classConstructor as any).name);
                 this.customComponents.delete(classConstructor);
                 EditorExtends.Component.removeMenu(classConstructor);
             },
@@ -254,20 +253,6 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             console.error(reason);
         }).finally(() => {
             this._suspendPromise = null;
-
-            // 清理 _idToClass 中 pack 脚本注册的 __cid__
-            // 浏览器 preview 中 pack 模块通过全局 System 加载，Executor 的
-            // _invalidateAllPackMods 无法清理（_instantiatedPackMods 为空），
-            // 导致 reload 时 chunk 被重新 fetch 但 __cid__ 仍在 _idToClass 中
-            try {
-                const idToClass = cc.js._idToClass;
-                for (const id of Object.keys(idToClass)) {
-                    const cls = idToClass[id];
-                    if (cls?.prototype?.__scriptUuid) {
-                        delete idToClass[id];
-                    }
-                }
-            } catch {}
 
             return globalEnv.record(
                 () => this._executor.reload().catch((err) => {
