@@ -327,11 +327,10 @@ async function buildSceneBundle() {
                 }
             },
             {
-                // Alias EditorExtends (capital) to the bundled editorExtends module.
-                // Service files reference EditorExtends as a bare global which resolves
-                // to window.EditorExtends (the stub from editor-stub-preload.js).
-                // This injects a var assignment right after the editor-extends IIFE
-                // so all subsequent references use the real module.
+                // scene-bundle 内联的 editorExtends 模块与引擎 bundle 的副本相互独立，
+                // 导致事件和数据不互通。通过 Proxy 将 EditorExtends 代理到 window.EditorExtends，
+                // 使 scene-bundle 中所有 EditorExtends 访问统一走全局 Proxy，
+                // 与引擎通过 window.EditorExtends 操作的数据保持一致。
                 name: 'alias-editor-extends-global',
                 renderChunk(code) {
                     const marker = '} (editorExtends));';
@@ -341,7 +340,7 @@ async function buildSceneBundle() {
                     }
                     const fixed = code.replace(
                         marker,
-                        marker + '\n\t\t\tvar EditorExtends = editorExtends;'
+                        marker + '\n\t\t\tvar EditorExtends = new Proxy({}, { get: function(_, p) { return window.EditorExtends ? window.EditorExtends[p] : undefined; } });'
                     );
                     return { code: fixed, map: null };
                 }

@@ -5,6 +5,7 @@ import { Rpc } from '../rpc';
 import { BaseService, register } from './core';
 import { IScriptEvents, IScriptService } from '../../common';
 import utils from '../../../base/utils';
+import i18n from '../i18n';
 
 /**
  * 异步迭代。有以下特点：
@@ -48,7 +49,6 @@ class AsyncIterationConcurrency1 {
  * 导入时异常的消息的标签。
  */
 const importExceptionLogTag = '::SceneExecutorImportExceptionHandler::';
-const importExceptionLogRegex = new RegExp(importExceptionLogTag);
 
 class GlobalEnv {
     public async record(fn: () => Promise<void>) {
@@ -131,7 +131,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             ) {
                 this.customComponents.add(classConstructor);
                 EditorExtends.Component.addMenu(
-                    classConstructor, 'i18n:ENGINE.menu.custom_script/' + className, -1);
+                    classConstructor, `${i18n.transI18nName('i18n:ENGINE.menu.custom_script')}/${className}`, -1);
             }
         });
         const serializedPackLoaderContext = await Rpc.getInstance().request('programming', 'getPackerDriverLoaderContext', ['editor']);
@@ -140,41 +140,15 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
         }
         const quickPackLoaderContext = QuickPackLoaderContext.deserialize(serializedPackLoaderContext);
 
-        const { loadDynamic } = await import('cc/preload');
         const cceModuleMap = await Rpc.getInstance().request('programming', 'queryCCEModuleMap');
         this._executor = await Executor.create({
             // @ts-ignore
             importEngineMod: async (id) => {
-                return await loadDynamic(id) as Record<string, unknown>;
+                return await System.import(id) as Record<string, unknown>;
             },
             quickPackLoaderContext,
-            // 浏览器环境下提供自定义 evaluator：默认 evaluator 用 require.resolve + vm.compileFunction，
-            // 在浏览器中不可用。通过 fetch 获取 chunk 内容，用 new Function 执行。
-            // 执行前临时切换 globalThis.System 为 System-B（__internalSystem），
-            // 确保 System.register() 走 ExecutorSystem 的 patched register。
-            packModuleEvaluator: typeof window !== 'undefined' && (globalThis as any).__internalSystem ? {
-                async evaluate(file: string) {
-                    const normalized = file.replace(/\\/g, '/');
-                    const marker = 'packer-driver/targets/';
-                    const idx = normalized.indexOf(marker);
-                    if (idx === -1) return;
-                    const relativePath = normalized.substring(idx + marker.length);
-                    const serverURL = ((window as any).WebEnv && (window as any).WebEnv.serverURL) || '';
-                    const url = serverURL + '/scripting/pack-workspace/' + relativePath;
-                    const response = await fetch(url);
-                    if (!response.ok) return;
-                    const source = await response.text();
-                    const savedSystem = (globalThis as any).System;
-                    (globalThis as any).System = (globalThis as any).__internalSystem;
-                    try {
-                        new Function(source)();
-                    } finally {
-                        (globalThis as any).System = savedSystem;
-                    }
-                },
-            } : undefined,
             beforeUnregisterClass: (classConstructor) => {
-                // 清除 menu 里面的缓存
+                console.log('[beforeUnregisterClass]', (classConstructor as any).name);
                 this.customComponents.delete(classConstructor);
                 EditorExtends.Component.removeMenu(classConstructor);
             },
@@ -280,6 +254,20 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             console.error(reason);
         }).finally(() => {
             this._suspendPromise = null;
+
+            // 清理 _idToClass 中 pack 脚本注册的 __cid__
+            // 浏览器 preview 中 pack 模块通过全局 System 加载，Executor 的
+            // _invalidateAllPackMods 无法清理（_instantiatedPackMods 为空），
+            // 导致 reload 时 chunk 被重新 fetch 但 __cid__ 仍在 _idToClass 中
+            try {
+                const idToClass = cc.js._idToClass;
+                for (const id of Object.keys(idToClass)) {
+                    const cls = idToClass[id];
+                    if (cls?.prototype?.__scriptUuid) {
+                        delete idToClass[id];
+                    }
+                }
+            } catch {}
 
             return globalEnv.record(
                 () => this._executor.reload().catch((err) => {

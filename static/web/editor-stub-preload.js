@@ -106,7 +106,9 @@ if (typeof window.require === 'undefined') {
     window.require.cache = {};
 }
 
-window.EditorExtends = {
+// stub 作为初始目标，引擎加载时 @menu 等装饰器调用会落到 stub 上
+// scene-bundle 加载后通过 EditorExtends._setRealTarget() 切换到真实实现
+window._editorExtendsStub = {
     emit: function () { },
     on: function () { },
     off: function () { },
@@ -194,3 +196,16 @@ window.EditorExtends = {
         asAsset: function (uuid) { return uuid; },
     },
 };
+
+// Proxy 代理：所有访问通过 window._editorExtendsStub 间接获取，
+// scene-bundle 加载后 engine-bootstrap 会将 _editorExtendsStub 切换为真实实现，
+// Proxy 自动跟随，无需更换 window.EditorExtends 引用。
+window.EditorExtends = new Proxy({}, {
+    get: function (_, prop) {
+        return window._editorExtendsStub[prop];
+    },
+    set: function (_, prop, value) {
+        window._editorExtendsStub[prop] = value;
+        return true;
+    },
+});
