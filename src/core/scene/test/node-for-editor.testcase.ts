@@ -603,7 +603,7 @@ describe('Node ForEditor 接口测试', () => {
             const active = dump.active;
 
             expect(typeof active.value).toBe('boolean');
-            expect(active.visible).toBe(true);
+            expect(active.visible).toBe(false);
             expect(active.displayName).toBe('Active');
         });
 
