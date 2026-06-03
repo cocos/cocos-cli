@@ -30,8 +30,9 @@ async function buildSceneBundle() {
             {
                 name: 'smart-node-builtins',
                 resolveId(id, importer) {
-                    // editor-extends: resolve to globalThis.EditorExtends (pre-loaded bundle)
-                    if (importer && (id.includes('engine/editor-extends') || id.includes('engine\\editor-extends'))) {
+                    // editor-extends root: resolve to globalThis.EditorExtends (pre-loaded bundle)
+                    // Only match root import, not subpaths like utils/serialize
+                    if (importer && (id.match(/engine[/\\]editor-extends[/\\]?$/) || id.match(/engine[/\\]editor-extends[/\\]index(\.js|\.ts)?$/))) {
                         return '\0global-editor-extends';
                     }
 
@@ -70,6 +71,12 @@ async function buildSceneBundle() {
                 load(id) {
                     if (id === '\0global-editor-extends') {
                         return `
+                            // Patch EventEmitter.prototype.off for scene-bundle's events module
+                            // (previously patched by inlined editor-extends, now in separate bundle)
+                            import EventEmitter from 'events';
+                            if (!EventEmitter.prototype.off) {
+                                EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
+                            }
                             var _ee = globalThis.EditorExtends || {};
                             export var emit = function() { return _ee.emit.apply(_ee, arguments); };
                             export var on = function() { return _ee.on.apply(_ee, arguments); };
@@ -368,6 +375,17 @@ async function buildSceneBundle() {
                     ), map: null };
                 }
             },
+            {
+                // Bare global references to EditorExtends (not imported) need live access
+                // to globalThis.EditorExtends (the pre-loaded bundle's live-binding wrapper).
+                name: 'alias-editor-extends-global',
+                renderChunk(code) {
+                    return {
+                        code: 'var EditorExtends = globalThis.EditorExtends;\n' + code,
+                        map: null
+                    };
+                }
+            },
             nodeResolve({
                 preferBuiltins: true,
                 browser: true,
@@ -439,13 +457,35 @@ async function buildEditorExtends() {
                         U.decompressUuid = U.decompressUuid || U.decompressUUID;
                         U.isUuid = U.isUuid || U.isUUID;
                     }
-                    // Wrap module namespace: override init to avoid inlined cc-dependent code
-                    globalThis.EditorExtends = Object.assign({}, _ee, {
-                        init: async function() {
+                    // Live-binding wrapper: getter 始终从模块命名空间读取最新值，
+                    // 使 init() 后赋值的 serialize/GeometryUtils 等能通过 globalThis.EditorExtends 访问
+                    var editorExtends = {};
+                    var keys = Object.keys(_ee);
+                    for (var i = 0; i < keys.length; i++) {
+                        (function(key) {
+                            Object.defineProperty(editorExtends, key, {
+                                get: function() { return _ee[key]; },
+                                set: function(v) {
+                                    Object.defineProperty(editorExtends, key, {
+                                        value: v, writable: true, configurable: true
+                                    });
+                                },
+                                enumerable: true,
+                                configurable: true,
+                            });
+                        })(keys[i]);
+                    }
+                    globalThis.EditorExtends = editorExtends;
+                    // Override init: inlined serialize/geometry/prefab depends on stubbed cc.
+                    // Just set allow flags here; serialize is loaded by engine-bootstrap after engine.
+                    Object.defineProperty(editorExtends, 'init', {
+                        value: async function() {
                             _ee.Component.allow = true;
                             _ee.Node.allow = true;
                             _ee.Script.allow = true;
                         },
+                        writable: true,
+                        configurable: true,
                     });
                 `
             }),

@@ -79,6 +79,19 @@ export async function startup(options: {
     if (EditorExtends.init) {
         await EditorExtends.init();
     }
+
+    // Load serialize/geometry/prefab utils (depends on cc, must run after engine loads)
+    try {
+        const serializeUtils = await import('../../engine/editor-extends/utils/serialize');
+        const ee = (globalThis as any).EditorExtends;
+        ee.serialize = serializeUtils.serialize;
+        ee.serializeCompiled = serializeUtils.serializeCompiled;
+        ee.deserializeFull = await import('../../engine/editor-extends/utils/deserialize');
+        ee.GeometryUtils = await import('../../engine/editor-extends/utils/geometry');
+        ee.PrefabUtils = await import('../../engine/editor-extends/utils/prefab');
+    } catch (e) {
+        console.warn('[engine-bootstrap] Failed to load editor-extends utils:', e);
+    }
     await Rpc.startup({ serverURL });
     await initLocalI18n();
 
