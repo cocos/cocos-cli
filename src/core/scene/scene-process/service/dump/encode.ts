@@ -80,8 +80,8 @@ export function encodeNode(node: Node): INode {
 
     const data: INode = {
         path: EditorExtends.Node.getNodePath(node),
-        active: encodeObject(node.active, { displayName: 'Active', default: null }, node),
-        locked: encodeObject(Boolean(node.objFlags & cc.Object.Flags.LockedInEditor), { displayName: 'Locked', default: false, animatable: false }, node),
+        active: encodeObject(node.active, { displayName: 'Active', default: null , visible: false }, node),
+        locked: encodeObject(Boolean(node.objFlags & cc.Object.Flags.LockedInEditor), { displayName: 'Locked', default: false, animatable: false, visible: false }, node),
         name: encodeObject(node.name, { displayName: 'Name', default: null, animatable: false }, node),
         position: encodeObject(
             node.position,
@@ -334,7 +334,7 @@ export function encodeComponent(component: any): IComponent {
     data.editor = {
         inspector: ctor._inspector || '',
         icon: ctor._icon || '',
-        help: ctor._help || '',
+        help: i18n.transI18nName(`${ctor._help}`.replace('i18n:cc', 'i18n:ENGINE.help.cc')) || '',
         _showTick:
             typeof component.start === 'function' ||
             typeof component.update === 'function' ||
@@ -609,7 +609,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
         type: type,
         path: '',
         readonly: !!attributes.readonly,
-        visible: true,
+        visible: attributes.visible ?? true,
         animatable: attributes.animatable === undefined ? true : !!attributes.animatable, // 如果没有定义默认是 true，否则根据定义取布尔值
     };
 
