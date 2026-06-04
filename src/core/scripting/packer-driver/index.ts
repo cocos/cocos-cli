@@ -336,8 +336,10 @@ export class PackerDriver {
             changeInfos.forEach(changeInfo => {
                 this._assetDbInterop.onAssetChange(changeInfo);
             });
-            const assetChanges = this._assetDbInterop.getAssetChangeQueue();
-            this._assetChangeQueue.push(...assetChanges);
+        }
+        const pendingChanges = this._assetDbInterop.getAssetChangeQueue();
+        if (pendingChanges.length > 0) {
+            this._assetChangeQueue.push(...pendingChanges);
             this._assetDbInterop.resetAssetChangeQueue();
         }
         const t2 = performance.now();

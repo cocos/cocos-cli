@@ -95,6 +95,11 @@ export default class Launcher {
         const { init: initScene } = await import('./scene');
         await initScene();
 
+        // 注册调试用的中间件（仅 preview 模式）
+        const { middlewareService } = await import('../server/middleware');
+        const { default: PreviewDebugMiddleware } = await import('./scene/preview.debug.middleware');
+        middlewareService.register('PreviewDebug', PreviewDebugMiddleware);
+
         const { Rpc } = await import('./scene/main-process/rpc');
         await Rpc.startup();
 

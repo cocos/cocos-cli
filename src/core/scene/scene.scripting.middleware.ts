@@ -183,6 +183,26 @@ export default {
             },
         },
         {
+            url: /^\/chunks\//,
+            async handler(req: Request, res: Response, next: NextFunction) {
+                const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
+                const facet = await waitForProgrammingFacet();
+                const url = req.path.substring(1);
+                try {
+                    const packResource = await facet.loadPackResource(url);
+                    if (packResource.type === 'chunk') {
+                        res.sendFile(packResource.chunk.path);
+                    } else if (packResource.type === 'json') {
+                        res.json(packResource.json);
+                    } else {
+                        next();
+                    }
+                } catch (err) {
+                    next(err);
+                }
+            },
+        },
+        {
             url: /^\/scripting\/engine/,
             async handler(req: Request, res: Response, next: NextFunction) {
                 try {

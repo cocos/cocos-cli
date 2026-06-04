@@ -6,6 +6,7 @@ import { BaseService, register } from './core';
 import { IScriptEvents, IScriptService } from '../../common';
 import utils from '../../../base/utils';
 import i18n from '../i18n';
+import { serviceManager } from './service-manager';
 
 /**
  * 异步迭代。有以下特点：
@@ -263,12 +264,33 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
             this._suspendPromise = null;
 
             return globalEnv.record(
-                () => this._executor.reload().catch((err) => {
-                    console.warn('[ScriptService] Executor reload failed:', err);
-                }).finally(() => {
-                    this.emit('script:execution-finished');
-                }),
-            );
+                async () => {
+                    // Refresh pack import map before reload: after server-side recompilation,
+                    // chunk hashes change and the browser's cached import map becomes stale.
+                    const serverURL = serviceManager.getServerUrl();
+                    if (serverURL) {
+                        try {
+                            const res = await fetch(`${serverURL}/scripting/x/pack-import-map-url`);
+                            if (res.ok) {
+                                const map = await res.json();
+                                const script = document.createElement('script');
+                                script.type = 'systemjs-importmap';
+                                script.textContent = JSON.stringify(map);
+                                document.head.appendChild(script);
+                                // Force SystemJS to re-process all import maps
+                                if ((System as any).prepareImport) {
+                                    await (System as any).prepareImport(true);
+                                }
+                            }
+                        } catch {}
+                    }
+                    await this._executor.reload();
+                },
+            ).catch((err) => {
+                console.warn('[ScriptService] Executor reload failed:', err);
+            }).finally(() => {
+                this.emit('script:execution-finished');
+            });
         });
     }
 

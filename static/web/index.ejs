@@ -176,6 +176,16 @@
                     <button class="btn btn-primary" id="btnLoad" onclick="doLoadScene()">Load Scene</button>
                     <span id="sceneStatus" class="info-text">Not loaded</span>
                 </div>
+                <div class="row">
+                    <label>Script</label>
+                    <input type="text" id="scriptNameInput" placeholder="TestComponent" value="TestComponent" style="flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 4px;font-size:11px;">
+                </div>
+                <div class="row">
+                    <button class="btn" onclick="doCreateScript()">Create Script</button>
+                    <button class="btn" onclick="doDeleteScript()">Delete Script</button>
+                    <button class="btn" onclick="doCheckMenus()">Check Menus</button>
+                    <span id="scriptStatus" class="info-text">-</span>
+                </div>
             </div>
         </div>
 
@@ -412,6 +422,86 @@
             btn.disabled = false;
         }
         window.doLoadScene = doLoadScene;
+
+        /* ── Script Test ── */
+        async function doCreateScript() {
+            var name = document.getElementById('scriptNameInput').value.trim() || 'TestComponent';
+            var status = document.getElementById('scriptStatus');
+            status.textContent = 'Creating...';
+            try {
+                var url = WebEnv.serverURL + '/create-asset';
+                var body = {
+                    dbURL: 'db://assets/' + name + '.ts',
+                    content: [
+                        "import { _decorator, Component } from 'cc';",
+                        "const { ccclass, menu } = _decorator;",
+                        "",
+                        "@ccclass('" + name + "')",
+                        "@menu('Custom/" + name + "')",
+                        "export class " + name + " extends Component {",
+                        "    start() {}",
+                        "    update(dt: number) {}",
+                        "}"
+                    ].join('\n')
+                };
+                var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                var data = await res.json();
+                status.textContent = res.ok ? 'Created' : 'Failed';
+                status.className = 'info-text ' + (res.ok ? 'status-ok' : 'status-err');
+                log('Create script: ' + name + ' -> ' + JSON.stringify(data), res.ok ? 'status-ok' : 'status-err');
+                if (res.ok) {
+                    status.textContent = 'Reloading...';
+                    setTimeout(function() {
+                        cli.Scene.Script.investigatePackerDriver().then(function() {
+                            setTimeout(function() { doCheckMenus(); }, 2000);
+                        });
+                    }, 3000);
+                }
+            } catch(e) {
+                status.textContent = 'Error';
+                status.className = 'info-text status-err';
+                log('Create script error: ' + e.message, 'status-err');
+            }
+        }
+        window.doCreateScript = doCreateScript;
+
+        async function doDeleteScript() {
+            var name = document.getElementById('scriptNameInput').value.trim() || 'TestComponent';
+            var status = document.getElementById('scriptStatus');
+            status.textContent = 'Deleting...';
+            try {
+                var url = WebEnv.serverURL + '/delete-asset';
+                var body = { dbURL: 'db://assets/' + name + '.ts' };
+                var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                var data = await res.json();
+                status.textContent = res.ok ? 'Deleted' : 'Failed';
+                status.className = 'info-text ' + (res.ok ? 'status-ok' : 'status-err');
+                log('Delete script: ' + name + ' -> ' + JSON.stringify(data), res.ok ? 'status-ok' : 'status-err');
+                if (res.ok) {
+                    status.textContent = 'Reloading...';
+                    setTimeout(function() {
+                        cli.Scene.Script.investigatePackerDriver().then(function() {
+                            setTimeout(function() { doCheckMenus(); }, 2000);
+                        });
+                    }, 3000);
+                }
+            } catch(e) {
+                status.textContent = 'Error';
+                status.className = 'info-text status-err';
+                log('Delete script error: ' + e.message, 'status-err');
+            }
+        }
+        window.doDeleteScript = doDeleteScript;
+
+        function doCheckMenus() {
+            var menus = EditorExtends.Component.getMenus();
+            var custom = menus.filter(function(m) { return !m.menuPath.startsWith('hidden:'); });
+            var status = document.getElementById('scriptStatus');
+            status.textContent = 'Total: ' + menus.length + ', Custom: ' + custom.length;
+            status.className = 'info-text status-ok';
+            log('Menus total: ' + menus.length + ', custom: ' + custom.length, 'status-ok');
+        }
+        window.doCheckMenus = doCheckMenus;
 
         /* ── Camera ── */
         function set2D(is2D) {
