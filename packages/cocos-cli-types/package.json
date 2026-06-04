@@ -2,7 +2,7 @@
     "name": "@cocos/cocos-cli-types",
     "description": "types for cocos cli",
     "author": "cocos cli",
-    "version": "0.0.1-alpha.27.1",
+    "version": "0.0.1-alpha.28.1",
     "main": "index.d.ts",
     "types": "index.d.ts",
     "exports": {
