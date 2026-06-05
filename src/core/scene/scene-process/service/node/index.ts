@@ -1460,7 +1460,7 @@ export class NodeManager {
                 console.error(error);
             }
 
-            this.emit('node:change', node);
+            this.emit('node:change', node, { type: NodeOperationType.SET_PROPERTY, propPath: 'locked' });
 
             // 处理内循环的情况
             if (loop === true && node.children && node.children.length > 0) {

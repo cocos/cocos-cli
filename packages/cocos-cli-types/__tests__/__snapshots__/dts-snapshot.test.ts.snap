@@ -5580,6 +5580,8 @@ export declare interface INodeService extends IServiceEvents {
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    queryNodesByAssetUuid(uuid: string): string[];
+    queryNodesMissAsset(): Promise<string[]>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     setProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -7705,6 +7707,8 @@ export declare interface INodeService extends IServiceEvents {
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+    queryNodesByAssetUuid(uuid: string): string[];
+    queryNodesMissAsset(): Promise<string[]>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
     setProperty(options: ISetPropertyOptions): Promise<boolean>;

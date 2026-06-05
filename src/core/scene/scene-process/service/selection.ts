@@ -31,10 +31,10 @@ interface SelectionEntry {
 @register('Selection')
 export class SelectionService extends BaseService<ISelectionEvents> implements ISelectionService {
     private _selections: SelectionEntry[] = [];
-    private _onNodeChangedHandler?: (node: Node, opts: IChangeNodeOptions) => void;
+    private _onNodeChangedHandler?: (node: Node, opts?: IChangeNodeOptions) => void;
 
     init() {
-        this._onNodeChangedHandler = (node: Node, opts: IChangeNodeOptions) => {
+        this._onNodeChangedHandler = (node: Node, opts: IChangeNodeOptions = {}) => {
             if (opts.type === NodeEventType.SET_PROPERTY && opts.propPath === 'name') {
                 this._onNodePathChanged(node);
             } else if (opts.type === NodeEventType.PARENT_CHANGED) {
