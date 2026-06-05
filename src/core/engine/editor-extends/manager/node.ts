@@ -114,6 +114,44 @@ export default class NodeManager extends EventEmitter {
     }
 
     /**
+     * 更新节点父级关系，并同步该节点及其后代的路径索引。
+     */
+    updateNodeParent(uuid: string, newParentUuid?: string): string {
+        const node = this._map[uuid];
+        if (!node) {
+            return '';
+        }
+
+        const oldParentUuid = this._getParentUuid(uuid);
+        if (oldParentUuid === newParentUuid) {
+            return pathManager.getNodePath(uuid);
+        }
+
+        const newPath = pathManager.move(uuid, node.name, newParentUuid, oldParentUuid);
+        if (!newPath) {
+            return '';
+        }
+
+        if (oldParentUuid) {
+            const oldChildren = this._parentChildren.get(oldParentUuid);
+            oldChildren?.delete(uuid);
+        }
+        if (newParentUuid) {
+            if (!this._parentChildren.has(newParentUuid)) {
+                this._parentChildren.set(newParentUuid, new Set());
+            }
+            this._parentChildren.get(newParentUuid)!.add(uuid);
+        }
+
+        const finalName = newPath.split('/').pop();
+        if (finalName && node.name !== finalName) {
+            node.name = finalName;
+        }
+
+        return newPath;
+    }
+
+    /**
      * 获取一个节点数据，查的范围包括被删除的节点
      * @param uuid
      */

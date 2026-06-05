@@ -279,6 +279,31 @@ describe('Node 层级操作测试', () => {
             expect(sourceChildren).not.toContain('CutChild');
         });
 
+        it('cut 同层级节点后 paste as child 会移动到目标节点下', async () => {
+            const suffix = Date.now().toString(36);
+            const parentName = `CutSiblingTarget_${suffix}`;
+            const childName = `CutSiblingChild_${suffix}`;
+            const siblingTarget = await NodeProxy.createByType({ path: '/', name: parentName, nodeType: NodeType.EMPTY });
+            const siblingChild = await NodeProxy.createByType({ path: '/', name: childName, nodeType: NodeType.EMPTY });
+
+            try {
+                await cut({ paths: [siblingChild!.path] });
+                const result = await paste({ parentPath: siblingTarget!.path });
+                expect(result).toContain(`${siblingTarget!.path}/${childName}`);
+
+                const targetChildren = await getChildNames(siblingTarget!.path);
+                expect(targetChildren).toContain(childName);
+
+                const rootChildren = await getChildNames('/');
+                expect(rootChildren).toContain(parentName);
+                expect(rootChildren).not.toContain(childName);
+            } finally {
+                await NodeProxy.delete({ path: siblingTarget!.path, keepWorldTransform: false }).catch(() => {});
+                await NodeProxy.delete({ path: siblingChild!.path, keepWorldTransform: false }).catch(() => {});
+                await NodeProxy.delete({ path: `${siblingTarget!.path}/${childName}`, keepWorldTransform: false }).catch(() => {});
+            }
+        });
+
         it('cut 多个节点并 paste', async () => {
             const c1 = await NodeProxy.createByType({ path: parent!.path, name: 'CutMulti1', nodeType: NodeType.EMPTY });
             const c2 = await NodeProxy.createByType({ path: parent!.path, name: 'CutMulti2', nodeType: NodeType.EMPTY });

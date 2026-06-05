@@ -35,7 +35,7 @@ export class NodePathManager {
         return finalPath;
     }
 
-    add(uuid: string, path: string) {
+    private _addPathMapping(uuid: string, path: string) {
         this._uuidToPath.set(uuid, path);
         this._pathToUuid.set(path, uuid);
         const lowerPath = path.toLowerCase();
@@ -45,19 +45,28 @@ export class NodePathManager {
         this._lowerPathToUuids.get(lowerPath)!.add(uuid);
     }
 
-    remove(uuid: string) {
-        const path = this._uuidToPath.get(uuid);
-        if (path) {
-            this._pathToUuid.delete(path);
-            const lowerPath = path.toLowerCase();
-            const uuids = this._lowerPathToUuids.get(lowerPath);
-            if (uuids) {
-                uuids.delete(uuid);
-                if (uuids.size === 0) {
-                    this._lowerPathToUuids.delete(lowerPath);
-                }
+    private _removePathMapping(uuid: string, path: string | undefined) {
+        if (!path) {
+            return;
+        }
+        this._pathToUuid.delete(path);
+        const lowerPath = path.toLowerCase();
+        const uuids = this._lowerPathToUuids.get(lowerPath);
+        if (uuids) {
+            uuids.delete(uuid);
+            if (uuids.size === 0) {
+                this._lowerPathToUuids.delete(lowerPath);
             }
         }
+    }
+
+    add(uuid: string, path: string) {
+        this._addPathMapping(uuid, path);
+    }
+
+    remove(uuid: string) {
+        const path = this._uuidToPath.get(uuid);
+        this._removePathMapping(uuid, path);
         this._uuidToPath.delete(uuid);
         this._nodeNames.delete(uuid);
         const parentUuid = this._getParentUuid(path);
@@ -173,6 +182,40 @@ export class NodePathManager {
     getNodePath(uuid: string): string {
         return this._uuidToPath.get(uuid) || '';
     }
+    move(uuid: string, name: string, newParentUuid: string | undefined, oldParentUuid?: string): string {
+        const oldPath = this._uuidToPath.get(uuid);
+        if (!oldPath) {
+            return '';
+        }
+
+        const parentPath = newParentUuid ? (this._uuidToPath.get(newParentUuid) || '') : '';
+        const oldName = oldPath.split('/').pop();
+        const cleanName = this._sanitizeName(name);
+        const subtreeEntries = Array.from(this._uuidToPath.entries())
+            .filter(([, path]) => path === oldPath || path.startsWith(`${oldPath}/`));
+
+        for (const [entryUuid, path] of subtreeEntries) {
+            this._removePathMapping(entryUuid, path);
+        }
+
+        if (oldParentUuid) {
+            const oldNameSet = this._nodeNames.get(oldParentUuid);
+            if (oldNameSet && oldName) {
+                oldNameSet.delete(oldName);
+            }
+        }
+
+        const finalName = this.ensureUniqueName(newParentUuid, cleanName);
+        const newPath = parentPath ? `${parentPath}/${finalName}` : finalName;
+
+        for (const [entryUuid, path] of subtreeEntries) {
+            const suffix = path === oldPath ? '' : path.slice(oldPath.length);
+            this._addPathMapping(entryUuid, `${newPath}${suffix}`);
+        }
+
+        return newPath;
+    }
+
 
     updateUuid(uuid: string, newName: string, parentUuid?: string) {
         const oldPath = this._uuidToPath.get(uuid);

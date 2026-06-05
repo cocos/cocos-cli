@@ -88,6 +88,7 @@ export class NodeManager {
     _onAnchorChanged?: (...args: any[]) => void;
     _onParentChanged?: (...args: any[]) => void;
     _onLightProbeChanged?: (...args: any[]) => void;
+    private _sceneRoot: Node | null = null;
 
     emit<K extends keyof INodeEvents>(event: K, ...args: INodeEvents[K]): void;
     emit(event: string, ...args: any[]): void;
@@ -111,6 +112,8 @@ export class NodeManager {
             return;
         }
 
+        this._sceneRoot = scene as Node;
+        this.registerEventListeners(this._sceneRoot);
         const nodeMap = NodeMgr.getNodesInScene();
 
         // 场景载入后要将现有节点监听所需事件
@@ -191,8 +194,12 @@ export class NodeManager {
         // 遍历事件映射表，统一注册事件
         Object.entries(this.NodeHandlers).forEach(([eventType, handlerName]) => {
             const boundHandler = (this as any)[handlerName].bind(this, node);
+            const key = `${eventType}_${node.uuid}`;
+            if (this.nodeHandlers.has(key)) {
+                return;
+            }
             node.on(eventType, boundHandler, this);
-            this.nodeHandlers.set(`${eventType}_${node.uuid}`, boundHandler);
+            this.nodeHandlers.set(key, boundHandler);
         });
     }
 
@@ -264,10 +271,15 @@ export class NodeManager {
             return;
         }
 
+        const childAdded = child.parent === parent;
+        if (childAdded) {
+            NodeMgr.updateNodeParent(child.uuid, parent.uuid);
+        }
+
         this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
 
-        // 自身 parent = null 为删除，最后会有 deleted 消息，所以不需要再发 changed 消息
-        if (child.parent) {
+        // 只有挂入新父节点后，子节点路径索引才稳定；移出旧父节点时只通知旧父节点 children 变化。
+        if (childAdded) {
             this.emit('node:change', child, { type: NodeEventType.PARENT_CHANGED });
         }
     }
@@ -284,6 +296,10 @@ export class NodeManager {
      * 清空当前管理的节点
      */
     clear() {
+        if (this._sceneRoot) {
+            this.unregisterEventListeners(this._sceneRoot);
+            this._sceneRoot = null;
+        }
         const nodeMap = NodeMgr.getNodes();
         Object.keys(nodeMap).forEach((key) => {
             this.unregisterEventListeners(nodeMap[key]);
@@ -950,25 +966,40 @@ export class NodeManager {
             uuids = [uuids];
         }
 
-        uuids = uuids.filter((uuid: string) => {
-            const node = this.query(uuid);
-            if (!node || !node.parent) {
-                return false;
-            }
-            return true;
-        });
         let parentNode: Node | null;
         if (parent) {
             parentNode = this.query(parent);
         }
         parentNode ||= director.getScene();
 
-        for (const uuid of uuids) {
-            const node = this.query(uuid);
-            node?.setParent(parentNode, keepWorldTransform);
+        if (!parentNode) {
+            return [];
         }
 
-        return uuids;
+        const movedUuids: string[] = [];
+        for (const uuid of uuids) {
+            const node = this.query(uuid);
+            if (!node || !node.parent) {
+                continue;
+            }
+
+            const oldParent = node.parent;
+            const parentChanged = oldParent !== parentNode;
+
+            if (oldParent) {
+                this.emit('node:before-change', oldParent);
+            }
+            if (parentChanged) {
+                this.emit('node:before-change', parentNode);
+            }
+            this.emit('node:before-change', node);
+
+            node.setParent(parentNode, keepWorldTransform);
+
+            movedUuids.push(uuid);
+        }
+
+        return movedUuids;
     }
 
     /**
