@@ -11,6 +11,7 @@ const NodeMgr = EditorExtends.Node;
 
 import get from 'lodash/get';
 import set from 'lodash/set';
+import findLast from 'lodash/findLast';
 import { isEditorNode, getNodeName, setLayer } from './node-utils';
 import { prefabUtils } from '../prefab/utils';
 import { ServiceEvents } from '../core/global-events';
@@ -43,6 +44,7 @@ import { type IScene } from '../../../common/editor/scene';
 
 import { loadAny } from './node-create';
 import compMgr from '../component/index';
+import { Rpc } from '../../rpc';
 
 const creatableAssetTypes = [
     'cc.AnimationClip',
@@ -386,73 +388,77 @@ export class NodeManager {
         return dumpUtil.dumpNode(node);
     }
 
-    // /**
-    //  * 查询当前场景的节点树信息
-    //  * @param uuid asset uuid
-    //  */
-    // queryNodesByAssetUuid(uuid: string) {
-    //     if (!uuid) {
-    //         return [];
-    //     }
+    /**
+     * 查询当前场景的节点树信息
+     * @param uuid asset uuid
+     */
+    queryNodesByAssetUuid(uuid: string) {
+        if (!uuid) {
+            return [];
+        }
 
-    //     return NodeMgr.getNodesByAsset(uuid);
-    // }
+        return NodeMgr.getNodesByAsset(uuid);
+    }
 
-    // /**
-    //  * 获取丢失资源的节点
-    //  * @returns uuids[] 节点数组
-    //  */
-    // async queryNodesMissAsset() {
-    //     const nodesUuid: string[] = [];
+    /**
+     * 获取丢失资源的节点
+     * @returns uuids[] 节点数组
+     */
+    async queryNodesMissAsset() {
+        const scene = director.getScene();
+        if (!scene?.children?.length) return [];
 
-    //     // 搜集 MissingScript
-    //     const missScripts: { nodeUuid: string, scriptUuid: string }[] = [];
-    //     EditorExtends.walkProperties(
-    //         director.getScene()?.children,
-    //         (obj: any, key: any, value: any, parsedObjects: any) => {
-    //             // 搜集资源丢失的节点
-    //             if (value._uuid) {
-    //                 const isAssetMiss = !(cc.assetManager.assets.get(value._uuid) || cc.assetManager.assets.get(Editor.Utils.UUID.compressUUID(value._uuid, true)));
-    //                 if (isAssetMiss) {
-    //                     const node = findLast(parsedObjects, (item: any) => item instanceof cc.Node);
-    //                     if (node && !nodesUuid.includes(node.uuid)) {
-    //                         nodesUuid.push(node.uuid);
-    //                     }
-    //                 }
-    //             }
-    //             // 搜集 MissingScript（脚本丢失或者是编译不通过的脚本）
-    //             if (value instanceof MissingScript) {
-    //                 // @ts-ignore __type__: 存储编译不通过或丢失的脚本 id
-    //                 const id = value._$erialized?.__type__;
-    //                 missScripts.push({
-    //                     nodeUuid: value.node.uuid,
-    //                     scriptUuid: EditorExtends.UuidUtils.decompressUuid(id),
-    //                 });
-    //             }
-    //         },
-    //         {
-    //             dontSkipNull: false,
-    //             ignoreSubPrefabHelper: true,
-    //         },
-    //     );
+        const nodesUuid = new Set<string>();
+        const missScripts: { nodeUuid: string, scriptUuid: string }[] = [];
 
-    //     // 检测 MissingScript 的脚本是否真的丢失
-    //     const existingScriptResult = await Editor.Message.request('asset-db', 'batch-message-handler', missScripts.map((item: { nodeUuid: string, scriptUuid: string }) => {
-    //         return {
-    //             name: 'query-asset-info',
-    //             args: [item.scriptUuid],
-    //         };
-    //     }));
-    //     const existingScriptUUIDs = existingScriptResult.map((info: IAssetInfo | null) => info && info.uuid);
-    //     missScripts.forEach((item: { nodeUuid: string, scriptUuid: string }) => {
-    //         if (!existingScriptUUIDs.includes(item.scriptUuid) &&
-    //             !nodesUuid.includes(item.nodeUuid)) {
-    //             nodesUuid.push(item.nodeUuid);
-    //         }
-    //     });
+        EditorExtends.walkProperties(
+            scene.children,
+            (obj: any, key: any, value: any, parsedObjects: any) => {
+                // 处理资源丢失
+                if (value?._uuid) {
+                    const compressed = EditorExtends.UuidUtils.compressUUID(value._uuid, true);
+                    const assetExists = cc.assetManager.assets.get(value._uuid) ||
+                        cc.assetManager.assets.get(compressed);
+                    if (!assetExists) {
+                        const node = findLast(parsedObjects, (item: any) => item instanceof cc.Node);
+                        if (node) nodesUuid.add(node.uuid);
+                    }
+                }
 
-    //     return nodesUuid;
-    // }
+                // 处理 MissingScript
+                if (value instanceof MissingScript) {
+                    // @ts-ignore __type__: 存储编译不通过或丢失的脚本 id
+                    const scriptId = value._$erialized?.__type__;
+                    if (scriptId) {
+                        missScripts.push({
+                            nodeUuid: value.node.uuid,
+                            scriptUuid: EditorExtends.UuidUtils.decompressUUID(scriptId),
+                        });
+                    }
+                }
+            },
+            { dontSkipNull: false, ignoreSubPrefabHelper: true }
+        );
+
+        // 批量查询并添加真正丢失的脚本节点
+        if (missScripts.length) {
+            const existingScripts = new Set(
+                (await Promise.all(missScripts.map(({ scriptUuid }) =>
+                    Rpc.getInstance().request('assetManager', 'queryAssetInfo', [scriptUuid])
+                )))
+                    .map((info: any | null) => info?.uuid)
+                    .filter(Boolean)
+            );
+
+            for (const { nodeUuid, scriptUuid } of missScripts) {
+                if (!existingScripts.has(scriptUuid)) {
+                    nodesUuid.add(nodeUuid);
+                }
+            }
+        }
+
+        return Array.from(nodesUuid);
+    }
 
     /**
      * 预览设置属性后的效果，不进入undo堆栈

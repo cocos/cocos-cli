@@ -352,6 +352,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 
+    queryNodesByAssetUuid(uuid: string): string[] {
+        return nodeMgr.queryNodesByAssetUuid(uuid);
+    }
+
+    async queryNodesMissAsset(): Promise<string[]> {
+        return await nodeMgr.queryNodesMissAsset();
+    }
+
     /**
      * 检查并根据需要创建 canvas节点或为父级添加UITransform组件，返回父级节点，如果需要canvas节点，则父级节点会是canvas节点
      * @param workMode
@@ -743,4 +751,3 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
     }
 }
-

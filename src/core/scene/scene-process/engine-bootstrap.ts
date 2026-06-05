@@ -116,13 +116,15 @@ export async function startup(options: {
     const dr = config?.overrideSettings?.screen?.designResolution;
     const drWidth = dr?.width ?? 1280;
     const drHeight = dr?.height ?? 720;
-    let drPolicy = cc.ResolutionPolicy.SHOW_ALL;
-    if (dr) {
-        const fw = dr.fitWidth !== false;
-        const fh = dr.fitHeight === true;
-        if (fw && !fh) drPolicy = cc.ResolutionPolicy.FIXED_WIDTH;
-        else if (!fw && fh) drPolicy = cc.ResolutionPolicy.FIXED_HEIGHT;
-    }
+    const drPolicy = cc.ResolutionPolicy.SHOW_ALL;
+    // FIXED_WIDTH / FIXED_HEIGHT should only be used by preview.
+    // There is no preview flow in scene process yet, so keep SHOW_ALL by default.
+    // if (dr) {
+    //     const fw = dr.fitWidth !== false;
+    //     const fh = dr.fitHeight === true;
+    //     if (fw && !fh) drPolicy = cc.ResolutionPolicy.FIXED_WIDTH;
+    //     else if (!fw && fh) drPolicy = cc.ResolutionPolicy.FIXED_HEIGHT;
+    // }
     cc.view.setDesignResolutionSize(drWidth, drHeight, drPolicy);
 
     await cc.game.run();

@@ -277,7 +277,9 @@ export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
     'queryClipboardState' |
     'moveArrayElement' |
     'removeArrayElement' |
-    'changeNodeLock'
+    'changeNodeLock' |
+    'queryNodesByAssetUuid' |
+    'queryNodesMissAsset'
 >;
 
 /**
@@ -312,6 +314,16 @@ export interface INodeService extends IServiceEvents {
      * 查询节点树（层级管理器格式）
      */
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
+
+    /**
+     * 查询当前场景中使用指定资源的节点 uuid 列表
+     */
+    queryNodesByAssetUuid(uuid: string): string[];
+
+    /**
+     * 查询当前场景中资源丢失的节点 uuid 列表
+     */
+    queryNodesMissAsset(): Promise<string[]>;
 
     // ---- 编辑器相关接口 ----
 
