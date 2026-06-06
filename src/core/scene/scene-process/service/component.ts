@@ -11,7 +11,8 @@ import {
     IExecuteComponentMethodOptions,
     IComponent,
     IQueryClassesOptions,
-    ISetPropertyOptions
+    ISetPropertyOptions,
+    IUndoRedoResult
 } from '../../common';
 import dumpUtil from './dump';
 import compMgr from './component/index';
@@ -21,8 +22,29 @@ import { hasOneKindOfComponent } from './node/node-utils';
 import { isEditorNode } from './node/node-utils';
 import { createShouldHideInHierarchyCanvasNode } from './node/node-create';
 import PrefabService from './prefab';
+import { SnapshotCommand, type ISnapshotAdapter } from './undo/commands/snapshot-command';
+import { AddComponentCommand } from './undo/commands/add-component-command';
+import { RemoveComponentCommand } from './undo/commands/remove-component-command';
 
 const NodeMgr = EditorExtends.Node;
+let undoComponentSnapshotId = 0;
+
+interface IComponentPropertySnapshot {
+    nodeUuid: string;
+    nodePath: string;
+    componentUuid: string;
+    componentPath: string;
+    componentIndex: number;
+    componentType: string;
+    path: string;
+    dump: any;
+}
+
+interface IComponentPropertyTarget {
+    component: Component;
+    index: number;
+}
+
 enum SceneModeType {
     General = 'general',
     Prefab = 'prefab',
@@ -207,8 +229,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 }
             }
 
+            const componentUuidsBeforeAdd = new Set(node.components.map(component => component.uuid));
             const comp = node.addComponent(ctor);
             this.requireComponentList = [];
+            const addedComponents = node.components.filter(component => !componentUuidsBeforeAdd.has(component.uuid));
 
             // prefab 模式下的 Canvas 创建
             const mode = this.queryMode();
@@ -229,6 +253,12 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
 
             const dump = dumpUtil.dumpComponent(comp as Component) as IComponent;
+            if (this._shouldRecordComponentCommand()) {
+                const command = AddComponentCommand.captureMany(addedComponents);
+                if (command) {
+                    Service.Undo?.push(command);
+                }
+            }
             // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
             (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
             (dump as any).__compPrefab__ = (comp as any).__prefab || null;
@@ -308,11 +338,18 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 throw new Error(`Remove component failed: ${params.path} does not exist`);
             }
 
+            const command = this._shouldRecordComponentCommand()
+                ? RemoveComponentCommand.capture(comp)
+                : null;
+
             this.emit('component:before-remove-component', comp);
             const result = compMgr.removeComponent(comp);
             // 需要立刻执行removeComponent操作，否则会延迟到下一帧
             cc.Object._deferredDestroy();
             this.emit('component:remove', comp);
+            if (result && command) {
+                Service.Undo?.push(command);
+            }
 
             return result;
         } catch (error) {
@@ -363,35 +400,300 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             return false;
         }
 
-        // 触发修改前的事件
-        this.emit('node:before-change', node);
-        if (options.path === 'parent' && node.parent) {
-            // 发送节点修改消息
-            this.emit('node:before-change', node.parent);
+        return this._recordComponentPropertySnapshot(node, {
+            label: `Set ${options.path}`,
+            type: 'component:set-property',
+            path: options.path,
+            record: options.record,
+        }, async () => {
+            // 触发修改前的事件
+            this.emit('node:before-change', node);
+            if (options.path === 'parent' && node.parent) {
+                // 发送节点修改消息
+                this.emit('node:before-change', node.parent);
+            }
+
+            // 恢复数据
+            try {
+                await dumpUtil.restoreProperty(node, options.path, options.dump);
+            } catch (e) {
+                console.error(e);
+                return false;
+            }
+
+            // 触发修改后的事件
+            this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: options.path, record: options.record });
+            // 如果是数组的话，需要依次 emit change，路径定位到数组的下标位置
+            if (options.dump.isArray && Array.isArray(options.dump.value)) {
+                options.dump.value.forEach((item, i) => {
+                    this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: `${options.path}.${i}`, record: options.record });
+                });
+            }
+            // 改变父子关系
+            if (options.path === 'parent' && node.parent) {
+                // 发送节点修改消息
+                this.emit('node:change', node.parent, { type: NodeEventType.SET_PROPERTY, propPath: 'children', record: options.record });
+            }
+            return true;
+        });
+    }
+
+    private _shouldRecordComponentCommand(): boolean {
+        return !Service.Undo?.isApplying?.();
+    }
+
+    private async _recordComponentSnapshot(
+        component: Component,
+        options: { label: string; type: string },
+        mutate: () => Promise<boolean>,
+    ): Promise<boolean> {
+        if (
+            Service.Undo?.isApplying?.() ||
+            Service.Undo?.hasActiveRecording?.(component.node.uuid) ||
+            Service.Undo?.hasActiveRecording?.(component.uuid)
+        ) {
+            return mutate();
         }
 
-        // 恢复数据
+        const before = this._captureComponentSnapshot(component, options.type);
+        const result = await mutate();
+        if (!result) {
+            return result;
+        }
+
+        const beforeSnapshot = [...before.values()][0];
+        if (!beforeSnapshot) {
+            return result;
+        }
+
+        const latestComponent = this._findSnapshotComponent(beforeSnapshot);
+        if (!latestComponent) {
+            return result;
+        }
+
+        const after = this._captureComponentSnapshot(latestComponent, options.type);
+        if (this._snapshotMapsEqual(before, after)) {
+            return result;
+        }
+
+        Service.Undo?.push(new SnapshotCommand({
+            id: this._createUndoSnapshotId(options.type),
+            label: options.label,
+            type: options.type,
+            scope: { editorType: 'scene' },
+            timestamp: Date.now(),
+        }, before, after, this._createComponentPropertySnapshotAdapter()));
+        return result;
+    }
+
+    private async _recordComponentPropertySnapshot(
+        node: Node,
+        options: { label: string; type: string; path: string; record?: boolean },
+        mutate: () => Promise<boolean>,
+    ): Promise<boolean> {
+        if (options.record === false || Service.Undo?.isApplying?.()) {
+            return mutate();
+        }
+
+        const target = this._resolveComponentPropertyTarget(node, options.path);
+        if (
+            Service.Undo?.hasActiveRecording?.(node.uuid) ||
+            (target && Service.Undo?.hasActiveRecording?.(target.component.uuid))
+        ) {
+            return mutate();
+        }
+
+        const before = this._captureComponentPropertySnapshot(node, options.path);
+        const result = await mutate();
+        if (!result) {
+            return result;
+        }
+
+        const latestNode = NodeMgr.getNode(node.uuid) as Node | null;
+        if (!latestNode) {
+            return result;
+        }
+
+        const after = this._captureComponentPropertySnapshot(latestNode, options.path);
+        if (this._snapshotMapsEqual(before, after)) {
+            return result;
+        }
+
+        Service.Undo?.push(new SnapshotCommand({
+            id: this._createUndoSnapshotId(options.type),
+            label: options.label,
+            type: options.type,
+            scope: { editorType: 'scene' },
+            timestamp: Date.now(),
+        }, before, after, this._createComponentPropertySnapshotAdapter()));
+        return result;
+    }
+
+    private _captureComponentSnapshot(component: Component, path: string): Map<string, IComponentPropertySnapshot> {
+        const snapshots = new Map<string, IComponentPropertySnapshot>();
+        if (!component?.isValid || !component.node?.isValid) {
+            return snapshots;
+        }
+
+        snapshots.set(component.uuid, {
+            nodeUuid: component.node.uuid,
+            nodePath: NodeMgr.getNodePath(component.node) ?? '',
+            componentUuid: component.uuid,
+            componentPath: compMgr.getPathFromUuid(component.uuid) ?? '',
+            componentIndex: component.node.components.indexOf(component),
+            componentType: this._getComponentType(component),
+            path,
+            dump: this._cloneSnapshotDump(dumpUtil.dumpComponent(component)),
+        });
+        return snapshots;
+    }
+
+    private _captureComponentPropertySnapshot(node: Node, path: string): Map<string, IComponentPropertySnapshot> {
+        const snapshots = new Map<string, IComponentPropertySnapshot>();
+        if (!node?.isValid) {
+            return snapshots;
+        }
+
         try {
-            await dumpUtil.restoreProperty(node, options.path, options.dump);
-        } catch (e) {
-            console.error(e);
-            return false;
+            const target = this._resolveComponentPropertyTarget(node, path);
+            if (!target) {
+                return snapshots;
+            }
+
+            snapshots.set(`${target.component.uuid}:${path}`, {
+                nodeUuid: node.uuid,
+                nodePath: NodeMgr.getNodePath(node) ?? '',
+                componentUuid: target.component.uuid,
+                componentPath: compMgr.getPathFromUuid(target.component.uuid) ?? '',
+                componentIndex: target.index,
+                componentType: this._getComponentType(target.component),
+                path,
+                dump: this._cloneSnapshotDump(dumpUtil.dumpComponent(target.component)),
+            });
+        } catch (_error) {
+            // Keep the command out of the stack if the property cannot be captured.
+        }
+        return snapshots;
+    }
+
+    private _createComponentPropertySnapshotAdapter(): ISnapshotAdapter {
+        return {
+            capture: async () => new Map(),
+            apply: async (data: Map<string, IComponentPropertySnapshot>) => this._applyComponentPropertySnapshots(data),
+            equals: (before: Map<string, IComponentPropertySnapshot>, after: Map<string, IComponentPropertySnapshot>) => this._snapshotMapsEqual(before, after),
+        };
+    }
+
+    private async _applyComponentPropertySnapshots(data: Map<string, IComponentPropertySnapshot>): Promise<IUndoRedoResult> {
+        try {
+            for (const snapshot of data.values()) {
+                const component = this._findSnapshotComponent(snapshot);
+                if (!component) {
+                    return { success: false, reason: `Component not found: ${snapshot.componentPath || snapshot.componentUuid}` };
+                }
+
+                await this._restoreComponentSnapshotDump(component, snapshot.dump);
+                this.emit('node:change', component.node, {
+                    type: NodeEventType.SET_PROPERTY,
+                    propPath: snapshot.path,
+                    source: 'undo',
+                });
+            }
+            return { success: true };
+        } catch (error) {
+            return { success: false, reason: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    private _resolveComponentPropertyTarget(node: Node, path: string): IComponentPropertyTarget | null {
+        const match = /^__comps__\.(\d+)(?:\.|$)/.exec(path);
+        if (!match) {
+            return null;
         }
 
-        // 触发修改后的事件
-        this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: options.path, record: options.record });
-        // 如果是数组的话，需要依次 emit change，路径定位到数组的下标位置
-        if (options.dump.isArray && Array.isArray(options.dump.value)) {
-            options.dump.value.forEach((item, i) => {
-                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: `${options.path}.${i}`, record: options.record });
-            });
+        const index = Number(match[1]);
+        const component = node.components[index] as Component | undefined;
+        if (!component?.isValid) {
+            return null;
         }
-        // 改变父子关系
-        if (options.path === 'parent' && node.parent) {
-            // 发送节点修改消息
-            this.emit('node:change', node.parent, { type: NodeEventType.SET_PROPERTY, propPath: 'children', record: options.record });
+
+        return { component, index };
+    }
+
+    private _findSnapshotComponent(snapshot: IComponentPropertySnapshot): Component | null {
+        const byUuid = compMgr.query(snapshot.componentUuid) as Component | null;
+        if (byUuid?.isValid && byUuid.node?.isValid) {
+            return byUuid;
         }
-        return true;
+
+        if (snapshot.componentPath) {
+            try {
+                const byPath = compMgr.queryFromPath(snapshot.componentPath) as Component | null;
+                if (byPath?.isValid && byPath.node?.isValid) {
+                    return byPath;
+                }
+            } catch (_error) {
+                // Fall back to the captured node/index below.
+            }
+        }
+
+        const node = this._findSnapshotNode(snapshot);
+        const byIndex = node?.components[snapshot.componentIndex] as Component | undefined;
+        if (byIndex?.isValid && this._getComponentType(byIndex) === snapshot.componentType) {
+            return byIndex;
+        }
+
+        return null;
+    }
+
+    private _findSnapshotNode(snapshot: IComponentPropertySnapshot): Node | null {
+        const byUuid = NodeMgr.getNode(snapshot.nodeUuid) as Node | null;
+        if (byUuid?.isValid) {
+            return byUuid;
+        }
+
+        if (!snapshot.nodePath) {
+            return null;
+        }
+
+        try {
+            const byPath = NodeMgr.getNodeByPath(snapshot.nodePath) as Node | null;
+            return byPath?.isValid ? byPath : null;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    private _snapshotMapsEqual(before: Map<string, any>, after: Map<string, any>): boolean {
+        return JSON.stringify([...before.entries()]) === JSON.stringify([...after.entries()]);
+    }
+
+    private _cloneSnapshotDump<T>(dump: T): T {
+        return JSON.parse(JSON.stringify(dump)) as T;
+    }
+
+    private async _restoreComponentSnapshotDump(component: Component, dump: any): Promise<void> {
+        if (!dump?.value) {
+            return;
+        }
+
+        const skipKeys = new Set(['uuid', 'node', '__scriptAsset', '__eventTargets']);
+        for (const key in dump.value) {
+            if (skipKeys.has(key)) {
+                continue;
+            }
+            await dumpUtil.restoreProperty(component, key, dump.value[key]);
+        }
+        (component as any).onRestore?.();
+    }
+
+    private _getComponentType(component: Component): string {
+        return (cc as any).js?.getClassName?.(component.constructor) || component.constructor?.name || '';
+    }
+
+    private _createUndoSnapshotId(type: string): string {
+        undoComponentSnapshotId += 1;
+        return `${type}-${Date.now()}-${undoComponentSnapshotId}`;
     }
 
     /**
@@ -552,14 +854,15 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 console.warn(`Reset Component failed: ${params.path} does not exist`);
                 return false;
             }
-            // 发送节点修改消息
-            this.emit('node:before-change', comp.node);
-
-            const result = await compMgr.resetComponent(comp);
-
-            // 发送节点修改消息
-            this.emit('node:change', comp.node, { type: NodeEventType.RESET_COMPONENT });
-            return result;
+            return this._recordComponentSnapshot(comp, {
+                label: 'Reset Component',
+                type: 'component:reset',
+            }, async () => {
+                this.emit('node:before-change', comp.node);
+                const result = await compMgr.resetComponent(comp);
+                this.emit('node:change', comp.node, { type: NodeEventType.RESET_COMPONENT });
+                return result;
+            });
         } catch (e) {
             console.warn(e);
             return false;

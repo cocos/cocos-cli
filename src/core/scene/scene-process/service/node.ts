@@ -22,17 +22,20 @@ import {
     type IChangeNodeLockParams,
     NodeType,
     NodeEventType,
-    ISetPropertyOptions
+    ISetPropertyOptions,
 } from '../../common';
 import { type IScene } from '../../common/editor/scene';
 import { Rpc } from '../rpc';
-import { CCClass, CCObject, Node, Prefab, Quat, Vec3 } from 'cc';
+import { CCClass, CCObject, Component, Node, Prefab, Quat, Vec3 } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, setLayer } from './node/node-utils';
+import { NodeUndoHelper } from './node/node-undo';
 import { prefabUtils } from './prefab/utils';
 import { sceneUtils } from './scene/utils';
 import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
+import { RemoveNodeCommand } from './undo/commands/remove-node-command';
+import { RemoveComponentCommand } from './undo/commands/remove-component-command';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -42,9 +45,13 @@ const NodeMgr = EditorExtends.Node;
  */
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
+    private readonly _undo = new NodeUndoHelper((event, ...args) => this.emit(event as any, ...args));
+
     async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
+            const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
+            const createRootPath = this._getCreateRootPathForUndo(beforeNodeUuids, params.path);
             let canvasNeeded = params.canvasRequired || false;
             const nodeType = params.nodeType as string;
             const paramsArray = NodeConfig[nodeType];
@@ -52,14 +59,16 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 throw new Error(`Node type '${nodeType}' is not implemented`);
             }
             let assetUuid = paramsArray[0].assetUuid || null;
-            canvasNeeded = paramsArray[0].canvasRequired ? true : false;
+            canvasNeeded = Boolean(paramsArray[0].canvasRequired);
             const projectType = paramsArray[0]['project-type'];
             const workMode = params.workMode;
             if (projectType && workMode && projectType !== workMode.toLowerCase() && paramsArray.length > 1) {
                 assetUuid = paramsArray[1]['assetUuid'] || null;
-                canvasNeeded = paramsArray[1].canvasRequired ? true : false;
+                canvasNeeded = Boolean(paramsArray[1].canvasRequired);
             }
-            return await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+            const result = await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+            this._undo.recordCreateNodeCommand(beforeNodeUuids, [createRootPath, result?.path].filter(Boolean) as string[]);
+            return result;
         } catch (error) {
             console.error(error);
             throw error;
@@ -71,13 +80,17 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     async createByAsset(params: ICreateByAssetParams): Promise<INode | null> {
         try {
             await Service.Editor.lock();
+            const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
+            const createRootPath = this._getCreateRootPathForUndo(beforeNodeUuids, params.path);
             const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
             if (!assetUuid) {
                 throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
             }
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
             const canvasNeeded = params.canvasRequired || false;
-            return await this._createNode(assetUuid, canvasNeeded, false, params, assetInfo?.type);
+            const result = await this._createNode(assetUuid, canvasNeeded, false, params, assetInfo?.type);
+            this._undo.recordCreateNodeCommand(beforeNodeUuids, [createRootPath, result?.path].filter(Boolean) as string[]);
+            return result;
         } catch (error) {
             console.error(error);
             throw error;
@@ -258,7 +271,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return null;
             }
 
+            let command: RemoveNodeCommand | null = null;
+            if (this._undo.shouldRecordStructureCommand()) {
+                command = RemoveNodeCommand.capture(node, params.keepWorldTransform);
+            }
+
             nodeMgr.baseRemoveNode(node, params.keepWorldTransform);
+            if (command) {
+                Service.Undo?.push(command);
+            }
 
             return {
                 path: path,
@@ -279,7 +300,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 throw new Error('Failed to query node: the scene is not opened.');
             }
             const path = params?.path;
-            const node = (path && path !== '/') ? NodeMgr.getNodeByPath(path) : root;
+            let node: Node | null = root;
+            if (path && path !== '/') {
+                node = NodeMgr.getNodeByPath(path);
+            }
             if (!node) return null;
             return await sceneUtils.generateNodeDump(node, {
                 queryChildren: params?.queryChildren,
@@ -310,8 +334,17 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 const prefabStateInfo = prefabUtils.getPrefabStateInfo(node);
                 const isScene = node.constructor.name === 'Scene';
 
+                let name = node.name;
+                if (!name && isScene) {
+                    name = 'Scene';
+                }
+                let path = NodeMgr.getNodePath(node);
+                if (isScene) {
+                    path = '/';
+                }
+
                 return {
-                    name: !node.name && isScene ? 'Scene' : node.name,
+                    name,
                     active: node.active,
                     locked: Boolean(node.objFlags & CCObject.Flags.LockedInEditor),
                     type: 'cc.' + node.constructor.name,
@@ -319,7 +352,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     children,
                     prefab: prefabStateInfo,
                     parent: (node.parent && node.parent.uuid) || '',
-                    path: isScene ? '/' : NodeMgr.getNodePath(node),
+                    path,
                     isScene,
                     readonly: false,
                     components: node.components.map((comp) => {
@@ -450,15 +483,21 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
-        if (options.path === 'name' && options.dump.value !== node.name) {
-            // 这里相当于是做个hack的补充功能，因为setProperty并没有改变path。
-            // 而在cli上是期望改变path的，后期感觉可以通过node:change消息来实现这个功能
-            this.emit('node:before-change', node);
-            NodeMgr.updateNodeName(node.uuid, options.dump.value as string);
-            this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: 'name' });
-            return true;
-        }
-        return await nodeMgr.setProperty(node.uuid, options.path, options.dump);
+        return this._undo.recordNodeSnapshot(node, {
+            label: `Set ${options.path}`,
+            type: 'node:set-property',
+            record: options.record,
+        }, async () => {
+            if (options.path === 'name' && options.dump.value !== node.name) {
+                // 这里相当于是做个hack的补充功能，因为setProperty并没有改变path。
+                // 而在cli上是期望改变path的，后期感觉可以通过node:change消息来实现这个功能
+                this.emit('node:before-change', node);
+                NodeMgr.updateNodeName(node.uuid, options.dump.value as string);
+                this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: 'name' });
+                return true;
+            }
+            return await nodeMgr.setProperty(node.uuid, options.path, options.dump, options.record);
+        });
     }
 
     public async reset(path: string): Promise<boolean> {
@@ -466,7 +505,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
-        return await nodeMgr.resetNode(node.uuid);
+        return this._undo.recordNodeSnapshot(node, {
+            label: 'Reset Node',
+            type: 'node:reset',
+        }, async () => await nodeMgr.resetNode(node.uuid));
     }
 
     public async resetProperty(options: ISetPropertyOptions): Promise<boolean> {
@@ -474,7 +516,53 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
-        return await nodeMgr.resetProperty(node.uuid, options.path);
+        return this._undo.recordNodeSnapshot(node, {
+            label: `Reset ${options.path}`,
+            type: 'node:reset-property',
+            record: options.record,
+        }, async () => await nodeMgr.resetProperty(node.uuid, options.path));
+    }
+
+    private _collectSceneNodeUuidsForUndo(): Set<string> | null {
+        if (!this._undo.shouldRecordStructureCommand()) {
+            return null;
+        }
+        return this._undo.collectSceneNodeUuids();
+    }
+
+    private _getCreateRootPathForUndo(beforeNodeUuids: Set<string> | null, path?: string): string | null {
+        if (!beforeNodeUuids) {
+            return null;
+        }
+        return this._undo.getCreateRootPath(path);
+    }
+
+    private _captureReparentSnapshotsForUndo(nodes: Node[]) {
+        if (Service.Undo?.isApplying?.()) {
+            return null;
+        }
+        if (this._undo.hasActiveRecordingForNodes(nodes)) {
+            return null;
+        }
+        return this._undo.captureReparentSnapshots(nodes);
+    }
+
+    private _captureNodeSnapshotsForUndo(nodes: Node[]) {
+        if (Service.Undo?.isApplying?.()) {
+            return null;
+        }
+        if (this._undo.hasActiveRecordingForNodes(nodes)) {
+            return null;
+        }
+        return this._undo.captureNodeSnapshots(nodes);
+    }
+
+    private _getNodePathByUuid(uuid: string): string {
+        const node = nodeMgr.query(uuid);
+        if (!node) {
+            return '';
+        }
+        return NodeMgr.getNodePath(node) || '';
     }
 
     public async updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean> {
@@ -482,7 +570,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
-        return await nodeMgr.updatePropertyFromNull(node.uuid, options.path);
+        return this._undo.recordNodeSnapshot(node, {
+            label: `Update ${options.path}`,
+            type: 'node:update-property-from-null',
+            record: options.record,
+        }, async () => await nodeMgr.updatePropertyFromNull(node.uuid, options.path));
     }
 
     public async setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void> {
@@ -490,7 +582,25 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return;
         }
-        return await nodeMgr.setNodeAndChildrenLayer(node.uuid, options.dump);
+        const nodes = this._undo.collectNodeTree(node);
+        if (
+            options.record === false ||
+            Service.Undo?.isApplying?.() ||
+            this._undo.hasActiveRecordingForNodes(nodes)
+        ) {
+            return await nodeMgr.setNodeAndChildrenLayer(node.uuid, options.dump);
+        }
+
+        const before = this._undo.captureNodeSnapshots(nodes);
+        await nodeMgr.setNodeAndChildrenLayer(node.uuid, options.dump);
+        const afterNodes = this._undo.findSnapshotNodes(before);
+        const after = this._undo.captureNodeSnapshots(afterNodes);
+        this._undo.pushNodeSnapshotCommand(
+            'node:set-node-and-children-layer',
+            'Set Node And Children Layer',
+            before,
+            after,
+        );
     }
 
     public getPathByUuid(uuid: string): string {
@@ -516,12 +626,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 throw new Error(`Parent node not found at path: ${params.parentPath}`);
             }
 
-            nodeMgr.setParent(parentNode.uuid, uuids, params.keepWorldTransform);
+            const nodes = uuids
+                .map(uuid => NodeMgr.getNode(uuid) as Node | null)
+                .filter((node): node is Node => !!node?.isValid);
+            const before = this._captureReparentSnapshotsForUndo(nodes);
 
-            return uuids.map(uuid => {
-                const node = nodeMgr.query(uuid);
-                return node ? NodeMgr.getNodePath(node) : '';
-            }).filter(Boolean);
+            const movedUuids = nodeMgr.setParent(parentNode.uuid, uuids, params.keepWorldTransform);
+            this._undo.recordReparentSnapshots('node:set-parent', 'Set Parent', before, movedUuids);
+
+            return movedUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
         } catch (error) {
             console.error(error);
             throw error;
@@ -543,7 +656,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 throw new Error(`Parent node not found at path: ${params.path}`);
             }
 
-            return nodeMgr.moveArrayElement(parentNode.uuid, 'children', params.target, params.offset);
+            return await this._undo.moveChildArrayElementByUuid(parentNode.uuid, 'children', params.target, params.offset);
         } catch (error) {
             console.error(error);
             throw error;
@@ -571,10 +684,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             // copy 覆盖之前的 cut 标记
             this._cutUuids = [];
             const copiedUuids = nodeMgr.copy(uuids);
-            return copiedUuids.map(uuid => {
-                const node = nodeMgr.query(uuid);
-                return node ? NodeMgr.getNodePath(node) : '';
-            }).filter(Boolean);
+            return copiedUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
         } catch (error) {
             console.error(error);
             throw error;
@@ -604,11 +714,13 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             if (this._cutUuids.length > 0) {
                 const cutUuids = this._cutUuids;
                 this._cutUuids = [];
+                const nodes = cutUuids
+                    .map(uuid => NodeMgr.getNode(uuid) as Node | null)
+                    .filter((node): node is Node => !!node?.isValid);
+                const before = this._captureReparentSnapshotsForUndo(nodes);
                 const movedUuids = nodeMgr.setParent(parentUuid || root.uuid, cutUuids, !!params.keepWorldTransform);
-                return movedUuids.map(uuid => {
-                    const node = nodeMgr.query(uuid);
-                    return node ? NodeMgr.getNodePath(node) : '';
-                }).filter(Boolean);
+                this._undo.recordReparentSnapshots('node:paste-cut', 'Paste Cut Nodes', before, movedUuids);
+                return movedUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
             }
 
             // 普通粘贴：创建副本
@@ -617,11 +729,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 throw new Error('No nodes have been copied.');
             }
 
+            const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
             const newUuids = nodeMgr.paste(parentUuid, copiedUuids, params.keepWorldTransform);
-            return newUuids.map(uuid => {
-                const node = nodeMgr.query(uuid);
-                return node ? NodeMgr.getNodePath(node) : '';
-            }).filter(Boolean);
+            const newPaths = newUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
+            this._undo.recordCreateNodeCommand(beforeNodeUuids, newPaths);
+            return newPaths;
         } catch (error) {
             console.error(error);
             throw error;
@@ -644,11 +756,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return node.uuid;
             });
 
+            const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
             const newUuids = nodeMgr.duplicate(uuids);
-            return newUuids.map(uuid => {
-                const node = nodeMgr.query(uuid);
-                return node ? NodeMgr.getNodePath(node) : '';
-            }).filter(Boolean);
+            const newPaths = newUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
+            this._undo.recordCreateNodeCommand(beforeNodeUuids, newPaths);
+            return newPaths;
         } catch (error) {
             console.error(error);
             throw error;
@@ -685,18 +797,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
     async queryClipboardState(): Promise<IClipboardState> {
         if (this._cutUuids.length > 0) {
-            const paths = this._cutUuids.map(uuid => {
-                const node = nodeMgr.query(uuid);
-                return node ? NodeMgr.getNodePath(node) : '';
-            }).filter(Boolean);
+            const paths = this._cutUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
             return { type: 'cut', paths };
         }
         const copiedUuids = nodeMgr.getCopiedUuids();
         if (copiedUuids.length > 0) {
-            const paths = copiedUuids.map(uuid => {
-                const node = nodeMgr.query(uuid);
-                return node ? NodeMgr.getNodePath(node) : '';
-            }).filter(Boolean);
+            const paths = copiedUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
             return { type: 'copy', paths };
         }
         return { type: 'none', paths: [] };
@@ -709,7 +815,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             if (!node) {
                 throw new Error(`Node not found at path: ${params.nodePath}`);
             }
-            return nodeMgr.moveArrayElement(node.uuid, params.path, params.target, params.offset);
+            return await this._undo.moveArrayElementByUuid(node.uuid, params.path, params.target, params.offset);
         } catch (error) {
             console.error(error);
             throw error;
@@ -725,7 +831,34 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             if (!node) {
                 throw new Error(`Node not found at path: ${params.nodePath}`);
             }
-            return nodeMgr.removeArrayElement(node.uuid, params.path, params.index);
+            const normalizedPath = params.path.replace('__comps__', '_components');
+            let component: Component | undefined;
+            if (normalizedPath === '_components') {
+                component = node.components[params.index] as Component | undefined;
+            }
+            const shouldRecord = !Service.Undo?.isApplying?.() && !Service.Undo?.hasActiveRecording?.(node.uuid);
+            let command: RemoveComponentCommand | null = null;
+            if (shouldRecord && component) {
+                command = RemoveComponentCommand.capture(component);
+            }
+            let before: ReturnType<NodeUndoHelper['captureNodeSnapshots']> | null = null;
+            if (shouldRecord && !command) {
+                before = this._undo.captureNodeSnapshots([node]);
+            }
+            const result = nodeMgr.removeArrayElement(node.uuid, params.path, params.index);
+            if (!result) {
+                return result;
+            }
+            if (command) {
+                Service.Undo?.push(command);
+            } else if (before) {
+                const latestNode = NodeMgr.getNode(node.uuid) as Node | null;
+                if (latestNode?.isValid) {
+                    const after = this._undo.captureNodeSnapshots([latestNode]);
+                    this._undo.pushNodeSnapshotCommand('node:remove-array-element', 'Remove Array Element', before, after);
+                }
+            }
+            return result;
         } catch (error) {
             console.error(error);
             throw error;
@@ -742,7 +875,21 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 if (!node) throw new Error(`Node not found at path: ${p}`);
                 return node.uuid;
             });
+            const rootNodes = uuids
+                .map(uuid => NodeMgr.getNode(uuid) as Node | null)
+                .filter((node): node is Node => !!node?.isValid);
+            let nodes = rootNodes;
+            if (params.loop) {
+                nodes = rootNodes.flatMap(node => this._undo.collectNodeTree(node));
+            }
+            nodes = this._undo.dedupeNodes(nodes);
+            const before = this._captureNodeSnapshotsForUndo(nodes);
             nodeMgr.changeNodeLock(uuids, params.locked, params.loop ?? false);
+            if (before) {
+                const afterNodes = this._undo.findSnapshotNodes(before);
+                const after = this._undo.captureNodeSnapshots(afterNodes);
+                this._undo.pushNodeSnapshotCommand('node:change-lock', 'Change Node Lock', before, after);
+            }
         } catch (error) {
             console.error(error);
             throw error;

@@ -156,6 +156,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 this.editorMap.set(uuid, editor);
             }
             const encode = await editor.open(assetInfo);
+
+            this._clearUndoHistory();
+
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
             this.emit('editor:open');
@@ -188,6 +191,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
             // 如果关闭的是当前打开的编辑器，清除当前状态
             if (uuid === this.currentEditorUuid) {
+                this._clearUndoHistory();
                 this.currentEditorUuid = null;
             }
 
@@ -223,6 +227,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
 
             const result = await editor.save();
+
+            this._markUndoSaved();
 
             this.emit('editor:save');
 
@@ -269,6 +275,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                     while (currentParams) {
                         await this.waitLocks();
                         await editor.reload();
+
+                        this._clearUndoHistory();
 
                         if (this.needReloadAgain) {
                             currentParams = this.needReloadAgain;
@@ -320,5 +328,21 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         });
         console.log('[Scene] Script suspend soft reload');
         Service.Script.suspend(Promise.resolve(this.reload({})));
+    }
+
+    private _clearUndoHistory(): void {
+        try {
+            Service.Undo?.clearHistory();
+        } catch (_e) {
+            // UndoService may not be registered during early editor setup.
+        }
+    }
+
+    private _markUndoSaved(): void {
+        try {
+            Service.Undo?.markSaved();
+        } catch (_e) {
+            // UndoService may not be registered during early editor setup.
+        }
     }
 }

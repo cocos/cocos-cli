@@ -5741,6 +5741,10 @@ export declare interface IRedirectInfo {
     type: string;
     uuid: string;
 }
+export declare interface IRedoService {
+    redo(): Promise<IUndoRedoResult>;
+    canRedo(): boolean;
+}
 export declare interface IReloadOptions {
     urlOrUUID?: string;
 }
@@ -5877,6 +5881,7 @@ export declare interface IServiceManager {
     Selection: ISelectionService;
     Operation: IOperationService;
     Undo: IUndoService;
+    Redo: IRedoService;
     Camera: ICameraService;
     Gizmo: IGizmoService;
     SceneView: ISceneViewService;
@@ -5921,15 +5926,57 @@ export declare interface IUIService {
     alignSelection(type: UIAlignType): void;
     distributeSelection(type: UIAlignType): void;
 }
+export declare interface IUndoBeginOptions {
+    label?: string;
+    tag?: string;
+    customCommand?: IUndoCommand;
+}
+export declare interface IUndoCommand {
+    meta: IUndoCommandMeta;
+    undo(): Promise<IUndoRedoResult>;
+    redo(): Promise<IUndoRedoResult>;
+}
+export declare interface IUndoCommandMeta {
+    id: string;
+    label: string;
+    type: string;
+    scope: IUndoScope;
+    timestamp: number;
+}
+export declare interface IUndoGroupOptions {
+    label?: string;
+}
+export declare interface IUndoRedoResult {
+    success: boolean;
+    commandId?: string;
+    label?: string;
+    reason?: string;
+}
+export declare interface IUndoScope {
+    assetUuid?: string;
+    assetUrl?: string;
+    editorType?: 'scene' | 'prefab' | 'animation' | string;
+    mode?: 'general' | 'prefab' | 'animation' | 'preview' | string;
+}
 export declare interface IUndoService {
-    beginRecording(uuids: string[], options?: any): string;
-    endRecording(commandId: string): void;
+    beginRecording(uuids: string[], options?: IUndoBeginOptions): string;
+    endRecording(commandId: string): Promise<void>;
     cancelRecording(commandId: string): void;
-    undo(): Promise<void>;
-    redo(): Promise<void>;
-    snapshot(): void;
+    undo(): Promise<IUndoRedoResult>;
+    redo(): Promise<IUndoRedoResult>;
+    beginGroup(options?: IUndoGroupOptions): string;
+    endGroup(groupId: string): IUndoRedoResult;
+    cancelGroup(groupId: string): IUndoRedoResult;
+    isGroupActive(): boolean;
+    push(command: IUndoCommand): void;
     reset(): void;
+    clearHistory(): void;
     isDirty(): boolean;
+    canUndo(): boolean;
+    canRedo(): boolean;
+    markSaved(): void;
+    hasActiveRecording(uuid?: string): boolean;
+    isApplying(): boolean;
 }
 export declare interface IUnlinkPrefabParams {
     nodePath: string;
@@ -7908,6 +7955,10 @@ export declare interface IRedirectInfo {
     type: string;
     uuid: string;
 }
+export declare interface IRedoService {
+    redo(): Promise<IUndoRedoResult>;
+    canRedo(): boolean;
+}
 export declare interface IReloadOptions {
     urlOrUUID?: string;
 }
@@ -8044,6 +8095,7 @@ export declare interface IServiceManager {
     Selection: ISelectionService;
     Operation: IOperationService;
     Undo: IUndoService;
+    Redo: IRedoService;
     Camera: ICameraService;
     Gizmo: IGizmoService;
     SceneView: ISceneViewService;
@@ -8135,15 +8187,57 @@ export declare interface IUIService {
     alignSelection(type: UIAlignType): void;
     distributeSelection(type: UIAlignType): void;
 }
+export declare interface IUndoBeginOptions {
+    label?: string;
+    tag?: string;
+    customCommand?: IUndoCommand;
+}
+export declare interface IUndoCommand {
+    meta: IUndoCommandMeta;
+    undo(): Promise<IUndoRedoResult>;
+    redo(): Promise<IUndoRedoResult>;
+}
+export declare interface IUndoCommandMeta {
+    id: string;
+    label: string;
+    type: string;
+    scope: IUndoScope;
+    timestamp: number;
+}
+export declare interface IUndoGroupOptions {
+    label?: string;
+}
+export declare interface IUndoRedoResult {
+    success: boolean;
+    commandId?: string;
+    label?: string;
+    reason?: string;
+}
+export declare interface IUndoScope {
+    assetUuid?: string;
+    assetUrl?: string;
+    editorType?: 'scene' | 'prefab' | 'animation' | string;
+    mode?: 'general' | 'prefab' | 'animation' | 'preview' | string;
+}
 export declare interface IUndoService {
-    beginRecording(uuids: string[], options?: any): string;
-    endRecording(commandId: string): void;
+    beginRecording(uuids: string[], options?: IUndoBeginOptions): string;
+    endRecording(commandId: string): Promise<void>;
     cancelRecording(commandId: string): void;
-    undo(): Promise<void>;
-    redo(): Promise<void>;
-    snapshot(): void;
+    undo(): Promise<IUndoRedoResult>;
+    redo(): Promise<IUndoRedoResult>;
+    beginGroup(options?: IUndoGroupOptions): string;
+    endGroup(groupId: string): IUndoRedoResult;
+    cancelGroup(groupId: string): IUndoRedoResult;
+    isGroupActive(): boolean;
+    push(command: IUndoCommand): void;
     reset(): void;
+    clearHistory(): void;
     isDirty(): boolean;
+    canUndo(): boolean;
+    canRedo(): boolean;
+    markSaved(): void;
+    hasActiveRecording(uuid?: string): boolean;
+    isApplying(): boolean;
 }
 export declare interface IUnlinkPrefabParams {
     nodePath: string;

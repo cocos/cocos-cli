@@ -33,4 +33,5 @@ import './component-for-editor.testcase';
 import './prefab-proxy.testcase';
 import './script-proxy.testcase';
 import './engine-proxy.testcase';
+import './undo-redo.testcase';
 import './scene-exit.testcase';

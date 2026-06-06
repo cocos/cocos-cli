@@ -1,19 +1,30 @@
-import dumpUtil from '../dump/index';
 import { ServiceEvents } from '../core/global-events';
+import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../common';
 
-class UndoCommand {
+class UndoCommand implements IUndoCommand {
     toPerformUndo = false;
+    meta: IUndoCommandMeta = {
+        id: '',
+        label: '',
+        type: 'unknown',
+        scope: {},
+        timestamp: Date.now(),
+    };
 
-    async perform() {
+    async perform(): Promise<IUndoRedoResult> {
         if (this.toPerformUndo) {
-            await this.undo();
-        } else {
-            await this.redo();
+            return this.undo();
         }
+        return this.redo();
     }
 
-    async undo() {}
-    async redo() {}
+    async undo(): Promise<IUndoRedoResult> {
+        return { success: true, commandId: this.meta.id, label: this.meta.label };
+    }
+
+    async redo(): Promise<IUndoRedoResult> {
+        return { success: true, commandId: this.meta.id, label: this.meta.label };
+    }
 }
 
 type IDump = any;
@@ -28,12 +39,14 @@ class SceneUndoCommand extends UndoCommand {
     undoData: Map<string, IDump> = new Map();
     redoData: Map<string, IDump> = new Map();
 
-    async undo() {
+    async undo(): Promise<IUndoRedoResult> {
         await this.applyData(this.undoData);
+        return { success: true, commandId: this.meta.id, label: this.meta.label };
     }
 
-    async redo() {
+    async redo(): Promise<IUndoRedoResult> {
         await this.applyData(this.redoData);
+        return { success: true, commandId: this.meta.id, label: this.meta.label };
     }
 
     private async applyData(data: Map<string, IDump>) {
@@ -47,7 +60,7 @@ class SceneUndoCommand extends UndoCommand {
                     // Restore node by restoring each component's properties
                     if (dump.value) {
                         for (const key in dump.value) {
-                            await dumpUtil.restoreProperty(node, key, dump.value[key]);
+                            await this._dumpUtil().restoreProperty(node, key, dump.value[key]);
                         }
                     }
                     ServiceEvents.emit('node:change', node, { source: 'undo' });
@@ -57,7 +70,7 @@ class SceneUndoCommand extends UndoCommand {
                 const comp = EditorExtends.Component?.getComponent(uuid);
                 if (comp && dump?.value) {
                     for (const key in dump.value) {
-                        await dumpUtil.restoreProperty(comp, key, dump.value[key]);
+                        await this._dumpUtil().restoreProperty(comp, key, dump.value[key]);
                     }
                     if (comp.node) {
                         ServiceEvents.emit('node:change', comp.node, { source: 'undo' });
@@ -67,6 +80,10 @@ class SceneUndoCommand extends UndoCommand {
                 console.error('[Undo] applyData error:', e);
             }
         }
+    }
+
+    private _dumpUtil(): typeof import('../dump/index').default {
+        return require('../dump/index').default;
     }
 }
 

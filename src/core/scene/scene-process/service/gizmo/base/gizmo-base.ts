@@ -78,7 +78,7 @@ class GizmoBase<T extends Component = Component> {
 
     onControlBegin(propPath: string | null) {
         this._isControlBegin = true;
-        this.recordChanges();
+        this.recordChanges(propPath);
         try {
             const svc = getService();
             svc?.broadcast?.('gizmo-control-begin', propPath);
@@ -98,12 +98,14 @@ class GizmoBase<T extends Component = Component> {
         this.commitChanges();
     }
 
-    recordChanges() {
+    recordChanges(propPath?: string | null) {
         if (!this._recorded) {
             const uuids = this.nodes.map(n => n.uuid);
             try {
                 const svc = getService();
-                this.undoID = svc?.Undo?.beginRecording?.(uuids) ?? '';
+                this.undoID = svc?.Undo?.beginRecording?.(uuids, {
+                    label: propPath ? `Gizmo ${propPath}` : 'Gizmo Change',
+                }) ?? '';
             } catch (e) {
                 this.undoID = '';
             }
