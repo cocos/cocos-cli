@@ -88,8 +88,13 @@ export class NodePathManager {
         this._uuidToPath.delete(oldUuid);
         this._uuidToPath.set(newUuid, path);
         this._pathToUuid.set(path, newUuid);
+
         const lowerPath = path.toLowerCase();
-        if (!this._lowerPathToUuids.has(lowerPath)) {
+        const uuids = this._lowerPathToUuids.get(lowerPath);
+        if (uuids) {
+            uuids.delete(oldUuid);
+        }
+        if (!uuids || uuids.size === 0) {
             this._lowerPathToUuids.set(lowerPath, new Set());
         }
         this._lowerPathToUuids.get(lowerPath)!.add(newUuid);
