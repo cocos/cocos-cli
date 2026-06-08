@@ -1,6 +1,5 @@
 import { Component, Node } from 'cc';
 import type { IUndoCommandMeta, IUndoRedoResult } from '../../../../common';
-import dumpUtil from '../../dump';
 
 export function createUndoId(prefix: string): string {
     try {
@@ -82,6 +81,7 @@ export async function restoreNodeSnapshotDump(
         }
     }
 
+    const { default: dumpUtil } = await import('../../dump');
     await dumpUtil.restoreNodeSnapshotProperties(node, dump);
 
     if (dump.locked) {
@@ -118,6 +118,7 @@ export async function restoreComponentSnapshotDump(
     if (!dump?.value) {
         return;
     }
+    const { default: dumpUtil } = await import('../../dump');
     await dumpUtil.restoreComponentSnapshotProperties(component, dump);
     (component as any).onRestore?.();
 }

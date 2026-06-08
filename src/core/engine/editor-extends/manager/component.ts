@@ -272,5 +272,13 @@ export default class ComponentManager extends EventEmitter {
 
         this._map[newUUID] = comp;
         delete this._map[oldUUID];
+
+        // 同步路径索引
+        const path = this._uuidToPath.get(oldUUID);
+        if (path) {
+            this._uuidToPath.delete(oldUUID);
+            this._uuidToPath.set(newUUID, path);
+            this._pathToUuid.set(path, newUUID);
+        }
     }
 }

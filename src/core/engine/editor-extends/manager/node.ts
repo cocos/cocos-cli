@@ -286,6 +286,22 @@ export default class NodeManager extends EventEmitter {
 
         this._map[newUUID] = node;
         delete this._map[oldUUID];
+
+        // 同步父子索引：替换父节点 children Set 中的旧 UUID
+        for (const [, children] of this._parentChildren) {
+            if (children.has(oldUUID)) {
+                children.delete(oldUUID);
+                children.add(newUUID);
+                break;
+            }
+        }
+
+        // 同步父子索引：如果本节点是父节点，将 key 迁移到新 UUID
+        const childSet = this._parentChildren.get(oldUUID);
+        if (childSet) {
+            this._parentChildren.delete(oldUUID);
+            this._parentChildren.set(newUUID, childSet);
+        }
     }
 
 
