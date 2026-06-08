@@ -14,7 +14,11 @@ export class CompositeCommand implements IUndoCommand {
             if (!result.success) {
                 // Atomic rollback: re-redo already-undone children to avoid a partial state
                 for (let i = undone.length - 1; i >= 0; i--) {
-                    await undone[i].redo();
+                    try {
+                        await undone[i].redo();
+                    } catch (_e) {
+                        // best-effort rollback: keep rolling back the remaining children
+                    }
                 }
                 return result;
             }
@@ -30,7 +34,11 @@ export class CompositeCommand implements IUndoCommand {
             if (!result.success) {
                 // Atomic rollback: re-undo already-redone children to avoid a partial state
                 for (let i = redone.length - 1; i >= 0; i--) {
-                    await redone[i].undo();
+                    try {
+                        await redone[i].undo();
+                    } catch (_e) {
+                        // best-effort rollback: keep rolling back the remaining children
+                    }
                 }
                 return result;
             }

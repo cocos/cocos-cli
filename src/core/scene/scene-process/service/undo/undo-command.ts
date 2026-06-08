@@ -65,9 +65,12 @@ class SceneUndoCommand extends UndoCommand {
             try {
                 const node = EditorExtends.Node.getNode(uuid);
                 if (node && dump) {
-                    // node 的 dump 是顶层属性 map（dumpNode 产物），逐个顶层属性恢复
-                    for (const key in dump) {
-                        await getDumpUtil().restoreProperty(node, key, dump[key]);
+                    // dumpNode(encodeNode) 顶层含 path/parent/uuid/children/__type__/__comps__ 等非可还原字段，
+                    // 只还原安全的可编辑属性（与 UndoService._restoreNodeDump 白名单一致），避免误改 uuid / 父子关系
+                    for (const key of ['name', 'active', 'layer', 'mobility', 'position', 'rotation', 'scale']) {
+                        if (dump[key]) {
+                            await getDumpUtil().restoreProperty(node, key, dump[key]);
+                        }
                     }
                     ServiceEvents.emit('node:change', node, { source: 'undo' });
                     continue;
