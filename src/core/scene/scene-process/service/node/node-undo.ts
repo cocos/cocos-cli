@@ -6,6 +6,7 @@ import nodeMgr from './index';
 import { CreateNodeCommand } from '../undo/commands/create-node-command';
 import { SnapshotCommand, type ISnapshotAdapter } from '../undo/commands/snapshot-command';
 import type { INodeStructureCaptureTarget } from '../undo/commands/node-structure-command-utils';
+import { restoreNodeSnapshotDump } from '../undo/commands/command-utils-shared';
 
 const NodeMgr = EditorExtends.Node;
 let undoSnapshotId = 0;
@@ -631,27 +632,9 @@ export class NodeUndoHelper {
     }
 
     private async _restoreNodeSnapshotDump(node: Node, dump: any): Promise<void> {
-        if (dump.name && dump.name.value !== node.name) {
-            NodeMgr.updateNodeName(node.uuid, dump.name.value as string);
-        }
-
-        for (const path of ['active', 'layer', 'mobility', 'position', 'rotation', 'scale']) {
-            if (dump[path]) {
-                await dumpUtil.restoreProperty(node, path, dump[path]);
-            }
-        }
-
-        if (dump.locked) {
-            this._restoreNodeLocked(node, !!dump.locked.value);
-        }
-    }
-
-    private _restoreNodeLocked(node: Node, locked: boolean): void {
-        if (locked) {
-            node.objFlags |= cc.Object.Flags.LockedInEditor;
-        } else {
-            node.objFlags &= ~cc.Object.Flags.LockedInEditor;
-        }
+        await restoreNodeSnapshotDump(node, dump, {
+            updateNodeName: (uuid, name) => NodeMgr.updateNodeName(uuid, name),
+        });
     }
 
     private _findSnapshotNode(snapshot: INodeSnapshot): Node | null {

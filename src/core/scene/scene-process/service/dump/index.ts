@@ -6,6 +6,7 @@ import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeComponent, encodeScene, encodeNode } from './encode';
 import { IComponent, INode, IScene } from '../../../common';
+import { NODE_SNAPSHOT_RESTORE_PROPERTY_PATHS, COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS } from './restore-policy';
 
 // dump接口,统一下全局引用
 class DumpUtil {
@@ -130,6 +131,36 @@ class DumpUtil {
             value = ccType ? new ccType() : null;
         }
         return value;
+    }
+
+    /**
+     * 恢复 node snapshot 中的可编辑属性（白名单由 restore-policy 定义）。
+     * 仅处理 dump 数据的属性恢复；name 通知、locked 标志位等 undo 层逻辑不在此处。
+     * @see NODE_SNAPSHOT_RESTORE_PROPERTY_PATHS
+     */
+    async restoreNodeSnapshotProperties(node: Node, dump: any) {
+        for (const path of NODE_SNAPSHOT_RESTORE_PROPERTY_PATHS) {
+            if (dump[path]) {
+                await this.restoreProperty(node, path, dump[path]);
+            }
+        }
+    }
+
+    /**
+     * 恢复 component snapshot 中的用户属性（跳过身份/编辑器字段，黑名单由 restore-policy 定义）。
+     * 不包含 onRestore 生命周期调用等 undo 层逻辑。
+     * @see COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS
+     */
+    async restoreComponentSnapshotProperties(component: Component, dump: any) {
+        if (!dump?.value) {
+            return;
+        }
+        for (const key in dump.value) {
+            if (COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS.has(key)) {
+                continue;
+            }
+            await this.restoreProperty(component, key, dump.value[key]);
+        }
     }
 
 }

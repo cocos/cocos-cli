@@ -1,6 +1,6 @@
 import { ServiceEvents } from '../core/global-events';
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../common';
-import { getDumpUtil } from './dump-util';
+import { restoreComponentSnapshotDump, restoreNodeSnapshotDump } from './commands/command-utils-shared';
 
 class UndoCommand implements IUndoCommand {
     toPerformUndo = false;
@@ -65,22 +65,14 @@ class SceneUndoCommand extends UndoCommand {
             try {
                 const node = EditorExtends.Node.getNode(uuid);
                 if (node && dump) {
-                    // dumpNode(encodeNode) 顶层含 path/parent/uuid/children/__type__/__comps__ 等非可还原字段，
-                    // 只还原安全的可编辑属性（与 UndoService._restoreNodeDump 白名单一致），避免误改 uuid / 父子关系
-                    for (const key of ['name', 'active', 'layer', 'mobility', 'position', 'rotation', 'scale']) {
-                        if (dump[key]) {
-                            await getDumpUtil().restoreProperty(node, key, dump[key]);
-                        }
-                    }
+                    await restoreNodeSnapshotDump(node, dump);
                     ServiceEvents.emit('node:change', node, { source: 'undo' });
                     continue;
                 }
 
                 const comp = EditorExtends.Component?.getComponent(uuid);
                 if (comp && dump?.value) {
-                    for (const key in dump.value) {
-                        await getDumpUtil().restoreProperty(comp, key, dump.value[key]);
-                    }
+                    await restoreComponentSnapshotDump(comp, dump);
                     if (comp.node) {
                         ServiceEvents.emit('node:change', comp.node, { source: 'undo' });
                     }

@@ -10,6 +10,7 @@ import {
     getEditorNodeManager,
     getEditorExtends,
     getNodePath,
+    restoreComponentSnapshotDump,
 } from './command-utils-shared';
 
 export { success, failure } from './command-utils-shared';
@@ -160,17 +161,7 @@ function findNode(snapshot: IComponentStructureSnapshot): Node | null {
 }
 
 async function restoreComponentDump(component: Component, dump: any): Promise<void> {
-    if (!dump?.value) {
-        return;
-    }
-
-    const skipKeys = new Set(['uuid', 'node', '__scriptAsset', '__eventTargets']);
-    for (const key in dump.value) {
-        if (skipKeys.has(key)) {
-            continue;
-        }
-        await dumpUtil.restoreProperty(component, key, dump.value[key]);
-    }
+    await restoreComponentSnapshotDump(component, dump);
 }
 
 function moveComponentToIndex(node: Node, component: Component, index: number): void {

@@ -5,6 +5,7 @@ import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, ty
 import type { Component, Node } from 'cc';
 import { ServiceEvents } from './core/global-events';
 import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
+import { restoreComponentSnapshotDump, restoreNodeSnapshotDump } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
 
 interface IRecordingComponentSnapshot {
@@ -278,42 +279,13 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     private async _restoreNodeDump(node: Node, dump: any): Promise<void> {
-        if (dump.name && dump.name.value !== node.name) {
-            this._getEditorNodeManager()?.updateNodeName?.(node.uuid, dump.name.value as string);
-        }
-
-        for (const path of ['active', 'layer', 'mobility', 'position', 'rotation', 'scale']) {
-            if (dump[path]) {
-                await dumpUtil.restoreProperty(node, path, dump[path]);
-            }
-        }
-
-        if (dump.locked) {
-            this._restoreNodeLocked(node, !!dump.locked.value);
-        }
-    }
-
-    private _restoreNodeLocked(node: Node, locked: boolean): void {
-        if (locked) {
-            node.objFlags |= cc.Object.Flags.LockedInEditor;
-        } else {
-            node.objFlags &= ~cc.Object.Flags.LockedInEditor;
-        }
+        await restoreNodeSnapshotDump(node, dump, {
+            updateNodeName: (uuid, name) => this._getEditorNodeManager()?.updateNodeName?.(uuid, name),
+        });
     }
 
     private async _restoreComponentDump(component: Component, dump: any): Promise<void> {
-        if (!dump?.value) {
-            return;
-        }
-
-        const skipKeys = new Set(['uuid', 'node', '__scriptAsset', '__eventTargets']);
-        for (const key in dump.value) {
-            if (skipKeys.has(key)) {
-                continue;
-            }
-            await dumpUtil.restoreProperty(component, key, dump.value[key]);
-        }
-        (component as any).onRestore?.();
+        await restoreComponentSnapshotDump(component, dump);
     }
 
     private _findNode(uuid: string, path: string): Node | null {

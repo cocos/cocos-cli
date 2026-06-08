@@ -25,6 +25,7 @@ import PrefabService from './prefab';
 import { SnapshotCommand, type ISnapshotAdapter } from './undo/commands/snapshot-command';
 import { AddComponentCommand } from './undo/commands/add-component-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
+import { restoreComponentSnapshotDump } from './undo/commands/command-utils-shared';
 
 const NodeMgr = EditorExtends.Node;
 let undoComponentSnapshotId = 0;
@@ -687,18 +688,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     private async _restoreComponentSnapshotDump(component: Component, dump: any): Promise<void> {
-        if (!dump?.value) {
-            return;
-        }
-
-        const skipKeys = new Set(['uuid', 'node', '__scriptAsset', '__eventTargets']);
-        for (const key in dump.value) {
-            if (skipKeys.has(key)) {
-                continue;
-            }
-            await dumpUtil.restoreProperty(component, key, dump.value[key]);
-        }
-        (component as any).onRestore?.();
+        await restoreComponentSnapshotDump(component, dump);
     }
 
     private _getComponentType(component: Component): string {
