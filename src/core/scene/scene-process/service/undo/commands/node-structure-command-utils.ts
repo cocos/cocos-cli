@@ -2,6 +2,23 @@ import { Node } from 'cc';
 import { NodeEventType, type IUndoCommandMeta, type IUndoRedoResult } from '../../../../common';
 import nodeMgr from '../../node/index';
 import { editorPrefabUtils } from '../../prefab/prefab-editor-utils';
+import {
+    createUndoId,
+    success,
+    failure,
+    isNodeInCurrentScene,
+    getEditorNodeManager,
+    getEditorExtends,
+    getNodePath,
+} from './command-utils-shared';
+
+export { success, failure } from './command-utils-shared';
+
+export interface INodeUuidSnapshot {
+    uuid: string;
+    componentUuids: string[];
+    children: INodeUuidSnapshot[];
+}
 
 export interface INodeStructureSnapshot {
     uuid: string;
@@ -10,6 +27,8 @@ export interface INodeStructureSnapshot {
     parentPath: string;
     siblingIndex: number;
     serializedJson: string;
+    /** 子树 uuid 树（前序遍历的树根），用于 deserialize 后修复整棵树的 uuid */
+    uuidTree: INodeUuidSnapshot;
 }
 
 export interface INodeStructureCaptureTarget {
@@ -50,6 +69,15 @@ export function captureNodeStructureSnapshot(node: Node, fallbackPath = ''): INo
         parentPath: parent ? getNodePath(parent) : '/',
         siblingIndex: node.getSiblingIndex(),
         serializedJson,
+        uuidTree: captureUuidTree(node),
+    };
+}
+
+function captureUuidTree(node: Node): INodeUuidSnapshot {
+    return {
+        uuid: node.uuid,
+        componentUuids: (node.components ?? []).map(c => c.uuid).filter(Boolean),
+        children: (node.children ?? []).map(child => captureUuidTree(child)),
     };
 }
 
@@ -76,7 +104,7 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
         if (snapshot.siblingIndex >= 0) {
             restoredNode.setSiblingIndex(snapshot.siblingIndex);
         }
-        restoreRootUuid(restoredNode, snapshot.uuid);
+        restoreSubtreeUuids(restoredNode, snapshot.uuidTree);
 
         nodeMgr.emit('node:add', restoredNode);
         nodeMgr.emit('node:change', parent, { source: 'undo', type: NodeEventType.CHILD_CHANGED });
@@ -93,20 +121,13 @@ export function removeNodeStructureSnapshot(
 ): IUndoRedoResult {
     const node = findNode(snapshot);
     if (!node) {
-        return failure(meta, `Node not found: ${snapshot.path || snapshot.uuid}`);
+        // 幂等：目标节点已不在场景中，视为已达到"已删除"的期望状态
+        return success(meta);
     }
 
     nodeMgr.baseRemoveNode(node, keepWorldTransform);
     unregisterNodeTree(node);
     return success(meta);
-}
-
-export function success(meta: IUndoCommandMeta): IUndoRedoResult {
-    return { success: true, commandId: meta.id, label: meta.label };
-}
-
-export function failure(meta: IUndoCommandMeta, reason: string): IUndoRedoResult {
-    return { success: false, commandId: meta.id, label: meta.label, reason };
 }
 
 function findNode(snapshot: INodeStructureSnapshot): Node | null {
@@ -151,24 +172,35 @@ function findParent(snapshot: INodeStructureSnapshot): Node | null {
     return (cc as any).director?.getScene?.() as Node | null;
 }
 
-function getNodePath(node: Node): string {
-    const scene = (cc as any).director?.getScene?.();
-    if (node === scene) {
-        return '/';
-    }
-    return getEditorNodeManager()?.getNodePath?.(node) ?? '';
-}
-
-function restoreRootUuid(node: Node, uuid: string): void {
-    if (!uuid || node.uuid === uuid) {
-        return;
-    }
-
+function restoreSubtreeUuids(node: Node, snapshot: INodeUuidSnapshot): void {
     const editorNode = getEditorNodeManager();
-    if (!editorNode || isNodeInCurrentScene(editorNode.getNode?.(uuid) as Node | null)) {
+    const editorComponent = getEditorExtends()?.Component;
+    if (!editorNode) {
         return;
     }
-    editorNode.changeNodeUUID?.(node.uuid, uuid);
+
+    // 修复当前节点 uuid
+    if (snapshot.uuid && node.uuid !== snapshot.uuid &&
+        !isNodeInCurrentScene(editorNode.getNode?.(snapshot.uuid) as Node | null)) {
+        editorNode.changeNodeUUID?.(node.uuid, snapshot.uuid);
+    }
+
+    // 修复组件 uuid（按顺序对应）
+    const components = node.components ?? [];
+    for (let i = 0; i < components.length && i < snapshot.componentUuids.length; i++) {
+        const targetUuid = snapshot.componentUuids[i];
+        const comp = components[i];
+        if (targetUuid && comp?.uuid && comp.uuid !== targetUuid &&
+            !editorComponent?.getComponent?.(targetUuid)) {
+            editorComponent?.changeUUID?.(comp.uuid, targetUuid);
+        }
+    }
+
+    // 递归子节点（按顺序对应）
+    const children = node.children ?? [];
+    for (let i = 0; i < children.length && i < snapshot.children.length; i++) {
+        restoreSubtreeUuids(children[i], snapshot.children[i]);
+    }
 }
 
 function unregisterNodeTree(node: Node): void {
@@ -188,15 +220,6 @@ function unregisterNodeTree(node: Node): void {
     if (node.uuid) {
         editorNode?.remove?.(node.uuid);
     }
-}
-
-function isNodeInCurrentScene(node: Node | null | undefined): node is Node {
-    if (!node?.isValid) {
-        return false;
-    }
-
-    const scene = (cc as any).director?.getScene?.();
-    return !!scene && (node === scene || node.isChildOf(scene));
 }
 
 function deserializeNode(snapshot: INodeStructureSnapshot): Promise<Node | null> {
@@ -236,24 +259,4 @@ function deserializeNode(snapshot: INodeStructureSnapshot): Promise<Node | null>
             resolve(null);
         }
     });
-}
-
-function getEditorNodeManager(): any {
-    return getEditorExtends()?.Node;
-}
-
-function getEditorExtends(): any {
-    return (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-}
-
-function createUndoId(prefix: string): string {
-    try {
-        const randomUUID = require('crypto')?.randomUUID;
-        if (typeof randomUUID === 'function') {
-            return `${prefix}-${randomUUID()}`;
-        }
-    } catch (_error) {
-        // Fall through to a timestamp id.
-    }
-    return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }

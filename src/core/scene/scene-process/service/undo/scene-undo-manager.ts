@@ -2,6 +2,7 @@ import type { IUndoCommand, IUndoGroupOptions, IUndoRedoResult } from '../../../
 import { SceneUndoCommand, SceneUndoCommandID } from './undo-command';
 import { CompositeCommand } from './commands/composite-command';
 import { ISnapshotAdapter, SnapshotCommand } from './commands/snapshot-command';
+import { getDumpUtil } from './dump-util';
 
 interface ISceneUndoOption {
     label?: string;
@@ -99,6 +100,7 @@ class SceneUndoManager {
         this._activeGroup = null;
     }
 
+    // reset 的对外别名（IUndoService 同时暴露 reset/clearHistory）。
     clearHistory(): void {
         this.reset();
     }
@@ -207,7 +209,7 @@ class SceneUndoManager {
                 id,
                 label: option.label ?? option.tag ?? id,
                 uuids: [...uuidSet],
-                before: Promise.resolve(this._snapshotAdapter.capture([...uuidSet])),
+                before: Promise.resolve<Map<string, any>>(this._snapshotAdapter.capture([...uuidSet])),
             });
             return id;
         }
@@ -254,9 +256,13 @@ class SceneUndoManager {
             });
         }
         this.push(command);
-        const index = this._manualCommands.indexOf(command);
-        if (index !== -1) {
-            this._manualCommands.splice(index, 1);
+        const autoIndex = this._autoCommands.indexOf(command);
+        if (autoIndex !== -1) {
+            this._autoCommands.splice(autoIndex, 1);
+        }
+        const manualIndex = this._manualCommands.indexOf(command);
+        if (manualIndex !== -1) {
+            this._manualCommands.splice(manualIndex, 1);
         }
         return true;
     }
@@ -320,6 +326,8 @@ class SceneUndoManager {
         return this._index === -1 ? null : this._commandArray[this._index]?.meta.id ?? null;
     }
 
+    // 降级路径：仅在未注入 snapshotAdapter 时使用（主要是单测）。
+    // 运行时 UndoService 始终注入 adapter，beginRecording/endRecording 走 snapshot 分支，不会到这里。
     private _createCommand(option: ISceneUndoOption): SceneUndoCommand {
         let command: SceneUndoCommand;
         if (option.customCommand) {
@@ -374,12 +382,12 @@ class SceneUndoManager {
         try {
             const node = EditorExtends.Node.getNode(uuid);
             if (node) {
-                command.undoData.set(uuid, this._dumpUtil().dumpComponent(node));
+                command.undoData.set(uuid, getDumpUtil().dumpNode(node));
                 return;
             }
             const comp = EditorExtends.Component?.getComponent(uuid);
             if (comp) {
-                command.undoData.set(uuid, this._dumpUtil().dumpComponent(comp));
+                command.undoData.set(uuid, getDumpUtil().dumpComponent(comp));
             }
         } catch (e) {
             console.error('[Undo] _setUndo error:', e);
@@ -392,12 +400,12 @@ class SceneUndoManager {
         try {
             const node = EditorExtends.Node.getNode(uuid);
             if (node) {
-                command.redoData.set(uuid, this._dumpUtil().dumpComponent(node));
+                command.redoData.set(uuid, getDumpUtil().dumpNode(node));
                 return;
             }
             const comp = EditorExtends.Component?.getComponent(uuid);
             if (comp) {
-                command.redoData.set(uuid, this._dumpUtil().dumpComponent(comp));
+                command.redoData.set(uuid, getDumpUtil().dumpComponent(comp));
             }
         } catch (e) {
             console.error('[Undo] _setRedo error:', e);
@@ -411,10 +419,6 @@ class SceneUndoManager {
             return true;
         }
         return false;
-    }
-
-    private _dumpUtil(): typeof import('../dump/index').default {
-        return require('../dump/index').default;
     }
 }
 

@@ -384,13 +384,26 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
         // 多个节点更新值
         if (Array.isArray(options.nodePath)) {
+            // 仅当需要记录 undo 且当前没有更外层 group 时，用 group 包裹，
+            // 使多节点的修改成为一次可整体撤销的复合命令
+            const useGroup =
+                options.record !== false &&
+                !Service.Undo?.isApplying?.() &&
+                !Service.Undo?.isGroupActive?.();
+            const groupId = useGroup ? Service.Undo?.beginGroup?.({ label: `Set ${options.path}` }) : undefined;
             try {
                 for (let i = 0; i < options.nodePath.length; i++) {
                     await this.setProperty({ nodePath: options.nodePath[i], path: options.path, dump: options.dump, record: options?.record });
                 }
+                if (groupId) {
+                    Service.Undo?.endGroup?.(groupId);
+                }
                 return true;
             } catch (e) {
                 console.error(e);
+                if (groupId) {
+                    Service.Undo?.cancelGroup?.(groupId);
+                }
                 return false;
             }
         }
@@ -570,8 +583,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 path,
                 dump: this._cloneSnapshotDump(dumpUtil.dumpComponent(target.component)),
             });
-        } catch (_error) {
-            // Keep the command out of the stack if the property cannot be captured.
+        } catch (error) {
+            // 捕获失败则该次修改不会进 undo 栈：记录 warn 以便排查（fail loud）
+            console.warn(`[Undo] capture component property snapshot failed for "${path}":`, error);
         }
         return snapshots;
     }

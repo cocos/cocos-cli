@@ -2,6 +2,17 @@ import { Component, Node } from 'cc';
 import { EventSourceType, NodeEventType, type IUndoCommandMeta, type IUndoRedoResult } from '../../../../common';
 import compMgr from '../../component/index';
 import dumpUtil from '../../dump';
+import {
+    createUndoId,
+    success,
+    failure,
+    isNodeInCurrentScene,
+    getEditorNodeManager,
+    getEditorExtends,
+    getNodePath,
+} from './command-utils-shared';
+
+export { success, failure } from './command-utils-shared';
 
 export interface IComponentStructureSnapshot {
     uuid: string;
@@ -47,10 +58,20 @@ export function captureComponentStructureSnapshot(component: Component): ICompon
 export function removeComponentStructureSnapshot(snapshot: IComponentStructureSnapshot, meta: IUndoCommandMeta): IUndoRedoResult {
     const component = findComponent(snapshot);
     if (!component) {
-        return failure(meta, `Component not found: ${snapshot.path || snapshot.uuid}`);
+        // Idempotent: component is already absent from the scene — desired state reached.
+        return success(meta);
     }
 
     const node = component.node;
+    // @ts-ignore - internal engine API: get components that declare this one as a required dependency
+    const dependents = (node as any)?._getDependComponent?.(component) ?? [];
+    if (dependents.length > 0) {
+        return failure(
+            meta,
+            `Cannot remove component "${snapshot.type}" on "${snapshot.nodePath || snapshot.nodeUuid}": it is required by ${dependents.length} other component(s)`,
+        );
+    }
+
     const removed = compMgr.removeComponent(component);
     if (!removed) {
         return failure(meta, `Failed to remove component: ${snapshot.path || snapshot.uuid}`);
@@ -86,14 +107,6 @@ export async function restoreComponentStructureSnapshot(snapshot: IComponentStru
     } catch (error) {
         return failure(meta, error instanceof Error ? error.message : String(error));
     }
-}
-
-export function success(meta: IUndoCommandMeta): IUndoRedoResult {
-    return { success: true, commandId: meta.id, label: meta.label };
-}
-
-export function failure(meta: IUndoCommandMeta, reason: string): IUndoRedoResult {
-    return { success: false, commandId: meta.id, label: meta.label, reason };
 }
 
 function findComponent(snapshot: IComponentStructureSnapshot): Component | null {
@@ -214,14 +227,6 @@ function getComponentPath(component: Component): string {
     return getEditorComponentManager()?.getPathFromUuid?.(component.uuid) ?? '';
 }
 
-function getNodePath(node: Node): string {
-    const scene = (cc as any).director?.getScene?.();
-    if (node === scene) {
-        return '/';
-    }
-    return getEditorNodeManager()?.getNodePath?.(node) ?? '';
-}
-
 function getComponentType(component: Component): string {
     return (cc as any).js?.getClassName?.(component.constructor) || component.constructor?.name || '';
 }
@@ -237,39 +242,10 @@ function isComponentInCurrentScene(component: Component | null | undefined): com
     return !!component?.isValid && isNodeInCurrentScene(component.node);
 }
 
-function isNodeInCurrentScene(node: Node | null | undefined): node is Node {
-    if (!node?.isValid) {
-        return false;
-    }
-
-    const scene = (cc as any).director?.getScene?.();
-    return !!scene && (node === scene || node.isChildOf(scene));
-}
-
-function getEditorNodeManager(): any {
-    return getEditorExtends()?.Node;
-}
-
 function getEditorComponentManager(): any {
     return getEditorExtends()?.Component;
 }
 
-function getEditorExtends(): any {
-    return (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-}
-
 function cloneDump<T>(dump: T): T {
     return JSON.parse(JSON.stringify(dump)) as T;
-}
-
-function createUndoId(prefix: string): string {
-    try {
-        const randomUUID = require('crypto')?.randomUUID;
-        if (typeof randomUUID === 'function') {
-            return `${prefix}-${randomUUID()}`;
-        }
-    } catch (_error) {
-        // Fall through to a timestamp id.
-    }
-    return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }
