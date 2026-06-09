@@ -16,10 +16,10 @@ import {
     isValid,
 } from 'cc';
 import { prefabUtils } from './utils';
-import { componentOperation, IComponentPrefabData } from './component';
+import { componentOperation } from './component';
 import { promisify } from 'util';
 import { isEditorNode, isPartOfNode } from '../node/node-utils';
-import { Service, ServiceEvents } from '../core';
+import { Service } from '../core';
 import { IChangeNodeOptions, NodeEventType } from '../../../common';
 import { Rpc } from '../../rpc';
 import { TimerUtil } from './timer-util';
@@ -70,62 +70,13 @@ interface INodePrefabData {
     prefabInfo: PrefabInfo | null;
 }
 
-interface IAppliedTargetOverrideInfo {
-    sourceUUID?: string;
-    sourceInfo: TargetInfo | null;
-    propertyPath: string[];
-    targetUUID?: string;
-    targetInfo: TargetInfo | null;
-}
-
 interface IApplyPrefabInfo {
     nodeUUID: string;
-    mountedChildrenInfoMap: Map<string[], INodePrefabData>;
-    mountedComponentsInfoMap: Map<string[], IComponentPrefabData>;
-    propertyOverrides: PropertyOverrideInfo[];
-    removedComponents: TargetInfo[];
-    oldPrefabNodeData: any;
-    targetOverrides: IAppliedTargetOverrideInfo[];
+    assetUuid: string;
+    assetSource: string;
+    oldPrefabContent: string;
+    newPrefabContent: string;
 }
-
-// class ApplyPrefabCommand extends SceneUndoCommand {
-//     public applyPrefabInfo: IApplyPrefabInfo | null = null;
-//     private _undoFunc: Function;
-//     private _redoFunc: Function;
-//     constructor(undoFunc: Function, redoFunc: Function) {
-//         super();
-//         this._undoFunc = undoFunc;
-//         this._redoFunc = redoFunc;
-//     }
-//
-//     public async undo() {
-//         if (this.applyPrefabInfo) {
-//             await this._undoFunc(this.applyPrefabInfo);
-//         }
-//     }
-//
-//     public async redo() {
-//         if (this.applyPrefabInfo) {
-//             await this._redoFunc(this.applyPrefabInfo.nodeUUID);
-//         }
-//     }
-// }
-//
-// // 创建预制体的自定义 undo
-// // 创建前的节点 uuid 和创建后的节点 uuid 数据不一样
-// class CreatePrefabCommand extends SceneUndoCommand {
-//     public async undo() {
-//         await this.applyData(this.undoData);
-//     }
-//
-//     public async redo() {
-//         await this.applyData(this.redoData);
-//     }
-// }
-//
-// class RevertPrefabCommand extends CreatePrefabCommand {
-//     tag = 'RevertPrefabCommand';
-// }
 
 
 class NodeOperation {
@@ -1125,23 +1076,8 @@ class NodeOperation {
      * 将一个 PrefabInstance 的数据应用到对应的 Asset 资源上
      * @param nodeUUID uuid
      */
-    public async applyPrefab(nodeUUID: string) {
-        // const command = new ApplyPrefabCommand(this.undoApplyPrefab.bind(this), this.doApplyPrefab.bind(this));
-        // const undoID = cce.SceneFacadeManager.beginRecording(nodeUUID, { customCommand: command });
-        const appPrefabInfo = await this.doApplyPrefab(nodeUUID);
-        if (appPrefabInfo) {
-            // command.applyPrefabInfo = appPrefabInfo;
-            // cce.SceneFacadeManager.endRecording(undoID);
-            // cce.SceneFacadeManager.snapshot());
-            // cce.SceneFacadeManager.abortSnapshot();
-            // 因为 apply prefab 后一定会触发 soft reload ,要等场景加载完成
-            // 防止在切换到 prefab 编辑模式之后才触发 soft reload
-            return true;
-        } else {
-            // cce.SceneFacadeManager.cancelRecording(undoID);
-        }
-
-        return false;
+    public async applyPrefab(nodeUUID: string): Promise<IApplyPrefabInfo | null> {
+        return await this.doApplyPrefab(nodeUUID);
     }
 
     public async doApplyPrefab(nodeUUID: string): Promise<IApplyPrefabInfo | null> {
@@ -1161,7 +1097,7 @@ class NodeOperation {
             return null;
         }
 
-        const oldNodeData = asset.data;
+        const oldPrefabContent = EditorExtends.serialize(asset) as string;
 
         const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [asset._uuid]);
         if (!info) return null;
@@ -1174,178 +1110,32 @@ class NodeOperation {
         const mountedComponentsInfoMap = componentOperation.applyMountedComponents(node);
         if (!mountedComponentsInfoMap) return null;
 
-        const propertyOverrides = prefabInstance.propertyOverrides;
         this.applyPropertyOverrides(node);
-        const removedComponents = prefabInstance.removedComponents;
         this.applyRemovedComponents(node);
-        const appliedTargetOverrides = this.applyTargetOverrides(node);
+        this.applyTargetOverrides(node);
         const ret = prefabUtils.generatePrefabDataFromNode(node);
         if (!ret) return null;
         if (ret.clearedReference) {
             this.restoreClearedReference(node, ret.clearedReference);
         }
 
-        const reloadWaiter = this._waitForPrefabAssetReload(asset._uuid);
         try {
             await Rpc.getInstance().request('assetManager', 'saveAsset', [
                 info.source, ret.prefabData,
             ]);
             prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
-            await reloadWaiter.promise;
         } catch (error) {
-            reloadWaiter.cancel();
             console.error(error);
             return null;
         }
 
         return {
             nodeUUID,
-            mountedChildrenInfoMap,
-            mountedComponentsInfoMap,
-            propertyOverrides,
-            removedComponents,
-            oldPrefabNodeData: oldNodeData,
-            targetOverrides: appliedTargetOverrides,
+            assetUuid: asset._uuid,
+            assetSource: info.source,
+            oldPrefabContent,
+            newPrefabContent: ret.prefabData,
         };
-    }
-
-    private _waitForPrefabAssetReload(assetUuid: string): { promise: Promise<void>; cancel: () => void } {
-        let cancel = () => {};
-        const promise = new Promise<void>((resolve) => {
-            const onReload = (uuid: string) => {
-                if (uuid !== assetUuid) {
-                    return;
-                }
-
-                cancel();
-                resolve();
-            };
-
-            cancel = () => {
-                ServiceEvents.off('prefab:asset-reload', onReload);
-            };
-            ServiceEvents.on('prefab:asset-reload', onReload);
-        });
-
-        return { promise, cancel };
-    }
-
-    public async undoApplyPrefab(applyPrefabInfo: IApplyPrefabInfo) {
-        const node = nodeMgr.getNode(applyPrefabInfo.nodeUUID);
-        if (!node) {
-            return;
-        }
-        // @ts-ignore
-        const prefabInfo = node['_prefab'];
-        if (!prefabInfo) {
-            return;
-        }
-        const prefabInstance = prefabInfo.instance;
-        if (!prefabInstance) {
-            return;
-        }
-
-        const asset = prefabInfo.asset;
-
-        if (!asset) {
-            return;
-        }
-
-        const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [asset._uuid]);
-        if (!info) {
-            return;
-        }
-
-        asset.data = applyPrefabInfo.oldPrefabNodeData;
-        const content = EditorExtends.serialize(asset);
-
-        prefabInstance.mountedChildren = [];
-
-        const targetMap = prefabUtils.getTargetMap(node);
-
-        applyPrefabInfo.mountedChildrenInfoMap.forEach((oldNodeData: INodePrefabData, localID: string[]) => {
-            const target = Prefab._utils.getTarget(localID, targetMap) as Node;
-            if (!target) {
-                return;
-            }
-
-            prefabUtils.setMountedRoot(target, node);
-            // @ts-ignore
-            target['_prefab'] = oldNodeData.prefabInfo;
-
-            if (target.parent) {
-                this.updateChildrenData(target.parent);
-            }
-        });
-
-        applyPrefabInfo.mountedComponentsInfoMap.forEach((oldCompData: IComponentPrefabData, localID: string[]) => {
-            const target = Prefab._utils.getTarget(localID, targetMap) as Component;
-            if (!target) {
-                return;
-            }
-
-            prefabUtils.setMountedRoot(target, node);
-            target.__prefab = oldCompData.prefabInfo;
-
-            if (target.node) {
-                componentOperation.updateMountedComponents(target.node);
-            }
-        });
-
-        prefabInstance.propertyOverrides = applyPrefabInfo.propertyOverrides;
-        prefabInstance.removedComponents = applyPrefabInfo.removedComponents;
-        // 场景节点或 prefab 资源中的根节点
-        const sceneRootNode = Service.Editor.getRootNode();
-        if (sceneRootNode) {
-            const sceneRootNodePrefabInfo = prefabUtils.getPrefab(sceneRootNode);
-            if (sceneRootNodePrefabInfo) {
-                if (!sceneRootNodePrefabInfo.targetOverrides) {
-                    sceneRootNodePrefabInfo.targetOverrides = [];
-                }
-                // 还原根节点的targetOverride
-                applyPrefabInfo.targetOverrides?.forEach((overrideInfo) => {
-                    const targetOverride = new TargetOverrideInfo();
-                    if (overrideInfo.sourceUUID) {
-                        const node = nodeMgr.getNode(overrideInfo.sourceUUID);
-                        if (node) {
-                            targetOverride.source = node;
-                        } else {
-                            const comp = compMgr.getComponent(overrideInfo.sourceUUID);
-                            if (comp) {
-                                targetOverride.source = comp;
-                            }
-                        }
-                    }
-
-                    targetOverride.sourceInfo = overrideInfo.sourceInfo;
-                    if (overrideInfo.targetUUID) {
-                        const node = nodeMgr.getNode(overrideInfo.targetUUID);
-                        if (node) {
-                            targetOverride.target = node;
-                        } else {
-                            const comp = compMgr.getComponent(overrideInfo.targetUUID);
-                            if (comp) {
-                                // TODO 这里不可能从组件管理器查找，是为什么这么写
-                                // @ts-ignore
-                                targetOverride.target = comp;
-                            }
-                        }
-                    }
-                    targetOverride.targetInfo = overrideInfo.targetInfo;
-                    targetOverride.propertyPath = overrideInfo.propertyPath;
-
-                    sceneRootNodePrefabInfo.targetOverrides?.push(targetOverride);
-                });
-                Prefab._utils.applyTargetOverrides(sceneRootNode);
-            }
-        }
-        // 场景中使用的 Prefab 节点的 PrefabAsset 变动会重新 load 场景，所以不需要单独去变动节点了。
-        await Rpc.getInstance().request('assetManager', 'createAsset', [{
-            target: info.source,
-            content: content as string,
-            overwrite: true
-        }]);
-        // cce.SceneFacadeManager.abortSnapshot();
     }
 
     public updateChildrenData(node: Node) {
@@ -1541,7 +1331,7 @@ class NodeOperation {
      * @param url
      * @param options
      */
-    public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { undo: true, overwrite: true }) {
+    public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { overwrite: true }) {
         const node = nodeMgr.getNode(nodeUUID);
         if (!node) {
             return null;
@@ -1581,25 +1371,7 @@ class NodeOperation {
         }]);
         let assetRootNode: Node | null = null;
         if (asset) {
-            let undoID;
-            let command;
-            const parent = node.parent;
-            if (options.undo && parent) {
-                // command = new CreatePrefabCommand();
-                // undoID = cce.SceneFacadeManager.beginRecording(nodeUUID, { customCommand: command });
-                // command.undoData = new Map();
-                // command.undoData.set(parent.uuid, cce.Dump.encode.encodeNode(parent));
-                // command.undoData.set(nodeUUID, cce.Dump.encode.encodeNode(node));
-            }
-
             assetRootNode = await this.replaceNewPrefabAssetWithClearedReference(node, asset.uuid, ret.clearedReference);
-
-            if (undoID && command && parent) {
-                // command.redoData = new Map();
-                // command.redoData.set(parent.uuid, cce.Dump.encode.encodeNode(parent));
-                // command.redoData.set(assetRootNode.uuid, cce.Dump.encode.encodeNode(assetRootNode));
-                // cce.SceneFacadeManager.endRecording(undoID);
-            }
         }
 
         return assetRootNode;
@@ -2015,26 +1787,13 @@ class NodeOperation {
 
         prefabUtils.fireBeforeChangeMsg(node);
 
-        // const command = new RevertPrefabCommand();
-        // const undoID = cce.SceneFacadeManager.beginRecording(node.uuid, { customCommand: command });
-        // command.undoData = new Map();
-        // command.undoData.set(node.uuid, cce.Dump.encode.encodeNode(node));
-        // command.redoData = new Map();
         const reservedPropertyOverrides = [];
         for (let i = 0; i < prefabInstance.propertyOverrides.length; i++) {
             const propOverride = prefabInstance.propertyOverrides[i];
             if (this.isReservedPropertyOverrides(propOverride, prefabInfo.fileId)) {
                 reservedPropertyOverrides.push(propOverride);
             } else {
-                const target = prefabUtils.getTarget(propOverride.targetInfo?.localID ?? [], node);
-                // const node2 = target instanceof Node ? target : target?.node;
-                // if (node2 && !command.undoData.has(node2.uuid)) {
-                //     command.undoData.set(node2.uuid, cce.Dump.encode.encodeNode(node2));
-                // }
                 this.revertPropertyOverride(propOverride, curNodeTargetMap, assetTargetMap);
-                // if (node2 && !command.redoData.has(node2.uuid)) {
-                //     command.redoData.set(node2.uuid, cce.Dump.encode.encodeNode(node2));
-                // }
             }
         }
 
@@ -2085,10 +1844,6 @@ class NodeOperation {
         }
         prefabInstance.removedComponents = [];
         componentOperation.isRevertingRemovedComponents = false;
-        // command.redoData.set(node.uuid, cce.Dump.encode.encodeNode(node));
-        // if (undoID) {
-        //     cce.SceneFacadeManager.endRecording(undoID);
-        // }
         prefabUtils.fireChangeMsg(node);
 
         // 因为现在恢复的是私有变量，没有触发 setter，所以暂时只能 softReload 来保证效果正确

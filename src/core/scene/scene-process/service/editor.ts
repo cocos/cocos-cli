@@ -73,6 +73,10 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return 'unknown';
     }
 
+    public getCurrentEditorUuid(): string | null {
+        return this.currentEditorUuid;
+    }
+
     /**
      * 是否打开场景
      */

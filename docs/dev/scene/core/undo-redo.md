@@ -20,7 +20,7 @@ Scene undo/redo 是 scene-process 的内存编辑历史系统。它记录当前�
 - gizmo/drag recording：`beginRecording` / `endRecording` / `cancelRecording`。
 - 节点结构命令：create、delete。
 - 组件结构命令：add、remove。
-- Prefab 结构命令：create/apply/revert、unlink/unpack。
+- Prefab 命令：create/revert、apply、unlink/unpack。
 - snapshot 命令：node set/reset/resetProperty、component set/reset、gizmo recording、UI align/distribute recording、subtree layer、children order、component order、reparent、node lock。
 - open / close / reload 清空 history，save 标记 clean。
 
@@ -74,6 +74,7 @@ Command：
 - `src/core/scene/scene-process/service/undo/commands/node-structure-command-utils.ts`
 - `src/core/scene/scene-process/service/undo/commands/component-command-utils.ts`
 - `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts`
+- `src/core/scene/scene-process/service/undo/commands/prefab-apply-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/prefab-unwrap-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/prefab-command-utils.ts`
 
@@ -87,7 +88,7 @@ Command：
   - `alignSelection` / `distributeSelection` 通过 `Undo.beginRecording/endRecording` 记录选中节点位置变化。
 - `src/core/scene/scene-process/service/prefab.ts`
   - Prefab public mutating API 负责 capture before/after，并通过 `PrefabUndoHelper` push Prefab command。
-  - `applyPrefabChanges` 的 soft reload 通过 prefab asset uuid 关联 `prefab:asset-reload` 内部事件，确保 reload 完成后再返回。
+  - `applyPrefabChanges` 保存 prefab asset 后立即进入 undo/dirty 编排；asset change 触发的 soft reload 只负责刷新编辑器状态，并通过 prefab asset uuid preserve 当前 undo history。soft reload 会绑定 mutation 发生时的 editor uuid，避免 debounce 期间切换编辑器后 reload 错目标。
 - `src/core/scene/scene-process/service/prefab/prefab-undo.ts`
   - Prefab 相关 undo/redo helper，负责 snapshot capture、before/after 比较、push command，以及 apply prefab reload preserve 标记。
 
@@ -354,7 +355,7 @@ dirty 规则：
 | 设置组件属性 | `ComponentService.setProperty` | `component:set-property` snapshot | `src/core/scene/scene-process/service/component.ts` |
 | 重置组件 | `ComponentService.reset` | `component:reset` snapshot | `src/core/scene/scene-process/service/component.ts` |
 | 创建 Prefab | `PrefabService.createPrefabFromNode` | `prefab:create` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
-| 应用 Prefab 修改 | `PrefabService.applyPrefabChanges` | `prefab:apply` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
+| 应用 Prefab 修改 | `PrefabService.applyPrefabChanges` | `prefab:apply` | `src/core/scene/scene-process/service/undo/commands/prefab-apply-command.ts` |
 | 还原到 Prefab | `PrefabService.revertToPrefab` | `prefab:revert` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
 | 解包 Prefab 实例 | `PrefabService.unpackPrefabInstance` | `prefab:unpack` | `src/core/scene/scene-process/service/undo/commands/prefab-unwrap-command.ts` |
 | 解绑 Prefab | `PrefabService.unlinkPrefab` | `prefab:unlink` | `src/core/scene/scene-process/service/undo/commands/prefab-unwrap-command.ts` |
@@ -446,9 +447,10 @@ Prefab 不使用普通 node dump snapshot 覆盖。原因是 prefab 关系包含
 
 当前结论：
 
-- `createPrefabFromNode` / `applyPrefabChanges` / `revertToPrefab` 使用 `PrefabNodeStructureCommand`，通过 prefab-aware node structure snapshot 恢复前后结构和 metadata。
+- `createPrefabFromNode` / `revertToPrefab` 使用 `PrefabNodeStructureCommand`，通过 prefab-aware node structure snapshot 恢复前后结构和 metadata。
+- `applyPrefabChanges` 使用 `PrefabApplyCommand`，同时恢复 prefab asset 内容与场景中的 prefab-aware node structure snapshot。undo/redo 不等待全局 `Editor.reload`，避免 dirty/undo command 被异步刷新链路阻塞。
 - `unlinkPrefab` / `unpackPrefabInstance` 使用 `PrefabUnwrapCommand`。undo 通过 before snapshot 恢复 prefab 关系，redo 重新执行底层 unwrap 语义。
-- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。`doApplyPrefab` 会等待 `PrefabService.onAssetChanged(uuid)` 完成 `Editor.reload({ preserveUndoHistory })` 后发出的 `prefab:asset-reload` 内部事件，避免用 timeout 或全局 `editor:reload` 推断。
+- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。soft reload 由 asset change 消息驱动，属于编辑器状态刷新；dirty 只看 undo stack 是否离开保存点，不从 reload 或 `node:change` 推断。prefab reload preserve 状态在 asset change 到达时一次性消费，即使当前资源不需要 reload，也不会污染后续同 uuid 的外部刷新。
 - Prefab 相关 command 进入同一条 `UndoService.push` / dirty 编排链路。dirty 仍只由 `Undo.isDirty()` 状态翻转产生的 `dirty:changed` 表示，不能从 `node:change` / `component:*` 推断。
 - `getPrefabInfo` / `isPrefabInstance` 是只读 API，不入 undo。
 

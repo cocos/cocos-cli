@@ -21,13 +21,21 @@ import { validateCreatePrefabParams, validateNodePathParams } from './prefab/val
 import { sceneUtils } from './scene/utils';
 import { Rpc } from '../rpc';
 import { PrefabUndoHelper } from './prefab/prefab-undo';
+import { PrefabSoftReloadScheduler } from './prefab/soft-reload';
+
+function getCurrentEditorUuid(): string | null {
+    return (Service.Editor as unknown as { getCurrentEditorUuid?: () => string | null })
+        .getCurrentEditorUuid?.() ?? null;
+}
 
 @register('Prefab')
 export class PrefabService extends BaseService<IPrefabEvents> implements IPrefabService {
 
-    private _softReloadTimer: any = null;
-    private _softReloadAssetUuids = new Set<string>();
-    private _softReloadPreserveUndoHistory = false;
+    private _softReload = new PrefabSoftReloadScheduler(
+        (params) => Service.Editor.reload(params),
+        (uuid) => ServiceEvents.emit('prefab:asset-reload', uuid),
+        getCurrentEditorUuid,
+    );
     private _undo = new PrefabUndoHelper();
     private _utils = prefabUtils;
 
@@ -52,7 +60,6 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             const before = this._undo.captureSnapshot(sourceNode);
             const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.dbURL, {
                 overwrite: !!params.overwrite,
-                undo: true,
             });
 
             if (!node) {
@@ -83,23 +90,36 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             const before = this._undo.captureSnapshot(node);
             const prefabAssetUuid = prefabInfo.asset?._uuid;
             if (prefabAssetUuid) {
-                this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid);
+                this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid, getCurrentEditorUuid());
             }
-            let applied = false;
             try {
-                applied = await this.applyPrefab(node.uuid);
-            } finally {
+                const applyInfo = await nodeOperation.applyPrefab(node.uuid);
+                if (!applyInfo) {
+                    if (prefabAssetUuid) {
+                        this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
+                    }
+                    return false;
+                }
+
+                const afterNode = this._undo.findNode(params.nodePath, node.uuid);
+                const after = this._undo.captureSnapshot(afterNode);
+                this._undo.pushApplyCommand(
+                    'prefab:apply',
+                    'Apply Prefab Changes',
+                    before,
+                    after,
+                    applyInfo.assetUuid,
+                    applyInfo.assetSource,
+                    applyInfo.oldPrefabContent,
+                    applyInfo.newPrefabContent,
+                );
+                return true;
+            } catch (error) {
                 if (prefabAssetUuid) {
                     this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
                 }
+                throw error;
             }
-            if (!applied) {
-                return false;
-            }
-            const afterNode = this._undo.findNode(params.nodePath, node.uuid);
-            const after = this._undo.captureSnapshot(afterNode);
-            this._undo.pushNodeStructureCommand('prefab:apply', 'Apply Prefab Changes', before, after);
-            return true;
         } catch (e) {
             console.error(`应用回预制体资源失败: 节点路径: ${params.nodePath} 错误信息:`, e);
             throw e;
@@ -243,7 +263,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * @param url
      * @param options
      */
-    public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { undo: true, overwrite: true }): Promise<Node | null> {
+    public async createPrefabAssetFromNode(nodeUUID: string, url: string, options = { overwrite: true }): Promise<Node | null> {
         return await nodeOperation.createPrefabAssetFromNode(nodeUUID, url, options);
     }
 
@@ -321,7 +341,15 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * @param nodeUUID uuid
      */
     public async applyPrefab(nodeUUID: string) {
-        return await nodeOperation.applyPrefab(nodeUUID);
+        return !!(await nodeOperation.applyPrefab(nodeUUID));
+    }
+
+    public preserveUndoHistoryForPrefabReload(assetUuid: string, editorUuid: string | null = null): void {
+        this._undo.preserveUndoHistoryForPrefabReload(assetUuid, editorUuid);
+    }
+
+    public cancelPreserveUndoHistoryForPrefabReload(assetUuid: string): void {
+        this._undo.cancelPreserveUndoHistoryForPrefabReload(assetUuid);
     }
 
     /// /////////////////////
@@ -362,32 +390,24 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     }
 
     public async onAssetChanged(uuid: string) {
+        const reloadState = this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
         // prefab 资源的变动，softReload场景
         if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.hasOpen()) {
-            const preserveUndoHistory = this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
-            this._softReloadAssetUuids.add(uuid);
-            this._softReloadPreserveUndoHistory ||= preserveUndoHistory;
-            clearTimeout(this._softReloadTimer);
-            this._softReloadTimer = setTimeout(async () => {
-                const reloadedUuids = [...this._softReloadAssetUuids];
-                const preserveUndoHistory = this._softReloadPreserveUndoHistory;
-                this._softReloadAssetUuids.clear();
-                this._softReloadPreserveUndoHistory = false;
-
-                await Service.Editor.reload({ preserveUndoHistory });
-                reloadedUuids.forEach((uuid) => {
-                    ServiceEvents.emit('prefab:asset-reload', uuid);
-                });
-            }, 500);
+            this._softReload.schedule({
+                changedUuid: uuid,
+                preserveUndoHistory: reloadState.preserveUndoHistory,
+                editorUuid: reloadState.editorUuid ?? getCurrentEditorUuid(),
+            });
         }
     }
 
     public async onAssetDeleted(uuid: string) {
+        this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
         if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.hasOpen()) {
-            clearTimeout(this._softReloadTimer);
-            this._softReloadTimer = setTimeout(async () => {
-                await Service.Editor.reload({});
-            }, 500);
+            this._softReload.schedule({
+                deletedUuid: uuid,
+                editorUuid: getCurrentEditorUuid(),
+            });
         }
     }
 

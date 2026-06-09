@@ -41,6 +41,8 @@ import {
 import { Rpc } from '../main-process/rpc';
 import { sceneWorker } from '../main-process/scene-worker';
 import { SceneTestEnv } from './scene-test-env';
+import { readFileSync } from 'fs-extra';
+import { assetManager } from '../../assets';
 
 function request<T = any>(service: string, method: string, args: any[] = []): Promise<T> {
     return (Rpc.getInstance() as any).request(service, method, args) as Promise<T>;
@@ -258,6 +260,30 @@ async function setNodeProperty(path: string, propPath: string, value: any, recor
         dump: { ...nodeDump[propPath], value },
         record,
     });
+}
+
+async function readAssetContent(dbURL: string): Promise<string> {
+    const info = await assetManager.queryAssetInfo(dbURL);
+    if (!info?.file) {
+        throw new Error(`Asset file not found: ${dbURL}`);
+    }
+    return readFileSync(info.file, 'utf-8');
+}
+
+async function readPrefabRootScale(dbURL: string): Promise<{ x: number; y: number; z: number }> {
+    const content = await readAssetContent(dbURL);
+    const data = JSON.parse(content);
+    const rootNode = Array.isArray(data)
+        ? data.find((item) => item?.__type__ === 'cc.Node' && item?._lscale)
+        : null;
+    if (!rootNode?._lscale) {
+        throw new Error(`Prefab root scale not found: ${dbURL}`);
+    }
+    return {
+        x: rootNode._lscale.x,
+        y: rootNode._lscale.y,
+        z: rootNode._lscale.z,
+    };
 }
 
 async function childNames(path: string): Promise<string[]> {
@@ -1366,6 +1392,34 @@ describe('Undo/Redo 集成测试', () => {
             expect(dirtyEvents).toEqual([true]);
             expect(await Undo.isDirty()).toBe(true);
             expect(await Undo.canUndo()).toBe(true);
+        });
+
+        it('applyPrefabChanges undo and redo restore prefab asset content', async () => {
+            await Node.createByType({ path: applyPath, nodeType: NodeType.EMPTY });
+            await Prefab.createPrefabFromNode({
+                nodePath: applyPath,
+                dbURL: applyURL,
+                overwrite: true,
+            });
+            const beforeApplyScale = await readPrefabRootScale(applyURL);
+            await setNodeProperty(applyPath, 'scale', { x: 3, y: 3, z: 3 });
+            await Undo.clearHistory();
+
+            const result = await Prefab.applyPrefabChanges({ nodePath: applyPath });
+            expect(result).toBe(true);
+            const afterApplyScale = await readPrefabRootScale(applyURL);
+            expect(afterApplyScale).toEqual({ x: 3, y: 3, z: 3 });
+            expect(await Undo.isDirty()).toBe(true);
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+            expect(await readPrefabRootScale(applyURL)).toEqual(beforeApplyScale);
+            expect(await Undo.isDirty()).toBe(false);
+
+            const redoResult = await Undo.redo();
+            expectUndoSuccess(redoResult);
+            expect(await readPrefabRootScale(applyURL)).toEqual(afterApplyScale);
+            expect(await Undo.isDirty()).toBe(true);
         });
 
         it('unpackPrefabInstance marks dirty, can undo back to a prefab instance, and can redo', async () => {

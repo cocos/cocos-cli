@@ -6,9 +6,15 @@ import {
 } from '../undo/commands/node-structure-command-utils';
 import { PrefabNodeStructureCommand } from '../undo/commands/prefab-node-structure-command';
 import { PrefabUnwrapCommand } from '../undo/commands/prefab-unwrap-command';
+import { PrefabApplyCommand } from '../undo/commands/prefab-apply-command';
+
+interface IPrefabReloadPreserveState {
+    preserveUndoHistory: boolean;
+    editorUuid: string | null;
+}
 
 export class PrefabUndoHelper {
-    private _prefabReloadsPreservingUndoHistory = new Set<string>();
+    private _prefabReloadsPreservingUndoHistory = new Map<string, IPrefabReloadPreserveState>();
 
     captureSnapshot(node: Node | null | undefined): INodeStructureSnapshot | null {
         if (!node?.isValid) {
@@ -46,6 +52,33 @@ export class PrefabUndoHelper {
         Service.Undo?.push(new PrefabUnwrapCommand(type, label, pair[0], pair[1], removeNested));
     }
 
+    pushApplyCommand(
+        type: string,
+        label: string,
+        before: INodeStructureSnapshot | null,
+        after: INodeStructureSnapshot | null,
+        assetUuid: string,
+        assetSource: string,
+        beforeAssetContent: string,
+        afterAssetContent: string,
+    ): void {
+        const pair = this._getPushablePair(before, after, beforeAssetContent !== afterAssetContent);
+        if (!pair) {
+            return;
+        }
+
+        Service.Undo?.push(new PrefabApplyCommand(
+            type,
+            label,
+            pair[0],
+            pair[1],
+            assetUuid,
+            assetSource,
+            beforeAssetContent,
+            afterAssetContent,
+        ));
+    }
+
     findNode(path: string, uuid?: string): Node | null {
         if (uuid) {
             const node = EditorExtends.Node.getNode(uuid) as Node | null;
@@ -70,28 +103,36 @@ export class PrefabUndoHelper {
         }
     }
 
-    preserveUndoHistoryForPrefabReload(assetUuid: string): void {
-        this._prefabReloadsPreservingUndoHistory.add(assetUuid);
+    preserveUndoHistoryForPrefabReload(assetUuid: string, editorUuid: string | null = null): void {
+        const existing = this._prefabReloadsPreservingUndoHistory.get(assetUuid);
+        this._prefabReloadsPreservingUndoHistory.set(assetUuid, {
+            preserveUndoHistory: true,
+            editorUuid: existing?.editorUuid ?? editorUuid,
+        });
     }
 
     cancelPreserveUndoHistoryForPrefabReload(assetUuid: string): void {
         this._prefabReloadsPreservingUndoHistory.delete(assetUuid);
     }
 
-    consumePreserveUndoHistoryForPrefabReload(assetUuid: string): boolean {
-        const preserveUndoHistory = this._prefabReloadsPreservingUndoHistory.has(assetUuid);
+    consumePreserveUndoHistoryForPrefabReload(assetUuid: string): IPrefabReloadPreserveState {
+        const state = this._prefabReloadsPreservingUndoHistory.get(assetUuid);
         this.cancelPreserveUndoHistoryForPrefabReload(assetUuid);
-        return preserveUndoHistory;
+        return state ?? {
+            preserveUndoHistory: false,
+            editorUuid: null,
+        };
     }
 
     private _getPushablePair(
         before: INodeStructureSnapshot | null,
         after: INodeStructureSnapshot | null,
+        force = false,
     ): [INodeStructureSnapshot, INodeStructureSnapshot] | null {
         if (!before || !after || Service.Undo?.isApplying?.()) {
             return null;
         }
 
-        return JSON.stringify(before) === JSON.stringify(after) ? null : [before, after];
+        return !force && JSON.stringify(before) === JSON.stringify(after) ? null : [before, after];
     }
 }
