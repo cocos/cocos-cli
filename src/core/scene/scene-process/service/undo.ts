@@ -100,8 +100,16 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
 
     clearHistory(): void {
         const wasDirty = this._undoMgr.isDirty();
+        const hadUndoState =
+            this._undoMgr.canUndo() ||
+            this._undoMgr.canRedo() ||
+            this._undoMgr.isGroupActive() ||
+            this._undoMgr.hasActiveRecording();
         this._undoMgr.reset();
         this._emitDirtyIfChanged(wasDirty);
+        if (hadUndoState) {
+            this.broadcast('undo:changed');
+        }
     }
 
     isDirty(): boolean {

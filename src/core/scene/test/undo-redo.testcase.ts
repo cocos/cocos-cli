@@ -1361,5 +1361,25 @@ describe('Undo/Redo 集成测试', () => {
                 sceneWorker.off('dirty:changed', handler);
             }
         });
+
+        it('clearHistory broadcasts undo:changed when it clears stack state', async () => {
+            const undoEvents: unknown[] = [];
+            const handler = (...args: unknown[]) => undoEvents.push(args);
+            sceneWorker.on('undo:changed', handler);
+            try {
+                await Node.update({ path, properties: { position: movedPosition } });
+                await delay(30);
+                undoEvents.length = 0;
+
+                await Undo.clearHistory();
+                await delay(30);
+
+                expect(await Undo.canUndo()).toBe(false);
+                expect(await Undo.canRedo()).toBe(false);
+                expect(undoEvents).toHaveLength(1);
+            } finally {
+                sceneWorker.off('undo:changed', handler);
+            }
+        });
     });
 });
