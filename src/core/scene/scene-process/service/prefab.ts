@@ -20,11 +20,15 @@ import type {
 import { validateCreatePrefabParams, validateNodePathParams } from './prefab/validate-params';
 import { sceneUtils } from './scene/utils';
 import { Rpc } from '../rpc';
+import { PrefabUndoHelper } from './prefab/prefab-undo';
 
 @register('Prefab')
 export class PrefabService extends BaseService<IPrefabEvents> implements IPrefabService {
 
     private _softReloadTimer: any = null;
+    private _softReloadAssetUuids = new Set<string>();
+    private _softReloadPreserveUndoHistory = false;
+    private _undo = new PrefabUndoHelper();
     private _utils = prefabUtils;
 
     public init() { }
@@ -44,6 +48,8 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
                 throw new Error(`已有同名 ${assetInfo.url} 预制体。操作冲突，禁止重试相同命令。请尝试重命名或检查目录。`);
             }
 
+            const sourceNode = EditorExtends.Node.getNode(nodeUuid) as Node | null;
+            const before = this._undo.captureSnapshot(sourceNode);
             const node: Node | null = await this.createPrefabAssetFromNode(nodeUuid, params.dbURL, {
                 overwrite: !!params.overwrite,
                 undo: true,
@@ -52,6 +58,8 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             if (!node) {
                 throw new Error('创建预制体资源失败，返回结果为 null');
             }
+            const after = this._undo.captureSnapshot(node);
+            this._undo.pushNodeStructureCommand('prefab:create', 'Create Prefab', before, after);
             return await sceneUtils.generateNodeDump(node) as INode;
         } catch (e) {
             console.error(`创建预制体失败: 节点路径: ${params.nodePath} 资源 URL: ${params.dbURL} 错误信息:`, e);
@@ -72,7 +80,25 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
                 throw new Error(`该节点 '${params.nodePath}' 不是预制体`);
             }
 
-            await this.applyPrefab(node.uuid);
+            const before = this._undo.captureSnapshot(node);
+            const prefabAssetUuid = prefabInfo.asset?._uuid;
+            if (prefabAssetUuid) {
+                this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid);
+            }
+            let applied = false;
+            try {
+                applied = await this.applyPrefab(node.uuid);
+            } finally {
+                if (prefabAssetUuid) {
+                    this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
+                }
+            }
+            if (!applied) {
+                return false;
+            }
+            const afterNode = this._undo.findNode(params.nodePath, node.uuid);
+            const after = this._undo.captureSnapshot(afterNode);
+            this._undo.pushNodeStructureCommand('prefab:apply', 'Apply Prefab Changes', before, after);
             return true;
         } catch (e) {
             console.error(`应用回预制体资源失败: 节点路径: ${params.nodePath} 错误信息:`, e);
@@ -87,7 +113,12 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         try {
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
-            return await this.revertPrefab(node);
+            const before = this._undo.captureSnapshot(node);
+            const result = await this.revertPrefab(node);
+            const afterNode = this._undo.findNode(params.nodePath, node.uuid);
+            const after = this._undo.captureSnapshot(afterNode);
+            this._undo.pushNodeStructureCommand('prefab:revert', 'Revert Prefab', before, after);
+            return result;
         } catch (e) {
             console.error(`重置节点到预制体原始状态失败：节点路径 ${params.nodePath} 错误信息:`, e);
             throw e;
@@ -106,7 +137,11 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
                 throw new Error(`${params.nodePath} 是普通节点`);
             }
 
+            const before = this._undo.captureSnapshot(node);
             this.unWrapPrefabInstance(node.uuid, !!params.recursive);
+            const afterNode = this._undo.findNode(params.nodePath, node.uuid);
+            const after = this._undo.captureSnapshot(afterNode);
+            this._undo.pushUnwrapCommand('prefab:unpack', 'Unpack Prefab Instance', before, after, !!params.recursive);
             return await sceneUtils.generateNodeDump(node) as INode;
         } catch (e) {
             console.error(`解耦为普通节点失败：节点路径 ${params.nodePath} 是否递归: ${params.recursive} 错误信息:`, e);
@@ -134,7 +169,11 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         try {
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
+            const before = this._undo.captureSnapshot(node);
             this.unWrapPrefabInstance(node.uuid, !!params.removeNested);
+            const afterNode = this._undo.findNode(params.nodePath, node.uuid);
+            const after = this._undo.captureSnapshot(afterNode);
+            this._undo.pushUnwrapCommand('prefab:unlink', 'Unlink Prefab', before, after, !!params.removeNested);
             return true;
         } catch (e) {
             console.error(`解绑预制体失败：节点路径 ${params.nodePath} 是否递归: ${params.removeNested} 错误信息:`, e);
@@ -307,19 +346,38 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     }
 
     public async revertRemovedComponent(nodeUUID: string, fileID: string) {
+        const node = EditorExtends.Node.getNode(nodeUUID) as Node | null;
+        const before = this._undo.captureSnapshot(node);
         await componentOperation.revertRemovedComponent(nodeUUID, fileID);
+        const after = this._undo.captureSnapshot(EditorExtends.Node.getNode(nodeUUID) as Node | null);
+        this._undo.pushNodeStructureCommand('prefab:revert-removed-component', 'Revert Removed Component', before, after);
     }
 
     public async applyRemovedComponent(nodeUUID: string, fileID: string) {
+        const node = EditorExtends.Node.getNode(nodeUUID) as Node | null;
+        const before = this._undo.captureSnapshot(node);
         await componentOperation.applyRemovedComponent(nodeUUID, fileID);
+        const after = this._undo.captureSnapshot(EditorExtends.Node.getNode(nodeUUID) as Node | null);
+        this._undo.pushNodeStructureCommand('prefab:apply-removed-component', 'Apply Removed Component', before, after);
     }
 
     public async onAssetChanged(uuid: string) {
         // prefab 资源的变动，softReload场景
         if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.hasOpen()) {
+            const preserveUndoHistory = this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
+            this._softReloadAssetUuids.add(uuid);
+            this._softReloadPreserveUndoHistory ||= preserveUndoHistory;
             clearTimeout(this._softReloadTimer);
             this._softReloadTimer = setTimeout(async () => {
-                await Service.Editor.reload({});
+                const reloadedUuids = [...this._softReloadAssetUuids];
+                const preserveUndoHistory = this._softReloadPreserveUndoHistory;
+                this._softReloadAssetUuids.clear();
+                this._softReloadPreserveUndoHistory = false;
+
+                await Service.Editor.reload({ preserveUndoHistory });
+                reloadedUuids.forEach((uuid) => {
+                    ServiceEvents.emit('prefab:asset-reload', uuid);
+                });
             }, 500);
         }
     }

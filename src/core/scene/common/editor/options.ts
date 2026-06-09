@@ -30,6 +30,8 @@ export interface IOpenOptions {
  */
 export interface IReloadOptions {
     urlOrUUID?: string;
+    /** Internal scene-process reloads can preserve undo state when the caller pushes its own command. */
+    preserveUndoHistory?: boolean;
 }
 
 /**

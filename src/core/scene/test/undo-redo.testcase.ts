@@ -196,6 +196,16 @@ const Component = {
     reset: (params: { path: string }) => request<boolean>('Component', 'reset', [params]),
 };
 
+const Prefab = {
+    createPrefabFromNode: (params: { nodePath: string; dbURL: string; overwrite?: boolean }) => request<any>('Prefab', 'createPrefabFromNode', [params]),
+    applyPrefabChanges: (params: { nodePath: string }) => request<boolean>('Prefab', 'applyPrefabChanges', [params]),
+    getPrefabInfo: (params: { nodePath: string }) => request<any>('Prefab', 'getPrefabInfo', [params]),
+    isPrefabInstance: (params: { nodePath: string }) => request<boolean>('Prefab', 'isPrefabInstance', [params]),
+    revertToPrefab: (params: { nodePath: string }) => request<boolean>('Prefab', 'revertToPrefab', [params]),
+    unpackPrefabInstance: (params: { nodePath: string; recursive?: boolean }) => request<any>('Prefab', 'unpackPrefabInstance', [params]),
+    unlinkPrefab: (params: { nodePath: string; removeNested?: boolean }) => request<boolean>('Prefab', 'unlinkPrefab', [params]),
+};
+
 const Editor = {
     open: (params: any) => request('Editor', 'open', [params]),
     close: (params: any) => request('Editor', 'close', [params]),
@@ -260,6 +270,13 @@ async function queryNodeLocked(path: string): Promise<boolean> {
     return Boolean(tree?.locked);
 }
 
+async function expectPrefabInstance(path: string, expected: boolean, label: string): Promise<void> {
+    const actual = await Prefab.isPrefabInstance({ nodePath: path });
+    if (actual !== expected) {
+        throw new Error(`${label}: expected isPrefabInstance(${path}) to be ${expected}, got ${actual}`);
+    }
+}
+
 async function componentTypes(path: string): Promise<string[]> {
     const dump = await queryNodeDump(path);
     return (dump.__comps__ ?? []).map((comp: any) => comp.type);
@@ -276,6 +293,19 @@ async function componentIndex(path: string, type: string): Promise<number> {
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function collectDirtyEvents(run: () => Promise<void>): Promise<boolean[]> {
+    const dirtyEvents: boolean[] = [];
+    const handler = (dirty: boolean) => dirtyEvents.push(dirty);
+    sceneWorker.on('dirty:changed', handler);
+    try {
+        await run();
+        await delay(30);
+    } finally {
+        sceneWorker.off('dirty:changed', handler);
+    }
+    return dirtyEvents;
 }
 
 async function ensureSceneOpen(): Promise<void> {
@@ -1277,6 +1307,153 @@ describe('Undo/Redo 集成测试', () => {
         it('isDirty false on empty stack', async () => {
             expect(await Undo.isDirty()).toBe(false);
             expect(await Undo.canUndo()).toBe(false);
+        });
+    });
+
+    describe('Prefab dirty/undo contract', () => {
+        const createPath = 'UndoPrefabCreate';
+        const applyPath = 'UndoPrefabApply';
+        const unpackPath = 'UndoPrefabUnpack';
+        const unlinkPath = 'UndoPrefabUnlink';
+        const revertPath = 'UndoPrefabRevert';
+        const createURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabCreate.prefab`;
+        const applyURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabApply.prefab`;
+        const unpackURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabUnpack.prefab`;
+        const unlinkURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabUnlink.prefab`;
+        const revertURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabRevert.prefab`;
+
+        afterEach(async () => {
+            await safeDelete(createPath);
+            await safeDelete(applyPath);
+            await safeDelete(unpackPath);
+            await safeDelete(unlinkPath);
+            await safeDelete(revertPath);
+            await Undo.clearHistory();
+        });
+
+        it('createPrefabFromNode marks the scene dirty through undo orchestration', async () => {
+            await Node.createByType({ path: createPath, nodeType: NodeType.EMPTY });
+            await Undo.clearHistory();
+
+            const dirtyEvents = await collectDirtyEvents(async () => {
+                await Prefab.createPrefabFromNode({
+                    nodePath: createPath,
+                    dbURL: createURL,
+                    overwrite: true,
+                });
+            });
+
+            expect(dirtyEvents).toEqual([true]);
+            expect(await Undo.isDirty()).toBe(true);
+            expect(await Undo.canUndo()).toBe(true);
+        });
+
+        it('applyPrefabChanges marks dirty without clearing undo history', async () => {
+            await Node.createByType({ path: applyPath, nodeType: NodeType.EMPTY });
+            await Prefab.createPrefabFromNode({
+                nodePath: applyPath,
+                dbURL: applyURL,
+                overwrite: true,
+            });
+            await setNodeProperty(applyPath, 'scale', { x: 2, y: 2, z: 2 });
+            await Undo.clearHistory();
+
+            const dirtyEvents = await collectDirtyEvents(async () => {
+                const result = await Prefab.applyPrefabChanges({ nodePath: applyPath });
+                expect(result).toBe(true);
+            });
+
+            expect(dirtyEvents).toEqual([true]);
+            expect(await Undo.isDirty()).toBe(true);
+            expect(await Undo.canUndo()).toBe(true);
+        });
+
+        it('unpackPrefabInstance marks dirty, can undo back to a prefab instance, and can redo', async () => {
+            await Node.createByType({ path: unpackPath, nodeType: NodeType.EMPTY });
+            await Prefab.createPrefabFromNode({
+                nodePath: unpackPath,
+                dbURL: unpackURL,
+                overwrite: true,
+            });
+            expect(await Prefab.getPrefabInfo({ nodePath: unpackPath })).toBeTruthy();
+            await Undo.clearHistory();
+
+            const dirtyEvents = await collectDirtyEvents(async () => {
+                await Prefab.unpackPrefabInstance({
+                    nodePath: unpackPath,
+                    recursive: true,
+                });
+            });
+
+            expect(dirtyEvents).toEqual([true]);
+            expect(await Undo.isDirty()).toBe(true);
+            expect(await Undo.canUndo()).toBe(true);
+            await expectPrefabInstance(unpackPath, false, 'after unpack');
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+            await expectPrefabInstance(unpackPath, true, 'after undo');
+            expect(await Undo.isDirty()).toBe(false);
+
+            const redoResult = await Undo.redo();
+            expectUndoSuccess(redoResult);
+            await expectPrefabInstance(unpackPath, false, 'after redo');
+            expect(await Undo.isDirty()).toBe(true);
+        });
+
+        it('unlinkPrefab marks dirty, can undo back to a prefab instance, and can redo', async () => {
+            await Node.createByType({ path: unlinkPath, nodeType: NodeType.EMPTY });
+            await Prefab.createPrefabFromNode({
+                nodePath: unlinkPath,
+                dbURL: unlinkURL,
+                overwrite: true,
+            });
+            await expectPrefabInstance(unlinkPath, true, 'before unlink');
+            await Undo.clearHistory();
+
+            const dirtyEvents = await collectDirtyEvents(async () => {
+                const result = await Prefab.unlinkPrefab({
+                    nodePath: unlinkPath,
+                    removeNested: true,
+                });
+                expect(result).toBe(true);
+            });
+
+            expect(dirtyEvents).toEqual([true]);
+            expect(await Undo.isDirty()).toBe(true);
+            expect(await Undo.canUndo()).toBe(true);
+            await expectPrefabInstance(unlinkPath, false, 'after unlink');
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+            await expectPrefabInstance(unlinkPath, true, 'after undo');
+            expect(await Undo.isDirty()).toBe(false);
+
+            const redoResult = await Undo.redo();
+            expectUndoSuccess(redoResult);
+            await expectPrefabInstance(unlinkPath, false, 'after redo');
+            expect(await Undo.isDirty()).toBe(true);
+        });
+
+        it('revertToPrefab marks dirty without clearing undo history', async () => {
+            await Node.createByType({ path: revertPath, nodeType: NodeType.EMPTY });
+            await Prefab.createPrefabFromNode({
+                nodePath: revertPath,
+                dbURL: revertURL,
+                overwrite: true,
+            });
+            await setNodeProperty(revertPath, 'scale', { x: 4, y: 4, z: 4 });
+            await Undo.clearHistory();
+
+            const dirtyEvents = await collectDirtyEvents(async () => {
+                await Prefab.revertToPrefab({ nodePath: revertPath });
+            });
+
+            expect(dirtyEvents).toEqual([true]);
+            expect(await Undo.isDirty()).toBe(true);
+            expect(await Undo.canUndo()).toBe(true);
+            const reverted = await queryNode(revertPath);
+            expect(reverted?.properties.scale).toEqual({ x: 1, y: 1, z: 1 });
         });
     });
 

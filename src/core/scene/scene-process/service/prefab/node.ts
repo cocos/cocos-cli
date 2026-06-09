@@ -20,7 +20,7 @@ import { componentOperation, IComponentPrefabData } from './component';
 import { promisify } from 'util';
 import { isEditorNode, isPartOfNode } from '../node/node-utils';
 import { Service, ServiceEvents } from '../core';
-import { IChangeNodeOptions, IEditorEvents, NodeEventType } from '../../../common';
+import { IChangeNodeOptions, NodeEventType } from '../../../common';
 import { Rpc } from '../../rpc';
 import { TimerUtil } from './timer-util';
 
@@ -1185,44 +1185,49 @@ class NodeOperation {
             this.restoreClearedReference(node, ret.clearedReference);
         }
 
-        return new Promise((resolve) => {
-            let finished = false;
-            const TIMEOUT_MS = 5000;
+        const reloadWaiter = this._waitForPrefabAssetReload(asset._uuid);
+        try {
+            await Rpc.getInstance().request('assetManager', 'saveAsset', [
+                info.source, ret.prefabData,
+            ]);
+            prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
+            await reloadWaiter.promise;
+        } catch (error) {
+            reloadWaiter.cancel();
+            console.error(error);
+            return null;
+        }
 
-            const done = () => {
-                if (finished) return;
-                finished = true;
-                clearTimeout(timer);
+        return {
+            nodeUUID,
+            mountedChildrenInfoMap,
+            mountedComponentsInfoMap,
+            propertyOverrides,
+            removedComponents,
+            oldPrefabNodeData: oldNodeData,
+            targetOverrides: appliedTargetOverrides,
+        };
+    }
 
-                resolve({
-                    nodeUUID,
-                    mountedChildrenInfoMap,
-                    mountedComponentsInfoMap,
-                    propertyOverrides,
-                    removedComponents,
-                    oldPrefabNodeData: oldNodeData,
-                    targetOverrides: appliedTargetOverrides,
-                });
+    private _waitForPrefabAssetReload(assetUuid: string): { promise: Promise<void>; cancel: () => void } {
+        let cancel = () => {};
+        const promise = new Promise<void>((resolve) => {
+            const onReload = (uuid: string) => {
+                if (uuid !== assetUuid) {
+                    return;
+                }
+
+                cancel();
+                resolve();
             };
 
-            // 监听事件
-            ServiceEvents.once<IEditorEvents>('editor:reload', () => {
-                done();
-            });
-
-            // 超时兜底
-            const timer = setTimeout(() => {
-                console.warn('[doApplyPrefab] editor:reload 未触发');
-                done();
-            }, TIMEOUT_MS);
-
-            // 保存资源
-            Rpc.getInstance().request('assetManager', 'saveAsset', [
-                info.source, ret.prefabData,
-            ]).then(() => {
-                prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
-            });
+            cancel = () => {
+                ServiceEvents.off('prefab:asset-reload', onReload);
+            };
+            ServiceEvents.on('prefab:asset-reload', onReload);
         });
+
+        return { promise, cancel };
     }
 
     public async undoApplyPrefab(applyPrefabInfo: IApplyPrefabInfo) {
@@ -2087,7 +2092,7 @@ class NodeOperation {
         prefabUtils.fireChangeMsg(node);
 
         // 因为现在恢复的是私有变量，没有触发 setter，所以暂时只能 softReload 来保证效果正确
-        await Service.Editor.reload({});
+        await Service.Editor.reload({ preserveUndoHistory: true });
 
         return true;
     }

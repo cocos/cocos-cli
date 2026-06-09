@@ -276,7 +276,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                         await this.waitLocks();
                         await editor.reload();
 
-                        this._clearUndoHistory();
+                        if (!currentParams.preserveUndoHistory) {
+                            this._clearUndoHistory();
+                        }
 
                         if (this.needReloadAgain) {
                             currentParams = this.needReloadAgain;

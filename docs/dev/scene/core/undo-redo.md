@@ -1,6 +1,6 @@
 # Scene Undo/Redo
 
-Last updated: 2026-06-06
+Last updated: 2026-06-09
 
 ## 目标
 
@@ -20,13 +20,12 @@ Scene undo/redo 是 scene-process 的内存编辑历史系统。它记录当前�
 - gizmo/drag recording：`beginRecording` / `endRecording` / `cancelRecording`。
 - 节点结构命令：create、delete。
 - 组件结构命令：add、remove。
+- Prefab 结构命令：create/apply/revert、unlink/unpack。
 - snapshot 命令：node set/reset/resetProperty、component set/reset、gizmo recording、UI align/distribute recording、subtree layer、children order、component order、reparent、node lock。
 - open / close / reload 清空 history，save 标记 clean。
 
 第一版没有实现：
 
-- Prefab 场景内 metadata undo：unlink、unpack、revert 需要 prefab-aware command。
-- Prefab asset 级 undo：create prefab asset、apply prefab changes。
 - Animation 专用 undo：keyframe、curve、clip 编辑。
 - Asset DB 文件级 undo：create、delete、move、rename、import。
 - 多 context/tab history：当前是一 scene-process 当前资源一套 history。
@@ -74,6 +73,9 @@ Command：
 - `src/core/scene/scene-process/service/undo/commands/remove-component-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/node-structure-command-utils.ts`
 - `src/core/scene/scene-process/service/undo/commands/component-command-utils.ts`
+- `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts`
+- `src/core/scene/scene-process/service/undo/commands/prefab-unwrap-command.ts`
+- `src/core/scene/scene-process/service/undo/commands/prefab-command-utils.ts`
 
 业务接入：
 
@@ -84,9 +86,12 @@ Command：
 - `src/core/scene/scene-process/service/ui.ts`
   - `alignSelection` / `distributeSelection` 通过 `Undo.beginRecording/endRecording` 记录选中节点位置变化。
 - `src/core/scene/scene-process/service/prefab.ts`
-  - 当前没有接入 undo/redo。Prefab metadata 和 asset 级变更需要专用 command，不能用普通 node snapshot 覆盖。
+  - Prefab public mutating API 负责 capture before/after，并通过 `PrefabUndoHelper` push Prefab command。
+  - `applyPrefabChanges` 的 soft reload 通过 prefab asset uuid 关联 `prefab:asset-reload` 内部事件，确保 reload 完成后再返回。
+- `src/core/scene/scene-process/service/prefab/prefab-undo.ts`
+  - Prefab 相关 undo/redo helper，负责 snapshot capture、before/after 比较、push command，以及 apply prefab reload preserve 标记。
 
-Node 已接入：
+业务 API 已接入：
 
 - `createByType`
 - `createByAsset`
@@ -103,6 +108,14 @@ Node 已接入：
 - `moveArrayElement`
 - `removeArrayElement`
 - `changeNodeLock`
+- `src/core/scene/scene-process/service/prefab.ts`
+  - `createPrefabFromNode`
+  - `applyPrefabChanges`
+  - `revertToPrefab`
+  - `unpackPrefabInstance`
+  - `unlinkPrefab`
+  - `revertRemovedComponent`
+  - `applyRemovedComponent`
 - `src/core/scene/scene-process/service/component.ts`
   - `add`
   - `remove`
@@ -340,6 +353,12 @@ dirty 规则：
 | 删除组件 | `ComponentService.remove` | `component:remove` | `src/core/scene/scene-process/service/component.ts` |
 | 设置组件属性 | `ComponentService.setProperty` | `component:set-property` snapshot | `src/core/scene/scene-process/service/component.ts` |
 | 重置组件 | `ComponentService.reset` | `component:reset` snapshot | `src/core/scene/scene-process/service/component.ts` |
+| 创建 Prefab | `PrefabService.createPrefabFromNode` | `prefab:create` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
+| 应用 Prefab 修改 | `PrefabService.applyPrefabChanges` | `prefab:apply` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
+| 还原到 Prefab | `PrefabService.revertToPrefab` | `prefab:revert` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
+| 解包 Prefab 实例 | `PrefabService.unpackPrefabInstance` | `prefab:unpack` | `src/core/scene/scene-process/service/undo/commands/prefab-unwrap-command.ts` |
+| 解绑 Prefab | `PrefabService.unlinkPrefab` | `prefab:unlink` | `src/core/scene/scene-process/service/undo/commands/prefab-unwrap-command.ts` |
+| 应用/还原移除组件 override | `PrefabService.applyRemovedComponent` / `PrefabService.revertRemovedComponent` | `prefab:apply-removed-component` / `prefab:revert-removed-component` | `src/core/scene/scene-process/service/undo/commands/prefab-node-structure-command.ts` |
 | UI 对齐/分布 | `UIService.alignSelection` / `UIService.distributeSelection` | `recording:snapshot` | `src/core/scene/scene-process/service/ui.ts` |
 | gizmo 拖拽 | `GizmoBase` begin/end recording | `recording:snapshot` | `src/core/scene/scene-process/service/gizmo/base/gizmo-base.ts` |
 | 多操作合并 | `Undo.beginGroup/endGroup` | `group:composite` | `src/core/scene/scene-process/service/undo/commands/composite-command.ts` |
@@ -423,12 +442,14 @@ copy paste 与 duplicate 会产生新节点，复用 `CreateNodeCommand`。记�
 
 ### PrefabService
 
-Prefab 不使用普通 node snapshot 覆盖。原因是 prefab 关系包含 `_prefab`、fileId、mounted children/components、propertyOverrides 等 metadata，普通 node snapshot 当前只恢复 name、active、layer、mobility、position、rotation、scale、locked。
+Prefab 不使用普通 node dump snapshot 覆盖。原因是 prefab 关系包含 `_prefab`、fileId、mounted children/components、propertyOverrides 等 metadata，普通属性 snapshot 只适合稳定对象的属性恢复。
 
 当前结论：
 
-- `unlinkPrefab` / `unpackPrefabInstance` / `revertToPrefab` 会改变当前 scene 内 prefab metadata，需要 prefab-aware command，后续补。
-- `createPrefabFromNode` / `applyPrefabChanges` 会修改 asset 文件，并可能触发 soft reload，属于 asset 级 undo 边界，后续单独设计。
+- `createPrefabFromNode` / `applyPrefabChanges` / `revertToPrefab` 使用 `PrefabNodeStructureCommand`，通过 prefab-aware node structure snapshot 恢复前后结构和 metadata。
+- `unlinkPrefab` / `unpackPrefabInstance` 使用 `PrefabUnwrapCommand`。undo 通过 before snapshot 恢复 prefab 关系，redo 重新执行底层 unwrap 语义。
+- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。`doApplyPrefab` 会等待 `PrefabService.onAssetChanged(uuid)` 完成 `Editor.reload({ preserveUndoHistory })` 后发出的 `prefab:asset-reload` 内部事件，避免用 timeout 或全局 `editor:reload` 推断。
+- Prefab 相关 command 进入同一条 `UndoService.push` / dirty 编排链路。dirty 仍只由 `Undo.isDirty()` 状态翻转产生的 `dirty:changed` 表示，不能从 `node:change` / `component:*` 推断。
 - `getPrefabInfo` / `isPrefabInstance` 是只读 API，不入 undo。
 
 ### `Component.reset`
@@ -469,8 +490,6 @@ Recording 的恢复范围是现有对象的 dump。不要用它包 `Node.create/
 
 优先级高：
 
-- Prefab 场景内 undo：新增 prefab-aware command，覆盖 `unlinkPrefab`、`unpackPrefabInstance`、`revertToPrefab` 的 prefab metadata 恢复。
-- Prefab asset 级 undo：`createPrefabFromNode`、`applyPrefabChanges` 需要和 Asset DB、soft reload 生命周期一起设计，不能混进普通 scene snapshot。
 - History UI API：至少返回 undo/redo 栈的 readonly metadata，不暴露 command 内部数据。
 
 优先级中：
@@ -494,19 +513,19 @@ Recording 的恢复范围是现有对象的 dump。不要用它包 `Node.create/
 修改 undo/redo 相关代码后至少跑：
 
 ```bash
-rtk npm run build
-rtk npm test -- --runTestsByPath src/core/scene/test/undo-manager.test.ts --runInBand
-rtk npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand --testNamePattern "Undo/Redo 集成测试"
-rtk npm run generate:dts
+npm run build
+npm test -- --runTestsByPath src/core/scene/test/undo-manager.test.ts --runInBand
+npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand --testNamePattern "Undo/Redo 集成测试"
+npm run generate:dts
 ```
 
 如果只改某个新接入点，可以先跑更小范围：
 
 ```bash
-rtk npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand --testNamePattern "Component reset|Node tree mutations"
+npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand --testNamePattern "Component reset|Node tree mutations"
 ```
 
-`scene.test.ts` 使用 `dist/core/scene/scene-process/main.js`，因此改 scene-process 代码后要先 `rtk npm run build`。
+`scene.test.ts` 使用 `dist/core/scene/scene-process/main.js`，因此改 scene-process 代码后要先 `npm run build`。
 
 已知测试噪音：
 
@@ -521,4 +540,4 @@ rtk npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand -
 - 结构变化使用专门 command。
 - Group 只合并 history，不负责业务 rollback。
 - Recording 用于连续编辑，不用于普通单次 API。
-- Prefab/Animation 后续通过新 command 扩展，不重构 UndoManager。
+- Prefab/Animation 通过 domain command 扩展，不重构 UndoManager。
