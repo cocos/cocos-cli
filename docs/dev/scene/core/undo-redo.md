@@ -33,6 +33,47 @@ Scene undo/redo 是 scene-process 的内存编辑历史系统。它记录当前�
 - History UI API：例如 getHistory、getNextUndo、getNextRedo。
 - 任意数组属性的公开 undo 语义。当前 `Node.moveArrayElement` 已验证 `children` 与 `__comps__/_components`，其他数组先不生成 undo command。
 
+## 覆盖范围总览
+
+Undo/redo 只覆盖“当前打开编辑资源的持久化 scene/prefab 数据变更”。dirty 只由 undo stack 是否离开保存点决定，不从 `node:change`、`component:*`、reload、selection、camera 或 view 事件推断。
+
+### 已覆盖并会影响 dirty
+
+| 范围 | 已覆盖 API / 行为 | 记录方式 |
+| --- | --- | --- |
+| Node 生命周期 | create、delete、copy paste、duplicate | structure command |
+| Node 属性 | setProperty、reset、resetProperty、updatePropertyFromNull、setNodeAndChildrenLayer、changeNodeLock | snapshot command |
+| Node 层级 | setParent、reorder、children moveArrayElement、cut paste | reparent / order snapshot |
+| Component 生命周期 | add、remove、removeArrayElement(`__comps__`) | component structure command |
+| Component 属性 | setProperty、reset | snapshot command |
+| Prefab 实例/资源 | createPrefabFromNode、applyPrefabChanges、revertToPrefab、unpackPrefabInstance、unlinkPrefab、apply/revert removed component override | prefab domain command |
+| UI 编辑操作 | alignSelection、distributeSelection | scoped recording |
+| Gizmo 拖拽 | transform gizmo drag begin/end | scoped recording |
+| Undo lifecycle | undo、redo、markSaved/save、clearHistory、open/close/reload | stack cursor / baseline |
+
+### 明确不进入 undo/dirty
+
+| 范围 | API / 行为 | 原因 |
+| --- | --- | --- |
+| 查询 | query、queryNodeTree、getPrefabInfo、isPrefabInstance、canUndo、canRedo、isDirty | 只读 |
+| 选择状态 | Selection.select、unselect、clear、query | 编辑器临时状态，不写 scene/prefab 持久化数据 |
+| 预览属性 | previewSetProperty、cancelPreviewSetProperty | 预览态，可取消，不形成持久化 command |
+| Camera / SceneView | camera pan/orbit/zoom、scene view light/visibility/view config | 视图状态，不是 scene 数据 dirty 来源 |
+| Gizmo UI 状态 | tool/view mode、snap config、gizmo visibility、selection highlight | 编辑器 UI 状态，不是 scene 数据 dirty 来源 |
+| Prefab soft reload | asset-change 触发的 editor reload、`prefab:asset-reload` | 刷新链路，不是持久化 mutation 本身 |
+| Asset DB 文件操作 | asset create/delete/move/rename/import/reimport/refresh/save | 不属于 scene undo stack |
+
+### 暂未覆盖或新增时需要单独设计
+
+| 范围 | 当前状态 |
+| --- | --- |
+| Animation 编辑 | 暂未定义 command，keyframe、curve、clip、时间轴选择需要单独设计 |
+| Scene globals / 全局设置 | 当前没有统一公开 mutating API 纳入本轮覆盖；新增会写入 scene 的 globals 设置时必须接入 undo/dirty |
+| 任意数组属性 | 当前只验证 `children` 和 `__comps__/_components`，其他数组路径默认不生成 undo command |
+| 多 editor context history | 当前 scene-process 只有当前资源一套 history |
+| History UI 查询 | 暂无 getHistory/getNextUndo/getNextRedo |
+| 持久化 undo history | 暂无 |
+
 ## 代码位置
 
 核心类型：
@@ -442,6 +483,8 @@ copy paste 与 duplicate 会产生新节点，复用 `CreateNodeCommand`。记�
 `UIService.alignSelection` 和 `UIService.distributeSelection` 会修改选中节点 world position。它们不需要新 command，使用 `Undo.beginRecording(selectedUuids)` / `Undo.endRecording(id)` 让一次对齐或分布变成一个 snapshot command。
 
 ### PrefabService
+
+Prefab 时序、soft reload、风险和后续重构方向见 [prefab.md](./prefab.md)。
 
 Prefab 不使用普通 node dump snapshot 覆盖。原因是 prefab 关系包含 `_prefab`、fileId、mounted children/components、propertyOverrides 等 metadata，普通属性 snapshot 只适合稳定对象的属性恢复。
 
