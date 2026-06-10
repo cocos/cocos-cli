@@ -4061,6 +4061,7 @@ export declare class PluginManager extends EventEmitter {
     private translateConfigItemDisplayFields;
     private translateConfigItemsDisplayFields;
     private translateConfigDisplayFields;
+    refreshDisplayI18nFields(): void;
     getCommonOptionConfigs(platform: Platform): Record<string, IBuilderConfigItem>;
     getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null;
     getPackageOptionConfigByKey(key: string, pkgName: string, options: IBuildTaskOption): IBuilderConfigItem | null;
@@ -4146,6 +4147,7 @@ export declare function queryBundleConfig(): Promise<Record<string, BundleQueryC
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;
 export declare function queryPlatformConfig(): Promise<PlatformConfigItem[]>;
 export declare function queryTextureCompressConfig(): Promise<TextureCompressFullRenderConfig>;
+export declare function refreshDisplayI18nFields(): Promise<void>;
 export declare type RenderChunkHook = (
 	this: PluginContext,
 	code: string,

@@ -45,11 +45,14 @@ function translateDisplayValue(value?: string): string | undefined {
 }
 
 function materializeDisplayI18nKey(target: I18nDisplayRecord | undefined, key: DisplayValueField) {
-    if (!target || typeof target[key] !== 'string') {
+    if (!target) {
         return;
     }
     const keyField = `${key}I18nKey`;
     const rawValue = typeof target[keyField] === 'string' ? target[keyField] : target[key];
+    if (typeof rawValue !== 'string') {
+        return;
+    }
     if (rawValue.startsWith('i18n:')) {
         target[keyField] = rawValue;
     }
@@ -410,6 +413,56 @@ export class PluginManager extends EventEmitter {
         const buildTemplateConfig = (config as IPlatformBuildPluginConfig).buildTemplateConfig as I18nDisplayRecord | undefined;
         if (buildTemplateConfig) {
             materializeDisplayI18nKey(buildTemplateConfig, 'displayName');
+        }
+    }
+
+    public refreshDisplayI18nFields() {
+        this.translateConfigItemsDisplayFields(builderConfig.commonOptionConfigs);
+
+        for (const info of this.platformRegisterInfoPool.values()) {
+            this.translateConfigDisplayFields(info.config);
+        }
+
+        for (const platformConfigs of Object.values(this.configMap)) {
+            for (const config of Object.values(platformConfigs)) {
+                this.translateConfigDisplayFields(config);
+            }
+        }
+
+        for (const commonOptions of Object.values(this.commonOptionConfig)) {
+            this.translateConfigItemsDisplayFields(commonOptions);
+        }
+
+        for (const platformStages of Object.values(this.customBuildStages)) {
+            for (const stages of Object.values(platformStages)) {
+                stages.forEach((stage) => {
+                    const stageWithDisplayKeys = stage as I18nDisplayRecord;
+                    materializeDisplayI18nKey(stageWithDisplayKeys, 'displayName');
+                    materializeDisplayI18nKey(stageWithDisplayKeys, 'description');
+                });
+            }
+        }
+
+        for (const template of Object.values(this.buildTemplateConfigMap)) {
+            materializeDisplayI18nKey(template as I18nDisplayRecord, 'displayName');
+        }
+
+        for (const [platform, registerInfo] of this.platformRegisterInfoPool.entries()) {
+            const platformConfig = this.platformConfig[platform];
+            if (!platformConfig) {
+                continue;
+            }
+            const { config } = registerInfo;
+            const configWithDisplayKeys = config as I18nDisplayRecord;
+            platformConfig.name = config.displayName;
+            platformConfig.nameI18nKey = configWithDisplayKeys.displayNameI18nKey;
+
+            if (config.buildTemplateConfig && config.buildTemplateConfig.templates.length) {
+                const label = config.displayName || platform;
+                platformConfig.createTemplateLabel = label;
+                platformConfig.createTemplateLabelI18nKey = configWithDisplayKeys.displayNameI18nKey;
+                this.buildTemplateConfigMap[label] = config.buildTemplateConfig;
+            }
         }
     }
 

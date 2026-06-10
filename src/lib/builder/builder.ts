@@ -82,6 +82,11 @@ export async function getPlatformBuildSchema(platform: Platform | string): Promi
     return builder.getPlatformBuildSchema(platform);
 }
 
+export async function refreshDisplayI18nFields(): Promise<void> {
+    const builder = await import('../../core/builder');
+    return builder.refreshDisplayI18nFields();
+}
+
 // 查询指定 Bundle 中实际会被打包的资源列表
 export async function queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('../../core/builder/@types').BundleFilterConfig[]) {
     const builder = await import('../../core/builder');

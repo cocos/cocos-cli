@@ -245,6 +245,10 @@ export function getPlatformBuildSchema(platform: Platform | string) {
     return pluginManager.getPlatformBuildSchema(platform);
 }
 
+export function refreshDisplayI18nFields() {
+    return pluginManager.refreshDisplayI18nFields();
+}
+
 export async function queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('./@types').BundleFilterConfig[]) {
     const { buildAssetLibrary } = await import('./worker/builder/manager/asset-library');
     return buildAssetLibrary.queryAssetsInBundle(uuid, bundleFilterConfig);
