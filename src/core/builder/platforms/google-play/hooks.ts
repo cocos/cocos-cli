@@ -35,9 +35,9 @@ export async function onAfterInit(this: IBuilder, options: IGooglePlayInternalBu
     const renderBackEnd = googlePlay.renderBackEnd;
 
     const res = await checkAndroidAPILevels(googlePlay.apiLevel, options);
-    if (res.error) {
-        console.error(res.error);
-        res.newValue && (googlePlay.apiLevel = res.newValue);
+    if (!res.valid) {
+        console.error(res.message);
+        typeof res.fixedValue === 'number' && (googlePlay.apiLevel = res.fixedValue);
     }
 
     if (googlePlay.useDebugKeystore) {

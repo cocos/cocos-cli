@@ -1,6 +1,6 @@
 import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
-import type { PlatformBuildSchema, PlatformConfigItem } from '../../core/builder/@types/protected';
+import type { BuildCheckResult, PlatformBuildSchema, PlatformConfigItem } from '../../core/builder/@types/protected';
 
 export type * from '../../core/builder/@types/private';
 export type * from '../../core/builder/@types/config-export';
@@ -88,6 +88,16 @@ export async function refreshDisplayI18nFields(): Promise<void> {
 }
 
 // 查询指定 Bundle 中实际会被打包的资源列表
+export async function checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption): Promise<BuildCheckResult> {
+    const builder = await import('../../core/builder');
+    return builder.checkBuildOption(platform, key, value, options);
+}
+
+export async function checkBuildOptions(platform: string, options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>> {
+    const builder = await import('../../core/builder');
+    return builder.checkBuildOptions(platform, options);
+}
+
 export async function queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('../../core/builder/@types').BundleFilterConfig[]) {
     const builder = await import('../../core/builder');
     return builder.queryAssetsInBundle(uuid, bundleFilterConfig);

@@ -362,9 +362,10 @@ export type ICustomBuildStageDisplayItem = IBuildStageItem & {
 }
 
 export interface BuildCheckResult {
-    error: string;
-    newValue: any;
-    level: IConsoleType;
+    valid: boolean; // 是否通过(替代"error 为空即通过"的隐式表达)
+    level?: 'error' | 'warn'; // 未通过级别,默认 error(收窄,不再复用 IConsoleType)
+    message?: string; // 未通过提示(已翻译;替代旧 error 字段名)
+    fixedValue?: unknown; // 可选:规则建议的修正值(原 newValue,语义化命名)
 }
 
 export type IBuildVerificationFunc = (value: any, options: IBuildOptionBase) => boolean | Promise<boolean>;

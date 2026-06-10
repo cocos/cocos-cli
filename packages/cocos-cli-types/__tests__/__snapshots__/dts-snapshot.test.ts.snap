@@ -1043,9 +1043,10 @@ export declare interface BuildBundleConfiguration {
 }
 export declare function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData>;
 export declare interface BuildCheckResult {
-    error: string;
-    newValue: any;
-    level: IConsoleType;
+    valid: boolean;
+    level?: 'error' | 'warn';
+    message?: string;
+    fixedValue?: unknown;
 }
 export declare interface BuildConfiguration {
     common: IBuildCommonOptions;
@@ -1354,6 +1355,8 @@ export declare interface BundleRenderConfig {
 }
 export declare type CCEnvConstants = ConstantManager.CCEnvConstants;
 export declare type ChangeEvent = 'create' | 'update' | 'delete';
+export declare function checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption): Promise<BuildCheckResult>;
+export declare function checkBuildOptions(platform: string, options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>>;
 export declare interface ChokidarOptions {
     	alwaysStat?: boolean;
     	atomic?: boolean | number;
@@ -4066,9 +4069,15 @@ export declare class PluginManager extends EventEmitter {
     getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null;
     getPackageOptionConfigByKey(key: string, pkgName: string, options: IBuildTaskOption): IBuilderConfigItem | null;
     getOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null;
+    private hasFixedValue;
+    private getFixedValue;
     checkOptions(options: MakeRequired<IBuildCommandOption, 'platform' | 'mainBundleCompressionType'>): Promise<undefined | IBuildTaskOption>;
     checkCommonOptions(options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>>;
     checkCommonOptionByKey(key: keyof IBuildTaskOption, value: any, options: IBuildTaskOption): Promise<BuildCheckResult>;
+    private createVerifyOptions;
+    private checkPlatformOptionByKey;
+    checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption): Promise<BuildCheckResult>;
+    checkBuildOptions(platform: string, options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>>;
     private checkPluginOptions;
     shouldGenerateOptions(platform: Platform | string): boolean;
     getOptionsByPlatform<P extends Platform | string>(platform: P): Promise<IBuildTaskOption>;

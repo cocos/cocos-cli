@@ -506,6 +506,14 @@ export class PluginManager extends EventEmitter {
         return this.getPackageOptionConfigByKey(path, pkgName, options);
     }
 
+    private hasFixedValue(result: BuildCheckResult): boolean {
+        return Object.prototype.hasOwnProperty.call(result, 'fixedValue');
+    }
+
+    private getFixedValue<T>(result: BuildCheckResult, value: T): T {
+        return this.hasFixedValue(result) ? result.fixedValue as T : value;
+    }
+
     /**
      * 完整校验构建参数（校验平台插件相关的参数校验）
      * @param options
@@ -516,17 +524,18 @@ export class PluginManager extends EventEmitter {
         if (this.bundleConfigs[options.platform as Platform]) {
             const supportedCompressionTypes = this.bundleConfigs[options.platform as Platform].supportOptions.compressionType;
             const compressionTypeResult = await checkBundleCompressionSetting(options.mainBundleCompressionType, supportedCompressionTypes);
-            const isValid = validator.checkWithInternalRule('valid', compressionTypeResult.newValue);
+            const fixedCompressionType = this.getFixedValue(compressionTypeResult, options.mainBundleCompressionType);
+            const isValid = validator.checkWithInternalRule('valid', fixedCompressionType);
             if (isValid) {
-                lodash.set(options, 'mainBundleCompressionType', compressionTypeResult.newValue);
+                lodash.set(options, 'mainBundleCompressionType', fixedCompressionType);
             }
             // 有报错信息，也有修复值，只发报错不中断，使用新值
-            if (compressionTypeResult.error && isValid) {
+            if (!compressionTypeResult.valid && isValid) {
                 console.warn(i18n.t('builder.warn.check_failed_with_new_value', {
                     key: 'mainBundleCompressionType',
                     value: options.mainBundleCompressionType,
-                    error: i18n.transI18nName(compressionTypeResult.error) || compressionTypeResult.error,
-                    newValue: JSON.stringify(compressionTypeResult.newValue),
+                    error: compressionTypeResult.message || '',
+                    newValue: JSON.stringify(fixedCompressionType),
                 }));
             }
         } else {
@@ -547,9 +556,10 @@ export class PluginManager extends EventEmitter {
                 continue;
             }
             const res = await this.checkCommonOptionByKey(key as keyof IBuildTaskOption, rightOptions[key], rightOptions);
-            if (res && res.error && res.level === 'error') {
-                const errMsg = i18n.transI18nName(res.error) || res.error;
-                if (!validator.checkWithInternalRule('valid', res.newValue)) {
+            const fixedValue = this.getFixedValue(res, rightOptions[key]);
+            if (res && !res.valid && (res.level || 'error') === 'error') {
+                const errMsg = res.message || '';
+                if (!validator.checkWithInternalRule('valid', fixedValue)) {
                     checkRes = false;
                     console.error(i18n.t('builder.error.check_failed', {
                         key,
@@ -564,11 +574,11 @@ export class PluginManager extends EventEmitter {
                         key,
                         value: JSON.stringify(rightOptions[key]),
                         error: errMsg,
-                        newValue: JSON.stringify(res.newValue),
+                        newValue: JSON.stringify(fixedValue),
                     }));
                 }
             }
-            rightOptions[key] = res.newValue;
+            rightOptions[key] = fixedValue;
         }
         const result = await this.checkPluginOptions(rightOptions);
         if (!result) {
@@ -600,9 +610,7 @@ export class PluginManager extends EventEmitter {
         const config = this.getCommonOptionConfigByKey(key, options);
         if (!config) {
             return {
-                newValue: value,
-                error: '',
-                level: 'error',
+                valid: true,
             };
         }
 
@@ -612,17 +620,118 @@ export class PluginManager extends EventEmitter {
             options,
             this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key]?.verifyKey || (options.platform + options.platform),
         );
-        return {
-            error,
-            newValue: error ? config.default : value,
-            level: config.verifyLevel || 'error',
+        if (!error) {
+            return {
+                valid: true,
+            };
+        }
+
+        const result: BuildCheckResult = {
+            valid: false,
+            level: config.verifyLevel === 'warn' ? 'warn' : 'error',
+            message: translateDisplayValue(error) || error,
         };
+        if (!lodash.isEqual(config.default, value)) {
+            result.fixedValue = config.default;
+        }
+        return result;
     }
 
     /**
      * 校验构建插件注册的构建参数
      * @param options
      */
+    private createVerifyOptions(platform: string, key: string, value: unknown, options: IBuildTaskOption): IBuildTaskOption {
+        const nextOptions = lodash.cloneDeep(options || {}) as IBuildTaskOption;
+        nextOptions.platform = platform;
+        if (!nextOptions.outputName) {
+            nextOptions.outputName = platform;
+        }
+        if (!nextOptions.packages) {
+            nextOptions.packages = {};
+        }
+        if (!nextOptions.packages[platform]) {
+            nextOptions.packages[platform] = {};
+        }
+        const platformOptions = this.configMap[platform]?.[platform]?.options || this.platformRegisterInfoPool.get(platform)?.config?.options;
+        if (platformOptions?.[key]) {
+            nextOptions.packages[platform][key] = value;
+        } else {
+            (nextOptions as unknown as Record<string, unknown>)[key] = value;
+        }
+        return nextOptions;
+    }
+
+    private async checkPlatformOptionByKey(platform: string, key: string, value: unknown, options: IBuildTaskOption): Promise<BuildCheckResult> {
+        const pkgName = platform;
+        const buildConfig = this.configMap[platform]?.[pkgName] || this.platformRegisterInfoPool.get(platform)?.config;
+        const config = buildConfig?.options?.[key];
+        const rules = config?.verifyRules;
+        if (!config || !rules) {
+            return {
+                valid: true,
+            };
+        }
+        const error = await validatorManager.check(
+            value,
+            rules,
+            options,
+            platform + pkgName,
+        );
+        if (!error) {
+            return {
+                valid: true,
+            };
+        }
+
+        const result: BuildCheckResult = {
+            valid: false,
+            level: config.verifyLevel === 'warn' ? 'warn' : 'error',
+            message: translateDisplayValue(error) || error,
+        };
+        if (!lodash.isEqual(config.default, value)) {
+            result.fixedValue = config.default;
+        }
+        return result;
+    }
+
+    public async checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption): Promise<BuildCheckResult> {
+        const verifyOptions = this.createVerifyOptions(platform, key, value, options);
+        const commonOptions = this.commonOptionConfig[platform] || {};
+        if (key === 'mainBundleCompressionType') {
+            const supportedCompressionTypes = this.bundleConfigs[platform]?.supportOptions?.compressionType;
+            if (supportedCompressionTypes) {
+                const compressionTypeResult = checkBundleCompressionSetting(value as any, supportedCompressionTypes);
+                if (!compressionTypeResult.valid) {
+                    return compressionTypeResult;
+                }
+            }
+        }
+
+        if (builderConfig.commonOptionConfigs[key] || commonOptions[key]) {
+            return this.checkCommonOptionByKey(key as keyof IBuildTaskOption, value, verifyOptions);
+        }
+
+        return this.checkPlatformOptionByKey(platform, key, value, verifyOptions);
+    }
+
+    public async checkBuildOptions(platform: string, options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>> {
+        const result: Record<string, BuildCheckResult> = {};
+        const schema = this.getPlatformBuildSchema(platform);
+        const verifyOptions = lodash.cloneDeep(options || {}) as IBuildTaskOption;
+        verifyOptions.platform = platform;
+
+        for (const key of Object.keys(schema.common)) {
+            result[key] = await this.checkBuildOption(platform, key, (verifyOptions as any)[key], verifyOptions);
+        }
+
+        for (const key of Object.keys(schema.platformOptions)) {
+            result[key] = await this.checkBuildOption(platform, key, lodash.get(verifyOptions, ['packages', platform, key]), verifyOptions);
+        }
+
+        return result;
+    }
+
     private async checkPluginOptions(options: IBuildTaskOption) {
         if (typeof options.packages !== 'object') {
             return false;
@@ -648,7 +757,7 @@ export class PluginManager extends EventEmitter {
                     value,
                     buildConfig.options[key].verifyRules!,
                     options,
-                    pluginManager.commonOptionConfig[options.platform as Platform][key]?.verifyKey || (options.platform + pkgName),
+                    pluginManager.commonOptionConfig[options.platform as Platform]?.[key]?.verifyKey || (options.platform + pkgName),
                 );
                 if (!error) {
                     continue;
@@ -660,7 +769,7 @@ export class PluginManager extends EventEmitter {
                         buildConfig.options[key].default,
                         buildConfig.options[key].verifyRules!,
                         options,
-                        pluginManager.commonOptionConfig[options.platform as Platform][key]?.verifyKey || (options.platform + pkgName),
+                        pluginManager.commonOptionConfig[options.platform as Platform]?.[key]?.verifyKey || (options.platform + pkgName),
                     ));
                 }
                 const verifyLevel: IConsoleType = buildConfig.options[key].verifyLevel || 'error';

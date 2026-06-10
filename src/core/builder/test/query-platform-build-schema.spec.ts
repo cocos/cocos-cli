@@ -10,9 +10,11 @@ const mockTranslations: Record<string, Record<string, string>> = {
         'i18n:test.option.mode': 'Mode',
         'i18n:test.option.description': 'Mode Description',
         'i18n:test.option.auto': 'Auto',
+        'i18n:test.custom.invalid': 'Custom Invalid',
         'i18n:test.stage.make': 'Make',
         'i18n:test.stage.description': 'Make Description',
         'i18n:test.template': 'Test Template',
+        'i18n:builder.verify_rule_message.required': 'Required',
         'i18n:builder.asset_bundle.none': 'None',
         'i18n:builder.asset_bundle.merge_dep': 'Merge Dependencies',
         'i18n:builder.asset_bundle.zip': 'Zip',
@@ -62,6 +64,7 @@ jest.mock('../share/builder-config', () => ({
                 default: 'merge_dep',
             },
         },
+        setProject: jest.fn(),
     },
 }));
 
@@ -116,6 +119,7 @@ describe('PluginManager platform config schema queries', () => {
                             label: 'i18n:test.option.mode',
                             type: 'enum',
                             default: 'auto',
+                            verifyRules: ['required'],
                             items: [{
                                 label: 'i18n:test.option.auto',
                                 value: 'auto',
@@ -240,6 +244,160 @@ describe('PluginManager platform config schema queries', () => {
             label: 'Quality',
             type: 'number',
             default: 80,
+        });
+    });
+
+    it('checkBuildOption verifies common options and returns BuildCheckResult', async () => {
+        const result = await pm.checkBuildOption('test', 'name', '', {
+            platform: 'test',
+            packages: {
+                test: {
+                    mode: 'auto',
+                },
+            },
+        } as any);
+
+        expect(result).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'overridden',
+        });
+    });
+
+    it('checkBuildOption verifies common options declared with verifyRules', async () => {
+        (pm as any).commonOptionConfig.test.verifyOnly = {
+            label: 'Verify Only',
+            type: 'string',
+            default: 'fallback',
+            verifyRules: ['required'],
+        };
+
+        const result = await pm.checkBuildOption('test', 'verifyOnly', '', {
+            platform: 'test',
+            packages: {
+                test: {
+                    mode: 'auto',
+                },
+            },
+        } as any);
+
+        expect(result).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'fallback',
+        });
+    });
+
+    it('checkBuildOption verifies platform options declared with verifyRuleMap', async () => {
+        const config = {
+            displayName: 'Test Platform',
+            platformType: 'WEB',
+            options: {
+                customCode: {
+                    label: 'Custom Code',
+                    type: 'string',
+                    default: 'ok',
+                    verifyRules: ['customCode'],
+                },
+            },
+            verifyRuleMap: {
+                customCode: {
+                    func: (value: unknown) => value === 'ok',
+                    message: 'i18n:test.custom.invalid',
+                },
+            },
+        };
+
+        await (pm as any).internalRegister({
+            platform: 'test',
+            path: '/plugins/test',
+            type: 'register',
+            config,
+        });
+
+        const result = await pm.checkBuildOption('test', 'customCode', 'bad', {
+            platform: 'test',
+            packages: {
+                test: {
+                    customCode: 'bad',
+                },
+            },
+        } as any);
+
+        expect(result).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Custom Invalid',
+            fixedValue: 'ok',
+        });
+    });
+
+    it('checkBuildOption verifies platform options and unsupported compression types', async () => {
+        const platformOptionResult = await pm.checkBuildOption('test', 'mode', '', {
+            platform: 'test',
+            name: 'game',
+            mainBundleCompressionType: 'merge_dep',
+            packages: {
+                test: {
+                    mode: '',
+                },
+            },
+        } as any);
+
+        expect(platformOptionResult).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'auto',
+        });
+
+        const compressionResult = await pm.checkBuildOption('test', 'mainBundleCompressionType', 'subpackage', {
+            platform: 'test',
+            name: 'game',
+            mainBundleCompressionType: 'subpackage',
+            packages: {
+                test: {
+                    mode: 'auto',
+                },
+            },
+        } as any);
+
+        expect(compressionResult).toMatchObject({
+            valid: false,
+            level: 'error',
+            fixedValue: 'merge_dep',
+        });
+        expect(compressionResult.message).toContain('compression type(subpackage) is invalid');
+    });
+
+    it('checkBuildOptions verifies common and platform option values in batch', async () => {
+        const result = await pm.checkBuildOptions('test', {
+            platform: 'test',
+            name: '',
+            mainBundleCompressionType: 'zip',
+            packages: {
+                test: {
+                    mode: '',
+                },
+            },
+        } as any);
+
+        expect(result.name).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'overridden',
+        });
+        expect(result.mode).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'auto',
+        });
+        expect(result.mainBundleCompressionType).toEqual({
+            valid: true,
         });
     });
 

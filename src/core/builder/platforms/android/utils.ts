@@ -33,40 +33,50 @@ export function checkIsEmpty(value: any) {
  */
 export async function checkAndroidAPILevels(value: number, options: IAndroidInternalBuildOptions): Promise<BuildCheckResult> {
     const res: BuildCheckResult = {
-        newValue: value,
-        error: '',
-        level: 'error',
+        valid: true,
     };
     if (checkIsEmpty(value)) {
-        res.error = 'API Level cannot be empty';
+        res.valid = false;
+        res.level = 'error';
+        res.message = 'API Level cannot be empty';
         return res; // 必须返回，否则后续判断会报错
     }
     if (isNaN(value)) {
-        res.error = 'API Level must be a number';
+        res.valid = false;
+        res.level = 'error';
+        res.message = 'API Level must be a number';
         return res;
     }
     const APIVersion = value;
     if (options.packages.android.androidInstant && APIVersion < 23) {
-        res.error = 'When Android Instant App is enabled, the minimum API Level required is 23.';
-        res.newValue = 23;
+        res.valid = false;
+        res.level = 'error';
+        res.message = 'When Android Instant App is enabled, the minimum API Level required is 23.';
+        res.fixedValue = 23;
         return res;
     }
     if ((options.packages as any).native?.JobSystem === 'tbb' && APIVersion < 21) {
-        res.error = 'When TBB is enabled, the minimum API Level required is 21.';
-        res.newValue = 21;
+        res.valid = false;
+        res.level = 'error';
+        res.message = 'When TBB is enabled, the minimum API Level required is 21.';
+        res.fixedValue = 21;
         return res;
     }
     // const renderPipeline = await Editor.Profile.getProject('project', 'general.renderPipeline');
     const renderPipeline = options.renderPipeline;
     // 延迟渲染管线
     if (renderPipeline === '5d45ba66-829a-46d3-948e-2ed3fa7ee421' && APIVersion < 21) {
-        res.error = 'When Deferred Render Pipeline is enabled, the minimum API Level required is 21.';
-        res.newValue = 21;
+        res.valid = false;
+        res.level = 'error';
+        res.message = 'When Deferred Render Pipeline is enabled, the minimum API Level required is 21.';
+        res.fixedValue = 21;
         return res;
     }
     if (APIVersion < 19) {
-        res.error = 'The minimum API Level required is 19.';
-        res.newValue = 19;
+        res.valid = false;
+        res.level = 'error';
+        res.message = 'The minimum API Level required is 19.';
+        res.fixedValue = 19;
         return res;
     }
 

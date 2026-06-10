@@ -249,6 +249,14 @@ export function refreshDisplayI18nFields() {
     return pluginManager.refreshDisplayI18nFields();
 }
 
+export function checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption) {
+    return pluginManager.checkBuildOption(platform, key, value, options);
+}
+
+export function checkBuildOptions(platform: string, options: IBuildTaskOption) {
+    return pluginManager.checkBuildOptions(platform, options);
+}
+
 export async function queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('./@types').BundleFilterConfig[]) {
     const { buildAssetLibrary } = await import('./worker/builder/manager/asset-library');
     return buildAssetLibrary.queryAssetsInBundle(uuid, bundleFilterConfig);

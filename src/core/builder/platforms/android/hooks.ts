@@ -29,9 +29,9 @@ export async function onAfterInit(this: IBuilder, options: IAndroidInternalBuild
     
     // 检查 API Level
     const res = await checkAndroidAPILevels(android.apiLevel, options);
-    if (res.error) {
-        console.error(res.error);
-        res.newValue && (android.apiLevel = res.newValue);
+    if (!res.valid) {
+        console.error(res.message);
+        typeof res.fixedValue === 'number' && (android.apiLevel = res.fixedValue);
     }
     
     // 处理调试密钥库

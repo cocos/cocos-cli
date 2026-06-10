@@ -6,6 +6,7 @@ import { execSync } from 'child_process';
 import { ITaskOption } from '../native-common/type';
 import { IOptions } from './type'
 import { BuildCheckResult } from '../../@types/protected';
+import i18n from '../../../base/i18n';
 
 /**
  * 修改 ios 的包名
@@ -197,58 +198,62 @@ export async function findSignIdentify() {
 
 export function verificationFunc(key: keyof IOptions, value: any, options: ITaskOption): BuildCheckResult {
     const res: BuildCheckResult = {
-        error: '',
-        newValue: value,
-        level: 'error',
+        valid: true,
+    };
+    const setError = (message: string, ...fixedValue: [unknown?]) => {
+        res.valid = false;
+        res.level = 'error';
+        res.message = i18n.transI18nName(message) || message;
+        if (fixedValue.length) {
+            res.fixedValue = fixedValue[0];
+        }
     };
     switch (key) {
         case 'targetVersion': {
             let minVersion = '11.0';
             // 2~3 位，x.x(.x) 的形式，每位 x 的范围分别为 1-99, 0-99, 0-99。
             if (!/^([1-9]\d|[1-9])(\.([1-9]\d|\d)){1,2}$/.test(value)) {
-                res.error = 'i18n:ios.tips.version_style_error';
+                setError('i18n:ios.tips.version_style_error');
                 return res;
             }
             if (options.packages.native.JobSystem === 'taskFlow') {
                 minVersion = '12.0';
                 if (!compareVersion(value, minVersion)) {
-                    res.error = 'i18n:ios.tips.targetVersionErrorWithTaskFlow';
-                    res.newValue = minVersion;
+                    setError('i18n:ios.tips.targetVersionErrorWithTaskFlow', minVersion);
                 }
             }
-            if (!res.error && !compareVersion(value, minVersion)) {
-                res.error = 'i18n:ios.tips.targetVersionError';
-                res.newValue = minVersion;
+            if (res.valid && !compareVersion(value, minVersion)) {
+                setError('i18n:ios.tips.targetVersionError', minVersion);
             }
         }
             break;
         case 'orientation':
             if (!value) {
-                res.error = 'i18n:ios.tips.not_empty';
+                setError('i18n:ios.tips.not_empty');
                 return res;
             }
             if (Object.keys(value).every((key) => !value[key])) {
-                res.error = 'i18n:ios.tips.at_least_one';
+                setError('i18n:ios.tips.at_least_one');
                 return res;
             }
             break;
         case 'osTarget':
             if (!value) {
-                res.error = 'i18n:ios.tips.not_empty';
+                setError('i18n:ios.tips.not_empty');
                 return res;
             }
             if (Object.keys(value).every((key) => !value[key])) {
-                res.error = 'i18n:ios.tips.at_least_one';
+                setError('i18n:ios.tips.at_least_one');
                 return res;
             }
             break;
         case 'packageName':
             if (!value) {
-                res.error = 'i18n:ios.tips.not_empty';
+                setError('i18n:ios.tips.not_empty');
                 return res;
             }
             if (!checkPackageNameValidity(value)) {
-                res.error = 'i18n:ios.tips.packageNameRuleMessage';
+                setError('i18n:ios.tips.packageNameRuleMessage');
                 return res;
             }
             break;

@@ -220,19 +220,40 @@ export function getDefaultStartScene() {
     return realScenes[0] && realScenes[0].uuid;
 }
 
-export async function checkBuildCommonOptionsByKey(key: string, value: any, options: IBuildTaskOption): Promise<BuildCheckResult | null> {
-    const res: BuildCheckResult = {
-        error: '',
-        newValue: value,
-        level: 'error',
+function translateCheckMessage(message: string): string {
+    return i18n.transI18nName(message) || message;
+}
+
+function createValidCheckResult(fixedValue?: unknown): BuildCheckResult {
+    const result: BuildCheckResult = {
+        valid: true,
     };
+    if (arguments.length > 0) {
+        result.fixedValue = fixedValue;
+    }
+    return result;
+}
+
+function createInvalidCheckResult(message: string, fixedValue?: unknown, level: BuildCheckResult['level'] = 'error'): BuildCheckResult {
+    const result: BuildCheckResult = {
+        valid: false,
+        level,
+        message: translateCheckMessage(message),
+    };
+    if (arguments.length > 1) {
+        result.fixedValue = fixedValue;
+    }
+    return result;
+}
+
+export async function checkBuildCommonOptionsByKey(key: string, value: any, options: IBuildTaskOption): Promise<BuildCheckResult | null> {
+    let res = createValidCheckResult();
     switch (key) {
         case 'scenes':
             {
                 const error = checkScenes(value) || false;
                 if (error instanceof Error) {
-                    res.error = error.message;
-                    res.newValue = getDefaultScenes();
+                    res = createInvalidCheckResult(error.message, getDefaultScenes());
                 }
                 return res;
             }
@@ -240,56 +261,50 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
             {
                 const error = checkStartScene(value) || false;
                 if (error instanceof Error) {
-                    res.error = error.message;
-                    res.newValue = getDefaultStartScene();
+                    res = createInvalidCheckResult(error.message, getDefaultStartScene());
                 }
                 return res;
             }
         case 'mainBundleIsRemote':
             if (value && options.mainBundleCompressionType === BundleCompressionTypes.SUBPACKAGE) {
-                res.newValue = false;
-                res.error = ' bundle can not be remote when compression type is subpackage!';
+                res = createInvalidCheckResult(' bundle can not be remote when compression type is subpackage!', false);
             } else if (!value && options.mainBundleCompressionType === BundleCompressionTypes.ZIP) {
-                res.newValue = true;
-                res.error = ' bundle must be remote when compression type is zip!';
+                res = createInvalidCheckResult(' bundle must be remote when compression type is zip!', true);
             }
             return res;
         case 'outputName':
             if (!value) {
-                res.error = ' outputName can not be empty';
-                res.newValue = await calcValidOutputName(options.buildPath, options.platform, options.platform);
+                res = createInvalidCheckResult(' outputName can not be empty', await calcValidOutputName(options.buildPath, options.platform, options.platform));
             } else {
                 // HACK 原生平台不支持中文和特殊符号
                 if (NATIVE_PLATFORM.includes(options.platform) && checkIncludeChineseAndSymbol(value)) {
-                    res.error = 'i18n:builder.error.buildPathContainsChineseAndSymbol';
+                    res = createInvalidCheckResult('i18n:builder.error.buildPathContainsChineseAndSymbol');
                 }
             }
             break;
         case 'taskName':
             if (!value) {
-                res.error = ' taskName can not be empty';
-                res.newValue = options.outputName;
+                res = createInvalidCheckResult(' taskName can not be empty', options.outputName);
             }
             break;
         case 'buildPath':
             if (!value || value === 'project://') {
-                res.error = ' buildPath can not be empty';
-                res.newValue = 'project://build';
+                res = createInvalidCheckResult(' buildPath can not be empty', 'project://build');
             } else if (checkBuildPathIsInvalid(value)) {
-                res.error = 'buildPath is invalid!';
-                res.newValue = 'project://build';
+                res = createInvalidCheckResult('buildPath is invalid!', 'project://build');
             } else {
                 // 添加对旧版本相对路径的转换支持
                 if (typeof value === 'string' && value.startsWith('.')) {
                     value = 'project://' + value;
                 }
                 if (!value || !isAbsolute(Utils.Path.resolveToRaw(value))) {
-                    res.error = `buildPath(${value}) is invalid!`;
-                    res.newValue = 'project://build';
+                    res = createInvalidCheckResult(`buildPath(${value}) is invalid!`, 'project://build');
                 }
                 // hack 原生平台不支持中文和特殊符号
                 if (NATIVE_PLATFORM.includes(options.platform) && checkIncludeChineseAndSymbol(value)) {
-                    res.error = 'i18n:builder.error.buildPathContainsChineseAndSymbol';
+                    res = Object.prototype.hasOwnProperty.call(res, 'fixedValue')
+                        ? createInvalidCheckResult('i18n:builder.error.buildPathContainsChineseAndSymbol', res.fixedValue)
+                        : createInvalidCheckResult('i18n:builder.error.buildPathContainsChineseAndSymbol');
                 }
             }
             break;
@@ -300,19 +315,22 @@ export async function checkBuildCommonOptionsByKey(key: string, value: any, opti
         case 'experimentalEraseModules':
         case 'sourceMaps':
             if (value === 'true') {
-                res.newValue = true;
+                res = createValidCheckResult(true);
             } else if (value === 'false') {
-                res.newValue = false;
+                res = createValidCheckResult(false);
             }
             break;
         case 'server':
             {
-                res.error = await validatorManager.check(
+                const message = await validatorManager.check(
                     value,
                     builderConfig.commonOptionConfigs.server.verifyRules || [],
                     options,
                     options.platform + options.platform,
                 );
+                if (message) {
+                    res = createInvalidCheckResult(message);
+                }
             }
             break;
         default:
@@ -331,21 +349,16 @@ export async function checkBuildCommonOptions(options: any) {
     // const checkKeys = Array.from(new Set(Object.keys(commonOptions).concat(Object.keys(options))))
     // 正常来说应该检查默认值和 options 整合的 key
     for (const key of Object.keys(commonOptions)) {
-        checkResMap[key] = await checkBuildCommonOptionsByKey(key, options[key], options) || { newValue: options[key], error: '', level: 'error' };
+        checkResMap[key] = await checkBuildCommonOptionsByKey(key, options[key], options) || createValidCheckResult();
     }
     return checkResMap;
 }
 
-export function checkBundleCompressionSetting(value: BundleCompressionType, supportedCompressionTypes: BundleCompressionType[]) {
-    const result = {
-        error: '',
-        newValue: value,
-    };
+export function checkBundleCompressionSetting(value: BundleCompressionType, supportedCompressionTypes: BundleCompressionType[]): BuildCheckResult {
     if (supportedCompressionTypes && -1 === supportedCompressionTypes.indexOf(value)) {
-        result.newValue = BundleCompressionTypes.MERGE_DEP;
-        result.error = ` compression type(${value}) is invalid for this platform!`;
+        return createInvalidCheckResult(` compression type(${value}) is invalid for this platform!`, BundleCompressionTypes.MERGE_DEP);
     }
-    return result;
+    return createValidCheckResult();
 }
 /**
  * 整合构建配置的引擎模块配置
