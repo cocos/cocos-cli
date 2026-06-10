@@ -5747,6 +5747,7 @@ export declare interface IRedoService {
 }
 export declare interface IReloadOptions {
     urlOrUUID?: string;
+    preserveUndoHistory?: boolean;
 }
 export declare interface IRemoveArrayElementParams {
     nodePath: string;
@@ -7961,6 +7962,7 @@ export declare interface IRedoService {
 }
 export declare interface IReloadOptions {
     urlOrUUID?: string;
+    preserveUndoHistory?: boolean;
 }
 export declare interface IRemoveArrayElementParams {
     nodePath: string;
