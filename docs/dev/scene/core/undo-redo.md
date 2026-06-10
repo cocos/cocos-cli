@@ -4,14 +4,14 @@ Last updated: 2026-06-10
 
 ## 目标
 
-Scene undo/redo 是 scene-process 的内存编辑历史系统。它记录当前打开 scene/prefab 编辑资源中的业务 mutation，让用户可以撤销、重做、查询 dirty 状态，并支持 gizmo 拖拽这类连续操作合并成一次历史记录。
+Scene undo/redo 是 scene-process 里的编辑历史系统。它记录当前正在编辑的 scene/prefab 资源里真实写入数据的操作，让用户可以撤销、重做，并能知道当前资源是否还有未保存的修改。gizmo 拖拽这类连续修改会合并成一条历史记录。
 
-它不是 CLI 命令历史，也不是 MCP tool。它的本质是 scene-process 内的 command transaction 系统：业务入口明确知道用户意图边界，并显式向 UndoService push command。
+它不是 CLI 命令历史，也不是 MCP tool。它的本质是 scene-process 内的“可撤销命令”系统：哪个业务 API 修改了数据，就由这个业务 API 明确向 `UndoService` 记录一条 command。
 
 ## 当前范围
 已实现：
 
-- Scene 当前打开资源的一套内存 history。
+- 当前打开资源的一套内存历史记录。
 - `Undo.undo` / `Redo.redo`。
 - `canUndo` / `canRedo`。
 - `isDirty` / `markSaved`。
@@ -21,21 +21,21 @@ Scene undo/redo 是 scene-process 的内存编辑历史系统。它记录当前�
 - 节点结构命令：create、delete。
 - 组件结构命令：add、remove。
 - Prefab 命令：create/revert、apply、unlink/unpack。
-- snapshot 命令：node set/reset/resetProperty、component set/reset、gizmo recording、UI align/distribute recording、subtree layer、children order、component order、reparent、node lock。
-- open / close / reload 清空 history，save 标记 clean。
+- snapshot 命令：node set/reset/resetProperty、component set/reset、gizmo recording、UI align/distribute recording、子树 layer、children order、component order、reparent、node lock。
+- open / close / reload 清空历史记录，save 标记 clean。
 
-第一版没有实现：
+目前不覆盖：
 
 - Animation 专用 undo：keyframe、curve、clip 编辑。
 - Asset DB 文件级 undo：create、delete、move、rename、import。
-- 多 context/tab history：当前是一 scene-process 当前资源一套 history。
-- 持久化 history。
+- 多编辑上下文/多标签页历史：当前是一个 scene-process 只维护当前资源的一套历史记录。
+- 持久化历史记录。
 - History UI API：例如 getHistory、getNextUndo、getNextRedo。
-- 任意数组属性的公开 undo 语义。当前 `Node.moveArrayElement` 已验证 `children` 与 `__comps__/_components`，其他数组先不生成 undo command。
+- 任意数组属性的公开 undo 语义。当前 `Node.moveArrayElement` 只验证了 `children` 与 `__comps__/_components`；其他数组路径暂时不生成 undo command。
 
 ## 覆盖范围总览
 
-Undo/redo 只覆盖“当前打开编辑资源的持久化 scene/prefab 数据变更”。dirty 只由 undo stack 是否离开保存点决定，不从 `node:change`、`component:*`、reload、selection、camera 或 view 事件推断。
+Undo/redo 只覆盖“当前正在编辑的 scene/prefab 资源中，会被保存下来的数据变更”。dirty 表示当前内容和最近一次保存或标记为已保存时相比，是否还有未保存的变更；这个判断来自 `UndoService` 的历史状态，不从 `node:change`、`component:*`、reload、selection、camera 或 view 事件推断。
 
 ### 已覆盖并会影响 dirty
 
@@ -49,7 +49,7 @@ Undo/redo 只覆盖“当前打开编辑资源的持久化 scene/prefab 数据�
 | Prefab 实例/资源 | createPrefabFromNode、applyPrefabChanges、revertToPrefab、unpackPrefabInstance、unlinkPrefab、apply/revert removed component override | prefab domain command |
 | UI 编辑操作 | alignSelection、distributeSelection | scoped recording |
 | Gizmo 拖拽 | transform gizmo drag begin/end | scoped recording |
-| Undo lifecycle | undo、redo、markSaved/save、clearHistory、open/close/reload | stack cursor / baseline |
+| Undo 状态管理 | undo、redo、markSaved/save、clearHistory、open/close/reload | undo 历史位置 / 已保存状态 |
 
 ### 明确不进入 undo/dirty
 
@@ -60,19 +60,19 @@ Undo/redo 只覆盖“当前打开编辑资源的持久化 scene/prefab 数据�
 | 预览属性 | previewSetProperty、cancelPreviewSetProperty | 预览态，可取消，不形成持久化 command |
 | Camera / SceneView | camera pan/orbit/zoom、scene view light/visibility/view config | 视图状态，不是 scene 数据 dirty 来源 |
 | Gizmo UI 状态 | tool/view mode、snap config、gizmo visibility、selection highlight | 编辑器 UI 状态，不是 scene 数据 dirty 来源 |
-| Prefab soft reload | asset-change 触发的 editor reload、`prefab:asset-reload` | 刷新链路，不是持久化 mutation 本身 |
-| Asset DB 文件操作 | asset create/delete/move/rename/import/reimport/refresh/save | 不属于 scene undo stack |
+| Prefab soft reload | asset-change 触发的 editor reload、`prefab:asset-reload` | 刷新链路，不是持久化修改本身 |
+| Asset DB 文件操作 | asset create/delete/move/rename/import/reimport/refresh/save | 不属于 scene 编辑历史 |
 
 ### 暂未覆盖或新增时需要单独设计
 
 | 范围 | 当前状态 |
 | --- | --- |
 | Animation 编辑 | 暂未定义 command，keyframe、curve、clip、时间轴选择需要单独设计 |
-| Scene globals / 全局设置 | 当前没有统一公开 mutating API 纳入本轮覆盖；新增会写入 scene 的 globals 设置时必须接入 undo/dirty |
+| Scene globals / 全局设置 | 当前没有统一公开的修改 API 纳入本轮覆盖；以后新增会写入 scene 的 globals 设置时，必须接入 undo/dirty |
 | 任意数组属性 | 当前只验证 `children` 和 `__comps__/_components`，其他数组路径默认不生成 undo command |
-| 多 editor context history | 当前 scene-process 只有当前资源一套 history |
+| 多 editor context 历史 | 当前 scene-process 只有当前资源一套历史记录 |
 | History UI 查询 | 暂无 getHistory/getNextUndo/getNextRedo |
-| 持久化 undo history | 暂无 |
+| 持久化 undo 历史 | 暂无 |
 
 ## 代码位置
 
@@ -91,7 +91,7 @@ Undo/redo 只覆盖“当前打开编辑资源的持久化 scene/prefab 数据�
 Manager 与 service：
 
 - `src/core/scene/scene-process/service/undo/scene-undo-manager.ts`
-  - 管理 stack、cursor、dirty baseline、group、recording、queue、isApplying、maxStackSize。
+  - 管理 stack、cursor、dirty 的已保存状态、group、recording、queue、isApplying、maxStackSize。
 - `src/core/scene/scene-process/service/undo.ts`
   - scene-process 的 `UndoService`。
   - 包装 manager。
@@ -128,10 +128,10 @@ Command：
 - `src/core/scene/scene-process/service/ui.ts`
   - `alignSelection` / `distributeSelection` 通过 `Undo.beginRecording/endRecording` 记录选中节点位置变化。
 - `src/core/scene/scene-process/service/prefab.ts`
-  - Prefab public mutating API 负责 capture before/after，并通过 `PrefabUndoHelper` push Prefab command。
-  - `applyPrefabChanges` 保存 prefab asset 后立即进入 undo/dirty 编排；asset change 触发的 soft reload 只负责刷新编辑器状态，并通过 prefab asset uuid preserve 当前 undo history。soft reload 会绑定 mutation 发生时的 editor uuid，避免 debounce 期间切换编辑器后 reload 错目标。
+  - Prefab 公开修改 API 负责 capture before/after，并通过 `PrefabUndoHelper` push Prefab command。
+  - `applyPrefabChanges` 保存 prefab asset 后立即进入 undo/dirty 编排；asset change 触发的 soft reload 只负责刷新编辑器状态，并按 prefab asset uuid 保留当前 undo 历史。soft reload 会记住修改发生时的 editor uuid，避免 debounce 期间切换编辑器后 reload 到错误资源。
 - `src/core/scene/scene-process/service/prefab/prefab-undo.ts`
-  - Prefab 相关 undo/redo helper，负责 snapshot capture、before/after 比较、push command，以及 apply prefab reload preserve 标记。
+  - Prefab 相关 undo/redo helper，负责 snapshot capture、before/after 比较、push command，以及 apply prefab reload 时保留 undo 历史的标记。
 
 业务 API 已接入：
 
@@ -174,7 +174,7 @@ Command：
 - `src/core/scene/main-process/proxy/component-proxy.ts`
 - `src/core/scene/main-process/index.ts`
 
-这层是 Node 主进程/MCP/API 侧访问 scene-process 的 RPC proxy，不是 runtime `cli.Scene` 的来源。Undo/Redo recording 不在 `main-process/proxy` 暴露，避免把 runtime Scene API 和 MCP/RPC proxy 混在一起。runtime 直接入口是 scene-process 里 `@register(...)` 注册出来的 service。
+这层只是 Node 主进程、MCP、API 侧访问 scene-process 的 RPC 转发层，不是 runtime `cli.Scene` 的来源。Undo/Redo recording 不在 `main-process/proxy` 暴露，避免把 runtime Scene API 和 MCP/RPC proxy 混在一起。runtime 的直接入口是 scene-process 里通过 `@register(...)` 注册出来的 service。
 
 测试：
 
@@ -213,9 +213,9 @@ try {
 }
 ```
 
-`cancelGroup` 只丢弃 undo history，不回滚已经发生的业务变更。
+`cancelGroup` 只丢弃 undo 记录，不回滚已经发生的业务变更。
 
-Node/Component 这次已补充公开的业务 API：
+下面这些 Node/Component 业务 API 已经接入 undo/dirty：
 
 ```ts
 await cli.Scene.Component.reset({ path: componentPath });
@@ -266,14 +266,14 @@ await cli.Scene.Node.changeNodeLock({
 });
 ```
 
-`copy`、`cut`、`queryClipboardState` 只更新剪贴板状态，本身不改变 scene，不单独入 undo 栈。`paste` 才是实际 mutation：copy paste 使用 `CreateNodeCommand`，cut paste 使用 reparent snapshot。
+`copy`、`cut`、`queryClipboardState` 只更新剪贴板状态，本身不改变 scene，不单独进入 undo 栈。`paste` 才是真正修改 scene 的操作：copy paste 使用 `CreateNodeCommand`，cut paste 使用 reparent snapshot。
 
 `moveArrayElement` 使用新的 params 形态。当前 undo/redo 已验证：
 
 - `path: 'children'`：恢复同父节点 children 顺序。
 - `path: '__comps__'` / `'_components'`：恢复组件数组顺序。
 
-其他数组路径仍允许走底层 mutation，但不生成 undo command，避免产生无法正确恢复的假历史。要支持更多数组，必须先定义该数组的恢复语义并补测试。
+其他数组路径仍允许执行底层修改，但不会生成 undo command，避免产生“看起来能撤销、实际恢复不了”的假历史。要支持更多数组，必须先定义这个数组如何恢复，并补测试。
 
 Recording API 当前在 scene-process `IUndoService` 内存在，并被 gizmo 使用：
 
@@ -283,9 +283,9 @@ const recordingId = Service.Undo.beginRecording([nodeUuid], { label: 'Drag Node'
 await Service.Undo.endRecording(recordingId);
 ```
 
-Recording API 当前已经存在于 scene-process 的 `IUndoService`，runtime `cli.Scene.Undo` 可以通过 `beginRecording/endRecording/cancelRecording` 使用。`IPublicUndoService` 是 MCP/RPC proxy 的过滤接口，仍然过滤掉 recording；不要通过 `main-process/proxy` 暴露这组 API。
+Recording API 当前已经存在于 scene-process 的 `IUndoService`，runtime `cli.Scene.Undo` 可以通过 `beginRecording/endRecording/cancelRecording` 使用。`IPublicUndoService` 是给 MCP/RPC proxy 用的对外接口，目前仍然不暴露 recording；不要通过 `main-process/proxy` 暴露这组 API。
 
-Recording 只适合现有 node/component 的属性类连续编辑。它不会创建或删除 node/component，也不会自动把结构变化折叠成一个可撤销命令。多步骤结构变化应使用 `beginGroup/endGroup` 合并已有结构 command，或通过 `customCommand` 提供专用 undo/redo 逻辑。
+Recording 只适合现有 node/component 的连续属性编辑。它不会创建或删除 node/component，也不会自动把结构变化合成一个可撤销命令。多步骤结构变化应使用 `beginGroup/endGroup` 合并已有结构 command，或通过 `customCommand` 提供专用 undo/redo 逻辑。
 
 ## Command 模型
 
@@ -307,7 +307,7 @@ interface IUndoCommand {
 - `scope`
 - `timestamp`
 
-`label` 和 `type` 是后续 History UI 的最小数据来源。第一版没有 history 查询 API，但 command metadata 要保持稳定。
+`label` 和 `type` 是后续 History UI 展示历史记录时最基本的数据。当前还没有 history 查询 API，但 command metadata 要保持稳定。
 
 Undo/redo 返回：
 
@@ -331,28 +331,28 @@ await cli.Scene.Redo.redo(); // { success: false, reason: 'Cannot redo' }
 
 ## Manager 行为
 
-`SceneUndoManager` 负责：
+`SceneUndoManager` 负责管理 undo/redo 的内部状态：
 
-- command stack。
-- cursor。
-- dirty baseline。
+- command stack，也就是历史记录列表。
+- cursor，也就是当前停在历史记录里的哪个位置。
+- dirty 判断用的已保存状态。
 - group。
 - recording。
 - `isApplying`。
-- undo/redo action queue。
+- undo/redo action queue，用来保证撤销/重做按顺序执行。
 - `maxStackSize`，当前默认 100。
 
 关键规则：
 
-- push 新 command 时，如果 cursor 不在栈尾，清除 redo branch。
-- undo 成功后 cursor 左移。
-- redo 成功后 cursor 右移。
-- command 失败时 cursor 不移动。
-- undo/redo 期间 `isApplying = true`，业务 service 应跳过新 undo 记录。
-- undo/redo 串行执行，避免并发点击破坏 cursor。
+- push 新 command 时，如果当前不在历史记录末尾，清除后面的 redo 记录。
+- undo 成功后，历史位置向前移动。
+- redo 成功后，历史位置向后移动。
+- command 失败时，历史位置不变。
+- undo/redo 期间 `isApplying = true`，业务 service 应跳过新的 undo 记录。
+- undo/redo 串行执行，避免并发点击破坏历史位置。
 - active group 存在时，push 的 command 先进入 group children。
 - `endGroup` 把 children 包成 `CompositeCommand` 后入主栈。
-- `cancelGroup` 丢弃 group children，不回滚业务状态。
+- `cancelGroup` 只丢弃 group children，不回滚已经发生的业务修改。
 - 不支持嵌套 group。
 
 dirty 规则：
@@ -360,8 +360,8 @@ dirty 规则：
 - 初始 clean。
 - push command 后 dirty。
 - `markSaved` 后 clean。
-- undo 回到 saved baseline 后 clean。
-- redo 离开 saved baseline 后 dirty。
+- undo 回到最近一次保存或标记为已保存时的状态后 clean。
+- redo 离开这个已保存状态后 dirty。
 - `clearHistory` 后 clean。
 - open / close / reload 调用 `clearHistory`。
 - save 调用 `markSaved`。
@@ -407,27 +407,27 @@ dirty 规则：
 
 ## Snapshot 和 Structure 的边界
 
-Snapshot command 适合属性类修改：
+Snapshot command 适合属性修改：
 
 - capture before dump。
-- 执行业务 mutation。
+- 执行业务修改。
 - capture after dump。
 - before/after 相同时不入栈。
 - undo 应用 before。
 - redo 应用 after。
 
-Structure command 适合对象生命周期：
+Structure command 适合对象结构变化：
 
 - 节点创建/删除。
 - 组件添加/删除。
 
-结构命令不能只依赖 uuid。恢复时需要 uuid、path、parent path、sibling index、component index 等 fallback 信息。
+结构命令不能只依赖 uuid。恢复时还需要 path、parent path、sibling index、component index 等兜底信息，避免对象被删除后找不回来。
 
 ## 特殊实现说明
 
 ### `setNodeAndChildrenLayer`
 
-这个操作会递归修改整棵 subtree 的 layer。当前实现会：
+这个操作会递归修改整棵子树的 layer。当前实现会：
 
 - 收集目标节点及全部子孙。
 - capture before snapshot。
@@ -435,7 +435,7 @@ Structure command 适合对象生命周期：
 - capture after snapshot。
 - 只 push 一个 command。
 
-如果 `record: false`、正在 undo/redo applying、或 active recording 已覆盖相关节点，则不会重复记录。
+如果 `record: false`、正在执行 undo/redo，或当前 recording 已经覆盖相关节点，则不会重复记录。
 
 ### `moveArrayElement`
 
@@ -450,7 +450,7 @@ await cli.Scene.Node.moveArrayElement({
 });
 ```
 
-`path: 'children'` 不使用通用 node dump 恢复 children 顺序，而是保存：
+`path: 'children'` 不使用通用 node dump 恢复 children 顺序，而是单独保存：
 
 - parent uuid。
 - parent path。
@@ -469,14 +469,14 @@ undo/redo 时按 component uuid 重排节点的 `_components` 数组。
 当前限制：
 
 - 只验证 `children` 和 `__comps__/_components`。
-- 其他数组路径仍可执行底层 mutation，但不会生成 undo command。
+- 其他数组路径仍可执行底层修改，但不会生成 undo command。
 - 新增数组路径支持前，必须先确认该数组是否能通过 uuid/path 等稳定标识恢复。
 
 ### Reparent / Paste / Duplicate
 
-`setParent` 与 cut paste 都使用 reparent snapshot。snapshot 包含节点 uuid/path、父节点 uuid/path、sibling index 与节点 dump。undo/redo 时先恢复 parent 和 sibling index，再恢复基础 node dump。
+`setParent` 与 cut paste 都使用 reparent snapshot。snapshot 包含节点 uuid/path、父节点 uuid/path、sibling index 与节点 dump。undo/redo 时先恢复父节点和 sibling index，再恢复基础 node dump。
 
-copy paste 与 duplicate 会产生新节点，复用 `CreateNodeCommand`。记录前先收集 scene 中已有 node uuid，mutation 后只捕获新增 root 节点，避免把新增节点的子树拆成多个 command。
+copy paste 与 duplicate 会产生新节点，所以复用 `CreateNodeCommand`。记录前先收集 scene 中已有 node uuid，修改后只捕获新增 root 节点，避免把新增节点的子树拆成多个 command。
 
 ### UI align/distribute
 
@@ -493,9 +493,9 @@ Prefab 不使用普通 node dump snapshot 覆盖。原因是 prefab 关系包含
 - `createPrefabFromNode` / `revertToPrefab` 使用 `PrefabNodeStructureCommand`，通过 prefab-aware node structure snapshot 恢复前后结构和 metadata。
 - `applyPrefabChanges` 使用 `PrefabApplyCommand`，同时恢复 prefab asset 内容与场景中的 prefab-aware node structure snapshot。undo/redo 不等待全局 `Editor.reload`，避免 dirty/undo command 被异步刷新链路阻塞。
 - `unlinkPrefab` / `unpackPrefabInstance` 使用 `PrefabUnwrapCommand`。undo 通过 before snapshot 恢复 prefab 关系，redo 重新执行底层 unwrap 语义。
-- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。soft reload 由 asset change 消息驱动，属于编辑器状态刷新；dirty 只看 undo stack 是否离开保存点，不从 reload 或 `node:change` 推断。soft reload 的 500ms 是合并连续 asset change 的 debounce，不是 undo/dirty 正确性的等待条件。
-- soft reload 会绑定 mutation 发生时的 editor uuid，并在 asset change / delete 到达时一次性消费 prefab reload preserve 状态；即使当前资源不需要 reload，也不会污染后续同 uuid 的外部刷新。
-- Prefab 可变 API 执行前会等待本服务已排队的 soft reload 进入 idle，避免上一次 prefab asset change 的延迟 reload 在下一次 create/revert/unlink 等操作中途重载当前场景；这里不持有 `Editor.lock()`，避免和 asset 加载/刷新链路互等。
+- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。soft reload 由 asset change 消息驱动，属于编辑器状态刷新；dirty 只表示当前内容相对最近一次保存或标记为已保存时是否还有未保存的持久化变更，不从 reload 或 `node:change` 推断。soft reload 的 500ms 是合并连续 asset change 的 debounce，不是 undo/dirty 正确性的等待条件。
+- soft reload 会记住修改发生时的 editor uuid，并在 asset change / delete 到达时一次性消费“保留 undo 历史”的状态；即使当前资源不需要 reload，也不会污染后续同 uuid 的外部刷新。
+- 会修改数据的 Prefab API 执行前会等待本服务已排队的 soft reload 完成，避免上一次 prefab asset change 的延迟 reload 在下一次 create/revert/unlink 等操作中途重载当前场景；这里不持有 `Editor.lock()`，避免和 asset 加载/刷新链路互等。
 - Prefab 相关 command 进入同一条 `UndoService.push` / dirty 编排链路。dirty 仍只由 `Undo.isDirty()` 状态翻转产生的 `dirty:changed` 表示，不能从 `node:change` / `component:*` 推断。
 - `getPrefabInfo` / `isPrefabInstance` 是只读 API，不入 undo。
 
@@ -507,7 +507,7 @@ Prefab 不使用普通 node dump snapshot 覆盖。原因是 prefab 关系包含
 
 ### Gizmo recording
 
-Gizmo 开始拖拽时调用 `beginRecording(uuids)` 捕获 before，拖拽过程中连续 mutation 不入栈，结束时调用 `endRecording(id)` 捕获 after。这样一次拖拽只产生一个 command。
+Gizmo 开始拖拽时调用 `beginRecording(uuids)` 捕获 before，拖拽过程中连续修改不入栈，结束时调用 `endRecording(id)` 捕获 after。这样一次拖拽只产生一个 command。
 
 Recording 只捕获传入 uuid 范围，不扫描全场景。
 
@@ -519,12 +519,12 @@ Recording 的恢复范围是现有对象的 dump。不要用它包 `Node.create/
 
 1. 判断是 snapshot 还是 structure。
 2. 在业务 service 入口显式记录，不依赖底层 `node:change` 自动推断。
-3. mutation 前检查 `Service.Undo?.isApplying?.()`，undo/redo 恢复过程中不能再次记录。
+3. 修改前检查 `Service.Undo?.isApplying?.()`，undo/redo 恢复过程中不能再次记录。
 4. 如果 API 支持 `record?: false`，尊重它。
 5. 如果目标正在 active recording 中，避免重复入栈。
 6. capture before。
-7. 执行业务 mutation。
-8. mutation 失败则不入栈。
+7. 执行业务修改。
+8. 修改失败则不入栈。
 9. capture after。
 10. before/after 相同则不入栈。
 11. push command。
@@ -542,7 +542,7 @@ Recording 的恢复范围是现有对象的 dump。不要用它包 `Node.create/
 优先级中：
 
 - Animation 编辑模式专用 command：keyframe、curve、clip、selection/time cursor 是否入 history 需要单独定义。
-- Snapshot 性能基准：深层节点、多选节点、大型 prefab-like subtree。
+- Snapshot 性能基准：深层节点、多选节点、大型 prefab-like 子树。
 - Snapshot dump 裁剪：确认不会保存 Mesh/Texture/Audio 二进制内容，只保存引用。
 - Component reset 的 `record?: false` 需求。
 - 任意数组属性 move 的 undo 语义。当前只验证 `children` 和 `__comps__/_components`，其他数组需要先补恢复策略和测试。
