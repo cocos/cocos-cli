@@ -5,12 +5,12 @@ import { NATIVE_PLATFORM, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
 import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
 import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType, TextureCompressRenderConfig, TextureCompressFullRenderConfig } from '../@types';
-import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, BundleQueryConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo } from '../@types/protected';
+import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, BundleQueryConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo, PlatformBuildSchema, PlatformConfigItem } from '../@types/protected';
 import Utils from '../../base/utils';
 import i18n from '../../base/i18n';
 import lodash from 'lodash';
 import { configGroups, textureFormatConfigs, formatsInfo, defaultSupport } from '../share/texture-compress';
-import { BundlePlatformTypes } from '../share/bundle-utils';
+import { BundlecompressionTypeMap, BundlePlatformTypes } from '../share/bundle-utils';
 import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
 import { createBuilderPlatformMetadataNodes } from '../share/metadata';
@@ -30,9 +30,31 @@ export interface InternalPackageInfo {
 }
 
 type ICustomAssetHandlerType = 'compressTextures';
-type IAssetHandlers = Record<ICustomAssetHandlerType, Record<string, Function>>;
+type IAssetHandlers = Record<ICustomAssetHandlerType, Record<string, (...args: unknown[]) => unknown>>;
 // 对外支持的对外公开的资源处理方法汇总
 const CustomAssetHandlerTypes: ICustomAssetHandlerType[] = ['compressTextures'];
+
+type DisplayValueField = 'displayName' | 'label' | 'description';
+type I18nDisplayRecord = Record<string, any>;
+
+function translateDisplayValue(value?: string): string | undefined {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    return i18n.transI18nName(value) || value;
+}
+
+function materializeDisplayI18nKey(target: I18nDisplayRecord | undefined, key: DisplayValueField) {
+    if (!target || typeof target[key] !== 'string') {
+        return;
+    }
+    const keyField = `${key}I18nKey`;
+    const rawValue = typeof target[keyField] === 'string' ? target[keyField] : target[key];
+    if (rawValue.startsWith('i18n:')) {
+        target[keyField] = rawValue;
+    }
+    target[key] = translateDisplayValue(rawValue);
+}
 
 const pluginRoots = [
     join(__dirname, '../platforms'),
@@ -52,6 +74,7 @@ function getRegisterInfo(root: string, dirName: string) : IPlatformRegisterInfo 
             hooks: builder.hooks ? join(root, builder.hooks) : undefined,
             config: require(join(root, builder.config)).default,
             path: root,
+            conifgPath: join(root, builder.config),
             type: 'register',
         };
     }
@@ -63,6 +86,7 @@ function getRegisterInfo(root: string, dirName: string) : IPlatformRegisterInfo 
                 path: root,
                 config: require(join(root, 'config')).default,
                 hooks: join(root, 'hooks'),
+                conifgPath: join(root, 'config'),
                 type: 'register',
             };
         }
@@ -78,6 +102,7 @@ async function scanPluginRoot(root: string): Promise<IPlatformRegisterInfo[]>{
     for (const dirName of dirNames) {
         try {
             const registerInfo = await getRegisterInfo(join(root, dirName), dirName);
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             registerInfo && res.push(registerInfo);
         } catch (error) {
             console.error(error);
@@ -134,9 +159,12 @@ export class PluginManager extends EventEmitter {
             }
             const infos = await scanPluginRoot(root);
             for (const info of infos) {
+                this._registerI18n(info);
+                this.translateConfigDisplayFields(info.config);
                 this.platformRegisterInfoPool.set(info.platform, info);
             }
         }
+        this.translateConfigItemsDisplayFields(builderConfig.commonOptionConfigs);
     }
 
     public async registerAllPlatform() {
@@ -209,12 +237,17 @@ export class PluginManager extends EventEmitter {
             }
             this.platformConfig[platform].texture = config.textureCompressConfig;
         }
+        const configWithDisplayKeys = config as I18nDisplayRecord;
         this.platformConfig[platform].name = config.displayName;
+        this.platformConfig[platform].nameI18nKey = configWithDisplayKeys.displayNameI18nKey;
+        this.platformConfig[platform].doc = config.doc;
+        this.platformConfig[platform].pluginPath = registerInfo.path;
         this.platformConfig[platform].platformType = (config as IPlatformBuildPluginConfig).platformType;
 
         if (config.buildTemplateConfig && config.buildTemplateConfig.templates.length) {
             const label = config.displayName || platform;
             this.platformConfig[platform].createTemplateLabel = label;
+            this.platformConfig[platform].createTemplateLabelI18nKey = configWithDisplayKeys.displayNameI18nKey;
             this.buildTemplateConfigMap[label] = config.buildTemplateConfig;
         }
         if (this.bundleConfigs[platform]) {
@@ -230,7 +263,6 @@ export class PluginManager extends EventEmitter {
 
         const pkgName = registerInfo.pkgName || platform;
         this.pkgPriorities[pkgName] = config.priority || (path.includes(GlobalPaths.workspace) ? 1 : 0);
-        this._registerI18n(registerInfo);
         // 注册校验方法
         if (typeof config.verifyRuleMap === 'object') {
             for (const [ruleName, item] of Object.entries(config.verifyRuleMap)) {
@@ -323,6 +355,61 @@ export class PluginManager extends EventEmitter {
                 }
                 console.error(error);
             }
+        }
+    }
+
+    private translateConfigItemDisplayFields(config?: Partial<IBuilderConfigItem>) {
+        if (!config || typeof config !== 'object') {
+            return;
+        }
+        const item = config as I18nDisplayRecord;
+        materializeDisplayI18nKey(item, 'label');
+        materializeDisplayI18nKey(item, 'description');
+
+        if (item.properties && typeof item.properties === 'object') {
+            Object.values(item.properties).forEach((property) => {
+                this.translateConfigItemDisplayFields(property as Partial<IBuilderConfigItem>);
+            });
+        }
+
+        if (Array.isArray(item.items)) {
+            item.items.forEach((child: unknown) => {
+                if (child && typeof child === 'object') {
+                    this.translateConfigItemDisplayFields(child as Partial<IBuilderConfigItem>);
+                }
+            });
+        } else if (item.items && typeof item.items === 'object') {
+            this.translateConfigItemDisplayFields(item.items as Partial<IBuilderConfigItem>);
+        }
+    }
+
+    private translateConfigItemsDisplayFields(configs?: Record<string, Partial<IBuilderConfigItem>>) {
+        if (!configs || typeof configs !== 'object') {
+            return;
+        }
+        Object.values(configs).forEach((option) => {
+            this.translateConfigItemDisplayFields(option);
+        });
+    }
+
+    private translateConfigDisplayFields(config: IInternalBuildPluginConfig | IPlatformBuildPluginConfig) {
+        const configWithDisplayKeys = config as I18nDisplayRecord;
+        materializeDisplayI18nKey(configWithDisplayKeys, 'displayName');
+
+        this.translateConfigItemsDisplayFields(config.options);
+        this.translateConfigItemsDisplayFields(config.commonOptions);
+
+        if (Array.isArray(config.customBuildStages)) {
+            config.customBuildStages.forEach((stage) => {
+                const stageWithDisplayKeys = stage as I18nDisplayRecord;
+                materializeDisplayI18nKey(stageWithDisplayKeys, 'displayName');
+                materializeDisplayI18nKey(stageWithDisplayKeys, 'description');
+            });
+        }
+
+        const buildTemplateConfig = (config as IPlatformBuildPluginConfig).buildTemplateConfig as I18nDisplayRecord | undefined;
+        if (buildTemplateConfig) {
+            materializeDisplayI18nKey(buildTemplateConfig, 'displayName');
         }
     }
 
@@ -572,20 +659,76 @@ export class PluginManager extends EventEmitter {
         const result: Record<string, ITextureCompressConfig> = {};
         Object.keys(this.platformConfig).forEach((platform) => {
             result[platform] = {
-                name: this.platformConfig[platform].name,
+                name: translateDisplayValue(this.platformConfig[platform].name || platform) || platform,
                 textureCompressConfig: this.platformConfig[platform].texture,
             };
         });
         return result;
     }
 
-    public queryPlatformConfig() {
+    private cloneDisplayOptions(options?: Record<string, IBuilderConfigItem>): Record<string, IBuilderConfigItem> {
+        return lodash.cloneDeep(options || {});
+    }
+
+    private cloneConfigItem(config: IBuilderConfigItem & { verifyKey?: string }): IBuilderConfigItem {
+        const item = lodash.cloneDeep(config) as IBuilderConfigItem & { verifyKey?: string };
+        delete item.verifyKey;
+        return item;
+    }
+
+    private applySupportedCompressionTypes(platform: string, common: Record<string, IBuilderConfigItem>) {
+        const supportedCompressionTypes = this.bundleConfigs[platform]?.supportOptions?.compressionType;
+        if (!supportedCompressionTypes || !common.mainBundleCompressionType) {
+            return;
+        }
+
+        Object.assign(common.mainBundleCompressionType, {
+            type: 'enum',
+            items: supportedCompressionTypes.map((value) => ({
+                label: translateDisplayValue(BundlecompressionTypeMap[value as keyof typeof BundlecompressionTypeMap]) || value,
+                labelI18nKey: BundlecompressionTypeMap[value as keyof typeof BundlecompressionTypeMap],
+                value,
+            })),
+        });
+    }
+
+    public getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema {
+        if (!this.platformConfig[platform]) {
+            throw new Error(`Can not find platform config for ${platform}`);
+        }
+
+        const common: Record<string, IBuilderConfigItem> = {};
+        const platformCommonOptions = this.commonOptionConfig[platform] || {};
+        /** common 区:CLI 内置 common 项 + 该平台 commonOptions 覆盖(hidden/default 已应用);key 顺序即显示顺序 */
+        for (const key of Object.keys(builderConfig.commonOptionConfigs)) {
+            common[key] = this.cloneConfigItem(platformCommonOptions[key] || builderConfig.commonOptionConfigs[key]);
+        }
+        for (const key of Object.keys(platformCommonOptions)) {
+            if (!common[key]) {
+                common[key] = this.cloneConfigItem(platformCommonOptions[key]);
+            }
+        }
+        // 应用支持的压缩类型
+        this.applySupportedCompressionTypes(platform, common);
+        
+        const config = this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config;
+        const result: PlatformBuildSchema = {
+            common,
+            platformOptions: this.cloneDisplayOptions(config?.options)
+        };
+        return result;
+    }
+
+    public queryPlatformConfig(): PlatformConfigItem[] {
         return Object.entries(this.platformConfig).map(([platform, config]) => ({
             platform,
-            displayName: config.name || platform,
+            displayName: translateDisplayValue(config.name || platform) || platform,
             platformType: config.platformType,
             isNative: NATIVE_PLATFORM.includes(platform as Platform),
-            createTemplateLabel: config.createTemplateLabel,
+            doc: config.doc,
+            // 打包平台路径
+            pluginPath: config.pluginPath || this.platformRegisterInfoPool.get(platform)?.path || '',
+            createTemplateLabel: config.createTemplateLabel && translateDisplayValue(config.createTemplateLabel),
             supportTextureCompress: !!config.texture,
         }));
     }
@@ -610,9 +753,10 @@ export class PluginManager extends EventEmitter {
                 };
             }
 
-            const platformName = this.platformConfig[platform]?.name || platform;
+            const platformConfig = this.platformConfig[platform];
+            const platformName = translateDisplayValue(platformConfig?.name || platform) || platform;
             result[platformType].platformConfigs[platform] = {
-                platformName: i18n.transI18nName(platformName),
+                platformName,
                 platformType: bundleConfig.platformType,
                 supportOptions: bundleConfig.supportOptions,
             };
@@ -635,14 +779,14 @@ export class PluginManager extends EventEmitter {
             if (!platformRenderConfigs[platformType]) {
                 const groupInfo = configGroups[platformType];
                 platformRenderConfigs[platformType] = {
-                    displayName: groupInfo ? groupInfo.displayName : platformType,
+                    displayName: groupInfo ? translateDisplayValue(groupInfo.displayName) || groupInfo.displayName : platformType,
                     platformConfigs: {},
                 };
             }
 
-            const platformName = config.name || platform;
+            const platformName = translateDisplayValue(config.name || platform) || platform;
             platformRenderConfigs[platformType].platformConfigs[platform] = {
-                platformName: i18n.transI18nName(platformName),
+                platformName,
                 platformType: config.texture.platformType,
                 support: config.texture.support,
             };
@@ -692,7 +836,10 @@ export class PluginManager extends EventEmitter {
             if (pkgNames.length) {
                 pkgNames.sort((a, b) => this.pkgPriorities[b] - this.pkgPriorities[a]);
                 pkgNames.forEach((pkgName) => {
-                    result.buttons.push(...this.customBuildStages[platform][pkgName].filter((config) => !config.hidden));
+                    const buttons = this.customBuildStages[platform][pkgName]
+                        .filter((config) => !config.hidden)
+                        .map((config) => lodash.cloneDeep(config));
+                    result.buttons.push(...buttons);
                 });
             }
         }
@@ -738,8 +885,12 @@ export class PluginManager extends EventEmitter {
         return result;
     }
 
-    public getBuildTemplateConfig(platform: string) {
-        return this.buildTemplateConfigMap[this.platformConfig[platform].createTemplateLabel];
+    public getBuildTemplateConfig(platform: string): BuildTemplateConfig {
+        const config = this.buildTemplateConfigMap[this.platformConfig[platform].createTemplateLabel];
+        if (!config) {
+            return config;
+        }
+        return lodash.cloneDeep(config);
     }
 
     /**

@@ -43,6 +43,7 @@ export type IDisplayOptions = Record<string, IBuilderConfigItem>;
 
 export type ArrayItem = {
     label: string;
+    labelI18nKey?: string;
     value: string;
 };
 

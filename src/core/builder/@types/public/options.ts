@@ -57,7 +57,11 @@ export interface IPlatformConfig {
     type: IPlatformType;
     platformType: StatsQuery.ConstantManager.PlatformType;
     name: string;
+    nameI18nKey?: string;
+    doc?: string;
+    pluginPath?: string;
     createTemplateLabel: string;
+    createTemplateLabelI18nKey?: string;
 }
 
 export interface IBinGroupConfig {

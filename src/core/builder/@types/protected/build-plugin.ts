@@ -42,10 +42,27 @@ export interface IPackageRegisterInfo {
 
 export type IBuilderRegisterInfo = IPlatformRegisterInfo | IPluginRegisterInfo;
 
+export interface PlatformBuildSchema {
+    common: Record<string, IBuilderConfigItem>;
+    platformOptions: Record<string, IBuilderConfigItem>;
+}
+
+export interface PlatformConfigItem {
+    platform: string;
+    displayName: string;
+    platformType: StatsQuery.ConstantManager.PlatformType;
+    isNative: boolean;
+    doc?: string;
+    pluginPath: string;
+    createTemplateLabel?: string;
+    supportTextureCompress: boolean;
+}
+
 export interface IPlatformRegisterInfo {
     config: IPlatformBuildPluginConfig;
     platform: string;
     path: string;
+    conifgPath: string;
     hooks?: string;
     pkgName?: string;
     type: 'register';
@@ -249,7 +266,9 @@ export type OverwriteCommonOption =
 export interface IBuildStageItem {
     name: string; // 阶段唯一名称，同平台不允许重名
     displayName?: string; // 阶段名称，显示在构建面板对应按钮以及一些报错提示上
+    displayNameI18nKey?: string;
     description?: string; // 构建阶段描述，将会作为构建面板对应按钮上的 tooltip
+    descriptionI18nKey?: string;
     hidden?: boolean; // 是否显示指定的控制按钮在构建列表，默认显示
     parallelism?: 'none' | 'all' | 'other';
     hook: string;
@@ -299,6 +318,7 @@ export type IBuilderConfigItem = IConfigItem & {
 export interface IInternalBuildPluginConfig extends IBuildPluginConfig {
     doc?: string; // 注册文档地址
     displayName?: string; // 在构建面板上的显示名称，默认为插件名
+    displayNameI18nKey?: string;
     hooks?: string; // 钩子函数的存储路径
     priority?: number;
     options?: IDisplayOptions; // 需要注入的平台参数配置
@@ -330,6 +350,7 @@ export interface BuildTemplateConfig {
         destUrl: string;
     }[];
     displayName?: string;
+    displayNameI18nKey?: string;
     version: string;
     dirname?: string; // 指定构建模板目录名称，默认与平台名称保持一致
 }

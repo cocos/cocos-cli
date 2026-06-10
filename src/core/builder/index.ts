@@ -237,6 +237,14 @@ export function queryTextureCompressConfig() {
     return pluginManager.queryTextureCompressConfig();
 }
 
+export function queryPlatformConfig() {
+    return pluginManager.queryPlatformConfig();
+}
+
+export function getPlatformBuildSchema(platform: Platform | string) {
+    return pluginManager.getPlatformBuildSchema(platform);
+}
+
 export async function queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('./@types').BundleFilterConfig[]) {
     const { buildAssetLibrary } = await import('./worker/builder/manager/asset-library');
     return buildAssetLibrary.queryAssetsInBundle(uuid, bundleFilterConfig);

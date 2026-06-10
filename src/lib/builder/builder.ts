@@ -1,5 +1,6 @@
 import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
+import type { PlatformBuildSchema, PlatformConfigItem } from '../../core/builder/@types/protected';
 
 export type * from '../../core/builder/@types/private';
 export type * from '../../core/builder/@types/config-export';
@@ -69,6 +70,16 @@ export async function queryBundleConfig() {
 export async function queryTextureCompressConfig() {
     const builder = await import('../../core/builder');
     return builder.queryTextureCompressConfig();
+}
+
+export async function queryPlatformConfig(): Promise<PlatformConfigItem[]> {
+    const builder = await import('../../core/builder');
+    return builder.queryPlatformConfig();
+}
+
+export async function getPlatformBuildSchema(platform: Platform | string): Promise<PlatformBuildSchema> {
+    const builder = await import('../../core/builder');
+    return builder.getPlatformBuildSchema(platform);
 }
 
 // 查询指定 Bundle 中实际会被打包的资源列表
