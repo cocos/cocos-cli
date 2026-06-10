@@ -68,7 +68,7 @@ class SceneUtil {
         prefab.__asset__ = enginePrefab.asset ? {
             name: enginePrefab.asset.name,
             uuid: enginePrefab.asset._uuid,
-            data: this.generateNodeIdentifier(enginePrefab.asset.data),
+            data: enginePrefab.asset.data ? this.generateNodeIdentifier(enginePrefab.asset.data) : undefined,
             optimizationPolicy: enginePrefab.asset.optimizationPolicy,
             persistent: enginePrefab.asset.persistent,
         } : undefined;

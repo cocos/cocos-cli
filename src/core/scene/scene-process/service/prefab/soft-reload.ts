@@ -18,6 +18,9 @@ export class PrefabSoftReloadScheduler {
     private _assetUuids = new Set<string>();
     private _preserveUndoHistory = false;
     private _editorUuid: string | null = null;
+    private _reloadWaiters = new Map<string, Set<() => void>>();
+    private _idleWaiters = new Set<() => void>();
+    private _flushPromise: Promise<void> | null = null;
 
     constructor(
         private readonly _reloadEditor: ReloadEditor,
@@ -50,6 +53,40 @@ export class PrefabSoftReloadScheduler {
         }, this._debounceMs);
     }
 
+    waitForAssetReload(uuid: string): { promise: Promise<void>; cancel: () => void } {
+        let resolveWaiter: () => void = () => {};
+        const promise = new Promise<void>((resolve) => {
+            resolveWaiter = resolve;
+            let waiters = this._reloadWaiters.get(uuid);
+            if (!waiters) {
+                waiters = new Set();
+                this._reloadWaiters.set(uuid, waiters);
+            }
+            waiters.add(resolveWaiter);
+        });
+
+        return {
+            promise,
+            cancel: () => {
+                const waiters = this._reloadWaiters.get(uuid);
+                waiters?.delete(resolveWaiter);
+                if (waiters?.size === 0) {
+                    this._reloadWaiters.delete(uuid);
+                }
+            },
+        };
+    }
+
+    waitForIdle(): Promise<void> {
+        if (!this._timer && !this._flushPromise) {
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            this._idleWaiters.add(resolve);
+        });
+    }
+
     private async _flush(): Promise<void> {
         const reloadedUuids = [...this._assetUuids];
         const preserveUndoHistory = this._preserveUndoHistory;
@@ -60,13 +97,43 @@ export class PrefabSoftReloadScheduler {
         this._preserveUndoHistory = false;
         this._editorUuid = null;
 
-        await this._reloadEditor({
-            preserveUndoHistory,
-            urlOrUUID: editorUuid ?? undefined,
-        });
+        this._flushPromise = (async () => {
+            await this._reloadEditor({
+                preserveUndoHistory,
+                urlOrUUID: editorUuid ?? undefined,
+            });
 
-        reloadedUuids.forEach((uuid) => {
-            this._emitAssetReload(uuid);
-        });
+            reloadedUuids.forEach((uuid) => {
+                this._emitAssetReload(uuid);
+                this._resolveAssetReloadWaiters(uuid);
+            });
+        })();
+
+        try {
+            await this._flushPromise;
+        } finally {
+            this._flushPromise = null;
+            this._resolveIdleWaitersIfIdle();
+        }
+    }
+
+    private _resolveAssetReloadWaiters(uuid: string): void {
+        const waiters = this._reloadWaiters.get(uuid);
+        if (!waiters) {
+            return;
+        }
+
+        this._reloadWaiters.delete(uuid);
+        waiters.forEach((resolve) => resolve());
+    }
+
+    private _resolveIdleWaitersIfIdle(): void {
+        if (this._timer || this._flushPromise || this._idleWaiters.size === 0) {
+            return;
+        }
+
+        const waiters = [...this._idleWaiters];
+        this._idleWaiters.clear();
+        waiters.forEach((resolve) => resolve());
     }
 }

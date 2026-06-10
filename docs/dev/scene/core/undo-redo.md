@@ -1,6 +1,6 @@
 # Scene Undo/Redo
 
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 ## 目标
 
@@ -450,7 +450,9 @@ Prefab 不使用普通 node dump snapshot 覆盖。原因是 prefab 关系包含
 - `createPrefabFromNode` / `revertToPrefab` 使用 `PrefabNodeStructureCommand`，通过 prefab-aware node structure snapshot 恢复前后结构和 metadata。
 - `applyPrefabChanges` 使用 `PrefabApplyCommand`，同时恢复 prefab asset 内容与场景中的 prefab-aware node structure snapshot。undo/redo 不等待全局 `Editor.reload`，避免 dirty/undo command 被异步刷新链路阻塞。
 - `unlinkPrefab` / `unpackPrefabInstance` 使用 `PrefabUnwrapCommand`。undo 通过 before snapshot 恢复 prefab 关系，redo 重新执行底层 unwrap 语义。
-- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。soft reload 由 asset change 消息驱动，属于编辑器状态刷新；dirty 只看 undo stack 是否离开保存点，不从 reload 或 `node:change` 推断。prefab reload preserve 状态在 asset change 到达时一次性消费，即使当前资源不需要 reload，也不会污染后续同 uuid 的外部刷新。
+- `applyPrefabChanges` 会保存 prefab asset 并触发 soft reload。soft reload 由 asset change 消息驱动，属于编辑器状态刷新；dirty 只看 undo stack 是否离开保存点，不从 reload 或 `node:change` 推断。soft reload 的 500ms 是合并连续 asset change 的 debounce，不是 undo/dirty 正确性的等待条件。
+- soft reload 会绑定 mutation 发生时的 editor uuid，并在 asset change / delete 到达时一次性消费 prefab reload preserve 状态；即使当前资源不需要 reload，也不会污染后续同 uuid 的外部刷新。
+- Prefab 可变 API 执行前会等待本服务已排队的 soft reload 进入 idle，避免上一次 prefab asset change 的延迟 reload 在下一次 create/revert/unlink 等操作中途重载当前场景；这里不持有 `Editor.lock()`，避免和 asset 加载/刷新链路互等。
 - Prefab 相关 command 进入同一条 `UndoService.push` / dirty 编排链路。dirty 仍只由 `Undo.isDirty()` 状态翻转产生的 `dirty:changed` 表示，不能从 `node:change` / `component:*` 推断。
 - `getPrefabInfo` / `isPrefabInstance` 是只读 API，不入 undo。
 
@@ -525,6 +527,13 @@ npm run generate:dts
 
 ```bash
 npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand --testNamePattern "Component reset|Node tree mutations"
+```
+
+Prefab undo/dirty 或 soft reload 相关改动至少补跑：
+
+```bash
+npm test -- --runTestsByPath src/core/scene/test/prefab-soft-reload.test.ts --runInBand
+npm test -- --runTestsByPath src/core/scene/test/scene.test.ts --runInBand --testNamePattern "Prefab dirty/undo contract"
 ```
 
 `scene.test.ts` 使用 `dist/core/scene/scene-process/main.js`，因此改 scene-process 代码后要先 `npm run build`。

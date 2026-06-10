@@ -46,6 +46,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      */
     async createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode> {
         try {
+            await this._softReload.waitForIdle();
 
             validateCreatePrefabParams(params);
 
@@ -79,6 +80,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      */
     async applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean> {
         try {
+            await this._softReload.waitForIdle();
             validateNodePathParams(params);
 
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
@@ -89,18 +91,26 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
 
             const before = this._undo.captureSnapshot(node);
             const prefabAssetUuid = prefabInfo.asset?._uuid;
+            const shouldWaitForReload = !!prefabAssetUuid
+                && nodeOperation.assetToNodesMap.has(prefabAssetUuid)
+                && await Service.Editor.hasOpen();
+            const reloadWaiter = prefabAssetUuid && shouldWaitForReload
+                ? this._softReload.waitForAssetReload(prefabAssetUuid)
+                : null;
             if (prefabAssetUuid) {
                 this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid, getCurrentEditorUuid());
             }
             try {
                 const applyInfo = await nodeOperation.applyPrefab(node.uuid);
                 if (!applyInfo) {
+                    reloadWaiter?.cancel();
                     if (prefabAssetUuid) {
                         this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
                     }
                     return false;
                 }
 
+                await reloadWaiter?.promise;
                 const afterNode = this._undo.findNode(params.nodePath, node.uuid);
                 const after = this._undo.captureSnapshot(afterNode);
                 this._undo.pushApplyCommand(
@@ -115,6 +125,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
                 );
                 return true;
             } catch (error) {
+                reloadWaiter?.cancel();
                 if (prefabAssetUuid) {
                     this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
                 }
@@ -131,6 +142,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      */
     async revertToPrefab(params: IRevertToPrefabParams): Promise<boolean> {
         try {
+            await this._softReload.waitForIdle();
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             const before = this._undo.captureSnapshot(node);
@@ -150,6 +162,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      */
     async unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode> {
         try {
+            await this._softReload.waitForIdle();
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
 
@@ -187,6 +200,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      */
     async unlinkPrefab(params: IUnlinkPrefabParams): Promise<boolean> {
         try {
+            await this._softReload.waitForIdle();
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             const before = this._undo.captureSnapshot(node);

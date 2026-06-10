@@ -38,6 +38,105 @@ describe('PrefabSoftReloadScheduler', () => {
         expect(emitAssetReload).toHaveBeenCalledWith('prefab-a');
     });
 
+    it('resolves asset reload waiters after editor reload', async () => {
+        const reload = jest.fn().mockResolvedValue(undefined);
+        const emitAssetReload = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(
+            reload,
+            emitAssetReload,
+            () => 'current-editor',
+            500,
+        );
+        const onReload = jest.fn();
+
+        scheduler.waitForAssetReload('prefab-a').promise.then(onReload);
+        scheduler.schedule({
+            changedUuid: 'prefab-a',
+            editorUuid: 'scene-a',
+        });
+
+        jest.advanceTimersByTime(500);
+        await flushPromises();
+
+        expect(onReload).toHaveBeenCalledTimes(1);
+        expect(emitAssetReload).toHaveBeenCalledWith('prefab-a');
+    });
+
+    it('can cancel asset reload waiters', async () => {
+        const reload = jest.fn().mockResolvedValue(undefined);
+        const emitAssetReload = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(
+            reload,
+            emitAssetReload,
+            () => 'current-editor',
+            500,
+        );
+        const onReload = jest.fn();
+        const waiter = scheduler.waitForAssetReload('prefab-a');
+
+        waiter.promise.then(onReload);
+        waiter.cancel();
+        scheduler.schedule({
+            changedUuid: 'prefab-a',
+            editorUuid: 'scene-a',
+        });
+
+        jest.advanceTimersByTime(500);
+        await flushPromises();
+
+        expect(onReload).not.toHaveBeenCalled();
+        expect(emitAssetReload).toHaveBeenCalledWith('prefab-a');
+    });
+
+    it('waits for pending reloads to become idle', async () => {
+        const reload = jest.fn().mockResolvedValue(undefined);
+        const emitAssetReload = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(
+            reload,
+            emitAssetReload,
+            () => 'current-editor',
+            500,
+        );
+        const onIdle = jest.fn();
+
+        scheduler.schedule({
+            changedUuid: 'prefab-a',
+            editorUuid: 'scene-a',
+        });
+        scheduler.waitForIdle().then(onIdle);
+
+        jest.advanceTimersByTime(499);
+        await flushPromises();
+        expect(onIdle).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(1);
+        await flushPromises();
+
+        expect(onIdle).toHaveBeenCalledTimes(1);
+        expect(reload).toHaveBeenCalledWith({
+            preserveUndoHistory: false,
+            urlOrUUID: 'scene-a',
+        });
+    });
+
+    it('resolves idle immediately when no reload is pending', async () => {
+        const reload = jest.fn().mockResolvedValue(undefined);
+        const emitAssetReload = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(
+            reload,
+            emitAssetReload,
+            () => 'current-editor',
+            500,
+        );
+        const onIdle = jest.fn();
+
+        scheduler.waitForIdle().then(onIdle);
+        await flushPromises();
+
+        expect(onIdle).toHaveBeenCalledTimes(1);
+        expect(reload).not.toHaveBeenCalled();
+    });
+
     it('deleting a pending changed asset clears its reload event and preserve flag', async () => {
         const reload = jest.fn().mockResolvedValue(undefined);
         const emitAssetReload = jest.fn();
