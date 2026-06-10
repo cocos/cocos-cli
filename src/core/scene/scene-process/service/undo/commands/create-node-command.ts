@@ -1,4 +1,3 @@
-import { Node } from 'cc';
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../../common';
 import {
     captureNodeStructureSnapshot,

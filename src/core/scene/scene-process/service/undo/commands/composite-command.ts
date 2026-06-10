@@ -12,12 +12,13 @@ export class CompositeCommand implements IUndoCommand {
             const child = this.children[index];
             const result = await child.undo();
             if (!result.success) {
-                // Atomic rollback: re-redo already-undone children to avoid a partial state
+                // 如果某一步 undo 失败，把前面已经 undo 的子命令重新 redo 回去，
+                // 尽量恢复到执行 undo 之前的状态，避免只恢复了一半。
                 for (let i = undone.length - 1; i >= 0; i--) {
                     try {
                         await undone[i].redo();
                     } catch (_e) {
-                        // best-effort rollback: keep rolling back the remaining children
+                        // 某个补偿操作失败时，继续处理剩下的子命令。
                     }
                 }
                 return result;
@@ -32,12 +33,13 @@ export class CompositeCommand implements IUndoCommand {
         for (const child of this.children) {
             const result = await child.redo();
             if (!result.success) {
-                // Atomic rollback: re-undo already-redone children to avoid a partial state
+                // 如果某一步 redo 失败，把前面已经 redo 的子命令重新 undo 回去，
+                // 尽量恢复到执行 redo 之前的状态，避免只恢复了一半。
                 for (let i = redone.length - 1; i >= 0; i--) {
                     try {
                         await redone[i].undo();
                     } catch (_e) {
-                        // best-effort rollback: keep rolling back the remaining children
+                        // 某个补偿操作失败时，继续处理剩下的子命令。
                     }
                 }
                 return result;

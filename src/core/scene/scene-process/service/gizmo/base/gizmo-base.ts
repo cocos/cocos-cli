@@ -145,9 +145,10 @@ class GizmoBase<T extends Component = Component> {
     }
 
     destroy() {
-        // 兜底提交录制：拖拽进行中 gizmo 被销毁（目标节点被删、场景切换、工具切换）时
-        // onControlEnd 不会触发，beginRecording 开启的录制会泄漏，导致 hasActiveRecording
-        // 对该节点恒为 true、后续修改不再记录 undo。commitChanges 在未录制时是 no-op。
+        // 拖拽还没正常结束时，gizmo 也可能因为节点删除、场景切换、工具切换被销毁。
+        // 这种情况下 onControlEnd 不会触发，所以这里主动结束录制，
+        // 避免该节点一直被认为正在录制，导致后续修改不再记录 undo。
+        // 没有开始录制时，commitChanges 不会产生额外影响。
         this.commitChanges();
         if (this.onDestroy) {
             this.onDestroy();

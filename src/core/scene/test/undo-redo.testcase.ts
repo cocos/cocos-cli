@@ -1,29 +1,28 @@
 /**
- * Undo/Redo integration tests.
+ * Undo/Redo 集成测试。
  *
- * Drives the real Cocos engine (loaded in scene-process by global-setup) and a
- * real test scene. All interaction goes through scene service RPC directly,
- * so these tests do not depend on the main-process proxy/MCP filter layer.
+ * 测试会启动真实 Cocos 引擎（由 scene-process global-setup 加载）和真实测试场景。
+ * 所有交互都直接走 scene service RPC，不依赖 main-process proxy / MCP filter 层。
  *
- * Coverage matrix:
+ * 覆盖范围：
  *
- *   Command                | Public RPC entry           | Covered here?
- *   -----------------------|----------------------------|---------------
- *   CreateNodeCommand      | Node.createByType          | covered
- *   AddComponentCommand    | Component.add              | covered
- *   RemoveComponentCommand | Component.remove           | covered
- *   RemoveNodeCommand      | Node.delete                | covered
- *   (snapshot) setProperty | Node.update                | covered
- *   (snapshot) resetNode   | Node.reset (RPC)           | covered
- *   (snapshot) resetProperty| Node.resetProperty (RPC)  | covered
- *   (snapshot) update null | Node.updatePropertyFromNull | covered
- *   (snapshot) resetComponent| Component.reset           | covered
- *   (snapshot) subtree layer | Node.setNodeAndChildrenLayer | covered
- *   (snapshot) move children | Node.moveArrayElement/reorder | covered
- *   (snapshot) reparent      | Node.setParent / cut+paste | covered
- *   CreateNodeCommand        | Node.duplicate / copy+paste | covered
- *   RemoveComponentCommand   | Node.removeArrayElement(__comps__) | covered
- *   (snapshot) node lock     | Node.changeNodeLock        | covered
+ *   Command                   | Public RPC entry              | 是否覆盖
+ *   --------------------------|-------------------------------|--------
+ *   CreateNodeCommand         | Node.createByType             | 已覆盖
+ *   AddComponentCommand       | Component.add                 | 已覆盖
+ *   RemoveComponentCommand    | Component.remove              | 已覆盖
+ *   RemoveNodeCommand         | Node.delete                   | 已覆盖
+ *   snapshot setProperty      | Node.update                   | 已覆盖
+ *   snapshot resetNode        | Node.reset (RPC)              | 已覆盖
+ *   snapshot resetProperty    | Node.resetProperty (RPC)      | 已覆盖
+ *   snapshot update null      | Node.updatePropertyFromNull   | 已覆盖
+ *   snapshot resetComponent   | Component.reset               | 已覆盖
+ *   snapshot subtree layer    | Node.setNodeAndChildrenLayer  | 已覆盖
+ *   snapshot move children    | Node.moveArrayElement/reorder | 已覆盖
+ *   snapshot reparent         | Node.setParent / cut+paste    | 已覆盖
+ *   CreateNodeCommand         | Node.duplicate / copy+paste   | 已覆盖
+ *   RemoveComponentCommand    | Node.removeArrayElement(__comps__) | 已覆盖
+ *   snapshot node lock        | Node.changeNodeLock           | 已覆盖
  */
 
 import {
@@ -78,7 +77,7 @@ function toComponentInfo(dump: any): any {
     };
 }
 
-// Undo/Redo is a scene-process service namespace, not a main-process/MCP proxy.
+// Undo/Redo 是 scene-process service 命名空间，不是 main-process / MCP 代理。
 const Undo = {
     undo: () => request('Undo', 'undo'),
     redo: () => request('Redo', 'redo'),
@@ -231,8 +230,7 @@ async function queryComp(path: string) {
     try {
         return await Component.query(params);
     } catch {
-        // Scene-process throws "No component found for this path(...)" instead
-        // of returning null. Treat both as "not present".
+        // scene-process 找不到组件时会抛错，而不是返回 null；这里统一当成“不存在”。
         return null;
     }
 }
@@ -245,7 +243,7 @@ async function safeDelete(path: string) {
             await Node.delete(params);
         }
     } catch {
-        // best-effort cleanup
+        // 尽力清理，清理失败不影响测试主流程。
     }
 }
 
@@ -371,7 +369,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // CreateNodeCommand
+    // 创建节点命令
     // ========================================================================
     describe('CreateNode', () => {
         const path = 'UndoCreateNode';
@@ -409,7 +407,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // AddComponentCommand
+    // 添加组件命令
     // ========================================================================
     describe('AddComponent', () => {
         const path = 'UndoAddComp';
@@ -418,7 +416,7 @@ describe('Undo/Redo 集成测试', () => {
         beforeEach(async () => {
             await safeDelete(path);
             await Node.createByType({ path, nodeType: NodeType.EMPTY });
-            // Reset so the test only sees the add-component step.
+            // 清空历史，让测试只观察添加组件这一步。
             await Undo.clearHistory();
         });
 
@@ -463,7 +461,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // RemoveComponentCommand
+    // 删除组件命令
     // ========================================================================
     describe('RemoveComponent', () => {
         const path = 'UndoRemoveComp';
@@ -574,7 +572,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // RemoveNodeCommand — Node.delete now goes through nodeMgr.removeNode
+    // 删除节点命令：Node.delete 现在会走 nodeMgr.removeNode
     // ========================================================================
     describe('RemoveNode (delete)', () => {
         const path = 'UndoRemoveNode';
@@ -614,7 +612,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Snapshot-based: setProperty via Node.update
+    // 基于快照：通过 Node.update 设置属性
     // ========================================================================
     describe('setProperty (snapshot)', () => {
         const path = 'UndoSetProp';
@@ -681,7 +679,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Snapshot-based: resetNode (reset position/rotation/scale/mobility)
+    // 基于快照：resetNode 会重置 position/rotation/scale/mobility
     // ========================================================================
     describe('resetNode (snapshot)', () => {
         const path = 'UndoResetNode';
@@ -699,7 +697,7 @@ describe('Undo/Redo 集成测试', () => {
         });
 
         it('reset restores default position, undo brings back custom, redo resets again', async () => {
-            // Verify the non-default position is set
+            // 确认已设置非默认 position。
             expect((await queryNode(path))!.properties.position).toEqual(newPos);
 
             await Node.reset(path);
@@ -716,7 +714,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Snapshot-based: resetProperty (single property)
+    // 基于快照：resetProperty 重置单个属性
     // ========================================================================
     describe('resetProperty (snapshot)', () => {
         const path = 'UndoResetProp';
@@ -749,7 +747,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Snapshot-based: updatePropertyFromNull
+    // 基于快照：updatePropertyFromNull
     // ========================================================================
     describe('updatePropertyFromNull (snapshot)', () => {
         const path = 'UndoUpdatePropertyFromNull';
@@ -784,7 +782,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Component reset (snapshot)
+    // 组件 reset（快照）
     // ========================================================================
     describe('Component reset (snapshot)', () => {
         const path = 'UndoResetComponentNode';
@@ -824,7 +822,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Recursive layer and hierarchy order operations
+    // 递归 layer 与层级顺序操作
     // ========================================================================
     describe('Node tree mutations (snapshot)', () => {
         const parentPath = 'UndoTreeMutationParent';
@@ -1038,7 +1036,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Multi-step: mixed custom command + snapshot
+    // 多步骤：自定义命令与快照混合
     // ========================================================================
     describe('Multi-step stack', () => {
         const path = 'UndoMultiStep';
@@ -1055,34 +1053,34 @@ describe('Undo/Redo 集成测试', () => {
         });
 
         it('createNode → setProperty → undo setProperty → undo create → redo create → redo setProperty', async () => {
-            // Step 1: create node
+            // 第一步：创建节点
             await Node.createByType({ path, nodeType: NodeType.EMPTY });
             expect(await queryNode(path)).not.toBeNull();
 
-            // Step 2: change position
+            // 第二步：修改 position
             await Node.update({ path, properties: { position: newPos } });
             expect((await queryNode(path))!.properties.position).toEqual(newPos);
             expect(await Undo.canUndo()).toBe(true);
 
-            // Step 3: undo position change
+            // 第三步：撤销 position 修改
             const undoSetPropertyResult = await Undo.undo();
             expectUndoSuccess(undoSetPropertyResult);
             expect((await queryNode(path))!.properties.position).toEqual({ x: 0, y: 0, z: 0 });
             expect(await Undo.canUndo()).toBe(true);
 
-            // Step 4: undo node creation → node gone
+            // 第四步：撤销节点创建，节点消失
             const undoCreateResult = await Undo.undo();
             expectUndoSuccess(undoCreateResult);
             expect(await queryNode(path)).toBeNull();
             expect(await Undo.canUndo()).toBe(false);
 
-            // Step 5: redo node creation → node back
+            // 第五步：重做节点创建，节点恢复
             const redoCreateResult = await Undo.redo();
             expectUndoSuccess(redoCreateResult);
             expect(await queryNode(path)).not.toBeNull();
             expect(await Undo.canUndo()).toBe(true);
 
-            // Step 6: redo position change
+            // 第六步：重做 position 修改
             const redoSetPropertyResult = await Undo.redo();
             expectUndoSuccess(redoSetPropertyResult);
             expect((await queryNode(path))!.properties.position).toEqual(newPos);
@@ -1231,7 +1229,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // Stack-level state tests (no node lookup — should PASS)
+    // 栈状态测试：不依赖节点查询
     // ========================================================================
     describe('Stack state', () => {
         const path = 'UndoStackState';
@@ -1270,7 +1268,7 @@ describe('Undo/Redo 集成测试', () => {
             await Undo.undo();
             expect(await Undo.canRedo()).toBe(true);
 
-            // A new push truncates the redo branch.
+            // undo 后发生新的修改，会清掉 redo 分支。
             await Node.update({ path, properties: { position: { x: 2, y: 0, z: 0 } } });
             expect(await Undo.canRedo()).toBe(false);
         });
@@ -1287,7 +1285,7 @@ describe('Undo/Redo 集成测试', () => {
     });
 
     // ========================================================================
-    // isDirty / markSaved / canUndo / canRedo on real recordings
+    // 基于真实录制验证 isDirty / markSaved / canUndo / canRedo
     // ========================================================================
     describe('isDirty / markSaved on real recordings', () => {
         const path = 'UndoDirtyNode';
@@ -1311,11 +1309,11 @@ describe('Undo/Redo 集成测试', () => {
             await Undo.markSaved();
             expect(await Undo.isDirty()).toBe(false);
 
-            // Undoing back past the saved cursor diverges from the saved state.
+            // undo 到已保存位置之前，当前内容会偏离已保存状态。
             await Undo.undo();
             expect(await Undo.isDirty()).toBe(true);
 
-            // Redoing back to the saved cursor returns to clean.
+            // redo 回到已保存位置后，状态重新变为 clean。
             await Undo.redo();
             expect(await Undo.isDirty()).toBe(false);
         });

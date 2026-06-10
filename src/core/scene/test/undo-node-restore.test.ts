@@ -7,8 +7,8 @@ import {
     COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS,
 } from '../scene-process/service/dump/restore-policy';
 
-// Mock dump module so that restoreNodeSnapshotDump / restoreComponentSnapshotDump
-// can call dumpUtil methods without loading the real engine-dependent module.
+// 模拟 dump 模块，让 restoreNodeSnapshotDump / restoreComponentSnapshotDump
+// 可以调用 dumpUtil 方法，同时避免加载依赖真实引擎环境的 dump 模块。
 const mockRestoreNodeSnapshotProperties = jest.fn();
 const mockRestoreComponentSnapshotProperties = jest.fn();
 
@@ -55,11 +55,11 @@ describe('restoreNodeSnapshotDump', () => {
             },
         });
 
-        // name: handled by undo layer callback
+        // name 由 undo 层回调处理。
         expect(updatedNames).toEqual([['node-1', 'After']]);
-        // editable properties: delegated to dump layer
+        // 可编辑属性交给 dump 层恢复。
         expect(mockRestoreNodeSnapshotProperties).toHaveBeenCalledWith(node, dump);
-        // locked: handled by undo layer callback
+        // locked 由 undo 层回调处理。
         expect(restoredLocks).toEqual([true]);
     });
 });
@@ -86,9 +86,9 @@ describe('restoreComponentSnapshotDump', () => {
 
         await restoreComponentSnapshotDump(component as any, dump);
 
-        // properties: delegated to dump layer
+        // 属性交给 dump 层恢复。
         expect(mockRestoreComponentSnapshotProperties).toHaveBeenCalledWith(component, dump);
-        // onRestore: undo layer lifecycle
+        // onRestore 是 undo 层负责触发的生命周期。
         expect(component.onRestore).toHaveBeenCalledTimes(1);
     });
 });

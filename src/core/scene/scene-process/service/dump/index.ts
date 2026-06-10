@@ -156,7 +156,7 @@ class DumpUtil {
             return;
         }
         for (const key in dump.value) {
-            if (COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS.has(key)) {
+            if (COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS.includes(key as typeof COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS[number])) {
                 continue;
             }
             await this.restoreProperty(component, key, dump.value[key]);

@@ -30,41 +30,41 @@ export interface IUndoGroupOptions {
     label?: string;
 }
 
-/** Options for beginRecording. */
+/** beginRecording 的选项。 */
 export interface IUndoBeginOptions {
-    /** Human-readable label shown in undo history UI. */
+    /** 展示在 undo 历史 UI 里的名称。 */
     label?: string;
-    /** Legacy alias kept while existing call sites migrate to label. */
+    /** 兼容旧调用点的别名，后续逐步迁移到 label。 */
     tag?: string;
     /**
-     * Custom undo/redo command with its own undo()/redo() logic.
-     * When provided, the default property-snapshot mode is skipped in favor of this command.
+     * 自定义可撤销命令，内部自带 undo()/redo() 逻辑。
+     * 传入后会跳过默认的属性快照模式，直接使用这个命令。
      */
     customCommand?: IUndoCommand;
 }
 
 export interface IUndoService {
     /**
-     * Start recording property snapshots for the given uuids.
-     * Returns a commandId to pass to endRecording / cancelRecording.
+     * 开始记录指定对象的属性快照。
+     * 返回的 commandId 需要传给 endRecording / cancelRecording。
      */
     beginRecording(uuids: string[], options?: IUndoBeginOptions): string;
 
     /**
-     * Commit the recording identified by commandId onto the undo stack.
-     * Triggers dirty:changed if dirty state changed.
+     * 将 commandId 对应的录制结果提交到 undo 栈。
+     * 如果 dirty 状态发生变化，会触发 dirty:changed。
      */
     endRecording(commandId: string): Promise<void>;
 
     /**
-     * Discard the recording identified by commandId without pushing to the stack.
+     * 丢弃 commandId 对应的录制结果，不推入 undo 栈。
      */
     cancelRecording(commandId: string): void;
 
-    /** Undo the most recent command. */
+    /** 撤销最近一条可撤销命令。 */
     undo(): Promise<IUndoRedoResult>;
 
-    /** Redo the most recently undone command. */
+    /** 重做最近撤销的一条命令。 */
     redo(): Promise<IUndoRedoResult>;
 
     beginGroup(options?: IUndoGroupOptions): string;
@@ -75,49 +75,49 @@ export interface IUndoService {
 
     isGroupActive(): boolean;
 
-    /** Internal entry for business services to push explicit commands. */
+    /** 业务 service 显式推入可撤销命令的内部入口。 */
     push(command: IUndoCommand): void;
 
-    /** Clear the entire undo/redo stack. Internal lifecycle API. */
+    /** 清空整个 undo/redo 栈，内部生命周期 API。 */
     reset(): void;
 
-    /** Clear the entire undo/redo stack. */
+    /** 清空整个 undo/redo 栈。 */
     clearHistory(): void;
 
-    /** Return true when the scene has unsaved changes. */
+    /** 当前场景有未保存变更时返回 true。 */
     isDirty(): boolean;
 
-    /** Return true when there is at least one command available to undo. */
+    /** 至少有一条可撤销命令时返回 true。 */
     canUndo(): boolean;
 
-    /** Return true when there is at least one command available to redo. */
+    /** 至少有一条可重做命令时返回 true。 */
     canRedo(): boolean;
 
     /**
-     * Mark the current stack position as the saved baseline.
-     * isDirty() returns false immediately after this call.
+     * 将当前 undo 栈位置标记为已保存状态。
+     * 调用后 isDirty() 会立即返回 false。
      */
     markSaved(): void;
 
     /**
-     * Return true when there is an active recording in progress.
-     * When uuid is provided, return true only if a recording covers that uuid.
+     * 当前存在进行中的录制时返回 true。
+     * 传入 uuid 时，只有该 uuid 被某个录制覆盖才返回 true。
      */
     hasActiveRecording(uuid?: string): boolean;
 
-    /** Return true while undo/redo is applying a command. */
+    /** undo/redo 正在应用命令时返回 true。 */
     isApplying(): boolean;
 }
 
 export interface IRedoService {
-    /** Redo the most recently undone command. */
+    /** 重做最近撤销的一条命令。 */
     redo(): Promise<IUndoRedoResult>;
 
-    /** Return true when there is at least one command available to redo. */
+    /** 至少有一条可重做命令时返回 true。 */
     canRedo(): boolean;
 }
 
-/** Public service surface used by external proxy filters. Internal mutation helpers are intentionally omitted. */
+/** 给外部代理过滤层使用的公开接口，只保留对外 API，刻意排除内部修改辅助方法。 */
 export type IPublicUndoService = Omit<
     IUndoService,
     | 'reset'
@@ -131,11 +131,11 @@ export type IPublicUndoService = Omit<
     | 'hasActiveRecording'
 >;
 
-/** Public redo namespace used by external proxy filters. */
+/** 给外部代理过滤层使用的公开 redo 命名空间。 */
 export type IPublicRedoService = IRedoService;
 
 export interface IUndoEvents {
     'undo:changed': [];
-    /** Fires whenever isDirty() flips. Payload is the new dirty value. */
+    /** isDirty() 状态翻转时触发，事件参数是新的 dirty 值。 */
     'dirty:changed': [dirty: boolean];
 }

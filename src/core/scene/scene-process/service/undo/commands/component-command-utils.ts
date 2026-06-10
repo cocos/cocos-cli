@@ -59,12 +59,12 @@ export function captureComponentStructureSnapshot(component: Component): ICompon
 export function removeComponentStructureSnapshot(snapshot: IComponentStructureSnapshot, meta: IUndoCommandMeta): IUndoRedoResult {
     const component = findComponent(snapshot);
     if (!component) {
-        // Idempotent: component is already absent from the scene — desired state reached.
+        // 组件已经不在场景里，说明“删除组件”的目标状态已经达成。
         return success(meta);
     }
 
     const node = component.node;
-    // @ts-ignore - internal engine API: get components that declare this one as a required dependency
+    // @ts-ignore - 引擎内部 API：获取依赖当前组件的其他组件。
     const dependents = (node as any)?._getDependComponent?.(component) ?? [];
     if (dependents.length > 0) {
         return failure(
@@ -124,7 +124,7 @@ function findComponent(snapshot: IComponentStructureSnapshot): Component | null 
                 return byPath;
             }
         } catch (_error) {
-            // Fall back to index/type below.
+            // 继续用下面的 index/type 兜底查找。
         }
     }
 

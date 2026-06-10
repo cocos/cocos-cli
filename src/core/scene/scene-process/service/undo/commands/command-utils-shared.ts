@@ -8,7 +8,7 @@ export function createUndoId(prefix: string): string {
             return `${prefix}-${randomUUID()}`;
         }
     } catch (_error) {
-        // Fall through to a timestamp id.
+        // crypto.randomUUID 不可用时，退回到时间戳 id。
     }
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }
@@ -47,9 +47,9 @@ export function getNodePath(node: Node): string {
 }
 
 /**
- * restoreNodeSnapshotDump options.
- * - updateNodeName: override name restoration (different callers need different editor notification)
- * - restoreNodeLocked: override locked flag restoration
+ * restoreNodeSnapshotDump 选项。
+ * - updateNodeName：自定义节点 name 的恢复方式，不同调用方需要不同的编辑器通知。
+ * - restoreNodeLocked：自定义节点 locked 状态的恢复方式。
  */
 export interface IRestoreNodeSnapshotDumpOptions {
     updateNodeName?: (uuid: string, name: string) => void;
@@ -57,11 +57,11 @@ export interface IRestoreNodeSnapshotDumpOptions {
 }
 
 /**
- * Restore node properties from a snapshot dump.
- * - name: restored via updateNodeName callback (or default EditorNodeManager), undo-specific
- * - editable properties (active/layer/mobility/position/rotation/scale): delegated to dump layer
- * - locked: restored via objFlags bit manipulation, undo-specific
- * - structural fields (uuid/parent/children/__comps__): skipped, managed by node-structure commands
+ * 从快照 dump 恢复节点属性。
+ * - name：通过 updateNodeName 回调恢复；未传入时使用默认 EditorNodeManager，这是 undo 专用逻辑。
+ * - 可编辑属性（active/layer/mobility/position/rotation/scale）：交给 dump 层恢复。
+ * - locked：通过 objFlags bit 恢复，这是 undo 专用逻辑。
+ * - 结构字段（uuid/parent/children/__comps__）：跳过，由 node-structure command 管理。
  */
 export async function restoreNodeSnapshotDump(
     node: Node,
@@ -107,9 +107,9 @@ export function restoreNodeLockedFlag(node: Node, locked: boolean): void {
 }
 
 /**
- * Restore component properties from a snapshot dump.
- * - user properties: delegated to dump layer (skip-list maintained by dump module)
- * - onRestore lifecycle: called after property restoration
+ * 从快照 dump 恢复组件属性。
+ * - 用户属性：交给 dump 层恢复，跳过列表由 dump 模块维护。
+ * - onRestore 生命周期：属性恢复后调用。
  */
 export async function restoreComponentSnapshotDump(
     component: Component,
