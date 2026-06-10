@@ -1,0 +1,360 @@
+import { PluginManager } from '../manager/plugin';
+import builderConfig from '../share/builder-config';
+
+let mockLanguage = 'en';
+const mockTranslations: Record<string, Record<string, string>> = {
+    en: {
+        'i18n:test.platform': 'Test Platform',
+        'i18n:test.common.name': 'Game Name',
+        'i18n:test.common.compression': 'Main Bundle Compression',
+        'i18n:test.option.mode': 'Mode',
+        'i18n:test.option.description': 'Mode Description',
+        'i18n:test.option.auto': 'Auto',
+        'i18n:test.stage.make': 'Make',
+        'i18n:test.stage.description': 'Make Description',
+        'i18n:test.template': 'Test Template',
+        'i18n:builder.asset_bundle.none': 'None',
+        'i18n:builder.asset_bundle.merge_dep': 'Merge Dependencies',
+        'i18n:builder.asset_bundle.zip': 'Zip',
+    },
+    zh: {
+        'i18n:test.platform': '测试平台',
+        'i18n:test.common.name': '游戏名称',
+        'i18n:test.common.compression': '主包压缩',
+        'i18n:test.option.mode': '模式',
+        'i18n:test.option.description': '模式描述',
+        'i18n:test.option.auto': '自动',
+        'i18n:test.stage.make': '制作',
+        'i18n:test.stage.description': '制作描述',
+        'i18n:test.template': '测试模板',
+        'i18n:builder.asset_bundle.none': '无',
+        'i18n:builder.asset_bundle.merge_dep': '合并依赖',
+        'i18n:builder.asset_bundle.zip': 'Zip',
+    },
+};
+
+jest.mock('../../base/i18n', () => {
+    const mock = {
+        transI18nName(name: string) {
+            return mockTranslations[mockLanguage][name] || name;
+        },
+        t(key: string) { return key; },
+        setLanguage(language: string) { mockLanguage = language; },
+        registerLanguagePatch() {},
+        _lang: 'en',
+    };
+    return { __esModule: true, default: mock };
+});
+
+jest.mock('../share/builder-config', () => ({
+    __esModule: true,
+    default: {
+        commonOptionConfigs: {
+            name: {
+                label: 'i18n:test.common.name',
+                type: 'string',
+                default: 'game',
+                verifyRules: ['required'],
+            },
+            mainBundleCompressionType: {
+                label: 'i18n:test.common.compression',
+                type: 'string',
+                default: 'merge_dep',
+            },
+        },
+    },
+}));
+
+jest.mock('../share/texture-compress', () => ({
+    configGroups: {},
+}));
+
+jest.mock('../../configuration', () => ({
+    configurationRegistry: { register: jest.fn() },
+}));
+
+jest.mock('../../../global', () => ({
+    GlobalPaths: { workspace: '/tmp/test-workspace' },
+}));
+
+function createPluginManager(): PluginManager {
+    return new PluginManager();
+}
+
+describe('PluginManager platform config schema queries', () => {
+    let pm: PluginManager;
+
+    beforeEach(() => {
+        mockLanguage = 'en';
+        pm = createPluginManager();
+        (pm as any).platformConfig = {
+            test: {
+                name: 'Test Platform',
+                nameI18nKey: 'i18n:test.platform',
+                platformType: 'WEB',
+                doc: 'editor/publish/test.html',
+                pluginPath: '/plugins/test',
+            },
+        };
+        (pm as any).commonOptionConfig = {
+            test: {
+                name: {
+                    label: 'i18n:test.common.name',
+                    type: 'string',
+                    default: 'overridden',
+                    verifyRules: ['required'],
+                    hidden: true,
+                    verifyKey: 'testtest',
+                },
+            },
+        };
+        (pm as any).configMap = {
+            test: {
+                test: {
+                    options: {
+                        mode: {
+                            label: 'i18n:test.option.mode',
+                            type: 'enum',
+                            default: 'auto',
+                            items: [{
+                                label: 'i18n:test.option.auto',
+                                value: 'auto',
+                            }],
+                        },
+                    },
+                },
+            },
+        };
+        (pm as any).bundleConfigs = {
+            test: {
+                platformType: 'web',
+                supportOptions: {
+                    compressionType: ['none', 'merge_dep', 'zip'],
+                },
+            },
+        };
+        (pm as any).platformRegisterInfoPool = new Map([
+            ['test', {
+                platform: 'test',
+                path: '/plugins/test',
+                type: 'register',
+                config: (pm as any).configMap.test.test,
+            }],
+        ]);
+        (pm as any).translateConfigItemsDisplayFields(builderConfig.commonOptionConfigs);
+        (pm as any).translateConfigItemsDisplayFields((pm as any).commonOptionConfig.test);
+        (pm as any).translateConfigDisplayFields((pm as any).configMap.test.test);
+    });
+
+    it('returns translated platform display config with doc and plugin path', () => {
+        const result = pm.queryPlatformConfig();
+
+        expect(result).toEqual([expect.objectContaining({
+            platform: 'test',
+            displayName: 'Test Platform',
+            doc: 'editor/publish/test.html',
+            pluginPath: '/plugins/test',
+            supportTextureCompress: false,
+        })]);
+    });
+
+    it('queryPlatformConfig returns the platform metadata required by the config page', () => {
+        (pm as any).platformConfig.test.createTemplateLabel = 'Test Platform';
+        (pm as any).platformConfig.test.texture = {
+            platformType: 'web',
+            support: {},
+        };
+
+        const [result] = pm.queryPlatformConfig();
+
+        expect(result).toEqual(expect.objectContaining({
+            platform: 'test',
+            displayName: 'Test Platform',
+            platformType: 'WEB',
+            isNative: false,
+            doc: 'editor/publish/test.html',
+            pluginPath: '/plugins/test',
+            createTemplateLabel: 'Test Platform',
+            supportTextureCompress: true,
+        }));
+    });
+
+    it('returns common options and platform options for a platform', () => {
+        const result = pm.getPlatformBuildSchema('test');
+
+        expect(result.common.name).toMatchObject({
+            label: 'Game Name',
+            default: 'overridden',
+            hidden: true,
+            verifyRules: ['required'],
+        });
+        expect((result.common.name as any).verifyKey).toBeUndefined();
+        expect(result.common.mainBundleCompressionType).toMatchObject({
+            label: 'Main Bundle Compression',
+            type: 'enum',
+            items: [
+                { label: 'None', value: 'none' },
+                { label: 'Merge Dependencies', value: 'merge_dep' },
+                { label: 'Zip', value: 'zip' },
+            ],
+        });
+        expect(result.platformOptions.mode).toMatchObject({
+            label: 'Mode',
+            items: [{ label: 'Auto', value: 'auto' }],
+        });
+    });
+
+    it('getPlatformBuildSchema derives compression items from platform supportedCompressionTypes', async () => {
+        const config = {
+            displayName: 'Asset Platform',
+            platformType: 'WEB',
+            assetBundleConfig: {
+                platformType: 'web',
+                supportedCompressionTypes: ['none', 'zip'],
+            },
+            options: {
+                quality: {
+                    label: 'Quality',
+                    type: 'number',
+                    default: 80,
+                },
+            },
+        };
+        const registerInfo = {
+            platform: 'asset-source',
+            path: '/plugins/asset-source',
+            type: 'register',
+            config,
+        };
+
+        (pm as any).platformRegisterInfoPool.set('asset-source', registerInfo);
+        await (pm as any).registerPlatform(registerInfo);
+
+        const result = pm.getPlatformBuildSchema('asset-source');
+
+        expect((result.common.mainBundleCompressionType as any).items).toEqual([
+            { label: 'None', labelI18nKey: 'i18n:builder.asset_bundle.none', value: 'none' },
+            { label: 'Zip', labelI18nKey: 'i18n:builder.asset_bundle.zip', value: 'zip' },
+        ]);
+        expect(result.platformOptions.quality).toMatchObject({
+            label: 'Quality',
+            type: 'number',
+            default: 80,
+        });
+    });
+
+    it('materializes display fields and stores original i18n keys', () => {
+        const config = {
+            displayName: 'i18n:test.platform',
+            options: {
+                mode: {
+                    label: 'i18n:test.option.mode',
+                    description: 'i18n:test.option.description',
+                    type: 'enum',
+                    default: 'auto',
+                    items: [{
+                        label: 'i18n:test.option.auto',
+                        value: 'auto',
+                    }],
+                },
+            },
+            customBuildStages: [{
+                name: 'make',
+                hook: 'make',
+                displayName: 'i18n:test.stage.make',
+                description: 'i18n:test.stage.description',
+            }],
+            buildTemplateConfig: {
+                templates: [{ path: './template', destUrl: './' }],
+                displayName: 'i18n:test.template',
+                version: '1.0.0',
+            },
+        };
+
+        (pm as any).translateConfigDisplayFields(config);
+
+        expect(config.displayName).toBe('Test Platform');
+        expect((config as any).displayNameI18nKey).toBe('i18n:test.platform');
+        expect(config.options.mode.label).toBe('Mode');
+        expect((config.options.mode as any).labelI18nKey).toBe('i18n:test.option.mode');
+        expect(config.options.mode.description).toBe('Mode Description');
+        expect((config.options.mode as any).descriptionI18nKey).toBe('i18n:test.option.description');
+        expect(config.options.mode.items[0].label).toBe('Auto');
+        expect((config.options.mode.items[0] as any).labelI18nKey).toBe('i18n:test.option.auto');
+        expect(config.customBuildStages[0].displayName).toBe('Make');
+        expect((config.customBuildStages[0] as any).displayNameI18nKey).toBe('i18n:test.stage.make');
+        expect(config.customBuildStages[0].description).toBe('Make Description');
+        expect((config.customBuildStages[0] as any).descriptionI18nKey).toBe('i18n:test.stage.description');
+        expect(config.buildTemplateConfig.displayName).toBe('Test Template');
+        expect((config.buildTemplateConfig as any).displayNameI18nKey).toBe('i18n:test.template');
+    });
+
+    it('refreshes materialized display fields after language changes', () => {
+        (pm as any).customBuildStages = {
+            test: {
+                test: [{
+                    name: 'make',
+                    hook: 'make',
+                    displayName: 'Make',
+                    displayNameI18nKey: 'i18n:test.stage.make',
+                    description: 'Make Description',
+                    descriptionI18nKey: 'i18n:test.stage.description',
+                }],
+            },
+        };
+        const platformConfig = (pm as any).configMap.test.test;
+        platformConfig.displayName = 'Test Platform';
+        platformConfig.displayNameI18nKey = 'i18n:test.platform';
+        platformConfig.buildTemplateConfig = {
+            templates: [{ path: './template', destUrl: './' }],
+            displayName: 'Test Template',
+            displayNameI18nKey: 'i18n:test.template',
+            version: '1.0.0',
+        };
+        (pm as any).buildTemplateConfigMap = {
+            'Test Platform': platformConfig.buildTemplateConfig,
+        };
+
+        mockLanguage = 'zh';
+        pm.refreshDisplayI18nFields();
+
+        const platforms = pm.queryPlatformConfig();
+        const schema = pm.getPlatformBuildSchema('test');
+        const stage = pm.getBuildStageConfigByPlatform('test' as any)!.buttons[0];
+        const template = pm.getBuildTemplateConfig('test');
+
+        expect(platforms[0].displayName).toBe('测试平台');
+        expect(platforms[0].createTemplateLabel).toBe('测试平台');
+        expect(schema.common.name.label).toBe('游戏名称');
+        expect((schema.common.mainBundleCompressionType as any).items).toEqual([
+            { label: '无', labelI18nKey: 'i18n:builder.asset_bundle.none', value: 'none' },
+            { label: '合并依赖', labelI18nKey: 'i18n:builder.asset_bundle.merge_dep', value: 'merge_dep' },
+            { label: 'Zip', labelI18nKey: 'i18n:builder.asset_bundle.zip', value: 'zip' },
+        ]);
+        expect(schema.platformOptions.mode.label).toBe('模式');
+        expect(schema.platformOptions.mode.description).toBeUndefined();
+        expect((schema.platformOptions.mode as any).labelI18nKey).toBe('i18n:test.option.mode');
+        expect(stage.displayName).toBe('制作');
+        expect(stage.description).toBe('制作描述');
+        expect(template.displayName).toBe('测试模板');
+    });
+
+    it('returns materialized values with original i18n keys attached', () => {
+        const option = (pm as any).configMap.test.test.options.mode;
+        option.label = 'Stored Mode Value';
+        option.labelI18nKey = 'i18n:test.option.mode';
+        option.items[0].label = 'Stored Auto Value';
+        option.items[0].labelI18nKey = 'i18n:test.option.auto';
+        (pm as any).platformConfig.test.name = 'Stored Platform Value';
+        (pm as any).platformConfig.test.nameI18nKey = 'i18n:test.platform';
+
+        const platforms = pm.queryPlatformConfig();
+        const schema = pm.getPlatformBuildSchema('test');
+
+        expect(platforms[0].displayName).toBe('Stored Platform Value');
+        expect(schema.platformOptions.mode.label).toBe('Stored Mode Value');
+        expect((schema.platformOptions.mode as any).items).toEqual([{ label: 'Stored Auto Value', labelI18nKey: 'i18n:test.option.auto', value: 'auto' }]);
+        expect(option.label).toBe('Stored Mode Value');
+        expect(option.labelI18nKey).toBe('i18n:test.option.mode');
+    });
+});
