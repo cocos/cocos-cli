@@ -109,4 +109,6 @@ export interface IProperty {
     optionalTypes?: string[]; // 对属性是 object 且是可变类型的数据的支持，比如 render-pipeline
 
     userData?: { [key: string]: any }; // 用户透传的数据
+
+    __component_path__?: string; // 该属性用于标识这是组件数据，值为组件路径，如 'Canvas/cc.Label_1'
 }

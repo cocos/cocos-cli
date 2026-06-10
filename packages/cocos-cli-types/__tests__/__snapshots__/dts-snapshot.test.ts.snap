@@ -5706,6 +5706,7 @@ export declare interface IProperty {
     multiline?: boolean; 
     optionalTypes?: string[]; 
     userData?: { [key: string]: any }; 
+    __component_path__?: string; 
 }
 export declare interface IPropertyGroupOptions {
     id: string 
@@ -7873,6 +7874,7 @@ export declare interface IProperty {
     multiline?: boolean; 
     optionalTypes?: string[]; 
     userData?: { [key: string]: any }; 
+    __component_path__?: string; 
 }
 export declare interface IPropertyGroupOptions {
     id: string 
