@@ -121,13 +121,6 @@ describe('cocos build command', () => {
                 logCliFailure('build windows', result);
     
                 expect(result.error).toBe(undefined);
-                if (result.exitCode !== 0) {
-                    console.error('Windows build failed:', {
-                        exitCode: result.exitCode,
-                        stdout: result.stdout,
-                        stderr: result.stderr,
-                    });
-                }
                 expect(result.exitCode).toBe(0);
     
                 const buildPath = join(testProject.path, 'build', 'windows');
