@@ -187,19 +187,23 @@ describe('PluginManager platform config schema queries', () => {
         const result = pm.getPlatformBuildSchema('test');
 
         // name 标记为 hidden -> 在源头过滤(配置系统 schema 无 hidden 字段)
-        expect(result.common.name).toBeUndefined();
-        expect(result.common.mainBundleCompressionType).toMatchObject({
+        expect(result.common.properties!.name).toBeUndefined();
+        expect(result.common.properties!.mainBundleCompressionType).toMatchObject({
             title: 'Main Bundle Compression',
             type: 'string',
             enum: ['none', 'merge_dep', 'zip'],
             enumDescriptions: ['None', 'Merge Dependencies', 'Zip'],
         });
-        expect(result.platformOptions.mode).toMatchObject({
+        expect(result.platformOptions.properties!.mode).toMatchObject({
             title: 'Mode',
             type: 'string',
             enum: ['auto'],
             enumDescriptions: ['Auto'],
         });
+        // 必填(verifyRules:['required'])-> hoist 进对象节点的 required(JSON Schema 对象级);
+        // name 被 hidden 过滤,故 common 无 required
+        expect(result.platformOptions.required).toEqual(['mode']);
+        expect(result.common.required).toBeUndefined();
     });
 
     it('getPlatformBuildSchema derives compression items from platform supportedCompressionTypes', async () => {
@@ -230,12 +234,12 @@ describe('PluginManager platform config schema queries', () => {
 
         const result = pm.getPlatformBuildSchema('asset-source');
 
-        expect(result.common.mainBundleCompressionType).toMatchObject({
+        expect(result.common.properties!.mainBundleCompressionType).toMatchObject({
             type: 'string',
             enum: ['none', 'zip'],
             enumDescriptions: ['None', 'Zip'],
         });
-        expect(result.platformOptions.quality).toMatchObject({
+        expect(result.platformOptions.properties!.quality).toMatchObject({
             title: 'Quality',
             type: 'number',
             default: 80,
@@ -478,13 +482,13 @@ describe('PluginManager platform config schema queries', () => {
 
         expect(platforms[0].displayName).toBe('测试平台');
         expect(platforms[0].createTemplateLabel).toBe('测试平台');
-        expect(schema.common.name).toBeUndefined();
-        expect(schema.common.mainBundleCompressionType).toMatchObject({
+        expect(schema.common.properties!.name).toBeUndefined();
+        expect(schema.common.properties!.mainBundleCompressionType).toMatchObject({
             enum: ['none', 'merge_dep', 'zip'],
             enumDescriptions: ['无', '合并依赖', 'Zip'],
         });
-        expect(schema.platformOptions.mode.title).toBe('模式');
-        expect(schema.platformOptions.mode.description).toBeUndefined();
+        expect(schema.platformOptions.properties!.mode.title).toBe('模式');
+        expect(schema.platformOptions.properties!.mode.description).toBeUndefined();
         expect(stage.displayName).toBe('制作');
         expect(stage.description).toBe('制作描述');
         expect(template.displayName).toBe('测试模板');
@@ -504,8 +508,8 @@ describe('PluginManager platform config schema queries', () => {
 
         expect(platforms[0].displayName).toBe('Stored Platform Value');
         // metadata.ts 中展示字段优先使用已物化的展示值, i18n key 仅作为缺省回退与刷新依据。
-        expect(schema.platformOptions.mode.title).toBe('Stored Mode Value');
-        expect(schema.platformOptions.mode).toMatchObject({ enum: ['auto'], enumDescriptions: ['Stored Auto Value'] });
+        expect(schema.platformOptions.properties!.mode.title).toBe('Stored Mode Value');
+        expect(schema.platformOptions.properties!.mode).toMatchObject({ enum: ['auto'], enumDescriptions: ['Stored Auto Value'] });
         // 源 option 对象不被 getPlatformBuildSchema 修改(克隆后再转换)
         expect(option.label).toBe('Stored Mode Value');
         expect(option.labelI18nKey).toBe('i18n:test.option.mode');

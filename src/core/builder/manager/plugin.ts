@@ -893,15 +893,24 @@ export class PluginManager extends EventEmitter {
      * 复用配置系统的 convertConfigItem(label->title、type:'enum'->string|number+enum、对象/数组递归、i18n 翻译)。
      * hidden 项直接过滤(配置系统 schema 无 hidden 字段;如 md5CacheOptions 不渲染,其值仍随构建参数透传)。
      */
-    private toRenderSchema(items: Record<string, IBuilderConfigItem>): Record<string, ICocosConfigurationPropertySchema> {
-        const result: Record<string, ICocosConfigurationPropertySchema> = {};
+    private toRenderSchema(items: Record<string, IBuilderConfigItem>): ICocosConfigurationPropertySchema {
+        const properties: Record<string, ICocosConfigurationPropertySchema> = {};
+        const required: string[] = [];
         for (const [key, item] of Object.entries(items)) {
             if (!item || item.hidden) {
                 continue;
             }
-            result[key] = convertConfigItem(item as unknown as ICocosConfigurationPropertySchema, key);
+            properties[key] = convertConfigItem(item as unknown as ICocosConfigurationPropertySchema, key);
+            // 必填:从 verifyRules:['required'] 派生,收进父对象节点的 required(JSON Schema 对象级);拦构建仍由 checkBuildOption 负责
+            if (item.verifyRules?.includes('required')) {
+                required.push(key);
+            }
         }
-        return result;
+        const node: ICocosConfigurationPropertySchema = { type: 'object', properties };
+        if (required.length) {
+            node.required = required;
+        }
+        return node;
     }
 
     public getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema {

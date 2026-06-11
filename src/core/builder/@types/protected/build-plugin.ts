@@ -45,12 +45,14 @@ export type IBuilderRegisterInfo = IPlatformRegisterInfo | IPluginRegisterInfo;
 
 /**
  * 构建面板渲染用的平台配置 schema。
+ * common / platformOptions 各为一个对象节点({ type:'object', properties, required }),
  * 字段与配置系统 schema(ICocosConfigurationPropertySchema)对齐,由 convertConfigItem 从
  * IBuilderConfigItem 转换而来(label->title、type:'enum'->string|number+enum 等),hidden 项已在源头过滤。
+ * 必填项(源端 verifyRules:['required'])收进对象节点的 required 数组(JSON Schema 对象级)。
  */
 export interface PlatformBuildSchema {
-    common: Record<string, ICocosConfigurationPropertySchema>;
-    platformOptions: Record<string, ICocosConfigurationPropertySchema>;
+    common: ICocosConfigurationPropertySchema;
+    platformOptions: ICocosConfigurationPropertySchema;
 }
 
 export interface PlatformConfigItem {
