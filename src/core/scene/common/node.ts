@@ -1,5 +1,5 @@
 import type { Node } from 'cc';
-import { IRemovedComponentInfo, ISetPropertyOptions } from './component';
+import { IRemovedComponentInfo, ISetPropertyOptions, IComponent } from './component';
 import { IVec3 } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
@@ -135,7 +135,7 @@ export interface INode {
     children: IProperty[];
     parent: IProperty;
 
-    __comps__: IProperty[];
+    __comps__: IComponent[];
     __type__: string;
     __prefab__?: IPrefab;
     _prefabInstance?: any;

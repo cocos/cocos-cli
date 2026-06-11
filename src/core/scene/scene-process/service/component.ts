@@ -259,9 +259,6 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                     Service.Undo?.push(command);
                 }
             }
-            // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
-            (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
-            (dump as any).__compPrefab__ = (comp as any).__prefab || null;
             return dump;
         } catch (error) {
             console.error(error);
@@ -367,9 +364,6 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             return null;
         }
         const dump = dumpUtil.dumpComponent(comp as Component) as IComponent;
-        // hack: 以下字段不属于编辑器 dump 结构（IComponent），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
-        (dump as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
-        (dump as any).__compPrefab__ = (comp as any).__prefab || null;
         return dump;
     }
 

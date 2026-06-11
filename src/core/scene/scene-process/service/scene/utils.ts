@@ -155,15 +155,9 @@ class SceneUtil {
             if (d.__prefab__) {
                 this.enrichPrefabDump(d.__prefab__, node['_prefab']);
             }
-            d.__comps__ = [];
-            if (queryComponent) {
-                for (const comp of node.components) {
-                    const compDump = dumpUtil.dumpComponent(comp as cc.Component) as any;
-                    compDump.__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
-                    compDump.__compPrefab__ = (comp as any).__prefab || null;
-                    d.__comps__.push(compDump);
-                }
-            }
+            d.__comps__ = queryComponent
+                ? node.components.map(comp => dumpUtil.dumpComponent(comp as cc.Component))
+                : [];
             d.__childNodes__ = [];
             if (queryChildren) {
                 for (const child of node.children) {
@@ -181,13 +175,7 @@ class SceneUtil {
         if (dump.__prefab__) {
             this.enrichPrefabDump(dump.__prefab__, node['_prefab']);
         }
-        if (queryComponent && dump.__comps__) {
-            for (let i = 0; i < dump.__comps__.length && i < node.components.length; i++) {
-                const comp = node.components[i];
-                (dump.__comps__[i] as any).__component_path__ = compMgr.getPathFromUuid(comp.uuid) ?? '';
-                (dump.__comps__[i] as any).__compPrefab__ = (comp as any).__prefab || null;
-            }
-        } else {
+        if (!queryComponent) {
             d.__comps__ = [];
         }
 

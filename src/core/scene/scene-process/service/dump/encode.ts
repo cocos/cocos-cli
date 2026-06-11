@@ -307,6 +307,7 @@ export function encodeComponent(component: any): IComponent {
         cid: component.__cid__,
 
         mountedRoot: mountedRoot,
+        component_path: compMgr.getPathFromUuid(component.uuid) ?? '',
     };
 
     // 遍历组件内所有属性
@@ -372,6 +373,9 @@ export function encodeComponent(component: any): IComponent {
     if (ctor) {
         data.extends = dumpUtil.getTypeInheritanceChain(ctor);
     }
+
+    // hack: __prefab 不属于标准 IComponent 结构，proxy 层需要用它还原预制体引用关系
+    data.__compPrefab__ = (component as any).__prefab || null;
 
     return data;
 }

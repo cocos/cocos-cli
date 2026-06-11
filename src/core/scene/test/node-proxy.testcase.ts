@@ -142,6 +142,12 @@ describe('Node Proxy 测试', () => {
                 expect(result).toBeDefined();
                 expect(result?.components).toBeDefined();
                 expect(Array.isArray(result?.components)).toBe(true);
+                expect(result!.components!.length).toBeGreaterThan(0);
+                for (const comp of result!.components!) {
+                    // component_path 正确写入并经 DumpConverter 转换为 path
+                    expect(comp.path).toBeTruthy();
+                    expect(comp.path.startsWith(createdNode.path)).toBe(true);
+                }
             }
         });
 
@@ -155,6 +161,11 @@ describe('Node Proxy 测试', () => {
                 }) as INodeInfo | null;
                 expect(result).toBeDefined();
                 expect(result?.components).toBeDefined();
+                expect(result!.components!.length).toBeGreaterThan(0);
+                for (const comp of result!.components!) {
+                    expect(comp.path).toBeTruthy();
+                    expect(comp.path.startsWith(createdNode.path)).toBe(true);
+                }
             }
         });
     });

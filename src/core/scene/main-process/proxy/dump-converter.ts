@@ -95,7 +95,6 @@ export class DumpConverter {
     }
 
     static toComponent(dump: IComponent): IComponentInfo {
-        const d = dump as any;
         const properties: { [key: string]: IPropertyValueType } = {};
 
         if (dump.value && typeof dump.value === 'object') {
@@ -108,22 +107,21 @@ export class DumpConverter {
         }
 
         return {
-            cid: d.cid || '',
-            path: d.__component_path__ || '',
+            cid: dump.cid || '',
+            path: dump.component_path || '',
             uuid: (dump.value?.uuid as any)?.value || '',
             name: (dump.value?.name as any)?.value || '',
             type: dump.type || '',
             enabled: (dump.value?.enabled as any)?.value ?? true,
             properties,
-            prefab: d.__compPrefab__ ?? null,
+            prefab: (dump as any).__compPrefab__ ?? null,
         };
     }
 
     static toComponentIdentifier(dump: IComponent): IComponentIdentifier {
-        const d = dump as any;
         return {
-            cid: d.cid || '',
-            path: d.__component_path__ || '',
+            cid: dump.cid || '',
+            path: dump.component_path || '',
             uuid: (dump.value?.uuid as any)?.value || '',
             name: (dump.value?.name as any)?.value || '',
             type: dump.type || '',
