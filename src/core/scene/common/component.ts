@@ -15,7 +15,6 @@ export interface IComponent extends IProperty {
     } & Record<string, IPropertyValueType>;
     mountedRoot?: string;
     component_path?: string;
-    __compPrefab__?: any;
 }
 
 /**

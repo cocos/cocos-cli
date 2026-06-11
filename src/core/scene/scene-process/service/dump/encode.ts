@@ -375,7 +375,7 @@ export function encodeComponent(component: any): IComponent {
     }
 
     // hack: __prefab 不属于标准 IComponent 结构，proxy 层需要用它还原预制体引用关系
-    data.__compPrefab__ = (component as any).__prefab || null;
+    (data as any).__compPrefab__ = (component as any).__prefab || null;
 
     return data;
 }

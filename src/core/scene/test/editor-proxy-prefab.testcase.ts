@@ -176,6 +176,8 @@ describe('EditorProxy Prefab 测试', () => {
                 nodePath: node?.path as string,
                 component: 'cc.Label'
             });
+            // 预制体内组件的 prefab 字段应由 encodeComponent 写入，不为 null
+            expect(label.prefab).not.toBeNull();
             await ComponentProxy.setProperty({
                 componentPath: label.path,
                 properties: {
