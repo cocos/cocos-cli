@@ -40,7 +40,9 @@ export type ICocosConfigurationMetadataRegistration = ICocosConfigurationNode[] 
 
 export interface IConfigurationItemBase {
     label?: string;
+    labelI18nKey?: string;
     description?: string;
+    descriptionI18nKey?: string;
     default?: unknown;
 }
 
@@ -193,7 +195,7 @@ function resolveEnumItems(items: EnumItem[]): {
             return normalizeEnumValue(item);
         }
 
-        descriptions.push(normalizeDisplayText(item.label, String(item.value)));
+        descriptions.push(normalizeDisplayText(item.labelI18nKey || item.label, String(item.value)));
         return normalizeEnumValue(item.value);
     });
 
@@ -326,8 +328,8 @@ export function convertConfigItem(
     item: IConfigurationItem,
     key: string
 ): ICocosConfigurationPropertySchemaInput {
-    const title = normalizeDisplayText(item.label, createTitleFromKey(key));
-    const description = translateMetadataText(item.description);
+    const title = normalizeDisplayText(item.labelI18nKey || item.label, createTitleFromKey(key));
+    const description = translateMetadataText(item.descriptionI18nKey || item.description);
 
     switch (item.type) {
     case 'string':
