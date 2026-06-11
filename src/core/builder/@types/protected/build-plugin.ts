@@ -18,6 +18,7 @@ import { IInternalBuildOptions, IInternalBundleBuildOptions } from './options';
 import { IPlatformType } from './options';
 import { StatsQuery } from '@cocos/ccbuild';
 import { IConfigItem } from '../../../base/type';
+import { ICocosConfigurationPropertySchema } from '../../../configuration/script/metadata';
 import { BuilderCache } from '../protected';
 
 export interface IQuickSpawnOption {
@@ -42,9 +43,14 @@ export interface IPackageRegisterInfo {
 
 export type IBuilderRegisterInfo = IPlatformRegisterInfo | IPluginRegisterInfo;
 
+/**
+ * 构建面板渲染用的平台配置 schema。
+ * 字段与配置系统 schema(ICocosConfigurationPropertySchema)对齐,由 convertConfigItem 从
+ * IBuilderConfigItem 转换而来(label->title、type:'enum'->string|number+enum 等),hidden 项已在源头过滤。
+ */
 export interface PlatformBuildSchema {
-    common: Record<string, IBuilderConfigItem>;
-    platformOptions: Record<string, IBuilderConfigItem>;
+    common: Record<string, ICocosConfigurationPropertySchema>;
+    platformOptions: Record<string, ICocosConfigurationPropertySchema>;
 }
 
 export interface PlatformConfigItem {

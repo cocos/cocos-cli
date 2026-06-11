@@ -2450,6 +2450,22 @@ export declare interface ICMakeConfig {
     [propName: string]: any;
     USE_SERVER_MODE: string;
 }
+export declare interface ICocosConfigurationPropertySchema {
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+    default?: unknown;
+    title?: string;
+    description?: string;
+    enum?: Array<string | number | boolean>;
+    enumDescriptions?: string[];
+    minimum?: number;
+    maximum?: number;
+    step?: number;
+    order?: number;
+    properties?: Record<string, ICocosConfigurationPropertySchema>;
+    items?: ICocosConfigurationPropertySchema | ICocosConfigurationPropertySchema[];
+    additionalProperties?: boolean | ICocosConfigurationPropertySchema;
+    required?: string[];
+}
 export declare interface ICollisionMatrix {
     [x: string]: number;
 }
@@ -3942,8 +3958,8 @@ export declare interface ParticleAssetUserData {
 export declare type Physics = 'cannon' | 'ammo' | 'builtin';
 export declare type Platform = InternalPlatform | string;
 export declare interface PlatformBuildSchema {
-    common: Record<string, IBuilderConfigItem>;
-    platformOptions: Record<string, IBuilderConfigItem>;
+    common: Record<string, ICocosConfigurationPropertySchema>;
+    platformOptions: Record<string, ICocosConfigurationPropertySchema>;
 }
 export declare interface PlatformBundleConfig {
     platformName: string;
@@ -4085,6 +4101,8 @@ export declare class PluginManager extends EventEmitter {
     private cloneDisplayOptions;
     private cloneConfigItem;
     private applySupportedCompressionTypes;
+    private collectPlatformConfigItems;
+    private toRenderSchema;
     getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema;
     queryPlatformConfig(): PlatformConfigItem[];
     getRegisteredPlatforms(): string[];

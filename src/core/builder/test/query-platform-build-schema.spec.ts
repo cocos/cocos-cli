@@ -186,25 +186,19 @@ describe('PluginManager platform config schema queries', () => {
     it('returns common options and platform options for a platform', () => {
         const result = pm.getPlatformBuildSchema('test');
 
-        expect(result.common.name).toMatchObject({
-            label: 'Game Name',
-            default: 'overridden',
-            hidden: true,
-            verifyRules: ['required'],
-        });
-        expect((result.common.name as any).verifyKey).toBeUndefined();
+        // name 标记为 hidden -> 在源头过滤(配置系统 schema 无 hidden 字段)
+        expect(result.common.name).toBeUndefined();
         expect(result.common.mainBundleCompressionType).toMatchObject({
-            label: 'Main Bundle Compression',
-            type: 'enum',
-            items: [
-                { label: 'None', value: 'none' },
-                { label: 'Merge Dependencies', value: 'merge_dep' },
-                { label: 'Zip', value: 'zip' },
-            ],
+            title: 'Main Bundle Compression',
+            type: 'string',
+            enum: ['none', 'merge_dep', 'zip'],
+            enumDescriptions: ['None', 'Merge Dependencies', 'Zip'],
         });
         expect(result.platformOptions.mode).toMatchObject({
-            label: 'Mode',
-            items: [{ label: 'Auto', value: 'auto' }],
+            title: 'Mode',
+            type: 'string',
+            enum: ['auto'],
+            enumDescriptions: ['Auto'],
         });
     });
 
@@ -236,12 +230,13 @@ describe('PluginManager platform config schema queries', () => {
 
         const result = pm.getPlatformBuildSchema('asset-source');
 
-        expect((result.common.mainBundleCompressionType as any).items).toEqual([
-            { label: 'None', labelI18nKey: 'i18n:builder.asset_bundle.none', value: 'none' },
-            { label: 'Zip', labelI18nKey: 'i18n:builder.asset_bundle.zip', value: 'zip' },
-        ]);
+        expect(result.common.mainBundleCompressionType).toMatchObject({
+            type: 'string',
+            enum: ['none', 'zip'],
+            enumDescriptions: ['None', 'Zip'],
+        });
         expect(result.platformOptions.quality).toMatchObject({
-            label: 'Quality',
+            title: 'Quality',
             type: 'number',
             default: 80,
         });
@@ -483,15 +478,13 @@ describe('PluginManager platform config schema queries', () => {
 
         expect(platforms[0].displayName).toBe('测试平台');
         expect(platforms[0].createTemplateLabel).toBe('测试平台');
-        expect(schema.common.name.label).toBe('游戏名称');
-        expect((schema.common.mainBundleCompressionType as any).items).toEqual([
-            { label: '无', labelI18nKey: 'i18n:builder.asset_bundle.none', value: 'none' },
-            { label: '合并依赖', labelI18nKey: 'i18n:builder.asset_bundle.merge_dep', value: 'merge_dep' },
-            { label: 'Zip', labelI18nKey: 'i18n:builder.asset_bundle.zip', value: 'zip' },
-        ]);
-        expect(schema.platformOptions.mode.label).toBe('模式');
+        expect(schema.common.name).toBeUndefined();
+        expect(schema.common.mainBundleCompressionType).toMatchObject({
+            enum: ['none', 'merge_dep', 'zip'],
+            enumDescriptions: ['无', '合并依赖', 'Zip'],
+        });
+        expect(schema.platformOptions.mode.title).toBe('模式');
         expect(schema.platformOptions.mode.description).toBeUndefined();
-        expect((schema.platformOptions.mode as any).labelI18nKey).toBe('i18n:test.option.mode');
         expect(stage.displayName).toBe('制作');
         expect(stage.description).toBe('制作描述');
         expect(template.displayName).toBe('测试模板');
@@ -510,8 +503,10 @@ describe('PluginManager platform config schema queries', () => {
         const schema = pm.getPlatformBuildSchema('test');
 
         expect(platforms[0].displayName).toBe('Stored Platform Value');
-        expect(schema.platformOptions.mode.label).toBe('Stored Mode Value');
-        expect((schema.platformOptions.mode as any).items).toEqual([{ label: 'Stored Auto Value', labelI18nKey: 'i18n:test.option.auto', value: 'auto' }]);
+        // labelI18nKey 存在时,title 由其按当前语言重新翻译得到(不使用存入的展示字符串)
+        expect(schema.platformOptions.mode.title).toBe('Mode');
+        expect(schema.platformOptions.mode).toMatchObject({ enum: ['auto'], enumDescriptions: ['Auto'] });
+        // 源 option 对象不被 getPlatformBuildSchema 修改(克隆后再转换)
         expect(option.label).toBe('Stored Mode Value');
         expect(option.labelI18nKey).toBe('i18n:test.option.mode');
     });

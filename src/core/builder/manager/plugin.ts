@@ -15,6 +15,7 @@ import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
 import { createBuilderPlatformMetadataNodes } from '../share/metadata';
 import { configurationRegistry } from '../../configuration';
+import { convertConfigItem, createPropertySchema, ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import { GlobalPaths } from '../../../global';
 import { existsSync, readdirSync } from 'fs';
 import utils from '../../base/utils';
@@ -717,7 +718,7 @@ export class PluginManager extends EventEmitter {
 
     public async checkBuildOptions(platform: string, options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>> {
         const result: Record<string, BuildCheckResult> = {};
-        const schema = this.getPlatformBuildSchema(platform);
+        const schema = this.collectPlatformConfigItems(platform);
         const verifyOptions = lodash.cloneDeep(options || {}) as IBuildTaskOption;
         verifyOptions.platform = platform;
 
@@ -854,14 +855,18 @@ export class PluginManager extends EventEmitter {
         });
     }
 
-    public getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema {
-        if (!this.platformConfig[platform]) {
-            throw new Error(`Can not find platform config for ${platform}`);
-        }
-
+    /**
+     * 装配某平台的原始配置项(IBuilderConfigItem):
+     *   common = CLI 内置 common 项 + 该平台 commonOptions 覆盖(已应用支持的压缩类型);
+     *   platformOptions = 平台 config.options。
+     * key 顺序即显示顺序。供构建面板 schema(getPlatformBuildSchema)与配置校验(checkBuildOptions)共用。
+     */
+    private collectPlatformConfigItems(platform: Platform | string): {
+        common: Record<string, IBuilderConfigItem>;
+        platformOptions: Record<string, IBuilderConfigItem>;
+    } {
         const common: Record<string, IBuilderConfigItem> = {};
         const platformCommonOptions = this.commonOptionConfig[platform] || {};
-        /** common 区:CLI 内置 common 项 + 该平台 commonOptions 覆盖(hidden/default 已应用);key 顺序即显示顺序 */
         for (const key of Object.keys(builderConfig.commonOptionConfigs)) {
             common[key] = this.cloneConfigItem(platformCommonOptions[key] || builderConfig.commonOptionConfigs[key]);
         }
@@ -872,13 +877,40 @@ export class PluginManager extends EventEmitter {
         }
         // 应用支持的压缩类型
         this.applySupportedCompressionTypes(platform, common);
-        
+
         const config = this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config;
-        const result: PlatformBuildSchema = {
+        return {
             common,
-            platformOptions: this.cloneDisplayOptions(config?.options)
+            platformOptions: this.cloneDisplayOptions(config?.options),
         };
+    }
+
+    /**
+     * 把 IBuilderConfigItem 映射成配置系统 schema(ICocosConfigurationPropertySchema)。
+     * 复用配置系统的 convertConfigItem(label->title、type:'enum'->string|number+enum、对象/数组递归、i18n 翻译)。
+     * hidden 项直接过滤(配置系统 schema 无 hidden 字段;如 md5CacheOptions 不渲染,其值仍随构建参数透传)。
+     */
+    private toRenderSchema(items: Record<string, IBuilderConfigItem>): Record<string, ICocosConfigurationPropertySchema> {
+        const result: Record<string, ICocosConfigurationPropertySchema> = {};
+        for (const [key, item] of Object.entries(items)) {
+            if (!item || item.hidden) {
+                continue;
+            }
+            result[key] = createPropertySchema(convertConfigItem(item, key));
+        }
         return result;
+    }
+
+    public getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema {
+        if (!this.platformConfig[platform]) {
+            throw new Error(`Can not find platform config for ${platform}`);
+        }
+
+        const { common, platformOptions } = this.collectPlatformConfigItems(platform);
+        return {
+            common: this.toRenderSchema(common),
+            platformOptions: this.toRenderSchema(platformOptions),
+        };
     }
 
     public queryPlatformConfig(): PlatformConfigItem[] {
