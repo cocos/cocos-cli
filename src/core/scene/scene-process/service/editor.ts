@@ -191,7 +191,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             const editor = this.editorMap.get(uuid);
             if (!editor) return true;
 
-            const result = await editor.close();
+            const result = await editor.close({ save: params.save ?? true });
 
             // 如果关闭的是当前打开的编辑器，清除当前状态
             if (uuid === this.currentEditorUuid) {

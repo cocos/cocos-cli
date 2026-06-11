@@ -107,7 +107,7 @@ export abstract class BaseEditor {
     // 抽象方法，子类必须实现
     abstract encode(entity?: IEditorTarget): Promise<TEditorEntity>;
     abstract open(asset: IAssetInfo): Promise<TEditorEntity>;
-    abstract close(): Promise<boolean>;
+    abstract close(options?: { save?: boolean }): Promise<boolean>;
     abstract save(): Promise<IAssetInfo>;
     /**
      * 执行实际的重载操作，子类需要实现具体的重载逻辑

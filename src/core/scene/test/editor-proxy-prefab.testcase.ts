@@ -11,6 +11,7 @@ describe('EditorProxy Prefab 测试', () => {
         let identifier: IBaseIdentifier | null = null;
         let instanceAssetURL = '';
         let entity: INodeInfo | null = null;
+        let currentPrefabFile = '';
 
         it('create - 创建新预制体', async () => {
             identifier = await EditorProxy.create({
@@ -188,6 +189,7 @@ describe('EditorProxy Prefab 测试', () => {
             const result = await EditorProxy.save({});
 
             expect(result).not.toBeNull();
+            currentPrefabFile = result.file;
 
             const content = readFileSync(result.file, 'utf-8');
 
@@ -206,6 +208,23 @@ describe('EditorProxy Prefab 测试', () => {
 
             expect(result).not.toBeNull();
             expect(JSON.stringify(result)).toContain('current-prefab-test-node');
+        });
+
+        it('close - 不保存地关闭当前预制体', async () => {
+            await NodeProxy.createByType({
+                path: '',
+                nodeType: NodeType.EMPTY,
+                name: 'discard-current-prefab-test-node',
+            });
+
+            const result = await EditorProxy.close({
+                save: false,
+            });
+
+            expect(result).toBe(true);
+
+            const content = readFileSync(currentPrefabFile, 'utf-8');
+            expect(content).not.toContain('discard-current-prefab-test-node');
         });
 
         it('close - 关闭当前预制体', async () => {

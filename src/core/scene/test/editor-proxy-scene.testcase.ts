@@ -9,6 +9,7 @@ describe('EditorProxy Scene 测试', () => {
     describe('场景操作', () => {
         let identifier: IBaseIdentifier | null = null;
         let entity: ISceneInfo | INodeInfo | null = null;
+        let currentSceneFile = '';
 
         it('create - 创建新场景', async () => {
             identifier = await EditorProxy.create({
@@ -146,6 +147,7 @@ describe('EditorProxy Scene 测试', () => {
             });
             const result = await EditorProxy.save({});
             expect(result).not.toBeNull();
+            currentSceneFile = result.file;
             const content = readFileSync(result.file, 'utf-8');
             expect(content).toContain('current-scene-test-node');
         });
@@ -159,6 +161,22 @@ describe('EditorProxy Scene 测试', () => {
             const result = await EditorProxy.queryCurrent();
             expect(result).not.toBeNull();
             expect(JSON.stringify(result)).toContain('current-scene-test-node');
+        });
+
+        it('close - 不保存地关闭当前场景', async () => {
+            await NodeProxy.createByType({
+                path: '',
+                nodeType: NodeType.EMPTY,
+                name: 'discard-current-scene-test-node',
+            });
+
+            const result = await EditorProxy.close({
+                save: false,
+            });
+
+            expect(result).toBe(true);
+            const content = readFileSync(currentSceneFile, 'utf-8');
+            expect(content).not.toContain('discard-current-scene-test-node');
         });
 
         it('close - 关闭当前场景', async () => {

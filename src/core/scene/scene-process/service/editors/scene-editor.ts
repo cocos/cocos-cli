@@ -42,11 +42,13 @@ export class SceneEditor extends BaseEditor {
         return this.encode();
     }
 
-    async close(): Promise<boolean> {
+    async close(options?: { save?: boolean }): Promise<boolean> {
         if (!this.entity) {
             throw new Error('[close] 没有打开场景');
         }
-        await this.save();
+        if (options?.save !== false) {
+            await this.save();
+        }
         await sceneUtils.runScene(new Scene(''));
         this.setCurrentOpen(null);
         return true;

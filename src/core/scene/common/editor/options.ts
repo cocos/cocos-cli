@@ -39,4 +39,6 @@ export interface IReloadOptions {
  */
 export interface ICloseOptions {
     urlOrUUID?: string;
+    /** Whether to save before closing. Defaults to true for backward compatibility. */
+    save?: boolean;
 }

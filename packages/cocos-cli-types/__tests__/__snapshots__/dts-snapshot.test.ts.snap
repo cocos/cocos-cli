@@ -5443,6 +5443,7 @@ export declare interface IClipboardState {
 }
 export declare interface ICloseOptions {
     urlOrUUID?: string;
+    save?: boolean;
 }
 export declare interface IComponent extends IProperty {
     value: {
@@ -7449,6 +7450,7 @@ export declare interface IClipboardState {
 }
 export declare interface ICloseOptions {
     urlOrUUID?: string;
+    save?: boolean;
 }
 export declare interface ICocosConfigurationNode {
     id: string;
