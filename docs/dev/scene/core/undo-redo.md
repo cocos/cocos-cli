@@ -555,6 +555,11 @@ Recording 的恢复范围是现有对象的 dump。不要用它包 `Node.create/
 - 持久化 undo history。
 - 多 context/tab history。
 
+纯重构 TODO：
+
+- 统一节点查找逻辑：现在多个 command 都在重复写“先按 uuid 找，找不到再按 path 找”的代码。后续可以抽成一个公共方法，例如 `resolveNode(uuid, path)`。重构时不要只做简单搬代码，需要逐个确认原来的行为没有变：哪些情况算节点无效、path 查找失败时返回什么、错误信息怎么写，都要保持一致。
+- 做 undo 专用 snapshot dump：现在 undo 直接复用 inspector 使用的 dump，所以里面会带很多 undo 不需要的展示字段；为了让快照不被后续运行时对象修改污染，还需要再 clone 一次。后续可以新增 `dumpNodeSnapshot` / `dumpComponentSnapshot`，只生成 undo 恢复需要的纯数据。确认它不再持有运行时对象引用后，再逐步替换 `UndoService`、`NodeUndoHelper`、`ComponentService` 里的 clone。
+
 ## 验证命令
 
 修改 undo/redo 相关代码后至少跑：

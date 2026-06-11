@@ -56,7 +56,7 @@ function filterTopLevelNodes(nodes: Node[]): Node[] {
 
 @register('UI')
 export class UIService extends BaseService<IUIEvents> implements IUIService {
-    public alignSelection(type: UIAlignType) {
+    public async alignSelection(type: UIAlignType): Promise<void> {
         const selectPaths = Service.Selection.query();
 
         if (selectPaths.length <= 1) {
@@ -122,11 +122,11 @@ export class UIService extends BaseService<IUIEvents> implements IUIService {
             node.setWorldPosition(Vec3.add(v3_a, worldPos, dif));
         });
 
-        Service.Undo.endRecording(undoID);
+        await Service.Undo.endRecording(undoID);
         this.emit('ui:align-selection', type);
     }
 
-    public distributeSelection(type: UIAlignType) {
+    public async distributeSelection(type: UIAlignType): Promise<void> {
         const selectPaths = Service.Selection.query();
 
         if (selectPaths.length <= 1) {
@@ -211,7 +211,7 @@ export class UIService extends BaseService<IUIEvents> implements IUIService {
             node.setWorldPosition(Vec3.add(v3_a, worldPos, dif));
         });
 
-        Service.Undo.endRecording(undoID);
+        await Service.Undo.endRecording(undoID);
         this.emit('ui:distribute-selection', type);
     }
 }

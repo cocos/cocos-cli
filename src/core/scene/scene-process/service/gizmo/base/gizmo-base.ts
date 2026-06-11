@@ -116,11 +116,12 @@ class GizmoBase<T extends Component = Component> {
     commitChanges() {
         this._recorded = false;
         if (this.undoID !== '') {
+            const undoID = this.undoID;
             try {
                 const svc = getService();
-                svc?.Undo?.endRecording?.(this.undoID);
+                void svc?.Undo?.endRecording?.(undoID)?.catch?.((_error: unknown) => {});
             } catch (e) {
-                // not ready
+                // 服务还没初始化完成。
             }
         }
         this.undoID = '';

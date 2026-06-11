@@ -723,7 +723,7 @@ export class CameraController3D extends CameraControllerBase {
             }
         }
 
-        if (undoId) Service.Undo?.endRecording?.(undoId);
+        if (undoId) await Service.Undo?.endRecording?.(undoId);
         Service.Engine?.repaintInEditMode?.();
     }
 

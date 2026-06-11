@@ -5,7 +5,7 @@ import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, ty
 import type { Component, Node } from 'cc';
 import { ServiceEvents } from './core/global-events';
 import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
-import { restoreComponentSnapshotDump, restoreNodeSnapshotDump } from './undo/commands/command-utils-shared';
+import { restoreComponentSnapshotDump, restoreNodeSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
 
 interface IRecordingComponentSnapshot {
@@ -70,11 +70,11 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
                 const { Service } = require('./core/decorator');
                 Service.Engine?.repaintInEditMode?.();
             } catch (e) {
-                // Engine may not be ready
+                // Engine 可能还没初始化完成。
             }
             this._emitDirtyIfChanged(wasDirty);
-            this.broadcast('undo:changed');
         }
+        this.broadcast('undo:changed');
         return result;
     }
 
@@ -86,11 +86,11 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
                 const { Service } = require('./core/decorator');
                 Service.Engine?.repaintInEditMode?.();
             } catch (e) {
-                // Engine may not be ready
+                // Engine 可能还没初始化完成。
             }
             this._emitDirtyIfChanged(wasDirty);
-            this.broadcast('undo:changed');
         }
+        this.broadcast('undo:changed');
         return result;
     }
 
@@ -167,7 +167,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
         return this._undoMgr.isApplying();
     }
 
-    /** Emit dirty:changed only when the dirty state actually flipped. */
+    /** 只在 dirty 状态真正变化时广播 dirty:changed。 */
     private _emitDirtyIfChanged(wasDirty: boolean): void {
         const nowDirty = this._undoMgr.isDirty();
         if (wasDirty !== nowDirty) {
@@ -177,7 +177,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
 
     private _createSceneSnapshotAdapter(): ISnapshotAdapter {
         return {
-            capture: async (uuids: string[]) => this._captureSceneSnapshots(uuids),
+            capture: (uuids: string[]) => this._captureSceneSnapshots(uuids),
             apply: async (data: Map<string, IRecordingSnapshot>) => this._applySceneSnapshots(data),
             equals: (before: Map<string, IRecordingSnapshot>, after: Map<string, IRecordingSnapshot>) => this._snapshotMapsEqual(before, after),
         };
@@ -208,7 +208,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             kind: 'node',
             uuid: node.uuid,
             path: this._getNodePath(node),
-            dump: this._cloneDump(dumpUtil.dumpNode(node)),
+            dump: this._cloneDump(dumpUtil.dumpNode(node, { includeComponents: false })),
             components: node.components
                 .map(component => this._captureComponentSnapshot(component as Component))
                 .filter((snapshot): snapshot is IRecordingComponentSnapshot => !!snapshot),
@@ -326,7 +326,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
                     return byPath;
                 }
             } catch (_error) {
-                // Fall back to node index below.
+                // 按路径找不到组件时，再退回到节点和组件下标查找。
             }
         }
 
@@ -379,7 +379,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     private _snapshotMapsEqual(before: Map<string, IRecordingSnapshot>, after: Map<string, IRecordingSnapshot>): boolean {
-        return JSON.stringify([...before.entries()]) === JSON.stringify([...after.entries()]);
+        return snapshotMapsEqual(before, after);
     }
 
     private _cloneDump<T>(dump: T): T {

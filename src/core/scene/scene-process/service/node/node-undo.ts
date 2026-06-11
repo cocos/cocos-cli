@@ -6,10 +6,9 @@ import nodeMgr from './index';
 import { CreateNodeCommand } from '../undo/commands/create-node-command';
 import { SnapshotCommand, type ISnapshotAdapter } from '../undo/commands/snapshot-command';
 import type { INodeStructureCaptureTarget } from '../undo/commands/node-structure-command-utils';
-import { restoreNodeSnapshotDump } from '../undo/commands/command-utils-shared';
+import { createUndoId, restoreNodeSnapshotDump, snapshotMapsEqual } from '../undo/commands/command-utils-shared';
 
 const NodeMgr = EditorExtends.Node;
-let undoSnapshotId = 0;
 
 export interface INodeSnapshot {
     uuid: string;
@@ -314,7 +313,7 @@ export class NodeUndoHelper {
     }
 
     snapshotMapsEqual(before: Map<string, any>, after: Map<string, any>): boolean {
-        return JSON.stringify([...before.entries()]) === JSON.stringify([...after.entries()]);
+        return snapshotMapsEqual(before, after);
     }
 
     private _getPreferredNewRootNodes(beforeNodeUuids: Set<string>, paths: string[]): INodeStructureCaptureTarget[] {
@@ -653,15 +652,6 @@ export class NodeUndoHelper {
     }
 
     private _createUndoSnapshotId(prefix: string): string {
-        try {
-            const randomUUID = require('crypto')?.randomUUID;
-            if (typeof randomUUID === 'function') {
-                return `${prefix}-${randomUUID()}`;
-            }
-        } catch (_error) {
-            // Fall back to a process-local id below.
-        }
-        undoSnapshotId++;
-        return `${prefix}-${undoSnapshotId}`;
+        return createUndoId(prefix);
     }
 }

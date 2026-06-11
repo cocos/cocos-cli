@@ -21,6 +21,23 @@ export function failure(meta: IUndoCommandMeta, reason: string): IUndoRedoResult
     return { success: false, commandId: meta.id, label: meta.label, reason };
 }
 
+export function snapshotMapsEqual<T>(before: Map<string, T>, after: Map<string, T>): boolean {
+    if (before.size !== after.size) {
+        return false;
+    }
+
+    const keys = [...before.keys()].sort();
+    for (const key of keys) {
+        if (!after.has(key)) {
+            return false;
+        }
+        if (JSON.stringify(before.get(key)) !== JSON.stringify(after.get(key))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 export function isNodeInCurrentScene(node: Node | null | undefined): node is Node {
     if (!node?.isValid) {
         return false;

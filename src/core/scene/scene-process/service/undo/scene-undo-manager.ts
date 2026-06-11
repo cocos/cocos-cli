@@ -3,6 +3,7 @@ import { SceneUndoCommand, SceneUndoCommandID } from './undo-command';
 import { CompositeCommand } from './commands/composite-command';
 import { ISnapshotAdapter, SnapshotCommand } from './commands/snapshot-command';
 import { getDumpUtil } from './dump-util';
+import { createUndoId } from './commands/command-utils-shared';
 
 interface ISceneUndoOption {
     label?: string;
@@ -26,7 +27,7 @@ interface IActiveSnapshotRecording {
     id: string;
     label: string;
     uuids: string[];
-    before: Promise<Map<string, any>>;
+    before: Map<string, any> | Promise<Map<string, any>>;
 }
 
 class SceneUndoManager {
@@ -36,8 +37,8 @@ class SceneUndoManager {
     private _autoCommands: SceneUndoCommand[] = [];
     private _manualCommands: SceneUndoCommand[] = [];
     private _snapshotRecordings: Map<string, IActiveSnapshotRecording> = new Map();
+    private _activeRecordingUuidCounts: Map<string, number> = new Map();
     private _activeGroup: IActiveGroup | null = null;
-    private _id = 0;
     private _queue: Promise<unknown> = Promise.resolve();
     private _isApplying = false;
     private readonly _maxStackSize: number;
@@ -97,6 +98,7 @@ class SceneUndoManager {
         this._autoCommands.length = 0;
         this._manualCommands.length = 0;
         this._snapshotRecordings.clear();
+        this._activeRecordingUuidCounts.clear();
         this._activeGroup = null;
     }
 
@@ -181,13 +183,7 @@ class SceneUndoManager {
         if (uuid === undefined) {
             return this._snapshotRecordings.size > 0 || this._autoCommands.length > 0 || this._manualCommands.length > 0;
         }
-        for (const recording of this._snapshotRecordings.values()) {
-            if (recording.uuids.includes(uuid)) {
-                return true;
-            }
-        }
-        const all = this._autoCommands.concat(this._manualCommands);
-        return all.some(cmd => cmd.uuids.includes(uuid));
+        return this._activeRecordingUuidCounts.has(uuid);
     }
 
     beginRecording(uuids: string | string[], option?: ISceneUndoOption): SceneUndoCommandID {
@@ -200,6 +196,7 @@ class SceneUndoManager {
             for (const uuid of uuidSet.values()) {
                 command.uuids.push(uuid);
             }
+            this._addActiveRecordingUuids(uuidSet);
             return command.id;
         }
 
@@ -209,8 +206,9 @@ class SceneUndoManager {
                 id,
                 label: option.label ?? option.tag ?? id,
                 uuids: [...uuidSet],
-                before: Promise.resolve<Map<string, any>>(this._snapshotAdapter.capture([...uuidSet])),
+                before: this._snapshotAdapter.capture([...uuidSet]),
             });
+            this._addActiveRecordingUuids(uuidSet);
             return id;
         }
 
@@ -221,15 +219,18 @@ class SceneUndoManager {
                 this._setUndo(command, uuid);
             }
         }
+        this._addActiveRecordingUuids(uuidSet);
         return command.id;
     }
 
     async endRecording(id: SceneUndoCommandID): Promise<boolean> {
         if (this._snapshotAdapter && this._snapshotRecordings.has(id)) {
             const recording = this._snapshotRecordings.get(id)!;
-            const before = await recording.before;
-            const after = await this._snapshotAdapter.capture(recording.uuids);
+            const before = isPromiseLike(recording.before) ? await recording.before : recording.before;
+            const capturedAfter = this._snapshotAdapter.capture(recording.uuids);
+            const after = isPromiseLike(capturedAfter) ? await capturedAfter : capturedAfter;
             this._snapshotRecordings.delete(id);
+            this._removeActiveRecordingUuids(recording.uuids);
             if (this._snapshotAdapter.equals(before, after)) {
                 return false;
             }
@@ -248,6 +249,9 @@ class SceneUndoManager {
         if (!command) return false;
         if (this._commandArray.indexOf(command) !== -1) {
             console.warn('[Undo] command already exists', command.tag);
+            this._removeCommand(this._autoCommands, id);
+            this._removeCommand(this._manualCommands, id);
+            this._removeActiveRecordingUuids(command.uuids);
             return false;
         }
         if (!command.custom) {
@@ -264,18 +268,28 @@ class SceneUndoManager {
         if (manualIndex !== -1) {
             this._manualCommands.splice(manualIndex, 1);
         }
+        this._removeActiveRecordingUuids(command.uuids);
         return true;
     }
 
     cancelRecording(id: SceneUndoCommandID): boolean {
-        if (this._snapshotRecordings.delete(id)) {
+        const snapshotRecording = this._snapshotRecordings.get(id);
+        if (snapshotRecording) {
+            this._snapshotRecordings.delete(id);
+            this._removeActiveRecordingUuids(snapshotRecording.uuids);
             return true;
         }
         let removed = this._removeCommand(this._autoCommands, id);
-        if (!removed) {
-            removed = this._removeCommand(this._manualCommands, id);
+        if (removed) {
+            this._removeActiveRecordingUuids(removed.uuids);
+            return true;
         }
-        return removed;
+        removed = this._removeCommand(this._manualCommands, id);
+        if (removed) {
+            this._removeActiveRecordingUuids(removed.uuids);
+            return true;
+        }
+        return false;
     }
 
     private _pushToStack(command: IUndoCommand): void {
@@ -364,16 +378,7 @@ class SceneUndoManager {
     }
 
     private _createId(prefix: string): string {
-        try {
-            const randomUUID = require('crypto')?.randomUUID;
-            if (typeof randomUUID === 'function') {
-                return `${prefix}-${randomUUID()}`;
-            }
-        } catch (_e) {
-            // Fall back to process-local ids.
-        }
-        this._id++;
-        return `${prefix}-${this._id}`;
+        return createUndoId(prefix);
     }
 
     private _setUndo(command: SceneUndoCommand, uuid: string) {
@@ -412,14 +417,38 @@ class SceneUndoManager {
         }
     }
 
-    private _removeCommand(list: SceneUndoCommand[], id: SceneUndoCommandID): boolean {
+    private _addActiveRecordingUuids(uuids: Iterable<string>): void {
+        for (const uuid of uuids) {
+            this._activeRecordingUuidCounts.set(uuid, (this._activeRecordingUuidCounts.get(uuid) ?? 0) + 1);
+        }
+    }
+
+    private _removeActiveRecordingUuids(uuids: Iterable<string>): void {
+        for (const uuid of uuids) {
+            const count = this._activeRecordingUuidCounts.get(uuid);
+            if (!count) {
+                continue;
+            }
+            if (count === 1) {
+                this._activeRecordingUuidCounts.delete(uuid);
+            } else {
+                this._activeRecordingUuidCounts.set(uuid, count - 1);
+            }
+        }
+    }
+
+    private _removeCommand(list: SceneUndoCommand[], id: SceneUndoCommandID): SceneUndoCommand | null {
         const index = list.findIndex(t => t.id === id);
         if (index !== -1) {
-            list.splice(index, 1);
-            return true;
+            const [command] = list.splice(index, 1);
+            return command ?? null;
         }
-        return false;
+        return null;
     }
+}
+
+function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
+    return !!value && typeof (value as Promise<T>).then === 'function';
 }
 
 export { SceneUndoManager, ISceneUndoOption };

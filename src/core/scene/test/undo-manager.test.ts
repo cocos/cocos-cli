@@ -1,5 +1,6 @@
 import { SceneUndoManager } from '../scene-process/service/undo/scene-undo-manager';
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../common';
+import { snapshotMapsEqual } from '../scene-process/service/undo/commands/command-utils-shared';
 
 class FakeCommand implements IUndoCommand {
     meta = {
@@ -20,6 +21,19 @@ class FakeCommand implements IUndoCommand {
 }
 
 describe('SceneUndoManager', () => {
+    it('compares snapshot maps by key instead of insertion order', () => {
+        const before = new Map<string, any>([
+            ['node-1', { x: 1 }],
+            ['node-2', { x: 2 }],
+        ]);
+        const after = new Map<string, any>([
+            ['node-2', { x: 2 }],
+            ['node-1', { x: 1 }],
+        ]);
+
+        expect(snapshotMapsEqual(before, after)).toBe(true);
+    });
+
     it('pushes a command and exposes canUndo/canRedo', () => {
         const manager = new SceneUndoManager();
 
@@ -213,6 +227,28 @@ describe('SceneUndoManager', () => {
         expect(manager.canUndo()).toBe(false);
     });
 
+    it('keeps active recording lookup correct for overlapping uuids', async () => {
+        const snapshots = new Map<string, any>([['node-1', { x: 0 }]]);
+        const manager = new SceneUndoManager({
+            snapshotAdapter: {
+                capture: (uuids: string[]) => new Map(uuids.map(uuid => [uuid, { ...snapshots.get(uuid) }])),
+                apply: async () => ({ success: true }),
+                equals: (before: Map<string, any>, after: Map<string, any>) => JSON.stringify([...before]) === JSON.stringify([...after]),
+            },
+        });
+
+        const firstId = manager.beginRecording(['node-1'], { label: 'First' });
+        const secondId = manager.beginRecording(['node-1'], { label: 'Second' });
+
+        expect(manager.hasActiveRecording('node-1')).toBe(true);
+
+        expect(manager.cancelRecording(firstId)).toBe(true);
+        expect(manager.hasActiveRecording('node-1')).toBe(true);
+
+        expect(await manager.endRecording(secondId)).toBe(false);
+        expect(manager.hasActiveRecording('node-1')).toBe(false);
+    });
+
     it('honors custom commands when a snapshot adapter is configured', async () => {
         const customCommand = new ControlledCommand('custom-recording');
         const manager = new SceneUndoManager({
@@ -225,7 +261,10 @@ describe('SceneUndoManager', () => {
 
         const recordingId = manager.beginRecording(['node-1'], { label: 'Custom Recording', customCommand });
 
+        expect(manager.hasActiveRecording('node-1')).toBe(true);
+
         expect(await manager.endRecording(recordingId)).toBe(true);
+        expect(manager.hasActiveRecording('node-1')).toBe(false);
         expect(manager.canUndo()).toBe(true);
 
         await manager.undo();

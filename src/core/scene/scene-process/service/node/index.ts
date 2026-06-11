@@ -1046,7 +1046,7 @@ export class NodeManager {
         let node: Node | null = null;
 
         if (stashUuid) {
-            if (stashInstants[stashUuid]) {
+            if (stashInstants?.[stashUuid]) {
                 const { instant } = stashInstants[stashUuid];
 
                 if (instant) {
