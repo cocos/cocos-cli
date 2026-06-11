@@ -1,7 +1,20 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { join } = require('path');
 
 const input = join(__dirname, '../src/core/configuration/@types/cocos.config.d.ts');
 const output = join(__dirname, '../dist/cocos.config.schema.json');
-execSync(`npx --yes typescript-json-schema ${input} COCOS_CONFIG -o ${output} --noExtraProps --skipLibCheck`);
+const tsconfig = join(__dirname, '../tsconfig.json');
+const schemaCli = join(__dirname, '../node_modules/typescript-json-schema/bin/typescript-json-schema');
+
+execFileSync(process.execPath, [
+    schemaCli,
+    tsconfig,
+    'COCOS_CONFIG',
+    '-o',
+    output,
+    '--noExtraProps',
+    '--skipLibCheck',
+    '--include',
+    input,
+], { stdio: 'inherit' });
 console.log(`✅ Schema 文件已生成: ${output}`);

@@ -2,7 +2,7 @@
 const urls = {
     manual: 'https://docs.cocos.com/creator/manual/zh/',
     api: 'https://docs.cocos.com/creator/api/zh/'
-}
+};
 /**
  * 快捷获取文档路径
  * @param relativeUrl 

@@ -5,6 +5,7 @@ import { IBuildCommonOptions } from '../@types';
 import { IBuilderConfigItem } from '../@types/protected';
 import { BuildConfiguration } from '../@types/config-export';
 import { createBuilderCoreMetadataNodes } from './metadata';
+import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 
 class BuilderConfig {
     /**
@@ -494,7 +495,7 @@ class BuilderConfig {
             this._configInstance = await configurationRegistry.register('builder', {
                 defaults: defaultConfig,
                 nodes: () => createBuilderCoreMetadataNodes(
-                    this.commonOptionConfigs,
+                    this.commonOptionConfigs as unknown as Record<string, ICocosConfigurationPropertySchema>,
                     useCacheDefaults,
                     defaultConfig.bundleConfig,
                     defaultConfig.textureCompressConfig

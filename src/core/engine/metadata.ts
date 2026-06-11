@@ -1,5 +1,5 @@
 import type { IEngineConfig } from './@types/config';
-import type { ICocosConfigurationNode, ICocosConfigurationPropertySchemaInput } from '../configuration/script/metadata';
+import type { ICocosConfigurationNode, ICocosConfigurationPropertySchema } from '../configuration/script/metadata';
 import { arraySchema, createNode, objectSchema } from '../configuration/script/metadata';
 import { getEngineDynamicConfigContribution } from './dynamic-metadata';
 import { createDefaultEngineModuleProjectDefaults } from './module-config-defaults';
@@ -268,8 +268,8 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
 
 function prefixProperties(
     prefix: string,
-    properties: Record<string, ICocosConfigurationPropertySchemaInput>
-): Record<string, ICocosConfigurationPropertySchemaInput> {
+    properties: Record<string, ICocosConfigurationPropertySchema>
+): Record<string, ICocosConfigurationPropertySchema> {
     return Object.fromEntries(
         Object.entries(properties).map(([key, value]) => [`${prefix}.${key}`, value])
     );

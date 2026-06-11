@@ -3,7 +3,7 @@ import path from 'path';
 import lodash from 'lodash';
 import ts from 'typescript';
 import i18n from '../base/i18n';
-import type { ICocosConfigurationPropertySchemaInput } from '../configuration/script/metadata';
+import type { ICocosConfigurationPropertySchema } from '../configuration/script/metadata';
 import { objectSchema, translateMetadataText } from '../configuration/script/metadata';
 import type { IEngineConfig } from './@types/config';
 import type { IFeatureItem, IModuleItem, ModuleRenderConfig } from './@types/modules';
@@ -12,10 +12,10 @@ type Primitive = string | number | boolean;
 type FlagValue = boolean | number;
 type LocalizationValue = Record<string, unknown>;
 export interface IEngineDynamicMetadataSchemas {
-    includeModules: ICocosConfigurationPropertySchemaInput;
-    flagProperties: Record<string, ICocosConfigurationPropertySchemaInput>;
-    flagsObject: ICocosConfigurationPropertySchemaInput;
-    macroProperties: Record<string, ICocosConfigurationPropertySchemaInput>;
+    includeModules: ICocosConfigurationPropertySchema;
+    flagProperties: Record<string, ICocosConfigurationPropertySchema>;
+    flagsObject: ICocosConfigurationPropertySchema;
+    macroProperties: Record<string, ICocosConfigurationPropertySchema>;
 }
 
 export interface IEngineDynamicConfigDefaults {
@@ -274,7 +274,7 @@ function getByPath(target: unknown, keyPath: string): unknown {
     return current;
 }
 
-function buildIncludeModulesSchema(features: IFeatureDescriptor[]): ICocosConfigurationPropertySchemaInput {
+function buildIncludeModulesSchema(features: IFeatureDescriptor[]): ICocosConfigurationPropertySchema {
     return {
         type: 'array',
         default: features.filter((feature) => feature.default).map((feature) => feature.id),
@@ -294,8 +294,8 @@ function buildIncludeModulesSchema(features: IFeatureDescriptor[]): ICocosConfig
     };
 }
 
-function buildFlagProperties(flags: IFlagDescriptor[]): Record<string, ICocosConfigurationPropertySchemaInput> {
-    const properties: Record<string, ICocosConfigurationPropertySchemaInput> = {};
+function buildFlagProperties(flags: IFlagDescriptor[]): Record<string, ICocosConfigurationPropertySchema> {
+    const properties: Record<string, ICocosConfigurationPropertySchema> = {};
     for (const flag of flags) {
         properties[flag.key] = {
             type: inferPrimitiveSchemaType(flag.default),
@@ -315,8 +315,8 @@ function buildFlagDefaults(flags: IFlagDescriptor[]): Record<string, FlagValue> 
 }
 
 function buildFlagsObjectSchema(
-    flagProperties: Record<string, ICocosConfigurationPropertySchemaInput>
-): ICocosConfigurationPropertySchemaInput {
+    flagProperties: Record<string, ICocosConfigurationPropertySchema>
+): ICocosConfigurationPropertySchema {
     const defaults = Object.fromEntries(
         Object.entries(flagProperties).map(([key, value]) => [key, value.default])
     );
@@ -328,8 +328,8 @@ function buildFlagsObjectSchema(
     });
 }
 
-function buildMacroProperties(macros: IMacroDescriptor[]): Record<string, ICocosConfigurationPropertySchemaInput> {
-    const properties: Record<string, ICocosConfigurationPropertySchemaInput> = {};
+function buildMacroProperties(macros: IMacroDescriptor[]): Record<string, ICocosConfigurationPropertySchema> {
+    const properties: Record<string, ICocosConfigurationPropertySchema> = {};
 
     for (const macro of macros) {
         properties[macro.key] = {
@@ -545,7 +545,7 @@ function normalizePrimitiveValue(value: unknown): Primitive {
     return Boolean(value);
 }
 
-function inferPrimitiveSchemaType(value: Primitive): ICocosConfigurationPropertySchemaInput['type'] {
+function inferPrimitiveSchemaType(value: Primitive): ICocosConfigurationPropertySchema['type'] {
     if (typeof value === 'number') {
         return 'number';
     }
@@ -580,7 +580,7 @@ function createFallbackContribution(
             type: typeof value === 'number' ? 'number' : 'boolean',
             default: value,
             title: key,
-        } satisfies ICocosConfigurationPropertySchemaInput])
+        } satisfies ICocosConfigurationPropertySchema])
     );
 
     const macroProperties = Object.fromEntries(
@@ -588,7 +588,7 @@ function createFallbackContribution(
             type: inferPrimitiveSchemaType(value),
             default: value,
             title: key,
-        } satisfies ICocosConfigurationPropertySchemaInput])
+        } satisfies ICocosConfigurationPropertySchema])
     );
 
     return {

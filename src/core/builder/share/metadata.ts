@@ -1,7 +1,7 @@
 import lodash from 'lodash';
 import type { IBuildCacheUseConfig } from '../@types';
 import type { BuildConfiguration } from '../@types/config-export';
-import type { ICocosConfigurationNode, IConfigurationItem } from '../../configuration/script/metadata';
+import type { ICocosConfigurationNode, ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import { DefaultBundleConfig } from './bundle-utils';
 import {
     convertConfigItem,
@@ -12,14 +12,14 @@ import {
 } from '../../configuration/script/metadata';
 
 interface IBuilderMetadataSource {
-    commonOptionConfigs: Record<string, IConfigurationItem>;
+    commonOptionConfigs: Record<string, ICocosConfigurationPropertySchema>;
     useCacheDefaults: IBuildCacheUseConfig;
     bundleConfigDefault?: BuildConfiguration['bundleConfig'];
     textureCompressConfigDefault?: BuildConfiguration['textureCompressConfig'];
-    commonOptionConfig: Record<string, Record<string, IConfigurationItem>>;
+    commonOptionConfig: Record<string, Record<string, ICocosConfigurationPropertySchema>>;
     configMap: Record<string, Record<string, {
         displayName?: string;
-        options?: Record<string, IConfigurationItem>;
+        options?: Record<string, ICocosConfigurationPropertySchema>;
     }>>;
     platformTitles: Record<string, string>;
 }
@@ -36,7 +36,7 @@ const DEFAULT_TEXTURE_COMPRESS_CONFIG: BuildConfiguration['textureCompressConfig
 };
 
 export function createBuilderCoreMetadataNodes(
-    commonOptionConfigs: Record<string, IConfigurationItem>,
+    commonOptionConfigs: Record<string, ICocosConfigurationPropertySchema>,
     useCacheDefaults: IBuildCacheUseConfig,
     bundleConfigDefault: BuildConfiguration['bundleConfig'],
     textureCompressConfigDefault: BuildConfiguration['textureCompressConfig']
@@ -75,7 +75,7 @@ export function createBuilderMetadataNodes(source: IBuilderMetadataSource): ICoc
 }
 
 function createBuilderCommonNode(
-    commonOptionConfigs: Record<string, IConfigurationItem>,
+    commonOptionConfigs: Record<string, ICocosConfigurationPropertySchema>,
     order: number
 ): ICocosConfigurationNode {
     const properties: Record<string, ReturnType<typeof convertConfigItem>> = {};
@@ -171,7 +171,7 @@ function createBuilderPlatformNode(
             {},
             source.commonOptionConfig[platform] ?? {},
             source.commonOptionConfigs
-        ) as Record<string, IConfigurationItem>;
+        ) as Record<string, ICocosConfigurationPropertySchema>;
 
         const packageProperties: Record<string, ReturnType<typeof convertConfigItem>> = {};
         for (const [key, item] of Object.entries(mergedCommonOptions)) {
@@ -199,7 +199,7 @@ function createBuilderPlatformNode(
         });
     }
 
-    const platformTitle = translateMetadataText(source.platformTitles[platform], platform) ?? platform;
+    const platformTitle = translateMetadataText(source.platformTitles[platform]) ?? platform;
     const configSuffix = translateMetadataText('i18n:configuration.builder.platform.configSuffix')
         ?? 'Platform Config';
 

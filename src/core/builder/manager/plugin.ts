@@ -15,7 +15,7 @@ import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
 import { createBuilderPlatformMetadataNodes } from '../share/metadata';
 import { configurationRegistry } from '../../configuration';
-import { convertConfigItem, createPropertySchema, ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
+import { convertConfigItem, ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import { GlobalPaths } from '../../../global';
 import { existsSync, readdirSync } from 'fs';
 import utils from '../../base/utils';
@@ -315,12 +315,15 @@ export class PluginManager extends EventEmitter {
         this.configMap[platform][pkgName] = config;
         await configurationRegistry.register('builder', {
             nodes: () => createBuilderPlatformMetadataNodes(platform, {
-                commonOptionConfigs: builderConfig.commonOptionConfigs,
+                commonOptionConfigs: builderConfig.commonOptionConfigs as unknown as Record<string, ICocosConfigurationPropertySchema>,
                 useCacheDefaults: {},
-                commonOptionConfig: this.commonOptionConfig,
+                commonOptionConfig: this.commonOptionConfig as unknown as Record<string, Record<string, ICocosConfigurationPropertySchema>>,
                 configMap: {
                     [platform]: this.configMap[platform],
-                },
+                } as unknown as Record<string, Record<string, {
+                    displayName?: string;
+                    options?: Record<string, ICocosConfigurationPropertySchema>;
+                }>>,
                 platformTitles: {
                     [platform]: this.platformConfig[platform]?.name || platform,
                 },
@@ -896,7 +899,7 @@ export class PluginManager extends EventEmitter {
             if (!item || item.hidden) {
                 continue;
             }
-            result[key] = createPropertySchema(convertConfigItem(item, key));
+            result[key] = convertConfigItem(item as unknown as ICocosConfigurationPropertySchema, key);
         }
         return result;
     }
