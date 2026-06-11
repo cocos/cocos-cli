@@ -117,11 +117,11 @@ function resolveDisplayText(
     translatedValue: string | undefined,
     i18nValue: string | undefined
 ): string | undefined {
-    if (i18nValue) {
-        return translateMetadataText(i18nValue);
+    if (translatedValue) {
+        return translateMetadataText(translatedValue);
     }
 
-    return translateMetadataText(translatedValue);
+    return translateMetadataText(i18nValue);
 }
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {

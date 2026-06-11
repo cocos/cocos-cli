@@ -245,7 +245,8 @@ describe('configuration metadata', () => {
         await runtime.scriptConfig.init();
 
         const zhNodes = await runtime.getMetadata();
-        runtime.i18n.setLanguage('en');
+        await runtime.i18n.setLanguage('en');
+        runtime.pluginManager.refreshDisplayI18nFields();
         const enNodes = await runtime.getMetadata();
 
         expect(findNode(zhNodes, 'script').title).toBe('脚本');
