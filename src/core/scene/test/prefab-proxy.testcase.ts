@@ -245,7 +245,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 });
 
                 expect(uNode).toBeTruthy();
-                const node = await NodeProxy.query({ path: uNode?.path as string, queryChildren: false, queryComponent: true }) as INodeInfo | null;
+                const node = await NodeProxy.query({ path: uNode?.path as string, includeChildren: false, includeComponents: true }) as INodeInfo | null;
 
                 expect(node).toBeTruthy();
                 expect(node?.components?.length).toBeGreaterThan(0);
@@ -354,7 +354,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(testNodePrefabNode).toBeTruthy();
             if (testNodePrefabNode) {
 
-                const node = await NodeProxy.query({ path: testNodePrefabNode.path, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+                const node = await NodeProxy.query({ path: testNodePrefabNode.path, includeChildren: false, includeComponents: false }) as INodeInfo | null;
                 expect(node).toBeTruthy();
                 if (!node) return;
 
@@ -376,7 +376,7 @@ describe('Prefab Proxy In Scene 测试', () => {
                 const result = await PrefabProxy.revertToPrefab(params);
                 expect(result).toBe(true);
 
-                const node2 = await NodeProxy.query({ path: path, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+                const node2 = await NodeProxy.query({ path: path, includeChildren: false, includeComponents: false }) as INodeInfo | null;
                 expect(node.properties.position).toEqual(node2?.properties.position);
             }
         });
@@ -408,7 +408,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             const prefabNodePath = prefabNode.path;
 
             // 获取初始属性
-            const initialQuery = await NodeProxy.query({ path: prefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+            const initialQuery = await NodeProxy.query({ path: prefabNodePath, includeChildren: false, includeComponents: false }) as INodeInfo | null;
             expect(initialQuery).toBeTruthy();
             if (!initialQuery) return;
 
@@ -493,14 +493,14 @@ describe('Prefab Proxy In Scene 测试', () => {
                 nodePath: updatedPrefabNodePath,
             };
 
-            const queryNode = await NodeProxy.query({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+            const queryNode = await NodeProxy.query({ path: updatedPrefabNodePath, includeChildren: false, includeComponents: false }) as INodeInfo | null;
             queryNode && console.log(queryNode.properties);
 
             const revertResult = await PrefabProxy.revertToPrefab(revertParams);
             expect(revertResult).toBe(true);
 
             // 验证还原后的属性
-            const revertedQuery = await NodeProxy.query({ path: updatedPrefabNodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+            const revertedQuery = await NodeProxy.query({ path: updatedPrefabNodePath, includeChildren: false, includeComponents: false }) as INodeInfo | null;
             expect(revertedQuery).toBeTruthy();
             if (!revertedQuery) return;
 
@@ -561,8 +561,8 @@ describe('Prefab Proxy In Scene 测试', () => {
             // 查询节点及其子节点，确认子节点存在（创建预制体后，父节点名称已改变，子节点 path 也会改变）
             const beforeRevertQuery = await NodeProxy.query({
                 path: prefabNodePath,
-                queryChildren: true,
-                queryComponent: false
+                includeChildren: true,
+                includeComponents: false
             }) as INodeInfo | null;
             expect(beforeRevertQuery).toBeTruthy();
             if (!beforeRevertQuery) return;
@@ -602,8 +602,8 @@ describe('Prefab Proxy In Scene 测试', () => {
             // 查询节点及其子节点，验证子节点的 path 保持不变
             const afterRevertQuery = await NodeProxy.query({
                 path: prefabNodePath,
-                queryChildren: true,
-                queryComponent: false
+                includeChildren: true,
+                includeComponents: false
             }) as INodeInfo | null;
             expect(afterRevertQuery).toBeTruthy();
             if (!afterRevertQuery) return;
@@ -850,7 +850,7 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(revertResult).toBe(true);
 
             // 验证还原后的属性
-            const queryNodeResult = await NodeProxy.query({ path: nodePath, queryChildren: false, queryComponent: false }) as INodeInfo | null;
+            const queryNodeResult = await NodeProxy.query({ path: nodePath, includeChildren: false, includeComponents: false }) as INodeInfo | null;
             expect(queryNodeResult).not.toBeNull();
             if (queryNodeResult) {
                 const props = queryNodeResult.properties;

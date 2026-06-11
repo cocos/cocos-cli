@@ -24,17 +24,17 @@ export interface INodeProxy extends Omit<IPublicNodeService, 'createByType' | 'c
 export const NodeProxy: INodeProxy = {
     async createByType(params: ICreateByNodeTypeParams): Promise<INodeInfo | null> {
         const result: any = await Rpc.getInstance().request('Node', 'createByType', [params]);
-        return result ? DumpConverter.toNode(result, { children: true }) : null;
+        return result ? DumpConverter.toNode(result) : null;
     },
     async createByAsset(params: ICreateByAssetParams): Promise<INodeInfo | null> {
         const result: any = await Rpc.getInstance().request('Node', 'createByAsset', [params]);
-        return result ? DumpConverter.toNode(result, { children: true }) : null;
+        return result ? DumpConverter.toNode(result) : null;
     },
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
         return Rpc.getInstance().request('Node', 'delete', [params]);
     },
     async update(params: IUpdateNodeParams): Promise<IUpdateNodeResult> {
-        const nodeDump: any = await Rpc.getInstance().request('Node', 'query', [{ path: params.path, queryChildren: false, queryComponent: false }]);
+        const nodeDump: any = await Rpc.getInstance().request('Node', 'query', [{ path: params.path }]);
         if (!nodeDump) {
             throw new Error(`Node not found: ${params.path}`);
         }
@@ -81,9 +81,13 @@ export const NodeProxy: INodeProxy = {
         return { path: currentPath };
     },
     async query(params?: IQueryNodeParams): Promise<INodeInfo | null> {
-        const result: any = await Rpc.getInstance().request('Node', 'query', [params]);
+        const result: any = await Rpc.getInstance().request('Node', 'query', [{
+            path: params?.path ?? '',
+            includeChildren: params?.includeChildren ?? false,
+            includeComponents: params?.includeComponents ?? false,
+        }]);
         if (!result) return null;
-        return DumpConverter.toNode(result, { path: params?.path, fullComponents: true });
+        return DumpConverter.toNode(result, { path: params?.path });
     },
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
         return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);

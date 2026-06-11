@@ -81,91 +81,104 @@ describe('Node Proxy 测试', () => {
     });
 
     describe('2. 节点查询操作（依赖创建的节点）', () => {
-        it('query - 查询节点基本信息', async () => {
-            expect(createdNode).not.toBeNull();
-            if (createdNode) {
-                const params: IQueryNodeParams = {
-                    path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: true
-                };
-
-                const result = await NodeProxy.query(params) as INodeInfo | null;
-                expect(result).toBeDefined();
-                expect(result?.path).toBe('TestNode/Canvas/TestNode');
-                expect(result?.name).toBe('TestNode');
-            }
-        });
-
-        it('query - 查询节点及子节点信息', async () => {
-            expect(createdNode).not.toBeNull();
-            if (createdNode) {
-                const params: IQueryNodeParams = {
-                    path: createdNode.path,
-                    queryChildren: true,
-                    queryComponent: false
-                };
-
-                const result = await NodeProxy.query(params) as INodeInfo | null;
-                expect(result).toBeDefined();
-            }
-        });
-
-        it('query - 不传参数返回场景根节点 INodeInfo', async () => {
+        it('query - 不传参数返回场景根节点，不含子节点和组件', async () => {
             const result = await NodeProxy.query();
             expect(result).not.toBeNull();
             const node = result as INodeInfo;
             expect(node.nodeId).toBeDefined();
             expect(node.path).toBe('/');
             expect(node.properties).toBeDefined();
-            expect(node.children).toBeDefined();
-            expect(Array.isArray(node.children)).toBe(true);
+            expect(node.children).toBeUndefined();
+            expect(node.components).toBeUndefined();
         });
 
-        it('query - 传入 "/" 返回场景根节点 INodeInfo', async () => {
-            const result = await NodeProxy.query({ path: '/', queryChildren: false, queryComponent: false });
+        it('query - 传入 "/" 不含子节点和组件', async () => {
+            const result = await NodeProxy.query({ path: '/', includeChildren: false, includeComponents: false });
             expect(result).not.toBeNull();
             const node = result as INodeInfo;
             expect(node.nodeId).toBeDefined();
             expect(node.path).toBe('/');
             expect(node.properties).toBeDefined();
+            expect(node.children).toBeUndefined();
+            expect(node.components).toBeUndefined();
         });
 
-        it('query - queryComponent:true 返回组件详细信息', async () => {
+        it('query - includeChildren:true 返回子节点 INodeIdentifier 列表', async () => {
+            const result = await NodeProxy.query({ path: '/', includeChildren: true, includeComponents: false });
+            expect(result).not.toBeNull();
+            const node = result as INodeInfo;
+            expect(node.children).toBeDefined();
+            expect(Array.isArray(node.children)).toBe(true);
+            expect(node.children!.length).toBeGreaterThan(0);
+            const child = node.children![0];
+            expect(child.nodeId).toBeDefined();
+            expect(child.nodeId).not.toBe('');
+            expect(child.path).toBeDefined();
+            expect(child.path).not.toBe('');
+            expect(child.name).toBeDefined();
+            expect(child.name).not.toBe('');
+            expect(node.components).toBeUndefined();
+        });
+
+        it('query - includeComponents:true 返回组件 IComponentIdentifier 列表', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const result = await NodeProxy.query({
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: true,
+                    includeChildren: false,
+                    includeComponents: true,
                 }) as INodeInfo | null;
-                expect(result).toBeDefined();
+                expect(result).not.toBeNull();
                 expect(result?.components).toBeDefined();
                 expect(Array.isArray(result?.components)).toBe(true);
+                if (result?.components && result.components.length > 0) {
+                    const comp = result.components[0];
+                    expect(comp.type).toBeDefined();
+                    expect(comp.type).not.toBe('');
+                    expect(comp.uuid).toBeDefined();
+                    expect(comp.uuid).not.toBe('');
+                    expect(comp.name).toBeDefined();
+                    expect(comp.cid).toBeDefined();
+                    expect(comp.path).toBeDefined();
+                    expect(comp.path.startsWith(createdNode.path)).toBe(true);
+                    expect(typeof comp.enabled).toBe('boolean');
+                }
+                expect(result?.children).toBeUndefined();
+            }
+        });
+
+        it('query - includeChildren:true includeComponents:true 同时返回子节点和组件', async () => {
+            expect(createdNode).not.toBeNull();
+            if (createdNode) {
+                const result = await NodeProxy.query({
+                    path: createdNode.path,
+                    includeChildren: true,
+                    includeComponents: true,
+                }) as INodeInfo | null;
+                expect(result).not.toBeNull();
+                expect(result?.children).toBeDefined();
+                expect(Array.isArray(result?.children)).toBe(true);
+                expect(result?.components).toBeDefined();
                 expect(result!.components!.length).toBeGreaterThan(0);
                 for (const comp of result!.components!) {
-                    // component_path 正确写入并经 DumpConverter 转换为 path
                     expect(comp.path).toBeTruthy();
                     expect(comp.path.startsWith(createdNode.path)).toBe(true);
                 }
             }
         });
 
-        it('query - queryChildren:true queryComponent:true 同时查询', async () => {
+        it('query - includeChildren:false includeComponents:false 均为 undefined', async () => {
             expect(createdNode).not.toBeNull();
             if (createdNode) {
                 const result = await NodeProxy.query({
                     path: createdNode.path,
-                    queryChildren: true,
-                    queryComponent: true,
+                    includeChildren: false,
+                    includeComponents: false,
                 }) as INodeInfo | null;
-                expect(result).toBeDefined();
-                expect(result?.components).toBeDefined();
-                expect(result!.components!.length).toBeGreaterThan(0);
-                for (const comp of result!.components!) {
-                    expect(comp.path).toBeTruthy();
-                    expect(comp.path.startsWith(createdNode.path)).toBe(true);
-                }
+                expect(result).not.toBeNull();
+                expect(result?.children).toBeUndefined();
+                expect(result?.components).toBeUndefined();
+                expect(result?.properties).toBeDefined();
             }
         });
     });
@@ -191,8 +204,8 @@ describe('Node Proxy 测试', () => {
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: true
+                    includeChildren: false,
+                    includeComponents: true
                 };
                 const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.position).toEqual(newPosition);
@@ -216,8 +229,8 @@ describe('Node Proxy 测试', () => {
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: true
+                    includeChildren: false,
+                    includeComponents: true
                 };
                 const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.active).toBe(false);
@@ -243,8 +256,8 @@ describe('Node Proxy 测试', () => {
                 // 验证更新是否生效
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: true
+                    includeChildren: false,
+                    includeComponents: true
                 };
                 const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.scale).toEqual(newScale);
@@ -264,8 +277,8 @@ describe('Node Proxy 测试', () => {
 
                 const queryParams: IQueryNodeParams = {
                     path: result.path,
-                    queryChildren: false,
-                    queryComponent: false,
+                    includeChildren: false,
+                    includeComponents: false,
                 };
                 const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.name).toBe('RenamedTestNode');
@@ -288,8 +301,8 @@ describe('Node Proxy 测试', () => {
 
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: false,
+                    includeChildren: false,
+                    includeComponents: false,
                 };
                 const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.mobility).toBe(MobilityMode.Movable);
@@ -312,8 +325,8 @@ describe('Node Proxy 测试', () => {
 
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: false,
+                    includeChildren: false,
+                    includeComponents: false,
                 };
                 const updatedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(updatedNode?.properties.layer).toBe(targetLayer);
@@ -337,8 +350,8 @@ describe('Node Proxy 测试', () => {
                 // 验证节点是否已被删除
                 const queryParams: IQueryNodeParams = {
                     path: createdNode.path,
-                    queryChildren: false,
-                    queryComponent: true
+                    includeChildren: false,
+                    includeComponents: true
                 };
                 const deletedNode = await NodeProxy.query(queryParams) as INodeInfo | null;
                 expect(deletedNode).toBeNull();
@@ -375,8 +388,8 @@ describe('Node Proxy 测试', () => {
         it('query - 查询不存在的节点应返回null', async () => {
             const params: IQueryNodeParams = {
                 path: '/NonExistentNode',
-                queryChildren: false,
-                queryComponent: false
+                includeChildren: false,
+                includeComponents: false
             };
 
             const result = await NodeProxy.query(params) as INodeInfo | null;

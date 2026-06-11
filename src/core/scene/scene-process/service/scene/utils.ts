@@ -3,7 +3,7 @@ import compMgr from '../component/index';
 import { prefabUtils } from '../prefab/utils';
 import dumpUtil from '../dump';
 import { encodePrefab } from '../dump/encode';
-import type { INode, IPrefab } from '../../../common';
+import type { INode, IPrefab, INodeDumpOptions } from '../../../common';
 import type { IScene } from '../../../common/editor/scene';
 
 class SceneUtil {
@@ -141,12 +141,12 @@ class SceneUtil {
         return prefab;
     }
 
-    async generateNodeDump(node: cc.Node, options?: { queryChildren?: boolean; queryComponent?: boolean }): Promise<INode | IScene> {
-        const queryChildren = options?.queryChildren ?? true;
-        const queryComponent = options?.queryComponent ?? true;
+    generateNodeDump(node: cc.Node, options?: INodeDumpOptions): INode | IScene {
+        const includeChildren = options?.includeChildren ?? true;
+        const includeComponents = options?.includeComponents ?? true;
+        const d = dumpUtil.dumpNode(node) as any;
 
-        if (node instanceof Scene) {
-            const sceneDump = dumpUtil.dumpNode(node) as IScene;
+        d.__path__ = EditorExtends.Node.getNodePath(node);
 
             // hack: 以下字段不属于编辑器 dump 结构（IScene），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
             const d = sceneDump as any;
@@ -176,17 +176,21 @@ class SceneUtil {
             this.enrichPrefabDump(dump.__prefab__, node['_prefab']);
         }
         if (!queryComponent) {
-            d.__comps__ = [];
+            d.__comps__ = undefined;
         }
 
-        d.__childNodes__ = [];
-        if (queryChildren) {
-            for (const child of node.children) {
-                d.__childNodes__.push(await this.generateNodeDump(child, options));
-            }
+        if (includeChildren) {
+            d.children.forEach((childProp: any) => {
+                const childUuid = childProp.value?.uuid;
+                const childNode = childUuid ? EditorExtends.Node.getNode(childUuid) : null;
+                childProp.__path__ = childNode ? EditorExtends.Node.getNodePath(childNode) : '';
+                childProp.__name__ = childNode?.name ?? '';
+            });
+        } else {
+            d.children = undefined;
         }
 
-        return dump;
+        return d;
     }
 
     /**

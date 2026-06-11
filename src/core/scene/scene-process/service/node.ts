@@ -182,7 +182,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
         }
 
-        return sceneUtils.generateNodeDump(resultNode) as Promise<INode>;
+        return sceneUtils.generateNodeDump(resultNode) as INode;
     }
 
     /**
@@ -305,10 +305,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 node = NodeMgr.getNodeByPath(path);
             }
             if (!node) return null;
-            return await sceneUtils.generateNodeDump(node, {
-                queryChildren: params?.queryChildren,
-                queryComponent: params?.queryComponent,
-            });
+            return sceneUtils.generateNodeDump(node, params);
         } catch (error) {
             console.error(error);
             throw error;

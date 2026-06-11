@@ -2,6 +2,7 @@
 
 import type {
     INodeInfo,
+    INodeIdentifier,
     INode,
     IComponentInfo,
     IComponent,
@@ -16,8 +17,6 @@ import type { IPropertyValueType } from '../../@types/public';
 
 export interface IDumpConvertOptions {
     path?: string;
-    children?: boolean;
-    fullComponents?: boolean;
 }
 
 export class DumpConverter {
@@ -31,7 +30,6 @@ export class DumpConverter {
     static toScene(dump: IScene, options?: IDumpConvertOptions): ISceneInfo {
         const d = dump as any;
         const identifier = d.__identifier__ ?? {};
-        const children = options?.children ?? true;
         return {
             assetType: identifier.assetType ?? '',
             assetName: identifier.assetName ?? '',
@@ -39,16 +37,13 @@ export class DumpConverter {
             assetUrl: identifier.assetUrl ?? '',
             name: dump.name.value as string,
             prefab: DumpConverter.convertPrefab(d.__prefab__),
-            children: children
-                ? (d.__childNodes__?.map((c: INode) => DumpConverter.toNode(c, options)) ?? [])
-                : [],
-            components: d.__comps__?.map((c: any) => DumpConverter.toComponentIdentifier(c)) ?? [],
+            children: dump.children?.map((c: any) => DumpConverter.toNodeIdentifier(c)),
+            components: d.__comps__?.map((c: any) => DumpConverter.toComponentIdentifier(c)),
         };
     }
 
     private static sceneToNode(dump: IScene, options?: IDumpConvertOptions): INodeInfo {
         const d = dump as any;
-        const children = options?.children ?? true;
         return {
             nodeId: dump.uuid.value as string,
             path: options?.path || d.__path__ || '/',
@@ -61,17 +56,14 @@ export class DumpConverter {
                 mobility: d.mobility?.value ?? 0,
                 layer: d.layer?.value ?? 0,
             },
-            children: children
-                ? d.__childNodes__?.map((c: INode) => DumpConverter.toNode(c, options))
-                : undefined,
+            children: dump.children?.map((c: any) => DumpConverter.toNodeIdentifier(c)),
+            components: d.__comps__?.map((c: any) => DumpConverter.toComponentIdentifier(c)),
             prefab: DumpConverter.convertPrefab(d.__prefab__),
         };
     }
 
     private static nodeToNode(dump: INode, options?: IDumpConvertOptions): INodeInfo {
         const d = dump as any;
-        const children = options?.children ?? true;
-        const fullComponents = options?.fullComponents ?? false;
         return {
             nodeId: dump.uuid.value as string,
             path: options?.path || d.__path__ || '',
@@ -84,13 +76,17 @@ export class DumpConverter {
                 mobility: dump.mobility.value as number,
                 layer: dump.layer.value as number,
             },
-            components: fullComponents
-                ? (dump.__comps__?.map(c => DumpConverter.toComponent(c)) ?? [])
-                : (dump.__comps__?.map(c => DumpConverter.toComponentIdentifier(c)) ?? []),
-            children: children
-                ? d.__childNodes__?.map((c: any) => DumpConverter.toNode(c, options))
-                : undefined,
+            components: dump.__comps__?.map(c => DumpConverter.toComponentIdentifier(c)),
+            children: dump.children?.map((c: any) => DumpConverter.toNodeIdentifier(c)),
             prefab: DumpConverter.convertPrefab(dump.__prefab__),
+        };
+    }
+
+    static toNodeIdentifier(childProp: any): INodeIdentifier {
+        return {
+            nodeId: childProp.value?.uuid ?? '',
+            path: childProp.__path__ ?? '',
+            name: childProp.__name__ ?? '',
         };
     }
 

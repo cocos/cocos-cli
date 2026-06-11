@@ -1,4 +1,4 @@
-import { IBaseIdentifier, INodeInfo, ISceneInfo, NodeType, ReloadResult } from '../common';
+import { IBaseIdentifier, INodeInfo, ISceneInfo, INodeIdentifier, NodeType, ReloadResult } from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
@@ -254,6 +254,80 @@ describe('EditorProxy Scene 测试', () => {
                 urlOrUUID: identifierB.assetUuid
             });
             expect(result).toBe(true);
+        });
+    });
+
+    describe('open - includeChildren / includeComponents 参数测试', () => {
+        beforeAll(async () => {
+            await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL });
+        });
+
+        afterAll(async () => {
+            await EditorProxy.close({ urlOrUUID: SceneTestEnv.sceneURL });
+        });
+
+        it('open - includeChildren:true 时 children 有数据', async () => {
+            const result = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeChildren: true }) as ISceneInfo;
+            expect(result.children).toBeDefined();
+            expect(Array.isArray(result.children)).toBe(true);
+            if (result.children && result.children.length > 0) {
+                const child: INodeIdentifier = result.children[0];
+                expect(child.nodeId).toBeDefined();
+                expect(child.nodeId).not.toBe('');
+                expect(child.path).toBeDefined();
+                expect(child.name).toBeDefined();
+            }
+        });
+
+        it('open - includeChildren:false 时 children 为 undefined', async () => {
+            const result = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeChildren: false }) as ISceneInfo;
+            expect(result.children).toBeUndefined();
+        });
+
+        it('open - scene 节点无组件，includeComponents:true 时 components 仍为 undefined', async () => {
+            const result = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeComponents: true }) as ISceneInfo;
+            expect(result.components).toBeUndefined();
+        });
+
+        it('open - scene 节点无组件，includeComponents:false 时 components 仍为 undefined', async () => {
+            const result = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeComponents: false }) as ISceneInfo;
+            expect(result.components).toBeUndefined();
+        });
+    });
+
+    describe('reload - _lastOpenOptions 保持（open 选项在 reload 后保持一致）', () => {
+        beforeAll(async () => {
+            await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL });
+        });
+
+        afterAll(async () => {
+            await EditorProxy.close({ urlOrUUID: SceneTestEnv.sceneURL });
+        });
+
+        it('reload 后以 includeChildren:false re-open，children 仍为 undefined', async () => {
+            // 以 includeChildren:false 打开
+            const before = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeChildren: false }) as ISceneInfo;
+            expect(before.children).toBeUndefined();
+
+            // reload 内部以 _lastOpenOptions({ includeChildren:false }) 调用 encode，不应崩溃
+            const reloadResult = await EditorProxy.reload({ urlOrUUID: SceneTestEnv.sceneURL });
+            expect(reloadResult).toBe(ReloadResult.SUCCESS);
+
+            // reload 后 re-open 同 URL（已打开则直接 encode），形状应与 reload 前一致
+            const after = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeChildren: false }) as ISceneInfo;
+            expect(after.children).toBeUndefined();
+        });
+
+        it('reload 后以 includeChildren:true re-open，children 有数据', async () => {
+            const before = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeChildren: true }) as ISceneInfo;
+            expect(before.children).toBeDefined();
+
+            const reloadResult = await EditorProxy.reload({ urlOrUUID: SceneTestEnv.sceneURL });
+            expect(reloadResult).toBe(ReloadResult.SUCCESS);
+
+            const after = await EditorProxy.open({ urlOrUUID: SceneTestEnv.sceneURL, includeChildren: true }) as ISceneInfo;
+            expect(after.children).toBeDefined();
+            expect(Array.isArray(after.children)).toBe(true);
         });
     });
 });

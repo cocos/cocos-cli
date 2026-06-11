@@ -21,7 +21,7 @@ export const PrefabProxy: IPrefabProxy = {
     },
     async createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INodeInfo> {
         const result: any = await Rpc.getInstance().request('Prefab', 'createPrefabFromNode', [params]);
-        return DumpConverter.toNode(result, { children: false });
+        return DumpConverter.toNode(result);
     },
     async getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefabInfo | null> {
         const result: any = await Rpc.getInstance().request('Prefab', 'getPrefabInfo', [params]);

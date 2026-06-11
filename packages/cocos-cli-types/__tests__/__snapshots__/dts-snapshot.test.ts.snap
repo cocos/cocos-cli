@@ -5639,6 +5639,10 @@ export declare interface INode {
     removedComponents?: IRemovedComponentInfo[];
     mountedRoot?: string;
 }
+export declare interface INodeDumpOptions {
+    includeChildren?: boolean;
+    includeComponents?: boolean;
+}
 export declare interface INodeService extends IServiceEvents {
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
@@ -5686,9 +5690,8 @@ export declare interface INodeTreeItem {
     readonly: boolean;
     components: INodeTreeComponent[];
 }
-export declare interface IOpenOptions {
+export declare interface IOpenOptions extends INodeDumpOptions {
     urlOrUUID: string;
-    simpleNode?: boolean;
 }
 export declare interface IOperationService {
     addListener(type: OperationEvent, listener: Function, priority?: number): void;
@@ -5790,10 +5793,8 @@ export declare interface IQueryClassesOptions {
 export declare interface IQueryComponentOptions {
     path: string;
 }
-export declare interface IQueryNodeParams {
+export declare interface IQueryNodeParams extends INodeDumpOptions {
     path: string;
-    queryChildren: boolean;
-    queryComponent: boolean;
 }
 export declare interface IQueryNodeTreeParams {
     path?: string;

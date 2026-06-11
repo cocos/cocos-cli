@@ -1,3 +1,5 @@
+import type { INodeDumpOptions } from '../node';
+
 import { ICreateType, TSceneTemplateType } from './type';
 
 /**
@@ -20,9 +22,8 @@ export interface ISaveOptions {
 /**
  * 打开场景/预制体选项
  */
-export interface IOpenOptions {
+export interface IOpenOptions extends INodeDumpOptions {
     urlOrUUID: string;
-    simpleNode?: boolean;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { IBaseIdentifier, ICreateOptions, IEditorTarget, TEditorEntity, TEditorInstance } from '../../../common';
+import type { IBaseIdentifier, ICreateOptions, IEditorTarget, TEditorEntity, TEditorInstance, INodeDumpOptions } from '../../../common';
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
 /**
@@ -12,6 +12,11 @@ export abstract class BaseEditor {
      * 当前打开的资源
      */
     protected entity: IEditorTarget | null = null;
+
+    /**
+     * 最近一次 open() 传入的选项，供 _doReload() 复用以保持 encode 结果形状一致
+     */
+    protected _lastOpenOptions: INodeDumpOptions | undefined;
 
     /**
      * reload 操作的 Promise，用于防止并发调用导致序列化失败
@@ -105,8 +110,12 @@ export abstract class BaseEditor {
     }
 
     // 抽象方法，子类必须实现
-    abstract encode(entity?: IEditorTarget): Promise<TEditorEntity>;
-    abstract open(asset: IAssetInfo): Promise<TEditorEntity>;
+    abstract encode(entity?: IEditorTarget | null, options?: INodeDumpOptions): Promise<TEditorEntity>;
+    async open(asset: IAssetInfo, options?: INodeDumpOptions): Promise<TEditorEntity> {
+        this._lastOpenOptions = options;
+        return this._doOpen(asset, options);
+    }
+    protected abstract _doOpen(asset: IAssetInfo, options?: INodeDumpOptions): Promise<TEditorEntity>;
     abstract close(options?: { save?: boolean }): Promise<boolean>;
     abstract save(): Promise<IAssetInfo>;
     /**

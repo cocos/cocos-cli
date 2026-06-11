@@ -1,6 +1,6 @@
 import type { IVec3 } from '../value-types';
 import type { MobilityMode } from '../node';
-import type { IComponentInfo, IComponentIdentifier } from './component';
+import type { IComponentIdentifier } from './component';
 import type { IPrefabInfo } from './prefab';
 
 // 节点基础属性接口
@@ -33,7 +33,7 @@ export interface INodeIdentifier {
 
 export interface INodeInfo extends INodeIdentifier {
     properties: INodeProperties;
-    components?: IComponentInfo[] | IComponentIdentifier[];
-    children?: INodeInfo[];
+    components?: IComponentIdentifier[];
+    children?: INodeIdentifier[];
     prefab: IPrefabInfo | null;
 }

@@ -21,8 +21,8 @@ import { SceneTestEnv } from './scene-test-env';
 const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Node', method, args);
 
-function queryNodeDump(path: string): Promise<INode | null> {
-    return rpcRequest('query', [{ path, queryChildren: false, queryComponent: true }]);
+function queryNodeDump(path: string, options?: { includeChildren?: boolean; includeComponents?: boolean }): Promise<INode | IScene | null> {
+    return rpcRequest('query', [{ path, includeChildren: options?.includeChildren ?? false, includeComponents: options?.includeComponents ?? true }]);
 }
 
 function setNodeProperty(options: ISetPropertyOptions): Promise<boolean> {
@@ -73,8 +73,8 @@ describe('Node ForEditor 接口测试', () => {
         // 通过 queryNode 获取节点 UUID
         const queryParams: IQueryNodeParams = {
             path: testNode!.path,
-            queryChildren: false,
-            queryComponent: false,
+            includeChildren: false,
+            includeComponents: false,
         };
         const nodeInfo = await NodeProxy.query(queryParams) as INodeInfo | null;
         expect(nodeInfo).not.toBeNull();
@@ -92,7 +92,7 @@ describe('Node ForEditor 接口测试', () => {
 
     describe('1. query - 查询节点 dump 数据', () => {
         it('query - 传入 path 返回 INode', async () => {
-            const result = await rpcRequest('query', [{ path: testNode!.path, queryChildren: false, queryComponent: true }]) as INode | null;
+            const result = await rpcRequest('query', [{ path: testNode!.path, includeChildren: false, includeComponents: true }]) as INode | null;
             expect(result).not.toBeNull();
             expect(result!.name).toBeDefined();
             expect(result!.name.value).toBe(testNodeName);
@@ -149,16 +149,52 @@ describe('Node ForEditor 接口测试', () => {
         });
 
         it('query - 传入 "/" 返回场景根节点', async () => {
-            const dump = await rpcRequest('query', [{ path: '/', queryChildren: false, queryComponent: false }]);
+            const dump = await rpcRequest('query', [{ path: '/', includeChildren: false, includeComponents: false }]);
             expect(dump).not.toBeNull();
             const sceneResult = dump as IScene;
             expect(sceneResult.isScene).toBeTruthy();
             expect(sceneResult.__type__).toBeDefined();
             expect(sceneResult.uuid).toBeDefined();
-            expect(Array.isArray(sceneResult.children)).toBe(true);
+            expect(sceneResult.children).toBeUndefined();
         });
-    });
+        it('query - includeChildren:true 时 children 有数据', async () => {
+            const result = await queryNodeDump('/', { includeChildren: true }) as IScene | null;
+            expect(result).not.toBeNull();
+            expect(result!.children).toBeDefined();
+            expect(Array.isArray(result!.children)).toBe(true);
+            expect((result!.children as any[]).length).toBeGreaterThan(0);
+            const child = (result!.children as any[])[0];
+            expect(child.__path__).toBeDefined();
+            expect(child.__name__).toBeDefined();
+            expect(child.value?.uuid).toBeDefined();
+        });
 
+        it('query - includeChildren:false 时 children 为 undefined', async () => {
+            const result = await queryNodeDump('/', { includeChildren: false }) as IScene | null;
+            expect(result).not.toBeNull();
+            expect(result!.children).toBeUndefined();
+        });
+
+        it('query - includeComponents:true 时 __comps__ 有数据', async () => {
+            const result = await queryNodeDump(testNode!.path, { includeComponents: true }) as INode | null;
+            expect(result).not.toBeNull();
+            expect(result!.__comps__).toBeDefined();
+            expect(Array.isArray(result!.__comps__)).toBe(true);
+            if ((result!.__comps__ as any[]).length > 0) {
+                const comp = result!.__comps__![0] as any;
+                expect(comp.type).toBeDefined();
+                expect(comp.__component_path__).toBeDefined();
+                expect(comp.cid).toBeDefined();
+            }
+        });
+
+        it('query - includeComponents:false 时 __comps__ 为 undefined', async () => {
+            const result = await queryNodeDump(testNode!.path, { includeComponents: false }) as INode | null;
+            expect(result).not.toBeNull();
+            expect(result!.__comps__).toBeUndefined();
+        });
+
+    });
     describe('2. setProperty - 设置节点属性', () => {
         it('setProperty - 修改节点位置', async () => {
             // 先获取当前 dump 作为模板
@@ -278,8 +314,8 @@ describe('Node ForEditor 接口测试', () => {
 
             const nodeInfo = await NodeProxy.query({
                 path: labelNode!.path,
-                queryChildren: false,
-                queryComponent: false,
+                includeChildren: false,
+                includeComponents: false,
             }) as INodeInfo | null;
             labelNodeUuid = nodeInfo!.nodeId;
         });
@@ -471,15 +507,15 @@ describe('Node ForEditor 接口测试', () => {
             // 获取 UUID
             const parentInfo = await NodeProxy.query({
                 path: parentNode!.path,
-                queryChildren: false,
-                queryComponent: false,
+                includeChildren: false,
+                includeComponents: false,
             }) as INodeInfo | null;
             parentUuid = parentInfo!.nodeId;
 
             const childInfo = await NodeProxy.query({
                 path: childNode!.path,
-                queryChildren: false,
-                queryComponent: false,
+                includeChildren: false,
+                includeComponents: false,
             }) as INodeInfo | null;
             childUuid = childInfo!.nodeId;
         });
@@ -610,7 +646,7 @@ describe('Node ForEditor 接口测试', () => {
         it('children 是 IProperty 数组', async () => {
             const dump = await queryNodeDump(testNode!.path) as INode;
 
-            expect(Array.isArray(dump.children)).toBe(true);
+            expect(dump.children).toBeUndefined();
             // 空节点可能没有子节点，验证结构不出错即可
         });
 

@@ -34,21 +34,21 @@ export const SchemaComponentOrDetail = z.union([
 export const SchemaNode: z.ZodType<INodeInfo> = SchemaNodeIdentifier.extend({
     properties: SchemaNodeProperty.describe('Node properties'), // 节点属性
     prefab: z.union([SchemaPrefabInfo, z.null()]).describe('Prefab information'), // 预制体信息
-    children: z.array(z.lazy(() => SchemaNode)).optional().describe('List of child nodes'), // 子节点列表
-    components: z.array(SchemaComponentOrDetail).optional().describe('List of components on the node'), // 节点上的组件列表
+    children: z.array(SchemaNodeIdentifier).optional().describe('List of child nodes as identifiers'), // 子节点列表（标识符）
+    components: z.array(SchemaComponentIdentifier).optional().describe('List of components on the node'), // 节点上的组件列表
 });
 
 // 查询节点的参数
 export const SchemaNodeSearch = SchemaNodeIdentifier.extend({
     deeps: z.number().default(10).describe('Query depth'), // 查询的深度
-    queryChildren: z.boolean().default(false).describe('Whether to query child node information'), // 是否查询子节点信息
+    includeChildren: z.boolean().default(false).describe('Whether to include child nodes as INodeIdentifier[]'), // 是否包含子节点信息
 }).describe('Query options for nodes, the result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的参数
 export const SchemaNodeQuery = z.object({
     path: z.string().describe('Node path only — format: "ParentNode/ChildNode", e.g. "Canvas/Node1". Root is "/". Do NOT include a component type suffix (e.g. do NOT use "Canvas/Node1/cc.Label"). To query a component use scene-query-component with a component path.'), // 节点路径
-    queryChildren: z.boolean().default(false).describe('Whether to query child node information'), // 是否查询子节点信息
-    queryComponent: z.boolean().default(false).describe('Whether to query component`s detailed information, the child component only returns concise information.'), // 是否查询组件信息,子节点只返回简易的信息
+    includeChildren: z.boolean().default(false).describe('Whether to include child nodes; true returns INodeIdentifier[], false returns undefined'), // 是否包含子节点
+    includeComponents: z.boolean().default(false).describe('Whether to include components; true returns IComponentIdentifier[], false returns undefined'), // 是否包含组件
 }).describe('To configure options for node query, the Scene must be open first. The result is the intersection of the passed information'); // 查询节点的选项参数，查询结果是传入的信息的交集
 
 // 查询节点的结果

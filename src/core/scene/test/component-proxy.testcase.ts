@@ -762,10 +762,9 @@ describe('Component Proxy 测试', () => {
         beforeAll(async () => {
             const params: IQueryNodeParams = {
                 path: nodePath,
-                queryChildren: false,
-                queryComponent: true
+                includeChildren: false,
+                includeComponents: true
             };
-            buildinComponentTypes = await ComponentProxy.queryAll();
             const result = await NodeProxy.query(params) as INodeInfo | null;
             expect(result).toBeDefined();
             expect(result?.components?.length == 0);
@@ -810,8 +809,8 @@ describe('Component Proxy 测试', () => {
                 try {
                     const params: IQueryNodeParams = {
                         path: nodePath,
-                        queryChildren: false,
-                        queryComponent: true
+                        includeChildren: false,
+                        includeComponents: true
                     };
                     const node = await NodeProxy.query(params) as INodeInfo | null;
                     for (let i = 0; i < node!.components!.length; ++i) {
@@ -1008,8 +1007,8 @@ describe('Component Proxy 测试', () => {
         beforeAll(async () => {
             const queryNodeParam: IQueryNodeParams = {
                 path: nodePath,
-                queryChildren: false,
-                queryComponent: false,
+                includeChildren: false,
+                includeComponents: false,
             };
             const nodeInfo = await NodeProxy.query(queryNodeParam) as INodeInfo | null;
 

@@ -96,11 +96,15 @@ export enum MobilityMode {
     Movable = 2
 }
 
+// generateNodeDump / encode / open 共用的选项
+export interface INodeDumpOptions {
+    includeChildren?: boolean; // true: children 以 INodeIdentifier[] 返回，false/undefined: undefined
+    includeComponents?: boolean; // true: components 以 IComponentIdentifier[] 返回，false/undefined: undefined
+}
+
 // 节点查询参数接口
-export interface IQueryNodeParams {
+export interface IQueryNodeParams extends INodeDumpOptions {
     path: string; // 查询的节点路径
-    queryChildren: boolean; // 是否查询子节点信息
-    queryComponent: boolean; // 是否查询component的详细信息
 }
 
 export interface IPrefab {

@@ -37,8 +37,9 @@ export const SchemaCreateResult = SchemaSceneIdentifier.describe('Create Scene/P
 // 打开场景选项
 export const SchemaOpenOptions = z.object({
     dbURLOrUUID: SchemaUrlOrUUID, // 资源的 URL、UUID 或文件路径
-    simpleNode: z.boolean().default(true).describe('Whether to return simple node info (nodeId, name, path only) or detailed node info'), // 是否查询详细节点信息
-}).describe('Open scene options'); // 查询节点的选项参数，查询结果是传入的信息的交集
+    includeChildren: z.boolean().default(true).describe('Whether to include child nodes as INodeIdentifier[] in the result'), // 是否包含子节点
+    includeComponents: z.boolean().default(false).describe('Whether to include components as IComponentIdentifier[]. Only effective for prefab; scene nodes have no components so this is ignored.'), // 是否包含组件（仅对 prefab 有效；scene 节点本身无组件，传入此参数无效）
+}).describe('Open scene options');
 
 
 export type TAssetUrlOrUUID = z.infer<typeof SchemaUrlOrUUID>;

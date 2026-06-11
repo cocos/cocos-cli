@@ -26,8 +26,7 @@ function convertEditorResult(dump: any, options?: IDumpConvertOptions): ISceneIn
 export const EditorProxy: IEditorProxy = {
     async open(params: IOpenOptions) {
         const result: any = await Rpc.getInstance().request('Editor', 'open', [params]);
-        const children = !(params.simpleNode ?? true);
-        return convertEditorResult(result, { children });
+        return convertEditorResult(result);
     },
     close(params: ICloseOptions) {
         return Rpc.getInstance().request('Editor', 'close', [params]);
@@ -44,7 +43,7 @@ export const EditorProxy: IEditorProxy = {
     async queryCurrent() {
         const result: any = await Rpc.getInstance().request('Editor', 'queryCurrent');
         if (!result) return null;
-        return convertEditorResult(result, { children: true });
+        return convertEditorResult(result);
     },
     hasOpen() {
         return Rpc.getInstance().request('Editor', 'hasOpen');

@@ -159,7 +159,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 editor = this.createEditor(assetInfo.type);
                 this.editorMap.set(uuid, editor);
             }
-            const encode = await editor.open(assetInfo);
+            const encode = await editor.open(assetInfo, params);
 
             this._clearUndoHistory();
 

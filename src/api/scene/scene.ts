@@ -66,7 +66,7 @@ export class SceneApi {
     @result(SchemaOpenResult)
     async open(@param(SchemaOpenOptions) options: TOpenOptions): Promise<CommonResultType<TOpenResult>> {
         try {
-            const data = await Scene.open({ urlOrUUID: options.dbURLOrUUID, simpleNode: options.simpleNode });
+            const data = await Scene.open({ urlOrUUID: options.dbURLOrUUID, includeChildren: options.includeChildren, includeComponents: options.includeComponents });
             return {
                 data: data as TOpenResult,
                 code: COMMON_STATUS.SUCCESS,

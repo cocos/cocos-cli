@@ -1,5 +1,5 @@
 import { Canvas, find, instantiate, Node, Prefab, Scene, UITransform } from 'cc';
-import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode } from '../../../common';
+import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode, INodeDumpOptions } from '../../../common';
 import { Rpc } from '../../rpc';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
@@ -16,15 +16,15 @@ export class PrefabEditor extends BaseEditor {
 
     private virtualScene: Scene | null = null;
 
-    async encode(entity?: IEditorTarget | null): Promise<INode> {
+    async encode(entity?: IEditorTarget | null, options?: INodeDumpOptions): Promise<INode> {
         entity = entity ?? this.entity;
         if (!entity) {
             throw new Error('encode 失败，没有打开预制体');
         }
-        return await sceneUtils.generateNodeDump(entity.instance) as INode;
+        return sceneUtils.generateNodeDump(entity.instance, options) as INode;
     }
 
-    async open(asset: IAssetInfo): Promise<INode> {
+    protected async _doOpen(asset: IAssetInfo, options?: INodeDumpOptions): Promise<INode> {
         // 获取预制体标识符
         const identifier = this.getIdentifier(asset);
         // 加载预制体资源
@@ -42,7 +42,7 @@ export class PrefabEditor extends BaseEditor {
             instance
         });
 
-        return this.encode();
+        return this.encode(undefined, options);
     }
 
     async close(options?: { save?: boolean }): Promise<boolean> {
@@ -87,7 +87,7 @@ export class PrefabEditor extends BaseEditor {
         this.entity.instance = instance;
         Prefab._utils.applyTargetOverrides(this.entity.instance);
         await this.ensurePreviewCanvasForUI(this.entity.instance);
-        return this.encode();
+        return this.encode(undefined, this._lastOpenOptions);
     }
 
     private async ensurePreviewCanvasForUI(instance: Node): Promise<void> {
