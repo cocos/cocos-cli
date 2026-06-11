@@ -9,13 +9,12 @@ describe('cocos config schema', () => {
 
     function generateSchema(): any {
         const input = path.resolve(__dirname, '../@types/cocos.config.d.ts');
-        const program = TJS.getProgramFromFiles([input], {
-            skipLibCheck: true,
-        }, path.resolve(__dirname, '../../../..'));
+        const tsconfig = path.resolve(__dirname, '../../../..', 'tsconfig.json');
+        const program = TJS.programFromConfig(tsconfig, [input]);
         return TJS.generateSchema(program, 'COCOS_CONFIG', {
             noExtraProps: true,
             skipLibCheck: true,
-        });
+        }, [input]);
     }
 
     it('allows manager-owned top-level fields', () => {

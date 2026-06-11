@@ -503,9 +503,9 @@ describe('PluginManager platform config schema queries', () => {
         const schema = pm.getPlatformBuildSchema('test');
 
         expect(platforms[0].displayName).toBe('Stored Platform Value');
-        // labelI18nKey 存在时,title 由其按当前语言重新翻译得到(不使用存入的展示字符串)
-        expect(schema.platformOptions.mode.title).toBe('Mode');
-        expect(schema.platformOptions.mode).toMatchObject({ enum: ['auto'], enumDescriptions: ['Auto'] });
+        // metadata.ts 中展示字段优先使用已物化的展示值, i18n key 仅作为缺省回退与刷新依据。
+        expect(schema.platformOptions.mode.title).toBe('Stored Mode Value');
+        expect(schema.platformOptions.mode).toMatchObject({ enum: ['auto'], enumDescriptions: ['Stored Auto Value'] });
         // 源 option 对象不被 getPlatformBuildSchema 修改(克隆后再转换)
         expect(option.label).toBe('Stored Mode Value');
         expect(option.labelI18nKey).toBe('i18n:test.option.mode');

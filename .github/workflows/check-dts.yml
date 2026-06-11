@@ -27,7 +27,7 @@ jobs:
           MINIMAL_DOWNLOAD_TOOLS: 'true'
 
       - name: Generate DTS
-        shell: bash
+        shell: pwsh
         run: npm run generate:dts:ci
 
       - name: Run DTS tests
