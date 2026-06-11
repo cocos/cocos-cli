@@ -53,7 +53,6 @@ describe('MCP Scene API', () => {
                 expect(data.assetUuid).toBeDefined();
                 expect(result.data.name).toBeDefined();
                 expect(result.data.children).toBeDefined();
-                expect(result.data.components).toBeDefined();
             }
         });
     });
@@ -76,7 +75,6 @@ describe('MCP Scene API', () => {
                 expect(data.assetUuid).toBeDefined();
                 expect(result.data.name).toBeDefined();
                 expect(result.data.children).toBeDefined();
-                expect(result.data.components).toBeDefined();
             }
         });
 

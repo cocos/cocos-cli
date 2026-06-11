@@ -347,7 +347,7 @@ describe('MCP Prefab API', () => {
             const initialQuery = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: prefabNodePath,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
             expect(initialQuery.code).toBe(200);
@@ -398,7 +398,7 @@ describe('MCP Prefab API', () => {
             const revertedQuery = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: updatedPrefabNodePath,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
             expect(revertedQuery.code).toBe(200);
@@ -711,7 +711,7 @@ describe('MCP Prefab API', () => {
             const queryNodeResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: nodePath,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
             expect(queryNodeResult.data).not.toBeNull();

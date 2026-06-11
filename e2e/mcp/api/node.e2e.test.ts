@@ -154,7 +154,7 @@ describe('MCP Node API', () => {
             const result = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${testNodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -167,7 +167,7 @@ describe('MCP Node API', () => {
             const result = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/NonExistentNode-${generateTestId()}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -179,7 +179,7 @@ describe('MCP Node API', () => {
             const result = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${testNodeName}`,
-                    queryChildren: true
+                    includeChildren: true
                 }
             });
 
@@ -247,7 +247,7 @@ describe('MCP Node API', () => {
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${testNodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -288,7 +288,7 @@ describe('MCP Node API', () => {
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${testNodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -326,7 +326,7 @@ describe('MCP Node API', () => {
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${nodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -387,7 +387,7 @@ describe('MCP Node API', () => {
             const queryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${nodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -409,7 +409,7 @@ describe('MCP Node API', () => {
             const verifyResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${nodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -440,7 +440,7 @@ describe('MCP Node API', () => {
             const multiVerifyResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${nodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -482,7 +482,7 @@ describe('MCP Node API', () => {
             const partialVerifyResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${nodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -517,7 +517,7 @@ describe('MCP Node API', () => {
             const finalQueryResult = await mcpClient.callTool('scene-query-node', {
                 options: {
                     path: `Canvas/${nodeName}`,
-                    queryChildren: false,
+                    includeChildren: false,
                 }
             });
 
@@ -664,8 +664,8 @@ describe('MCP Node API', () => {
                     const queryResult = await mcpClient.callTool('scene-query-node', {
                         options: {
                             path: createResult.data.path,
-                            queryChildren: false,
-                            queryComponent: true
+                            includeChildren: false,
+                            includeComponents: true
                         }
                     });
 
