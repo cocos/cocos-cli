@@ -322,8 +322,8 @@ describe('Bug #497 common API error status codes', () => {
 
         const result = await new NodeApi().queryNode({
             path: 'Canvas/Missing',
-            queryChildren: false,
-            queryComponent: false,
+            includeChildren: false,
+            includeComponents: false,
         });
 
         expect(result.code).toBe(HTTP_STATUS.NOT_FOUND);
