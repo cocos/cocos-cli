@@ -147,38 +147,15 @@ class SceneUtil {
         const d = dumpUtil.dumpNode(node) as any;
 
         d.__path__ = EditorExtends.Node.getNodePath(node);
-
-            // hack: 以下字段不属于编辑器 dump 结构（IScene），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
-            const d = sceneDump as any;
-            d.__path__ = EditorExtends.Node.getNodePath(node);
-            d.__prefab__ = encodePrefab(node as any);
-            if (d.__prefab__) {
-                this.enrichPrefabDump(d.__prefab__, node['_prefab']);
-            }
-            d.__comps__ = queryComponent
-                ? node.components.map(comp => dumpUtil.dumpComponent(comp as cc.Component))
-                : [];
-            d.__childNodes__ = [];
-            if (queryChildren) {
-                for (const child of node.children) {
-                    d.__childNodes__.push(await this.generateNodeDump(child, options) as INode);
-                }
-            }
-            return sceneDump;
+        const prefab = d.__prefab__ ?? encodePrefab(node as any);
+        d.__prefab__ = prefab;
+        if (prefab) {
+            this.enrichPrefabDump(prefab, node['_prefab']);
         }
 
-        const dump = dumpUtil.dumpNode(node) as INode;
-
-        // hack: 以下字段不属于编辑器 dump 结构（INode），仅用于 proxy 层将复杂的 dump 转换为 CLI 所需的扁平结构
-        const d = dump as any;
-        d.__path__ = EditorExtends.Node.getNodePath(node);
-        if (dump.__prefab__) {
-            this.enrichPrefabDump(dump.__prefab__, node['_prefab']);
-        }
-        if (!queryComponent) {
+        if (!includeComponents) {
             d.__comps__ = undefined;
-        }
-
+        }        
         if (includeChildren) {
             d.children.forEach((childProp: any) => {
                 const childUuid = childProp.value?.uuid;

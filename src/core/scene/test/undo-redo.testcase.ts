@@ -42,6 +42,7 @@ import { sceneWorker } from '../main-process/scene-worker';
 import { SceneTestEnv } from './scene-test-env';
 import { readFileSync } from 'fs-extra';
 import { assetManager } from '../../assets';
+import { includes } from 'lodash';
 
 function request<T = any>(service: string, method: string, args: any[] = []): Promise<T> {
     return (Rpc.getInstance() as any).request(service, method, args) as Promise<T>;
@@ -102,7 +103,7 @@ const Node = {
     },
     delete: (params: IDeleteNodeParams) => request('Node', 'delete', [params]),
     async update(params: IUpdateNodeParams) {
-        const nodeDump = await request<any>('Node', 'query', [{ path: params.path, queryChildren: false, queryComponent: false }]);
+        const nodeDump = await request<any>('Node', 'query', [{ path: params.path, includeChildren: false, includeComponents: false }]);
         if (!nodeDump) {
             throw new Error(`Node not found: ${params.path}`);
         }
@@ -217,11 +218,11 @@ const Editor = {
 };
 
 async function queryNodeDump(path: string): Promise<any> {
-    return (Rpc.getInstance() as any).request('Node', 'query', [{ path, queryChildren: false, queryComponent: true }]);
+    return (Rpc.getInstance() as any).request('Node', 'query', [{ path, includeChildren: false, includeComponents: true }]);
 }
 
 async function queryNode(path: string): Promise<INodeInfo | null> {
-    const params: IQueryNodeParams = { path, queryChildren: false, queryComponent: false };
+    const params: IQueryNodeParams = { path, includeChildren: false, includeComponents: false };
     return Node.query(params);
 }
 

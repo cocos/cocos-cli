@@ -375,6 +375,8 @@ export function encodeComponent(component: any): IComponent {
     }
 
     // hack: __prefab 不属于标准 IComponent 结构，proxy 层需要用它还原预制体引用关系
+    // node的_prefab和component的__prefab不一样，命名方式也不一样，引擎是这样定义的。
+    // component的__prefab只有一个属性，所以这里可以直接复制
     (data as any).__compPrefab__ = (component as any).__prefab || null;
 
     return data;
