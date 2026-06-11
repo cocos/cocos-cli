@@ -5925,8 +5925,8 @@ export declare interface ITargetOverrideInfo {
     targetInfo?: string[];
 }
 export declare interface IUIService {
-    alignSelection(type: UIAlignType): void;
-    distributeSelection(type: UIAlignType): void;
+    alignSelection(type: UIAlignType): Promise<void>;
+    distributeSelection(type: UIAlignType): Promise<void>;
 }
 export declare interface IUndoBeginOptions {
     label?: string;
@@ -8188,8 +8188,8 @@ export declare interface IUerDataConfigItem {
     };
 }
 export declare interface IUIService {
-    alignSelection(type: UIAlignType): void;
-    distributeSelection(type: UIAlignType): void;
+    alignSelection(type: UIAlignType): Promise<void>;
+    distributeSelection(type: UIAlignType): Promise<void>;
 }
 export declare interface IUndoBeginOptions {
     label?: string;
