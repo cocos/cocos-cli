@@ -5393,6 +5393,7 @@ export declare interface IComponent extends IProperty {
         name: IPropertyValueType;
     } & Record<string, IPropertyValueType>;
     mountedRoot?: string;
+    component_path?: string;
 }
 export declare interface IComponentService extends IServiceEvents {
     add(params: IAddComponentOptions): Promise<IComponent>;
@@ -5567,7 +5568,7 @@ export declare interface INode {
     uuid: IProperty;
     children: IProperty[];
     parent: IProperty;
-    __comps__: IProperty[];
+    __comps__: IComponent[];
     __type__: string;
     __prefab__?: IPrefab;
     _prefabInstance?: any;
@@ -7424,6 +7425,7 @@ export declare interface IComponent extends IProperty {
         name: IPropertyValueType;
     } & Record<string, IPropertyValueType>;
     mountedRoot?: string;
+    component_path?: string;
 }
 export declare interface IComponentService extends IServiceEvents {
     add(params: IAddComponentOptions): Promise<IComponent>;
@@ -7742,7 +7744,7 @@ export declare interface INode {
     uuid: IProperty;
     children: IProperty[];
     parent: IProperty;
-    __comps__: IProperty[];
+    __comps__: IComponent[];
     __type__: string;
     __prefab__?: IPrefab;
     _prefabInstance?: any;
