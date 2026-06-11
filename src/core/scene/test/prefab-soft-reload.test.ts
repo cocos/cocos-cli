@@ -86,6 +86,11 @@ describe('PrefabSoftReloadScheduler', () => {
 
         expect(onReload).not.toHaveBeenCalled();
         expect(emitAssetReload).toHaveBeenCalledWith('prefab-a');
+
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        expect(onReload).not.toHaveBeenCalled();
     });
 
     it('waits for pending reloads to become idle', async () => {
@@ -165,6 +170,47 @@ describe('PrefabSoftReloadScheduler', () => {
             urlOrUUID: 'scene-a',
         });
         expect(emitAssetReload).not.toHaveBeenCalled();
+    });
+
+    it('resolves asset reload waiters by timeout when reload event is removed before flush', async () => {
+        const reload = jest.fn().mockResolvedValue(undefined);
+        const emitAssetReload = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(
+            reload,
+            emitAssetReload,
+            () => 'current-editor',
+            500,
+            1000,
+        );
+        const onReload = jest.fn();
+
+        scheduler.waitForAssetReload('prefab-a').promise.then(onReload);
+        scheduler.schedule({
+            changedUuid: 'prefab-a',
+            editorUuid: 'scene-a',
+        });
+        scheduler.schedule({
+            deletedUuid: 'prefab-a',
+            editorUuid: 'scene-a',
+        });
+
+        jest.advanceTimersByTime(500);
+        await flushPromises();
+
+        expect(reload).toHaveBeenCalledWith({
+            preserveUndoHistory: false,
+            urlOrUUID: 'scene-a',
+        });
+        expect(emitAssetReload).not.toHaveBeenCalled();
+        expect(onReload).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(499);
+        await flushPromises();
+        expect(onReload).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(1);
+        await flushPromises();
+        expect(onReload).toHaveBeenCalledTimes(1);
     });
 });
 

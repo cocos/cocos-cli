@@ -638,11 +638,12 @@ export class NodeUndoHelper {
 
     private _findSnapshotNode(snapshot: INodeSnapshot): Node | null {
         const nodeByUuid = NodeMgr.getNode(snapshot.uuid) as Node | null;
-        if (nodeByUuid) {
+        if (nodeByUuid?.isValid) {
             return nodeByUuid;
         }
         if (snapshot.path) {
-            return NodeMgr.getNodeByPath(snapshot.path) as Node | null;
+            const nodeByPath = NodeMgr.getNodeByPath(snapshot.path) as Node | null;
+            return nodeByPath?.isValid ? nodeByPath : null;
         }
         return null;
     }
