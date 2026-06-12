@@ -17,12 +17,12 @@ import {
 } from 'cc';
 import { prefabUtils } from './utils';
 import { componentOperation } from './component';
-import { promisify } from 'util';
 import { isEditorNode, isPartOfNode } from '../node/node-utils';
 import { Service } from '../core';
 import { IChangeNodeOptions, NodeEventType } from '../../../common';
 import { Rpc } from '../../rpc';
 import { TimerUtil } from './timer-util';
+import { sceneUtils } from '../scene/utils';
 
 const nodeMgr = EditorExtends.Node;
 const compMgr = EditorExtends.Component;
@@ -1419,12 +1419,12 @@ class NodeOperation {
         if (parent) {
             prefabUtils.fireBeforeChangeMsg(parent);
             const index = node.getSiblingIndex();
-            const prefab = await promisify(assetManager.loadAny)(prefabAsset);
+            const prefab = await sceneUtils.loadAny<Prefab>(prefabAsset);
             const assetRootNode = instantiate(prefab);
-            if (!assetRootNode['_prefab'].instance) {
+            if (assetRootNode['_prefab'] && !assetRootNode['_prefab'].instance) {
                 assetRootNode['_prefab'].instance = prefabUtils.createPrefabInstance();
             }
-            if (node['_prefab'] && node['_prefab'].instance) {
+            if (node['_prefab'] && node['_prefab'].instance && assetRootNode['_prefab'] && assetRootNode['_prefab'].instance) {
                 assetRootNode['_prefab'].instance.fileId = node['_prefab'].instance.fileId;
             }
             this.createReservedPropertyOverrides(assetRootNode);
@@ -1438,6 +1438,7 @@ class NodeOperation {
             prefabUtils.fireChangeMsg(parent);
             return assetRootNode;
         }
+        return null;
     }
 
     /**
@@ -1460,7 +1461,7 @@ class NodeOperation {
         let asset: any = assetUuid;
         if (typeof assetUuid === 'string') {
             // asset = cce.prefabUtil.serialize.asAsset(assetUuid);
-            asset = await promisify(assetManager.loadAny)(assetUuid);
+            asset = await sceneUtils.loadAny(assetUuid);
         }
 
         if (!asset) {

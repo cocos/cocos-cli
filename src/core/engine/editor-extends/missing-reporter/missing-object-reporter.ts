@@ -1,7 +1,7 @@
 'use strict';
 
 import { MissingReporter } from './missing-reporter';
-import * as _ from 'lodash';
+import findLast from 'lodash/findLast';
 import * as ps from 'path';
 import * as ObjectWalker from './object-walker';
 import * as assetdb from '@cocos/asset-db';
@@ -13,7 +13,7 @@ export class MissingObjectReporter extends MissingReporter {
         if (obj instanceof cc.Component || obj instanceof cc.Asset) {
             parsingOwner = obj;
         } else {
-            parsingOwner = _.findLast(parsedObjects, (x: any) => (x instanceof cc.Component || x instanceof cc.Asset));
+            parsingOwner = findLast(parsedObjects, (x: any) => (x instanceof cc.Component || x instanceof cc.Asset));
         }
 
         let byOwner = '';
@@ -21,7 +21,7 @@ export class MissingObjectReporter extends MissingReporter {
             const ownerType = MissingReporter.getObjectType(parsingOwner);
             byOwner = ` by ${ownerType} "${cc.js.getClassName(parsingOwner)}"`;
         } else {
-            parsingOwner = _.findLast(parsedObjects, (x: any) => (x instanceof cc.Node));
+            parsingOwner = findLast(parsedObjects, (x: any) => (x instanceof cc.Node));
             if (parsingOwner) {
                 byOwner = ` by node "${parsingOwner.name}"`;
             }
