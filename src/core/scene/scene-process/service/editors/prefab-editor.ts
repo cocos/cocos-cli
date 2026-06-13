@@ -1,9 +1,10 @@
-import { find, instantiate, Node, Prefab, Scene } from 'cc';
+import { Canvas, find, instantiate, Node, Prefab, Scene, UITransform } from 'cc';
 import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode } from '../../../common';
 import { Rpc } from '../../rpc';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
 import { sceneUtils } from '../scene/utils';
+import { createShouldHideInHierarchyCanvasNode } from '../node/node-create';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
@@ -33,6 +34,7 @@ export class PrefabEditor extends BaseEditor {
         // 实例化预制体
         const instance = instantiate(prefabAsset);
         this.virtualScene.addChild(instance);
+        await this.ensurePreviewCanvasForUI(instance);
 
         // 设置当前打开的预制体
         this.setCurrentOpen({
@@ -71,15 +73,39 @@ export class PrefabEditor extends BaseEditor {
         }
 
         const prefabName = this.entity.instance.name;
+        const prefabUuid = this.entity.instance.uuid;
         const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(this.virtualScene);
         const sceneAsset = editorPrefabUtils.generateSceneAsset(this.virtualScene, this.getRootNode());
         const json = EditorExtends.serialize(sceneAsset);
         this.virtualScene = await sceneUtils.runSceneImmediateByJson(json);
         editorPrefabUtils.removePrefabInstanceRoots(this.virtualScene);
         editorPrefabUtils.restorePrefabUUID(this.virtualScene, prefabUUIDMap);
-        this.entity.instance = find(prefabName) as Node;
+        const instance = EditorExtends.Node.getNode(prefabUuid) as Node | null || find(prefabName) as Node | null;
+        if (!instance) {
+            throw new Error(`reload 失败，找不到预制体根节点: ${prefabName}`);
+        }
+        this.entity.instance = instance;
         Prefab._utils.applyTargetOverrides(this.entity.instance);
+        await this.ensurePreviewCanvasForUI(this.entity.instance);
         return this.encode();
+    }
+
+    private async ensurePreviewCanvasForUI(instance: Node): Promise<void> {
+        if (!this.virtualScene || !this.shouldUsePreviewCanvas(instance)) {
+            return;
+        }
+
+        const canvasNode = await createShouldHideInHierarchyCanvasNode(this.virtualScene);
+        instance.parent = canvasNode;
+    }
+
+    private shouldUsePreviewCanvas(instance: Node): boolean {
+        const hasCanvas = Boolean(instance.getComponentInChildren(Canvas));
+        if (hasCanvas) {
+            return false;
+        }
+
+        return instance.getComponentsInChildren(UITransform).length > 0;
     }
 
     async create(params: ICreateOptions): Promise<IBaseIdentifier> {
