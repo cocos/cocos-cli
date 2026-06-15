@@ -8,7 +8,7 @@
     "engines": {
         "vscode": ">=1.107.1",
         "electron": "39.2.3",
-        "pink": ">=0.0.1.23"
+        "pink": ">=0.0.1.24"
     },
     "bin": {
         "cocos": "./dist/cli.js"
