@@ -6697,15 +6697,11 @@ export { }
 exports[`DTS API compatibility index.d.ts should match snapshot 1`] = `
 "import { __private } from 'cc';
 import { ChunkInfo } from '@cocos/creator-programming-quick-pack/lib/loader';
-import type { Component } from 'cc';
 import { EventEmitter } from 'events';
 import { default as i18n_2 } from 'i18next';
 import { NextFunction } from 'express';
-import type { Node as Node_2 } from 'cc';
 import { Request as Request_2 } from 'express';
 import { Response as Response_2 } from 'express';
-import type { Scene as Scene_2 } from 'cc';
-import type { Vec3 as Vec3_2 } from 'cc';
 export declare interface AnimationClipAssetUserData {
     name: string;
 }
@@ -6994,7 +6990,6 @@ export declare namespace Configuration {
     }
 }
 export declare type ConfigurationScope = 'default' | 'project';
-export declare const CREATE_TYPES: readonly ["scene", "prefab"];
 export declare function createAsset(options: CreateAssetOptions): Promise<IAssetInfo>;
 export declare function createAssetByType(ccType: ISupportCreateType, dirOrUrl: string, baseName: string, options?: CreateAssetByTypeOptions): Promise<IAssetInfo>;
 export declare interface CreateAssetByTypeOptions extends AssetOperationOption {
@@ -7150,19 +7145,6 @@ export declare function getStatus_2(): {
     url?: string;
 };
 export declare function getUrl(): string | undefined;
-export declare class GlobalEventManager {
-    on<TEvents extends Record<string, any>>(event: keyof TEvents, listener: TEvents[keyof TEvents] extends void ? () => void : (payload: TEvents[keyof TEvents]) => void): void;
-    on(event: string, listener: (...args: any[]) => void): void;
-    once<TEvents extends Record<string, any>>(event: keyof TEvents, listener: TEvents[keyof TEvents] extends void ? () => void : (payload: TEvents[keyof TEvents]) => void): void;
-    once(event: string, listener: (...args: any[]) => void): void;
-    off<TEvents extends Record<string, any>>(event: keyof TEvents, listener: TEvents[keyof TEvents] extends void ? () => void : (payload: TEvents[keyof TEvents]) => void): void;
-    off(event: string, listener: (...args: any[]) => void): void;
-    emit<TEvents extends Record<string, any>>(event: keyof TEvents, ...args: TEvents[keyof TEvents]): void;
-    emit(event: string, ...args: any[]): void;
-    broadcast<TEvents extends Record<string, any>>(event: keyof TEvents, ...args: TEvents[keyof TEvents]): void;
-    broadcast(event: string, ...args: any[]): void;
-    clear(event?: string): void;
-}
 export declare interface GltfAnimationAssetUserData {
     gltfIndex: number;
     events: Array<{
@@ -7240,13 +7222,6 @@ export declare namespace i18n {
     export {
         i18n_2 as default
     }
-}
-export declare interface IAddComponentOptions {
-    nodePath: string;
-    component: string;
-}
-export declare interface IApplyPrefabChangesParams {
-    nodePath: string;
 }
 export declare interface IAssetConfig {
     displayName?: string;
@@ -7333,10 +7308,6 @@ export declare type IAssetOperationOrigin = 'direct-op' | 'watcher';
 export declare interface IAssetRenameOptions extends IAssetOperationOptionsBase {
     overwrite?: boolean;
 }
-export declare interface IAssetService extends IServiceEvents {
-    assetChanged(uuid: string): Promise<void>;
-    assetDeleted(uuid: string): Promise<void>;
-}
 export declare type IAssetType =
 | ISupportCreateCCType
 | 'cc.Asset'               
@@ -7376,86 +7347,9 @@ export declare interface IBaseConfiguration extends EventEmitterMethods {
     remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
     save(): Promise<boolean>;
 }
-export declare interface IBaseCreateNodeParams {
-    path: string;
-    name?: string;
-    workMode?: '2d' | '3d';
-    position?: IVec3;
-    keepWorldTransform?: boolean;
-    canvasRequired?: boolean;
-    unlinkPrefab?: boolean;
-}
-export declare interface IBaseIdentifier {
-    assetName: string;
-    assetUuid: string;
-    assetUrl: string;
-    assetType: string;
-}
-export declare interface ICameraConfig {
-    color: number[];
-    fov: number;
-    far: number;
-    near: number;
-    wheelSpeed: number;
-    wanderSpeed: number;
-    enableAcceleration: boolean;
-    aperture: number;
-    shutter: number;
-    iso: number;
-}
-export declare interface ICameraService {
-    init(): void;
-    initFromConfig(): Promise<void>;
-    is2D: boolean;
-    focus(nodes?: string[] | null, editorCameraInfo?: any, immediate?: boolean): void;
-    defaultFocus(uuid: string): void;
-    rotateCameraToDir(dir: Vec3_2, rotateByViewDist: boolean): void;
-    changeProjection(): void;
-    setGridVisible(value: boolean): void;
-    isGridVisible(): boolean;
-    setCameraProperty(options: any): void;
-    resetCameraProperty(): void;
-    queryConfig(): ICameraConfig;
-    updateConfig(config: Partial<ICameraConfig>): void;
-    getCameraFov(): number;
-    zoomUp(): void;
-    zoomDown(): void;
-    zoomReset(): void;
-    alignNodeToSceneView(nodes: string[]): void;
-    alignSceneViewToNode(nodes: string[]): void;
-    setGridColor(color: number[]): void;
-    setOriginAxes2D(config: IOriginAxesConfig): void;
-    setOriginAxes3D(config: IOriginAxesConfig): void;
-    onUpdate(deltaTime: number): void;
-}
-export declare interface IChangeNodeLockParams {
-    paths: string[];
-    locked: boolean;
-    loop?: boolean;
-}
-export declare interface IChangeNodeOptions {
-    source?: 'editor' | 'undo' | 'engine';
-    type?: NodeEventType;
-    propPath?: string;
-    index?: number;
-    record?: boolean;
-    dumpImmediately?: boolean;
-}
 export declare interface IChunkContent {
     skeleton: null | string;
     clips: string[];
-}
-export declare interface ICLI {
-    Scene: IServiceManager;
-    SceneEvents: GlobalEventManager;
-}
-export declare interface IClipboardState {
-    type: 'cut' | 'copy' | 'none';
-    paths: string[];
-}
-export declare interface ICloseOptions {
-    urlOrUUID?: string;
-    save?: boolean;
 }
 export declare interface ICocosConfigurationNode {
     id: string;
@@ -7483,48 +7377,8 @@ export declare interface ICocosConfigurationPropertySchema {
 export declare interface ICollisionMatrix {
     [x: string]: number;
 }
-export declare interface IComponent extends IProperty {
-    value: {
-        enabled: IPropertyValueType;
-        uuid: IPropertyValueType;
-        name: IPropertyValueType;
-    } & Record<string, IPropertyValueType>;
-    mountedRoot?: string;
-    component_path?: string;
-}
-export declare interface IComponentService extends IServiceEvents {
-    add(params: IAddComponentOptions): Promise<IComponent>;
-    remove(params: IRemoveComponentOptions): Promise<boolean>;
-    setProperty(params: ISetPropertyOptions): Promise<boolean>;
-    query(params: IQueryComponentOptions | string): Promise<IComponent | null>;
-    queryAll(): Promise<string[]>;
-    reset(params: IQueryComponentOptions): Promise<boolean>;
-    queryClasses(options?: IQueryClassesOptions): Promise<{
-        name: string;
-    }[]>;
-    queryFunctionOfNode(path: string): Promise<any>;
-    queryComponents(): Promise<Array<{
-        name: string;
-        cid: string;
-        path: string;
-    }>>;
-    executeMethod(options: IExecuteComponentMethodOptions): Promise<any>;
-    hasScript(name: string): Promise<boolean>;
-    getPathByUuid(uuid: string): string;
-    init(): void;
-    unregisterCompMgrEvents(): void;
-}
 export declare interface IConfiguration {
     [key: string]: any;
-}
-export declare interface ICopyParams {
-    paths: string[];
-}
-export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
-    dbURL: string;
-}
-export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
-    nodeType: NodeType;
 }
 export declare interface ICreateMenuInfo {
     label: string;
@@ -7536,18 +7390,6 @@ export declare interface ICreateMenuInfo {
     group?: string;
     fileNameCheckConfigs?: FileNameCheckConfig[];
 }
-export declare interface ICreateOptions {
-    type: ICreateType;
-    baseName: string;
-    targetDirectory: string;
-    templateType?: TSceneTemplateType;
-}
-export declare interface ICreatePrefabFromNodeParams {
-    nodePath: string;
-    dbURL: string;
-    overwrite?: boolean;
-}
-export declare type ICreateType = typeof CREATE_TYPES[number];
 export declare type ICroppingConfig = {
     name: string;
     flags: IFlags_2,
@@ -7563,26 +7405,12 @@ export declare interface ICustomJointTextureLayout {
     textureLength: number;
     contents: IChunkContent[];
 }
-export declare interface ICustomLayerConfig {
-    name: string;
-    value: number;
-}
-export declare interface ICutParams {
-    paths: string[];
-}
 export declare type IDefaultConfig = {
     key: IDefaultConfigKeys;
     name: string;
     diyConfig: (cache: Record<string, IDisplayModuleCache>, flags: IFlags_2, includeModules: string[]) => void;
 }
 export declare type IDefaultConfigKeys = 'defaultConfig' | 'default2d' | 'default3d' | 'defaultNative' | 'defaultSmallGames'
-export declare interface IDeleteNodeParams {
-    path: string;
-    keepWorldTransform?: boolean;
-}
-export declare interface IDeleteNodeResult {
-    path: string;
-}
 export declare interface IDesignResolution {
     height: number;
     width: number;
@@ -7599,22 +7427,6 @@ export declare interface IDisplayModuleItem extends IFeatureItem {
     _value: boolean;
     _option?: string;
     options?: Record<string, IDisplayModuleItem>;
-}
-export declare interface IDuplicateParams {
-    paths: string[];
-}
-export declare interface IEditorService extends IServiceEvents {
-    getCurrentEditorType(): 'scene' | 'prefab' | 'unknown';
-    open(params: IOpenOptions): Promise<TEditorEntity>;
-    close(params: ICloseOptions): Promise<boolean>;
-    save(params: ISaveOptions): Promise<IAssetInfo>;
-    reload(params: IReloadOptions): Promise<ReloadResult>;
-    create(params: ICreateOptions): Promise<IBaseIdentifier>;
-    hasOpen(): Promise<boolean>;
-    queryCurrent(): Promise<TEditorEntity | null>;
-    getRootNode(): TEditorInstance | null;
-    lock(): Promise<void>;
-    unlock(): void;
 }
 export declare interface IEngineConfig extends IEngineModuleConfig {
     physicsConfig: IPhysicsConfig;
@@ -7648,16 +7460,6 @@ export declare interface IEngineProjectConfig extends Exclude<IEngineConfig, 'in
     configs?: Record<string, IEngineModuleProjectConfig>;
     globalConfigKey?: string;
 }
-export declare interface IEngineService extends IServiceEvents {
-    init(): Promise<void>;
-    repaintInEditMode(): Promise<void>;
-    initCustomLayer(layers?: ICustomLayerConfig[]): Promise<void>;
-}
-export declare interface IExecuteComponentMethodOptions {
-    path: string;
-    name: string;
-    args: any[];
-}
 export declare interface IFbxSetting {
     unitConversion?: 'geometry-level' | 'hierarchy-level' | 'disabled';
     animationBakeRate?: 0 | 24 | 25 | 30 | 60;
@@ -7682,62 +7484,11 @@ export declare interface IGetPostConfig {
     url: string | RegExp;
     handler: (req: Request_2, res: Response_2, next?: NextFunction) => Promise<void>;
 }
-export declare interface IGetPrefabInfoParams {
-    nodePath: string;
-}
-export declare interface IGizmoService {
-    gizmoRootNode: any;
-    foregroundNode: any;
-    backgroundNode: any;
-    transformToolData: any;
-    transformToolName: string;
-    isViewMode: boolean;
-    is2D: boolean;
-    init(): void;
-    initFromConfig(): Promise<void>;
-    saveConfig(): Promise<void>;
-    changeTool(name: string): void;
-    setCoordinate(coord: 'local' | 'global'): void;
-    setPivot(pivot: 'pivot' | 'center'): void;
-    lockGizmoTool(locked: boolean): void;
-    isGizmoToolLocked(): boolean;
-    setIconVisible(visible: boolean): void;
-    showAllGizmoOfNode(node: any, recursive?: boolean): void;
-    removeAllGizmoOfNode(node: any, recursive?: boolean): void;
-    clearAllGizmos(): void;
-    callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
-    onUpdate(deltaTime: number): void;
-    queryToolsVisibility3d(): boolean;
-    setToolsVisibility3d(value: boolean): void;
-    isIconGizmo3D(): boolean;
-    setIconGizmo3D(value: boolean): void;
-    queryIconGizmoSize(): number;
-    setIconGizmoSize(size: number): void;
-    queryGridColor(): number[];
-    setGridColor(color: number[]): void;
-    queryOriginAxes2D(): IOriginAxesConfig;
-    setOriginAxes2D(config: IOriginAxesConfig): void;
-    queryOriginAxes3D(): IOriginAxesConfig;
-    setOriginAxes3D(config: IOriginAxesConfig): void;
-    queryTransformSnapConfigs(): any;
-    setTransformSnapConfigs(name: string, value: any): void;
-    queryRectSnapConfig(): IRectSnapConfigData;
-    setRectSnapConfig(config: Partial<IRectSnapConfigData>): void;
-    querySelectNodes(): any[];
-    hasSelected(uuid: string): boolean;
-    onResize(): void;
-    showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
-    hideSelectionRegion(): void;
-    execGizmoMethods(name: string, funcName: string, params?: any[]): any;
-}
 export declare interface IInitEngineInfo {
     importBase: string;
     nativeBase: string;
     writablePath: string;
     serverURL?: string;
-}
-export declare interface IIsPrefabInstanceParams {
-    nodePath: string;
 }
 export declare interface ImageAssetUserData {
     type: ImageImportType;
@@ -7781,12 +7532,6 @@ export declare interface IModuleConfig {
 }
 export declare type IModuleItem = IFeatureItem | IFeatureGroup;
 export declare type IModules = Record<string, IModuleItem>;
-export declare interface IMoveArrayElementParams {
-    nodePath: string;
-    path: string;
-    target: number;
-    offset: number;
-}
 export declare function importAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo[]>;
 export declare interface ImportMap {
     imports?: Record<string, string>;
@@ -7801,95 +7546,6 @@ export declare function init_6(): Promise<void>;
 export declare function init_7(projectPath: string): Promise<void>;
 export declare function initEngine(enginePath: string, projectPath: string, serverURL?: string): Promise<void>;
 export declare function initProgrammingFacet(): Promise<ProgrammingFacet>;
-export declare interface INode {
-    path: string;
-    active: IProperty;
-    locked: IProperty;
-    name: IProperty;
-    position: IProperty;
-    rotation: IProperty;
-    mobility: IProperty;
-    scale: IProperty;
-    layer: IProperty;
-    uuid: IProperty;
-    children: IProperty[];
-    parent: IProperty;
-    __comps__: IComponent[];
-    __type__: string;
-    __prefab__?: IPrefab;
-    _prefabInstance?: any;
-    removedComponents?: IRemovedComponentInfo[];
-    mountedRoot?: string;
-}
-export declare interface INodeService extends IServiceEvents {
-    createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
-    createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
-    delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
-    query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
-    queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
-    queryNodesByAssetUuid(uuid: string): string[];
-    queryNodesMissAsset(): Promise<string[]>;
-    previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
-    cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
-    setProperty(options: ISetPropertyOptions): Promise<boolean>;
-    reset(path: string): Promise<boolean>;
-    resetProperty(options: ISetPropertyOptions): Promise<boolean>;
-    updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean>;
-    setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void>;
-    getPathByUuid(uuid: string): string;
-    setParent(params: ISetParentParams): Promise<string[]>;
-    reorder(params: IReorderParams): Promise<boolean>;
-    copy(params: ICopyParams): Promise<string[]>;
-    paste(params: IPasteParams): Promise<string[]>;
-    duplicate(params: IDuplicateParams): Promise<string[]>;
-    cut(params: ICutParams): Promise<string[]>;
-    queryClipboardState(): Promise<IClipboardState>;
-    moveArrayElement(params: IMoveArrayElementParams): Promise<boolean>;
-    removeArrayElement(params: IRemoveArrayElementParams): Promise<boolean>;
-    changeNodeLock(params: IChangeNodeLockParams): Promise<void>;
-}
-export declare interface INodeTreeComponent {
-    isCustom: boolean;
-    type: string;
-    value: string;
-    extends: string[];
-}
-export declare interface INodeTreeItem {
-    name: string;
-    active: boolean;
-    locked: boolean;
-    type: string;
-    uuid: string;
-    children: INodeTreeItem[];
-    prefab: IPrefabStateInfo;
-    parent: string;
-    path: string;
-    isScene: boolean;
-    readonly: boolean;
-    components: INodeTreeComponent[];
-}
-export declare interface IOpenOptions {
-    urlOrUUID: string;
-    simpleNode?: boolean;
-}
-export declare interface IOperationService {
-    addListener(type: OperationEvent, listener: Function, priority?: number): void;
-    removeListener(type: OperationEvent, listener: Function): void;
-    dispatch(type: OperationEvent, ...args: any[]): void;
-    emitMouseEvent(type: string, event: ISceneMouseEvent, dpr?: number): void;
-    requestPointerLock(): void;
-    exitPointerLock(): void;
-    changePointer(type: string): void;
-}
-export declare interface IOriginAxesConfig {
-    x: boolean;
-    y: boolean;
-    z: boolean;
-}
-export declare interface IPasteParams {
-    parentPath?: string;
-    keepWorldTransform?: boolean;
-}
 export declare interface IPhysicsConfig {
     gravity: IVec3Like; 
     allowSleep: boolean; 
@@ -7917,34 +7573,6 @@ export declare interface IPhysicsMaterial {
 export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
-export declare interface IPrefab {
-    uuid: string;
-    fileId: string;
-    rootUuid: string;
-    sync: boolean;
-    prefabStateInfo: IPrefabStateInfo;
-    targetOverrides?: ITargetOverrideInfo[];
-    instance?: IProperty;
-}
-export declare interface IPrefabService extends IServiceEvents {
-    createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode>;
-    applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean>;
-    revertToPrefab(params: IRevertToPrefabParams): Promise<boolean>;
-    unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode>;
-    isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
-    getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
-    unlinkPrefab(params: IUnlinkPrefabParams): Promise<boolean>;
-    removePrefabInfoFromNode(node: Node_2, removeNested?: boolean): void;
-}
-export declare interface IPrefabStateInfo {
-    state: PrefabState;
-    isUnwrappable: boolean;
-    isRevertable: boolean;
-    isApplicable: boolean;
-    isAddedChild: boolean;
-    isNested: boolean;
-    assetUuid: string;
-}
 export declare interface IProject {
     get path(): string;
     get type(): '2d' | '3d';
@@ -7958,233 +7586,9 @@ export declare interface IProject {
     getInfo(key?: string): ProjectInfo | any;
     updateInfo<T>(keyOrValue: string | ProjectInfo, value?: T): Promise<boolean>;
 }
-export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
-    default?: any; 
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
-    cid?: string;
-    type?: string;
-    ui?: { name: string; data?: any }; 
-    readonly?: boolean;
-    visible?: boolean;
-    name?: string;
-    elementTypeData?: IProperty; 
-    path: string; 
-    isArray?: boolean;
-    invalid?: boolean;
-    extends?: string[]; 
-    displayName?: string; 
-    displayOrder?: number; 
-    help?: string; 
-    group?: IPropertyGroupOptions; 
-    tooltip?: string; 
-    editor?: any; 
-    animatable?: boolean; 
-    radioGroup?: boolean; 
-    enumList?: any[]; 
-    bitmaskList?: any[];
-    min?: number; 
-    max?: number; 
-    step?: number; 
-    slide?: boolean; 
-    unit?: string; 
-    radian?: boolean; 
-    multiline?: boolean; 
-    optionalTypes?: string[]; 
-    userData?: { [key: string]: any }; 
-}
-export declare interface IPropertyGroupOptions {
-    id: string 
-    name: string,
-    displayOrder: number, 
-    style: string 
-}
-export declare type IPropertyLock = { 
-    default: number; 
-    message: string 
-};
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
-export declare interface IQueryClassesOptions {
-    extends?: string | string[];
-    excludeSelf?: boolean;
-}
-export declare interface IQueryComponentOptions {
-    path: string;
-}
-export declare interface IQueryNodeParams {
-    path: string;
-    queryChildren: boolean;
-    queryComponent: boolean;
-}
-export declare interface IQueryNodeTreeParams {
-    path?: string;
-}
-export declare interface IRectSnapConfigData {
-    enableSnapping: boolean;
-    snapThreshold: number;
-}
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
-}
-export declare interface IRedoService {
-    redo(): Promise<IUndoRedoResult>;
-    canRedo(): boolean;
-}
-export declare interface IReloadOptions {
-    urlOrUUID?: string;
-    preserveUndoHistory?: boolean;
-}
-export declare interface IRemoveArrayElementParams {
-    nodePath: string;
-    path: string;
-    index: number;
-}
-export declare interface IRemoveComponentOptions {
-    path: string;
-}
-export declare interface IRemovedComponentInfo {
-    name: string;
-    fileID: string;
-}
-export declare interface IReorderParams {
-    path: string;
-    target: number;
-    offset: number;
-}
-export declare interface IRevertToPrefabParams {
-    nodePath: string;
-}
-export declare interface ISaveOptions {
-    urlOrUUID?: string;
-}
-export declare interface IScene {
-    path: string;
-    name: IProperty;
-    active: IProperty;
-    locked: IProperty;
-    _globals: Record<string, IProperty>;
-    isScene: boolean;
-    autoReleaseAssets: IProperty;
-    uuid: IProperty;
-    children: IProperty[];
-    parent: string;
-    __type__: string;
-    targetOverrides?: ITargetOverrideInfo[];
-}
-export declare interface ISceneMouseEvent {
-    x: number;
-    y: number;
-    clientX: number;
-    clientY: number;
-    deltaX: number;
-    deltaY: number;
-    wheelDeltaX: number;
-    wheelDeltaY: number;
-    moveDeltaX: number;
-    moveDeltaY: number;
-    leftButton: boolean;
-    middleButton: boolean;
-    rightButton: boolean;
-    button: number;
-    buttons: number;
-    movementX: number;
-    movementY: number;
-    ctrlKey: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-    metaKey: boolean;
-    hitPoint?: any;
-    type?: string;
-    handleName?: string;
-}
-export declare interface ISceneViewService {
-    init(): void;
-    initFromConfig(): Promise<void>;
-    saveConfig(): Promise<void>;
-    setSceneLightOn(enable: boolean): void;
-    querySceneLightOn(): boolean;
-    onSceneOpened(scene: any): void;
-    onSceneClosed(): void;
-    onComponentAdded(comp: Component): void;
-    onComponentRemoved(comp: Component): void;
-}
-export declare interface IScriptService extends IServiceEvents {
-    investigatePackerDriver(): Promise<void>;
-    loadScript(): Promise<void>;
-    removeScript(): Promise<void>;
-    scriptChange(): Promise<void>;
-    queryScriptCid(uuid: string): Promise<string | null>;
-    queryScriptName(uuid: string): Promise<string | null>;
-    isCustomComponent(classConstructor: Function): boolean;
-    suspend(condition: Promise<any>): void;
-}
-export declare interface ISelectionService {
-    select(path: string): void;
-    unselect(path: string): void;
-    clear(): void;
-    query(): string[];
-    isSelect(path: string): boolean;
-    reset(): void;
-}
-export declare interface IServiceEvents {
-    onEditorOpened?(): void;
-    onEditorReload?(): void;
-    onEditorClosed?(): void;
-    onEditorSaved?(): void;
-    onNodeBeforeChanged?(node: Node_2): void;
-    onBeforeRemoveNode?(node: Node_2): void;
-    onBeforeAddNode?(node: Node_2): void;
-    onNodeChanged?(node: Node_2, opts: IChangeNodeOptions): void;
-    onBeforeNodeAdded?(node: Node_2): void;
-    onAddNode?(node: Node_2): void;
-    onRemoveNode?(node: Node_2): void;
-    onNodeAdded?(node: Node_2): void;
-    onNodeRemoved?(node: Node_2): void;
-    onAddComponent?(comp: Component): void;
-    onRemoveComponent?(comp: Component): void;
-    onSetPropertyComponent?(comp: Component): void;
-    onComponentAdded?(comp: Component): void;
-    onComponentRemoved?(comp: Component): void;
-    onBeforeChangeComponent?(node: Node_2): void;
-    onBeforeAddComponent?(name: string, node: Node_2): void;
-    onBeforeRemoveComponent?(comp: Component): void;
-    onAssetDeleted?(uuid: string): void;
-    onAssetChanged?(uuid: string): void;
-    onAssetRefreshed?(uuid: string): void;
-    onScriptExecutionFinished?(): void;
-    onSelectionSelect?(path: string, paths: string[]): void;
-    onSelectionUnselect?(path: string, paths: string[]): void;
-    onSelectionClear?(): void;
-}
-export declare interface IServiceManager {
-    Editor: IEditorService;
-    Node: INodeService;
-    Component: IComponentService;
-    Script: IScriptService;
-    Asset: IAssetService;
-    Engine: IEngineService;
-    Prefab: IPrefabService;
-    Selection: ISelectionService;
-    Operation: IOperationService;
-    Undo: IUndoService;
-    Redo: IRedoService;
-    Camera: ICameraService;
-    Gizmo: IGizmoService;
-    SceneView: ISceneViewService;
-    UI: IUIService;
-}
-export declare interface ISetParentParams {
-    paths: string[];
-    parentPath: string;
-    keepWorldTransform?: boolean;
-}
-export declare interface ISetPropertyOptions {
-    nodePath: string;
-    path: string;
-    dump: IProperty;
-    record?: boolean;
 }
 export declare interface ISocketConfig {
     connection: (socket: any) => void;
@@ -8234,13 +7638,6 @@ export declare type ISupportCreateCCType =
 | 'cc.AnimationMask'        
 | 'cc.AnimationGraphVariant';
 export declare type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
-export declare interface ITargetOverrideInfo {
-    source: string;
-    sourceInfo?: string[];
-    propertyPath: string[];
-    target: string;
-    targetInfo?: string[];
-}
 export declare interface IUerDataConfigItem {
     key?: string; 
     label?: string;
@@ -8256,75 +7653,6 @@ export declare interface IUerDataConfigItem {
             value: string;
         }>;
     };
-}
-export declare interface IUIService {
-    alignSelection(type: UIAlignType): Promise<void>;
-    distributeSelection(type: UIAlignType): Promise<void>;
-}
-export declare interface IUndoBeginOptions {
-    label?: string;
-    tag?: string;
-    customCommand?: IUndoCommand;
-}
-export declare interface IUndoCommand {
-    meta: IUndoCommandMeta;
-    undo(): Promise<IUndoRedoResult>;
-    redo(): Promise<IUndoRedoResult>;
-}
-export declare interface IUndoCommandMeta {
-    id: string;
-    label: string;
-    type: string;
-    scope: IUndoScope;
-    timestamp: number;
-}
-export declare interface IUndoGroupOptions {
-    label?: string;
-}
-export declare interface IUndoRedoResult {
-    success: boolean;
-    commandId?: string;
-    label?: string;
-    reason?: string;
-}
-export declare interface IUndoScope {
-    assetUuid?: string;
-    assetUrl?: string;
-    editorType?: 'scene' | 'prefab' | 'animation' | string;
-    mode?: 'general' | 'prefab' | 'animation' | 'preview' | string;
-}
-export declare interface IUndoService {
-    beginRecording(uuids: string[], options?: IUndoBeginOptions): string;
-    endRecording(commandId: string): Promise<void>;
-    cancelRecording(commandId: string): void;
-    undo(): Promise<IUndoRedoResult>;
-    redo(): Promise<IUndoRedoResult>;
-    beginGroup(options?: IUndoGroupOptions): string;
-    endGroup(groupId: string): IUndoRedoResult;
-    cancelGroup(groupId: string): IUndoRedoResult;
-    isGroupActive(): boolean;
-    push(command: IUndoCommand): void;
-    reset(): void;
-    clearHistory(): void;
-    isDirty(): boolean;
-    canUndo(): boolean;
-    canRedo(): boolean;
-    markSaved(): void;
-    hasActiveRecording(uuid?: string): boolean;
-    isApplying(): boolean;
-}
-export declare interface IUnlinkPrefabParams {
-    nodePath: string;
-    removeNested?: boolean;
-}
-export declare interface IUnpackPrefabInstanceParams {
-    nodePath: string;
-    recursive?: boolean;
-}
-export declare interface IVec3 {
-    x: number;
-    y: number;
-    z: number;
 }
 export declare interface IVec3Like {
     x: number;
@@ -8371,24 +7699,6 @@ export declare type MacroItem = {
     value: boolean;
 }
 export declare type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
-export declare interface Mat4 {
-    m00: number;
-    m01: number;
-    m02: number;
-    m03: number;
-    m04: number;
-    m05: number;
-    m06: number;
-    m07: number;
-    m08: number;
-    m09: number;
-    m10: number;
-    m11: number;
-    m12: number;
-    m13: number;
-    m14: number;
-    m15: number;
-}
 export declare namespace Mcp {
     export {
         register,
@@ -8439,64 +7749,6 @@ export declare interface ModuleRenderConfig {
     migrationScript?: string;
 }
 export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
-export declare enum NodeEventType {
-    TRANSFORM_CHANGED = "transform-changed",
-    SIZE_CHANGED = "size-changed",
-    ANCHOR_CHANGED = "anchor-changed",
-    CHILD_ADDED = "child-added",
-    CHILD_REMOVED = "child-removed",
-    PARENT_CHANGED = "parent-changed",
-    CHILD_CHANGED = "child-changed",
-    COMPONENT_CHANGED = "component-changed",
-    ACTIVE_IN_HIERARCHY_CHANGE = "active-in-hierarchy-changed",
-    NOTIFY_NODE_CHANGED = "notify-node-changed",
-    PREFAB_INFO_CHANGED = "prefab-info-changed",
-    LIGHT_PROBE_CHANGED = "light-probe-changed",
-    SET_PROPERTY = "set-property",
-    MOVE_ARRAY_ELEMENT = "move-array-element",
-    REMOVE_ARRAY_ELEMENT = "remove-array-element",
-    CREATE_COMPONENT = "create-component",
-    RESET_COMPONENT = "reset-component"
-}
-export declare enum NodeType {
-    EMPTY = "Empty",
-    TERRAIN = "Terrain",
-    CAMERA = "Camera",
-    SPRITE = "Sprite",
-    SPRITE_SPLASH = "SpriteSplash",
-    GRAPHICS = "Graphics",
-    LABEL = "Label",
-    MASK = "Mask",
-    PARTICLE = "Particle",
-    TILED_MAP = "TiledMap",
-    CAPSULE = "Capsule",
-    CONE = "Cone",
-    CUBE = "Cube",
-    CYLINDER = "Cylinder",
-    PLANE = "Plane",
-    QUAD = "Quad",
-    SPHERE = "Sphere",
-    TORUS = "Torus",
-    BUTTON = "Button",
-    CANVAS = "Canvas",
-    EDIT_BOX = "EditBox",
-    LAYOUT = "Layout",
-    PAGE_VIEW = "PageView",
-    PROGRESS_BAR = "ProgressBar",
-    RICH_TEXT = "RichText",
-    SCROLL_VIEW = "ScrollView",
-    SLIDER = "Slider",
-    TOGGLE = "Toggle",
-    TOGGLE_GROUP = "ToggleGroup",
-    VIDEO_PLAYER = "VideoPlayer",
-    WEB_VIEW = "WebView",
-    WIDGET = "Widget",
-    DIRECTIONAL_LIGHT = "Light-Directional",
-    SPHERE_LIGHT = "Light-Sphere",
-    SPOT_LIGHT = "Light-Spot",
-    PROBE_LIGHT = "Light-Probe-Group",
-    REFLECTION_LIGHT = "Light-Reflection-Probe"
-}
 export declare enum NormalImportSetting {
     optional = 0,
     exclude = 1,
@@ -8524,7 +7776,6 @@ export declare function onPackBuildStart(listener: (e: {
 export declare function onProgress(listener: (current: number, total: number, url: string, state: 'processing' | 'success' | 'failed') => void): () => void;
 export declare function onReady(listener: () => void): () => void;
 export declare function open_2(projectPath: string): Promise<void>;
-export declare type OperationEvent = SceneDragEvent | SceneKeyboardEvent | SceneMouseEvent | 'resize';
 export declare interface ParticleAssetUserData {
     totalParticles: number;
     life: number;
@@ -8585,12 +7836,6 @@ export declare interface PluginScriptUserData {
 export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
-}
-export declare enum PrefabState {
-    NotAPrefab = 0,
-    PrefabChild = 1,
-    PrefabInstance = 2,
-    PrefabLostAsset = 3
 }
 export declare class ProgrammingFacet {
     private _packerDriverUpdateCount;
@@ -8712,14 +7957,6 @@ export declare function register(): Promise<string>;
 export declare function register_2(name: string, module: IMiddlewareContribution): Promise<void>;
 export declare function reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo>;
 export declare function reload(): Promise<void>;
-export declare enum ReloadResult {
-    SUCCESS = 0,
-    FAILED = 1,
-    QUEUED = 2,
-    NO_EDITOR = 3,
-    ASSET_NOT_FOUND = 4,
-    EDITOR_NOT_FOUND = 5
-}
 export declare function remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 export declare function renameAsset(source: string, newName: string, options?: AssetOperationOption): Promise<any>;
 export declare interface RenderTextureAssetUserData extends TextureBaseAssetUserData {
@@ -8740,10 +7977,6 @@ export declare namespace Scene {
         startupWorker
     }
 }
-export declare const SCENE_TEMPLATE_TYPE: readonly ["2d", "3d", "quality"];
-export declare type SceneDragEvent = 'onDragLeave' | 'onDragOver' | 'onDrop';
-export declare type SceneKeyboardEvent = 'keydown' | 'keyup';
-export declare type SceneMouseEvent = 'dblclick' | 'mousedown' | 'mousemove' | 'mouseup' | 'mousewheel';
 export declare namespace Scripting {
     export {
         init_7 as init,
@@ -8861,8 +8094,6 @@ export declare enum TangentImportSetting {
     require = 2,
     recalculate = 3
 }
-export declare type TEditorEntity = IScene | INode;
-export declare type TEditorInstance = Scene_2 | Node_2;
 export declare interface Texture2DAssetUserData extends TextureBaseAssetUserData {
     isUuid?: boolean;
     imageUuidOrDatabaseUri?: string;
@@ -8893,26 +8124,9 @@ export declare interface ThumbnailInfo {
     value: string; 
 }
 export declare type ThumbnailSize = 'large' | 'small' | 'middle' | 'origin';
-export declare type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
-export declare type UIAlignType = 'top' | 'v-center' | 'bottom' | 'left' | 'h-center' | 'right';
 export declare function unregister(): Promise<void>;
 export declare function updateAssetUserData(urlOrUuidOrPath: string, path: string, value: any): Promise<any>;
 export declare function updateDefaultUserData(handler: string, path: string, value: any): Promise<void>;
-export declare interface Vec2 {
-    x: number;
-    y: number;
-}
-export declare interface Vec3 {
-    x: number;
-    y: number;
-    z: number;
-}
-export declare interface Vec4 {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-}
 export declare type WrapMode = 'repeat' | 'clamp-to-edge' | 'mirrored-repeat';
 export { }
 "
