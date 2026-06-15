@@ -11,7 +11,7 @@ import i18n from '../../base/i18n';
 import assetConfig from '../asset-config';
 import minimatch from 'minimatch';
 import utils from '../../base/utils';
-import { existsSync } from 'fs-extra';
+import { existsSync, readJSONSync, readdirSync } from 'fs-extra';
 import * as path from 'path';
 
 declare global {
@@ -618,6 +618,89 @@ class AssetQueryManager {
         }
 
         return asset.meta;
+    }
+
+    /**
+     * 查询子资源名称
+     * 当源文件已删除但 .meta 仍存在时，通过读取 meta 的 subMetas 获取子资源名称
+     * @param mainUuid 主资源 UUID
+     * @param subId 子资源 ID（@ 后面的部分）
+     */
+    querySubAssetName(mainUuid: string, subId: string): string | null {
+        const meta = this.queryAssetMeta(mainUuid);
+        if (meta?.subMetas?.[subId]?.name) {
+            return meta.subMetas[subId].name;
+        }
+
+        // 源文件已删除但 .meta 仍存在时，通过 infoManager 查找已删除资源的路径，直接读取 .meta 文件
+        for (const name in assetDBManager.assetDBMap) {
+            const database = assetDBManager.assetDBMap[name];
+            if (!database) continue;
+
+            // metaManager 可能仍缓存了 .meta 数据
+            const path2meta = database.metaManager?.path2meta;
+            if (path2meta) {
+                for (const key in path2meta) {
+                    const metaInfo = path2meta[key];
+                    if (metaInfo?.json?.uuid === mainUuid && metaInfo.json.subMetas?.[subId]) {
+                        return metaInfo.json.subMetas[subId].name ?? null;
+                    }
+                }
+            }
+
+            // infoManager 记录了已删除资源的路径，尝试从磁盘读取 .meta 文件
+            try {
+                const missingInfo = database.infoManager?.getMissingInfo(mainUuid);
+                if (missingInfo?.path) {
+                    const metaPath = missingInfo.path + '.meta';
+                    if (existsSync(metaPath)) {
+                        const metaJson = readJSONSync(metaPath);
+                        if (metaJson?.subMetas?.[subId]?.name) {
+                            return metaJson.subMetas[subId].name;
+                        }
+                    }
+                }
+            } catch {
+                // infoManager or file read may fail
+            }
+
+            // 遍历资源目录，查找包含该 UUID 的 .meta 文件
+            try {
+                const target = assetDBManager.assetDBInfo[name]?.target;
+                if (target && existsSync(target)) {
+                    const result = this._findSubAssetNameFromMeta(target, mainUuid, subId);
+                    if (result) return result;
+                }
+            } catch {
+                // filesystem scan may fail
+            }
+        }
+        return null;
+    }
+
+    private _findSubAssetNameFromMeta(dir: string, uuid: string, subId: string): string | null {
+        try {
+            const entries = readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    const result = this._findSubAssetNameFromMeta(fullPath, uuid, subId);
+                    if (result) return result;
+                } else if (entry.name.endsWith('.meta')) {
+                    try {
+                        const metaJson = readJSONSync(fullPath);
+                        if (metaJson?.uuid === uuid && metaJson?.subMetas?.[subId]?.name) {
+                            return metaJson.subMetas[subId].name;
+                        }
+                    } catch {
+                        // skip unreadable meta files
+                    }
+                }
+            }
+        } catch {
+            // directory read may fail
+        }
+        return null;
     }
 
     /**

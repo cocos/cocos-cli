@@ -15,6 +15,7 @@ import {
 import { PrefabEditor, SceneEditor } from './editors';
 import { IAssetInfo } from '../../../assets/@types/public';
 import { Rpc } from '../rpc';
+import { enrichMissingDependencyError } from './error-utils';
 
 /**
  * EditorAsset - 统一的编辑器管理入口
@@ -136,16 +137,13 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
         }
 
-        const outputDependentInfo = async function (err: any) {
+        const outputDependentInfo = async (err: any) => {
             try {
-                const errInfo = err.message || '';
-                const regexObj = /^download failed: .*\/([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})\.json/i;
-                const result = regexObj.exec(errInfo);
-                let uuid = '';
-                if (result) {
-                    uuid = result[1];
-                }
-                err.message = `The asset ${urlOrUUID} cannot be loaded because a dependent asset is missing: ${uuid}`;
+                const rpc = Rpc.getInstance();
+                err.message = await enrichMissingDependencyError(err.message || '', urlOrUUID,
+                    (uuid) => rpc.request('assetManager', 'queryAssetInfo', [uuid]),
+                    (mainUuid, subId) => rpc.request('assetManager', 'querySubAssetName', [mainUuid, subId]),
+                );
             } catch (error) {
                 //
             }
