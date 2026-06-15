@@ -19,6 +19,7 @@ function stripComments(content: string): string {
     return content
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/\/\/.*$/gm, '')
+        .replace(/[ \t]+$/gm, '')
         .replace(/^\s*\n/gm, '');
 }
 
