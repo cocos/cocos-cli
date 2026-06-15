@@ -6,8 +6,8 @@ export interface ISceneViewService {
     saveConfig(): Promise<void>;
     setSceneLightOn(enable: boolean): void;
     querySceneLightOn(): boolean;
-    onSceneOpened(scene: any): void;
-    onSceneClosed(): void;
+    onEditorOpened(): void;
+    onEditorClosed(): void;
     onComponentAdded(comp: Component): void;
     onComponentRemoved(comp: Component): void;
 }

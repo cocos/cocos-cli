@@ -119,7 +119,7 @@ export class ParticleService extends BaseService<Record<string, never>> {
         }
     }
 
-    onSceneClosed() {
+    onEditorDisposed() {
         this._selectedUUIDs = [];
     }
 }

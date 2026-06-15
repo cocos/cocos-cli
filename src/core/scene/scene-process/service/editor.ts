@@ -1,5 +1,6 @@
 import cc from 'cc';
 import { BaseService, register, Service } from './core';
+import { InternalServiceEvents } from './core/internal-events';
 import {
     IBaseIdentifier,
     ICloseOptions,
@@ -203,6 +204,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this.editorMap.delete(uuid);
 
             this.emit('editor:close');
+            // 真正关闭编辑器时的会话清理边界；重载只复用内容卸载/挂载边界。
+            this.emitInternal(InternalServiceEvents.EditorDisposed);
             this.isOpen = false;
             console.log(`关闭 ${assetInfo.url}`);
             return result;
@@ -278,7 +281,13 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                     let currentParams: IReloadOptions | null = params;
                     while (currentParams) {
                         await this.waitLocks();
-                        await editor.reload();
+                        // 重载不是对外的编辑器关闭/打开；这里只复用内部内容卸载/挂载边界。
+                        this.emitInternal(InternalServiceEvents.EditorReloadClose);
+                        try {
+                            await editor.reload();
+                        } finally {
+                            this.emitInternal(InternalServiceEvents.EditorReloadOpen);
+                        }
 
                         if (!currentParams.preserveUndoHistory) {
                             this._clearUndoHistory();
