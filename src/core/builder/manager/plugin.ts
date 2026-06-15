@@ -244,6 +244,9 @@ export class PluginManager extends EventEmitter {
         const configWithDisplayKeys = config as I18nDisplayRecord;
         this.platformConfig[platform].name = config.displayName;
         this.platformConfig[platform].nameI18nKey = configWithDisplayKeys.displayNameI18nKey;
+        if (config.doc && !config.doc.startsWith('http')) {
+            config.doc = Utils.Url.getDocUrl(config.doc);
+        }
         this.platformConfig[platform].doc = config.doc;
         this.platformConfig[platform].pluginPath = registerInfo.path;
         this.platformConfig[platform].platformType = (config as IPlatformBuildPluginConfig).platformType;
@@ -275,9 +278,6 @@ export class PluginManager extends EventEmitter {
             }
         }
 
-        if (config.doc && !config.doc.startsWith('http')) {
-            config.doc = Utils.Url.getDocUrl(config.doc);
-        }
         if (typeof config.options === 'object') {
             lodash.set(this.pkgOptionConfigs, `${registerInfo.platform}.${pkgName}`, config.options);
             Object.keys(config.options).forEach((key) => {
