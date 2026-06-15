@@ -2451,7 +2451,7 @@ export declare interface ICMakeConfig {
     USE_SERVER_MODE: string;
 }
 export declare interface ICocosConfigurationPropertySchema {
-    type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'enum';
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
     default?: unknown;
     title?: string;
     description?: string;
@@ -6426,7 +6426,7 @@ export declare interface ICocosConfigurationNode {
     properties: Record<string, ICocosConfigurationPropertySchema>;
 }
 export declare interface ICocosConfigurationPropertySchema {
-    type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'enum';
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
     default?: unknown;
     title?: string;
     description?: string;
@@ -7360,7 +7360,7 @@ export declare interface ICocosConfigurationNode {
     properties: Record<string, ICocosConfigurationPropertySchema>;
 }
 export declare interface ICocosConfigurationPropertySchema {
-    type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'enum';
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
     default?: unknown;
     title?: string;
     description?: string;

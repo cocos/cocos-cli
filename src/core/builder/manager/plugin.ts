@@ -900,7 +900,7 @@ export class PluginManager extends EventEmitter {
             if (!item || item.hidden) {
                 continue;
             }
-            properties[key] = convertConfigItem(item as unknown as ICocosConfigurationPropertySchema, key);
+            properties[key] = convertConfigItem(item, key);
             // 必填:从 verifyRules:['required'] 派生,收进父对象节点的 required(JSON Schema 对象级);拦构建仍由 checkBuildOption 负责
             if (item.verifyRules?.includes('required')) {
                 required.push(key);
