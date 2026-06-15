@@ -20,6 +20,7 @@ import { ServiceEvents } from '../core/global-events';
 // const { basename, extname } = require('path');
 // import nodeUtil from '../../../utils/node';
 import dumpUtil from '../dump';
+import { Service } from '../core/decorator';
 
 // import getComponentFunctionOfNode from '../component/get-component-function-of-node';
 import {
@@ -88,7 +89,6 @@ export class NodeManager {
     _onAnchorChanged?: (...args: any[]) => void;
     _onParentChanged?: (...args: any[]) => void;
     _onLightProbeChanged?: (...args: any[]) => void;
-    private _sceneRoot: Node | null = null;
 
     emit<K extends keyof INodeEvents>(event: K, ...args: INodeEvents[K]): void;
     emit(event: string, ...args: any[]): void;
@@ -112,17 +112,13 @@ export class NodeManager {
             return;
         }
 
-        this._sceneRoot = scene as Node;
-        this.registerEventListeners(this._sceneRoot);
-        const nodeMap = NodeMgr.getNodesInScene();
-
         // 场景载入后要将现有节点监听所需事件
-        Object.keys(nodeMap).forEach((key) => {
-            this.registerEventListeners(nodeMap[key]);
-        });
+        this.registerEventListenersForCurrentSceneNodes();
 
         this.registerNodeMgrEvents();
-        compMgr.init();
+        // 组件事件转发由 ComponentService 统一负责。NodeManager 只使用 compMgr
+        // 做组件查询和缓存清理；这里注册会导致编辑器打开/重载后重复触发
+        // component:added/component:removed。
 
         // 缓存预览设置的属性，用于还原预览前的设置
         this._previewPropertysCache = new Map();
@@ -130,12 +126,18 @@ export class NodeManager {
         this.emit('node:inited', this.queryUuids(), scene);
     }
 
-    public onSceneOpened(scene: any) {
-        this.initWithScene(scene);
+    private registerEventListenersForCurrentSceneNodes() {
+        const nodeMap = NodeMgr.getNodesInScene();
+        Object.keys(nodeMap).forEach((key) => {
+            this.registerEventListeners(nodeMap[key]);
+        });
     }
 
-    public onSceneClosed() {
-        compMgr.unregisterCompMgrEvents();
+    public onEditorOpened() {
+        this.initWithScene(Service.Editor.getRootNode() ?? director.getScene());
+    }
+
+    public onEditorClosed() {
         this.unregisterNodeMgrEvents();
         this.clear();
         stashInstants = null;
@@ -296,10 +298,6 @@ export class NodeManager {
      * 清空当前管理的节点
      */
     clear() {
-        if (this._sceneRoot) {
-            this.unregisterEventListeners(this._sceneRoot);
-            this._sceneRoot = null;
-        }
         const nodeMap = NodeMgr.getNodes();
         Object.keys(nodeMap).forEach((key) => {
             this.unregisterEventListeners(nodeMap[key]);

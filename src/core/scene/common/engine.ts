@@ -5,11 +5,6 @@ export interface ICustomLayerConfig {
     value: number;
 }
 
-export interface ICustomLayerConfig {
-    name: string;
-    value: number;
-}
-
 export interface IEngineEvents {
     'engine:update': [];
     'engine:ticked': [];

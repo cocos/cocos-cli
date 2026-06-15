@@ -15,7 +15,7 @@ function isEditorNode(node: any): boolean {
 class LightManager {
     private _lights: LightComponent[] = [];
 
-    onSceneOpened(scene: any, isSceneLightOn: boolean): void {
+    onEditorOpened(scene: any, isSceneLightOn: boolean): void {
         this._lights.length = 0;
         if (!scene) return;
 

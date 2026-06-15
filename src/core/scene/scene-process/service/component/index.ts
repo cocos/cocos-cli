@@ -18,6 +18,7 @@ export class CompManager {
     }
 
     init() {
+        this.unregisterCompMgrEvents();
         this.registerCompMgrEvents();
     }
     _onCompAdded?: (uuid: string, component: Component) => void;

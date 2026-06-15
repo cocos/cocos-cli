@@ -438,24 +438,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     public onEditorOpened() {
-        const nodeMap = NodeMgr.getNodesInScene();
-        // 场景载入后要将现有节点监听所需事件
-        Object.keys(nodeMap).forEach((key) => {
-            nodeMgr.registerEventListeners(nodeMap[key]);
-        });
-        nodeMgr.registerNodeMgrEvents();
+        nodeMgr.onEditorOpened();
+        // 节点缓存刷新完成后，再注册组件事件转发。
         Service.Component.init();
     }
 
     public onEditorClosed() {
+        // nodeMgr 清理 EditorExtends.Component 缓存前，先停止组件事件转发。
         Service.Component.unregisterCompMgrEvents();
-        nodeMgr.unregisterNodeMgrEvents();
-        const nodeMap = NodeMgr.getNodes();
-        Object.keys(nodeMap).forEach((key) => {
-            nodeMgr.unregisterEventListeners(nodeMap[key]);
-        });
-        NodeMgr.clear();
-        EditorExtends.Component.clear();
+        nodeMgr.onEditorClosed();
         this._cutUuids = [];
     }
 

@@ -236,7 +236,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     // node operation
     ////////////////////////
     public onEditorOpened() {
-        nodeOperation.onSceneOpened();
+        nodeOperation.onEditorOpened();
     }
 
     public onNodeRemoved(node: Node) {

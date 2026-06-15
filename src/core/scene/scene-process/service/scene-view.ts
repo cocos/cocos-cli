@@ -59,8 +59,9 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
         return sceneViewData.isSceneLightOn;
     }
 
-    onSceneOpened(scene: any): void {
-        lightManager.onSceneOpened(scene, sceneViewData.isSceneLightOn);
+    onEditorOpened(): void {
+        const scene = (cc as any).director?.getScene();
+        lightManager.onEditorOpened(scene, sceneViewData.isSceneLightOn);
 
         // Parent light node to scene if not already parented
         if (this._lightNode && !this._lightNode.parent) {
@@ -75,7 +76,7 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
         }
     }
 
-    onSceneClosed(): void {
+    onEditorClosed(): void {
         // Nothing to clean up
     }
 
