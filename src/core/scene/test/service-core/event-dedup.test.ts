@@ -676,6 +676,16 @@ describe('场景事件契约测试', () => {
                 expect(body.length).toBeGreaterThan(0);
                 expect(body).not.toMatch(/this\.emit\(\s*['"]component:remove['"]/);
             });
+
+            it('add 应 emit component:before-add-component 1 次', () => {
+                const body = extractMethodBody(source, /async add\(params:/);
+                expect(countEmitCalls(body, 'component:before-add-component')).toBe(1);
+            });
+
+            it('component:set-property 在接口定义中但未直接 emit（通过 undo snapshot type 使用）', () => {
+                const allEmits = (source.match(/this\.(emit|broadcast)\(\s*['"]component:set-property['"]/g) || []);
+                expect(allEmits).toHaveLength(0);
+            });
         });
 
         // ---------- NodeService ----------
@@ -818,6 +828,19 @@ describe('场景事件契约测试', () => {
             });
         });
 
+        describe('AssetWatcher — asset-refresh (asset/asset-watcher.ts)', () => {
+            const source = readSourceFile('asset/asset-watcher.ts');
+
+            it('应通过 ServiceEvents.emit 发送 asset-refresh（全文仅 1 处）', () => {
+                const count = (source.match(/ServiceEvents\.emit.*['"]asset-refresh['"]/g) || []).length;
+                expect(count).toBe(1);
+            });
+
+            it('不应 broadcast asset-refresh（该事件已从 SERVICE_EVENTS_MAP 中排除）', () => {
+                expect(source).not.toMatch(/broadcast.*['"]asset-refresh['"]/);
+            });
+        });
+
         // ---------- UndoService ----------
 
         describe('UndoService (undo.ts)', () => {
@@ -926,6 +949,11 @@ describe('场景事件契约测试', () => {
 
             it('不应 broadcast gizmo:tool-changed', () => {
                 expect(source).not.toMatch(/this\.broadcast\(\s*['"]gizmo:tool-changed['"]/);
+            });
+
+            it('gizmo:control-begin/end 在 IGizmoEvents 接口定义但未在 gizmo.ts 中 emit（由 gizmo-base 使用 hyphen 格式发送）', () => {
+                expect(source).not.toMatch(/this\.(emit|broadcast)\(\s*['"]gizmo:control-begin['"]/);
+                expect(source).not.toMatch(/this\.(emit|broadcast)\(\s*['"]gizmo:control-end['"]/);
             });
         });
 
