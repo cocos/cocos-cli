@@ -957,6 +957,34 @@ describe('场景事件契约测试', () => {
             });
         });
 
+        describe('GizmoBase (gizmo/base/gizmo-base.ts)', () => {
+            const source = readSourceFile('gizmo/base/gizmo-base.ts');
+
+            it('onControlBegin 应 broadcast gizmo-control-begin 1 次', () => {
+                const body = extractMethodBody(source, /onControlBegin\(/);
+                expect(body.length).toBeGreaterThan(0);
+                const count = (body.match(/broadcast.*['"]gizmo-control-begin['"]/g) || []).length;
+                expect(count).toBe(1);
+            });
+
+            it('onControlEnd 应 broadcast gizmo-control-end 1 次', () => {
+                const body = extractMethodBody(source, /onControlEnd\(/);
+                expect(body.length).toBeGreaterThan(0);
+                const count = (body.match(/broadcast.*['"]gizmo-control-end['"]/g) || []).length;
+                expect(count).toBe(1);
+            });
+
+            it('onControlBegin 不应同时 emit gizmo-control-begin', () => {
+                const body = extractMethodBody(source, /onControlBegin\(/);
+                expect(body).not.toMatch(/\.emit\(\s*['"]gizmo-control-begin['"]/);
+            });
+
+            it('onControlEnd 不应同时 emit gizmo-control-end', () => {
+                const body = extractMethodBody(source, /onControlEnd\(/);
+                expect(body).not.toMatch(/\.emit\(\s*['"]gizmo-control-end['"]/);
+            });
+        });
+
         // ---------- UIService ----------
 
         describe('UIService (ui.ts)', () => {

@@ -15,6 +15,7 @@ import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
 import type { IGizmoEvents, IGizmoService, IChangeNodeOptions, IRectSnapConfigData } from '../../common';
 import type { IOriginAxesConfig } from '../../scene-configs';
+import { TimerUtil } from './prefab/timer-util';
 
 // Import component gizmo modules so they self-register via registerGizmo()
 import './gizmo/components/camera';
@@ -159,6 +160,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
     private _gizmoOperation!: GizmoOperation;
     private _iconVisible = false;
     private _selection: string[] = [];
+    private _nodeChangeTimer = new TimerUtil();
 
     // Pool: Map<className, GizmoBase[]> — 与 cocos-editor GizmoPool 一致
     private _componentPool: Map<string, GizmoBase[]> = new Map();
@@ -894,11 +896,15 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
 
     onEditorClosed(): void {
         this.saveConfig();
+        this._nodeChangeTimer.clear();
     }
 
     onNodeChanged(node: Node, opts?: IChangeNodeOptions): void {
         if (!node) return;
+        this._nodeChangeTimer.callFunctionLimit(node.uuid, this._doNodeChanged.bind(this), node, opts);
+    }
 
+    private _doNodeChanged(node: Node, opts?: IChangeNodeOptions): void {
         const has = this._selection.includes(node.uuid);
 
         walkNodeComponent(node, (component: Component) => {
@@ -945,7 +951,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
 
         if (opts?.type !== NodeEventType.CHILD_CHANGED) {
             node.children.forEach((child) => {
-                this.onNodeChanged(child, opts);
+                this._doNodeChanged(child, opts);
             });
         }
 

@@ -3,9 +3,11 @@ import { IAssetEvents, IAssetService } from '../../common';
 import { Asset, assetManager, Component, Node, Prefab } from 'cc';
 import { assetWatcherManager } from './asset/asset-watcher';
 import { isEditorNode } from './node/node-utils';
+import { TimerUtil } from './prefab/timer-util';
 
 @register('Asset')
 export class AssetService extends BaseService<IAssetEvents> implements IAssetService {
+    private _nodeChangeTimer = new TimerUtil();
     /**
      * 主进程监听 asset 事件，所触发事件
      * @param uuid
@@ -45,7 +47,15 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
         }
     }
 
+    public onEditorClosed() {
+        this._nodeChangeTimer.clear();
+    }
+
     public onNodeChanged(node: Node) {
+        this._nodeChangeTimer.callFunctionLimit(node.uuid, this._doNodeChanged.bind(this), node);
+    }
+
+    private _doNodeChanged(node: Node) {
         node.components.forEach((component) => {
             assetWatcherManager.stopWatch(component);
             assetWatcherManager.startWatch(component);
