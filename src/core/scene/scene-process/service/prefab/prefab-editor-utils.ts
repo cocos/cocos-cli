@@ -4,6 +4,13 @@ import { prefabUtils } from './utils';
 type UUIDMap = Map<string, string | UUIDMap>;
 
 class EditorPrefabUtils {
+    preparePrefabRootForEditing(node: Node) {
+        const prefabInfo = node['_prefab'];
+        if (prefabInfo) {
+            prefabInfo.instance = undefined;
+        }
+    }
+
     serialize(node: Node) {
         // 校验数据
         prefabUtils.checkMountedRootData(node, true);

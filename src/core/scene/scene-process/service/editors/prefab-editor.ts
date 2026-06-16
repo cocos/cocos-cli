@@ -33,6 +33,7 @@ export class PrefabEditor extends BaseEditor {
 
         // 实例化预制体
         const instance = instantiate(prefabAsset);
+        editorPrefabUtils.preparePrefabRootForEditing(instance);
         this.virtualScene.addChild(instance);
         await this.ensurePreviewCanvasForUI(instance);
 
@@ -84,6 +85,7 @@ export class PrefabEditor extends BaseEditor {
         if (!instance) {
             throw new Error(`reload 失败，找不到预制体根节点: ${prefabName}`);
         }
+        editorPrefabUtils.preparePrefabRootForEditing(instance);
         this.entity.instance = instance;
         Prefab._utils.applyTargetOverrides(this.entity.instance);
         await this.ensurePreviewCanvasForUI(this.entity.instance);
