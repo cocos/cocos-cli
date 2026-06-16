@@ -64,6 +64,7 @@ export interface PlatformConfigItem {
     pluginPath: string;
     createTemplateLabel?: string;
     supportTextureCompress: boolean;
+    customBuildStages?: IBuildStageItem[];
 }
 
 export interface IPlatformRegisterInfo {
