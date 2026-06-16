@@ -52,19 +52,29 @@ jobs:
             exit 0
           fi
 
-          GREP_FILTER='grep -v "^---" | grep -v "^-exports\[" | grep -v "^-$" | grep -v "^\-[[:space:]]*$" | grep -v "^\-\`;$"'
-
-          # 1) Committed snapshot changes (BASE...HEAD)
-          COMMITTED_DELETED=""
-          if git diff --name-only "$BASE_REF"...HEAD | grep -q "$SNAP_FILE"; then
-            COMMITTED_DELETED=$(git diff "$BASE_REF"...HEAD -- "$SNAP_FILE" \
-              | grep '^-' \
+          # Grep pipeline to extract meaningful deleted API lines:
+          # 1. Keep only deleted lines (^-)
+          # 2. Filter out diff noise, snapshot markers, and structural lines
+          # 3. Deduplicate (index.d.ts duplicates individual .d.ts entries)
+          filter_deleted_lines() {
+            grep '^-' \
               | grep -v '^---' \
               | grep -v '^-exports\[' \
               | grep -v '^-$' \
               | grep -v '^\-[[:space:]]*$' \
               | grep -v '^\-`;$' \
-              || true)
+              | grep -v '^\-[[:space:]]*}[;,]\?$' \
+              | grep -v '^\-export { }$' \
+              | grep -v '^\-export {.*\bas\b.*}$' \
+              | grep -v '^\-[[:space:]]*static readonly version' \
+              | sort -u \
+              || true
+          }
+
+          # 1) Committed snapshot changes (BASE...HEAD)
+          COMMITTED_DELETED=""
+          if git diff --name-only "$BASE_REF"...HEAD | grep -q "$SNAP_FILE"; then
+            COMMITTED_DELETED=$(git diff "$BASE_REF"...HEAD -- "$SNAP_FILE" | filter_deleted_lines)
           fi
 
           # 2) Uncommitted snapshot changes: the -u step regenerated the snapshot
@@ -72,17 +82,11 @@ jobs:
           #    that were not committed as snapshot updates.
           UNCOMMITTED_DELETED=""
           if ! git diff --quiet HEAD -- "$SNAP_FILE" 2>/dev/null; then
-            UNCOMMITTED_DELETED=$(git diff HEAD -- "$SNAP_FILE" \
-              | grep '^-' \
-              | grep -v '^---' \
-              | grep -v '^-exports\[' \
-              | grep -v '^-$' \
-              | grep -v '^\-[[:space:]]*$' \
-              | grep -v '^\-`;$' \
-              || true)
+            UNCOMMITTED_DELETED=$(git diff HEAD -- "$SNAP_FILE" | filter_deleted_lines)
           fi
 
-          DELETED_LINES="${COMMITTED_DELETED}${UNCOMMITTED_DELETED}"
+          # Merge and deduplicate across both sources
+          DELETED_LINES=$(printf '%s\n%s' "$COMMITTED_DELETED" "$UNCOMMITTED_DELETED" | grep -v '^$' | sort -u || true)
 
           if [ -z "$DELETED_LINES" ]; then
             echo "No DTS API breaking changes detected."
