@@ -1102,10 +1102,6 @@ export class NodeManager {
 
         this.emit('node:add', node);
 
-        if (parent) {
-            this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
-        }
-
         return node.uuid;
     }
 
