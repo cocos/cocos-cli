@@ -361,6 +361,7 @@ export interface BuildTemplateConfig {
     displayName?: string;
     displayNameI18nKey?: string;
     version: string;
+    pkgName?: string; // Internal template directory name, defaults to the registered platform name.
     dirname?: string; // 指定构建模板目录名称，默认与平台名称保持一致
 }
 

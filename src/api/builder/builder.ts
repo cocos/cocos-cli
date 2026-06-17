@@ -1,8 +1,8 @@
-import { build, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from '../../core/builder';
+import { build, createBuildTemplate as createCoreBuildTemplate, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, SchemaMakeResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, SchemaMakeResult, SchemaBuildTemplateName, TBuildTemplateName, SchemaCreateBuildTemplateResult, TCreateBuildTemplateResult } from './schema';
 
 export class BuilderApi {
 
@@ -68,6 +68,27 @@ export class BuilderApi {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error('query default build config by platform fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+        return ret;
+    }
+
+    @tool('builder-create-build-template')
+    @title('Create Build Template')
+    @description('Create or update the user build template for a platform or build template display name.')
+    @result(SchemaCreateBuildTemplateResult)
+    async createBuildTemplate(@param(SchemaBuildTemplateName) nameOrPlatform: TBuildTemplateName): Promise<CommonResultType<TCreateBuildTemplateResult>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<TCreateBuildTemplateResult> = {
+            code: code,
+            data: null,
+        };
+
+        try {
+            await createCoreBuildTemplate(nameOrPlatform);
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error('create build template failed:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
         return ret;

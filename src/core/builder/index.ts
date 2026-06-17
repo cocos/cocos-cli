@@ -284,6 +284,10 @@ export function refreshDisplayI18nFields() {
     return pluginManager.refreshDisplayI18nFields();
 }
 
+export async function createBuildTemplate(nameOrPlatform: string): Promise<void> {
+    return pluginManager.createBuildTemplate(nameOrPlatform);
+}
+
 export function checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption) {
     return pluginManager.checkBuildOption(platform, key, value, options);
 }

@@ -30,11 +30,13 @@ export const SchemaBundleConfig = z.object({
 // Platform Enum - Accepts any string, built-in platform names are for reference only // 平台枚举 - 接受任意字符串，内置平台名称仅作为参考
 export const SchemaPlatform = z.string().default('web-mobile').describe('Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, google-play, harmonyos-next etc.)'); // 平台标识符 (如: web-desktop, web-mobile, windows, mac, ios, android, ohos, harmonyos-next 等)
 export const SchemaPlatformCanMake = z.string().describe('Platform Identifier supported for compilation (e.g., windows, mac, ios, android, google-play etc.)'); // 支持编译的平台标识符 (如: windows, mac, ios, android 等)
+export const SchemaBuildTemplateName = z.string().min(1).describe('Platform identifier or build template display name used to create a build template');
 
 export const SchemaRoot = z.string().min(1).describe('Build Output Directory'); // 构建发布目录
 export type IPlatformRoot = z.infer<typeof SchemaRoot>;
 export type TPlatform = z.infer<typeof SchemaPlatform>;
 export type TPlatformCanMake = z.infer<typeof SchemaPlatformCanMake>;
+export type TBuildTemplateName = z.infer<typeof SchemaBuildTemplateName>;
 
 // ==================== Platform Specific Packages Configuration ==================== // 平台特定的 Packages 配置
 
@@ -413,3 +415,6 @@ export type TBuildDest = z.infer<typeof SchemaBuildDest>;
 
 export const SchemaRunResult = z.string().describe('Run URL'); // 运行 URL
 export type TRunResult = z.infer<typeof SchemaRunResult>;
+
+export const SchemaCreateBuildTemplateResult = z.null().describe('Build template creation result');
+export type TCreateBuildTemplateResult = z.infer<typeof SchemaCreateBuildTemplateResult>;

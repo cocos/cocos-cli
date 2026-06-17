@@ -1236,6 +1236,7 @@ export declare interface BuildTemplateConfig {
     displayName?: string;
     displayNameI18nKey?: string;
     version: string;
+    pkgName?: string;
     dirname?: string;
 }
 export declare const enum BuiltinBundleName {
@@ -1459,6 +1460,7 @@ export declare interface Context {
 }
 export declare function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<BuildStageTask>;
 export declare function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<BuildTask>;
+export declare function createBuildTemplate(nameOrPlatform: string): Promise<void>;
 export declare function createBundleBuildTask(bundleOptions: IBundleBuildOptions): Promise<BundleManager>;
 export declare interface CustomBundleConfig {
     displayName: string;
@@ -4115,6 +4117,7 @@ export declare class PluginManager extends EventEmitter {
     private sortPkgNameWidthPriority;
     getHooksInfo(platform: Platform | string): IBuildHooksInfo;
     getBuildTemplateConfig(platform: string): BuildTemplateConfig;
+    createBuildTemplate(nameOrPlatform: string): Promise<void>;
     getAssetHandlers(type: ICustomAssetHandlerType): {
         pkgNameOrder: string[];
         handles: Record<string, (...args: unknown[]) => unknown>;
