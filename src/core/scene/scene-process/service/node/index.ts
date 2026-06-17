@@ -21,6 +21,7 @@ import { ServiceEvents } from '../core/global-events';
 // import nodeUtil from '../../../utils/node';
 import dumpUtil from '../dump';
 import { Service } from '../core/decorator';
+import { messageManager } from '../message';
 
 // import getComponentFunctionOfNode from '../component/get-component-function-of-node';
 import {
@@ -81,15 +82,6 @@ let stashInstants: any = null;
  *   node.on('remove', (node) => {});
  */
 export class NodeManager {
-    _onNodeAdded?: (...args: any[]) => void;
-    _onNodeChanged?: (...args: any[]) => void;
-    _onNodeRemoved?: (...args: any[]) => void;
-    _onTransformChanged?: (...args: any[]) => void;
-    _onSizeChanged?: (...args: any[]) => void;
-    _onAnchorChanged?: (...args: any[]) => void;
-    _onParentChanged?: (...args: any[]) => void;
-    _onLightProbeChanged?: (...args: any[]) => void;
-
     emit<K extends keyof INodeEvents>(event: K, ...args: INodeEvents[K]): void;
     emit(event: string, ...args: any[]): void;
     emit(event: string, ...args: any[]) {
@@ -316,6 +308,7 @@ export class NodeManager {
 
         if (!isEditorNode(node)) {
             this.emit('node:added', node);
+            messageManager.broadcast('node:added', node);
         }
     }
 
@@ -335,6 +328,7 @@ export class NodeManager {
                 path = `__comps__.${index}`;
             }
             this.emit('node:change', node, { type: NodeOperationType.SET_PROPERTY, propPath: path });
+            messageManager.broadcastChangeNodeMsg(node.uuid);
         }
     }
 
@@ -346,6 +340,7 @@ export class NodeManager {
         this.unregisterEventListeners(node);
         if (!isEditorNode(node)) {
             this.emit('node:removed', node, { source: EventSourceType.ENGINE });
+            messageManager.broadcast('node:removed', node);
         }
     }
 

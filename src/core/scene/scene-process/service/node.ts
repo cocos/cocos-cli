@@ -36,6 +36,7 @@ import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
 import { RemoveNodeCommand } from './undo/commands/remove-node-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
+import { messageManager } from './message';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -477,6 +478,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 this.emit('node:before-change', node);
                 NodeMgr.updateNodeName(node.uuid, options.dump.value as string);
                 this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: 'name' });
+                messageManager.broadcast('node:change', node);
                 return true;
             }
             return await nodeMgr.setProperty(node.uuid, options.path, options.dump, options.record);

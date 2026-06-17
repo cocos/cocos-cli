@@ -394,7 +394,7 @@ describe('场景事件契约测试', () => {
         });
 
         describe('add（注册节点）', () => {
-            it('普通节点应发送 node:added 1 次', () => {
+            it('普通节点应通过 ServiceEvents.emit 发送 node:added', () => {
                 const nodeMgr = new NodeManager();
                 const listener = jest.fn();
                 ServiceEvents.on('node:added', listener);
@@ -421,7 +421,7 @@ describe('场景事件契约测试', () => {
         });
 
         describe('remove（注销节点）', () => {
-            it('普通节点应发送 node:removed 1 次，source 为 ENGINE', () => {
+            it('普通节点应通过 ServiceEvents.emit 发送 node:removed，source 为 ENGINE', () => {
                 const nodeMgr = new NodeManager();
                 const listener = jest.fn();
                 ServiceEvents.on('node:removed', listener);

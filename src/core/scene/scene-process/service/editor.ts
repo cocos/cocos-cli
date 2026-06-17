@@ -17,6 +17,7 @@ import { PrefabEditor, SceneEditor } from './editors';
 import { IAssetInfo } from '../../../assets/@types/public';
 import { Rpc } from '../rpc';
 import { enrichMissingDependencyError } from './error-utils';
+import { messageManager } from './message';
 
 /**
  * EditorAsset - 统一的编辑器管理入口
@@ -165,6 +166,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
             this.emit('editor:open');
+            messageManager.broadcast('editor:open');
             this.isOpen = true;
             console.log(`打开 ${assetInfo.url}`);
             return encode;
@@ -202,6 +204,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this.editorMap.delete(uuid);
 
             this.emit('editor:close');
+            messageManager.broadcast('editor:close');
             // 真正关闭编辑器时的会话清理边界；重载只复用内容卸载/挂载边界。
             this.emitInternal(InternalServiceEvents.EditorDisposed);
             this.isOpen = false;
@@ -236,7 +239,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this._markUndoSaved();
 
             this.emit('editor:save');
-
+            messageManager.broadcast('editor:save');
             console.log(`保存 ${assetInfo.url}`);
             return result;
         } catch (error) {
@@ -299,6 +302,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                         }
 
                         this.broadcast('editor:reload');
+                        messageManager.broadcast('editor:reload');
                         console.log(`重载 ${assetInfo.url}`);
                     }
                     return ReloadResult.SUCCESS;

@@ -15,7 +15,7 @@ import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
 import type { IGizmoEvents, IGizmoService, IChangeNodeOptions, IRectSnapConfigData } from '../../common';
 import type { IOriginAxesConfig } from '../../scene-configs';
-import { TimerUtil } from './prefab/timer-util';
+import { TimerUtil } from './utils/timer-util';
 
 // Import component gizmo modules so they self-register via registerGizmo()
 import './gizmo/components/camera';
@@ -39,6 +39,7 @@ import './gizmo/components/mesh-renderer';
 import './gizmo/components/skinned-mesh-renderer';
 import './gizmo/components/video-player';
 import './gizmo/components/web-view';
+import { messageManager } from './message';
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
 
@@ -305,9 +306,18 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             this.emit('gizmo:tool-changed', name);
             this.saveConfig();
         });
-        this.transformToolData.on('coordinate-changed', () => { this.saveConfig(); });
-        this.transformToolData.on('pivot-changed', () => { this.saveConfig(); });
-        this.transformToolData.on('view-mode-changed', () => { this.saveConfig(); });
+        this.transformToolData.on('coordinate-changed', () => { 
+            messageManager.broadcast('gizmo:coordinate-changed');
+            this.saveConfig(); 
+        });
+        this.transformToolData.on('pivot-changed', () => { 
+            messageManager.broadcast('gizmo:pivot-changed');
+            this.saveConfig(); 
+        });
+        this.transformToolData.on('view-mode-changed', () => { 
+            messageManager.broadcast('gizmo:view-mode-changed');
+            this.saveConfig(); 
+        });
 
         // 与 cocos-editor gizmos.ts 一致：dimension-changed → 同步相机 + 回调
         this.transformToolData.on('dimension-changed', (is2D: boolean) => {
@@ -317,7 +327,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 // Camera not ready yet
             }
             this.onDimensionChanged(is2D);
-            ServiceEvents.broadcast('scene:dimension-changed', is2D);
+            messageManager.broadcast('scene:dimension-changed', is2D);
             this.saveConfig();
         });
 

@@ -8,7 +8,7 @@ import { Service } from './core/decorator';
 import type { ICustomLayerConfig, IEngineEvents, IEngineService } from '../../common';
 import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
-import { TimerUtil } from './prefab/timer-util';
+import { TimerUtil } from './utils/timer-util';
 
 const tickTime = 1000 / 60;
 // Engine Layers reserves bits 20-31 for built-ins; user custom layers live in bit positions 0-19.

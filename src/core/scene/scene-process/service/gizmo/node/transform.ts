@@ -7,6 +7,7 @@ import ViewGizmo from './view';
 import TransformBaseGizmo from './transform-base';
 import type { TransformToolDataToolNameType } from '../transform-tool';
 import { Node, Component } from 'cc';
+import { messageManager } from '../../message';
 
 /**
  * 获取 Service（惰性访问，避免循环依赖）

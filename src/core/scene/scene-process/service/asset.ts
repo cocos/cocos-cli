@@ -3,7 +3,7 @@ import { IAssetEvents, IAssetService } from '../../common';
 import { Asset, assetManager, Component, Node, Prefab } from 'cc';
 import { assetWatcherManager } from './asset/asset-watcher';
 import { isEditorNode } from './node/node-utils';
-import { TimerUtil } from './prefab/timer-util';
+import { TimerUtil } from './utils/timer-util';
 
 @register('Asset')
 export class AssetService extends BaseService<IAssetEvents> implements IAssetService {
