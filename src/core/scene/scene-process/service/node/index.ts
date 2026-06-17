@@ -21,7 +21,6 @@ import { ServiceEvents } from '../core/global-events';
 // import nodeUtil from '../../../utils/node';
 import dumpUtil from '../dump';
 import { Service } from '../core/decorator';
-import { messageManager } from '../message';
 
 // import getComponentFunctionOfNode from '../component/get-component-function-of-node';
 import {
@@ -308,7 +307,6 @@ export class NodeManager {
 
         if (!isEditorNode(node)) {
             this.emit('node:added', node);
-            messageManager.broadcast('node:added', node);
         }
     }
 
@@ -328,7 +326,6 @@ export class NodeManager {
                 path = `__comps__.${index}`;
             }
             this.emit('node:change', node, { type: NodeOperationType.SET_PROPERTY, propPath: path });
-            messageManager.broadcastChangeNodeMsg(node);
         }
     }
 
@@ -340,7 +337,6 @@ export class NodeManager {
         this.unregisterEventListeners(node);
         if (!isEditorNode(node)) {
             this.emit('node:removed', node, { source: EventSourceType.ENGINE });
-            messageManager.broadcast('node:removed', node);
         }
     }
 

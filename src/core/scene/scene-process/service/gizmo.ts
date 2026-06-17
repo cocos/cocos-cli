@@ -39,7 +39,6 @@ import './gizmo/components/mesh-renderer';
 import './gizmo/components/skinned-mesh-renderer';
 import './gizmo/components/video-player';
 import './gizmo/components/web-view';
-import { messageManager } from './message';
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
 
@@ -306,18 +305,9 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             this.emit('gizmo:tool-changed', name);
             this.saveConfig();
         });
-        this.transformToolData.on('coordinate-changed', () => { 
-            messageManager.broadcast('gizmo:coordinate-changed');
-            this.saveConfig(); 
-        });
-        this.transformToolData.on('pivot-changed', () => { 
-            messageManager.broadcast('gizmo:pivot-changed');
-            this.saveConfig(); 
-        });
-        this.transformToolData.on('view-mode-changed', () => { 
-            messageManager.broadcast('gizmo:view-mode-changed');
-            this.saveConfig(); 
-        });
+        this.transformToolData.on('coordinate-changed', () => { ServiceEvents.emit('gizmo:coordinate-changed'); this.saveConfig(); });
+        this.transformToolData.on('pivot-changed', () => { ServiceEvents.emit('gizmo:pivot-changed'); this.saveConfig(); });
+        this.transformToolData.on('view-mode-changed', () => { ServiceEvents.emit('gizmo:view-mode-changed'); this.saveConfig(); });
 
         // 与 cocos-editor gizmos.ts 一致：dimension-changed → 同步相机 + 回调
         this.transformToolData.on('dimension-changed', (is2D: boolean) => {
@@ -327,7 +317,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 // Camera not ready yet
             }
             this.onDimensionChanged(is2D);
-            messageManager.broadcast('scene:dimension-changed', is2D);
+            ServiceEvents.emit('scene:dimension-changed', is2D);
             this.saveConfig();
         });
 

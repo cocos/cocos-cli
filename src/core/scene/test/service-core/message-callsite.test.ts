@@ -1,9 +1,8 @@
 /**
- * messageManager 调用方集成测试
+ * ServiceEvents 事件发射集成测试
  *
- * 验证各 Service/Manager 通过 messageManager.broadcast 正确发送跨进程事件
- * 注意：与 message.test.ts（测试 messageManager 自身 API）不同，
- * 本文件测试的是各调用方触发 messageManager.broadcast 的完整链路
+ * 验证各 Service/Manager 通过 ServiceEvents（globalEventEmitter）正确发射事件。
+ * messageManager 的转发由 ServiceManager 统一处理，此处仅验证事件源正确性。
  */
 
 // ==================== Mocks ====================
@@ -221,26 +220,20 @@ jest.mock('../../scene-process/service/component/utils', () => ({
 // ==================== Imports ====================
 
 import { globalEventEmitter } from '../../scene-process/service/core/global-events';
-import { messageManager } from '../../scene-process/service/message';
 
 // ==================== Tests ====================
 
-describe('messageManager 调用方集成测试', () => {
-    let broadcastSpy: jest.SpyInstance;
+describe('ServiceEvents 事件发射集成测试', () => {
 
     beforeEach(() => {
         globalEventEmitter.removeAllListeners();
-        messageManager.clear();
-        broadcastSpy = jest.spyOn(messageManager, 'broadcast');
     });
 
     afterEach(() => {
         globalEventEmitter.removeAllListeners();
-        messageManager.clear();
-        broadcastSpy.mockRestore();
     });
 
-    // ── GizmoService: transformToolData → messageManager.broadcast ──
+    // ── GizmoService: transformToolData → ServiceEvents.emit ──
 
     describe('GizmoService (gizmo.ts)', () => {
         let gizmoService: any;
@@ -259,59 +252,56 @@ describe('messageManager 调用方集成测试', () => {
             gizmoService.init();
         });
 
-        it('coordinate 变化应 broadcast gizmo:coordinate-changed', () => {
+        it('coordinate 变化应 emit gizmo:coordinate-changed 到 ServiceEvents', () => {
             const listener = jest.fn();
-            messageManager.on('gizmo:coordinate-changed', listener);
+            globalEventEmitter.on('gizmo:coordinate-changed', listener);
 
             gizmoService.transformToolData.coordinate = 'global';
 
-            expect(broadcastSpy).toHaveBeenCalledWith('gizmo:coordinate-changed');
             expect(listener).toHaveBeenCalledTimes(1);
         });
 
-        it('pivot 变化应 broadcast gizmo:pivot-changed', () => {
+        it('pivot 变化应 emit gizmo:pivot-changed 到 ServiceEvents', () => {
             const listener = jest.fn();
-            messageManager.on('gizmo:pivot-changed', listener);
+            globalEventEmitter.on('gizmo:pivot-changed', listener);
 
             gizmoService.transformToolData.pivot = 'center';
 
-            expect(broadcastSpy).toHaveBeenCalledWith('gizmo:pivot-changed');
             expect(listener).toHaveBeenCalledTimes(1);
         });
 
-        it('viewMode 变化应 broadcast gizmo:view-mode-changed', () => {
+        it('viewMode 变化应 emit gizmo:view-mode-changed 到 ServiceEvents', () => {
             const listener = jest.fn();
-            messageManager.on('gizmo:view-mode-changed', listener);
+            globalEventEmitter.on('gizmo:view-mode-changed', listener);
 
             gizmoService.transformToolData.viewMode = 'view';
 
-            expect(broadcastSpy).toHaveBeenCalledWith('gizmo:view-mode-changed');
             expect(listener).toHaveBeenCalledTimes(1);
         });
 
-        it('is2D 变化应 broadcast scene:dimension-changed', () => {
+        it('is2D 变化应 emit scene:dimension-changed 到 ServiceEvents', () => {
             const listener = jest.fn();
-            messageManager.on('scene:dimension-changed', listener);
+            globalEventEmitter.on('scene:dimension-changed', listener);
 
             gizmoService.transformToolData.is2D = true;
 
-            expect(broadcastSpy).toHaveBeenCalledWith('scene:dimension-changed', true);
             expect(listener).toHaveBeenCalledWith(true);
         });
 
-        it('coordinate 锁定时不应 broadcast', () => {
+        it('coordinate 锁定时不应 emit', () => {
             gizmoService.transformToolData.isLocked = true;
-            broadcastSpy.mockClear();
+            const listener = jest.fn();
+            globalEventEmitter.on('gizmo:coordinate-changed', listener);
 
             gizmoService.transformToolData.coordinate = 'local';
 
-            expect(broadcastSpy).not.toHaveBeenCalledWith('gizmo:coordinate-changed');
+            expect(listener).not.toHaveBeenCalled();
 
             gizmoService.transformToolData.isLocked = false;
         });
     });
 
-    // ── NodeManager: add / remove / change → messageManager.broadcast ──
+    // ── NodeManager: add / remove / change → ServiceEvents ──
 
     describe('NodeManager (node/index.ts)', () => {
         const { NodeManager } = require('../../scene-process/service/node/index');
@@ -327,63 +317,74 @@ describe('messageManager 调用方集成测试', () => {
             return node;
         }
 
-        it('add 应调用 messageManager.broadcast("node:added", node)', () => {
+        it('add 应 emit node:added 到 ServiceEvents', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('node:added', listener);
+
             const nodeMgr = new NodeManager();
             const node = createMockNode('add-test');
 
             nodeMgr.add('add-test', node);
 
-            expect(broadcastSpy).toHaveBeenCalledWith('node:added', node);
+            expect(listener).toHaveBeenCalledWith(node);
         });
 
-        it('remove 应调用 messageManager.broadcast("node:removed", node)', () => {
+        it('remove 应 emit node:removed 到 ServiceEvents', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('node:removed', listener);
+
             const nodeMgr = new NodeManager();
             const node = createMockNode('rm-test');
 
             nodeMgr.remove('rm-test', node);
 
-            expect(broadcastSpy).toHaveBeenCalledWith('node:removed', node);
+            expect(listener).toHaveBeenCalledWith(node, expect.any(Object));
         });
 
-        it('change 应调用 messageManager.broadcastChangeNodeMsg(node)', () => {
-            jest.useFakeTimers();
-            const changeSpy = jest.spyOn(messageManager, 'broadcastChangeNodeMsg');
+        it('change 应 emit node:change 到 ServiceEvents', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('node:change', listener);
+
             const nodeMgr = new NodeManager();
             const node = createMockNode('change-test');
 
             nodeMgr.change('change-test', node);
 
-            expect(changeSpy).toHaveBeenCalledWith(node);
-            changeSpy.mockRestore();
-            jest.useRealTimers();
+            expect(listener).toHaveBeenCalledWith(node, expect.objectContaining({ type: expect.any(String) }));
         });
     });
 
-    // ── CompManager: add / remove → messageManager.broadcast ──
+    // ── CompManager: add / remove → ServiceEvents ──
 
     describe('CompManager (component/index.ts)', () => {
         const { CompManager } = require('../../scene-process/service/component/index');
 
-        it('add 应调用 messageManager.broadcast("node:added", component)', () => {
+        it('add 应 emit component:added 到 ServiceEvents', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('component:added', listener);
+
             const compMgr = new CompManager();
             const mockComp = { uuid: 'comp-1', node: { uuid: 'n-1' } };
 
             compMgr.add('comp-1', mockComp);
 
-            expect(broadcastSpy).toHaveBeenCalledWith('node:added', mockComp);
+            expect(listener).toHaveBeenCalledWith(mockComp);
         });
 
-        it('remove 应调用 messageManager.broadcast("node:removed", component)', () => {
+        it('remove 应 emit component:removed 到 ServiceEvents', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('component:removed', listener);
+
             const compMgr = new CompManager();
             const mockComp = { uuid: 'comp-2', node: { uuid: 'n-2' } };
 
             compMgr.remove('comp-2', mockComp);
 
-            expect(broadcastSpy).toHaveBeenCalledWith('node:removed', mockComp);
+            expect(listener).toHaveBeenCalledWith(mockComp);
         });
     });
 
-    // ── EditorService: open / close / save / reload → messageManager.broadcast ──
+    // ── EditorService: open / close / save / reload → ServiceEvents ──
 
     describe('EditorService (editor.ts)', () => {
         let editorService: any;
@@ -393,7 +394,10 @@ describe('messageManager 调用方集成测试', () => {
             editorService = new EditorService();
         });
 
-        it('open 应调用 messageManager.broadcast("editor:open")', async () => {
+        it('open 应 emit editor:open 到 ServiceEvents', async () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('editor:open', listener);
+
             const mockEditor = { open: jest.fn().mockResolvedValue({}) };
             const uuid = 'test-uuid';
             editorService.editorMap.set(uuid, mockEditor);
@@ -402,10 +406,13 @@ describe('messageManager 调用方集成测试', () => {
 
             await editorService.open({ urlOrUUID: 'test.scene' });
 
-            expect(broadcastSpy).toHaveBeenCalledWith('editor:open');
+            expect(listener).toHaveBeenCalledTimes(1);
         });
 
-        it('close 应调用 messageManager.broadcast("editor:close")', async () => {
+        it('close 应 emit editor:close 到 ServiceEvents', async () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('editor:close', listener);
+
             const mockEditor = { close: jest.fn().mockResolvedValue(true) };
             const uuid = 'close-uuid';
             editorService.editorMap.set(uuid, mockEditor);
@@ -415,10 +422,13 @@ describe('messageManager 调用方集成测试', () => {
 
             await editorService.close({ urlOrUUID: uuid });
 
-            expect(broadcastSpy).toHaveBeenCalledWith('editor:close');
+            expect(listener).toHaveBeenCalledTimes(1);
         });
 
-        it('save 应调用 messageManager.broadcast("editor:save")', async () => {
+        it('save 应 emit editor:save 到 ServiceEvents', async () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('editor:save', listener);
+
             const mockEditor = { save: jest.fn().mockResolvedValue({ uuid: 'save-uuid' }) };
             const uuid = 'save-uuid';
             editorService.editorMap.set(uuid, mockEditor);
@@ -428,14 +438,17 @@ describe('messageManager 调用方集成测试', () => {
 
             await editorService.save({ urlOrUUID: uuid });
 
-            expect(broadcastSpy).toHaveBeenCalledWith('editor:save');
+            expect(listener).toHaveBeenCalledTimes(1);
         });
     });
 
-    // ── NodeService: setProperty(name) → messageManager.broadcast ──
+    // ── NodeService: setProperty(name) → ServiceEvents ──
 
     describe('NodeService (node.ts)', () => {
-        it('setProperty(name) 应调用 messageManager.broadcast("node:change", node)', async () => {
+        it('setProperty(name) 应 emit node:change 到 ServiceEvents', async () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('node:change', listener);
+
             const { NodeService } = require('../../scene-process/service/node');
             const nodeService = new NodeService();
 
@@ -452,7 +465,9 @@ describe('messageManager 调用方集成测试', () => {
             NodeMgr.getNodeByPath = jest.fn(() => node);
             NodeMgr.updateNodeName = jest.fn();
 
-            nodeService.emit = jest.fn();
+            nodeService.emit = jest.fn((...args: any[]) => {
+                globalEventEmitter.emit(args[0], ...args.slice(1));
+            });
 
             await nodeService.setProperty({
                 nodePath: '/TestNode',
@@ -460,11 +475,11 @@ describe('messageManager 调用方集成测试', () => {
                 dump: { value: 'NewName' },
             });
 
-            expect(broadcastSpy).toHaveBeenCalledWith('node:change', node);
+            expect(listener).toHaveBeenCalledWith(node, expect.objectContaining({ propPath: 'name' }));
         });
     });
 
-    // ── PrefabService: filterChild / filterPart / canModifySibling → messageManager.broadcast ──
+    // ── PrefabService: filterChild / filterPart / canModifySibling → ServiceEvents ──
 
     describe('PrefabService (prefab.ts)', () => {
         let prefabService: any;
@@ -489,45 +504,60 @@ describe('messageManager 调用方集成测试', () => {
             NodeMock.getNodePath = jest.fn((node: any) => `/${node.name}`);
         });
 
-        it('filterChildOfAssetOfPrefabInstance 中 prefab 子节点应 broadcast scene:change-node', () => {
+        it('filterChildOfAssetOfPrefabInstance 中 prefab 子节点应 emit scene:change-node', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('scene:change-node', listener);
+
             prefabUtilsMock.isOutmostPrefabInstanceMountedChildren.mockReturnValue(false);
             prefabUtilsMock.isPrefabInstanceRoot.mockReturnValue(false);
             prefabUtilsMock.isPartOfAssetInPrefabInstance.mockReturnValue(true);
 
             prefabService.filterChildOfAssetOfPrefabInstance(['child-uuid-1'], 'test operation');
 
-            expect(broadcastSpy).toHaveBeenCalledWith('scene:change-node', '/Node-child-uuid-1');
+            expect(listener).toHaveBeenCalledWith('/Node-child-uuid-1');
         });
 
-        it('filterChildOfAssetOfPrefabInstance 中非 prefab 子节点不应 broadcast', () => {
+        it('filterChildOfAssetOfPrefabInstance 中非 prefab 子节点不应 emit scene:change-node', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('scene:change-node', listener);
+
             prefabUtilsMock.isOutmostPrefabInstanceMountedChildren.mockReturnValue(false);
             prefabUtilsMock.isPrefabInstanceRoot.mockReturnValue(false);
             prefabUtilsMock.isPartOfAssetInPrefabInstance.mockReturnValue(false);
 
             const result = prefabService.filterChildOfAssetOfPrefabInstance(['normal-uuid'], 'test');
 
-            expect(broadcastSpy).not.toHaveBeenCalledWith('scene:change-node', expect.anything());
+            expect(listener).not.toHaveBeenCalled();
             expect(result).toContain('normal-uuid');
         });
 
-        it('filterPartOfPrefabAsset 中 prefab 部件应 broadcast scene:change-node', () => {
+        it('filterPartOfPrefabAsset 中 prefab 部件应 emit scene:change-node', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('scene:change-node', listener);
+
             prefabUtilsMock.isPartOfAssetInPrefabInstance.mockReturnValue(true);
 
             prefabService.filterPartOfPrefabAsset(['part-uuid'], 'test operation');
 
-            expect(broadcastSpy).toHaveBeenCalledWith('scene:change-node', '/Node-part-uuid');
+            expect(listener).toHaveBeenCalledWith('/Node-part-uuid');
         });
 
-        it('filterPartOfPrefabAsset 中非 prefab 部件不应 broadcast', () => {
+        it('filterPartOfPrefabAsset 中非 prefab 部件不应 emit scene:change-node', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('scene:change-node', listener);
+
             prefabUtilsMock.isPartOfAssetInPrefabInstance.mockReturnValue(false);
 
             const result = prefabService.filterPartOfPrefabAsset(['normal-uuid'], 'test');
 
-            expect(broadcastSpy).not.toHaveBeenCalledWith('scene:change-node', expect.anything());
+            expect(listener).not.toHaveBeenCalled();
             expect(result).toContain('normal-uuid');
         });
 
-        it('canModifySibling 中不可移动的 prefab 子节点应 broadcast scene:change-node', () => {
+        it('canModifySibling 中不可移动的 prefab 子节点应 emit scene:change-node', () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('scene:change-node', listener);
+
             const child = {
                 uuid: 'prefab-child',
                 name: 'PrefabChild',
@@ -549,7 +579,7 @@ describe('messageManager 调用方集成测试', () => {
 
             prefabService.canModifySibling('parent', 0, 1);
 
-            expect(broadcastSpy).toHaveBeenCalledWith('scene:change-node', '/PrefabChild');
+            expect(listener).toHaveBeenCalledWith('/PrefabChild');
         });
     });
 });

@@ -7,7 +7,6 @@ import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { type IComponentEvents } from '../../../common';
 import { ServiceEvents } from '../core/global-events';
-import { messageManager } from '../message';
 
 export class CompManager {
     protected _recycleComponent: Record<string, Component> = {};
@@ -60,7 +59,6 @@ export class CompManager {
      */
     add(uuid: string, component: Component) {
         this.emit('component:added', component);
-        messageManager.broadcast('node:added', component);
     }
 
     /**
@@ -70,7 +68,6 @@ export class CompManager {
      */
     remove(uuid: string, component: Component) {
         this.emit('component:removed', component);
-        messageManager.broadcast('node:removed', component);
     }
 
     /**

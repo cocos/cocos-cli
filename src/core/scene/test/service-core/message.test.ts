@@ -1,5 +1,12 @@
 import { messageManager } from '../../scene-process/service/message';
 
+// 类型安全事件定义示例
+interface TestEvents {
+    'test:typed': [string, number];
+    'test:no-args': [];
+    'test:single-arg': [{ id: string }];
+}
+
 describe('MessageManager', () => {
     let processSend: jest.SpyInstance;
     const originalConnected = (process as any).connected;
@@ -49,6 +56,59 @@ describe('MessageManager', () => {
 
             expect(listener).toHaveBeenCalledWith();
             expect(processSend).not.toHaveBeenCalled();
+        });
+    });
+
+    // ── 泛型类型安全 ──
+
+    describe('泛型类型安全', () => {
+        it('应支持泛型类型约束的事件监听和广播', () => {
+            const listener = jest.fn();
+            messageManager.on<TestEvents>('test:typed', listener);
+
+            messageManager.broadcast<TestEvents>('test:typed', 'hello', 42);
+
+            expect(listener).toHaveBeenCalledWith('hello', 42);
+        });
+
+        it('应支持无参数的泛型事件', () => {
+            const listener = jest.fn();
+            messageManager.on<TestEvents>('test:no-args', listener);
+
+            messageManager.broadcast<TestEvents>('test:no-args');
+
+            expect(listener).toHaveBeenCalledWith();
+        });
+
+        it('应支持对象参数的泛型事件', () => {
+            const listener = jest.fn();
+            const payload = { id: 'test-123' };
+            messageManager.on<TestEvents>('test:single-arg', listener);
+
+            messageManager.broadcast<TestEvents>('test:single-arg', payload);
+
+            expect(listener).toHaveBeenCalledWith(payload);
+        });
+
+        it('once 应支持泛型并只触发一次', () => {
+            const listener = jest.fn();
+            messageManager.once<TestEvents>('test:typed', listener);
+
+            messageManager.broadcast<TestEvents>('test:typed', 'a', 1);
+            messageManager.broadcast<TestEvents>('test:typed', 'b', 2);
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith('a', 1);
+        });
+
+        it('off 应支持泛型移除监听', () => {
+            const listener = jest.fn();
+            messageManager.on<TestEvents>('test:typed', listener);
+            messageManager.off<TestEvents>('test:typed', listener);
+
+            messageManager.broadcast<TestEvents>('test:typed', 'hello', 42);
+
+            expect(listener).not.toHaveBeenCalled();
         });
     });
 
@@ -250,6 +310,16 @@ describe('MessageManager', () => {
             expect(listener).toHaveBeenCalledTimes(1);
         });
 
+        it('gizmo:tool-changed — 工具切换', () => {
+            const listener = jest.fn();
+            messageManager.on('gizmo:tool-changed', listener);
+
+            messageManager.broadcast('gizmo:tool-changed', 'move');
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith('move');
+        });
+
         it('scene:dimension-changed — 2D/3D 维度切换', () => {
             const listener = jest.fn();
             messageManager.on('scene:dimension-changed', listener);
@@ -257,6 +327,64 @@ describe('MessageManager', () => {
             messageManager.broadcast('scene:dimension-changed', true);
 
             expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith(true);
+        });
+    });
+
+    describe('camera/scene-view 事件', () => {
+        it('camera:mode-change — 相机模式切换', () => {
+            const listener = jest.fn();
+            messageManager.on('camera:mode-change', listener);
+
+            messageManager.broadcast('camera:mode-change', 'free');
+
+            expect(listener).toHaveBeenCalledWith('free');
+        });
+
+        it('camera:projection-changed — 投影模式切换', () => {
+            const listener = jest.fn();
+            messageManager.on('camera:projection-changed', listener);
+
+            messageManager.broadcast('camera:projection-changed', 'perspective');
+
+            expect(listener).toHaveBeenCalledWith('perspective');
+        });
+
+        it('camera:fov-changed — FOV 变更', () => {
+            const listener = jest.fn();
+            messageManager.on('camera:fov-changed', listener);
+
+            messageManager.broadcast('camera:fov-changed', 60);
+
+            expect(listener).toHaveBeenCalledWith(60);
+        });
+
+        it('scene-view:visibility-changed — 可见性变更', () => {
+            const listener = jest.fn();
+            messageManager.on('scene-view:visibility-changed', listener);
+
+            messageManager.broadcast('scene-view:visibility-changed');
+
+            expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('scene-view:light-changed — 灯光变更', () => {
+            const listener = jest.fn();
+            messageManager.on('scene-view:light-changed', listener);
+
+            messageManager.broadcast('scene-view:light-changed');
+
+            expect(listener).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('dirty 事件', () => {
+        it('dirty:changed — 脏标记变更', () => {
+            const listener = jest.fn();
+            messageManager.on('dirty:changed', listener);
+
+            messageManager.broadcast('dirty:changed', true);
+
             expect(listener).toHaveBeenCalledWith(true);
         });
     });

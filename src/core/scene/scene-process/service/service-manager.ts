@@ -1,6 +1,7 @@
 import { getServiceAll, IServiceEvents, ServiceEvents } from './core';
 import { InternalServiceEvents } from './core/internal-events';
 import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents } from '../../common';
+import { messageManager } from './message';
 
 type AllEvents = IEditorEvents & INodeEvents & IComponentEvents & IScriptEvents & IAssetEvents & ISelectionEvents;
 
@@ -10,6 +11,22 @@ type FilteredEvents = Exclude<keyof AllEvents, 'asset-refresh'>;
 type EventMap = {
     [K in FilteredEvents]: keyof IServiceEvents;
 };
+
+// 仅需 messageManager 转发、无服务方法扇出的事件
+const MESSAGE_ONLY_EVENTS = [
+    'dirty:changed',
+    'gizmo:coordinate-changed',
+    'gizmo:pivot-changed',
+    'gizmo:view-mode-changed',
+    'gizmo:tool-changed',
+    'scene:dimension-changed',
+    'scene:change-node',
+    'camera:mode-change',
+    'camera:projection-changed',
+    'camera:fov-changed',
+    'scene-view:visibility-changed',
+    'scene-view:light-changed',
+] as const;
 
 // 定义事件分组映射
 const SERVICE_EVENTS_MAP: EventMap = {
@@ -139,9 +156,12 @@ export class ServiceManager {
         Object.entries(INTERNAL_SERVICE_EVENTS_MAP).forEach(([eventType, methodName]) => {
             this.registerAutoForwardEvent(eventType, methodName);
         });
+        // 仅需 messageManager 转发的事件（无服务方法扇出）
+        this.registerMessageOnlyForwardEvents();
     }
 
     private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName) {
+        const isNodeChange = eventType === 'node:change';
         const handler = (...args: any[]) => {
             for (const service of getServiceAll() as AutoForwardService[]) {
                 const serviceHandler = service[methodName];
@@ -153,10 +173,25 @@ export class ServiceManager {
                     }
                 }
             }
+            if (isNodeChange) {
+                messageManager.broadcastChangeNodeMsg(args[0]);
+            } else {
+                messageManager.broadcast(eventType, ...args);
+            }
         };
 
         ServiceEvents.on(eventType, handler);
         this.eventHandlers.set(eventType, handler);
+    }
+
+    private registerMessageOnlyForwardEvents() {
+        for (const eventType of MESSAGE_ONLY_EVENTS) {
+            const handler = (...args: any[]) => {
+                messageManager.broadcast(eventType, ...args);
+            };
+            ServiceEvents.on(eventType, handler);
+            this.eventHandlers.set(eventType, handler);
+        }
     }
 
     private unregisterAutoForwardEvents() {
