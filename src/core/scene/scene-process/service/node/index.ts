@@ -328,7 +328,7 @@ export class NodeManager {
                 path = `__comps__.${index}`;
             }
             this.emit('node:change', node, { type: NodeOperationType.SET_PROPERTY, propPath: path });
-            messageManager.broadcastChangeNodeMsg(node.uuid);
+            messageManager.broadcastChangeNodeMsg(node);
         }
     }
 

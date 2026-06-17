@@ -345,7 +345,7 @@ describe('messageManager 调用方集成测试', () => {
             expect(broadcastSpy).toHaveBeenCalledWith('node:removed', node);
         });
 
-        it('change 应调用 messageManager.broadcastChangeNodeMsg(node.uuid)', () => {
+        it('change 应调用 messageManager.broadcastChangeNodeMsg(node)', () => {
             jest.useFakeTimers();
             const changeSpy = jest.spyOn(messageManager, 'broadcastChangeNodeMsg');
             const nodeMgr = new NodeManager();
@@ -353,7 +353,7 @@ describe('messageManager 调用方集成测试', () => {
 
             nodeMgr.change('change-test', node);
 
-            expect(changeSpy).toHaveBeenCalledWith('change-test');
+            expect(changeSpy).toHaveBeenCalledWith(node);
             changeSpy.mockRestore();
             jest.useRealTimers();
         });
