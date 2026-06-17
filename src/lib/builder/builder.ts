@@ -1,4 +1,4 @@
-import type { IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
+import type { BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
 import type { BuildCheckResult, PlatformBuildSchema, PlatformConfigItem } from '../../core/builder/@types/protected';
 
@@ -30,9 +30,9 @@ export async function createBundleBuildTask(bundleOptions: IBundleBuildOptions) 
     return builder.createBundleBuildTask(bundleOptions);
 }
 
-export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<IBuildResultData> {
+export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
-    return builder.executeBuildStageTask(taskId, stageName, options);
+    return builder.executeBuildStageTask(taskId, stageName, options, onProgress);
 }
 
 export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions) {

@@ -1,6 +1,6 @@
 import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
-import { BuildExitCode, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
+import { BuildExitCode, BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { pluginManager } from './manager/plugin';
 import { formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
@@ -192,15 +192,19 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
     });
 }
 
-export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<IBuildResultData> {
+export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     if (!options.taskName) {
         options.taskName = stageName + ' build';
     }
     const restoreLogSink = newConsole.createLogSinkRestorer();
+    let buildStageTask: Awaited<ReturnType<typeof createBuildStageTask>> | undefined;
 
     try {
         ensureBuildLogSink(options, options.taskName);
-        const buildStageTask = await createBuildStageTask(taskId, stageName, options);
+        buildStageTask = await createBuildStageTask(taskId, stageName, options);
+        if (onProgress) {
+            buildStageTask.on('update', onProgress);
+        }
         const stageConfig = pluginManager.getBuildStageWithHookTasks(options.platform, stageName);
         const stageLabel = stageConfig!.name;
 
@@ -221,6 +225,9 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         console.error(error);
         return { code: BuildExitCode.BUILD_FAILED, reason: error?.message || String(error) };
     } finally {
+        if (buildStageTask && onProgress) {
+            buildStageTask.off('update', onProgress);
+        }
         restoreLogSink();
     }
 }

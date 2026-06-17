@@ -371,6 +371,8 @@ export interface IBuildStageOptions {
     logDest?: string;
 }
 
+export type BuildStageProgressCallback = (message: string, progress: number) => void;
+
 export const enum BuildExitCode {
     PARAM_ERROR = 32,
     BUILD_FAILED = 34,

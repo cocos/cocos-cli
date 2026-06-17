@@ -1142,6 +1142,7 @@ export declare class BuildResult implements IBuildResult {
     getJsonPathInfo(uuid: string): IImportAssetPathInfo[];
     getImportAssetPaths(uuid: string): IImportAssetPathInfo[];
 }
+export declare type BuildStageProgressCallback = (message: string, progress: number) => void;
 export declare class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     options: IBuildOptionBase;
     hooksInfo: IBuildHooksInfo;
@@ -1589,7 +1590,7 @@ export declare type EnumItem = string | {
     labelI18nKey?: string;
     value: string | number;
 };
-export declare function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<IBuildResultData>;
+export declare function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData>;
 export declare interface ExecuteHookTaskOption {
     pkgName: string;
     hook: string;
