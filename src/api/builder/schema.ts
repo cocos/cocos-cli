@@ -170,7 +170,7 @@ export const SchemaBuildRuntimeOptions = z.object({
     skipCheck: z.boolean().default(false).optional().describe('Skip build parameter check and auto-completion process. Only set to true when confirming other build parameters are complete, otherwise build may fail due to missing configuration'), // 跳过构建参数的检查和自动补全流程，请在确认其他构建参数都是完整的情况才能设置为 true ，否则可能因为缺少配置导致构建失败
     taskId: z.string().optional().describe('Specify build task ID'), // 指定构建任务 ID
     taskName: z.string().optional().describe('Specify build task name'), // 指定构建任务名称
-    // logDest: z.string().optional().describe('Specify build log output path'), // 指定构建日志输出地址
+    logDest: z.string().optional().describe('Specify build log output path'), // 指定构建日志输出地址
 });
 
 // ==================== Platform Specific Complete Build Options ==================== // 平台特定的完整构建选项
@@ -381,16 +381,16 @@ export type TPreviewSettingsResult = z.infer<typeof SchemaPreviewSettingsResult>
 // Build configuration query result: union type, all fields required, including packages, excluding runtime options
 // Build Configuration Query Result: Union type, all fields required, including packages, excluding runtime options // 构建配置查询结果：union 类型，所有字段必填，包含 packages，不包含运行时选项
 export const SchemaBuildConfigResult = z.union([
-    SchemaWebDesktopBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaWebMobileBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaWindowsBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaIOSBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaAndroidBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaMacBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaOhosBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaHarmonyOSNextBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaGooglePlayBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
-    SchemaOtherPlatformBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true }),
+    SchemaWebDesktopBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaWebMobileBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaWindowsBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaIOSBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaAndroidBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaMacBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaOhosBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaHarmonyOSNextBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaGooglePlayBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaOtherPlatformBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
 ]).nullable().describe('Build configuration query result (all fields required, including packages)'); // 构建配置查询结果（所有字段必填，包含 packages）
 
 export type TBuildConfigResult = z.infer<typeof SchemaBuildConfigResult>;

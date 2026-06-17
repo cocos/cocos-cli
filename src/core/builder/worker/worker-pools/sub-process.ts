@@ -5,6 +5,7 @@ interface IMessageInfo {
     path: string;
     method?: string;
     args?: any[];
+    logDest?: string;
 }
 
 process.on('uncaughtException', (err) => {
@@ -13,6 +14,7 @@ process.on('uncaughtException', (err) => {
 
 process.on('message', async function (msgInfo: IMessageInfo) {
     if (msgInfo.type === 'execute-script' && process.send) {
+        recordChildLog(msgInfo.logDest);
         const res = await executeScript(msgInfo.path, msgInfo.method, msgInfo.args);
         process.send({
             data: (res instanceof Error) ? res.message : res,
@@ -38,6 +40,21 @@ console.warn = function warning(...args: any[]) {
 };
 
 console.log(`enter sub process ${process.pid}, ${process.debugPort}, see: chrome://inspect/#devices`);
+
+let currentLogDest = '';
+function recordChildLog(logDest?: string) {
+    if (!logDest || currentLogDest === logDest) {
+        return;
+    }
+    try {
+        const { newConsole } = require('../../../base/console');
+        newConsole.init(logDest, true);
+        newConsole.record(logDest);
+        currentLogDest = logDest;
+    } catch (error) {
+        console.error(error);
+    }
+}
 
 async function executeScript(path: string, method = 'handler', args: any[] = []): Promise<any> {
     try {
