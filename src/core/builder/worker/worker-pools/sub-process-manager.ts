@@ -1,7 +1,6 @@
 
 import { ChildProcess, fork, ForkOptions, spawn } from 'child_process';
 import { join } from 'path';
-import { appendFileSync, ensureDirSync } from 'fs-extra';
 import { IQuickSpawnOption } from '../../@types/protected';
 import project from '../../../project';
 import { GlobalPaths } from '../../../../global';
@@ -172,24 +171,6 @@ class WorkerTask {
         return this._handleProcess;
     }
 
-    private appendWorkerLog(type: 'stdout' | 'stderr', data: Buffer | string) {
-        if (!this._logDest) {
-            return;
-        }
-        const message = Buffer.isBuffer(data) ? data.toString() : String(data);
-        if (!message) {
-            return;
-        }
-        try {
-            ensureDirSync(this._logDest);
-            const fileName = `${this.name.replace(/[\\/:*?"<>|]/g, '_')}.worker.log`;
-            const time = new Date().toISOString();
-            appendFileSync(join(this._logDest, fileName), `[${time}] [${type}] ${message.endsWith('\n') ? message : `${message}\n`}`, 'utf8');
-        } catch {
-            // ignore worker log sink failures
-        }
-    }
-
     private async createWorkerProcess() {
         const child = fork(workerPath, [], {
             execArgv: WorkerManager.defaultArgv || [],
@@ -220,11 +201,9 @@ class WorkerTask {
             this.close();
         });
         child.stdout?.on('data', (data: Buffer) => {
-            this.appendWorkerLog('stdout', data);
             console.log(`[${this.name}]` + data.toString());
         });
         child.stderr?.on('data', (data) => {
-            this.appendWorkerLog('stderr', data);
             const info: string = data.toString();
             // 调试模式下开启进程默认会在 stderr 里输出一段调试信息，这段信息在不同的设备上有的显示多行有的显示单行文字，因而需要做多次过滤
             if (!info || info.includes('Debugger') || info.includes('For help, see') || info.includes('Starting inspector on')) {

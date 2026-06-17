@@ -48,7 +48,7 @@ jest.mock('../../base/i18n', () => {
                 'i18n:honor-mini-game.title': '荣耀小游戏',
                 'i18n:migu-mini-game.title': '咪咕小游戏',
                 'i18n:sud-mini-game.title': 'SUD',
-                'i18n:sudv2-mini-game.title': 'SUDv2',
+                'i18n:openpaas.title': 'OpenPAAS Mini Game',
                 'i18n:fb-instant-games.title': 'Facebook Instant Games',
             };
             return map[name] || name;
@@ -306,8 +306,8 @@ const REAL_PLATFORM_CONFIGS: Record<string, { name: string; texture: PlatformCom
             support: { rgb: ['etc1_rgb'], rgba: ['etc1_rgb_a'] },
         },
     },
-    'sudv2-mini-game': {
-        name: 'i18n:sudv2-mini-game.title',
+    openpaas: {
+        name: 'i18n:openpaas.title',
         texture: {
             platformType: 'miniGame',
             support: { rgb: ['etc1_rgb'], rgba: ['etc1_rgb_a'] },
@@ -342,12 +342,12 @@ const ALL_FORMAT_TYPES: ITextureCompressFormatType[] = ['pvr', 'jpg', 'png', 'et
 const ALL_MINI_GAME_PLATFORMS = [
     'wechatgame', 'bytedance-mini-game', 'alipay-mini-game', 'taobao-mini-game',
     'xiaomi-quick-game', 'oppo-mini-game', 'vivo-mini-game', 'huawei-quick-game',
-    'honor-mini-game', 'migu-mini-game', 'sud-mini-game', 'sudv2-mini-game', 'fb-instant-games',
+    'honor-mini-game', 'migu-mini-game', 'sud-mini-game', 'openpaas', 'fb-instant-games',
 ];
 
 // 按纹理格式支持丰富度分类
 const MINI_GAME_FULL_SUPPORT = ['wechatgame', 'bytedance-mini-game', 'alipay-mini-game', 'taobao-mini-game'];
-const MINI_GAME_ETC_ONLY = ['xiaomi-quick-game', 'oppo-mini-game', 'vivo-mini-game', 'huawei-quick-game', 'honor-mini-game', 'migu-mini-game', 'sud-mini-game', 'sudv2-mini-game'];
+const MINI_GAME_ETC_ONLY = ['xiaomi-quick-game', 'oppo-mini-game', 'vivo-mini-game', 'huawei-quick-game', 'honor-mini-game', 'migu-mini-game', 'sud-mini-game', 'openpaas'];
 const MINI_GAME_ETC_PVRTC = ['fb-instant-games'];
 
 function createPluginManager(): PluginManager {
@@ -928,7 +928,7 @@ describe('纹理压缩完整测试', () => {
             expect(result.platformRenderConfigs.miniGame.platformConfigs['honor-mini-game'].platformName).toBe('荣耀小游戏');
             expect(result.platformRenderConfigs.miniGame.platformConfigs['migu-mini-game'].platformName).toBe('咪咕小游戏');
             expect(result.platformRenderConfigs.miniGame.platformConfigs['sud-mini-game'].platformName).toBe('SUD');
-            expect(result.platformRenderConfigs.miniGame.platformConfigs['sudv2-mini-game'].platformName).toBe('SUDv2');
+            expect(result.platformRenderConfigs.miniGame.platformConfigs.openpaas.platformName).toBe('OpenPAAS Mini Game');
             expect(result.platformRenderConfigs.miniGame.platformConfigs['fb-instant-games'].platformName).toBe('Facebook Instant Games');
         });
 
