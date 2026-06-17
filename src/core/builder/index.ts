@@ -4,7 +4,7 @@ import { BuildExitCode, IBuildCommandOption, IBuildResultData, IBuildStageOption
 import { pluginManager } from './manager/plugin';
 import { formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
-import { join } from 'path';
+import { basename, dirname, extname, isAbsolute, join } from 'path';
 import assetManager from '../assets/manager/asset';
 import { removeDbHeader } from './worker/builder/utils';
 import builderConfig from './share/builder-config';
@@ -26,6 +26,28 @@ export async function init(platform?: string) {
     }
 }
 
+function getBuilderLogRoot() {
+    const projectTempDir = builderConfig.projectTempDir;
+    return basename(projectTempDir) === 'builder' ? projectTempDir : join(projectTempDir, 'builder');
+}
+
+function normalizeBuildLogDest(logDest: string | undefined, taskName: string) {
+    const fallback = join(getBuilderLogRoot(), 'log', `${taskName.replace(/[\\/:*?"<>|]/g, '_')}-${Date.now()}`);
+    let resolvedLogDest = logDest ? utils.Path.resolveToRaw(logDest) : fallback;
+    if (!isAbsolute(resolvedLogDest)) {
+        resolvedLogDest = join(builderConfig.projectRoot, resolvedLogDest);
+    }
+    return extname(resolvedLogDest).toLowerCase() === '.log' ? dirname(resolvedLogDest) : resolvedLogDest;
+}
+
+function ensureBuildLogSink(options: { logDest?: string; taskName?: string; platform?: string }, fallbackTaskName: string, logDest?: string) {
+    const taskName = options.taskName || fallbackTaskName;
+    options.taskName = taskName;
+    options.logDest = normalizeBuildLogDest(logDest || options.logDest, taskName);
+    newConsole.record(options.logDest);
+    return options.logDest;
+}
+
 export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
     if (!options) {
         options = await pluginManager.getOptionsByPlatform(platform);
@@ -38,6 +60,7 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
     }
     options.taskId = options.taskId || String(new Date().getTime());
     options.taskName = options.taskName || platform;
+    ensureBuildLogSink(options, platform);
 
     // @ts-ignore
     let realOptions: IBuildTaskOption<any> = options;
@@ -52,6 +75,7 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
     }
 
     // 从项目配置中补充 includeModules
+    realOptions.logDest = options.logDest;
     await fillIncludeModulesFromProjectConfig(realOptions);
 
     const { BuildTask } = await import('./worker/builder');
@@ -61,11 +85,12 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
     const startTime = Date.now();
     let buildSuccess = true;
+    const restoreLogSink = newConsole.createLogSinkRestorer();
 
     // 显示构建开始信息
-    newConsole.buildStart(platform);
     try {
         const builder = await createBuildTask(platform, options);
+        newConsole.buildStart(platform);
 
         // 监听构建进度
         builder.on('update', (message: string, progress: number) => {
@@ -90,6 +115,8 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
             errorCode = BuildExitCode.BUILD_FAILED;
         }
         return { code: errorCode as Exclude<BuildExitCode, BuildExitCode.BUILD_SUCCESS>, reason: error?.message || String(error) };
+    } finally {
+        restoreLogSink();
     }
 }
 
@@ -104,8 +131,10 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
     const options = bundleOptions.buildTaskOptions;
     const tasksLabel = bundleOptions.taskName || 'bundle Build';
     const taskStartTime = Date.now();
+    const restoreLogSink = newConsole.createLogSinkRestorer();
 
     try {
+        bundleOptions.logDest = ensureBuildLogSink(options, tasksLabel, bundleOptions.logDest);
         newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
         console.debug('Start build task, options:', options);
         newConsole.trackMemoryStart(`builder:build-bundle-total`);
@@ -134,6 +163,8 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
         const totalDuration = formatMSTime(Date.now() - startTime);
         newConsole.taskComplete('Bundle Build', false, totalDuration);
         return { code: BuildExitCode.BUILD_FAILED, reason: errMsg };
+    } finally {
+        restoreLogSink();
     }
 }
 
@@ -165,8 +196,10 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     if (!options.taskName) {
         options.taskName = stageName + ' build';
     }
+    const restoreLogSink = newConsole.createLogSinkRestorer();
 
     try {
+        ensureBuildLogSink(options, options.taskName);
         const buildStageTask = await createBuildStageTask(taskId, stageName, options);
         const stageConfig = pluginManager.getBuildStageWithHookTasks(options.platform, stageName);
         const stageLabel = stageConfig!.name;
@@ -187,6 +220,8 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     } catch (error: any) {
         console.error(error);
         return { code: BuildExitCode.BUILD_FAILED, reason: error?.message || String(error) };
+    } finally {
+        restoreLogSink();
     }
 }
 

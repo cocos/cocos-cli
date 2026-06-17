@@ -926,17 +926,27 @@ export class PluginManager extends EventEmitter {
     }
 
     public queryPlatformConfig(): PlatformConfigItem[] {
-        return Object.entries(this.platformConfig).map(([platform, config]) => ({
-            platform,
-            displayName: translateDisplayValue(config.name || platform) || platform,
-            platformType: config.platformType,
-            isNative: NATIVE_PLATFORM.includes(platform as Platform),
-            doc: config.doc,
-            // 打包平台路径
-            pluginPath: config.pluginPath || this.platformRegisterInfoPool.get(platform)?.path || '',
-            createTemplateLabel: config.createTemplateLabel && translateDisplayValue(config.createTemplateLabel),
-            supportTextureCompress: !!config.texture,
-        }));
+        return Object.entries(this.platformConfig).map(([platform, config]) => {
+            const customStages = this.customBuildStages[platform];
+            const stageConfigs = customStages
+                ? this.sortPkgNameWidthPriority(Object.keys(customStages))
+                    .flatMap((pkgName) => customStages[pkgName] || [])
+                    .map((stage) => lodash.cloneDeep(stage))
+                : undefined;
+
+            return {
+                platform,
+                displayName: translateDisplayValue(config.name || platform) || platform,
+                platformType: config.platformType,
+                isNative: NATIVE_PLATFORM.includes(platform as Platform),
+                doc: config.doc,
+                // 打包平台路径
+                pluginPath: config.pluginPath || this.platformRegisterInfoPool.get(platform)?.path || '',
+                createTemplateLabel: config.createTemplateLabel && translateDisplayValue(config.createTemplateLabel),
+                supportTextureCompress: !!config.texture,
+                customBuildStages: stageConfigs?.length ? stageConfigs : undefined,
+            };
+        });
     }
 
     public getRegisteredPlatforms(): string[] {

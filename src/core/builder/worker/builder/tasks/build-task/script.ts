@@ -12,11 +12,16 @@ import i18n from '../../../../../base/i18n';
 import { IBuilder, IInternalBuildOptions } from '../../../../@types/protected';
 
 export const title = 'i18n:builder.tasks.build_script';
+const scriptWorkerLogDestKey = '__cocosBuildLogDest';
 
 export async function handle(this: IBuilder, options: IInternalBuildOptions, result: InternalBuildResult, cache: BuilderAssetCache) {
 
     newConsole.trackTimeStart('builder:build-script-total');
-    const hasPolyFill = await ScriptBuilder.buildPolyfills(options.polyfills, result.paths.polyfillsJs!);
+    const polyfills = {
+        ...(options.polyfills || {}),
+        [scriptWorkerLogDestKey]: options.logDest,
+    };
+    const hasPolyFill = await ScriptBuilder.buildPolyfills(polyfills, result.paths.polyfillsJs!);
     if (!hasPolyFill) {
         delete result.paths.polyfillsJs;
     }
@@ -27,7 +32,8 @@ export async function handle(this: IBuilder, options: IInternalBuildOptions, res
         debug: options.debug,
         platform: options.platform,
         hotModuleReload: options.buildScriptParam.hotModuleReload,
-    });
+        [scriptWorkerLogDestKey]: options.logDest,
+    } as any);
 
     // 编译 bundle 项目脚本
     const buildProjectScriptRes = await this.bundleManager.buildScript();
@@ -62,12 +68,12 @@ export async function handle(this: IBuilder, options: IInternalBuildOptions, res
                 engine: options.buildEngineParam.entry,
                 importMapOutFile: result.paths.importMap,
                 useCacheForce: true,
-            });
+            }, options.logDest);
             result.paths.engineMeta = res.paths.meta;
             Object.assign(result.importMap.imports, res.importMap);
             result.separateEngineResult = res;
         } else {
-            const { metaFile } = await buildEngineX(options.buildEngineParam, ScriptBuilder.projectOptions.ccEnvConstants);
+            const { metaFile } = await buildEngineX(options.buildEngineParam, ScriptBuilder.projectOptions.ccEnvConstants, options.logDest);
             result.paths.engineMeta = metaFile;
             const importMaps = await queryEngineImportMap(metaFile, options.buildEngineParam.output, dirname(result.paths.importMap));
             Object.assign(result.importMap.imports, importMaps);

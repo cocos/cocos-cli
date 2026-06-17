@@ -1,4 +1,5 @@
 import { basename, join } from 'path';
+import { ensureDirSync } from 'fs-extra';
 import { consola, type ConsolaInstance } from 'consola';
 import type { Ora } from 'ora';
 import pino from 'pino';
@@ -92,25 +93,26 @@ export class NewConsole {
      * 开始记录资源导入日志
      * */
     public record(logDest?: string) {
-        if (this._start) {
-            console.warn('Console is already recording logs.');
-            return;
-        }
         logDest && (this.logDest = logDest);
         if (!this.logDest) {
             console.error('logDest is required');
+            return;
+        }
+        if (this._start) {
+            this.resetPinoLogger();
+            rawConsole.debug(`Switch record log to {file(${this.logDest})}`);
             return;
         }
         // @ts-ignore
         if (globalThis.console.switchConsole) {
             // @ts-ignore
             globalThis.console.switchConsole(this);
+            this._start = true;
             return;
         }
 
         this.flush(); // Finish previous writes
-
-        // Reset pino using new log destination
+        ensureDirSync(this.logDest);
         const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
         this.pino = pino({
             level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
@@ -160,6 +162,66 @@ export class NewConsole {
         // @ts-ignore
         globalThis.console = this;
         rawConsole.debug(`Start record log in {file(${this.logDest})}`);
+    }
+
+    public createLogSinkRestorer() {
+        const previousLogDest = this.logDest;
+        const wasRecording = this._start;
+        let restored = false;
+
+        return () => {
+            if (restored) {
+                return;
+            }
+            restored = true;
+            this.flush();
+
+            if (wasRecording && previousLogDest) {
+                this.record(previousLogDest);
+                return;
+            }
+
+            if (this._start) {
+                this.stopRecord();
+            }
+            this.logDest = previousLogDest;
+        };
+    }
+
+    /**
+     * Reset file log sink.
+     */
+    private resetPinoLogger() {
+        this.flush(); // Finish previous writes
+        ensureDirSync(this.logDest);
+
+        const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+        this.pino = pino({
+            level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
+                ? 'debug' : 'trace',
+            transport: !isTest ? {
+                targets: [
+                    {
+                        target: 'pino-transport-rotating-file',
+                        options: {
+                            dir: this.logDest,
+                            filename: 'cocos',
+                            enabled: true,
+                            size: '1M',
+                            interval: '1d',
+                            compress: true,
+                            immutable: true,
+                            retentionDays: 30,
+                            compressionOptions: { level: 6, strategy: 0 },
+                            errorLogFile: join(this.logDest, 'errors.log'),
+                            timestampFormat: 'iso',
+                            skipPretty: false,
+                            errorFlushIntervalMs: 100, // Reduced for faster flush
+                        },
+                    }
+                ],
+            } : undefined
+        });
     }
 
     /**
@@ -260,6 +322,22 @@ export class NewConsole {
 
     public debug(...args: any[]) {
         this._logMessage('debug', ...args);
+    }
+
+    public group(...args: any[]) {
+        if (args.length > 0) {
+            this._logMessage('debug', ...args);
+        }
+    }
+
+    public groupCollapsed(...args: any[]) {
+        if (args.length > 0) {
+            this._logMessage('debug', ...args);
+        }
+    }
+
+    public groupEnd() {
+        // Compatibility with native console group APIs.
     }
 
     /**

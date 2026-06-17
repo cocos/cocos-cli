@@ -1443,17 +1443,18 @@ export class GltfConverter {
 
         for (const attributeName of Object.getOwnPropertyNames(glTFPrimitive.attributes)) {
             const attributeAccessor = this._gltf.accessors![glTFPrimitive.attributes[attributeName]];
+            const semantic = glTFAttributeNameToPP(attributeName);
             let data: PPGeometryTypedArray;
             if (decodedDracoGeometry && attributeName in decodedDracoGeometry.vertices) {
-                const dracoDecodedAttribute = decodedDracoGeometry.vertices[attributeName];
-                data = dracoDecodedAttribute;
+                data = decodedDracoGeometry.vertices[attributeName];
             } else {
-                const plainAttribute = this._readAccessorIntoArray(attributeAccessor);
-                data = plainAttribute;
+                data = this._readAccessorIntoArray(attributeAccessor);
             }
-            const semantic = glTFAttributeNameToPP(attributeName);
+            if (this._shouldDecodeAttributeAsNormalizedFloat(semantic, attributeAccessor)) {
+                data = this._normalizeTypedArrayAsFloat(data);
+            }
             const components = this._getComponentsPerAttribute(attributeAccessor.type);
-            ppGeometry.setAttribute(semantic, data, components);
+            ppGeometry.setAttribute(semantic, data, components, this._getAttributeNormalizedFlag(attributeAccessor, data));
         }
 
         if (glTFPrimitive.targets) {
@@ -1633,38 +1634,46 @@ export class GltfConverter {
     }
 
     private _readAccessorIntoArrayAndNormalizeAsFloat(gltfAccessor: Accessor) {
-        let outputs = this._readAccessorIntoArray(gltfAccessor);
-        if (!(outputs instanceof Float32Array)) {
-            const normalizedOutput = new Float32Array(outputs.length);
-            const normalize = (() => {
-                if (outputs instanceof Int8Array) {
-                    return (value: number) => {
-                        return Math.max(value / 127.0, -1.0);
-                    };
-                } else if (outputs instanceof Uint8Array) {
-                    return (value: number) => {
-                        return value / 255.0;
-                    };
-                } else if (outputs instanceof Int16Array) {
-                    return (value: number) => {
-                        return Math.max(value / 32767.0, -1.0);
-                    };
-                } else if (outputs instanceof Uint16Array) {
-                    return (value: number) => {
-                        return value / 65535.0;
-                    };
-                } else {
-                    return (value: number) => {
-                        return value;
-                    };
-                }
-            })();
-            for (let i = 0; i < outputs.length; ++i) {
-                normalizedOutput[i] = normalize(outputs[i]); // Do normalize.
-            }
-            outputs = normalizedOutput;
+        return this._normalizeTypedArrayAsFloat(this._readAccessorIntoArray(gltfAccessor));
+    }
+
+    private _shouldDecodeAttributeAsNormalizedFloat(semantic: PPGeometry.Semantic, gltfAccessor: Accessor) {
+        return (
+            gltfAccessor.normalized === true &&
+            PPGeometry.isStdSemantic(semantic) &&
+            PPGeometry.StdSemantics.decode(semantic).semantic0 === PPGeometry.StdSemantics.weights
+        );
+    }
+
+    private _getAttributeNormalizedFlag(gltfAccessor: Accessor, data: PPGeometryTypedArray) {
+        if (data instanceof Float32Array || gltfAccessor.normalized !== true) {
+            return undefined;
         }
-        return outputs;
+        return true;
+    }
+
+    private _normalizeTypedArrayAsFloat(outputs: PPGeometryTypedArray) {
+        if (outputs instanceof Float32Array) {
+            return outputs;
+        }
+        const normalizedOutput = new Float32Array(outputs.length);
+        const normalize = (() => {
+            if (outputs instanceof Int8Array) {
+                return (value: number) => Math.max(value / 127.0, -1.0);
+            } else if (outputs instanceof Uint8Array) {
+                return (value: number) => value / 255.0;
+            } else if (outputs instanceof Int16Array) {
+                return (value: number) => Math.max(value / 32767.0, -1.0);
+            } else if (outputs instanceof Uint16Array) {
+                return (value: number) => value / 65535.0;
+            } else {
+                return (value: number) => value;
+            }
+        })();
+        for (let i = 0; i < outputs.length; ++i) {
+            normalizedOutput[i] = normalize(outputs[i]);
+        }
+        return normalizedOutput;
     }
 
     private _getSceneNode(iGltfScene: number, gltfAssetFinder: IGltfAssetFinder, withTransform = true) {

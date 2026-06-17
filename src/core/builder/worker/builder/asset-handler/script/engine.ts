@@ -57,8 +57,9 @@ const exportsMetaFile = 'meta.json';
 export async function buildEngineX(
     options: IBuildEngineParam,
     ccEnvConstants: StatsQuery.ConstantManager.CCEnvConstants,
+    logDest?: string,
 ) {
-    const { output, metaFile } = await buildEngine(options, ccEnvConstants);
+    const { output, metaFile } = await buildEngine(options, ccEnvConstants, logDest);
 
     await emptyDir(options.output!);
 
@@ -98,7 +99,7 @@ const fixedMd5Keys: readonly (keyof IInternalBuildOptions['buildEngineParam'] | 
     'inlineEnum',
 ];
 
-async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuery.ConstantManager.CCEnvConstants) {
+async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuery.ConstantManager.CCEnvConstants, logDest?: string) {
     // TODO
     const noDeprecatedFeaturesConfig: { value: boolean, version: string } = { value: false, version: '' };
     const loose: boolean = options.loose || false;
@@ -204,7 +205,7 @@ async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuer
     });
     console.debug(`Cache is invalid, start build engine with options: ${JSON.stringify(buildOptions, null, 2)}`);
     console.debug(`md5String: ${md5String.split(',').join(',\n')}`);
-    await workerManager.runTask('build-engine', 'buildEngineCommand', [buildOptions]);
+    await workerManager.runTask('build-engine', 'buildEngineCommand', [buildOptions], logDest);
     // await buildEngineCommand(buildOptions);
 
     await outputCacheJson(options, output);
@@ -218,13 +219,13 @@ async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuer
     };
 }
 
-export async function buildSplitEngine(options: IBuildSeparateEngineOptions): Promise<IBuildSeparateEngineResult> {
+export async function buildSplitEngine(options: IBuildSeparateEngineOptions, logDest?: string): Promise<IBuildSeparateEngineResult> {
     // 引擎编译目前编译内存占用较大，需要独立进程管理
     await workerManager.registerTask({
         name: 'build-engine',
         path: join(__dirname, './build-engine'),
     });
-    return await workerManager.runTask('build-engine', 'buildSeparateEngine', [options]);
+    return await workerManager.runTask('build-engine', 'buildSeparateEngine', [options], logDest);
     // return await buildSeparateEngine(options);
 }
 /**

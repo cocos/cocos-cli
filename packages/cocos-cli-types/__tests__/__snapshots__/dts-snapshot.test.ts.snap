@@ -2215,6 +2215,7 @@ export declare interface IBuildStageOptions {
     dest: string;
     platform: Platform | string;
     taskName?: string;
+    logDest?: string;
 }
 export declare interface IBuildStagesInfo {
     pkgNameOrder: string[];
@@ -3979,6 +3980,7 @@ export declare interface PlatformConfigItem {
     pluginPath: string;
     createTemplateLabel?: string;
     supportTextureCompress: boolean;
+    customBuildStages?: IBuildStageItem[];
 }
 export declare interface PlatformPackageOptionMap {
     'web-desktop': webDesktopOptions;

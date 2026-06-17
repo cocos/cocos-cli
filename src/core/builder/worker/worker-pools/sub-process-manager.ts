@@ -1,6 +1,7 @@
 
 import { ChildProcess, fork, ForkOptions, spawn } from 'child_process';
-import { dirname, join } from 'path';
+import { join } from 'path';
+import { appendFileSync, ensureDirSync } from 'fs-extra';
 import { IQuickSpawnOption } from '../../@types/protected';
 import project from '../../../project';
 import { GlobalPaths } from '../../../../global';
@@ -12,6 +13,7 @@ interface ChildProcessMessageInfo {
     type: string;
     data: any;
     code?: number;
+    logDest?: string;
 }
 
 interface ITask {
@@ -88,6 +90,7 @@ class WorkerTask {
     options?: ForkOptions;
     _name: string;
     _method?: string;
+    _logDest?: string;
 
     get name() {
         return this._method || this._name;
@@ -115,6 +118,7 @@ class WorkerTask {
         console.debug(`execute-script-end with ${this.name} ${Date.now() - this.startTime}ms`);
         this._hasResolve = true;
         delete this._method;
+        delete this._logDest;
         this._resolve(value);
     };
     readonly reject = (error?: Error) => {
@@ -125,6 +129,7 @@ class WorkerTask {
         console.error(error);
         this._hasReject = true;
         delete this._method;
+        delete this._logDest;
         this._reject(error);
     };
 
@@ -138,13 +143,14 @@ class WorkerTask {
         this.options = params.options;
     }
 
-    public async execute(method: string, args?: any[]) {
+    public async execute(method: string, args?: any[], logDest?: string) {
         const child = await this.getWorkerProcess();
         if (!child) {
             throw new Error('No worker ' + this.name);
         }
         return new Promise<any>((resolve, reject) => {
             this._method = method;
+            this._logDest = logDest;
             this.setResolve(resolve);
             this.setReject(reject);
             this.startTime = Date.now();
@@ -153,6 +159,7 @@ class WorkerTask {
                 path: this.path,
                 method,
                 args,
+                logDest,
             });
             processPool.running(child);
         });
@@ -163,6 +170,24 @@ class WorkerTask {
             this._handleProcess = await this.createWorkerProcess();
         }
         return this._handleProcess;
+    }
+
+    private appendWorkerLog(type: 'stdout' | 'stderr', data: Buffer | string) {
+        if (!this._logDest) {
+            return;
+        }
+        const message = Buffer.isBuffer(data) ? data.toString() : String(data);
+        if (!message) {
+            return;
+        }
+        try {
+            ensureDirSync(this._logDest);
+            const fileName = `${this.name.replace(/[\\/:*?"<>|]/g, '_')}.worker.log`;
+            const time = new Date().toISOString();
+            appendFileSync(join(this._logDest, fileName), `[${time}] [${type}] ${message.endsWith('\n') ? message : `${message}\n`}`, 'utf8');
+        } catch {
+            // ignore worker log sink failures
+        }
     }
 
     private async createWorkerProcess() {
@@ -195,9 +220,11 @@ class WorkerTask {
             this.close();
         });
         child.stdout?.on('data', (data: Buffer) => {
+            this.appendWorkerLog('stdout', data);
             console.log(`[${this.name}]` + data.toString());
         });
         child.stderr?.on('data', (data) => {
+            this.appendWorkerLog('stderr', data);
             const info: string = data.toString();
             // 调试模式下开启进程默认会在 stderr 里输出一段调试信息，这段信息在不同的设备上有的显示多行有的显示单行文字，因而需要做多次过滤
             if (!info || info.includes('Debugger') || info.includes('For help, see') || info.includes('Starting inspector on')) {
@@ -258,13 +285,13 @@ export class WorkerManager {
         this.taskMap[task.name] = new WorkerTask(task);
     }
 
-    public async runTask(name: string, method: string, args?: any[]) {
+    public async runTask(name: string, method: string, args?: any[], logDest?: string) {
         this.resetClearTimer();
         const task = this.taskMap[name];
         if (!task) {
             throw new Error('No worker ' + name);
         }
-        return await task.execute(method, args);
+        return await task.execute(method, args, logDest);
     }
 
     /**

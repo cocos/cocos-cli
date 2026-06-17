@@ -183,6 +183,57 @@ describe('PluginManager platform config schema queries', () => {
         }));
     });
 
+    it('queryPlatformConfig returns custom build stages registered from platform config', async () => {
+        await (pm as any).internalRegister({
+            platform: 'test',
+            path: '/plugins/test',
+            type: 'register',
+            config: {
+                priority: 0,
+                customBuildStages: [{
+                    name: 'make',
+                    displayName: 'Make',
+                    description: 'Make Description',
+                    hook: 'make',
+                }],
+            },
+        });
+        await (pm as any).internalRegister({
+            platform: 'test',
+            path: '/plugins/custom',
+            type: 'plugin',
+            pkgName: 'custom',
+            config: {
+                priority: 10,
+                customBuildStages: [{
+                    name: 'deploy',
+                    displayName: 'Deploy',
+                    description: 'Deploy Description',
+                    hook: 'deploy',
+                    hidden: true,
+                }],
+            },
+        });
+
+        const [result] = pm.queryPlatformConfig();
+
+        expect(result.customBuildStages).toEqual([{
+            name: 'deploy',
+            displayName: 'Deploy',
+            description: 'Deploy Description',
+            hook: 'deploy',
+            hidden: true,
+        }, {
+            name: 'make',
+            displayName: 'Make',
+            description: 'Make Description',
+            hook: 'make',
+        }]);
+
+        result.customBuildStages![0].displayName = 'Changed';
+        expect((pm as any).customBuildStages.test.custom[0].displayName).toBe('Deploy');
+    });
+
     it('returns common options and platform options for a platform', () => {
         const result = pm.getPlatformBuildSchema('test');
 

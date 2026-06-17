@@ -368,6 +368,7 @@ export interface IBuildStageOptions {
     dest: string;
     platform: Platform | string;
     taskName?: string;
+    logDest?: string;
 }
 
 export const enum BuildExitCode {
