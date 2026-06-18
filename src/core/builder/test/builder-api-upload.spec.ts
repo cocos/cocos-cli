@@ -30,10 +30,32 @@ describe('BuilderApi upload', () => {
         expect(mockExecuteBuildStageTask).toHaveBeenCalledWith('openpaas', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
+            packages: undefined,
         });
         expect(result).toEqual({
             code: 200,
             data: uploadResult,
+        });
+    });
+
+    it('passes accessToken to upload stage package options', async () => {
+        const { BuilderApi } = await import('../../../api/builder/builder');
+        mockExecuteBuildStageTask.mockResolvedValueOnce({
+            code: 0,
+            dest: 'project://build/openpaas',
+            custom: {},
+        });
+
+        await new BuilderApi().upload('openpaas', 'build/openpaas', 'token-1');
+
+        expect(mockExecuteBuildStageTask).toHaveBeenCalledWith('openpaas', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+            packages: {
+                openpaas: {
+                    accessToken: 'token-1',
+                },
+            },
         });
     });
 

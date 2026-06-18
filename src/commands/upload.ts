@@ -12,10 +12,11 @@ export class UploadCommand extends BaseCommand {
             .description('Upload a built Cocos package')
             .requiredOption('-p, --platform <platform>', 'Target platform')
             .requiredOption('-d, --dest <path>', 'Destination path of the built project')
+            .option('--access-token <token>', 'Access token used by the target platform upload API')
             .action(async (options: any) => {
                 try {
                     const { CocosAPI } = await import('../api/index');
-                    const result = await CocosAPI.uploadProject(options.platform, options.dest);
+                    const result = await CocosAPI.uploadProject(options.platform, options.dest, options.accessToken);
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('Upload completed successfully!'));
                     } else {

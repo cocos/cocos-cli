@@ -2,7 +2,7 @@ import { build, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from 
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, IUploadResultData, SchemaMakeResult, SchemaUploadResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, IUploadResultData, SchemaMakeResult, SchemaUploadResult, SchemaUploadAccessToken, TUploadAccessToken } from './schema';
 
 export class BuilderApi {
 
@@ -133,7 +133,7 @@ export class BuilderApi {
     @title('Upload Build Package') // 上传构建产物
     @description('Upload a previously built game package, supported only by some platforms') // 上传已经构建好的游戏包，仅部分平台支持
     @result(SchemaUploadResult)
-    async upload(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest): Promise<CommonResultType<IUploadResultData>> {
+    async upload(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest, @param(SchemaUploadAccessToken) accessToken?: TUploadAccessToken): Promise<CommonResultType<IUploadResultData>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
         const ret: CommonResultType<IUploadResultData> = {
             code: code,
@@ -143,6 +143,11 @@ export class BuilderApi {
             const res = await executeBuildStageTask(platform, 'upload', {
                 dest,
                 platform,
+                packages: accessToken ? {
+                    [platform]: {
+                        accessToken,
+                    },
+                } : undefined,
             });
             ret.data = res as IUploadResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {

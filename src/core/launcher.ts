@@ -149,13 +149,18 @@ export default class Launcher {
         });
     }
 
-    static async upload(platform: Platform, dest: string) {
+    static async upload(platform: Platform, dest: string, accessToken?: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
         await init(platform);
         return await executeBuildStageTask('command upload', 'upload', {
             platform,
             dest,
+            packages: accessToken ? {
+                [platform]: {
+                    accessToken,
+                },
+            } : undefined,
         });
     }
 

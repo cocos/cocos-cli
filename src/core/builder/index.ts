@@ -176,6 +176,7 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
         if (!buildOptions) {
             throw new Error('Build options is not exist!');
         }
+        mergeBuildStageRuntimeOptions(buildOptions, options);
     }
 
     const { BuildStageTask } = await import('./worker/builder/stage-task-manager');
@@ -190,6 +191,19 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
         buildTaskOptions: buildOptions!,
         ...stageConfig,
     });
+}
+
+function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, options: IBuildStageOptions) {
+    if (!options.packages) {
+        return;
+    }
+    buildOptions.packages = buildOptions.packages || {};
+    for (const [platform, packageOptions] of Object.entries(options.packages)) {
+        buildOptions.packages[platform] = {
+            ...(buildOptions.packages[platform] || {}),
+            ...packageOptions,
+        };
+    }
 }
 
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {

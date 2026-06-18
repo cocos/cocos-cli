@@ -418,5 +418,8 @@ export type TWebMobilePackages = z.infer<typeof SchemaWebMobilePackages>;
 export const SchemaBuildDest = z.string().min(1).describe('Build Output Directory, supports absolute path and project:// protocol URL'); // 构建输出目录，支持绝对路径和 project:// 协议 URL
 export type TBuildDest = z.infer<typeof SchemaBuildDest>;
 
+export const SchemaUploadAccessToken = z.string().min(1).optional().describe('Access token used by the target platform upload API'); // 平台上传 API 使用的 access token
+export type TUploadAccessToken = z.infer<typeof SchemaUploadAccessToken>;
+
 export const SchemaRunResult = z.string().describe('Run URL'); // 运行 URL
 export type TRunResult = z.infer<typeof SchemaRunResult>;

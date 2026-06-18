@@ -2,6 +2,11 @@ const mockGetBuildStageWithHookTasks = jest.fn();
 const mockGetHooksInfo = jest.fn();
 const mockRequireFile = jest.fn();
 const mockRestoreLogSink = jest.fn();
+const mockReadJSONSync = jest.fn();
+
+jest.mock('fs-extra', () => ({
+    readJSONSync: mockReadJSONSync,
+}));
 
 jest.mock('../manager/plugin', () => ({
     pluginManager: {
@@ -92,6 +97,7 @@ describe('executeBuildStageTask', () => {
         mockGetBuildStageWithHookTasks.mockReturnValue(stageConfig);
         mockGetHooksInfo.mockReturnValue(hooksInfo);
         mockRequireFile.mockReturnValue(hookModule);
+        mockReadJSONSync.mockReturnValue(undefined);
         hookModule.run.mockResolvedValue(undefined);
     });
 
@@ -170,6 +176,56 @@ describe('executeBuildStageTask', () => {
                     packageId: 'pkg-1',
                 },
             },
+        });
+    });
+
+    it('merges runtime package options into compile options for non-web stages', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        let receivedOptions: any;
+        const uploadHookModule = {
+            throwError: true,
+            upload: jest.fn(async (_root: string, options: any) => {
+                receivedOptions = options;
+            }),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'openpaas',
+            packages: {
+                openpaas: {
+                    versionName: '1.0.0',
+                },
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['openpaas'],
+            infos: {
+                openpaas: {
+                    path: 'openpaas/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+            packages: {
+                openpaas: {
+                    accessToken: 'token-1',
+                },
+            },
+        });
+
+        expect(receivedOptions.packages.openpaas).toEqual({
+            versionName: '1.0.0',
+            accessToken: 'token-1',
         });
     });
 });

@@ -2220,6 +2220,7 @@ export declare interface IBuildStageOptions {
     platform: Platform | string;
     taskName?: string;
     logDest?: string;
+    packages?: Record<string, Record<string, unknown>>;
 }
 export declare interface IBuildStagesInfo {
     pkgNameOrder: string[];
@@ -4942,7 +4943,7 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	removeListener<K extends keyof T>(event: K, listener: T[K]): this;
     	setMaxListeners(n: number): this;
 }
-export declare function upload(platform: Platform, dest: string): Promise<IBuildResultData>;
+export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
