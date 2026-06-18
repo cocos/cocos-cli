@@ -362,6 +362,13 @@
     "platforms": {
         "native": {
             "title": "Native",
+            "options": {
+                "make": "Make",
+                "run": "Run",
+                "encrypted": "Encrypt Resources",
+                "xxtea_key": "XXTEA Key",
+                "compress_zip": "Compress Zip"
+            },
             "encrypt": {
                 "disable_tips": "Encrypt disable tips"
             }

@@ -6,13 +6,17 @@ module.exports = {
     options: {
         package_name: '应用 ID 名称',
         package_name_hint: '请输入应用 ID，如 com.example.demo',
+        apiLevel: 'API 级别',
+        appABIs: '支持的 ABI',
 
         orientation: '屏幕方向',
+        screen_orientation: '屏幕方向',
         full_screen: '是否全屏',
         landscape: '横屏',
         landscape_left: '左横屏',
         landscape_right: '右横屏',
         portrait: '竖屏',
+        upsideDown: '倒竖屏',
         
         device_types: '设备类型',
         device_phone: '手机',
@@ -24,6 +28,16 @@ module.exports = {
         device_default: '默认设备',
 
         render_back_end: '渲染后端',
+        resizeable_activity: '可调整大小的 Activity',
+        max_aspect_ratio: '最大宽高比',
+        remoteUrl: '远程地址',
+        swappy: '启用 Swappy',
+        swappy_tips: '平滑帧率',
+        adpf: '启用 ADPF',
+        adpf_tips: 'ADPF 是一套应用程序接口，允许游戏和性能密集型应用程序与设备的电源和散热系统进行更直接的交互',
+        app_bundle: 'App Bundle',
+        google_play_instant: 'Google Play Instant',
+        input_sdk: 'Input SDK',
         use_aot_optimization: '引擎 AOT 优化',
         js_engine: 'JavaScript 引擎',
         use_gamepad: '游戏手柄',
@@ -31,6 +45,13 @@ module.exports = {
     label: {
         harmonyosnext_ndk: 'HarmonyOS Next NDK',
         harmonyosnext_sdk: 'HarmonyOS Next SDK',
+    },
+    KEYSTORE: {
+        use_debug_keystore: '使用调试密钥库',
+        keystore_path: '密钥库路径',
+        keystore_password: '密钥库密码',
+        keystore_alias: '密钥库别名',
+        keystore_alias_password: '密钥库别名密码',
     },
     jsEngine: {
         v8: 'V8',
@@ -50,6 +71,7 @@ module.exports = {
         set_ohos_sdk: '设置 HarmonyOS Next SDK',
         apilevel_empty: '获取 apiLevel 失败，请点击旁边的 \'设置 HarmonyOS Next SDK\' 按钮到 \'偏好设置 -> 外部程序\' 中检查 \'HarmonyOS Next NDK/SDK\' 路径配置',
         use_aot_optimization: '开启该选项时，构建引擎将会保留类型信息，以进一步采用 AOT 优化。',
+        google_play_billing: '勾选该项即可启用支付功能',
     },
     make: {
         label: '生成',
@@ -61,5 +83,8 @@ module.exports = {
         label: '使用 DevEco Studio 打开原生工程',
         ideNotFound: `请先在 偏好设置 - 程序管理器 内配置 DevEco Studio 路径`,
         confirm: '确定',
+    },
+    custom_icon: {
+        title: '自定义图标',
     },
 };
