@@ -134,4 +134,42 @@ describe('executeBuildStageTask', () => {
             reason: 'custom stage failed',
         });
     });
+
+    it('executes arbitrary upload stage hooks in order and returns custom upload result', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const calls: string[] = [];
+        const uploadHookModule = {
+            throwError: true,
+            onBeforeUpload: jest.fn(async () => calls.push('onBeforeUpload')),
+            upload: jest.fn(async function(this: any) {
+                calls.push('upload');
+                this.buildExitRes.custom.upload = { success: true, packageId: 'pkg-1' };
+            }),
+            onAfterUpload: jest.fn(async () => calls.push('onAfterUpload')),
+        };
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        const result = await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/web-desktop',
+            platform: 'web-desktop',
+        });
+
+        expect(calls).toEqual(['onBeforeUpload', 'upload', 'onAfterUpload']);
+        expect(result).toEqual({
+            code: 0,
+            dest: 'project://build/web-desktop',
+            custom: {
+                upload: {
+                    success: true,
+                    packageId: 'pkg-1',
+                },
+            },
+        });
+    });
 });

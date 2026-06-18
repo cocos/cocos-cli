@@ -1121,6 +1121,9 @@ export declare namespace BuildHook {
     export type onAfterBuild = IBaseHooks;
     export type onAfterMake = IBuildStageHooks;
     export type onBeforeMake = IBuildStageHooks;
+    export type onBeforeUpload = IBuildStageHooks;
+    export type upload = IBuildStageHooks;
+    export type onAfterUpload = IBuildStageHooks;
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }
@@ -2795,6 +2798,9 @@ export declare namespace IInternalHook {
     export type onBeforeMake = IInternalStageTaskHooks;
     export type make = IInternalStageTaskHooks;
     export type onAfterMake = IInternalStageTaskHooks;
+    export type onBeforeUpload = IInternalStageTaskHooks;
+    export type upload = IInternalStageTaskHooks;
+    export type onAfterUpload = IInternalStageTaskHooks;
 }
 export declare interface IInternalPackOptions {
     maxWidth: number;
@@ -4936,6 +4942,7 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	removeListener<K extends keyof T>(event: K, listener: T[K]): this;
     	setMaxListeners(n: number): this;
 }
+export declare function upload(platform: Platform, dest: string): Promise<IBuildResultData>;
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;

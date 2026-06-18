@@ -150,7 +150,7 @@ const BuildConfigCoreFields = z.object({
     useSplashScreen: z.boolean().describe('Whether to use custom splash screen'), // 是否使用自定义启动画面
 
     // Build Stages // 构建阶段
-    nextStages: z.array(z.enum(['make', 'run'])).describe('Specify subsequent combined build stages, multiple can be specified'), // 指定后续联合的构建阶段，可指定多个
+    nextStages: z.array(z.enum(['make', 'run', 'upload'])).describe('Specify subsequent combined build stages, multiple can be specified'), // 指定后续联合的构建阶段，可指定多个
 
     // Cache Configuration // 缓存配置
     useCacheConfig: z.object({
@@ -342,6 +342,12 @@ export const SchemaMakeResult = SchemaResultBase.extend({
     }).passthrough().optional().describe('Custom fields after compiling the project, in object format'), // 编译项目后的自定义字段, object 形式
 }).nullable().describe('Result after compiling the project'); // 编译项目后的结果
 
+export const SchemaUploadResult = SchemaResultBase.extend({
+    custom: z.object({
+        upload: z.any().optional().describe('Platform upload result'), // 平台上传结果
+    }).passthrough().optional().describe('Custom fields after uploading the build package, in object format'), // 上传构建产物后的自定义字段
+}).nullable().describe('Result after uploading the build package'); // 上传构建产物后的结果
+
 export const SchemaPreviewSettingsResult = z.object({
     settings: z.object({
         CocosEngine: z.string().describe('Cocos Engine Version'), // Cocos Engine 版本
@@ -401,6 +407,7 @@ export type TBuildRuntimeOptions = z.infer<typeof SchemaBuildRuntimeOptions>;
 export type TBuildResultData = z.infer<typeof SchemaBuildResult>;
 export type IMakeResultData = z.infer<typeof SchemaMakeResult>;
 export type IRunResultData = z.infer<typeof SchemaBuildResult>;
+export type IUploadResultData = z.infer<typeof SchemaUploadResult>;
 export type TBundleConfig = z.infer<typeof SchemaBundleConfig>;
 export type TPolyfills = z.infer<typeof SchemaPolyfills>;
 export type TSceneRef = z.infer<typeof SchemaSceneRef>;

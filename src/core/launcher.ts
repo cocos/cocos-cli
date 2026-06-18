@@ -149,6 +149,16 @@ export default class Launcher {
         });
     }
 
+    static async upload(platform: Platform, dest: string) {
+        GlobalConfig.mode = 'simple';
+        const { init, executeBuildStageTask } = await import('./builder');
+        await init(platform);
+        return await executeBuildStageTask('command upload', 'upload', {
+            platform,
+            dest,
+        });
+    }
+
     async close() {
         // 关闭服务器
         const { stopServer } = await import('../server');
