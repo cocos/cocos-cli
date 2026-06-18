@@ -169,16 +169,11 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
 }
 
 export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions) {
-    options.dest = utils.Path.resolveToRaw(options.dest);
-    let buildOptions;
-    if (!options.platform.startsWith('web')) {
-        buildOptions = readBuildTaskOptions(options.dest);
-        if (!buildOptions) {
-            throw new Error('Build options is not exist!');
-        }
-        mergeBuildStageRuntimeOptions(buildOptions, options);
-    }
+    return createBuildStageTaskWithBuildOptions(taskId, stageName, options, readBuildOptionsForBuildStage(options));
+}
 
+async function createBuildStageTaskWithBuildOptions(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions?: IBuildTaskOption<any>) {
+    options.dest = utils.Path.resolveToRaw(options.dest);
     const { BuildStageTask } = await import('./worker/builder/stage-task-manager');
     const stageConfig = pluginManager.getBuildStageWithHookTasks(options.platform, stageName);
     if (!stageConfig) {
@@ -191,6 +186,28 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
         buildTaskOptions: buildOptions!,
         ...stageConfig,
     });
+}
+
+function readBuildOptionsForBuildStage(options: IBuildStageOptions) {
+    options.dest = utils.Path.resolveToRaw(options.dest);
+    let buildOptions;
+    if (!options.platform.startsWith('web')) {
+        buildOptions = readBuildTaskOptions(options.dest);
+        if (!buildOptions) {
+            throw new Error('Build options is not exist!');
+        }
+        mergeBuildStageRuntimeOptions(buildOptions, options);
+    }
+    return buildOptions;
+}
+
+function tryReadBuildOptionsForBuildStage(options: IBuildStageOptions) {
+    options.dest = utils.Path.resolveToRaw(options.dest);
+    try {
+        return readBuildTaskOptions(options.dest);
+    } catch {
+        return undefined;
+    }
 }
 
 function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, options: IBuildStageOptions) {
@@ -214,8 +231,21 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     let buildStageTask: Awaited<ReturnType<typeof createBuildStageTask>> | undefined;
 
     try {
-        ensureBuildLogSink(options, options.taskName);
-        buildStageTask = await createBuildStageTask(taskId, stageName, options);
+        let buildOptions: IBuildTaskOption<any> | undefined;
+        let savedBuildOptions: IBuildTaskOption<any> | undefined;
+        if (options.platform.startsWith('web')) {
+            savedBuildOptions = tryReadBuildOptionsForBuildStage(options);
+        } else {
+            options.dest = utils.Path.resolveToRaw(options.dest);
+            savedBuildOptions = readBuildTaskOptions(options.dest);
+            buildOptions = savedBuildOptions;
+            if (!buildOptions) {
+                throw new Error('Build options is not exist!');
+            }
+            mergeBuildStageRuntimeOptions(buildOptions, options);
+        }
+        ensureBuildLogSink(options, options.taskName, options.logDest || savedBuildOptions?.logDest);
+        buildStageTask = await createBuildStageTaskWithBuildOptions(taskId, stageName, options, buildOptions);
         if (onProgress) {
             buildStageTask.on('update', onProgress);
         }

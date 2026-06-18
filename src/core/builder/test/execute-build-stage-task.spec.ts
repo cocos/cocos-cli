@@ -1,3 +1,5 @@
+import { join } from 'path';
+
 const mockGetBuildStageWithHookTasks = jest.fn();
 const mockGetHooksInfo = jest.fn();
 const mockRequireFile = jest.fn();
@@ -227,5 +229,101 @@ describe('executeBuildStageTask', () => {
             versionName: '1.0.0',
             accessToken: 'token-1',
         });
+    });
+
+    it('uses persisted build log destination for non-web stages by default', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        const uploadHookModule = {
+            throwError: true,
+            upload: jest.fn(),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'openpaas',
+            logDest: 'temp/builder/log/build-log',
+            packages: {
+                openpaas: {},
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['openpaas'],
+            infos: {
+                openpaas: {
+                    path: 'openpaas/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+        });
+
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/build-log'));
+    });
+
+    it('uses persisted build log destination for web stages without changing hook options', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        mockReadJSONSync.mockReturnValue({
+            platform: 'web-desktop',
+            logDest: 'temp/builder/log/web-build-log',
+        });
+
+        await executeBuildStageTask('task-id', 'run', {
+            dest: 'build/web-desktop',
+            platform: 'web-desktop',
+        });
+
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/web-build-log'));
+        expect(hookModule.run).toHaveBeenCalledWith('build/web-desktop', undefined);
+    });
+
+    it('lets explicit stage log destination override persisted build log destination', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        const uploadHookModule = {
+            throwError: true,
+            upload: jest.fn(),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'openpaas',
+            logDest: 'temp/builder/log/build-log',
+            packages: {
+                openpaas: {},
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['openpaas'],
+            infos: {
+                openpaas: {
+                    path: 'openpaas/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+            logDest: 'custom-log',
+        });
+
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'custom-log'));
     });
 });
