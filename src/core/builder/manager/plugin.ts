@@ -19,7 +19,7 @@ import { convertConfigItem, ICocosConfigurationPropertySchema } from '../../conf
 import { GlobalPaths } from '../../../global';
 import { existsSync, readdirSync } from 'fs';
 import utils from '../../base/utils';
-import { readJSONSync } from 'fs-extra';
+import { copy, outputJSON, readJSON, readJSONSync } from 'fs-extra';
 
 export interface InternalPackageInfo {
     name: string; // 插件名
@@ -253,6 +253,7 @@ export class PluginManager extends EventEmitter {
 
         if (config.buildTemplateConfig && config.buildTemplateConfig.templates.length) {
             const label = config.displayName || platform;
+            config.buildTemplateConfig.pkgName = platform;
             this.platformConfig[platform].createTemplateLabel = label;
             this.platformConfig[platform].createTemplateLabelI18nKey = configWithDisplayKeys.displayNameI18nKey;
             this.buildTemplateConfigMap[label] = config.buildTemplateConfig;
@@ -1114,6 +1115,50 @@ export class PluginManager extends EventEmitter {
      * @param type 
      * @returns 
      */
+    public async createBuildTemplate(nameOrPlatform: string): Promise<void> {
+        const platformConfig = this.platformConfig[nameOrPlatform];
+        if (platformConfig) {
+            const createTemplateLabel = platformConfig.createTemplateLabel;
+            if (!createTemplateLabel) {
+                console.debug(`no build template for ${nameOrPlatform}`);
+                return;
+            }
+            nameOrPlatform = createTemplateLabel;
+        }
+
+        const templateConfig = this.buildTemplateConfigMap[nameOrPlatform];
+        if (!templateConfig) {
+            console.debug(`no build template for ${nameOrPlatform}`);
+            return;
+        }
+
+        const buildTemplateDir = builderConfig.buildTemplateDir;
+        const versionKey = templateConfig.pkgName || nameOrPlatform;
+        const target = join(buildTemplateDir, templateConfig.dirname || versionKey);
+
+        await Promise.all(templateConfig.templates.map(async (info) => copy(info.path, join(target, info.destUrl))));
+
+        const templateVersionPath = join(buildTemplateDir, 'templates-version.json');
+        let contents: Record<string, string> = {
+            [versionKey]: templateConfig.version,
+        };
+
+        if (existsSync(templateVersionPath)) {
+            const versions = await readJSON(templateVersionPath);
+            if (versions[versionKey] === templateConfig.version) {
+                console.log(`${versionKey} ${i18n.t('builder.tips.create_template_success')}({link(${target})})`);
+                return;
+            }
+            contents = Object.assign({}, versions, contents);
+        }
+
+        await outputJSON(templateVersionPath, contents, {
+            spaces: 4,
+        });
+
+        console.log(`${versionKey} ${i18n.t('builder.tips.create_template_success')}({link(${target})})`);
+    }
+
     public getAssetHandlers(type: ICustomAssetHandlerType) {
         const pkgNames = Object.keys(this.assetHandlers[type]);
         return {

@@ -96,6 +96,22 @@ export default {
             },
         },
         {
+            url: '/scripting/engine/effect-settings',
+            async handler(req: Request, res: Response, next: NextFunction) {
+                try {
+                    const { default: scripting } = await import('../../core/scripting');
+                    const effectBinPath = join(scripting.projectPath, 'temp', 'asset-db', 'effect', 'effect.bin');
+                    if (await pathExists(effectBinPath) && (await stat(effectBinPath)).isFile()) {
+                        res.sendFile(effectBinPath);
+                    } else {
+                        next();
+                    }
+                } catch (err) {
+                    next(err);
+                }
+            },
+        },
+        {
             url: '/scripting/import-map-global',
             async handler(req: Request, res: Response) {
                 const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
