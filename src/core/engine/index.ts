@@ -384,7 +384,7 @@ class EngineManager implements IEngine {
         await this.initEditorExtensions();
 
         const modules = this.getConfig().includeModules || [];
-        const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality, renderPipeline, customPipeline } = this.getConfig();
+        const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality, renderPipeline } = this.getConfig();
         const bundles = assetManager.queryAssets({ isBundle: true }).map((item: any) => item.meta?.userData?.bundleName ?? item.name);
         const builtinAssets = info.serverURL && await this.queryInternalAssetList(this.getInfo().typescript.path);
         const defaultConfig = {
@@ -412,7 +412,6 @@ class EngineManager implements IEngine {
                 rendering: {
                     renderMode: 3,
                     renderPipeline,
-                    customPipeline,
                     highQualityMode: highQuality,
                 },
                 physics: {
