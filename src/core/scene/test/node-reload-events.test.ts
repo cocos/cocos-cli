@@ -114,7 +114,7 @@ class MockEditorComponentManager extends EventEmitter {
 }
 
 function createNode(uuid: string) {
-    return {
+    const node: any = {
         uuid,
         name: uuid,
         isValid: true,
@@ -126,7 +126,26 @@ function createNode(uuid: string) {
         on: jest.fn(),
         off: jest.fn(),
         getComponent: jest.fn(() => null),
+        setParent: jest.fn((parent: any) => {
+            node.parent = parent;
+        }),
+        isChildOf: jest.fn((parent: any) => {
+            let current = node.parent;
+            while (current) {
+                if (current === parent) {
+                    return true;
+                }
+                current = current.parent;
+            }
+            return false;
+        }),
     };
+    return node;
+}
+
+function appendChild(parent: any, child: any) {
+    child.parent = parent;
+    parent.children.push(child);
 }
 
 function loadNodeManager(editorNode: MockEditorNodeManager, editorComponent: MockEditorComponentManager) {
@@ -217,5 +236,48 @@ describe('Node manager reload event lifecycle', () => {
         editorComponent.emit('add', 'component-uuid', { uuid: 'component-uuid', node: createNode('node') });
 
         expect(componentAddedListener).not.toHaveBeenCalled();
+    });
+});
+
+describe('Node manager setParent', () => {
+    afterEach(() => {
+        jest.resetModules();
+        delete (globalThis as any).EditorExtends;
+    });
+
+    it('rejects moving a node under itself or its descendant', () => {
+        const editorNode = new MockEditorNodeManager();
+        const editorComponent = new MockEditorComponentManager();
+        const scene = createNode('scene');
+        const parent = createNode('parent');
+        const child = createNode('child');
+        const grandchild = createNode('grandchild');
+        appendChild(scene, parent);
+        appendChild(parent, child);
+        appendChild(child, grandchild);
+        editorNode.setNodes({ scene, parent, child, grandchild });
+
+        const { nodeMgr } = loadNodeManager(editorNode, editorComponent);
+
+        expect(() => nodeMgr.setParent('parent', 'parent')).toThrow(/descendant/);
+        expect(() => nodeMgr.setParent('child', 'parent')).toThrow(/descendant/);
+        expect(() => nodeMgr.setParent('grandchild', 'parent')).toThrow(/descendant/);
+        expect(parent.setParent).not.toHaveBeenCalled();
+    });
+
+    it('keeps valid reparenting unchanged', () => {
+        const editorNode = new MockEditorNodeManager();
+        const editorComponent = new MockEditorComponentManager();
+        const root = createNode('root');
+        const child = createNode('child');
+        const nextParent = createNode('next-parent');
+        appendChild(root, child);
+        appendChild(root, nextParent);
+        editorNode.setNodes({ root, child, 'next-parent': nextParent });
+
+        const { nodeMgr } = loadNodeManager(editorNode, editorComponent);
+
+        expect(nodeMgr.setParent('next-parent', 'child')).toEqual(['child']);
+        expect(child.setParent).toHaveBeenCalledWith(nextParent, false);
     });
 });

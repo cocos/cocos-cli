@@ -984,6 +984,10 @@ export class NodeManager {
             const oldParent = node.parent;
             const parentChanged = oldParent !== parentNode;
 
+            if (parentNode === node || parentNode.isChildOf(node)) {
+                throw new Error('Cannot set parent: target parent is the node itself or its descendant.');
+            }
+
             if (oldParent) {
                 this.emit('node:before-change', oldParent);
             }
