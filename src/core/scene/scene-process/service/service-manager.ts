@@ -174,7 +174,7 @@ export class ServiceManager {
                 }
             }
             if (isNodeChange) {
-                messageManager.broadcastChangeNodeMsg(args[0]);
+                messageManager.broadcastChangeNodeMsg(...args);
             } else {
                 messageManager.broadcast(eventType, ...args);
             }

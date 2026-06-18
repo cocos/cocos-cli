@@ -297,7 +297,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                             currentParams = null;
                         }
 
-                        this.emit('editor:reload');
+                        this.broadcast('editor:reload');
                         console.log(`重载 ${assetInfo.url}`);
                     }
                     return ReloadResult.SUCCESS;

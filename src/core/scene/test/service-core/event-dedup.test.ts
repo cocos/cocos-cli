@@ -760,10 +760,11 @@ describe('场景事件契约测试', () => {
                 expect(countEmitCalls(body, 'editor:save')).toBe(1);
             });
 
-            it('reload 应 emit editor:reload 1 次', () => {
+            it('reload 应 broadcast editor:reload 1 次（不额外 emit）', () => {
                 const body = extractMethodBody(source, /async reload\(params:/);
                 expect(body.length).toBeGreaterThan(0);
-                expect(countEmitCalls(body, 'editor:reload')).toBe(1);
+                expect(body).toMatch(/this\.broadcast\(\s*['"]editor:reload['"]/);
+                expect(body).not.toMatch(/this\.emit\(\s*['"]editor:reload['"]/);
             });
         });
 

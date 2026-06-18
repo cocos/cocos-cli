@@ -252,33 +252,6 @@ describe('ServiceEvents 事件发射集成测试', () => {
             gizmoService.init();
         });
 
-        it('coordinate 变化应 emit gizmo:coordinate-changed 到 ServiceEvents', () => {
-            const listener = jest.fn();
-            globalEventEmitter.on('gizmo:coordinate-changed', listener);
-
-            gizmoService.transformToolData.coordinate = 'global';
-
-            expect(listener).toHaveBeenCalledTimes(1);
-        });
-
-        it('pivot 变化应 emit gizmo:pivot-changed 到 ServiceEvents', () => {
-            const listener = jest.fn();
-            globalEventEmitter.on('gizmo:pivot-changed', listener);
-
-            gizmoService.transformToolData.pivot = 'center';
-
-            expect(listener).toHaveBeenCalledTimes(1);
-        });
-
-        it('viewMode 变化应 emit gizmo:view-mode-changed 到 ServiceEvents', () => {
-            const listener = jest.fn();
-            globalEventEmitter.on('gizmo:view-mode-changed', listener);
-
-            gizmoService.transformToolData.viewMode = 'view';
-
-            expect(listener).toHaveBeenCalledTimes(1);
-        });
-
         it('is2D 变化应 emit scene:dimension-changed 到 ServiceEvents', () => {
             const listener = jest.fn();
             globalEventEmitter.on('scene:dimension-changed', listener);
@@ -286,18 +259,6 @@ describe('ServiceEvents 事件发射集成测试', () => {
             gizmoService.transformToolData.is2D = true;
 
             expect(listener).toHaveBeenCalledWith(true);
-        });
-
-        it('coordinate 锁定时不应 emit', () => {
-            gizmoService.transformToolData.isLocked = true;
-            const listener = jest.fn();
-            globalEventEmitter.on('gizmo:coordinate-changed', listener);
-
-            gizmoService.transformToolData.coordinate = 'local';
-
-            expect(listener).not.toHaveBeenCalled();
-
-            gizmoService.transformToolData.isLocked = false;
         });
     });
 

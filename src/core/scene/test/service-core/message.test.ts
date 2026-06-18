@@ -1,12 +1,5 @@
 import { messageManager } from '../../scene-process/service/message';
 
-// 类型安全事件定义示例
-interface TestEvents {
-    'test:typed': [string, number];
-    'test:no-args': [];
-    'test:single-arg': [{ id: string }];
-}
-
 describe('MessageManager', () => {
     let processSend: jest.SpyInstance;
     const originalConnected = (process as any).connected;
@@ -59,54 +52,55 @@ describe('MessageManager', () => {
         });
     });
 
-    // ── 泛型类型安全 ──
+    // ── 类型安全（IMessageManagerEvents 自动推导） ──
 
-    describe('泛型类型安全', () => {
-        it('应支持泛型类型约束的事件监听和广播', () => {
+    describe('类型安全', () => {
+        it('已定义事件可直接使用，无需显式传泛型', () => {
             const listener = jest.fn();
-            messageManager.on<TestEvents>('test:typed', listener);
+            messageManager.on('editor:open', listener);
 
-            messageManager.broadcast<TestEvents>('test:typed', 'hello', 42);
-
-            expect(listener).toHaveBeenCalledWith('hello', 42);
-        });
-
-        it('应支持无参数的泛型事件', () => {
-            const listener = jest.fn();
-            messageManager.on<TestEvents>('test:no-args', listener);
-
-            messageManager.broadcast<TestEvents>('test:no-args');
-
-            expect(listener).toHaveBeenCalledWith();
-        });
-
-        it('应支持对象参数的泛型事件', () => {
-            const listener = jest.fn();
-            const payload = { id: 'test-123' };
-            messageManager.on<TestEvents>('test:single-arg', listener);
-
-            messageManager.broadcast<TestEvents>('test:single-arg', payload);
-
-            expect(listener).toHaveBeenCalledWith(payload);
-        });
-
-        it('once 应支持泛型并只触发一次', () => {
-            const listener = jest.fn();
-            messageManager.once<TestEvents>('test:typed', listener);
-
-            messageManager.broadcast<TestEvents>('test:typed', 'a', 1);
-            messageManager.broadcast<TestEvents>('test:typed', 'b', 2);
+            messageManager.broadcast('editor:open');
 
             expect(listener).toHaveBeenCalledTimes(1);
-            expect(listener).toHaveBeenCalledWith('a', 1);
         });
 
-        it('off 应支持泛型移除监听', () => {
+        it('node:change 应推导出正确的参数类型', () => {
             const listener = jest.fn();
-            messageManager.on<TestEvents>('test:typed', listener);
-            messageManager.off<TestEvents>('test:typed', listener);
+            messageManager.on('node:change', listener);
+            const mockNode = { uuid: 'n1' };
+            const opts = { source: 'test' };
 
-            messageManager.broadcast<TestEvents>('test:typed', 'hello', 42);
+            messageManager.broadcast('node:change', mockNode as any, opts as any);
+
+            expect(listener).toHaveBeenCalledWith(mockNode, opts);
+        });
+
+        it('未定义事件通过 string fallback 仍然可用', () => {
+            const listener = jest.fn();
+            messageManager.on('custom:unknown-event', listener);
+
+            messageManager.broadcast('custom:unknown-event', 'data');
+
+            expect(listener).toHaveBeenCalledWith('data');
+        });
+
+        it('once 应支持类型推导并只触发一次', () => {
+            const listener = jest.fn();
+            messageManager.once('gizmo:tool-changed', listener);
+
+            messageManager.broadcast('gizmo:tool-changed', 'move');
+            messageManager.broadcast('gizmo:tool-changed', 'rotate');
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith('move');
+        });
+
+        it('off 应支持类型推导移除监听', () => {
+            const listener = jest.fn();
+            messageManager.on('camera:fov-changed', listener);
+            messageManager.off('camera:fov-changed', listener);
+
+            messageManager.broadcast('camera:fov-changed', 60);
 
             expect(listener).not.toHaveBeenCalled();
         });

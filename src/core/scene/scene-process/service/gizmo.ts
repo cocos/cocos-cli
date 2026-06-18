@@ -305,9 +305,9 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             this.emit('gizmo:tool-changed', name);
             this.saveConfig();
         });
-        this.transformToolData.on('coordinate-changed', () => { ServiceEvents.emit('gizmo:coordinate-changed'); this.saveConfig(); });
-        this.transformToolData.on('pivot-changed', () => { ServiceEvents.emit('gizmo:pivot-changed'); this.saveConfig(); });
-        this.transformToolData.on('view-mode-changed', () => { ServiceEvents.emit('gizmo:view-mode-changed'); this.saveConfig(); });
+        this.transformToolData.on('coordinate-changed', () => { this.saveConfig(); });
+        this.transformToolData.on('pivot-changed', () => { this.saveConfig(); });
+        this.transformToolData.on('view-mode-changed', () => { this.saveConfig(); });
 
         // 与 cocos-editor gizmos.ts 一致：dimension-changed → 同步相机 + 回调
         this.transformToolData.on('dimension-changed', (is2D: boolean) => {
