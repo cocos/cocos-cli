@@ -154,13 +154,13 @@ export class ServiceManager {
         // 重载不是公开的关闭/打开；这里只用内部事件复用服务内容卸载/挂载钩子，
         // 让服务暂停监听并重新绑定引擎重建后的对象，同时不广播 editor:close/open。
         Object.entries(INTERNAL_SERVICE_EVENTS_MAP).forEach(([eventType, methodName]) => {
-            this.registerAutoForwardEvent(eventType, methodName);
+            this.registerAutoForwardEvent(eventType, methodName, false);
         });
         // 仅需 messageManager 转发的事件（无服务方法扇出）
         this.registerMessageOnlyForwardEvents();
     }
 
-    private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName) {
+    private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName, broadcastToMessage = true) {
         const isNodeChange = eventType === 'node:change';
         const handler = (...args: any[]) => {
             for (const service of getServiceAll() as AutoForwardService[]) {
@@ -173,6 +173,7 @@ export class ServiceManager {
                     }
                 }
             }
+            if (!broadcastToMessage) return;
             if (isNodeChange) {
                 messageManager.broadcastChangeNodeMsg(...args);
             } else {
