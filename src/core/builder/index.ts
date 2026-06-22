@@ -4,7 +4,7 @@ import { BuildExitCode, BuildStageProgressCallback, IBuildCommandOption, IBuildR
 import { pluginManager } from './manager/plugin';
 import { formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
-import { basename, dirname, extname, isAbsolute, join } from 'path';
+import { basename, extname, isAbsolute, join } from 'path';
 import assetManager from '../assets/manager/asset';
 import { removeDbHeader } from './worker/builder/utils';
 import builderConfig from './share/builder-config';
@@ -32,12 +32,12 @@ function getBuilderLogRoot() {
 }
 
 function normalizeBuildLogDest(logDest: string | undefined, taskName: string) {
-    const fallback = join(getBuilderLogRoot(), 'log', `${taskName.replace(/[\\/:*?"<>|]/g, '_')}-${Date.now()}`);
+    const fallback = join(getBuilderLogRoot(), 'log', `${taskName.replace(/[\\/:*?"<>|]/g, '_')}-${Date.now()}.log`);
     let resolvedLogDest = logDest ? utils.Path.resolveToRaw(logDest) : fallback;
     if (!isAbsolute(resolvedLogDest)) {
         resolvedLogDest = join(builderConfig.projectRoot, resolvedLogDest);
     }
-    return extname(resolvedLogDest).toLowerCase() === '.log' ? dirname(resolvedLogDest) : resolvedLogDest;
+    return extname(resolvedLogDest).toLowerCase() === '.log' ? resolvedLogDest : `${resolvedLogDest}.log`;
 }
 
 function ensureBuildLogSink(options: { logDest?: string; taskName?: string; platform?: string }, fallbackTaskName: string, logDest?: string) {

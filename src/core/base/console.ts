@@ -1,4 +1,4 @@
-import { basename, join } from 'path';
+import { basename, dirname, extname, join } from 'path';
 import { ensureDirSync } from 'fs-extra';
 import { consola, type ConsolaInstance } from 'consola';
 import type { Ora } from 'ora';
@@ -18,6 +18,23 @@ export interface trackTimeEndOptions {
 }
 
 let rawConsole: any = global.console;
+
+function normalizeLogFilePath(logDest?: string) {
+    if (!logDest) {
+        return join(process.cwd(), 'temp', 'logs', 'cocos.log');
+    }
+    return extname(logDest).toLowerCase() === '.log' ? logDest : `${logDest}.log`;
+}
+
+function getLogFileTransportOptions(logDest: string) {
+    const logFile = normalizeLogFilePath(logDest);
+    const logDir = dirname(logFile);
+    return {
+        logFile,
+        logDir,
+        filename: basename(logFile, extname(logFile)),
+    };
+}
 
 /**
  * 自定义的一个新 console 类型，用于收集日志
@@ -83,7 +100,7 @@ export class NewConsole {
         // @ts-ignore 手动继承 console
         this.__proto__.__proto__ = rawConsole;
 
-        this.logDest = logDest;
+        this.logDest = normalizeLogFilePath(logDest);
         this.cacheLogs = cacheLogs;
 
         this._init = true;
@@ -93,11 +110,7 @@ export class NewConsole {
      * 开始记录资源导入日志
      * */
     public record(logDest?: string) {
-        logDest && (this.logDest = logDest);
-        if (!this.logDest) {
-            console.error('logDest is required');
-            return;
-        }
+        this.logDest = normalizeLogFilePath(logDest || this.logDest);
         if (this._start) {
             this.resetPinoLogger();
             rawConsole.debug(`Switch record log to {file(${this.logDest})}`);
@@ -112,7 +125,8 @@ export class NewConsole {
         }
 
         this.flush(); // Finish previous writes
-        ensureDirSync(this.logDest);
+        const logFileOptions = getLogFileTransportOptions(this.logDest);
+        ensureDirSync(logFileOptions.logDir);
         const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
         this.pino = pino({
             level: process.env.DEBUG === 'true' || process.argv.includes('--debug')
@@ -122,16 +136,16 @@ export class NewConsole {
                     {
                         target: 'pino-transport-rotating-file',
                         options: {
-                            dir: this.logDest,
-                            filename: 'cocos',
+                            dir: logFileOptions.logDir,
+                            filename: logFileOptions.filename,
                             enabled: true,
                             size: '1M',
                             interval: '1d',
                             compress: true,
-                            immutable: true,
+                            immutable: false,
                             retentionDays: 30,
                             compressionOptions: { level: 6, strategy: 0 },
-                            errorLogFile: join(this.logDest, 'errors.log'),
+                            errorLogFile: join(logFileOptions.logDir, 'errors.log'),
                             timestampFormat: 'iso',
                             skipPretty: false,
                             errorFlushIntervalMs: 100, // Reduced for faster flush
@@ -193,7 +207,9 @@ export class NewConsole {
      */
     private resetPinoLogger() {
         this.flush(); // Finish previous writes
-        ensureDirSync(this.logDest);
+        this.logDest = normalizeLogFilePath(this.logDest);
+        const logFileOptions = getLogFileTransportOptions(this.logDest);
+        ensureDirSync(logFileOptions.logDir);
 
         const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
         this.pino = pino({
@@ -204,16 +220,16 @@ export class NewConsole {
                     {
                         target: 'pino-transport-rotating-file',
                         options: {
-                            dir: this.logDest,
-                            filename: 'cocos',
+                            dir: logFileOptions.logDir,
+                            filename: logFileOptions.filename,
                             enabled: true,
                             size: '1M',
                             interval: '1d',
                             compress: true,
-                            immutable: true,
+                            immutable: false,
                             retentionDays: 30,
                             compressionOptions: { level: 6, strategy: 0 },
-                            errorLogFile: join(this.logDest, 'errors.log'),
+                            errorLogFile: join(logFileOptions.logDir, 'errors.log'),
                             timestampFormat: 'iso',
                             skipPretty: false,
                             errorFlushIntervalMs: 100, // Reduced for faster flush

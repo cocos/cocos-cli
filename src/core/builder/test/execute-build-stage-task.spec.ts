@@ -240,7 +240,7 @@ describe('executeBuildStageTask', () => {
         };
         mockReadJSONSync.mockReturnValue({
             platform: 'openpaas',
-            logDest: 'temp/builder/log/build-log',
+            logDest: 'temp/builder/log/build-log.log',
             packages: {
                 openpaas: {},
             },
@@ -267,7 +267,7 @@ describe('executeBuildStageTask', () => {
             platform: 'openpaas',
         });
 
-        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/build-log'));
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/build-log.log'));
     });
 
     it('uses persisted build log destination for web stages without changing hook options', async () => {
@@ -275,7 +275,7 @@ describe('executeBuildStageTask', () => {
         const { newConsole } = await import('../../base/console');
         mockReadJSONSync.mockReturnValue({
             platform: 'web-desktop',
-            logDest: 'temp/builder/log/web-build-log',
+            logDest: 'temp/builder/log/web-build-log.log',
         });
 
         await executeBuildStageTask('task-id', 'run', {
@@ -283,7 +283,7 @@ describe('executeBuildStageTask', () => {
             platform: 'web-desktop',
         });
 
-        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/web-build-log'));
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/web-build-log.log'));
         expect(hookModule.run).toHaveBeenCalledWith('build/web-desktop', undefined);
     });
 
@@ -296,7 +296,7 @@ describe('executeBuildStageTask', () => {
         };
         mockReadJSONSync.mockReturnValue({
             platform: 'openpaas',
-            logDest: 'temp/builder/log/build-log',
+            logDest: 'temp/builder/log/build-log.log',
             packages: {
                 openpaas: {},
             },
@@ -324,6 +324,6 @@ describe('executeBuildStageTask', () => {
             logDest: 'custom-log',
         });
 
-        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'custom-log'));
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'custom-log.log'));
     });
 });
