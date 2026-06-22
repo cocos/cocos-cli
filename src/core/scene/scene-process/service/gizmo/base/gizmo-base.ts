@@ -81,7 +81,7 @@ class GizmoBase<T extends Component = Component> {
         this.recordChanges(propPath);
         try {
             const svc = getService();
-            svc?.broadcast?.('gizmo-control-begin', propPath);
+            svc?.broadcast?.('gizmo:control-begin', propPath);
         } catch (e) {
             // not ready
         }
@@ -98,7 +98,7 @@ class GizmoBase<T extends Component = Component> {
         this.commitChanges();
         try {
             const svc = getService();
-            svc?.broadcast?.('gizmo-control-end', propPath);
+            svc?.broadcast?.('gizmo:control-end', propPath);
         } catch (e) {
             // not ready
         }
