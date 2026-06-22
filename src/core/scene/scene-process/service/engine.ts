@@ -8,6 +8,7 @@ import { Service } from './core/decorator';
 import type { ICustomLayerConfig, IEngineEvents, IEngineService } from '../../common';
 import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
+import { TimerUtil } from './utils/timer-util';
 
 const tickTime = 1000 / 60;
 // Engine Layers reserves bits 20-31 for built-ins; user custom layers live in bit positions 0-19.
@@ -47,6 +48,7 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     private _bindTick = this._tick.bind(this);
     private geometryRenderer!: GeometryRenderer & Pick<CCGeometryRenderer, typeof GeometryMethods[number]>;
     private _sceneTick = false;// tick 是否暂停
+    private _nodeChangeTimer = new TimerUtil();
 
     // 与 cocos-editor ParticleManager 一致：跟踪选中的粒子和手动停止状态
     private _particleSelectedUUIDs: string[] = [];
@@ -235,6 +237,7 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     onEditorClosed() {
+        this._nodeChangeTimer.clear();
         void this.repaintInEditMode();
     }
 
@@ -243,6 +246,10 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     onNodeChanged(node: Node, opts?: any) {
+        this._nodeChangeTimer.callFunctionLimit(node.uuid, this._doNodeChanged.bind(this), node, opts);
+    }
+
+    private _doNodeChanged(node: Node, opts?: any) {
         const type = opts?.type;
         if (type === NodeEventType.TRANSFORM_CHANGED ||
             type === NodeEventType.SIZE_CHANGED ||
