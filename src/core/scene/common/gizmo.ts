@@ -79,9 +79,6 @@ export type IPublicGizmoService = Pick<IGizmoService,
 
 export interface IGizmoEvents {
     'gizmo:tool-changed': [name: string];
-    'gizmo:coordinate-changed': [];
-    'gizmo:pivot-changed': [];
-    'gizmo:view-mode-changed': [];
     'gizmo:control-begin': [];
     'gizmo:control-end': [];
 }

@@ -248,6 +248,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             this.checkComponentsCollision(node);
             this.checkDynamicBodyShape(node);
 
+            this.emit('component:add', comp);
             compMgr.onComponentAddedFromEditor(comp);
             this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
 
@@ -338,7 +339,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 ? RemoveComponentCommand.capture(comp)
                 : null;
 
+            this.emit('component:before-remove-component', comp);
             const result = compMgr.removeComponent(comp);
+            // 需要立刻执行removeComponent操作，否则会延迟到下一帧
+            cc.Object._deferredDestroy();
+            this.emit('component:remove', comp);
             if (result && command) {
                 Service.Undo?.push(command);
             }
@@ -358,7 +363,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             console.warn(`Query component failed: ${params.path} does not exist`);
             return null;
         }
-        return dumpUtil.dumpComponent(comp as Component) as IComponent;
+        const dump = dumpUtil.dumpComponent(comp as Component) as IComponent;
+        return dump;
     }
 
     async query(params: IQueryComponentOptions | string): Promise<IComponent | null> {
