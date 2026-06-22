@@ -66,7 +66,7 @@ export default {
                 const uuid = req.params[0];
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
-                if (assetInfo && assetInfo.library['.bin'] && Object.keys(assetInfo.library).length === 1) {
+                if (assetInfo?.library?.['.bin'] && Object.keys(assetInfo.library).length === 1) {
                     res.status(200).send('.cconb');
                 } else {
                     res.status(200).send('');
@@ -110,7 +110,7 @@ export default {
                 const { uuid, ext, nativeName } = req.params;
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
-                const filePath = assetInfo && assetInfo.library[`${nativeName}.${ext}`];
+                const filePath = assetInfo?.library?.[`${nativeName}.${ext}`];
                 if (!filePath) {
                     console.warn(`Asset not found: ${req.url}`);
                     return res.status(404).json({
@@ -150,7 +150,7 @@ export default {
                 const { uuid, ext } = req.params;
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
-                const filePath = assetInfo && assetInfo.library[`.${ext}`];
+                const filePath = assetInfo?.library?.[`.${ext}`];
                 if (!filePath) {
                     console.warn(`Asset not found: ${req.url}`);
                     return res.status(404).json({

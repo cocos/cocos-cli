@@ -270,7 +270,7 @@ export default class NodeManager extends EventEmitter {
     }
 
     changeNodeUUID(oldUUID: string, newUUID: string) {
-        if (oldUUID === newUUID) {
+        if (!newUUID || oldUUID === newUUID) {
             return;
         }
 

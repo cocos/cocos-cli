@@ -114,10 +114,9 @@ class EditorPrefabUtils {
 
             if (curMap) {
                 const uuid = (curMap as Map<string, string>).get(prefabInfo.fileId);
-                if (!uuid) {
-                    console.error(prefabInfo.fileId + ' not found uuid');
+                if (uuid) {
+                    EditorExtends.Node.changeNodeUUID(node.uuid, uuid);
                 }
-                EditorExtends.Node.changeNodeUUID(node.uuid, uuid ?? '');
                 node.components.forEach((comp) => {
                     const compPrefab = comp.__prefab;
                     if (compPrefab?.fileId) {

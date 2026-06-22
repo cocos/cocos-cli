@@ -16,7 +16,7 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
     init(): void {
         const lightNode = new Node('SceneViewLight');
         lightNode.layer = Layers.Enum.EDITOR;
-        lightNode._objFlags |= CCObject.Flags.DontSave;
+        lightNode._objFlags |= CCObject.Flags.DontSave | CCObject.Flags.HideInHierarchy;
         this._lightNode = lightNode;
 
         const light = lightNode.addComponent(DirectionalLight);
