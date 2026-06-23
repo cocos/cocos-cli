@@ -1,6 +1,6 @@
 'use strict';
 
-import cc, { Component, DirectionalLight, Layers, LightComponent, Node, Scene } from 'cc';
+import { Component, DirectionalLight, Layers, LightComponent, Node, Scene } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { lightManager } from './scene-view/light-manager';
