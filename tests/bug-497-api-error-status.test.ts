@@ -342,7 +342,7 @@ describe('Bug #497 common API error status codes', () => {
     it('returns 404 when a queried component is not found', async () => {
         mockComponentQuery.mockResolvedValue(null);
 
-        const result = await new ComponentApi().queryComponent({ path: 'Canvas/Missing/cc.Label' });
+        const result = await new ComponentApi().queryComponent({ componentPath: 'Canvas/Missing/cc.Label' });
 
         expect(result.code).toBe(HTTP_STATUS.NOT_FOUND);
         expect(result.reason).toBe('component not found: Canvas/Missing/cc.Label');
