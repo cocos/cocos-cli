@@ -315,7 +315,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                 // Camera not ready yet
             }
             this.onDimensionChanged(is2D);
-            ServiceEvents.broadcast('scene:dimension-changed', is2D);
+            ServiceEvents.emit('scene:dimension-changed', is2D);
             this.saveConfig();
         });
 
@@ -898,7 +898,6 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
 
     onNodeChanged(node: Node, opts?: IChangeNodeOptions): void {
         if (!node) return;
-
         const has = this._selection.includes(node.uuid);
 
         walkNodeComponent(node, (component: Component) => {

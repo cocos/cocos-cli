@@ -21,7 +21,7 @@ import { isEditorNode, isPartOfNode } from '../node/node-utils';
 import { Service } from '../core';
 import { IChangeNodeOptions, NodeEventType } from '../../../common';
 import { Rpc } from '../../rpc';
-import { TimerUtil } from './timer-util';
+import { TimerUtil } from '../utils/timer-util';
 import { sceneUtils } from '../scene/utils';
 
 const nodeMgr = EditorExtends.Node;

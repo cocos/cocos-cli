@@ -1,6 +1,6 @@
 'use strict';
 
-import { CCObject, Component, DirectionalLight, Layers, LightComponent, Node } from 'cc';
+import { Component, DirectionalLight, Layers, LightComponent, Node, Scene } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { lightManager } from './scene-view/light-manager';
@@ -16,22 +16,13 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
     init(): void {
         const lightNode = new Node('SceneViewLight');
         lightNode.layer = Layers.Enum.EDITOR;
-        lightNode._objFlags |= CCObject.Flags.DontSave;
         this._lightNode = lightNode;
 
         const light = lightNode.addComponent(DirectionalLight);
         this._sceneViewLight = light;
         light.enabled = !sceneViewData.isSceneLightOn;
 
-        // Parent to editor camera node if available
-        try {
-            const cameraNode = (Service as any).Camera?.camera?.node;
-            if (cameraNode) {
-                lightNode.parent = cameraNode;
-            }
-        } catch (e) {
-            // Camera not ready
-        }
+        this._makeSureDirectionLightActive();
 
         sceneViewData.on('is-scene-light-on', (isOn: boolean) => {
             this._onIsSceneLightOn(isOn);
@@ -40,6 +31,15 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
         void this.initFromConfig().then(() => {
             this._onIsSceneLightOn(sceneViewData.isSceneLightOn);
         });
+    }
+
+    private _makeSureDirectionLightActive(): void {
+        if (this._sceneViewLight) {
+            const scene = new Scene('');
+            this._sceneViewLight.node.parent = scene;
+            (scene as any)._load();
+            (scene as any)._activate();
+        }
     }
 
     async initFromConfig(): Promise<void> {
@@ -63,15 +63,10 @@ export class SceneViewService extends BaseService<ISceneViewEvents> implements I
         const scene = (cc as any).director?.getScene();
         lightManager.onEditorOpened(scene, sceneViewData.isSceneLightOn);
 
-        // Parent light node to scene if not already parented
-        if (this._lightNode && !this._lightNode.parent) {
-            try {
-                const sceneNode = (cc as any).director?.getScene();
-                if (sceneNode) {
-                    this._lightNode.parent = sceneNode;
-                }
-            } catch (e) {
-                // Scene not ready
+        if (this._lightNode) {
+            const cameraNode = (Service as any).Camera?.camera?.node;
+            if (cameraNode) {
+                this._lightNode.parent = cameraNode;
             }
         }
     }

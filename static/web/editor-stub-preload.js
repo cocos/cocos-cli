@@ -8,12 +8,12 @@ window.Editor = {
         request: async function (target, method, uuid) {
             if (method === 'query-asset-info') {
                 return await fetch(`${serverUrl}/query-asset-info/${uuid}`)
-                    .then(function (r) { return r.json(); })
-                    .catch(function () { return ''; });
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .catch(function () { return null; });
             } else if (method === 'query-engine-info') {
                 return await fetch(`${serverUrl}/engine/query-engine-info`)
-                    .then(function (r) { return r.json(); })
-                    .catch(function () { return ''; });
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .catch(function () { return null; });
             }
             return Promise.resolve(null);
         },

@@ -177,11 +177,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         // 发送添加节点事件，添加节点中的根节点
         this.emit('node:add', resultNode);
 
-        // 发送节点修改消息
-        if (parent) {
-            this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
-        }
-
         return sceneUtils.generateNodeDump(resultNode) as INode;
     }
 

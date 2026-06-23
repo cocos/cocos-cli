@@ -81,15 +81,6 @@ let stashInstants: any = null;
  *   node.on('remove', (node) => {});
  */
 export class NodeManager {
-    _onNodeAdded?: (...args: any[]) => void;
-    _onNodeChanged?: (...args: any[]) => void;
-    _onNodeRemoved?: (...args: any[]) => void;
-    _onTransformChanged?: (...args: any[]) => void;
-    _onSizeChanged?: (...args: any[]) => void;
-    _onAnchorChanged?: (...args: any[]) => void;
-    _onParentChanged?: (...args: any[]) => void;
-    _onLightProbeChanged?: (...args: any[]) => void;
-
     emit<K extends keyof INodeEvents>(event: K, ...args: INodeEvents[K]): void;
     emit(event: string, ...args: any[]): void;
     emit(event: string, ...args: any[]) {
@@ -984,6 +975,10 @@ export class NodeManager {
             const oldParent = node.parent;
             const parentChanged = oldParent !== parentNode;
 
+            if (parentNode === node || parentNode.isChildOf(node)) {
+                throw new Error('Cannot set parent: target parent is the node itself or its descendant.');
+            }
+
             if (oldParent) {
                 this.emit('node:before-change', oldParent);
             }
@@ -1097,10 +1092,6 @@ export class NodeManager {
         }
 
         this.emit('node:add', node);
-
-        if (parent) {
-            this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
-        }
 
         return node.uuid;
     }

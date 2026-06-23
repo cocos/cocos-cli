@@ -1,6 +1,7 @@
 import { getServiceAll, IServiceEvents, ServiceEvents } from './core';
 import { InternalServiceEvents } from './core/internal-events';
 import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents } from '../../common';
+import { messageManager } from './message';
 
 type AllEvents = IEditorEvents & INodeEvents & IComponentEvents & IScriptEvents & IAssetEvents & ISelectionEvents;
 
@@ -10,6 +11,22 @@ type FilteredEvents = Exclude<keyof AllEvents, 'asset-refresh'>;
 type EventMap = {
     [K in FilteredEvents]: keyof IServiceEvents;
 };
+
+// 仅需 messageManager 转发、无服务方法扇出的事件
+const MESSAGE_ONLY_EVENTS = [
+    'dirty:changed',
+    'gizmo:coordinate-changed',
+    'gizmo:pivot-changed',
+    'gizmo:view-mode-changed',
+    'gizmo:tool-changed',
+    'scene:dimension-changed',
+    'scene:change-node',
+    'camera:mode-change',
+    'camera:projection-changed',
+    'camera:fov-changed',
+    'scene-view:visibility-changed',
+    'scene-view:light-changed',
+] as const;
 
 // 定义事件分组映射
 const SERVICE_EVENTS_MAP: EventMap = {
@@ -137,11 +154,14 @@ export class ServiceManager {
         // 重载不是公开的关闭/打开；这里只用内部事件复用服务内容卸载/挂载钩子，
         // 让服务暂停监听并重新绑定引擎重建后的对象，同时不广播 editor:close/open。
         Object.entries(INTERNAL_SERVICE_EVENTS_MAP).forEach(([eventType, methodName]) => {
-            this.registerAutoForwardEvent(eventType, methodName);
+            this.registerAutoForwardEvent(eventType, methodName, false);
         });
+        // 仅需 messageManager 转发的事件（无服务方法扇出）
+        this.registerMessageOnlyForwardEvents();
     }
 
-    private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName) {
+    private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName, broadcastToMessage = true) {
+        const isNodeChange = eventType === 'node:change';
         const handler = (...args: any[]) => {
             for (const service of getServiceAll() as AutoForwardService[]) {
                 const serviceHandler = service[methodName];
@@ -153,10 +173,26 @@ export class ServiceManager {
                     }
                 }
             }
+            if (!broadcastToMessage) return;
+            if (isNodeChange) {
+                messageManager.broadcastChangeNodeMsg(...args);
+            } else {
+                messageManager.broadcast(eventType, ...args);
+            }
         };
 
         ServiceEvents.on(eventType, handler);
         this.eventHandlers.set(eventType, handler);
+    }
+
+    private registerMessageOnlyForwardEvents() {
+        for (const eventType of MESSAGE_ONLY_EVENTS) {
+            const handler = (...args: any[]) => {
+                messageManager.broadcast(eventType, ...args);
+            };
+            ServiceEvents.on(eventType, handler);
+            this.eventHandlers.set(eventType, handler);
+        }
     }
 
     private unregisterAutoForwardEvents() {

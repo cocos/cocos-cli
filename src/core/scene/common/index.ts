@@ -14,3 +14,4 @@ export * from './camera';
 export * from './gizmo';
 export * from './scene-view';
 export * from './ui';
+export * from './message';
