@@ -1,3 +1,7 @@
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 describe('newConsole dead loop reproduction', () => {
     // Store original state at the suite level
     let originalMaxListeners: number;
@@ -333,6 +337,30 @@ describe('newConsole dead loop reproduction', () => {
             record.mockRestore();
             stopRecord.mockRestore();
             flush.mockRestore();
+        }
+    });
+
+    it('should synchronously append failure logs to the active log file', async () => {
+        const { newConsole } = await import('../../base/console');
+        const tempDir = mkdtempSync(join(tmpdir(), 'cocos-cli-console-'));
+        const logFile = join(tempDir, 'build.log');
+        const originalLogDest = (newConsole as any).logDest;
+        const originalStart = (newConsole as any)._start;
+
+        try {
+            newConsole.record(logFile);
+            newConsole.error(new Error('sync build failure'));
+            newConsole.flush();
+
+            const content = readFileSync(logFile, 'utf8');
+            expect(content).toContain('sync build failure');
+        } finally {
+            if ((newConsole as any)._start) {
+                newConsole.stopRecord();
+            }
+            (newConsole as any).logDest = originalLogDest;
+            (newConsole as any)._start = originalStart;
+            rmSync(tempDir, { recursive: true, force: true });
         }
     });
 });

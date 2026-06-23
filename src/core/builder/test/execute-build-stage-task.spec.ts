@@ -326,4 +326,25 @@ describe('executeBuildStageTask', () => {
 
         expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'custom-log.log'));
     });
+
+    it('opens a stage log sink before reading persisted build options', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        mockReadJSONSync.mockImplementationOnce(() => {
+            throw new Error('missing build options');
+        });
+
+        const result = await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+        });
+
+        const firstLogDest = (newConsole.record as jest.Mock).mock.calls[0][0];
+        expect(firstLogDest).toContain('upload build-');
+        expect(firstLogDest).toMatch(/\.log$/);
+        expect(result).toEqual({
+            code: 34,
+            reason: 'missing build options',
+        });
+    });
 });

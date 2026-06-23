@@ -53,15 +53,14 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
         options = await pluginManager.getOptionsByPlatform(platform);
     }
     options.platform = platform;
+    options.taskId = options.taskId || String(new Date().getTime());
+    options.taskName = options.taskName || platform;
+    ensureBuildLogSink(options, platform);
 
     // 不支持的构建平台不执行构建
     if (!pluginManager.checkPlatform(platform)) {
         throw new Error(`Unsupported platform ${platform} for build command!`);
     }
-    options.taskId = options.taskId || String(new Date().getTime());
-    options.taskName = options.taskName || platform;
-    ensureBuildLogSink(options, platform);
-
     // @ts-ignore
     let realOptions: IBuildTaskOption<any> = options;
     if (!options.skipCheck) {
@@ -228,6 +227,8 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         options.taskName = stageName + ' build';
     }
     const restoreLogSink = newConsole.createLogSinkRestorer();
+    const explicitLogDest = options.logDest;
+    ensureBuildLogSink(options, options.taskName, explicitLogDest);
     let buildStageTask: Awaited<ReturnType<typeof createBuildStageTask>> | undefined;
 
     try {
@@ -244,7 +245,9 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
             }
             mergeBuildStageRuntimeOptions(buildOptions, options);
         }
-        ensureBuildLogSink(options, options.taskName, options.logDest || savedBuildOptions?.logDest);
+        if (!explicitLogDest && savedBuildOptions?.logDest) {
+            ensureBuildLogSink(options, options.taskName, savedBuildOptions.logDest);
+        }
         buildStageTask = await createBuildStageTaskWithBuildOptions(taskId, stageName, options, buildOptions);
         if (onProgress) {
             buildStageTask.on('update', onProgress);

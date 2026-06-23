@@ -1,4 +1,5 @@
 import { basename, dirname, extname, join } from 'path';
+import { appendFileSync } from 'fs';
 import { ensureDirSync } from 'fs-extra';
 import { consola, type ConsolaInstance } from 'consola';
 import type { Ora } from 'ora';
@@ -34,6 +35,21 @@ function getLogFileTransportOptions(logDest: string) {
         logDir,
         filename: basename(logFile, extname(logFile)),
     };
+}
+
+function appendCriticalLogSync(logDest: string, type: IConsoleType, message: string) {
+    if (!logDest || (type !== 'error' && type !== 'warn')) {
+        return;
+    }
+
+    const logFile = normalizeLogFilePath(logDest);
+    try {
+        ensureDirSync(dirname(logFile));
+        const time = new Date().toISOString();
+        appendFileSync(logFile, `[${time}] [${type.toUpperCase()}] ${message}\n`, 'utf8');
+    } catch (_e) {
+        // ignore fallback write errors
+    }
 }
 
 /**
@@ -411,6 +427,9 @@ export class NewConsole {
         });
 
         // 使用 try-catch 包裹 pino 调用，避免 pino 内部错误触发全局错误处理器导致死循环
+        if (this._start) {
+            appendCriticalLogSync(this.logDest, type, cleanMessage);
+        }
         try {
             switch (type) {
                 case 'debug':
