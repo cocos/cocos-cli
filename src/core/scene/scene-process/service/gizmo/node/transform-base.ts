@@ -92,7 +92,7 @@ class TransformBaseGizmo extends GizmoBase<Component> {
     // 发送节点修改消息
     protected broadcastNodeChangeMessage(node: Node) {
         const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-        ServiceEvents.broadcast('scene:change-node', EditorExtends.Node.getNodePath(node));
+        ServiceEvents.broadcast('node:change', EditorExtends.Node.getNodePath(node));
     }
 
     getSnappedValue(inNumber: number, snapStep: number): number {

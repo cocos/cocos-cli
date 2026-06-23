@@ -40,9 +40,9 @@ class MessageManager {
         }
     }
 
-    // 因为ChangeNode消息有可能每帧都发送(特别是骨骼动画），太频繁了造成卡顿，所以限制了发送频率
-    public broadcastChangeNodeMsg(...args: any[]) {
-        this._timerUtil.callFunctionLimit(args[0], this.broadcast.bind(this), 'scene:change-node', ...args);
+    // node:change 消息可能每帧都发送(特别是骨骼动画），太频繁造成卡顿，限制发送频率
+    public broadcastNodeChangeMsg(...args: any[]) {
+        this._timerUtil.callFunctionLimit(args[0], this.broadcast.bind(this), 'node:change', ...args);
     }
 }
 

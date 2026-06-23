@@ -106,14 +106,14 @@ describe('MessageManager', () => {
         });
     });
 
-    // ── broadcastChangeNodeMsg 节流功能 ──
+    // ── broadcastNodeChangeMsg 节流功能 ──
 
-    describe('broadcastChangeNodeMsg', () => {
-        it('首次调用应立即广播 scene:change-node', () => {
+    describe('broadcastNodeChangeMsg', () => {
+        it('首次调用应立即广播 node:change', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
-            messageManager.broadcastChangeNodeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
 
             expect(listener).toHaveBeenCalledTimes(1);
             expect(listener).toHaveBeenCalledWith('uuid-1');
@@ -121,21 +121,21 @@ describe('MessageManager', () => {
 
         it('200ms 内同 uuid 重复调用应被节流', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
-            messageManager.broadcastChangeNodeMsg('uuid-1');
-            messageManager.broadcastChangeNodeMsg('uuid-1');
-            messageManager.broadcastChangeNodeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
 
             expect(listener).toHaveBeenCalledTimes(1);
         });
 
         it('200ms 后应执行最后一次挂起的调用', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
-            messageManager.broadcastChangeNodeMsg('uuid-1');
-            messageManager.broadcastChangeNodeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
 
             jest.advanceTimersByTime(200);
 
@@ -146,10 +146,10 @@ describe('MessageManager', () => {
 
         it('不同 uuid 的节点应各自独立广播', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
-            messageManager.broadcastChangeNodeMsg('uuid-A');
-            messageManager.broadcastChangeNodeMsg('uuid-B');
+            messageManager.broadcastNodeChangeMsg('uuid-A');
+            messageManager.broadcastNodeChangeMsg('uuid-B');
 
             expect(listener).toHaveBeenCalledTimes(2);
             expect(listener).toHaveBeenNthCalledWith(1, 'uuid-A');
@@ -157,8 +157,8 @@ describe('MessageManager', () => {
         });
 
         it('节流期间 process.send 不应被调用', () => {
-            messageManager.broadcastChangeNodeMsg('uuid-1');
-            messageManager.broadcastChangeNodeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
+            messageManager.broadcastNodeChangeMsg('uuid-1');
 
             expect(processSend).not.toHaveBeenCalled();
 
@@ -201,12 +201,12 @@ describe('MessageManager', () => {
             expect(listener).toHaveBeenCalledWith(mockNode);
         });
 
-        it('scene:change-node — 通过 broadcastChangeNodeMsg 节流广播', () => {
+        it('node:change — 通过 broadcastNodeChangeMsg 节流广播', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
-            messageManager.broadcastChangeNodeMsg('node-uuid-1');
-            messageManager.broadcastChangeNodeMsg('node-uuid-1');
+            messageManager.broadcastNodeChangeMsg('node-uuid-1');
+            messageManager.broadcastNodeChangeMsg('node-uuid-1');
 
             expect(listener).toHaveBeenCalledTimes(1);
             expect(listener).toHaveBeenCalledWith('node-uuid-1');
@@ -385,13 +385,13 @@ describe('MessageManager', () => {
 
     // ── 骨骼动画高频场景 ──
 
-    describe('高频 change-node 场景（骨骼动画模拟）', () => {
-        it('连续 10 次 broadcastChangeNodeMsg 同一节点，只应执行 2 次', () => {
+    describe('高频 node-change 场景（骨骼动画模拟）', () => {
+        it('连续 10 次 broadcastNodeChangeMsg 同一节点，只应执行 2 次', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
             for (let i = 0; i < 10; i++) {
-                messageManager.broadcastChangeNodeMsg('bone-uuid');
+                messageManager.broadcastNodeChangeMsg('bone-uuid');
             }
 
             expect(listener).toHaveBeenCalledTimes(1);
@@ -403,13 +403,13 @@ describe('MessageManager', () => {
 
         it('多个骨骼节点并发变更应各自独立节流', () => {
             const listener = jest.fn();
-            messageManager.on('scene:change-node', listener);
+            messageManager.on('node:change', listener);
 
-            messageManager.broadcastChangeNodeMsg('bone-1');
-            messageManager.broadcastChangeNodeMsg('bone-2');
-            messageManager.broadcastChangeNodeMsg('bone-3');
-            messageManager.broadcastChangeNodeMsg('bone-1');
-            messageManager.broadcastChangeNodeMsg('bone-2');
+            messageManager.broadcastNodeChangeMsg('bone-1');
+            messageManager.broadcastNodeChangeMsg('bone-2');
+            messageManager.broadcastNodeChangeMsg('bone-3');
+            messageManager.broadcastNodeChangeMsg('bone-1');
+            messageManager.broadcastNodeChangeMsg('bone-2');
 
             // bone-1, bone-2, bone-3 各首次立即执行 = 3
             expect(listener).toHaveBeenCalledTimes(3);

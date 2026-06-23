@@ -14,7 +14,6 @@ import type { IUndoEvents } from './undo';
  */
 export interface ISceneEvents {
     'scene:dimension-changed': [is2D: boolean];
-    'scene:change-node': [...args: any[]];
 }
 
 /**

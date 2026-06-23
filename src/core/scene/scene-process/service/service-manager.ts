@@ -20,7 +20,6 @@ const MESSAGE_ONLY_EVENTS = [
     'gizmo:view-mode-changed',
     'gizmo:tool-changed',
     'scene:dimension-changed',
-    'scene:change-node',
     'camera:mode-change',
     'camera:projection-changed',
     'camera:fov-changed',
@@ -175,7 +174,7 @@ export class ServiceManager {
             }
             if (!broadcastToMessage) return;
             if (isNodeChange) {
-                messageManager.broadcastChangeNodeMsg(...args);
+                messageManager.broadcastNodeChangeMsg(...args);
             } else {
                 messageManager.broadcast(eventType, ...args);
             }
