@@ -369,7 +369,7 @@ export interface IBuildStageOptions {
     platform: Platform | string;
     taskName?: string;
     logDest?: string;
-    packages?: Record<string, Record<string, unknown>>;
+    packages?: Record<string, Record<string, unknown>> | string;
 }
 
 export type BuildStageProgressCallback = (message: string, progress: number) => void;

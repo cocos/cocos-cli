@@ -231,6 +231,53 @@ describe('executeBuildStageTask', () => {
         });
     });
 
+    it('parses injected packages JSON and overrides compile options for non-web stages', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        let receivedOptions: any;
+        const runHookModule = {
+            throwError: true,
+            run: jest.fn(async (_root: string, options: any) => {
+                receivedOptions = options;
+            }),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'wechatgame',
+            packages: {
+                wechatgame: {
+                    wechatToolsPath: 'old-tools-path',
+                    appid: 'persisted-appid',
+                },
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['wechatgame'],
+            infos: {
+                wechatgame: {
+                    path: 'wechatgame/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'run',
+            hook: 'run',
+            displayName: 'Run',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(runHookModule);
+
+        await executeBuildStageTask('task-id', 'run', {
+            dest: 'build/wechatgame',
+            platform: 'wechatgame',
+            packages: '{"wechatgame":{"wechatToolsPath":"c:\\\\Program Files (x86)\\\\Tencent\\\\微信web开发者工具\\\\微信开发者工具.exe"}}',
+        });
+
+        expect(receivedOptions.packages.wechatgame).toEqual({
+            wechatToolsPath: 'c:\\Program Files (x86)\\Tencent\\微信web开发者工具\\微信开发者工具.exe',
+            appid: 'persisted-appid',
+        });
+    });
+
     it('uses persisted build log destination for non-web stages by default', async () => {
         const { executeBuildStageTask } = await import('../index');
         const { newConsole } = await import('../../base/console');

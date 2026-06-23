@@ -210,16 +210,44 @@ function tryReadBuildOptionsForBuildStage(options: IBuildStageOptions) {
 }
 
 function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, options: IBuildStageOptions) {
-    if (!options.packages) {
+    const runtimePackages = normalizeBuildStageRuntimePackages(options.packages);
+    if (!runtimePackages) {
         return;
     }
     buildOptions.packages = buildOptions.packages || {};
-    for (const [platform, packageOptions] of Object.entries(options.packages)) {
+    for (const [platform, packageOptions] of Object.entries(runtimePackages)) {
         buildOptions.packages[platform] = {
             ...(buildOptions.packages[platform] || {}),
             ...packageOptions,
         };
     }
+}
+
+function normalizeBuildStageRuntimePackages(packages: IBuildStageOptions['packages']) {
+    if (!packages) {
+        return undefined;
+    }
+
+    let parsedPackages: unknown = packages;
+    if (typeof packages === 'string') {
+        try {
+            parsedPackages = JSON.parse(packages);
+        } catch (error) {
+            throw new Error(`Invalid build stage packages JSON: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    if (!parsedPackages || typeof parsedPackages !== 'object' || Array.isArray(parsedPackages)) {
+        throw new Error('Build stage packages must be an object.');
+    }
+
+    for (const [platform, packageOptions] of Object.entries(parsedPackages)) {
+        if (!packageOptions || typeof packageOptions !== 'object' || Array.isArray(packageOptions)) {
+            throw new Error(`Build stage package options for ${platform} must be an object.`);
+        }
+    }
+
+    return parsedPackages as Record<string, Record<string, unknown>>;
 }
 
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
