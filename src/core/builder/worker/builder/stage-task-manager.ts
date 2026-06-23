@@ -11,6 +11,7 @@ export interface IBuildStageConfig extends IBuildStageItem {
     root: string;
     hooksInfo: IBuildHooksInfo;
     buildTaskOptions: IBuildOptionBase;
+    progressHeartbeat?: boolean;
 }
 
 export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
@@ -25,6 +26,7 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
         this.hooksInfo = config.hooksInfo;
         this.root = config.root;
         this.options = config.buildTaskOptions;
+        this.progressHeartbeatEnabled = config.progressHeartbeat !== false;
         // 首字母转为大写后走前后钩子函数流程
         const name = config.name[0].toUpperCase() + config.name.slice(1, config.name.length);
         this.hookMap = {
@@ -36,24 +38,28 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     }
 
     public async run() {
-        const trickTimeLabel = `// ---- builder:run-build-stage-${this.name} ----`;
-        console.debug(trickTimeLabel);
-        // 为了保障构建 + 编译或者单独编译的情况都有统计到，直接加在此处
-        newConsole.trackTimeStart(trickTimeLabel);
-        this.updateProcess('init options success', 0.1);
-
         try {
-            for (const taskName of Object.keys(this.hookMap)) {
-                await this.runPluginTask(taskName);
+            const trickTimeLabel = `// ---- builder:run-build-stage-${this.name} ----`;
+            console.debug(trickTimeLabel);
+            // 为了保障构建 + 编译或者单独编译的情况都有统计到，直接加在此处
+            newConsole.trackTimeStart(trickTimeLabel);
+            this.updateProcess('init options success', 0.1);
+
+            try {
+                for (const taskName of Object.keys(this.hookMap)) {
+                    await this.runPluginTask(taskName);
+                }
+            } catch (error) {
+                this.error = error as Error;
             }
-        } catch (error) {
-            this.error = error as Error;
+            await newConsole.trackTimeEnd(trickTimeLabel, { output: true });
+            if (this.error) {
+                throw this.error;
+            }
+            return true;
+        } finally {
+            this.stopProgressHeartbeat();
         }
-        await newConsole.trackTimeEnd(trickTimeLabel, { output: true });
-        if (this.error) {
-            throw this.error;
-        }
-        return true;
     }
 
     public break(reason: string) {

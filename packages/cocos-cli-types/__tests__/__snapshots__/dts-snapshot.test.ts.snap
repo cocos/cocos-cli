@@ -1207,11 +1207,24 @@ export declare abstract class BuildTaskBase extends EventEmitter {
     abstract hookMap: Record<string, string>;
     hookWeight: number;
     id: string;
+    protected progressHeartbeatEnabled: boolean;
     buildExitRes: IBuildResultSuccess;
+    private progressHeartbeatTimer?;
+    private lastProgressMessage;
+    private displayProgress;
+    private heartbeatProgressMax;
     constructor(id: string, name: string);
     break(reason: string): void;
     onError(error: Error, throwError?: boolean): void;
     updateProcess(message: string, increment?: number, outputType?: IConsoleType): void;
+    protected startProgressStep(message: string, stepWeight: number, outputType?: IConsoleType): void;
+    protected stopProgressHeartbeat(): void;
+    private scheduleProgressHeartbeat;
+    private emitProgressHeartbeat;
+    protected prepareProgressHeartbeat(stepWeight: number): void;
+    private syncDisplayProgress;
+    private emitProgressUpdate;
+    private getNextHeartbeatProgress;
     abstract handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
     abstract run(): Promise<boolean>;
     runPluginTask(funcName: string, weight?: number): Promise<void>;
@@ -2204,6 +2217,7 @@ export declare interface IBuildStageConfig extends IBuildStageItem {
     root: string;
     hooksInfo: IBuildHooksInfo;
     buildTaskOptions: IBuildOptionBase;
+    progressHeartbeat?: boolean;
 }
 export declare type IBuildStageHooks = (root: string, options: IBuildOptionBase) => Promise<void> | void;
 export declare interface IBuildStageItem {

@@ -241,10 +241,14 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
      * @returns 
      */
     public async run() {
-        // 独立构建 Bundle 时，不能抽取公共脚本到 src
-        this.options.bundleCommonChunk = true;
-        await this.runAllTask();
-        return true;
+        try {
+            // 独立构建 Bundle 时，不能抽取公共脚本到 src
+            this.options.bundleCommonChunk = true;
+            await this.runAllTask();
+            return true;
+        } finally {
+            this.stopProgressHeartbeat();
+        }
     }
 
     public async outputBundle() {
@@ -825,6 +829,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
             return;
         }
         try {
+            this.startProgressStep(`run bundle task ${handle.name} start!`, increment);
             await handle.bind(this)();
             this.updateProcess(`run bundle task ${handle.name} success!`, increment);
         } catch (error: any) {

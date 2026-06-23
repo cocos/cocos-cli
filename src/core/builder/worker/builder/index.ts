@@ -176,51 +176,55 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             return false;
         }
 
-        if (this.options.buildMode === 'bundle') {
-            await this.buildBundleOnly();
+        try {
+            if (this.options.buildMode === 'bundle') {
+                await this.buildBundleOnly();
+                return true;
+            }
+            await ensureDir(this.result.paths.dir);
+            // 允许插件在 onBeforeBuild 内修改 useCache
+            await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuild);
+            if (!this.options.useCache) {
+                // 固定清理工程的时机，请勿改动以免造成不必要的插件兼容问题
+                emptyDirSync(this.result.paths.dir);
+            }
+            await this.lockAssetDB();
+            await this.runPluginTask(TaskManager.pluginTasks.onBeforeInit);
+            await this.init();
+            await this.runPluginTask(TaskManager.pluginTasks.onAfterInit);
+
+            await this.initBundleManager();
+
+            await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleDataTask);
+            // 开始执行预制任务
+            await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
+            await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleDataTask);
+
+            await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuildAssets);
+            await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleBuildTask);
+            // 开始执行构建任务
+            await this.runBuildTask(TaskManager.getBuildTask('buildTasks'), this.taskManager.taskWeight);
+            await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleBuildTask);
+            await this.runPluginTask(TaskManager.pluginTasks.onAfterBuildAssets);
+
+            await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
+            await this.runPluginTask(TaskManager.pluginTasks.onBeforeCompressSettings);
+            await this.runBuildTask(TaskManager.getBuildTask('postprocessTasks'), this.taskManager.taskWeight);
+            await this.runPluginTask(TaskManager.pluginTasks.onAfterCompressSettings);
+            await this.runPluginTask(TaskManager.pluginTasks.onBeforeCopyBuildTemplate);
+            // 拷贝自定义模板
+            await this.buildTemplate!.copyTo(this.result.paths.output);
+            await this.runPluginTask(TaskManager.pluginTasks.onAfterCopyBuildTemplate);
+            // MD5 处理
+            this.options.md5Cache && (await this.runBuildTask(TaskManager.getBuildTask('md5Tasks'), this.taskManager.taskWeight));
+            // 构建进程结束之前
+            await this.runPluginTask(TaskManager.pluginTasks.onAfterBuild);
+            await this.postBuild();
+            this.options.nextStages && (await this.handleBuildStageTask(this.options.nextStages));
             return true;
+        } finally {
+            this.stopProgressHeartbeat();
         }
-        await ensureDir(this.result.paths.dir);
-        // 允许插件在 onBeforeBuild 内修改 useCache
-        await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuild);
-        if (!this.options.useCache) {
-            // 固定清理工程的时机，请勿改动以免造成不必要的插件兼容问题
-            emptyDirSync(this.result.paths.dir);
-        }
-        await this.lockAssetDB();
-        await this.runPluginTask(TaskManager.pluginTasks.onBeforeInit);
-        await this.init();
-        await this.runPluginTask(TaskManager.pluginTasks.onAfterInit);
-
-        await this.initBundleManager();
-
-        await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleDataTask);
-        // 开始执行预制任务
-        await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
-        await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleDataTask);
-
-        await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuildAssets);
-        await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleBuildTask);
-        // 开始执行构建任务
-        await this.runBuildTask(TaskManager.getBuildTask('buildTasks'), this.taskManager.taskWeight);
-        await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleBuildTask);
-        await this.runPluginTask(TaskManager.pluginTasks.onAfterBuildAssets);
-
-        await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
-        await this.runPluginTask(TaskManager.pluginTasks.onBeforeCompressSettings);
-        await this.runBuildTask(TaskManager.getBuildTask('postprocessTasks'), this.taskManager.taskWeight);
-        await this.runPluginTask(TaskManager.pluginTasks.onAfterCompressSettings);
-        await this.runPluginTask(TaskManager.pluginTasks.onBeforeCopyBuildTemplate);
-        // 拷贝自定义模板
-        await this.buildTemplate!.copyTo(this.result.paths.output);
-        await this.runPluginTask(TaskManager.pluginTasks.onAfterCopyBuildTemplate);
-        // MD5 处理
-        this.options.md5Cache && (await this.runBuildTask(TaskManager.getBuildTask('md5Tasks'), this.taskManager.taskWeight));
-        // 构建进程结束之前
-        await this.runPluginTask(TaskManager.pluginTasks.onAfterBuild);
-        await this.postBuild();
-        this.options.nextStages && (await this.handleBuildStageTask(this.options.nextStages));
-        return true;
     }
 
     /**
@@ -287,7 +291,11 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
                 hooksInfo: this.hooksInfo,
                 root,
                 buildTaskOptions: this.options,
+                progressHeartbeat: false,
             });
+            buildStageTask.buildExitRes.custom = {
+                ...this.buildExitRes.custom,
+            };
             this.currentStageTask = buildStageTask;
             buildStageTask.on('update', (message: string, increment: number) => {
                 this.updateProcess(message, increment * stageWeight);
@@ -300,6 +308,10 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
                 this.error = buildStageTask.error;
                 return;
             }
+            this.buildExitRes.custom = {
+                ...this.buildExitRes.custom,
+                ...buildStageTask.buildExitRes.custom,
+            };
         }
     }
 
@@ -351,13 +363,17 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 获取预览 settings 信息
      */
     public async getPreviewSettings() {
-        await this.init();
-        this.result.settings.engine.engineModules = this.options.includeModules;
-        await this.initBundleManager();
-        // 开始执行预制任务
-        await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
-        await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
-        return this.result.settings;
+        try {
+            await this.init();
+            this.result.settings.engine.engineModules = this.options.includeModules;
+            await this.initBundleManager();
+            // 开始执行预制任务
+            await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
+            await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
+            return this.result.settings;
+        } finally {
+            this.stopProgressHeartbeat();
+        }
     }
 
     private async initOptions() {
@@ -495,7 +511,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             const taskTitle = await transTitle(task.title);
             const trickTimeLabel = `// ---- build task ${taskTitle} ----`;
             newConsole.trackTimeStart(trickTimeLabel);
-            this.updateProcess(taskTitle + ' start');
+            this.startProgressStep(taskTitle + ' start', weight);
             console.debug(trickTimeLabel);
             newConsole.trackMemoryStart(taskTitle);
             try {
@@ -524,6 +540,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
 
     onError(error: Error, throwError = true) {
         this.error = error;
+        this.stopProgressHeartbeat();
         this.bundleManager && (this.bundleManager.error = error);
         if (throwError) {
             throw error;
