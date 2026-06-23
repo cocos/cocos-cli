@@ -1,4 +1,4 @@
-import { join, resolve } from 'path';
+import { join } from 'path';
 
 const mockGetBuildStageWithHookTasks = jest.fn();
 const mockGetHooksInfo = jest.fn();
@@ -197,8 +197,8 @@ describe('createBuildStageTask', () => {
 
     it('runs the corresponding platform stage hooks', async () => {
         const { createBuildStageTask } = await import('../index');
-        const bytedanceHooksPath = resolve('packages/platforms/cocos-pal-bytedance/dist/hooks');
-        const logSpy = jest.spyOn(console, 'log');
+        const calls: string[] = [];
+        const bytedanceHooksPath = 'web-desktop/hooks';
         const bytedanceHooksInfo = {
             pkgNameOrder: ['bytedance-mini-game'],
             infos: {
@@ -216,9 +216,20 @@ describe('createBuildStageTask', () => {
                 },
             },
         };
+        const hookModule = {
+            throwError: true,
+            run: jest.fn(async function(this: any, root: string, options: any) {
+                calls.push('run');
+                expect(this.id).toBe('task-id');
+                expect(this.name).toBe('run');
+                expect(this.buildExitRes.dest).toBe('raw:build/bytedance-mini-game');
+                expect(root).toBe('raw:build/bytedance-mini-game');
+                expect(options).toBe(buildOptions);
+            }),
+        };
         mockGetHooksInfo.mockReturnValue(bytedanceHooksInfo);
         mockReadJSONSync.mockReturnValue(buildOptions);
-        mockRequireFile.mockImplementation((hookPath: string) => jest.requireActual(hookPath));
+        mockRequireFile.mockReturnValue(hookModule);
 
         const task = await createBuildStageTask('task-id', 'run', {
             dest: 'build/bytedance-mini-game',
@@ -229,7 +240,8 @@ describe('createBuildStageTask', () => {
         expect(result).toBe(true);
         expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/bytedance-mini-game', 'cocos.compile.config.json'));
         expect(mockRequireFile).toHaveBeenCalledWith(bytedanceHooksPath);
-        expect(logSpy).toHaveBeenCalledWith('bytedanceDevtoolsPath run');
+        expect(calls).toEqual(['run']);
+        expect(hookModule.run).toHaveBeenCalledTimes(1);
     });
 
     it('throws when the requested build stage is not registered', async () => {
