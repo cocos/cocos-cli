@@ -200,16 +200,13 @@ function readBuildOptionsForBuildStage(options: IBuildStageOptions) {
     return buildOptions;
 }
 
-function tryReadBuildOptionsForBuildStage(options: IBuildStageOptions) {
-    options.dest = utils.Path.resolveToRaw(options.dest);
-    try {
-        return readBuildTaskOptions(options.dest);
-    } catch {
-        return undefined;
-    }
-}
-
 function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, options: IBuildStageOptions) {
+    buildOptions.platform = options.platform;
+    (buildOptions as IBuildTaskOption<any> & { dest?: string }).dest = options.dest;
+    if (options.logDest) {
+        buildOptions.logDest = options.logDest;
+    }
+
     if (!options.packages) {
         return;
     }
@@ -227,26 +224,18 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         options.taskName = stageName + ' build';
     }
     const restoreLogSink = newConsole.createLogSinkRestorer();
-    const explicitLogDest = options.logDest;
-    ensureBuildLogSink(options, options.taskName, explicitLogDest);
+    ensureBuildLogSink(options, options.taskName, options.logDest);
     let buildStageTask: Awaited<ReturnType<typeof createBuildStageTask>> | undefined;
 
     try {
         let buildOptions: IBuildTaskOption<any> | undefined;
-        let savedBuildOptions: IBuildTaskOption<any> | undefined;
-        if (options.platform.startsWith('web')) {
-            savedBuildOptions = tryReadBuildOptionsForBuildStage(options);
-        } else {
+        if (!options.platform.startsWith('web')) {
             options.dest = utils.Path.resolveToRaw(options.dest);
-            savedBuildOptions = readBuildTaskOptions(options.dest);
-            buildOptions = savedBuildOptions;
+            buildOptions = readBuildTaskOptions(options.dest);
             if (!buildOptions) {
                 throw new Error('Build options is not exist!');
             }
             mergeBuildStageRuntimeOptions(buildOptions, options);
-        }
-        if (!explicitLogDest && savedBuildOptions?.logDest) {
-            ensureBuildLogSink(options, options.taskName, savedBuildOptions.logDest);
         }
         buildStageTask = await createBuildStageTaskWithBuildOptions(taskId, stageName, options, buildOptions);
         if (onProgress) {

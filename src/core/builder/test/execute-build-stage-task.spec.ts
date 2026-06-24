@@ -191,7 +191,9 @@ describe('executeBuildStageTask', () => {
             }),
         };
         mockReadJSONSync.mockReturnValue({
-            platform: 'openpaas',
+            platform: 'persisted-openpaas',
+            dest: 'persisted-dest',
+            logDest: 'persisted-log',
             packages: {
                 openpaas: {
                     versionName: '1.0.0',
@@ -218,6 +220,7 @@ describe('executeBuildStageTask', () => {
         await executeBuildStageTask('task-id', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
+            logDest: 'runtime-log',
             packages: {
                 openpaas: {
                     accessToken: 'token-1',
@@ -229,6 +232,9 @@ describe('executeBuildStageTask', () => {
             versionName: '1.0.0',
             accessToken: 'token-1',
         });
+        expect(receivedOptions.platform).toBe('openpaas');
+        expect(receivedOptions.dest).toBe('build/openpaas');
+        expect(receivedOptions.logDest).toBe(join('project-root', 'runtime-log.log'));
     });
 
     it('overrides compile options with injected package objects for non-web stages', async () => {
@@ -292,12 +298,15 @@ describe('executeBuildStageTask', () => {
         });
     });
 
-    it('uses persisted build log destination for non-web stages by default', async () => {
+    it('uses current stage log destination for non-web stages by default', async () => {
         const { executeBuildStageTask } = await import('../index');
         const { newConsole } = await import('../../base/console');
+        let receivedOptions: any;
         const uploadHookModule = {
             throwError: true,
-            upload: jest.fn(),
+            upload: jest.fn(async (_root: string, options: any) => {
+                receivedOptions = options;
+            }),
         };
         mockReadJSONSync.mockReturnValue({
             platform: 'openpaas',
@@ -328,23 +337,26 @@ describe('executeBuildStageTask', () => {
             platform: 'openpaas',
         });
 
-        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/build-log.log'));
+        expect(newConsole.record).toHaveBeenCalledTimes(1);
+        const logDest = (newConsole.record as jest.Mock).mock.calls[0][0];
+        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]upload build-/);
+        expect(logDest).toMatch(/\.log$/);
+        expect(receivedOptions.logDest).toBe(logDest);
     });
 
-    it('uses persisted build log destination for web stages without changing hook options', async () => {
+    it('uses current stage log destination for web stages without changing hook options', async () => {
         const { executeBuildStageTask } = await import('../index');
         const { newConsole } = await import('../../base/console');
-        mockReadJSONSync.mockReturnValue({
-            platform: 'web-desktop',
-            logDest: 'temp/builder/log/web-build-log.log',
-        });
 
         await executeBuildStageTask('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         });
 
-        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/web-build-log.log'));
+        expect(newConsole.record).toHaveBeenCalledTimes(1);
+        const logDest = (newConsole.record as jest.Mock).mock.calls[0][0];
+        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]run build-/);
+        expect(logDest).toMatch(/\.log$/);
         expect(hookModule.run).toHaveBeenCalledWith('build/web-desktop', undefined);
     });
 
