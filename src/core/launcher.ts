@@ -22,7 +22,7 @@ export default class Launcher {
     constructor(projectPath: string) {
         this.projectPath = projectPath;
         // 初始化日志系统
-        newConsole.init(join(this.projectPath, 'temp', 'logs'), true);
+        newConsole.init(join(this.projectPath, 'temp', 'logs', 'cocos.log'), true);
         newConsole.record();
     }
 
@@ -146,6 +146,21 @@ export default class Launcher {
         return await executeBuildStageTask('command run', 'run', {
             platform,
             dest,
+        });
+    }
+
+    static async upload(platform: Platform, dest: string, accessToken?: string) {
+        GlobalConfig.mode = 'simple';
+        const { init, executeBuildStageTask } = await import('./builder');
+        await init(platform);
+        return await executeBuildStageTask('command upload', 'upload', {
+            platform,
+            dest,
+            packages: accessToken ? {
+                [platform]: {
+                    accessToken,
+                },
+            } : undefined,
         });
     }
 

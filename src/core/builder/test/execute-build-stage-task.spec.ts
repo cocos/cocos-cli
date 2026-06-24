@@ -1,7 +1,14 @@
+import { join } from 'path';
+
 const mockGetBuildStageWithHookTasks = jest.fn();
 const mockGetHooksInfo = jest.fn();
 const mockRequireFile = jest.fn();
 const mockRestoreLogSink = jest.fn();
+const mockReadJSONSync = jest.fn();
+
+jest.mock('fs-extra', () => ({
+    readJSONSync: mockReadJSONSync,
+}));
 
 jest.mock('../manager/plugin', () => ({
     pluginManager: {
@@ -92,6 +99,7 @@ describe('executeBuildStageTask', () => {
         mockGetBuildStageWithHookTasks.mockReturnValue(stageConfig);
         mockGetHooksInfo.mockReturnValue(hooksInfo);
         mockRequireFile.mockReturnValue(hookModule);
+        mockReadJSONSync.mockReturnValue(undefined);
         hookModule.run.mockResolvedValue(undefined);
     });
 
@@ -132,6 +140,211 @@ describe('executeBuildStageTask', () => {
         expect(result).toEqual({
             code: 34,
             reason: 'custom stage failed',
+        });
+    });
+
+    it('executes arbitrary upload stage hooks in order and returns custom upload result', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const calls: string[] = [];
+        const uploadHookModule = {
+            throwError: true,
+            onBeforeUpload: jest.fn(async () => calls.push('onBeforeUpload')),
+            upload: jest.fn(async function(this: any) {
+                calls.push('upload');
+                this.buildExitRes.custom.upload = { success: true, packageId: 'pkg-1' };
+            }),
+            onAfterUpload: jest.fn(async () => calls.push('onAfterUpload')),
+        };
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        const result = await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/web-desktop',
+            platform: 'web-desktop',
+        });
+
+        expect(calls).toEqual(['onBeforeUpload', 'upload', 'onAfterUpload']);
+        expect(result).toEqual({
+            code: 0,
+            dest: 'project://build/web-desktop',
+            custom: {
+                upload: {
+                    success: true,
+                    packageId: 'pkg-1',
+                },
+            },
+        });
+    });
+
+    it('merges runtime package options into compile options for non-web stages', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        let receivedOptions: any;
+        const uploadHookModule = {
+            throwError: true,
+            upload: jest.fn(async (_root: string, options: any) => {
+                receivedOptions = options;
+            }),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'openpaas',
+            packages: {
+                openpaas: {
+                    versionName: '1.0.0',
+                },
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['openpaas'],
+            infos: {
+                openpaas: {
+                    path: 'openpaas/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+            packages: {
+                openpaas: {
+                    accessToken: 'token-1',
+                },
+            },
+        });
+
+        expect(receivedOptions.packages.openpaas).toEqual({
+            versionName: '1.0.0',
+            accessToken: 'token-1',
+        });
+    });
+
+    it('uses persisted build log destination for non-web stages by default', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        const uploadHookModule = {
+            throwError: true,
+            upload: jest.fn(),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'openpaas',
+            logDest: 'temp/builder/log/build-log.log',
+            packages: {
+                openpaas: {},
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['openpaas'],
+            infos: {
+                openpaas: {
+                    path: 'openpaas/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+        });
+
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/build-log.log'));
+    });
+
+    it('uses persisted build log destination for web stages without changing hook options', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        mockReadJSONSync.mockReturnValue({
+            platform: 'web-desktop',
+            logDest: 'temp/builder/log/web-build-log.log',
+        });
+
+        await executeBuildStageTask('task-id', 'run', {
+            dest: 'build/web-desktop',
+            platform: 'web-desktop',
+        });
+
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'temp/builder/log/web-build-log.log'));
+        expect(hookModule.run).toHaveBeenCalledWith('build/web-desktop', undefined);
+    });
+
+    it('lets explicit stage log destination override persisted build log destination', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        const uploadHookModule = {
+            throwError: true,
+            upload: jest.fn(),
+        };
+        mockReadJSONSync.mockReturnValue({
+            platform: 'openpaas',
+            logDest: 'temp/builder/log/build-log.log',
+            packages: {
+                openpaas: {},
+            },
+        });
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['openpaas'],
+            infos: {
+                openpaas: {
+                    path: 'openpaas/hooks',
+                    internal: true,
+                },
+            },
+        });
+        mockGetBuildStageWithHookTasks.mockReturnValue({
+            name: 'upload',
+            hook: 'upload',
+            displayName: 'Upload',
+            parallelism: 'all',
+        });
+        mockRequireFile.mockReturnValue(uploadHookModule);
+
+        await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+            logDest: 'custom-log',
+        });
+
+        expect(newConsole.record).toHaveBeenCalledWith(join('project-root', 'custom-log.log'));
+    });
+
+    it('opens a stage log sink before reading persisted build options', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        mockReadJSONSync.mockImplementationOnce(() => {
+            throw new Error('missing build options');
+        });
+
+        const result = await executeBuildStageTask('task-id', 'upload', {
+            dest: 'build/openpaas',
+            platform: 'openpaas',
+        });
+
+        const firstLogDest = (newConsole.record as jest.Mock).mock.calls[0][0];
+        expect(firstLogDest).toContain('upload build-');
+        expect(firstLogDest).toMatch(/\.log$/);
+        expect(result).toEqual({
+            code: 34,
+            reason: 'missing build options',
         });
     });
 });

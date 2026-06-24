@@ -76,6 +76,9 @@ export namespace BuildHook {
 
     export type onAfterMake = IBuildStageHooks;
     export type onBeforeMake = IBuildStageHooks;
+    export type onBeforeUpload = IBuildStageHooks;
+    export type upload = IBuildStageHooks;
+    export type onAfterUpload = IBuildStageHooks;
 
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;

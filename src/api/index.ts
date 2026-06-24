@@ -7,7 +7,7 @@ import type { SceneApi } from '../api/scene/scene';
 import type { SystemApi } from '../api/system/system';
 import { SchemaProjectPath, SchemaPort, SchemaProjectType, TProjectPath, TPort, TProjectType } from './schema';
 import { param } from './decorator/decorator';
-import { SchemaPlatform, TPlatform, SchemaBuildOption, TBuildOption, SchemaPlatformCanMake, TPlatformCanMake, SchemaBuildDest, TBuildDest } from './builder/schema';
+import { SchemaPlatform, TPlatform, SchemaBuildOption, TBuildOption, SchemaPlatformCanMake, TPlatformCanMake, SchemaBuildDest, TBuildDest, SchemaUploadAccessToken, TUploadAccessToken } from './builder/schema';
 
 export class CocosAPI {
     public scene!: SceneApi;
@@ -106,5 +106,15 @@ export class CocosAPI {
     public static async runProject(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest) {
         const { default: Launcher } = await import('../core/launcher');
         return await Launcher.run(platform, dest);
+    }
+
+    /**
+     * 命令行上传入口
+     * @param platform
+     * @param dest
+     */
+    public static async uploadProject(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest, @param(SchemaUploadAccessToken) accessToken?: TUploadAccessToken) {
+        const { default: Launcher } = await import('../core/launcher');
+        return await Launcher.upload(platform, dest, accessToken);
     }
 }

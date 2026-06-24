@@ -356,6 +356,13 @@
     "platforms": {
         "native": {
             "title": "原生",
+            "options": {
+                "make": "生成",
+                "run": "运行",
+                "encrypted": "加密资源",
+                "xxtea_key": "XXTEA 密钥",
+                "compress_zip": "压缩 Zip"
+            },
             "encrypt": {
                 "disable_tips": "加密禁用提示"
             }

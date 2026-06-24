@@ -446,6 +446,53 @@ export declare function init(): Promise<void>;
 export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
+export declare interface IProperty {
+    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    default?: any;
+    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
+    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    cid?: string;
+    type?: string;
+    ui?: { name: string; data?: any };
+    readonly?: boolean;
+    visible?: boolean;
+    name?: string;
+    elementTypeData?: IProperty;
+    path: string;
+    isArray?: boolean;
+    invalid?: boolean;
+    extends?: string[];
+    displayName?: string;
+    displayOrder?: number;
+    help?: string;
+    group?: IPropertyGroupOptions;
+    tooltip?: string;
+    editor?: any;
+    animatable?: boolean;
+    radioGroup?: boolean;
+    enumList?: any[];
+    bitmaskList?: any[];
+    min?: number;
+    max?: number;
+    step?: number;
+    slide?: boolean;
+    unit?: string;
+    radian?: boolean;
+    multiline?: boolean;
+    optionalTypes?: string[];
+    userData?: { [key: string]: any };
+}
+export declare interface IPropertyGroupOptions {
+    id: string
+    name: string,
+    displayOrder: number,
+    style: string
+}
+export declare type IPropertyLock = {
+    default: number;
+    message: string
+};
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
@@ -517,6 +564,24 @@ export declare const enum LogLevel {
     WARN = 2,
     LOG = 3,
     DEBUG = 4
+}
+export declare interface Mat4 {
+    m00: number;
+    m01: number;
+    m02: number;
+    m03: number;
+    m04: number;
+    m05: number;
+    m06: number;
+    m07: number;
+    m08: number;
+    m09: number;
+    m10: number;
+    m11: number;
+    m12: number;
+    m13: number;
+    m14: number;
+    m15: number;
 }
 export declare interface MeshClusterOptions {
     enable: boolean;
@@ -641,6 +706,7 @@ export declare function queryAssetUserDataConfig(urlOrUuidOrPath: string): Promi
 export declare function queryAssetUsers(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
 export declare function queryCreateMap(): Promise<ICreateMenuInfo[]>;
 export declare function queryPath(urlOrUuid: string): Promise<string>;
+export declare function querySerializedData(uuidOrUrlOrPath: string): Promise<SerializedAssetQueryResult>;
 export declare function querySortedPlugins(filterOptions?: FilterPluginOptions): Promise<IPluginScriptInfo[]>;
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
@@ -659,9 +725,11 @@ export declare interface RtSpriteFrameAssetUserData {
 }
 export declare function saveAsset(pathOrUrlOrUUID: string, data: string | Buffer): Promise<IAssetInfo>;
 export declare function saveAssetMeta(uuid: string, meta: IAssetMeta): Promise<void>;
+export declare function saveSerializedData(uuidOrUrlOrPath: string, patch: SerializedAssetPatch): Promise<SerializedAssetQueryResult>;
 export declare interface ScriptModuleUserData {
     isPlugin: false;
 }
+export declare type SerializedAssetDump = Record<string, IProperty> | IProperty;
 export declare interface SerializedAssetFinder {
     meshes?: Array<string | null>;
     animations?: Array<string | null>;
@@ -670,6 +738,18 @@ export declare interface SerializedAssetFinder {
     materials?: Array<string | null>;
     scenes?: Array<string | null>;
 }
+export declare type SerializedAssetPatch = SerializedAssetDump | Partial<Record<string, IProperty | unknown>>;
+export declare interface SerializedAssetQueryResult {
+    uuid: string;
+    url: string;
+    type: string;
+    importer: string;
+    dump: SerializedAssetDump;
+}
+export declare const serializedData: {
+    query: typeof querySerializedData;
+    save: typeof saveSerializedData;
+};
 export declare function setFileSystemProvider(provider: IAssetFileSystemProvider): void;
 export declare interface SimplifyOptions {
     targetRatio?: number;
@@ -763,6 +843,21 @@ export declare interface ThumbnailInfo {
 export declare type ThumbnailSize = 'large' | 'small' | 'middle' | 'origin';
 export declare function updateAssetUserData(urlOrUuidOrPath: string, path: string, value: any): Promise<any>;
 export declare function updateDefaultUserData(handler: string, path: string, value: any): Promise<void>;
+export declare interface Vec2 {
+    x: number;
+    y: number;
+}
+export declare interface Vec3 {
+    x: number;
+    y: number;
+    z: number;
+}
+export declare interface Vec4 {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
 export declare type WrapMode = 'repeat' | 'clamp-to-edge' | 'mirrored-repeat';
 export { }
 "
@@ -1121,6 +1216,9 @@ export declare namespace BuildHook {
     export type onAfterBuild = IBaseHooks;
     export type onAfterMake = IBuildStageHooks;
     export type onBeforeMake = IBuildStageHooks;
+    export type onBeforeUpload = IBuildStageHooks;
+    export type upload = IBuildStageHooks;
+    export type onAfterUpload = IBuildStageHooks;
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }
@@ -1204,11 +1302,24 @@ export declare abstract class BuildTaskBase extends EventEmitter {
     abstract hookMap: Record<string, string>;
     hookWeight: number;
     id: string;
+    protected progressHeartbeatEnabled: boolean;
     buildExitRes: IBuildResultSuccess;
+    private progressHeartbeatTimer?;
+    private lastProgressMessage;
+    private displayProgress;
+    private heartbeatProgressMax;
     constructor(id: string, name: string);
     break(reason: string): void;
     onError(error: Error, throwError?: boolean): void;
     updateProcess(message: string, increment?: number, outputType?: IConsoleType): void;
+    protected startProgressStep(message: string, stepWeight: number, outputType?: IConsoleType): void;
+    protected stopProgressHeartbeat(): void;
+    private scheduleProgressHeartbeat;
+    private emitProgressHeartbeat;
+    protected prepareProgressHeartbeat(stepWeight: number): void;
+    private syncDisplayProgress;
+    private emitProgressUpdate;
+    private getNextHeartbeatProgress;
     abstract handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
     abstract run(): Promise<boolean>;
     runPluginTask(funcName: string, weight?: number): Promise<void>;
@@ -2201,6 +2312,7 @@ export declare interface IBuildStageConfig extends IBuildStageItem {
     root: string;
     hooksInfo: IBuildHooksInfo;
     buildTaskOptions: IBuildOptionBase;
+    progressHeartbeat?: boolean;
 }
 export declare type IBuildStageHooks = (root: string, options: IBuildOptionBase) => Promise<void> | void;
 export declare interface IBuildStageItem {
@@ -2219,6 +2331,7 @@ export declare interface IBuildStageOptions {
     platform: Platform | string;
     taskName?: string;
     logDest?: string;
+    packages?: Record<string, Record<string, unknown>>;
 }
 export declare interface IBuildStagesInfo {
     pkgNameOrder: string[];
@@ -2797,6 +2910,9 @@ export declare namespace IInternalHook {
     export type onBeforeMake = IInternalStageTaskHooks;
     export type make = IInternalStageTaskHooks;
     export type onAfterMake = IInternalStageTaskHooks;
+    export type onBeforeUpload = IInternalStageTaskHooks;
+    export type upload = IInternalStageTaskHooks;
+    export type onAfterUpload = IInternalStageTaskHooks;
 }
 export declare interface IInternalPackOptions {
     maxWidth: number;
@@ -4939,6 +5055,7 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	removeListener<K extends keyof T>(event: K, listener: T[K]): this;
     	setMaxListeners(n: number): this;
 }
+export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
@@ -6829,6 +6946,8 @@ export declare namespace Assets {
         importAsset,
         reimportAsset,
         saveAsset,
+        querySerializedData,
+        saveSerializedData,
         queryUUID,
         queryPath,
         queryUrl,
@@ -6854,6 +6973,8 @@ export declare namespace Assets {
         QueryAssetType,
         FilterPluginOptions,
         IPluginScriptInfo,
+        serializedData,
+        IProperty,
         IAssetDeleteOptions,
         IAssetFileSystemProvider,
         IAssetOperationContext,
@@ -6862,6 +6983,9 @@ export declare namespace Assets {
         IAssetRenameOptions,
         IAssetWriteFileOptions,
         IAssetMeta,
+        SerializedAssetDump,
+        SerializedAssetPatch,
+        SerializedAssetQueryResult,
         IAssetInfo,
         AssetOperationOption,
         DeleteAssetOptions,
@@ -7593,6 +7717,53 @@ export declare interface IProject {
     getInfo(key?: string): ProjectInfo | any;
     updateInfo<T>(keyOrValue: string | ProjectInfo, value?: T): Promise<boolean>;
 }
+export declare interface IProperty {
+    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    default?: any;
+    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
+    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    cid?: string;
+    type?: string;
+    ui?: { name: string; data?: any };
+    readonly?: boolean;
+    visible?: boolean;
+    name?: string;
+    elementTypeData?: IProperty;
+    path: string;
+    isArray?: boolean;
+    invalid?: boolean;
+    extends?: string[];
+    displayName?: string;
+    displayOrder?: number;
+    help?: string;
+    group?: IPropertyGroupOptions;
+    tooltip?: string;
+    editor?: any;
+    animatable?: boolean;
+    radioGroup?: boolean;
+    enumList?: any[];
+    bitmaskList?: any[];
+    min?: number;
+    max?: number;
+    step?: number;
+    slide?: boolean;
+    unit?: string;
+    radian?: boolean;
+    multiline?: boolean;
+    optionalTypes?: string[];
+    userData?: { [key: string]: any };
+}
+export declare interface IPropertyGroupOptions {
+    id: string
+    name: string,
+    displayOrder: number,
+    style: string
+}
+export declare type IPropertyLock = {
+    default: number;
+    message: string
+};
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
@@ -7706,6 +7877,24 @@ export declare type MacroItem = {
     value: boolean;
 }
 export declare type MakeRequired<T, K extends keyof T> = T & Required<Pick<T, K>>;
+export declare interface Mat4 {
+    m00: number;
+    m01: number;
+    m02: number;
+    m03: number;
+    m04: number;
+    m05: number;
+    m06: number;
+    m07: number;
+    m08: number;
+    m09: number;
+    m10: number;
+    m11: number;
+    m12: number;
+    m13: number;
+    m14: number;
+    m15: number;
+}
 export declare namespace Mcp {
     export {
         register,
@@ -7954,6 +8143,7 @@ export declare function queryLayerBuiltin(): Promise<{
     value: number;
 }[]>;
 export declare function queryPath(urlOrUuid: string): Promise<string>;
+export declare function querySerializedData(uuidOrUrlOrPath: string): Promise<SerializedAssetQueryResult>;
 export declare function querySortedPlugins(filterOptions?: FilterPluginOptions): Promise<IPluginScriptInfo[]>;
 export declare function querySortingLayerBuiltin(): Promise<readonly __private._cocos_sorting_sorting_layers__SortingItem[]>;
 export declare function queryThumbnailHandlers(): string[];
@@ -7978,6 +8168,7 @@ export declare interface RtSpriteFrameAssetUserData {
 export declare function save(force?: boolean): Promise<void>;
 export declare function saveAsset(pathOrUrlOrUUID: string, data: string | Buffer): Promise<IAssetInfo>;
 export declare function saveAssetMeta(uuid: string, meta: IAssetMeta): Promise<void>;
+export declare function saveSerializedData(uuidOrUrlOrPath: string, patch: SerializedAssetPatch): Promise<SerializedAssetQueryResult>;
 export declare namespace Scene {
     export {
         init_6 as init,
@@ -8002,6 +8193,7 @@ export declare namespace Scripting {
 export declare interface ScriptModuleUserData {
     isPlugin: false;
 }
+export declare type SerializedAssetDump = Record<string, IProperty> | IProperty;
 export declare interface SerializedAssetFinder {
     meshes?: Array<string | null>;
     animations?: Array<string | null>;
@@ -8010,6 +8202,18 @@ export declare interface SerializedAssetFinder {
     materials?: Array<string | null>;
     scenes?: Array<string | null>;
 }
+export declare type SerializedAssetPatch = SerializedAssetDump | Partial<Record<string, IProperty | unknown>>;
+export declare interface SerializedAssetQueryResult {
+    uuid: string;
+    url: string;
+    type: string;
+    importer: string;
+    dump: SerializedAssetDump;
+}
+export declare const serializedData: {
+    query: typeof querySerializedData;
+    save: typeof saveSerializedData;
+};
 export declare namespace Server {
     export {
         start_2 as start,
@@ -8134,6 +8338,21 @@ export declare type ThumbnailSize = 'large' | 'small' | 'middle' | 'origin';
 export declare function unregister(): Promise<void>;
 export declare function updateAssetUserData(urlOrUuidOrPath: string, path: string, value: any): Promise<any>;
 export declare function updateDefaultUserData(handler: string, path: string, value: any): Promise<void>;
+export declare interface Vec2 {
+    x: number;
+    y: number;
+}
+export declare interface Vec3 {
+    x: number;
+    y: number;
+    z: number;
+}
+export declare interface Vec4 {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
 export declare type WrapMode = 'repeat' | 'clamp-to-edge' | 'mirrored-repeat';
 export { }
 "

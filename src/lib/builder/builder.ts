@@ -50,6 +50,11 @@ export async function run(platform: Platform, dest: string) {
     return Launcher.run(platform, dest);
 }
 
+export async function upload(platform: Platform, dest: string, accessToken?: string) {
+    const { default: Launcher } = await import('../../core/launcher');
+    return Launcher.upload(platform, dest, accessToken);
+}
+
 export async function queryBuildConfig(): Promise<BuildConfiguration> {
     const builder = await import('../../core/builder');
     return builder.queryBuildConfig();

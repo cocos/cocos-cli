@@ -230,6 +230,10 @@ export namespace IInternalHook {
     // 内置插件才有可能触发这个函数
     export type make = IInternalStageTaskHooks;
     export type onAfterMake = IInternalStageTaskHooks;
+
+    export type onBeforeUpload = IInternalStageTaskHooks;
+    export type upload = IInternalStageTaskHooks;
+    export type onAfterUpload = IInternalStageTaskHooks;
 }
 
 export interface PlatformPackageOptions {

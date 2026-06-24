@@ -5,13 +5,17 @@ module.exports = {
     options: {
         package_name: 'Game Package Name',
         package_name_hint: 'Enter the name of the game package, such as: com.example.demo',
+        apiLevel: 'API Level',
+        appABIs: 'Supported ABIs',
 
         full_screen: 'Whether full screen',
         orientation: 'Screen orientation',
+        screen_orientation: 'Screen orientation',
         landscape: 'Landscape',
         landscape_left: 'Landscape Left',
         landscape_right: 'Landscape Right',
         portrait: 'Portrait',
+        upsideDown: 'Upside Down',
 
         device_types: 'Device Types',
         device_phone: 'phone',
@@ -23,6 +27,16 @@ module.exports = {
         device_default: 'default',
 
         render_back_end: 'Render BackEnd',
+        resizeable_activity: 'Resizeable Activity',
+        max_aspect_ratio: 'Max Aspect Ratio',
+        remoteUrl: 'Remote URL',
+        swappy: 'Enable Swappy',
+        swappy_tips: 'Frame Pacing',
+        adpf: 'Enable ADPF',
+        adpf_tips: 'ADPF is a set of APIs that allow games and performance-intensive apps to interact more directly with power and thermal systems of devices',
+        app_bundle: 'App Bundle',
+        google_play_instant: 'Google Play Instant',
+        input_sdk: 'Input SDK',
         use_aot_optimization: 'Engine AOT Optimization',
         js_engine: 'JavaScript Engine',
         v8: 'V8',
@@ -33,6 +47,13 @@ module.exports = {
     label: {
         harmonyosnext_ndk: 'HarmonyOS Next NDK',
         harmonyosnext_sdk: 'HarmonyOS Next SDK',
+    },
+    KEYSTORE: {
+        use_debug_keystore: 'Use Debug Keystore',
+        keystore_path: 'Keystore Path',
+        keystore_password: 'Keystore Password',
+        keystore_alias: 'Keystore Alias',
+        keystore_alias_password: 'Keystore Alias Password',
     },
     tips: {
         not_empty: 'Can not be empty!',
@@ -47,6 +68,7 @@ module.exports = {
         orientation_landscape_left: 'The screen is horizontal, the Home button is on the left side of the screen',
         orientation_landscape_right: 'The screen is horizontal, the Home button is on the right side of the screen',
         use_aot_optimization: 'When enable this option, the engine build tool will keep the type information to take a step towards AOT optimization.',
+        google_play_billing: 'Check this option to enable the billing feature',
     },
     make: {
         label: 'Make',
@@ -59,5 +81,8 @@ module.exports = {
         label: 'Open the project with DevEco Studio',
         ideNotFound: 'Please set DevEco Studio path in the Creator preference first',
         confirm: 'Confirm',
+    },
+    custom_icon: {
+        title: 'Custom Icon',
     },
 };
