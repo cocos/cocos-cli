@@ -86,6 +86,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             if (!assetUuid) {
                 throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
             }
+            // 阻止添加自己到当前的Prefab中，防止Prefab的循环引用
+            if (Service.Editor.getCurrentEditorType() === 'prefab') {
+                const rootNode = Service.Editor.getRootNode();
+                const rootNodePrefabInfo = rootNode?.['_prefab'];
+                if (rootNodePrefabInfo && rootNodePrefabInfo.asset && rootNodePrefabInfo.asset._uuid === assetUuid) {
+                    throw new Error('The prefab you are trying to add is the same with the prefab in editing, this is not allowed.');
+                }
+            }
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
             const canvasNeeded = params.canvasRequired || false;
             const result = await this._createNode(assetUuid, canvasNeeded, false, params, assetInfo?.type);
