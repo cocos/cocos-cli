@@ -123,15 +123,15 @@ export class TypeScriptConfigBuilder {
             compilerOptions,
 
             include: [
-                '../../assets/**/*',
-                '../../extensions/**/*'
+                '../assets/**/*',
+                '../extensions/**/*'
             ],
             exclude: [
-                '../../node_modules',
-                '../../library',
-                '../../local',
-                '../../build',
-                '../../profiles'
+                '../node_modules',
+                '../library',
+                '../local',
+                '../build',
+                '../profiles'
             ]
         };
 
@@ -205,7 +205,7 @@ export class TypeScriptConfigBuilder {
 
     private tsConfigTypePath(path: string): string {
         // Path should be relative to the directory of this config file itself
-        const rel = ps.relative(ps.dirname(this._configFilePath), path);
+        const rel = ps.relative(ps.dirname(this._realTsConfigPath), path);
         // No `.d.ts` is allowed
         const extensionLess = rel.endsWith('.d.ts') ? rel.substr(0, rel.length - 5) : rel;
         // Let's convert it to slash for generic
