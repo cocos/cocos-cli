@@ -198,12 +198,18 @@ jest.mock('../../scene-process/service/scene/utils', () => ({
     sceneUtils: {},
 }));
 
+const mockConsumePreserveUndoHistoryForPrefabReload = jest.fn(() => ({ preserveUndoHistory: false, editorUuid: null }));
+const mockPrefabSoftReloadSchedule = jest.fn();
+
 jest.mock('../../scene-process/service/prefab/prefab-undo', () => ({
-    PrefabUndoHelper: jest.fn().mockImplementation(() => ({})),
+    PrefabUndoHelper: jest.fn().mockImplementation(() => ({
+        consumePreserveUndoHistoryForPrefabReload: mockConsumePreserveUndoHistoryForPrefabReload,
+    })),
 }));
 
 jest.mock('../../scene-process/service/prefab/soft-reload', () => ({
     PrefabSoftReloadScheduler: jest.fn().mockImplementation(() => ({
+        schedule: mockPrefabSoftReloadSchedule,
         waitForIdle: jest.fn().mockResolvedValue(undefined),
     })),
 }));
@@ -448,6 +454,8 @@ describe('ServiceEvents 事件发射集成测试', () => {
 
         beforeAll(() => {
             prefabUtilsMock = require('../../scene-process/service/prefab/utils').prefabUtils;
+            require('../../scene-process/service/editor');
+            require('../../scene-process/service/undo');
             const { PrefabService } = require('../../scene-process/service/prefab');
             prefabService = new PrefabService();
         });
@@ -463,6 +471,31 @@ describe('ServiceEvents 事件发射集成测试', () => {
                 objFlags: 0,
             }));
             NodeMock.getNodePath = jest.fn((node: any) => `/${node.name}`);
+            mockConsumePreserveUndoHistoryForPrefabReload.mockReturnValue({ preserveUndoHistory: false, editorUuid: null });
+        });
+
+        it('onAssetChanged preserves undo history when current editor is dirty', async () => {
+            const { Service } = require('../../scene-process/service/core');
+            const { nodeOperation } = require('../../scene-process/service/prefab/node');
+            const originalHasOpen = Service.Editor.hasOpen;
+            const originalIsDirty = Service.Undo.isDirty;
+            nodeOperation.assetToNodesMap.clear();
+            try {
+                nodeOperation.assetToNodesMap.set('prefab-uuid', ['node-uuid']);
+                Service.Editor.hasOpen = jest.fn().mockResolvedValue(true);
+                Service.Undo.isDirty = jest.fn(() => true);
+
+                await prefabService.onAssetChanged('prefab-uuid');
+
+                expect(mockPrefabSoftReloadSchedule).toHaveBeenCalledWith(expect.objectContaining({
+                    changedUuid: 'prefab-uuid',
+                    preserveUndoHistory: true,
+                }));
+            } finally {
+                Service.Editor.hasOpen = originalHasOpen;
+                Service.Undo.isDirty = originalIsDirty;
+                nodeOperation.assetToNodesMap.clear();
+            }
         });
 
         it('filterChildOfAssetOfPrefabInstance 中 prefab 子节点应 emit scene:change-node', () => {

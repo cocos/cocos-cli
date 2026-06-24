@@ -409,7 +409,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.hasOpen()) {
             this._softReload.schedule({
                 changedUuid: uuid,
-                preserveUndoHistory: reloadState.preserveUndoHistory,
+                preserveUndoHistory: reloadState.preserveUndoHistory || !!Service.Undo?.isDirty?.(),
                 editorUuid: reloadState.editorUuid ?? getCurrentEditorUuid(),
             });
         }
