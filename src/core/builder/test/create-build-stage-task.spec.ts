@@ -165,7 +165,7 @@ describe('createBuildStageTask', () => {
         expect(task.buildExitRes.dest).toBe('raw:build/openpaas');
     });
 
-    it('does not treat stage logDest as build hook options during task creation', async () => {
+    it('merges stage logDest into build hook options without opening a log sink during task creation', async () => {
         const { createBuildStageTask } = await import('../index');
         const buildOptions = {
             platform: 'openpaas',
@@ -191,7 +191,7 @@ describe('createBuildStageTask', () => {
         });
 
         expect(mockRecord).not.toHaveBeenCalled();
-        expect(task.options.logDest).toBe('temp/builder/log/build-log.log');
+        expect(task.options.logDest).toBe('custom-stage-log');
         expect((task.options as any).packages.openpaas.logDest).toBeUndefined();
     });
 
