@@ -231,7 +231,7 @@ describe('executeBuildStageTask', () => {
         });
     });
 
-    it('parses injected packages JSON and overrides compile options for non-web stages', async () => {
+    it('overrides compile options with injected package objects for non-web stages', async () => {
         const { executeBuildStageTask } = await import('../index');
         let receivedOptions: any;
         const runHookModule = {
@@ -246,6 +246,10 @@ describe('executeBuildStageTask', () => {
                 wechatgame: {
                     wechatToolsPath: 'old-tools-path',
                     appid: 'persisted-appid',
+                    nestedConfig: {
+                        mode: 'persisted',
+                        keepMe: true,
+                    },
                 },
             },
         });
@@ -269,12 +273,22 @@ describe('executeBuildStageTask', () => {
         await executeBuildStageTask('task-id', 'run', {
             dest: 'build/wechatgame',
             platform: 'wechatgame',
-            packages: '{"wechatgame":{"wechatToolsPath":"c:\\\\Program Files (x86)\\\\Tencent\\\\微信web开发者工具\\\\微信开发者工具.exe"}}',
+            packages: {
+                wechatgame: {
+                    wechatToolsPath: 'c:\\Program Files (x86)\\Tencent\\微信web开发者工具\\微信开发者工具.exe',
+                    nestedConfig: {
+                        mode: 'runtime',
+                    },
+                },
+            },
         });
 
         expect(receivedOptions.packages.wechatgame).toEqual({
             wechatToolsPath: 'c:\\Program Files (x86)\\Tencent\\微信web开发者工具\\微信开发者工具.exe',
             appid: 'persisted-appid',
+            nestedConfig: {
+                mode: 'runtime',
+            },
         });
     });
 
