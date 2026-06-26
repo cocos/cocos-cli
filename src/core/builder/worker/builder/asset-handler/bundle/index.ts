@@ -172,7 +172,6 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         if (!configMap) {
             return null;
         }
-        console.log('getUserConfig',ID, JSON.stringify(configMap[this.options.platform]));
 
         return configMap[this.options.platform];
     }
@@ -436,7 +435,6 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         const { bundleFilterConfig, priority, bundleConfigID, bundleName } = assetInfo.meta.userData;
         const name = customConfig.name || bundleName || getBundleDefaultName(assetInfo);
         const userBundleConfig = this.getUserConfig(bundleConfigID);
-        console.log('userBundleConfig', JSON.stringify(userBundleConfig), name, bundleConfigID);
         let config = this.getDefaultBundleConfig(name);
         const validCustomConfig = defaultsDeep({
             compressionType: userBundleConfig && userBundleConfig.compressionType,
