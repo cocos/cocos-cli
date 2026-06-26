@@ -12,8 +12,6 @@ import {
     SchemaSourcePath,
     SchemaSaveAssetPath,
     SchemaAssetData,
-    SchemaSerializedAssetPatch,
-    SchemaSerializedAssetResult,
     TUrlOrUUIDOrPath,
     TSaveAssetPath,
     TDataKeys,
@@ -21,8 +19,6 @@ import {
     TSupportCreateType,
     TAssetOperationOption,
     TAssetData,
-    TSerializedAssetPatch,
-    TSerializedAssetResult,
     SchemaAssetInfoResult,
     SchemaAssetMetaResult,
     SchemaCreateMapResult,
@@ -80,18 +76,6 @@ import {
     TUUIDOrPath,
     TUrlOrUUID,
     TUrlOrPath,
-    SchemaAnimationGraphVariantDump,
-    SchemaAnimationGraphVariantResult,
-    SchemaAnimationGraphVariantSaveResult,
-    TAnimationGraphVariantDump,
-    TAnimationGraphVariantResult,
-    TAnimationGraphVariantSaveResult,
-    SchemaAnimationMaskDump,
-    SchemaAnimationMaskChanges,
-    SchemaVoidResult,
-    TAnimationMaskDump,
-    TAnimationMaskChanges,
-    TVoidResult,
 } from './schema';
 import { z } from 'zod';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -99,13 +83,6 @@ import { COMMON_STATUS, CommonResultType, getCommonErrorStatus, HttpStatusCode }
 import { assetDBManager, assetManager } from '../../core/assets';
 import { IAssetInfo } from '../../core/assets/@types/public';
 import { SchemaUrlOrPath, SchemaUrlOrUUID, SchemaUUIDOrPath } from '../base/schema-identifier';
-import {
-    changeAnimationMaskDump as changeAnimationMaskDumpCore,
-    clearAnimationMaskNodes as clearAnimationMaskNodesCore,
-    importAnimationMaskSkeleton as importAnimationMaskSkeletonCore,
-    queryAnimationMask as queryAnimationMaskCore,
-    saveAnimationMask as saveAnimationMaskCore,
-} from '../../core/assets/animation-mask';
 
 export class AssetsApi {
 
@@ -425,245 +402,6 @@ export class AssetsApi {
         } catch (e) {
             ret.code = getCommonErrorStatus(e);
             console.error('save asset fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-mask-query')
-    @title('Query Animation Mask')
-    @description('Query a .animask AnimationMask asset and return a stable DTO containing joint paths, enabled states, and tree structure. This tool does not expose Creator inspector reflection dump.')
-    @result(SchemaAnimationMaskDump)
-    async queryAnimationMask(@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath): Promise<CommonResultType<TAnimationMaskDump | null>> {
-        const ret: CommonResultType<TAnimationMaskDump | null> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: null,
-        };
-
-        try {
-            ret.data = await queryAnimationMaskCore(uuid);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('query animation mask fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-mask-import-skeleton')
-    @title('Import Animation Mask Skeleton')
-    @description('Import joint paths from a Prefab or glTF-scene asset into an AnimationMask. Existing joint states are preserved and missing paths are appended as enabled. Pass the glTF-scene sub-asset UUID when possible.')
-    @result(SchemaAnimationMaskDump)
-    async importAnimationMaskSkeleton(
-        @param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath,
-        @param(SchemaUrlOrUUIDOrPath) skeletonSourceUuid: TUrlOrUUIDOrPath
-    ): Promise<CommonResultType<TAnimationMaskDump | null>> {
-        const ret: CommonResultType<TAnimationMaskDump | null> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: null,
-        };
-
-        try {
-            ret.data = await importAnimationMaskSkeletonCore(uuid, skeletonSourceUuid);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('import animation mask skeleton fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-mask-clear-nodes')
-    @title('Clear Animation Mask Nodes')
-    @description('Clear all joint paths from an AnimationMask asset and return the updated stable DTO.')
-    @result(SchemaAnimationMaskDump)
-    async clearAnimationMaskNodes(@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath): Promise<CommonResultType<TAnimationMaskDump | null>> {
-        const ret: CommonResultType<TAnimationMaskDump | null> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: null,
-        };
-
-        try {
-            ret.data = await clearAnimationMaskNodesCore(uuid);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('clear animation mask nodes fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-mask-change-dump')
-    @title('Change Animation Mask Dump')
-    @description('Apply path-based changes to an AnimationMask stable DTO. recursive defaults to false; pass recursive=true to update descendant paths.')
-    @result(SchemaAnimationMaskDump)
-    async changeAnimationMaskDump(
-        @param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath,
-        @param(SchemaAnimationMaskChanges) changes: TAnimationMaskChanges
-    ): Promise<CommonResultType<TAnimationMaskDump | null>> {
-        const ret: CommonResultType<TAnimationMaskDump | null> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: null,
-        };
-
-        try {
-            ret.data = await changeAnimationMaskDumpCore(uuid, changes);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('change animation mask dump fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-mask-save')
-    @title('Save Animation Mask')
-    @description('Normalize and save the current AnimationMask asset content, then reimport the asset.')
-    @result(SchemaVoidResult)
-    async saveAnimationMask(@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath): Promise<CommonResultType<TVoidResult>> {
-        const ret: CommonResultType<TVoidResult> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: null,
-        };
-
-        try {
-            await saveAnimationMaskCore(uuid);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('save animation mask fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    /**
-     * Query Serialized Asset Data // 查询序列化资源属性数据
-     */
-    @tool('assets-query-serialized-data')
-    @title('Query Serialized Asset Data')
-    @description('Query Creator-compatible serialized asset dump data through assets.serializedData.query. Supports only cc.PhysicsMaterial and cc.RenderPipeline in the first batch. The returned dump is the raw IProperty structure consumed by ui-prop type="dump": PhysicsMaterial returns a property map, while RenderPipeline returns one top-level IProperty.')
-    @result(SchemaSerializedAssetResult)
-    async querySerializedData(
-        @param(SchemaUrlOrUUIDOrPath) uuidOrUrlOrPath: TUrlOrUUIDOrPath
-    ): Promise<CommonResultType<TSerializedAssetResult>> {
-        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TSerializedAssetResult> = {
-            code: code,
-            data: null,
-        };
-
-        try {
-            ret.data = await assetManager.querySerializedData(uuidOrUrlOrPath);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('query serialized asset data fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    /**
-     * Save Serialized Asset Data // 保存序列化资源属性数据
-     */
-    @tool('assets-save-serialized-data')
-    @title('Save Serialized Asset Data')
-    @description('Save Creator-compatible serialized asset dump data through assets.serializedData.save. Supports only cc.PhysicsMaterial and cc.RenderPipeline in the first batch. Prefer passing an IProperty or full dump patch returned by assets-query-serialized-data; unknown fields are rejected, and hidden or readonly fields can only pass through unchanged.')
-    @result(SchemaSerializedAssetResult)
-    async saveSerializedData(
-        @param(SchemaUrlOrUUIDOrPath) uuidOrUrlOrPath: TUrlOrUUIDOrPath,
-        @param(SchemaSerializedAssetPatch) patch: TSerializedAssetPatch
-    ): Promise<CommonResultType<TSerializedAssetResult>> {
-        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
-        const ret: CommonResultType<TSerializedAssetResult> = {
-            code: code,
-            data: null,
-        };
-
-        try {
-            ret.data = await assetManager.saveSerializedData(uuidOrUrlOrPath, patch);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('save serialized asset data fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    /**
-     * Animation Graph Variant
-     */
-    @tool('assets-animation-graph-variant-query')
-    @title('Query Animation Graph Variant')
-    @description('Load an AnimationGraphVariant asset and return its referenced graph UUID, valid clip override rows, and invalid saved override entries.')
-    @result(SchemaAnimationGraphVariantResult)
-    async queryAnimationGraphVariant(
-        @param(SchemaUrlOrUUID) uuid: TUrlOrUUID
-    ): Promise<CommonResultType<TAnimationGraphVariantResult>> {
-        const ret: CommonResultType<TAnimationGraphVariantResult> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: undefined,
-        };
-
-        try {
-            ret.data = await assetManager.queryAnimationGraphVariant(uuid);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('query animation graph variant fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-graph-variant-change')
-    @title('Change Animation Graph Variant')
-    @description('Update the pending AnimationGraphVariant edit. Changing graphUuid rebuilds the original clip list from the new graph; otherwise clips updates override mappings.')
-    @result(SchemaAnimationGraphVariantResult)
-    async changeAnimationGraphVariant(
-        @param(SchemaUrlOrUUID) uuid: TUrlOrUUID,
-        @param(SchemaAnimationGraphVariantDump) dump: TAnimationGraphVariantDump
-    ): Promise<CommonResultType<TAnimationGraphVariantResult>> {
-        const ret: CommonResultType<TAnimationGraphVariantResult> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: undefined,
-        };
-
-        try {
-            ret.data = await assetManager.changeAnimationGraphVariant(uuid, dump);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('change animation graph variant fail:', e instanceof Error ? e.message : String(e));
-            ret.reason = e instanceof Error ? e.message : String(e);
-        }
-
-        return ret;
-    }
-
-    @tool('assets-animation-graph-variant-save')
-    @title('Save Animation Graph Variant')
-    @description('Save the pending AnimationGraphVariant edit created by query/change. This method takes only the asset UUID and writes the cached pending dump.')
-    @result(SchemaAnimationGraphVariantSaveResult)
-    async saveAnimationGraphVariant(
-        @param(SchemaUrlOrUUID) uuid: TUrlOrUUID
-    ): Promise<CommonResultType<TAnimationGraphVariantSaveResult>> {
-        const ret: CommonResultType<TAnimationGraphVariantSaveResult> = {
-            code: COMMON_STATUS.SUCCESS,
-            data: null,
-        };
-
-        try {
-            await assetManager.saveAnimationGraphVariant(uuid);
-        } catch (e) {
-            ret.code = getCommonErrorStatus(e);
-            console.error('save animation graph variant fail:', e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
 

@@ -1,4 +1,4 @@
-import type { AssetHandlerType, AssetDBOptions, IAssetInfo, IAssetType, IProperty, SerializedAssetQueryResult } from '../assets';
+import type { AssetHandlerType, AssetDBOptions, IAssetInfo, IAssetType } from '../assets';
 
 describe('cocos-cli-types: assets', () => {
     it('should be able to import AssetHandlerType', () => {
@@ -26,28 +26,5 @@ describe('cocos-cli-types: assets', () => {
     it('should be able to import IAssetType', () => {
         let type: IAssetType = 'cc.Texture2D';
         expect(type).toBe('cc.Texture2D');
-    });
-
-    it('should be able to import serialized data types and namespace', () => {
-        const property: IProperty = {
-            name: 'friction',
-            path: 'friction',
-            type: 'Float',
-            value: 0.5,
-        };
-        const result: SerializedAssetQueryResult = {
-            uuid: 'test-uuid',
-            url: 'db://assets/test.pmtl',
-            type: 'cc.PhysicsMaterial',
-            importer: 'physics-material',
-            dump: { friction: property },
-        };
-
-        const query: typeof import('../assets').serializedData.query = async () => result;
-        const save: typeof import('../assets').serializedData.save = async () => result;
-
-        expect(result.dump).toEqual({ friction: property });
-        expect(query).toEqual(expect.any(Function));
-        expect(save).toEqual(expect.any(Function));
     });
 });

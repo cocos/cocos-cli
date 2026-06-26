@@ -1,13 +1,11 @@
-import type { AnimationMaskChange, AnimationMaskDump, AssetOperationOption, CreateAssetByTypeOptions, DeleteAssetOptions, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, QueryAssetsOption, SerializedAssetPatch, SerializedAssetQueryResult } from '../../core/assets/@types/public';
+import type { AssetOperationOption, CreateAssetByTypeOptions, DeleteAssetOptions, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, QueryAssetsOption } from '../../core/assets/@types/public';
 import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType, ThumbnailInfo, ThumbnailSize } from '../../core/assets/@types/protected';
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
-import type { AnimGraphVariantDump } from '../../core/assets/animation-graph-variant';
 
 export type * from '../../core/assets/@types/public';
 export type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
 export type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
-export type { AnimGraphVariantDump } from '../../core/assets/animation-graph-variant';
 
 export async function init(): Promise<void> {
     // 初始化资源数据库
@@ -186,69 +184,6 @@ export async function saveAsset(
 ): Promise<IAssetInfo> {
     return await assetManager.saveAsset(pathOrUrlOrUUID, data);
 }
-
-export const animationGraphVariant = {
-    query(uuid: string): Promise<AnimGraphVariantDump> {
-        return assetManager.queryAnimationGraphVariant(uuid);
-    },
-
-    change(uuid: string, dump: AnimGraphVariantDump): Promise<AnimGraphVariantDump> {
-        return assetManager.changeAnimationGraphVariant(uuid, dump);
-    },
-
-    save(uuid: string): Promise<void> {
-        return assetManager.saveAnimationGraphVariant(uuid);
-    },
-};
-
-export const animationMask = {
-    async query(uuid: string): Promise<AnimationMaskDump> {
-        const { queryAnimationMask } = await import('../../core/assets/animation-mask');
-        return queryAnimationMask(uuid);
-    },
-
-    async importSkeleton(uuid: string, skeletonSourceUuid: string): Promise<AnimationMaskDump> {
-        const { importAnimationMaskSkeleton } = await import('../../core/assets/animation-mask');
-        return importAnimationMaskSkeleton(uuid, skeletonSourceUuid);
-    },
-
-    async clearNodes(uuid: string): Promise<AnimationMaskDump> {
-        const { clearAnimationMaskNodes } = await import('../../core/assets/animation-mask');
-        return clearAnimationMaskNodes(uuid);
-    },
-
-    async changeDump(uuid: string, changes: AnimationMaskChange[]): Promise<AnimationMaskDump> {
-        const { changeAnimationMaskDump } = await import('../../core/assets/animation-mask');
-        return changeAnimationMaskDump(uuid, changes);
-    },
-
-    async save(uuid: string): Promise<void> {
-        const { saveAnimationMask } = await import('../../core/assets/animation-mask');
-        return saveAnimationMask(uuid);
-    },
-};
-
-/**
- * Query serialized asset dump data.
- */
-export async function querySerializedData(uuidOrUrlOrPath: string): Promise<SerializedAssetQueryResult> {
-    return await assetManager.querySerializedData(uuidOrUrlOrPath);
-}
-
-/**
- * Save serialized asset dump data.
- */
-export async function saveSerializedData(
-    uuidOrUrlOrPath: string,
-    patch: SerializedAssetPatch
-): Promise<SerializedAssetQueryResult> {
-    return await assetManager.saveSerializedData(uuidOrUrlOrPath, patch);
-}
-
-export const serializedData = {
-    query: querySerializedData,
-    save: saveSerializedData,
-};
 
 /**
  * Query Asset UUID // 查询资源 UUID

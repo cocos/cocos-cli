@@ -7,8 +7,6 @@ import type { ThumbnailInfo, ThumbnailSize } from '../@types/protected/asset-han
 import assetQuery from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
-import animationGraphVariant from '../animation-graph-variant';
-import * as serializedData from '../serialized-data';
 
 /**
  * 对外暴露一系列的资源查询、操作接口等
@@ -48,13 +46,6 @@ class AssetManager extends EventEmitter {
     outputExportData = assetOperation.outputExportData.bind(assetOperation);
     createAssetByType = assetOperation.createAssetByType.bind(assetOperation);
     updateUserData = assetOperation.updateUserData.bind(assetOperation);
-    querySerializedData = serializedData.querySerializedData;
-    saveSerializedData = serializedData.saveSerializedData;
-
-    // ---------- animation graph variant ---------
-    queryAnimationGraphVariant = animationGraphVariant.query.bind(animationGraphVariant);
-    changeAnimationGraphVariant = animationGraphVariant.change.bind(animationGraphVariant);
-    saveAnimationGraphVariant = animationGraphVariant.save.bind(animationGraphVariant);
 
     // ----------- assetHandlerManager ------------
     queryAssetConfigMap = assetHandlerManager.queryAssetConfigMap.bind(assetHandlerManager);
@@ -361,12 +352,6 @@ export interface TypedAssetManager extends EventEmitter {
     outputExportData: typeof assetOperation.outputExportData;
     createAssetByType: typeof assetOperation.createAssetByType;
     updateUserData: typeof assetOperation.updateUserData;
-    querySerializedData: typeof serializedData.querySerializedData;
-    saveSerializedData: typeof serializedData.saveSerializedData;
-
-    queryAnimationGraphVariant: typeof animationGraphVariant.query;
-    changeAnimationGraphVariant: typeof animationGraphVariant.change;
-    saveAnimationGraphVariant: typeof animationGraphVariant.save;
 
     queryAssetConfigMap: typeof assetHandlerManager.queryAssetConfigMap;
     updateDefaultUserData: typeof assetHandlerManager.updateDefaultUserData;
