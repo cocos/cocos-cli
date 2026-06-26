@@ -5477,6 +5477,20 @@ export declare interface IAddComponentOptions {
     nodePath: string;
     component: string;
 }
+export declare interface IAnimationClipDump {
+    name: string;
+    duration: number;
+    sample: number;
+    speed: number;
+    wrapMode: number;
+    curves: unknown[];
+    events: IAnimationEventDump[];
+    embeddedPlayers: unknown[];
+    embeddedPlayerGroups: unknown[];
+    time: number;
+    isLock: boolean;
+    useBakedAnimation: boolean;
+}
 export declare interface IAnimationClipMenuItem {
     uuid: string;
     name: string;
@@ -5494,10 +5508,28 @@ export declare interface IAnimationEnterOptions {
     clipUuid?: string;
     restoreSelectionOnExit?: boolean;
 }
+export declare interface IAnimationEventDump {
+    frame: number;
+    func: string;
+    params: unknown[];
+}
 export declare interface IAnimationExitOptions {
     save?: boolean;
     restoreSelection?: boolean;
     restoreSampledSceneState?: boolean;
+}
+export declare interface IAnimationOperation {
+    funcName: string;
+    args: unknown[];
+}
+export declare interface IAnimationOperationOptions {
+    operations: IAnimationOperation[];
+    recordUndo?: boolean;
+}
+export declare interface IAnimationOperationResult {
+    state: 'success' | 'failure';
+    result: unknown;
+    reason?: string;
 }
 export declare interface IAnimationPlayStateOptions {
     operate: AnimationPlayOperation;
@@ -5514,9 +5546,19 @@ export declare interface IAnimationPropertyInfo {
     comp?: string;
     category?: string;
 }
+export declare interface IAnimationQueryClipOptions extends IAnimationTargetOptions {
+    clipUuid?: string;
+}
+export declare interface IAnimationQueryPropertyValueAtFrameOptions {
+    clipUuid?: string;
+    nodePath?: string;
+    nodeUuid?: string;
+    propKey: string;
+    frame: number;
+}
 export declare interface IAnimationRootInfo extends IAnimationClipsInfo {
     nodeTreeDump: unknown;
-    clipDump: unknown;
+    clipDump: IAnimationClipDump | null;
     time: number;
     state: AnimationPlayState_2;
     useBakedAnimation: boolean;
@@ -5531,12 +5573,15 @@ export declare interface IAnimationService extends IServiceEvents {
     queryState(): Promise<IAnimationStateInfo>;
     queryRoot(options: IAnimationTargetOptions): Promise<IAnimationRootResult>;
     queryRootInfo(options: IAnimationTargetOptions): Promise<IAnimationRootInfo>;
+    queryClip(options: IAnimationQueryClipOptions): Promise<IAnimationClipDump>;
     queryClips(options: IAnimationTargetOptions): Promise<IAnimationClipsInfo>;
     queryProperties(options: IAnimationTargetOptions): Promise<IAnimationPropertyInfo[]>;
     queryTime(options: IAnimationTimeOptions): Promise<number>;
+    queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<unknown>;
     setTime(options: IAnimationSetTimeOptions): Promise<boolean>;
     changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
     changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;
+    applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
     save(): Promise<boolean>;
 }
 export declare interface IAnimationSetTimeOptions {

@@ -29,6 +29,18 @@ export interface IAnimationTimeOptions {
     clipUuid?: string;
 }
 
+export interface IAnimationQueryClipOptions extends IAnimationTargetOptions {
+    clipUuid?: string;
+}
+
+export interface IAnimationQueryPropertyValueAtFrameOptions {
+    clipUuid?: string;
+    nodePath?: string;
+    nodeUuid?: string;
+    propKey: string;
+    frame: number;
+}
+
 export interface IAnimationSetTimeOptions {
     time: number;
 }
@@ -52,6 +64,27 @@ export interface IAnimationClipMenuItem {
     name: string;
 }
 
+export interface IAnimationEventDump {
+    frame: number;
+    func: string;
+    params: unknown[];
+}
+
+export interface IAnimationClipDump {
+    name: string;
+    duration: number;
+    sample: number;
+    speed: number;
+    wrapMode: number;
+    curves: unknown[];
+    events: IAnimationEventDump[];
+    embeddedPlayers: unknown[];
+    embeddedPlayerGroups: unknown[];
+    time: number;
+    isLock: boolean;
+    useBakedAnimation: boolean;
+}
+
 export interface IAnimationClipsInfo extends IAnimationRootResult {
     clipsMenu: IAnimationClipMenuItem[];
     defaultClip: string;
@@ -59,7 +92,7 @@ export interface IAnimationClipsInfo extends IAnimationRootResult {
 
 export interface IAnimationRootInfo extends IAnimationClipsInfo {
     nodeTreeDump: unknown;
-    clipDump: unknown;
+    clipDump: IAnimationClipDump | null;
     time: number;
     state: AnimationPlayState;
     useBakedAnimation: boolean;
@@ -88,18 +121,37 @@ export interface IAnimationPropertyInfo {
     category?: string;
 }
 
+export interface IAnimationOperation {
+    funcName: string;
+    args: unknown[];
+}
+
+export interface IAnimationOperationOptions {
+    operations: IAnimationOperation[];
+    recordUndo?: boolean;
+}
+
+export interface IAnimationOperationResult {
+    state: 'success' | 'failure';
+    result: unknown;
+    reason?: string;
+}
+
 export interface IAnimationService extends IServiceEvents {
     enter(options: IAnimationEnterOptions): Promise<IAnimationStateInfo>;
     exit(options: IAnimationExitOptions): Promise<IAnimationStateInfo>;
     queryState(): Promise<IAnimationStateInfo>;
     queryRoot(options: IAnimationTargetOptions): Promise<IAnimationRootResult>;
     queryRootInfo(options: IAnimationTargetOptions): Promise<IAnimationRootInfo>;
+    queryClip(options: IAnimationQueryClipOptions): Promise<IAnimationClipDump>;
     queryClips(options: IAnimationTargetOptions): Promise<IAnimationClipsInfo>;
     queryProperties(options: IAnimationTargetOptions): Promise<IAnimationPropertyInfo[]>;
     queryTime(options: IAnimationTimeOptions): Promise<number>;
+    queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<unknown>;
     setTime(options: IAnimationSetTimeOptions): Promise<boolean>;
     changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
     changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;
+    applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
     save(): Promise<boolean>;
 }
 

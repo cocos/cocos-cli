@@ -33,16 +33,16 @@ Scene process 不负责：
 | 当前 root/clip | `query-current-animation-info` | `AnimationService.queryState` | 已落地第一阶段 |
 | 查询动画 root | `query-animation-root` | `AnimationService.queryRoot` | 已落地第一阶段 |
 | 查询 root 信息 | `query-animation-root-info` | `AnimationService.queryRootInfo` | 已落地第一阶段 |
-| 查询 clip dump | `query-animation-clip` | `AnimationService.queryClip` | 第二阶段 |
+| 查询 clip dump | `query-animation-clip` | `AnimationService.queryClip` | 已落地第二阶段基础 dump |
 | 查询可编辑属性 | `query-animation-properties` | `AnimationService.queryProperties` | 已落地第一阶段 |
 | 查询 clips | `query-animation-clips-info` | `AnimationService.queryClips` | 已落地第一阶段 |
 | 查询时间 | `query-animation-clips-time` | `AnimationService.queryTime` | 已落地第一阶段 |
 | 设置时间/采样 | `set-edit-time` | `AnimationService.setTime` | 已落地第一阶段 |
 | 播放控制 | `change-clip-state` | `AnimationService.changePlayState` | 已落地第一阶段 |
 | 切 clip | `change-edit-clip` | `AnimationService.changeEditClip` | 已落地第一阶段 |
-| 批处理编辑 | `animation-operation` | `AnimationService.applyOperation` | 第二阶段 |
+| 批处理编辑 | `animation-operation` | `AnimationService.applyOperation` | 已落地第二阶段基础原语 |
 | 保存 clip | `save-clip` | `AnimationService.save` | 已落地普通 clip；骨骼 meta 后续补齐 |
-| 查询帧值 | `query-property-value-at-frame` | `AnimationService.queryPropertyValueAtFrame` | 第二阶段 |
+| 查询帧值 | `query-property-value-at-frame` | `AnimationService.queryPropertyValueAtFrame` | 已落地第二阶段 |
 | 辅助曲线 | `query-auxiliary-*` / aux operations | `AnimationService.queryAuxiliaryCurves` / operation | 第三阶段 |
 | embedded player | operation | `AnimationService.applyOperation` | 第三阶段 |
 | inspector drop clip | `inspector-drop-animation` | `AnimationService.addClipToNode` | 第三阶段 |
@@ -70,6 +70,12 @@ Scene process 不负责：
 - `queryPropertyValueAtFrame`
 - `applyOperation`
 
+当前第二阶段先落地普通 clip 的基础闭环：
+
+- `queryClip` 返回 clip 基础 dump、事件帧 dump、当前时间和 baked animation 标记。
+- `queryPropertyValueAtFrame` 按帧采样当前编辑 clip，读取目标节点或组件属性后恢复原编辑时间。
+- `applyOperation` 使用旧入口兼容的 `{ funcName, args }` 批处理格式，当前支持 `changeSample`、`changeSpeed`、`changeWrapMode`、`addEvent`、`deleteEvent`、`updateEvent`、`moveEvents`、`copyEventsTo`。
+
 ## 状态恢复语义
 
 `enter` 创建 CLI 内部 session，并保存：
@@ -92,7 +98,7 @@ Scene process 不负责：
 ## 实施阶段
 
 1. 建立 scene-process service 和文档，完成 session / 查询 / 播放 / 普通 clip 保存闭环。
-2. 迁移 `EditorAnimationClip` 等价的普通 clip 编辑原语，补 `applyOperation`、clip dump、帧值查询。
+2. 迁移 `EditorAnimationClip` 等价的普通 clip 基础编辑原语，补 `applyOperation`、clip dump、帧值查询。
 3. 补骨骼动画 meta 保存、operation 白名单、auxiliary curve、embedded player。
 4. 补 asset delete/refresh、script reload、dirty/undo/redo 事件一致性。
 5. 根据 UI 迁入需要补事件订阅，但保持事件名和 scene-process 内部服务解耦。
@@ -114,4 +120,4 @@ Scene process 不负责：
 - `src/core/scene/scene-process/service/index.ts`
 - `src/core/scene/scene-process/service/interfaces.ts`
 
-第一阶段尚未覆盖旧 `EditorAnimationClip` 的曲线/key/event 编辑原语。第二阶段需要迁移或重写 clip dump、帧值查询、`applyOperation`，骨骼 meta、auxiliary curve 和 embedded player 放到第三阶段。
+第二阶段已补 `queryClip`、`queryPropertyValueAtFrame`、`applyOperation` 的基础普通 clip 闭环，并覆盖 sample、speed、wrapMode 和事件原语。旧 `EditorAnimationClip` 的复杂 curve/key 原语、骨骼 meta、auxiliary curve 和 embedded player 放到后续阶段。

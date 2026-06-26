@@ -34,4 +34,5 @@ import './prefab-proxy.testcase';
 import './script-proxy.testcase';
 import './engine-proxy.testcase';
 import './undo-redo.testcase';
+import './animation-service.testcase';
 import './scene-exit.testcase';
