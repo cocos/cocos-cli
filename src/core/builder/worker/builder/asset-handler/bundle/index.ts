@@ -147,6 +147,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
      */
     static async initStaticBundleConfig() {
         const bundleConfig: Record<string, CustomBundleConfig> = (await builderConfig.getProject('bundleConfig.custom')) || {};
+        const platformConfigs = pluginManager.queryBundleConfig();
         if (!bundleConfig.default) {
             bundleConfig.default = DefaultBundleConfig;
         }
@@ -155,7 +156,11 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
             const configs = bundleConfig[ID].configs;
             res[ID] = {};
             Object.keys(configs).forEach((platformType) => {
-                const platformOption = transformPlatformSettings(configs[platformType as BundlePlatformType], pluginManager.bundleConfigs);
+                if (!platformConfigs[platformType]) {
+                    // 平台可能被关闭，这里需要容错
+                    return;
+                }
+                const platformOption = transformPlatformSettings(configs[platformType as BundlePlatformType], platformConfigs[platformType].platformConfigs);
                 Object.assign(res[ID], platformOption);
             });
         });
@@ -167,6 +172,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         if (!configMap) {
             return null;
         }
+        console.log('getUserConfig',ID, JSON.stringify(configMap[this.options.platform]));
 
         return configMap[this.options.platform];
     }
@@ -430,6 +436,7 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         const { bundleFilterConfig, priority, bundleConfigID, bundleName } = assetInfo.meta.userData;
         const name = customConfig.name || bundleName || getBundleDefaultName(assetInfo);
         const userBundleConfig = this.getUserConfig(bundleConfigID);
+        console.log('userBundleConfig', JSON.stringify(userBundleConfig), name, bundleConfigID);
         let config = this.getDefaultBundleConfig(name);
         const validCustomConfig = defaultsDeep({
             compressionType: userBundleConfig && userBundleConfig.compressionType,
