@@ -29,6 +29,7 @@ import {
     ISceneViewService,
     IPublicUIService,
     IUIService,
+    IAnimationService,
 } from '../../common';
 
 /**
@@ -59,6 +60,7 @@ export interface IServiceManager {
     Script: IScriptService,
     Asset: IAssetService,
     Engine: IEngineService,
+    Animation: IAnimationService,
     Prefab: IPrefabService,
     Selection: ISelectionService,
     Operation: IOperationService,

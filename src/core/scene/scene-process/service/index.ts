@@ -5,6 +5,7 @@ export * from './script';
 export * from './asset';
 export * from './component';
 export * from './engine';
+export * from './animation';
 export * from './prefab';
 export * from './selection';
 export * from './operation';

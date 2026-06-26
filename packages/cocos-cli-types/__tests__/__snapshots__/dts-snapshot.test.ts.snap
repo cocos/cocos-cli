@@ -5261,6 +5261,7 @@ import type { Vec3 as Vec3_2 } from 'cc';
 export declare interface AnimationClipAssetUserData {
     name: string;
 }
+export declare type AnimationEditorType = 'scene' | 'prefab' | 'unknown';
 export declare interface AnimationImportSetting {
     name: string;
     duration: number;
@@ -5285,6 +5286,9 @@ export declare interface AnimationImportSetting {
         };
     }>;
 }
+export declare type AnimationMode = 'general' | 'prefab' | 'animation' | 'preview' | 'unknown';
+export declare type AnimationPlayOperation = 'play' | 'pause' | 'resume' | 'stop';
+export declare type AnimationPlayState_2 = 'stop' | 'playing' | 'pause';
 export declare const ASSET_HANDLER_TYPES: string[];
 export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
 export declare interface AssetUserDataMap {
@@ -5472,6 +5476,92 @@ export declare interface GlTFUserData {
 export declare interface IAddComponentOptions {
     nodePath: string;
     component: string;
+}
+export declare interface IAnimationClipMenuItem {
+    uuid: string;
+    name: string;
+}
+export declare interface IAnimationClipsInfo extends IAnimationRootResult {
+    clipsMenu: IAnimationClipMenuItem[];
+    defaultClip: string;
+}
+export declare interface IAnimationEditClipOptions {
+    clipUuid: string;
+}
+export declare interface IAnimationEnterOptions {
+    rootPath?: string;
+    rootUuid?: string;
+    clipUuid?: string;
+    restoreSelectionOnExit?: boolean;
+}
+export declare interface IAnimationExitOptions {
+    save?: boolean;
+    restoreSelection?: boolean;
+    restoreSampledSceneState?: boolean;
+}
+export declare interface IAnimationPlayStateOptions {
+    operate: AnimationPlayOperation;
+    clipUuid?: string;
+}
+export declare interface IAnimationPropertyInfo {
+    name: string;
+    key: string;
+    displayName: string;
+    type: {
+        value: string;
+    };
+    menuName: string;
+    comp?: string;
+    category?: string;
+}
+export declare interface IAnimationRootInfo extends IAnimationClipsInfo {
+    nodeTreeDump: unknown;
+    clipDump: unknown;
+    time: number;
+    state: AnimationPlayState_2;
+    useBakedAnimation: boolean;
+}
+export declare interface IAnimationRootResult {
+    rootUuid: string;
+    rootPath: string;
+}
+export declare interface IAnimationService extends IServiceEvents {
+    enter(options: IAnimationEnterOptions): Promise<IAnimationStateInfo>;
+    exit(options: IAnimationExitOptions): Promise<IAnimationStateInfo>;
+    queryState(): Promise<IAnimationStateInfo>;
+    queryRoot(options: IAnimationTargetOptions): Promise<IAnimationRootResult>;
+    queryRootInfo(options: IAnimationTargetOptions): Promise<IAnimationRootInfo>;
+    queryClips(options: IAnimationTargetOptions): Promise<IAnimationClipsInfo>;
+    queryProperties(options: IAnimationTargetOptions): Promise<IAnimationPropertyInfo[]>;
+    queryTime(options: IAnimationTimeOptions): Promise<number>;
+    setTime(options: IAnimationSetTimeOptions): Promise<boolean>;
+    changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
+    changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;
+    save(): Promise<boolean>;
+}
+export declare interface IAnimationSetTimeOptions {
+    time: number;
+}
+export declare interface IAnimationStateInfo {
+    active: boolean;
+    editorType: AnimationEditorType;
+    mode: AnimationMode;
+    rootUuid: string;
+    rootPath: string;
+    clipUuid: string;
+    time: number;
+    playState: AnimationPlayState_2;
+    selection: string[];
+    restoreSelectionOnExit: boolean;
+}
+export declare interface IAnimationTargetOptions {
+    nodePath?: string;
+    nodeUuid?: string;
+    rootPath?: string;
+    rootUuid?: string;
+}
+export declare interface IAnimationTimeOptions {
+    clipUuid?: string;
 }
 export declare interface IApplyPrefabChangesParams {
     nodePath: string;
@@ -5714,6 +5804,8 @@ export declare interface IEngineService extends IServiceEvents {
     init(): Promise<void>;
     repaintInEditMode(): Promise<void>;
     initCustomLayer(layers?: ICustomLayerConfig[]): Promise<void>;
+    enterAnimationMode(): void;
+    exitAnimationMode(): void;
 }
 export declare interface IExecuteComponentMethodOptions {
     path: string;
@@ -6127,6 +6219,7 @@ export declare interface IServiceManager {
     Script: IScriptService;
     Asset: IAssetService;
     Engine: IEngineService;
+    Animation: IAnimationService;
     Prefab: IPrefabService;
     Selection: ISelectionService;
     Operation: IOperationService;

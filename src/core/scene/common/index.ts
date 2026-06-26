@@ -7,6 +7,7 @@ export * from './script';
 export * from './component';
 export * from './asset';
 export * from './engine';
+export * from './animation';
 export * from './selection';
 export * from './operation';
 export * from './undo';

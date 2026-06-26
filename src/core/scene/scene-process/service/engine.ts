@@ -237,6 +237,14 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         this._updateTickState();
     }
 
+    public enterAnimationMode() {
+        this.enterState(NeedAnimState.ANIMATION_MODE);
+    }
+
+    public exitAnimationMode() {
+        this.exitState(NeedAnimState.ANIMATION_MODE);
+    }
+
     public resume() {
         this._paused = false;
         this.startTick();
