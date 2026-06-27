@@ -18,7 +18,6 @@ import {
     IAnimationEditClipOptions,
     IAnimationEnterOptions,
     IAnimationExitOptions,
-    IAnimationOperation,
     IAnimationOperationOptions,
     IAnimationOperationResult,
     IAnimationPlayStateOptions,
@@ -32,30 +31,19 @@ import {
     IAnimationStateInfo,
     IAnimationTargetOptions,
     IAnimationTimeOptions,
+    IAnimationValue,
     NodeEventType,
 } from '../../common';
 import { BaseService, register, Service } from './core';
 import dumpUtil from './dump';
 import { Rpc } from '../rpc';
+import { createClipDump } from './animation/clip-dump';
+import { applyClipOperation, validateAnimationOperation } from './animation/clip-operations';
+import { saveSkeletonAnimationMeta } from './animation/skeleton-meta';
+import { IAnimationData, IAnimationSession } from './animation/types';
+import { cloneDump, cloneValue, clipUuid, getClipSample } from './animation/utils';
 
 const NodeMgr = EditorExtends.Node;
-
-interface IAnimationData {
-    node: Node;
-    animComp: Animation | animation.AnimationController;
-    clips: AnimationClip[];
-    defaultClip: AnimationClip | null;
-}
-
-interface IAnimationSession {
-    previousEditorType: 'scene' | 'prefab' | 'unknown';
-    previousSelection: string[];
-    restoreSelectionOnExit: boolean;
-    rootUuid: string;
-    rootPath: string;
-    clipUuid: string;
-    sampledRootDump: unknown;
-}
 
 const DEFAULT_PROPERTIES: IAnimationPropertyInfo[] = [
     createPropertyInfo('position', 'cc.Vec3'),
@@ -75,24 +63,6 @@ function createPropertyInfo(name: string, type: string, displayName = name, comp
         menuName: displayName,
         comp,
     };
-}
-
-function cloneDump<T>(dump: T): T {
-    return JSON.parse(JSON.stringify(dump)) as T;
-}
-
-function cloneValue<T>(value: T): T {
-    if (value === null || value === undefined) {
-        return value;
-    }
-    if (typeof value !== 'object') {
-        return value;
-    }
-    return cloneDump(value);
-}
-
-function clipUuid(clip: AnimationClip | null | undefined): string {
-    return ((clip as any)?._uuid || (clip as any)?.uuid || '') as string;
 }
 
 @register('Animation')
@@ -267,7 +237,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return state?.current ?? this._curEditTime;
     }
 
-    async queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<unknown> {
+    async queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<IAnimationValue> {
         const session = this._requireSession();
         const uuid = options.clipUuid || session.clipUuid;
         if (uuid !== session.clipUuid) {
@@ -276,7 +246,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const previousTime = state.current ?? this._curEditTime;
-        const sample = this._getClipSample(state.clip);
+        const sample = getClipSample(state.clip);
         let value: unknown;
         try {
             state.weight = 1;
@@ -297,7 +267,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             this._curEditTime = previousTime;
             await Service.Engine.repaintInEditMode();
         }
-        return cloneValue(value);
+        return cloneValue(value) as IAnimationValue;
     }
 
     async setTime(options: IAnimationSetTimeOptions): Promise<boolean> {
@@ -390,18 +360,17 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(session.clipUuid);
         for (const operation of options.operations) {
-            const failure = this._validateAnimationOperation(operation, session.clipUuid);
+            const failure = validateAnimationOperation(operation, session.clipUuid);
             if (failure) {
                 return failure;
             }
 
-            const args = operation.args.slice(1);
-            const result = this._applyClipOperation(state, operation.funcName, args);
+            const result = await applyClipOperation(state, operation);
             if (!result) {
                 return {
                     state: 'failure',
                     result: false,
-                    reason: `call method ${operation.funcName} failed`,
+                    reason: `call method ${operation.type} failed`,
                 };
             }
         }
@@ -415,11 +384,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
     async save(): Promise<boolean> {
         const session = this._requireSession();
-        if (this._isSkeletonClip(session.clipUuid)) {
-            throw new Error('Saving skeleton animation metadata is not implemented yet.');
+        const state = await this._getAnimationState(session.clipUuid);
+        if (this._isSkeletonClip(session.clipUuid, this._getSessionRootNode())) {
+            await saveSkeletonAnimationMeta(session.clipUuid, state.clip);
+            return true;
         }
 
-        const state = await this._getAnimationState(session.clipUuid);
         const content = EditorExtends.serialize(state.clip);
         const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [session.clipUuid]);
         if (assetInfo) {
@@ -589,26 +559,10 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private _createClipDump(rootNode: Node, clip: AnimationClip, state?: AnimationState): IAnimationClipDump {
-        const sample = this._getClipSample(clip);
-        const events = Array.isArray((clip as any).events) ? (clip as any).events : [];
-        return {
-            name: clip.name,
-            duration: Number((clip as any).duration) || 0,
-            sample,
-            speed: Number((clip as any).speed) || 0,
-            wrapMode: Number((clip as any).wrapMode) || 0,
-            curves: [],
-            events: events.map((event: any) => ({
-                frame: Math.round((Number(event.frame) || 0) * sample),
-                func: event.func || '',
-                params: Array.isArray(event.params) ? cloneValue(event.params) : [],
-            })),
-            embeddedPlayers: [],
-            embeddedPlayerGroups: [],
-            time: state?.current ?? 0,
-            isLock: false,
+        return createClipDump(rootNode, clip, state, {
+            isSkeleton: this._isSkeletonClip(clipUuid(clip), rootNode),
             useBakedAnimation: this._isUsingBakedAnimation(rootNode),
-        };
+        });
     }
 
     private async _getAnimationState(uuid: string): Promise<AnimationState> {
@@ -624,249 +578,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         state.initialize(this._getSessionRootNode());
         this._animationStateMap.set(uuid, state);
         return state;
-    }
-
-    private _validateAnimationOperation(operation: IAnimationOperation, currentClipUuid: string): IAnimationOperationResult | null {
-        if (!operation || typeof operation.funcName !== 'string' || !Array.isArray(operation.args)) {
-            return {
-                state: 'failure',
-                result: false,
-                reason: 'Animation operation is invalid.',
-            };
-        }
-
-        const targetClipUuid = operation.args[0];
-        if (targetClipUuid !== currentClipUuid) {
-            return {
-                state: 'failure',
-                result: false,
-                reason: `current edit clip: '${currentClipUuid}' but you want to operate: '${String(targetClipUuid)}'`,
-            };
-        }
-
-        if (!this._isSupportedClipOperation(operation.funcName)) {
-            return {
-                state: 'failure',
-                result: false,
-                reason: `Method '${operation.funcName}' does not exist to manipulate the animation.`,
-            };
-        }
-
-        return null;
-    }
-
-    private _isSupportedClipOperation(funcName: string): boolean {
-        return [
-            'changeSample',
-            'changeSpeed',
-            'changeWrapMode',
-            'addEvent',
-            'deleteEvent',
-            'updateEvent',
-            'moveEvents',
-            'copyEventsTo',
-        ].includes(funcName);
-    }
-
-    private _applyClipOperation(state: AnimationState, funcName: string, args: unknown[]): boolean {
-        const clip = state.clip;
-        switch (funcName) {
-            case 'changeSample':
-                return this._changeClipSample(clip, args[0]);
-            case 'changeSpeed':
-                return this._changeClipSpeed(clip, args[0]);
-            case 'changeWrapMode':
-                return this._changeClipWrapMode(clip, args[0]);
-            case 'addEvent':
-                return this._addClipEvent(clip, args[0], args[1], args[2], true);
-            case 'deleteEvent':
-                return this._deleteClipEvents(clip, args[0], true);
-            case 'updateEvent':
-                return this._updateClipEvents(clip, args[0], args[1]);
-            case 'moveEvents':
-                return this._moveClipEvents(clip, args[0], args[1]);
-            case 'copyEventsTo':
-                return this._copyClipEventsTo(clip, args[0], args[1]);
-            default:
-                return false;
-        }
-    }
-
-    private _changeClipSample(clip: AnimationClip, value: unknown): boolean {
-        let sample = Math.round(Number(value));
-        if (!Number.isFinite(sample) || sample < 1) {
-            sample = 1;
-        }
-
-        const oldSample = this._getClipSample(clip);
-        const events = this._queryClipEvents(clip);
-        if (events) {
-            for (const event of events) {
-                const frame = Math.round((Number(event.frame) || 0) * oldSample);
-                event.frame = frame / sample;
-            }
-        }
-
-        (clip as any).sample = sample;
-        this._updateClipEventData(clip);
-        return true;
-    }
-
-    private _changeClipSpeed(clip: AnimationClip, value: unknown): boolean {
-        const speed = Number(value);
-        if (!Number.isFinite(speed)) {
-            return false;
-        }
-        (clip as any).speed = speed;
-        return true;
-    }
-
-    private _changeClipWrapMode(clip: AnimationClip, value: unknown): boolean {
-        const wrapMode = Number(value);
-        (clip as any).wrapMode = Number.isFinite(wrapMode) ? wrapMode : 0;
-        return true;
-    }
-
-    private _addClipEvent(clip: AnimationClip, frameValue: unknown, funcName: unknown, paramsValue: unknown, updateEventData: boolean): boolean {
-        const frame = Number(frameValue);
-        if (!Number.isFinite(frame) || frame < 0) {
-            return false;
-        }
-
-        const events = this._ensureClipEvents(clip);
-        events.push({
-            frame: frame / this._getClipSample(clip),
-            func: typeof funcName === 'string' ? funcName : '',
-            params: Array.isArray(paramsValue) ? cloneValue(paramsValue) : [],
-        });
-        events.sort((a, b) => Number(a.frame) - Number(b.frame));
-
-        if (updateEventData) {
-            this._updateClipEventData(clip);
-        }
-        return true;
-    }
-
-    private _deleteClipEvents(clip: AnimationClip, framesValue: unknown, updateEventData: boolean): boolean {
-        const events = this._queryClipEvents(clip);
-        if (!events) {
-            return false;
-        }
-
-        const frames = this._normalizeFrames(framesValue);
-        const sample = this._getClipSample(clip);
-        for (let i = events.length - 1; i >= 0; i--) {
-            const frame = Math.round((Number(events[i].frame) || 0) * sample);
-            if (frames.includes(frame)) {
-                events.splice(i, 1);
-            }
-        }
-
-        if (updateEventData) {
-            this._updateClipEventData(clip);
-        }
-        return true;
-    }
-
-    private _updateClipEvents(clip: AnimationClip, framesValue: unknown, eventsValue: unknown): boolean {
-        const frames = this._normalizeFrames(framesValue);
-        if (frames.length === 0) {
-            return false;
-        }
-
-        const newEvents = Array.isArray(eventsValue) ? eventsValue : [];
-        for (const frame of frames) {
-            if (!this._deleteClipEvents(clip, [frame], false)) {
-                return false;
-            }
-            for (const event of newEvents) {
-                this._addClipEvent(clip, frame, (event as any)?.func, (event as any)?.params, false);
-            }
-        }
-
-        this._updateClipEventData(clip);
-        return true;
-    }
-
-    private _moveClipEvents(clip: AnimationClip, framesValue: unknown, offsetValue: unknown): boolean {
-        const events = this._queryClipEvents(clip);
-        if (!events) {
-            return false;
-        }
-
-        const frames = this._normalizeFrames(framesValue);
-        const offset = Number(offsetValue);
-        if (!Number.isFinite(offset)) {
-            return false;
-        }
-
-        const sample = this._getClipSample(clip);
-        for (const event of events) {
-            const frame = Math.round((Number(event.frame) || 0) * sample);
-            if (frames.includes(frame)) {
-                event.frame = Math.max(0, frame + offset) / sample;
-            }
-        }
-
-        events.sort((a, b) => Number(a.frame) - Number(b.frame));
-        this._updateClipEventData(clip);
-        return true;
-    }
-
-    private _copyClipEventsTo(clip: AnimationClip, framesValue: unknown, dstFrameValue: unknown): boolean {
-        const events = this._queryClipEvents(clip);
-        if (!events) {
-            return false;
-        }
-
-        const frames = this._normalizeFrames(framesValue).sort((a, b) => a - b);
-        const dstFrame = Number(dstFrameValue);
-        if (frames.length === 0 || !Number.isFinite(dstFrame)) {
-            return false;
-        }
-
-        const sample = this._getClipSample(clip);
-        const baseFrame = frames[0];
-        const matched = events
-            .filter((event) => frames.includes(Math.round((Number(event.frame) || 0) * sample)))
-            .map((event) => ({
-                frame: Math.max(0, Math.round((Number(event.frame) || 0) * sample) - baseFrame + dstFrame),
-                func: event.func,
-                params: cloneValue(event.params || []),
-            }));
-
-        for (const event of matched) {
-            this._addClipEvent(clip, event.frame, event.func, event.params, false);
-        }
-
-        this._updateClipEventData(clip);
-        return true;
-    }
-
-    private _queryClipEvents(clip: AnimationClip): any[] | null {
-        const events = (clip as any).events;
-        return Array.isArray(events) ? events : null;
-    }
-
-    private _ensureClipEvents(clip: AnimationClip): any[] {
-        if (!Array.isArray((clip as any).events)) {
-            (clip as any).events = [];
-        }
-        return (clip as any).events;
-    }
-
-    private _normalizeFrames(value: unknown): number[] {
-        const values = Array.isArray(value) ? value : [value];
-        return values
-            .map((item) => Number(item))
-            .filter((item) => Number.isFinite(item))
-            .map((item) => Math.round(item));
-    }
-
-    private _updateClipEventData(clip: AnimationClip): void {
-        if (typeof (clip as any).updateEventDatas === 'function') {
-            (clip as any).updateEventDatas();
-        }
     }
 
     private async _stopCurrent(): Promise<void> {
@@ -942,11 +653,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return 'cc.String';
         }
         return '';
-    }
-
-    private _getClipSample(clip: AnimationClip): number {
-        const sample = Number((clip as any).sample);
-        return Number.isFinite(sample) && sample > 0 ? sample : 1;
     }
 
     private _readPropertyValue(node: Node, propKey: string): unknown {
@@ -1074,11 +780,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return animComp instanceof SkeletalAnimation && Boolean(animComp.useBakedAnimation);
     }
 
-    private _isSkeletonClip(uuid: string): boolean {
+    private _isSkeletonClip(uuid: string, rootNode?: Node): boolean {
         if (uuid.includes('@')) {
             return true;
         }
-        const rootNode = this._session ? this._getNodeByUuid(this._session.rootUuid) : null;
-        return Boolean(rootNode && this._queryAnimationComponent(rootNode) instanceof SkeletalAnimation);
+        const targetRootNode = rootNode || (this._session ? this._getNodeByUuid(this._session.rootUuid) : null);
+        return Boolean(targetRootNode && this._queryAnimationComponent(targetRootNode) instanceof SkeletalAnimation);
     }
 }

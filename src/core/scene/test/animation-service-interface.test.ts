@@ -1,4 +1,10 @@
-import type { IAnimationService } from '../common/animation';
+import type {
+    IAnimationClipDump,
+    IAnimationOperationResult,
+    IAnimationRootInfo,
+    IAnimationService,
+    IAnimationValue,
+} from '../common/animation';
 import type { IServiceManager } from '../scene-process/service/interfaces';
 
 describe('Animation service interface', () => {
@@ -9,7 +15,7 @@ describe('Animation service interface', () => {
             const state = service.queryState();
             const clip = service.queryClip({ clipUuid: 'clip-uuid' });
             const frameValue = service.queryPropertyValueAtFrame({ clipUuid: 'clip-uuid', nodePath: 'AnimatedRoot', propKey: 'position', frame: 0 });
-            const operation = service.applyOperation({ operations: [{ funcName: 'changeSample', args: ['clip-uuid', 60] }] });
+            const operation = service.applyOperation({ operations: [{ type: 'changeSample', clipUuid: 'clip-uuid', sample: 60 }] });
 
             expect(root).toBeDefined();
             expect(properties).toBeDefined();
@@ -19,11 +25,42 @@ describe('Animation service interface', () => {
             expect(operation).toBeDefined();
         };
 
+        const assertRootInfo = (info: IAnimationRootInfo) => {
+            const nodeChildren = info.nodeTreeDump?.children ?? [];
+            const clipEvents = info.clipDump?.events ?? [];
+            expect(nodeChildren).toBeDefined();
+            expect(clipEvents).toBeDefined();
+        };
+
+        const assertClipDump = (dump: IAnimationClipDump) => {
+            const curve = dump.curves[0];
+            const keyframe = curve?.keyframes?.[0];
+            const embeddedPlayer = dump.embeddedPlayers[0];
+            const auxiliaryKey = dump.auxiliaryCurves.BlendWeight?.keyframes[0];
+
+            expect(keyframe?.frame).toBeDefined();
+            expect(embeddedPlayer?.playable?.type).toBeDefined();
+            expect(auxiliaryKey?.value).toBeDefined();
+        };
+
+        const assertOperationResult = (result: IAnimationOperationResult) => {
+            const value: boolean = result.result;
+            expect(value).toBeDefined();
+        };
+
+        const assertPropertyValue = (value: IAnimationValue) => {
+            expect(value).toBeDefined();
+        };
+
         const assertManager = (manager: IServiceManager) => {
             expect(manager.Animation).toBeDefined();
         };
 
         expect(assertInternal).toBeDefined();
+        expect(assertRootInfo).toBeDefined();
+        expect(assertClipDump).toBeDefined();
+        expect(assertOperationResult).toBeDefined();
+        expect(assertPropertyValue).toBeDefined();
         expect(assertManager).toBeDefined();
     });
 });

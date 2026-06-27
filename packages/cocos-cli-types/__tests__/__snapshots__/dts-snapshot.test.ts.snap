@@ -5477,18 +5477,29 @@ export declare interface IAddComponentOptions {
     nodePath: string;
     component: string;
 }
+export declare interface IAnimationAuxiliaryCurveDump {
+    keyframes: IAnimationAuxiliaryKeyDump[];
+    preExtrap: number;
+    postExtrap: number;
+}
+export declare interface IAnimationAuxiliaryKeyDump extends IAnimationCurveKeyData {
+    frame: number;
+    value: number;
+}
 export declare interface IAnimationClipDump {
     name: string;
     duration: number;
     sample: number;
     speed: number;
     wrapMode: number;
-    curves: unknown[];
+    curves: IAnimationCurveDump[];
     events: IAnimationEventDump[];
-    embeddedPlayers: unknown[];
-    embeddedPlayerGroups: unknown[];
+    embeddedPlayers: IAnimationEmbeddedPlayerDump[];
+    embeddedPlayerGroups: IAnimationEmbeddedPlayerGroup[];
+    auxiliaryCurves: Record<string, IAnimationAuxiliaryCurveDump>;
     time: number;
     isLock: boolean;
+    isSkeleton: boolean;
     useBakedAnimation: boolean;
 }
 export declare interface IAnimationClipMenuItem {
@@ -5499,8 +5510,61 @@ export declare interface IAnimationClipsInfo extends IAnimationRootResult {
     clipsMenu: IAnimationClipMenuItem[];
     defaultClip: string;
 }
+export declare interface IAnimationCurveDump {
+    nodePath: string;
+    key: string;
+    keyframes: IAnimationCurveKeyDump[] | null;
+    category?: string;
+    type?: IAnimationPropertyType;
+    displayName?: string;
+    name?: string;
+    comp?: string;
+    menuName?: string;
+    preExtrap?: number;
+    postExtrap?: number;
+    isCurveSupport?: boolean;
+    parentPropKey?: string;
+    partKeys?: string[];
+}
+export declare interface IAnimationCurveKeyData {
+    inTangent?: number;
+    inTangentWeight?: number;
+    outTangent?: number;
+    outTangentWeight?: number;
+    interpMode?: number;
+    tangentWeightMode?: number;
+    tangentMode?: number;
+    easingMethod?: number;
+    broken?: boolean;
+}
+export declare interface IAnimationCurveKeyDump extends IAnimationCurveKeyData {
+    frame: number;
+    dump: IAnimationKeyValueDump;
+    imgUrl?: string;
+}
 export declare interface IAnimationEditClipOptions {
     clipUuid: string;
+}
+export declare type IAnimationEmbeddedPlayable = {
+    type: 'animation-clip';
+    clip?: string;
+    path?: string;
+} | {
+    type: 'particle-system';
+    path?: string;
+};
+export declare interface IAnimationEmbeddedPlayerDump {
+    begin: number;
+    end: number;
+    reconciledSpeed: boolean;
+    playable?: IAnimationEmbeddedPlayable;
+    group: string;
+    displayName?: string;
+}
+export declare interface IAnimationEmbeddedPlayerGroup {
+    key: string;
+    name: string;
+    type: string;
 }
 export declare interface IAnimationEnterOptions {
     rootPath?: string;
@@ -5511,24 +5575,131 @@ export declare interface IAnimationEnterOptions {
 export declare interface IAnimationEventDump {
     frame: number;
     func: string;
-    params: unknown[];
+    params: IAnimationValue[];
 }
 export declare interface IAnimationExitOptions {
     save?: boolean;
     restoreSelection?: boolean;
     restoreSampledSceneState?: boolean;
 }
-export declare interface IAnimationOperation {
-    funcName: string;
-    args: unknown[];
+export declare interface IAnimationKeyValueDump {
+    value: IAnimationValue;
+    default?: IAnimationValue;
+    extends?: string[];
+    readonly?: boolean;
+    type?: string;
+    visible?: boolean;
 }
+export declare type IAnimationOperation = {
+    type: 'changeSample';
+    clipUuid: string;
+    sample: number;
+} | {
+    type: 'changeSpeed';
+    clipUuid: string;
+    speed: number;
+} | {
+    type: 'changeWrapMode';
+    clipUuid: string;
+    wrapMode: number;
+} | {
+    type: 'addEvent';
+    clipUuid: string;
+    frame: number;
+    func: string;
+    params?: IAnimationValue[];
+} | {
+    type: 'deleteEvent';
+    clipUuid: string;
+    frames: number[];
+} | {
+    type: 'updateEvent';
+    clipUuid: string;
+    frames: number[];
+    events: IAnimationEventDump[];
+} | {
+    type: 'moveEvents';
+    clipUuid: string;
+    frames: number[];
+    offset: number;
+} | {
+    type: 'copyEventsTo';
+    clipUuid: string;
+    frames: number[];
+    dstFrame: number;
+} | {
+    type: 'addEmbeddedPlayer';
+    clipUuid: string;
+    embeddedPlayer: IAnimationEmbeddedPlayerDump;
+} | {
+    type: 'deleteEmbeddedPlayer';
+    clipUuid: string;
+    embeddedPlayer: IAnimationEmbeddedPlayerDump;
+} | {
+    type: 'updateEmbeddedPlayer';
+    clipUuid: string;
+    embeddedPlayer: IAnimationEmbeddedPlayerDump;
+    newEmbeddedPlayer: IAnimationEmbeddedPlayerDump;
+} | {
+    type: 'clearEmbeddedPlayer';
+    clipUuid: string;
+    group?: string;
+} | {
+    type: 'addEmbeddedPlayerGroup';
+    clipUuid: string;
+    group: IAnimationEmbeddedPlayerGroup;
+} | {
+    type: 'removeEmbeddedPlayerGroup';
+    clipUuid: string;
+    key: string;
+} | {
+    type: 'clearEmbeddedPlayerGroup';
+    clipUuid: string;
+    key: string;
+} | {
+    type: 'addAuxiliaryCurve';
+    clipUuid: string;
+    name: string;
+} | {
+    type: 'removeAuxiliaryCurve';
+    clipUuid: string;
+    name: string;
+} | {
+    type: 'renameAuxiliaryCurve';
+    clipUuid: string;
+    name: string;
+    newName: string;
+} | {
+    type: 'createAuxKey';
+    clipUuid: string;
+    name: string;
+    frame: number;
+    value: number;
+} | {
+    type: 'removeAuxKey';
+    clipUuid: string;
+    name: string;
+    frame: number;
+} | {
+    type: 'moveAuxKeys';
+    clipUuid: string;
+    name: string;
+    frames: number[];
+    offset: number;
+} | {
+    type: 'copyAuxKey';
+    clipUuid: string;
+    name: string;
+    frame: number;
+    dstFrame: number;
+};
 export declare interface IAnimationOperationOptions {
     operations: IAnimationOperation[];
     recordUndo?: boolean;
 }
 export declare interface IAnimationOperationResult {
     state: 'success' | 'failure';
-    result: unknown;
+    result: boolean;
     reason?: string;
 }
 export declare interface IAnimationPlayStateOptions {
@@ -5539,12 +5710,14 @@ export declare interface IAnimationPropertyInfo {
     name: string;
     key: string;
     displayName: string;
-    type: {
-        value: string;
-    };
+    type: IAnimationPropertyType;
     menuName: string;
     comp?: string;
     category?: string;
+}
+export declare interface IAnimationPropertyType {
+    value: string;
+    extends?: string[];
 }
 export declare interface IAnimationQueryClipOptions extends IAnimationTargetOptions {
     clipUuid?: string;
@@ -5557,7 +5730,7 @@ export declare interface IAnimationQueryPropertyValueAtFrameOptions {
     frame: number;
 }
 export declare interface IAnimationRootInfo extends IAnimationClipsInfo {
-    nodeTreeDump: unknown;
+    nodeTreeDump: INodeTreeItem | null;
     clipDump: IAnimationClipDump | null;
     time: number;
     state: AnimationPlayState_2;
@@ -5577,7 +5750,7 @@ export declare interface IAnimationService extends IServiceEvents {
     queryClips(options: IAnimationTargetOptions): Promise<IAnimationClipsInfo>;
     queryProperties(options: IAnimationTargetOptions): Promise<IAnimationPropertyInfo[]>;
     queryTime(options: IAnimationTimeOptions): Promise<number>;
-    queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<unknown>;
+    queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<IAnimationValue>;
     setTime(options: IAnimationSetTimeOptions): Promise<boolean>;
     changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
     changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;
@@ -5608,6 +5781,9 @@ export declare interface IAnimationTargetOptions {
 export declare interface IAnimationTimeOptions {
     clipUuid?: string;
 }
+export declare type IAnimationValue = string | number | boolean | null | undefined | IAnimationValue[] | {
+    [key: string]: IAnimationValue;
+};
 export declare interface IApplyPrefabChangesParams {
     nodePath: string;
 }

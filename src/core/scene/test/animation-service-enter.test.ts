@@ -27,10 +27,22 @@ jest.mock('cc', () => ({
     CCClass: { attr: jest.fn(), Attr: { PrimitiveType: class PrimitiveType {} } },
     Component: class Component {},
     Node: class Node {},
+    RealCurve: class RealCurve {},
     Scene: class Scene {},
     SkeletalAnimation: class SkeletalAnimation {},
     animation: {},
+    assetManager: { loadAny: jest.fn() },
+    editorExtrasTag: Symbol.for('editorExtrasTag'),
     js: { getClassName: jest.fn(() => 'cc.Component') },
+}));
+
+jest.mock('cc/editor/embedded-player', () => ({
+    EmbeddedAnimationClipPlayable: class EmbeddedAnimationClipPlayable {},
+    EmbeddedParticleSystemPlayable: class EmbeddedParticleSystemPlayable {},
+    EmbeddedPlayer: class EmbeddedPlayer {},
+    addEmbeddedPlayerTag: Symbol.for('addEmbeddedPlayerTag'),
+    clearEmbeddedPlayersTag: Symbol.for('clearEmbeddedPlayersTag'),
+    getEmbeddedPlayersTag: Symbol.for('getEmbeddedPlayersTag'),
 }));
 
 jest.mock('../scene-process/service/core', () => ({
