@@ -58,7 +58,13 @@ export class BuilderHook {
         const platformDesc = `Platform Identifier (e.g., ${allPlatforms.join(', ')})`;
 
         if (param.name === 'options') {
-            const simpleSchema = z.any().describe('Build options (Detailed validation is deferred to execution)');
+            // 使用 z.object().passthrough() 而非 z.any()，确保转换出的 JSON Schema 带有 type: object，
+            // 否则参数无 type，部分模型（如 Gemini）会降级成 string 并把对象 JSON.stringify 成字符串传入。
+            // 详细校验仍延迟到执行阶段 onBeforeExecute 完成。
+            const simpleSchema = z.object({})
+                .passthrough()
+                .optional()
+                .describe('Build options (Detailed validation is deferred to execution)');
             inputSchemaFields[param.name] = simpleSchema;
             param.schema = simpleSchema;
 
