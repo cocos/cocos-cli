@@ -616,7 +616,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private _createClipDump(rootNode: Node, clip: AnimationClip, state?: AnimationState): IAnimationClipDump {
-        return createClipDump(rootNode, clip, state, {
+        return createClipDump(clip, state, {
             isSkeleton: this._isSkeletonClip(clipUuid(clip), rootNode),
             useBakedAnimation: this._isUsingBakedAnimation(rootNode),
         });

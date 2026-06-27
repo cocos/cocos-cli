@@ -73,6 +73,17 @@ export interface IAnimationCurveKeyDump extends IAnimationCurveKeyData {
 }
 
 /**
+ * 分量曲线 dump。用于表达 Vec/Color/Size 等复合属性的真实 per-channel keyframe。
+ */
+export interface IAnimationCurveChannelDump {
+    /** 分量 key，例如 `x`、`y`、`z`、`r`、`width`。 */
+    key: string;
+    displayName?: string;
+    type?: IAnimationPropertyType;
+    keyframes: IAnimationCurveKeyDump[];
+}
+
+/**
  * queryClip 返回的普通属性曲线 dump。
  */
 export interface IAnimationCurveDump {
@@ -82,6 +93,8 @@ export interface IAnimationCurveDump {
     key: string;
     /** 曲线关键帧；没有可编辑关键帧时可能为 null。 */
     keyframes: IAnimationCurveKeyDump[] | null;
+    /** 复合属性的真实分量曲线；旧 UI 可继续使用上面的聚合 keyframes。 */
+    channels?: IAnimationCurveChannelDump[];
     category?: string;
     type?: IAnimationPropertyType;
     displayName?: string;
@@ -416,9 +429,9 @@ export type IAnimationOperation =
     | { type: 'changeSample'; clipUuid: string; sample: number }
     | { type: 'changeSpeed'; clipUuid: string; speed: number }
     | { type: 'changeWrapMode'; clipUuid: string; wrapMode: number }
-    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value: IAnimationValue }
-    | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[] }
-    | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number }
+    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData }
+    | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
+    | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number; channel?: string }
     | { type: 'addEvent'; clipUuid: string; frame: number; func: string; params?: IAnimationValue[] }
     | { type: 'deleteEvent'; clipUuid: string; frames: number[] }
     | { type: 'updateEvent'; clipUuid: string; frames: number[]; events: IAnimationEventDump[] }

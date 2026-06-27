@@ -1,11 +1,11 @@
-import type { AnimationClip, AnimationState, Node } from 'cc';
+import type { AnimationClip, AnimationState } from 'cc';
 import type { IAnimationClipDump } from '../../../common';
 import { dumpAuxiliaryCurves } from './auxiliary-curve';
 import { dumpEmbeddedPlayers, queryEmbeddedPlayerGroups } from './embedded-player';
 import { dumpPropertyCurves } from './property-curve';
 import { cloneValue, getClipSample } from './utils';
 
-export function createClipDump(rootNode: Node, clip: AnimationClip, state: AnimationState | undefined, options: {
+export function createClipDump(clip: AnimationClip, state: AnimationState | undefined, options: {
     isSkeleton: boolean;
     useBakedAnimation: boolean;
 }): IAnimationClipDump {

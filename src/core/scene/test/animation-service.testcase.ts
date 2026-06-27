@@ -1,5 +1,5 @@
 import { assetManager } from '../../assets';
-import { ICreateByAssetParams } from '../common';
+import { ICreateByAssetParams, NodeType } from '../common';
 import { sceneWorker } from '../main-process/scene-worker';
 import { Rpc } from '../main-process/rpc';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
@@ -63,6 +63,7 @@ describe('Animation Service 场景进程测试', () => {
     const sceneName = 'AnimationServiceScene';
     const clipName = 'AnimationServiceClip';
     let nodePath = '';
+    let childNodePath = '';
     let clipUuid = '';
 
     beforeAll(async () => {
@@ -93,6 +94,16 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create animation node.');
         }
         nodePath = node.path;
+
+        const childNode = await NodeProxy.createByType({
+            path: nodePath,
+            name: 'AnimationServiceChild',
+            nodeType: NodeType.EMPTY,
+        });
+        if (!childNode) {
+            throw new Error('Failed to create animation child node.');
+        }
+        childNodePath = childNode.path;
     });
 
     afterAll(async () => {
@@ -261,6 +272,90 @@ describe('Animation Service 场景进程测试', () => {
         expect(removedCurve.keyframes).toEqual([
             { frame: 30, dump: { value: { x: 8, y: 9, z: 10 }, type: 'cc.Vec3' } },
         ]);
+    });
+
+    it('applyOperation 支持分量级属性 keyframe 并保留切线信息', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 0, value: { x: 1, y: 1, z: 1 } },
+                {
+                    type: 'createPropertyKey',
+                    clipUuid,
+                    nodePath,
+                    propKey: 'scale',
+                    frame: 15,
+                    channel: 'y',
+                    value: 2,
+                    keyData: {
+                        inTangent: 0.25,
+                        outTangent: 0.5,
+                        inTangentWeight: 0.75,
+                        outTangentWeight: 1,
+                        interpMode: 2,
+                        tangentWeightMode: 1,
+                    },
+                },
+            ],
+        }]);
+        const dump = await request('queryClip', [{ clipUuid }]);
+        const scaleCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(scaleCurve.partKeys).toEqual(['x', 'y', 'z']);
+        expect(scaleCurve.keyframes).toEqual([
+            { frame: 0, dump: { value: { x: 1, y: 1, z: 1 }, type: 'cc.Vec3' } },
+            { frame: 15, dump: { value: { x: 1, y: 2, z: 1 }, type: 'cc.Vec3' } },
+        ]);
+        expect(scaleCurve.channels.find((channel: any) => channel.key === 'x').keyframes).toEqual([
+            { frame: 0, dump: { value: 1, type: 'cc.Number' } },
+        ]);
+        expect(scaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes).toEqual([
+            { frame: 0, dump: { value: 1, type: 'cc.Number' } },
+            {
+                frame: 15,
+                dump: { value: 2, type: 'cc.Number' },
+                inTangent: 0.25,
+                outTangent: 0.5,
+                inTangentWeight: 0.75,
+                outTangentWeight: 1,
+                interpMode: 2,
+                tangentWeightMode: 1,
+            },
+        ]);
+        expect(scaleCurve.channels.find((channel: any) => channel.key === 'z').keyframes).toEqual([
+            { frame: 0, dump: { value: 1, type: 'cc.Number' } },
+        ]);
+    });
+
+    it('applyOperation 支持 queryProperties 暴露的 rotation 和 active 属性', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+
+        const properties = await request('queryProperties', [{ nodePath: childNodePath }]);
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'rotation', frame: 3, value: { x: 0, y: 0, z: 0, w: 1 } },
+                { type: 'createPropertyKey', clipUuid, nodePath: childNodePath, propKey: 'active', frame: 3, value: false },
+            ],
+        }]);
+        const dump = await request('queryClip', [{ clipUuid }]);
+
+        expect(properties.map((item: any) => item.key)).toEqual(expect.arrayContaining(['rotation', 'active']));
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'rotation')).toMatchObject({
+            type: { value: 'cc.Quat' },
+            keyframes: [
+                { frame: 3, dump: { value: { x: 0, y: 0, z: 0, w: 1 }, type: 'cc.Quat' } },
+            ],
+        });
+        expect(dump.curves.find((curve: any) => curve.nodePath === 'AnimationServiceChild' && curve.key === 'active')).toMatchObject({
+            type: { value: 'cc.Boolean' },
+            isCurveSupport: false,
+            keyframes: [
+                { frame: 3, dump: { value: false, type: 'cc.Boolean' } },
+            ],
+        });
     });
 
     it('applyOperation 不接受旧 funcName/args 格式', async () => {
