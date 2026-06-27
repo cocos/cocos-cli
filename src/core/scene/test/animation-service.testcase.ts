@@ -9,6 +9,34 @@ function request<T = any>(method: string, args: any[] = []): Promise<T> {
     return (Rpc.getInstance() as any).request('Animation', method, args) as Promise<T>;
 }
 
+function requestService<T = any>(service: string, method: string, args: any[] = []): Promise<T> {
+    return (Rpc.getInstance() as any).request(service, method, args) as Promise<T>;
+}
+
+const Undo = {
+    clearHistory: () => requestService('Undo', 'clearHistory'),
+    markSaved: () => requestService('Undo', 'markSaved'),
+    isDirty: () => requestService<boolean>('Undo', 'isDirty'),
+    canUndo: () => requestService<boolean>('Undo', 'canUndo'),
+    undo: () => requestService('Undo', 'undo'),
+    canRedo: () => requestService<boolean>('Redo', 'canRedo'),
+    redo: () => requestService('Redo', 'redo'),
+};
+
+function expectUndoSuccess(result: any) {
+    if (!result?.success) {
+        throw new Error(`Undo/Redo command failed: ${JSON.stringify(result)}`);
+    }
+    expect(result.success).toBe(true);
+}
+
+async function ensureAnimationSession(rootPath: string, clipUuid: string): Promise<void> {
+    const state = await request('queryState');
+    if (!state.active || state.rootPath !== rootPath || state.clipUuid !== clipUuid) {
+        await request('enter', [{ rootPath, clipUuid }]);
+    }
+}
+
 function createAnimationClipContent(options: { sample?: number; duration?: number } = {}) {
     return JSON.stringify({
         __type__: 'cc.AnimationClip',
@@ -194,5 +222,63 @@ describe('Animation Service 场景进程测试', () => {
             { frame: 0, value: 0.25 },
             { frame: 60, value: 0.75 },
         ]);
+    });
+
+    it('applyOperation 默认记录 undo/dirty，并支持 undo/redo 恢复真实 AnimationClip', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const before = await request('queryClip', [{ clipUuid }]);
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'changeSpeed', clipUuid, speed: 2.25 },
+                { type: 'addEvent', clipUuid, frame: 12, func: 'onUndoCheck', params: ['undo'] },
+            ],
+        }]);
+        const after = await request('queryClip', [{ clipUuid }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(await Undo.isDirty()).toBe(true);
+        expect(await Undo.canUndo()).toBe(true);
+        expect(await Undo.canRedo()).toBe(false);
+        expect(after.speed).toBe(2.25);
+        expect(after.events).toEqual(expect.arrayContaining([
+            { frame: 12, func: 'onUndoCheck', params: ['undo'] },
+        ]));
+
+        expectUndoSuccess(await Undo.undo());
+        const undoDump = await request('queryClip', [{ clipUuid }]);
+        expect(undoDump.speed).toBe(before.speed);
+        expect(undoDump.events).toEqual(before.events);
+        expect(await Undo.isDirty()).toBe(false);
+        expect(await Undo.canRedo()).toBe(true);
+
+        expectUndoSuccess(await Undo.redo());
+        const redoDump = await request('queryClip', [{ clipUuid }]);
+        expect(redoDump.speed).toBe(after.speed);
+        expect(redoDump.events).toEqual(after.events);
+        expect(await Undo.isDirty()).toBe(true);
+    });
+
+    it('applyOperation recordUndo 为 false 时不写入 undo 栈', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const before = await request('queryClip', [{ clipUuid }]);
+        const result = await request('applyOperation', [{
+            recordUndo: false,
+            operations: [
+                { type: 'changeSpeed', clipUuid, speed: before.speed + 0.125 },
+            ],
+        }]);
+        const after = await request('queryClip', [{ clipUuid }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(after.speed).toBe(before.speed + 0.125);
+        expect(await Undo.isDirty()).toBe(false);
+        expect(await Undo.canUndo()).toBe(false);
+        expect(await Undo.canRedo()).toBe(false);
     });
 });

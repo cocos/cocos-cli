@@ -134,6 +134,36 @@ export function serializeAuxiliaryCurvesForMeta(clip: AnimationClip): Record<str
     return result;
 }
 
+export function replaceAuxiliaryCurves(clip: AnimationClip, curves: Record<string, IAnimationAuxiliaryCurveDump>): boolean {
+    const names = Object.keys(curves);
+    const clipAny = clip as any;
+    if (typeof clipAny.getAuxiliaryCurveNames_experimental !== 'function') {
+        return names.length === 0;
+    }
+    if (typeof clipAny.removeAuxiliaryCurve_experimental !== 'function' || typeof clipAny.addAuxiliaryCurve_experimental !== 'function') {
+        return false;
+    }
+
+    for (const name of clipAny.getAuxiliaryCurveNames_experimental() as string[]) {
+        clipAny.removeAuxiliaryCurve_experimental(name);
+    }
+
+    for (const name of names) {
+        if (!addAuxiliaryCurve(clip, name)) {
+            return false;
+        }
+        const curve = getAuxiliaryCurve(clip, name);
+        if (!curve) {
+            return false;
+        }
+        const dump = curves[name];
+        (curve as any).preExtrapolation = dump.preExtrap;
+        (curve as any).postExtrapolation = dump.postExtrap;
+        curve.assignSorted(dump.keyframes.map((key) => [key.frame / getClipSample(clip), key.value] as [number, any]));
+    }
+    return true;
+}
+
 function dumpAuxiliaryCurve(clip: AnimationClip, curve: RealCurve): IAnimationAuxiliaryCurveDump {
     const sample = getClipSample(clip);
     return {

@@ -34,12 +34,19 @@ import {
     IAnimationValue,
     NodeEventType,
 } from '../../common';
-import { BaseService, register, Service } from './core';
+import { BaseService, register, Service, ServiceEvents } from './core';
 import dumpUtil from './dump';
 import { Rpc } from '../rpc';
 import { createClipDump } from './animation/clip-dump';
+import {
+    animationClipSnapshotsEqual,
+    captureAnimationClipSnapshot,
+    restoreAnimationClipSnapshot,
+    type IAnimationClipSnapshot,
+} from './animation/clip-snapshot';
 import { applyClipOperation, validateAnimationOperation } from './animation/clip-operations';
 import { saveSkeletonAnimationMeta } from './animation/skeleton-meta';
+import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationData, IAnimationSession } from './animation/types';
 import { cloneDump, cloneValue, clipUuid, getClipSample } from './animation/utils';
 
@@ -71,6 +78,17 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     private _animationStateMap = new Map<string, AnimationState>();
     private _curEditTime = 0;
     private _playState: AnimationPlayState = 'stop';
+    private readonly _onAssetRefreshed = (uuid: string) => {
+        void this._refreshCurrentClipAsset(uuid).catch((error) => {
+            this._disposeSession();
+            console.error('[Animation] refresh animation clip failed:', error);
+        });
+    };
+
+    constructor() {
+        super();
+        ServiceEvents?.on?.('asset-refresh', this._onAssetRefreshed);
+    }
 
     async enter(options: IAnimationEnterOptions): Promise<IAnimationStateInfo> {
         this._assertEditorOpened();
@@ -359,6 +377,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         const state = await this._getAnimationState(session.clipUuid);
+        const shouldRecordUndo = options.recordUndo !== false;
+        const before = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
         for (const operation of options.operations) {
             const failure = validateAnimationOperation(operation, session.clipUuid);
             if (failure) {
@@ -375,7 +395,17 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             }
         }
 
+        (state as any)._curveLoaded = false;
         await this.setTime({ time: this._curEditTime });
+        const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
+        if (before && after && !animationClipSnapshotsEqual(before, after)) {
+            Service.Undo.push(new AnimationClipSnapshotCommand({
+                clipUuid: session.clipUuid,
+                before,
+                after,
+                applySnapshot: (snapshot) => this._restoreCurrentClipSnapshot(session.clipUuid, snapshot),
+            }));
+        }
         return {
             state: 'success',
             result: true,
@@ -401,6 +431,20 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             }]);
         }
         return true;
+    }
+
+    onAssetDeleted(uuid: string): void {
+        if (!this._session || this._session.clipUuid !== uuid) {
+            return;
+        }
+        void this.exit({ restoreSelection: false, restoreSampledSceneState: true }).catch((error) => {
+            this._disposeSession();
+            console.error('[Animation] exit after animation clip deletion failed:', error);
+        });
+    }
+
+    onEditorClosed(): void {
+        this._disposeSession();
     }
 
     private _assertEditorOpened(): void {
@@ -607,6 +651,37 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             }
         }
         this._animationStateMap.clear();
+    }
+
+    private async _restoreCurrentClipSnapshot(uuid: string, snapshot: IAnimationClipSnapshot): Promise<void> {
+        const session = this._requireSession();
+        if (uuid !== session.clipUuid) {
+            throw new Error(`current edit clip: '${session.clipUuid}' but you want to restore: '${uuid}'`);
+        }
+
+        const state = await this._getAnimationState(uuid);
+        await restoreAnimationClipSnapshot(state.clip, snapshot);
+        (state as any)._curveLoaded = false;
+        await this.setTime({ time: this._curEditTime });
+    }
+
+    private async _refreshCurrentClipAsset(uuid: string): Promise<void> {
+        if (!this._session || this._session.clipUuid !== uuid) {
+            return;
+        }
+
+        const time = this._curEditTime;
+        this._clearAnimationStates();
+        const state = await this._getAnimationState(uuid);
+        await this.setTime({ time: Math.min(time, state.duration) });
+    }
+
+    private _disposeSession(): void {
+        this._clearAnimationStates();
+        Service.Engine.exitAnimationMode();
+        this._session = null;
+        this._curEditTime = 0;
+        this._playState = 'stop';
     }
 
     private _queryComponentAnimableProperties(component: Component): IAnimationPropertyInfo[] {

@@ -33,6 +33,11 @@ export function ensureEmbeddedPlayerGroups(clip: AnimationClip): IAnimationEmbed
     return clipAny[editorExtrasTag].embeddedPlayerGroups;
 }
 
+export function replaceEmbeddedPlayerGroups(clip: AnimationClip, groups: IAnimationEmbeddedPlayerGroup[]): void {
+    const target = ensureEmbeddedPlayerGroups(clip);
+    target.splice(0, target.length, ...cloneValue(groups));
+}
+
 export function dumpEmbeddedPlayers(clip: AnimationClip): IAnimationEmbeddedPlayerDump[] {
     if (typeof (clip as any)[getEmbeddedPlayersTag] !== 'function') {
         return [];
@@ -154,7 +159,7 @@ export function serializeEmbeddedPlayersForMeta(clip: AnimationClip) {
     }));
 }
 
-async function replaceEmbeddedPlayers(clip: AnimationClip, players: IAnimationEmbeddedPlayerDump[]): Promise<boolean> {
+export async function replaceEmbeddedPlayers(clip: AnimationClip, players: IAnimationEmbeddedPlayerDump[]): Promise<boolean> {
     if (typeof (clip as any)[clearEmbeddedPlayersTag] !== 'function' || typeof (clip as any)[addEmbeddedPlayerTag] !== 'function') {
         return false;
     }

@@ -409,7 +409,7 @@ export type IAnimationOperation =
 export interface IAnimationOperationOptions {
     /** 按顺序执行；任一操作失败时停止并返回 failure。 */
     operations: IAnimationOperation[];
-    /** 预留给 undo 录制；当前 scene-process 内部尚未接入完整 undo 语义。 */
+    /** 是否记录 undo/dirty；默认 true，显式传 false 时仅修改当前 clip，不写入 undo 栈。 */
     recordUndo?: boolean;
 }
 

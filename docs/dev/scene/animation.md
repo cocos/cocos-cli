@@ -84,6 +84,14 @@ Scene process 不负责：
 - `queryClip` 返回 typed `curves`、`events`、`embeddedPlayers`、`embeddedPlayerGroups`、`auxiliaryCurves`、`isSkeleton`。
 - `save` 对普通 `.anim` 写 asset，对骨骼动画 clip 写回 meta 的 events、embedded players、embedded player groups、wrapMode、speed、sample、auxiliary curves。
 
+第四阶段继续补：
+
+- `applyOperation` 默认记录 undo/dirty；一次批处理对应一条 `animation:clip-snapshot` undo command。
+- `applyOperation({ recordUndo: false })` 只修改当前 clip，不写入 undo 栈，不改变 dirty 状态。
+- undo/redo 恢复当前 typed operation 会修改的 clip 数据：sample、speed、wrapMode、events、embedded players/groups、auxiliary curves，并在恢复后重新采样当前编辑时间。
+- 当前编辑 clip 收到 `asset-refresh` 后清理旧 `AnimationState` 并基于刷新后的 clip 重建采样状态。
+- 当前编辑 clip 被删除时退出 animation session；editor close/reload 时清理 animation session 和 state cache，script reload 复用 editor reload 生命周期。
+
 ## 状态恢复语义
 
 `enter` 创建 CLI 内部 session，并保存：
@@ -138,3 +146,10 @@ Scene process 不负责：
 - `src/core/scene/scene-process/service/animation/auxiliary-curve.ts`：auxiliary curve dump、key 操作和 meta 序列化。
 - `src/core/scene/scene-process/service/animation/clip-dump.ts`：clip dump 组装。
 - `src/core/scene/scene-process/service/animation/skeleton-meta.ts`：骨骼动画 meta 写回。
+
+第四阶段已补 animation operation 的 undo/dirty 接入和生命周期清理：
+
+- `src/core/scene/scene-process/service/animation/clip-snapshot.ts`：捕获和恢复 operation 涉及的 clip 编辑快照。
+- `src/core/scene/scene-process/service/animation/undo.ts`：animation clip 快照 undo command。
+- `AnimationService.applyOperation` 默认 push undo command；显式 `recordUndo:false` 跳过 undo/dirty。
+- `AnimationService` 处理当前 clip 的 asset refresh/delete，以及 editor close/reload 时的 session 和 state cache 清理。
