@@ -22,6 +22,12 @@ import {
     updateEmbeddedPlayer,
 } from './embedded-player';
 import {
+    createPropertyKey,
+    movePropertyKeys,
+    removePropertyKey,
+    type IPropertyCurveOperationContext,
+} from './property-curve';
+import {
     cloneValue,
     ensureClipEvents,
     getClipSample,
@@ -53,6 +59,9 @@ const SUPPORTED_CLIP_OPERATIONS = [
     'removeAuxKey',
     'moveAuxKeys',
     'copyAuxKey',
+    'createPropertyKey',
+    'removePropertyKey',
+    'movePropertyKeys',
 ];
 
 export function validateAnimationOperation(operation: IAnimationOperation, currentClipUuid: string): IAnimationOperationResult | null {
@@ -87,7 +96,7 @@ export function isSupportedClipOperation(funcName: string): boolean {
     return SUPPORTED_CLIP_OPERATIONS.includes(funcName);
 }
 
-export async function applyClipOperation(state: AnimationState, operation: IAnimationOperation): Promise<boolean> {
+export async function applyClipOperation(state: AnimationState, operation: IAnimationOperation, context: IPropertyCurveOperationContext): Promise<boolean> {
     const clip = state.clip;
     switch (operation.type) {
         case 'changeSample':
@@ -134,6 +143,12 @@ export async function applyClipOperation(state: AnimationState, operation: IAnim
             return moveAuxKeys(clip, operation.name, operation.frames, operation.offset);
         case 'copyAuxKey':
             return copyAuxKey(clip, operation.name, operation.frame, operation.dstFrame);
+        case 'createPropertyKey':
+            return createPropertyKey(clip, context, operation);
+        case 'removePropertyKey':
+            return removePropertyKey(clip, context, operation);
+        case 'movePropertyKeys':
+            return movePropertyKeys(clip, context, operation);
         default:
             return false;
     }

@@ -9,6 +9,16 @@ export type AnimationEditorType = 'scene' | 'prefab' | 'unknown';
 export type AnimationPlayState = 'stop' | 'playing' | 'pause';
 /** changePlayState 支持的播放控制操作。 */
 export type AnimationPlayOperation = 'play' | 'pause' | 'resume' | 'stop';
+/** animation 事件来源，用于 UI 判断是否需要刷新状态、时间轴或 clip 数据。 */
+export type AnimationEventReason =
+    | 'enter'
+    | 'exit'
+    | 'set-time'
+    | 'play-state'
+    | 'change-clip'
+    | 'operation'
+    | 'undo-redo'
+    | 'asset-refresh';
 
 /**
  * Animation API 中可通过 RPC 传递的值。
@@ -338,6 +348,29 @@ export interface IAnimationStateInfo {
     restoreSelectionOnExit: boolean;
 }
 
+export interface IAnimationStateChangedEvent {
+    reason: AnimationEventReason;
+    state: IAnimationStateInfo;
+}
+
+export interface IAnimationClipEvent {
+    reason: AnimationEventReason;
+    rootUuid: string;
+    rootPath: string;
+    clipUuid: string;
+}
+
+export interface IAnimationTimeChangedEvent extends IAnimationClipEvent {
+    time: number;
+    playState: AnimationPlayState;
+}
+
+export interface IAnimationEvents {
+    'animation:state-changed': [event: IAnimationStateChangedEvent];
+    'animation:time-changed': [event: IAnimationTimeChangedEvent];
+    'animation:clip-changed': [event: IAnimationClipEvent];
+}
+
 /**
  * 可创建或编辑动画曲线的属性信息。
  */
@@ -356,7 +389,7 @@ export interface IAnimationPropertyInfo {
  *
  * 所有 operation 都必须携带当前编辑的 clipUuid；clipUuid 不匹配时会返回 failure。
  * frame、frames、offset、dstFrame 都使用采样帧号；setTime/queryTime 的 time 才使用秒。
- * 支持的类型分为 clip 基础属性、事件、embedded player 和辅助曲线四类。
+ * 支持的类型分为 clip 基础属性、普通属性曲线、事件、embedded player 和辅助曲线五类。
  *
  * @example
  * ```ts
@@ -383,6 +416,9 @@ export type IAnimationOperation =
     | { type: 'changeSample'; clipUuid: string; sample: number }
     | { type: 'changeSpeed'; clipUuid: string; speed: number }
     | { type: 'changeWrapMode'; clipUuid: string; wrapMode: number }
+    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value: IAnimationValue }
+    | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[] }
+    | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number }
     | { type: 'addEvent'; clipUuid: string; frame: number; func: string; params?: IAnimationValue[] }
     | { type: 'deleteEvent'; clipUuid: string; frames: number[] }
     | { type: 'updateEvent'; clipUuid: string; frames: number[]; events: IAnimationEventDump[] }

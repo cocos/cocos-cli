@@ -2,6 +2,7 @@ import type { AnimationClip, AnimationState, Node } from 'cc';
 import type { IAnimationClipDump } from '../../../common';
 import { dumpAuxiliaryCurves } from './auxiliary-curve';
 import { dumpEmbeddedPlayers, queryEmbeddedPlayerGroups } from './embedded-player';
+import { dumpPropertyCurves } from './property-curve';
 import { cloneValue, getClipSample } from './utils';
 
 export function createClipDump(rootNode: Node, clip: AnimationClip, state: AnimationState | undefined, options: {
@@ -16,7 +17,7 @@ export function createClipDump(rootNode: Node, clip: AnimationClip, state: Anima
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
-        curves: [],
+        curves: dumpPropertyCurves(clip),
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',

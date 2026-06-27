@@ -88,7 +88,7 @@ Scene process 不负责：
 
 - `applyOperation` 默认记录 undo/dirty；一次批处理对应一条 `animation:clip-snapshot` undo command。
 - `applyOperation({ recordUndo: false })` 只修改当前 clip，不写入 undo 栈，不改变 dirty 状态。
-- undo/redo 恢复当前 typed operation 会修改的 clip 数据：sample、speed、wrapMode、events、embedded players/groups、auxiliary curves，并在恢复后重新采样当前编辑时间。
+- undo/redo 恢复当前 typed operation 会修改的 clip 数据：sample、speed、wrapMode、普通属性曲线、events、embedded players/groups、auxiliary curves，并在恢复后重新采样当前编辑时间。
 - 当前编辑 clip 收到 `asset-refresh` 后清理旧 `AnimationState` 并基于刷新后的 clip 重建采样状态。
 - 当前编辑 clip 被删除时退出 animation session；editor close/reload 时清理 animation session 和 state cache，script reload 复用 editor reload 生命周期。
 
@@ -104,7 +104,7 @@ Scene process 不负责：
 `exit` 统一做：
 
 - 停止当前动画状态。
-- 退出 `ANIMATION_MODE` tick 状态。
+- 退出 `ANIMATION_MODE` tick 状态。``
 - 清理 animation state cache。
 - 默认恢复进入前 selection。
 - 返回退出后的状态。
@@ -118,6 +118,7 @@ Scene process 不负责：
 3. 补骨骼动画 meta 保存、typed operation 白名单、auxiliary curve、embedded player。
 4. 补 asset delete/refresh、script reload、dirty/undo/redo 事件一致性。
 5. 根据 UI 迁入需要补事件订阅，但保持事件名和 scene-process 内部服务解耦。
+6. 补普通属性曲线 keyframe 最小闭环，先覆盖 node TRS Vec3 属性。
 
 ## 验收标准
 
@@ -153,3 +154,18 @@ Scene process 不负责：
 - `src/core/scene/scene-process/service/animation/undo.ts`：animation clip 快照 undo command。
 - `AnimationService.applyOperation` 默认 push undo command；显式 `recordUndo:false` 跳过 undo/dirty。
 - `AnimationService` 处理当前 clip 的 asset refresh/delete，以及 editor close/reload 时的 session 和 state cache 清理。
+
+第五阶段已补 animation 事件订阅基础契约：
+
+- `animation:state-changed`：session、播放状态和当前 clip 状态变化。
+- `animation:time-changed`：编辑时间采样变化。
+- `animation:clip-changed`：当前 clip 数据变化、undo/redo 恢复和 asset refresh。
+- 事件通过 scene-process `ServiceEvents` 广播并进入 `messageManager`，不复用旧 animator message 名称。
+
+第六阶段已补普通属性曲线 keyframe 最小闭环：
+
+- `queryClip.curves` 现在 dump node TRS Vec3 曲线，当前覆盖 `position`、`scale`、`eulerAngles`。
+- `applyOperation` 新增 `createPropertyKey`、`removePropertyKey`、`movePropertyKeys`，支持用 `nodePath` 或 `nodeUuid` 定位动画 root 下的目标节点。
+- property operation 会重新初始化当前 `AnimationState` evaluator，保证新增 track 可立即被 `setTime` / `queryPropertyValueAtFrame` 采样。
+- undo/redo snapshot 已纳入普通属性曲线，恢复后会重新初始化 evaluator 并按当前编辑时间重采样。
+- 组件属性曲线、Color/Quat/ObjectTrack、曲线切线编辑等仍留给 UI 反馈后的后续阶段。

@@ -42,6 +42,7 @@ const SERVICE_MAP_EVENTS = [
 
 const MESSAGE_ONLY_EVENTS = [
     'dirty:changed',
+    'animation:state-changed', 'animation:time-changed', 'animation:clip-changed',
     'gizmo:coordinate-changed', 'gizmo:pivot-changed', 'gizmo:view-mode-changed', 'gizmo:tool-changed',
     'scene:dimension-changed',
     'camera:mode-change', 'camera:projection-changed', 'camera:fov-changed',

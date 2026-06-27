@@ -12,6 +12,8 @@ import {
 } from 'cc';
 import {
     AnimationPlayState,
+    AnimationEventReason,
+    IAnimationClipEvent,
     IAnimationClipDump,
     IAnimationClipMenuItem,
     IAnimationClipsInfo,
@@ -120,7 +122,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._curEditTime = 0;
         await this._getAnimationState(uuid);
         await this.setTime({ time: 0 });
-        return await this.queryState();
+        const state = await this.queryState();
+        this._broadcastStateChanged('enter', state);
+        return state;
     }
 
     async exit(options: IAnimationExitOptions): Promise<IAnimationStateInfo> {
@@ -153,7 +157,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._curEditTime = 0;
         this._playState = 'stop';
         await Service.Engine.repaintInEditMode();
-        return await this.queryState();
+        const state = await this.queryState();
+        this._broadcastStateChanged('exit', state);
+        return state;
     }
 
     async queryState(): Promise<IAnimationStateInfo> {
@@ -311,6 +317,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         state.sample();
         this._curEditTime = playTime;
         await Service.Engine.repaintInEditMode();
+        this._broadcastTimeChanged('set-time');
         return true;
     }
 
@@ -352,6 +359,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         await Service.Engine.repaintInEditMode();
+        this._broadcastStateChanged('play-state', await this.queryState());
         return true;
     }
 
@@ -367,6 +375,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._curEditTime = 0;
         await this._getAnimationState(options.clipUuid);
         await this.setTime({ time: 0 });
+        this._broadcastClipChanged('change-clip');
+        this._broadcastStateChanged('change-clip', await this.queryState());
         return true;
     }
 
@@ -376,6 +386,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             throw new Error('Animation operations must be an array.');
         }
 
+        const rootNode = this._getSessionRootNode();
         const state = await this._getAnimationState(session.clipUuid);
         const shouldRecordUndo = options.recordUndo !== false;
         const before = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
@@ -385,7 +396,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 return failure;
             }
 
-            const result = await applyClipOperation(state, operation);
+            const result = await applyClipOperation(state, operation, { rootNode, rootPath: session.rootPath });
             if (!result) {
                 return {
                     state: 'failure',
@@ -396,6 +407,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         (state as any)._curveLoaded = false;
+        state.initialize(rootNode);
         await this.setTime({ time: this._curEditTime });
         const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
         if (before && after && !animationClipSnapshotsEqual(before, after)) {
@@ -406,6 +418,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 applySnapshot: (snapshot) => this._restoreCurrentClipSnapshot(session.clipUuid, snapshot),
             }));
         }
+        this._broadcastClipChanged('operation');
         return {
             state: 'success',
             result: true,
@@ -659,10 +672,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             throw new Error(`current edit clip: '${session.clipUuid}' but you want to restore: '${uuid}'`);
         }
 
+        const rootNode = this._getSessionRootNode();
         const state = await this._getAnimationState(uuid);
         await restoreAnimationClipSnapshot(state.clip, snapshot);
         (state as any)._curveLoaded = false;
+        state.initialize(rootNode);
         await this.setTime({ time: this._curEditTime });
+        this._broadcastClipChanged('undo-redo');
     }
 
     private async _refreshCurrentClipAsset(uuid: string): Promise<void> {
@@ -674,6 +690,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._clearAnimationStates();
         const state = await this._getAnimationState(uuid);
         await this.setTime({ time: Math.min(time, state.duration) });
+        this._broadcastClipChanged('asset-refresh');
     }
 
     private _disposeSession(): void {
@@ -784,6 +801,42 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             type: NodeEventType.NOTIFY_NODE_CHANGED,
             record: false,
         });
+    }
+
+    private _broadcastStateChanged(reason: AnimationEventReason, state: IAnimationStateInfo): void {
+        this.broadcast('animation:state-changed', { reason, state });
+    }
+
+    private _broadcastTimeChanged(reason: AnimationEventReason): void {
+        const event = this._createAnimationClipEvent(reason);
+        if (!event) {
+            return;
+        }
+        this.broadcast('animation:time-changed', {
+            ...event,
+            time: this._curEditTime,
+            playState: this._playState,
+        });
+    }
+
+    private _broadcastClipChanged(reason: AnimationEventReason): void {
+        const event = this._createAnimationClipEvent(reason);
+        if (!event) {
+            return;
+        }
+        this.broadcast('animation:clip-changed', event);
+    }
+
+    private _createAnimationClipEvent(reason: AnimationEventReason): IAnimationClipEvent | null {
+        if (!this._session) {
+            return null;
+        }
+        return {
+            reason,
+            rootUuid: this._session.rootUuid,
+            rootPath: this._session.rootPath,
+            clipUuid: this._session.clipUuid,
+        };
     }
 
     private _getSessionRootNode(): Node {

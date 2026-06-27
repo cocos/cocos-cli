@@ -1,6 +1,7 @@
 import type { AnimationClip } from 'cc';
 import type {
     IAnimationAuxiliaryCurveDump,
+    IAnimationCurveDump,
     IAnimationEmbeddedPlayerDump,
     IAnimationEmbeddedPlayerGroup,
     IAnimationEventDump,
@@ -12,6 +13,7 @@ import {
     replaceEmbeddedPlayerGroups,
     replaceEmbeddedPlayers,
 } from './embedded-player';
+import { dumpPropertyCurves, replacePropertyCurves } from './property-curve';
 import {
     cloneValue,
     getClipSample,
@@ -23,6 +25,7 @@ export interface IAnimationClipSnapshot {
     sample: number;
     speed: number;
     wrapMode: number;
+    curves: IAnimationCurveDump[];
     events: IAnimationEventDump[];
     embeddedPlayers: IAnimationEmbeddedPlayerDump[];
     embeddedPlayerGroups: IAnimationEmbeddedPlayerGroup[];
@@ -36,6 +39,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationCli
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
+        curves: dumpPropertyCurves(clip),
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',
@@ -51,6 +55,9 @@ export async function restoreAnimationClipSnapshot(clip: AnimationClip, snapshot
     (clip as any).sample = snapshot.sample;
     (clip as any).speed = snapshot.speed;
     (clip as any).wrapMode = snapshot.wrapMode;
+    if (!replacePropertyCurves(clip, snapshot.curves)) {
+        throw new Error('Failed to restore animation property curves.');
+    }
     restoreEvents(clip, snapshot);
     replaceEmbeddedPlayerGroups(clip, snapshot.embeddedPlayerGroups);
     if (!await replaceEmbeddedPlayers(clip, snapshot.embeddedPlayers)) {
