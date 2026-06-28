@@ -22,9 +22,14 @@ import {
     updateEmbeddedPlayer,
 } from './embedded-player';
 import {
+    addPropertyCurve,
+    copyPropertyKeysTo,
     createPropertyKey,
     movePropertyKeys,
     removePropertyKey,
+    removePropertyKeys,
+    setPropertyCurveExtrapolation,
+    updatePropertyKey,
     type IPropertyCurveOperationContext,
 } from './property-curve';
 import {
@@ -59,9 +64,14 @@ const SUPPORTED_CLIP_OPERATIONS = [
     'removeAuxKey',
     'moveAuxKeys',
     'copyAuxKey',
+    'addPropertyCurve',
     'createPropertyKey',
+    'updatePropertyKey',
     'removePropertyKey',
+    'removePropertyKeys',
     'movePropertyKeys',
+    'copyPropertyKeysTo',
+    'setPropertyCurveExtrapolation',
 ];
 
 export function validateAnimationOperation(operation: IAnimationOperation, currentClipUuid: string): IAnimationOperationResult | null {
@@ -143,12 +153,22 @@ export async function applyClipOperation(state: AnimationState, operation: IAnim
             return moveAuxKeys(clip, operation.name, operation.frames, operation.offset);
         case 'copyAuxKey':
             return copyAuxKey(clip, operation.name, operation.frame, operation.dstFrame);
+        case 'addPropertyCurve':
+            return addPropertyCurve(clip, context, operation);
         case 'createPropertyKey':
             return createPropertyKey(clip, context, operation);
+        case 'updatePropertyKey':
+            return updatePropertyKey(clip, context, operation);
         case 'removePropertyKey':
             return removePropertyKey(clip, context, operation);
+        case 'removePropertyKeys':
+            return removePropertyKeys(clip, context, operation);
         case 'movePropertyKeys':
             return movePropertyKeys(clip, context, operation);
+        case 'copyPropertyKeysTo':
+            return copyPropertyKeysTo(clip, context, operation);
+        case 'setPropertyCurveExtrapolation':
+            return setPropertyCurveExtrapolation(clip, context, operation);
         default:
             return false;
     }

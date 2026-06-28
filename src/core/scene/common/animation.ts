@@ -429,9 +429,14 @@ export type IAnimationOperation =
     | { type: 'changeSample'; clipUuid: string; sample: number }
     | { type: 'changeSpeed'; clipUuid: string; speed: number }
     | { type: 'changeWrapMode'; clipUuid: string; wrapMode: number }
-    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData }
+    | { type: 'addPropertyCurve'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; value?: IAnimationValue }
+    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
+    | { type: 'updatePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
     | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
+    | { type: 'removePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
     | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number; channel?: string }
+    | { type: 'copyPropertyKeysTo'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; dstFrame: number; channel?: string }
+    | { type: 'setPropertyCurveExtrapolation'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; preExtrap?: number; postExtrap?: number }
     | { type: 'addEvent'; clipUuid: string; frame: number; func: string; params?: IAnimationValue[] }
     | { type: 'deleteEvent'; clipUuid: string; frames: number[] }
     | { type: 'updateEvent'; clipUuid: string; frames: number[]; events: IAnimationEventDump[] }

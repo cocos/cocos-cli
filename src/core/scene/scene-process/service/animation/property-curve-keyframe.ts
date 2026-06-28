@@ -201,6 +201,33 @@ export function moveCurveKeys(clip: AnimationClip, curve: AnyCurve, frames: numb
     return true;
 }
 
+export function copyCurveKeysTo(clip: AnimationClip, curve: AnyCurve, frames: number[], dstFrame: number): boolean {
+    const sample = getClipSample(clip);
+    const sortedFrames = [...frames].sort((a, b) => a - b);
+    if (sortedFrames.length === 0 || !Number.isFinite(dstFrame)) {
+        return false;
+    }
+
+    const keyframes = queryCurveKeyframes(curve);
+    const baseFrame = sortedFrames[0];
+    const copied = keyframes
+        .filter(([time]) => sortedFrames.includes(timeToFrame(time, sample)))
+        .map(([time, value]) => ({
+            frame: Math.max(0, timeToFrame(time, sample) - baseFrame + dstFrame),
+            value: cloneValue(value),
+        }));
+    if (copied.length === 0) {
+        return false;
+    }
+
+    const copiedFrames = copied.map(keyframe => keyframe.frame);
+    const retained = keyframes.filter(([time]) => !copiedFrames.includes(timeToFrame(time, sample)));
+    const next = retained.concat(copied.map(keyframe => [keyframe.frame / sample, keyframe.value] as [number, any]));
+    next.sort(([leftTime], [rightTime]) => leftTime - rightTime);
+    (curve as any).assignSorted(next);
+    return true;
+}
+
 function dumpCompositeRealTrackChannels(clip: AnimationClip, track: AnyTrack, descriptor: IPropertyTrackDescriptor): IAnimationCurveChannelDump[] {
     const partKeys = descriptor.partKeys || [];
     const channels = queryTrackChannels(track);

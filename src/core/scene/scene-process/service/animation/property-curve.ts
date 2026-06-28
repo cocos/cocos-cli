@@ -1,6 +1,7 @@
 import { AnimationClip, Node } from 'cc';
 import type {
     IAnimationCurveDump,
+    IAnimationValue,
 } from '../../../common';
 import {
     getClipSample,
@@ -8,6 +9,7 @@ import {
 } from './utils';
 import {
     dumpPropertyTrack,
+    copyCurveKeysTo,
     moveCurveKeys,
     queryTargetCurves,
     removeCurveKeys,
@@ -23,12 +25,17 @@ import {
     getClipTracks,
     normalizePath,
     parsePropertyTrack,
+    queryFirstRealCurve,
     removeSupportedPropertyTracks,
     removeTrackIfEmpty,
 } from './property-curve-track';
 import type {
+    ICopyPropertyKeysOperation,
     ICreatePropertyKeyOperation,
+    IMovePropertyKeysOperation,
+    IPropertyKeyFramesOperation,
     IPropertyTarget,
+    ISetPropertyCurveExtrapolationOperation,
 } from './property-curve-types';
 
 interface IResolvedPropertyTarget {
@@ -82,13 +89,44 @@ export function createPropertyKey(
 
     const track = existedTrack || createPropertyTrack(clip, target.nodePath, descriptor);
     const time = frame / getClipSample(clip);
-    return setTrackKey(track, descriptor, time, operation.value, operation.channel, operation.keyData);
+    return setTrackKey(track, descriptor, time, operation.value, operation.channel, operation.keyData ?? operation.curveData);
+}
+
+export function addPropertyCurve(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: IPropertyTarget & { value?: IAnimationValue },
+): boolean {
+    const target = resolvePropertyTarget(context, operation);
+    if (!target) {
+        return false;
+    }
+
+    if (findPropertyTrack(clip, target.nodePath, target.propKey)) {
+        return true;
+    }
+
+    const descriptor = createPropertyDescriptor(target.propKey, operation.value);
+    if (!descriptor) {
+        return false;
+    }
+
+    createPropertyTrack(clip, target.nodePath, descriptor);
+    return true;
+}
+
+export function updatePropertyKey(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: ICreatePropertyKeyOperation,
+): boolean {
+    return createPropertyKey(clip, context, operation);
 }
 
 export function removePropertyKey(
     clip: AnimationClip,
     context: IPropertyCurveOperationContext,
-    operation: IPropertyTarget & { frames: number[]; channel?: string },
+    operation: IPropertyKeyFramesOperation,
 ): boolean {
     const target = resolvePropertyTarget(context, operation);
     const frames = normalizeFrames(operation.frames);
@@ -110,10 +148,18 @@ export function removePropertyKey(
     return changed;
 }
 
+export function removePropertyKeys(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: IPropertyKeyFramesOperation,
+): boolean {
+    return removePropertyKey(clip, context, operation);
+}
+
 export function movePropertyKeys(
     clip: AnimationClip,
     context: IPropertyCurveOperationContext,
-    operation: IPropertyTarget & { frames: number[]; offset: number; channel?: string },
+    operation: IMovePropertyKeysOperation,
 ): boolean {
     const target = resolvePropertyTarget(context, operation);
     const frames = normalizeFrames(operation.frames);
@@ -133,6 +179,50 @@ export function movePropertyKeys(
         changed = moveCurveKeys(clip, curve, frames, offset) || changed;
     }
     return changed;
+}
+
+export function copyPropertyKeysTo(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: ICopyPropertyKeysOperation,
+): boolean {
+    const target = resolvePropertyTarget(context, operation);
+    const frames = normalizeFrames(operation.frames);
+    const dstFrame = Number(operation.dstFrame);
+    if (!target || frames.length === 0 || !Number.isFinite(dstFrame)) {
+        return false;
+    }
+
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    if (!track || !descriptor) {
+        return false;
+    }
+
+    let changed = false;
+    for (const curve of queryTargetCurves(track, descriptor, operation.channel)) {
+        changed = copyCurveKeysTo(clip, curve, frames, dstFrame) || changed;
+    }
+    return changed;
+}
+
+export function setPropertyCurveExtrapolation(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: ISetPropertyCurveExtrapolationOperation,
+): boolean {
+    const target = resolvePropertyTarget(context, operation);
+    if (!target) {
+        return false;
+    }
+
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    if (!track || !queryFirstRealCurve(track)) {
+        return false;
+    }
+
+    applyTrackExtrapolation(track, operation.preExtrap, operation.postExtrap);
+    return true;
 }
 
 export function replacePropertyCurves(clip: AnimationClip, curves: IAnimationCurveDump[]): boolean {

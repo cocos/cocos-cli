@@ -20,6 +20,7 @@ import {
     IAnimationEditClipOptions,
     IAnimationEnterOptions,
     IAnimationExitOptions,
+    IAnimationOperation,
     IAnimationOperationOptions,
     IAnimationOperationResult,
     IAnimationPlayStateOptions,
@@ -72,6 +73,10 @@ function createPropertyInfo(name: string, type: string, displayName = name, comp
         menuName: displayName,
         comp,
     };
+}
+
+function isAnimationOperationResult(value: IAnimationOperation | IAnimationOperationResult): value is IAnimationOperationResult {
+    return (value as IAnimationOperationResult).state === 'success' || (value as IAnimationOperationResult).state === 'failure';
 }
 
 @register('Animation')
@@ -390,7 +395,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const state = await this._getAnimationState(session.clipUuid);
         const shouldRecordUndo = options.recordUndo !== false;
         const before = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
-        for (const operation of options.operations) {
+        for (const inputOperation of options.operations) {
+            const normalized = await this._normalizeAnimationOperation(inputOperation, session.clipUuid);
+            if (isAnimationOperationResult(normalized)) {
+                return normalized;
+            }
+
+            const operation = normalized;
             const failure = validateAnimationOperation(operation, session.clipUuid);
             if (failure) {
                 return failure;
@@ -423,6 +434,45 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             state: 'success',
             result: true,
         };
+    }
+
+    private async _normalizeAnimationOperation(operation: IAnimationOperation, currentClipUuid: string): Promise<IAnimationOperation | IAnimationOperationResult> {
+        const type = (operation as any)?.type;
+        if (type !== 'createPropertyKey' && type !== 'updatePropertyKey') {
+            return operation;
+        }
+
+        const keyOperation = operation as Extract<IAnimationOperation, { type: 'createPropertyKey' | 'updatePropertyKey' }>;
+        const keyData = keyOperation.keyData ?? keyOperation.curveData;
+        if (keyOperation.value !== undefined) {
+            return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
+        }
+
+        try {
+            const sampled = await this.queryPropertyValueAtFrame({
+                clipUuid: keyOperation.clipUuid || currentClipUuid,
+                nodePath: keyOperation.nodePath,
+                nodeUuid: keyOperation.nodeUuid,
+                propKey: keyOperation.propKey,
+                frame: keyOperation.frame,
+            });
+            const value = this._extractSampledOperationValue(sampled, keyOperation.channel);
+            if (value === undefined) {
+                return {
+                    state: 'failure',
+                    result: false,
+                    reason: `Failed to sample animation property value: ${keyOperation.propKey}`,
+                };
+            }
+            return { ...keyOperation, keyData, value };
+        } catch (error) {
+            const normalized = error instanceof Error ? error : new Error(String(error));
+            return {
+                state: 'failure',
+                result: false,
+                reason: normalized.message,
+            };
+        }
     }
 
     async save(): Promise<boolean> {
@@ -759,6 +809,16 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         return this._readPathValue(node, propKey);
+    }
+
+    private _extractSampledOperationValue(value: IAnimationValue, channel?: string): IAnimationValue {
+        if (!channel) {
+            return cloneValue(value);
+        }
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return undefined;
+        }
+        return cloneValue((value as Record<string, IAnimationValue>)[channel]);
     }
 
     private _getComponentNames(component: Component): string[] {

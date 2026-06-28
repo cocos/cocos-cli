@@ -29,7 +29,26 @@ export interface IPropertyTrackDescriptor {
 
 export interface ICreatePropertyKeyOperation extends IPropertyTarget {
     frame: number;
-    value: IAnimationValue;
+    value?: IAnimationValue;
     channel?: string;
     keyData?: IAnimationCurveKeyData;
+    curveData?: IAnimationCurveKeyData;
+}
+
+export interface IPropertyKeyFramesOperation extends IPropertyTarget {
+    frames: number[];
+    channel?: string;
+}
+
+export interface IMovePropertyKeysOperation extends IPropertyKeyFramesOperation {
+    offset: number;
+}
+
+export interface ICopyPropertyKeysOperation extends IPropertyKeyFramesOperation {
+    dstFrame: number;
+}
+
+export interface ISetPropertyCurveExtrapolationOperation extends IPropertyTarget {
+    preExtrap?: number;
+    postExtrap?: number;
 }

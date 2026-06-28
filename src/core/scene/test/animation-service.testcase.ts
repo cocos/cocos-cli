@@ -358,6 +358,58 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
+    it('applyOperation 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid, nodePath, propKey: 'position' },
+                { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 0, value: { x: 1, y: 2, z: 3 } },
+                { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 15, value: { x: 4, y: 5, z: 6 } },
+                { type: 'updatePropertyKey', clipUuid, nodePath, propKey: 'position', frame: 15, value: { x: 7, y: 8, z: 9 } },
+                { type: 'copyPropertyKeysTo', clipUuid, nodePath, propKey: 'position', frames: [0, 15], dstFrame: 30 },
+                { type: 'removePropertyKeys', clipUuid, nodePath, propKey: 'position', frames: [0, 45] },
+                { type: 'setPropertyCurveExtrapolation', clipUuid, nodePath, propKey: 'position', preExtrap: 1, postExtrap: 2 },
+            ],
+        }]);
+        const dump = await request('queryClip', [{ clipUuid }]);
+        const positionCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(positionCurve).toMatchObject({
+            preExtrap: 1,
+            postExtrap: 2,
+        });
+        expect(positionCurve.keyframes).toEqual([
+            { frame: 15, dump: { value: { x: 7, y: 8, z: 9 }, type: 'cc.Vec3' } },
+            { frame: 30, dump: { value: { x: 1, y: 2, z: 3 }, type: 'cc.Vec3' } },
+        ]);
+    });
+
+    it('applyOperation 创建普通属性 key 时 value 可省略并从当前场景采样', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await request('setTime', [{ time: 0 }]);
+        const sampled = await request('queryPropertyValueAtFrame', [{
+            clipUuid,
+            nodePath,
+            propKey: 'position',
+            frame: 6,
+        }]);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 6 },
+            ],
+        }]);
+        const dump = await request('queryClip', [{ clipUuid }]);
+        const positionCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(positionCurve.keyframes).toEqual(expect.arrayContaining([
+            { frame: 6, dump: { value: sampled, type: 'cc.Vec3' } },
+        ]));
+    });
+
     it('applyOperation 不接受旧 funcName/args 格式', async () => {
         const result = await request('applyOperation', [{
             operations: [{ funcName: 'changeSample', args: [clipUuid, 60] }],
