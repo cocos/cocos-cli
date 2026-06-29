@@ -420,11 +420,11 @@ export async function decodePatch(path: string, dump: any, node: any) {
     const data = info.search ? get(node, info.search) : node;
 
     if (!data) {
-        throw new Error(`Failed to decodePatch: Target component not found. path=${path}, info=${JSON.stringify(info)}`);
+        return;
     }
 
     if (data instanceof Component && forbidUserChanges.includes(info.key)) {
-        throw new Error(`Failed to decodePatch: Property(${info.key}) modification not allowed`);
+        return;
     }
 
     if (Object.prototype.toString.call(data) === '[object Object]') {
@@ -450,7 +450,7 @@ export async function decodePatch(path: string, dump: any, node: any) {
                 return;
             }
         } else if (!propertyConfig.writable && !propertyConfig.set) {
-            throw new Error(`Failed to decodePatch: Property(${info.key}) is read-only or has no setter`);
+            return;
         }
     }
 
