@@ -5,7 +5,7 @@ import { BuildExitCode, IBuildHooksInfo, IBuildResultSuccess } from '../../../@t
 import Utils from '../../../../base/utils';
 import i18n from '../../../../base/i18n';
 
-const PROGRESS_HEARTBEAT_INTERVAL = 60 * 1000;
+const PROGRESS_HEARTBEAT_INTERVAL = 10 * 1000;
 const PROGRESS_HEARTBEAT_MAX_RATIO = 0.9;
 const PROGRESS_HEARTBEAT_MAX_STEP = 0.01;
 const PROGRESS_HEARTBEAT_MIN_STEP = 0.001;

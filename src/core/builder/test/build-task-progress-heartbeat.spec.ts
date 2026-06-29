@@ -61,7 +61,7 @@ describe('BuildTaskBase progress heartbeat', () => {
         });
 
         task.startStep('Build assets', 0.25);
-        jest.advanceTimersByTime(60 * 1000 - 1);
+        jest.advanceTimersByTime(10 * 1000 - 1);
 
         expect(updates).toEqual([
             { message: 'Build assets', progress: 0 },
@@ -76,7 +76,7 @@ describe('BuildTaskBase progress heartbeat', () => {
         expect(task.progress).toBe(0);
         expect(mockDebug).toHaveBeenLastCalledWith('Still running: Build assets (1%)');
 
-        jest.advanceTimersByTime(60 * 1000);
+        jest.advanceTimersByTime(10 * 1000);
 
         expect(updates).toEqual([
             { message: 'Build assets', progress: 0 },
@@ -104,7 +104,7 @@ describe('BuildTaskBase progress heartbeat', () => {
 
         task.startStep('Build assets', 0.25);
         task.break('stop heartbeat');
-        jest.advanceTimersByTime(60 * 1000);
+        jest.advanceTimersByTime(10 * 1000);
 
         expect(updates).toEqual([
             { message: 'Build assets', progress: 0 },
@@ -120,7 +120,7 @@ describe('BuildTaskBase progress heartbeat', () => {
         });
 
         task.startStep('Build assets', 0.25);
-        jest.advanceTimersByTime(60 * 1000);
+        jest.advanceTimersByTime(10 * 1000);
 
         expect(updates).toEqual([
             { message: 'Build assets', progress: 0 },
@@ -136,7 +136,7 @@ describe('BuildTaskBase progress heartbeat', () => {
 
         task.startStep('Build assets', 0.1);
         for (let i = 0; i < 30; i++) {
-            jest.advanceTimersByTime(60 * 1000);
+            jest.advanceTimersByTime(10 * 1000);
         }
 
         expect(updates[updates.length - 1].progress).toBeCloseTo(0.09);
