@@ -155,6 +155,32 @@ async function buildSceneBundle() {
                                 export var readJson = _gfs.readJson;
                             `;
                         }
+                        if (originalId === 'cc/mods-mgr') {
+                            return `
+                                function _createDeferredModule(id) {
+                                    return new Proxy({}, {
+                                        get: function(target, prop) {
+                                            if (typeof System !== 'undefined' && System.get) {
+                                                var real = System.get(id);
+                                                if (real) return real[prop];
+                                            }
+                                            return undefined;
+                                        },
+                                        has: function(target, prop) {
+                                            if (typeof System !== 'undefined' && System.get) {
+                                                var real = System.get(id);
+                                                if (real) return prop in real;
+                                            }
+                                            return false;
+                                        }
+                                    });
+                                }
+                                export function syncImport(id) {
+                                    return _createDeferredModule(id);
+                                }
+                                export default { syncImport: syncImport };
+                            `;
+                        }
                         if (originalId === 'proper-lockfile') {
                             return `
                                 const _lockfile = {
