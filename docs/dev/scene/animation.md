@@ -13,7 +13,7 @@ Scene process 负责：
 - 播放和采样：设置编辑时间、play/pause/resume/stop。
 - 编辑操作：通过统一 `AnimationOperation[]` 批处理 clip/key/event/curve 操作。
 - 保存：普通 `.anim` 保存到 asset，骨骼动画受限操作写回 meta。
-- 退出恢复：停止播放、恢复普通 scene/prefab 模式、恢复 selection、清理预览采样状态。
+- 退出恢复：停止播放、恢复普通 scene/prefab 模式、恢复 selection，并恢复 animation 模块捕获到的预览采样状态。
 
 Scene process 不负责：
 
@@ -25,24 +25,27 @@ Scene process 不负责：
 
 ## 能力矩阵
 
+旧动画编辑器能力与当前 CLI 实现状态的完整清单见 [Animation CLI 能力矩阵](./animation-cli-capability-matrix.md)。下表只保留迁移计划早期的主链路摘要。
+
 | 旧能力 | 旧入口 | Scene-process 方法 | 状态 |
 |---|---|---|---|
 | 进入动画编辑 | `record-animation(uuid,true,clipUuid)` | `AnimationService.enter` | 已落地第一阶段 |
-| 退出动画编辑 | `record-animation(uuid,false)` / `close-scene` | `AnimationService.exit` | 已落地第一阶段 |
+| 退出动画编辑 | `record-animation(uuid,false)` / `close-scene` | `AnimationService.exit` | session 退出已落地；采样状态恢复为部分完成 |
 | 查询 scene 模式 | `query-scene-mode` | `AnimationService.queryState` | 已落地第一阶段 |
 | 当前 root/clip | `query-current-animation-info` | `AnimationService.queryState` | 已落地第一阶段 |
+| 查询播放状态 | `query-animation-state` | `AnimationService.queryState` | 已合并到 state.playState |
 | 查询动画 root | `query-animation-root` | `AnimationService.queryRoot` | 已落地第一阶段 |
-| 查询 root 信息 | `query-animation-root-info` | `AnimationService.queryRootInfo` | 已落地第一阶段 |
-| 查询 clip dump | `query-animation-clip` | `AnimationService.queryClip` | 已落地第二阶段基础 dump |
-| 查询可编辑属性 | `query-animation-properties` | `AnimationService.queryProperties` | 已落地第一阶段 |
-| 查询 clips | `query-animation-clips-info` | `AnimationService.queryClips` | 已落地第一阶段 |
+| 查询 root 信息 | `query-animation-root-info` | `AnimationService.queryRootInfo` | 已落地基础信息；支持无 clip 的 root info，复杂旧 property dump 仍部分缺口 |
+| 查询 clip dump | `query-animation-clip` | `AnimationService.queryClip` | 已落地基础 dump；复杂旧 property track 仍部分缺口 |
+| 查询可编辑属性 | `query-animation-properties` | `AnimationService.queryProperties` | 已落地基础属性；旧递归属性/adapter 仍部分缺口 |
+| 查询 clips | `query-animation-clips-info` | `AnimationService.queryClips` | 已落地第一阶段；Animation 组件 clips 为空时返回空 menu |
 | 查询时间 | `query-animation-clips-time` | `AnimationService.queryTime` | 已落地第一阶段 |
-| 设置时间/采样 | `set-edit-time` | `AnimationService.setTime` | 已落地第一阶段 |
+| 设置时间/采样 | `set-edit-time` | `AnimationService.setTime` | CLI 已覆盖 root/child 采样；PinK 真实 gate 待复测 |
 | 播放控制 | `change-clip-state` | `AnimationService.changePlayState` | 已落地第一阶段 |
-| 切 clip | `change-edit-clip` | `AnimationService.changeEditClip` | 已落地第一阶段 |
+| 切 clip | `change-edit-clip` | `AnimationService.changeEditClip` | 已落地第一阶段；旧 saveCheck 保护语义不在 CLI 内部 |
 | 批处理编辑 | `animation-operation` | `AnimationService.applyOperation` | 已落地 typed operation 原语 |
 | 保存 clip | `save-clip` | `AnimationService.save` | 已落地普通 clip 和骨骼 meta |
-| 查询帧值 | `query-property-value-at-frame` | `AnimationService.queryPropertyValueAtFrame` | 已落地第二阶段 |
+| 查询帧值 | `query-property-value-at-frame` | `AnimationService.queryPropertyValueAtFrame` | 已落地第二阶段；当前通过临时采样读取真实场景值 |
 | 辅助曲线 | `query-auxiliary-*` / aux operations | `AnimationService.applyOperation` | 已落地第三阶段基础操作 |
 | embedded player | operation | `AnimationService.applyOperation` | 已落地第三阶段基础操作 |
 | inspector drop clip | `inspector-drop-animation` | 待定 | 后续按 UI 迁入需要补 |
@@ -73,13 +76,14 @@ Scene process 不负责：
 当前第二阶段先落地普通 clip 的基础闭环：
 
 - `queryClip` 返回 clip 基础 dump、事件帧 dump、当前时间和 baked animation 标记。
+- `queryRootInfo` / `queryClips` 对齐旧编辑器的空 clip 查询语义：Animation 组件存在但 clips 为空时返回空 menu，`queryRootInfo.clipDump` 为 `null`。
 - `queryPropertyValueAtFrame` 按帧采样当前编辑 clip，读取目标节点或组件属性后恢复原编辑时间。
 - `applyOperation` 使用 typed `AnimationOperation` 批处理格式，基础操作支持 `changeSample`、`changeSpeed`、`changeWrapMode`、`addEvent`、`deleteEvent`、`updateEvent`、`moveEvents`、`copyEventsTo`。
 
 第三阶段继续补：
 
 - typed operation 不兼容旧 `{ funcName, args }`。后续 animator 面板走新实现，不需要保留旧 animator message 形态。
-- `applyOperation` 增加 embedded player 基础操作：`addEmbeddedPlayer`、`deleteEmbeddedPlayer`、`updateEmbeddedPlayer`、`clearEmbeddedPlayer`、`addEmbeddedPlayerGroup`、`removeEmbeddedPlayerGroup`、`clearEmbeddedPlayerGroup`。
+- `applyOperation` 增加 embedded player 基础操作：`addEmbeddedPlayer`、`deleteEmbeddedPlayer`、`updateEmbeddedPlayer`、`clearEmbeddedPlayer`、`addEmbeddedPlayerGroup`、`removeEmbeddedPlayerGroup`、`clearEmbeddedPlayerGroup`。其中 `clearEmbeddedPlayer` 当前对齐全清/按 group 清理，未完全覆盖旧编辑器按 `nodePath` 清空的语义。
 - `applyOperation` 增加 auxiliary curve 基础操作：`addAuxiliaryCurve`、`removeAuxiliaryCurve`、`renameAuxiliaryCurve`、`createAuxKey`、`removeAuxKey`、`moveAuxKeys`、`copyAuxKey`。
 - `queryClip` 返回 typed `curves`、`events`、`embeddedPlayers`、`embeddedPlayerGroups`、`auxiliaryCurves`、`isSkeleton`。
 - `save` 对普通 `.anim` 写 asset，对骨骼动画 clip 写回 meta 的 events、embedded players、embedded player groups、wrapMode、speed、sample、auxiliary curves。
@@ -99,12 +103,13 @@ Scene process 不负责：
 - 进入前 `editorType`。
 - 进入前 selection paths。
 - root uuid/path、clip uuid。
-- 当前时间和播放状态。
+- 进入前 root 子树的采样状态快照。
 
 `exit` 统一做：
 
 - 停止当前动画状态。
-- 退出 `ANIMATION_MODE` tick 状态。``
+- 尽量恢复进入前 root 子树采样状态。当前覆盖 node `active` / `position` / `rotation` / `scale`，以及可克隆或普通对象/数组的 animatable component 属性；不等价于旧编辑器全量 node dump restore。
+- 退出 `ANIMATION_MODE` tick 状态。
 - 清理 animation state cache。
 - 默认恢复进入前 selection。
 - 返回退出后的状态。
@@ -168,4 +173,15 @@ Scene process 不负责：
 - `applyOperation` 新增 `createPropertyKey`、`removePropertyKey`、`movePropertyKeys`，支持用 `nodePath` 或 `nodeUuid` 定位动画 root 下的目标节点。
 - property operation 会重新初始化当前 `AnimationState` evaluator，保证新增 track 可立即被 `setTime` / `queryPropertyValueAtFrame` 采样。
 - undo/redo snapshot 已纳入普通属性曲线，恢复后会重新初始化 evaluator 并按当前编辑时间重采样。
-- 组件属性曲线、Color/Quat/ObjectTrack、曲线切线编辑等仍留给 UI 反馈后的后续阶段。
+
+第七阶段已补 PinK authoring gate 相关 CLI 代码路径，但 PinK 真实 scene Product gate 仍需复测后才能按 PinK 口径标完成：
+
+- `applyOperation` 在普通 property key、event、embedded player、auxiliary curve 变化后重算 clip duration；CLI 场景测试已覆盖，PinK 真实 scene gate 待复测。
+- `setTime` 对 root 和 child `nodePath` 属性轨道采样到真实节点；CLI 场景测试已覆盖，PinK G2-B 真实插件链路仍需复测关闭。
+- root keyframe move/copy/remove 后的 `queryClip` dump 和 evaluator 重建已有 CLI 覆盖；PinK G3 save / exit / reenter 后 seek / sampling 仍按真实插件链路复测结果为准。
+- `createPropertyKey`、`updatePropertyKey`、`updatePropertyKeyData` 支持 RealCurve keyData 写入和 `queryClip` 读回，包含 `interpMode`、显式 0 值、切线/权重和 `broken`；CLI 场景测试已覆盖，PinK 真实 scene gate 待复测。
+- `createAuxKey`、`updateAuxKeyData` 支持 auxiliary curve keyData 写入和读回，`queryAuxiliaryCurveValueAtFrame` 支持按帧采样辅助曲线。
+- `applyOperation` 批处理中任一 operation 失败时恢复批处理前 clip snapshot，避免局部写入残留。
+- `queryClip` 普通查询路径不再为了恢复缺失 clip 而重绑 `Animation.clips/defaultClip`；clip rebind 只保留在 `enter`、`changeEditClip`、asset refresh 等明确写入/恢复路径。
+- `exit` 的采样状态恢复收敛在 animation 模块内，不再依赖全量 node dump restore；当前恢复范围是部分完成，详见能力矩阵。
+- 当前未完整迁移的旧能力以能力矩阵为准，主要集中在 property/node 结构型操作、`spacingKeys`、`clearKeys`、嵌入播放器菜单查询、旧 saveCheck 保护语义、旧 `isLock` / 2D 过滤语义和 AnimationController 结构编辑契约。

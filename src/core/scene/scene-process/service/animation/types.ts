@@ -1,4 +1,5 @@
 import type { Animation, AnimationClip, Node, animation } from 'cc';
+import type { IAnimationSampledNodeState } from './sampled-state';
 
 export interface IAnimationData {
     node: Node;
@@ -14,5 +15,5 @@ export interface IAnimationSession {
     rootUuid: string;
     rootPath: string;
     clipUuid: string;
-    sampledRootDump: unknown;
+    sampledRootState: IAnimationSampledNodeState | null;
 }

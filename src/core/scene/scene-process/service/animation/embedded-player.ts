@@ -42,7 +42,8 @@ export function dumpEmbeddedPlayers(clip: AnimationClip): IAnimationEmbeddedPlay
     if (typeof (clip as any)[getEmbeddedPlayersTag] !== 'function') {
         return [];
     }
-    return Array.from((clip as any)[getEmbeddedPlayersTag]() as Iterable<EmbeddedPlayer>).map((embeddedPlayer) => {
+    ensureEmbeddedPlayers(clip);
+    return queryEmbeddedPlayers(clip).map((embeddedPlayer) => {
         const dump: IAnimationEmbeddedPlayerDump = {
             begin: Math.round((Number(embeddedPlayer.begin) || 0) * getClipSample(clip)),
             end: Math.round((Number(embeddedPlayer.end) || 0) * getClipSample(clip)),
@@ -147,7 +148,8 @@ export function serializeEmbeddedPlayersForMeta(clip: AnimationClip) {
     if (typeof (clip as any)[getEmbeddedPlayersTag] !== 'function') {
         return [];
     }
-    return Array.from((clip as any)[getEmbeddedPlayersTag]() as Iterable<EmbeddedPlayer>).map((embeddedPlayer) => ({
+    ensureEmbeddedPlayers(clip);
+    return queryEmbeddedPlayers(clip).map((embeddedPlayer) => ({
         begin: Number(embeddedPlayer.begin) || 0,
         end: Number(embeddedPlayer.end) || 0,
         reconciledSpeed: Boolean(embeddedPlayer.reconciledSpeed),
@@ -164,6 +166,7 @@ export async function replaceEmbeddedPlayers(clip: AnimationClip, players: IAnim
         return false;
     }
 
+    ensureEmbeddedPlayers(clip);
     (clip as any)[clearEmbeddedPlayersTag]();
     for (const player of players) {
         (clip as any)[addEmbeddedPlayerTag](await createEmbeddedPlayer(clip, player));
@@ -203,6 +206,19 @@ async function createEmbeddedPlayer(clip: AnimationClip, dump: IAnimationEmbedde
     }
 
     return embeddedPlayer;
+}
+
+function queryEmbeddedPlayers(clip: AnimationClip): EmbeddedPlayer[] {
+    ensureEmbeddedPlayers(clip);
+    return Array.from(((clip as any)[getEmbeddedPlayersTag]?.() || []) as Iterable<EmbeddedPlayer>);
+}
+
+function ensureEmbeddedPlayers(clip: AnimationClip): EmbeddedPlayer[] {
+    const clipAny = clip as any;
+    if (!Array.isArray(clipAny._embeddedPlayers)) {
+        clipAny._embeddedPlayers = [];
+    }
+    return clipAny._embeddedPlayers as EmbeddedPlayer[];
 }
 
 async function loadAnimationClip(uuid: string): Promise<AnimationClip | null> {

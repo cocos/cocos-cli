@@ -12,6 +12,7 @@ import {
     removeAuxKey,
     removeAuxiliaryCurve,
     renameAuxiliaryCurve,
+    updateAuxKeyData,
 } from './auxiliary-curve';
 import {
     addEmbeddedPlayer,
@@ -30,6 +31,7 @@ import {
     removePropertyKeys,
     setPropertyCurveExtrapolation,
     updatePropertyKey,
+    updatePropertyKeyData,
     type IPropertyCurveOperationContext,
 } from './property-curve';
 import {
@@ -64,9 +66,11 @@ const SUPPORTED_CLIP_OPERATIONS = [
     'removeAuxKey',
     'moveAuxKeys',
     'copyAuxKey',
+    'updateAuxKeyData',
     'addPropertyCurve',
     'createPropertyKey',
     'updatePropertyKey',
+    'updatePropertyKeyData',
     'removePropertyKey',
     'removePropertyKeys',
     'movePropertyKeys',
@@ -146,19 +150,23 @@ export async function applyClipOperation(state: AnimationState, operation: IAnim
         case 'renameAuxiliaryCurve':
             return renameAuxiliaryCurve(clip, operation.name, operation.newName);
         case 'createAuxKey':
-            return createAuxKey(clip, operation.name, operation.frame, operation.value);
+            return createAuxKey(clip, operation.name, operation.frame, operation.value, operation.keyData ?? operation.curveData);
         case 'removeAuxKey':
             return removeAuxKey(clip, operation.name, operation.frame);
         case 'moveAuxKeys':
             return moveAuxKeys(clip, operation.name, operation.frames, operation.offset);
         case 'copyAuxKey':
             return copyAuxKey(clip, operation.name, operation.frame, operation.dstFrame);
+        case 'updateAuxKeyData':
+            return updateAuxKeyData(clip, operation.name, operation.frame, operation.keyData ?? operation.curveData);
         case 'addPropertyCurve':
             return addPropertyCurve(clip, context, operation);
         case 'createPropertyKey':
             return createPropertyKey(clip, context, operation);
         case 'updatePropertyKey':
             return updatePropertyKey(clip, context, operation);
+        case 'updatePropertyKeyData':
+            return updatePropertyKeyData(clip, context, operation);
         case 'removePropertyKey':
             return removePropertyKey(clip, context, operation);
         case 'removePropertyKeys':

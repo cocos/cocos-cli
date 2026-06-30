@@ -78,6 +78,7 @@ export function createPropertyTrack(clip: AnimationClip, nodePath: string, descr
     }
     path.toProperty(descriptor.propName);
     track.path = path;
+    ensureClipTrackArray(clip);
     clip.addTrack(track);
     return track;
 }
@@ -170,7 +171,8 @@ export function createPropertyDescriptorFromDump(curve: IAnimationCurveDump): IP
 }
 
 export function removeSupportedPropertyTracks(clip: AnimationClip): void {
-    for (let index = clip.tracksCount - 1; index >= 0; index--) {
+    const tracks = getClipTracks(clip);
+    for (let index = tracks.length - 1; index >= 0; index--) {
         if (parsePropertyTrack(clip.getTrack(index))) {
             clip.removeTrack(index);
         }
@@ -182,7 +184,8 @@ export function removeTrackIfEmpty(clip: AnimationClip, track: AnyTrack): void {
         return;
     }
 
-    for (let index = clip.tracksCount - 1; index >= 0; index--) {
+    const tracks = getClipTracks(clip);
+    for (let index = tracks.length - 1; index >= 0; index--) {
         if (clip.getTrack(index) === track) {
             clip.removeTrack(index);
             return;
@@ -208,11 +211,11 @@ export function queryFirstRealCurve(track: AnyTrack): any | null {
 }
 
 export function queryTrackChannels(track: AnyTrack): Array<{ curve: AnyCurve }> {
-    return Array.from(track.channels()) as Array<{ curve: AnyCurve }>;
+    return Array.from(track.channels() || []) as Array<{ curve: AnyCurve }>;
 }
 
 export function getClipTracks(clip: AnimationClip): AnyTrack[] {
-    return Array.from((clip as any).tracks || []) as AnyTrack[];
+    return ensureClipTrackArray(clip);
 }
 
 export function normalizePath(path: string): string {
@@ -239,6 +242,14 @@ function createTrackByKind(descriptor: IPropertyTrackDescriptor): AnyTrack {
         default:
             throw new Error(`Unsupported animation property track kind: ${String(descriptor.kind)}`);
     }
+}
+
+function ensureClipTrackArray(clip: AnimationClip): AnyTrack[] {
+    const clipAny = clip as any;
+    if (!Array.isArray(clipAny._tracks)) {
+        clipAny._tracks = [];
+    }
+    return clipAny._tracks as AnyTrack[];
 }
 
 function queryTrackKind(track: unknown): PropertyKind | null {

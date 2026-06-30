@@ -35,6 +35,13 @@ export interface ICreatePropertyKeyOperation extends IPropertyTarget {
     curveData?: IAnimationCurveKeyData;
 }
 
+export interface IUpdatePropertyKeyDataOperation extends IPropertyTarget {
+    frame: number;
+    channel?: string;
+    keyData?: IAnimationCurveKeyData;
+    curveData?: IAnimationCurveKeyData;
+}
+
 export interface IPropertyKeyFramesOperation extends IPropertyTarget {
     frames: number[];
     channel?: string;

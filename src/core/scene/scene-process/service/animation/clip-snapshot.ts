@@ -41,7 +41,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationCli
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
-        curves: dumpPropertyCurves(clip),
+        curves: dumpPropertyCurves(clip, { includeDefaults: true }),
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',
@@ -49,7 +49,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationCli
         })),
         embeddedPlayers: dumpEmbeddedPlayers(clip),
         embeddedPlayerGroups: queryEmbeddedPlayerGroups(clip),
-        auxiliaryCurves: dumpAuxiliaryCurves(clip),
+        auxiliaryCurves: dumpAuxiliaryCurves(clip, { includeDefaults: true }),
     };
 }
 

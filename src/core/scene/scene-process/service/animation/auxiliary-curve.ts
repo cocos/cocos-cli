@@ -1,30 +1,43 @@
 import { AnimationClip, RealCurve } from 'cc';
-import type { IAnimationAuxiliaryCurveDump } from '../../../common';
+import type {
+    IAnimationAuxiliaryCurveDump,
+    IAnimationCurveKeyData,
+    IAnimationKeyValueDump,
+} from '../../../common';
 import {
     cloneValue,
     getClipSample,
-    normalizeAuxiliaryCurveValue,
     normalizeFrames,
 } from './utils';
+import {
+    copyRealKeyDataInternalMetadata,
+    createRealCurveValue,
+    type IDumpRealKeyDataOptions,
+    dumpRealKeyData,
+    queryRealCurveKeyframes,
+    queryRealCurveNumberValue,
+    setRealCurveKey,
+    updateRealCurveKeyData,
+} from './real-curve-key-data';
 
-export function dumpAuxiliaryCurves(clip: AnimationClip): Record<string, IAnimationAuxiliaryCurveDump> {
-    if (typeof (clip as any).getAuxiliaryCurveNames_experimental !== 'function') {
+export function dumpAuxiliaryCurves(clip: AnimationClip, options: IDumpRealKeyDataOptions = {}): Record<string, IAnimationAuxiliaryCurveDump> {
+    if (typeof (clip as any).getAuxiliaryCurveNames_experimental !== 'function' || !ensureAuxiliaryCurveEntries(clip)) {
         return {};
     }
 
     const result: Record<string, IAnimationAuxiliaryCurveDump> = {};
-    for (const name of (clip as any).getAuxiliaryCurveNames_experimental() as string[]) {
+    for (const name of Array.from((clip as any).getAuxiliaryCurveNames_experimental() || []) as string[]) {
         const curve = (clip as any).getAuxiliaryCurve_experimental(name) as RealCurve | null;
         if (!curve) {
             continue;
         }
-        result[name] = dumpAuxiliaryCurve(clip, curve);
+        result[name] = dumpAuxiliaryCurve(clip, curve, options);
     }
     return result;
 }
 
 export function addAuxiliaryCurve(clip: AnimationClip, name: string): boolean {
-    if (!name || typeof (clip as any).addAuxiliaryCurve_experimental !== 'function') {
+    if (!name || typeof (clip as any).addAuxiliaryCurve_experimental !== 'function' || !ensureAuxiliaryCurveEntries(clip)) {
         return false;
     }
     if (typeof (clip as any).hasAuxiliaryCurve_experimental === 'function' && (clip as any).hasAuxiliaryCurve_experimental(name)) {
@@ -34,7 +47,7 @@ export function addAuxiliaryCurve(clip: AnimationClip, name: string): boolean {
 }
 
 export function removeAuxiliaryCurve(clip: AnimationClip, name: string): boolean {
-    if (!name || typeof (clip as any).removeAuxiliaryCurve_experimental !== 'function') {
+    if (!name || typeof (clip as any).removeAuxiliaryCurve_experimental !== 'function' || !ensureAuxiliaryCurveEntries(clip)) {
         return false;
     }
     (clip as any).removeAuxiliaryCurve_experimental(name);
@@ -42,25 +55,20 @@ export function removeAuxiliaryCurve(clip: AnimationClip, name: string): boolean
 }
 
 export function renameAuxiliaryCurve(clip: AnimationClip, name: string, newName: string): boolean {
-    if (!name || !newName || typeof (clip as any).renameAuxiliaryCurve_experimental !== 'function') {
+    if (!name || !newName || typeof (clip as any).renameAuxiliaryCurve_experimental !== 'function' || !ensureAuxiliaryCurveEntries(clip)) {
         return false;
     }
     (clip as any).renameAuxiliaryCurve_experimental(name, newName);
     return true;
 }
 
-export function createAuxKey(clip: AnimationClip, name: string, frameValue: unknown, value: unknown): boolean {
+export function createAuxKey(clip: AnimationClip, name: string, frameValue: unknown, value: unknown, keyData?: IAnimationCurveKeyData): boolean {
     const curve = getAuxiliaryCurve(clip, name);
     const frame = Number(frameValue);
     if (!curve || !Number.isFinite(frame) || frame < 0 || typeof value !== 'number') {
         return false;
     }
-    const time = frame / getClipSample(clip);
-    const index = curve.indexOfKeyframe(time);
-    if (index >= 0) {
-        curve.removeKeyframe(index);
-    }
-    curve.addKeyFrame(time, value);
+    setRealCurveKey(curve as any, frame / getClipSample(clip), createRealCurveValue(value, keyData));
     return true;
 }
 
@@ -86,7 +94,7 @@ export function moveAuxKeys(clip: AnimationClip, name: string, framesValue: unkn
         return false;
     }
 
-    const keyframes = Array.from(curve.keyframes()).map(([time, value]) => {
+    const keyframes = queryRealCurveKeyframes(curve as any).map(([time, value]) => {
         const frame = Math.round(time * getClipSample(clip));
         return {
             frame: frames.includes(frame) ? Math.max(0, frame + offset) : frame,
@@ -113,17 +121,38 @@ export function copyAuxKey(clip: AnimationClip, name: string, frameValue: unknow
     if (dstIndex >= 0) {
         curve.removeKeyframe(dstIndex);
     }
-    curve.addKeyFrame(dstFrame / getClipSample(clip), cloneValue(curve.getKeyframeValue(index)));
+    setRealCurveKey(curve as any, dstFrame / getClipSample(clip), cloneValue(curve.getKeyframeValue(index)));
     return true;
 }
 
+export function updateAuxKeyData(clip: AnimationClip, name: string, frameValue: unknown, keyData?: IAnimationCurveKeyData): boolean {
+    const curve = getAuxiliaryCurve(clip, name);
+    const frame = Number(frameValue);
+    if (!curve || !Number.isFinite(frame) || frame < 0) {
+        return false;
+    }
+    return updateRealCurveKeyData(curve as any, frame / getClipSample(clip), keyData);
+}
+
+export function queryAuxiliaryCurveValueAtFrame(clip: AnimationClip, name: string, frameValue: unknown): IAnimationKeyValueDump | null {
+    const curve = getAuxiliaryCurve(clip, name);
+    const frame = Number(frameValue);
+    if (!curve || !Number.isFinite(frame) || frame < 0) {
+        return null;
+    }
+    return {
+        value: queryRealCurveNumberValue(curve.evaluate(frame / getClipSample(clip))),
+        type: 'cc.Number',
+    };
+}
+
 export function serializeAuxiliaryCurvesForMeta(clip: AnimationClip): Record<string, { curve: unknown }> {
-    if (typeof (clip as any).getAuxiliaryCurveNames_experimental !== 'function') {
+    if (typeof (clip as any).getAuxiliaryCurveNames_experimental !== 'function' || !ensureAuxiliaryCurveEntries(clip)) {
         return {};
     }
 
     const result: Record<string, { curve: unknown }> = {};
-    for (const name of (clip as any).getAuxiliaryCurveNames_experimental() as string[]) {
+    for (const name of Array.from((clip as any).getAuxiliaryCurveNames_experimental() || []) as string[]) {
         const curve = (clip as any).getAuxiliaryCurve_experimental(name) as RealCurve | null;
         if (curve) {
             result[name] = {
@@ -140,11 +169,11 @@ export function replaceAuxiliaryCurves(clip: AnimationClip, curves: Record<strin
     if (typeof clipAny.getAuxiliaryCurveNames_experimental !== 'function') {
         return names.length === 0;
     }
-    if (typeof clipAny.removeAuxiliaryCurve_experimental !== 'function' || typeof clipAny.addAuxiliaryCurve_experimental !== 'function') {
+    if (!ensureAuxiliaryCurveEntries(clip) || typeof clipAny.removeAuxiliaryCurve_experimental !== 'function' || typeof clipAny.addAuxiliaryCurve_experimental !== 'function') {
         return false;
     }
 
-    for (const name of clipAny.getAuxiliaryCurveNames_experimental() as string[]) {
+    for (const name of Array.from(clipAny.getAuxiliaryCurveNames_experimental() || []) as string[]) {
         clipAny.removeAuxiliaryCurve_experimental(name);
     }
 
@@ -159,26 +188,44 @@ export function replaceAuxiliaryCurves(clip: AnimationClip, curves: Record<strin
         const dump = curves[name];
         (curve as any).preExtrapolation = dump.preExtrap;
         (curve as any).postExtrapolation = dump.postExtrap;
-        curve.assignSorted(dump.keyframes.map((key) => [key.frame / getClipSample(clip), key.value] as [number, any]));
+        curve.assignSorted(dump.keyframes.map((key) => [key.frame / getClipSample(clip), createRealCurveValue(key.value, key)] as [number, any]));
     }
     return true;
 }
 
-function dumpAuxiliaryCurve(clip: AnimationClip, curve: RealCurve): IAnimationAuxiliaryCurveDump {
+function dumpAuxiliaryCurve(clip: AnimationClip, curve: RealCurve, options: IDumpRealKeyDataOptions): IAnimationAuxiliaryCurveDump {
     const sample = getClipSample(clip);
     return {
-        keyframes: Array.from(curve.keyframes()).map(([time, value]) => ({
-            frame: Math.round(time * sample),
-            value: normalizeAuxiliaryCurveValue((value as any).value),
-        })),
+        keyframes: queryRealCurveKeyframes(curve as any).map(([time, value]) => {
+            const keyData = dumpRealKeyData(value, options);
+            const keyframe = {
+                frame: Math.round(time * sample),
+                value: queryRealCurveNumberValue(value),
+                ...keyData,
+            };
+            copyRealKeyDataInternalMetadata(keyData, keyframe);
+            return keyframe;
+        }),
         preExtrap: Number((curve as any).preExtrapolation) || 0,
         postExtrap: Number((curve as any).postExtrapolation) || 0,
     };
 }
 
 function getAuxiliaryCurve(clip: AnimationClip, name: string): RealCurve | null {
-    if (!name || typeof (clip as any).getAuxiliaryCurve_experimental !== 'function') {
+    if (!name || typeof (clip as any).getAuxiliaryCurve_experimental !== 'function' || !ensureAuxiliaryCurveEntries(clip)) {
         return null;
     }
     return (clip as any).getAuxiliaryCurve_experimental(name) || null;
+}
+
+function ensureAuxiliaryCurveEntries(clip: AnimationClip): boolean {
+    const clipAny = clip as any;
+    if (Array.isArray(clipAny._auxiliaryCurveEntries)) {
+        return true;
+    }
+    if (clipAny._auxiliaryCurveEntries === null || clipAny._auxiliaryCurveEntries === undefined) {
+        clipAny._auxiliaryCurveEntries = [];
+        return true;
+    }
+    return false;
 }

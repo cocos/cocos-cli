@@ -182,6 +182,18 @@ export interface IAnimationQueryPropertyValueAtFrameOptions {
 }
 
 /**
+ * 查询辅助曲线在某一帧的采样值。
+ */
+export interface IAnimationQueryAuxiliaryCurveValueAtFrameOptions {
+    /** clip uuid；必须是当前编辑 clip。 */
+    clipUuid?: string;
+    /** 辅助曲线名称。 */
+    name: string;
+    /** 要采样的帧号，不是秒。 */
+    frame: number;
+}
+
+/**
  * 设置当前编辑时间。
  */
 export interface IAnimationSetTimeOptions {
@@ -432,6 +444,7 @@ export type IAnimationOperation =
     | { type: 'addPropertyCurve'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; value?: IAnimationValue }
     | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
     | { type: 'updatePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
+    | { type: 'updatePropertyKeyData'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
     | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
     | { type: 'removePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
     | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number; channel?: string }
@@ -452,10 +465,11 @@ export type IAnimationOperation =
     | { type: 'addAuxiliaryCurve'; clipUuid: string; name: string }
     | { type: 'removeAuxiliaryCurve'; clipUuid: string; name: string }
     | { type: 'renameAuxiliaryCurve'; clipUuid: string; name: string; newName: string }
-    | { type: 'createAuxKey'; clipUuid: string; name: string; frame: number; value: number }
+    | { type: 'createAuxKey'; clipUuid: string; name: string; frame: number; value: number; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
     | { type: 'removeAuxKey'; clipUuid: string; name: string; frame: number }
     | { type: 'moveAuxKeys'; clipUuid: string; name: string; frames: number[]; offset: number }
-    | { type: 'copyAuxKey'; clipUuid: string; name: string; frame: number; dstFrame: number };
+    | { type: 'copyAuxKey'; clipUuid: string; name: string; frame: number; dstFrame: number }
+    | { type: 'updateAuxKeyData'; clipUuid: string; name: string; frame: number; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData };
 
 /**
  * 批量执行动画编辑操作。
@@ -523,6 +537,10 @@ export interface IAnimationService extends IServiceEvents {
      * 在指定帧采样属性值；采样后会恢复原编辑时间。
      */
     queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<IAnimationValue>;
+    /**
+     * 在指定帧采样辅助曲线值。
+     */
+    queryAuxiliaryCurveValueAtFrame(options: IAnimationQueryAuxiliaryCurveValueAtFrameOptions): Promise<IAnimationKeyValueDump | null>;
     /**
      * 设置当前编辑时间并采样场景，time 单位为秒。
      */

@@ -72,10 +72,10 @@ function queryAuxiliaryCurveDuration(clip: AnimationClip, sample: number): numbe
 function queryCurveTimes(curve: unknown): number[] {
     const curveAny = curve as any;
     if (typeof curveAny?.times === 'function') {
-        return Array.from(curveAny.times()).map((time) => queryFiniteDuration(time));
+        return Array.from(curveAny.times() || []).map((time) => queryFiniteDuration(time));
     }
     if (typeof curveAny?.keyframes === 'function') {
-        return Array.from(curveAny.keyframes()).map((keyframe: any) => queryFiniteDuration(keyframe?.[0]));
+        return Array.from(curveAny.keyframes() || []).map((keyframe: any) => queryFiniteDuration(keyframe?.[0]));
     }
     return [];
 }

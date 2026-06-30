@@ -15,16 +15,20 @@ describe('Animation service interface', () => {
             const state = service.queryState();
             const clip = service.queryClip({ clipUuid: 'clip-uuid' });
             const frameValue = service.queryPropertyValueAtFrame({ clipUuid: 'clip-uuid', nodePath: 'AnimatedRoot', propKey: 'position', frame: 0 });
+            const auxFrameValue = service.queryAuxiliaryCurveValueAtFrame({ clipUuid: 'clip-uuid', name: 'BlendWeight', frame: 0 });
             const operation = service.applyOperation({ operations: [{ type: 'changeSample', clipUuid: 'clip-uuid', sample: 60 }] });
             const propertyOperation = service.applyOperation({ operations: [{ type: 'createPropertyKey', clipUuid: 'clip-uuid', nodePath: 'AnimatedRoot', propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } }] });
+            const keyDataOperation = service.applyOperation({ operations: [{ type: 'updatePropertyKeyData', clipUuid: 'clip-uuid', nodePath: 'AnimatedRoot', propKey: 'position', frame: 0, channel: 'x', keyData: { broken: true } }] });
 
             expect(root).toBeDefined();
             expect(properties).toBeDefined();
             expect(state).toBeDefined();
             expect(clip).toBeDefined();
             expect(frameValue).toBeDefined();
+            expect(auxFrameValue).toBeDefined();
             expect(operation).toBeDefined();
             expect(propertyOperation).toBeDefined();
+            expect(keyDataOperation).toBeDefined();
         };
 
         const assertRootInfo = (info: IAnimationRootInfo) => {

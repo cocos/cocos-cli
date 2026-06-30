@@ -1,4 +1,3 @@
-import { editorExtrasTag } from 'cc';
 import type { AnimationClip } from 'cc';
 import type {
     IAnimationCurveChannelDump,
@@ -20,10 +19,22 @@ import {
     queryFirstRealCurve,
     queryTrackChannels,
 } from './property-curve-track';
+import {
+    copyRealKeyDataInternalMetadata,
+    createMergedRealCurveValue,
+    createRealCurveValue,
+    type IDumpRealKeyDataOptions,
+    dumpRealKeyData,
+    findRealCurveKey,
+    queryRealCurveNumberValue,
+} from './real-curve-key-data';
 
-const EDITOR_EXTRAS_TAG = editorExtrasTag || '__editorExtras__';
-
-export function dumpPropertyTrack(clip: AnimationClip, track: AnyTrack, descriptor: IPropertyTrackDescriptor): Omit<IAnimationCurveDump, 'nodePath' | 'key'> | null {
+export function dumpPropertyTrack(
+    clip: AnimationClip,
+    track: AnyTrack,
+    descriptor: IPropertyTrackDescriptor,
+    options: IDumpRealKeyDataOptions = {},
+): Omit<IAnimationCurveDump, 'nodePath' | 'key'> | null {
     const base = {
         displayName: descriptor.displayName,
         name: descriptor.displayName,
@@ -39,7 +50,7 @@ export function dumpPropertyTrack(clip: AnimationClip, track: AnyTrack, descript
             return {
                 ...base,
                 keyframes: dumpCompositeRealTrackKeyframes(clip, track, descriptor),
-                channels: dumpCompositeRealTrackChannels(clip, track, descriptor),
+                channels: dumpCompositeRealTrackChannels(clip, track, descriptor, options),
                 partKeys: descriptor.partKeys ? [...descriptor.partKeys] : undefined,
                 preExtrap: queryFirstRealCurve(track)?.preExtrapolation ?? 0,
                 postExtrap: queryFirstRealCurve(track)?.postExtrapolation ?? 0,
@@ -47,7 +58,7 @@ export function dumpPropertyTrack(clip: AnimationClip, track: AnyTrack, descript
         case 'real':
             return {
                 ...base,
-                keyframes: dumpRealCurveKeyframes(clip, queryTrackChannels(track)[0].curve),
+                keyframes: dumpRealCurveKeyframes(clip, queryTrackChannels(track)[0].curve, options),
                 preExtrap: queryFirstRealCurve(track)?.preExtrapolation ?? 0,
                 postExtrap: queryFirstRealCurve(track)?.postExtrapolation ?? 0,
             };
@@ -194,6 +205,11 @@ export function updateTrackKey(
                 return false;
             }
             for (let index = 0; index < partKeys.length; index++) {
+                if (!canUpdateRealCurveKey(channels[index].curve, time, compositeValue?.[partKeys[index]])) {
+                    return false;
+                }
+            }
+            for (let index = 0; index < partKeys.length; index++) {
                 if (!updateRealCurveKey(channels[index].curve, time, compositeValue?.[partKeys[index]], keyData)) {
                     return false;
                 }
@@ -288,14 +304,19 @@ export function copyCurveKeysTo(clip: AnimationClip, curve: AnyCurve, frames: nu
     return true;
 }
 
-function dumpCompositeRealTrackChannels(clip: AnimationClip, track: AnyTrack, descriptor: IPropertyTrackDescriptor): IAnimationCurveChannelDump[] {
+function dumpCompositeRealTrackChannels(
+    clip: AnimationClip,
+    track: AnyTrack,
+    descriptor: IPropertyTrackDescriptor,
+    options: IDumpRealKeyDataOptions,
+): IAnimationCurveChannelDump[] {
     const partKeys = descriptor.partKeys || [];
     const channels = queryTrackChannels(track);
     return partKeys.map((key, index) => ({
         key,
         displayName: key,
         type: { value: 'cc.Number' },
-        keyframes: dumpRealCurveKeyframes(clip, channels[index].curve),
+        keyframes: dumpRealCurveKeyframes(clip, channels[index].curve, options),
     }));
 }
 
@@ -305,7 +326,7 @@ function dumpCompositeRealTrackKeyframes(clip: AnimationClip, track: AnyTrack, d
     const partKeys = descriptor.partKeys || [];
     const times = new Set<number>();
     for (let index = 0; index < partKeys.length; index++) {
-        for (const time of channels[index].curve.times()) {
+        for (const time of queryCurveTimes(channels[index].curve)) {
             times.add(time);
         }
     }
@@ -321,18 +342,23 @@ function dumpCompositeRealTrackKeyframes(clip: AnimationClip, track: AnyTrack, d
         }));
 }
 
-function dumpRealCurveKeyframes(clip: AnimationClip, curve: AnyCurve): IAnimationCurveKeyDump[] {
+function dumpRealCurveKeyframes(clip: AnimationClip, curve: AnyCurve, options: IDumpRealKeyDataOptions): IAnimationCurveKeyDump[] {
     const sample = getClipSample(clip);
     return queryCurveKeyframes(curve)
         .sort(([leftTime], [rightTime]) => leftTime - rightTime)
-        .map(([time, value]) => ({
-            frame: timeToFrame(time, sample),
-            dump: {
-                value: normalizeNumber(value.value),
-                type: 'cc.Number',
-            },
-            ...dumpRealKeyData(value),
-        }));
+        .map(([time, value]) => {
+            const keyData = dumpRealKeyData(value, options);
+            const keyframe = {
+                frame: timeToFrame(time, sample),
+                dump: {
+                    value: queryRealCurveNumberValue(value),
+                    type: 'cc.Number',
+                },
+                ...keyData,
+            };
+            copyRealKeyDataInternalMetadata(keyData, keyframe);
+            return keyframe;
+        });
 }
 
 function dumpQuatCurveKeyframes(clip: AnimationClip, curve: AnyCurve): IAnimationCurveKeyDump[] {
@@ -399,7 +425,7 @@ function setCurveKey(curve: AnyCurve, time: number, value: unknown): void {
 }
 
 function updateRealCurveKey(curve: AnyCurve, time: number, value: number | undefined | null, keyData?: IAnimationCurveKeyData): boolean {
-    const existed = queryCurveKeyframes(curve).find(([keyTime]) => isSameTime(keyTime, time));
+    const existed = findRealCurveKey(curve as any, time);
     if (!existed) {
         if (value === undefined || value === null) {
             return false;
@@ -411,6 +437,10 @@ function updateRealCurveKey(curve: AnyCurve, time: number, value: number | undef
     const currentValue = value ?? queryRealCurveNumberValue(existed[1]);
     setCurveKey(curve, time, createMergedRealCurveValue(currentValue, existed[1], keyData));
     return true;
+}
+
+function canUpdateRealCurveKey(curve: AnyCurve, time: number, value: number | undefined | null): boolean {
+    return Boolean(findRealCurveKey(curve as any, time)) || (value !== undefined && value !== null);
 }
 
 function updateQuatCurveKey(curve: AnyCurve, time: number, value: IAnimationValue, keyData?: IAnimationCurveKeyData): boolean {
@@ -436,57 +466,12 @@ function updateQuatCurveKey(curve: AnyCurve, time: number, value: IAnimationValu
     return true;
 }
 
-function createRealCurveValue(value: number, keyData?: IAnimationCurveKeyData): number | Record<string, unknown> {
-    if (!keyData || !hasKeyData(keyData)) {
-        return value;
-    }
-    const curveValue: Record<string, unknown> = {
-        value,
-        leftTangent: keyData.inTangent,
-        rightTangent: keyData.outTangent,
-        leftTangentWeight: keyData.inTangentWeight,
-        rightTangentWeight: keyData.outTangentWeight,
-        interpolationMode: keyData.interpMode,
-        tangentWeightMode: keyData.tangentWeightMode,
-        easingMethod: keyData.easingMethod,
-    };
-    const editorExtras = createRealCurveEditorExtras(keyData);
-    if (editorExtras) {
-        curveValue[EDITOR_EXTRAS_TAG] = editorExtras;
-    }
-    return curveValue;
-}
-
-function createMergedRealCurveValue(value: number, existed: unknown, keyData?: IAnimationCurveKeyData): number | Record<string, unknown> {
-    return createRealCurveValue(value, {
-        ...dumpRealKeyData(existed),
-        ...keyData,
-    });
-}
-
 function createQuatCurveValue(value: IAnimationValue, keyData?: IAnimationCurveKeyData): Record<string, unknown> {
     return {
         value,
         interpolationMode: keyData?.interpMode,
         easingMethod: keyData?.easingMethod,
     };
-}
-
-function dumpRealKeyData(value: any): IAnimationCurveKeyData {
-    const data: IAnimationCurveKeyData = {};
-    setNonDefaultNumber(data, 'inTangent', value.leftTangent);
-    setNonDefaultNumber(data, 'outTangent', value.rightTangent);
-    setNonDefaultNumber(data, 'inTangentWeight', value.leftTangentWeight);
-    setNonDefaultNumber(data, 'outTangentWeight', value.rightTangentWeight);
-    setNonDefaultNumber(data, 'interpMode', value.interpolationMode);
-    setNonDefaultNumber(data, 'tangentWeightMode', value.tangentWeightMode);
-    setNonDefaultNumber(data, 'easingMethod', value.easingMethod);
-    const editorExtras = queryRealCurveEditorExtras(value);
-    setNonDefaultNumber(data, 'tangentMode', editorExtras?.tangentMode);
-    if (typeof editorExtras?.broken === 'boolean') {
-        data.broken = editorExtras.broken;
-    }
-    return data;
 }
 
 function dumpQuatKeyData(value: any): IAnimationCurveKeyData {
@@ -501,36 +486,6 @@ function setNonDefaultNumber(data: IAnimationCurveKeyData, key: keyof IAnimation
     if (Number.isFinite(numberValue) && numberValue !== 0) {
         (data as any)[key] = numberValue;
     }
-}
-
-function createRealCurveEditorExtras(keyData: IAnimationCurveKeyData): Record<string, unknown> | null {
-    const editorExtras: Record<string, unknown> = {};
-    if (keyData.tangentMode !== undefined) {
-        editorExtras.tangentMode = keyData.tangentMode;
-    }
-    if (keyData.broken !== undefined) {
-        editorExtras.broken = keyData.broken;
-    }
-    return Object.keys(editorExtras).length > 0 ? editorExtras : null;
-}
-
-function queryRealCurveEditorExtras(value: unknown): any {
-    if (!value || typeof value !== 'object') {
-        return undefined;
-    }
-    return (value as any)[EDITOR_EXTRAS_TAG];
-}
-
-function hasKeyData(keyData: IAnimationCurveKeyData): boolean {
-    return keyData.inTangent !== undefined
-        || keyData.inTangentWeight !== undefined
-        || keyData.outTangent !== undefined
-        || keyData.outTangentWeight !== undefined
-        || keyData.interpMode !== undefined
-        || keyData.tangentWeightMode !== undefined
-        || keyData.tangentMode !== undefined
-        || keyData.easingMethod !== undefined
-        || keyData.broken !== undefined;
 }
 
 function buildCompositeValue(channels: Array<{ curve: any }>, partKeys: readonly string[], time: number): IAnimationValue {
@@ -571,10 +526,6 @@ function normalizeQuatValue(value: unknown): IAnimationValue {
     return { x, y, z, w };
 }
 
-function queryRealCurveNumberValue(value: any): number {
-    return normalizeNumber(value && typeof value === 'object' ? value.value : value);
-}
-
 function normalizeNumberValue(value: IAnimationValue): number | null {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? numberValue : null;
@@ -586,7 +537,11 @@ function normalizeNumber(value: unknown): number {
 }
 
 function queryCurveKeyframes(curve: AnyCurve): Array<[number, any]> {
-    return Array.from((curve as any).keyframes()) as Array<[number, any]>;
+    return Array.from((curve as any).keyframes?.() || []) as Array<[number, any]>;
+}
+
+function queryCurveTimes(curve: AnyCurve): number[] {
+    return Array.from((curve as any).times?.() || []) as number[];
 }
 
 function timeToFrame(time: number, sample: number): number {

@@ -23,7 +23,14 @@ jest.mock('cc', () => ({
     AnimationClip: class AnimationClip {
         static WrapMode: { Reverse: number } = { Reverse: 1 };
     },
-    AnimationState: class AnimationState {},
+    AnimationState: class AnimationState {
+        clip: unknown;
+        initialize = jest.fn();
+
+        constructor(clip: unknown) {
+            this.clip = clip;
+        }
+    },
     CCClass: { attr: jest.fn(), Attr: { PrimitiveType: class PrimitiveType {} } },
     Component: class Component {},
     Node: class Node {},
@@ -83,7 +90,7 @@ describe('AnimationService enter', () => {
 
     it('waits for animation state initialization before sampling time zero', async () => {
         const service = new AnimationService() as any;
-        const rootNode = { uuid: 'root-uuid', name: 'AnimatedRoot' };
+        const rootNode = { uuid: 'root-uuid', name: 'AnimatedRoot', components: [], children: [] };
         const clip = { _uuid: 'clip-uuid', name: 'Idle' };
         let resolveState!: () => void;
 
@@ -96,6 +103,7 @@ describe('AnimationService enter', () => {
         service._getAnimationState = jest.fn(() => new Promise<void>((resolve) => {
             resolveState = resolve;
         }));
+        service.broadcast = jest.fn();
         service.setTime = jest.fn(async () => true);
         service.queryState = jest.fn(async () => ({
             active: true,
@@ -120,5 +128,62 @@ describe('AnimationService enter', () => {
         await enterPromise;
 
         expect(service.setTime).toHaveBeenCalledWith({ time: 0 });
+    });
+
+    it('does not resolve or rebind non-current clips from play controls', async () => {
+        const service = new AnimationService() as any;
+        service._session = { clipUuid: 'current-clip' };
+        service._getAnimationState = jest.fn();
+
+        await expect(service.changePlayState({ operate: 'play', clipUuid: 'other-clip' })).rejects.toThrow(
+            "current edit clip: 'current-clip' but you want to operate: 'other-clip'",
+        );
+        expect(service._getAnimationState).not.toHaveBeenCalled();
+    });
+
+    it('resolves animation state without recovering clip bindings', async () => {
+        const service = new AnimationService() as any;
+        const rootNode = { uuid: 'root-uuid' };
+        const clip = { _uuid: 'clip-uuid', name: 'Idle' };
+
+        service._session = { clipUuid: 'clip-uuid', rootUuid: 'root-uuid' };
+        service._getSessionRootNode = jest.fn(() => rootNode);
+        service._queryNodeAnimationData = jest.fn(async () => ({ clips: [clip], defaultClip: clip, node: rootNode, animComp: {} }));
+        service._resolveClip = jest.fn(() => clip);
+
+        await service._getAnimationState('clip-uuid');
+
+        expect(service._queryNodeAnimationData).toHaveBeenCalledWith(rootNode, 'clip-uuid');
+    });
+
+    it('returns empty clip info for animation roots without clips', async () => {
+        const { Animation } = require('cc');
+        const service = new AnimationService() as any;
+        const animComp = new Animation();
+        animComp.clips = [];
+        animComp.defaultClip = null;
+        const rootNode = {
+            uuid: 'root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
+
+        service._resolveRootNode = jest.fn(() => rootNode);
+        service._getNodePath = jest.fn(() => 'Canvas/AnimatedRoot');
+        mockService.Node.queryNodeTree.mockResolvedValue({ name: 'AnimatedRoot' });
+
+        await expect(service.queryClips({ rootPath: 'Canvas/AnimatedRoot' })).resolves.toEqual({
+            rootUuid: 'root-uuid',
+            rootPath: 'Canvas/AnimatedRoot',
+            clipsMenu: [],
+            defaultClip: '',
+        });
+        await expect(service.queryRootInfo({ rootPath: 'Canvas/AnimatedRoot' })).resolves.toMatchObject({
+            rootUuid: 'root-uuid',
+            rootPath: 'Canvas/AnimatedRoot',
+            clipsMenu: [],
+            defaultClip: '',
+            clipDump: null,
+            time: 0,
+        });
     });
 });

@@ -5639,6 +5639,16 @@ export declare type IAnimationOperation = {
     keyData?: IAnimationCurveKeyData;
     curveData?: IAnimationCurveKeyData;
 } | {
+    type: 'updatePropertyKeyData';
+    clipUuid: string;
+    nodePath?: string;
+    nodeUuid?: string;
+    propKey: string;
+    frame: number;
+    channel?: string;
+    keyData?: IAnimationCurveKeyData;
+    curveData?: IAnimationCurveKeyData;
+} | {
     type: 'removePropertyKey';
     clipUuid: string;
     nodePath?: string;
@@ -5753,6 +5763,8 @@ export declare type IAnimationOperation = {
     name: string;
     frame: number;
     value: number;
+    keyData?: IAnimationCurveKeyData;
+    curveData?: IAnimationCurveKeyData;
 } | {
     type: 'removeAuxKey';
     clipUuid: string;
@@ -5770,6 +5782,13 @@ export declare type IAnimationOperation = {
     name: string;
     frame: number;
     dstFrame: number;
+} | {
+    type: 'updateAuxKeyData';
+    clipUuid: string;
+    name: string;
+    frame: number;
+    keyData?: IAnimationCurveKeyData;
+    curveData?: IAnimationCurveKeyData;
 };
 export declare interface IAnimationOperationOptions {
     operations: IAnimationOperation[];
@@ -5796,6 +5815,11 @@ export declare interface IAnimationPropertyInfo {
 export declare interface IAnimationPropertyType {
     value: string;
     extends?: string[];
+}
+export declare interface IAnimationQueryAuxiliaryCurveValueAtFrameOptions {
+    clipUuid?: string;
+    name: string;
+    frame: number;
 }
 export declare interface IAnimationQueryClipOptions extends IAnimationTargetOptions {
     clipUuid?: string;
@@ -5829,6 +5853,7 @@ export declare interface IAnimationService extends IServiceEvents {
     queryProperties(options: IAnimationTargetOptions): Promise<IAnimationPropertyInfo[]>;
     queryTime(options: IAnimationTimeOptions): Promise<number>;
     queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<IAnimationValue>;
+    queryAuxiliaryCurveValueAtFrame(options: IAnimationQueryAuxiliaryCurveValueAtFrameOptions): Promise<IAnimationKeyValueDump | null>;
     setTime(options: IAnimationSetTimeOptions): Promise<boolean>;
     changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
     changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;

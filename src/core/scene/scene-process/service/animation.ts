@@ -8,6 +8,7 @@ import {
     Scene,
     SkeletalAnimation,
     animation,
+    assetManager as ccAssetManager,
     js,
 } from 'cc';
 import {
@@ -24,6 +25,7 @@ import {
     IAnimationOperationOptions,
     IAnimationOperationResult,
     IAnimationPlayStateOptions,
+    IAnimationQueryAuxiliaryCurveValueAtFrameOptions,
     IAnimationPropertyInfo,
     IAnimationQueryClipOptions,
     IAnimationQueryPropertyValueAtFrameOptions,
@@ -38,7 +40,6 @@ import {
     NodeEventType,
 } from '../../common';
 import { BaseService, register, Service, ServiceEvents } from './core';
-import dumpUtil from './dump';
 import { Rpc } from '../rpc';
 import { createClipDump } from './animation/clip-dump';
 import {
@@ -49,10 +50,12 @@ import {
 } from './animation/clip-snapshot';
 import { syncAnimationClipDuration } from './animation/clip-duration';
 import { applyClipOperation, validateAnimationOperation } from './animation/clip-operations';
+import { queryAuxiliaryCurveValueAtFrame } from './animation/auxiliary-curve';
 import { saveSkeletonAnimationMeta } from './animation/skeleton-meta';
+import { captureAnimationSampledState, restoreAnimationSampledState } from './animation/sampled-state';
 import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationData, IAnimationSession } from './animation/types';
-import { cloneDump, cloneValue, clipUuid, getClipSample } from './animation/utils';
+import { cloneValue, clipUuid, getClipSample } from './animation/utils';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -82,12 +85,60 @@ function isAnimationOperationResult(value: IAnimationOperation | IAnimationOpera
 
 function shouldSyncClipDuration(operation: IAnimationOperation): boolean {
     switch (operation.type) {
+        case 'changeSample':
+        case 'addEvent':
+        case 'deleteEvent':
+        case 'updateEvent':
+        case 'moveEvents':
+        case 'copyEventsTo':
+        case 'addEmbeddedPlayer':
+        case 'deleteEmbeddedPlayer':
+        case 'updateEmbeddedPlayer':
+        case 'clearEmbeddedPlayer':
+        case 'removeEmbeddedPlayerGroup':
+        case 'clearEmbeddedPlayerGroup':
+        case 'removeAuxiliaryCurve':
+        case 'createAuxKey':
+        case 'removeAuxKey':
+        case 'moveAuxKeys':
+        case 'copyAuxKey':
         case 'createPropertyKey':
         case 'updatePropertyKey':
         case 'removePropertyKey':
         case 'removePropertyKeys':
         case 'movePropertyKeys':
         case 'copyPropertyKeysTo':
+            return true;
+        default:
+            return false;
+    }
+}
+
+function isAllowedSkeletonAnimationOperation(operation: IAnimationOperation): boolean {
+    switch (operation.type) {
+        case 'changeSample':
+        case 'changeSpeed':
+        case 'changeWrapMode':
+        case 'addEvent':
+        case 'deleteEvent':
+        case 'updateEvent':
+        case 'moveEvents':
+        case 'copyEventsTo':
+        case 'addEmbeddedPlayer':
+        case 'deleteEmbeddedPlayer':
+        case 'updateEmbeddedPlayer':
+        case 'clearEmbeddedPlayer':
+        case 'addEmbeddedPlayerGroup':
+        case 'removeEmbeddedPlayerGroup':
+        case 'clearEmbeddedPlayerGroup':
+        case 'addAuxiliaryCurve':
+        case 'removeAuxiliaryCurve':
+        case 'renameAuxiliaryCurve':
+        case 'createAuxKey':
+        case 'removeAuxKey':
+        case 'moveAuxKeys':
+        case 'copyAuxKey':
+        case 'updateAuxKeyData':
             return true;
         default:
             return false;
@@ -120,14 +171,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         const rootNode = this._queryAnimationRootNode(this._resolveNode(options));
-        const animData = await this._queryNodeAnimationData(rootNode);
+        const animData = await this._queryNodeAnimationData(rootNode, options.clipUuid, { recoverClipBinding: true });
         const clip = this._resolveClip(animData, options.clipUuid);
         const uuid = clipUuid(clip);
         if (!uuid) {
             throw new Error('Animation clip uuid is empty.');
         }
 
-        const sampledRootDump = dumpUtil.dumpNode(rootNode, { includeComponents: true });
         this._session = {
             previousEditorType: Service.Editor.getCurrentEditorType(),
             previousSelection: Service.Selection.query(),
@@ -135,7 +185,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             rootUuid: rootNode.uuid,
             rootPath: this._getNodePath(rootNode),
             clipUuid: uuid,
-            sampledRootDump: sampledRootDump ? cloneDump(sampledRootDump) : null,
+            sampledRootState: captureAnimationSampledState(rootNode),
         };
 
         this._playState = 'stop';
@@ -157,10 +207,10 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         await this._stopCurrent();
 
         const shouldRestoreSampledState = options.restoreSampledSceneState ?? true;
-        if (shouldRestoreSampledState && session.sampledRootDump) {
+        if (shouldRestoreSampledState && session.sampledRootState) {
             const rootNode = this._getNodeByUuid(session.rootUuid);
             if (rootNode) {
-                await dumpUtil.restoreNode(rootNode, session.sampledRootDump);
+                await restoreAnimationSampledState(rootNode, session.sampledRootState);
                 this._emitNodeChanged(rootNode);
             }
         }
@@ -225,11 +275,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async queryRootInfo(options: IAnimationTargetOptions): Promise<IAnimationRootInfo> {
         const rootNode = this._resolveRootNode(options);
         const clipsInfo = await this._queryClipsInfo(rootNode);
+        const defaultClipUuid = clipsInfo.defaultClip;
         return {
             ...clipsInfo,
             nodeTreeDump: await Service.Node.queryNodeTree({ path: clipsInfo.rootPath }),
-            clipDump: await this.queryClip({ rootUuid: rootNode.uuid, clipUuid: clipsInfo.defaultClip }),
-            time: this._session ? await this.queryTime({ clipUuid: clipsInfo.defaultClip }) : 0,
+            clipDump: defaultClipUuid ? await this.queryClip({ rootUuid: rootNode.uuid, clipUuid: defaultClipUuid }) : null,
+            time: this._session && defaultClipUuid ? await this.queryTime({ clipUuid: defaultClipUuid }) : 0,
             state: this._playState,
             useBakedAnimation: this._isUsingBakedAnimation(rootNode),
         };
@@ -241,9 +292,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
     async queryClip(options: IAnimationQueryClipOptions): Promise<IAnimationClipDump> {
         const hasTarget = Boolean(options.rootPath || options.rootUuid || options.nodePath || options.nodeUuid);
-        if (!hasTarget && this._session) {
+        if (this._session) {
             const uuid = options.clipUuid || this._session.clipUuid;
-            const state = this._animationStateMap.get(uuid);
+            const state = this._isCurrentSessionClipQuery(options, uuid, hasTarget)
+                ? this._animationStateMap.get(uuid)
+                : undefined;
             if (state) {
                 return this._createClipDump(this._getSessionRootNode(), state.clip, state);
             }
@@ -255,6 +308,19 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             ? this._animationStateMap.get(uuid)
             : undefined;
         return this._createClipDump(rootNode, clip, state);
+    }
+
+    private _isCurrentSessionClipQuery(options: IAnimationQueryClipOptions, clipUuid: string, hasTarget: boolean): boolean {
+        if (!this._session || clipUuid !== this._session.clipUuid) {
+            return false;
+        }
+        if (!hasTarget) {
+            return true;
+        }
+        return options.rootUuid === this._session.rootUuid
+            || options.rootPath === this._session.rootPath
+            || options.nodeUuid === this._session.rootUuid
+            || options.nodePath === this._session.rootPath;
     }
 
     async queryProperties(options: IAnimationTargetOptions): Promise<IAnimationPropertyInfo[]> {
@@ -314,6 +380,17 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return cloneValue(value) as IAnimationValue;
     }
 
+    async queryAuxiliaryCurveValueAtFrame(options: IAnimationQueryAuxiliaryCurveValueAtFrameOptions) {
+        const session = this._requireSession();
+        const uuid = options.clipUuid || session.clipUuid;
+        if (uuid !== session.clipUuid) {
+            throw new Error(`current edit clip: '${session.clipUuid}' but you want to operate: '${uuid}'`);
+        }
+
+        const state = await this._getAnimationState(uuid);
+        return queryAuxiliaryCurveValueAtFrame(state.clip, options.name, options.frame);
+    }
+
     async setTime(options: IAnimationSetTimeOptions): Promise<boolean> {
         const session = this._requireSession();
         const state = await this._getAnimationState(session.clipUuid);
@@ -342,8 +419,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     async changePlayState(options: IAnimationPlayStateOptions): Promise<boolean> {
-        this._requireSession();
-        const state = await this._getAnimationState(options.clipUuid || this._session!.clipUuid);
+        const session = this._requireSession();
+        const uuid = options.clipUuid || session.clipUuid;
+        if (uuid !== session.clipUuid) {
+            throw new Error(`current edit clip: '${session.clipUuid}' but you want to operate: '${uuid}'`);
+        }
+        const state = await this._getAnimationState(uuid);
 
         switch (options.operate) {
             case 'play':
@@ -390,7 +471,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         await this._stopCurrent();
-        this._resolveClip(await this._queryNodeAnimationData(this._getSessionRootNode()), options.clipUuid);
+        this._resolveClip(await this._queryNodeAnimationData(this._getSessionRootNode(), options.clipUuid, { recoverClipBinding: true }), options.clipUuid);
         session.clipUuid = options.clipUuid;
         this._curEditTime = 0;
         await this._getAnimationState(options.clipUuid);
@@ -409,27 +490,67 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const rootNode = this._getSessionRootNode();
         const state = await this._getAnimationState(session.clipUuid);
         const shouldRecordUndo = options.recordUndo !== false;
-        const before = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
+        const before = captureAnimationClipSnapshot(state.clip);
         let shouldSyncDuration = false;
+        let shouldRestoreOnFailure = false;
         for (const inputOperation of options.operations) {
+            const inputFailure = validateAnimationOperation(inputOperation, session.clipUuid);
+            if (inputFailure) {
+                if (shouldRestoreOnFailure) {
+                    await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
+                }
+                return inputFailure;
+            }
+            if (this._isSkeletonClip(session.clipUuid, rootNode) && !isAllowedSkeletonAnimationOperation(inputOperation)) {
+                const skeletonFailure = {
+                    state: 'failure',
+                    result: false,
+                    reason: `Method '${inputOperation.type}' is not allowed in skeleton animation.`,
+                } as IAnimationOperationResult;
+                if (shouldRestoreOnFailure) {
+                    await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
+                }
+                return skeletonFailure;
+            }
+
             const normalized = await this._normalizeAnimationOperation(inputOperation, session.clipUuid);
             if (isAnimationOperationResult(normalized)) {
+                if (shouldRestoreOnFailure) {
+                    await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
+                }
                 return normalized;
             }
 
             const operation = normalized;
             const failure = validateAnimationOperation(operation, session.clipUuid);
             if (failure) {
+                if (shouldRestoreOnFailure) {
+                    await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
+                }
                 return failure;
             }
 
-            const result = await applyClipOperation(state, operation, { rootNode, rootPath: session.rootPath });
-            if (!result) {
+            let result = false;
+            shouldRestoreOnFailure = true;
+            try {
+                result = await applyClipOperation(state, operation, { rootNode, rootPath: session.rootPath });
+            } catch (error) {
+                const normalizedError = error instanceof Error ? error : new Error(String(error));
+                await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
                 return {
                     state: 'failure',
                     result: false,
-                    reason: `call method ${operation.type} failed`,
+                    reason: normalizedError.message,
                 };
+            }
+            if (!result) {
+                const failureResult = {
+                    state: 'failure',
+                    result: false,
+                    reason: `call method ${operation.type} failed`,
+                } as IAnimationOperationResult;
+                await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
+                return failureResult;
             }
             shouldSyncDuration = shouldSyncDuration || shouldSyncClipDuration(operation);
         }
@@ -458,6 +579,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
     private async _normalizeAnimationOperation(operation: IAnimationOperation, currentClipUuid: string): Promise<IAnimationOperation | IAnimationOperationResult> {
         const type = (operation as any)?.type;
+        if (type === 'updatePropertyKeyData') {
+            const keyOperation = operation as Extract<IAnimationOperation, { type: 'updatePropertyKeyData' }>;
+            const keyData = keyOperation.keyData ?? keyOperation.curveData;
+            return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
+        }
         if (type !== 'createPropertyKey' && type !== 'updatePropertyKey') {
             return operation;
         }
@@ -468,7 +594,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
         }
         if (keyOperation.type === 'updatePropertyKey' && keyData) {
-            return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
+            return {
+                ...keyOperation,
+                type: 'updatePropertyKeyData',
+                keyData,
+            };
         }
 
         try {
@@ -630,7 +760,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return node.getComponent(Animation);
     }
 
-    private async _queryNodeAnimationData(node: Node): Promise<IAnimationData> {
+    private async _queryNodeAnimationData(node: Node, preferredClipUuid?: string, options: { allowEmpty?: boolean; recoverClipBinding?: boolean } = {}): Promise<IAnimationData> {
         const animComp = this._queryAnimationComponent(node);
         if (!animComp) {
             throw new Error(`Animation component not found on node: ${this._getNodePath(node)}`);
@@ -641,6 +771,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (animComp instanceof Animation) {
             clips = (animComp.clips || []).filter((clip): clip is AnimationClip => Boolean(clip?.name));
             defaultClip = animComp.defaultClip || clips[0] || null;
+            if (defaultClip?.name) {
+                clips.push(defaultClip);
+            }
         } else {
             clips = (await this._visitAnimationClipsInController(animComp))
                 .filter((clip): clip is AnimationClip => Boolean(clip?.name));
@@ -651,7 +784,18 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!defaultClip?.name) {
             defaultClip = clips[0] || null;
         }
+        if (options.recoverClipBinding && (clips.length === 0 || !defaultClip) && preferredClipUuid && animComp instanceof Animation) {
+            const recoveredClip = await this._loadAnimationClip(preferredClipUuid);
+            if (recoveredClip?.name) {
+                this._rebindAnimationComponentClip(animComp, recoveredClip);
+                clips = this._uniqAnimationClips((animComp.clips || []).filter((clip): clip is AnimationClip => Boolean(clip?.name)));
+                defaultClip = animComp.defaultClip?.name ? animComp.defaultClip : clips[0] || null;
+            }
+        }
         if (clips.length === 0 || !defaultClip) {
+            if (options.allowEmpty) {
+                return { node, animComp, clips, defaultClip };
+            }
             throw new Error(`Animation clips not found on node: ${this._getNodePath(node)}`);
         }
 
@@ -668,7 +812,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private async _queryClipsInfo(rootNode: Node): Promise<IAnimationClipsInfo> {
-        const animData = await this._queryNodeAnimationData(rootNode);
+        const animData = await this._queryNodeAnimationData(rootNode, undefined, { allowEmpty: true });
         return {
             rootUuid: rootNode.uuid,
             rootPath: this._getNodePath(rootNode),
@@ -680,11 +824,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     private async _resolveClipForQuery(options: IAnimationQueryClipOptions): Promise<{ rootNode: Node; clip: AnimationClip }> {
         const hasTarget = Boolean(options.rootPath || options.rootUuid || options.nodePath || options.nodeUuid);
         const rootNode = hasTarget ? this._resolveRootNode(options) : this._getSessionRootNode();
-        const animData = await this._queryNodeAnimationData(rootNode);
         const defaultUuid = this._session?.rootUuid === rootNode.uuid ? this._session.clipUuid : undefined;
+        const targetUuid = options.clipUuid || defaultUuid;
+        const animData = await this._queryNodeAnimationData(rootNode, targetUuid);
         return {
             rootNode,
-            clip: this._resolveClip(animData, options.clipUuid || defaultUuid),
+            clip: this._resolveClip(animData, targetUuid),
         };
     }
 
@@ -702,12 +847,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return existed;
         }
 
-        const clip = this._resolveClip(await this._queryNodeAnimationData(this._getSessionRootNode()), uuid);
-        const state = new AnimationState(clip);
-        (state as any)._curveLoaded = false;
-        state.initialize(this._getSessionRootNode());
-        this._animationStateMap.set(uuid, state);
-        return state;
+        const clip = this._resolveClip(await this._queryNodeAnimationData(this._getSessionRootNode(), uuid), uuid);
+        return this._createAnimationState(uuid, clip);
     }
 
     private async _stopCurrent(): Promise<void> {
@@ -739,6 +880,34 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._animationStateMap.clear();
     }
 
+    private _resetAnimationState(uuid: string): void {
+        const state = this._animationStateMap.get(uuid);
+        if (!state) {
+            return;
+        }
+        try {
+            state.destroy();
+        } catch (e) {
+            console.warn('[Animation] destroy animation state failed:', e);
+        }
+        this._animationStateMap.delete(uuid);
+    }
+
+    private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, rootNode: Node): Promise<void> {
+        try {
+            await restoreAnimationClipSnapshot(clip, snapshot);
+        } catch (error) {
+            console.error('[Animation] restore failed operation snapshot failed:', error);
+            throw error;
+        }
+        const state = this._animationStateMap.get(clipUuid(clip));
+        if (state) {
+            (state as any)._curveLoaded = false;
+            state.initialize(rootNode);
+        }
+        await this.setTime({ time: this._curEditTime });
+    }
+
     private async _restoreCurrentClipSnapshot(uuid: string, snapshot: IAnimationClipSnapshot): Promise<void> {
         const session = this._requireSession();
         if (uuid !== session.clipUuid) {
@@ -747,11 +916,19 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const clip = state.clip;
-        this._clearAnimationStates();
+        this._resetAnimationState(uuid);
         await restoreAnimationClipSnapshot(clip, snapshot);
-        await this._getAnimationState(uuid);
+        this._createAnimationState(uuid, clip);
         await this.setTime({ time: this._curEditTime });
         this._broadcastClipChanged('undo-redo');
+    }
+
+    private _createAnimationState(uuid: string, clip: AnimationClip): AnimationState {
+        const state = new AnimationState(clip);
+        (state as any)._curveLoaded = false;
+        state.initialize(this._getSessionRootNode());
+        this._animationStateMap.set(uuid, state);
+        return state;
     }
 
     private async _refreshCurrentClipAsset(uuid: string): Promise<void> {
@@ -760,10 +937,53 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         const time = this._curEditTime;
-        this._clearAnimationStates();
+        const clip = await this._loadAnimationClip(uuid);
+        const rootNode = this._getSessionRootNode();
+        const animComp = this._queryAnimationComponent(rootNode);
+        if (clip && animComp instanceof Animation) {
+            this._rebindAnimationComponentClip(animComp, clip);
+        }
+        this._resetAnimationState(uuid);
         const state = await this._getAnimationState(uuid);
         await this.setTime({ time: Math.min(time, state.duration) });
         this._broadcastClipChanged('asset-refresh');
+    }
+
+    private _rebindAnimationComponentClip(animComp: Animation, clip: AnimationClip): void {
+        const uuid = clipUuid(clip);
+        const currentDefaultUuid = animComp.defaultClip ? clipUuid(animComp.defaultClip) : '';
+        let found = false;
+        const clips = (animComp.clips || []).map((item) => {
+            if (item && clipUuid(item) === uuid) {
+                found = true;
+                return clip;
+            }
+            return item;
+        });
+        if (!found) {
+            clips.push(clip);
+        }
+        animComp.clips = clips;
+        if (!currentDefaultUuid || currentDefaultUuid === uuid) {
+            animComp.defaultClip = clip;
+        }
+    }
+
+    private async _loadAnimationClip(uuid: string): Promise<AnimationClip | null> {
+        const cached = ccAssetManager.assets.get(uuid);
+        if (cached instanceof AnimationClip) {
+            return cached;
+        }
+
+        return await new Promise((resolve, reject) => {
+            ccAssetManager.loadAny(uuid, (error, asset: AnimationClip) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                resolve(asset instanceof AnimationClip ? asset : null);
+            });
+        });
     }
 
     private _disposeSession(): void {

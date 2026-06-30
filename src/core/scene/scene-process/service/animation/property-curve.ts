@@ -17,6 +17,7 @@ import {
     setTrackKey,
     updateTrackKey,
 } from './property-curve-keyframe';
+import type { IDumpRealKeyDataOptions } from './real-curve-key-data';
 import {
     applyTrackExtrapolation,
     createPropertyDescriptor,
@@ -37,6 +38,7 @@ import type {
     IPropertyKeyFramesOperation,
     IPropertyTarget,
     ISetPropertyCurveExtrapolationOperation,
+    IUpdatePropertyKeyDataOperation,
 } from './property-curve-types';
 
 interface IResolvedPropertyTarget {
@@ -49,7 +51,7 @@ export interface IPropertyCurveOperationContext {
     rootPath: string;
 }
 
-export function dumpPropertyCurves(clip: AnimationClip): IAnimationCurveDump[] {
+export function dumpPropertyCurves(clip: AnimationClip, options: IDumpRealKeyDataOptions = {}): IAnimationCurveDump[] {
     const curves: IAnimationCurveDump[] = [];
     for (const track of getClipTracks(clip)) {
         const parsed = parsePropertyTrack(track);
@@ -57,7 +59,7 @@ export function dumpPropertyCurves(clip: AnimationClip): IAnimationCurveDump[] {
             continue;
         }
 
-        const curveDump = dumpPropertyTrack(clip, track, parsed.descriptor);
+        const curveDump = dumpPropertyTrack(clip, track, parsed.descriptor, options);
         if (curveDump) {
             curves.push({
                 nodePath: parsed.nodePath,
@@ -134,6 +136,26 @@ export function updatePropertyKey(
     }
 
     return createPropertyKey(clip, context, operation);
+}
+
+export function updatePropertyKeyData(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: IUpdatePropertyKeyDataOperation,
+): boolean {
+    const target = resolvePropertyTarget(context, operation);
+    const frame = Number(operation.frame);
+    if (!target || !Number.isFinite(frame) || frame < 0) {
+        return false;
+    }
+
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    if (!track || !descriptor) {
+        return false;
+    }
+
+    return updateTrackKey(track, descriptor, frame / getClipSample(clip), undefined, operation.channel, operation.keyData ?? operation.curveData);
 }
 
 export function removePropertyKey(
