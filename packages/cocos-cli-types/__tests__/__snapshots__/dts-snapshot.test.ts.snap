@@ -1192,6 +1192,7 @@ export declare interface BuildBundleConfiguration {
     custom: CustomBundleConfigMap;
 }
 export declare function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData>;
+export declare type BuildCacheScope = 'project' | 'global' | 'all';
 export declare interface BuildCheckResult {
     valid: boolean;
     level?: 'error' | 'warn';
@@ -1546,6 +1547,11 @@ export declare interface ChokidarOptions {
     	persistent?: boolean;
     	useFsEvents?: boolean;
     	usePolling?: boolean;
+}
+export declare function clearCache(scope: BuildCacheScope): Promise<ClearCacheResult>;
+export declare interface ClearCacheResult {
+    scope: BuildCacheScope;
+    cleared: string[];
 }
 export declare class CocosParams<T> {
     platformParams: T;
