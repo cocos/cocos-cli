@@ -481,7 +481,7 @@ class BuilderConfig {
 
         this._projectRoot = project.default.path;
         this._buildTemplateDir = join(this._projectRoot, 'build-templates');
-        this._projectTempDir = join(this._projectRoot, 'temp', 'builder',);
+        this._projectTempDir = join(this._projectRoot, 'temp');
         this.commonOptionConfigs.name.default = project.default.getInfo().name || 'gameName';
         this._init = true;
         try {

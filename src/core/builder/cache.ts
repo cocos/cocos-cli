@@ -21,6 +21,10 @@ function getProjectAssetCacheRoot() {
     return join(builderConfig.projectTempDir, 'asset-db');
 }
 
+function getLegacyProjectAssetCacheRoot() {
+    return join(getProjectBuilderCacheRoot(), 'asset-db');
+}
+
 function getGlobalCacheRoots() {
     const engineBin = join(GlobalPaths.enginePath, 'bin');
     return [
@@ -112,8 +116,12 @@ async function clearProjectBuilderCache(builderCacheRoot: string, skipRoots: str
 async function clearProjectCache(): Promise<string[]> {
     const cleared: string[] = [];
     const assetCacheRoot = getProjectAssetCacheRoot();
+    const legacyAssetCacheRoot = getLegacyProjectAssetCacheRoot();
     await clearProjectAssetBuildCache(assetCacheRoot, cleared);
-    await clearProjectBuilderCache(getProjectBuilderCacheRoot(), [assetCacheRoot], cleared);
+    if (resolve(legacyAssetCacheRoot) !== resolve(assetCacheRoot)) {
+        await clearProjectAssetBuildCache(legacyAssetCacheRoot, cleared);
+    }
+    await clearProjectBuilderCache(getProjectBuilderCacheRoot(), [assetCacheRoot, legacyAssetCacheRoot], cleared);
     return cleared;
 }
 

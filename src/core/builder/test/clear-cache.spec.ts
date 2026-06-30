@@ -29,7 +29,7 @@ describe('builder clearCache', () => {
     beforeEach(async () => {
         tempRoot = await mkdtemp(join(tmpdir(), 'cocos-cli-clear-cache-'));
         mockBuilderConfig.projectRoot = join(tempRoot, 'project');
-        mockBuilderConfig.projectTempDir = join(mockBuilderConfig.projectRoot, 'temp', 'builder');
+        mockBuilderConfig.projectTempDir = join(mockBuilderConfig.projectRoot, 'temp');
         mockGlobalPaths.enginePath = join(tempRoot, 'engine');
     });
 
@@ -40,8 +40,8 @@ describe('builder clearCache', () => {
     it('clears project builder cache while preserving logs and non-build asset-db files', async () => {
         const assetBuildCacheFile = join(mockBuilderConfig.projectTempDir, 'asset-db', 'assets', 'ab', 'uuid', 'build1.0.1', 'release.json');
         const assetOtherFile = join(mockBuilderConfig.projectTempDir, 'asset-db', 'assets', 'ab', 'uuid', 'thumbnail.png');
-        const builderCacheFile = join(mockBuilderConfig.projectTempDir, 'CompressTexture', 'compress-info.json');
-        const logFile = join(mockBuilderConfig.projectTempDir, 'log', 'build.log');
+        const builderCacheFile = join(mockBuilderConfig.projectTempDir, 'builder', 'CompressTexture', 'compress-info.json');
+        const logFile = join(mockBuilderConfig.projectTempDir, 'builder', 'log', 'build.log');
 
         await outputFile(assetBuildCacheFile, '{}');
         await outputFile(assetOtherFile, 'image');
@@ -55,6 +55,20 @@ describe('builder clearCache', () => {
         expect(await pathExists(assetOtherFile)).toBe(true);
         expect(await pathExists(builderCacheFile)).toBe(false);
         expect(await pathExists(logFile)).toBe(true);
+    });
+
+    it('clears legacy asset build cache under temp builder while preserving non-build files', async () => {
+        const legacyAssetBuildCacheFile = join(mockBuilderConfig.projectTempDir, 'builder', 'asset-db', 'assets', 'ab', 'uuid', 'build1.0.1', 'release.json');
+        const legacyAssetOtherFile = join(mockBuilderConfig.projectTempDir, 'builder', 'asset-db', 'assets', 'ab', 'uuid', 'thumbnail.png');
+
+        await outputFile(legacyAssetBuildCacheFile, '{}');
+        await outputFile(legacyAssetOtherFile, 'image');
+
+        const result = await clearCache('project');
+
+        expect(result.scope).toBe('project');
+        expect(await pathExists(legacyAssetBuildCacheFile)).toBe(false);
+        expect(await pathExists(legacyAssetOtherFile)).toBe(true);
     });
 
     it('clears global engine cache directories', async () => {
@@ -78,7 +92,7 @@ describe('builder clearCache', () => {
     });
 
     it('clears project and global cache when scope is all', async () => {
-        const projectCacheFile = join(mockBuilderConfig.projectTempDir, 'TexturePacker1.0.1', 'build', 'atlas.json');
+        const projectCacheFile = join(mockBuilderConfig.projectTempDir, 'builder', 'TexturePacker1.0.1', 'build', 'atlas.json');
         const globalCacheFile = join(mockGlobalPaths.enginePath, 'bin', 'temp', 'engine-cache.js');
 
         await outputFile(projectCacheFile, '{}');
