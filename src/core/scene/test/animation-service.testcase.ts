@@ -66,6 +66,7 @@ describe('Animation Service 场景进程测试', () => {
     const emptyClipName = `AnimationServiceEmptyClip_${testRunId}`;
     const keyDataClipName = `AnimationServiceKeyDataClip_${testRunId}`;
     const childClipName = `AnimationServiceChildClip_${testRunId}`;
+    const rootEditClipName = `AnimationServiceRootEditClip_${testRunId}`;
     let nodePath = '';
     let childNodePath = '';
     let clipUuid = '';
@@ -76,6 +77,8 @@ describe('Animation Service 场景进程测试', () => {
     let childRootNodePath = '';
     let childTrackNodePath = '';
     let childClipUuid = '';
+    let rootEditNodePath = '';
+    let rootEditClipUuid = '';
 
     beforeAll(async () => {
         await EditorProxy.create({
@@ -111,6 +114,12 @@ describe('Animation Service 场景进程测试', () => {
             content: createAnimationClipContent({ sample: 60, duration: 0 }),
         });
         childClipUuid = childClipInfo.uuid;
+
+        const rootEditClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, rootEditClipName, {
+            overwrite: true,
+            content: createAnimationClipContent({ sample: 60, duration: 0 }),
+        });
+        rootEditClipUuid = rootEditClipInfo.uuid;
 
         const createParams: ICreateByAssetParams = {
             dbURL: clipInfo.url,
@@ -166,6 +175,17 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create child sampling target node.');
         }
         childTrackNodePath = childTrackNode.path;
+
+        const rootEditNode = await NodeProxy.createByAsset({
+            dbURL: rootEditClipInfo.url,
+            path: '',
+            name: 'AnimationServiceRootEditNode',
+            position: { x: 0, y: 0, z: 0 },
+        });
+        if (!rootEditNode) {
+            throw new Error('Failed to create root keyframe editing animation node.');
+        }
+        rootEditNodePath = rootEditNode.path;
 
         const childNode = await NodeProxy.createByType({
             path: nodePath,
@@ -407,6 +427,46 @@ describe('Animation Service 场景进程测试', () => {
         await request('setTime', [{ time: 0 }]);
         const resetChildNode = await NodeProxy.query({ path: childTrackNodePath, includeChildren: false, includeComponents: false }) as any;
         expect(resetChildNode?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
+    });
+
+    it('setTime 在 root keyframe 编辑保存重进后采样最终曲线', async () => {
+        await ensureAnimationSession(rootEditNodePath, rootEditClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
+                { type: 'createPropertyKey', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frame: 105, value: { x: 100, y: 0, z: 0 } },
+                { type: 'movePropertyKeys', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frames: [105], offset: -15 },
+                { type: 'copyPropertyKeysTo', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frames: [90], dstFrame: 120 },
+                { type: 'movePropertyKeys', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frames: [120], offset: -15 },
+                { type: 'removePropertyKeys', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frames: [105] },
+            ],
+        }]);
+        const afterEdit = await request('queryClip', [{ rootPath: rootEditNodePath, clipUuid: rootEditClipUuid }]);
+        const positionCurve = afterEdit.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(Math.round(afterEdit.duration * afterEdit.sample)).toBe(90);
+        expect(positionCurve.keyframes).toEqual([
+            { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
+            { frame: 90, dump: { value: { x: 100, y: 0, z: 0 }, type: 'cc.Vec3' } },
+        ]);
+        expect(await request('save')).toBe(true);
+
+        await request('exit', [{ restoreSelection: false, restoreSampledSceneState: false }]);
+        await request('enter', [{ rootPath: rootEditNodePath, clipUuid: rootEditClipUuid }]);
+        await request('setTime', [{ time: 1.5 }]);
+        const time = await request<number>('queryTime', [{ clipUuid: rootEditClipUuid }]);
+        const sampledEndNode = await NodeProxy.query({ path: rootEditNodePath, includeChildren: false, includeComponents: false }) as any;
+
+        expect(time).toBe(1.5);
+        expect(sampledEndNode?.properties.position).toMatchObject({ x: 100, y: 0, z: 0 });
+
+        await request('setTime', [{ time: 0 }]);
+        const sampledStartNode = await NodeProxy.query({ path: rootEditNodePath, includeChildren: false, includeComponents: false }) as any;
+        expect(sampledStartNode?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
     });
 
     it('applyOperation 支持分量级属性 keyframe 并保留切线信息', async () => {
