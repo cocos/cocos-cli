@@ -5,6 +5,8 @@ import {
 import { DumpInterface } from './dump-interface';
 import * as cc from 'cc';
 
+const EDITOR_EXTRAS_TAG = cc.editorExtrasTag || '__editorExtras__';
+
 // valueType 直接使用引擎序列化
 class RealCurveDump implements DumpInterface {
 
@@ -32,6 +34,7 @@ class RealCurveDump implements DumpInterface {
                 postExtrap: curve.postExtrapolation,
                 preExtrap: curve.preExtrapolation,
                 keyFrames: [...curve.keyframes()].map(([time, value]) => {
+                    const editorExtras = value[EDITOR_EXTRAS_TAG] || {};
                     return {
                         time,
                         value: value.value,
@@ -44,6 +47,8 @@ class RealCurveDump implements DumpInterface {
 
                         interpMode: value.interpolationMode,
                         tangentWeightMode: value.tangentWeightMode,
+                        tangentMode: editorExtras.tangentMode,
+                        broken: editorExtras.broken,
                     };
                 }),
             };
@@ -61,7 +66,7 @@ class RealCurveDump implements DumpInterface {
     public decodeByDump(dump: any, curve: cc.RealCurve, opts?: any): cc.RealCurve {
         if (dump.value.keyFrames) {
             const keyData = dump.value.keyFrames.map((item: any) => {
-                return [item.time, {
+                const value: any = {
                     value: item.value,
 
                     leftTangent: item.inTangent,
@@ -72,7 +77,14 @@ class RealCurveDump implements DumpInterface {
 
                     leftTangentWeight: item.inTangentWeight,
                     rightTangentWeight: item.outTangentWeight,
-                }];
+                };
+                if (item.tangentMode !== undefined || item.broken !== undefined) {
+                    value[EDITOR_EXTRAS_TAG] = {
+                        tangentMode: item.tangentMode,
+                        broken: item.broken,
+                    };
+                }
+                return [item.time, value];
             });
             curve.assignSorted(keyData);
             curve.postExtrapolation = dump.value.postExtrap;

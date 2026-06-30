@@ -47,6 +47,7 @@ import {
     restoreAnimationClipSnapshot,
     type IAnimationClipSnapshot,
 } from './animation/clip-snapshot';
+import { syncAnimationClipDuration } from './animation/clip-duration';
 import { applyClipOperation, validateAnimationOperation } from './animation/clip-operations';
 import { saveSkeletonAnimationMeta } from './animation/skeleton-meta';
 import { AnimationClipSnapshotCommand } from './animation/undo';
@@ -77,6 +78,20 @@ function createPropertyInfo(name: string, type: string, displayName = name, comp
 
 function isAnimationOperationResult(value: IAnimationOperation | IAnimationOperationResult): value is IAnimationOperationResult {
     return (value as IAnimationOperationResult).state === 'success' || (value as IAnimationOperationResult).state === 'failure';
+}
+
+function shouldSyncClipDuration(operation: IAnimationOperation): boolean {
+    switch (operation.type) {
+        case 'createPropertyKey':
+        case 'updatePropertyKey':
+        case 'removePropertyKey':
+        case 'removePropertyKeys':
+        case 'movePropertyKeys':
+        case 'copyPropertyKeysTo':
+            return true;
+        default:
+            return false;
+    }
 }
 
 @register('Animation')
@@ -395,6 +410,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const state = await this._getAnimationState(session.clipUuid);
         const shouldRecordUndo = options.recordUndo !== false;
         const before = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
+        let shouldSyncDuration = false;
         for (const inputOperation of options.operations) {
             const normalized = await this._normalizeAnimationOperation(inputOperation, session.clipUuid);
             if (isAnimationOperationResult(normalized)) {
@@ -415,8 +431,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                     reason: `call method ${operation.type} failed`,
                 };
             }
+            shouldSyncDuration = shouldSyncDuration || shouldSyncClipDuration(operation);
         }
 
+        if (shouldSyncDuration) {
+            syncAnimationClipDuration(state.clip);
+        }
         (state as any)._curveLoaded = false;
         state.initialize(rootNode);
         await this.setTime({ time: this._curEditTime });

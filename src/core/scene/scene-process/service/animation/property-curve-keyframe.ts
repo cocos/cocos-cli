@@ -1,3 +1,4 @@
+import { editorExtrasTag } from 'cc';
 import type { AnimationClip } from 'cc';
 import type {
     IAnimationCurveChannelDump,
@@ -19,6 +20,8 @@ import {
     queryFirstRealCurve,
     queryTrackChannels,
 } from './property-curve-track';
+
+const EDITOR_EXTRAS_TAG = editorExtrasTag || '__editorExtras__';
 
 export function dumpPropertyTrack(clip: AnimationClip, track: AnyTrack, descriptor: IPropertyTrackDescriptor): Omit<IAnimationCurveDump, 'nodePath' | 'key'> | null {
     const base = {
@@ -342,7 +345,7 @@ function createRealCurveValue(value: number, keyData?: IAnimationCurveKeyData): 
     if (!keyData || !hasKeyData(keyData)) {
         return value;
     }
-    return {
+    const curveValue: Record<string, unknown> = {
         value,
         leftTangent: keyData.inTangent,
         rightTangent: keyData.outTangent,
@@ -352,6 +355,11 @@ function createRealCurveValue(value: number, keyData?: IAnimationCurveKeyData): 
         tangentWeightMode: keyData.tangentWeightMode,
         easingMethod: keyData.easingMethod,
     };
+    const editorExtras = createRealCurveEditorExtras(keyData);
+    if (editorExtras) {
+        curveValue[EDITOR_EXTRAS_TAG] = editorExtras;
+    }
+    return curveValue;
 }
 
 function createQuatCurveValue(value: IAnimationValue, keyData?: IAnimationCurveKeyData): Record<string, unknown> {
@@ -371,6 +379,11 @@ function dumpRealKeyData(value: any): IAnimationCurveKeyData {
     setNonDefaultNumber(data, 'interpMode', value.interpolationMode);
     setNonDefaultNumber(data, 'tangentWeightMode', value.tangentWeightMode);
     setNonDefaultNumber(data, 'easingMethod', value.easingMethod);
+    const editorExtras = queryRealCurveEditorExtras(value);
+    setNonDefaultNumber(data, 'tangentMode', editorExtras?.tangentMode);
+    if (typeof editorExtras?.broken === 'boolean') {
+        data.broken = editorExtras.broken;
+    }
     return data;
 }
 
@@ -386,6 +399,24 @@ function setNonDefaultNumber(data: IAnimationCurveKeyData, key: keyof IAnimation
     if (Number.isFinite(numberValue) && numberValue !== 0) {
         (data as any)[key] = numberValue;
     }
+}
+
+function createRealCurveEditorExtras(keyData: IAnimationCurveKeyData): Record<string, unknown> | null {
+    const editorExtras: Record<string, unknown> = {};
+    if (keyData.tangentMode !== undefined) {
+        editorExtras.tangentMode = keyData.tangentMode;
+    }
+    if (keyData.broken !== undefined) {
+        editorExtras.broken = keyData.broken;
+    }
+    return Object.keys(editorExtras).length > 0 ? editorExtras : null;
+}
+
+function queryRealCurveEditorExtras(value: unknown): any {
+    if (!value || typeof value !== 'object') {
+        return undefined;
+    }
+    return (value as any)[EDITOR_EXTRAS_TAG];
 }
 
 function hasKeyData(keyData: IAnimationCurveKeyData): boolean {

@@ -62,9 +62,12 @@ function createAnimationClipContent(options: { sample?: number; duration?: numbe
 describe('Animation Service 场景进程测试', () => {
     const sceneName = 'AnimationServiceScene';
     const clipName = 'AnimationServiceClip';
+    const emptyClipName = 'AnimationServiceEmptyClip';
     let nodePath = '';
     let childNodePath = '';
     let clipUuid = '';
+    let emptyNodePath = '';
+    let emptyClipUuid = '';
 
     beforeAll(async () => {
         await EditorProxy.create({
@@ -83,6 +86,12 @@ describe('Animation Service 场景进程测试', () => {
         });
         clipUuid = clipInfo.uuid;
 
+        const emptyClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, emptyClipName, {
+            overwrite: true,
+            content: createAnimationClipContent({ duration: 0 }),
+        });
+        emptyClipUuid = emptyClipInfo.uuid;
+
         const createParams: ICreateByAssetParams = {
             dbURL: clipInfo.url,
             path: '',
@@ -94,6 +103,17 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create animation node.');
         }
         nodePath = node.path;
+
+        const emptyNode = await NodeProxy.createByAsset({
+            dbURL: emptyClipInfo.url,
+            path: '',
+            name: 'AnimationServiceEmptyNode',
+            position: { x: 0, y: 0, z: 0 },
+        });
+        if (!emptyNode) {
+            throw new Error('Failed to create empty animation node.');
+        }
+        emptyNodePath = emptyNode.path;
 
         const childNode = await NodeProxy.createByType({
             path: nodePath,
@@ -274,6 +294,42 @@ describe('Animation Service 场景进程测试', () => {
         ]);
     });
 
+    it('applyOperation 在空 clip 创建属性 key 后重算 duration 并支持 undo/redo', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const before = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'position', frame: 30, value: { x: 1, y: 2, z: 3 } },
+            ],
+        }]);
+        const afterCreate = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        await request('setTime', [{ time: 1 }]);
+        const time = await request<number>('queryTime', [{ clipUuid: emptyClipUuid }]);
+        const saveResult = await request('save');
+        const afterSave = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+
+        expect(before.duration).toBe(0);
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(afterCreate.duration).toBe(1);
+        expect(Math.round(afterCreate.duration * afterCreate.sample)).toBe(30);
+        expect(time).toBe(1);
+        expect(saveResult).toBe(true);
+        expect(afterSave.duration).toBe(1);
+
+        expectUndoSuccess(await Undo.undo());
+        const afterUndo = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        expect(afterUndo.duration).toBe(0);
+        expect(afterUndo.curves).toEqual(before.curves);
+
+        expectUndoSuccess(await Undo.redo());
+        const afterRedo = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        expect(afterRedo.duration).toBe(1);
+        expect(afterRedo.curves).toEqual(afterCreate.curves);
+    });
+
     it('applyOperation 支持分量级属性 keyframe 并保留切线信息', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
@@ -295,6 +351,7 @@ describe('Animation Service 场景进程测试', () => {
                         outTangentWeight: 1,
                         interpMode: 2,
                         tangentWeightMode: 1,
+                        broken: true,
                     },
                 },
             ],
@@ -322,11 +379,55 @@ describe('Animation Service 场景进程测试', () => {
                 outTangentWeight: 1,
                 interpMode: 2,
                 tangentWeightMode: 1,
+                broken: true,
             },
         ]);
         expect(scaleCurve.channels.find((channel: any) => channel.key === 'z').keyframes).toEqual([
             { frame: 0, dump: { value: 1, type: 'cc.Number' } },
         ]);
+    });
+
+    it('applyOperation 通过 updatePropertyKey 持久化 RealCurve keyframe broken 状态', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const createResult = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 21, value: { x: 1, y: 1, z: 1 } },
+                { type: 'updatePropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 21, channel: 'y', value: 2, keyData: { broken: true } },
+            ],
+        }]);
+        const afterBroken = await request('queryClip', [{ clipUuid }]);
+        const brokenScaleCurve = afterBroken.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
+        const brokenKey = brokenScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
+
+        expect(createResult).toEqual({ state: 'success', result: true });
+        expect(brokenKey.broken).toBe(true);
+
+        const updateResult = await request('applyOperation', [{
+            operations: [
+                { type: 'updatePropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 21, channel: 'y', value: 2, keyData: { broken: false } },
+            ],
+        }]);
+        const afterLinked = await request('queryClip', [{ clipUuid }]);
+        const linkedScaleCurve = afterLinked.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
+        const linkedKey = linkedScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
+
+        expect(updateResult).toEqual({ state: 'success', result: true });
+        expect(linkedKey.broken).toBe(false);
+
+        expectUndoSuccess(await Undo.undo());
+        const afterUndo = await request('queryClip', [{ clipUuid }]);
+        const undoScaleCurve = afterUndo.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
+        const undoKey = undoScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
+        expect(undoKey.broken).toBe(true);
+
+        expectUndoSuccess(await Undo.redo());
+        const afterRedo = await request('queryClip', [{ clipUuid }]);
+        const redoScaleCurve = afterRedo.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
+        const redoKey = redoScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
+        expect(redoKey.broken).toBe(false);
     });
 
     it('applyOperation 支持 queryProperties 暴露的 rotation 和 active 属性', async () => {

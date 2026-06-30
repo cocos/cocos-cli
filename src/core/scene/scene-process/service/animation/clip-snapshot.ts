@@ -22,6 +22,7 @@ import {
 } from './utils';
 
 export interface IAnimationClipSnapshot {
+    duration: number;
     sample: number;
     speed: number;
     wrapMode: number;
@@ -36,6 +37,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationCli
     const sample = getClipSample(clip);
     const events = queryClipEvents(clip) || [];
     return {
+        duration: Number((clip as any).duration) || 0,
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
@@ -52,6 +54,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationCli
 }
 
 export async function restoreAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot): Promise<void> {
+    (clip as any).duration = snapshot.duration;
     (clip as any).sample = snapshot.sample;
     (clip as any).speed = snapshot.speed;
     (clip as any).wrapMode = snapshot.wrapMode;
