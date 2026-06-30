@@ -34,6 +34,7 @@
         "node_modules",
         "**/test/**",
         "**/*.test.ts",
+        "src/core/builder/platforms/**/src/view/**",
         "tests/**",
         "e2e/**"
     ]

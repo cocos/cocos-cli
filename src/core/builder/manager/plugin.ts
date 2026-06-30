@@ -1126,7 +1126,7 @@ export class PluginManager extends EventEmitter {
         if (platformConfig) {
             const createTemplateLabel = platformConfig.createTemplateLabel;
             if (!createTemplateLabel) {
-                console.debug(`no build template for ${nameOrPlatform}`);
+                console.error(`no build template for ${nameOrPlatform}`);
                 return;
             }
             nameOrPlatform = createTemplateLabel;
@@ -1134,7 +1134,7 @@ export class PluginManager extends EventEmitter {
 
         const templateConfig = this.buildTemplateConfigMap[nameOrPlatform];
         if (!templateConfig) {
-            console.debug(`no build template for ${nameOrPlatform}`);
+            console.error(`no build template for ${nameOrPlatform}`);
             return;
         }
 

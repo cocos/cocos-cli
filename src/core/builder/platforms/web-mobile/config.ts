@@ -6,7 +6,7 @@ import { GlobalPaths } from '../../../../global';
 
 const PLATFORM = 'web-mobile';
 
-const buildTemplateDir = join(GlobalPaths.staticDir, `build-templates/${PLATFORM}`);
+const buildTemplateDir = join(GlobalPaths.enginePath, `templates/${PLATFORM}`);
 
 const config: IPlatformBuildPluginConfig = {
     displayName: 'i18n:web-mobile.title',
