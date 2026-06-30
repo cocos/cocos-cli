@@ -1014,7 +1014,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return '';
         }
         const attr = CCClass.attr(ctor, prop);
-        if (!attr || attr.animatable === false || attr.readonly) {
+        if (!attr || attr.readonly || !this._isAnimablePropertyAttr(attr)) {
             return '';
         }
         const type = attr.type;
@@ -1038,6 +1038,16 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return 'cc.String';
         }
         return '';
+    }
+
+    private _isAnimablePropertyAttr(attr: any): boolean {
+        if (attr.type === js.getClassName(Node)) {
+            return false;
+        }
+        if (attr.animatable !== undefined) {
+            return Boolean(attr.animatable);
+        }
+        return attr.visible === undefined ? true : Boolean(attr.visible);
     }
 
     private _readPropertyValue(node: Node, propKey: string): unknown {
