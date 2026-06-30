@@ -558,8 +558,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (shouldSyncDuration) {
             syncAnimationClipDuration(state.clip);
         }
-        (state as any)._curveLoaded = false;
-        state.initialize(rootNode);
+        this._resetAnimationState(session.clipUuid);
+        this._createAnimationState(session.clipUuid, state.clip);
         await this.setTime({ time: this._curEditTime });
         const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
         if (before && after && !animationClipSnapshotsEqual(before, after)) {
