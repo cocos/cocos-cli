@@ -163,6 +163,63 @@ export function setTrackKey(
     }
 }
 
+export function updateTrackKey(
+    track: AnyTrack,
+    descriptor: IPropertyTrackDescriptor,
+    time: number,
+    value: IAnimationValue,
+    channel?: string,
+    keyData?: IAnimationCurveKeyData,
+): boolean {
+    const channels = queryTrackChannels(track);
+    switch (descriptor.kind) {
+        case 'vector':
+        case 'color':
+        case 'size': {
+            const partKeys = descriptor.partKeys || [];
+            if (channel) {
+                const channelIndex = partKeys.indexOf(channel);
+                if (channelIndex < 0) {
+                    return false;
+                }
+                const channelValue = value === undefined ? undefined : normalizeNumberValue(value);
+                if (value !== undefined && channelValue === null) {
+                    return false;
+                }
+                return updateRealCurveKey(channels[channelIndex].curve, time, channelValue, keyData);
+            }
+
+            const compositeValue = value === undefined ? null : normalizeCompositeValue(value, partKeys);
+            if (value !== undefined && !compositeValue) {
+                return false;
+            }
+            for (let index = 0; index < partKeys.length; index++) {
+                if (!updateRealCurveKey(channels[index].curve, time, compositeValue?.[partKeys[index]], keyData)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        case 'real': {
+            const numberValue = value === undefined ? undefined : normalizeNumberValue(value);
+            if (value !== undefined && numberValue === null) {
+                return false;
+            }
+            return updateRealCurveKey(channels[0].curve, time, numberValue, keyData);
+        }
+        case 'quat':
+            return updateQuatCurveKey(channels[0].curve, time, value, keyData);
+        case 'object':
+            if (value === undefined) {
+                return false;
+            }
+            setCurveKey(channels[0].curve, time, cloneValue(value));
+            return true;
+        default:
+            return false;
+    }
+}
+
 export function queryTargetCurves(track: AnyTrack, descriptor: IPropertyTrackDescriptor, channel?: string): AnyCurve[] {
     const channels = queryTrackChannels(track);
     if (!channel || !descriptor.partKeys) {
@@ -341,6 +398,44 @@ function setCurveKey(curve: AnyCurve, time: number, value: unknown): void {
     (curve as any).assignSorted(keyframes);
 }
 
+function updateRealCurveKey(curve: AnyCurve, time: number, value: number | undefined | null, keyData?: IAnimationCurveKeyData): boolean {
+    const existed = queryCurveKeyframes(curve).find(([keyTime]) => isSameTime(keyTime, time));
+    if (!existed) {
+        if (value === undefined || value === null) {
+            return false;
+        }
+        setCurveKey(curve, time, createRealCurveValue(value, keyData));
+        return true;
+    }
+
+    const currentValue = value ?? queryRealCurveNumberValue(existed[1]);
+    setCurveKey(curve, time, createMergedRealCurveValue(currentValue, existed[1], keyData));
+    return true;
+}
+
+function updateQuatCurveKey(curve: AnyCurve, time: number, value: IAnimationValue, keyData?: IAnimationCurveKeyData): boolean {
+    const existed = queryCurveKeyframes(curve).find(([keyTime]) => isSameTime(keyTime, time));
+    if (!existed) {
+        const quatValue = normalizeQuatValue(value);
+        if (!quatValue) {
+            return false;
+        }
+        setCurveKey(curve, time, createQuatCurveValue(quatValue, keyData));
+        return true;
+    }
+
+    const nextValue = value === undefined ? normalizeQuatValue(existed[1]?.value) : normalizeQuatValue(value);
+    if (!nextValue) {
+        return false;
+    }
+    setCurveKey(curve, time, {
+        value: nextValue,
+        interpolationMode: keyData?.interpMode ?? existed[1]?.interpolationMode,
+        easingMethod: keyData?.easingMethod ?? existed[1]?.easingMethod,
+    });
+    return true;
+}
+
 function createRealCurveValue(value: number, keyData?: IAnimationCurveKeyData): number | Record<string, unknown> {
     if (!keyData || !hasKeyData(keyData)) {
         return value;
@@ -360,6 +455,13 @@ function createRealCurveValue(value: number, keyData?: IAnimationCurveKeyData): 
         curveValue[EDITOR_EXTRAS_TAG] = editorExtras;
     }
     return curveValue;
+}
+
+function createMergedRealCurveValue(value: number, existed: unknown, keyData?: IAnimationCurveKeyData): number | Record<string, unknown> {
+    return createRealCurveValue(value, {
+        ...dumpRealKeyData(existed),
+        ...keyData,
+    });
 }
 
 function createQuatCurveValue(value: IAnimationValue, keyData?: IAnimationCurveKeyData): Record<string, unknown> {
@@ -467,6 +569,10 @@ function normalizeQuatValue(value: unknown): IAnimationValue {
         return null;
     }
     return { x, y, z, w };
+}
+
+function queryRealCurveNumberValue(value: any): number {
+    return normalizeNumber(value && typeof value === 'object' ? value.value : value);
 }
 
 function normalizeNumberValue(value: IAnimationValue): number | null {

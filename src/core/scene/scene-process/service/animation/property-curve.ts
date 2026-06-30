@@ -15,6 +15,7 @@ import {
     removeCurveKeys,
     restoreTrackKeyframes,
     setTrackKey,
+    updateTrackKey,
 } from './property-curve-keyframe';
 import {
     applyTrackExtrapolation,
@@ -120,6 +121,18 @@ export function updatePropertyKey(
     context: IPropertyCurveOperationContext,
     operation: ICreatePropertyKeyOperation,
 ): boolean {
+    const target = resolvePropertyTarget(context, operation);
+    const frame = Number(operation.frame);
+    if (!target || !Number.isFinite(frame) || frame < 0) {
+        return false;
+    }
+
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    if (track && descriptor) {
+        return updateTrackKey(track, descriptor, frame / getClipSample(clip), operation.value, operation.channel, operation.keyData ?? operation.curveData);
+    }
+
     return createPropertyKey(clip, context, operation);
 }
 

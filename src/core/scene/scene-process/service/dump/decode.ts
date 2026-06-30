@@ -13,6 +13,7 @@ import { IComponent, INode, IScene, ITargetOverrideInfo } from '../../../common'
 import compMgr from './../component/index';
 import nodeMgr from './../node/index';
 import { IProperty } from '../../../@types/public';
+import { COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS } from './restore-policy';
 
 type TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
 const TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
@@ -226,6 +227,9 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         // }
         // 对于原先还在的组件，还原内部的值
         for (const key in dumpComp.value) {
+            if (COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS.includes(key as typeof COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS[number])) {
+                continue;
+            }
             await decodePatch(key, dumpComp.value[key], component);
         }
 

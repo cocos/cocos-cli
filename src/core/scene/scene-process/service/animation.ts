@@ -467,6 +467,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (keyOperation.value !== undefined) {
             return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
         }
+        if (keyOperation.type === 'updatePropertyKey' && keyData) {
+            return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
+        }
 
         try {
             const sampled = await this.queryPropertyValueAtFrame({
@@ -742,11 +745,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             throw new Error(`current edit clip: '${session.clipUuid}' but you want to restore: '${uuid}'`);
         }
 
-        const rootNode = this._getSessionRootNode();
         const state = await this._getAnimationState(uuid);
-        await restoreAnimationClipSnapshot(state.clip, snapshot);
-        (state as any)._curveLoaded = false;
-        state.initialize(rootNode);
+        const clip = state.clip;
+        this._clearAnimationStates();
+        await restoreAnimationClipSnapshot(clip, snapshot);
+        await this._getAnimationState(uuid);
         await this.setTime({ time: this._curEditTime });
         this._broadcastClipChanged('undo-redo');
     }

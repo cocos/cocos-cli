@@ -63,11 +63,14 @@ describe('Animation Service 场景进程测试', () => {
     const sceneName = 'AnimationServiceScene';
     const clipName = 'AnimationServiceClip';
     const emptyClipName = 'AnimationServiceEmptyClip';
+    const keyDataClipName = 'AnimationServiceKeyDataClip';
     let nodePath = '';
     let childNodePath = '';
     let clipUuid = '';
     let emptyNodePath = '';
     let emptyClipUuid = '';
+    let keyDataNodePath = '';
+    let keyDataClipUuid = '';
 
     beforeAll(async () => {
         await EditorProxy.create({
@@ -92,6 +95,12 @@ describe('Animation Service 场景进程测试', () => {
         });
         emptyClipUuid = emptyClipInfo.uuid;
 
+        const keyDataClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, keyDataClipName, {
+            overwrite: true,
+            content: createAnimationClipContent({ duration: 0 }),
+        });
+        keyDataClipUuid = keyDataClipInfo.uuid;
+
         const createParams: ICreateByAssetParams = {
             dbURL: clipInfo.url,
             path: '',
@@ -114,6 +123,17 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create empty animation node.');
         }
         emptyNodePath = emptyNode.path;
+
+        const keyDataNode = await NodeProxy.createByAsset({
+            dbURL: keyDataClipInfo.url,
+            path: '',
+            name: 'AnimationServiceKeyDataNode',
+            position: { x: 0, y: 0, z: 0 },
+        });
+        if (!keyDataNode) {
+            throw new Error('Failed to create key data animation node.');
+        }
+        keyDataNodePath = keyDataNode.path;
 
         const childNode = await NodeProxy.createByType({
             path: nodePath,
@@ -428,6 +448,93 @@ describe('Animation Service 场景进程测试', () => {
         const redoScaleCurve = afterRedo.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
         const redoKey = redoScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
         expect(redoKey.broken).toBe(false);
+    });
+
+    it('applyOperation 通过 updatePropertyKey 合并并持久化 RealCurve keyData', async () => {
+        await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const queryPositionXKey = async () => {
+            const dump = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
+            const positionCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+            return positionCurve?.channels
+                .find((channel: any) => channel.key === 'x')?.keyframes
+                .find((keyframe: any) => keyframe.frame === 60);
+        };
+
+        const before = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', frame: 60, value: { x: 80, y: 9, z: 10 } },
+                { type: 'updatePropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 60, keyData: { interpMode: 1 } },
+                { type: 'updatePropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 60, keyData: { broken: true } },
+            ],
+        }]);
+        const afterUpdateKey = await queryPositionXKey();
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(afterUpdateKey).toMatchObject({
+            frame: 60,
+            dump: { value: 80, type: 'cc.Number' },
+            interpMode: 1,
+            broken: true,
+        });
+
+        expectUndoSuccess(await Undo.undo());
+        const afterUndo = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
+        expect(afterUndo.curves).toEqual(before.curves);
+
+        expectUndoSuccess(await Undo.redo());
+        const afterRedoKey = await queryPositionXKey();
+        expect(afterRedoKey).toMatchObject({
+            frame: 60,
+            dump: { value: 80, type: 'cc.Number' },
+            interpMode: 1,
+            broken: true,
+        });
+
+        expect(await request('applyOperation', [{
+            operations: [
+                { type: 'updatePropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 60, keyData: { broken: false } },
+            ],
+        }])).toEqual({ state: 'success', result: true });
+        const afterBrokenFalseKey = await queryPositionXKey();
+        expect(afterBrokenFalseKey).toMatchObject({
+            frame: 60,
+            dump: { value: 80, type: 'cc.Number' },
+            interpMode: 1,
+            broken: false,
+        });
+
+        expectUndoSuccess(await Undo.undo());
+        const afterBrokenFalseUndoKey = await queryPositionXKey();
+        expect(afterBrokenFalseUndoKey).toMatchObject({
+            frame: 60,
+            dump: { value: 80, type: 'cc.Number' },
+            interpMode: 1,
+            broken: true,
+        });
+
+        expectUndoSuccess(await Undo.redo());
+        const afterBrokenFalseRedoKey = await queryPositionXKey();
+        expect(afterBrokenFalseRedoKey).toMatchObject({
+            frame: 60,
+            dump: { value: 80, type: 'cc.Number' },
+            interpMode: 1,
+            broken: false,
+        });
+
+        expect(await request('save')).toBe(true);
+        await request('exit', [{ restoreSelection: false, restoreSampledSceneState: false }]);
+        await request('enter', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
+        const afterReenterKey = await queryPositionXKey();
+        expect(afterReenterKey).toMatchObject({
+            frame: 60,
+            dump: { value: 80, type: 'cc.Number' },
+            interpMode: 1,
+            broken: false,
+        });
     });
 
     it('applyOperation 支持 queryProperties 暴露的 rotation 和 active 属性', async () => {
