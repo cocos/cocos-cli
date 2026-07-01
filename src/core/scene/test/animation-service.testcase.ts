@@ -39,6 +39,24 @@ async function ensureAnimationSession(rootPath: string, clipUuid: string): Promi
     }
 }
 
+function waitForAnimationPlayState(playState: string, timeout = 5000): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const handler = (event: any) => {
+            if (event?.state?.playState !== playState) {
+                return;
+            }
+            clearTimeout(timer);
+            sceneWorker.off('animation:state-changed', handler);
+            resolve(event);
+        };
+        const timer = setTimeout(() => {
+            sceneWorker.off('animation:state-changed', handler);
+            reject(new Error(`Timeout waiting for animation playState "${playState}"`));
+        }, timeout);
+        sceneWorker.on('animation:state-changed', handler);
+    });
+}
+
 function createAnimationClipContent(options: { sample?: number; duration?: number } = {}) {
     return JSON.stringify({
         __type__: 'cc.AnimationClip',
@@ -298,6 +316,26 @@ describe('Animation Service 场景进程测试', () => {
             playState: 'playing',
         });
         expect(event.time).toBeGreaterThan(0);
+    });
+
+    it('play 自然结束时广播最终时间和 stop 状态', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await request('setTime', [{ time: 0 }]);
+        const statePromise = waitForAnimationPlayState('stop');
+
+        await request('changePlayState', [{ operate: 'play' }]);
+        const event = await statePromise;
+        const time = await request<number>('queryTime', [{ clipUuid }]);
+
+        expect(event).toMatchObject({
+            reason: 'play-state',
+            state: {
+                rootPath: nodePath,
+                clipUuid,
+                playState: 'stop',
+            },
+        });
+        expect(time).toBeGreaterThanOrEqual(0.95);
     });
 
     it('applyOperation 在真实 AnimationClip 上应用基础普通 clip 操作', async () => {

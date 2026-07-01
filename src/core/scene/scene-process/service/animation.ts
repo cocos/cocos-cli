@@ -1161,8 +1161,24 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
         const state = this._animationStateMap.get(this._session.clipUuid);
         const time = state?.current;
-        if (!state?.isPlaying || state.isPaused) {
+        if (!state || state.isPaused) {
             this._stopPlaybackTimeBroadcast();
+            return;
+        }
+        if (!state.isPlaying) {
+            this._stopPlaybackTimeBroadcast();
+            const duration = Number.isFinite(state.duration) ? state.duration : this._curEditTime;
+            this._curEditTime = Math.max(0, duration);
+            state.weight = 1;
+            state.setTime(this._curEditTime);
+            state.sample();
+            this._playState = 'stop';
+            Service.Engine.exitAnimationMode();
+            void Service.Engine.repaintInEditMode();
+            this._broadcastTimeChanged('play-state');
+            void this.queryState()
+                .then((currentState) => this._broadcastStateChanged('play-state', currentState))
+                .catch((error) => console.error('[Animation] broadcast playback stop state failed:', error));
             return;
         }
         if (typeof time !== 'number' || !Number.isFinite(time)) {
