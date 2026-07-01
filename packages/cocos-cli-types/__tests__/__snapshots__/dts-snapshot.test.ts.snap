@@ -5649,6 +5649,12 @@ export declare type IAnimationOperation = {
     keyData?: IAnimationCurveKeyData;
     curveData?: IAnimationCurveKeyData;
 } | {
+    type: 'removePropertyCurve';
+    clipUuid: string;
+    nodePath?: string;
+    nodeUuid?: string;
+    propKey: string;
+} | {
     type: 'removePropertyKey';
     clipUuid: string;
     nodePath?: string;
