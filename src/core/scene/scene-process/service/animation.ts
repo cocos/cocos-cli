@@ -1044,7 +1044,22 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (typeof value === 'string') {
             return 'cc.String';
         }
+        if (value && typeof value === 'object') {
+            return this._queryAnimableObjectPropertyType(value);
+        }
         return '';
+    }
+
+    private _queryAnimableObjectPropertyType(value: object): string {
+        if (value instanceof Node || value instanceof Component || Array.isArray(value)) {
+            return '';
+        }
+        const ctor = (value as { constructor?: Function }).constructor;
+        if (!ctor || ctor === Object) {
+            return '';
+        }
+        const type = js.getClassName(ctor);
+        return type && type !== 'Object' ? type : '';
     }
 
     private _isAnimablePropertyAttr(attr: any): boolean {

@@ -96,4 +96,35 @@ describe('AnimationService animatable property metadata', () => {
             'cc.TestComponent.forcedHiddenNumber',
         ]);
     });
+
+    it('从 accessor 当前值推导 UITransform 这类组件属性类型', () => {
+        const { Component } = require('cc');
+        const { AnimationService } = require('../scene-process/service/animation');
+
+        class SizeValue { }
+        class Vec2Value { }
+        (SizeValue as any).__className = 'cc.Size';
+        (Vec2Value as any).__className = 'cc.Vec2';
+
+        class UITransform extends Component {
+            contentSize = new SizeValue();
+            anchorPoint = new Vec2Value();
+        }
+        (UITransform as any).__className = 'cc.UITransform';
+        (UITransform as any).__props__ = ['contentSize', 'anchorPoint'];
+
+        const attrs: Record<string, any> = {
+            contentSize: { visible: true },
+            anchorPoint: { visible: true },
+        };
+        mockAttr.mockImplementation((_ctor: Function, prop: string) => attrs[prop]);
+
+        const service = new AnimationService();
+        const properties = (service as any)._queryComponentAnimableProperties(new UITransform());
+
+        expect(properties).toEqual(expect.arrayContaining([
+            expect.objectContaining({ key: 'cc.UITransform.contentSize', type: { value: 'cc.Size' } }),
+            expect.objectContaining({ key: 'cc.UITransform.anchorPoint', type: { value: 'cc.Vec2' } }),
+        ]));
+    });
 });
