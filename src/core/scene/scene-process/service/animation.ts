@@ -151,6 +151,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     private _animationStateMap = new Map<string, AnimationState>();
     private _curEditTime = 0;
     private _playState: AnimationPlayState = 'stop';
+    private _playbackTimeBroadcastTimer: ReturnType<typeof setInterval> | null = null;
+    private _lastPlaybackBroadcastTime = Number.NaN;
     private readonly _onAssetRefreshed = (uuid: string) => {
         void this._refreshCurrentClipAsset(uuid).catch((error) => {
             this._disposeSession();
@@ -436,8 +438,10 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 }
                 this._playState = 'playing';
                 Service.Engine.enterAnimationMode();
+                this._startPlaybackTimeBroadcast();
                 break;
             case 'pause':
+                this._stopPlaybackTimeBroadcast();
                 state.pause();
                 this._curEditTime = state.current;
                 this._playState = 'pause';
@@ -451,6 +455,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 state.resume();
                 this._playState = 'playing';
                 Service.Engine.enterAnimationMode();
+                this._startPlaybackTimeBroadcast();
                 break;
             case 'stop':
                 await this._stopCurrent();
@@ -852,6 +857,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private async _stopCurrent(): Promise<void> {
+        this._stopPlaybackTimeBroadcast();
         if (!this._session) {
             return;
         }
@@ -987,6 +993,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private _disposeSession(): void {
+        this._stopPlaybackTimeBroadcast();
         this._clearAnimationStates();
         Service.Engine.exitAnimationMode();
         this._session = null;
@@ -1130,6 +1137,43 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             time: this._curEditTime,
             playState: this._playState,
         });
+    }
+
+    private _startPlaybackTimeBroadcast(): void {
+        this._stopPlaybackTimeBroadcast();
+        this._lastPlaybackBroadcastTime = Number.NaN;
+        this._playbackTimeBroadcastTimer = setInterval(() => {
+            this._broadcastPlaybackTimeTick();
+        }, 100);
+    }
+
+    private _stopPlaybackTimeBroadcast(): void {
+        if (this._playbackTimeBroadcastTimer) {
+            clearInterval(this._playbackTimeBroadcastTimer);
+            this._playbackTimeBroadcastTimer = null;
+        }
+    }
+
+    private _broadcastPlaybackTimeTick(): void {
+        if (!this._session || this._playState !== 'playing') {
+            this._stopPlaybackTimeBroadcast();
+            return;
+        }
+        const state = this._animationStateMap.get(this._session.clipUuid);
+        const time = state?.current;
+        if (!state?.isPlaying || state.isPaused) {
+            this._stopPlaybackTimeBroadcast();
+            return;
+        }
+        if (typeof time !== 'number' || !Number.isFinite(time)) {
+            return;
+        }
+        if (Math.abs(time - this._lastPlaybackBroadcastTime) < 0.001) {
+            return;
+        }
+        this._curEditTime = time;
+        this._lastPlaybackBroadcastTime = time;
+        this._broadcastTimeChanged('play-state');
     }
 
     private _broadcastClipChanged(reason: AnimationEventReason): void {

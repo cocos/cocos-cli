@@ -282,6 +282,24 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
+    it('play 广播运行态 animation:time-changed 供 UI 同步播放指针', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await request('setTime', [{ time: 0 }]);
+        const eventPromise = utils.once<Record<'animation:time-changed', any>>(sceneWorker, 'animation:time-changed', 5000);
+
+        await request('changePlayState', [{ operate: 'play' }]);
+        const event = await eventPromise;
+        await request('changePlayState', [{ operate: 'stop' }]);
+
+        expect(event).toMatchObject({
+            reason: 'play-state',
+            rootPath: nodePath,
+            clipUuid,
+            playState: 'playing',
+        });
+        expect(event.time).toBeGreaterThan(0);
+    });
+
     it('applyOperation 在真实 AnimationClip 上应用基础普通 clip 操作', async () => {
         const eventPromise = utils.once<Record<'animation:clip-changed', any>>(sceneWorker, 'animation:clip-changed');
         const result = await request('applyOperation', [{
