@@ -881,6 +881,35 @@ describe('Animation Service 场景进程测试', () => {
         ]);
     });
 
+    it('removePropertyKeys 清空关键帧时保留属性轨道，removePropertyCurve 才移除轨道', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+
+        const clearResult = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale' },
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale', frame: 0, value: { x: 1, y: 1, z: 1 } },
+                { type: 'removePropertyKeys', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale', frames: [0] },
+            ],
+        }]);
+        const afterClear = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        const scaleCurveAfterClear = afterClear.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
+
+        expect(clearResult).toEqual({ state: 'success', result: true });
+        expect(scaleCurveAfterClear).toBeDefined();
+        expect(scaleCurveAfterClear.keyframes).toEqual([]);
+        expect(scaleCurveAfterClear.channels.every((channel: any) => channel.keyframes.length === 0)).toBe(true);
+
+        const removeResult = await request('applyOperation', [{
+            operations: [
+                { type: 'removePropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale' },
+            ],
+        }]);
+        const afterRemove = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+
+        expect(removeResult).toEqual({ state: 'success', result: true });
+        expect(afterRemove.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale')).toBeUndefined();
+    });
+
     it('applyOperation 创建普通属性 key 时 value 可省略并从当前场景采样', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await request('setTime', [{ time: 0 }]);

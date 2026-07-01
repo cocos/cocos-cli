@@ -104,6 +104,7 @@ function shouldSyncClipDuration(operation: IAnimationOperation): boolean {
         case 'copyAuxKey':
         case 'createPropertyKey':
         case 'updatePropertyKey':
+        case 'removePropertyCurve':
         case 'removePropertyKey':
         case 'removePropertyKeys':
         case 'movePropertyKeys':

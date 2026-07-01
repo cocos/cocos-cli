@@ -27,6 +27,7 @@ import {
     copyPropertyKeysTo,
     createPropertyKey,
     movePropertyKeys,
+    removePropertyCurve,
     removePropertyKey,
     removePropertyKeys,
     setPropertyCurveExtrapolation,
@@ -71,6 +72,7 @@ const SUPPORTED_CLIP_OPERATIONS = [
     'createPropertyKey',
     'updatePropertyKey',
     'updatePropertyKeyData',
+    'removePropertyCurve',
     'removePropertyKey',
     'removePropertyKeys',
     'movePropertyKeys',
@@ -167,6 +169,8 @@ export async function applyClipOperation(state: AnimationState, operation: IAnim
             return updatePropertyKey(clip, context, operation);
         case 'updatePropertyKeyData':
             return updatePropertyKeyData(clip, context, operation);
+        case 'removePropertyCurve':
+            return removePropertyCurve(clip, context, operation);
         case 'removePropertyKey':
             return removePropertyKey(clip, context, operation);
         case 'removePropertyKeys':

@@ -445,6 +445,7 @@ export type IAnimationOperation =
     | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
     | { type: 'updatePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
     | { type: 'updatePropertyKeyData'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
+    | { type: 'removePropertyCurve'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string }
     | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
     | { type: 'removePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
     | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number; channel?: string }

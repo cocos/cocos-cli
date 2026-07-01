@@ -29,7 +29,6 @@ import {
     parsePropertyTrack,
     queryFirstRealCurve,
     removeSupportedPropertyTracks,
-    removeTrackIfEmpty,
 } from './property-curve-track';
 import type {
     ICopyPropertyKeysOperation,
@@ -179,7 +178,6 @@ export function removePropertyKey(
     for (const curve of queryTargetCurves(track, descriptor, operation.channel)) {
         changed = removeCurveKeys(clip, curve, frames) || changed;
     }
-    removeTrackIfEmpty(clip, track);
     return changed;
 }
 
@@ -189,6 +187,31 @@ export function removePropertyKeys(
     operation: IPropertyKeyFramesOperation,
 ): boolean {
     return removePropertyKey(clip, context, operation);
+}
+
+export function removePropertyCurve(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: IPropertyTarget,
+): boolean {
+    const target = resolvePropertyTarget(context, operation);
+    if (!target) {
+        return false;
+    }
+
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    if (!track) {
+        return false;
+    }
+
+    const tracks = getClipTracks(clip);
+    for (let index = tracks.length - 1; index >= 0; index--) {
+        if (clip.getTrack(index) === track) {
+            clip.removeTrack(index);
+            return true;
+        }
+    }
+    return false;
 }
 
 export function movePropertyKeys(
