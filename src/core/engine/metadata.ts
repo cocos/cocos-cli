@@ -78,6 +78,11 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.physicsConfig.collisionMatrix.title',
                 description: 'i18n:configuration.engine.physicsConfig.collisionMatrix.description',
             },
+            'engine.physicsConfig.collisionGroups': {
+                type: 'array',
+                default: [],
+                title: 'i18n:configuration.engine.physicsConfig.collisionGroups.title',
+            },
             'engine.physicsConfig.defaultMaterial': {
                 type: 'string',
                 default: options.defaultConfig.physicsConfig.defaultMaterial,
