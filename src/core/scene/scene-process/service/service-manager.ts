@@ -18,6 +18,7 @@ const MESSAGE_ONLY_EVENTS = [
     'animation:state-changed',
     'animation:time-changed',
     'animation:clip-changed',
+    'animation:property-committed',
     'gizmo:coordinate-changed',
     'gizmo:pivot-changed',
     'gizmo:view-mode-changed',

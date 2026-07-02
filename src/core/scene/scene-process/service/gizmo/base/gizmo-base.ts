@@ -1,5 +1,9 @@
 import { Node, Component } from 'cc';
 
+type BroadcastService = {
+    broadcast?(event: string, ...args: unknown[]): void;
+};
+
 /**
  * 获取 Service（惰性访问，避免循环依赖）
  */
@@ -113,6 +117,7 @@ class GizmoBase<T extends Component = Component> {
         try {
             const svcEvents = getServiceEvents();
             svcEvents?.broadcast?.('gizmo:control-end', propPath);
+			this.broadcastAnimationPropertyCommitted(svc, propPath);
         } catch (e) {
             // not ready
         }
@@ -209,6 +214,25 @@ class GizmoBase<T extends Component = Component> {
             return '_components.' + compIdx + '.' + propName;
         }
         return null;
+    }
+
+    private broadcastAnimationPropertyCommitted(svc: BroadcastService | null, propPath: string | null): void {
+        if (!propPath) {
+            return;
+        }
+        const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+        const normalizedPropPath = propPath.replace(/^_components\b/, '__comps__');
+        for (const node of this.nodes) {
+            const nodePath = EditorExtends?.Node?.getNodePath?.(node);
+            if (!nodePath) {
+                continue;
+            }
+            svc?.broadcast?.('animation:property-committed', {
+                nodePath,
+                propPath: normalizedPropPath,
+                source: 'engine',
+            });
+        }
     }
 
     protected onComponentChanged(_node: Node) {

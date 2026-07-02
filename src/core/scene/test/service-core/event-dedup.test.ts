@@ -974,6 +974,13 @@ describe('场景事件契约测试', () => {
                 expect(count).toBe(1);
             });
 
+            it('onControlEnd 应提交动画属性 committed 事件', () => {
+                const body = extractMethodBody(source, /onControlEnd\(/);
+                expect(body.length).toBeGreaterThan(0);
+                const count = (body.match(/broadcastAnimationPropertyCommitted/g) || []).length;
+                expect(count).toBe(1);
+            });
+
             it('onControlBegin 不应同时 emit gizmo:control-begin', () => {
                 const body = extractMethodBody(source, /onControlBegin\(/);
                 expect(body).not.toMatch(/\.emit\(\s*['"]gizmo:control-begin['"]/);
@@ -982,6 +989,12 @@ describe('场景事件契约测试', () => {
             it('onControlEnd 不应同时 emit gizmo:control-end', () => {
                 const body = extractMethodBody(source, /onControlEnd\(/);
                 expect(body).not.toMatch(/\.emit\(\s*['"]gizmo:control-end['"]/);
+            });
+
+            it('broadcastAnimationPropertyCommitted 应 broadcast animation:property-committed 1 次', () => {
+                expect(source).toMatch(/broadcastAnimationPropertyCommitted\(/);
+                const count = (source.match(/broadcast\?\.\(['"]animation:property-committed['"]/g) || []).length;
+                expect(count).toBe(1);
             });
         });
 

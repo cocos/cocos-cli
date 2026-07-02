@@ -390,10 +390,17 @@ export interface IAnimationTimeChangedEvent extends IAnimationClipEvent {
     playState: AnimationPlayState;
 }
 
+export interface IAnimationPropertyCommittedEvent {
+    nodePath: string;
+    propPath: string;
+    source?: string;
+}
+
 export interface IAnimationEvents {
     'animation:state-changed': [event: IAnimationStateChangedEvent];
     'animation:time-changed': [event: IAnimationTimeChangedEvent];
     'animation:clip-changed': [event: IAnimationClipEvent];
+    'animation:property-committed': [event: IAnimationPropertyCommittedEvent];
 }
 
 /**
