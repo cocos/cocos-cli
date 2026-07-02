@@ -1,9 +1,9 @@
 import {
     Animation,
     AnimationClip,
-    AnimationState,
     Node,
 } from 'cc';
+import type { AnimationState } from 'cc';
 import {
     AnimationPlayState,
     AnimationEventReason,
@@ -29,7 +29,6 @@ import {
     NodeEventType,
 } from '../../common';
 import { BaseService, register, Service, ServiceEvents } from './core';
-import { Rpc } from '../rpc';
 import {
     animationClipSnapshotsEqual,
     captureAnimationClipSnapshot,
@@ -39,8 +38,9 @@ import {
 import { syncAnimationClipDuration } from './animation/clip-duration';
 import { applyClipOperation, validateAnimationOperation } from './animation/clip-operations';
 import { queryAuxiliaryCurveValueAtFrame } from './animation/auxiliary-curve';
-import { saveSkeletonAnimationMeta } from './animation/skeleton-meta';
 import { captureAnimationSampledState, restoreAnimationSampledState } from './animation/sampled-state';
+import { saveAnimationServiceClip } from './animation/service-save';
+import { AnimationStateRegistry } from './animation/state-registry';
 import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationSession } from './animation/types';
 import { clipUuid, getClipSample } from './animation/utils';
@@ -82,7 +82,10 @@ import {
 @register('Animation')
 export class AnimationService extends BaseService<Record<string, any>> implements IAnimationService {
     private _session: IAnimationSession | null = null;
-    private _animationStateMap = new Map<string, AnimationState>();
+    private readonly _animationStates = new AnimationStateRegistry(
+        () => this._getSessionRootNode(),
+        async (uuid) => resolveAnimationClip(await queryNodeAnimationData(this._getSessionRootNode(), uuid), uuid),
+    );
     private _curEditTime = 0;
     private _playState: AnimationPlayState = 'stop';
     private _playbackTimeBroadcastTimer: ReturnType<typeof setInterval> | null = null;
@@ -151,7 +154,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             }
         }
 
-        this._clearAnimationStates();
+        this._animationStates.clear();
         Service.Engine.exitAnimationMode();
 
         const shouldRestoreSelection = options.restoreSelection ?? session.restoreSelectionOnExit;
@@ -231,7 +234,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (this._session) {
             const uuid = options.clipUuid || this._session.clipUuid;
             const state = isCurrentAnimationSessionClipQuery(this._session, options, uuid, hasTarget)
-                ? this._animationStateMap.get(uuid)
+                ? this._animationStates.get(uuid)
                 : undefined;
             if (state) {
                 return createAnimationServiceClipDump(this._getSessionRootNode(), state.clip, state);
@@ -241,7 +244,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const { rootNode, clip } = await this._resolveClipForQuery(options);
         const uuid = clipUuid(clip);
         const state = this._session?.rootUuid === rootNode.uuid
-            ? this._animationStateMap.get(uuid)
+            ? this._animationStates.get(uuid)
             : undefined;
         return createAnimationServiceClipDump(rootNode, clip, state);
     }
@@ -260,7 +263,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (uuid === this._session.clipUuid) {
             return this._curEditTime;
         }
-        const state = this._animationStateMap.get(uuid);
+        const state = this._animationStates.get(uuid);
         return state?.current ?? this._curEditTime;
     }
 
@@ -485,8 +488,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (shouldSyncDuration) {
             syncAnimationClipDuration(state.clip);
         }
-        this._resetAnimationState(session.clipUuid);
-        this._createAnimationState(session.clipUuid, state.clip);
+        this._animationStates.reset(session.clipUuid);
+        this._animationStates.create(session.clipUuid, state.clip);
         await this.setTime({ time: this._curEditTime });
         const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip, propertyMetadataContext) : null;
         if (before && after && !animationClipSnapshotsEqual(before, after)) {
@@ -507,22 +510,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async save(): Promise<boolean> {
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
-        if (isSkeletonClip(session.clipUuid, this._getSessionRootNode())) {
-            await saveSkeletonAnimationMeta(session.clipUuid, state.clip);
-            return true;
-        }
-
-        const content = EditorExtends.serialize(state.clip);
-        const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [session.clipUuid]);
-        if (assetInfo) {
-            await Rpc.getInstance().request('assetManager', 'saveAsset', [assetInfo.uuid, content]);
-        } else {
-            await Rpc.getInstance().request('assetManager', 'createAsset', [{
-                target: `db://assets/${state.clip.name}.anim`,
-                content,
-            }]);
-        }
-        return true;
+        return saveAnimationServiceClip({
+            session,
+            rootNode: this._getSessionRootNode(),
+            clip: state.clip,
+        });
     }
 
     onAssetDeleted(uuid: string): void {
@@ -561,13 +553,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
     private async _getAnimationState(uuid: string): Promise<AnimationState> {
         requireAnimationSession(this._session);
-        const existed = this._animationStateMap.get(uuid);
-        if (existed) {
-            return existed;
-        }
-
-        const clip = resolveAnimationClip(await queryNodeAnimationData(this._getSessionRootNode(), uuid), uuid);
-        return this._createAnimationState(uuid, clip);
+        return this._animationStates.getOrCreate(uuid);
     }
 
     private async _stopCurrent(): Promise<void> {
@@ -575,7 +561,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session) {
             return;
         }
-        const state = this._animationStateMap.get(this._session.clipUuid);
+        const state = this._animationStates.get(this._session.clipUuid);
         if (state) {
             state.setTime(0);
             if (!state.isPaused) {
@@ -589,30 +575,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         Service.Engine.exitAnimationMode();
     }
 
-    private _clearAnimationStates(): void {
-        for (const state of this._animationStateMap.values()) {
-            try {
-                state.destroy();
-            } catch (e) {
-                console.warn('[Animation] destroy animation state failed:', e);
-            }
-        }
-        this._animationStateMap.clear();
-    }
-
-    private _resetAnimationState(uuid: string): void {
-        const state = this._animationStateMap.get(uuid);
-        if (!state) {
-            return;
-        }
-        try {
-            state.destroy();
-        } catch (e) {
-            console.warn('[Animation] destroy animation state failed:', e);
-        }
-        this._animationStateMap.delete(uuid);
-    }
-
     private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, rootNode: Node): Promise<void> {
         try {
             await restoreAnimationClipSnapshot(clip, snapshot);
@@ -620,7 +582,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             console.error('[Animation] restore failed operation snapshot failed:', error);
             throw error;
         }
-        const state = this._animationStateMap.get(clipUuid(clip));
+        const state = this._animationStates.get(clipUuid(clip));
         if (state) {
             (state as any)._curveLoaded = false;
             state.initialize(rootNode);
@@ -636,19 +598,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const clip = state.clip;
-        this._resetAnimationState(uuid);
+        this._animationStates.reset(uuid);
         await restoreAnimationClipSnapshot(clip, snapshot);
-        this._createAnimationState(uuid, clip);
+        this._animationStates.create(uuid, clip);
         await this.setTime({ time: this._curEditTime });
         this._broadcastClipChanged('undo-redo');
-    }
-
-    private _createAnimationState(uuid: string, clip: AnimationClip): AnimationState {
-        const state = new AnimationState(clip);
-        (state as any)._curveLoaded = false;
-        state.initialize(this._getSessionRootNode());
-        this._animationStateMap.set(uuid, state);
-        return state;
     }
 
     private async _refreshCurrentClipAsset(uuid: string): Promise<void> {
@@ -663,15 +617,15 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (clip && animComp instanceof Animation) {
             rebindAnimationComponentClip(animComp, clip);
         }
-        this._resetAnimationState(uuid);
-        const state = await this._getAnimationState(uuid);
+        this._animationStates.reset(uuid);
+        await this._getAnimationState(uuid);
         await this.setTime({ time });
         this._broadcastClipChanged('asset-refresh');
     }
 
     private _disposeSession(): void {
         this._stopPlaybackTimeBroadcast();
-        this._clearAnimationStates();
+        this._animationStates.clear();
         Service.Engine.exitAnimationMode();
         this._session = null;
         this._curEditTime = 0;
@@ -731,7 +685,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             this._stopPlaybackTimeBroadcast();
             return;
         }
-        const state = this._animationStateMap.get(this._session.clipUuid);
+        const state = this._animationStates.get(this._session.clipUuid);
         const time = state?.current;
         if (!state || state.isPaused) {
             this._stopPlaybackTimeBroadcast();
