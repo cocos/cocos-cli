@@ -273,7 +273,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session) {
             return 0;
         }
-        const state = this._animationStateMap.get(options.clipUuid || this._session.clipUuid);
+        const uuid = options.clipUuid || this._session.clipUuid;
+        if (uuid === this._session.clipUuid) {
+            return this._curEditTime;
+        }
+        const state = this._animationStateMap.get(uuid);
         return state?.current ?? this._curEditTime;
     }
 
@@ -325,15 +329,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const session = this._requireSession();
         const state = await this._getAnimationState(session.clipUuid);
         let playTime = options.time;
-        if (playTime > state.duration) {
-            playTime = state.duration;
-        }
         if (playTime < 0) {
             playTime = 0;
         }
 
         if (((state.clip.wrapMode & AnimationClip.WrapMode.Reverse) === AnimationClip.WrapMode.Reverse)) {
-            playTime = state.duration - playTime;
+            playTime = state.duration - Math.min(playTime, state.duration);
         }
 
         state.weight = 1;

@@ -312,6 +312,19 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
+    it('setTime 在编辑态允许移动到短 clip 当前 duration 之外', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+
+        const before = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        await request('setTime', [{ time: 0.5 }]);
+        const state = await request('queryState');
+        const time = await request<number>('queryTime', [{ clipUuid: emptyClipUuid }]);
+
+        expect(before.duration).toBe(0);
+        expect(state.time).toBe(0.5);
+        expect(time).toBe(0.5);
+    });
+
     it('changePlayState 广播 animation:state-changed 供 UI 订阅', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         const eventPromise = utils.once<Record<'animation:state-changed', any>>(sceneWorker, 'animation:state-changed');
