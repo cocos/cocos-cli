@@ -89,17 +89,22 @@ describe('AnimationService enter', () => {
     });
 
     it('waits for animation state initialization before sampling time zero', async () => {
+        const { Animation } = require('cc');
         const service = new AnimationService() as any;
-        const rootNode = { uuid: 'root-uuid', name: 'AnimatedRoot', components: [], children: [] };
         const clip = { _uuid: 'clip-uuid', name: 'Idle' };
+        const animComp = new Animation();
+        animComp.clips = [clip];
+        animComp.defaultClip = clip;
+        const rootNode = {
+            uuid: 'root-uuid',
+            name: 'AnimatedRoot',
+            components: [animComp],
+            children: [],
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
         let resolveState!: () => void;
 
-        service._assertEditorOpened = jest.fn();
-        service._resolveNode = jest.fn(() => rootNode);
-        service._queryAnimationRootNode = jest.fn(() => rootNode);
-        service._queryNodeAnimationData = jest.fn(async () => ({ clips: [clip], defaultClip: clip, node: rootNode, animComp: {} }));
-        service._resolveClip = jest.fn(() => clip);
-        service._getNodePath = jest.fn(() => 'Canvas/AnimatedRoot');
+        (globalThis as any).EditorExtends.Node.getNodeByPath.mockReturnValueOnce(rootNode);
         service._getAnimationState = jest.fn(() => new Promise<void>((resolve) => {
             resolveState = resolve;
         }));
@@ -141,19 +146,23 @@ describe('AnimationService enter', () => {
         expect(service._getAnimationState).not.toHaveBeenCalled();
     });
 
-    it('resolves animation state without recovering clip bindings', async () => {
+    it('does not recover clip bindings while resolving animation state', async () => {
+        const { Animation, assetManager } = require('cc');
         const service = new AnimationService() as any;
-        const rootNode = { uuid: 'root-uuid' };
-        const clip = { _uuid: 'clip-uuid', name: 'Idle' };
+        const animComp = new Animation();
+        animComp.clips = [];
+        animComp.defaultClip = null;
+        const rootNode = {
+            uuid: 'root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
 
-        service._session = { clipUuid: 'clip-uuid', rootUuid: 'root-uuid' };
+        service._session = { clipUuid: 'clip-uuid', rootUuid: 'root-uuid', rootPath: 'Canvas/AnimatedRoot' };
         service._getSessionRootNode = jest.fn(() => rootNode);
-        service._queryNodeAnimationData = jest.fn(async () => ({ clips: [clip], defaultClip: clip, node: rootNode, animComp: {} }));
-        service._resolveClip = jest.fn(() => clip);
 
-        await service._getAnimationState('clip-uuid');
+        await expect(service._getAnimationState('clip-uuid')).rejects.toThrow('Animation clips not found');
 
-        expect(service._queryNodeAnimationData).toHaveBeenCalledWith(rootNode, 'clip-uuid');
+        expect(assetManager.loadAny).not.toHaveBeenCalled();
     });
 
     it('returns empty clip info for animation roots without clips', async () => {
