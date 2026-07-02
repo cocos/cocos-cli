@@ -646,11 +646,11 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('does nothing when no build template is registered for the platform', async () => {
-        const debug = jest.spyOn(console, 'debug').mockImplementation();
+        const error = jest.spyOn(console, 'error').mockImplementation();
         await pm.createBuildTemplate('test');
 
-        expect(debug).toHaveBeenCalledWith('no build template for test');
+        expect(error).toHaveBeenCalledWith('no build template for test');
         expect(existsSync((builderConfig as any).buildTemplateDir)).toBe(false);
-        debug.mockRestore();
+        error.mockRestore();
     });
 });
