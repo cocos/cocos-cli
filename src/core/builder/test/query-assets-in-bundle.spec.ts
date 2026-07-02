@@ -148,6 +148,7 @@ describe('BuildAssetLibrary.queryAssetsInBundle', () => {
         asset._assetDB = {
             options: {
                 name: 'assets',
+                temp: 'project-temp/asset-db/assets',
             },
         };
         mockQueryAsset.mockReturnValue(asset);

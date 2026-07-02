@@ -3,6 +3,7 @@
  */
 
 import { basename, isAbsolute, join } from 'path';
+import { pathExists, readJSON } from 'fs-extra';
 import { BundleCompressionTypes } from './bundle-utils';
 import { NATIVE_PLATFORM } from './platforms-options';
 import { IBuildSceneItem, IBuildTaskItemJSON, IBuildTaskOption } from '../@types';
@@ -466,14 +467,56 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
 }
 
+function getSelectedIncludeModulesFromEngineConfig(engineConfig: Record<string, any> | undefined): string[] | undefined {
+    if (!engineConfig || typeof engineConfig !== 'object') {
+        return undefined;
+    }
+
+    if (Array.isArray(engineConfig.includeModules) && engineConfig.includeModules.length) {
+        return [...engineConfig.includeModules];
+    }
+
+    const configs = engineConfig.configs || engineConfig.modules?.configs;
+    if (!configs || typeof configs !== 'object') {
+        return undefined;
+    }
+
+    const globalConfigKey = engineConfig.globalConfigKey || engineConfig.modules?.globalConfigKey || Object.keys(configs)[0];
+    const includeModules = globalConfigKey ? configs[globalConfigKey]?.includeModules : undefined;
+    return Array.isArray(includeModules) && includeModules.length ? [...includeModules] : undefined;
+}
+
+async function loadIncludeModulesFromCocosConfig(): Promise<string[] | undefined> {
+    const configPath = join(builderConfig.projectRoot, 'cocos.config.json');
+    console.log(`[Build] 尝试从 cocos.config.json 中加载引擎配置: ${configPath}`);
+    if (!(await pathExists(configPath))) {
+        return undefined;
+    }
+
+    try {
+        const config = await readJSON(configPath);
+        return getSelectedIncludeModulesFromEngineConfig(config?.engine);
+    } catch (error) {
+        console.warn(`[Build] 加载 cocos.config.json 中的引擎配置失败，将尝试旧配置: ${error}`);
+        return undefined;
+    }
+}
+
 /**
  * 从项目配置中补充 includeModules
- * 使用 CocosConfigLoader 加载 settings/v2/packages/engine.json 中的配置
+ * 优先使用项目根目录 cocos.config.json 中的 engine 配置；不存在时回退到 settings/v2/packages/engine.json
  * @param options 构建选项
  */
 export async function fillIncludeModulesFromProjectConfig(options: IInternalBuildOptions | IInternalBundleBuildOptions | IBuildTaskOption): Promise<void> {
     if (!options.includeModules || !options.includeModules.length) {
         try {
+            const includeModules = await loadIncludeModulesFromCocosConfig();
+            if (includeModules?.length) {
+                console.log(`[Build] 从 cocos.config.json 中补充 includeModules: ${JSON.stringify(includeModules)}`);
+                options.includeModules = includeModules;
+                return;
+            }
+
             const projectPath = builderConfig.projectRoot;
             const configLoader = new CocosConfigLoader();
             configLoader.initialize(projectPath);
