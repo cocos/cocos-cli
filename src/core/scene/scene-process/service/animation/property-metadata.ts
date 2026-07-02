@@ -2,6 +2,7 @@ import { CCClass, Component, Node, js } from 'cc';
 import type {
     IAnimationPropertyInfo,
 } from '../../../common';
+import { getConstructor, getTypeName } from '../dump/utils';
 import type { IAnimationPropertyMetadata } from './property-curve';
 
 export function queryComponentAnimableProperties(component: Component): IAnimationPropertyInfo[] {
@@ -64,46 +65,20 @@ function queryAnimablePropertyType(component: Record<string, unknown>, prop: str
 }
 
 function queryAnimablePropertyTypeFromAttr(component: Record<string, unknown>, prop: string, attr: any): string {
-    const ctorType = queryAttrCtorType(attr);
-    if (ctorType) {
-        return ctorType;
-    }
-    const type = attr.type;
-    if (typeof type === 'string') {
-        return type;
-    }
-    if (type instanceof (CCClass.Attr as any).PrimitiveType) {
-        return type.name;
-    }
-    if (typeof type === 'function') {
-        return js.getClassName(type);
-    }
     const value = component[prop];
-    if (typeof value === 'number') {
-        return 'cc.Number';
+    if (!attr.ctor && attr.type) {
+        return normalizeAttrType(attr.type);
     }
-    if (typeof value === 'boolean') {
-        return 'cc.Boolean';
-    }
-    if (typeof value === 'string') {
-        return 'cc.String';
-    }
-    if (value && typeof value === 'object') {
-        return queryAnimableObjectPropertyType(value);
-    }
-    return '';
-}
 
-function queryAnimableObjectPropertyType(value: object): string {
-    if (value instanceof Node || value instanceof Component || Array.isArray(value)) {
+    const ctor = getConstructor(value, attr);
+    if (isNodeOrComponentCtor(ctor)) {
         return '';
     }
-    const ctor = (value as { constructor?: Function }).constructor;
-    if (!ctor || ctor === Object) {
+    const type = getTypeName(ctor);
+    if (!type || type === 'Object' || type === 'Unknown') {
         return '';
     }
-    const type = js.getClassName(ctor);
-    return type && type !== 'Object' ? type : '';
+    return normalizePrimitiveTypeName(type);
 }
 
 function isAnimablePropertyAttr(attr: any): boolean {
@@ -123,13 +98,29 @@ function queryPropertyAttr(component: Record<string, unknown>, prop: string): an
     return CCClass.attr(component as any, prop) || CCClass.attr((component as any).constructor, prop);
 }
 
-function queryAttrCtorType(attr: any): string {
-    const ctor = attr?.ctor;
-    if (typeof ctor !== 'function') {
-        return '';
+function normalizeAttrType(type: unknown): string {
+    if (type instanceof (CCClass.Attr as any).PrimitiveType) {
+        return normalizePrimitiveTypeName((type as { name: string }).name);
     }
-    const type = js.getClassName(ctor);
-    return type && type !== 'Object' ? type : '';
+    if (typeof type === 'function') {
+        return getTypeName(type);
+    }
+    return normalizePrimitiveTypeName(String(type || ''));
+}
+
+function normalizePrimitiveTypeName(type: string): string {
+    switch (type) {
+        case 'Number':
+        case 'Float':
+        case 'Integer':
+            return 'cc.Number';
+        case 'Boolean':
+            return 'cc.Boolean';
+        case 'String':
+            return 'cc.String';
+        default:
+            return type;
+    }
 }
 
 function isNodeOrComponentCtor(ctor: unknown): boolean {

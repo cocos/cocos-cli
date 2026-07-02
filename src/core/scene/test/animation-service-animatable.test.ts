@@ -50,6 +50,7 @@ describe('AnimationService animatable property metadata', () => {
     beforeEach(() => {
         jest.resetModules();
         mockAttr.mockReset();
+        (global as any).cc = require('cc');
         (global as any).EditorExtends = {
             Node: {},
         };
