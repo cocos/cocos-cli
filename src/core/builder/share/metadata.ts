@@ -1,4 +1,3 @@
-import lodash from 'lodash';
 import type { IBuildCacheUseConfig } from '../@types';
 import type { BuildConfiguration } from '../@types/config-export';
 import type { ICocosConfigurationNode, IConfigurationItem } from '../../configuration/script/metadata';
@@ -167,19 +166,7 @@ function createBuilderPlatformNode(
     };
 
     for (const [pkgName, config] of Object.entries(configs)) {
-        const mergedCommonOptions = lodash.defaultsDeep(
-            {},
-            source.commonOptionConfig[platform] ?? {},
-            source.commonOptionConfigs
-        ) as Record<string, IConfigurationItem>;
-
         const packageProperties: Record<string, ReturnType<typeof convertConfigItem>> = {};
-        for (const [key, item] of Object.entries(mergedCommonOptions)) {
-            if (hasConfigItemShape(item)) {
-                packageProperties[key] = convertConfigItem(item, key);
-            }
-        }
-
         for (const [key, item] of Object.entries(config.options ?? {})) {
             if (hasConfigItemShape(item)) {
                 packageProperties[key] = convertConfigItem(item, key);

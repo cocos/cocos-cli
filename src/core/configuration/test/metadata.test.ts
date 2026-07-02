@@ -166,7 +166,20 @@ describe('configuration metadata', () => {
         await runtime.pluginManager.register('web-mobile');
 
         const afterPlatformRegister = await runtime.getMetadata();
-        expect(findNode(afterPlatformRegister, 'builder.platforms.web-mobile')).toBeDefined();
+        const webMobileNode = findNode(afterPlatformRegister, 'builder.platforms.web-mobile');
+        const packageProperty = findProperty(webMobileNode, 'builder.platforms.web-mobile.packages.web-mobile');
+
+        expect(webMobileNode).toBeDefined();
+        expect(packageProperty.properties?.useWebGPU).toBeDefined();
+        expect(packageProperty.properties?.orientation).toBeDefined();
+        expect(packageProperty.properties?.embedWebDebugger).toBeDefined();
+        expect(packageProperty.properties?.platform).toBeUndefined();
+        expect(packageProperty.properties?.name).toBeUndefined();
+        expect(packageProperty.properties?.startScene).toBeUndefined();
+        expect(packageProperty.properties?.mainBundleCompressionType).toBeUndefined();
+        expect(packageProperty.properties?.polyfills).toBeUndefined();
+        expect(packageProperty.properties?.nativeCodeBundleMode).toBeUndefined();
+        expect(packageProperty.properties?.overwriteProjectSettings).toBeUndefined();
     });
 
     it('should expose import and script metadata only after those modules register themselves', async () => {
