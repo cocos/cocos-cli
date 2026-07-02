@@ -116,7 +116,14 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
     return descriptor ? { nodePath, descriptor } : null;
 }
 
-export function createPropertyDescriptor(propKey: string, value?: IAnimationValue, trackKind?: PropertyKind, track?: AnyTrack): IPropertyTrackDescriptor | null {
+export function createPropertyDescriptor(
+    propKey: string,
+    value?: IAnimationValue,
+    trackKind?: PropertyKind,
+    track?: AnyTrack,
+    propertyType?: IAnimationPropertyType,
+    valueCtor?: new () => unknown,
+): IPropertyTrackDescriptor | null {
     const propertyKey = String(propKey || '');
     const known = NODE_PROPERTY_DESCRIPTORS[propertyKey];
     if (known) {
@@ -126,11 +133,10 @@ export function createPropertyDescriptor(propKey: string, value?: IAnimationValu
             propName: propertyKey,
         };
     }
-
     const componentProperty = splitComponentPropertyKey(propertyKey);
     const propName = componentProperty?.propName || propertyKey;
     const comp = componentProperty?.comp;
-    const kind = trackKind || inferPropertyKind(value);
+    const kind = trackKind || (propertyType ? inferPropertyKindFromType(propertyType.value) : undefined) || inferPropertyKind(value);
     if (!kind) {
         return null;
     }
@@ -141,11 +147,12 @@ export function createPropertyDescriptor(propKey: string, value?: IAnimationValu
         propName,
         comp,
         kind,
-        type: queryPropertyType(kind, value, partKeys),
+        type: propertyType || queryPropertyType(kind, value, partKeys),
         displayName: propertyKey,
         menuName: propertyKey,
         isCurveSupport: kind !== 'object' && kind !== 'quat',
         partKeys,
+        valueCtor,
     };
 }
 
@@ -315,6 +322,8 @@ function inferPropertyKindFromType(type: string): PropertyKind | undefined {
         case 'cc.Number':
         case 'number':
         case 'Number':
+        case 'Float':
+        case 'Integer':
             return 'real';
         case 'cc.Quat':
             return 'quat';
@@ -332,6 +341,9 @@ function inferPropertyKindFromType(type: string): PropertyKind | undefined {
         case 'String':
             return 'object';
         default:
+            if (type && type !== 'Object' && type !== 'Unknown') {
+                return 'object';
+            }
             return undefined;
     }
 }

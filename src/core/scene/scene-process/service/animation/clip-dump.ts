@@ -2,13 +2,13 @@ import type { AnimationClip, AnimationState } from 'cc';
 import type { IAnimationClipDump } from '../../../common';
 import { dumpAuxiliaryCurves } from './auxiliary-curve';
 import { dumpEmbeddedPlayers, queryEmbeddedPlayerGroups } from './embedded-player';
-import { dumpPropertyCurves } from './property-curve';
+import { dumpPropertyCurves, type IPropertyCurveMetadataContext } from './property-curve';
 import { cloneValue, getClipSample } from './utils';
 
 export function createClipDump(clip: AnimationClip, state: AnimationState | undefined, options: {
     isSkeleton: boolean;
     useBakedAnimation: boolean;
-}): IAnimationClipDump {
+} & IPropertyCurveMetadataContext): IAnimationClipDump {
     const sample = getClipSample(clip);
     const events = Array.isArray((clip as any).events) ? (clip as any).events : [];
     return {
@@ -17,7 +17,7 @@ export function createClipDump(clip: AnimationClip, state: AnimationState | unde
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
-        curves: dumpPropertyCurves(clip),
+        curves: dumpPropertyCurves(clip, options),
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',

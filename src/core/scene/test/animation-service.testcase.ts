@@ -4,6 +4,7 @@ import { sceneWorker } from '../main-process/scene-worker';
 import { Rpc } from '../main-process/rpc';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
+import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import * as utils from './utils';
 
@@ -85,6 +86,7 @@ describe('Animation Service 场景进程测试', () => {
     const keyDataClipName = `AnimationServiceKeyDataClip_${testRunId}`;
     const childClipName = `AnimationServiceChildClip_${testRunId}`;
     const rootEditClipName = `AnimationServiceRootEditClip_${testRunId}`;
+    const spriteFrameClipName = `AnimationServiceSpriteFrameClip_${testRunId}`;
     let nodePath = '';
     let childNodePath = '';
     let clipUuid = '';
@@ -97,6 +99,9 @@ describe('Animation Service 场景进程测试', () => {
     let childClipUuid = '';
     let rootEditNodePath = '';
     let rootEditClipUuid = '';
+    let spriteFrameNodePath = '';
+    let spriteFrameClipUuid = '';
+    let spriteFrameUuid = '';
 
     beforeAll(async () => {
         await EditorProxy.create({
@@ -138,6 +143,18 @@ describe('Animation Service 场景进程测试', () => {
             content: createAnimationClipContent({ sample: 60, duration: 0 }),
         });
         rootEditClipUuid = rootEditClipInfo.uuid;
+
+        const spriteFrameClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, spriteFrameClipName, {
+            overwrite: true,
+            content: createAnimationClipContent({ sample: 30, duration: 0 }),
+        });
+        spriteFrameClipUuid = spriteFrameClipInfo.uuid;
+
+        const spriteFrameAssets = await assetManager.queryAssetInfos({ pattern: 'db://internal/default_ui/default_editbox_bg.png/spriteFrame' });
+        if (spriteFrameAssets.length === 0 || !spriteFrameAssets[0].uuid) {
+            throw new Error('Failed to query internal SpriteFrame test asset.');
+        }
+        spriteFrameUuid = spriteFrameAssets[0].uuid;
 
         const createParams: ICreateByAssetParams = {
             dbURL: clipInfo.url,
@@ -204,6 +221,18 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create root keyframe editing animation node.');
         }
         rootEditNodePath = rootEditNode.path;
+
+        const spriteFrameNode = await NodeProxy.createByAsset({
+            dbURL: spriteFrameClipInfo.url,
+            path: '',
+            name: 'AnimationServiceSpriteFrameNode',
+            position: { x: 0, y: 0, z: 0 },
+        });
+        if (!spriteFrameNode) {
+            throw new Error('Failed to create sprite frame animation node.');
+        }
+        spriteFrameNodePath = spriteFrameNode.path;
+        await ComponentProxy.add({ nodePath: spriteFrameNodePath, component: 'cc.Sprite' });
 
         const childNode = await NodeProxy.createByType({
             path: nodePath,
@@ -851,6 +880,67 @@ describe('Animation Service 场景进程测试', () => {
                 { frame: 3, dump: { value: false, type: 'cc.Boolean' } },
             ],
         });
+    });
+
+    it('applyOperation 支持 cc.Sprite.spriteFrame 单帧 key 保存重进闭环', async () => {
+        await ensureAnimationSession(spriteFrameNodePath, spriteFrameClipUuid);
+
+        const properties = await request('queryProperties', [{ nodePath: spriteFrameNodePath }]);
+        const spriteFrameProperty = properties.find((item: any) => item.key === 'cc.Sprite.spriteFrame');
+        expect(spriteFrameProperty).toMatchObject({
+            key: 'cc.Sprite.spriteFrame',
+            comp: 'cc.Sprite',
+            type: { value: 'cc.SpriteFrame' },
+        });
+
+        const createResult = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.spriteFrame', value: { uuid: spriteFrameUuid } },
+                { type: 'createPropertyKey', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.spriteFrame', frame: 0, value: null },
+                { type: 'createPropertyKey', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.spriteFrame', frame: 30, value: { uuid: spriteFrameUuid } },
+            ],
+            recordUndo: false,
+        }]);
+        const afterCreate = await request('queryClip', [{ rootPath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid }]);
+        const spriteFrameCurve = afterCreate.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'cc.Sprite.spriteFrame');
+        const sampledStart = await request('queryPropertyValueAtFrame', [{
+            clipUuid: spriteFrameClipUuid,
+            nodePath: spriteFrameNodePath,
+            propKey: 'cc.Sprite.spriteFrame',
+            frame: 0,
+        }]);
+        const sampledEnd = await request('queryPropertyValueAtFrame', [{
+            clipUuid: spriteFrameClipUuid,
+            nodePath: spriteFrameNodePath,
+            propKey: 'cc.Sprite.spriteFrame',
+            frame: 30,
+        }]);
+
+        expect(createResult).toEqual({ state: 'success', result: true });
+        expect(Math.round(afterCreate.duration * afterCreate.sample)).toBe(31);
+        expect(spriteFrameCurve).toMatchObject({
+            type: { value: 'cc.SpriteFrame' },
+            isCurveSupport: false,
+            keyframes: [
+                { frame: 0, dump: { value: null, type: 'cc.SpriteFrame' } },
+                { frame: 30, dump: { value: { uuid: spriteFrameUuid }, type: 'cc.SpriteFrame' } },
+            ],
+        });
+        expect(sampledStart).toBeNull();
+        expect(sampledEnd).toMatchObject({ uuid: spriteFrameUuid });
+        expect(await request('save')).toBe(true);
+        const afterSave = await request('queryClip', [{ rootPath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid }]);
+        const savedCurve = afterSave.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'cc.Sprite.spriteFrame');
+
+        expect(savedCurve?.keyframes).toEqual(spriteFrameCurve.keyframes);
+
+        await request('exit', [{ restoreSelection: false, restoreSampledSceneState: false }]);
+        await request('enter', [{ rootPath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid }]);
+        const afterReenter = await request('queryClip', [{ rootPath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid }]);
+        const reenteredCurve = afterReenter.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'cc.Sprite.spriteFrame');
+
+        expect(Math.round(afterReenter.duration * afterReenter.sample)).toBe(31);
+        expect(reenteredCurve?.keyframes).toEqual(spriteFrameCurve.keyframes);
     });
 
     it('applyOperation 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {

@@ -1,4 +1,4 @@
-import type { AnimationClip } from 'cc';
+import { Asset, js, type AnimationClip } from 'cc';
 import type {
     IAnimationCurveChannelDump,
     IAnimationCurveDump,
@@ -70,7 +70,7 @@ export function dumpPropertyTrack(
         case 'object':
             return {
                 ...base,
-                keyframes: dumpObjectCurveKeyframes(clip, queryTrackChannels(track)[0].curve, descriptor.type.value),
+                keyframes: dumpObjectCurveKeyframes(clip, queryTrackChannels(track)[0].curve, descriptor),
             };
         default:
             return null;
@@ -110,7 +110,7 @@ export function restoreTrackKeyframes(
             assignQuatCurveKeyframes(queryTrackChannels(track)[0].curve, sample, keyframes);
             return true;
         case 'object':
-            assignObjectCurveKeyframes(queryTrackChannels(track)[0].curve, sample, keyframes);
+            assignObjectCurveKeyframes(queryTrackChannels(track)[0].curve, sample, keyframes, descriptor);
             return true;
         default:
             return false;
@@ -166,9 +166,14 @@ export function setTrackKey(
             setCurveKey(channels[0].curve, time, createQuatCurveValue(quatValue, keyData));
             return true;
         }
-        case 'object':
-            setCurveKey(channels[0].curve, time, cloneValue(value));
+        case 'object': {
+            const objectValue = normalizeObjectCurveValue(descriptor, value);
+            if (objectValue === undefined) {
+                return false;
+            }
+            setCurveKey(channels[0].curve, time, objectValue);
             return true;
+        }
         default:
             return false;
     }
@@ -229,7 +234,13 @@ export function updateTrackKey(
             if (value === undefined) {
                 return false;
             }
-            setCurveKey(channels[0].curve, time, cloneValue(value));
+            {
+                const objectValue = normalizeObjectCurveValue(descriptor, value);
+                if (objectValue === undefined) {
+                    return false;
+                }
+                setCurveKey(channels[0].curve, time, objectValue);
+            }
             return true;
         default:
             return false;
@@ -375,15 +386,15 @@ function dumpQuatCurveKeyframes(clip: AnimationClip, curve: AnyCurve): IAnimatio
         }));
 }
 
-function dumpObjectCurveKeyframes(clip: AnimationClip, curve: AnyCurve, type: string): IAnimationCurveKeyDump[] {
+function dumpObjectCurveKeyframes(clip: AnimationClip, curve: AnyCurve, descriptor: IPropertyTrackDescriptor): IAnimationCurveKeyDump[] {
     const sample = getClipSample(clip);
     return queryCurveKeyframes(curve)
         .sort(([leftTime], [rightTime]) => leftTime - rightTime)
         .map(([time, value]) => ({
             frame: timeToFrame(time, sample),
             dump: {
-                value: cloneValue(value) as IAnimationValue,
-                type,
+                value: dumpObjectCurveValue(value, descriptor),
+                type: descriptor.type.value,
             },
         }));
 }
@@ -408,10 +419,10 @@ function assignQuatCurveKeyframes(curve: AnyCurve, sample: number, keyframes: IA
     (curve as any).assignSorted(sorted);
 }
 
-function assignObjectCurveKeyframes(curve: AnyCurve, sample: number, keyframes: IAnimationCurveKeyDump[]): void {
+function assignObjectCurveKeyframes(curve: AnyCurve, sample: number, keyframes: IAnimationCurveKeyDump[], descriptor: IPropertyTrackDescriptor): void {
     const sorted = [...keyframes].sort((a, b) => a.frame - b.frame).map((keyframe) => [
         keyframe.frame / sample,
-        cloneValue(keyframe.dump.value),
+        normalizeObjectCurveValue({ ...descriptor, type: { value: keyframe.dump.type || descriptor.type.value } }, keyframe.dump.value),
     ]);
     (curve as any).assignSorted(sorted);
 }
@@ -422,6 +433,76 @@ function setCurveKey(curve: AnyCurve, time: number, value: unknown): void {
         .concat([[time, value] as [number, unknown]]);
     keyframes.sort((a, b) => a[0] - b[0]);
     (curve as any).assignSorted(keyframes);
+}
+
+function normalizeObjectCurveValue(descriptor: IPropertyTrackDescriptor, value: IAnimationValue): unknown {
+    const assetValue = normalizeAssetCurveValue(descriptor, value);
+    if (assetValue === INVALID_ASSET_VALUE) {
+        return undefined;
+    }
+    if (assetValue !== NOT_ASSET_TYPE) {
+        return assetValue;
+    }
+    return cloneValue(value);
+}
+
+function dumpObjectCurveValue(value: unknown, descriptor: IPropertyTrackDescriptor): IAnimationValue {
+    if (isAssetDescriptor(descriptor) || value instanceof Asset) {
+        if (value === null || value === undefined) {
+            return null;
+        }
+        const uuid = queryAssetUuid(value);
+        return uuid ? { uuid } : null;
+    }
+    return cloneValue(value) as IAnimationValue;
+}
+
+function queryAssetUuid(value: unknown): string {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
+    const record = value as Record<string, unknown>;
+    const uuid = record.uuid || record._uuid || record.__uuid__;
+    return typeof uuid === 'string' ? uuid : '';
+}
+
+const NOT_ASSET_TYPE = Symbol('notAssetType');
+const INVALID_ASSET_VALUE = Symbol('invalidAssetValue');
+
+function normalizeAssetCurveValue(descriptor: IPropertyTrackDescriptor, value: IAnimationValue): unknown | typeof NOT_ASSET_TYPE | typeof INVALID_ASSET_VALUE {
+    const assetCtor = queryAssetCtor(descriptor);
+    if (!assetCtor) {
+        return NOT_ASSET_TYPE;
+    }
+    if (value === null) {
+        return null;
+    }
+    if (value instanceof assetCtor) {
+        return value;
+    }
+    const uuid = queryAssetUuid(value);
+    if (!uuid) {
+        return INVALID_ASSET_VALUE;
+    }
+    return createAssetPlaceholder(assetCtor, uuid);
+}
+
+function isAssetDescriptor(descriptor: IPropertyTrackDescriptor): boolean {
+    return Boolean(queryAssetCtor(descriptor));
+}
+
+function queryAssetCtor(descriptor: IPropertyTrackDescriptor): (new () => Asset) | null {
+    const ctor = descriptor.valueCtor || js.getClassByName(descriptor.type.value);
+    if (typeof ctor !== 'function') {
+        return null;
+    }
+    return ctor === Asset || ctor.prototype instanceof Asset ? ctor as new () => Asset : null;
+}
+
+function createAssetPlaceholder(assetCtor: new () => Asset, uuid: string): Asset {
+    const asset = new assetCtor();
+    asset.initDefault(uuid);
+    return asset;
 }
 
 function updateRealCurveKey(curve: AnyCurve, time: number, value: number | undefined | null, keyData?: IAnimationCurveKeyData): boolean {

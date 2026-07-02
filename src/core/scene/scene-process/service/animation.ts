@@ -2,7 +2,6 @@ import {
     Animation,
     AnimationClip,
     AnimationState,
-    CCClass,
     Component,
     Node,
     Scene,
@@ -56,6 +55,9 @@ import { captureAnimationSampledState, restoreAnimationSampledState } from './an
 import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationData, IAnimationSession } from './animation/types';
 import { cloneValue, clipUuid, getClipSample } from './animation/utils';
+import type { IPropertyCurveMetadataContext } from './animation/property-curve';
+import { queryAnimationPropertyMetadata, queryComponentAnimableProperties } from './animation/property-metadata';
+import { normalizeProvidedAnimationPropertyOperationValue, serializeAnimationPropertyValue } from './animation/property-value';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -336,7 +338,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             if (!comp || comp instanceof Animation) {
                 continue;
             }
-            properties.push(...this._queryComponentAnimableProperties(comp));
+            properties.push(...queryComponentAnimableProperties(comp));
         }
 
         return properties;
@@ -380,7 +382,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             this._curEditTime = previousTime;
             await Service.Engine.repaintInEditMode();
         }
-        return cloneValue(value) as IAnimationValue;
+        return serializeAnimationPropertyValue(value);
     }
 
     async queryAuxiliaryCurveValueAtFrame(options: IAnimationQueryAuxiliaryCurveValueAtFrameOptions) {
@@ -495,8 +497,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const rootNode = this._getSessionRootNode();
         const state = await this._getAnimationState(session.clipUuid);
+        const propertyMetadataContext = this._createPropertyCurveMetadataContext(rootNode);
         const shouldRecordUndo = options.recordUndo !== false;
-        const before = captureAnimationClipSnapshot(state.clip);
+        const before = captureAnimationClipSnapshot(state.clip, propertyMetadataContext);
         let shouldSyncDuration = false;
         let shouldRestoreOnFailure = false;
         for (const inputOperation of options.operations) {
@@ -519,7 +522,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 return skeletonFailure;
             }
 
-            const normalized = await this._normalizeAnimationOperation(inputOperation, session.clipUuid);
+            const normalized = await this._normalizeAnimationOperation(inputOperation, session.clipUuid, rootNode, session.rootPath);
             if (isAnimationOperationResult(normalized)) {
                 if (shouldRestoreOnFailure) {
                     await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
@@ -539,7 +542,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             let result = false;
             shouldRestoreOnFailure = true;
             try {
-                result = await applyClipOperation(state, operation, { rootNode, rootPath: session.rootPath });
+                result = await applyClipOperation(state, operation, {
+                    rootNode,
+                    rootPath: session.rootPath,
+                    queryPropertyMetadata: propertyMetadataContext.queryPropertyMetadata,
+                });
             } catch (error) {
                 const normalizedError = error instanceof Error ? error : new Error(String(error));
                 await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
@@ -567,7 +574,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._resetAnimationState(session.clipUuid);
         this._createAnimationState(session.clipUuid, state.clip);
         await this.setTime({ time: this._curEditTime });
-        const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip) : null;
+        const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip, propertyMetadataContext) : null;
         if (before && after && !animationClipSnapshotsEqual(before, after)) {
             Service.Undo.push(new AnimationClipSnapshotCommand({
                 clipUuid: session.clipUuid,
@@ -583,7 +590,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         };
     }
 
-    private async _normalizeAnimationOperation(operation: IAnimationOperation, currentClipUuid: string): Promise<IAnimationOperation | IAnimationOperationResult> {
+    private async _normalizeAnimationOperation(
+        operation: IAnimationOperation,
+        currentClipUuid: string,
+        rootNode: Node,
+        rootPath: string,
+    ): Promise<IAnimationOperation | IAnimationOperationResult> {
         const type = (operation as any)?.type;
         if (type === 'updatePropertyKeyData') {
             const keyOperation = operation as Extract<IAnimationOperation, { type: 'updatePropertyKeyData' }>;
@@ -597,7 +609,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const keyOperation = operation as Extract<IAnimationOperation, { type: 'createPropertyKey' | 'updatePropertyKey' }>;
         const keyData = keyOperation.keyData ?? keyOperation.curveData;
         if (keyOperation.value !== undefined) {
-            return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
+            const value = await normalizeProvidedAnimationPropertyOperationValue(rootNode, rootPath, keyOperation, {
+                queryNodeByUuid: (uuid) => this._getNodeByUuid(uuid),
+                queryNodePath: (node) => this._getNodePath(node),
+            });
+            return { ...keyOperation, keyData, value };
         }
         if (keyOperation.type === 'updatePropertyKey' && keyData) {
             return {
@@ -843,7 +859,14 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return createClipDump(clip, state, {
             isSkeleton: this._isSkeletonClip(clipUuid(clip), rootNode),
             useBakedAnimation: this._isUsingBakedAnimation(rootNode),
+            queryPropertyMetadata: (nodePath, propKey) => queryAnimationPropertyMetadata(rootNode, nodePath, propKey),
         });
+    }
+
+    private _createPropertyCurveMetadataContext(rootNode: Node): IPropertyCurveMetadataContext {
+        return {
+            queryPropertyMetadata: (nodePath, propKey) => queryAnimationPropertyMetadata(rootNode, nodePath, propKey),
+        };
     }
 
     private async _getAnimationState(uuid: string): Promise<AnimationState> {
@@ -1000,77 +1023,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._session = null;
         this._curEditTime = 0;
         this._playState = 'stop';
-    }
-
-    private _queryComponentAnimableProperties(component: Component): IAnimationPropertyInfo[] {
-        const ctor = component.constructor as any;
-        const props = Array.isArray(ctor.__props__) ? ctor.__props__ as string[] : [];
-        const compName = js.getClassName(component);
-        const result: IAnimationPropertyInfo[] = [];
-        for (const prop of props) {
-            const type = this._queryAnimablePropertyType(ctor, component as any, prop);
-            if (!type) {
-                continue;
-            }
-            result.push(createPropertyInfo(prop, type, `${compName}.${prop}`, compName));
-        }
-        return result;
-    }
-
-    private _queryAnimablePropertyType(ctor: Function, component: Record<string, unknown>, prop: string): string {
-        if (prop === 'type' || prop === '__scriptAsset') {
-            return '';
-        }
-        const attr = CCClass.attr(ctor, prop);
-        if (!attr || attr.readonly || !this._isAnimablePropertyAttr(attr)) {
-            return '';
-        }
-        const type = attr.type;
-        if (typeof type === 'string') {
-            return type;
-        }
-        if (type instanceof (CCClass.Attr as any).PrimitiveType) {
-            return type.name;
-        }
-        if (typeof type === 'function') {
-            return js.getClassName(type);
-        }
-        const value = component[prop];
-        if (typeof value === 'number') {
-            return 'cc.Number';
-        }
-        if (typeof value === 'boolean') {
-            return 'cc.Boolean';
-        }
-        if (typeof value === 'string') {
-            return 'cc.String';
-        }
-        if (value && typeof value === 'object') {
-            return this._queryAnimableObjectPropertyType(value);
-        }
-        return '';
-    }
-
-    private _queryAnimableObjectPropertyType(value: object): string {
-        if (value instanceof Node || value instanceof Component || Array.isArray(value)) {
-            return '';
-        }
-        const ctor = (value as { constructor?: Function }).constructor;
-        if (!ctor || ctor === Object) {
-            return '';
-        }
-        const type = js.getClassName(ctor);
-        return type && type !== 'Object' ? type : '';
-    }
-
-    private _isAnimablePropertyAttr(attr: any): boolean {
-        if (attr.type === js.getClassName(Node)) {
-            return false;
-        }
-        if (attr.animatable !== undefined) {
-            return Boolean(attr.animatable);
-        }
-        return attr.visible === undefined ? true : Boolean(attr.visible);
     }
 
     private _readPropertyValue(node: Node, propKey: string): unknown {

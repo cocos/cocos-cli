@@ -25,6 +25,7 @@ export interface IPropertyTrackDescriptor {
     menuName: string;
     isCurveSupport: boolean;
     partKeys?: readonly string[];
+    valueCtor?: new () => unknown;
 }
 
 export interface ICreatePropertyKeyOperation extends IPropertyTarget {

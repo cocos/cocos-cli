@@ -57,7 +57,7 @@ describe('AnimationService animatable property metadata', () => {
 
     it('按旧编辑器规则过滤组件属性的 animatable、visible 和 cc.Node 类型', () => {
         const { Component } = require('cc');
-        const { AnimationService } = require('../scene-process/service/animation');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
 
         class TestComponent extends Component {
             visibleNumber = 1;
@@ -87,8 +87,7 @@ describe('AnimationService animatable property metadata', () => {
         };
         mockAttr.mockImplementation((_ctor: Function, prop: string) => attrs[prop]);
 
-        const service = new AnimationService();
-        const properties = (service as any)._queryComponentAnimableProperties(new TestComponent());
+        const properties = queryComponentAnimableProperties(new TestComponent());
         const keys = properties.map((property: any) => property.key);
 
         expect(keys).toEqual([
@@ -99,7 +98,7 @@ describe('AnimationService animatable property metadata', () => {
 
     it('从 accessor 当前值推导 UITransform 这类组件属性类型', () => {
         const { Component } = require('cc');
-        const { AnimationService } = require('../scene-process/service/animation');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
 
         class SizeValue { }
         class Vec2Value { }
@@ -119,12 +118,35 @@ describe('AnimationService animatable property metadata', () => {
         };
         mockAttr.mockImplementation((_ctor: Function, prop: string) => attrs[prop]);
 
-        const service = new AnimationService();
-        const properties = (service as any)._queryComponentAnimableProperties(new UITransform());
+        const properties = queryComponentAnimableProperties(new UITransform());
 
         expect(properties).toEqual(expect.arrayContaining([
             expect.objectContaining({ key: 'cc.UITransform.contentSize', type: { value: 'cc.Size' } }),
             expect.objectContaining({ key: 'cc.UITransform.anchorPoint', type: { value: 'cc.Vec2' } }),
+        ]));
+    });
+
+    it('从 attr.ctor 推导当前值为空的 asset 引用属性类型', () => {
+        const { Component } = require('cc');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
+
+        class SpriteFrame { }
+        (SpriteFrame as any).__className = 'cc.SpriteFrame';
+
+        class AssetRefComponent extends Component {
+            icon = null;
+        }
+        (AssetRefComponent as any).__className = 'cc.AssetRefComponent';
+        (AssetRefComponent as any).__props__ = ['icon'];
+
+        mockAttr.mockImplementation((_target: Function, prop: string) => prop === 'icon'
+            ? { type: 'Object', ctor: SpriteFrame, visible: true }
+            : undefined);
+
+        const properties = queryComponentAnimableProperties(new AssetRefComponent());
+
+        expect(properties).toEqual(expect.arrayContaining([
+            expect.objectContaining({ key: 'cc.AssetRefComponent.icon', type: { value: 'cc.SpriteFrame' } }),
         ]));
     });
 });

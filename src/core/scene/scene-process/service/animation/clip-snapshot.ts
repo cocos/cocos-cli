@@ -14,6 +14,7 @@ import {
     replaceEmbeddedPlayers,
 } from './embedded-player';
 import { dumpPropertyCurves, replacePropertyCurves } from './property-curve';
+import type { IPropertyCurveMetadataContext } from './property-curve';
 import {
     cloneValue,
     getClipSample,
@@ -33,7 +34,7 @@ export interface IAnimationClipSnapshot {
     auxiliaryCurves: Record<string, IAnimationAuxiliaryCurveDump>;
 }
 
-export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationClipSnapshot {
+export function captureAnimationClipSnapshot(clip: AnimationClip, options: IPropertyCurveMetadataContext = {}): IAnimationClipSnapshot {
     const sample = getClipSample(clip);
     const events = queryClipEvents(clip) || [];
     return {
@@ -41,7 +42,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip): IAnimationCli
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
-        curves: dumpPropertyCurves(clip, { includeDefaults: true }),
+        curves: dumpPropertyCurves(clip, { ...options, includeDefaults: true }),
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',

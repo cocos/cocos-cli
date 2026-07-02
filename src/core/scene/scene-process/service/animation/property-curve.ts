@@ -1,6 +1,7 @@
 import { AnimationClip, Node } from 'cc';
 import type {
     IAnimationCurveDump,
+    IAnimationPropertyType,
     IAnimationValue,
 } from '../../../common';
 import {
@@ -31,10 +32,13 @@ import {
     removeSupportedPropertyTracks,
 } from './property-curve-track';
 import type {
+    AnyTrack,
     ICopyPropertyKeysOperation,
     ICreatePropertyKeyOperation,
     IMovePropertyKeysOperation,
     IPropertyKeyFramesOperation,
+    IPropertyTrackDescriptor,
+    PropertyKind,
     IPropertyTarget,
     ISetPropertyCurveExtrapolationOperation,
     IUpdatePropertyKeyDataOperation,
@@ -45,12 +49,21 @@ interface IResolvedPropertyTarget {
     propKey: string;
 }
 
-export interface IPropertyCurveOperationContext {
+export interface IAnimationPropertyMetadata {
+    type: IAnimationPropertyType;
+    valueCtor?: new () => unknown;
+}
+
+export interface IPropertyCurveMetadataContext {
+    queryPropertyMetadata?: (nodePath: string, propKey: string) => IAnimationPropertyMetadata | null;
+}
+
+export interface IPropertyCurveOperationContext extends IPropertyCurveMetadataContext {
     rootNode: Node;
     rootPath: string;
 }
 
-export function dumpPropertyCurves(clip: AnimationClip, options: IDumpRealKeyDataOptions = {}): IAnimationCurveDump[] {
+export function dumpPropertyCurves(clip: AnimationClip, options: IDumpRealKeyDataOptions & IPropertyCurveMetadataContext = {}): IAnimationCurveDump[] {
     const curves: IAnimationCurveDump[] = [];
     for (const track of getClipTracks(clip)) {
         const parsed = parsePropertyTrack(track);
@@ -58,11 +71,12 @@ export function dumpPropertyCurves(clip: AnimationClip, options: IDumpRealKeyDat
             continue;
         }
 
-        const curveDump = dumpPropertyTrack(clip, track, parsed.descriptor, options);
+        const descriptor = applyPropertyMetadata(options, parsed.nodePath, parsed.descriptor, track);
+        const curveDump = dumpPropertyTrack(clip, track, descriptor, options);
         if (curveDump) {
             curves.push({
                 nodePath: parsed.nodePath,
-                key: parsed.descriptor.propKey,
+                key: descriptor.propKey,
                 ...curveDump,
             });
         }
@@ -83,8 +97,8 @@ export function createPropertyKey(
 
     const existedTrack = findPropertyTrack(clip, target.nodePath, target.propKey);
     const descriptor = existedTrack
-        ? parsePropertyTrack(existedTrack)?.descriptor
-        : createPropertyDescriptor(target.propKey, operation.value);
+        ? queryTrackDescriptor(context, existedTrack)
+        : createDescriptor(context, target, operation.value);
     if (!descriptor) {
         return false;
     }
@@ -108,7 +122,7 @@ export function addPropertyCurve(
         return true;
     }
 
-    const descriptor = createPropertyDescriptor(target.propKey, operation.value);
+    const descriptor = createDescriptor(context, target, operation.value);
     if (!descriptor) {
         return false;
     }
@@ -129,7 +143,7 @@ export function updatePropertyKey(
     }
 
     const track = findPropertyTrack(clip, target.nodePath, target.propKey);
-    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (track && descriptor) {
         return updateTrackKey(track, descriptor, frame / getClipSample(clip), operation.value, operation.channel, operation.keyData ?? operation.curveData);
     }
@@ -149,7 +163,7 @@ export function updatePropertyKeyData(
     }
 
     const track = findPropertyTrack(clip, target.nodePath, target.propKey);
-    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
     }
@@ -169,7 +183,7 @@ export function removePropertyKey(
     }
 
     const track = findPropertyTrack(clip, target.nodePath, target.propKey);
-    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
     }
@@ -227,7 +241,7 @@ export function movePropertyKeys(
     }
 
     const track = findPropertyTrack(clip, target.nodePath, target.propKey);
-    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
     }
@@ -252,7 +266,7 @@ export function copyPropertyKeysTo(
     }
 
     const track = findPropertyTrack(clip, target.nodePath, target.propKey);
-    const descriptor = track ? parsePropertyTrack(track)?.descriptor : null;
+    const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
     }
@@ -317,6 +331,39 @@ function resolvePropertyTarget(context: IPropertyCurveOperationContext, operatio
     return {
         nodePath,
         propKey: operation.propKey,
+    };
+}
+
+function createDescriptor(
+    context: IPropertyCurveOperationContext,
+    target: IResolvedPropertyTarget,
+    value?: IAnimationValue,
+    trackKind?: PropertyKind,
+    track?: AnyTrack,
+): IPropertyTrackDescriptor | null {
+    const metadata = context.queryPropertyMetadata?.(target.nodePath, target.propKey) || undefined;
+    return createPropertyDescriptor(target.propKey, value, trackKind, track, metadata?.type, metadata?.valueCtor);
+}
+
+function queryTrackDescriptor(context: IPropertyCurveMetadataContext, track: AnyTrack): IPropertyTrackDescriptor | null {
+    const parsed = parsePropertyTrack(track);
+    return parsed ? applyPropertyMetadata(context, parsed.nodePath, parsed.descriptor, track) : null;
+}
+
+function applyPropertyMetadata(
+    context: IPropertyCurveMetadataContext,
+    nodePath: string,
+    descriptor: IPropertyTrackDescriptor,
+    track?: AnyTrack,
+): IPropertyTrackDescriptor {
+    const metadata = context.queryPropertyMetadata?.(nodePath, descriptor.propKey) || undefined;
+    if (!metadata) {
+        return descriptor;
+    }
+    return createPropertyDescriptor(descriptor.propKey, undefined, descriptor.kind, track, metadata.type, metadata.valueCtor) || {
+        ...descriptor,
+        type: metadata.type,
+        valueCtor: metadata.valueCtor,
     };
 }
 

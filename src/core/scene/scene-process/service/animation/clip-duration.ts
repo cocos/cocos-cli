@@ -11,8 +11,6 @@ import {
     queryTrackChannels,
 } from './property-curve-track';
 
-const SPRITE_FRAME_PROP_KEY = 'cc.Sprite.spriteFrame';
-
 export function syncAnimationClipDuration(clip: AnimationClip): number {
     const duration = queryAnimationClipDuration(clip);
     (clip as any).duration = duration;
@@ -33,7 +31,7 @@ function queryTrackDuration(clip: AnimationClip, sample: number): number {
     let duration = queryFiniteDuration(typeof (clip as any).range === 'function' ? (clip as any).range()?.max : 0);
     for (const track of getClipTracks(clip)) {
         const parsed = parsePropertyTrack(track);
-        const frameDuration = parsed?.descriptor.propKey === SPRITE_FRAME_PROP_KEY ? 1 / sample : 0;
+        const frameDuration = parsed?.descriptor.kind === 'object' && parsed.descriptor.isCurveSupport === false ? 1 / sample : 0;
         for (const channel of queryTrackChannels(track)) {
             for (const time of queryCurveTimes(channel.curve)) {
                 duration = Math.max(duration, time + frameDuration);
