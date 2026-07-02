@@ -289,7 +289,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
 
         const state = await this._getAnimationState(uuid);
-        const previousTime = state.current ?? this._curEditTime;
+        const previousTime = this._curEditTime;
         const sample = getClipSample(state.clip);
         let value: unknown;
         try {
@@ -806,7 +806,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
         this._resetAnimationState(uuid);
         const state = await this._getAnimationState(uuid);
-        await this.setTime({ time: Math.min(time, state.duration) });
+        await this.setTime({ time });
         this._broadcastClipChanged('asset-refresh');
     }
 

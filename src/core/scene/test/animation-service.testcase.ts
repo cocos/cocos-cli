@@ -325,6 +325,23 @@ describe('Animation Service 场景进程测试', () => {
         expect(time).toBe(0.5);
     });
 
+    it('queryPropertyValueAtFrame 采样短 clip 后保留 duration 外的编辑时间', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+
+        await request('setTime', [{ time: 0.5 }]);
+        await request('queryPropertyValueAtFrame', [{
+            clipUuid: emptyClipUuid,
+            nodePath: emptyNodePath,
+            propKey: 'position',
+            frame: 0,
+        }]);
+        const state = await request('queryState');
+        const time = await request<number>('queryTime', [{ clipUuid: emptyClipUuid }]);
+
+        expect(state.time).toBe(0.5);
+        expect(time).toBe(0.5);
+    });
+
     it('changePlayState 广播 animation:state-changed 供 UI 订阅', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         const eventPromise = utils.once<Record<'animation:state-changed', any>>(sceneWorker, 'animation:state-changed');
