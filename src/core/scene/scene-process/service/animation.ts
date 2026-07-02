@@ -45,6 +45,7 @@ import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationSession } from './animation/types';
 import { clipUuid, getClipSample } from './animation/utils';
 import { serializeAnimationPropertyValue } from './animation/property-value';
+import { AnimationServicePlayback } from './animation/service-playback';
 import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncClipDuration } from './animation/operation-policy';
 import { normalizeAnimationOperation } from './animation/operation-normalizer';
 import {
@@ -88,8 +89,21 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     );
     private _curEditTime = 0;
     private _playState: AnimationPlayState = 'stop';
-    private _playbackTimeBroadcastTimer: ReturnType<typeof setInterval> | null = null;
-    private _lastPlaybackBroadcastTime = Number.NaN;
+    private readonly _playback = new AnimationServicePlayback({
+        getCurrentState: () => this._session ? this._animationStates.get(this._session.clipUuid) : undefined,
+        getEditTime: () => this._curEditTime,
+        getPlayState: () => this._playState,
+        setEditTime: (time) => { this._curEditTime = time; },
+        setPlayState: (playState) => { this._playState = playState; },
+        enterAnimationMode: () => Service.Engine.enterAnimationMode(),
+        exitAnimationMode: () => Service.Engine.exitAnimationMode(),
+        repaintInEditMode: () => Service.Engine.repaintInEditMode(),
+        broadcastTimeChanged: (reason) => this._broadcastTimeChanged(reason),
+        broadcastStateChanged: async (reason) => {
+            const currentState = await this.queryState();
+            this._broadcastStateChanged(reason, currentState);
+        },
+    });
     private readonly _onAssetRefreshed = (uuid: string) => {
         void this._refreshCurrentClipAsset(uuid).catch((error) => {
             this._disposeSession();
@@ -345,32 +359,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         switch (options.operate) {
             case 'play':
-                state.weight = 1;
-                if (state.isPlaying && state.isPaused) {
-                    state.resume();
-                } else {
-                    state.play();
-                }
-                this._playState = 'playing';
-                Service.Engine.enterAnimationMode();
-                this._startPlaybackTimeBroadcast();
+                this._playback.play(state);
                 break;
             case 'pause':
-                this._stopPlaybackTimeBroadcast();
-                state.pause();
-                this._curEditTime = state.current;
-                this._playState = 'pause';
-                Service.Engine.exitAnimationMode();
+                this._playback.pause(state);
                 break;
             case 'resume':
-                if (!state.isPlaying) {
-                    state.weight = 1;
-                    state.play();
-                }
-                state.resume();
-                this._playState = 'playing';
-                Service.Engine.enterAnimationMode();
-                this._startPlaybackTimeBroadcast();
+                this._playback.resume(state);
                 break;
             case 'stop':
                 await this._stopCurrent();
@@ -557,22 +552,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private async _stopCurrent(): Promise<void> {
-        this._stopPlaybackTimeBroadcast();
-        if (!this._session) {
-            return;
-        }
-        const state = this._animationStates.get(this._session.clipUuid);
-        if (state) {
-            state.setTime(0);
-            if (!state.isPaused) {
-                state.pause();
-            }
-            state.sample();
-            state.stop();
-        }
-        this._curEditTime = 0;
-        this._playState = 'stop';
-        Service.Engine.exitAnimationMode();
+        await this._playback.stopCurrent();
     }
 
     private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, rootNode: Node): Promise<void> {
@@ -624,9 +604,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private _disposeSession(): void {
-        this._stopPlaybackTimeBroadcast();
+        this._playback.dispose();
         this._animationStates.clear();
-        Service.Engine.exitAnimationMode();
         this._session = null;
         this._curEditTime = 0;
         this._playState = 'stop';
@@ -663,59 +642,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             time: this._curEditTime,
             playState: this._playState,
         });
-    }
-
-    private _startPlaybackTimeBroadcast(): void {
-        this._stopPlaybackTimeBroadcast();
-        this._lastPlaybackBroadcastTime = Number.NaN;
-        this._playbackTimeBroadcastTimer = setInterval(() => {
-            this._broadcastPlaybackTimeTick();
-        }, 100);
-    }
-
-    private _stopPlaybackTimeBroadcast(): void {
-        if (this._playbackTimeBroadcastTimer) {
-            clearInterval(this._playbackTimeBroadcastTimer);
-            this._playbackTimeBroadcastTimer = null;
-        }
-    }
-
-    private _broadcastPlaybackTimeTick(): void {
-        if (!this._session || this._playState !== 'playing') {
-            this._stopPlaybackTimeBroadcast();
-            return;
-        }
-        const state = this._animationStates.get(this._session.clipUuid);
-        const time = state?.current;
-        if (!state || state.isPaused) {
-            this._stopPlaybackTimeBroadcast();
-            return;
-        }
-        if (!state.isPlaying) {
-            this._stopPlaybackTimeBroadcast();
-            const duration = Number.isFinite(state.duration) ? state.duration : this._curEditTime;
-            this._curEditTime = Math.max(0, duration);
-            state.weight = 1;
-            state.setTime(this._curEditTime);
-            state.sample();
-            this._playState = 'stop';
-            Service.Engine.exitAnimationMode();
-            void Service.Engine.repaintInEditMode();
-            this._broadcastTimeChanged('play-state');
-            void this.queryState()
-                .then((currentState) => this._broadcastStateChanged('play-state', currentState))
-                .catch((error) => console.error('[Animation] broadcast playback stop state failed:', error));
-            return;
-        }
-        if (typeof time !== 'number' || !Number.isFinite(time)) {
-            return;
-        }
-        if (Math.abs(time - this._lastPlaybackBroadcastTime) < 0.001) {
-            return;
-        }
-        this._curEditTime = time;
-        this._lastPlaybackBroadcastTime = time;
-        this._broadcastTimeChanged('play-state');
     }
 
     private _broadcastClipChanged(reason: AnimationEventReason): void {
