@@ -13,7 +13,6 @@ import {
     IAnimationEditClipOptions,
     IAnimationEnterOptions,
     IAnimationExitOptions,
-    IAnimationOperation,
     IAnimationOperationOptions,
     IAnimationOperationResult,
     IAnimationPlayStateOptions,
@@ -50,9 +49,10 @@ import { IAnimationSession } from './animation/types';
 import { clipUuid, getClipSample } from './animation/utils';
 import type { IPropertyCurveMetadataContext } from './animation/property-curve';
 import { queryAnimationPropertyMetadata, queryComponentAnimableProperties } from './animation/property-metadata';
-import { normalizeProvidedAnimationPropertyOperationValue, serializeAnimationPropertyValue } from './animation/property-value';
+import { serializeAnimationPropertyValue } from './animation/property-value';
 import { ACTIVE_PROPERTY, DEFAULT_PROPERTIES } from './animation/property-menu';
 import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncClipDuration } from './animation/operation-policy';
+import { normalizeAnimationOperation } from './animation/operation-normalizer';
 import {
     loadAnimationClip,
     queryAnimationClipsInfo,
@@ -61,7 +61,6 @@ import {
     resolveAnimationClip,
 } from './animation/clip-library';
 import {
-    extractSampledOperationValue,
     getAnimationMode,
     getNodeByPath,
     getNodeByUuid,
@@ -448,7 +447,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 return skeletonFailure;
             }
 
-            const normalized = await this._normalizeAnimationOperation(inputOperation, session.clipUuid, rootNode, session.rootPath);
+            const normalized = await normalizeAnimationOperation(inputOperation, {
+                currentClipUuid: session.clipUuid,
+                rootNode,
+                rootPath: session.rootPath,
+                queryPropertyValueAtFrame: (queryOptions) => this.queryPropertyValueAtFrame(queryOptions),
+            });
             if (isAnimationOperationResult(normalized)) {
                 if (shouldRestoreOnFailure) {
                     await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
@@ -514,66 +518,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             state: 'success',
             result: true,
         };
-    }
-
-    private async _normalizeAnimationOperation(
-        operation: IAnimationOperation,
-        currentClipUuid: string,
-        rootNode: Node,
-        rootPath: string,
-    ): Promise<IAnimationOperation | IAnimationOperationResult> {
-        const type = (operation as any)?.type;
-        if (type === 'updatePropertyKeyData') {
-            const keyOperation = operation as Extract<IAnimationOperation, { type: 'updatePropertyKeyData' }>;
-            const keyData = keyOperation.keyData ?? keyOperation.curveData;
-            return keyData === keyOperation.keyData ? operation : { ...keyOperation, keyData };
-        }
-        if (type !== 'createPropertyKey' && type !== 'updatePropertyKey') {
-            return operation;
-        }
-
-        const keyOperation = operation as Extract<IAnimationOperation, { type: 'createPropertyKey' | 'updatePropertyKey' }>;
-        const keyData = keyOperation.keyData ?? keyOperation.curveData;
-        if (keyOperation.value !== undefined) {
-            const value = await normalizeProvidedAnimationPropertyOperationValue(rootNode, rootPath, keyOperation, {
-                queryNodeByUuid: (uuid) => getNodeByUuid(uuid),
-                queryNodePath: (node) => getNodePath(node),
-            });
-            return { ...keyOperation, keyData, value };
-        }
-        if (keyOperation.type === 'updatePropertyKey' && keyData) {
-            return {
-                ...keyOperation,
-                type: 'updatePropertyKeyData',
-                keyData,
-            };
-        }
-
-        try {
-            const sampled = await this.queryPropertyValueAtFrame({
-                clipUuid: keyOperation.clipUuid || currentClipUuid,
-                nodePath: keyOperation.nodePath,
-                nodeUuid: keyOperation.nodeUuid,
-                propKey: keyOperation.propKey,
-                frame: keyOperation.frame,
-            });
-            const value = extractSampledOperationValue(sampled, keyOperation.channel);
-            if (value === undefined) {
-                return {
-                    state: 'failure',
-                    result: false,
-                    reason: `Failed to sample animation property value: ${keyOperation.propKey}`,
-                };
-            }
-            return { ...keyOperation, keyData, value };
-        } catch (error) {
-            const normalized = error instanceof Error ? error : new Error(String(error));
-            return {
-                state: 'failure',
-                result: false,
-                reason: normalized.message,
-            };
-        }
     }
 
     async save(): Promise<boolean> {

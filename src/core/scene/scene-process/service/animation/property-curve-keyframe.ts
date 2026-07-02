@@ -1,4 +1,4 @@
-import { Asset, js, type AnimationClip } from 'cc';
+import type { AnimationClip, Asset } from 'cc';
 import type {
     IAnimationCurveChannelDump,
     IAnimationCurveDump,
@@ -28,6 +28,13 @@ import {
     findRealCurveKey,
     queryRealCurveNumberValue,
 } from './real-curve-key-data';
+import {
+    createAnimationAssetPlaceholder,
+    isAnimationAssetValue,
+    queryAnimationAssetCtor,
+    queryAnimationAssetUuid,
+    serializeAnimationAssetValue,
+} from './asset-value';
 
 export function dumpPropertyTrack(
     clip: AnimationClip,
@@ -447,23 +454,17 @@ function normalizeObjectCurveValue(descriptor: IPropertyTrackDescriptor, value: 
 }
 
 function dumpObjectCurveValue(value: unknown, descriptor: IPropertyTrackDescriptor): IAnimationValue {
-    if (isAssetDescriptor(descriptor) || value instanceof Asset) {
+    if (isAssetDescriptor(descriptor) || isAnimationAssetValue(value)) {
         if (value === null || value === undefined) {
             return null;
         }
-        const uuid = queryAssetUuid(value);
+        if (isAnimationAssetValue(value)) {
+            return serializeAnimationAssetValue(value);
+        }
+        const uuid = queryAnimationAssetUuid(value);
         return uuid ? { uuid } : null;
     }
     return cloneValue(value) as IAnimationValue;
-}
-
-function queryAssetUuid(value: unknown): string {
-    if (!value || typeof value !== 'object') {
-        return '';
-    }
-    const record = value as Record<string, unknown>;
-    const uuid = record.uuid || record._uuid || record.__uuid__;
-    return typeof uuid === 'string' ? uuid : '';
 }
 
 const NOT_ASSET_TYPE = Symbol('notAssetType');
@@ -480,11 +481,11 @@ function normalizeAssetCurveValue(descriptor: IPropertyTrackDescriptor, value: I
     if (value instanceof assetCtor) {
         return value;
     }
-    const uuid = queryAssetUuid(value);
+    const uuid = queryAnimationAssetUuid(value);
     if (!uuid) {
         return INVALID_ASSET_VALUE;
     }
-    return createAssetPlaceholder(assetCtor, uuid);
+    return createAnimationAssetPlaceholder(assetCtor, uuid);
 }
 
 function isAssetDescriptor(descriptor: IPropertyTrackDescriptor): boolean {
@@ -492,17 +493,7 @@ function isAssetDescriptor(descriptor: IPropertyTrackDescriptor): boolean {
 }
 
 function queryAssetCtor(descriptor: IPropertyTrackDescriptor): (new () => Asset) | null {
-    const ctor = descriptor.valueCtor || js.getClassByName(descriptor.type.value);
-    if (typeof ctor !== 'function') {
-        return null;
-    }
-    return ctor === Asset || ctor.prototype instanceof Asset ? ctor as new () => Asset : null;
-}
-
-function createAssetPlaceholder(assetCtor: new () => Asset, uuid: string): Asset {
-    const asset = new assetCtor();
-    asset.initDefault(uuid);
-    return asset;
+    return queryAnimationAssetCtor(descriptor);
 }
 
 function updateRealCurveKey(curve: AnyCurve, time: number, value: number | undefined | null, keyData?: IAnimationCurveKeyData): boolean {
