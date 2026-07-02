@@ -1,6 +1,6 @@
 'use strict';
 
-import { readJSON, existsSync, outputJSON, removeSync, copy, statSync } from 'fs-extra';
+import { readJSON, existsSync, outputJSON, removeSync, copy } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 import { CCON } from 'cc/editor/serialization';
 import { transformCCON } from './cconb-utils';
@@ -13,7 +13,6 @@ import { BundleFilterConfig } from '../../../@types';
 import assetManager from '../../../../assets/manager/asset';
 import { IAsset, QueryAssetsOption, IAssetInfo as IAssetInfoFromDB } from '../../../../assets/@types/protected';
 import assetDBManager from '../../../../assets/manager/asset-db';
-import builderConfig from '../../../share/builder-config';
 import i18n from '../../../../base/i18n';
 import { filterAssetWithBundleConfig } from '../utils/bundle';
 import { initBundleConfig } from '../asset-handler/bundle/utils';
@@ -45,11 +44,6 @@ class BuildAssetLibrary {
 
     private meta: IMetaMap = {};
 
-    // 缓存地址
-    private cacheTempDir: string = join(builderConfig.projectTempDir, 'asset-db');
-    private assetMtimeCache: Record<string, number> = {};
-    private assetMtimeCacheFile: string = join(builderConfig.projectTempDir, 'builder', 'assets-mtime.json');
-
     // 是否使用缓存开关
     public useCache = true;
 
@@ -68,18 +62,6 @@ class BuildAssetLibrary {
         keepNodeUuid: false, // 序列化后是否保留节点组件的 uuid 数据
     };
 
-    async initMtimeCache() {
-        if (existsSync(this.assetMtimeCacheFile)) {
-            try {
-                this.assetMtimeCache = (await readJSON(this.assetMtimeCacheFile)) || {};
-            } catch (error) { }
-        }
-    }
-
-    async saveMtimeCache() {
-        await outputJSON(this.assetMtimeCacheFile, this.assetMtimeCache);
-    }
-
     /**
      * 资源管理器初始化
      */
@@ -89,7 +71,6 @@ class BuildAssetLibrary {
         this.defaultSerializedOptions.keepNodeUuid = false;
         this.useCache = true;
         console.debug(`init custom config: keepNodeUuid: ${this.defaultSerializedOptions.keepNodeUuid}, useCache: ${this.useCache}`);
-        await this.initMtimeCache();
     }
 
     /**
@@ -117,9 +98,8 @@ class BuildAssetLibrary {
      * @param uuid
      */
     public getAssetTempDirByUuid(uuid: string) {
-        // 缓存目录需要根据 db 目录的不同发生变化
-        const dbName = this.getAsset(uuid)._assetDB.options.name;
-        return join(this.cacheTempDir, dbName, uuid.substr(0, 2), uuid, 'build' + CACHE_VERSION);
+        const asset = this.getAsset(uuid);
+        return join(asset._assetDB.options.temp, uuid.substr(0, 2), uuid, 'build' + CACHE_VERSION);
     }
 
     /**
@@ -280,7 +260,8 @@ class BuildAssetLibrary {
         }
         // 构建缓存的文件夹
         const cacheFile = join(this.getAssetTempDirByUuid(uuid)!, `${options.debug ? 'debug' : 'release'}.json`);
-        if (this.checkUseCache(asset) && this.checkSerializedCacheValid(asset, cacheFile)) {
+        console.log(`[getSerializedJSON] 缓存文件路径: ${cacheFile}`);
+        if (this.checkUseCache(asset) && existsSync(cacheFile)) {
             try {
                 return await readJSON(cacheFile);
             } catch (error) {
@@ -304,8 +285,6 @@ class BuildAssetLibrary {
                 await outputJSON(cacheFile, jsonObject, {
                     spaces: 4,
                 });
-                this.assetMtimeCache[asset.uuid] = assetManager.queryAssetProperty(asset, 'mtime');
-                await this.saveMtimeCache();
             }
         } catch (error) {
             unExpectException(error);
@@ -319,10 +298,9 @@ class BuildAssetLibrary {
      * @param debug
      */
     public async outputAssets(uuid: string, dest: string, debug: boolean) {
-        const asset = this.getAsset(uuid);
         const cacheFile = join(this.getAssetTempDirByUuid(uuid)!, `${debug ? 'debug' : 'release'}.json`);
         try {
-            if (asset && this.checkUseCache(asset) && this.checkCanSaveCache(uuid) && this.checkSerializedCacheValid(asset, cacheFile)) {
+            if (this.checkCanSaveCache(uuid)) {
                 await copy(cacheFile, dest);
                 return;
             }
@@ -456,7 +434,7 @@ class BuildAssetLibrary {
         return this.getRawInstanceFromData(data, asset);
     }
 
-    getRawInstanceFromData(data: CCON | Object, asset: IAsset) {
+    getRawInstanceFromData(data: CCON | object, asset: IAsset) {
         const result: {
             asset: CCAsset | null;
             detail: string | null;
@@ -556,53 +534,6 @@ class BuildAssetLibrary {
             return false;
         }
         return true;
-    }
-
-    private checkSerializedCacheValid(asset: IAsset, cacheFile: string): boolean {
-        if (!existsSync(cacheFile)) {
-            return false;
-        }
-
-        const currentMtime = assetManager.queryAssetProperty(asset, 'mtime');
-        const cachedMtime = this.assetMtimeCache[asset.uuid];
-        if (currentMtime !== null && currentMtime !== undefined) {
-            if (cachedMtime === undefined) {
-                console.debug(`Serialized cache is stale because asset mtime cache is missing: {asset(${asset.uuid})}`);
-                return false;
-            }
-            if (cachedMtime !== currentMtime) {
-                console.debug(`Serialized cache is stale by asset mtime: {asset(${asset.uuid})}`);
-                return false;
-            }
-        }
-
-        let cacheMtime = 0;
-        try {
-            cacheMtime = statSync(cacheFile).mtimeMs;
-        } catch (error) {
-            unExpectException(error);
-            return false;
-        }
-
-        for (const file of this.getAssetLibraryFiles(asset)) {
-            try {
-                if (existsSync(file) && statSync(file).mtimeMs > cacheMtime) {
-                    console.debug(`Serialized cache is stale by library file: {asset(${asset.uuid})}`);
-                    return false;
-                }
-            } catch (error) {
-                unExpectException(error);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private getAssetLibraryFiles(asset: IAsset): string[] {
-        return asset.meta.files.map((file) => {
-            return file.startsWith('.') ? `${asset.library}${file}` : join(asset.library, file);
-        });
     }
 
     private checkCanSaveCache(uuid: string): boolean {

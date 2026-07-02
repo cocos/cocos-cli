@@ -1,9 +1,33 @@
 
+jest.mock('../share/builder-config', () => ({
+    __esModule: true,
+    default: {
+        projectTempDir: 'project-temp',
+    },
+}));
 
-import { checkConfigDefault } from '../share/utils';
+jest.mock('../../base/utils', () => ({
+    __esModule: true,
+    default: {
+        Path: {
+            resolveToUrl: jest.fn((path: string) => `project://${path.replace(/\\/g, '/')}`),
+        },
+    },
+}));
+
+import { checkConfigDefault, getTaskLogDest } from '../share/utils';
 import { IBuilderConfigItem } from '../@types/protected';
 
 describe('share/utils', () => {
+    describe('getTaskLogDest', () => {
+        it('stores build task logs under the builder log directory', () => {
+            const result = getTaskLogDest('build-task', 0).replace(/\\/g, '/');
+
+            expect(result).toContain('project://project-temp/builder/log/build-task');
+            expect(result).toMatch(/\.log$/);
+        });
+    });
+
     describe('checkConfigDefault', () => {
         it('should return default value if it exists', () => {
             const config: IBuilderConfigItem = {
