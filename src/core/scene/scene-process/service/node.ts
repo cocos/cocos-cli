@@ -36,6 +36,7 @@ import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
 import { RemoveNodeCommand } from './undo/commands/remove-node-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
+import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -480,7 +481,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
-        return this._undo.recordNodeSnapshot(node, {
+        const result = await this._undo.recordNodeSnapshot(node, {
             label: `Set ${options.path}`,
             type: 'node:set-property',
             record: options.record,
@@ -495,6 +496,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
             return await nodeMgr.setProperty(node.uuid, options.path, options.dump, options.record);
         });
+        if (result) {
+            broadcastAnimationPropertyCommitted({
+                nodePath: options.nodePath,
+                propPath: options.path,
+                source: 'editor',
+            });
+        }
+        return result;
     }
 
     public async reset(path: string): Promise<boolean> {

@@ -19,12 +19,22 @@ jest.mock('../scene-process/service/core/decorator', () => ({
 describe('GizmoBase animation property commit event', () => {
     beforeEach(() => {
         broadcasts.length = 0;
+        const { globalEventEmitter } = require('../scene-process/service/core/global-events');
+        globalEventEmitter.removeAllListeners('animation:property-committed');
+        globalEventEmitter.on('animation:property-committed', (payload: unknown) => {
+            broadcasts.push(['animation:property-committed', payload]);
+        });
         (globalThis as any).EditorExtends = {
             Node: {
                 getNodePath: (node: { uuid: string }) => `Canvas/${node.uuid}`,
             },
         };
         (globalThis as any).cc = {};
+    });
+
+    afterEach(() => {
+        const { globalEventEmitter } = require('../scene-process/service/core/global-events');
+        globalEventEmitter.removeAllListeners('animation:property-committed');
     });
 
     it('broadcasts normalized committed property payload on control end', () => {

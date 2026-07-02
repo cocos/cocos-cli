@@ -959,6 +959,7 @@ describe('场景事件契约测试', () => {
 
         describe('GizmoBase (gizmo/base/gizmo-base.ts)', () => {
             const source = readSourceFile('gizmo/base/gizmo-base.ts');
+            const commitEventSource = readSourceFile('animation/property-commit-event.ts');
 
             it('onControlBegin 应 broadcast gizmo:control-begin 1 次', () => {
                 const body = extractMethodBody(source, /onControlBegin\(/);
@@ -991,9 +992,10 @@ describe('场景事件契约测试', () => {
                 expect(body).not.toMatch(/\.emit\(\s*['"]gizmo:control-end['"]/);
             });
 
-            it('broadcastAnimationPropertyCommitted 应 broadcast animation:property-committed 1 次', () => {
+            it('broadcastAnimationPropertyCommitted 应通过共享 helper 提交 animation:property-committed', () => {
                 expect(source).toMatch(/broadcastAnimationPropertyCommitted\(/);
-                const count = (source.match(/broadcast\?\.\(['"]animation:property-committed['"]/g) || []).length;
+                expect(source).not.toMatch(/broadcast\?\.\(['"]animation:property-committed['"]/);
+                const count = (commitEventSource.match(/ServiceEvents\.broadcast\(\s*['"]animation:property-committed['"]/g) || []).length;
                 expect(count).toBe(1);
             });
         });

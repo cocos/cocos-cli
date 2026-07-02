@@ -26,6 +26,7 @@ import { SnapshotCommand, type ISnapshotAdapter } from './undo/commands/snapshot
 import { AddComponentCommand } from './undo/commands/add-component-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
 import { createUndoId, restoreComponentSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
+import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -401,7 +402,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             return false;
         }
 
-        return this._recordComponentPropertySnapshot(node, {
+        const result = await this._recordComponentPropertySnapshot(node, {
             label: `Set ${options.path}`,
             type: 'component:set-property',
             path: options.path,
@@ -437,6 +438,14 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             }
             return true;
         });
+        if (result) {
+            broadcastAnimationPropertyCommitted({
+                nodePath: options.nodePath,
+                propPath: options.path,
+                source: 'editor',
+            });
+        }
+        return result;
     }
 
     private _shouldRecordComponentCommand(): boolean {
