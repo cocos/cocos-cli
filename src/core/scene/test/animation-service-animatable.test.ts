@@ -12,6 +12,7 @@ jest.mock('cc', () => {
     class PrimitiveType {
         constructor(public name: string) { }
     }
+    (Component as any).__className = 'cc.Component';
     (Node as any).__className = 'cc.Node';
 
     return {
@@ -57,7 +58,7 @@ describe('AnimationService animatable property metadata', () => {
     });
 
     it('按旧编辑器规则过滤组件属性的 animatable、visible 和 cc.Node 类型', () => {
-        const { Component } = require('cc');
+        const { Component, Node } = require('cc');
         const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
 
         class TestComponent extends Component {
@@ -66,6 +67,8 @@ describe('AnimationService animatable property metadata', () => {
             forcedHiddenNumber = 3;
             disabledNumber = 4;
             nodeRef = {};
+            nodeCtorRef = {};
+            componentCtorRef = {};
             readonlyNumber = 5;
         }
         (TestComponent as any).__className = 'cc.TestComponent';
@@ -75,6 +78,8 @@ describe('AnimationService animatable property metadata', () => {
             'forcedHiddenNumber',
             'disabledNumber',
             'nodeRef',
+            'nodeCtorRef',
+            'componentCtorRef',
             'readonlyNumber',
         ];
 
@@ -84,6 +89,8 @@ describe('AnimationService animatable property metadata', () => {
             forcedHiddenNumber: { type: 'cc.Number', visible: false, animatable: true },
             disabledNumber: { type: 'cc.Number', animatable: false },
             nodeRef: { type: 'cc.Node' },
+            nodeCtorRef: { type: Node },
+            componentCtorRef: { type: Component },
             readonlyNumber: { type: 'cc.Number', readonly: true },
         };
         mockAttr.mockImplementation((_ctor: Function, prop: string) => attrs[prop]);

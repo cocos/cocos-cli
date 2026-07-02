@@ -82,10 +82,7 @@ function queryAnimablePropertyTypeFromAttr(component: Record<string, unknown>, p
 }
 
 function isAnimablePropertyAttr(attr: any): boolean {
-    if (attr.type === js.getClassName(Node)) {
-        return false;
-    }
-    if (isNodeOrComponentCtor(attr.ctor)) {
+    if (isNodeOrComponentType(attr.type) || isNodeOrComponentCtor(attr.ctor)) {
         return false;
     }
     if (attr.animatable !== undefined) {
@@ -128,6 +125,13 @@ function isNodeOrComponentCtor(ctor: unknown): boolean {
         return false;
     }
     return ctor === Node || ctor === Component || ctor.prototype instanceof Node || ctor.prototype instanceof Component;
+}
+
+function isNodeOrComponentType(type: unknown): boolean {
+    if (isNodeOrComponentCtor(type)) {
+        return true;
+    }
+    return typeof type === 'string' && (type === js.getClassName(Node) || type === js.getClassName(Component));
 }
 
 function splitComponentPropertyKey(propKey: string): { comp: string; propName: string } | null {
