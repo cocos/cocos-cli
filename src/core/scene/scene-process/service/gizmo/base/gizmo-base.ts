@@ -120,8 +120,9 @@ class GizmoBase<T extends Component = Component> {
             svcEvents?.broadcast?.('gizmo:control-end', propPath);
 			this.broadcastAnimationPropertyCommitted(svc, propPath);
         } catch (e) {
-            // not ready
+            console.warn('[Gizmo] Failed to broadcast legacy control-end event:', e);
         }
+        this.broadcastAnimationPropertyCommitted(propPath);
     }
 
     recordChanges(propPath?: string | null) {
