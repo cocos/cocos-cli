@@ -5821,6 +5821,10 @@ export declare interface IAnimationPropertyInfo {
 export declare interface IAnimationPropertyType {
     value: string;
     extends?: string[];
+    enumList?: Array<{
+        name: string;
+        value: number;
+    }>;
 }
 export declare interface IAnimationQueryAuxiliaryCurveValueAtFrameOptions {
     clipUuid?: string;
