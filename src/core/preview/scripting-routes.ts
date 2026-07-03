@@ -4,6 +4,12 @@ import { pathExists, stat, readFile } from 'fs-extra';
 import { GlobalPaths } from '../../global';
 import { readFileSync } from 'fs';
 
+function sendQuickPackChunk(res: Response, filePath: string): void {
+    // QuickPack may emit chunks under project temp paths used by smoke workspaces.
+    // The path is resolved by the loader, not by raw URL-to-file joining.
+    res.sendFile(filePath, { dotfiles: 'allow' });
+}
+
 /**
  * 动态预览的共享资源路由。
  *
@@ -401,7 +407,7 @@ export const scriptingRoutes = [
                 if (packResource.type === 'json') {
                     res.json(packResource.json);
                 } else if (packResource.type === 'chunk') {
-                    res.sendFile(packResource.chunk.path);
+                    sendQuickPackChunk(res, packResource.chunk.path);
                 } else {
                     console.warn(`[Preview Server] Unknown pack resource type for ${fullUrl}:`, packResource);
                     next(new Error('Unknown pack resource type'));
@@ -421,7 +427,7 @@ export const scriptingRoutes = [
             try {
                 const packResource = await facet.loadPackResource(url);
                 if (packResource.type === 'chunk') {
-                    res.sendFile(packResource.chunk.path);
+                    sendQuickPackChunk(res, packResource.chunk.path);
                 } else if (packResource.type === 'json') {
                     res.json(packResource.json);
                 } else {

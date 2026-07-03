@@ -5,18 +5,6 @@ import ejs from 'ejs';
 import { GlobalPaths } from '../../global';
 import { scriptingRoutes } from '../preview/scripting-routes';
 
-function sendFileFromRoot(res: Response, root: string, filePath: string) {
-    const relativePath = path.relative(root, filePath);
-    if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
-        res.sendStatus(403);
-        return;
-    }
-
-    // Keep hidden parent dirs such as `.temp` outside Express' dotfile check,
-    // while preserving the default protection for dotfiles inside the served root.
-    res.sendFile(relativePath, { root });
-}
-
 export default {
     get: [
         {
