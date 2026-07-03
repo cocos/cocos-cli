@@ -60,6 +60,20 @@ describe('NodePathManager name updates', () => {
         expect(manager.getNodeResult('A/B').error).toBe('Not found');
         expect(manager.getNodeResult('A/B/D').error).toBe('Not found');
     });
+
+    it('uniquifies the new name against siblings and keeps descendants attached', () => {
+        expect(manager.generateUniquePath('a', 'A', 'scene')).toBe('A');
+        expect(manager.generateUniquePath('b', 'B', 'scene')).toBe('B');
+        expect(manager.generateUniquePath('bChild', 'C', 'b')).toBe('B/C');
+
+        manager.updateUuid('b', 'A', 'scene');
+
+        expect(manager.getNodePath('b')).toBe('A_001');
+        expect(manager.getNodePath('bChild')).toBe('A_001/C');
+        expect(manager.getNodeUuid('A_001/C')).toBe('bChild');
+        expect(manager.getNodeResult('B').error).toBe('Not found');
+        expect(manager.getNodeResult('B/C').error).toBe('Not found');
+    });
 });
 
 describe('NodePathManager.changeUuid', () => {
