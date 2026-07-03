@@ -34,6 +34,7 @@ export type IAnimationValue = string | number | boolean | null | undefined | IAn
 export interface IAnimationPropertyType {
     value: string;
     extends?: string[];
+    enumList?: Array<{ name: string; value: number }>;
 }
 
 /**

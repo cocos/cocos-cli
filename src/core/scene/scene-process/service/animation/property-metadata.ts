@@ -11,7 +11,14 @@ export function queryComponentAnimableProperties(component: Component): IAnimati
     const compName = js.getClassName(component);
     const result: IAnimationPropertyInfo[] = [];
     for (const prop of props) {
-        const type = queryAnimablePropertyType(component as any, prop);
+        if (prop === 'type' || prop === '__scriptAsset') {
+            continue;
+        }
+        const attr = queryPropertyAttr(component as any, prop);
+        if (!attr || attr.readonly || !isAnimablePropertyAttr(attr)) {
+            continue;
+        }
+        const type = queryAnimablePropertyTypeFromAttr(component as any, prop, attr);
         if (!type) {
             continue;
         }
@@ -19,7 +26,7 @@ export function queryComponentAnimableProperties(component: Component): IAnimati
             name: prop,
             key: `${compName}.${prop}`,
             displayName: `${compName}.${prop}`,
-            type: { value: type },
+            type: createAnimationPropertyType(type, attr),
             menuName: `${compName}.${prop}`,
             comp: compName,
         });
@@ -48,20 +55,9 @@ export function queryAnimationPropertyMetadata(rootNode: Node, nodePath: string,
         return null;
     }
     return {
-        type: { value: type },
+        type: createAnimationPropertyType(type, attr),
         valueCtor: typeof attr.ctor === 'function' ? attr.ctor as new () => unknown : undefined,
     };
-}
-
-function queryAnimablePropertyType(component: Record<string, unknown>, prop: string): string {
-    if (prop === 'type' || prop === '__scriptAsset') {
-        return '';
-    }
-    const attr = queryPropertyAttr(component, prop);
-    if (!attr || attr.readonly || !isAnimablePropertyAttr(attr)) {
-        return '';
-    }
-    return queryAnimablePropertyTypeFromAttr(component, prop, attr);
 }
 
 function queryAnimablePropertyTypeFromAttr(component: Record<string, unknown>, prop: string, attr: any): string {
@@ -118,6 +114,17 @@ function normalizePrimitiveTypeName(type: string): string {
         default:
             return type;
     }
+}
+
+function createAnimationPropertyType(type: string, attr: any): IAnimationPropertyInfo['type'] {
+    const result: IAnimationPropertyInfo['type'] = { value: type };
+    if (type === 'Enum' && Array.isArray(attr.enumList)) {
+        result.enumList = attr.enumList.map((item: any) => ({
+            name: String(item.name ?? ''),
+            value: Number(item.value),
+        }));
+    }
+    return result;
 }
 
 function isNodeOrComponentCtor(ctor: unknown): boolean {

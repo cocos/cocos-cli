@@ -157,4 +157,59 @@ describe('AnimationService animatable property metadata', () => {
             expect.objectContaining({ key: 'cc.AssetRefComponent.icon', type: { value: 'cc.SpriteFrame' } }),
         ]));
     });
+
+    it('从 attr 保留 enumList 元数据', () => {
+        const { Component } = require('cc');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
+
+        class EnumComponent extends Component {
+            mode = 1;
+        }
+        (EnumComponent as any).__className = 'cc.EnumComponent';
+        (EnumComponent as any).__props__ = ['mode'];
+
+        const enumList = [
+            { name: 'None', value: 0 },
+            { name: 'Add', value: 1 },
+        ];
+        mockAttr.mockImplementation((_target: Function, prop: string) => prop === 'mode'
+            ? { type: 'Enum', enumList, visible: true }
+            : undefined);
+
+        const properties = queryComponentAnimableProperties(new EnumComponent());
+
+        expect(properties).toEqual([
+            expect.objectContaining({
+                key: 'cc.EnumComponent.mode',
+                type: {
+                    value: 'Enum',
+                    enumList,
+                },
+            }),
+        ]);
+    });
+
+    it('只为 Enum 类型暴露 enumList 元数据', () => {
+        const { Component } = require('cc');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
+
+        class NumberComponent extends Component {
+            amount = 1;
+        }
+        (NumberComponent as any).__className = 'cc.NumberComponent';
+        (NumberComponent as any).__props__ = ['amount'];
+
+        mockAttr.mockImplementation((_target: Function, prop: string) => prop === 'amount'
+            ? { type: 'cc.Number', enumList: [{ name: 'Ignored', value: 1 }], visible: true }
+            : undefined);
+
+        const properties = queryComponentAnimableProperties(new NumberComponent());
+
+        expect(properties).toEqual([
+            expect.objectContaining({
+                key: 'cc.NumberComponent.amount',
+                type: { value: 'cc.Number' },
+            }),
+        ]);
+    });
 });
