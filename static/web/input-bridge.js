@@ -15,6 +15,10 @@ function setupInputBridge(options) {
     var shouldIgnore = options.shouldIgnore || function () { return false; };
     var lastX = 0, lastY = 0;
     var pointerLocked = false;
+    var usePointerEvents = typeof window.PointerEvent === 'function' && typeof canvas.setPointerCapture === 'function';
+    var activePointerId = null;
+    var activePointerButton = 0;
+    var lastPointerEvent = null;
 
     function toMouseEvent(e, extra) {
         var rect = canvas.getBoundingClientRect();
@@ -66,6 +70,71 @@ function setupInputBridge(options) {
         } catch (ex) { /* ignore */ }
     }
 
+    function resetActivePointer() {
+        var pointerId = activePointerId;
+        activePointerId = null;
+        activePointerButton = 0;
+        lastPointerEvent = null;
+        if (pointerId !== null && typeof canvas.releasePointerCapture === 'function') {
+            try { canvas.releasePointerCapture(pointerId); } catch (ex) { /* ignore */ }
+        }
+    }
+
+    function dispatchMouseUp(e, button) {
+        var mouseButton = button === undefined ? e.button : button;
+        var extra = {
+            leftButton: mouseButton === 0,
+            middleButton: mouseButton === 1,
+            rightButton: mouseButton === 2,
+            button: mouseButton,
+        };
+        if (button !== undefined) {
+            extra.buttons = 0;
+        }
+        dispatchMouse('mouseup', toMouseEvent(e, extra));
+    }
+
+    function onPointerDown(e) {
+        if (activePointerId !== null || shouldIgnore(e)) return;
+        canvas.focus();
+        var rect = canvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+        activePointerId = e.pointerId;
+        activePointerButton = e.button;
+        lastPointerEvent = e;
+        try { canvas.setPointerCapture(e.pointerId); } catch (ex) { /* ignore */ }
+        dispatchMouse('mousedown', toMouseEvent(e));
+    }
+
+    function onPointerMove(e) {
+        if (activePointerId !== null && e.pointerId !== activePointerId) return;
+        if (shouldIgnore(e)) return;
+        lastPointerEvent = e;
+        dispatchMouse('mousemove', toMouseEvent(e));
+    }
+
+    function onPointerUp(e) {
+        if (activePointerId !== null && e.pointerId !== activePointerId) return;
+        lastPointerEvent = e;
+        dispatchMouseUp(e);
+        resetActivePointer();
+    }
+
+    function onPointerCancel(e) {
+        if (activePointerId === null || e.pointerId !== activePointerId) return;
+        dispatchMouseUp(e, activePointerButton);
+        resetActivePointer();
+    }
+
+    function onLostPointerCapture(e) {
+        if (activePointerId === null || (e.pointerId !== undefined && e.pointerId !== activePointerId) || !lastPointerEvent) return;
+        dispatchMouseUp(lastPointerEvent, activePointerButton);
+        activePointerId = null;
+        activePointerButton = 0;
+        lastPointerEvent = null;
+    }
+
     function onMouseDown(e) {
         if (shouldIgnore(e)) return;
         canvas.focus();
@@ -81,11 +150,7 @@ function setupInputBridge(options) {
     }
 
     function onMouseUp(e) {
-        var evt = toMouseEvent(e);
-        evt.leftButton = e.button === 0;
-        evt.middleButton = e.button === 1;
-        evt.rightButton = e.button === 2;
-        dispatchMouse('mouseup', evt);
+        dispatchMouseUp(e);
     }
 
     function onDblClick(e) {
@@ -132,9 +197,17 @@ function setupInputBridge(options) {
         updateDPRChangeListener();
     }
 
-    canvas.addEventListener('mousedown', onMouseDown);
-    canvas.addEventListener('mousemove', onMouseMove);
-    canvas.addEventListener('mouseup', onMouseUp);
+    if (usePointerEvents) {
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointermove', onPointerMove);
+        canvas.addEventListener('pointerup', onPointerUp);
+        canvas.addEventListener('pointercancel', onPointerCancel);
+        canvas.addEventListener('lostpointercapture', onLostPointerCapture);
+    } else {
+        canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mouseup', onMouseUp);
+    }
     canvas.addEventListener('dblclick', onDblClick);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', onContextMenu);
@@ -143,9 +216,18 @@ function setupInputBridge(options) {
     document.addEventListener('pointerlockchange', onPointerLockChange);
 
     return function cleanup() {
-        canvas.removeEventListener('mousedown', onMouseDown);
-        canvas.removeEventListener('mousemove', onMouseMove);
-        canvas.removeEventListener('mouseup', onMouseUp);
+        if (usePointerEvents) {
+            canvas.removeEventListener('pointerdown', onPointerDown);
+            canvas.removeEventListener('pointermove', onPointerMove);
+            canvas.removeEventListener('pointerup', onPointerUp);
+            canvas.removeEventListener('pointercancel', onPointerCancel);
+            canvas.removeEventListener('lostpointercapture', onLostPointerCapture);
+            resetActivePointer();
+        } else {
+            canvas.removeEventListener('mousedown', onMouseDown);
+            canvas.removeEventListener('mousemove', onMouseMove);
+            canvas.removeEventListener('mouseup', onMouseUp);
+        }
         canvas.removeEventListener('dblclick', onDblClick);
         canvas.removeEventListener('wheel', onWheel);
         canvas.removeEventListener('contextmenu', onContextMenu);
