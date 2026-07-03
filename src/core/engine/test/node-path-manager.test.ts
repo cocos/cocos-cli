@@ -38,6 +38,30 @@ describe('NodePathManager parent updates', () => {
     });
 });
 
+describe('NodePathManager name updates', () => {
+    let manager: NodePathManager;
+
+    beforeEach(() => {
+        manager = new NodePathManager();
+    });
+
+    it('updates descendant paths when a node is renamed', () => {
+        expect(manager.generateUniquePath('parent', 'A', 'scene')).toBe('A');
+        expect(manager.generateUniquePath('child', 'B', 'parent')).toBe('A/B');
+        expect(manager.generateUniquePath('grandchild', 'D', 'child')).toBe('A/B/D');
+
+        manager.updateUuid('parent', 'C', 'scene');
+
+        expect(manager.getNodePath('parent')).toBe('C');
+        expect(manager.getNodePath('child')).toBe('C/B');
+        expect(manager.getNodePath('grandchild')).toBe('C/B/D');
+        expect(manager.getNodeUuid('C/B')).toBe('child');
+        expect(manager.getNodeUuid('C/B/D')).toBe('grandchild');
+        expect(manager.getNodeResult('A/B').error).toBe('Not found');
+        expect(manager.getNodeResult('A/B/D').error).toBe('Not found');
+    });
+});
+
 describe('NodePathManager.changeUuid', () => {
     let manager: NodePathManager;
 

@@ -187,6 +187,19 @@ export class NodePathManager {
     getNodePath(uuid: string): string {
         return this._uuidToPath.get(uuid) || '';
     }
+
+    private _getSubtreeEntries(rootPath: string): [string, string][] {
+        return Array.from(this._uuidToPath.entries())
+            .filter(([, path]) => path === rootPath || path.startsWith(`${rootPath}/`));
+    }
+
+    private _replaceSubtreePathPrefix(subtreeEntries: [string, string][], oldPath: string, newPath: string) {
+        for (const [entryUuid, path] of subtreeEntries) {
+            const suffix = path === oldPath ? '' : path.slice(oldPath.length);
+            this._addPathMapping(entryUuid, `${newPath}${suffix}`);
+        }
+    }
+
     move(uuid: string, name: string, newParentUuid: string | undefined, oldParentUuid?: string): string {
         const oldPath = this._uuidToPath.get(uuid);
         if (!oldPath) {
@@ -196,8 +209,7 @@ export class NodePathManager {
         const parentPath = newParentUuid ? (this._uuidToPath.get(newParentUuid) || '') : '';
         const oldName = oldPath.split('/').pop();
         const cleanName = this._sanitizeName(name);
-        const subtreeEntries = Array.from(this._uuidToPath.entries())
-            .filter(([, path]) => path === oldPath || path.startsWith(`${oldPath}/`));
+        const subtreeEntries = this._getSubtreeEntries(oldPath);
 
         for (const [entryUuid, path] of subtreeEntries) {
             this._removePathMapping(entryUuid, path);
@@ -213,10 +225,7 @@ export class NodePathManager {
         const finalName = this.ensureUniqueName(newParentUuid, cleanName);
         const newPath = parentPath ? `${parentPath}/${finalName}` : finalName;
 
-        for (const [entryUuid, path] of subtreeEntries) {
-            const suffix = path === oldPath ? '' : path.slice(oldPath.length);
-            this._addPathMapping(entryUuid, `${newPath}${suffix}`);
-        }
+        this._replaceSubtreePathPrefix(subtreeEntries, oldPath, newPath);
 
         return newPath;
     }
@@ -224,28 +233,30 @@ export class NodePathManager {
 
     updateUuid(uuid: string, newName: string, parentUuid?: string) {
         const oldPath = this._uuidToPath.get(uuid);
-        // 生成新的唯一路径
-        const newPath = this.generateUniquePath(uuid, newName, parentUuid);
+        if (!oldPath) {
+            return;
+        }
 
-        // 更新路径映射
-        this._uuidToPath.set(uuid, newPath);
-        this._pathToUuid.delete(oldPath!);
-        this._pathToUuid.set(newPath, uuid);
+        const parentPath = parentUuid ? (this._uuidToPath.get(parentUuid) || '') : '';
+        const oldName = oldPath.split('/').pop();
+        const cleanName = this._sanitizeName(newName);
+        const subtreeEntries = this._getSubtreeEntries(oldPath);
 
-        const oldLowerPath = oldPath!.toLowerCase();
-        const oldUuids = this._lowerPathToUuids.get(oldLowerPath);
-        if (oldUuids) {
-            oldUuids.delete(uuid);
-            if (oldUuids.size === 0) {
-                this._lowerPathToUuids.delete(oldLowerPath);
+        for (const [entryUuid, path] of subtreeEntries) {
+            this._removePathMapping(entryUuid, path);
+        }
+
+        if (parentUuid) {
+            const nameSet = this._nodeNames.get(parentUuid);
+            if (nameSet && oldName) {
+                nameSet.delete(oldName);
             }
         }
 
-        const newLowerPath = newPath.toLowerCase();
-        if (!this._lowerPathToUuids.has(newLowerPath)) {
-            this._lowerPathToUuids.set(newLowerPath, new Set());
-        }
-        this._lowerPathToUuids.get(newLowerPath)!.add(uuid);
+        const finalName = this.ensureUniqueName(parentUuid, cleanName);
+        const newPath = parentPath ? `${parentPath}/${finalName}` : finalName;
+
+        this._replaceSubtreePathPrefix(subtreeEntries, oldPath, newPath);
     }
 
     getNameSet(uuid: string): Set<string> | null {

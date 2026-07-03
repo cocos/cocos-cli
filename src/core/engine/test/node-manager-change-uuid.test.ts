@@ -52,3 +52,34 @@ describe('NodeManager.changeNodeUUID', () => {
         expect(pathManager.getNodePath('node-old')).toBe('');
     });
 });
+
+describe('NodeManager.updateNodeName', () => {
+    let manager: NodeManager;
+
+    beforeEach(() => {
+        manager = new NodeManager();
+        manager.allow = true;
+        pathManager.clear();
+    });
+
+    function addNode(uuid: string, name: string, parentUuid?: string) {
+        const node = { uuid, name, _id: uuid, parent: parentUuid ? { uuid: parentUuid } : null } as any;
+        manager.add(uuid, node);
+        return node;
+    }
+
+    it('updates descendant path indexes when a node is renamed', () => {
+        addNode('parent', 'A', 'scene');
+        const child = addNode('child', 'B', 'parent');
+        const grandchild = addNode('grandchild', 'D', 'child');
+
+        manager.updateNodeName('parent', 'C');
+
+        expect(manager.getNodePath(child)).toBe('C/B');
+        expect(manager.getNodePath(grandchild)).toBe('C/B/D');
+        expect(manager.getNodeByPath('C/B')).toBe(child);
+        expect(manager.getNodeByPath('C/B/D')).toBe(grandchild);
+        expect(manager.getNodeByPath('A/B')).toBeNull();
+        expect(manager.getNodeByPath('A/B/D')).toBeNull();
+    });
+});
