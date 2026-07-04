@@ -155,6 +155,7 @@ export type IPublicUndoService = Omit<
     IUndoService,
     | 'reset'
     | 'push'
+    | 'pushWithPrevious'
     | 'isApplying'
     | 'redo'
     | 'canRedo'
