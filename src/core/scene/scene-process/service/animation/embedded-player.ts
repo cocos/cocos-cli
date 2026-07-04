@@ -162,14 +162,23 @@ export function serializeEmbeddedPlayersForMeta(clip: AnimationClip) {
 }
 
 export async function replaceEmbeddedPlayers(clip: AnimationClip, players: IAnimationEmbeddedPlayerDump[]): Promise<boolean> {
-    if (typeof (clip as any)[clearEmbeddedPlayersTag] !== 'function' || typeof (clip as any)[addEmbeddedPlayerTag] !== 'function') {
-        return false;
+    const clipAny = clip as any;
+    const canClear = typeof clipAny[clearEmbeddedPlayersTag] === 'function';
+    const canAdd = typeof clipAny[addEmbeddedPlayerTag] === 'function';
+    if (!canClear || !canAdd) {
+        if (players.length > 0) {
+            return false;
+        }
+        if (typeof clipAny[getEmbeddedPlayersTag] === 'function') {
+            return queryEmbeddedPlayers(clip).length === 0;
+        }
+        return true;
     }
 
     ensureEmbeddedPlayers(clip);
-    (clip as any)[clearEmbeddedPlayersTag]();
+    clipAny[clearEmbeddedPlayersTag]();
     for (const player of players) {
-        (clip as any)[addEmbeddedPlayerTag](await createEmbeddedPlayer(clip, player));
+        clipAny[addEmbeddedPlayerTag](await createEmbeddedPlayer(clip, player));
     }
     return true;
 }

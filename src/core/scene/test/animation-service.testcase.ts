@@ -1228,6 +1228,104 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(true);
     });
 
+    it('applyOperation 记录 addPropertyCurve 的 undo/redo', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const before = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        expect(before.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+            ],
+        }]);
+        const after = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(after.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(true);
+        expect(await Undo.isDirty()).toBe(true);
+        expect(await Undo.canUndo()).toBe(true);
+
+        expectUndoSuccess(await Undo.undo());
+        const undoDump = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        expect(undoDump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(false);
+        expect(await Undo.canRedo()).toBe(true);
+
+        expectUndoSuccess(await Undo.redo());
+        const redoDump = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        expect(redoDump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(true);
+    });
+
+    it('applyOperation 记录 child addPropertyCurve 的 undo/redo', async () => {
+        await ensureAnimationSession(childRootNodePath, childClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const childRelativePath = 'AnimationServiceChildSamplingChild';
+        await request('setTime', [{ time: 0.5 }]);
+        const value = await request('queryPropertyValueAtFrame', [{
+            clipUuid: childClipUuid,
+            nodePath: childRelativePath,
+            propKey: 'position',
+            frame: 30,
+        }]);
+        const before = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
+        expect(before.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: childClipUuid, nodePath: childRelativePath, propKey: 'position', value },
+            ],
+        }]);
+        const after = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(after.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(true);
+        expect(await Undo.isDirty()).toBe(true);
+        expect(await Undo.canUndo()).toBe(true);
+
+        expectUndoSuccess(await Undo.undo());
+        const undoDump = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
+        expect(undoDump.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(false);
+        expect(await Undo.canRedo()).toBe(true);
+
+        expectUndoSuccess(await Undo.redo());
+        const redoDump = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
+        expect(redoDump.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(true);
+    });
+
+    it('enter/setTime/queryPropertyValueAtFrame 不写入 undo/dirty', async () => {
+        const current = await request('queryState');
+        if (current.active) {
+            await request('exit', [{ save: false, restoreSelection: false }]);
+        }
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        await request('enter', [{ rootPath: childRootNodePath, clipUuid: childClipUuid, restoreSelectionOnExit: false }]);
+        expect(await Undo.isDirty()).toBe(false);
+        expect(await Undo.canUndo()).toBe(false);
+        expect(await Undo.canRedo()).toBe(false);
+
+        await request('setTime', [{ time: 0.5 }]);
+        expect(await Undo.isDirty()).toBe(false);
+        expect(await Undo.canUndo()).toBe(false);
+        expect(await Undo.canRedo()).toBe(false);
+
+        const value = await request('queryPropertyValueAtFrame', [{
+            clipUuid: childClipUuid,
+            nodePath: 'AnimationServiceChildSamplingChild',
+            propKey: 'position',
+            frame: 30,
+        }]);
+        expect(value).toMatchObject({ x: 0, y: 0, z: 0 });
+        expect(await Undo.isDirty()).toBe(false);
+        expect(await Undo.canUndo()).toBe(false);
+        expect(await Undo.canRedo()).toBe(false);
+    });
+
     it('applyOperation recordUndo 为 false 时不写入 undo 栈', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await Undo.clearHistory();
