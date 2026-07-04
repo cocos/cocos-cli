@@ -1,5 +1,5 @@
 import { Component, Node } from 'cc';
-import { NodeEventType, type IUndoRedoResult } from '../../../common';
+import { NodeEventType, type IUndoRedoResult, type IUndoScope } from '../../../common';
 import { Service } from '../core';
 import dumpUtil from '../dump';
 import nodeMgr from './index';
@@ -79,7 +79,7 @@ export class NodeUndoHelper {
 
     async recordNodeSnapshot(
         node: Node,
-        options: { label: string; type: string; record?: boolean },
+        options: { label: string; type: string; record?: boolean; scope?: IUndoScope },
         mutate: () => Promise<boolean>,
     ): Promise<boolean> {
         if (
@@ -102,7 +102,7 @@ export class NodeUndoHelper {
         }
 
         const after = this.captureNodeSnapshots([latestNode]);
-        this.pushNodeSnapshotCommand(options.type, options.label, before, after);
+        this.pushNodeSnapshotCommand(options.type, options.label, before, after, options.scope);
         return result;
     }
 
@@ -200,6 +200,7 @@ export class NodeUndoHelper {
         label: string,
         before: Map<string, INodeSnapshot>,
         after: Map<string, INodeSnapshot>,
+        scope: IUndoScope = { editorType: 'scene' },
     ): void {
         if (this.snapshotMapsEqual(before, after)) {
             return;
@@ -209,7 +210,7 @@ export class NodeUndoHelper {
             id: this._createUndoSnapshotId(type),
             label,
             type,
-            scope: { editorType: 'scene' },
+            scope,
             timestamp: Date.now(),
         }, before, after, this._createNodeSnapshotAdapter()));
     }

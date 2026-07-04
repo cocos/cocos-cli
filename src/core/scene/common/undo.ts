@@ -1,6 +1,8 @@
 export interface IUndoScope {
     assetUuid?: string;
     assetUrl?: string;
+    nodePath?: string;
+    propPath?: string;
     editorType?: 'scene' | 'prefab' | 'animation' | string;
     mode?: 'general' | 'prefab' | 'animation' | 'preview' | string;
 }
@@ -53,6 +55,8 @@ export interface IUndoBeginOptions {
     label?: string;
     /** 兼容旧调用点的别名，后续逐步迁移到 label。 */
     tag?: string;
+    /** 可选的命令作用域；用于上层在提交后做 scoped undo/吸收判断。 */
+    scope?: IUndoScope;
     /**
      * 自定义可撤销命令，内部自带 undo()/redo() 逻辑。
      * 传入后会跳过默认的属性快照模式，直接使用这个命令。

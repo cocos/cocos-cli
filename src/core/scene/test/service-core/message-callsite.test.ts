@@ -483,6 +483,41 @@ describe('ServiceEvents 事件发射集成测试', () => {
             }
         });
 
+        it('setProperty(position) record:false 不应 broadcast animation:property-committed', async () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('animation:property-committed', listener);
+
+            const nodeMgr = require('../../scene-process/service/node/index').default;
+            const setPropertySpy = jest.spyOn(nodeMgr, 'setProperty').mockResolvedValueOnce(true);
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            const { Node: MockNode } = require('cc');
+            const node = new MockNode();
+            node.uuid = 'position-change-record-false';
+            node.name = 'TestNode';
+
+            nodeService._undo = {
+                recordNodeSnapshot: jest.fn((_node: any, _opts: any, callback: any) => callback()),
+            };
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            NodeMgr.getNodeByPath = jest.fn(() => node);
+
+            try {
+                await nodeService.setProperty({
+                    nodePath: '/TestNode',
+                    path: 'position',
+                    dump: { type: 'cc.Vec3', value: { x: 1, y: 2, z: 3 } },
+                    record: false,
+                });
+
+                expect(listener).not.toHaveBeenCalled();
+            } finally {
+                setPropertySpy.mockRestore();
+            }
+        });
+
         it('previewSetProperty 不应 broadcast animation:property-committed', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('animation:property-committed', listener);
@@ -542,6 +577,32 @@ describe('ServiceEvents 事件发射集成测试', () => {
                 propPath: '__comps__.0.enabled',
                 source: 'editor',
             });
+        });
+
+        it('setProperty(__comps__) record:false 不应 broadcast animation:property-committed', async () => {
+            const listener = jest.fn();
+            globalEventEmitter.on('animation:property-committed', listener);
+
+            const { ComponentService } = require('../../scene-process/service/component');
+            const componentService = new ComponentService();
+            componentService._recordComponentPropertySnapshot = jest.fn((_node: any, _opts: any, callback: any) => callback());
+
+            const { Node: MockNode } = require('cc');
+            const node = new MockNode();
+            node.uuid = 'component-property-change-record-false';
+            node.name = 'TestNode';
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            NodeMgr.getNodeByPath = jest.fn(() => node);
+
+            await componentService.setProperty({
+                nodePath: '/TestNode',
+                path: '__comps__.0.enabled',
+                dump: { type: 'cc.Boolean', value: false },
+                record: false,
+            });
+
+            expect(listener).not.toHaveBeenCalled();
         });
     });
 

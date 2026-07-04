@@ -58,3 +58,7 @@ export const Service = new Proxy({} as IServiceManager, {
 export function getServiceAll() {
     return Object.values(_serviceRegistry);
 }
+
+export function queryRegisteredService<T = any>(name: string): T | null {
+    return _serviceRegistry[name] ?? null;
+}

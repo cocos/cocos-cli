@@ -6,7 +6,7 @@ export interface IAnimationAssetMetadata {
 }
 
 export function isAnimationAssetValue(value: unknown): value is Asset {
-    return value instanceof Asset;
+    return typeof Asset === 'function' && value instanceof Asset;
 }
 
 export function serializeAnimationAssetValue(value: Asset): { uuid: string } | null {
@@ -25,7 +25,7 @@ export function queryAnimationAssetUuid(value: unknown): string {
 
 export function queryAnimationAssetCtor(metadata: IAnimationAssetMetadata | null | undefined): (new () => Asset) | null {
     const ctor = metadata?.valueCtor || (metadata?.type?.value ? js.getClassByName(metadata.type.value) : null);
-    if (typeof ctor !== 'function') {
+    if (typeof ctor !== 'function' || typeof Asset !== 'function') {
         return null;
     }
     return ctor === Asset || ctor.prototype instanceof Asset ? ctor as new () => Asset : null;

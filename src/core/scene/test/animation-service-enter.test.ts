@@ -16,10 +16,15 @@ const mockService = {
     Node: {
         queryNodeTree: jest.fn(),
     },
+    Undo: {
+        createCheckpoint: jest.fn(() => ({ commandId: null, generation: 0 })),
+        isDirty: jest.fn(() => false),
+    },
 };
 
 jest.mock('cc', () => ({
     Animation: class Animation {},
+    Asset: class Asset {},
     AnimationClip: class AnimationClip {
         static WrapMode: { Reverse: number } = { Reverse: 1 };
     },
@@ -163,6 +168,229 @@ describe('AnimationService enter', () => {
         await expect(service._getAnimationState('clip-uuid')).rejects.toThrow('Animation clips not found');
 
         expect(assetManager.loadAny).not.toHaveBeenCalled();
+    });
+
+    it('keeps a running animation state playing after frame value query', async () => {
+        const service = new AnimationService() as any;
+        const rootNode = {
+            uuid: 'root-uuid',
+            position: { x: 4, y: 5, z: 6 },
+            components: [],
+        };
+        let current = 0.4;
+        let isPaused = false;
+        const state = {
+            clip: { sample: 30 },
+            weight: 0,
+            get current() {
+                return current;
+            },
+            get isPlaying() {
+                return true;
+            },
+            get isPaused() {
+                return isPaused;
+            },
+            setTime: jest.fn((time: number) => {
+                current = time;
+            }),
+            pause: jest.fn(() => {
+                isPaused = true;
+            }),
+            resume: jest.fn(() => {
+                isPaused = false;
+            }),
+            sample: jest.fn(() => {
+                rootNode.position = current === 0.5 ? { x: 10, y: 11, z: 12 } : { x: 4, y: 5, z: 6 };
+            }),
+        };
+        (globalThis as any).EditorExtends.Node.getNodeByPath.mockReturnValue(rootNode);
+        service._session = {
+            clipUuid: 'clip-uuid',
+            rootUuid: rootNode.uuid,
+            rootPath: 'Canvas/AnimatedRoot',
+        };
+        service._curEditTime = 0.4;
+        service._getAnimationState = jest.fn(async () => state);
+
+        const value = await service.queryPropertyValueAtFrame({
+            clipUuid: 'clip-uuid',
+            nodePath: 'Canvas/AnimatedRoot',
+            propKey: 'position',
+            frame: 15,
+        });
+
+        expect(value).toEqual({ x: 10, y: 11, z: 12 });
+        expect(state.pause).toHaveBeenCalled();
+        expect(state.resume).toHaveBeenCalled();
+        expect(state.current).toBe(0.4);
+        expect(state.isPaused).toBe(false);
+        expect(service._curEditTime).toBe(0.4);
+    });
+
+    it('keeps edit time unchanged when sampling reverse clips', async () => {
+        const service = new AnimationService() as any;
+        const state = {
+            clip: { wrapMode: 1 },
+            duration: 1,
+            weight: 0,
+            isPaused: false,
+            setTime: jest.fn(),
+            pause: jest.fn(function (this: { isPaused: boolean }) {
+                this.isPaused = true;
+            }),
+            sample: jest.fn(),
+        };
+        service._session = { clipUuid: 'clip-uuid' };
+        service._getAnimationState = jest.fn(async () => state);
+        service._broadcastTimeChanged = jest.fn();
+
+        await service.setTime({ time: 0.25 });
+
+        expect(state.setTime).toHaveBeenCalledWith(0.75);
+        expect(service._curEditTime).toBe(0.25);
+    });
+
+    it('uses the active session clip for root info on the current animation root', async () => {
+        const { Animation } = require('cc');
+        const service = new AnimationService() as any;
+        const defaultClip = { _uuid: 'default-clip', name: 'Default' };
+        const currentClip = { _uuid: 'current-clip', name: 'Current' };
+        const animComp = new Animation();
+        animComp.clips = [defaultClip, currentClip];
+        animComp.defaultClip = defaultClip;
+        const rootNode = {
+            uuid: 'root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
+        service._session = {
+            clipUuid: 'current-clip',
+            rootUuid: rootNode.uuid,
+            rootPath: 'Canvas/AnimatedRoot',
+        };
+        service._resolveRootNode = jest.fn(() => rootNode);
+        service.queryClip = jest.fn(async (options: { clipUuid: string }) => ({ uuid: options.clipUuid }));
+        service.queryTime = jest.fn(async (options: { clipUuid: string }) => options.clipUuid === 'current-clip' ? 0.5 : 0.25);
+        mockService.Node.queryNodeTree.mockResolvedValue({ name: 'AnimatedRoot' });
+
+        const info = await service.queryRootInfo({ rootPath: 'Canvas/AnimatedRoot' });
+
+        expect(info.defaultClip).toBe('default-clip');
+        expect(info.clipDump).toEqual({ uuid: 'current-clip' });
+        expect(info.time).toBe(0.5);
+        expect(service.queryClip).toHaveBeenCalledWith({ rootUuid: rootNode.uuid, clipUuid: 'current-clip' });
+        expect(service.queryTime).toHaveBeenCalledWith({ clipUuid: 'current-clip' });
+    });
+
+    it('reports stop play state for root info outside the active animation session', async () => {
+        const { Animation } = require('cc');
+        const service = new AnimationService() as any;
+        const defaultClip = { _uuid: 'default-clip', name: 'Default' };
+        const animComp = new Animation();
+        animComp.clips = [defaultClip];
+        animComp.defaultClip = defaultClip;
+        const rootNode = {
+            uuid: 'other-root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
+        service._session = {
+            clipUuid: 'current-clip',
+            rootUuid: 'active-root-uuid',
+            rootPath: 'Canvas/ActiveRoot',
+        };
+        service._playState = 'playing';
+        service._resolveRootNode = jest.fn(() => rootNode);
+        service.queryClip = jest.fn(async () => ({ uuid: 'default-clip' }));
+        mockService.Node.queryNodeTree.mockResolvedValue({ name: 'OtherRoot' });
+
+        const info = await service.queryRootInfo({ rootPath: 'Canvas/OtherRoot' });
+
+        expect(info.state).toBe('stop');
+    });
+
+    it('does not report the current edit time for uncached non-current clips', async () => {
+        const service = new AnimationService() as any;
+        service._session = { clipUuid: 'current-clip' };
+        service._curEditTime = 0.75;
+        service._animationStates.get = jest.fn(() => undefined);
+
+        await expect(service.queryTime({ clipUuid: 'other-clip' })).resolves.toBe(0);
+    });
+
+    it('recreates animation state after failed-operation snapshot restore without touching private curve flags', async () => {
+        const service = new AnimationService() as any;
+        const clip = {
+            _uuid: 'clip-uuid',
+            duration: 1,
+            sample: 30,
+            speed: 1,
+            wrapMode: 1,
+            events: [],
+        };
+        const snapshot = {
+            duration: 1,
+            sample: 30,
+            speed: 1,
+            wrapMode: 1,
+            curves: [],
+            events: [],
+            embeddedPlayers: [],
+            embeddedPlayerGroups: [],
+            auxiliaryCurves: {},
+        };
+        const state = {};
+        Object.defineProperty(state, '_curveLoaded', {
+            set() {
+                throw new Error('private curve flag should not be written');
+            },
+        });
+        service._animationStates.get = jest.fn(() => state);
+        service._animationStates.reset = jest.fn();
+        service._animationStates.create = jest.fn();
+        service._curEditTime = 0.5;
+        service.setTime = jest.fn(async () => true);
+
+        await expect(service._restoreFailedOperationSnapshot(clip, snapshot, {})).resolves.toBeUndefined();
+
+        expect(service._animationStates.reset).toHaveBeenCalledWith('clip-uuid');
+        expect(service._animationStates.create).toHaveBeenCalledWith('clip-uuid', clip);
+        expect(service.setTime).toHaveBeenCalledWith({ time: 0.5 });
+    });
+
+    it('keeps the current state registered when undo snapshot restore fails', async () => {
+        const service = new AnimationService() as any;
+        const clip = {
+            _uuid: 'clip-uuid',
+            duration: 1,
+            sample: 30,
+            speed: 1,
+            wrapMode: 1,
+            events: [],
+        };
+        service._session = { clipUuid: 'clip-uuid' };
+        service._getAnimationState = jest.fn(async () => ({ clip }));
+        service._animationStates.reset = jest.fn();
+        service._animationStates.create = jest.fn();
+
+        await expect(service._restoreCurrentClipSnapshot('clip-uuid', {
+            duration: 1,
+            sample: 30,
+            speed: 1,
+            wrapMode: 1,
+            curves: [],
+            events: [],
+            embeddedPlayers: [{
+                begin: 0,
+                end: 30,
+                reconciledSpeed: false,
+                group: 'particle-track',
+            }],
+            embeddedPlayerGroups: [],
+            auxiliaryCurves: {},
+        })).rejects.toThrow('Failed to restore animation embedded players.');
+
+        expect(service._animationStates.reset).not.toHaveBeenCalled();
+        expect(service._animationStates.create).not.toHaveBeenCalled();
     });
 
     it('returns empty clip info for animation roots without clips', async () => {

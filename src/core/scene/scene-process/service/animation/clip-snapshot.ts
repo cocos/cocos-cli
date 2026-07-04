@@ -55,6 +55,20 @@ export function captureAnimationClipSnapshot(clip: AnimationClip, options: IProp
 }
 
 export async function restoreAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot): Promise<void> {
+    const previous = captureAnimationClipSnapshot(clip);
+    try {
+        await applyAnimationClipSnapshot(clip, snapshot);
+    } catch (error) {
+        try {
+            await applyAnimationClipSnapshot(clip, previous);
+        } catch (restoreError) {
+            console.error('[Animation] rollback failed animation clip snapshot restore:', restoreError);
+        }
+        throw error;
+    }
+}
+
+async function applyAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot): Promise<void> {
     (clip as any).duration = snapshot.duration;
     (clip as any).sample = snapshot.sample;
     (clip as any).speed = snapshot.speed;

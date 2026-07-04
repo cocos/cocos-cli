@@ -30,6 +30,7 @@ import { CCClass, CCObject, Component, Node, Prefab, Quat, Vec3 } from 'cc';
 import { createNodeByAsset, loadAny } from './node/node-create';
 import { getUICanvasNode, setLayer } from './node/node-utils';
 import { NodeUndoHelper } from './node/node-undo';
+import { isUndoApplying } from './undo/applying-state';
 import { prefabUtils } from './prefab/utils';
 import { sceneUtils } from './scene/utils';
 import nodeMgr from './node/index';
@@ -485,6 +486,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             label: `Set ${options.path}`,
             type: 'node:set-property',
             record: options.record,
+            scope: {
+                editorType: 'scene',
+                nodePath: options.nodePath,
+                propPath: options.path,
+            },
         }, async () => {
             if (options.path === 'name' && options.dump.value !== node.name) {
                 // 这里相当于是做个hack的补充功能，因为setProperty并没有改变path。
@@ -496,7 +502,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
             return await nodeMgr.setProperty(node.uuid, options.path, options.dump, options.record);
         });
-        if (result) {
+        if (result && options.record !== false && !isUndoApplying()) {
             broadcastAnimationPropertyCommitted({
                 nodePath: options.nodePath,
                 propPath: options.path,

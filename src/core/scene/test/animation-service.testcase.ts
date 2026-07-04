@@ -1419,6 +1419,88 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(true);
     });
 
+    it('applyOperation 不应把无关 scene 属性 undo 合并进 animation scoped undo', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'scale', value: { x: 1, y: 1, z: 1 } },
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'scale', frame: 0, value: { x: 1, y: 1, z: 1 } },
+            ],
+            recordUndo: false,
+        }]);
+        await NodeProxy.update({
+            path: childNodePath,
+            properties: { position: { x: 0, y: 0, z: 0 } },
+        });
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        await request('setTime', [{ time: 1 }]);
+        await NodeProxy.update({
+            path: childNodePath,
+            properties: { position: { x: 456, y: 0, z: 0 } },
+        });
+        expect(await Undo.canUndoInAnimationScope()).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'scale', frame: 30, value: { x: 2, y: 2, z: 2 } },
+            ],
+            absorbPreviousScenePropertyUndo: true,
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(await Undo.canUndoInAnimationScope()).toBe(true);
+
+        expectUndoSuccess(await Undo.undoInAnimationScope());
+        const childAfterUndo = await NodeProxy.query({ path: childNodePath, includeChildren: false, includeComponents: false }) as any;
+        expect(childAfterUndo?.properties.position).toMatchObject({ x: 456, y: 0, z: 0 });
+        expect(await Undo.canUndo()).toBe(true);
+        expect(await Undo.isDirty()).toBe(true);
+    });
+
+    it('applyOperation 混合非属性操作时不应吸收 scene 属性 undo', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
+            ],
+            recordUndo: false,
+        }]);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        await request('setTime', [{ time: 1 }]);
+        await NodeProxy.update({
+            path: emptyNodePath,
+            properties: { position: { x: 789, y: 0, z: 0 } },
+        });
+        expect(await Undo.canUndoInAnimationScope()).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 789, y: 0, z: 0 } },
+                { type: 'addEvent', clipUuid: emptyClipUuid, frame: 30, func: 'onMixedCommit', params: ['mixed'] },
+            ],
+            absorbPreviousScenePropertyUndo: true,
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(await Undo.canUndoInAnimationScope()).toBe(true);
+
+        expectUndoSuccess(await Undo.undoInAnimationScope());
+        const undoDump = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        const undoCurve = undoDump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+        expect(undoCurve.keyframes).toEqual([
+            { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
+        ]);
+        expect(undoDump.events).not.toEqual(expect.arrayContaining([
+            { frame: 30, func: 'onMixedCommit', params: ['mixed'] },
+        ]));
+        expect(await Undo.canUndo()).toBe(true);
+    });
+
     it('enter/setTime/queryPropertyValueAtFrame 不写入 undo/dirty', async () => {
         const current = await request('queryState');
         if (current.active) {

@@ -20,13 +20,9 @@ export async function saveAnimationServiceClip(options: {
 
     const content = EditorExtends.serialize(clip);
     const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [session.clipUuid]);
-    if (assetInfo) {
-        await Rpc.getInstance().request('assetManager', 'saveAsset', [assetInfo.uuid, content]);
-    } else {
-        await Rpc.getInstance().request('assetManager', 'createAsset', [{
-            target: `db://assets/${clip.name}.anim`,
-            content,
-        }]);
+    if (!assetInfo) {
+        throw new Error(`Animation clip asset not found: ${session.clipUuid}`);
     }
+    await Rpc.getInstance().request('assetManager', 'saveAsset', [assetInfo.uuid, content]);
     return true;
 }

@@ -27,7 +27,6 @@ export class AnimationStateRegistry {
 
     create(uuid: string, clip: AnimationClip): AnimationState {
         const state = new AnimationState(clip);
-        (state as any)._curveLoaded = false;
         state.initialize(this._getRootNode());
         this._states.set(uuid, state);
         return state;

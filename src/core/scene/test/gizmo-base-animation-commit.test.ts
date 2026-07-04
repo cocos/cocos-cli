@@ -1,5 +1,7 @@
 const broadcasts: Array<[string, unknown]> = [];
 let throwLegacyBroadcast = false;
+let endRecordingPromise: Promise<unknown> | null = null;
+let endRecordingResolve: (() => void) | null = null;
 
 jest.mock('cc', () => {
     class Node {
@@ -13,6 +15,15 @@ jest.mock('cc', () => {
 
 jest.mock('../scene-process/service/core/decorator', () => ({
     Service: {
+        Undo: {
+            beginRecording: jest.fn(() => 'recording-1'),
+            endRecording: jest.fn(() => {
+                if (endRecordingPromise) {
+                    return endRecordingPromise;
+                }
+                return Promise.resolve();
+            }),
+        },
         broadcast: (event: string, payload: unknown) => {
             if (throwLegacyBroadcast && event === 'gizmo:control-end') {
                 throw new Error('legacy gizmo broadcast failed');
@@ -26,6 +37,11 @@ describe('GizmoBase animation property commit event', () => {
     beforeEach(() => {
         broadcasts.length = 0;
         throwLegacyBroadcast = false;
+        endRecordingPromise = null;
+        endRecordingResolve = null;
+        const { Service } = require('../scene-process/service/core/decorator');
+        Service.Undo.beginRecording.mockClear();
+        Service.Undo.endRecording.mockClear();
         const { globalEventEmitter } = require('../scene-process/service/core/global-events');
         globalEventEmitter.removeAllListeners('animation:property-committed');
         globalEventEmitter.on('animation:property-committed', (payload: unknown) => {
@@ -44,7 +60,7 @@ describe('GizmoBase animation property commit event', () => {
         globalEventEmitter.removeAllListeners('animation:property-committed');
     });
 
-    it('broadcasts normalized committed property payload on control end', () => {
+    it('broadcasts normalized committed property payload on control end', async () => {
         const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
         class TestGizmo extends GizmoBase {
             get nodes() {
@@ -52,7 +68,7 @@ describe('GizmoBase animation property commit event', () => {
             }
         }
 
-        new (TestGizmo as any)(null).onControlEnd('_components.0.size');
+        await new (TestGizmo as any)(null).onControlEnd('_components.0.size');
 
         expect(broadcasts).toContainEqual(['gizmo:control-end', '_components.0.size']);
         expect(broadcasts).toContainEqual(['animation:property-committed', {
@@ -62,7 +78,7 @@ describe('GizmoBase animation property commit event', () => {
         }]);
     });
 
-    it('still broadcasts animation commit when the legacy gizmo end event fails', () => {
+    it('still broadcasts animation commit when the legacy gizmo end event fails', async () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
         const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
         class TestGizmo extends GizmoBase {
@@ -73,7 +89,7 @@ describe('GizmoBase animation property commit event', () => {
 
         try {
             throwLegacyBroadcast = true;
-            new (TestGizmo as any)(null).onControlEnd('position');
+            await new (TestGizmo as any)(null).onControlEnd('position');
 
             expect(warnSpy).toHaveBeenCalled();
             expect(broadcasts).toContainEqual(['animation:property-committed', {
@@ -84,5 +100,46 @@ describe('GizmoBase animation property commit event', () => {
         } finally {
             warnSpy.mockRestore();
         }
+    });
+
+    it('waits for the scene undo recording before broadcasting animation commit', async () => {
+        endRecordingPromise = new Promise((resolve) => {
+            endRecordingResolve = () => resolve(undefined);
+        });
+        const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
+        class TestGizmo extends GizmoBase {
+            get nodes() {
+                return [{ uuid: 'Hero' }];
+            }
+        }
+
+        const gizmo = new (TestGizmo as any)(null);
+        gizmo.onControlBegin('position');
+        const { Service } = require('../scene-process/service/core/decorator');
+        expect(Service.Undo.beginRecording).toHaveBeenCalledWith(['Hero'], {
+            label: 'Gizmo position',
+            scope: {
+                editorType: 'scene',
+                nodePath: 'Canvas/Hero',
+                propPath: 'position',
+            },
+        });
+        const controlEnd = gizmo.onControlEnd('position');
+
+        await Promise.resolve();
+        expect(broadcasts).not.toContainEqual(['animation:property-committed', {
+            nodePath: 'Canvas/Hero',
+            propPath: 'position',
+            source: 'engine',
+        }]);
+
+        endRecordingResolve?.();
+        await controlEnd;
+
+        expect(broadcasts).toContainEqual(['animation:property-committed', {
+            nodePath: 'Canvas/Hero',
+            propPath: 'position',
+            source: 'engine',
+        }]);
     });
 });

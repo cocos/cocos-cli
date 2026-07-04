@@ -1,7 +1,8 @@
 import type { AnimationClip } from 'cc';
+import { isAnimationAssetValue } from './asset-value';
 
 export function cloneDump<T>(dump: T): T {
-    return JSON.parse(JSON.stringify(dump)) as T;
+    return cloneValue(dump);
 }
 
 export function cloneValue<T>(value: T): T {
@@ -11,7 +12,33 @@ export function cloneValue<T>(value: T): T {
     if (typeof value !== 'object') {
         return value;
     }
-    return cloneDump(value);
+    if (Array.isArray(value)) {
+        return value.map((item) => cloneValue(item)) as T;
+    }
+    if (isAnimationAssetValue(value)) {
+        return value;
+    }
+    if (isPlainObject(value)) {
+        const result: Record<string, unknown> = {};
+        for (const [key, item] of Object.entries(value)) {
+            result[key] = cloneValue(item);
+        }
+        return result as T;
+    }
+    if (isCloneableObject(value)) {
+        const cloned = value.clone();
+        return cloned === value ? value : cloned as T;
+    }
+    return value;
+}
+
+function isPlainObject(value: object): value is Record<string, unknown> {
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+}
+
+function isCloneableObject(value: object): value is { clone(): unknown } {
+    return typeof (value as { clone?: unknown }).clone === 'function';
 }
 
 export function clipUuid(clip: AnimationClip | null | undefined): string {

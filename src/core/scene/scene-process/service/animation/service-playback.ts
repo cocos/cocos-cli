@@ -95,8 +95,11 @@ export class AnimationServicePlayback {
         }
         const state = this._context.getCurrentState();
         const time = state?.current;
-        if (!state || state.isPaused) {
+        if (!state) {
             this._stopPlaybackTimeBroadcast();
+            return;
+        }
+        if (state.isPaused) {
             return;
         }
         if (!state.isPlaying) {

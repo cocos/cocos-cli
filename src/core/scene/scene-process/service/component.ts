@@ -26,6 +26,7 @@ import { SnapshotCommand, type ISnapshotAdapter } from './undo/commands/snapshot
 import { AddComponentCommand } from './undo/commands/add-component-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
 import { createUndoId, restoreComponentSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
+import { isUndoApplying } from './undo/applying-state';
 import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
 
 const NodeMgr = EditorExtends.Node;
@@ -405,6 +406,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         const result = await this._recordComponentPropertySnapshot(node, {
             label: `Set ${options.path}`,
             type: 'component:set-property',
+            nodePath: options.nodePath,
             path: options.path,
             record: options.record,
         }, async () => {
@@ -438,7 +440,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             }
             return true;
         });
-        if (result) {
+        if (result && options.record !== false && !isUndoApplying()) {
             broadcastAnimationPropertyCommitted({
                 nodePath: options.nodePath,
                 propPath: options.path,
@@ -498,7 +500,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
 
     private async _recordComponentPropertySnapshot(
         node: Node,
-        options: { label: string; type: string; path: string; record?: boolean },
+        options: { label: string; type: string; nodePath: string; path: string; record?: boolean },
         mutate: () => Promise<boolean>,
     ): Promise<boolean> {
         if (options.record === false || Service.Undo?.isApplying?.()) {
@@ -533,7 +535,11 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             id: this._createUndoSnapshotId(options.type),
             label: options.label,
             type: options.type,
-            scope: { editorType: 'scene' },
+            scope: {
+                editorType: 'scene',
+                nodePath: options.nodePath,
+                propPath: options.path,
+            },
             timestamp: Date.now(),
         }, before, after, this._createComponentPropertySnapshotAdapter()));
         return result;

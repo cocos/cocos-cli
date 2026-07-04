@@ -192,15 +192,6 @@ function changeClipSample(clip: AnimationClip, value: unknown): boolean {
         sample = 1;
     }
 
-    const oldSample = getClipSample(clip);
-    const events = queryClipEvents(clip);
-    if (events) {
-        for (const event of events) {
-            const frame = Math.round((Number(event.frame) || 0) * oldSample);
-            event.frame = frame / sample;
-        }
-    }
-
     (clip as any).sample = sample;
     updateClipEventData(clip);
     return true;

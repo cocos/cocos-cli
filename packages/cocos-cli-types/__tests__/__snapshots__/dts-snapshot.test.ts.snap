@@ -6608,6 +6608,7 @@ export declare interface IUIService {
 export declare interface IUndoBeginOptions {
     label?: string;
     tag?: string;
+    scope?: IUndoScope;
     customCommand?: IUndoCommand;
 }
 export declare interface IUndoCheckpoint {
@@ -6648,6 +6649,8 @@ export declare interface IUndoRedoResult {
 export declare interface IUndoScope {
     assetUuid?: string;
     assetUrl?: string;
+    nodePath?: string;
+    propPath?: string;
     editorType?: 'scene' | 'prefab' | 'animation' | string;
     mode?: 'general' | 'prefab' | 'animation' | 'preview' | string;
 }

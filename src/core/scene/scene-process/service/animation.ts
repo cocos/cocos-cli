@@ -12,6 +12,7 @@ import {
     IAnimationEditClipOptions,
     IAnimationEnterOptions,
     IAnimationExitOptions,
+    IAnimationOperation,
     IAnimationOperationOptions,
     IAnimationOperationResult,
     IAnimationPlayStateOptions,
@@ -233,13 +234,14 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async queryRootInfo(options: IAnimationTargetOptions): Promise<IAnimationRootInfo> {
         const rootNode = this._resolveRootNode(options);
         const clipsInfo = await queryAnimationClipsInfo(rootNode);
-        const defaultClipUuid = clipsInfo.defaultClip;
+        const activeSession = this._session?.rootUuid === rootNode.uuid ? this._session : null;
+        const clipUuid = activeSession?.clipUuid || clipsInfo.defaultClip;
         return {
             ...clipsInfo,
             nodeTreeDump: await Service.Node.queryNodeTree({ path: clipsInfo.rootPath }),
-            clipDump: defaultClipUuid ? await this.queryClip({ rootUuid: rootNode.uuid, clipUuid: defaultClipUuid }) : null,
-            time: this._session && defaultClipUuid ? await this.queryTime({ clipUuid: defaultClipUuid }) : 0,
-            state: this._playState,
+            clipDump: clipUuid ? await this.queryClip({ rootUuid: rootNode.uuid, clipUuid }) : null,
+            time: activeSession && clipUuid ? await this.queryTime({ clipUuid }) : 0,
+            state: activeSession ? this._playState : 'stop',
             useBakedAnimation: isUsingBakedAnimation(rootNode),
         };
     }
@@ -283,7 +285,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return this._curEditTime;
         }
         const state = this._animationStates.get(uuid);
-        return state?.current ?? this._curEditTime;
+        return state?.current ?? 0;
     }
 
     async queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<IAnimationValue> {
@@ -295,6 +297,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const previousTime = this._curEditTime;
+        const previousStateTime = typeof state.current === 'number' && Number.isFinite(state.current)
+            ? state.current
+            : previousTime;
+        const wasPlaying = state.isPlaying;
+        const wasPaused = state.isPaused;
         const sample = getClipSample(state.clip);
         let value: unknown;
         try {
@@ -308,11 +315,16 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             const node = resolveAnimationFrameQueryNode(options, session);
             value = readPropertyValue(node, options.propKey);
         } finally {
-            state.setTime(previousTime);
-            if (!state.isPaused) {
+            state.setTime(wasPlaying ? previousStateTime : previousTime);
+            if (wasPlaying && !wasPaused) {
+                state.sample();
+                state.resume();
+            } else if (!state.isPaused) {
                 state.pause();
+                state.sample();
+            } else {
+                state.sample();
             }
-            state.sample();
             this._curEditTime = previousTime;
             await Service.Engine.repaintInEditMode();
         }
@@ -333,22 +345,23 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async setTime(options: IAnimationSetTimeOptions): Promise<boolean> {
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
-        let playTime = options.time;
-        if (playTime < 0) {
-            playTime = 0;
+        let editTime = options.time;
+        if (editTime < 0) {
+            editTime = 0;
         }
+        let sampleTime = editTime;
 
         if (((state.clip.wrapMode & AnimationClip.WrapMode.Reverse) === AnimationClip.WrapMode.Reverse)) {
-            playTime = state.duration - Math.min(playTime, state.duration);
+            sampleTime = state.duration - Math.min(editTime, state.duration);
         }
 
         state.weight = 1;
-        state.setTime(playTime);
+        state.setTime(sampleTime);
         if (!state.isPaused) {
             state.pause();
         }
         state.sample();
-        this._curEditTime = playTime;
+        this._curEditTime = editTime;
         await Service.Engine.repaintInEditMode();
         this._broadcastTimeChanged('set-time');
         return true;
@@ -412,6 +425,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const propertyMetadataContext = createAnimationPropertyCurveMetadataContext(rootNode);
         const shouldRecordUndo = options.recordUndo !== false;
         const before = captureAnimationClipSnapshot(state.clip, propertyMetadataContext);
+        const appliedOperations: IAnimationOperation[] = [];
         let shouldSyncDuration = false;
         let shouldRestoreOnFailure = false;
         for (const inputOperation of options.operations) {
@@ -482,6 +496,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 await this._restoreFailedOperationSnapshot(state.clip, before, rootNode);
                 return failureResult;
             }
+            appliedOperations.push(operation);
             shouldSyncDuration = shouldSyncDuration || shouldSyncClipDuration(operation);
         }
 
@@ -499,7 +514,10 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 after,
                 applySnapshot: (snapshot) => this._restoreCurrentClipSnapshot(session.clipUuid, snapshot),
             });
-            if (options.absorbPreviousScenePropertyUndo === true) {
+            const previousScope = options.absorbPreviousScenePropertyUndo === true
+                ? this._createPreviousScenePropertyUndoScope(session.rootPath, appliedOperations)
+                : null;
+            if (previousScope) {
                 Service.Undo.pushWithPrevious(undoCommand, {
                     label: 'Animation Property Commit',
                     type: 'animation:property-commit',
@@ -508,7 +526,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                         editorType: 'animation',
                         mode: 'animation',
                     },
-                    previousScope: { editorType: 'scene' },
+                    previousScope,
                     previousTypes: ['node:set-property', 'component:set-property'],
                 });
             } else {
@@ -585,17 +603,18 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         await this._playback.stopCurrent();
     }
 
-    private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, rootNode: Node): Promise<void> {
+    private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, _rootNode: Node): Promise<void> {
         try {
             await restoreAnimationClipSnapshot(clip, snapshot);
         } catch (error) {
             console.error('[Animation] restore failed operation snapshot failed:', error);
             throw error;
         }
-        const state = this._animationStates.get(clipUuid(clip));
+        const uuid = clipUuid(clip);
+        const state = this._animationStates.get(uuid);
         if (state) {
-            (state as any)._curveLoaded = false;
-            state.initialize(rootNode);
+            this._animationStates.reset(uuid);
+            this._animationStates.create(uuid, clip);
         }
         await this.setTime({ time: this._curEditTime });
     }
@@ -608,8 +627,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const clip = state.clip;
-        this._animationStates.reset(uuid);
         await restoreAnimationClipSnapshot(clip, snapshot);
+        this._animationStates.reset(uuid);
         this._animationStates.create(uuid, clip);
         await this.setTime({ time: this._curEditTime });
         this._broadcastClipChanged('undo-redo');
@@ -698,4 +717,51 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         };
     }
 
+    private _createPreviousScenePropertyUndoScope(rootPath: string, operations: IAnimationOperation[]): Partial<IUndoScope> | null {
+        if (operations.length === 0) {
+            return null;
+        }
+        const targets = new Map<string, { nodePath: string; propPath: string }>();
+        for (const operation of operations) {
+            if (!('propKey' in operation)) {
+                return null;
+            }
+            const nodePath = this._resolveScenePropertyNodePath(rootPath, operation);
+            if (!nodePath) {
+                return null;
+            }
+            const target = { nodePath, propPath: operation.propKey };
+            targets.set(`${target.nodePath}\n${target.propPath}`, target);
+        }
+        if (targets.size !== 1) {
+            return null;
+        }
+        const [target] = targets.values();
+        return {
+            editorType: 'scene',
+            nodePath: target.nodePath,
+            propPath: target.propPath,
+        };
+    }
+
+    private _resolveScenePropertyNodePath(rootPath: string, operation: { nodePath?: string; nodeUuid?: string }): string | null {
+        if (operation.nodeUuid) {
+            const node = getNodeByUuid(operation.nodeUuid);
+            return node ? getNodePath(node) : null;
+        }
+        const normalizedRootPath = normalizeSceneNodePath(rootPath);
+        const normalizedNodePath = normalizeSceneNodePath(operation.nodePath || '');
+        if (!normalizedNodePath || normalizedNodePath === normalizedRootPath) {
+            return normalizedRootPath;
+        }
+        if (normalizedRootPath && normalizedNodePath.startsWith(`${normalizedRootPath}/`)) {
+            return normalizedNodePath;
+        }
+        return normalizedRootPath ? `${normalizedRootPath}/${normalizedNodePath}` : normalizedNodePath;
+    }
+
+}
+
+function normalizeSceneNodePath(path: string): string {
+    return String(path || '').replace(/^\/+|\/+$/g, '');
 }

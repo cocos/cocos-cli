@@ -9,6 +9,7 @@ interface ISceneUndoOption {
     label?: string;
     tag?: string;
     auto?: boolean;
+    scope?: IUndoScope;
     customCommand?: IUndoCommand;
 }
 
@@ -26,6 +27,7 @@ interface IActiveGroup {
 interface IActiveSnapshotRecording {
     id: string;
     label: string;
+    scope: IUndoScope;
     uuids: string[];
     before: Map<string, any> | Promise<Map<string, any>>;
 }
@@ -253,6 +255,7 @@ class SceneUndoManager {
             this._snapshotRecordings.set(id, {
                 id,
                 label: option.label ?? option.tag ?? id,
+                scope: option.scope ?? {},
                 uuids: [...uuidSet],
                 before: this._snapshotAdapter.capture([...uuidSet]),
             });
@@ -274,22 +277,25 @@ class SceneUndoManager {
     async endRecording(id: SceneUndoCommandID): Promise<boolean> {
         if (this._snapshotAdapter && this._snapshotRecordings.has(id)) {
             const recording = this._snapshotRecordings.get(id)!;
-            const before = isPromiseLike(recording.before) ? await recording.before : recording.before;
-            const capturedAfter = this._snapshotAdapter.capture(recording.uuids);
-            const after = isPromiseLike(capturedAfter) ? await capturedAfter : capturedAfter;
-            this._snapshotRecordings.delete(id);
-            this._removeActiveRecordingUuids(recording.uuids);
-            if (this._snapshotAdapter.equals(before, after)) {
-                return false;
+            try {
+                const before = isPromiseLike(recording.before) ? await recording.before : recording.before;
+                const capturedAfter = this._snapshotAdapter.capture(recording.uuids);
+                const after = isPromiseLike(capturedAfter) ? await capturedAfter : capturedAfter;
+                if (this._snapshotAdapter.equals(before, after)) {
+                    return false;
+                }
+                this.push(new SnapshotCommand({
+                    id,
+                    label: recording.label,
+                    type: 'recording:snapshot',
+                    scope: recording.scope,
+                    timestamp: Date.now(),
+                }, before, after, this._snapshotAdapter));
+                return true;
+            } finally {
+                this._snapshotRecordings.delete(id);
+                this._removeActiveRecordingUuids(recording.uuids);
             }
-            this.push(new SnapshotCommand({
-                id,
-                label: recording.label,
-                type: 'recording:snapshot',
-                scope: {},
-                timestamp: Date.now(),
-            }, before, after, this._snapshotAdapter));
-            return true;
         }
 
         const command = this._autoCommands.find(t => t.id === id) ??
@@ -449,7 +455,7 @@ class SceneUndoManager {
             id,
             label: command.tag || id,
             type: command.custom ? 'custom' : 'recording:snapshot',
-            scope: {},
+            scope: option.scope ?? {},
             timestamp: Date.now(),
         };
         return command;

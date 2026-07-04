@@ -209,12 +209,20 @@ describe('SceneUndoManager', () => {
             },
         });
 
-        const recordingId = manager.beginRecording(['node-1'], { label: 'Move Node' });
+        const recordingId = manager.beginRecording(['node-1'], {
+            label: 'Move Node',
+            scope: { editorType: 'scene', nodePath: 'Canvas/Hero', propPath: 'position' },
+        });
         snapshots.set('node-1', { x: 1 });
         snapshots.set('node-2', { x: 20 });
 
         expect(await manager.endRecording(recordingId)).toBe(true);
         expect(manager.canUndo()).toBe(true);
+        expect(manager.getHistoryForTesting()[0].meta.scope).toEqual({
+            editorType: 'scene',
+            nodePath: 'Canvas/Hero',
+            propPath: 'position',
+        });
 
         await manager.undo();
         expect(applied).toEqual([[['node-1', { x: 0 }]]]);
@@ -265,6 +273,29 @@ describe('SceneUndoManager', () => {
         expect(manager.hasActiveRecording('node-1')).toBe(true);
 
         expect(await manager.endRecording(secondId)).toBe(false);
+        expect(manager.hasActiveRecording('node-1')).toBe(false);
+    });
+
+    it('releases active recording state when ending a snapshot recording throws', async () => {
+        let captureCount = 0;
+        const manager = new SceneUndoManager({
+            snapshotAdapter: {
+                capture: (uuids: string[]) => {
+                    captureCount++;
+                    if (captureCount === 2) {
+                        throw new Error('capture after failed');
+                    }
+                    return new Map(uuids.map(uuid => [uuid, { x: 0 }]));
+                },
+                apply: async () => ({ success: true }),
+                equals: () => false,
+            },
+        });
+
+        const recordingId = manager.beginRecording(['node-1'], { label: 'Move Node' });
+        expect(manager.hasActiveRecording('node-1')).toBe(true);
+
+        await expect(manager.endRecording(recordingId)).rejects.toThrow('capture after failed');
         expect(manager.hasActiveRecording('node-1')).toBe(false);
     });
 
