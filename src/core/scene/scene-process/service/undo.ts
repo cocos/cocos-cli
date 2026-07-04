@@ -1,7 +1,7 @@
 import { BaseService } from './core';
 import { register } from './core/decorator';
 import { SceneUndoManager } from './undo/scene-undo-manager';
-import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCommand, type IUndoGroupOptions, type IUndoOperationOptions, type IUndoRedoResult } from '../../common';
+import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCommand, type IUndoGroupOptions, type IUndoOperationOptions, type IUndoPushWithPreviousOptions, type IUndoRedoResult } from '../../common';
 import type { Component, Node } from 'cc';
 import { ServiceEvents } from './core/global-events';
 import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
@@ -149,6 +149,13 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     push(command: IUndoCommand): void {
         const wasDirty = this._undoMgr.isDirty();
         this._undoMgr.push(command);
+        this._emitDirtyIfChanged(wasDirty);
+        this.broadcast('undo:changed');
+    }
+
+    pushWithPrevious(command: IUndoCommand, options: IUndoPushWithPreviousOptions): void {
+        const wasDirty = this._undoMgr.isDirty();
+        this._undoMgr.pushWithPrevious(command, options);
         this._emitDirtyIfChanged(wasDirty);
         this.broadcast('undo:changed');
     }

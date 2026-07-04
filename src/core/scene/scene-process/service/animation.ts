@@ -488,12 +488,27 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         await this.setTime({ time: this._curEditTime });
         const after = shouldRecordUndo ? captureAnimationClipSnapshot(state.clip, propertyMetadataContext) : null;
         if (before && after && !animationClipSnapshotsEqual(before, after)) {
-            Service.Undo.push(new AnimationClipSnapshotCommand({
+            const undoCommand = new AnimationClipSnapshotCommand({
                 clipUuid: session.clipUuid,
                 before,
                 after,
                 applySnapshot: (snapshot) => this._restoreCurrentClipSnapshot(session.clipUuid, snapshot),
-            }));
+            });
+            if (options.absorbPreviousScenePropertyUndo === true) {
+                Service.Undo.pushWithPrevious(undoCommand, {
+                    label: 'Animation Property Commit',
+                    type: 'animation:property-commit',
+                    scope: {
+                        assetUuid: session.clipUuid,
+                        editorType: 'animation',
+                        mode: 'animation',
+                    },
+                    previousScope: { editorType: 'scene' },
+                    previousTypes: ['node:set-property', 'component:set-property'],
+                });
+            } else {
+                Service.Undo.push(undoCommand);
+            }
         }
         this._broadcastClipChanged('operation');
         return {

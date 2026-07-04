@@ -21,8 +21,11 @@ const Undo = {
     markSaved: () => requestService('Undo', 'markSaved'),
     isDirty: () => requestService<boolean>('Undo', 'isDirty'),
     canUndo: () => requestService<boolean>('Undo', 'canUndo'),
+    canUndoInAnimationScope: () => requestService<boolean>('Undo', 'canUndo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
     undo: () => requestService('Undo', 'undo'),
+    undoInAnimationScope: () => requestService('Undo', 'undo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
     canRedo: () => requestService<boolean>('Redo', 'canRedo'),
+    redoInAnimationScope: () => requestService('Redo', 'redo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
     redo: () => requestService('Redo', 'redo'),
 };
 
@@ -1294,6 +1297,60 @@ describe('Animation Service 场景进程测试', () => {
         expectUndoSuccess(await Undo.redo());
         const redoDump = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
         expect(redoDump.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(true);
+    });
+
+    it('applyOperation 可把已消费的 scene 属性 undo 合并进 animation scoped undo', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
+            ],
+            recordUndo: false,
+        }]);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        await request('setTime', [{ time: 1 }]);
+        await NodeProxy.update({
+            path: emptyNodePath,
+            properties: { position: { x: 123, y: 0, z: 0 } },
+        });
+        expect(await Undo.canUndoInAnimationScope()).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 123, y: 0, z: 0 } },
+            ],
+            absorbPreviousScenePropertyUndo: true,
+        }]);
+        const after = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        const positionCurve = after.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(positionCurve.keyframes).toEqual([
+            { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
+            { frame: 30, dump: { value: { x: 123, y: 0, z: 0 }, type: 'cc.Vec3' } },
+        ]);
+        expect(await Undo.canUndoInAnimationScope()).toBe(true);
+
+        expectUndoSuccess(await Undo.undoInAnimationScope());
+        const undoDump = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        const undoCurve = undoDump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+        const nodeAfterUndo = await NodeProxy.query({ path: emptyNodePath, includeChildren: false, includeComponents: false }) as any;
+        expect(undoCurve.keyframes).toEqual([
+            { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
+        ]);
+        expect(nodeAfterUndo?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
+        expect(await Undo.isDirty()).toBe(false);
+
+        expectUndoSuccess(await Undo.redoInAnimationScope());
+        const redoDump = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        const redoCurve = redoDump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+        const nodeAfterRedo = await NodeProxy.query({ path: emptyNodePath, includeChildren: false, includeComponents: false }) as any;
+        expect(redoCurve.keyframes).toEqual(positionCurve.keyframes);
+        expect(nodeAfterRedo?.properties.position).toMatchObject({ x: 123, y: 0, z: 0 });
+        expect(await Undo.isDirty()).toBe(true);
     });
 
     it('enter/setTime/queryPropertyValueAtFrame 不写入 undo/dirty', async () => {

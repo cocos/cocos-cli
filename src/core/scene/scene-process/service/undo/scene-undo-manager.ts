@@ -1,4 +1,4 @@
-import type { IUndoCommand, IUndoGroupOptions, IUndoOperationOptions, IUndoRedoResult, IUndoScope } from '../../../common';
+import type { IUndoCommand, IUndoGroupOptions, IUndoOperationOptions, IUndoPushWithPreviousOptions, IUndoRedoResult, IUndoScope } from '../../../common';
 import { SceneUndoCommand, SceneUndoCommandID } from './undo-command';
 import { CompositeCommand } from './commands/composite-command';
 import { ISnapshotAdapter, SnapshotCommand } from './commands/snapshot-command';
@@ -55,6 +55,29 @@ class SceneUndoManager {
             return;
         }
         this._pushToStack(command);
+    }
+
+    pushWithPrevious(command: IUndoCommand, options: IUndoPushWithPreviousOptions): void {
+        if (this._activeGroup) {
+            this._activeGroup.children.push(command);
+            return;
+        }
+
+        const previous = this._index === this._commandArray.length - 1 ? this._commandArray[this._index] : undefined;
+        if (!previous || !matchesUndoScope(previous.meta.scope, options.previousScope) || !matchesUndoType(previous.meta.type, options.previousTypes)) {
+            this._pushToStack(command);
+            return;
+        }
+
+        this._commandArray.splice(this._index, 1);
+        this._index--;
+        this._pushToStack(new CompositeCommand({
+            id: this._createId(options.type),
+            label: options.label ?? command.meta.label,
+            type: options.type,
+            scope: options.scope,
+            timestamp: Date.now(),
+        }, [previous, command]));
     }
 
     async undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
@@ -472,6 +495,10 @@ function matchesUndoScope(commandScope: IUndoScope, expectedScope?: Partial<IUnd
         }
     }
     return true;
+}
+
+function matchesUndoType(commandType: string, expectedTypes?: string[]): boolean {
+    return !expectedTypes || expectedTypes.includes(commandType);
 }
 
 export { SceneUndoManager, ISceneUndoOption };

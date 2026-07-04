@@ -24,6 +24,14 @@ export interface IUndoOperationOptions {
     scope?: Partial<IUndoScope>;
 }
 
+export interface IUndoPushWithPreviousOptions {
+    label?: string;
+    type: string;
+    scope: IUndoScope;
+    previousScope?: Partial<IUndoScope>;
+    previousTypes?: string[];
+}
+
 export interface IUndoCommand {
     meta: IUndoCommandMeta;
     undo(): Promise<IUndoRedoResult>;
@@ -81,6 +89,9 @@ export interface IUndoService {
 
     /** 业务 service 显式推入可撤销命令的内部入口。 */
     push(command: IUndoCommand): void;
+
+    /** 将新命令与紧邻的当前栈顶命令合并；栈顶不匹配时退化为普通 push，不搜索历史栈。 */
+    pushWithPrevious(command: IUndoCommand, options: IUndoPushWithPreviousOptions): void;
 
     /** 清空整个 undo/redo 栈，内部生命周期 API。 */
     reset(): void;

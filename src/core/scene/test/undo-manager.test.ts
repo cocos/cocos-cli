@@ -303,14 +303,89 @@ describe('SceneUndoManager', () => {
         });
         expect(animationCommand.calls).toEqual(['undo:animation-command', 'redo:animation-command']);
     });
+
+    it('merges a consumed scene property command into the animation undo scope', async () => {
+        const manager = new SceneUndoManager();
+        const sceneCommand = new ControlledCommand('scene-property-command', true, { editorType: 'scene', mode: 'general' }, 'node:set-property');
+        const animationCommand = new ControlledCommand('animation-command', true, { editorType: 'animation', mode: 'animation' }, 'animation:clip-snapshot');
+
+        manager.push(sceneCommand);
+        manager.pushWithPrevious(animationCommand, {
+            label: 'Animation Property Commit',
+            type: 'animation:property-commit',
+            scope: { editorType: 'animation', mode: 'animation' },
+            previousScope: { editorType: 'scene' },
+            previousTypes: ['node:set-property', 'component:set-property'],
+        });
+
+        expect(manager.canUndo({ scope: { editorType: 'animation', mode: 'animation' } })).toBe(true);
+        expect(manager.getHistoryForTesting()).toHaveLength(1);
+
+        await expect(manager.undo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+        });
+        expect(animationCommand.calls).toEqual(['undo:animation-command']);
+        expect(sceneCommand.calls).toEqual(['undo:scene-property-command']);
+
+        await expect(manager.redo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+        });
+        expect(sceneCommand.calls).toEqual(['undo:scene-property-command', 'redo:scene-property-command']);
+        expect(animationCommand.calls).toEqual(['undo:animation-command', 'redo:animation-command']);
+    });
+
+    it('does not absorb a previous command with the wrong type', async () => {
+        const manager = new SceneUndoManager();
+        const sceneCommand = new ControlledCommand('scene-create-command', true, { editorType: 'scene', mode: 'general' }, 'node:create');
+        const animationCommand = new ControlledCommand('animation-command', true, { editorType: 'animation', mode: 'animation' }, 'animation:clip-snapshot');
+
+        manager.push(sceneCommand);
+        manager.pushWithPrevious(animationCommand, {
+            type: 'animation:property-commit',
+            scope: { editorType: 'animation', mode: 'animation' },
+            previousScope: { editorType: 'scene' },
+            previousTypes: ['node:set-property', 'component:set-property'],
+        });
+
+        expect(manager.getHistoryForTesting()).toHaveLength(2);
+        await expect(manager.undo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+        });
+        expect(animationCommand.calls).toEqual(['undo:animation-command']);
+        expect(sceneCommand.calls).toEqual([]);
+    });
+
+    it('does not search past the stack top when absorbing previous commands', async () => {
+        const manager = new SceneUndoManager();
+        const sceneCommand = new ControlledCommand('scene-property-command', true, { editorType: 'scene', mode: 'general' }, 'node:set-property');
+        const unrelatedCommand = new ControlledCommand('unrelated-command', true, { editorType: 'scene', mode: 'general' }, 'node:create');
+        const animationCommand = new ControlledCommand('animation-command', true, { editorType: 'animation', mode: 'animation' }, 'animation:clip-snapshot');
+
+        manager.push(sceneCommand);
+        manager.push(unrelatedCommand);
+        manager.pushWithPrevious(animationCommand, {
+            type: 'animation:property-commit',
+            scope: { editorType: 'animation', mode: 'animation' },
+            previousScope: { editorType: 'scene' },
+            previousTypes: ['node:set-property', 'component:set-property'],
+        });
+
+        expect(manager.getHistoryForTesting()).toHaveLength(3);
+        await expect(manager.undo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+        });
+        expect(animationCommand.calls).toEqual(['undo:animation-command']);
+        expect(unrelatedCommand.calls).toEqual([]);
+        expect(sceneCommand.calls).toEqual([]);
+    });
 });
 
 class ControlledCommand implements IUndoCommand {
     meta: IUndoCommandMeta;
     calls: string[] = [];
 
-    constructor(id: string, private ok = true, scope: IUndoCommandMeta['scope'] = {}) {
-        this.meta = { id, label: id, type: 'test', scope, timestamp: Date.now() };
+    constructor(id: string, private ok = true, scope: IUndoCommandMeta['scope'] = {}, type = 'test') {
+        this.meta = { id, label: id, type, scope, timestamp: Date.now() };
     }
 
     async undo(): Promise<IUndoRedoResult> {

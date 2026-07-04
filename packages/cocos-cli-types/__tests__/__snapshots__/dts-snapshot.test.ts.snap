@@ -5799,6 +5799,7 @@ export declare type IAnimationOperation = {
 export declare interface IAnimationOperationOptions {
     operations: IAnimationOperation[];
     recordUndo?: boolean;
+    absorbPreviousScenePropertyUndo?: boolean;
 }
 export declare interface IAnimationOperationResult {
     state: 'success' | 'failure';
@@ -6626,6 +6627,13 @@ export declare interface IUndoGroupOptions {
 export declare interface IUndoOperationOptions {
     scope?: Partial<IUndoScope>;
 }
+export declare interface IUndoPushWithPreviousOptions {
+    label?: string;
+    type: string;
+    scope: IUndoScope;
+    previousScope?: Partial<IUndoScope>;
+    previousTypes?: string[];
+}
 export declare interface IUndoRedoResult {
     success: boolean;
     commandId?: string;
@@ -6649,6 +6657,7 @@ export declare interface IUndoService {
     cancelGroup(groupId: string): IUndoRedoResult;
     isGroupActive(): boolean;
     push(command: IUndoCommand): void;
+    pushWithPrevious(command: IUndoCommand, options: IUndoPushWithPreviousOptions): void;
     reset(): void;
     clearHistory(): void;
     isDirty(): boolean;

@@ -488,6 +488,8 @@ export interface IAnimationOperationOptions {
     operations: IAnimationOperation[];
     /** 是否记录 undo/dirty；默认 true，显式传 false 时仅修改当前 clip，不写入 undo 栈。 */
     recordUndo?: boolean;
+    /** 明确消费外部属性 commit 时，将紧邻的 scene 属性 undo 合并进本次 animation undo。 */
+    absorbPreviousScenePropertyUndo?: boolean;
 }
 
 /**
