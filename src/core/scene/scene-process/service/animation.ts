@@ -26,6 +26,7 @@ import {
     IAnimationTargetOptions,
     IAnimationTimeOptions,
     IAnimationValue,
+    IUndoScope,
     NodeEventType,
 } from '../../common';
 import { BaseService, register, Service, ServiceEvents } from './core';
@@ -139,6 +140,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             rootPath: getNodePath(rootNode),
             clipUuid: uuid,
             sampledRootState: captureAnimationSampledState(rootNode),
+            undoBaseline: Service.Undo.createCheckpoint(),
+            globalDirtyAtEnter: Service.Undo.isDirty(),
         };
 
         this._playState = 'stop';
@@ -198,6 +201,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 clipUuid: '',
                 time: 0,
                 playState: 'stop',
+                dirty: false,
                 selection,
                 restoreSelectionOnExit: true,
             };
@@ -212,6 +216,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             clipUuid: this._session.clipUuid,
             time: this._curEditTime,
             playState: this._playState,
+            dirty: this._isAnimationSessionDirty(this._session),
             selection,
             restoreSelectionOnExit: this._session.restoreSelectionOnExit,
         };
@@ -520,11 +525,21 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async save(): Promise<boolean> {
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
-        return saveAnimationServiceClip({
+        const saved = await saveAnimationServiceClip({
             session,
             rootNode: this._getSessionRootNode(),
             clip: state.clip,
         });
+        if (saved) {
+            const animationScope = this._createAnimationUndoScope(session.clipUuid);
+            const hasNonAnimationDifference = Service.Undo.hasDifferenceOutsideScope(session.undoBaseline, animationScope);
+            if (!session.globalDirtyAtEnter && !hasNonAnimationDifference) {
+                Service.Undo.markSaved();
+            }
+            session.undoBaseline = Service.Undo.createCheckpoint();
+            session.globalDirtyAtEnter = Service.Undo.isDirty();
+        }
+        return saved;
     }
 
     onAssetDeleted(uuid: string): void {
@@ -669,6 +684,18 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
     private _getSessionRootNode(): Node {
         return getAnimationSessionRootNode(requireAnimationSession(this._session));
+    }
+
+    private _isAnimationSessionDirty(session: IAnimationSession): boolean {
+        return Service.Undo.hasScopedDifference(session.undoBaseline, this._createAnimationUndoScope(session.clipUuid));
+    }
+
+    private _createAnimationUndoScope(clipUuid: string): Partial<IUndoScope> {
+        return {
+            assetUuid: clipUuid,
+            editorType: 'animation',
+            mode: 'animation',
+        };
     }
 
 }

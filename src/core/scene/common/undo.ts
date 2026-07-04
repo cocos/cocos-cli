@@ -24,6 +24,11 @@ export interface IUndoOperationOptions {
     scope?: Partial<IUndoScope>;
 }
 
+export interface IUndoCheckpoint {
+    commandId: string | null;
+    generation: number;
+}
+
 export interface IUndoPushWithPreviousOptions {
     label?: string;
     type: string;
@@ -101,6 +106,15 @@ export interface IUndoService {
 
     /** 当前场景有未保存变更时返回 true。 */
     isDirty(): boolean;
+
+    /** 记录当前 undo cursor，用于业务层判断某个编辑 session 内的 scoped dirty。 */
+    createCheckpoint(): IUndoCheckpoint;
+
+    /** 当前 cursor 和 checkpoint 之间存在匹配 scope 的命令差异时返回 true。 */
+    hasScopedDifference(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean;
+
+    /** 当前 cursor 和 checkpoint 之间存在不匹配 scope 的命令差异时返回 true。 */
+    hasDifferenceOutsideScope(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean;
 
     /** 至少有一条可撤销命令时返回 true。 */
     canUndo(options?: IUndoOperationOptions): boolean;

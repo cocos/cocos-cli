@@ -1231,6 +1231,72 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(true);
     });
 
+    it('save 只在没有其他 scene 变更时清理 animation dirty', async () => {
+        const current = await request('queryState');
+        if (current.active) {
+            await request('exit', [{ save: false, restoreSelection: false }]);
+        }
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
+        expect(state.dirty).toBe(false);
+        expect(await Undo.isDirty()).toBe(false);
+
+        await request('applyOperation', [{
+            operations: [
+                { type: 'changeSpeed', clipUuid: emptyClipUuid, speed: 1.125 },
+            ],
+        }]);
+        state = await request('queryState');
+        expect(state.dirty).toBe(true);
+        expect(await Undo.isDirty()).toBe(true);
+
+        await request('save');
+        state = await request('queryState');
+        expect(state.dirty).toBe(false);
+        expect(await Undo.isDirty()).toBe(false);
+
+        expectUndoSuccess(await Undo.undoInAnimationScope());
+        state = await request('queryState');
+        expect(state.dirty).toBe(true);
+        expect(await Undo.isDirty()).toBe(true);
+    });
+
+    it('enter 前已有 scene dirty 时不会把它当作 animation dirty，也不会在 animation save 后清掉', async () => {
+        const current = await request('queryState');
+        if (current.active) {
+            await request('exit', [{ save: false, restoreSelection: false }]);
+        }
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const dirtyNode = await NodeProxy.createByType({
+            path: '',
+            name: `AnimationServicePreDirty_${Date.now()}`,
+            nodeType: NodeType.EMPTY,
+        });
+        expect(dirtyNode).toBeTruthy();
+        expect(await Undo.isDirty()).toBe(true);
+
+        let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
+        expect(state.dirty).toBe(false);
+
+        await request('applyOperation', [{
+            operations: [
+                { type: 'changeSpeed', clipUuid: emptyClipUuid, speed: 1.25 },
+            ],
+        }]);
+        state = await request('queryState');
+        expect(state.dirty).toBe(true);
+        expect(await Undo.isDirty()).toBe(true);
+
+        await request('save');
+        state = await request('queryState');
+        expect(state.dirty).toBe(false);
+        expect(await Undo.isDirty()).toBe(true);
+    });
+
     it('applyOperation 记录 addPropertyCurve 的 undo/redo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();

@@ -101,6 +101,25 @@ describe('SceneUndoManager', () => {
         expect(manager.isDirty()).toBe(false);
     });
 
+    it('checks scoped differences on both sides of an undo checkpoint', async () => {
+        const manager = new SceneUndoManager();
+        const sceneCommand = new ControlledCommand('scene-command', true, { editorType: 'scene', mode: 'general' }, 'node:create');
+        const animationCommand = new ControlledCommand('animation-command', true, { editorType: 'animation', mode: 'animation', assetUuid: 'clip-1' }, 'animation:clip-snapshot');
+
+        manager.push(sceneCommand);
+        const baseline = manager.createCheckpoint();
+        expect(manager.hasScopedDifference(baseline, { editorType: 'animation', mode: 'animation', assetUuid: 'clip-1' })).toBe(false);
+
+        manager.push(animationCommand);
+        expect(manager.hasScopedDifference(baseline, { editorType: 'animation', mode: 'animation', assetUuid: 'clip-1' })).toBe(true);
+        const savedAnimation = manager.createCheckpoint();
+        expect(manager.hasScopedDifference(savedAnimation, { editorType: 'animation', mode: 'animation', assetUuid: 'clip-1' })).toBe(false);
+
+        await manager.undo({ scope: { editorType: 'animation', mode: 'animation' } });
+        expect(manager.hasScopedDifference(savedAnimation, { editorType: 'animation', mode: 'animation', assetUuid: 'clip-1' })).toBe(true);
+        expect(manager.hasScopedDifference(baseline, { editorType: 'animation', mode: 'animation', assetUuid: 'clip-1' })).toBe(false);
+    });
+
     it('groups child commands into one composite command', async () => {
         const manager = new SceneUndoManager();
         const first = new ControlledCommand('cmd-1');

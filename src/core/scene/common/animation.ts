@@ -368,6 +368,8 @@ export interface IAnimationStateInfo {
     time: number;
     /** 当前播放状态。 */
     playState: AnimationPlayState;
+    /** 当前 animation authoring session 相对进入/保存 baseline 是否有未保存修改。 */
+    dirty: boolean;
     /** 当前 selection paths。 */
     selection: string[];
     /** 退出 session 时默认是否恢复进入前的 selection。 */

@@ -5883,6 +5883,7 @@ export declare interface IAnimationStateInfo {
     clipUuid: string;
     time: number;
     playState: AnimationPlayState_2;
+    dirty: boolean;
     selection: string[];
     restoreSelectionOnExit: boolean;
 }
@@ -6609,6 +6610,10 @@ export declare interface IUndoBeginOptions {
     tag?: string;
     customCommand?: IUndoCommand;
 }
+export declare interface IUndoCheckpoint {
+    commandId: string | null;
+    generation: number;
+}
 export declare interface IUndoCommand {
     meta: IUndoCommandMeta;
     undo(): Promise<IUndoRedoResult>;
@@ -6661,6 +6666,9 @@ export declare interface IUndoService {
     reset(): void;
     clearHistory(): void;
     isDirty(): boolean;
+    createCheckpoint(): IUndoCheckpoint;
+    hasScopedDifference(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean;
+    hasDifferenceOutsideScope(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean;
     canUndo(options?: IUndoOperationOptions): boolean;
     canRedo(options?: IUndoOperationOptions): boolean;
     markSaved(): void;

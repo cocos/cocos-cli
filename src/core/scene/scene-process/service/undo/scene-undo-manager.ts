@@ -1,4 +1,4 @@
-import type { IUndoCommand, IUndoGroupOptions, IUndoOperationOptions, IUndoPushWithPreviousOptions, IUndoRedoResult, IUndoScope } from '../../../common';
+import type { IUndoCheckpoint, IUndoCommand, IUndoGroupOptions, IUndoOperationOptions, IUndoPushWithPreviousOptions, IUndoRedoResult, IUndoScope } from '../../../common';
 import { SceneUndoCommand, SceneUndoCommandID } from './undo-command';
 import { CompositeCommand } from './commands/composite-command';
 import { ISnapshotAdapter, SnapshotCommand } from './commands/snapshot-command';
@@ -34,6 +34,7 @@ class SceneUndoManager {
     private _commandArray: IUndoCommand[] = [];
     private _index = -1;
     private _lastSavedCommandId: string | null = null;
+    private _checkpointGeneration = 0;
     private _autoCommands: SceneUndoCommand[] = [];
     private _manualCommands: SceneUndoCommand[] = [];
     private _snapshotRecordings: Map<string, IActiveSnapshotRecording> = new Map();
@@ -124,6 +125,7 @@ class SceneUndoManager {
         this._commandArray.length = 0;
         this._index = -1;
         this._lastSavedCommandId = null;
+        this._checkpointGeneration++;
         this._autoCommands.length = 0;
         this._manualCommands.length = 0;
         this._snapshotRecordings.clear();
@@ -142,6 +144,18 @@ class SceneUndoManager {
 
     isDirty(): boolean {
         return this._lastSavedCommandId !== this._currentCommandId();
+    }
+
+    createCheckpoint(): IUndoCheckpoint {
+        return { commandId: this._currentCommandId(), generation: this._checkpointGeneration };
+    }
+
+    hasScopedDifference(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean {
+        return this._hasDifferenceSince(checkpoint, command => matchesUndoScope(command.meta.scope, scope));
+    }
+
+    hasDifferenceOutsideScope(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean {
+        return this._hasDifferenceSince(checkpoint, command => !matchesUndoScope(command.meta.scope, scope));
     }
 
     canUndo(options?: IUndoOperationOptions): boolean {
@@ -372,6 +386,36 @@ class SceneUndoManager {
 
     private _currentCommandId(): string | null {
         return this._index === -1 ? null : this._commandArray[this._index]?.meta.id ?? null;
+    }
+
+    private _hasDifferenceSince(checkpoint: IUndoCheckpoint, matches: (command: IUndoCommand) => boolean): boolean {
+        if (checkpoint.generation !== this._checkpointGeneration) {
+            return false;
+        }
+        const checkpointIndex = this._resolveCheckpointIndex(checkpoint);
+        if (checkpointIndex === undefined) {
+            return this._currentCommandId() !== checkpoint.commandId;
+        }
+        if (checkpointIndex === this._index) {
+            return false;
+        }
+        const start = Math.min(checkpointIndex, this._index) + 1;
+        const end = Math.max(checkpointIndex, this._index);
+        for (let i = start; i <= end; i++) {
+            const command = this._commandArray[i];
+            if (command && matches(command)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private _resolveCheckpointIndex(checkpoint: IUndoCheckpoint): number | undefined {
+        if (checkpoint.commandId === null) {
+            return -1;
+        }
+        const index = this._commandArray.findIndex(command => command.meta.id === checkpoint.commandId);
+        return index === -1 ? undefined : index;
     }
 
     // 降级路径：仅在未注入 snapshotAdapter 时使用（主要是单测）。

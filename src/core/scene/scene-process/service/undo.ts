@@ -1,7 +1,7 @@
 import { BaseService } from './core';
 import { register } from './core/decorator';
 import { SceneUndoManager } from './undo/scene-undo-manager';
-import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCommand, type IUndoGroupOptions, type IUndoOperationOptions, type IUndoPushWithPreviousOptions, type IUndoRedoResult } from '../../common';
+import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCheckpoint, type IUndoCommand, type IUndoGroupOptions, type IUndoOperationOptions, type IUndoPushWithPreviousOptions, type IUndoRedoResult, type IUndoScope } from '../../common';
 import type { Component, Node } from 'cc';
 import { ServiceEvents } from './core/global-events';
 import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
@@ -114,6 +114,18 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
 
     isDirty(): boolean {
         return this._undoMgr.isDirty();
+    }
+
+    createCheckpoint(): IUndoCheckpoint {
+        return this._undoMgr.createCheckpoint();
+    }
+
+    hasScopedDifference(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean {
+        return this._undoMgr.hasScopedDifference(checkpoint, scope);
+    }
+
+    hasDifferenceOutsideScope(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): boolean {
+        return this._undoMgr.hasDifferenceOutsideScope(checkpoint, scope);
     }
 
     canUndo(options?: IUndoOperationOptions): boolean {
