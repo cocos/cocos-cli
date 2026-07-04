@@ -1,4 +1,4 @@
-import type { IUndoCommand, IUndoGroupOptions, IUndoRedoResult } from '../../../common';
+import type { IUndoCommand, IUndoGroupOptions, IUndoOperationOptions, IUndoRedoResult, IUndoScope } from '../../../common';
 import { SceneUndoCommand, SceneUndoCommandID } from './undo-command';
 import { CompositeCommand } from './commands/composite-command';
 import { ISnapshotAdapter, SnapshotCommand } from './commands/snapshot-command';
@@ -57,13 +57,16 @@ class SceneUndoManager {
         this._pushToStack(command);
     }
 
-    async undo(): Promise<IUndoRedoResult> {
+    async undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
         return this._enqueue(async () => {
             if (this._index === -1) {
                 return { success: false, reason: 'Cannot undo' };
             }
             const command = this._commandArray[this._index];
             if (!command) {
+                return { success: false, reason: 'Cannot undo' };
+            }
+            if (!matchesUndoScope(command.meta.scope, options?.scope)) {
                 return { success: false, reason: 'Cannot undo' };
             }
             const result = await this._applyCommand(command, 'undo');
@@ -74,13 +77,16 @@ class SceneUndoManager {
         });
     }
 
-    async redo(): Promise<IUndoRedoResult> {
+    async redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
         return this._enqueue(async () => {
             if (this._index >= this._commandArray.length - 1) {
                 return { success: false, reason: 'Cannot redo' };
             }
             const command = this._commandArray[this._index + 1];
             if (!command) {
+                return { success: false, reason: 'Cannot redo' };
+            }
+            if (!matchesUndoScope(command.meta.scope, options?.scope)) {
                 return { success: false, reason: 'Cannot redo' };
             }
             const result = await this._applyCommand(command, 'redo');
@@ -115,12 +121,12 @@ class SceneUndoManager {
         return this._lastSavedCommandId !== this._currentCommandId();
     }
 
-    canUndo(): boolean {
-        return this._index >= 0;
+    canUndo(options?: IUndoOperationOptions): boolean {
+        return this._index >= 0 && this._commandMatchesAt(this._index, options?.scope);
     }
 
-    canRedo(): boolean {
-        return this._index < this._commandArray.length - 1;
+    canRedo(options?: IUndoOperationOptions): boolean {
+        return this._index < this._commandArray.length - 1 && this._commandMatchesAt(this._index + 1, options?.scope);
     }
 
     isApplying(): boolean {
@@ -177,6 +183,11 @@ class SceneUndoManager {
 
     getHistoryForTesting(): IUndoCommand[] {
         return [...this._commandArray];
+    }
+
+    private _commandMatchesAt(index: number, scope?: Partial<IUndoScope>): boolean {
+        const command = this._commandArray[index];
+        return Boolean(command && matchesUndoScope(command.meta.scope, scope));
     }
 
     hasActiveRecording(uuid?: string): boolean {
@@ -449,6 +460,18 @@ class SceneUndoManager {
 
 function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
     return !!value && typeof (value as Promise<T>).then === 'function';
+}
+
+function matchesUndoScope(commandScope: IUndoScope, expectedScope?: Partial<IUndoScope>): boolean {
+    if (!expectedScope) {
+        return true;
+    }
+    for (const [key, value] of Object.entries(expectedScope) as [keyof IUndoScope, unknown][]) {
+        if (value !== undefined && commandScope[key] !== value) {
+            return false;
+        }
+    }
+    return true;
 }
 
 export { SceneUndoManager, ISceneUndoOption };

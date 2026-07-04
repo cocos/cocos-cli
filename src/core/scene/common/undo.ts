@@ -20,6 +20,10 @@ export interface IUndoRedoResult {
     reason?: string;
 }
 
+export interface IUndoOperationOptions {
+    scope?: Partial<IUndoScope>;
+}
+
 export interface IUndoCommand {
     meta: IUndoCommandMeta;
     undo(): Promise<IUndoRedoResult>;
@@ -62,10 +66,10 @@ export interface IUndoService {
     cancelRecording(commandId: string): void;
 
     /** 撤销最近一条可撤销命令。 */
-    undo(): Promise<IUndoRedoResult>;
+    undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
 
     /** 重做最近撤销的一条命令。 */
-    redo(): Promise<IUndoRedoResult>;
+    redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
 
     beginGroup(options?: IUndoGroupOptions): string;
 
@@ -88,10 +92,10 @@ export interface IUndoService {
     isDirty(): boolean;
 
     /** 至少有一条可撤销命令时返回 true。 */
-    canUndo(): boolean;
+    canUndo(options?: IUndoOperationOptions): boolean;
 
     /** 至少有一条可重做命令时返回 true。 */
-    canRedo(): boolean;
+    canRedo(options?: IUndoOperationOptions): boolean;
 
     /**
      * 将当前 undo 栈位置标记为已保存状态。
@@ -111,10 +115,10 @@ export interface IUndoService {
 
 export interface IRedoService {
     /** 重做最近撤销的一条命令。 */
-    redo(): Promise<IUndoRedoResult>;
+    redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
 
     /** 至少有一条可重做命令时返回 true。 */
-    canRedo(): boolean;
+    canRedo(options?: IUndoOperationOptions): boolean;
 }
 
 /** 给外部代理过滤层使用的公开接口，只保留对外 API，刻意排除内部修改辅助方法。 */

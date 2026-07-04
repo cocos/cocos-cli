@@ -1,7 +1,7 @@
 import { BaseService } from './core';
 import { register } from './core/decorator';
 import { SceneUndoManager } from './undo/scene-undo-manager';
-import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCommand, type IUndoGroupOptions, type IUndoRedoResult } from '../../common';
+import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCommand, type IUndoGroupOptions, type IUndoOperationOptions, type IUndoRedoResult } from '../../common';
 import type { Component, Node } from 'cc';
 import { ServiceEvents } from './core/global-events';
 import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
@@ -62,9 +62,9 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
         this._emitDirtyIfChanged(wasDirty);
     }
 
-    async undo(): Promise<IUndoRedoResult> {
+    async undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
         const wasDirty = this._undoMgr.isDirty();
-        const result = await this._undoMgr.undo();
+        const result = await this._undoMgr.undo(options);
         if (result.success) {
             try {
                 const { Service } = require('./core/decorator');
@@ -78,9 +78,9 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
         return result;
     }
 
-    async redo(): Promise<IUndoRedoResult> {
+    async redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
         const wasDirty = this._undoMgr.isDirty();
-        const result = await this._undoMgr.redo();
+        const result = await this._undoMgr.redo(options);
         if (result.success) {
             try {
                 const { Service } = require('./core/decorator');
@@ -116,12 +116,12 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
         return this._undoMgr.isDirty();
     }
 
-    canUndo(): boolean {
-        return this._undoMgr.canUndo();
+    canUndo(options?: IUndoOperationOptions): boolean {
+        return this._undoMgr.canUndo(options);
     }
 
-    canRedo(): boolean {
-        return this._undoMgr.canRedo();
+    canRedo(options?: IUndoOperationOptions): boolean {
+        return this._undoMgr.canRedo(options);
     }
 
     beginGroup(options?: IUndoGroupOptions): string {

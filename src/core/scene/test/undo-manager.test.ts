@@ -272,14 +272,45 @@ describe('SceneUndoManager', () => {
 
         expect(customCommand.calls).toEqual(['undo:custom-recording', 'redo:custom-recording']);
     });
+
+    it('does not undo the stack top when it is outside the requested scope', async () => {
+        const manager = new SceneUndoManager();
+        const animationCommand = new ControlledCommand('animation-command', true, { editorType: 'animation', mode: 'animation' });
+        const sceneCommand = new ControlledCommand('scene-command', true, { editorType: 'scene', mode: 'general' });
+
+        manager.push(animationCommand);
+        manager.push(sceneCommand);
+
+        await expect(manager.undo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: false,
+            reason: 'Cannot undo',
+        });
+        expect(animationCommand.calls).toEqual([]);
+        expect(sceneCommand.calls).toEqual([]);
+
+        await expect(manager.undo()).resolves.toMatchObject({ success: true, commandId: 'scene-command' });
+        expect(sceneCommand.calls).toEqual(['undo:scene-command']);
+
+        await expect(manager.undo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+            commandId: 'animation-command',
+        });
+        expect(animationCommand.calls).toEqual(['undo:animation-command']);
+
+        await expect(manager.redo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+            commandId: 'animation-command',
+        });
+        expect(animationCommand.calls).toEqual(['undo:animation-command', 'redo:animation-command']);
+    });
 });
 
 class ControlledCommand implements IUndoCommand {
     meta: IUndoCommandMeta;
     calls: string[] = [];
 
-    constructor(id: string, private ok = true) {
-        this.meta = { id, label: id, type: 'test', scope: {}, timestamp: Date.now() };
+    constructor(id: string, private ok = true, scope: IUndoCommandMeta['scope'] = {}) {
+        this.meta = { id, label: id, type: 'test', scope, timestamp: Date.now() };
     }
 
     async undo(): Promise<IUndoRedoResult> {

@@ -6417,8 +6417,8 @@ export declare interface IRedirectInfo {
     uuid: string;
 }
 export declare interface IRedoService {
-    redo(): Promise<IUndoRedoResult>;
-    canRedo(): boolean;
+    redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
+    canRedo(options?: IUndoOperationOptions): boolean;
 }
 export declare interface IReloadOptions {
     urlOrUUID?: string;
@@ -6623,6 +6623,9 @@ export declare interface IUndoCommandMeta {
 export declare interface IUndoGroupOptions {
     label?: string;
 }
+export declare interface IUndoOperationOptions {
+    scope?: Partial<IUndoScope>;
+}
 export declare interface IUndoRedoResult {
     success: boolean;
     commandId?: string;
@@ -6639,8 +6642,8 @@ export declare interface IUndoService {
     beginRecording(uuids: string[], options?: IUndoBeginOptions): string;
     endRecording(commandId: string): Promise<void>;
     cancelRecording(commandId: string): void;
-    undo(): Promise<IUndoRedoResult>;
-    redo(): Promise<IUndoRedoResult>;
+    undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
+    redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
     beginGroup(options?: IUndoGroupOptions): string;
     endGroup(groupId: string): IUndoRedoResult;
     cancelGroup(groupId: string): IUndoRedoResult;
@@ -6649,8 +6652,8 @@ export declare interface IUndoService {
     reset(): void;
     clearHistory(): void;
     isDirty(): boolean;
-    canUndo(): boolean;
-    canRedo(): boolean;
+    canUndo(options?: IUndoOperationOptions): boolean;
+    canRedo(options?: IUndoOperationOptions): boolean;
     markSaved(): void;
     hasActiveRecording(uuid?: string): boolean;
     isApplying(): boolean;

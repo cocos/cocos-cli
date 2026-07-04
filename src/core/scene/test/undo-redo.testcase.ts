@@ -37,6 +37,7 @@ import {
     NodeType,
     INodeInfo,
     ISetPropertyOptionsInfo,
+    IUndoOperationOptions,
     PrefabState,
 } from '../common';
 import { Rpc } from '../main-process/rpc';
@@ -82,12 +83,12 @@ function toComponentInfo(dump: any): any {
 
 // Undo/Redo 是 scene-process service 命名空间，不是 main-process / MCP 代理。
 const Undo = {
-    undo: () => request('Undo', 'undo'),
-    redo: () => request('Redo', 'redo'),
+    undo: (options?: IUndoOperationOptions) => request('Undo', 'undo', options === undefined ? [] : [options]),
+    redo: (options?: IUndoOperationOptions) => request('Redo', 'redo', options === undefined ? [] : [options]),
     clearHistory: () => request('Undo', 'clearHistory'),
     isDirty: () => request<boolean>('Undo', 'isDirty'),
-    canUndo: () => request<boolean>('Undo', 'canUndo'),
-    canRedo: () => request<boolean>('Redo', 'canRedo'),
+    canUndo: (options?: IUndoOperationOptions) => request<boolean>('Undo', 'canUndo', options === undefined ? [] : [options]),
+    canRedo: (options?: IUndoOperationOptions) => request<boolean>('Redo', 'canRedo', options === undefined ? [] : [options]),
     markSaved: () => request('Undo', 'markSaved'),
     beginGroup: (options?: { label?: string }) => request('Undo', 'beginGroup', [options]),
     endGroup: (groupId: string) => request('Undo', 'endGroup', [groupId]),
@@ -522,9 +523,11 @@ describe('Undo/Redo 集成测试', () => {
     describe('Component setProperty (snapshot)', () => {
         const path = 'UndoComponentSetProperty';
         const compPath = `${path}/cc.Label`;
+        const spriteSplashPath = 'UndoSpriteSplashSetProperty';
 
         beforeEach(async () => {
             await safeDelete(path);
+            await safeDelete(spriteSplashPath);
             await Node.createByType({ path, nodeType: NodeType.EMPTY });
             await Component.add({ nodePath: path, component: 'cc.Label' });
             await Undo.clearHistory();
@@ -532,6 +535,7 @@ describe('Undo/Redo 集成测试', () => {
 
         afterEach(async () => {
             await safeDelete(path);
+            await safeDelete(spriteSplashPath);
             await Undo.clearHistory();
         });
 
@@ -553,6 +557,40 @@ describe('Undo/Redo 集成测试', () => {
             const redoResult = await Undo.redo();
             expectUndoSuccess(redoResult);
             expect((await queryComp(compPath))!.properties.string.value).toBe('undo-redo-label');
+        });
+
+        it('setProperty undo restores SpriteSplash default SpriteFrame instead of null', async () => {
+            const created = await Node.createByType({ path: '/', name: spriteSplashPath, nodeType: NodeType.SPRITE_SPLASH });
+            if (!created) {
+                throw new Error('Failed to create SpriteSplash test node.');
+            }
+            const spriteSplashCompPath = `${created.path}/cc.Sprite`;
+            const before = await queryComp(spriteSplashCompPath);
+            const originalUuid = before?.properties.spriteFrame?.value?.uuid;
+            expect(typeof originalUuid).toBe('string');
+            expect(originalUuid).not.toBe('');
+
+            const spriteFrameAssets = await assetManager.queryAssetInfos({ pattern: 'db://internal/default_ui/default_editbox_bg.png/spriteFrame' });
+            if (spriteFrameAssets.length === 0 || !spriteFrameAssets[0].uuid) {
+                throw new Error('Failed to query internal SpriteFrame test asset.');
+            }
+            const nextUuid = spriteFrameAssets[0].uuid;
+            expect(nextUuid).not.toBe(originalUuid);
+
+            expect(await Component.setProperty({
+                componentPath: spriteSplashCompPath,
+                properties: { spriteFrame: { uuid: nextUuid } },
+            })).toBe(true);
+            expect((await queryComp(spriteSplashCompPath))!.properties.spriteFrame.value.uuid).toBe(nextUuid);
+
+            expect(await Undo.undo({ scope: { editorType: 'animation', mode: 'animation' } })).toMatchObject({
+                success: false,
+                reason: 'Cannot undo',
+            });
+            expect((await queryComp(spriteSplashCompPath))!.properties.spriteFrame.value.uuid).toBe(nextUuid);
+
+            expectUndoSuccess(await Undo.undo());
+            expect((await queryComp(spriteSplashCompPath))!.properties.spriteFrame.value.uuid).toBe(originalUuid);
         });
     });
 
