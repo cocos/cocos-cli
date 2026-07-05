@@ -384,6 +384,38 @@ describe('SceneUndoManager', () => {
         expect(animationCommand.calls).toEqual(['undo:animation-command', 'redo:animation-command']);
     });
 
+    it('merges consecutive consumed scene property commands into one animation undo scope', async () => {
+        const manager = new SceneUndoManager();
+        const firstSceneCommand = new ControlledCommand('scene-property-command-1', true, { editorType: 'scene', mode: 'general' }, 'node:set-property');
+        const secondSceneCommand = new ControlledCommand('scene-property-command-2', true, { editorType: 'scene', mode: 'general' }, 'node:set-property');
+        const animationCommand = new ControlledCommand('animation-command', true, { editorType: 'animation', mode: 'animation' }, 'animation:clip-snapshot');
+
+        manager.push(firstSceneCommand);
+        manager.push(secondSceneCommand);
+        manager.pushWithPrevious(animationCommand, {
+            label: 'Animation Property Commit',
+            type: 'animation:property-commit',
+            scope: { editorType: 'animation', mode: 'animation' },
+            previousScope: { editorType: 'scene' },
+            previousTypes: ['node:set-property', 'component:set-property'],
+        });
+
+        expect(manager.getHistoryForTesting()).toHaveLength(1);
+        await expect(manager.undo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+        });
+        expect(animationCommand.calls).toEqual(['undo:animation-command']);
+        expect(secondSceneCommand.calls).toEqual(['undo:scene-property-command-2']);
+        expect(firstSceneCommand.calls).toEqual(['undo:scene-property-command-1']);
+
+        await expect(manager.redo({ scope: { editorType: 'animation', mode: 'animation' } })).resolves.toMatchObject({
+            success: true,
+        });
+        expect(firstSceneCommand.calls).toEqual(['undo:scene-property-command-1', 'redo:scene-property-command-1']);
+        expect(secondSceneCommand.calls).toEqual(['undo:scene-property-command-2', 'redo:scene-property-command-2']);
+        expect(animationCommand.calls).toEqual(['undo:animation-command', 'redo:animation-command']);
+    });
+
     it('does not absorb a previous command with the wrong type', async () => {
         const manager = new SceneUndoManager();
         const sceneCommand = new ControlledCommand('scene-create-command', true, { editorType: 'scene', mode: 'general' }, 'node:create');

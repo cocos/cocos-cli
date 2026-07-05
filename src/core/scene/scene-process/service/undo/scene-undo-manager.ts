@@ -66,21 +66,36 @@ class SceneUndoManager {
             return;
         }
 
-        const previous = this._index === this._commandArray.length - 1 ? this._commandArray[this._index] : undefined;
-        if (!previous || !matchesUndoScope(previous.meta.scope, options.previousScope) || !matchesUndoType(previous.meta.type, options.previousTypes)) {
+        if (this._index !== this._commandArray.length - 1) {
             this._pushToStack(command);
             return;
         }
 
-        this._commandArray.splice(this._index, 1);
-        this._index--;
+        const previousCommands: IUndoCommand[] = [];
+        let previousIndex = this._index;
+        while (previousIndex >= 0) {
+            const previous = this._commandArray[previousIndex];
+            if (!previous || !matchesUndoScope(previous.meta.scope, options.previousScope) || !matchesUndoType(previous.meta.type, options.previousTypes)) {
+                break;
+            }
+            previousCommands.unshift(previous);
+            previousIndex--;
+        }
+
+        if (previousCommands.length === 0) {
+            this._pushToStack(command);
+            return;
+        }
+
+        this._commandArray.splice(previousIndex + 1, previousCommands.length);
+        this._index = previousIndex;
         this._pushToStack(new CompositeCommand({
             id: this._createId(options.type),
             label: options.label ?? command.meta.label,
             type: options.type,
             scope: options.scope,
             timestamp: Date.now(),
-        }, [previous, command]));
+        }, [...previousCommands, command]));
     }
 
     async undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
