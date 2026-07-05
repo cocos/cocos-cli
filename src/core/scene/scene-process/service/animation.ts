@@ -527,7 +527,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                         mode: 'animation',
                     },
                     previousScope,
-                    previousTypes: ['node:set-property', 'component:set-property'],
+                    previousTypes: ['node:set-property', 'component:set-property', 'recording:snapshot'],
                 });
             } else {
                 Service.Undo.push(undoCommand);

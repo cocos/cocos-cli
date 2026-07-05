@@ -5,6 +5,7 @@ import {
     Node,
     animation,
 } from 'cc';
+import { isAnimationAssetValue } from './asset-value';
 
 const NODE_SAMPLED_PROPERTIES = ['active', 'position', 'rotation', 'scale'] as const;
 
@@ -109,6 +110,9 @@ function assignSampledValue(target: Record<string, any>, key: string, value: unk
 
 function cloneSampledValue<T>(value: T): T {
     if (value === null || value === undefined || typeof value !== 'object') {
+        return value;
+    }
+    if (isAnimationAssetValue(value)) {
         return value;
     }
     if (typeof (value as any).clone === 'function') {

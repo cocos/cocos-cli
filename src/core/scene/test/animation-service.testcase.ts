@@ -22,6 +22,8 @@ const Undo = {
     isDirty: () => requestService<boolean>('Undo', 'isDirty'),
     canUndo: () => requestService<boolean>('Undo', 'canUndo'),
     canUndoInAnimationScope: () => requestService<boolean>('Undo', 'canUndo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
+    beginRecording: (uuids: string[], options: any) => requestService<string>('Undo', 'beginRecording', [uuids, options]),
+    endRecording: (id: string) => requestService<boolean>('Undo', 'endRecording', [id]),
     undo: () => requestService('Undo', 'undo'),
     undoInAnimationScope: () => requestService('Undo', 'undo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
     canRedo: () => requestService<boolean>('Redo', 'canRedo'),
@@ -41,6 +43,26 @@ async function ensureAnimationSession(rootPath: string, clipUuid: string): Promi
     if (!state.active || state.rootPath !== rootPath || state.clipUuid !== clipUuid) {
         await request('enter', [{ rootPath, clipUuid }]);
     }
+}
+
+async function resetRootPositionCurve(rootPath: string, clipUuid: string): Promise<void> {
+    const dump = await request('queryClip', [{ rootPath, clipUuid }]);
+    const hasPositionCurve = dump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position');
+    if (hasPositionCurve) {
+        await request('applyOperation', [{
+            operations: [
+                { type: 'removePropertyCurve', clipUuid, propKey: 'position' },
+            ],
+            recordUndo: false,
+        }]);
+    }
+    await request('applyOperation', [{
+        operations: [
+            { type: 'addPropertyCurve', clipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+            { type: 'createPropertyKey', clipUuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
+        ],
+        recordUndo: false,
+    }]);
 }
 
 function waitForAnimationPlayState(playState: string, timeout = 5000): Promise<any> {
@@ -1367,13 +1389,7 @@ describe('Animation Service 场景进程测试', () => {
 
     it('applyOperation 可把已消费的 scene 属性 undo 合并进 animation scoped undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
-        await request('applyOperation', [{
-            operations: [
-                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
-                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
-            ],
-            recordUndo: false,
-        }]);
+        await resetRootPositionCurve(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
@@ -1419,6 +1435,53 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(true);
     });
 
+    it('applyOperation 可把 Gizmo snapshot undo 合并进 animation scoped undo', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await resetRootPositionCurve(emptyNodePath, emptyClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        await request('setTime', [{ time: 0.5 }]);
+        const nodeBeforeGizmo = await requestService<any>('Node', 'queryNodeTree', [{ path: emptyNodePath }]);
+        expect(nodeBeforeGizmo?.uuid).toBeTruthy();
+        const recordingId = await Undo.beginRecording([nodeBeforeGizmo.uuid], {
+            label: 'Gizmo position',
+            scope: {
+                editorType: 'scene',
+                nodePath: emptyNodePath,
+                propPath: 'position',
+            },
+        });
+        await NodeProxy.update({
+            path: emptyNodePath,
+            properties: { position: { x: 321, y: 0, z: 0 } },
+        });
+        await Undo.endRecording(recordingId);
+        expect(await Undo.canUndo()).toBe(true);
+        expect(await Undo.canUndoInAnimationScope()).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 321, y: 0, z: 0 } },
+            ],
+            absorbPreviousScenePropertyUndo: true,
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(await Undo.canUndoInAnimationScope()).toBe(true);
+
+        expectUndoSuccess(await Undo.undoInAnimationScope());
+        const undoDump = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+        const undoCurve = undoDump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
+        const nodeAfterUndo = await NodeProxy.query({ path: emptyNodePath, includeChildren: false, includeComponents: false }) as any;
+        expect(undoCurve.keyframes).toEqual([
+            { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
+        ]);
+        expect(nodeAfterUndo?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
+        expect(await Undo.canUndo()).toBe(false);
+        expect(await Undo.isDirty()).toBe(false);
+    });
+
     it('applyOperation 不应把无关 scene 属性 undo 合并进 animation scoped undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await request('applyOperation', [{
@@ -1461,13 +1524,7 @@ describe('Animation Service 场景进程测试', () => {
 
     it('applyOperation 混合非属性操作时不应吸收 scene 属性 undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
-        await request('applyOperation', [{
-            operations: [
-                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
-                { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
-            ],
-            recordUndo: false,
-        }]);
+        await resetRootPositionCurve(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
