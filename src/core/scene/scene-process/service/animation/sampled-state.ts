@@ -100,12 +100,35 @@ function restoreProperties(target: Record<string, any>, properties: Record<strin
 }
 
 function assignSampledValue(target: Record<string, any>, key: string, value: unknown): void {
+    const cloned = cloneSampledValue(value);
+    const descriptor = findPropertyDescriptor(target, key);
+    if (descriptor?.set || descriptor?.writable !== false) {
+        try {
+            target[key] = cloned;
+            return;
+        } catch {
+            // Fall back to in-place ValueType restore below.
+        }
+    }
+
     const current = target[key];
-    if (current && typeof current === 'object' && typeof current.set === 'function' && value && typeof value === 'object') {
-        current.set(value);
+    if (current && typeof current === 'object' && typeof current.set === 'function' && cloned && typeof cloned === 'object') {
+        current.set(cloned);
         return;
     }
-    target[key] = cloneSampledValue(value);
+    target[key] = cloned;
+}
+
+function findPropertyDescriptor(target: Record<string, any>, key: string): PropertyDescriptor | undefined {
+    let current: unknown = target;
+    while (current) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, key);
+        if (descriptor) {
+            return descriptor;
+        }
+        current = Object.getPrototypeOf(current);
+    }
+    return undefined;
 }
 
 function cloneSampledValue<T>(value: T): T {
