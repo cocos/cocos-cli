@@ -1,3 +1,5 @@
+export {};
+
 const mockAttr = jest.fn();
 
 jest.mock('cc', () => {

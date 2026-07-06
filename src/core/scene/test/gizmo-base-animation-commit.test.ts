@@ -1,5 +1,4 @@
 const broadcasts: Array<[string, unknown]> = [];
-let throwLegacyBroadcast = false;
 let endRecordingPromise: Promise<unknown> | null = null;
 let endRecordingResolve: (() => void) | null = null;
 
@@ -24,26 +23,23 @@ jest.mock('../scene-process/service/core/decorator', () => ({
                 return Promise.resolve();
             }),
         },
-        broadcast: (event: string, payload: unknown) => {
-            if (throwLegacyBroadcast && event === 'gizmo:control-end') {
-                throw new Error('legacy gizmo broadcast failed');
-            }
-            broadcasts.push([event, payload]);
-        },
     },
 }));
 
 describe('GizmoBase animation property commit event', () => {
     beforeEach(() => {
         broadcasts.length = 0;
-        throwLegacyBroadcast = false;
         endRecordingPromise = null;
         endRecordingResolve = null;
         const { Service } = require('../scene-process/service/core/decorator');
         Service.Undo.beginRecording.mockClear();
         Service.Undo.endRecording.mockClear();
         const { globalEventEmitter } = require('../scene-process/service/core/global-events');
+        globalEventEmitter.removeAllListeners('gizmo:control-end');
         globalEventEmitter.removeAllListeners('animation:property-committed');
+        globalEventEmitter.on('gizmo:control-end', (payload: unknown) => {
+            broadcasts.push(['gizmo:control-end', payload]);
+        });
         globalEventEmitter.on('animation:property-committed', (payload: unknown) => {
             broadcasts.push(['animation:property-committed', payload]);
         });
@@ -57,6 +53,7 @@ describe('GizmoBase animation property commit event', () => {
 
     afterEach(() => {
         const { globalEventEmitter } = require('../scene-process/service/core/global-events');
+        globalEventEmitter.removeAllListeners('gizmo:control-end');
         globalEventEmitter.removeAllListeners('animation:property-committed');
     });
 
@@ -80,6 +77,14 @@ describe('GizmoBase animation property commit event', () => {
 
     it('still broadcasts animation commit when the legacy gizmo end event fails', async () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const { ServiceEvents } = require('../scene-process/service/core/global-events');
+        const originalBroadcast = ServiceEvents.broadcast.bind(ServiceEvents);
+        const broadcastSpy = jest.spyOn(ServiceEvents, 'broadcast').mockImplementation((event: unknown, ...args: unknown[]) => {
+            if (event === 'gizmo:control-end') {
+                throw new Error('legacy gizmo broadcast failed');
+            }
+            return originalBroadcast(event as string, ...args);
+        });
         const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
         class TestGizmo extends GizmoBase {
             get nodes() {
@@ -88,7 +93,6 @@ describe('GizmoBase animation property commit event', () => {
         }
 
         try {
-            throwLegacyBroadcast = true;
             await new (TestGizmo as any)(null).onControlEnd('position');
 
             expect(warnSpy).toHaveBeenCalled();
@@ -98,6 +102,7 @@ describe('GizmoBase animation property commit event', () => {
                 source: 'engine',
             }]);
         } finally {
+            broadcastSpy.mockRestore();
             warnSpy.mockRestore();
         }
     });

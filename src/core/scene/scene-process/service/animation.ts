@@ -303,7 +303,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const wasPlaying = state.isPlaying;
         const wasPaused = state.isPaused;
         const sample = getClipSample(state.clip);
-        let value: unknown;
+        let value: IAnimationValue;
         try {
             state.weight = 1;
             state.setTime(options.frame / sample);
@@ -313,7 +313,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             state.sample();
 
             const node = resolveAnimationFrameQueryNode(options, session);
-            value = readPropertyValue(node, options.propKey);
+            value = serializeAnimationPropertyValue(readPropertyValue(node, options.propKey));
         } finally {
             state.setTime(wasPlaying ? previousStateTime : previousTime);
             if (wasPlaying && !wasPaused) {
@@ -328,7 +328,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             this._curEditTime = previousTime;
             await Service.Engine.repaintInEditMode();
         }
-        return serializeAnimationPropertyValue(value);
+        return value;
     }
 
     async queryAuxiliaryCurveValueAtFrame(options: IAnimationQueryAuxiliaryCurveValueAtFrameOptions) {

@@ -65,6 +65,53 @@ async function resetRootPositionCurve(rootPath: string, clipUuid: string): Promi
     }]);
 }
 
+async function resetPropertyCurves(rootPath: string, clipUuid: string): Promise<void> {
+    await ensureAnimationSession(rootPath, clipUuid);
+    const dump = await request('queryClip', [{ rootPath, clipUuid }]);
+    const operations = dump.curves.map((curve: any) => ({
+        type: 'removePropertyCurve',
+        clipUuid,
+        nodePath: curve.nodePath,
+        propKey: curve.key,
+    }));
+    if (operations.length === 0) {
+        return;
+    }
+
+    const result = await request('applyOperation', [{
+        operations,
+        recordUndo: false,
+    }]);
+    if (result?.state !== 'success') {
+        throw new Error(`Failed to reset animation property curves: ${JSON.stringify(result)}`);
+    }
+
+    const afterReset = await request('queryClip', [{ rootPath, clipUuid }]);
+    if (afterReset.curves.length !== 0) {
+        throw new Error(`Failed to clear animation property curves: ${JSON.stringify(afterReset.curves)}`);
+    }
+}
+
+async function setNodePositionWithoutUndo(nodePath: string, value: { x: number; y: number; z: number }): Promise<void> {
+    const nodeDump = await requestService<any>('Node', 'query', [{ path: nodePath }]);
+    if (!nodeDump?.position) {
+        throw new Error(`Failed to query node position: ${nodePath}`);
+    }
+
+    const result = await requestService<boolean>('Node', 'setProperty', [{
+        nodePath,
+        path: 'position',
+        dump: {
+            ...nodeDump.position,
+            value,
+        },
+        record: false,
+    }]);
+    if (!result) {
+        throw new Error(`Failed to reset node position: ${nodePath}`);
+    }
+}
+
 function waitForAnimationPlayState(playState: string, timeout = 5000): Promise<any> {
     return new Promise((resolve, reject) => {
         const handler = (event: any) => {
@@ -108,25 +155,50 @@ describe('Animation Service 场景进程测试', () => {
     const sceneName = `AnimationServiceScene_${testRunId}`;
     const clipName = `AnimationServiceClip_${testRunId}`;
     const emptyClipName = `AnimationServiceEmptyClip_${testRunId}`;
-    const keyDataClipName = `AnimationServiceKeyDataClip_${testRunId}`;
     const childClipName = `AnimationServiceChildClip_${testRunId}`;
     const rootEditClipName = `AnimationServiceRootEditClip_${testRunId}`;
-    const spriteFrameClipName = `AnimationServiceSpriteFrameClip_${testRunId}`;
     let nodePath = '';
     let childNodePath = '';
     let clipUuid = '';
     let emptyNodePath = '';
     let emptyClipUuid = '';
-    let keyDataNodePath = '';
-    let keyDataClipUuid = '';
     let childRootNodePath = '';
     let childTrackNodePath = '';
     let childClipUuid = '';
     let rootEditNodePath = '';
     let rootEditClipUuid = '';
-    let spriteFrameNodePath = '';
-    let spriteFrameClipUuid = '';
     let spriteFrameUuid = '';
+    let isolatedAssetIndex = 0;
+
+    async function createIsolatedAnimationNode(baseName: string, options: { sample?: number; duration?: number } = {}) {
+        const current = await request('queryState');
+        if (current.active) {
+            await request('exit', [{ save: false, restoreSelection: false }]);
+        }
+
+        isolatedAssetIndex += 1;
+        const name = `${baseName}_${testRunId}_${isolatedAssetIndex}`;
+        const clipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, name, {
+            overwrite: true,
+            content: createAnimationClipContent(options),
+        });
+        const node = await NodeProxy.createByAsset({
+            dbURL: clipInfo.url,
+            path: '',
+            name,
+            position: { x: 0, y: 0, z: 0 },
+        });
+        if (!node) {
+            throw new Error(`Failed to create isolated animation node: ${name}`);
+        }
+        return { nodePath: node.path, clipUuid: clipInfo.uuid };
+    }
+
+    async function createIsolatedSpriteAnimationNode(baseName: string) {
+        const target = await createIsolatedAnimationNode(baseName, { sample: 30, duration: 0 });
+        await ComponentProxy.add({ nodePath: target.nodePath, component: 'cc.Sprite' });
+        return target;
+    }
 
     beforeAll(async () => {
         await EditorProxy.create({
@@ -151,12 +223,6 @@ describe('Animation Service 场景进程测试', () => {
         });
         emptyClipUuid = emptyClipInfo.uuid;
 
-        const keyDataClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, keyDataClipName, {
-            overwrite: true,
-            content: createAnimationClipContent({ duration: 0 }),
-        });
-        keyDataClipUuid = keyDataClipInfo.uuid;
-
         const childClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, childClipName, {
             overwrite: true,
             content: createAnimationClipContent({ sample: 60, duration: 0 }),
@@ -168,12 +234,6 @@ describe('Animation Service 场景进程测试', () => {
             content: createAnimationClipContent({ sample: 60, duration: 0 }),
         });
         rootEditClipUuid = rootEditClipInfo.uuid;
-
-        const spriteFrameClipInfo = await assetManager.createAssetByType('animation-clip', SceneTestEnv.targetDirectoryURL, spriteFrameClipName, {
-            overwrite: true,
-            content: createAnimationClipContent({ sample: 30, duration: 0 }),
-        });
-        spriteFrameClipUuid = spriteFrameClipInfo.uuid;
 
         const spriteFrameAssets = await assetManager.queryAssetInfos({ pattern: 'db://internal/default_ui/default_editbox_bg.png/spriteFrame' });
         if (spriteFrameAssets.length === 0 || !spriteFrameAssets[0].uuid) {
@@ -203,17 +263,6 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create empty animation node.');
         }
         emptyNodePath = emptyNode.path;
-
-        const keyDataNode = await NodeProxy.createByAsset({
-            dbURL: keyDataClipInfo.url,
-            path: '',
-            name: 'AnimationServiceKeyDataNode',
-            position: { x: 0, y: 0, z: 0 },
-        });
-        if (!keyDataNode) {
-            throw new Error('Failed to create key data animation node.');
-        }
-        keyDataNodePath = keyDataNode.path;
 
         const childRootNode = await NodeProxy.createByAsset({
             dbURL: childClipInfo.url,
@@ -246,18 +295,6 @@ describe('Animation Service 场景进程测试', () => {
             throw new Error('Failed to create root keyframe editing animation node.');
         }
         rootEditNodePath = rootEditNode.path;
-
-        const spriteFrameNode = await NodeProxy.createByAsset({
-            dbURL: spriteFrameClipInfo.url,
-            path: '',
-            name: 'AnimationServiceSpriteFrameNode',
-            position: { x: 0, y: 0, z: 0 },
-        });
-        if (!spriteFrameNode) {
-            throw new Error('Failed to create sprite frame animation node.');
-        }
-        spriteFrameNodePath = spriteFrameNode.path;
-        await ComponentProxy.add({ nodePath: spriteFrameNodePath, component: 'cc.Sprite' });
 
         const childNode = await NodeProxy.createByType({
             path: nodePath,
@@ -710,6 +747,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('applyOperation 通过 updatePropertyKey 合并并持久化 RealCurve keyData', async () => {
+        const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataMerge');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
@@ -797,6 +835,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('applyOperation 更新 RealCurve keyData 时保留显式 0 值', async () => {
+        const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataZero');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
 
         const queryEulerYKey = async () => {
@@ -856,6 +895,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('applyOperation 失败时不会留下已执行的 clip 局部修改', async () => {
+        const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataRollback');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
@@ -876,6 +916,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('applyOperation 更新复合属性 keyData 时不会部分写入分量曲线', async () => {
+        const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataPartial');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
 
         const createResult = await request('applyOperation', [{
@@ -938,6 +979,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('applyOperation 支持 cc.Sprite.spriteFrame 单帧 key 保存重进闭环', async () => {
+        const { nodePath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid } = await createIsolatedSpriteAnimationNode('AnimationServiceSpriteFrameCase');
         await ensureAnimationSession(spriteFrameNodePath, spriteFrameClipUuid);
 
         const properties = await request('queryProperties', [{ nodePath: spriteFrameNodePath }]);
@@ -986,7 +1028,6 @@ describe('Animation Service 场景进程测试', () => {
         expect(await request('save')).toBe(true);
         const afterSave = await request('queryClip', [{ rootPath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid }]);
         const savedCurve = afterSave.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'cc.Sprite.spriteFrame');
-
         expect(savedCurve?.keyframes).toEqual(spriteFrameCurve.keyframes);
 
         await request('exit', [{ restoreSelection: false, restoreSampledSceneState: false }]);
@@ -999,6 +1040,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('queryPropertyValueAtFrame 支持 cc.Sprite.color 采样序列化', async () => {
+        const { nodePath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid } = await createIsolatedSpriteAnimationNode('AnimationServiceSpriteColorCase');
         await ensureAnimationSession(spriteFrameNodePath, spriteFrameClipUuid);
 
         const properties = await request('queryProperties', [{ nodePath: spriteFrameNodePath }]);
@@ -1349,19 +1391,20 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('applyOperation 记录 addPropertyCurve 的 undo/redo', async () => {
-        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        const { nodePath: addCurveNodePath, clipUuid: addCurveClipUuid } = await createIsolatedAnimationNode('AnimationServiceAddCurveUndo', { duration: 0 });
+        await ensureAnimationSession(addCurveNodePath, addCurveClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
-        const before = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        const before = await request('queryClip', [{ clipUuid: addCurveClipUuid }]);
         expect(before.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(false);
 
         const result = await request('applyOperation', [{
             operations: [
-                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+                { type: 'addPropertyCurve', clipUuid: addCurveClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
             ],
         }]);
-        const after = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        const after = await request('queryClip', [{ clipUuid: addCurveClipUuid }]);
 
         expect(result).toEqual({ state: 'success', result: true });
         expect(after.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(true);
@@ -1369,17 +1412,19 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.canUndo()).toBe(true);
 
         expectUndoSuccess(await Undo.undo());
-        const undoDump = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        const undoDump = await request('queryClip', [{ clipUuid: addCurveClipUuid }]);
         expect(undoDump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(false);
         expect(await Undo.canRedo()).toBe(true);
 
         expectUndoSuccess(await Undo.redo());
-        const redoDump = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
+        const redoDump = await request('queryClip', [{ clipUuid: addCurveClipUuid }]);
         expect(redoDump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(true);
     });
 
     it('applyOperation 记录 child addPropertyCurve 的 undo/redo', async () => {
         await ensureAnimationSession(childRootNodePath, childClipUuid);
+        await resetPropertyCurves(childRootNodePath, childClipUuid);
+        await setNodePositionWithoutUndo(childTrackNodePath, { x: 0, y: 0, z: 0 });
         await Undo.clearHistory();
         await Undo.markSaved();
 
@@ -1592,6 +1637,8 @@ describe('Animation Service 场景进程测试', () => {
         if (current.active) {
             await request('exit', [{ save: false, restoreSelection: false }]);
         }
+        await resetPropertyCurves(childRootNodePath, childClipUuid);
+        await setNodePositionWithoutUndo(childTrackNodePath, { x: 0, y: 0, z: 0 });
         await Undo.clearHistory();
         await Undo.markSaved();
 
