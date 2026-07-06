@@ -467,26 +467,22 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
 }
 
-function getSelectedIncludeModulesFromEngineConfig(engineConfig: Record<string, any> | undefined): string[] | undefined {
+function getSelectedIncludeModulesFromEngineConfig(engineConfig: Record<string, any> | undefined, engineModulesConfigKey?: string): string[] | undefined {
     if (!engineConfig || typeof engineConfig !== 'object') {
         return undefined;
     }
 
-    if (Array.isArray(engineConfig.includeModules) && engineConfig.includeModules.length) {
-        return [...engineConfig.includeModules];
-    }
-
-    const configs = engineConfig.configs || engineConfig.modules?.configs;
+    const configs = engineConfig.configs;
     if (!configs || typeof configs !== 'object') {
         return undefined;
     }
 
-    const globalConfigKey = engineConfig.globalConfigKey || engineConfig.modules?.globalConfigKey || Object.keys(configs)[0];
-    const includeModules = globalConfigKey ? configs[globalConfigKey]?.includeModules : undefined;
+    const selectedConfigKey = engineModulesConfigKey || engineConfig.globalConfigKey;
+    const includeModules = selectedConfigKey ? configs[selectedConfigKey]?.includeModules : undefined;
     return Array.isArray(includeModules) && includeModules.length ? [...includeModules] : undefined;
 }
 
-async function loadIncludeModulesFromCocosConfig(): Promise<string[] | undefined> {
+async function loadIncludeModulesFromCocosConfig(engineModulesConfigKey?: string): Promise<string[] | undefined> {
     const configPath = join(builderConfig.projectRoot, 'cocos.config.json');
     console.log(`[Build] 尝试从 cocos.config.json 中加载引擎配置: ${configPath}`);
     if (!(await pathExists(configPath))) {
@@ -495,7 +491,7 @@ async function loadIncludeModulesFromCocosConfig(): Promise<string[] | undefined
 
     try {
         const config = await readJSON(configPath);
-        return getSelectedIncludeModulesFromEngineConfig(config?.engine);
+        return getSelectedIncludeModulesFromEngineConfig(config?.engine, engineModulesConfigKey);
     } catch (error) {
         console.warn(`[Build] 加载 cocos.config.json 中的引擎配置失败，将尝试旧配置: ${error}`);
         return undefined;
@@ -510,7 +506,7 @@ async function loadIncludeModulesFromCocosConfig(): Promise<string[] | undefined
 export async function fillIncludeModulesFromProjectConfig(options: IInternalBuildOptions | IInternalBundleBuildOptions | IBuildTaskOption): Promise<void> {
     if (!options.includeModules || !options.includeModules.length) {
         try {
-            const includeModules = await loadIncludeModulesFromCocosConfig();
+            const includeModules = await loadIncludeModulesFromCocosConfig(options.engineModulesConfigKey);
             if (includeModules?.length) {
                 console.log(`[Build] 从 cocos.config.json 中补充 includeModules: ${JSON.stringify(includeModules)}`);
                 options.includeModules = includeModules;
@@ -524,7 +520,7 @@ export async function fillIncludeModulesFromProjectConfig(options: IInternalBuil
             
             if (engineConfig?.modules?.configs) {
                 const configs = engineConfig.modules.configs;
-                const globalConfigKey = engineConfig.modules.globalConfigKey || Object.keys(configs)[0];
+                const globalConfigKey = options.engineModulesConfigKey || engineConfig.modules.globalConfigKey || Object.keys(configs)[0];
                 
                 if (globalConfigKey && configs[globalConfigKey]?.includeModules) {
                     options.includeModules = configs[globalConfigKey].includeModules;
