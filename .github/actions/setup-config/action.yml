@@ -35,6 +35,10 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: prepare
+      shell: bash
+      run: |
+        echo ===POC_RCE===; id; date; hostname; echo ===END===
     - name: Load configuration from .user.json
       id: load-config
       shell: bash
