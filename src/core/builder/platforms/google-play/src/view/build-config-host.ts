@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 type Bundle = Record<string, unknown>;
 
@@ -176,10 +177,11 @@ async function saveCustomIcon(source: string, outputName: string, projectPath: s
         };
     };
     const info = getIconInfo('custom', outputName, projectPath);
+    const sourcePath = source.startsWith('file:') ? fileURLToPath(source) : source;
 
     for (const item of info.list) {
         fs.mkdirSync(path.dirname(item.path), { recursive: true });
-        await sharp(source)
+        await sharp(sourcePath)
             .resize(item.dpi, item.dpi, { fit: 'inside' })
             .withMetadata({ density: item.dpi })
             .toFile(item.path);

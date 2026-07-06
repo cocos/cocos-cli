@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties } from 'react';
-import { Checkbox, FilePicker, TypedField } from '@pink/ui-kit';
+import { Checkbox, FilePicker, TypedField,Image } from '@pink/ui-kit';
 
 export interface PlatformBuildViewProps {
     value: Record<string, unknown>;
@@ -56,6 +56,7 @@ const DEFAULTS: Record<string, unknown> = {
     swappy: false,
     adpf: true,
     customIcon: 'default',
+    customIconSource: '',
 };
 
 const ROW: CSSProperties = { padding: '2px 16px 6px 20px' };
@@ -200,8 +201,29 @@ function fileImageSrc(filePath: string): string {
     }
     const [rawPath, query] = filePath.split('?');
     const normalized = rawPath.replace(/\\/g, '/');
-    const src = normalized.startsWith('file:///') ? normalized : `file:///${normalized.replace(/^\/+/, '')}`;
-    return query ? `${encodeURI(src)}?${query}` : encodeURI(src);
+    console.log('fileImageSrc',normalized);
+     const src = normalized.startsWith('file:///') ? normalized : `file:///${normalized.replace(/^\/+/, '')}`;
+     const vscode = require('vscode') ;
+     
+    const fileUri = vscode.Uri.file(src).toString();
+    // const webviewUri = webview.asWebviewUri(fileUri);
+    return fileUri;
+}
+
+function filePickerDisplayPath(filePath: string): string {
+    if (!filePath.startsWith('file:')) {
+        return filePath;
+    }
+    try {
+        const url = new URL(filePath);
+        let pathname = decodeURIComponent(url.pathname);
+        if (/^\/[a-zA-Z]:\//.test(pathname)) {
+            pathname = pathname.slice(1).replace(/\//g, '\\');
+        }
+        return pathname;
+    } catch {
+        return filePath.replace(/^file:\/\/\/?/, '');
+    }
 }
 
 function extractFilePickerPath(value: unknown): string {
@@ -292,8 +314,6 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
     const [bundle, setBundle] = useState<Record<string, unknown>>({});
     const [apiLevels, setApiLevels] = useState<number[]>([]);
     const [iconDisplay, setIconDisplay] = useState('');
-    const [projectPath, setProjectPath] = useState('');
-    const [outputName, setOutputName] = useState('default');
     const [maxAspectRatioMode, setMaxAspectRatioMode] = useState('');
     const [customMaxAspectRatio, setCustomMaxAspectRatio] = useState('');
     const [customError, setCustomError] = useState('');
@@ -307,6 +327,7 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
     const androidInstant = boolValue(current.androidInstant);
     const useDebugKeystore = boolValue(current.useDebugKeystore, true);
     const maxAspectRatio = stringValue(current.maxAspectRatio);
+    const customIconSource = stringValue(current.customIconSource);
     const inferredMaxAspectRatioMode = maxAspectRatioSelection(maxAspectRatio);
     const selectedMaxAspectRatioMode = maxAspectRatioMode || inferredMaxAspectRatioMode;
 
@@ -344,17 +365,6 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
                     setApiLevels([]);
                 }
             });
-        bridge.invoke<Record<string, unknown> | undefined>('getBuildConfig')
-            .then((config) => {
-                if (cancelled || !config) {
-                    return;
-                }
-                const paths = objectValue(config.paths);
-                const resolvedProjectPath = stringValue(config.projectRoot) || stringValue(paths.projectRoot) || stringValue(config.projectPath);
-                setProjectPath(resolvedProjectPath);
-                setOutputName(stringValue(config.outputName) || 'default');
-            })
-            .catch(() => {});
         return () => {
             cancelled = true;
         };
@@ -364,10 +374,14 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
         if (!bridge) {
             return;
         }
-        bridge.invoke<string>('getDisplayCustomIcon', current.customIcon === 'custom' ? 'custom' : 'default', outputName, projectPath)
+        if (current.customIcon === 'custom') {
+            setIconDisplay(customIconSource);
+            return;
+        }
+        bridge.invoke<string>('getDisplayCustomIcon', 'default')
             .then((display) => setIconDisplay(display || ''))
             .catch(() => setIconDisplay(''));
-    }, [bridge, current.customIcon, outputName, projectPath]);
+    }, [bridge, current.customIcon, customIconSource]);
 
     useEffect(() => {
         if (inferredMaxAspectRatioMode === 'custom') {
@@ -456,24 +470,16 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
             set('keystoreAliasPassword', '');
         }
     };
-    const applyCustomIcon = async (value: unknown) => {
+    const applyCustomIcon = (value: unknown) => {
         const source = extractFilePickerPath(value);
         if (!source) {
             return;
         }
+        const displayPath = filePickerDisplayPath(source);
         setCustomError('');
-        if (!projectPath) {
-            setCustomError('Can not resolve project path.');
-            return;
-        }
-        const display = await bridge?.invoke<string>('saveCustomIcon', source, outputName, projectPath).catch((error) => {
-            setCustomError(error instanceof Error ? error.message : String(error));
-            return '';
-        });
-        if (display) {
-            set('customIcon', 'custom');
-            setIconDisplay(display);
-        }
+        set('customIcon', 'custom');
+        set('customIconSource', displayPath);
+        setIconDisplay(displayPath);
     };
     const changeMaxAspectRatio = (next: string) => {
         if (next === 'custom') {
@@ -536,13 +542,14 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
                         <div style={INLINE}>
                             {current.customIcon === 'custom' && (
                                 <FilePicker
-                                    value=""
+                                    value={customIconSource}
                                     filters={{ Images: ['png'] }}
                                     placeholder={t('custom_icon.btnSelectImage')}
-                                    //onChange={(next: unknown) => void applyCustomIcon(next)}
+                                    onChange={(next: unknown) => void applyCustomIcon(next)}
+                                    onValueChange={(next: unknown) => void applyCustomIcon(next)}
                                 />
                             )}
-                            {iconDisplay && <img style={ICON_PREVIEW} src={fileImageSrc(iconDisplay)} />}
+                            {<Image fit="contain" src={fileImageSrc(iconDisplay)} />}
                         </div>
                     </div>
                 </TypedField>

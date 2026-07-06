@@ -33,6 +33,7 @@ static/web/editor-extends.bundle.js
 
 # 构建文件
 /dist
+src/core/builder/platforms/*/dist
 
 # jest
 coverage
