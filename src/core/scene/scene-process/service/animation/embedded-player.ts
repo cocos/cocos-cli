@@ -243,10 +243,16 @@ async function loadAnimationClip(uuid: string): Promise<AnimationClip | null> {
 }
 
 function embeddedPlayerKey(dump: IAnimationEmbeddedPlayerDump): string {
+    const playable = dump.playable;
+    const playableClip = playable?.type === 'animation-clip' ? playable.clip || '' : '';
+    const playablePath = playable?.path || '';
     return [
         `begin:${dump.begin}`,
         `end:${dump.end}`,
-        `player:${dump.playable?.type || ''}`,
+        `speed:${dump.reconciledSpeed ? 1 : 0}`,
+        `player:${playable?.type || ''}`,
+        `clip:${playableClip}`,
+        `path:${playablePath}`,
         `group:${dump.group || ''}`,
         `displayName:${dump.displayName || ''}`,
     ].join(',');

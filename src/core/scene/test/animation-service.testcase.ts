@@ -196,8 +196,8 @@ describe('Animation Service 场景进程测试', () => {
 
     async function createIsolatedSpriteAnimationNode(baseName: string) {
         const target = await createIsolatedAnimationNode(baseName, { sample: 30, duration: 0 });
-        await ComponentProxy.add({ nodePath: target.nodePath, component: 'cc.Sprite' });
-        return target;
+        const sprite = await ComponentProxy.add({ nodePath: target.nodePath, component: 'cc.Sprite' });
+        return { ...target, spriteComponentPath: sprite.path };
     }
 
     beforeAll(async () => {
@@ -1069,6 +1069,43 @@ describe('Animation Service 场景进程测试', () => {
         expect(sampled).toMatchObject({ r: 32, g: 64, b: 128, a: 255 });
     });
 
+    it('queryPropertyValueAtFrame 优先按当前动画 root 解析相对 nodePath', async () => {
+        const { nodePath: rootPath, clipUuid: relativeClipUuid } = await createIsolatedAnimationNode('AnimationServiceRelativePathCase');
+        const childName = `AnimationServiceRelativeTarget_${testRunId}`;
+        const sceneSibling = await NodeProxy.createByType({
+            path: '',
+            name: childName,
+            nodeType: NodeType.EMPTY,
+        });
+        const animationChild = await NodeProxy.createByType({
+            path: rootPath,
+            name: childName,
+            nodeType: NodeType.EMPTY,
+        });
+        if (!sceneSibling || !animationChild) {
+            throw new Error('Failed to create relative path sampling nodes.');
+        }
+        await setNodePositionWithoutUndo(sceneSibling.path, { x: 999, y: 0, z: 0 });
+        await setNodePositionWithoutUndo(animationChild.path, { x: 7, y: 8, z: 9 });
+        await ensureAnimationSession(rootPath, relativeClipUuid);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: relativeClipUuid, nodePath: childName, propKey: 'position', frame: 30, value: { x: 7, y: 8, z: 9 } },
+            ],
+            recordUndo: false,
+        }]);
+        const sampled = await request('queryPropertyValueAtFrame', [{
+            clipUuid: relativeClipUuid,
+            nodePath: childName,
+            propKey: 'position',
+            frame: 30,
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(sampled).toMatchObject({ x: 7, y: 8, z: 9 });
+    });
+
     it('applyOperation 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
@@ -1212,7 +1249,44 @@ describe('Animation Service 场景进程测试', () => {
         }]);
     });
 
+    it('deleteEmbeddedPlayer 只删除 playable 匹配的 embedded player', async () => {
+        const { nodePath: embeddedNodePath, clipUuid: embeddedClipUuid } = await createIsolatedAnimationNode('AnimationServiceEmbeddedPlayerDeleteCase');
+        await ensureAnimationSession(embeddedNodePath, embeddedClipUuid);
+        const firstPlayer = {
+            begin: 12,
+            end: 30,
+            reconciledSpeed: true,
+            group: 'particle-track',
+            displayName: 'Burst',
+            playable: { type: 'particle-system' as const, path: 'ParticlesA' },
+        };
+        const secondPlayer = {
+            ...firstPlayer,
+            playable: { type: 'particle-system' as const, path: 'ParticlesB' },
+        };
+
+        const result = await request('applyOperation', [{
+            operations: [
+                {
+                    type: 'addEmbeddedPlayerGroup',
+                    clipUuid: embeddedClipUuid,
+                    group: { key: 'particle-track', name: 'Particle Track', type: 'particle-system' },
+                },
+                { type: 'addEmbeddedPlayer', clipUuid: embeddedClipUuid, embeddedPlayer: firstPlayer },
+                { type: 'addEmbeddedPlayer', clipUuid: embeddedClipUuid, embeddedPlayer: secondPlayer },
+                { type: 'deleteEmbeddedPlayer', clipUuid: embeddedClipUuid, embeddedPlayer: firstPlayer },
+            ],
+            recordUndo: false,
+        }]);
+        const dump = await request('queryClip', [{ clipUuid: embeddedClipUuid }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(dump.embeddedPlayers).toEqual([secondPlayer]);
+    });
+
     it('applyOperation 支持真实 AnimationClip 的 auxiliary curve 基础操作', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+
         const result = await request('applyOperation', [{
             operations: [
                 { type: 'addAuxiliaryCurve', clipUuid, name: 'BlendWeight' },
@@ -1554,6 +1628,36 @@ describe('Animation Service 场景进程测试', () => {
         expect(nodeAfterUndo?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
         expect(await Undo.canUndo()).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
+    });
+
+    it('applyOperation 可把已消费的组件属性 undo 合并进 animation scoped undo', async () => {
+        const { nodePath: spriteNodePath, clipUuid: spriteClipUuid, spriteComponentPath } = await createIsolatedSpriteAnimationNode('AnimationServiceComponentCommitCase');
+        await ensureAnimationSession(spriteNodePath, spriteClipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        await ComponentProxy.setProperty({
+            componentPath: spriteComponentPath,
+            properties: { color: { r: 12, g: 34, b: 56, a: 255 } },
+        });
+        expect(await Undo.canUndoInAnimationScope()).toBe(false);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'createPropertyKey', clipUuid: spriteClipUuid, propKey: 'cc.Sprite.color', frame: 30, value: { r: 12, g: 34, b: 56, a: 255 } },
+            ],
+            absorbPreviousScenePropertyUndo: true,
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(await Undo.canUndoInAnimationScope()).toBe(true);
+
+        expectUndoSuccess(await Undo.undoInAnimationScope());
+        const undoDump = await request('queryClip', [{ rootPath: spriteNodePath, clipUuid: spriteClipUuid }]);
+        const undoCurve = undoDump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'cc.Sprite.color');
+        const componentAfterUndo = await ComponentProxy.query({ path: spriteComponentPath }) as any;
+        expect(undoCurve).toBeUndefined();
+        expect(componentAfterUndo?.properties.color.value).toMatchObject({ r: 255, g: 255, b: 255, a: 255 });
     });
 
     it('applyOperation 不应把无关 scene 属性 undo 合并进 animation scoped undo', async () => {

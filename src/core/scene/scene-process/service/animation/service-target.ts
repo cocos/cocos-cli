@@ -77,20 +77,32 @@ export function resolveAnimationFrameQueryNode(options: IAnimationQueryPropertyV
         return nodeByUuid;
     }
 
-    const path = options.nodePath || session.rootPath;
-    const nodeByPath = getNodeByPath(path);
-    if (nodeByPath) {
-        return nodeByPath;
-    }
+    if (options.nodePath) {
+        const path = options.nodePath;
+        if (path === session.rootPath || path.startsWith(`${session.rootPath}/`)) {
+            const nodeByPath = getNodeByPath(path);
+            if (nodeByPath) {
+                return nodeByPath;
+            }
+        }
 
-    if (options.nodePath && !options.nodePath.startsWith(session.rootPath)) {
-        const relativeNode = getNodeByPath(`${session.rootPath}/${options.nodePath}`);
+        const relativeNode = getNodeByPath(`${session.rootPath}/${path}`);
         if (relativeNode) {
             return relativeNode;
         }
+
+        const nodeByPath = getNodeByPath(path);
+        if (nodeByPath) {
+            return nodeByPath;
+        }
+    } else {
+        const rootNode = getNodeByPath(session.rootPath);
+        if (rootNode) {
+            return rootNode;
+        }
     }
 
-    throw new Error(`Animation target node is required: ${path}`);
+    throw new Error(`Animation target node is required: ${options.nodePath || session.rootPath}`);
 }
 
 export function isCurrentAnimationSessionClipQuery(

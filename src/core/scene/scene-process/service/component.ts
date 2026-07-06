@@ -538,7 +538,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             scope: {
                 editorType: 'scene',
                 nodePath: options.nodePath,
-                propPath: options.path,
+                propPath: this._createComponentAnimationPropPath(node, options.path),
             },
             timestamp: Date.now(),
         }, before, after, this._createComponentPropertySnapshotAdapter()));
@@ -635,6 +635,16 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
 
         return { component, index };
+    }
+
+    private _createComponentAnimationPropPath(node: Node, path: string): string {
+        const target = this._resolveComponentPropertyTarget(node, path);
+        const propName = path.replace(/^__comps__\.\d+\.?/, '');
+        const componentType = target ? this._getComponentType(target.component) : '';
+        if (!target || !propName || !componentType) {
+            return path;
+        }
+        return `${componentType}.${propName}`;
     }
 
     private _findSnapshotComponent(snapshot: IComponentPropertySnapshot): Component | null {
