@@ -213,6 +213,7 @@ describe('AnimationService enter', () => {
 
         await expect(service.save()).resolves.toBe(true);
         await service._refreshCurrentClipAsset('clip-uuid');
+        await service._refreshCurrentClipAsset('clip-uuid');
 
         expect(service._animationStates.reset).not.toHaveBeenCalled();
         expect(service._animationStates.create).not.toHaveBeenCalled();

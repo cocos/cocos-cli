@@ -651,7 +651,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
         }
-        if (this._consumeSelfSavedClipRefresh(uuid)) {
+        if (this._shouldSuppressSelfSavedClipRefresh(uuid)) {
             return;
         }
 
@@ -738,13 +738,16 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._selfSavedClipRefreshes.set(uuid, Date.now());
     }
 
-    private _consumeSelfSavedClipRefresh(uuid: string): boolean {
+    private _shouldSuppressSelfSavedClipRefresh(uuid: string): boolean {
         const savedAt = this._selfSavedClipRefreshes.get(uuid);
         if (savedAt === undefined) {
             return false;
         }
+        if (Date.now() - savedAt <= SELF_SAVE_ASSET_REFRESH_SUPPRESSION_MS) {
+            return true;
+        }
         this._selfSavedClipRefreshes.delete(uuid);
-        return Date.now() - savedAt <= SELF_SAVE_ASSET_REFRESH_SUPPRESSION_MS;
+        return false;
     }
 
     private _createPreviousScenePropertyUndoScope(rootPath: string, operations: IAnimationOperation[]): Partial<IUndoScope> | null {
