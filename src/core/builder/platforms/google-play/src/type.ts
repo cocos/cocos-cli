@@ -1,6 +1,6 @@
-import { IInternalBuildOptions, InternalBuildResult } from '../../@types/protected';
-import { CocosParams } from '../native-common/pack-tool/base/default';
-import { ICustomBuildScriptParam, IOptions as INativeOption } from '../native-common/type';
+import { IInternalBuildOptions, InternalBuildResult } from '../../../@types/protected';
+import { CocosParams } from '../../native-common/pack-tool/base/default';
+import { ICustomBuildScriptParam, IOptions as INativeOption } from '../../native-common/type';
 
 export type IAppABI = 'armeabi-v7a' | 'arm64-v8a' | 'x86' | 'x86_64';
 
@@ -33,7 +33,8 @@ export interface IOptions extends INativeOption {
     adpf: boolean;
     googleBilling: boolean;
     playGames: boolean;
-    customIcon: 'default' | 'custom',
+    customIcon: 'default' | 'custom';
+    isSoFileCompressed: boolean;
     renderBackEnd: {
         vulkan: boolean;
         gles3: boolean;
@@ -55,6 +56,5 @@ export interface IGooglePlayInternalBuildOptions extends IInternalBuildOptions {
 }
 
 export interface IBuildResult extends InternalBuildResult {
-    userFrameWorks: boolean; // 是否使用用户的配置数据
+    userFrameWorks: boolean;
 }
-

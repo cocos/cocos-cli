@@ -932,7 +932,7 @@ export class PluginManager extends EventEmitter {
         //   统一隐藏。待平台就绪后移除此过滤。
         const HIDDEN_PLATFORMS = new Set(['fb-instant-games', 'google-play']);
         return Object.entries(this.platformConfig)
-            .filter(([platform]) => !HIDDEN_PLATFORMS.has(platform))
+            // .filter(([platform]) => !HIDDEN_PLATFORMS.has(platform))
             .map(([platform, config]) => {
             const customStages = this.customBuildStages[platform];
             const stageConfigs = customStages
