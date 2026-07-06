@@ -18,7 +18,9 @@ const mockService = {
     },
     Undo: {
         createCheckpoint: jest.fn(() => ({ commandId: null, generation: 0 })),
+        hasDifferenceOutsideScope: jest.fn(() => false),
         isDirty: jest.fn(() => false),
+        markSaved: jest.fn(),
     },
 };
 
@@ -43,7 +45,7 @@ jest.mock('cc', () => ({
     Scene: class Scene {},
     SkeletalAnimation: class SkeletalAnimation {},
     animation: {},
-    assetManager: { loadAny: jest.fn() },
+    assetManager: { assets: { get: jest.fn() }, loadAny: jest.fn() },
     editorExtrasTag: Symbol.for('editorExtrasTag'),
     js: { getClassName: jest.fn(() => 'cc.Component') },
 }));
@@ -77,6 +79,10 @@ jest.mock('../scene-process/rpc', () => ({
     },
 }));
 
+jest.mock('../scene-process/service/animation/service-save', () => ({
+    saveAnimationServiceClip: jest.fn(),
+}));
+
 (globalThis as any).EditorExtends = {
     Node: {
         getNode: jest.fn(),
@@ -87,10 +93,12 @@ jest.mock('../scene-process/rpc', () => ({
 };
 
 const { AnimationService } = require('../scene-process/service/animation');
+const { saveAnimationServiceClip } = require('../scene-process/service/animation/service-save');
 
 describe('AnimationService enter', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        saveAnimationServiceClip.mockResolvedValue(true);
     });
 
     it('waits for animation state initialization before sampling time zero', async () => {
@@ -168,6 +176,47 @@ describe('AnimationService enter', () => {
         await expect(service._getAnimationState('clip-uuid')).rejects.toThrow('Animation clips not found');
 
         expect(assetManager.loadAny).not.toHaveBeenCalled();
+    });
+
+    it('ignores the asset refresh triggered by saving the current clip', async () => {
+        const { Animation, AnimationClip, assetManager } = require('cc');
+        const service = new AnimationService() as any;
+        const currentClip = new AnimationClip();
+        currentClip._uuid = 'clip-uuid';
+        currentClip.name = 'Current';
+        const reloadedClip = new AnimationClip();
+        reloadedClip._uuid = 'clip-uuid';
+        reloadedClip.name = 'Reloaded';
+        const animComp = new Animation();
+        animComp.clips = [currentClip];
+        animComp.defaultClip = currentClip;
+        const rootNode = {
+            uuid: 'root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
+
+        assetManager.assets.get.mockReturnValue(reloadedClip);
+        service._session = {
+            clipUuid: 'clip-uuid',
+            rootUuid: rootNode.uuid,
+            rootPath: 'Canvas/AnimatedRoot',
+            undoBaseline: { commandId: null, generation: 0 },
+            globalDirtyAtEnter: false,
+        };
+        service._getSessionRootNode = jest.fn(() => rootNode);
+        service._animationStates.get = jest.fn(() => ({ clip: currentClip }));
+        service._animationStates.reset = jest.fn();
+        service._animationStates.create = jest.fn();
+        service._getAnimationState = jest.fn(async () => ({ clip: currentClip }));
+        service.setTime = jest.fn(async () => true);
+        service._broadcastClipChanged = jest.fn();
+
+        await expect(service.save()).resolves.toBe(true);
+        await service._refreshCurrentClipAsset('clip-uuid');
+
+        expect(service._animationStates.reset).not.toHaveBeenCalled();
+        expect(service._animationStates.create).not.toHaveBeenCalled();
+        expect(service._broadcastClipChanged).not.toHaveBeenCalledWith('asset-refresh');
     });
 
     it('keeps a running animation state playing after frame value query', async () => {

@@ -853,13 +853,13 @@ describe('场景事件契约测试', () => {
             });
 
             it('undo 应 broadcast undo:changed 1 次', () => {
-                const body = extractMethodBody(source, /async undo\(\)/);
+                const body = extractMethodBody(source, /async undo\(/);
                 expect(body.length).toBeGreaterThan(0);
                 expect(countEmitCalls(body, 'undo:changed')).toBe(1);
             });
 
             it('redo 应 broadcast undo:changed 1 次', () => {
-                const body = extractMethodBody(source, /async redo\(\)/);
+                const body = extractMethodBody(source, /async redo\(/);
                 expect(body.length).toBeGreaterThan(0);
                 expect(countEmitCalls(body, 'undo:changed')).toBe(1);
             });
@@ -877,8 +877,8 @@ describe('场景事件契约测试', () => {
             });
 
             it('undo/redo 不应同时 emit 和 broadcast undo:changed', () => {
-                const undoBody = extractMethodBody(source, /async undo\(\)/);
-                const redoBody = extractMethodBody(source, /async redo\(\)/);
+                const undoBody = extractMethodBody(source, /async undo\(/);
+                const redoBody = extractMethodBody(source, /async redo\(/);
                 expect(undoBody).not.toMatch(/this\.emit\(\s*['"]undo:changed['"]/);
                 expect(redoBody).not.toMatch(/this\.emit\(\s*['"]undo:changed['"]/);
             });

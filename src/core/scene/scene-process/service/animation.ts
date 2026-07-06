@@ -82,6 +82,8 @@ import {
     resolveAnimationTargetNode,
 } from './animation/service-target';
 
+const SELF_SAVE_ASSET_REFRESH_SUPPRESSION_MS = 5000;
+
 @register('Animation')
 export class AnimationService extends BaseService<Record<string, any>> implements IAnimationService {
     private _session: IAnimationSession | null = null;
@@ -91,6 +93,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     );
     private _curEditTime = 0;
     private _playState: AnimationPlayState = 'stop';
+    private readonly _selfSavedClipRefreshes = new Map<string, number>();
     private readonly _playback = new AnimationServicePlayback({
         getCurrentState: () => this._session ? this._animationStates.get(this._session.clipUuid) : undefined,
         getEditTime: () => this._curEditTime,
@@ -543,12 +546,20 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async save(): Promise<boolean> {
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
-        const saved = await saveAnimationServiceClip({
-            session,
-            rootNode: this._getSessionRootNode(),
-            clip: state.clip,
-        });
+        this._markSelfSavedClipRefresh(session.clipUuid);
+        let saved = false;
+        try {
+            saved = await saveAnimationServiceClip({
+                session,
+                rootNode: this._getSessionRootNode(),
+                clip: state.clip,
+            });
+        } catch (error) {
+            this._selfSavedClipRefreshes.delete(session.clipUuid);
+            throw error;
+        }
         if (saved) {
+            this._markSelfSavedClipRefresh(session.clipUuid);
             const animationScope = this._createAnimationUndoScope(session.clipUuid);
             const hasNonAnimationDifference = Service.Undo.hasDifferenceOutsideScope(session.undoBaseline, animationScope);
             if (!session.globalDirtyAtEnter && !hasNonAnimationDifference) {
@@ -556,6 +567,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             }
             session.undoBaseline = Service.Undo.createCheckpoint();
             session.globalDirtyAtEnter = Service.Undo.isDirty();
+        } else {
+            this._selfSavedClipRefreshes.delete(session.clipUuid);
         }
         return saved;
     }
@@ -638,6 +651,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
         }
+        if (this._consumeSelfSavedClipRefresh(uuid)) {
+            return;
+        }
 
         const time = this._curEditTime;
         const clip = await loadAnimationClip(uuid);
@@ -655,6 +671,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     private _disposeSession(): void {
         this._playback.dispose();
         this._animationStates.clear();
+        this._selfSavedClipRefreshes.clear();
         this._session = null;
         this._curEditTime = 0;
         this._playState = 'stop';
@@ -715,6 +732,19 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             editorType: 'animation',
             mode: 'animation',
         };
+    }
+
+    private _markSelfSavedClipRefresh(uuid: string): void {
+        this._selfSavedClipRefreshes.set(uuid, Date.now());
+    }
+
+    private _consumeSelfSavedClipRefresh(uuid: string): boolean {
+        const savedAt = this._selfSavedClipRefreshes.get(uuid);
+        if (savedAt === undefined) {
+            return false;
+        }
+        this._selfSavedClipRefreshes.delete(uuid);
+        return Date.now() - savedAt <= SELF_SAVE_ASSET_REFRESH_SUPPRESSION_MS;
     }
 
     private _createPreviousScenePropertyUndoScope(rootPath: string, operations: IAnimationOperation[]): Partial<IUndoScope> | null {
