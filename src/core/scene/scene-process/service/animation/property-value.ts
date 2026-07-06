@@ -17,7 +17,25 @@ export function serializeAnimationPropertyValue(value: unknown): IAnimationValue
     if (isAnimationAssetValue(value)) {
         return serializeAnimationAssetValue(value);
     }
+    const colorValue = serializeColorValue(value);
+    if (colorValue) {
+        return colorValue;
+    }
     return cloneValue(value) as IAnimationValue;
+}
+
+function serializeColorValue(value: unknown): IAnimationValue | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+    const r = Number((value as any).r);
+    const g = Number((value as any).g);
+    const b = Number((value as any).b);
+    const a = Number((value as any).a);
+    if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b) || !Number.isFinite(a)) {
+        return undefined;
+    }
+    return { r, g, b, a };
 }
 
 export async function normalizeProvidedAnimationPropertyOperationValue(

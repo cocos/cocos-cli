@@ -998,6 +998,35 @@ describe('Animation Service 场景进程测试', () => {
         expect(reenteredCurve?.keyframes).toEqual(spriteFrameCurve.keyframes);
     });
 
+    it('queryPropertyValueAtFrame 支持 cc.Sprite.color 采样序列化', async () => {
+        await ensureAnimationSession(spriteFrameNodePath, spriteFrameClipUuid);
+
+        const properties = await request('queryProperties', [{ nodePath: spriteFrameNodePath }]);
+        const colorProperty = properties.find((item: any) => item.key === 'cc.Sprite.color');
+        expect(colorProperty).toMatchObject({
+            key: 'cc.Sprite.color',
+            comp: 'cc.Sprite',
+            type: { value: 'cc.Color' },
+        });
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.color', value: { r: 255, g: 255, b: 255, a: 255 } },
+                { type: 'createPropertyKey', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.color', frame: 0, value: { r: 32, g: 64, b: 128, a: 255 } },
+            ],
+            recordUndo: false,
+        }]);
+        const sampled = await request('queryPropertyValueAtFrame', [{
+            clipUuid: spriteFrameClipUuid,
+            nodePath: spriteFrameNodePath,
+            propKey: 'cc.Sprite.color',
+            frame: 0,
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(sampled).toMatchObject({ r: 32, g: 64, b: 128, a: 255 });
+    });
+
     it('applyOperation 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
