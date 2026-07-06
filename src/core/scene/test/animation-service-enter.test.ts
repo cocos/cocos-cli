@@ -93,12 +93,12 @@ jest.mock('../scene-process/service/animation/service-save', () => ({
 };
 
 const { AnimationService } = require('../scene-process/service/animation');
-const { saveAnimationServiceClip } = require('../scene-process/service/animation/service-save');
+const { saveAnimationServiceClip: saveAnimationServiceClipMock } = require('../scene-process/service/animation/service-save');
 
 describe('AnimationService enter', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        saveAnimationServiceClip.mockResolvedValue(true);
+        saveAnimationServiceClipMock.mockResolvedValue(true);
     });
 
     it('waits for animation state initialization before sampling time zero', async () => {
