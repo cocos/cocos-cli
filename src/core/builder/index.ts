@@ -13,7 +13,6 @@ import utils from '../base/utils';
 import { middlewareService } from '../../server/middleware/core';
 import BuildMiddleware from './build.middleware';
 import { BuildGlobalInfo } from './share/global';
-import { fillIncludeModulesFromProjectConfig } from './share/common-options-validator';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheResult } from './cache';
 
@@ -75,9 +74,7 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
         realOptions = rightOptions;
     }
 
-    // 从项目配置中补充 includeModules
     realOptions.logDest = options.logDest;
-    await fillIncludeModulesFromProjectConfig(realOptions);
 
     const { BuildTask } = await import('./worker/builder');
     return new BuildTask(options.taskId, realOptions);

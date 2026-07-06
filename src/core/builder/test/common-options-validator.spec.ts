@@ -1,77 +1,126 @@
-import { pathExists, readJSON } from 'fs-extra';
+const mockGetConfig = jest.fn();
+const mockGetInfo = jest.fn();
 
-jest.mock('fs-extra', () => ({
-    pathExists: jest.fn(),
-    readJSON: jest.fn(),
-}));
-
-jest.mock('../share/builder-config', () => ({
-    __esModule: true,
-    default: {
-        projectRoot: 'E:/test-project',
+jest.mock('../../engine', () => ({
+    Engine: {
+        getConfig: mockGetConfig,
+        getInfo: mockGetInfo,
     },
 }));
 
-describe('common-options-validator', () => {
-    const pathExistsMock = pathExists as jest.Mock;
-    const readJSONMock = readJSON as jest.Mock;
+jest.mock('../../assets/manager/asset', () => ({
+    __esModule: true,
+    default: {
+        queryAsset: jest.fn(),
+        queryAssets: jest.fn(() => []),
+        queryUrl: jest.fn(),
+    },
+}));
 
+function createEngineConfig(overrides: Record<string, any> = {}) {
+    return {
+        designResolution: { width: 960, height: 640 },
+        renderPipeline: '',
+        physicsConfig: { defaultMaterial: '' },
+        customLayers: [],
+        sortingLayers: [],
+        macroConfig: {},
+        includeModules: ['default-module'],
+        splashScreen: {},
+        ...overrides,
+    };
+}
+
+describe('common-options-validator', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockGetInfo.mockReturnValue({ version: 'test' });
     });
 
-    describe('fillIncludeModulesFromProjectConfig', () => {
-        it('uses engineModulesConfigKey to select includeModules from cocos.config.json', async () => {
-            pathExistsMock.mockResolvedValue(true);
-            readJSONMock.mockResolvedValue({
-                engine: {
-                    configs: {
-                        defaultConfig: {
-                            includeModules: ['default-module'],
-                        },
-                        migrationsConfig: {
-                            includeModules: ['migration-module'],
-                        },
-                        'custom-config-97fe9ed0-e4b5-4f54-a122-959feba4586e': {
-                            includeModules: ['base', 'gfx-webgl', 'webview'],
-                        },
+    describe('checkProjectSetting', () => {
+        it('uses engineModulesConfigKey to select includeModules from Engine config', async () => {
+            mockGetConfig.mockReturnValue(createEngineConfig({
+                configs: {
+                    defaultConfig: {
+                        includeModules: ['default-module'],
                     },
-                    globalConfigKey: 'migrationsConfig',
+                    migrationsConfig: {
+                        includeModules: ['migration-module'],
+                    },
+                    'custom-config-97fe9ed0-e4b5-4f54-a122-959feba4586e': {
+                        includeModules: ['base', 'gfx-webgl', 'webview'],
+                    },
                 },
-            });
+                globalConfigKey: 'migrationsConfig',
+            }));
 
-            const { fillIncludeModulesFromProjectConfig } = await import('../share/common-options-validator');
+            const { checkProjectSetting } = await import('../share/common-options-validator');
             const options = {
                 engineModulesConfigKey: 'custom-config-97fe9ed0-e4b5-4f54-a122-959feba4586e',
             } as any;
 
-            await fillIncludeModulesFromProjectConfig(options);
+            await checkProjectSetting(options);
 
-            expect(options.includeModules).toEqual(['base', 'gfx-webgl', 'webview']);
+            expect(options.includeModules).toEqual(['base', 'gfx-webgl', 'webview', 'debug-renderer']);
         });
 
-        it('falls back to globalConfigKey when engineModulesConfigKey is not specified', async () => {
-            pathExistsMock.mockResolvedValue(true);
-            readJSONMock.mockResolvedValue({
-                engine: {
-                    configs: {
-                        defaultConfig: {
-                            includeModules: ['default-module'],
-                        },
-                        migrationsConfig: {
-                            includeModules: ['2d', '3d', 'base'],
-                        },
+        it('uses Engine includeModules when engineModulesConfigKey is not specified', async () => {
+            mockGetConfig.mockReturnValue(createEngineConfig({
+                includeModules: ['2d', '3d', 'base'],
+                configs: {
+                    defaultConfig: {
+                        includeModules: ['default-module'],
                     },
-                    globalConfigKey: 'migrationsConfig',
+                    migrationsConfig: {
+                        includeModules: ['migration-module'],
+                    },
                 },
-            });
+                globalConfigKey: 'migrationsConfig',
+            }));
 
-            const { fillIncludeModulesFromProjectConfig } = await import('../share/common-options-validator');
+            const { checkProjectSetting } = await import('../share/common-options-validator');
             const options = {} as any;
 
-            await fillIncludeModulesFromProjectConfig(options);
+            await checkProjectSetting(options);
 
-            expect(options.includeModules).toEqual(['2d', '3d', 'base']);
+            expect(options.includeModules).toEqual(['2d', '3d', 'base', 'debug-renderer']);
+        });
+
+        it('does not override explicitly provided includeModules', async () => {
+            mockGetConfig.mockReturnValue(createEngineConfig({
+                configs: {
+                    custom: {
+                        includeModules: ['custom-module'],
+                    },
+                },
+            }));
+
+            const { checkProjectSetting } = await import('../share/common-options-validator');
+            const options = {
+                engineModulesConfigKey: 'custom',
+                includeModules: ['explicit-module'],
+            } as any;
+
+            await checkProjectSetting(options);
+
+            expect(options.includeModules).toEqual(['explicit-module', 'debug-renderer']);
+        });
+
+        it('throws when engineModulesConfigKey does not exist', async () => {
+            mockGetConfig.mockReturnValue(createEngineConfig({
+                configs: {
+                    custom: {
+                        includeModules: ['custom-module'],
+                    },
+                },
+            }));
+
+            const { checkProjectSetting } = await import('../share/common-options-validator');
+            const options = {
+                engineModulesConfigKey: 'missing',
+            } as any;
+
+            await expect(checkProjectSetting(options)).rejects.toThrow('Invalid engineModulesConfigKey: missing');
         });
     });
 });
