@@ -11,6 +11,12 @@ jest.mock('cc', () => {
     class AnimationClip {
         static WrapMode = { Reverse: 1 };
     }
+    const gfx = {
+        Type: {
+            FLOAT4: 16,
+            SAMPLER2D: 28,
+        },
+    };
     class PrimitiveType {
         constructor(public name: string) { }
     }
@@ -26,7 +32,13 @@ jest.mock('cc', () => {
             Attr: { PrimitiveType },
         },
         Component,
+        gfx,
         Node,
+        renderer: {
+            Pass: {
+                getTypeFromHandle: (handle: number) => handle,
+            },
+        },
         Scene,
         SkeletalAnimation,
         animation: {},
@@ -104,6 +116,94 @@ describe('AnimationService animatable property metadata', () => {
             'cc.TestComponent.visibleNumber',
             'cc.TestComponent.forcedHiddenNumber',
         ]);
+    });
+
+    it('按旧编辑器 queryProperties 的实际行为保留组件 type 属性', () => {
+        const { Component } = require('cc');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
+
+        class Sprite extends Component {
+            type = 0;
+            __scriptAsset = null;
+        }
+        (Sprite as any).__className = 'cc.Sprite';
+        (Sprite as any).__props__ = ['type', '__scriptAsset'];
+
+        const enumList = [
+            { name: 'SIMPLE', value: 0 },
+            { name: 'SLICED', value: 1 },
+        ];
+        mockAttr.mockImplementation((_target: Function, prop: string) => {
+            if (prop === 'type') {
+                return { type: 'Enum', enumList, visible: true };
+            }
+            if (prop === '__scriptAsset') {
+                return { type: 'cc.Asset', visible: true };
+            }
+            return undefined;
+        });
+
+        const properties = queryComponentAnimableProperties(new Sprite());
+
+        expect(properties).toEqual([
+            expect.objectContaining({
+                key: 'cc.Sprite.type',
+                name: 'type',
+                type: {
+                    value: 'Enum',
+                    enumList,
+                },
+            }),
+        ]);
+    });
+
+    it('按旧编辑器规则展开材质 pass uniform 属性', () => {
+        const { Component, gfx } = require('cc');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
+
+        class Sprite extends Component {
+            material = {
+                passes: [
+                    {
+                        properties: {
+                            mainColor: { editor: { type: 'color' } },
+                            mainTexture: {},
+                        },
+                        getHandle(name: string) {
+                            return name === 'mainColor' ? gfx.Type.FLOAT4 : gfx.Type.SAMPLER2D;
+                        },
+                    },
+                ],
+            };
+        }
+        (Sprite as any).__className = 'cc.Sprite';
+        (Sprite as any).__props__ = ['material'];
+
+        mockAttr.mockImplementation((_target: Function, prop: string) => prop === 'material'
+            ? { type: 'cc.MaterialInstance', visible: true }
+            : undefined);
+
+        const properties = queryComponentAnimableProperties(new Sprite());
+
+        expect(properties).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                key: 'cc.Sprite.material.pass.0.mainColor',
+                displayName: 'cc.Sprite.material.pass[0].mainColor',
+                menuName: 'pass[0].mainColor',
+                name: 'mainColor',
+                type: { value: 'cc.Color' },
+                comp: 'cc.Sprite',
+            }),
+            expect.objectContaining({
+                key: 'cc.Sprite.material.pass.0.mainTexture',
+                displayName: 'cc.Sprite.material.pass[0].mainTexture',
+                menuName: 'pass[0].mainTexture',
+                name: 'mainTexture',
+                type: { value: 'cc.TextureBase' },
+                comp: 'cc.Sprite',
+            }),
+        ]));
+        expect(properties.map((property: any) => property.key)).not.toContain('cc.Sprite.material');
     });
 
     it('从 accessor 当前值推导 UITransform 这类组件属性类型', () => {

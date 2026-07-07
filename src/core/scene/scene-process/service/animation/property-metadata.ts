@@ -1,4 +1,4 @@
-import { CCClass, Component, Node, js } from 'cc';
+import { CCClass, Component, Node, gfx, js, renderer } from 'cc';
 import type {
     IAnimationPropertyInfo,
 } from '../../../common';
@@ -11,11 +11,16 @@ export function queryComponentAnimableProperties(component: Component): IAnimati
     const compName = js.getClassName(component);
     const result: IAnimationPropertyInfo[] = [];
     for (const prop of props) {
-        if (prop === 'type' || prop === '__scriptAsset') {
+        if (prop === '__scriptAsset') {
             continue;
         }
         const attr = queryPropertyAttr(component as any, prop);
         if (!attr || attr.readonly || !isAnimablePropertyAttr(attr)) {
+            continue;
+        }
+        const materialProperties = queryMaterialAnimableProperties(component as any, prop, compName);
+        if (materialProperties.length > 0) {
+            result.push(...materialProperties);
             continue;
         }
         const type = queryAnimablePropertyTypeFromAttr(component as any, prop, attr);
@@ -75,6 +80,111 @@ function queryAnimablePropertyTypeFromAttr(component: Record<string, unknown>, p
         return '';
     }
     return normalizePrimitiveTypeName(type);
+}
+
+function queryMaterialAnimableProperties(component: Record<string, unknown>, prop: string, compName: string): IAnimationPropertyInfo[] {
+    const targets = queryMaterialTargets(component[prop], prop);
+    const result: IAnimationPropertyInfo[] = [];
+    for (const target of targets) {
+        const passes = Array.isArray(target.material?.passes) ? target.material.passes : [];
+        passes.forEach((pass: any, passIndex: number) => {
+            const properties = pass?.properties;
+            if (!properties || typeof properties !== 'object') {
+                return;
+            }
+            for (const uniformName of Object.keys(properties)) {
+                const type = queryUniformPropertyType(pass, uniformName);
+                if (!type) {
+                    continue;
+                }
+                const uniform = queryUniformNameData(passIndex, uniformName);
+                result.push({
+                    name: uniformName,
+                    key: `${compName}.${target.path}.${uniform.key}`,
+                    displayName: `${compName}.${target.path}.${uniform.displayName}`,
+                    type,
+                    menuName: uniform.displayName,
+                    comp: compName,
+                    category: `${compName}/${target.category}/${uniformName}`,
+                });
+            }
+        });
+    }
+    return result;
+}
+
+function queryMaterialTargets(value: unknown, prop: string): Array<{ material: any; path: string; category: string }> {
+    if (Array.isArray(value)) {
+        return value.map((material, index) => ({
+            material,
+            path: `${prop}.${index}`,
+            category: `${prop}/${index}`,
+        }));
+    }
+    return [{
+        material: value,
+        path: prop,
+        category: prop,
+    }];
+}
+
+function queryUniformNameData(passIndex: number, uniformName: string): { key: string; displayName: string } {
+    return {
+        key: `pass.${passIndex}.${uniformName}`,
+        displayName: `pass[${passIndex}].${uniformName}`,
+    };
+}
+
+function queryUniformPropertyType(pass: any, uniformName: string): IAnimationPropertyInfo['type'] | null {
+    const propInfo = pass?.properties?.[uniformName];
+    if (propInfo?.editor?.type === 'color') {
+        return { value: 'cc.Color' };
+    }
+
+    let gfxType: unknown;
+    if (typeof pass?.getHandle === 'function' && typeof renderer.Pass?.getTypeFromHandle === 'function') {
+        gfxType = renderer.Pass.getTypeFromHandle(pass.getHandle(uniformName));
+    }
+
+    const type = queryGfxValueType(gfxType) || queryGfxValueType(propInfo?.type);
+    return type ? { value: type } : null;
+}
+
+function queryGfxValueType(type: unknown): string {
+    if (typeof type === 'string') {
+        return normalizePrimitiveTypeName(type);
+    }
+    if (typeof type !== 'number') {
+        return '';
+    }
+
+    const Type = gfx.Type as any;
+    switch (type) {
+        case Type.INT:
+            return 'Integer';
+        case Type.INT2:
+            return 'cc.Vec2';
+        case Type.INT3:
+            return 'cc.Vec3';
+        case Type.INT4:
+            return 'cc.Vec4';
+        case Type.FLOAT:
+            return 'Float';
+        case Type.FLOAT2:
+            return 'cc.Vec2';
+        case Type.FLOAT3:
+            return 'cc.Vec3';
+        case Type.FLOAT4:
+            return 'cc.Vec4';
+        case Type.MAT4:
+            return 'cc.Mat4';
+        case Type.SAMPLER2D:
+            return 'cc.TextureBase';
+        case Type.SAMPLER_CUBE:
+            return 'cc.TextureCube';
+        default:
+            return '';
+    }
 }
 
 function isAnimablePropertyAttr(attr: any): boolean {
