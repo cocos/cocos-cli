@@ -8,7 +8,7 @@ import * as nativeCommonHook from '../../native-common/hooks';
 import { GlobalPaths } from '../../../../../global';
 import { getCustomIconInfo } from './custom-icon';
 
-export const onBeforeBuild = nativeCommonHook.onBeforeBuild;
+// export const onBeforeBuild = nativeCommonHook.onBeforeBuild;
 export const onAfterBundleDataTask = nativeCommonHook.onAfterBundleDataTask;
 export const onAfterCompressSettings = nativeCommonHook.onAfterCompressSettings;
 export const onBeforeMake = nativeCommonHook.onBeforeMake;
@@ -16,8 +16,14 @@ export const make = nativeCommonHook.make;
 export const run = nativeCommonHook.run;
 export const throwError = true;
 
+export async function onBeforeBuild(this: IBuilder, options: IGooglePlayInternalBuildOptions, result: IBuildResult, _cache: BuilderCache) {
+    console.log('[GooglePlayHooks] onBeforeBuild called',JSON.stringify(options));
+    
+    await  nativeCommonHook.onBeforeBuild.call(this, options);
+}
 export async function onAfterBuild(this: IBuilder, options: IGooglePlayInternalBuildOptions, result: IBuildResult, _cache: BuilderCache) {
-    console.log('[GooglePlayHooks] onAfterBuild called');
+    console.log('[GooglePlayHooks] onAfterBuild called',JSON.stringify(options));
+    
     await nativeCommonHook.onAfterBuild.call(this, options, result);
 }
 

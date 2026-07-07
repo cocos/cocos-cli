@@ -1,20 +1,17 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+    getDisplayCustomIcon as resolveDisplayCustomIcon,
+    saveCustomIcon as saveProjectCustomIcon,
+} from '../custom-icon';
 
 type Bundle = Record<string, unknown>;
 
 interface HostContext {
     registerMethod(name: string, handler: (...args: any[]) => unknown | Promise<unknown>): void;
+    getProjectPath?(): string | undefined;
 }
-
-const ICON_DPI_LIST: Record<string, number> = {
-    'mipmap-mdpi': 48,
-    'mipmap-hdpi': 72,
-    'mipmap-xhdpi': 96,
-    'mipmap-xxhdpi': 144,
-    'mipmap-xxxhdpi': 192,
-};
 
 function currentLang(): 'zh' | 'en' {
     let locale = 'en';
@@ -122,72 +119,44 @@ function getAndroidAPILevels(): number[] {
         .sort((a, b) => b - a);
 }
 
-function workspaceRootCandidates(): string[] {
-    return [
-        process.cwd(),
-        path.resolve(__dirname, '../../../../../../..'),
-        path.resolve(__dirname, '../../../../../../../..'),
-    ];
-}
-
-function defaultIconRoot(): string {
-    for (const root of workspaceRootCandidates()) {
-        const candidate = path.join(root, 'static', 'assets', 'google-play', 'icons');
-        if (existsDir(candidate)) {
-            return candidate;
-        }
+function fileImageSrc(filePath: string): string {
+    if (!filePath) {
+        return '';
     }
-    return path.join(process.cwd(), 'static', 'assets', 'google-play', 'icons');
-}
-
-function getIconInfo(type: 'default' | 'custom', outputName: string, projectPath?: string) {
-    const base = type === 'custom' && projectPath
-        ? path.join(projectPath, 'settings', 'icons', outputName)
-        : defaultIconRoot();
-
-    let display = '';
-    const list = Object.entries(ICON_DPI_LIST).map(([dirName, dpi]) => {
-        const fileName = 'ic_launcher.png';
-        const iconPath = path.join(base, dirName, fileName);
-        if (dirName === 'mipmap-xxxhdpi') {
-            display = `${iconPath}?timestamp=${Date.now()}`;
-        }
-        return { dirName, fileName, dpi, path: iconPath };
-    });
-
-    return { type, display, list };
-}
-
-function hasIcon(info: ReturnType<typeof getIconInfo>): boolean {
-    return fs.existsSync(info.list[0].path);
-}
-
-function getDisplayCustomIcon(type: 'default' | 'custom', outputName: string, projectPath?: string): string {
-    const info = getIconInfo(type, outputName, projectPath);
-    if (!hasIcon(info)) {
-        return getIconInfo('default', outputName, projectPath).display;
+    if (filePath.startsWith('data:image/')) {
+        return filePath;
     }
-    return info.display;
+
+    const [rawPath] = filePath.split('?');
+    const sourcePath = rawPath.startsWith('file:') ? fileURLToPath(rawPath) : rawPath;
+    const ext = path.extname(sourcePath).toLowerCase();
+    const mime = ext === '.jpg' || ext === '.jpeg'
+        ? 'image/jpeg'
+        : ext === '.webp'
+            ? 'image/webp'
+            : ext === '.svg'
+                ? 'image/svg+xml'
+                : 'image/png';
+    const data = fs.readFileSync(sourcePath).toString('base64');
+    return `data:${mime};base64,${data}`;
+}
+
+async function getActiveProject(): Promise<string> {
+    try {
+        const vscode = require('vscode');
+        const project = await vscode?.commands.executeCommand('pink.workspace.getActiveProject');
+        console.log('getActiveProject', JSON.stringify(project));
+        return project?.path || '';
+    } catch {
+        console.error('getActiveProject error');
+        return '';
+    }
 }
 
 async function saveCustomIcon(source: string, outputName: string, projectPath: string): Promise<string> {
-    const sharp = require('sharp') as (input: string) => {
-        resize(width: number, height: number, options?: Record<string, unknown>): {
-            withMetadata(metadata: Record<string, unknown>): { toFile(file: string): Promise<unknown> };
-        };
-    };
-    const info = getIconInfo('custom', outputName, projectPath);
+    console.log('saveCustomIcon22', source, outputName, projectPath);
     const sourcePath = source.startsWith('file:') ? fileURLToPath(source) : source;
-
-    for (const item of info.list) {
-        fs.mkdirSync(path.dirname(item.path), { recursive: true });
-        await sharp(sourcePath)
-            .resize(item.dpi, item.dpi, { fit: 'inside' })
-            .withMetadata({ density: item.dpi })
-            .toFile(item.path);
-    }
-
-    return info.display;
+    return saveProjectCustomIcon(sourcePath, projectPath, 'custom', outputName);
 }
 
 export function activate(context: HostContext): void {
@@ -197,8 +166,13 @@ export function activate(context: HostContext): void {
         return text === undefined ? key : substitute(text, sub);
     });
     context.registerMethod('getAndroidAPILevels', () => getAndroidAPILevels());
-    context.registerMethod('getDisplayCustomIcon', (type: 'default' | 'custom', outputName = 'default', projectPath?: string) => {
-        return getDisplayCustomIcon(type, outputName, projectPath);
+    context.registerMethod('getDisplayCustomIcon', async (type: 'default' | 'custom', outputName = 'default', projectPath?: string) => {
+        const _projectPath = projectPath || await getActiveProject();
+        console.log('getDisplayCustomIcon11', type, outputName, _projectPath);
+        return resolveDisplayCustomIcon(_projectPath, type, outputName);
+    });
+    context.registerMethod('fileImageSrc', (filePath: string) => {
+        return fileImageSrc(filePath);
     });
     context.registerMethod('selectFile', async (filters?: Record<string, string[]>) => {
         const vscode = require('vscode') as typeof import('vscode');
@@ -210,26 +184,13 @@ export function activate(context: HostContext): void {
         });
         return result?.[0]?.fsPath || '';
     });
-    context.registerMethod('selectCustomIcon', async (outputName = 'default', projectPath?: string) => {
-        const vscode = require('vscode') as typeof import('vscode');
-        const result = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: false,
-            filters: { Images: ['png'] },
-            title: 'Select Google Play icon',
-        });
-        const source = result?.[0]?.fsPath;
-        if (!source || !projectPath) {
-            return '';
-        }
-        return saveCustomIcon(source, outputName, projectPath);
-    });
     context.registerMethod('saveCustomIcon', async (source: string, outputName = 'default', projectPath?: string) => {
-        if (!source || !projectPath) {
+        if (!source) {
             return '';
         }
-        return saveCustomIcon(source, outputName, projectPath);
+        const _projectPath = projectPath || await getActiveProject();
+        console.log('saveCustomIcon11', source, outputName, _projectPath);
+        return saveCustomIcon(source, outputName, _projectPath);
     });
     context.registerMethod('openProgramSettings', async () => {
         try {
