@@ -59,7 +59,7 @@ const DEFAULTS: Record<string, unknown> = {
     customIcon: 'default',
 };
 
-const ROW: CSSProperties = { padding: '2px 16px 6px 20px' };
+const ROW: CSSProperties = { padding: '2px 16px 6px 0px' };
 const STACK: CSSProperties = { display: 'grid', gap: 6 };
 const INLINE: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' };
 const SUB_ROW: CSSProperties = { paddingLeft: 18, display: 'grid', gap: 4 };
