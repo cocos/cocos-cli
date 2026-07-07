@@ -81,7 +81,7 @@ export function dumpPropertyCurves(clip: AnimationClip, options: IDumpRealKeyDat
             });
         }
     }
-    return curves.sort((a, b) => `${a.nodePath}:${a.key}`.localeCompare(`${b.nodePath}:${b.key}`));
+    return curves;
 }
 
 export function createPropertyKey(

@@ -1134,6 +1134,28 @@ describe('Animation Service 场景进程测试', () => {
         ]);
     });
 
+    it('queryClip 按属性轨道添加顺序返回 curves', async () => {
+        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await resetPropertyCurves(emptyNodePath, emptyClipUuid);
+
+        const result = await request('applyOperation', [{
+            operations: [
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'cc.Sprite.color', value: { r: 255, g: 255, b: 255, a: 255 } },
+                { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale', value: { x: 1, y: 1, z: 1 } },
+            ],
+            recordUndo: false,
+        }]);
+        const dump = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
+
+        expect(result).toEqual({ state: 'success', result: true });
+        expect(dump.curves.map((curve: any) => curve.key)).toEqual([
+            'position',
+            'cc.Sprite.color',
+            'scale',
+        ]);
+    });
+
     it('removePropertyKeys 清空关键帧时保留属性轨道，removePropertyCurve 才移除轨道', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
 

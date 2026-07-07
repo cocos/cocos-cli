@@ -541,6 +541,26 @@ describe('AnimationService animatable property metadata', () => {
         expect(parsePropertyTrack(track)?.descriptor.propKey).toBe(key);
     });
 
+    it('dumpPropertyCurves 保留属性轨道添加顺序', () => {
+        const { AnimationClip } = require('cc');
+        const { addPropertyCurve, dumpPropertyCurves } = require('../scene-process/service/animation/property-curve');
+        const clip = new AnimationClip();
+        const context = {
+            rootNode: {} as any,
+            rootPath: '',
+        };
+
+        expect(addPropertyCurve(clip, context, { type: 'addPropertyCurve', clipUuid: 'clip', propKey: 'position', value: { x: 0, y: 0, z: 0 } })).toBe(true);
+        expect(addPropertyCurve(clip, context, { type: 'addPropertyCurve', clipUuid: 'clip', propKey: 'eulerAngles', value: { x: 0, y: 0, z: 0 } })).toBe(true);
+        expect(addPropertyCurve(clip, context, { type: 'addPropertyCurve', clipUuid: 'clip', propKey: 'scale', value: { x: 1, y: 1, z: 1 } })).toBe(true);
+
+        expect(dumpPropertyCurves(clip).map((curve: any) => curve.key)).toEqual([
+            'position',
+            'eulerAngles',
+            'scale',
+        ]);
+    });
+
     it('按旧编辑器规则把 object track 的 ccClass dump 还原为实例', () => {
         const { AnimationClip, Rect } = require('cc');
         const { createPropertyKey, dumpPropertyCurves } = require('../scene-process/service/animation/property-curve');
