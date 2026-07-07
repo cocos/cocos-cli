@@ -6,6 +6,7 @@ import { EventEmitter } from 'events';
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
 import pathManager from './node-path-manager';
+import type ComponentManager from './component';
 
 const lodash = require('lodash');
 
@@ -16,6 +17,10 @@ export default class NodeManager extends EventEmitter {
     _map: { [index: string]: any } = {};
 
     private _parentChildren: Map<string, Set<string>> = new Map(); // 父节点UUID -> 子节点UUID集合
+
+    constructor(private readonly _componentManager?: ComponentManager) {
+        super();
+    }
 
     // 被删除节点集合,为了undo，编辑器不会把Node删除
     // _recycle: { [index: string]: any } = {};
@@ -111,6 +116,7 @@ export default class NodeManager extends EventEmitter {
 
         // 更新节点对象的名称
         node.name = newName;
+        this._componentManager?.remapNodeTreeComponents(node);
     }
 
     /**
@@ -147,6 +153,8 @@ export default class NodeManager extends EventEmitter {
         if (finalName && node.name !== finalName) {
             node.name = finalName;
         }
+
+        this._componentManager?.remapNodeTreeComponents(node);
 
         return newPath;
     }

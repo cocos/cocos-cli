@@ -45,3 +45,29 @@ describe('ComponentManager.changeUUID', () => {
         expect(manager.getComponentFromPath(pathBefore)).toBe(manager.getComponent('comp-new'));
     });
 });
+
+describe('ComponentManager.clear', () => {
+    let manager: ComponentManager;
+
+    beforeEach(() => {
+        manager = new ComponentManager();
+        manager.allow = true;
+    });
+
+    function addComponent(uuid: string, nodeUuid: string) {
+        const comp = { uuid, _id: uuid, _className: 'TestComp', node: { uuid: nodeUuid } } as any;
+        manager.add(uuid, comp);
+        return comp;
+    }
+
+    it('clears component path indexes', () => {
+        addComponent('comp-old', 'node-1');
+
+        manager.clear();
+        const comp = addComponent('comp-new', 'node-1');
+
+        expect(manager.getPathFromUuid('comp-old')).toBe('');
+        expect(manager.getPathFromUuid('comp-new')).toBe('/node-1/TestComp');
+        expect(manager.getComponentFromPath('/node-1/TestComp')).toBe(comp);
+    });
+});

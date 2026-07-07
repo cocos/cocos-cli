@@ -108,6 +108,32 @@ export default class ComponentManager extends EventEmitter {
         this._uuidToPath.set(component.uuid, path);
     }
 
+    remapNodeTreeComponents(node: any) {
+        if (!this.allow || !node) {
+            return;
+        }
+
+        const remap = (target: any) => {
+            if (Array.isArray(target?.components)) {
+                for (const component of target.components) {
+                    if (!component?.uuid || !this._map[component.uuid]) {
+                        continue;
+                    }
+                    this._removeComponentPath(component.uuid);
+                    this._mapComponentToPath(component);
+                }
+            }
+
+            if (Array.isArray(target?.children)) {
+                for (const child of target.children) {
+                    remap(child);
+                }
+            }
+        };
+
+        remap(node);
+    }
+
     _removeComponentPath(uuid: any) {
         if (!this._uuidToPath.has(uuid)) {
             return;
@@ -179,6 +205,9 @@ export default class ComponentManager extends EventEmitter {
             return;
         }
         this._map = {};
+        this._pathToUuid.clear();
+        this._caseInsensitivePathMap.clear();
+        this._uuidToPath.clear();
         // this._recycle = {};
 
     }

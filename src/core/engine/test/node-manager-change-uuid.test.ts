@@ -1,5 +1,12 @@
 import NodeManager from '../editor-extends/manager/node';
+import ComponentManager from '../editor-extends/manager/component';
 import pathManager from '../editor-extends/manager/node-path-manager';
+
+(globalThis as any).cc = {
+    js: {
+        getClassName: (target: any) => target._className ?? 'UnknownComponent',
+    },
+};
 
 describe('NodeManager.changeNodeUUID', () => {
     let manager: NodeManager;
@@ -81,5 +88,74 @@ describe('NodeManager.updateNodeName', () => {
         expect(manager.getNodeByPath('C/B/D')).toBe(grandchild);
         expect(manager.getNodeByPath('A/B')).toBeNull();
         expect(manager.getNodeByPath('A/B/D')).toBeNull();
+    });
+});
+
+describe('NodeManager component path sync', () => {
+    let nodeManager: NodeManager;
+    let componentManager: ComponentManager;
+    let nodes: Record<string, any>;
+
+    beforeEach(() => {
+        componentManager = new ComponentManager();
+        componentManager.allow = true;
+        nodeManager = new NodeManager(componentManager);
+        nodeManager.allow = true;
+        nodes = {};
+        pathManager.clear();
+    });
+
+    function addNode(uuid: string, name: string, parentUuid?: string) {
+        const node = {
+            uuid,
+            name,
+            _id: uuid,
+            parent: parentUuid ? { uuid: parentUuid } : null,
+            children: [],
+            components: [],
+        } as any;
+        nodes[uuid] = node;
+        if (parentUuid && nodes[parentUuid]) {
+            nodes[parentUuid].children.push(node);
+            node.parent = nodes[parentUuid];
+        }
+        nodeManager.add(uuid, node);
+        return node;
+    }
+
+    function addComponent(uuid: string, node: any, className = 'cc.Button') {
+        const component = { uuid, _id: uuid, _className: className, node } as any;
+        node.components.push(component);
+        componentManager.add(uuid, component);
+        return component;
+    }
+
+    it('updates component paths under renamed node subtrees', () => {
+        addNode('parent', 'A', 'scene');
+        const child = addNode('child', 'B', 'parent');
+        const button = addComponent('button', child);
+
+        expect(componentManager.getPathFromUuid('button')).toBe('A/B/cc.Button');
+
+        nodeManager.updateNodeName('parent', 'C');
+
+        expect(componentManager.getPathFromUuid('button')).toBe('C/B/cc.Button');
+        expect(componentManager.getComponentFromPath('C/B/cc.Button')).toBe(button);
+        expect((componentManager as any)._pathToUuid.has('A/B/cc.Button')).toBe(false);
+    });
+
+    it('updates component paths under reparented node subtrees', () => {
+        addNode('target', 'A', 'scene');
+        addNode('moving', 'B', 'scene');
+        const child = addNode('child', 'C', 'moving');
+        const button = addComponent('button', child);
+
+        expect(componentManager.getPathFromUuid('button')).toBe('B/C/cc.Button');
+
+        nodeManager.updateNodeParent('moving', 'target');
+
+        expect(componentManager.getPathFromUuid('button')).toBe('A/B/C/cc.Button');
+        expect(componentManager.getComponentFromPath('A/B/C/cc.Button')).toBe(button);
+        expect((componentManager as any)._pathToUuid.has('B/C/cc.Button')).toBe(false);
     });
 });

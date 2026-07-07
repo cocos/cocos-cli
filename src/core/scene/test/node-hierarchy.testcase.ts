@@ -12,6 +12,7 @@ import {
     NodeType,
 } from '../common';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
+import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { Rpc } from '../main-process/rpc';
 import { SceneTestEnv } from './scene-test-env';
@@ -242,6 +243,32 @@ describe('Node 层级操作测试', () => {
 
             const afterChildren = await getChildNames(parent!.path);
             expect(afterChildren.length).toBe(beforeChildren.length + 2);
+        });
+
+        it('duplicate Button 后首次 query 使用副本组件路径和 target', async () => {
+            const button = await NodeProxy.createByType({ path: parent!.path, name: 'DupImmediateButton', nodeType: NodeType.BUTTON });
+            expect(button).toBeTruthy();
+
+            const [duplicatedPath] = await duplicate({ paths: [button!.path] });
+            expect(duplicatedPath).toBeTruthy();
+
+            const duplicatedDump = await rpcRequest('query', [{
+                path: duplicatedPath,
+                includeChildren: false,
+                includeComponents: true,
+            }]) as any;
+            expect(duplicatedDump).toBeTruthy();
+
+            const duplicatedButtonPath = `${duplicatedPath}/cc.Button`;
+            const buttonDump = duplicatedDump.__comps__?.find((comp: any) => comp.type === 'cc.Button');
+            expect(buttonDump).toBeTruthy();
+            expect(buttonDump.component_path).toBe(duplicatedButtonPath);
+            expect(buttonDump.value?.target?.value?.uuid).toBe(duplicatedDump.uuid.value);
+
+            const duplicatedButton = await ComponentProxy.query({ path: duplicatedButtonPath }) as any;
+            expect(duplicatedButton).toBeTruthy();
+            expect(duplicatedButton.path).toBe(duplicatedButtonPath);
+            expect((duplicatedButton.properties.target.value as any)?.uuid).toBe(duplicatedDump.uuid.value);
         });
     });
 

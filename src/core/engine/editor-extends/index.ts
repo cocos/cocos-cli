@@ -21,8 +21,8 @@ import ComponentManager from './manager/component';
 export const UuidUtils = utils.UUID;
 
 export const Script = new ScriptManager();
-export const Node = new NodeManager();
 export const Component = new ComponentManager();
+export const Node = new NodeManager(Component);
 
 export let GeometryUtils: any;
 export let PrefabUtils: any;
