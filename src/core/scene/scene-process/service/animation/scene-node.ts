@@ -9,6 +9,10 @@ import {
 } from 'cc';
 import type { IAnimationValue } from '../../../common';
 import { cloneValue } from './utils';
+import {
+    parseMaterialUniformPropertyKey,
+    readMaterialUniformValue,
+} from './material-uniform';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -76,9 +80,13 @@ export function isSkeletonClip(uuid: string, rootNode?: Node | null): boolean {
 }
 
 export function readPropertyValue(node: Node, propKey: string): unknown {
+    const materialUniform = parseMaterialUniformPropertyKey(propKey);
     for (const component of node.components) {
         const names = getComponentNames(component);
         for (const name of names) {
+            if (materialUniform && name === materialUniform.comp) {
+                return readMaterialUniformValue(component as any, materialUniform);
+            }
             const prefix = `${name}.`;
             if (name && propKey.startsWith(prefix)) {
                 return readPathValue(component, propKey.slice(prefix.length));

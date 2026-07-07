@@ -1,3 +1,4 @@
+import { deserialize, js } from 'cc';
 import type { AnimationClip, Asset } from 'cc';
 import type {
     IAnimationCurveChannelDump,
@@ -7,6 +8,7 @@ import type {
     IAnimationValue,
 } from '../../../common';
 import {
+    cloneSerializableValue,
     cloneValue,
     getClipSample,
 } from './utils';
@@ -450,6 +452,10 @@ function normalizeObjectCurveValue(descriptor: IPropertyTrackDescriptor, value: 
     if (assetValue !== NOT_ASSET_TYPE) {
         return assetValue;
     }
+    const typedValue = normalizeTypedObjectCurveValue(descriptor, value);
+    if (typedValue !== NOT_TYPED_OBJECT) {
+        return typedValue;
+    }
     return cloneValue(value);
 }
 
@@ -464,11 +470,12 @@ function dumpObjectCurveValue(value: unknown, descriptor: IPropertyTrackDescript
         const uuid = queryAnimationAssetUuid(value);
         return uuid ? { uuid } : null;
     }
-    return cloneValue(value) as IAnimationValue;
+    return cloneSerializableValue(value) as IAnimationValue;
 }
 
 const NOT_ASSET_TYPE = Symbol('notAssetType');
 const INVALID_ASSET_VALUE = Symbol('invalidAssetValue');
+const NOT_TYPED_OBJECT = Symbol('notTypedObject');
 
 function normalizeAssetCurveValue(descriptor: IPropertyTrackDescriptor, value: IAnimationValue): unknown | typeof NOT_ASSET_TYPE | typeof INVALID_ASSET_VALUE {
     const assetCtor = queryAssetCtor(descriptor);
@@ -494,6 +501,45 @@ function isAssetDescriptor(descriptor: IPropertyTrackDescriptor): boolean {
 
 function queryAssetCtor(descriptor: IPropertyTrackDescriptor): (new () => Asset) | null {
     return queryAnimationAssetCtor(descriptor);
+}
+
+function normalizeTypedObjectCurveValue(descriptor: IPropertyTrackDescriptor, value: IAnimationValue): unknown | typeof NOT_TYPED_OBJECT {
+    const ctor = queryTypedObjectCtor(descriptor);
+    if (!ctor) {
+        return NOT_TYPED_OBJECT;
+    }
+    if (value === null || value === undefined) {
+        return value;
+    }
+    if (value instanceof ctor) {
+        return cloneValue(value);
+    }
+    if (typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+
+    const typeName = descriptor.type?.value || '';
+    if (!typeName) {
+        const result = new ctor();
+        Object.assign(result as object, value);
+        return result;
+    }
+    return deserialize({
+        __type__: typeName,
+        ...(value as Record<string, unknown>),
+    });
+}
+
+function queryTypedObjectCtor(descriptor: IPropertyTrackDescriptor): (new () => unknown) | null {
+    if (queryAnimationAssetCtor(descriptor)) {
+        return null;
+    }
+    const typeName = descriptor.type?.value || '';
+    if (!descriptor.valueCtor && (!typeName || typeName === 'cc.Object' || typeName === 'Object' || typeName === 'Unknown')) {
+        return null;
+    }
+    const ctor = descriptor.valueCtor || js.getClassByName(typeName);
+    return typeof ctor === 'function' ? ctor as new () => unknown : null;
 }
 
 function updateRealCurveKey(curve: AnyCurve, time: number, value: number | undefined | null, keyData?: IAnimationCurveKeyData): boolean {

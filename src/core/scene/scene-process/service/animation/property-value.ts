@@ -9,7 +9,7 @@ import {
     queryAnimationAssetUuid,
     serializeAnimationAssetValue,
 } from './asset-value';
-import { cloneValue } from './utils';
+import { cloneSerializableValue } from './utils';
 
 type PropertyKeyOperation = Extract<IAnimationOperation, { type: 'createPropertyKey' | 'updatePropertyKey' }>;
 
@@ -21,7 +21,7 @@ export function serializeAnimationPropertyValue(value: unknown): IAnimationValue
     if (colorValue) {
         return colorValue;
     }
-    return cloneValue(value) as IAnimationValue;
+    return cloneSerializableValue(value) as IAnimationValue;
 }
 
 function serializeColorValue(value: unknown): IAnimationValue | undefined {

@@ -4,6 +4,7 @@ import type {
     IAnimationPropertyType,
     IAnimationValue,
 } from '../../../common';
+import type { IMaterialUniformProperty } from './material-uniform';
 
 export type PropertyKind = 'real' | 'vector' | 'quat' | 'color' | 'size' | 'object';
 export type AnyTrack = InstanceType<typeof animation.Track>;
@@ -26,6 +27,7 @@ export interface IPropertyTrackDescriptor {
     isCurveSupport: boolean;
     partKeys?: readonly string[];
     valueCtor?: new () => unknown;
+    materialUniform?: IMaterialUniformProperty;
 }
 
 export interface ICreatePropertyKeyOperation extends IPropertyTarget {

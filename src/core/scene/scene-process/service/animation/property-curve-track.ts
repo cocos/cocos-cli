@@ -10,6 +10,10 @@ import type {
     IPropertyTrackDescriptor,
     PropertyKind,
 } from './property-curve-types';
+import {
+    createMaterialUniformPropertyKey,
+    parseMaterialUniformPropertyKey,
+} from './material-uniform';
 
 const VECTOR_COMPONENTS = ['x', 'y', 'z'] as const;
 const VECTOR4_COMPONENTS = ['x', 'y', 'z', 'w'] as const;
@@ -76,7 +80,18 @@ export function createPropertyTrack(clip: AnimationClip, nodePath: string, descr
     if (descriptor.comp) {
         path.toComponent(descriptor.comp);
     }
-    path.toProperty(descriptor.propName);
+    if (descriptor.materialUniform) {
+        path.toProperty(descriptor.materialUniform.materialProperty);
+        if (descriptor.materialUniform.materialIndex !== undefined) {
+            path.toElement(descriptor.materialUniform.materialIndex);
+        }
+        track.proxy = new animation.UniformProxyFactory(
+            descriptor.materialUniform.uniformName,
+            descriptor.materialUniform.passIndex,
+        );
+    } else {
+        path.toProperty(descriptor.propName);
+    }
     track.path = path;
     ensureClipTrackArray(clip);
     clip.addTrack(track);
@@ -106,6 +121,32 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
         index++;
     }
 
+    const uniformProxy = queryUniformProxy(track);
+    if (uniformProxy) {
+        if (!comp || index >= path.length || !path.isPropertyAt(index)) {
+            return null;
+        }
+        const materialProperty = path.parsePropertyAt(index);
+        index++;
+        let materialIndex: number | undefined;
+        if (index < path.length && path.isElementAt(index)) {
+            materialIndex = path.parseElementAt(index);
+            index++;
+        }
+        if (index !== path.length) {
+            return null;
+        }
+        const propKey = createMaterialUniformPropertyKey({
+            comp,
+            materialProperty,
+            materialIndex,
+            passIndex: uniformProxy.passIndex,
+            uniformName: uniformProxy.uniformName,
+        });
+        const descriptor = createPropertyDescriptor(propKey, undefined, kind, track as AnyTrack);
+        return descriptor ? { nodePath, descriptor } : null;
+    }
+
     if (index !== path.length - 1 || !path.isPropertyAt(index)) {
         return null;
     }
@@ -133,7 +174,10 @@ export function createPropertyDescriptor(
             propName: propertyKey,
         };
     }
-    const componentProperty = splitComponentPropertyKey(propertyKey);
+    const materialUniform = parseMaterialUniformPropertyKey(propertyKey) || undefined;
+    const componentProperty = materialUniform
+        ? { comp: materialUniform.comp, propName: materialUniform.materialProperty }
+        : splitComponentPropertyKey(propertyKey);
     const propName = componentProperty?.propName || propertyKey;
     const comp = componentProperty?.comp;
     const kind = trackKind || (propertyType ? inferPropertyKindFromType(propertyType.value) : undefined) || inferPropertyKind(value);
@@ -153,6 +197,7 @@ export function createPropertyDescriptor(
         isCurveSupport: kind !== 'object' && kind !== 'quat',
         partKeys,
         valueCtor,
+        materialUniform,
     };
 }
 
@@ -279,6 +324,19 @@ function queryTrackKind(track: unknown): PropertyKind | null {
         return 'object';
     }
     return null;
+}
+
+function queryUniformProxy(track: unknown): { passIndex: number; uniformName: string } | null {
+    const proxy = (track as AnyTrack).proxy as any;
+    if (!proxy) {
+        return null;
+    }
+    if (!(proxy instanceof animation.UniformProxyFactory)) {
+        return null;
+    }
+    return typeof proxy.uniformName === 'string' && Number.isInteger(proxy.passIndex)
+        ? { passIndex: proxy.passIndex, uniformName: proxy.uniformName }
+        : null;
 }
 
 function splitComponentPropertyKey(propKey: string): { comp: string; propName: string } | null {

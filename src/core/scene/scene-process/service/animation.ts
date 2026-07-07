@@ -236,6 +236,20 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
     async queryRootInfo(options: IAnimationTargetOptions): Promise<IAnimationRootInfo> {
         const rootNode = this._resolveRootNode(options);
+        if (!queryAnimationComponent(rootNode)) {
+            const rootPath = getNodePath(rootNode);
+            return {
+                rootUuid: rootNode.uuid,
+                rootPath,
+                clipsMenu: [],
+                defaultClip: '',
+                nodeTreeDump: await Service.Node.queryNodeTree({ path: rootPath }),
+                clipDump: null,
+                time: 0,
+                state: 'stop',
+                useBakedAnimation: false,
+            };
+        }
         const clipsInfo = await queryAnimationClipsInfo(rootNode);
         const activeSession = this._session?.rootUuid === rootNode.uuid ? this._session : null;
         const clipUuid = activeSession?.clipUuid || clipsInfo.defaultClip;
@@ -617,17 +631,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, _rootNode: Node): Promise<void> {
+        const uuid = clipUuid(clip);
         try {
-            await restoreAnimationClipSnapshot(clip, snapshot);
+            await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot);
         } catch (error) {
             console.error('[Animation] restore failed operation snapshot failed:', error);
             throw error;
-        }
-        const uuid = clipUuid(clip);
-        const state = this._animationStates.get(uuid);
-        if (state) {
-            this._animationStates.reset(uuid);
-            this._animationStates.create(uuid, clip);
         }
         await this.setTime({ time: this._curEditTime });
     }
@@ -640,11 +649,32 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const clip = state.clip;
-        await restoreAnimationClipSnapshot(clip, snapshot);
-        this._animationStates.reset(uuid);
-        this._animationStates.create(uuid, clip);
+        await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot, true);
         await this.setTime({ time: this._curEditTime });
         this._broadcastClipChanged('undo-redo');
+    }
+
+    private async _restoreClipSnapshotWithStateRecreation(
+        uuid: string,
+        clip: AnimationClip,
+        snapshot: IAnimationClipSnapshot,
+        shouldRecreateState = Boolean(this._animationStates.get(uuid)),
+    ): Promise<void> {
+        if (shouldRecreateState) {
+            // Destroy the old state before replacing clip tracks; destroy() may touch curves it initialized.
+            this._animationStates.reset(uuid);
+        }
+        try {
+            await restoreAnimationClipSnapshot(clip, snapshot);
+        } catch (error) {
+            if (shouldRecreateState) {
+                this._animationStates.create(uuid, clip);
+            }
+            throw error;
+        }
+        if (shouldRecreateState) {
+            this._animationStates.create(uuid, clip);
+        }
     }
 
     private async _refreshCurrentClipAsset(uuid: string): Promise<void> {
@@ -657,6 +687,12 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const time = this._curEditTime;
         const clip = await loadAnimationClip(uuid);
+        if (!this._session || this._session.clipUuid !== uuid) {
+            return;
+        }
+        if (this._shouldSuppressSelfSavedClipRefresh(uuid)) {
+            return;
+        }
         const rootNode = this._getSessionRootNode();
         const animComp = queryAnimationComponent(rootNode);
         if (clip && animComp instanceof Animation) {

@@ -36,8 +36,8 @@ Scene process 不负责：
 | 查询播放状态 | `query-animation-state` | `AnimationService.queryState` | 已合并到 state.playState |
 | 查询动画 root | `query-animation-root` | `AnimationService.queryRoot` | 已落地第一阶段 |
 | 查询 root 信息 | `query-animation-root-info` | `AnimationService.queryRootInfo` | 已落地基础信息；支持无 clip 的 root info，复杂旧 property dump 仍部分缺口 |
-| 查询 clip dump | `query-animation-clip` | `AnimationService.queryClip` | 已落地基础 dump；复杂旧 property track 仍部分缺口 |
-| 查询可编辑属性 | `query-animation-properties` | `AnimationService.queryProperties` | 已落地基础属性；旧递归属性/adapter 仍部分缺口 |
+| 查询 clip dump | `query-animation-clip` | `AnimationService.queryClip` | 已落地基础 dump 和 material uniform track；复杂旧 property track 仍部分缺口 |
+| 查询可编辑属性 | `query-animation-properties` | `AnimationService.queryProperties` | 已落地基础属性、`cc.Sprite.type` 和 material uniform；旧递归属性/其他 adapter 仍部分缺口 |
 | 查询 clips | `query-animation-clips-info` | `AnimationService.queryClips` | 已落地第一阶段；Animation 组件 clips 为空时返回空 menu |
 | 查询时间 | `query-animation-clips-time` | `AnimationService.queryTime` | 已落地第一阶段 |
 | 设置时间/采样 | `set-edit-time` | `AnimationService.setTime` | CLI 已覆盖 root/child 采样；PinK 真实 gate 待复测 |

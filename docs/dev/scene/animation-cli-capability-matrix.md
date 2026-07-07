@@ -40,13 +40,13 @@
 | 查询播放状态 | `query-animation-state` | 完成 | `queryState` | 旧接口只返回 play state；当前统一在 session state 内返回 `playState`。 |
 | 查询动画 root | `query-animation-root` | 完成 | `queryRoot` | 支持 node path/uuid 推导 root。 |
 | 查询 root 综合信息 | `query-animation-root-info` | 部分完成 | `queryRootInfo` | 返回 clips menu、node tree、默认 clip dump、time、baked 标记；Animation 组件 clips 为空时返回空 menu 且 `clipDump: null`；复杂旧轨道 dump 未完全覆盖。 |
-| 查询 clip dump | `query-animation-clip` | 部分完成 | `queryClip` | 当前 session clip 优先走 session state，避免 asset refresh 窗口反查组件 clips 失败；普通查询路径不再为了恢复缺失 clip 而重绑 `Animation.clips/defaultClip`，clip rebind 只保留在 `enter`、`changeEditClip`、asset refresh 等明确写入/恢复路径；旧编辑器支持的 nested object、array、material uniform、valueAdapter 轨道未完全迁移，旧 `isLock` 与 2D 曲线/partKeys 过滤语义也未完整迁移。 |
+| 查询 clip dump | `query-animation-clip` | 部分完成 | `queryClip` | 当前 session clip 优先走 session state，避免 asset refresh 窗口反查组件 clips 失败；普通查询路径不再为了恢复缺失 clip 而重绑 `Animation.clips/defaultClip`，clip rebind 只保留在 `enter`、`changeEditClip`、asset refresh 等明确写入/恢复路径；已支持 material uniform 的 `UniformProxyFactory` 轨道解析和 dump；旧编辑器支持的 nested object、array、其他 valueAdapter 轨道未完全迁移，旧 `isLock` 与 2D 曲线/partKeys 过滤语义也未完整迁移。 |
 | 查询 clips menu | `query-animation-clips-info` | 完成 | `queryClips` | `Animation.defaultClip` 也会纳入候选 clips；Animation 组件 clips 为空时返回空 menu 和空 `defaultClip`。 |
 | 查询播放时间 | `query-animation-clips-time` | 完成 | `queryTime` | time 使用秒。 |
 | 设置编辑时间 / 采样 | `set-edit-time` | 完成 | `setTime` | 受 clip duration clamp，采样后 repaint；CLI 场景测试已覆盖 root 和 child `nodePath` 属性轨道采样，PinK Product gate 仍需在真实插件链路复测关闭。 |
 | 播放控制 | `change-clip-state` | 完成 | `changePlayState` | 支持 play/pause/resume/stop。 |
 | 保存 clip | `save-clip` | 完成 | `save` | 普通 `.anim` 写 asset；骨骼动画写 meta。 |
-| 查询可编辑属性 | `query-animation-properties` | 部分完成 | `queryProperties` | 覆盖 node TRS/active 和组件顶层 animatable 属性；旧递归对象、数组下标、类型继承链、category/menu、asset/uniform adapter、`targetPaths/valueAdapter` 体系未完全迁移。 |
+| 查询可编辑属性 | `query-animation-properties` | 部分完成 | `queryProperties` | 覆盖 node TRS/active、组件顶层 animatable 属性、`cc.Sprite.type`、Renderer `sharedMaterials -> materials` 和 material `passes[].properties` uniform 展开；旧递归对象、普通数组下标、类型继承链、其他 `targetPaths/valueAdapter` 体系未完全迁移。 |
 | 查询嵌入播放器菜单 | `query-EmbeddedPlayer-menu` | 未完成 | 无 | 仅已支持 embedded player 数据编辑和 dump；可添加项菜单查询未迁移。 |
 | 查询动画编辑信息 | `query-animation-edit-info` | 部分完成 | `queryRootInfo` / `queryState` | 当前分散在 root info 和 state；旧结构的完整 `IAniEditInfo` 未保留。 |
 | 查询节点树 | `query-node-tree` | 完成 | `Service.Node.queryNodeTree` / `queryRootInfo.nodeTreeDump` | 不属于 AnimationService 专属能力。 |
@@ -59,7 +59,7 @@
 | 修改 speed | `changeSpeed` | 完成 | `changeSpeed` operation | 纳入 undo/dirty/save。 |
 | 修改 wrapMode | `changeWrapMode` | 完成 | `changeWrapMode` operation | 纳入 undo/dirty/save。 |
 | 自动重算 duration | `recalculateDuration()` | 部分完成 | `applyOperation` 内部 `syncAnimationClipDuration` | CLI 场景测试已覆盖普通曲线、event、embedded player、auxiliary curve；PinK 真实 scene Product gate 仍需复测 save / undo / exit / reenter 全链路，不能按 PinK 口径标完成。 |
-| 创建属性轨道 | `createProp` | 部分完成 | `addPropertyCurve` / `createPropertyKey` | 仅对当前 flat `propKey` 模型完整；旧 `targetPaths/valueAdapter`、nested/object/array/uniform 路径体系未完全表达。 |
+| 创建属性轨道 | `createProp` | 部分完成 | `addPropertyCurve` / `createPropertyKey` | 支持当前 flat `propKey` 模型和 material uniform propKey，并会为 material uniform 创建 `UniformProxyFactory` 轨道；旧 `targetPaths/valueAdapter` 的其他用法、nested/object/array 路径体系未完全表达。 |
 | 删除属性轨道 | `removeProp` | 未完成 | 无 | 当前只能删除 key；缺少「删除整条 track」operation。 |
 | 复制属性轨道 | `copyProp` / `copyPropTo` | 未完成 | 无 | 当前 `copyPropertyKeysTo` 只覆盖同一曲线内按帧复制。 |
 | 创建属性 key | `createKey` | 部分完成 | `createPropertyKey` | 对当前 flat property 模型支持 nodePath/nodeUuid、channel、value 省略时从当前 scene 采样、keyData；复杂旧 property path 未完全覆盖。 |

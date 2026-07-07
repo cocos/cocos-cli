@@ -32,6 +32,27 @@ export function cloneValue<T>(value: T): T {
     return value;
 }
 
+export function cloneSerializableValue<T>(value: T): T {
+    if (value === null || value === undefined) {
+        return value;
+    }
+    if (typeof value !== 'object') {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.map((item) => cloneSerializableValue(item)) as T;
+    }
+    if (isAnimationAssetValue(value)) {
+        return value;
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+        result[key] = cloneSerializableValue(item);
+    }
+    return result as T;
+}
+
 function isPlainObject(value: object): value is Record<string, unknown> {
     const prototype = Object.getPrototypeOf(value);
     return prototype === Object.prototype || prototype === null;
