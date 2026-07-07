@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 let mockLanguage = 'en';
+const TEST_PLATFORM = 'wechatgame';
 const mockTranslations: Record<string, Record<string, string>> = {
     en: {
         'i18n:test.platform': 'Test Platform',
@@ -98,7 +99,7 @@ describe('PluginManager platform config schema queries', () => {
         (builderConfig as any).buildTemplateDir = join(tempDir, 'build-templates');
         pm = createPluginManager();
         (pm as any).platformConfig = {
-            test: {
+            [TEST_PLATFORM]: {
                 name: 'Test Platform',
                 nameI18nKey: 'i18n:test.platform',
                 platformType: 'WEB',
@@ -107,7 +108,7 @@ describe('PluginManager platform config schema queries', () => {
             },
         };
         (pm as any).commonOptionConfig = {
-            test: {
+            [TEST_PLATFORM]: {
                 name: {
                     label: 'i18n:test.common.name',
                     type: 'string',
@@ -119,8 +120,8 @@ describe('PluginManager platform config schema queries', () => {
             },
         };
         (pm as any).configMap = {
-            test: {
-                test: {
+            [TEST_PLATFORM]: {
+                [TEST_PLATFORM]: {
                     options: {
                         mode: {
                             label: 'i18n:test.option.mode',
@@ -137,7 +138,7 @@ describe('PluginManager platform config schema queries', () => {
             },
         };
         (pm as any).bundleConfigs = {
-            test: {
+            [TEST_PLATFORM]: {
                 platformType: 'web',
                 supportOptions: {
                     compressionType: ['none', 'merge_dep', 'zip'],
@@ -145,16 +146,16 @@ describe('PluginManager platform config schema queries', () => {
             },
         };
         (pm as any).platformRegisterInfoPool = new Map([
-            ['test', {
-                platform: 'test',
+            [TEST_PLATFORM, {
+                platform: TEST_PLATFORM,
                 path: '/plugins/test',
                 type: 'register',
-                config: (pm as any).configMap.test.test,
+                config: (pm as any).configMap[TEST_PLATFORM][TEST_PLATFORM],
             }],
         ]);
         (pm as any).translateConfigItemsDisplayFields(builderConfig.commonOptionConfigs);
-        (pm as any).translateConfigItemsDisplayFields((pm as any).commonOptionConfig.test);
-        (pm as any).translateConfigDisplayFields((pm as any).configMap.test.test);
+        (pm as any).translateConfigItemsDisplayFields((pm as any).commonOptionConfig[TEST_PLATFORM]);
+        (pm as any).translateConfigDisplayFields((pm as any).configMap[TEST_PLATFORM][TEST_PLATFORM]);
     });
 
     afterEach(() => {
@@ -168,7 +169,7 @@ describe('PluginManager platform config schema queries', () => {
         const result = pm.queryPlatformConfig();
 
         expect(result).toEqual([expect.objectContaining({
-            platform: 'test',
+            platform: TEST_PLATFORM,
             displayName: 'Test Platform',
             doc: 'editor/publish/test.html',
             pluginPath: '/plugins/test',
@@ -177,8 +178,8 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('queryPlatformConfig returns the platform metadata required by the config page', () => {
-        (pm as any).platformConfig.test.createTemplateLabel = 'Test Platform';
-        (pm as any).platformConfig.test.texture = {
+        (pm as any).platformConfig[TEST_PLATFORM].createTemplateLabel = 'Test Platform';
+        (pm as any).platformConfig[TEST_PLATFORM].texture = {
             platformType: 'web',
             support: {},
         };
@@ -186,7 +187,7 @@ describe('PluginManager platform config schema queries', () => {
         const [result] = pm.queryPlatformConfig();
 
         expect(result).toEqual(expect.objectContaining({
-            platform: 'test',
+            platform: TEST_PLATFORM,
             displayName: 'Test Platform',
             platformType: 'WEB',
             isNative: false,
@@ -199,7 +200,7 @@ describe('PluginManager platform config schema queries', () => {
 
     it('queryPlatformConfig returns custom build stages registered from platform config', async () => {
         await (pm as any).internalRegister({
-            platform: 'test',
+            platform: TEST_PLATFORM,
             path: '/plugins/test',
             type: 'register',
             config: {
@@ -213,7 +214,7 @@ describe('PluginManager platform config schema queries', () => {
             },
         });
         await (pm as any).internalRegister({
-            platform: 'test',
+            platform: TEST_PLATFORM,
             path: '/plugins/custom',
             type: 'plugin',
             pkgName: 'custom',
@@ -245,11 +246,11 @@ describe('PluginManager platform config schema queries', () => {
         }]);
 
         result.customBuildStages![0].displayName = 'Changed';
-        expect((pm as any).customBuildStages.test.custom[0].displayName).toBe('Deploy');
+        expect((pm as any).customBuildStages[TEST_PLATFORM].custom[0].displayName).toBe('Deploy');
     });
 
     it('returns common options and platform options for a platform', () => {
-        const result = pm.getPlatformBuildSchema('test');
+        const result = pm.getPlatformBuildSchema(TEST_PLATFORM);
 
         // name 标记为 hidden -> 在源头过滤(配置系统 schema 无 hidden 字段)
         expect(result.common.properties!.name).toBeUndefined();
@@ -312,10 +313,10 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('checkBuildOption verifies common options and returns BuildCheckResult', async () => {
-        const result = await pm.checkBuildOption('test', 'name', '', {
-            platform: 'test',
+        const result = await pm.checkBuildOption(TEST_PLATFORM, 'name', '', {
+            platform: TEST_PLATFORM,
             packages: {
-                test: {
+                [TEST_PLATFORM]: {
                     mode: 'auto',
                 },
             },
@@ -330,17 +331,17 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('checkBuildOption verifies common options declared with verifyRules', async () => {
-        (pm as any).commonOptionConfig.test.verifyOnly = {
+        (pm as any).commonOptionConfig[TEST_PLATFORM].verifyOnly = {
             label: 'Verify Only',
             type: 'string',
             default: 'fallback',
             verifyRules: ['required'],
         };
 
-        const result = await pm.checkBuildOption('test', 'verifyOnly', '', {
-            platform: 'test',
+        const result = await pm.checkBuildOption(TEST_PLATFORM, 'verifyOnly', '', {
+            platform: TEST_PLATFORM,
             packages: {
-                test: {
+                [TEST_PLATFORM]: {
                     mode: 'auto',
                 },
             },
@@ -375,16 +376,16 @@ describe('PluginManager platform config schema queries', () => {
         };
 
         await (pm as any).internalRegister({
-            platform: 'test',
+            platform: TEST_PLATFORM,
             path: '/plugins/test',
             type: 'register',
             config,
         });
 
-        const result = await pm.checkBuildOption('test', 'customCode', 'bad', {
-            platform: 'test',
+        const result = await pm.checkBuildOption(TEST_PLATFORM, 'customCode', 'bad', {
+            platform: TEST_PLATFORM,
             packages: {
-                test: {
+                [TEST_PLATFORM]: {
                     customCode: 'bad',
                 },
             },
@@ -399,12 +400,12 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('checkBuildOption verifies platform options and unsupported compression types', async () => {
-        const platformOptionResult = await pm.checkBuildOption('test', 'mode', '', {
-            platform: 'test',
+        const platformOptionResult = await pm.checkBuildOption(TEST_PLATFORM, 'mode', '', {
+            platform: TEST_PLATFORM,
             name: 'game',
             mainBundleCompressionType: 'merge_dep',
             packages: {
-                test: {
+                [TEST_PLATFORM]: {
                     mode: '',
                 },
             },
@@ -417,12 +418,12 @@ describe('PluginManager platform config schema queries', () => {
             fixedValue: 'auto',
         });
 
-        const compressionResult = await pm.checkBuildOption('test', 'mainBundleCompressionType', 'subpackage', {
-            platform: 'test',
+        const compressionResult = await pm.checkBuildOption(TEST_PLATFORM, 'mainBundleCompressionType', 'subpackage', {
+            platform: TEST_PLATFORM,
             name: 'game',
             mainBundleCompressionType: 'subpackage',
             packages: {
-                test: {
+                [TEST_PLATFORM]: {
                     mode: 'auto',
                 },
             },
@@ -437,12 +438,12 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('checkBuildOptions verifies common and platform option values in batch', async () => {
-        const result = await pm.checkBuildOptions('test', {
-            platform: 'test',
+        const result = await pm.checkBuildOptions(TEST_PLATFORM, {
+            platform: TEST_PLATFORM,
             name: '',
             mainBundleCompressionType: 'zip',
             packages: {
-                test: {
+                [TEST_PLATFORM]: {
                     mode: '',
                 },
             },
@@ -513,8 +514,8 @@ describe('PluginManager platform config schema queries', () => {
 
     it('refreshes materialized display fields after language changes', () => {
         (pm as any).customBuildStages = {
-            test: {
-                test: [{
+            [TEST_PLATFORM]: {
+                [TEST_PLATFORM]: [{
                     name: 'make',
                     hook: 'make',
                     displayName: 'Make',
@@ -524,7 +525,7 @@ describe('PluginManager platform config schema queries', () => {
                 }],
             },
         };
-        const platformConfig = (pm as any).configMap.test.test;
+        const platformConfig = (pm as any).configMap[TEST_PLATFORM][TEST_PLATFORM];
         platformConfig.displayName = 'Test Platform';
         platformConfig.displayNameI18nKey = 'i18n:test.platform';
         platformConfig.buildTemplateConfig = {
@@ -541,9 +542,9 @@ describe('PluginManager platform config schema queries', () => {
         pm.refreshDisplayI18nFields();
 
         const platforms = pm.queryPlatformConfig();
-        const schema = pm.getPlatformBuildSchema('test');
-        const stage = pm.getBuildStageConfigByPlatform('test' as any)!.buttons[0];
-        const template = pm.getBuildTemplateConfig('test');
+        const schema = pm.getPlatformBuildSchema(TEST_PLATFORM);
+        const stage = pm.getBuildStageConfigByPlatform(TEST_PLATFORM as any)!.buttons[0];
+        const template = pm.getBuildTemplateConfig(TEST_PLATFORM);
 
         expect(platforms[0].displayName).toBe('测试平台');
         expect(platforms[0].createTemplateLabel).toBe('测试平台');
@@ -560,16 +561,16 @@ describe('PluginManager platform config schema queries', () => {
     });
 
     it('returns materialized values with original i18n keys attached', () => {
-        const option = (pm as any).configMap.test.test.options.mode;
+        const option = (pm as any).configMap[TEST_PLATFORM][TEST_PLATFORM].options.mode;
         option.label = 'Stored Mode Value';
         option.labelI18nKey = 'i18n:test.option.mode';
         option.items[0].label = 'Stored Auto Value';
         option.items[0].labelI18nKey = 'i18n:test.option.auto';
-        (pm as any).platformConfig.test.name = 'Stored Platform Value';
-        (pm as any).platformConfig.test.nameI18nKey = 'i18n:test.platform';
+        (pm as any).platformConfig[TEST_PLATFORM].name = 'Stored Platform Value';
+        (pm as any).platformConfig[TEST_PLATFORM].nameI18nKey = 'i18n:test.platform';
 
         const platforms = pm.queryPlatformConfig();
-        const schema = pm.getPlatformBuildSchema('test');
+        const schema = pm.getPlatformBuildSchema(TEST_PLATFORM);
 
         expect(platforms[0].displayName).toBe('Stored Platform Value');
         // metadata.ts 中展示字段优先使用已物化的展示值, i18n key 仅作为缺省回退与刷新依据。
@@ -645,12 +646,8 @@ describe('PluginManager platform config schema queries', () => {
         });
     });
 
-    it('does nothing when no build template is registered for the platform', async () => {
-        const error = jest.spyOn(console, 'error').mockImplementation();
-        await pm.createBuildTemplate('test');
-
-        expect(error).toHaveBeenCalledWith('no build template for test');
+    it('throws when no build template is registered for the platform', async () => {
+        await expect(pm.createBuildTemplate(TEST_PLATFORM)).rejects.toThrow(`no build template for ${TEST_PLATFORM}`);
         expect(existsSync((builderConfig as any).buildTemplateDir)).toBe(false);
-        error.mockRestore();
     });
 });

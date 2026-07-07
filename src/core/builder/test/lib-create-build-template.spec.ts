@@ -25,4 +25,11 @@ describe('lib/builder createBuildTemplate API', () => {
         expect(createBuildTemplateMock).toHaveBeenCalledTimes(1);
         expect(createBuildTemplateMock).toHaveBeenCalledWith('wechatgame');
     });
+
+    it('propagates build template creation errors', async () => {
+        createBuildTemplateMock.mockRejectedValueOnce(new Error('no build template for missing'));
+        const builderLib = await getBuilderLib();
+
+        await expect(builderLib.createBuildTemplate('missing')).rejects.toThrow('no build template for missing');
+    });
 });
