@@ -503,6 +503,13 @@ export interface IAnimationOperationResult {
     reason?: string;
 }
 
+export interface IAnimationSaveOptions {
+    /**
+     * 保存 clip 成功后同步保存当前 scene/prefab 资源，并用普通 editor save 语义清理 shared undo dirty。
+     */
+    saveScene?: boolean;
+}
+
 /**
  * Scene-process 内部 Animation service。
  *
@@ -571,9 +578,9 @@ export interface IAnimationService extends IServiceEvents {
      */
     applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
     /**
-     * 保存当前编辑 clip。普通 .anim 写 asset；骨骼动画写回 asset meta。
+     * 保存当前编辑 clip。普通 .anim 写 asset；骨骼动画写回 asset meta。saveScene 为 true 时同步保存当前 scene/prefab。
      */
-    save(): Promise<boolean>;
+    save(options?: IAnimationSaveOptions): Promise<boolean>;
 }
 
 /**

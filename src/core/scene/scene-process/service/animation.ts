@@ -15,6 +15,7 @@ import {
     IAnimationOperation,
     IAnimationOperationOptions,
     IAnimationOperationResult,
+    IAnimationSaveOptions,
     IAnimationPlayStateOptions,
     IAnimationQueryAuxiliaryCurveValueAtFrameOptions,
     IAnimationQueryClipOptions,
@@ -557,7 +558,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         };
     }
 
-    async save(): Promise<boolean> {
+    async save(options: IAnimationSaveOptions = {}): Promise<boolean> {
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
         this._markSelfSavedClipRefresh(session.clipUuid);
@@ -574,10 +575,14 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         }
         if (saved) {
             this._markSelfSavedClipRefresh(session.clipUuid);
-            const animationScope = this._createAnimationUndoScope(session.clipUuid);
-            const hasNonAnimationDifference = Service.Undo.hasDifferenceOutsideScope(session.undoBaseline, animationScope);
-            if (!session.globalDirtyAtEnter && !hasNonAnimationDifference) {
-                Service.Undo.markSaved();
+            if (options.saveScene === true) {
+                await this._saveSceneForAnimationSession(session);
+            } else {
+                const animationScope = this._createAnimationUndoScope(session.clipUuid);
+                const hasNonAnimationDifference = Service.Undo.hasDifferenceOutsideScope(session.undoBaseline, animationScope);
+                if (!session.globalDirtyAtEnter && !hasNonAnimationDifference) {
+                    Service.Undo.markSaved();
+                }
             }
             session.undoBaseline = Service.Undo.createCheckpoint();
             session.globalDirtyAtEnter = Service.Undo.isDirty();
@@ -752,6 +757,23 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return;
         }
         this.broadcast('animation:clip-changed', event);
+    }
+
+    private async _saveSceneForAnimationSession(session: IAnimationSession): Promise<void> {
+        const rootNode = getNodeByUuid(session.rootUuid);
+        if (!rootNode || !session.sampledRootState) {
+            await Service.Editor.save({});
+            return;
+        }
+
+        const editTime = this._curEditTime;
+        await this._stopCurrent();
+        await restoreAnimationSampledState(rootNode, session.sampledRootState);
+        try {
+            await Service.Editor.save({});
+        } finally {
+            await this.setTime({ time: editTime });
+        }
     }
 
     private _getSessionRootNode(): Node {

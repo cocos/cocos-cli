@@ -5853,6 +5853,9 @@ export declare interface IAnimationRootResult {
     rootUuid: string;
     rootPath: string;
 }
+export declare interface IAnimationSaveOptions {
+    saveScene?: boolean;
+}
 export declare interface IAnimationService extends IServiceEvents {
     enter(options: IAnimationEnterOptions): Promise<IAnimationStateInfo>;
     exit(options: IAnimationExitOptions): Promise<IAnimationStateInfo>;
@@ -5869,7 +5872,7 @@ export declare interface IAnimationService extends IServiceEvents {
     changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
     changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;
     applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
-    save(): Promise<boolean>;
+    save(options?: IAnimationSaveOptions): Promise<boolean>;
 }
 export declare interface IAnimationSetTimeOptions {
     time: number;
