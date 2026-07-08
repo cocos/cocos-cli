@@ -6,6 +6,7 @@ import {
     animation,
 } from 'cc';
 import { isAnimationAssetValue } from './asset-value';
+import { isWritableProperty } from './property-writability';
 
 const NODE_SAMPLED_PROPERTIES = ['active', 'position', 'rotation', 'scale'] as const;
 
@@ -68,7 +69,7 @@ function captureComponentState(component: Component): IAnimationSampledComponent
     const ctor = component.constructor as any;
     const props = Array.isArray(ctor.__props__) ? ctor.__props__ as string[] : [];
     for (const prop of props) {
-        if (!isAnimatableComponentProperty(ctor, prop) || !(prop in component)) {
+        if (!(prop in component) || !isAnimatableComponentProperty(ctor, prop) || !canRestoreComponentProperty(component, prop)) {
             continue;
         }
         properties[prop] = cloneSampledValue((component as any)[prop]);
@@ -88,6 +89,14 @@ function isAnimatableComponentProperty(ctor: Function, prop: string): boolean {
     return Boolean(attr && attr.animatable !== false && !attr.readonly);
 }
 
+function canRestoreComponentProperty(component: Component, prop: string): boolean {
+    if (isWritableProperty(component, prop)) {
+        return true;
+    }
+    const value = (component as any)[prop];
+    return Boolean(value && typeof value === 'object' && typeof value.set === 'function');
+}
+
 function isAnimationComponent(component: Component): boolean {
     const controllerCtor = (animation as any).AnimationController;
     return component instanceof Animation || Boolean(controllerCtor && component instanceof controllerCtor);
@@ -101,12 +110,14 @@ function restoreProperties(target: Record<string, any>, properties: Record<strin
 
 function assignSampledValue(target: Record<string, any>, key: string, value: unknown): void {
     const cloned = cloneSampledValue(value);
-    const descriptor = findPropertyDescriptor(target, key);
-    if (descriptor?.set || descriptor?.writable !== false) {
+    const writable = isWritableProperty(target, key);
+    let assignError: unknown;
+    if (writable) {
         try {
             target[key] = cloned;
             return;
-        } catch {
+        } catch (error) {
+            assignError = error;
             // Fall back to in-place ValueType restore below.
         }
     }
@@ -116,19 +127,9 @@ function assignSampledValue(target: Record<string, any>, key: string, value: unk
         current.set(cloned);
         return;
     }
-    target[key] = cloned;
-}
-
-function findPropertyDescriptor(target: Record<string, any>, key: string): PropertyDescriptor | undefined {
-    let current: unknown = target;
-    while (current) {
-        const descriptor = Object.getOwnPropertyDescriptor(current, key);
-        if (descriptor) {
-            return descriptor;
-        }
-        current = Object.getPrototypeOf(current);
+    if (assignError) {
+        throw assignError;
     }
-    return undefined;
 }
 
 function cloneSampledValue<T>(value: T): T {

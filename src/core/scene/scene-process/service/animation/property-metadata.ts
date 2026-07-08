@@ -9,6 +9,7 @@ import {
     queryMaterialUniformTarget,
     queryMaterialUniformType,
 } from './material-uniform';
+import { isWritableProperty } from './property-writability';
 
 export function queryComponentAnimableProperties(component: Component): IAnimationPropertyInfo[] {
     const ctor = component.constructor as any;
@@ -34,6 +35,9 @@ export function queryComponentAnimableProperties(component: Component): IAnimati
         const materialProperties = queryMaterialAnimableProperties(component as any, prop, compName);
         if (materialProperties.length > 0) {
             result.push(...materialProperties);
+            continue;
+        }
+        if (!isWritableProperty(component, prop)) {
             continue;
         }
         const type = queryAnimablePropertyTypeFromAttr(component as any, prop, attr);
@@ -77,7 +81,7 @@ export function queryAnimationPropertyMetadata(rootNode: Node, nodePath: string,
     }
 
     const attr = queryPropertyAttr(component as any, componentProperty.propName);
-    if (!attr || attr.readonly || !isAnimablePropertyAttr(attr)) {
+    if (!attr || attr.readonly || !isWritableProperty(component, componentProperty.propName) || !isAnimablePropertyAttr(attr)) {
         return null;
     }
     const type = queryAnimablePropertyTypeFromAttr(component as any, componentProperty.propName, attr);

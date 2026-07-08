@@ -154,6 +154,61 @@ describe('Animation sampled state', () => {
         expect(component.tint.r).toBe(10);
     });
 
+    it('skips getter-only component accessor properties in sampled state restore', async () => {
+        const { Component, Node } = require('cc');
+        const {
+            captureAnimationSampledState,
+            restoreAnimationSampledState,
+        } = require('../scene-process/service/animation/sampled-state');
+
+        class WidgetLike extends Component {
+            uuid = 'widget-like';
+            private _alignLeft = false;
+
+            get isAlignLeft() {
+                return this._alignLeft;
+            }
+
+            set isAlignLeft(value: boolean) {
+                this._alignLeft = value;
+            }
+
+            get isStretchWidth() {
+                return true;
+            }
+        }
+        (WidgetLike as any).__props__ = ['isAlignLeft', 'isStretchWidth'];
+
+        mockAttr.mockImplementation((_ctor: Function, prop: string) => prop === 'isAlignLeft' || prop === 'isStretchWidth'
+            ? { animatable: true, readonly: false }
+            : undefined);
+
+        const node = new Node();
+        node.uuid = 'node';
+        const component = new WidgetLike();
+        component.node = node;
+        node.components = [component];
+
+        const state = captureAnimationSampledState(node);
+
+        expect(state.components[0].properties).toEqual({
+            isAlignLeft: false,
+        });
+
+        await expect(restoreAnimationSampledState(node, {
+            ...state,
+            components: [{
+                uuid: component.uuid,
+                properties: {
+                    isAlignLeft: true,
+                    isStretchWidth: false,
+                },
+            }],
+        })).resolves.toBeUndefined();
+        expect(component.isAlignLeft).toBe(true);
+        expect(component.isStretchWidth).toBe(true);
+    });
+
     it('restores asset references without cloning them into empty placeholder assets', async () => {
         const { Asset, Component, Node } = require('cc');
         const {

@@ -326,6 +326,40 @@ describe('AnimationService animatable property metadata', () => {
         ]);
     });
 
+    it('过滤 getter-only 的组件 accessor 属性', () => {
+        const { Component } = require('cc');
+        const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
+
+        class WidgetLike extends Component {
+            private _alignLeft = false;
+
+            get isAlignLeft() {
+                return this._alignLeft;
+            }
+
+            set isAlignLeft(value: boolean) {
+                this._alignLeft = value;
+            }
+
+            get isStretchWidth() {
+                return this._alignLeft;
+            }
+        }
+        (WidgetLike as any).__className = 'cc.WidgetLike';
+        (WidgetLike as any).__props__ = ['isAlignLeft', 'isStretchWidth'];
+
+        mockAttr.mockImplementation((_ctor: Function, prop: string) => ({
+            type: 'cc.Boolean',
+            visible: true,
+        }));
+
+        const properties = queryComponentAnimableProperties(new WidgetLike());
+
+        expect(properties.map((property: any) => property.key)).toEqual([
+            'cc.WidgetLike.isAlignLeft',
+        ]);
+    });
+
     it('按旧编辑器 queryProperties 的实际行为保留组件 type 属性', () => {
         const { Component } = require('cc');
         const { queryComponentAnimableProperties } = require('../scene-process/service/animation/property-metadata');
