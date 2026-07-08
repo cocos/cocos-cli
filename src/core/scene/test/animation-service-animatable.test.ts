@@ -575,6 +575,15 @@ describe('AnimationService animatable property metadata', () => {
         expect(parsePropertyTrack(track)?.descriptor.propKey).toBe(key);
     });
 
+    it('parsePropertyTrack 忽略没有 path 的引擎轨道', () => {
+        const { animation } = require('cc');
+        const { parsePropertyTrack } = require('../scene-process/service/animation/property-curve-track');
+        const track = new animation.VectorTrack();
+        track.path = null;
+
+        expect(parsePropertyTrack(track)).toBeNull();
+    });
+
     it('dumpPropertyCurves 保留属性轨道添加顺序', () => {
         const { AnimationClip } = require('cc');
         const { addPropertyCurve, dumpPropertyCurves } = require('../scene-process/service/animation/property-curve');

@@ -105,6 +105,9 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
     }
 
     const path = (track as AnyTrack).path;
+    if (!path || typeof path.length !== 'number') {
+        return null;
+    }
     let index = 0;
     let nodePath = '';
     while (index < path.length && path.isHierarchyAt(index)) {
