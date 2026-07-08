@@ -420,7 +420,7 @@ export interface IAnimationPropertyInfo {
 }
 
 /**
- * applyOperation 使用的 typed operation。
+ * applyOperations 使用的 typed operation。
  *
  * 所有 operation 都必须携带当前编辑的 clipUuid；clipUuid 不匹配时会返回 failure。
  * frame、frames、offset、dstFrame 都使用采样帧号；setTime/queryTime 的 time 才使用秒。
@@ -428,7 +428,7 @@ export interface IAnimationPropertyInfo {
  *
  * @example
  * ```ts
- * await service.applyOperation({
+ * await service.applyOperations({
  *   operations: [
  *     { type: 'changeSample', clipUuid, sample: 60 },
  *     { type: 'addEvent', clipUuid, frame: 30, func: 'onHalf', params: ['value'] },
@@ -438,7 +438,7 @@ export interface IAnimationPropertyInfo {
  *
  * @example
  * ```ts
- * await service.applyOperation({
+ * await service.applyOperations({
  *   operations: [
  *     { type: 'addEmbeddedPlayerGroup', clipUuid, group: { key: 'fx', name: 'FX', type: 'particle-system' } },
  *     { type: 'addAuxiliaryCurve', clipUuid, name: 'BlendWeight' },
@@ -495,7 +495,7 @@ export interface IAnimationOperationOptions {
 }
 
 /**
- * applyOperation 的执行结果。
+ * applyOperations 的执行结果。
  */
 export interface IAnimationOperationResult {
     state: 'success' | 'failure';
@@ -514,7 +514,7 @@ export interface IAnimationSaveOptions {
  * Scene-process 内部 Animation service。
  *
  * 这个服务只在 scene-process 暴露，不走 MCP/API/main-process proxy。
- * 调用顺序通常是：enter -> queryClip/queryProperties -> setTime/applyOperation -> save -> exit。
+ * 调用顺序通常是：enter -> queryClip/queryProperties -> setTime/applyOperations -> save -> exit。
  */
 export interface IAnimationService extends IServiceEvents {
     /**
@@ -576,7 +576,7 @@ export interface IAnimationService extends IServiceEvents {
     /**
      * 批量执行 typed animation operation。
      */
-    applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
+    applyOperations(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
     /**
      * 保存当前编辑 clip。普通 .anim 写 asset；骨骼动画写回 asset meta。saveScene 为 true 时同步保存当前 scene/prefab。
      */

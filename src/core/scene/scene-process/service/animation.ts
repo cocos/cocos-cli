@@ -432,7 +432,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return true;
     }
 
-    async applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult> {
+    async applyOperations(options: IAnimationOperationOptions): Promise<IAnimationOperationResult> {
         const session = requireAnimationSession(this._session);
         if (!Array.isArray(options.operations)) {
             throw new Error('Animation operations must be an array.');

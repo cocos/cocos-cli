@@ -5871,7 +5871,7 @@ export declare interface IAnimationService extends IServiceEvents {
     setTime(options: IAnimationSetTimeOptions): Promise<boolean>;
     changePlayState(options: IAnimationPlayStateOptions): Promise<boolean>;
     changeEditClip(options: IAnimationEditClipOptions): Promise<boolean>;
-    applyOperation(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
+    applyOperations(options: IAnimationOperationOptions): Promise<IAnimationOperationResult>;
     save(options?: IAnimationSaveOptions): Promise<boolean>;
 }
 export declare interface IAnimationSetTimeOptions {

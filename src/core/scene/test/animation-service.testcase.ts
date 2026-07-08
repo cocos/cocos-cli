@@ -49,14 +49,14 @@ async function resetRootPositionCurve(rootPath: string, clipUuid: string): Promi
     const dump = await request('queryClip', [{ rootPath, clipUuid }]);
     const hasPositionCurve = dump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position');
     if (hasPositionCurve) {
-        await request('applyOperation', [{
+        await request('applyOperations', [{
             operations: [
                 { type: 'removePropertyCurve', clipUuid, propKey: 'position' },
             ],
             recordUndo: false,
         }]);
     }
-    await request('applyOperation', [{
+    await request('applyOperations', [{
         operations: [
             { type: 'addPropertyCurve', clipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
             { type: 'createPropertyKey', clipUuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
@@ -78,7 +78,7 @@ async function resetPropertyCurves(rootPath: string, clipUuid: string): Promise<
         return;
     }
 
-    const result = await request('applyOperation', [{
+    const result = await request('applyOperations', [{
         operations,
         recordUndo: false,
     }]);
@@ -459,9 +459,9 @@ describe('Animation Service 场景进程测试', () => {
         expect(time).toBeGreaterThanOrEqual(0.95);
     });
 
-    it('applyOperation 在真实 AnimationClip 上应用基础普通 clip 操作', async () => {
+    it('applyOperations 在真实 AnimationClip 上应用基础普通 clip 操作', async () => {
         const eventPromise = utils.once<Record<'animation:clip-changed', any>>(sceneWorker, 'animation:clip-changed');
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'changeSample', clipUuid, sample: 60 },
                 { type: 'changeSpeed', clipUuid, speed: 1.5 },
@@ -485,13 +485,13 @@ describe('Animation Service 场景进程测试', () => {
         expect(dump.events).toEqual([{ frame: 36, func: 'onHalf', params: ['value'] }]);
     });
 
-    it('applyOperation 支持普通属性曲线 keyframe 的创建、移动和删除', async () => {
+    it('applyOperations 支持普通属性曲线 keyframe 的创建、移动和删除', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
         const before = await request('queryClip', [{ clipUuid }]);
-        const createResult = await request('applyOperation', [{
+        const createResult = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 0, value: { x: 2, y: 3, z: 4 } },
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 60, value: { x: 8, y: 9, z: 10 } },
@@ -529,7 +529,7 @@ describe('Animation Service 场景进程测试', () => {
         const afterRedo = await request('queryClip', [{ clipUuid }]);
         expect(afterRedo.curves).toEqual(afterCreate.curves);
 
-        const removeResult = await request('applyOperation', [{
+        const removeResult = await request('applyOperations', [{
             operations: [
                 { type: 'removePropertyKey', clipUuid, nodePath, propKey: 'position', frames: [0] },
             ],
@@ -543,7 +543,7 @@ describe('Animation Service 场景进程测试', () => {
         ]);
     });
 
-    it('applyOperation 在空 clip 创建属性 key 后重算 duration 并支持 undo/redo', async () => {
+    it('applyOperations 在空 clip 创建属性 key 后重算 duration 并支持 undo/redo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
@@ -551,7 +551,7 @@ describe('Animation Service 场景进程测试', () => {
         const before = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
         expect(before.duration).toBe(0);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'position', frame: 30, value: { x: 1, y: 2, z: 3 } },
             ],
@@ -583,7 +583,7 @@ describe('Animation Service 场景进程测试', () => {
     it('setTime 对 child nodePath 属性轨道采样到真实子节点', async () => {
         await ensureAnimationSession(childRootNodePath, childClipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: childClipUuid, nodePath: childTrackNodePath, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
                 { type: 'createPropertyKey', clipUuid: childClipUuid, nodePath: childTrackNodePath, propKey: 'position', frame: 60, value: { x: 100, y: 0, z: 0 } },
@@ -611,7 +611,7 @@ describe('Animation Service 场景进程测试', () => {
         await Undo.clearHistory();
         await Undo.markSaved();
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 } },
                 { type: 'createPropertyKey', clipUuid: rootEditClipUuid, nodePath: rootEditNodePath, propKey: 'position', frame: 105, value: { x: 100, y: 0, z: 0 } },
@@ -646,10 +646,10 @@ describe('Animation Service 场景进程测试', () => {
         expect(sampledStartNode?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
     });
 
-    it('applyOperation 支持分量级属性 keyframe 并保留切线信息', async () => {
+    it('applyOperations 支持分量级属性 keyframe 并保留切线信息', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 0, value: { x: 1, y: 1, z: 1 } },
                 {
@@ -703,12 +703,12 @@ describe('Animation Service 场景进程测试', () => {
         ]);
     });
 
-    it('applyOperation 通过 updatePropertyKey 持久化 RealCurve keyframe broken 状态', async () => {
+    it('applyOperations 通过 updatePropertyKey 持久化 RealCurve keyframe broken 状态', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
-        const createResult = await request('applyOperation', [{
+        const createResult = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 21, value: { x: 1, y: 1, z: 1 } },
                 { type: 'updatePropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 21, channel: 'y', value: 2, keyData: { broken: true } },
@@ -721,7 +721,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(createResult).toEqual({ state: 'success', result: true });
         expect(brokenKey.broken).toBe(true);
 
-        const updateResult = await request('applyOperation', [{
+        const updateResult = await request('applyOperations', [{
             operations: [
                 { type: 'updatePropertyKey', clipUuid, nodePath, propKey: 'scale', frame: 21, channel: 'y', value: 2, keyData: { broken: false } },
             ],
@@ -746,7 +746,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(redoKey.broken).toBe(false);
     });
 
-    it('applyOperation 通过 updatePropertyKey 合并并持久化 RealCurve keyData', async () => {
+    it('applyOperations 通过 updatePropertyKey 合并并持久化 RealCurve keyData', async () => {
         const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataMerge');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
         await Undo.clearHistory();
@@ -761,7 +761,7 @@ describe('Animation Service 场景进程测试', () => {
         };
 
         const before = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', frame: 60, value: { x: 80, y: 9, z: 10 } },
                 { type: 'updatePropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 60, keyData: { interpMode: 1 } },
@@ -791,7 +791,7 @@ describe('Animation Service 场景进程测试', () => {
             broken: true,
         });
 
-        expect(await request('applyOperation', [{
+        expect(await request('applyOperations', [{
             operations: [
                 { type: 'updatePropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 60, keyData: { broken: false } },
             ],
@@ -834,7 +834,7 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
-    it('applyOperation 更新 RealCurve keyData 时保留显式 0 值', async () => {
+    it('applyOperations 更新 RealCurve keyData 时保留显式 0 值', async () => {
         const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataZero');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
 
@@ -846,7 +846,7 @@ describe('Animation Service 场景进程测试', () => {
                 .find((keyframe: any) => keyframe.frame === 84);
         };
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 {
                     type: 'createPropertyKey',
@@ -894,14 +894,14 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
-    it('applyOperation 失败时不会留下已执行的 clip 局部修改', async () => {
+    it('applyOperations 失败时不会留下已执行的 clip 局部修改', async () => {
         const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataRollback');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
         const before = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', frame: 72, value: { x: 72, y: 0, z: 0 } },
                 { type: 'updatePropertyKeyData', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 99, keyData: { interpMode: 1 } },
@@ -915,11 +915,11 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(false);
     });
 
-    it('applyOperation 更新复合属性 keyData 时不会部分写入分量曲线', async () => {
+    it('applyOperations 更新复合属性 keyData 时不会部分写入分量曲线', async () => {
         const { nodePath: keyDataNodePath, clipUuid: keyDataClipUuid } = await createIsolatedAnimationNode('AnimationServiceKeyDataPartial');
         await ensureAnimationSession(keyDataNodePath, keyDataClipUuid);
 
-        const createResult = await request('applyOperation', [{
+        const createResult = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: keyDataClipUuid, propKey: 'eulerAngles', channel: 'x', frame: 36, value: 1 },
             ],
@@ -927,7 +927,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(createResult).toEqual({ state: 'success', result: true });
 
         const before = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'updatePropertyKeyData', clipUuid: keyDataClipUuid, propKey: 'eulerAngles', frame: 36, keyData: { interpMode: 1 } },
             ],
@@ -949,11 +949,11 @@ describe('Animation Service 场景进程测试', () => {
         expect(afterEulerX).toEqual(beforeEulerX);
     });
 
-    it('applyOperation 支持 queryProperties 暴露的 rotation 和 active 属性', async () => {
+    it('applyOperations 支持 queryProperties 暴露的 rotation 和 active 属性', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
         const properties = await request('queryProperties', [{ nodePath: childNodePath }]);
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'rotation', frame: 3, value: { x: 0, y: 0, z: 0, w: 1 } },
                 { type: 'createPropertyKey', clipUuid, nodePath: childNodePath, propKey: 'active', frame: 3, value: false },
@@ -978,7 +978,7 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
-    it('applyOperation 支持 cc.Sprite.spriteFrame 单帧 key 保存重进闭环', async () => {
+    it('applyOperations 支持 cc.Sprite.spriteFrame 单帧 key 保存重进闭环', async () => {
         const { nodePath: spriteFrameNodePath, clipUuid: spriteFrameClipUuid } = await createIsolatedSpriteAnimationNode('AnimationServiceSpriteFrameCase');
         await ensureAnimationSession(spriteFrameNodePath, spriteFrameClipUuid);
 
@@ -990,7 +990,7 @@ describe('Animation Service 场景进程测试', () => {
             type: { value: 'cc.SpriteFrame' },
         });
 
-        const createResult = await request('applyOperation', [{
+        const createResult = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.spriteFrame', value: { uuid: spriteFrameUuid } },
                 { type: 'createPropertyKey', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.spriteFrame', frame: 0, value: null },
@@ -1051,7 +1051,7 @@ describe('Animation Service 场景进程测试', () => {
             type: { value: 'cc.Color' },
         });
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.color', value: { r: 255, g: 255, b: 255, a: 255 } },
                 { type: 'createPropertyKey', clipUuid: spriteFrameClipUuid, nodePath: spriteFrameNodePath, propKey: 'cc.Sprite.color', frame: 0, value: { r: 32, g: 64, b: 128, a: 255 } },
@@ -1089,7 +1089,7 @@ describe('Animation Service 场景进程测试', () => {
         await setNodePositionWithoutUndo(animationChild.path, { x: 7, y: 8, z: 9 });
         await ensureAnimationSession(rootPath, relativeClipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: relativeClipUuid, nodePath: childName, propKey: 'position', frame: 30, value: { x: 7, y: 8, z: 9 } },
             ],
@@ -1106,10 +1106,10 @@ describe('Animation Service 场景进程测试', () => {
         expect(sampled).toMatchObject({ x: 7, y: 8, z: 9 });
     });
 
-    it('applyOperation 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
+    it('applyOperations 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid, nodePath, propKey: 'position' },
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 0, value: { x: 1, y: 2, z: 3 } },
@@ -1138,7 +1138,7 @@ describe('Animation Service 场景进程测试', () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await resetPropertyCurves(emptyNodePath, emptyClipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
                 { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'cc.Sprite.color', value: { r: 255, g: 255, b: 255, a: 255 } },
@@ -1159,7 +1159,7 @@ describe('Animation Service 场景进程测试', () => {
     it('removePropertyKeys 清空关键帧时保留属性轨道，removePropertyCurve 才移除轨道', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
 
-        const clearResult = await request('applyOperation', [{
+        const clearResult = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale' },
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale', frame: 0, value: { x: 1, y: 1, z: 1 } },
@@ -1174,7 +1174,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(scaleCurveAfterClear.keyframes).toEqual([]);
         expect(scaleCurveAfterClear.channels.every((channel: any) => channel.keyframes.length === 0)).toBe(true);
 
-        const removeResult = await request('applyOperation', [{
+        const removeResult = await request('applyOperations', [{
             operations: [
                 { type: 'removePropertyCurve', clipUuid: emptyClipUuid, nodePath: emptyNodePath, propKey: 'scale' },
             ],
@@ -1185,7 +1185,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(afterRemove.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale')).toBeUndefined();
     });
 
-    it('applyOperation 创建普通属性 key 时 value 可省略并从当前场景采样', async () => {
+    it('applyOperations 创建普通属性 key 时 value 可省略并从当前场景采样', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await request('setTime', [{ time: 0 }]);
         const sampled = await request('queryPropertyValueAtFrame', [{
@@ -1195,7 +1195,7 @@ describe('Animation Service 场景进程测试', () => {
             frame: 6,
         }]);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid, nodePath, propKey: 'position', frame: 6 },
             ],
@@ -1209,8 +1209,8 @@ describe('Animation Service 场景进程测试', () => {
         ]));
     });
 
-    it('applyOperation 不接受旧 funcName/args 格式', async () => {
-        const result = await request('applyOperation', [{
+    it('applyOperations 不接受旧 funcName/args 格式', async () => {
+        const result = await request('applyOperations', [{
             operations: [{ funcName: 'changeSample', args: [clipUuid, 60] }],
         }]);
 
@@ -1221,8 +1221,8 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
-    it('applyOperation 对非当前 clip 显式失败', async () => {
-        const result = await request('applyOperation', [{
+    it('applyOperations 对非当前 clip 显式失败', async () => {
+        const result = await request('applyOperations', [{
             operations: [{ type: 'changeSample', clipUuid: 'other-clip', sample: 60 }],
         }]);
 
@@ -1233,8 +1233,8 @@ describe('Animation Service 场景进程测试', () => {
         });
     });
 
-    it('applyOperation 支持真实 AnimationClip 的 embedded player 基础操作', async () => {
-        const result = await request('applyOperation', [{
+    it('applyOperations 支持真实 AnimationClip 的 embedded player 基础操作', async () => {
+        const result = await request('applyOperations', [{
             operations: [
                 {
                     type: 'addEmbeddedPlayerGroup',
@@ -1287,7 +1287,7 @@ describe('Animation Service 场景进程测试', () => {
             playable: { type: 'particle-system' as const, path: 'ParticlesB' },
         };
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 {
                     type: 'addEmbeddedPlayerGroup',
@@ -1306,10 +1306,10 @@ describe('Animation Service 场景进程测试', () => {
         expect(dump.embeddedPlayers).toEqual([secondPlayer]);
     });
 
-    it('applyOperation 支持真实 AnimationClip 的 auxiliary curve 基础操作', async () => {
+    it('applyOperations 支持真实 AnimationClip 的 auxiliary curve 基础操作', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addAuxiliaryCurve', clipUuid, name: 'BlendWeight' },
                 { type: 'createAuxKey', clipUuid, name: 'BlendWeight', frame: 0, value: 0.25 },
@@ -1325,10 +1325,10 @@ describe('Animation Service 场景进程测试', () => {
         ]);
     });
 
-    it('applyOperation 支持 auxiliary curve keyData 写入读回和按帧采样', async () => {
+    it('applyOperations 支持 auxiliary curve keyData 写入读回和按帧采样', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addAuxiliaryCurve', clipUuid, name: 'CurveWeight' },
                 { type: 'createAuxKey', clipUuid, name: 'CurveWeight', frame: 0, value: 0, keyData: { interpMode: 1 } },
@@ -1353,10 +1353,10 @@ describe('Animation Service 场景进程测试', () => {
         expect(sampledEnd).toEqual({ value: 1, type: 'cc.Number' });
     });
 
-    it('applyOperation 支持 auxiliary curve 编辑后重算 duration', async () => {
+    it('applyOperations 支持 auxiliary curve 编辑后重算 duration', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addAuxiliaryCurve', clipUuid: emptyClipUuid, name: 'DurationWeight' },
                 { type: 'createAuxKey', clipUuid: emptyClipUuid, name: 'DurationWeight', frame: 90, value: 1 },
@@ -1369,13 +1369,13 @@ describe('Animation Service 场景进程测试', () => {
         expect(Math.round(dump.duration * dump.sample)).toBeGreaterThanOrEqual(90);
     });
 
-    it('applyOperation 默认记录 undo/dirty，并支持 undo/redo 恢复真实 AnimationClip', async () => {
+    it('applyOperations 默认记录 undo/dirty，并支持 undo/redo 恢复真实 AnimationClip', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
         const before = await request('queryClip', [{ clipUuid }]);
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'changeSpeed', clipUuid, speed: 2.25 },
                 { type: 'addEvent', clipUuid, frame: 12, func: 'onUndoCheck', params: ['undo'] },
@@ -1432,7 +1432,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(state.dirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
 
-        await request('applyOperation', [{
+        await request('applyOperations', [{
             operations: [
                 { type: 'changeSpeed', clipUuid: emptyClipUuid, speed: 1.125 },
             ],
@@ -1471,7 +1471,7 @@ describe('Animation Service 场景进程测试', () => {
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
 
-        await request('applyOperation', [{
+        await request('applyOperations', [{
             operations: [
                 { type: 'changeSpeed', clipUuid: emptyClipUuid, speed: 1.25 },
             ],
@@ -1505,7 +1505,7 @@ describe('Animation Service 场景进程测试', () => {
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
 
-        await request('applyOperation', [{
+        await request('applyOperations', [{
             operations: [
                 { type: 'changeSpeed', clipUuid: emptyClipUuid, speed: 1.375 },
             ],
@@ -1531,7 +1531,7 @@ describe('Animation Service 场景进程测试', () => {
         await Undo.clearHistory();
         await Undo.markSaved();
 
-        await request('applyOperation', [{
+        await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: sampledClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
                 { type: 'createPropertyKey', clipUuid: sampledClipUuid, propKey: 'position', frame: 60, value: { x: 99, y: 0, z: 0 } },
@@ -1561,7 +1561,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(reopenedNode?.properties.position).toMatchObject({ x: 0, y: 0, z: 0 });
     });
 
-    it('applyOperation 记录 addPropertyCurve 的 undo/redo', async () => {
+    it('applyOperations 记录 addPropertyCurve 的 undo/redo', async () => {
         const { nodePath: addCurveNodePath, clipUuid: addCurveClipUuid } = await createIsolatedAnimationNode('AnimationServiceAddCurveUndo', { duration: 0 });
         await ensureAnimationSession(addCurveNodePath, addCurveClipUuid);
         await Undo.clearHistory();
@@ -1570,7 +1570,7 @@ describe('Animation Service 场景进程测试', () => {
         const before = await request('queryClip', [{ clipUuid: addCurveClipUuid }]);
         expect(before.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: addCurveClipUuid, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
             ],
@@ -1592,7 +1592,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(redoDump.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(true);
     });
 
-    it('applyOperation 记录 child addPropertyCurve 的 undo/redo', async () => {
+    it('applyOperations 记录 child addPropertyCurve 的 undo/redo', async () => {
         await ensureAnimationSession(childRootNodePath, childClipUuid);
         await resetPropertyCurves(childRootNodePath, childClipUuid);
         await setNodePositionWithoutUndo(childTrackNodePath, { x: 0, y: 0, z: 0 });
@@ -1610,7 +1610,7 @@ describe('Animation Service 场景进程测试', () => {
         const before = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
         expect(before.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: childClipUuid, nodePath: childRelativePath, propKey: 'position', value },
             ],
@@ -1632,7 +1632,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(redoDump.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(true);
     });
 
-    it('applyOperation 可把已消费的 scene 属性 undo 合并进 animation scoped undo', async () => {
+    it('applyOperations 可把已消费的 scene 属性 undo 合并进 animation scoped undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await resetRootPositionCurve(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();
@@ -1645,7 +1645,7 @@ describe('Animation Service 场景进程测试', () => {
         });
         expect(await Undo.canUndoInAnimationScope()).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 123, y: 0, z: 0 } },
             ],
@@ -1680,7 +1680,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(true);
     });
 
-    it('applyOperation 可把 Gizmo snapshot undo 合并进 animation scoped undo', async () => {
+    it('applyOperations 可把 Gizmo snapshot undo 合并进 animation scoped undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await resetRootPositionCurve(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();
@@ -1705,7 +1705,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.canUndo()).toBe(true);
         expect(await Undo.canUndoInAnimationScope()).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 321, y: 0, z: 0 } },
             ],
@@ -1727,7 +1727,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(false);
     });
 
-    it('applyOperation 可把已消费的组件属性 undo 合并进 animation scoped undo', async () => {
+    it('applyOperations 可把已消费的组件属性 undo 合并进 animation scoped undo', async () => {
         const { nodePath: spriteNodePath, clipUuid: spriteClipUuid, spriteComponentPath } = await createIsolatedSpriteAnimationNode('AnimationServiceComponentCommitCase');
         await ensureAnimationSession(spriteNodePath, spriteClipUuid);
         await Undo.clearHistory();
@@ -1739,7 +1739,7 @@ describe('Animation Service 场景进程测试', () => {
         });
         expect(await Undo.canUndoInAnimationScope()).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: spriteClipUuid, propKey: 'cc.Sprite.color', frame: 30, value: { r: 12, g: 34, b: 56, a: 255 } },
             ],
@@ -1757,9 +1757,9 @@ describe('Animation Service 场景进程测试', () => {
         expect(componentAfterUndo?.properties.color.value).toMatchObject({ r: 255, g: 255, b: 255, a: 255 });
     });
 
-    it('applyOperation 不应把无关 scene 属性 undo 合并进 animation scoped undo', async () => {
+    it('applyOperations 不应把无关 scene 属性 undo 合并进 animation scoped undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
-        await request('applyOperation', [{
+        await request('applyOperations', [{
             operations: [
                 { type: 'addPropertyCurve', clipUuid: emptyClipUuid, propKey: 'scale', value: { x: 1, y: 1, z: 1 } },
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'scale', frame: 0, value: { x: 1, y: 1, z: 1 } },
@@ -1780,7 +1780,7 @@ describe('Animation Service 场景进程测试', () => {
         });
         expect(await Undo.canUndoInAnimationScope()).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'scale', frame: 30, value: { x: 2, y: 2, z: 2 } },
             ],
@@ -1797,7 +1797,7 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.isDirty()).toBe(true);
     });
 
-    it('applyOperation 混合非属性操作时不应吸收 scene 属性 undo', async () => {
+    it('applyOperations 混合非属性操作时不应吸收 scene 属性 undo', async () => {
         await ensureAnimationSession(emptyNodePath, emptyClipUuid);
         await resetRootPositionCurve(emptyNodePath, emptyClipUuid);
         await Undo.clearHistory();
@@ -1810,7 +1810,7 @@ describe('Animation Service 场景进程测试', () => {
         });
         expect(await Undo.canUndoInAnimationScope()).toBe(false);
 
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             operations: [
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 789, y: 0, z: 0 } },
                 { type: 'addEvent', clipUuid: emptyClipUuid, frame: 30, func: 'onMixedCommit', params: ['mixed'] },
@@ -1865,13 +1865,13 @@ describe('Animation Service 场景进程测试', () => {
         expect(await Undo.canRedo()).toBe(false);
     });
 
-    it('applyOperation recordUndo 为 false 时不写入 undo 栈', async () => {
+    it('applyOperations recordUndo 为 false 时不写入 undo 栈', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
         await Undo.clearHistory();
         await Undo.markSaved();
 
         const before = await request('queryClip', [{ clipUuid }]);
-        const result = await request('applyOperation', [{
+        const result = await request('applyOperations', [{
             recordUndo: false,
             operations: [
                 { type: 'changeSpeed', clipUuid, speed: before.speed + 0.125 },
