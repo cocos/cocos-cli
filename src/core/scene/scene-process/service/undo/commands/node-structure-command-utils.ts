@@ -1,5 +1,6 @@
-import { editorExtrasTag, Node } from 'cc';
+import { Node } from 'cc';
 import { NodeEventType, type IUndoCommandMeta, type IUndoRedoResult } from '../../../../common';
+import { Service } from '../../core';
 import nodeMgr from '../../node/index';
 import { editorPrefabUtils } from '../../prefab/prefab-editor-utils';
 import {
@@ -27,6 +28,7 @@ export interface INodeStructureSnapshot {
     parentPath: string;
     siblingIndex: number;
     serializedJson: string;
+    prefabAssetUuid?: string;
     /** 子树 uuid 树（前序遍历的树根），用于 deserialize 后修复整棵树的 uuid */
     uuidTree: INodeUuidSnapshot;
 }
@@ -79,6 +81,7 @@ export function captureNodeStructureSnapshot(
         parentPath: parent ? getNodePath(parent) : '/',
         siblingIndex: node.getSiblingIndex(),
         serializedJson,
+        prefabAssetUuid: getPrefabAssetUuid(node),
         uuidTree: captureUuidTree(node),
     };
 }
@@ -105,19 +108,7 @@ function hasPrefabData(node: Node): boolean {
         return true;
     }
 
-    if (hasMountedRoot(node)) {
-        return true;
-    }
-
-    if ((node.components ?? []).some(component => component.__prefab || hasMountedRoot(component))) {
-        return true;
-    }
-
     return (node.children ?? []).some(child => hasPrefabData(child));
-}
-
-function hasMountedRoot(target: unknown): boolean {
-    return Boolean((target as any)?.[editorExtrasTag]?.mountedRoot);
 }
 
 function captureUuidTree(node: Node): INodeUuidSnapshot {
@@ -144,6 +135,7 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
     }
 
     try {
+        await relinkPrefabAsset(restoredNode, snapshot);
         nodeMgr.emit('node:before-add', restoredNode);
         nodeMgr.emit('node:before-change', parent);
 
@@ -159,6 +151,27 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
     } catch (error) {
         return failure(meta, error instanceof Error ? error.message : String(error));
     }
+}
+
+function getPrefabAssetUuid(node: Node): string | undefined {
+    const prefabInfo = node['_prefab'];
+    if (!prefabInfo?.instance) {
+        return undefined;
+    }
+
+    const asset = prefabInfo.asset as { _uuid?: string; uuid?: string } | undefined;
+    return asset?._uuid || asset?.uuid || undefined;
+}
+
+async function relinkPrefabAsset(node: Node, snapshot: INodeStructureSnapshot): Promise<void> {
+    if (!snapshot.prefabAssetUuid) {
+        return;
+    }
+
+    const prefabService = Service.Prefab as unknown as {
+        linkNodeWithPrefabAsset: (node: Node, assetUuid: string) => Promise<void>;
+    };
+    await prefabService.linkNodeWithPrefabAsset(node, snapshot.prefabAssetUuid);
 }
 
 export function removeNodeStructureSnapshot(

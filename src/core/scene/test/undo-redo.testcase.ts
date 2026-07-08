@@ -27,6 +27,7 @@
 
 import {
     ICreateByNodeTypeParams,
+    ICreateByAssetParams,
     IDeleteNodeParams,
     IAddComponentOptions,
     IRemoveComponentOptions,
@@ -36,6 +37,7 @@ import {
     NodeType,
     INodeInfo,
     ISetPropertyOptionsInfo,
+    PrefabState,
 } from '../common';
 import { Rpc } from '../main-process/rpc';
 import { sceneWorker } from '../main-process/scene-worker';
@@ -99,6 +101,10 @@ const Undo = {
 const Node = {
     async createByType(params: ICreateByNodeTypeParams): Promise<INodeInfo | null> {
         const result = await request<any>('Node', 'createByType', [params]);
+        return result ? toNodeInfo(result) : null;
+    },
+    async createByAsset(params: ICreateByAssetParams): Promise<INodeInfo | null> {
+        const result = await request<any>('Node', 'createByAsset', [params]);
         return result ? toNodeInfo(result) : null;
     },
     delete: (params: IDeleteNodeParams) => request('Node', 'delete', [params]),
@@ -374,14 +380,17 @@ describe('Undo/Redo 集成测试', () => {
     // ========================================================================
     describe('CreateNode', () => {
         const path = 'UndoCreateNode';
+        const buttonName = 'UndoCreateButton';
 
         beforeEach(async () => {
             await safeDelete(path);
+            await safeDelete(`Canvas/${buttonName}`);
             await Undo.clearHistory();
         });
 
         afterEach(async () => {
             await safeDelete(path);
+            await safeDelete(`Canvas/${buttonName}`);
             await Undo.clearHistory();
         });
 
@@ -404,6 +413,19 @@ describe('Undo/Redo 集成测试', () => {
             expect(await queryNode(path)).not.toBeNull();
             expect(await Undo.canUndo()).toBe(true);
             expect(await Undo.canRedo()).toBe(false);
+        });
+
+        it('create Button by node type unlinks prefab metadata from the created node', async () => {
+            const created = await Node.createByType({ path: '/', name: buttonName, nodeType: NodeType.BUTTON });
+            expect(created).not.toBeNull();
+
+            const dump = await queryNodeDump(created!.path);
+
+            expect(dump.__prefab__).toBeNull();
+            expect((dump.__comps__ ?? []).map((comp: any) => comp.__compPrefab__)).toEqual(
+                expect.arrayContaining([null]),
+            );
+            expect((dump.__comps__ ?? []).every((comp: any) => comp.__compPrefab__ === null)).toBe(true);
         });
     });
 
@@ -1341,11 +1363,17 @@ describe('Undo/Redo 集成测试', () => {
         const unpackPath = 'UndoPrefabUnpack';
         const unlinkPath = 'UndoPrefabUnlink';
         const revertPath = 'UndoPrefabRevert';
+        const mountedButtonRootPath = 'UndoPrefabMountedButtonRoot';
+        const mountedButtonName = 'UndoPrefabMountedButton';
+        const deletePrefabAssetPath = 'UndoPrefabDeleteAsset';
+        const deletePrefabInstanceName = 'UndoPrefabDeleteInstance';
         const createURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabCreate.prefab`;
         const applyURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabApply.prefab`;
         const unpackURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabUnpack.prefab`;
         const unlinkURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabUnlink.prefab`;
         const revertURL = `${SceneTestEnv.targetDirectoryURL}/UndoPrefabRevert.prefab`;
+        const mountedButtonURL = `${SceneTestEnv.targetDirectoryURL}/${mountedButtonRootPath}.prefab`;
+        const deletePrefabURL = `${SceneTestEnv.targetDirectoryURL}/${deletePrefabAssetPath}.prefab`;
 
         afterEach(async () => {
             await safeDelete(createPath);
@@ -1353,6 +1381,9 @@ describe('Undo/Redo 集成测试', () => {
             await safeDelete(unpackPath);
             await safeDelete(unlinkPath);
             await safeDelete(revertPath);
+            await safeDelete(mountedButtonRootPath);
+            await safeDelete(deletePrefabAssetPath);
+            await safeDelete(deletePrefabInstanceName);
             await Undo.clearHistory();
         });
 
@@ -1507,6 +1538,82 @@ describe('Undo/Redo 集成测试', () => {
             expect(await Undo.canUndo()).toBe(true);
             const reverted = await queryNode(revertPath);
             expect(reverted?.properties.scale).toEqual({ x: 1, y: 1, z: 1 });
+        });
+
+        it('delete undo restores a prefab instance without losing its prefab asset', async () => {
+            const source = await Node.createByType({ path: '/', name: deletePrefabAssetPath, nodeType: NodeType.EMPTY });
+            expect(source).not.toBeNull();
+            await Prefab.createPrefabFromNode({
+                nodePath: source!.path,
+                dbURL: deletePrefabURL,
+                overwrite: true,
+            });
+            const created = await Node.createByAsset({
+                dbURL: deletePrefabURL,
+                path: '/',
+                name: deletePrefabInstanceName,
+            });
+            expect(created).not.toBeNull();
+            await expectPrefabInstance(created!.path, true, 'before deleting prefab instance');
+            const createdTree = await Node.queryNodeTree({ path: created!.path });
+            expect(createdTree.prefab.state).toBe(PrefabState.PrefabInstance);
+            await Undo.clearHistory();
+
+            const ok = await Node.delete({ path: created!.path, keepWorldTransform: false });
+            expect(ok).not.toBeNull();
+            expect(await queryNode(created!.path)).toBeNull();
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+
+            await expectPrefabInstance(created!.path, true, 'after undo deleting prefab instance');
+            const restoredTree = await Node.queryNodeTree({ path: created!.path });
+            expect(restoredTree.prefab.state).toBe(PrefabState.PrefabInstance);
+        });
+
+        it('mounted Button created under a prefab instance stays a plain added child after delete undo', async () => {
+            const root = await Node.createByType({ path: '/', name: mountedButtonRootPath, nodeType: NodeType.EMPTY });
+            expect(root).not.toBeNull();
+            const rootPath = root!.path;
+            await Component.add({ nodePath: rootPath, component: 'cc.Canvas' });
+            await Prefab.createPrefabFromNode({
+                nodePath: rootPath,
+                dbURL: mountedButtonURL,
+                overwrite: true,
+            });
+            await expectPrefabInstance(rootPath, true, 'before creating mounted button');
+            await Undo.clearHistory();
+
+            const created = await Node.createByType({
+                path: rootPath,
+                name: mountedButtonName,
+                nodeType: NodeType.BUTTON,
+            });
+            expect(created).not.toBeNull();
+
+            const createdDump = await queryNodeDump(created!.path);
+            const createdTree = await Node.queryNodeTree({ path: created!.path });
+            expect(createdDump.__prefab__).toBeNull();
+            expect((createdDump.__comps__ ?? []).every((comp: any) => comp.__compPrefab__ === null)).toBe(true);
+            expect(createdDump.mountedRoot).toBeTruthy();
+            expect(createdTree.prefab.state).toBe(PrefabState.NotAPrefab);
+            expect(createdTree.prefab.isAddedChild).toBe(true);
+
+            await Undo.clearHistory();
+            const ok = await Node.delete({ path: created!.path, keepWorldTransform: false });
+            expect(ok).not.toBeNull();
+            expect(await queryNode(created!.path)).toBeNull();
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+
+            const restoredDump = await queryNodeDump(created!.path);
+            const restoredTree = await Node.queryNodeTree({ path: created!.path });
+            expect(restoredDump.__prefab__).toBeNull();
+            expect((restoredDump.__comps__ ?? []).every((comp: any) => comp.__compPrefab__ === null)).toBe(true);
+            expect(restoredDump.mountedRoot).toBeTruthy();
+            expect(restoredTree.prefab.state).toBe(PrefabState.NotAPrefab);
+            expect(restoredTree.prefab.isAddedChild).toBe(true);
         });
     });
 

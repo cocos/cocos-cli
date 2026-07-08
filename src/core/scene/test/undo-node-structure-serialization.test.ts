@@ -41,6 +41,7 @@ jest.mock('../scene-process/service/undo/commands/command-utils-shared', () => (
     getNodePath: mockGetNodePath,
 }));
 
+import { editorExtrasTag } from 'cc';
 import { captureNodeStructureSnapshot } from '../scene-process/service/undo/commands/node-structure-command-utils';
 
 describe('captureNodeStructureSnapshot serialization', () => {
@@ -84,6 +85,26 @@ describe('captureNodeStructureSnapshot serialization', () => {
         expect((global as any).EditorExtends.serialize).not.toHaveBeenCalled();
         expect(JSON.parse(snapshot!.serializedJson)).toMatchObject({
             __type__: 'cc.Prefab',
+        });
+    });
+
+    it('serializes mounted plain nodes as node JSON instead of prefab JSON', () => {
+        const prefabRoot = new MockNode('prefab-root', 'PrefabRoot');
+        const node = new MockNode('mounted-button', 'Button') as MockNode & {
+            [editorExtrasTag]?: { mountedRoot?: MockNode };
+        };
+        node.path = '/PrefabRoot/Button';
+        node[editorExtrasTag] = { mountedRoot: prefabRoot };
+        node.components.push({ uuid: 'button-comp', __prefab: { fileId: 'button-comp-file-id' } });
+
+        const snapshot = captureNodeStructureSnapshot(node as any);
+
+        expect(snapshot).not.toBeNull();
+        expect((global as any).EditorExtends.serialize).toHaveBeenCalledWith(node);
+        expect(mockPrefabSerialize).not.toHaveBeenCalled();
+        expect(JSON.parse(snapshot!.serializedJson)).toMatchObject({
+            __type__: 'cc.Node',
+            uuid: 'mounted-button',
         });
     });
 
