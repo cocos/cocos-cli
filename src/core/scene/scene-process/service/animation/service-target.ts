@@ -117,10 +117,17 @@ export function isCurrentAnimationSessionClipQuery(
     if (!hasTarget) {
         return true;
     }
+    const sessionRootPath = normalizeTargetPath(session.rootPath);
+    const optionRootPath = normalizeTargetPath(options.rootPath || '');
+    const optionNodePath = normalizeTargetPath(options.nodePath || '');
     return options.rootUuid === session.rootUuid
-        || options.rootPath === session.rootPath
+        || (options.rootPath !== undefined && optionRootPath === sessionRootPath)
         || options.nodeUuid === session.rootUuid
-        || options.nodePath === session.rootPath;
+        || (options.nodePath !== undefined && optionNodePath === sessionRootPath);
+}
+
+function normalizeTargetPath(path: string): string {
+    return String(path || '').replace(/^\/+|\/+$/g, '');
 }
 
 export function queryAnimationServiceProperties(node: Node, root: Node | null): IAnimationPropertyInfo[] {

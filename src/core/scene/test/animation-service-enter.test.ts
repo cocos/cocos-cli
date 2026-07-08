@@ -93,6 +93,7 @@ jest.mock('../scene-process/service/animation/service-save', () => ({
 };
 
 const { AnimationService } = require('../scene-process/service/animation');
+const { isCurrentAnimationSessionClipQuery } = require('../scene-process/service/animation/service-target');
 const { saveAnimationServiceClip: saveAnimationServiceClipMock } = require('../scene-process/service/animation/service-save');
 
 describe('AnimationService enter', () => {
@@ -102,6 +103,19 @@ describe('AnimationService enter', () => {
         assetManager.assets.get.mockReset();
         assetManager.loadAny.mockReset();
         saveAnimationServiceClipMock.mockResolvedValue(true);
+    });
+
+    it('matches current clip queries with normalized root paths', () => {
+        const session = {
+            rootUuid: 'root-uuid',
+            rootPath: 'Canvas/AnimatedRoot',
+            clipUuid: 'clip-uuid',
+        };
+
+        expect(isCurrentAnimationSessionClipQuery(session, {
+            rootPath: '/Canvas/AnimatedRoot/',
+            clipUuid: 'clip-uuid',
+        }, 'clip-uuid', true)).toBe(true);
     });
 
     it('waits for animation state initialization before sampling time zero', async () => {
