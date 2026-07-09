@@ -180,7 +180,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             resultNode.name = name;
         }
         // 挂到 prefab instance 下时，setParent 相关流程可能重新补回模板 prefab 信息。
-        if (shouldUnlinkPrefab) {
+        // 但在 prefab asset 编辑器中，新节点需要保留 setParent 补齐的 prefab 元数据。
+        if (shouldUnlinkPrefab && Service.Editor.getCurrentEditorType() !== 'prefab') {
             Service.Prefab.removePrefabInfoFromNode(resultNode, true);
         }
         if (checkUITransform) {
