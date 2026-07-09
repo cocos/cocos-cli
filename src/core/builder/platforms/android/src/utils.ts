@@ -4,7 +4,7 @@ import { existsSync, statSync, readdirSync } from 'fs-extra';
 import { dirname, join, normalize } from 'path';
 import { platform } from 'os';
 import { IAndroidInternalBuildOptions } from './type';
-import { BuildCheckResult } from '../../@types/protected';
+import { BuildCheckResult } from '../../../@types/protected';
 
 /**
  * 检查 android 包名的合法性
@@ -26,7 +26,7 @@ export function checkIsEmpty(value: any) {
 }
 
 /**
- * 检查 API Level 要求，最低 18，开启延迟渲染管线后最低要求 21，开启 Instance APP 后最低 23
+ * 检查 API Level 要求，最低 19，开启延迟渲染管线后最低要求 21，开启 Instant APP 后最低 23
  * @param value
  * @param options
  * @returns
@@ -39,7 +39,7 @@ export async function checkAndroidAPILevels(value: number, options: IAndroidInte
         res.valid = false;
         res.level = 'error';
         res.message = 'API Level cannot be empty';
-        return res; // 必须返回，否则后续判断会报错
+        return res;
     }
     if (isNaN(value)) {
         res.valid = false;
@@ -62,9 +62,7 @@ export async function checkAndroidAPILevels(value: number, options: IAndroidInte
         res.fixedValue = 21;
         return res;
     }
-    // const renderPipeline = await Editor.Profile.getProject('project', 'general.renderPipeline');
     const renderPipeline = options.renderPipeline;
-    // 延迟渲染管线
     if (renderPipeline === '5d45ba66-829a-46d3-948e-2ed3fa7ee421' && APIVersion < 21) {
         res.valid = false;
         res.level = 'error';
@@ -107,25 +105,22 @@ function findNdkPath(sdkPath: string): string {
             try {
                 const dirs = readdirSync(ndkBase);
                 if (dirs.length > 0) {
-                    // 优先选择版本 28，其次 23
                     const priorityVersions = ['28', '23'];
-                    
-                    // 1. 查找优先级版本
+
                     for (const ver of priorityVersions) {
-                        const match = dirs.find(d => d.startsWith(ver + '.') && statSync(join(ndkBase, d)).isDirectory());
+                        const match = dirs.find(d => d.startsWith(`${ver}.`) && statSync(join(ndkBase, d)).isDirectory());
                         if (match) {
                             console.log(`[Android] Found NDK version ${ver} at: ${join(ndkBase, match)}`);
                             return join(ndkBase, match);
                         }
                     }
 
-                    // 2. 查找其他最新版本
-                    const otherVersions = dirs.filter(d => 
-                        !priorityVersions.some(ver => d.startsWith(ver + '.')) && 
-                        /^\d+\./.test(d) && 
+                    const otherVersions = dirs.filter(d =>
+                        !priorityVersions.some(ver => d.startsWith(`${ver}.`)) &&
+                        /^\d+\./.test(d) &&
                         statSync(join(ndkBase, d)).isDirectory()
-                    ).sort(); // 字符串排序，高版本号通常在后面
-                    
+                    ).sort();
+
                     if (otherVersions.length > 0) {
                         const latest = otherVersions[otherVersions.length - 1];
                         console.log(`[Android] Found NDK version ${latest} at: ${join(ndkBase, latest)}`);
@@ -152,7 +147,7 @@ function resolveJavaPath(javaHome: string): { javaHome: string, javaPath: string
             const pathToJava = join(javaHome, 'bin', javaFileName);
             if (!existsSync(pathToJava)) {
                 console.error(`Java executable not found at ${javaHome}/bin`);
-                return { javaHome, javaPath: '' }; // 虽然路径有问题，但还是返回 home
+                return { javaHome, javaPath: '' };
             }
             return { javaHome, javaPath: pathToJava };
         }
@@ -173,8 +168,8 @@ export async function generateAndroidOptions(options: IAndroidInternalBuildOptio
         portrait: false,
         upsideDown: false,
     };
+    android.isSoFileCompressed = android.isSoFileCompressed ?? true;
 
-    // 1. SDK
     if (!android.sdkPath) {
         android.sdkPath = findSdkPath();
         if (android.sdkPath) console.log(`[Android] Auto-detected SDK at: ${android.sdkPath}`);
@@ -183,7 +178,6 @@ export async function generateAndroidOptions(options: IAndroidInternalBuildOptio
     }
     android.sdkPath = android.sdkPath || '';
 
-    // 2. NDK
     if (!android.ndkPath) {
         android.ndkPath = findNdkPath(android.sdkPath);
         if (android.ndkPath) console.log(`[Android] Auto-detected NDK at: ${android.ndkPath}`);
@@ -192,7 +186,6 @@ export async function generateAndroidOptions(options: IAndroidInternalBuildOptio
     }
     android.ndkPath = android.ndkPath || '';
 
-    // 3. Java
     android.javaHome = android.javaHome || process.env.JAVA_HOME || '';
     const { javaHome, javaPath } = resolveJavaPath(android.javaHome);
     android.javaHome = javaHome;

@@ -29,6 +29,19 @@ module.exports = {
         google_play_instant: 'Google Play Instant',
         input_sdk: 'Input SDK',
         remoteUrl: 'Remote URL',
+        compress_so_files: 'Compress .so files',
+        compress_so_files_tips: 'Compress all *.so files. To support Android 16KB page size, Google officially recommends avoiding compression.',
+        native_engine: 'Native Engine',
+        builtin_engine: 'Built-in',
+        edit: 'Edit',
+        JobSystem: 'Job System',
+        none: 'None',
+    },
+    encrypt: {
+        title: 'Encrypt JS',
+        encrypt_key: 'JS Encryption Key',
+        compress_zip: 'Zip Compress',
+        disable_tips: 'In debug mode, the Encrypt JS is invalid',
     },
     KEYSTORE: {
         new_keystore: 'New Keystore',
@@ -79,6 +92,8 @@ module.exports = {
         mar_empty: 'Cannot be empty',
         mar_bad_value: 'Incorrect value for aspect ratio, must be greater than 1.33',
         mar_format: 'Input format incorrect',
+        JobSystemTaskFlow: 'TaskFlow need at least Android API Level 21 and C++17',
+        JobSystemOther: 'Will use C++17(default C++14) to support compile',
     },
     placeholders: {
         max_aspect_ratio: 'Input format：2.4 or 12:5',

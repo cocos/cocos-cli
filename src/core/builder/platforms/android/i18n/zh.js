@@ -26,6 +26,19 @@ module.exports = {
         google_play_instant: 'Google Play Instant',
         input_sdk: 'Input SDK',
         remoteUrl: '远程 URL',
+        compress_so_files: '压缩 .so 文件',
+        compress_so_files_tips: '压缩所有 *.so 文件。若要支持 Android 16KB 页大小，Google 官方建议不压缩。',
+        native_engine: '原生引擎',
+        builtin_engine: '内置',
+        edit: '编辑',
+        JobSystem: '任务调度系统',
+        none: '不开启',
+    },
+    encrypt: {
+        title: '加密 JS',
+        encrypt_key: 'JS 加密密钥',
+        compress_zip: 'Zip 压缩',
+        disable_tips: '调试模式下，JS 加密无效',
     },
     KEYSTORE: {
         new_keystore: '新建密钥库',
@@ -76,6 +89,8 @@ module.exports = {
         mar_empty: '自定义输入不能为空',
         mar_bad_value: '宽高比的值输入有误, 不得小于 1.33',
         mar_format: '自定义输入格式错误',
+        JobSystemTaskFlow: 'TaskFlow 需要 Android API Level 21 及以上，并启用 C++17',
+        JobSystemOther: '将会自动启用 C++17（默认 C++14）以支持编译',
     },
     placeholders: {
         max_aspect_ratio: '参考格式：2.4 或 12:5',
