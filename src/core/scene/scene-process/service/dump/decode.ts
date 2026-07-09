@@ -7,11 +7,10 @@ import { ccClassAttrPropertyDefaultValue, getDefault, getTypeInheritanceChain, g
 import get from 'lodash/get';
 import set from 'lodash/set';
 import { DumpDefines } from './dump-defines';
+import { getDumpComponentAccess, getDumpNodeAccess } from './service-access';
 import { Component, editorExtrasTag, Node, Vec3, MobilityMode, Prefab, Quat, assetManager, Animation } from 'cc';
 import { promisify } from 'util';
 import { IComponent, INode, IScene, ITargetOverrideInfo } from '../../../common';
-import compMgr from './../component/index';
-import nodeMgr from './../node/index';
 import { IProperty } from '../../../@types/public';
 
 type TargetOverrideInfo = Prefab._utils.TargetOverrideInfo;
@@ -22,6 +21,7 @@ type PrefabInfo = Prefab._utils.PrefabInfo;
 const PrefabInfo = Prefab._utils.PrefabInfo;
 
 function decodeChildren(children: any[], node: any) {
+    const nodeAccess = getDumpNodeAccess();
     const dumpChildrenUuids: string[] = children.map((child: any) => child.value.uuid);
     const nodeChildrenUuids: string[] = node.children.map((child: INode) => child.uuid);
 
@@ -34,7 +34,7 @@ function decodeChildren(children: any[], node: any) {
     nodeChildrenUuids.forEach((uuid: string) => {
         // 删除不存在的节点
         if (!dumpChildrenUuids.includes(uuid)) {
-            const child = nodeMgr.query(uuid);
+            const child = nodeAccess.query(uuid);
             // 重要：过滤隐藏节点 或 无效节点
             if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
                 return;
@@ -44,7 +44,7 @@ function decodeChildren(children: any[], node: any) {
     });
 
     dumpChildrenUuids.forEach((uuid: string, i: number) => {
-        const child = nodeMgr.query(uuid);
+        const child = nodeAccess.query(uuid);
         // 重要：过滤无效节点
         if (!child) {
             return;
@@ -75,7 +75,7 @@ export function decodeMountedRoot(compOrNode: Node | Component, mountedRoot?: st
     if (typeof mountedRoot === 'undefined') {
         return null;
     }
-    const mountedRootNode = nodeMgr.query(mountedRoot);
+    const mountedRootNode = getDumpNodeAccess().query(mountedRoot);
     if (mountedRootNode) {
         if (!compOrNode[editorExtrasTag]) {
             compOrNode[editorExtrasTag] = {};
@@ -94,6 +94,8 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         // 容错处理
         return;
     }
+    const componentAccess = getDumpComponentAccess();
+    const nodeAccess = getDumpNodeAccess();
 
     // 用于判断 prefabNode 下的 component 复用
     const prefabFileIdToDumpComp: { [key: string]: any } = {};
@@ -149,9 +151,9 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         const compUuid = componentsUuids[i];
 
         if (compUuid && !dumpCompsUuids.includes(compUuid)) {
-            const comp = compMgr.query(compUuid);
+            const comp = componentAccess.query(compUuid);
             // 删除失败会返回 false, 可能是组件被依赖，会下次再删
-            if (!comp || compMgr.removeComponent(comp)) {
+            if (!comp || componentAccess.removeComponent(comp)) {
                 componentsUuids.splice(i, 1);
             } else {
                 i--;
@@ -180,12 +182,12 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         let component = components[i];
 
         const compUuid = (dumpComp.value.uuid as IProperty).value as string;
-        let cacheComp = compMgr.query(compUuid);
+        let cacheComp = componentAccess.query(compUuid);
 
         // 在用，查询没有
         if (!cacheComp) {
             // 从 回收站 再查出来
-            cacheComp = compMgr.queryRecycle(compUuid);
+            cacheComp = componentAccess.queryRecycle(compUuid);
         }
 
         if (cacheComp) {
@@ -211,7 +213,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
                 }
                 component = cacheComp;
             }
-            nodeMgr.addComponentAt(node, component, i); // 插入新位置
+            nodeAccess.addComponentAt(node, component, i); // 插入新位置
         }
 
         // 编辑器预览时，undo时会设置clips导致动画停止播放 #15236
@@ -264,7 +266,7 @@ async function decodeComponents(dumpComps: any, node: Node, excludeComps?: any) 
         /**
          * 需要立即执行 cc.Object._deferredDestroy() 动作
          */
-        compMgr.removeComponent(component);
+        componentAccess.removeComponent(component);
         cc.Object._deferredDestroy();
     }
 }
@@ -284,7 +286,7 @@ async function decodePrefab(dumpPrefab: any, node: any) {
 
     // 新增
     const info = new PrefabInfo();
-    const root = nodeMgr.query(dumpPrefab.rootUuid);
+    const root = getDumpNodeAccess().query(dumpPrefab.rootUuid);
     info.root = root ? root : node;
     if (dumpPrefab.uuid) {
         try {
@@ -374,7 +376,7 @@ export async function decodeNode(dump: INode, node?: Node, excludeComps?: any) {
     decodeMountedRoot(node, dump.mountedRoot);
 
     if (dump.parent && dump.parent.value && dump.parent.value.uuid) {
-        node.parent = nodeMgr.query(dump.parent.value.uuid);
+        node.parent = getDumpNodeAccess().query(dump.parent.value.uuid);
     } else {
         node.parent = null;
     }
@@ -668,10 +670,11 @@ export function updatePropertyFromNull(node: any, path: string) {
 }
 
 export function decodeTargetOverrides(dumpedTargetOverrides: ITargetOverrideInfo[]) {
+    const nodeAccess = getDumpNodeAccess();
     const targetOverrides: TargetOverrideInfo[] = [];
     dumpedTargetOverrides.forEach((itr: ITargetOverrideInfo) => {
         const targetOverride = new TargetOverrideInfo();
-        targetOverride.source = nodeMgr.query(itr.source);
+        targetOverride.source = nodeAccess.query(itr.source);
         if (itr.sourceInfo) {
             const sourceInfo = new TargetInfo();
             sourceInfo.localID = itr.sourceInfo;
@@ -680,7 +683,7 @@ export function decodeTargetOverrides(dumpedTargetOverrides: ITargetOverrideInfo
 
         targetOverride.propertyPath = itr.propertyPath;
 
-        targetOverride.target = nodeMgr.query(itr.target);
+        targetOverride.target = nodeAccess.query(itr.target);
         if (itr.targetInfo) {
             const targetInfo = new TargetInfo();
             targetInfo.localID = itr.targetInfo;

@@ -1,5 +1,6 @@
 import dumpUtil from '../dump';
 import get from 'lodash/get';
+import { registerDumpComponentAccess } from '../dump/service-access';
 
 const CompMgr = EditorExtends.Component;
 import utils from './utils';
@@ -265,4 +266,13 @@ export class CompManager {
         CompMgr.changeUUID(oldUUID, newUUID);
     }
 }
-export default new CompManager();
+const compManager = new CompManager();
+
+registerDumpComponentAccess({
+    query: compManager.query.bind(compManager),
+    queryRecycle: compManager.queryRecycle.bind(compManager),
+    removeComponent: compManager.removeComponent.bind(compManager),
+    getPathFromUuid: compManager.getPathFromUuid.bind(compManager),
+});
+
+export default compManager;

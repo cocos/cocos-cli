@@ -20,6 +20,7 @@ import { ServiceEvents } from '../core/global-events';
 // const { basename, extname } = require('path');
 // import nodeUtil from '../../../utils/node';
 import dumpUtil from '../dump';
+import { registerDumpNodeAccess } from '../dump/service-access';
 import { Service } from '../core/decorator';
 
 // import getComponentFunctionOfNode from '../component/get-component-function-of-node';
@@ -1606,4 +1607,11 @@ export class NodeManager {
     }
 }
 
-export default new NodeManager();
+const nodeManager = new NodeManager();
+
+registerDumpNodeAccess({
+    query: nodeManager.query.bind(nodeManager),
+    addComponentAt: nodeManager.addComponentAt.bind(nodeManager),
+});
+
+export default nodeManager;

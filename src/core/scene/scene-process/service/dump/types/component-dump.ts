@@ -3,7 +3,7 @@ import {
 } from '../../../../@types/public';
 
 import { DumpInterface } from './dump-interface';
-import ComponentManager from '../../component/index';
+import { getDumpComponentAccess } from '../service-access';
 
 // valueType直接使用引擎序列化
 class ComponentDump implements DumpInterface {
@@ -14,7 +14,7 @@ class ComponentDump implements DumpInterface {
     }
 
     public decode(data: any, info: any, dump: any, opts?: any): void {
-        data[info.key] = ComponentManager.query(dump.value.uuid);
+        data[info.key] = getDumpComponentAccess().query(dump.value.uuid);
     }
 }
 
