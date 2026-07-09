@@ -37,4 +37,14 @@ describe('AnimationStateRegistry', () => {
         expect(state).toBe(constructedState);
         expect(state.initialize).toHaveBeenCalledWith(rootNode);
     });
+
+    it('normalizes null clip events before initializing animation state', () => {
+        const rootNode = {};
+        const clip = { events: null };
+        const registry = new AnimationStateRegistry(() => rootNode, async () => clip);
+
+        registry.create('clip-uuid', clip);
+
+        expect(clip.events).toEqual([]);
+    });
 });

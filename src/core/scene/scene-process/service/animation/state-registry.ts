@@ -3,6 +3,7 @@ import {
     AnimationState,
     Node,
 } from 'cc';
+import { ensureClipEvents } from './utils';
 
 export class AnimationStateRegistry {
     private readonly _states = new Map<string, AnimationState>();
@@ -26,6 +27,7 @@ export class AnimationStateRegistry {
     }
 
     create(uuid: string, clip: AnimationClip): AnimationState {
+        ensureClipEvents(clip);
         const state = new AnimationState(clip);
         state.initialize(this._getRootNode());
         this._states.set(uuid, state);
