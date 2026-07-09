@@ -31,6 +31,7 @@
                 "compressZip",
                 "JobSystem"
             ],
+            "doc": "./static/platform-intro/README.md",
             "card": "./static/card.png",
             "icon": "./static/icon.png"
         }
