@@ -4,6 +4,7 @@ import { editorBrowserslistQuery } from '@cocos/lib-programming/dist/utils';
 import * as ps from 'path';
 import * as fsExtra from 'fs-extra';
 import { IFeatureItem, IModuleItem, ModuleRenderConfig } from './modules';
+import { fixImportMapExtensions } from './import-map-utils';
 
 const VERSION = '3';
 const TEMP_ENGINE_CONFIG: any = { configs: { defaultConfig: { name: '默认配置', cache: { base: { _value: true }, 'gfx-webgl': { _value: true }, 'gfx-webgl2': { _value: false }, 'gfx-webgpu': { _value: false }, animation: { _value: true }, 'skeletal-animation': { _value: true }, '3d': { _value: true }, meshopt: { _value: false }, '2d': { _value: true }, 'sorting-2d': { _value: false }, 'rich-text': { _value: true }, mask: { _value: true }, graphics: { _value: true }, 'ui-skew': { _value: true }, 'affine-transform': { _value: true }, ui: { _value: true }, particle: { _value: true }, physics: { _value: true, _option: 'physics-physx' }, 'physics-ammo': { _value: true, _flags: { LOAD_BULLET_MANUALLY: false } }, 'physics-cannon': { _value: false }, 'physics-physx': { _value: false, _flags: { LOAD_PHYSX_MANUALLY: false } }, 'physics-builtin': { _value: false }, 'physics-2d': { _value: true, _option: 'physics-2d-box2d' }, 'physics-2d-box2d': { _value: true }, 'physics-2d-box2d-wasm': { _value: false, _flags: { LOAD_BOX2D_MANUALLY: false } }, 'physics-2d-builtin': { _value: false }, 'physics-2d-box2d-jsb': { _value: false }, 'intersection-2d': { _value: true }, primitive: { _value: true }, profiler: { _value: true }, 'occlusion-query': { _value: false }, 'geometry-renderer': { _value: false }, 'debug-renderer': { _value: false }, 'particle-2d': { _value: true }, audio: { _value: true }, video: { _value: true }, webview: { _value: true }, tween: { _value: true }, websocket: { _value: true }, 'websocket-server': { _value: false }, terrain: { _value: true }, 'light-probe': { _value: true }, 'tiled-map': { _value: true }, 'vendor-google': { _value: false }, spine: { _value: true, _option: 'spine-3.8' }, 'spine-3.8': { _value: true, _flags: { LOAD_SPINE_MANUALLY: false } }, 'spine-4.2': { _value: false, _flags: { LOAD_SPINE_MANUALLY: false } }, 'dragon-bones': { _value: true }, marionette: { _value: true }, 'procedural-animation': { _value: true }, 'custom-pipeline-post-process': { _value: false }, 'render-pipeline': { _value: true, _option: 'custom-pipeline' }, 'custom-pipeline': { _value: true }, 'legacy-pipeline': { _value: false }, xr: { _value: false } }, flags: { LOAD_BULLET_MANUALLY: false, LOAD_SPINE_MANUALLY: false, LOAD_PHYSX_MANUALLY: false }, includeModules: ['2d', '3d', 'affine-transform', 'animation', 'audio', 'base', 'custom-pipeline', 'dragon-bones', 'gfx-webgl', 'graphics', 'intersection-2d', 'light-probe', 'marionette', 'mask', 'particle', 'particle-2d', 'physics-2d-box2d', 'physics-physx', 'primitive', 'procedural-animation', 'profiler', 'rich-text', 'skeletal-animation', 'spine-3.8', 'terrain', 'tiled-map', 'tween', 'ui', 'ui-skew', 'video', 'websocket', 'webview'], noDeprecatedFeatures: { value: false, version: '' } } }, globalConfigKey: 'defaultConfig', graphics: { pipeline: 'custom-pipeline', 'custom-pipeline-post-process': false } };
@@ -384,7 +385,14 @@ export class EngineCompiler {
             configurableFlags,
         },
         );
+        // 修正 import-map 中无扩展名的模块映射(见 import-map-utils）。
+        // quick-compiler 的 buildImportMap 直接用 cc.config override 字符串生成映射值：override
+        // 无扩展名(如 pal/*)时生成的 q-bundled URL 也无扩展名，与 bundle 里以 .js 注册的模块
+        // 错位，编辑器/预览的静态 import-map 运行期会 fetch 无扩展名 URL 失败。这里补成 .js。
+        const outputDir = this.isWeb ? ps.join(this.outDir, 'web') : ps.join(this.outDir, 'editor');
+        await fixImportMapExtensions(ps.join(outputDir, 'import-map.json'), this.enginePath);
     }
+
 
     async getConfigurableFlagsOfFeatures(features: string[]) {
         const flags: Record<string, unknown> = {};
