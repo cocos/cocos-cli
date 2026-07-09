@@ -46,7 +46,7 @@ import { saveAnimationServiceClip } from './animation/service-save';
 import { AnimationStateRegistry } from './animation/state-registry';
 import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationSession } from './animation/types';
-import { clipUuid, getClipSample } from './animation/utils';
+import { clipUuid, ensureClipEvents, getClipSample } from './animation/utils';
 import { serializeAnimationPropertyValue } from './animation/property-value';
 import { AnimationServicePlayback } from './animation/service-playback';
 import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncClipDuration } from './animation/operation-policy';
@@ -561,12 +561,14 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     async save(options: IAnimationSaveOptions = {}): Promise<boolean> {
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
+        const rootNode = this._getSessionRootNode();
+        ensureClipEvents(state.clip);
         this._markSelfSavedClipRefresh(session.clipUuid);
         let saved = false;
         try {
             saved = await saveAnimationServiceClip({
                 session,
-                rootNode: this._getSessionRootNode(),
+                rootNode,
                 clip: state.clip,
             });
         } catch (error) {
@@ -574,6 +576,10 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             throw error;
         }
         if (saved) {
+            const animComp = queryAnimationComponent(rootNode);
+            if (animComp instanceof Animation) {
+                rebindAnimationComponentClip(animComp, state.clip);
+            }
             this._markSelfSavedClipRefresh(session.clipUuid);
             if (options.saveScene === true) {
                 await this._saveSceneForAnimationSession(session);

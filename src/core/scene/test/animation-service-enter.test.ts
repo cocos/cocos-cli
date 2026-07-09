@@ -237,6 +237,46 @@ describe('AnimationService enter', () => {
         expect(service._broadcastClipChanged).not.toHaveBeenCalledWith('asset-refresh');
     });
 
+    it('rebinds the current clip after save when asset refresh replaced the component binding', async () => {
+        const { Animation, AnimationClip } = require('cc');
+        const service = new AnimationService() as any;
+        const currentClip = new AnimationClip();
+        currentClip._uuid = 'clip-uuid';
+        currentClip.name = 'Current';
+        currentClip.events = null;
+        const staleClip = new AnimationClip();
+        staleClip._uuid = 'clip-uuid';
+        staleClip.name = 'Stale';
+        const animComp = new Animation();
+        animComp.clips = [currentClip];
+        animComp.defaultClip = currentClip;
+        const rootNode = {
+            uuid: 'root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
+
+        service._session = {
+            clipUuid: 'clip-uuid',
+            rootUuid: rootNode.uuid,
+            rootPath: 'Canvas/AnimatedRoot',
+            undoBaseline: { commandId: null, generation: 0 },
+            globalDirtyAtEnter: false,
+        };
+        service._getSessionRootNode = jest.fn(() => rootNode);
+        service._getAnimationState = jest.fn(async () => ({ clip: currentClip }));
+        saveAnimationServiceClipMock.mockImplementationOnce(async () => {
+            animComp.clips = [staleClip];
+            animComp.defaultClip = staleClip;
+            return true;
+        });
+
+        await expect(service.save()).resolves.toBe(true);
+
+        expect(animComp.clips).toEqual([currentClip]);
+        expect(animComp.defaultClip).toBe(currentClip);
+        expect(currentClip.events).toEqual([]);
+    });
+
     it('ignores a current clip refresh that started before saving the current clip', async () => {
         const { Animation, AnimationClip, assetManager } = require('cc');
         const service = new AnimationService() as any;
