@@ -1,7 +1,7 @@
 'use strict';
 
-import { IPlatformBuildPluginConfig, ITextureCompressType } from '../../@types/protected';
-import { commonOptions, baseNativeCommonOptions } from '../native-common';
+import { IPlatformBuildPluginConfig, ITextureCompressType } from '../../../@types/protected';
+import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 import { checkPackageNameValidity } from './utils';
 
 const astcTypes: ITextureCompressType[] = ['astc_4x4', 'astc_5x5', 'astc_6x6', 'astc_8x8', 'astc_10x5', 'astc_10x10', 'astc_12x12'];
@@ -92,12 +92,17 @@ const config: IPlatformBuildPluginConfig = {
 
             }
         },
+        developerTeam: {
+            label: 'i18n:ios.options.developerTeam',
+            default: '',
+            type: 'string'
+        },
         targetVersion: {
             default: '12.0',
             type: 'string'
         },
     },
-    hooks: './hooks',
+    hooks: './src/hooks',
     textureCompressConfig: {
         platformType: 'ios',
         support: {

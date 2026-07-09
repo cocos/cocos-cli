@@ -1,14 +1,14 @@
 'use strict';
 
 import { IBuildResult, IIOSInternalBuildOptions } from './type';
-import { BuilderCache, IBuilder, InternalBuildResult, ISettingsDesignResolution } from '../../@types/protected';
-import * as nativeCommonHook from '../native-common/hooks';
+import { BuilderCache, IBuilder, InternalBuildResult, ISettingsDesignResolution } from '../../../@types/protected';
+import * as nativeCommonHook from '../../native-common/hooks';
 import { executableNameOrDefault } from './utils';
 import { ResolutionPolicy } from 'cc';
 import { copyFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { ensureDirSync } from 'fs-extra';
-import { ISplashSetting } from '../../../engine/@types/public';
+import { ISplashSetting } from '../../../../engine/@types/public';
 
 export const throwError = true;
 export const onBeforeBuild = nativeCommonHook.onBeforeBuild;

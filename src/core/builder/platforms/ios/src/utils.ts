@@ -3,10 +3,10 @@
 import { join, normalize } from 'path';
 import { existsSync, readFile, writeFile, readJSON, rename } from 'fs-extra';
 import { execSync } from 'child_process';
-import { ITaskOption } from '../native-common/type';
+import { ITaskOption } from '../../native-common/type';
 import { IOptions } from './type'
-import { BuildCheckResult } from '../../@types/protected';
-import i18n from '../../../base/i18n';
+import { BuildCheckResult } from '../../../@types/protected';
+import i18n from '../../../../base/i18n';
 
 /**
  * 修改 ios 的包名
