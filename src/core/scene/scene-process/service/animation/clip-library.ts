@@ -115,19 +115,48 @@ export function rebindAnimationComponentClip(animComp: Animation, clip: Animatio
     const uuid = clipUuid(clip);
     const currentDefaultUuid = animComp.defaultClip ? clipUuid(animComp.defaultClip) : '';
     let found = false;
-    const clips = (animComp.clips || []).map((item) => {
-        if (item && clipUuid(item) === uuid) {
-            found = true;
-            return clip;
+    const clips: AnimationClip[] = [];
+    ensureAnimationClipRuntimeArrays(clip);
+    for (const item of animComp.clips || []) {
+        if (!item) {
+            continue;
         }
-        return item;
-    });
+        if (clipUuid(item) === uuid) {
+            found = true;
+            clips.push(clip);
+            continue;
+        }
+        if (!item.name) {
+            continue;
+        }
+        ensureAnimationClipRuntimeArrays(item);
+        clips.push(item);
+    }
     if (!found) {
         clips.push(clip);
     }
-    animComp.clips = clips;
+    animComp.clips = uniqAnimationClips(clips);
     if (!currentDefaultUuid || currentDefaultUuid === uuid) {
         animComp.defaultClip = clip;
+    }
+}
+
+function ensureAnimationClipRuntimeArrays(clip: AnimationClip): void {
+    const clipAny = clip as any;
+    ensureArrayProperty(clipAny, '_tracks');
+    if (!Array.isArray(clipAny._events)) {
+        clipAny.events = [];
+        if (!Array.isArray(clipAny._events)) {
+            clipAny._events = [];
+        }
+    }
+    ensureArrayProperty(clipAny, '_embeddedPlayers');
+    ensureArrayProperty(clipAny, '_auxiliaryCurveEntries');
+}
+
+function ensureArrayProperty(target: Record<string, unknown>, key: string): void {
+    if (!Array.isArray(target[key])) {
+        target[key] = [];
     }
 }
 
