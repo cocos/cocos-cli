@@ -280,18 +280,25 @@ export function removeCurveKeys(clip: AnimationClip, curve: AnyCurve, frames: nu
 export function moveCurveKeys(clip: AnimationClip, curve: AnyCurve, frames: number[], offset: number): boolean {
     const sample = getClipSample(clip);
     let changed = false;
-    const keyframes = queryCurveKeyframes(curve).map(([time, value]) => {
+    const retained: Array<{ frame: number; value: unknown }> = [];
+    const moved = new Map<number, unknown>();
+    for (const [time, value] of queryCurveKeyframes(curve)) {
         const frame = timeToFrame(time, sample);
-        if (!frames.includes(frame)) {
-            return { frame, value };
+        if (frames.includes(frame)) {
+            changed = true;
+            moved.set(Math.max(0, frame + offset), value);
+        } else {
+            retained.push({ frame, value });
         }
-        changed = true;
-        return { frame: Math.max(0, frame + offset), value };
-    });
+    }
 
     if (!changed) {
         return false;
     }
+    const movedFrames = new Set(moved.keys());
+    const keyframes = retained
+        .filter((keyframe) => !movedFrames.has(keyframe.frame))
+        .concat(Array.from(moved, ([frame, value]) => ({ frame, value })));
     keyframes.sort((a, b) => a.frame - b.frame);
     (curve as any).assignSorted(keyframes.map((keyframe) => [keyframe.frame / sample, keyframe.value] as [number, any]));
     return true;
