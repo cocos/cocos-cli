@@ -22,11 +22,13 @@ export const baseNativeCommonOptions: IDisplayOptions = {
         type: 'boolean',
         default: false,
         experiment: true,
+        hidden: true,
     },
     serverMode: {
         label: 'Server Mode',
         type: 'boolean',
         default: false,
+        hidden: true,
     },
     netMode: {
         label: 'NetMode',
@@ -37,6 +39,7 @@ export const baseNativeCommonOptions: IDisplayOptions = {
             { label: 'Host Server', value: 1 },
             { label: 'Listen Server', value: 2 },
         ],
+        hidden: true,
     },
     encrypted: {
         label: 'i18n:builder.platforms.native.options.encrypted',

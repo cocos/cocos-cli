@@ -31,6 +31,38 @@ const config: IPlatformBuildPluginConfig = {
     },
     options: {
         ...baseNativeCommonOptions,
+        swappy: {
+            label: 'i18n:android.options.swappy',
+            type: 'boolean',
+            default: false,
+            description: 'i18n:android.options.swappy_tips',
+        },
+        renderBackEnd: {
+            label: 'i18n:android.options.render_back_end',
+            type: 'object',
+            properties: {
+                vulkan: {
+                    label: 'Vulkan',
+                    type: 'boolean',
+                    default: false,
+                },
+                gles3: {
+                    label: 'GLES3',
+                    type: 'boolean',
+                    default: true,
+                },
+                gles2: {
+                    label: 'GLES2',
+                    type: 'boolean',
+                    default: true,
+                },
+            },
+            default: {
+                vulkan: false,
+                gles3: true,
+                gles2: true,
+            },
+        },
         packageName: {
             label: 'i18n:android.options.package_name',
             type: 'string',
@@ -140,11 +172,13 @@ const config: IPlatformBuildPluginConfig = {
             label: 'i18n:android.options.app_bundle',
             type: 'boolean',
             default: false,
+            hidden: true,
         },
         androidInstant: {
             label: 'i18n:android.options.google_play_instant',
             type: 'boolean',
             default: false,
+            hidden: true,
         },
         inputSDK: {
             label: 'i18n:android.options.input_sdk',
@@ -154,39 +188,8 @@ const config: IPlatformBuildPluginConfig = {
         remoteUrl: {
             label: 'i18n:android.options.remoteUrl',
             type: 'string',
+            hidden: true,
             default: '',
-        },
-        swappy: {
-            label: 'i18n:android.options.swappy',
-            type: 'boolean',
-            default: false,
-            description: 'i18n:android.options.swappy_tips',
-        },
-        renderBackEnd: {
-            label: 'i18n:android.options.render_back_end',
-            type: 'object',
-            properties: {
-                vulkan: {
-                    label: 'Vulkan',
-                    type: 'boolean',
-                    default: false,
-                },
-                gles3: {
-                    label: 'GLES3',
-                    type: 'boolean',
-                    default: true,
-                },
-                gles2: {
-                    label: 'GLES2',
-                    type: 'boolean',
-                    default: true,
-                },
-            },
-            default: {
-                vulkan: false,
-                gles3: true,
-                gles2: true,
-            },
         },
         isSoFileCompressed: {
             label: 'i18n:android.options.compress_so_files',
