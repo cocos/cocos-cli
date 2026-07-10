@@ -260,7 +260,6 @@ class BuildAssetLibrary {
         }
         // 构建缓存的文件夹
         const cacheFile = join(this.getAssetTempDirByUuid(uuid)!, `${options.debug ? 'debug' : 'release'}.json`);
-        console.log(`[getSerializedJSON] 缓存文件路径: ${cacheFile}`);
         if (this.checkUseCache(asset) && existsSync(cacheFile)) {
             try {
                 return await readJSON(cacheFile);
