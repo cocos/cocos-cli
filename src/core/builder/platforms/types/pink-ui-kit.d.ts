@@ -8,4 +8,11 @@ declare module '@pink/ui-kit' {
         children?: ReactNode;
         [key: string]: unknown;
     }>;
+
+    export const Checkbox: ComponentType<{
+        checked?: boolean;
+        disabled?: boolean;
+        onCheckedChange?: (checked: boolean) => void;
+        [key: string]: unknown;
+    }>;
 }
