@@ -11,7 +11,6 @@ module.exports = {
         landscape_left: '左横屏',
         landscape_right: '右横屏',
         portrait: '竖屏',
-        upsideDown: '倒置竖屏',
         keystore: '密钥库',
         use_debug_keystore: '使用调试秘钥库',
         render_back_end: '渲染后端',

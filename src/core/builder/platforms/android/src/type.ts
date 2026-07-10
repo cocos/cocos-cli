@@ -12,7 +12,6 @@ export interface IOptions extends INativeOption {
         landscapeRight: boolean;
         landscapeLeft: boolean;
         portrait: boolean;
-        upsideDown: boolean;
     };
     apiLevel: number;
     appABIs: IAppABI[];

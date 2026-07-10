@@ -166,7 +166,6 @@ export async function generateAndroidOptions(options: IAndroidInternalBuildOptio
         landscapeRight: true,
         landscapeLeft: true,
         portrait: false,
-        upsideDown: false,
     };
     android.isSoFileCompressed = android.isSoFileCompressed ?? true;
 

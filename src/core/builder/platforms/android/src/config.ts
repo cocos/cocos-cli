@@ -94,11 +94,6 @@ const config: IPlatformBuildPluginConfig = {
                     type: 'boolean',
                     default: false,
                 },
-                upsideDown: {
-                    label: 'i18n:android.options.upsideDown',
-                    type: 'boolean',
-                    default: false,
-                },
                 landscapeRight: {
                     label: 'i18n:android.options.landscape_right',
                     type: 'boolean',
@@ -112,7 +107,6 @@ const config: IPlatformBuildPluginConfig = {
             },
             default: {
                 portrait: false,
-                upsideDown: false,
                 landscapeRight: true,
                 landscapeLeft: true,
             },
