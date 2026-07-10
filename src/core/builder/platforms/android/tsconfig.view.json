@@ -14,7 +14,7 @@
             "dom"
         ],
         "typeRoots": [
-            "./types",
+            "../types",
             "../../../../../node_modules/@types"
         ],
         "types": [
@@ -23,6 +23,6 @@
     },
     "include": [
         "src/view",
-        "types"
+        "../types"
     ]
 }

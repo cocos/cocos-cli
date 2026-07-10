@@ -15,4 +15,16 @@ declare module '@pink/ui-kit' {
         onCheckedChange?: (checked: boolean) => void;
         [key: string]: unknown;
     }>;
+
+    export const FilePicker: ComponentType<{
+        value?: unknown;
+        disabled?: boolean;
+        filters?: Record<string, string[]>;
+        accept?: string;
+        buttonText?: string;
+        placeholder?: string;
+        onChange?: (value: unknown) => void;
+        onValueChange?: (value: unknown) => void;
+        [key: string]: unknown;
+    }>;
 }
