@@ -12,6 +12,7 @@ module.exports = {
         landscape_left: 'Landscape Left',
         landscape_right: 'Landscape Right',
         portrait: 'Portrait',
+        upsideDown: 'Upside Down',
         keystore: 'Keystore',
         use_debug_keystore: 'Use the debug keystore',
 
