@@ -1,6 +1,9 @@
 import type { AnimationState } from 'cc';
 import type { AnimationEventReason, AnimationPlayState } from '../../../common';
 
+const PLAYBACK_TIME_BROADCAST_INTERVAL_MS = 1000 / 60;
+const PLAYBACK_TIME_BROADCAST_EPSILON = 0.001;
+
 export interface IAnimationServicePlaybackContext {
     getCurrentState(): AnimationState | undefined;
     getEditTime(): number;
@@ -78,7 +81,8 @@ export class AnimationServicePlayback {
         this._lastPlaybackBroadcastTime = Number.NaN;
         this._playbackTimeBroadcastTimer = setInterval(() => {
             this._broadcastPlaybackTimeTick();
-        }, 100);
+        }, PLAYBACK_TIME_BROADCAST_INTERVAL_MS);
+        this._broadcastPlaybackTimeTick();
     }
 
     private _stopPlaybackTimeBroadcast(): void {
@@ -120,7 +124,11 @@ export class AnimationServicePlayback {
         if (typeof time !== 'number' || !Number.isFinite(time)) {
             return;
         }
-        if (Math.abs(time - this._lastPlaybackBroadcastTime) < 0.001) {
+        if (Number.isNaN(this._lastPlaybackBroadcastTime) && time <= PLAYBACK_TIME_BROADCAST_EPSILON) {
+            this._lastPlaybackBroadcastTime = time;
+            return;
+        }
+        if (Math.abs(time - this._lastPlaybackBroadcastTime) < PLAYBACK_TIME_BROADCAST_EPSILON) {
             return;
         }
         this._context.setEditTime(time);

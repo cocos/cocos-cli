@@ -313,6 +313,11 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             throw new Error(`current edit clip: '${session.clipUuid}' but you want to operate: '${uuid}'`);
         }
 
+        if (this._playState === 'playing') {
+            const node = resolveAnimationFrameQueryNode(options, session);
+            return serializeAnimationPropertyValue(readPropertyValue(node, options.propKey));
+        }
+
         const state = await this._getAnimationState(uuid);
         const previousTime = this._curEditTime;
         const previousStateTime = typeof state.current === 'number' && Number.isFinite(state.current)
