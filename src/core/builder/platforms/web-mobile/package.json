@@ -1,0 +1,30 @@
+{
+    "name": "web-mobile",
+    "version": "1.0.0",
+    "author": "Cocos",
+    "description": "Web Mobile platform plugin",
+    "license": "ISC",
+    "type": "commonjs",
+    "contributes": {
+        "builder": {
+            "register": true,
+            "platform": "web-mobile",
+            "config": "./src/config",
+            "hooks": "./src/hooks"
+        },
+        "pinkBuilder": {
+            "platform": "web-mobile",
+            "customView": "./dist/view/build-config.js",
+            "customExtensionHost": "./dist/view/build-config-host.js",
+            "customFields": [
+                "useWebGPU"
+            ],
+            "card": "./static/card.png",
+            "icon": "./static/icon.png"
+        }
+    },
+    "scripts": {
+        "build-view": "node scripts/build-view.js",
+        "watch-view": "node scripts/build-view.js --watch"
+    }
+}

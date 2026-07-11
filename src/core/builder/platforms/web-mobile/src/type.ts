@@ -1,5 +1,5 @@
-import { IBuildPaths } from '../../@types';
-import { InternalBuildResult } from '../../@types/protected';
+import { IBuildPaths } from '../../../@types';
+import { InternalBuildResult } from '../../../@types/protected';
 
 export type IOrientation = 'auto' | 'landscape' | 'portrait';
 export interface IOptions {

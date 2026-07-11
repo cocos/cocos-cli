@@ -1,8 +1,8 @@
 'use strict';
 
 import { join } from 'path';
-import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { GlobalPaths } from '../../../../global';
+import { IPlatformBuildPluginConfig } from '../../../@types/protected';
+import { GlobalPaths } from '../../../../../global';
 
 const PLATFORM = 'web-mobile';
 
@@ -12,7 +12,7 @@ const config: IPlatformBuildPluginConfig = {
     displayName: 'i18n:web-mobile.title',
     platformType: 'HTML5',
     doc: 'editor/publish/publish-web.html',
-    hooks: './hooks',
+    hooks: './src/hooks',
     textureCompressConfig: {
         platformType: 'web',
         support: {

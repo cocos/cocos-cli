@@ -340,7 +340,7 @@ export type IOrientation = 'auto' | 'landscape' | 'portrait';
 
 import { IOptions as webDesktopOptions } from '../../platforms/web-desktop/type';
 export { webDesktopOptions };
-import { IOptions as webMobileOptions } from '../../platforms/web-mobile/type';
+import { IOptions as webMobileOptions } from '../../platforms/web-mobile/src/type';
 export { webMobileOptions };
 import { IOptions as windowsOptions } from '../../platforms/windows/type';
 export { windowsOptions };

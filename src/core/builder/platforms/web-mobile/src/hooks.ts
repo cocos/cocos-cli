@@ -3,10 +3,10 @@
 import Ejs from 'ejs';
 import { copyFileSync, outputFileSync } from 'fs-extra';
 import { basename, join } from 'path';
-import { InternalBuildResult, BuilderCache, IBuilder, IInterBuildTaskOption, IBuildStage, IBuildStageTask } from '../../@types/protected';
-import { relativeUrl, transformCode } from '../../worker/builder/utils';
+import { InternalBuildResult, BuilderCache, IBuilder, IInterBuildTaskOption, IBuildStageTask } from '../../../@types/protected';
+import { relativeUrl, transformCode } from '../../../worker/builder/utils';
 import { IBuildResult } from './type';
-import * as commonUtils from '../web-common/utils';
+import * as commonUtils from '../../web-common/utils';
 export const throwError = true;
 
 export async function onAfterInit(options: IInterBuildTaskOption<'web-mobile'>, result: InternalBuildResult, cache: BuilderCache) {
