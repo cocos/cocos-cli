@@ -3,7 +3,7 @@
 import { copyFileSync, outputFileSync } from 'fs-extra';
 import { join } from 'path';
 import Ejs from 'ejs';
-import { InternalBuildResult, BuilderCache, IBuilder, IBuildStageTask, IInterBuildTaskOption } from '../../../@types/protected';
+import { InternalBuildResult, BuilderCache, IBuilder, IBuildStageTask } from '../../../@types/protected';
 import { IBuildResult } from './type';
 import { relativeUrl, transformCode } from '../../../worker/builder/utils';
 import * as commonUtils from '../../web-common/utils';
