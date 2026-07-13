@@ -237,6 +237,61 @@ describe('AnimationService enter', () => {
         expect(service._broadcastClipChanged).not.toHaveBeenCalledWith('asset-refresh');
     });
 
+    it('keeps self-save asset refresh suppression after re-entering the same clip', async () => {
+        const { Animation, AnimationClip, assetManager } = require('cc');
+        const service = new AnimationService() as any;
+        const currentClip = new AnimationClip();
+        currentClip._uuid = 'clip-uuid';
+        currentClip.name = 'Current';
+        const reloadedClip = new AnimationClip();
+        reloadedClip._uuid = 'clip-uuid';
+        reloadedClip.name = 'Reloaded';
+        const animComp = new Animation();
+        animComp.clips = [currentClip];
+        animComp.defaultClip = currentClip;
+        const rootNode = {
+            uuid: 'root-uuid',
+            getComponent: jest.fn((ctor) => ctor === Animation ? animComp : null),
+        };
+        const createSession = () => ({
+            clipUuid: 'clip-uuid',
+            rootUuid: rootNode.uuid,
+            rootPath: 'Canvas/AnimatedRoot',
+            undoBaseline: { commandId: null, generation: 0 },
+            globalDirtyAtEnter: false,
+        });
+
+        assetManager.assets.get.mockReturnValue(reloadedClip);
+        service._session = createSession();
+        service._getSessionRootNode = jest.fn(() => rootNode);
+        service._animationStates.get = jest.fn(() => ({ clip: currentClip }));
+        service._animationStates.reset = jest.fn();
+        service._animationStates.create = jest.fn();
+        service._animationStates.clear = jest.fn();
+        service._getAnimationState = jest.fn(async () => ({ clip: currentClip }));
+        service.setTime = jest.fn(async () => true);
+        service._broadcastClipChanged = jest.fn();
+
+        await expect(service.save()).resolves.toBe(true);
+        service._disposeSession();
+        service._session = createSession();
+        service._animationStates.reset.mockClear();
+        service._animationStates.create.mockClear();
+        service.setTime.mockClear();
+        service._broadcastClipChanged.mockClear();
+        assetManager.assets.get.mockClear();
+
+        await service._refreshCurrentClipAsset('clip-uuid');
+
+        expect(assetManager.assets.get).not.toHaveBeenCalled();
+        expect(service._animationStates.reset).not.toHaveBeenCalled();
+        expect(service._animationStates.create).not.toHaveBeenCalled();
+        expect(service.setTime).not.toHaveBeenCalled();
+        expect(service._broadcastClipChanged).not.toHaveBeenCalledWith('asset-refresh');
+        expect(animComp.clips).toEqual([currentClip]);
+        expect(animComp.defaultClip).toBe(currentClip);
+    });
+
     it('rebinds the current clip after save when asset refresh replaced the component binding', async () => {
         const { Animation, AnimationClip } = require('cc');
         const service = new AnimationService() as any;

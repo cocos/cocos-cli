@@ -766,7 +766,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     private _disposeSession(): void {
         this._playback.dispose();
         this._animationStates.clear();
-        this._selfSavedClipRefreshes.clear();
         this._session = null;
         this._curEditTime = 0;
         this._playState = 'stop';
