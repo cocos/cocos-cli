@@ -1,4 +1,4 @@
-import type { AnimationClip, AnimationState } from 'cc';
+import type { AnimationClip } from 'cc';
 import type {
     IAnimationEventDump,
     IAnimationOperation,
@@ -112,8 +112,7 @@ export function isSupportedClipOperation(funcName: string): boolean {
     return SUPPORTED_CLIP_OPERATIONS.includes(funcName);
 }
 
-export async function applyClipOperation(state: AnimationState, operation: IAnimationOperation, context: IPropertyCurveOperationContext): Promise<boolean> {
-    const clip = state.clip;
+export async function applyClipOperation(clip: AnimationClip, operation: IAnimationOperation, context: IPropertyCurveOperationContext): Promise<boolean> {
     switch (operation.type) {
         case 'changeSample':
             return changeClipSample(clip, operation.sample);

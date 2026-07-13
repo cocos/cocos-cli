@@ -41,7 +41,7 @@ describe('animation clip operations', () => {
             updateEventDatas: jest.fn(),
         };
 
-        const result = await applyClipOperation({ clip }, {
+        const result = await applyClipOperation(clip, {
             type: 'changeSample',
             clipUuid: 'clip-uuid',
             sample: 60,
