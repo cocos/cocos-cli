@@ -21,6 +21,14 @@ module.exports = {
         google_play_instant: 'Google Play Instant',
         input_sdk: 'Input SDK',
         remoteUrl: 'Remote URL',
+        JobSystem: 'Job System',
+        none: 'None',
+    },
+    encrypt: {
+        title: 'Encrypt JS',
+        encrypt_key: 'JS Encryption Key',
+        compress_zip: 'Zip Compress',
+        disable_tips: 'In debug mode, the Encrypt JS is invalid',
     },
     tips: {
         not_empty: 'Can not be empty!',
@@ -32,6 +40,8 @@ module.exports = {
         orientation_portrait: 'The screen is upright and the Home button is down',
         orientation_landscape_left: 'The screen is horizontal, the Home button is on the left side of the screen',
         orientation_landscape_right: 'The screen is horizontal, the Home button is on the right side of the screen',
+        JobSystemTaskFlow: 'TaskFlow needs C++17 support.',
+        JobSystemOther: 'C++17 will be enabled to support compilation.',
     },
     make: {
         label: 'Make',

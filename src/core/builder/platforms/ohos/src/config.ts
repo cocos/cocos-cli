@@ -1,7 +1,7 @@
 'use strict';
 
-import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { commonOptions, baseNativeCommonOptions } from '../native-common';
+import { IPlatformBuildPluginConfig } from '../../../@types/protected';
+import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
@@ -28,7 +28,7 @@ const config: IPlatformBuildPluginConfig = {
             message: 'Invalid package name specified',
         },
     },
-    hooks: './hooks',
+    hooks: './src/hooks',
 
     options: {
         ...baseNativeCommonOptions,
@@ -54,11 +54,6 @@ const config: IPlatformBuildPluginConfig = {
                     type: 'boolean',
                     default: false,
                 },
-                upsideDown: {
-                    label: 'i18n:ohos.options.upsideDown',
-                    type: 'boolean',
-                    default: false,
-                },
                 landscapeRight: {
                     label: 'i18n:ohos.options.landscape_right',
                     type: 'boolean',
@@ -72,7 +67,6 @@ const config: IPlatformBuildPluginConfig = {
             },
             default: {
                 portrait: false,
-                upsideDown: false,
                 landscapeRight: true,
                 landscapeLeft: true,
             },
