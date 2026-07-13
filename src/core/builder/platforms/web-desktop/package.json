@@ -1,0 +1,21 @@
+{
+    "name": "web-desktop",
+    "version": "1.0.0",
+    "author": "Cocos",
+    "description": "Web Desktop platform plugin",
+    "license": "ISC",
+    "type": "commonjs",
+    "contributes": {
+        "builder": {
+            "register": true,
+            "platform": "web-desktop",
+            "config": "./src/config",
+            "hooks": "./src/hooks"
+        },
+        "pinkBuilder": {
+            "platform": "web-desktop",
+            "card": "./static/card.png",
+            "icon": "./static/icon.png"
+        }
+    }
+}
