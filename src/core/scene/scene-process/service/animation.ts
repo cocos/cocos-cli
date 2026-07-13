@@ -740,6 +740,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
         }
+
+        const currentState = this._animationStates.get(uuid);
+        if (currentState) {
+            this._rebindCurrentAnimationStateClip(uuid);
+            return;
+        }
+
         if (this._shouldSuppressSelfSavedClipRefresh(uuid)) {
             return;
         }
@@ -761,6 +768,18 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         await this._getAnimationState(uuid);
         await this.setTime({ time });
         this._broadcastClipChanged('asset-refresh');
+    }
+
+    private _rebindCurrentAnimationStateClip(uuid: string): void {
+        const currentState = this._animationStates.get(uuid);
+        if (!currentState) {
+            return;
+        }
+        const rootNode = this._getSessionRootNode();
+        const animComp = queryAnimationComponent(rootNode);
+        if (animComp instanceof Animation) {
+            rebindAnimationComponentClip(animComp, currentState.clip);
+        }
     }
 
     private _disposeSession(): void {
