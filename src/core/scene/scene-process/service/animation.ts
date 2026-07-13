@@ -609,6 +609,15 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return saved;
     }
 
+
+    preserveCurrentClipAssetForChange(uuid: string): boolean {
+        if (!this._session || this._session.clipUuid !== uuid || !this._animationStates.get(uuid)) {
+            return false;
+        }
+        this._rebindCurrentAnimationStateClip(uuid);
+        return true;
+    }
+
     onAssetDeleted(uuid: string): void {
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
