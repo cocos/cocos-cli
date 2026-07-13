@@ -21,9 +21,7 @@
                 "xxteaKey",
                 "compressZip",
                 "JobSystem"
-            ],
-            "card": "./static/card.png",
-            "icon": "./static/icon.png"
+            ]
         }
     },
     "scripts": {
