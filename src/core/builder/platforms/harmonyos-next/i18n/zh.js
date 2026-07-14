@@ -40,7 +40,18 @@ module.exports = {
         input_sdk: 'Input SDK',
         use_aot_optimization: '引擎 AOT 优化',
         js_engine: 'JavaScript 引擎',
+        v8: 'V8',
+        ark: 'Ark',
+        jsvm: 'JSVM',
         use_gamepad: '游戏手柄',
+        JobSystem: '任务调度系统',
+        none: '不启用',
+    },
+    encrypt: {
+        title: '加密 JS',
+        encrypt_key: 'JS 加密密钥',
+        compress_zip: 'Zip 压缩',
+        disable_tips: '调试模式下，JS 加密无效',
     },
     label: {
         harmonyosnext_ndk: 'HarmonyOS Next NDK',
@@ -72,6 +83,9 @@ module.exports = {
         apilevel_empty: '获取 apiLevel 失败，请点击旁边的 \'设置 HarmonyOS Next SDK\' 按钮到 \'偏好设置 -> 外部程序\' 中检查 \'HarmonyOS Next NDK/SDK\' 路径配置',
         use_aot_optimization: '开启该选项时，构建引擎将会保留类型信息，以进一步采用 AOT 优化。',
         google_play_billing: '勾选该项即可启用支付功能',
+        appABIs: '设置 HarmonyOS Next 需要支持的 ABI。',
+        JobSystemTaskFlow: 'TaskFlow 需要 C++17 支持。',
+        JobSystemOther: '将会自动启用 C++17 以支持编译。',
     },
     make: {
         label: '生成',

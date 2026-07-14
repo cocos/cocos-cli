@@ -43,6 +43,14 @@ module.exports = {
         ark: 'Ark',
         jsvm: 'JSVM',
         use_gamepad: 'Gamepad',
+        JobSystem: 'Job System',
+        none: 'None',
+    },
+    encrypt: {
+        title: 'Encrypt JS',
+        encrypt_key: 'JS Encryption Key',
+        compress_zip: 'Zip Compress',
+        disable_tips: 'In debug mode, the Encrypt JS is invalid',
     },
     label: {
         harmonyosnext_ndk: 'HarmonyOS Next NDK',
@@ -69,6 +77,9 @@ module.exports = {
         orientation_landscape_right: 'The screen is horizontal, the Home button is on the right side of the screen',
         use_aot_optimization: 'When enable this option, the engine build tool will keep the type information to take a step towards AOT optimization.',
         google_play_billing: 'Check this option to enable the billing feature',
+        appABIs: 'Set the ABI that HarmonyOS Next needs to support.',
+        JobSystemTaskFlow: 'TaskFlow needs C++17 support.',
+        JobSystemOther: 'C++17 will be enabled automatically to support compilation.',
     },
     make: {
         label: 'Make',
