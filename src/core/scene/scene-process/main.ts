@@ -30,7 +30,7 @@ async function startup() {
     }
 
     // 初始化 service-manager
-    serviceManager.initialize(serverURL ?? '');
+    serviceManager.init(serverURL ?? '');
 
     await Engine.init(enginePath);
     // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径

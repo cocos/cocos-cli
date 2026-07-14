@@ -1,6 +1,6 @@
 /* global window, document, System, globalThis, fetch, location */
 
-import { loadEngine } from '/static/web/engine-loader.js';
+import { loadEngine, composeServerURL } from '/static/web/engine-loader.js';
 
 /**
  * 浏览器游戏预览运行时引导。
@@ -9,7 +9,7 @@ import { loadEngine } from '/static/web/engine-loader.js';
  * 共用 engine-loader.js，区别在于这里以 PREVIEW 模式加载，并在结尾调用 cc.game.init(settings)
  * 运行启动场景，而不是加载场景编辑器 bundle。流程对齐编辑器 preview-app/src/main.ts。
  */
-export default async function gameBoot() {
+export default async function gameBoot(addr = {}) {
     const showError = (e) => {
         const el = document.getElementById('error');
         if (el) {
@@ -20,7 +20,8 @@ export default async function gameBoot() {
 
     try {
         // 以 PREVIEW 模式加载引擎（EDITOR=false / PREVIEW=true）
-        const env = await loadEngine({ preview: true });
+        const serverURL = composeServerURL(addr);
+        const env = await loadEngine(serverURL, { preview: true });
 
         const _originalSystem = System;
         const cc = await System.import('cc');

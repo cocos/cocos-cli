@@ -1,6 +1,18 @@
 /* global window, document, System, fetch */
 
 /**
+ * 由 ip / port 组装服务地址；未提供 ip 时回退到当前页面 origin。
+ * @param {{ ip?: string, port?: number|string, https?: boolean }} [addr]
+ * @returns {string}
+ */
+export function composeServerURL(addr = {}) {
+    const { ip, port, https } = addr;
+    if (!ip) return window.location.origin;
+    const protocol = https ? 'https' : 'http';
+    return port ? `${protocol}://${ip}:${port}` : `${protocol}://${ip}`;
+}
+
+/**
  * 引擎加载公共流程。
  *
  * 浏览器游戏预览（game-boot.js）与场景编辑器预览（scene-editor-boot.js）共用这一段
@@ -8,12 +20,13 @@
  * 预览以 PREVIEW 模式（EDITOR=false / PREVIEW=true）加载，场景编辑器以默认编辑器模式加载。
  * 加载完成后各调用方自行 System.import('cc') 跑游戏，或 import scene-bundle 启服务。
  *
+ * @param {string} serverURL 服务地址（http[s]://ip:port），由调用方（boot）传入。
  * @param {{ preview?: boolean }} [options] preview=true 时以 PREVIEW 模式加载引擎。
- * @returns {Promise<object>} 填充后的 window.WebEnv（含 serverURL / enginePath 等）。
+ * @returns {Promise<object>} 加载环境（含 serverURL / enginePath 等）。
  */
-export async function loadEngine(options = {}) {
-    const env = window.WebEnv;
-    const envRes = await fetch(`${env.serverURL}/scripting/web-env`);
+export async function loadEngine(serverURL, options = {}) {
+    const env = { serverURL };
+    const envRes = await fetch(`${serverURL}/scripting/web-env`);
     Object.assign(env, await envRes.json());
 
     await import('/static/web/polyfills.bundle.js');
@@ -41,7 +54,8 @@ export async function loadEngine(options = {}) {
         return fetch(url).then((response) => response.json()).then((json) => ({ json, url: url.href }));
     });
 
-    await import('/static/web/editor-stub-preload.js');
+    const { initEditorStub } = await import('/static/web/editor-stub-preload.js');
+    initEditorStub(serverURL);
     if (options.preview) {
         // 游戏预览必须以 PREVIEW 模式运行，而不是编辑器编辑模式。
         // editor-stub-preload 会设置 window.CC_EDITOR=true（场景编辑器预览需要），

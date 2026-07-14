@@ -8,11 +8,11 @@ const dtsFiles = [
     'assets.d.ts',
     'base.d.ts',
     'builder.d.ts',
-    'cli.d.ts',
     'configuration.d.ts',
     'engine.d.ts',
     'project.d.ts',
     'scripting.d.ts',
+    'service.d.ts',
 ];
 
 function stripComments(content: string): string {

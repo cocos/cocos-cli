@@ -1,7 +1,9 @@
-import { getServiceAll, IServiceEvents, ServiceEvents } from './core';
+import { getServiceAll, IServiceEvents, ServiceEvents, Service } from './core';
 import { InternalServiceEvents } from './core/internal-events';
 import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents } from '../../common';
 import { messageManager } from './message';
+import type { IServiceManager } from './interfaces';
+import type { GlobalEventManager } from './core/global-events';
 
 type AllEvents = IEditorEvents & INodeEvents & IComponentEvents & IScriptEvents & IAssetEvents & ISelectionEvents;
 
@@ -99,8 +101,30 @@ export class ServiceManager {
         this.registerAutoForwardEvents();
     }
 
+    /** Alias of {@link initialize}; the public entry used by callers/boot. */
+    init(serverUrl: string) {
+        this.initialize(serverUrl);
+    }
+
     getServerUrl() {
         return this.serverUrl;
+    }
+
+    /**
+     * The typed service map (Engine / Editor / Camera / Preview / ...).
+     * Both cli's own browser pages and external IDEs go through this instead of
+     * the former `window.cli.Scene` global.
+     */
+    getServices(): IServiceManager {
+        return Service;
+    }
+
+    /**
+     * The global service event bus where service events (e.g. `editor:open`)
+     * are actually emitted (see base-service emit -> ServiceEvents).
+     */
+    getServiceEvents(): GlobalEventManager {
+        return ServiceEvents;
     }
 
     /**

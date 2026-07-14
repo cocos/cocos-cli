@@ -18,10 +18,13 @@ export default {
                         return res.redirect(302, '/scene-editor/');
                     }
                     const { default: scripting } = await import('../../core/scripting');
-                    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+                    const host = req.get('host') || '';
+                    const colon = host.lastIndexOf(':');
                     const renderData = {
                         title: `Cocos Creator Preview - ${basename(scripting.projectPath)}`,
-                        serverURL: serverBaseUrl
+                        ip: colon >= 0 ? host.slice(0, colon) : host,
+                        port: colon >= 0 ? host.slice(colon + 1) : '',
+                        https: req.protocol === 'https',
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'scene-editor.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);
@@ -36,10 +39,13 @@ export default {
             async handler(req: Request, res: Response, next: NextFunction) {
                 try {
                     const { default: scripting } = await import('../../core/scripting');
-                    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+                    const host = req.get('host') || '';
+                    const colon = host.lastIndexOf(':');
                     const renderData = {
                         title: `Resource Preview - ${basename(scripting.projectPath)}`,
-                        serverURL: serverBaseUrl
+                        ip: colon >= 0 ? host.slice(0, colon) : host,
+                        port: colon >= 0 ? host.slice(colon + 1) : '',
+                        https: req.protocol === 'https',
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'preview.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);

@@ -1,6 +1,15 @@
-/* global window, cc, fetch */
+/* global cc, fetch */
 
-window.loadScene = async function (serverURL, urlOrUUID) {
+/**
+ * 加载并打开场景/预制体。
+ *
+ * @param {{ services: object, events: object, serverURL: string }} ctx boot() 返回的场景服务上下文
+ * @param {string} [urlOrUUID] 场景/预制体 uuid 或 db:// url；缺省时自动挑选第一个用户场景
+ */
+export async function loadScene(ctx, urlOrUUID) {
+    const { services, events, serverURL } = ctx;
+    const { Editor } = services;
+
     if (!urlOrUUID) {
         const sceneListPromise = await fetch(`${serverURL}/query-asset-infos/cc.SceneAsset`);
         const sceneList = await sceneListPromise.json();
@@ -20,8 +29,8 @@ window.loadScene = async function (serverURL, urlOrUUID) {
         return;
     }
 
-    cli.SceneEvents.on('editor:open', () => {
+    events.on('editor:open', () => {
         console.log('editor:open onCalled');
     });
-    await cli.Scene.Editor.open({ urlOrUUID });
-};
+    await Editor.open({ urlOrUUID });
+}

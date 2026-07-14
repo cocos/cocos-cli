@@ -167,12 +167,15 @@ export default {
             async handler(req: Request, res: Response, next: NextFunction) {
                 try {
                     const { default: scripting } = await import('../../core/scripting');
-                    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+                    const host = req.get('host') || '';
+                    const colon = host.lastIndexOf(':');
                     const scene = typeof req.query.scene === 'string' ? req.query.scene : '';
                     const sceneQuery = scene ? `?scene=${encodeURIComponent(scene)}` : '';
                     const renderData = {
                         title: `Cocos Creator - ${basename(scripting.projectPath)}`,
-                        serverURL: serverBaseUrl,
+                        ip: colon >= 0 ? host.slice(0, colon) : host,
+                        port: colon >= 0 ? host.slice(colon + 1) : '',
+                        https: req.protocol === 'https',
                         settingsJs: `/preview/settings.js${sceneQuery}`,
                         sceneQuery,
                     };

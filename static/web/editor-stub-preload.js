@@ -1,9 +1,16 @@
 /* global window */
 
-window.CC_EDITOR = true;
-const serverUrl = window.WebEnv.serverURL;
+/**
+ * Install the editor stub (window.Editor + fs/require mocks) used by the engine
+ * editor modules in the browser. The server address is passed in explicitly
+ * instead of read from a global.
+ * @param {string} serverURL
+ */
+export function initEditorStub(serverURL) {
+    window.CC_EDITOR = true;
+    const serverUrl = serverURL;
 
-window.Editor = {
+    window.Editor = {
     Message: {
         request: async function (target, method, uuid) {
             if (method === 'query-asset-info') {
@@ -104,4 +111,5 @@ if (typeof window.require === 'undefined') {
         throw new Error('Module ' + name + ' not found in editor-stub-preload require mock');
     };
     window.require.cache = {};
+    }
 }

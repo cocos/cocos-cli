@@ -99,14 +99,11 @@
         <span class="status" id="pvStatus">Initializing...</span>
     </div>
 
-    <script>
-        window.WebEnv = { serverURL: '<%= serverURL %>' };
-    </script>
     <script type="module">
         const { default: boot } = await import("/static/web/scene-editor-boot.js");
-        await boot();
+        const ctx = await boot({ ip: '<%= ip %>', port: '<%= port %>', https: <%= https %> });
         const { default: initPreviewApp } = await import("/static/web/preview-app.js");
-        initPreviewApp();
+        initPreviewApp(ctx);
     </script>
 </body>
 </html>

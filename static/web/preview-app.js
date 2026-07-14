@@ -1,17 +1,21 @@
 /* global window, document, cc */
 
+// Scene services, provided by boot() via initPreviewApp(ctx). Replaces the
+// former window.cli.Scene global.
+let services = null;
+
 function log(msg, level) {
     if (level === 'err') console.error('[Preview]', msg);
     else if (level === 'warn') console.warn('[Preview]', msg);
     else console.log('[Preview]', msg);
 }
 
+function repaint() {
+    try { services && services.Engine && services.Engine.repaintInEditMode(); } catch (e) { /* ignore */ }
+}
+
 function getPreviewService() {
-    try {
-        return window.cli && window.cli.Scene && window.cli.Scene.Preview;
-    } catch (e) {
-        return null;
-    }
+    return services && services.Preview;
 }
 
 function getActive() {
@@ -59,7 +63,7 @@ function switchPrimitive(type) {
     var active = getActive();
     if (active && active.switchPrimitive) {
         active.switchPrimitive(type);
-        window.cli.Scene.Engine.repaintInEditMode();
+        repaint();
         log('Switched primitive: ' + type);
     }
 }
@@ -70,7 +74,7 @@ function toggleLight() {
     var light = active.lightComp;
     var on = light ? !light.enabled : true;
     active.setLightEnable(on);
-    window.cli.Scene.Engine.repaintInEditMode();
+    repaint();
     log('Light: ' + (on ? 'ON' : 'OFF'));
 }
 
@@ -78,7 +82,7 @@ function toggle2D3D() {
     var active = getActive();
     if (active && active.viewToggle) {
         active.viewToggle();
-        window.cli.Scene.Engine.repaintInEditMode();
+        repaint();
         log('Toggled 2D/3D view');
     }
 }
@@ -96,7 +100,7 @@ function bindPreviewMouseEvents(canvas) {
         if (!active) return;
         active.onMouseMove(e);
         if (active._isMouseDown) {
-            window.cli.Scene.Engine.repaintInEditMode();
+            repaint();
         }
     });
 
@@ -112,7 +116,7 @@ function bindPreviewMouseEvents(canvas) {
         active.onMouseWheel({
             wheelDeltaY: -e.deltaY,
         });
-        window.cli.Scene.Engine.repaintInEditMode();
+        repaint();
     }, { passive: false });
 
     canvas.addEventListener('contextmenu', function(e) {
@@ -122,7 +126,8 @@ function bindPreviewMouseEvents(canvas) {
 
 // ── Initialization ──
 
-export default function initPreviewApp() {
+export default function initPreviewApp(ctx) {
+    services = ctx && ctx.services;
     var status = document.getElementById('pvStatus');
 
     var preview = getPreviewService();
@@ -133,7 +138,7 @@ export default function initPreviewApp() {
     }
 
     try {
-        window.cli.Scene.Engine.resume();
+        services && services.Engine && services.Engine.resume();
     } catch (e) {
         log('Engine resume failed: ' + e.message, 'warn');
     }

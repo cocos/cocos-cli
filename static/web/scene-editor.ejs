@@ -164,23 +164,23 @@
         </div>
     </div>
 
-    <button id="panelToggle" onclick="togglePanel()">Panel</button>
+    <button id="panelToggle">Panel</button>
 
     <div id="testPanel">
         <!-- Scene -->
         <div class="panel-section" id="sec-scene">
-            <h3 onclick="toggleSection('sec-scene')">Scene</h3>
+            <h3 id="sec-scene-h">Scene</h3>
             <div class="section-body">
                 <div class="row">
                     <label>UUID/URL</label>
                     <input type="text" id="sceneInput" placeholder="db://assets/... or UUID" style="flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 4px;font-size:11px;">
                 </div>
                 <div class="row">
-                    <button class="btn btn-primary" id="btnLoad" onclick="doLoadScene()">Load Scene</button>
+                    <button class="btn btn-primary" id="btnLoad">Load Scene</button>
                     <span id="sceneStatus" class="info-text">Not loaded</span>
                 </div>
                 <div class="row">
-                    <button class="btn btn-primary" id="btnPreview" onclick="openBrowserPreview()">▶ Preview (Browser)</button>
+                    <button class="btn btn-primary" id="btnPreview">▶ Preview (Browser)</button>
                     <span class="info-text">opens /</span>
                 </div>
                 <div class="row">
@@ -188,9 +188,9 @@
                     <input type="text" id="scriptNameInput" placeholder="TestComponent" value="TestComponent" style="flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 4px;font-size:11px;">
                 </div>
                 <div class="row">
-                    <button class="btn" onclick="doCreateScript()">Create Script</button>
-                    <button class="btn" onclick="doDeleteScript()">Delete Script</button>
-                    <button class="btn" onclick="doCheckMenus()">Check Menus</button>
+                    <button class="btn" id="btnCreateScript">Create Script</button>
+                    <button class="btn" id="btnDeleteScript">Delete Script</button>
+                    <button class="btn" id="btnCheckMenus">Check Menus</button>
                     <span id="scriptStatus" class="info-text">-</span>
                 </div>
             </div>
@@ -198,18 +198,18 @@
 
         <!-- Debug View：调用 Engine.changeDebugOption 控制渲染调试视图（单一通道 / 组合光照项 / 纯光照 / CSM 染色） -->
         <div class="panel-section" id="sec-debugview">
-            <h3 onclick="toggleSection('sec-debugview')">Debug View</h3>
+            <h3 id="sec-debugview-h">Debug View</h3>
             <div class="section-body">
                 <div class="row">
                     <label>Lighting w/ albedo</label>
-                    <input type="checkbox" id="dbgLWA" checked onchange="safeCall('Engine','changeDebugOption','LIGHTING_WITH_BASE_COLOR',this.checked)">
+                    <input type="checkbox" id="dbgLWA" checked>
                 </div>
                 <div class="row">
                     <label>CSM coloration</label>
-                    <input type="checkbox" id="dbgCSM" onchange="safeCall('Engine','changeDebugOption','CSM_LAYER_COLORATION',this.checked)">
+                    <input type="checkbox" id="dbgCSM">
                 </div>
                 <div class="row">
-                    <button class="btn btn-primary" onclick="resetDebugView()">Reset (Shaded)</button>
+                    <button class="btn btn-primary" id="btnResetDebugView">Reset (Shaded)</button>
                 </div>
                 <!-- Single: 单选(radio)，同一时刻只看一个通道，按类别分组 -->
                 <div class="row" style="align-items:flex-start;">
@@ -219,8 +219,8 @@
                 <!-- Composite: 复选(checkbox)，可多选叠加光照项，按类别分组 -->
                 <div class="row">
                     <label>Composite</label>
-                    <button class="btn" onclick="setAllComposite(true)">All ON</button>
-                    <button class="btn" onclick="setAllComposite(false)">All OFF</button>
+                    <button class="btn" id="btnCompAllOn">All ON</button>
+                    <button class="btn" id="btnCompAllOff">All OFF</button>
                 </div>
                 <div class="row" style="align-items:flex-start;">
                     <label>Items</label>
@@ -232,55 +232,54 @@
 
         <!-- Camera -->
         <div class="panel-section" id="sec-camera">
-            <h3 onclick="toggleSection('sec-camera')">Camera</h3>
+            <h3 id="sec-camera-h">Camera</h3>
             <div class="section-body">
                 <div class="row">
                     <label>Zoom</label>
-                    <button class="btn" onclick="safeCall('Camera','zoomReset')">Zoom Reset</button>
+                    <button class="btn" id="btnZoomReset">Zoom Reset</button>
                 </div>
                 <div class="row">
                     <label>Grid</label>
-                    <input type="checkbox" id="chkGrid" checked onchange="safeCall('Camera','setGridVisible', this.checked)">
+                    <input type="checkbox" id="chkGrid" checked>
                     <span class="info-text">Show grid</span>
                 </div>
                 <div class="row">
                     <label>Projection</label>
-                    <button class="btn" onclick="safeCall('Camera','changeProjection'); refreshState()">Toggle</button>
+                    <button class="btn" id="btnToggleProjection">Toggle</button>
                     <span id="projLabel" class="info-text">perspective</span>
                 </div>
                 <div class="row">
                     <label>FOV</label>
-                    <input type="range" id="fovSlider" min="10" max="120" value="45"
-                           oninput="safeCall('Camera','setCameraProperty',{fov:Number(this.value)}); document.getElementById('fovVal').textContent=this.value">
+                    <input type="range" id="fovSlider" min="10" max="120" value="45">
                     <span id="fovVal" class="info-text">45</span>
                 </div>
                 <div class="row">
                     <label>Mode</label>
-                    <button class="btn" id="btn2D" onclick="set2D(true)">2D</button>
-                    <button class="btn active" id="btn3D" onclick="set2D(false)">3D</button>
+                    <button class="btn" id="btn2D">2D</button>
+                    <button class="btn active" id="btn3D">3D</button>
                 </div>
                 <div class="row">
-                    <button class="btn" onclick="safeCall('Camera','resetCameraProperty'); refreshState()">Reset Camera</button>
+                    <button class="btn" id="btnResetCamera">Reset Camera</button>
                 </div>
                 <div class="row">
                     <label>Align</label>
-                    <button class="btn" onclick="alignToSelection()">View→Node</button>
-                    <button class="btn" onclick="alignSelectionToView()">Node→View</button>
+                    <button class="btn" id="btnAlignViewToNode">View→Node</button>
+                    <button class="btn" id="btnAlignNodeToView">Node→View</button>
                 </div>
                 <div class="row">
                     <label>View Axis</label>
-                    <button class="btn" onclick="rotateCam(0,0,-1,true)" title="Front (+Z → -Z)">Front</button>
-                    <button class="btn" onclick="rotateCam(0,0,1,true)" title="Back (-Z → +Z)">Back</button>
+                    <button class="btn" id="btnViewFront" title="Front (+Z → -Z)">Front</button>
+                    <button class="btn" id="btnViewBack" title="Back (-Z → +Z)">Back</button>
                 </div>
                 <div class="row">
                     <label></label>
-                    <button class="btn" onclick="rotateCam(-1,0,0,true)" title="Left (+X → -X)">Left</button>
-                    <button class="btn" onclick="rotateCam(1,0,0,true)" title="Right (-X → +X)">Right</button>
+                    <button class="btn" id="btnViewLeft" title="Left (+X → -X)">Left</button>
+                    <button class="btn" id="btnViewRight" title="Right (-X → +X)">Right</button>
                 </div>
                 <div class="row">
                     <label></label>
-                    <button class="btn" onclick="rotateCam(0,-1,0,true)" title="Top (+Y → -Y)">Top</button>
-                    <button class="btn" onclick="rotateCam(0,1,0,true)" title="Bottom (-Y → +Y)">Bottom</button>
+                    <button class="btn" id="btnViewTop" title="Top (+Y → -Y)">Top</button>
+                    <button class="btn" id="btnViewBottom" title="Bottom (-Y → +Y)">Bottom</button>
                 </div>
                 <div class="row">
                     <label>Cam Pos</label>
@@ -288,40 +287,40 @@
                 </div>
                 <div class="row">
                     <label>Focus</label>
-                    <button class="btn" onclick="focusSelected()">Focus Selected</button>
+                    <button class="btn" id="btnFocusSelected">Focus Selected</button>
                 </div>
             </div>
         </div>
 
         <!-- Gizmo -->
         <div class="panel-section" id="sec-gizmo">
-            <h3 onclick="toggleSection('sec-gizmo')">Gizmo</h3>
+            <h3 id="sec-gizmo-h">Gizmo</h3>
             <div class="section-body">
                 <div class="row">
                     <label>Tool</label>
-                    <button class="btn active" id="tool-position" onclick="setTool('position')">Pos</button>
-                    <button class="btn" id="tool-rotation" onclick="setTool('rotation')">Rot</button>
-                    <button class="btn" id="tool-scale" onclick="setTool('scale')">Scl</button>
-                    <button class="btn" id="tool-rect" onclick="setTool('rect')">Rect</button>
-                    <button class="btn" id="tool-view" onclick="setTool('view')">View</button>
+                    <button class="btn active" id="tool-position">Pos</button>
+                    <button class="btn" id="tool-rotation">Rot</button>
+                    <button class="btn" id="tool-scale">Scl</button>
+                    <button class="btn" id="tool-rect">Rect</button>
+                    <button class="btn" id="tool-view">View</button>
                 </div>
                 <div class="row">
                     <label>Coord</label>
-                    <button class="btn active" id="coord-local" onclick="setCoord('local')">Local</button>
-                    <button class="btn" id="coord-global" onclick="setCoord('global')">Global</button>
+                    <button class="btn active" id="coord-local">Local</button>
+                    <button class="btn" id="coord-global">Global</button>
                 </div>
                 <div class="row">
                     <label>Pivot</label>
-                    <button class="btn active" id="pivot-pivot" onclick="setPivot('pivot')">Pivot</button>
-                    <button class="btn" id="pivot-center" onclick="setPivot('center')">Center</button>
+                    <button class="btn active" id="pivot-pivot">Pivot</button>
+                    <button class="btn" id="pivot-center">Center</button>
                 </div>
                 <div class="row">
                     <label>Lock Tool</label>
-                    <input type="checkbox" id="chkLock" onchange="safeCall('Gizmo','lockGizmoTool', this.checked)">
+                    <input type="checkbox" id="chkLock">
                 </div>
                 <div class="row">
                     <label>Icons</label>
-                    <input type="checkbox" id="chkIcons" checked onchange="safeCall('Gizmo','setIconVisible', this.checked)">
+                    <input type="checkbox" id="chkIcons" checked>
                     <span class="info-text">Show gizmo icons</span>
                 </div>
                 <div class="row">
@@ -333,17 +332,17 @@
 
         <!-- Selection -->
         <div class="panel-section" id="sec-selection">
-            <h3 onclick="toggleSection('sec-selection')">Selection</h3>
+            <h3 id="sec-selection-h">Selection</h3>
             <div class="section-body">
                 <div class="row">
                     <label>Node</label>
                     <select id="nodeList"><option value="">-- load scene first --</option></select>
                 </div>
                 <div class="row">
-                    <button class="btn" onclick="doSelect()">Select</button>
-                    <button class="btn" onclick="doUnselect()">Unselect</button>
-                    <button class="btn" onclick="safeCall('Selection','clear'); refreshState()">Clear</button>
-                    <button class="btn" onclick="refreshNodeList()">Refresh</button>
+                    <button class="btn" id="btnSelect">Select</button>
+                    <button class="btn" id="btnUnselect">Unselect</button>
+                    <button class="btn" id="btnClearSel">Clear</button>
+                    <button class="btn" id="btnRefreshNodes">Refresh</button>
                 </div>
                 <div class="row">
                     <label>Selected</label>
@@ -352,20 +351,19 @@
                 <div class="row">
                     <label>Path</label>
                     <input type="text" id="focusPathInput" placeholder="e.g. Canvas/Node"
-                           style="flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 4px;font-size:11px;"
-                           onkeydown="if(event.key==='Enter')focusByPath()">
-                    <button class="btn" onclick="focusByPath()" title="Select node by path and focus camera">Select + Focus</button>
+                           style="flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 4px;font-size:11px;">
+                    <button class="btn" id="btnSelectFocus" title="Select node by path and focus camera">Select + Focus</button>
                 </div>
             </div>
         </div>
 
         <!-- SceneView -->
         <div class="panel-section" id="sec-sceneview">
-            <h3 onclick="toggleSection('sec-sceneview')">SceneView</h3>
+            <h3 id="sec-sceneview-h">SceneView</h3>
             <div class="section-body">
                 <div class="row">
                     <label>Scene Light</label>
-                    <input type="checkbox" id="chkLight" checked onchange="safeCall('SceneView','setSceneLightOn', this.checked)">
+                    <input type="checkbox" id="chkLight" checked>
                     <span class="info-text">Use scene lights</span>
                 </div>
             </div>
@@ -373,16 +371,16 @@
 
         <!-- Rect Test -->
         <div class="panel-section" id="sec-rect-test">
-            <h3 onclick="toggleSection('sec-rect-test')">Rect Test</h3>
+            <h3 id="sec-rect-test-h">Rect Test</h3>
             <div class="section-body">
                 <div class="row">
                     <label>Multi-Select</label>
-                    <button class="btn" onclick="doMultiSelect()">Add to Sel</button>
-                    <button class="btn" onclick="doSelectAll2D()">All 2D</button>
+                    <button class="btn" id="btnMultiSelect">Add to Sel</button>
+                    <button class="btn" id="btnSelectAll2D">All 2D</button>
                 </div>
                 <div class="row">
                     <label>Rect Tool</label>
-                    <button class="btn" onclick="setTool('rect')">Switch to Rect</button>
+                    <button class="btn" id="btnRectSwitch">Switch to Rect</button>
                 </div>
                 <div class="row">
                     <label>Selected</label>
@@ -397,567 +395,18 @@
 
         <!-- Log -->
         <div class="panel-section" id="sec-log">
-            <h3 onclick="toggleSection('sec-log')">Log</h3>
+            <h3 id="sec-log-h">Log</h3>
             <div class="section-body">
                 <div id="log"></div>
-                <button class="btn" onclick="document.getElementById('log').innerHTML=''">Clear</button>
+                <button class="btn" id="btnClearLog">Clear</button>
             </div>
         </div>
     </div>
 
-    <script>
-        window.WebEnv = {
-            serverURL: '<%= serverURL %>'
-        };
-    </script>
+
     <script type="module">
-        const { default: boot } = await import("/static/web/scene-editor-boot.js");
-        await boot();
-    </script>
-    <script>
-        /* ── Helpers ── */
-        function log(msg, cls) {
-            const el = document.getElementById('log');
-            const d = document.createElement('div');
-            d.textContent = new Date().toLocaleTimeString() + ' ' + msg;
-            if (cls) d.className = cls;
-            el.appendChild(d);
-            el.scrollTop = el.scrollHeight;
-        }
-
-        function safeCall(svc, method, ...args) {
-            try {
-                if (!window.cli.Scene) { log('cli not ready', 'status-warn'); return; }
-                const s = window.cli.Scene[svc];
-                if (!s) { log(svc + ' not registered', 'status-warn'); return; }
-                const result = s[method](...args);
-                log(svc + '.' + method + '(' + args.map(a => JSON.stringify(a)).join(',') + ')', 'status-ok');
-                try { window.cli.Scene.Engine.repaintInEditMode(); } catch (_) {}
-                return result;
-            } catch (e) {
-                log(svc + '.' + method + ' error: ' + e.message, 'status-err');
-            }
-        }
-
-        function togglePanel() {
-            document.getElementById('testPanel').classList.toggle('collapsed');
-        }
-
-        function toggleSection(id) {
-            document.getElementById(id).classList.toggle('folded');
-        }
-
-        // 打开浏览器预览（根路径 /，CC_PREVIEW 跑游戏）。默认预览“当前打开的场景”，
-        // 取不到时退回场景输入框里的 UUID/URL，再退回项目默认启动场景。
-        function openBrowserPreview() {
-            let scene = '';
-            try {
-                const ed = window.cli && window.cli.Scene && window.cli.Scene.Editor;
-                const uuid = ed && ed.getCurrentEditorUuid && ed.getCurrentEditorUuid();
-                if (uuid) scene = uuid;
-            } catch (e) { /* ignore */ }
-            if (!scene) {
-                const input = document.getElementById('sceneInput');
-                if (input && input.value.trim()) scene = input.value.trim();
-            }
-            const url = scene ? '/?scene=' + encodeURIComponent(scene) : '/';
-            window.open(url, '_blank');
-        }
-
-        /* ── Scene ── */
-        async function doLoadScene() {
-            const btn = document.getElementById('btnLoad');
-            const status = document.getElementById('sceneStatus');
-            const sceneInput = document.getElementById('sceneInput').value.trim();
-            btn.disabled = true;
-            status.textContent = 'Loading...';
-            status.className = 'info-text status-warn';
-            try {
-                await import("/static/web/load-scene.js");
-                await window.loadScene(WebEnv.serverURL, sceneInput || undefined);
-                status.textContent = 'Loaded';
-                status.className = 'info-text status-ok';
-                log('Scene loaded' + (sceneInput ? ': ' + sceneInput : ''), 'status-ok');
-                setTimeout(() => { initPanel(); }, 500);
-            } catch (e) {
-                status.textContent = 'Failed';
-                status.className = 'info-text status-err';
-                log('Load failed: ' + e.message, 'status-err');
-            }
-            btn.disabled = false;
-        }
-        window.doLoadScene = doLoadScene;
-
-        /* ── Script Test ── */
-        async function doCreateScript() {
-            var name = document.getElementById('scriptNameInput').value.trim() || 'TestComponent';
-            var status = document.getElementById('scriptStatus');
-            status.textContent = 'Creating...';
-            try {
-                var url = WebEnv.serverURL + '/create-asset';
-                var body = {
-                    dbURL: 'db://assets/' + name + '.ts',
-                    content: [
-                        "import { _decorator, Component } from 'cc';",
-                        "const { ccclass, menu } = _decorator;",
-                        "",
-                        "@ccclass('" + name + "')",
-                        "@menu('Custom/" + name + "')",
-                        "export class " + name + " extends Component {",
-                        "    start() {}",
-                        "    update(dt: number) {}",
-                        "}"
-                    ].join('\n')
-                };
-                var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                var data = await res.json();
-                status.textContent = res.ok ? 'Created' : 'Failed';
-                status.className = 'info-text ' + (res.ok ? 'status-ok' : 'status-err');
-                log('Create script: ' + name + ' -> ' + JSON.stringify(data), res.ok ? 'status-ok' : 'status-err');
-                if (res.ok) {
-                    status.textContent = 'Reloading...';
-                    setTimeout(function() {
-                        cli.Scene.Script.investigatePackerDriver().then(function() {
-                            setTimeout(function() { doCheckMenus(); }, 2000);
-                        });
-                    }, 3000);
-                }
-            } catch(e) {
-                status.textContent = 'Error';
-                status.className = 'info-text status-err';
-                log('Create script error: ' + e.message, 'status-err');
-            }
-        }
-        window.doCreateScript = doCreateScript;
-
-        async function doDeleteScript() {
-            var name = document.getElementById('scriptNameInput').value.trim() || 'TestComponent';
-            var status = document.getElementById('scriptStatus');
-            status.textContent = 'Deleting...';
-            try {
-                var url = WebEnv.serverURL + '/delete-asset';
-                var body = { dbURL: 'db://assets/' + name + '.ts' };
-                var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                var data = await res.json();
-                status.textContent = res.ok ? 'Deleted' : 'Failed';
-                status.className = 'info-text ' + (res.ok ? 'status-ok' : 'status-err');
-                log('Delete script: ' + name + ' -> ' + JSON.stringify(data), res.ok ? 'status-ok' : 'status-err');
-                if (res.ok) {
-                    status.textContent = 'Reloading...';
-                    setTimeout(function() {
-                        cli.Scene.Script.investigatePackerDriver().then(function() {
-                            setTimeout(function() { doCheckMenus(); }, 2000);
-                        });
-                    }, 3000);
-                }
-            } catch(e) {
-                status.textContent = 'Error';
-                status.className = 'info-text status-err';
-                log('Delete script error: ' + e.message, 'status-err');
-            }
-        }
-        window.doDeleteScript = doDeleteScript;
-
-        function doCheckMenus() {
-            var menus = EditorExtends.Component.getMenus();
-            var custom = menus.filter(function(m) { return !m.menuPath.startsWith('hidden:'); });
-            var status = document.getElementById('scriptStatus');
-            status.textContent = 'Total: ' + menus.length + ', Custom: ' + custom.length;
-            status.className = 'info-text status-ok';
-            log('Menus total: ' + menus.length + ', custom: ' + custom.length, 'status-ok');
-        }
-        window.doCheckMenus = doCheckMenus;
-
-        /* ── Camera ── */
-        function set2D(is2D) {
-            try {
-                if (window.cli.Scene && window.cli.Scene.Camera) {
-                    window.cli.Scene.Camera.is2D = is2D;
-                    log('Camera.is2D = ' + is2D, 'status-ok');
-                }
-            } catch(e) { log('set2D error: ' + e.message, 'status-err'); }
-            document.getElementById('btn2D').classList.toggle('active', is2D);
-            document.getElementById('btn3D').classList.toggle('active', !is2D);
-        }
-        window.set2D = set2D;
-
-        function alignToSelection() {
-            const uuids = getSelectedUuids();
-            if (uuids.length === 0) { log('No selection for align', 'status-warn'); return; }
-            safeCall('Camera', 'alignSceneViewToNode', uuids);
-        }
-        window.alignToSelection = alignToSelection;
-
-        function alignSelectionToView() {
-            const uuids = getSelectedUuids();
-            if (uuids.length === 0) { log('No selection for align', 'status-warn'); return; }
-            safeCall('Camera', 'alignNodeToSceneView', uuids);
-        }
-        window.alignSelectionToView = alignSelectionToView;
-
-        function rotateCam(x, y, z, byDist) {
-            try {
-                if (!window.cli.Scene || !window.cli.Scene.Camera) { log('Camera not ready', 'status-warn'); return; }
-                const dir = new cc.Vec3(x, y, z);
-                window.cli.Scene.Camera.rotateCameraToDir(dir, byDist);
-                log('rotateCameraToDir(' + x + ',' + y + ',' + z + ')', 'status-ok');
-            } catch(e) { log('rotateCam error: ' + e.message, 'status-err'); }
-        }
-        window.rotateCam = rotateCam;
-
-        function focusSelected() {
-            // Selection.query() 返回的是节点 path，而 Camera.focus 内部用 EditorExtends.Node.getNode(uuid)
-            // 按 uuid 查节点，直接把 path 传进去会查不到、聚焦不生效。这里先把 path 转成 uuid。
-            const paths = getSelectedUuids();
-            if (paths.length === 0) { log('No selection to focus', 'status-warn'); return; }
-            const EE = (window.cc && window.cc.EditorExtends) || window.EditorExtends;
-            const uuids = paths.map(function (p) {
-                try { const n = EE && EE.Node && EE.Node.getNodeByPath(p); return n ? n.uuid : null; } catch (e) { return null; }
-            }).filter(Boolean);
-            if (uuids.length === 0) { log('Cannot resolve selection path to uuid', 'status-warn'); return; }
-            safeCall('Camera', 'focus', uuids);
-        }
-        window.focusSelected = focusSelected;
-
-        // 输入节点路径 → 按路径选中该节点 + 相机聚焦到该节点
-        // Selection.select 接受 path；Camera.focus 需要 uuid，所以先把 path 转成 uuid。
-        function focusByPath() {
-            const path = (document.getElementById('focusPathInput').value || '').trim();
-            if (!path) { log('No path entered', 'status-warn'); return; }
-            const EE = (window.cc && window.cc.EditorExtends) || window.EditorExtends;
-            let uuid = null;
-            try { const n = EE && EE.Node && EE.Node.getNodeByPath(path); uuid = n ? n.uuid : null; } catch (e) {}
-            if (!uuid) { log('Node not found by path: ' + path, 'status-warn'); return; }
-            safeCall('Selection', 'select', path);
-            safeCall('Camera', 'focus', [uuid]);
-            log('Focus by path: ' + path);
-            setTimeout(refreshState, 100);
-        }
-        window.focusByPath = focusByPath;
-
-        /* ── Gizmo ── */
-        const tools = ['position', 'rotation', 'scale', 'rect', 'view'];
-
-        function setTool(name) {
-            safeCall('Gizmo', 'changeTool', name);
-            tools.forEach(t => {
-                const el = document.getElementById('tool-' + t);
-                if (el) el.classList.toggle('active', t === name);
-            });
-            document.getElementById('toolName').textContent = name;
-        }
-        window.setTool = setTool;
-
-        function setCoord(coord) {
-            safeCall('Gizmo', 'setCoordinate', coord);
-            document.getElementById('coord-local').classList.toggle('active', coord === 'local');
-            document.getElementById('coord-global').classList.toggle('active', coord === 'global');
-        }
-        window.setCoord = setCoord;
-
-        function setPivot(pivot) {
-            safeCall('Gizmo', 'setPivot', pivot);
-            document.getElementById('pivot-pivot').classList.toggle('active', pivot === 'pivot');
-            document.getElementById('pivot-center').classList.toggle('active', pivot === 'center');
-        }
-        window.setPivot = setPivot;
-
-        /* ── Selection ── */
-        function getSelectedUuids() {
-            try {
-                if (window.cli.Scene && window.cli.Scene.Selection) {
-                    return window.cli.Scene.Selection.query() || [];
-                }
-            } catch(e) {}
-            return [];
-        }
-
-        function doSelect() {
-            const sel = document.getElementById('nodeList');
-            const uuid = sel.value;
-            if (!uuid) { log('No node selected in dropdown', 'status-warn'); return; }
-            safeCall('Selection', 'select', uuid);
-            setTimeout(refreshState, 100);
-        }
-        window.doSelect = doSelect;
-
-        function doUnselect() {
-            const sel = document.getElementById('nodeList');
-            const uuid = sel.value;
-            if (!uuid) { log('No node selected in dropdown', 'status-warn'); return; }
-            safeCall('Selection', 'unselect', uuid);
-            setTimeout(refreshState, 100);
-        }
-        window.doUnselect = doUnselect;
-
-        async function refreshNodeList() {
-            const sel = document.getElementById('nodeList');
-            sel.innerHTML = '<option value="">loading...</option>';
-            try {
-                const root = await window.cli.Scene.Node.query({
-                    path: '/', queryChildren: true, queryComponent: false
-                });
-                sel.innerHTML = '';
-                if (root && root.children) {
-                    flattenNodes(root.children, '', sel);
-                }
-                if (sel.options.length === 0) {
-                    sel.innerHTML = '<option value="">-- no nodes --</option>';
-                }
-                log('Node list refreshed (' + sel.options.length + ' nodes)', 'status-ok');
-            } catch(e) {
-                sel.innerHTML = '<option value="">-- error --</option>';
-                log('refreshNodeList error: ' + e.message, 'status-err');
-            }
-        }
-        window.refreshNodeList = refreshNodeList;
-
-        function flattenNodes(nodes, prefix, sel) {
-            if (!nodes) return;
-            for (const n of nodes) {
-                const name = prefix + (n.name || n.nodeId || '?');
-                const opt = document.createElement('option');
-                opt.value = n.nodeId || n.uuid || '';
-                opt.textContent = name;
-                sel.appendChild(opt);
-                if (n.children && n.children.length > 0) {
-                    flattenNodes(n.children, name + '/', sel);
-                }
-            }
-        }
-
-        /* ── State Refresh ── */
-        function refreshState() {
-            try {
-                if (!window.cli.Scene) return;
-
-                // Camera
-                try {
-                    const fov = window.cli.Scene.Camera.getCameraFov();
-                    document.getElementById('fovSlider').value = fov;
-                    document.getElementById('fovVal').textContent = Math.round(fov);
-                    const grid = window.cli.Scene.Camera.isGridVisible();
-                    document.getElementById('chkGrid').checked = grid;
-                    const is2D = window.cli.Scene.Camera.is2D;
-                    document.getElementById('btn2D').classList.toggle('active', is2D);
-                    document.getElementById('btn3D').classList.toggle('active', !is2D);
-                    const cam = window.cli.Scene.Camera.camera;
-                    if (cam && cam.node) {
-                        const p = cam.node.worldPosition;
-                        document.getElementById('camPos').textContent =
-                            'x:' + p.x.toFixed(1) + ' y:' + p.y.toFixed(1) + ' z:' + p.z.toFixed(1);
-                    }
-                } catch(e) {}
-
-                // Gizmo
-                try {
-                    const tool = window.cli.Scene.Gizmo.transformToolName;
-                    document.getElementById('toolName').textContent = tool || '?';
-                    tools.forEach(t => {
-                        const el = document.getElementById('tool-' + t);
-                        if (el) el.classList.toggle('active', t === tool);
-                    });
-                } catch(e) {}
-
-                // Selection
-                try {
-                    const sel = window.cli.Scene.Selection.query();
-                    const info = document.getElementById('selInfo');
-                    if (sel && sel.length > 0) {
-                        info.textContent = sel.length + ': ' + sel.map(u => u.substring(0, 8)).join(', ');
-                    } else {
-                        info.textContent = 'none';
-                    }
-                } catch(e) {}
-
-                // SceneView
-                try {
-                    const lightOn = window.cli.Scene.SceneView.querySceneLightOn();
-                    document.getElementById('chkLight').checked = lightOn;
-                } catch(e) {}
-
-            } catch(e) {
-                // Services not ready
-            }
-        }
-        window.refreshState = refreshState;
-
-        /* ── Rect Test ── */
-        function doMultiSelect() {
-            var sel = document.getElementById('nodeList');
-            var uuid = sel.value;
-            if (!uuid) { log('No node selected in dropdown', 'status-warn'); return; }
-            try {
-                if (window.cli.Scene && window.cli.Scene.Selection) {
-                    window.cli.Scene.Selection.select(uuid);
-                    log('Added to selection: ' + uuid.substring(0, 8), 'status-ok');
-                    setTimeout(function() { refreshState(); refreshRectInfo(); }, 100);
-                }
-            } catch(e) { log('doMultiSelect error: ' + e.message, 'status-err'); }
-        }
-        window.doMultiSelect = doMultiSelect;
-
-        function doSelectAll2D() {
-            try {
-                if (!window.cli.Scene || !window.cli.Scene.Selection) return;
-                window.cli.Scene.Selection.clear();
-                var sel = document.getElementById('nodeList');
-                var uuids = [];
-                for (var i = 0; i < sel.options.length; i++) {
-                    if (sel.options[i].value) uuids.push(sel.options[i].value);
-                }
-                for (var j = 0; j < uuids.length; j++) {
-                    window.cli.Scene.Selection.select(uuids[j]);
-                }
-                log('Selected all nodes: ' + uuids.length, 'status-ok');
-                setTimeout(function() { refreshState(); refreshRectInfo(); }, 100);
-            } catch(e) { log('doSelectAll2D error: ' + e.message, 'status-err'); }
-        }
-        window.doSelectAll2D = doSelectAll2D;
-
-        function refreshRectInfo() {
-            try {
-                var selInfo = document.getElementById('rectSelInfo');
-                var boundsInfo = document.getElementById('rectBoundsInfo');
-                if (!window.cli.Scene || !window.cli.Scene.Selection) {
-                    selInfo.textContent = '0 nodes';
-                    boundsInfo.textContent = '-';
-                    return;
-                }
-                var uuids = window.cli.Scene.Selection.query() || [];
-                selInfo.textContent = uuids.length + ' node' + (uuids.length !== 1 ? 's' : '');
-                if (uuids.length > 1) {
-                    selInfo.textContent += ' (multi)';
-                }
-
-                var nodes = [];
-                var EditorExtends = (cc && cc.EditorExtends) || window.EditorExtends;
-                if (EditorExtends && EditorExtends.Node) {
-                    for (var k = 0; k < uuids.length; k++) {
-                        var n = EditorExtends.Node.getNode(uuids[k]);
-                        if (n) nodes.push(n);
-                    }
-                }
-                if (nodes.length > 1) {
-                    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                    for (var m = 0; m < nodes.length; m++) {
-                        var wp = nodes[m].getWorldPosition();
-                        if (wp.x < minX) minX = wp.x;
-                        if (wp.x > maxX) maxX = wp.x;
-                        if (wp.y < minY) minY = wp.y;
-                        if (wp.y > maxY) maxY = wp.y;
-                    }
-                    boundsInfo.textContent = 'W:' + (maxX - minX).toFixed(0) + ' H:' + (maxY - minY).toFixed(0);
-                } else if (nodes.length === 1) {
-                    var uit = nodes[0].getComponent('cc.UITransform');
-                    if (uit) {
-                        boundsInfo.textContent = 'W:' + uit.contentSize.width.toFixed(0) + ' H:' + uit.contentSize.height.toFixed(0);
-                    } else {
-                        boundsInfo.textContent = 'no UITransform';
-                    }
-                } else {
-                    boundsInfo.textContent = '-';
-                }
-            } catch(e) {
-                document.getElementById('rectBoundsInfo').textContent = 'error';
-            }
-        }
-        window.refreshRectInfo = refreshRectInfo;
-
-        /* ── Init Panel ── */
-        async function initPanel() {
-            refreshState();
-            refreshRectInfo();
-            await refreshNodeList();
-            // Auto-refresh every 2s
-            setInterval(refreshState, 2000);
-            setInterval(refreshRectInfo, 2000);
-        }
-        window.initPanel = initPanel;
-
-        // Expose all handlers globally
-        window.safeCall = safeCall;
-        // Debug View：构建单一通道(radio)/组合光照项(checkbox)分组控件，调用 Engine.changeDebugOption
-        (function initDebugViewTest() {
-            // Single 调试模式：单选(radio)，同一时刻只看一个通道；value = DebugViewSingleType 数值。
-            // 分组与 cocos-editor debug-view.ts 一致。
-            var SINGLE_GROUPS = [
-                { title: '', items: [[0, 'Disable all 禁用 (NONE)']] },
-                { title: 'Model Info 模型信息', items: [
-                    [1, 'Vertex colors 顶点色'], [2, 'World normal 世界法线'], [3, 'World tangent 世界切线'],
-                    [4, 'World position 世界坐标'], [5, 'Mirrored normal 镜像法线'], [6, 'Front face 正面着色'],
-                    [7, 'UV0'], [8, 'UV1'], [9, 'Lightmap UV 光照图UV'], [10, 'Proj depth Z 投影深度Z'], [11, 'Linear depth W 线性深度W'] ] },
-                { title: 'Material Info 材质信息', items: [
-                    [12, 'Pixel normal 世界像素法线'], [13, 'Pixel tangent 世界像素切线'], [14, 'Pixel binormal 世界像素副法线'],
-                    [15, 'Base color 固有色'], [16, 'Diffuse color 漫反射颜色'], [17, 'Specular color 镜面反射颜色'],
-                    [18, 'Opacity 透明度'], [19, 'Metallic 金属度'], [20, 'Roughness 粗糙度'], [21, 'Specular intensity 镜面反射强度'], [22, 'IOR 折射率'] ] },
-                { title: 'Lighting Info 光照信息', items: [
-                    [23, 'Direct diffuse 直接光漫反射'], [24, 'Direct specular 直接光镜面反射'], [25, 'Direct lighting 直接光'],
-                    [26, 'Ambient diffuse 环境光漫反射'], [27, 'Ambient specular 环境光镜面反射'], [28, 'Ambient lighting 环境光'],
-                    [29, 'Emissive 自发光'], [30, 'Light map 光照图'], [31, 'Shadows 阴影'], [32, 'AO 环境光遮蔽'] ] },
-                { title: 'Adv Lighting 高级光照信息', items: [
-                    [33, 'Fresnel 菲涅尔'], [34, 'Direct transmit diffuse'], [35, 'Direct transmit specular'],
-                    [36, 'Ambient transmit diffuse'], [37, 'Ambient transmit specular'], [38, 'Transmit lighting'],
-                    [39, 'Direct TRT'], [40, 'Ambient TRT'], [41, 'TRT lighting'] ] },
-                { title: 'Misc 杂项信息', items: [[42, 'Fog factor 雾因子']] },
-            ];
-            // Composite 组合项：复选(checkbox)，可多选叠加；key = DebugViewCompositeType 数值。
-            var COMPOSITE_GROUPS = [
-                { title: 'Lighting 光照', items: [
-                    [0, 'Direct diffuse 直接光漫反射'], [1, 'Direct specular 直接光镜面反射'], [2, 'Ambient diffuse 环境光漫反射'],
-                    [3, 'Ambient specular 环境光镜面反射'], [4, 'Emissive 自发光'], [5, 'Light map 光照图'], [6, 'Shadows 阴影'], [7, 'AO 环境光遮蔽'] ] },
-                { title: 'Misc 杂项信息', items: [[8, 'Normal map'], [9, 'Fog factor 雾因子'], [10, 'Tone mapping'], [11, 'Gamma correction']] },
-                { title: 'Adv Lighting 高级光照信息', items: [[12, 'Fresnel 菲涅尔'], [13, 'Transmit diffuse'], [14, 'Transmit specular'], [15, 'TRT'], [16, 'TT']] },
-            ];
-
-            function groupHeader(title) {
-                if (!title) { return ''; }
-                return '<div style="color:#8a8a8a;font-size:10px;margin:4px 0 1px;border-bottom:1px solid #3a3a3a;">' + title + '</div>';
-            }
-            function renderGroups(container, groups, buildItem) {
-                if (!container) { return; }
-                var html = '';
-                groups.forEach(function (g) {
-                    html += groupHeader(g.title);
-                    g.items.forEach(function (it) { html += buildItem(it[0], it[1]); });
-                });
-                container.innerHTML = html;
-            }
-
-            var singleList = document.getElementById('dbgSingleList');
-            renderGroups(singleList, SINGLE_GROUPS, function (value, label) {
-                return '<label style="display:flex;align-items:center;gap:4px;font-size:11px;">' +
-                    '<input type="radio" name="dbgSingle" value="' + value + '"' + (value === 0 ? ' checked' : '') +
-                    ' onchange="safeCall(\'Engine\',\'changeDebugOption\',\'single\',' + value + ')">' + value + ' ' + label + '</label>';
-            });
-
-            var compList = document.getElementById('dbgCompositeList');
-            renderGroups(compList, COMPOSITE_GROUPS, function (key, label) {
-                return '<label style="display:flex;align-items:center;gap:4px;font-size:11px;">' +
-                    '<input type="checkbox" checked data-comp="' + key + '"' +
-                    ' onchange="safeCall(\'Engine\',\'changeDebugOption\',\'composite\',{key:' + key + ',value:this.checked})">' + key + ' ' + label + '</label>';
-            });
-
-            window.setAllComposite = function (on) {
-                safeCall('Engine', 'changeDebugOption', 'composite', { key: 10000, value: on });
-                if (compList) { compList.querySelectorAll('input[data-comp]').forEach(function (c) { c.checked = on; }); }
-            };
-
-            window.resetDebugView = function () {
-                safeCall('Engine', 'changeDebugOption', 'single', 0);
-                safeCall('Engine', 'changeDebugOption', 'composite', { key: 10000, value: true });
-                safeCall('Engine', 'changeDebugOption', 'LIGHTING_WITH_BASE_COLOR', true);
-                safeCall('Engine', 'changeDebugOption', 'CSM_LAYER_COLORATION', false);
-                if (singleList) { var r = singleList.querySelector('input[value="0"]'); if (r) { r.checked = true; } }
-                var lwa = document.getElementById('dbgLWA'); if (lwa) { lwa.checked = true; }
-                var csm = document.getElementById('dbgCSM'); if (csm) { csm.checked = false; }
-                if (compList) { compList.querySelectorAll('input[data-comp]').forEach(function (c) { c.checked = true; }); }
-            };
-        })();
-        // Debug View END
-        window.togglePanel = togglePanel;
-        window.toggleSection = toggleSection;
-        window.openBrowserPreview = openBrowserPreview;
+        const { default: initPage } = await import('/static/web/scene-editor-page.js');
+        await initPage({ ip: '<%= ip %>', port: '<%= port %>', https: <%= https %> });
     </script>
 </body>
 </html>
