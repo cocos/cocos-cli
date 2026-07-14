@@ -5,32 +5,7 @@ import builderConfig from '../../share/builder-config';
 import { getBuildUrlPath, registerBuildPath } from '../../build.middleware';
 import { exec } from 'child_process';
 
-interface VSCodeApi {
-    Uri?: {
-        parse(value: string): unknown;
-    };
-    env?: {
-        openExternal(uri: unknown): Promise<boolean> | boolean;
-    };
-}
-
-function normalizePreviewUrl(url: string, useLocalHost?: boolean) {
-    if (!useLocalHost) {
-        return url;
-    }
-    try {
-        const urlObj = new URL(url);
-        if (urlObj.protocol === 'http:') {
-            urlObj.hostname = 'localhost';
-            return urlObj.toString();
-        }
-    } catch (error) {
-        console.warn(`Failed to normalize preview url: ${url}`);
-    }
-    return url;
-}
-
-export async function getPreviewUrl(dest: string, platform?: string, useLocalHost?: boolean) {
+export async function getPreviewUrl(dest: string, platform?: string) {
     const rawPath = utils.Path.resolveToRaw(dest);
     if (!existsSync(rawPath)) {
         throw new Error(`Build path not found: ${dest}`);
@@ -38,18 +13,18 @@ export async function getPreviewUrl(dest: string, platform?: string, useLocalHos
     const serverService = (await import('../../../../server/server')).serverService;
     const buildKey = getBuildUrlPath(rawPath);
     if (buildKey) {
-        return normalizePreviewUrl(`${serverService.url}/build/${buildKey}/index.html`, useLocalHost);
+        return `${serverService.url}/build/${buildKey}/index.html`;
     }
     
     if (rawPath.startsWith(builderConfig.projectRoot) && platform) {
         const registerName = basename(rawPath);
         registerBuildPath(platform, registerName, rawPath);
-        return normalizePreviewUrl(`${serverService.url}/build/${platform}/${registerName}/index.html`, useLocalHost);
+        return `${serverService.url}/build/${registerName}/index.html`;
     }
     
     const buildRoot = join(builderConfig.projectRoot, 'build');
     const relativePath = relative(buildRoot, rawPath);
-    return normalizePreviewUrl(serverService.url + '/build/' + relativePath + '/index.html', useLocalHost);
+    return serverService.url + '/build/' + relativePath + '/index.html';
 }
 
 /**
@@ -57,37 +32,6 @@ export async function getPreviewUrl(dest: string, platform?: string, useLocalHos
  * @param url 要打开的 URL
  * @param completedCallback 浏览器打开完成后的回调函数
  */
-async function openExternalWithVSCode(url: string): Promise<boolean> {
-    let vscode: VSCodeApi | undefined;
-    try {
-        vscode = require('vscode') as VSCodeApi;
-    } catch {
-        return false;
-    }
-
-    if (!vscode?.Uri?.parse || !vscode.env?.openExternal) {
-        return false;
-    }
-
-    const opened = await Promise.resolve(vscode.env.openExternal(vscode.Uri.parse(url)));
-    if (!opened) {
-        console.warn(`VS Code failed to open url: ${url}`);
-    }
-    return opened;
-}
-
-async function openUrlWithVSCodeFallback(url: string): Promise<void> {
-    console.log(`正在打开 URL: ${url}`);
-    if (await openExternalWithVSCode(url)) {
-        console.log(`正在通过 VS Code 打开: ${url}`);
-        return;
-    }
-
-    await new Promise<void>((resolve) => {
-        openBrowser(url, resolve);
-    });
-}
-
 function openBrowser(url: string, completedCallback?: () => void): void {
     const currentPlatform = process.platform;
 
@@ -146,14 +90,17 @@ function openBrowser(url: string, completedCallback?: () => void): void {
  * @returns Promise，在浏览器打开完成时 resolve
  */
 export function openUrlAsync(url: string): Promise<void> {
-    return openUrlWithVSCodeFallback(url);
+    console.log(`正在打开 URL: ${url}`);
+    return new Promise<void>((resolve) => {
+        openBrowser(url, resolve);
+    });
 }
 
-export async function run(platform: string, dest: string, useLocalHost?: boolean) {
+export async function run(platform: string, dest: string) {
     // if (GlobalConfig.mode === 'simple') {
     //     throw new Error('simple mode not support run in platform ' + platform);
     // }
-    const url = await getPreviewUrl(dest, platform, useLocalHost);
+    const url = await getPreviewUrl(dest, platform);
     // 打开浏览器
     try {
         await openUrlAsync(url);

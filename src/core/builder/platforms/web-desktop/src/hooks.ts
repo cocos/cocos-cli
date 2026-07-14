@@ -93,14 +93,14 @@ export async function onAfterBuild(this: IBuilder, options:ITaskOption, result: 
         result.settings.plugins.jsList[i] = url.split('/').map(encodeURIComponent).join('/');
     });
     outputFileSync(result.paths.settings, JSON.stringify(result.settings, null, options.debug ? 4 : 0));
-    const previewUrl = await commonUtils.getPreviewUrl(result.paths.dir, options.platform, options.packages['web-desktop'].useWebGPU);
+    const previewUrl = await commonUtils.getPreviewUrl(result.paths.dir, options.platform);
     this.buildExitRes.custom = {
         previewUrl,
     };
 }
 
 export async function run(this: IBuildStageTask, root: string, options: ITaskOption) {
-    const previewUrl = await commonUtils.run('web-desktop', root, options.packages['web-desktop'].useWebGPU);
+    const previewUrl = await commonUtils.run('web-desktop', root);
     this.buildExitRes.custom = {
         previewUrl,
     };
