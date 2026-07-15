@@ -1,8 +1,8 @@
 'use strict';
 
 import { IBuildResult, IMacInternalBuildOptions } from './type';
-import { BuilderCache, IBuilder } from '../../@types/protected';
-import * as nativeCommonHook from '../native-common/hooks';
+import { BuilderCache, IBuilder } from '../../../@types/protected';
+import * as nativeCommonHook from '../../native-common/hooks';
 import { executableNameOrDefault } from './utils';
 
 export const throwError = true;
