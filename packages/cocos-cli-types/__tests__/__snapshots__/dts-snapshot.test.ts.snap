@@ -6109,6 +6109,8 @@ export declare interface IClipboardState {
 export declare interface ICloseOptions {
     urlOrUUID?: string;
     save?: boolean;
+    allowDeletedSourceFallback?: boolean;
+    expectedCurrentUuid?: string;
 }
 export declare interface IComponent extends IProperty {
     value: {
