@@ -361,6 +361,13 @@ describe('ServiceEvents 事件发射集成测试', () => {
             editorService = new EditorService();
         });
 
+        beforeEach(() => {
+            editorService.editorMap.clear();
+            editorService.currentEditorUuid = null;
+            mockRpcRequest.mockReset();
+            mockRpcRequest.mockResolvedValue({});
+        });
+
         it('open 应 emit editor:open 到 ServiceEvents', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('editor:open', listener);
@@ -392,16 +399,115 @@ describe('ServiceEvents 事件发射集成测试', () => {
             expect(listener).toHaveBeenCalledTimes(1);
         });
 
+        it('close 在源资源已删除时仍可丢弃当前编辑器会话', async () => {
+            const uuid = 'deleted-source-uuid';
+            const mockEditor = { close: jest.fn().mockResolvedValue(true) };
+            editorService.editorMap.set(uuid, mockEditor);
+            editorService.currentEditorUuid = uuid;
+
+            mockRpcRequest.mockResolvedValueOnce(null);
+
+            await editorService.close({
+                urlOrUUID: 'db://assets/deleted.scene',
+                save: false,
+                allowDeletedSourceFallback: true,
+                expectedCurrentUuid: uuid,
+            });
+
+            expect(mockEditor.close).toHaveBeenCalledWith({ save: false });
+            expect(editorService.currentEditorUuid).toBeNull();
+            expect(editorService.editorMap.get(uuid)).toBeUndefined();
+        });
+
+        it('save 到新资源应使用当前编辑器内容并更新当前资源标识', async () => {
+            const { SceneEditor } = require('../../scene-process/service/editors');
+            const sourceUuid = 'source-uuid';
+            const target = { uuid: 'target-uuid', url: 'db://assets/recovered.scene', type: 'scene' };
+            const mockEditor = Object.assign(Object.create(SceneEditor.prototype), {
+                saveTo: jest.fn().mockResolvedValue(target),
+            });
+            editorService.editorMap.set(sourceUuid, mockEditor);
+            editorService.currentEditorUuid = sourceUuid;
+
+            mockRpcRequest.mockResolvedValueOnce(target);
+
+            await editorService.save({ urlOrUUID: target.url });
+
+            expect(mockEditor.saveTo).toHaveBeenCalledWith(target);
+            expect(editorService.currentEditorUuid).toBe(target.uuid);
+            expect(editorService.editorMap.get(sourceUuid)).toBeUndefined();
+            expect(editorService.editorMap.get(target.uuid)).toBe(mockEditor);
+        });
+
+        it('deleted-source fallback 不会关闭 Save As 后已重绑的目标编辑器', async () => {
+            const sourceUuid = 'source-uuid';
+            const targetUuid = 'target-uuid';
+            const mockEditor = { close: jest.fn().mockResolvedValue(true) };
+            editorService.editorMap.set(targetUuid, mockEditor);
+            editorService.currentEditorUuid = targetUuid;
+            mockRpcRequest.mockResolvedValueOnce(null);
+
+            await expect(editorService.close({
+                urlOrUUID: 'db://assets/deleted.scene',
+                save: false,
+                allowDeletedSourceFallback: true,
+                expectedCurrentUuid: sourceUuid,
+            })).rejects.toThrow('请求资源失败');
+
+            expect(mockEditor.close).not.toHaveBeenCalled();
+            expect(editorService.currentEditorUuid).toBe(targetUuid);
+            expect(editorService.editorMap.get(targetUuid)).toBe(mockEditor);
+        });
+
+        it('save 到不同类型的资源时保持当前编辑器状态不变', async () => {
+            const { SceneEditor } = require('../../scene-process/service/editors');
+            const sourceUuid = 'source-uuid';
+            const target = { uuid: 'target-prefab-uuid', url: 'db://assets/recovered.prefab', type: 'prefab' };
+            const mockEditor = Object.assign(Object.create(SceneEditor.prototype), {
+                saveTo: jest.fn(),
+            });
+            editorService.editorMap.set(sourceUuid, mockEditor);
+            editorService.currentEditorUuid = sourceUuid;
+            mockRpcRequest.mockResolvedValueOnce(target);
+
+            await expect(editorService.save({ urlOrUUID: target.url })).rejects.toThrow('不能将 scene 保存到 prefab 资源');
+
+            expect(mockEditor.saveTo).not.toHaveBeenCalled();
+            expect(editorService.currentEditorUuid).toBe(sourceUuid);
+            expect(editorService.editorMap.get(sourceUuid)).toBe(mockEditor);
+        });
+
+        it('saveTo 返回非目标 UUID 时保持当前编辑器映射不变', async () => {
+            const { SceneEditor } = require('../../scene-process/service/editors');
+            const sourceUuid = 'source-uuid';
+            const target = { uuid: 'target-uuid', url: 'db://assets/recovered.scene', type: 'scene' };
+            const mockEditor = Object.assign(Object.create(SceneEditor.prototype), {
+                saveTo: jest.fn().mockResolvedValue({ ...target, uuid: 'unexpected-uuid' }),
+            });
+            editorService.editorMap.set(sourceUuid, mockEditor);
+            editorService.currentEditorUuid = sourceUuid;
+            mockRpcRequest.mockResolvedValueOnce(target);
+
+            await expect(editorService.save({ urlOrUUID: target.url })).rejects.toThrow('保存目标资源标识不一致');
+
+            expect(editorService.currentEditorUuid).toBe(sourceUuid);
+            expect(editorService.editorMap.get(sourceUuid)).toBe(mockEditor);
+            expect(editorService.editorMap.get(target.uuid)).toBeUndefined();
+        });
+
         it('save 应 emit editor:save 到 ServiceEvents', async () => {
+            const { PrefabEditor } = require('../../scene-process/service/editors');
             const listener = jest.fn();
             globalEventEmitter.on('editor:save', listener);
 
-            const mockEditor = { save: jest.fn().mockResolvedValue({ uuid: 'save-uuid' }) };
+            const mockEditor = Object.assign(Object.create(PrefabEditor.prototype), {
+                save: jest.fn().mockResolvedValue({ uuid: 'save-uuid' }),
+            });
             const uuid = 'save-uuid';
             editorService.editorMap.set(uuid, mockEditor);
             editorService.currentEditorUuid = uuid;
 
-            mockRpcRequest.mockResolvedValueOnce({ uuid, url: 'test.scene' });
+            mockRpcRequest.mockResolvedValueOnce({ uuid, url: 'test.prefab', type: 'prefab' });
 
             await editorService.save({ urlOrUUID: uuid });
 

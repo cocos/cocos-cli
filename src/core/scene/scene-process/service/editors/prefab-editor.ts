@@ -62,10 +62,24 @@ export class PrefabEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('没有打开预制体');
         }
-        // 序列化预制体数据
+        return this.saveToAsset(this.entity.identifier.assetUuid);
+    }
+
+    async saveTo(asset: IAssetInfo): Promise<IAssetInfo> {
+        return this.saveToAsset(asset.uuid);
+    }
+
+    private async saveToAsset(assetUuid: string): Promise<IAssetInfo> {
+        if (!this.entity) {
+            throw new Error('没有打开预制体');
+        }
         const serializedData = editorPrefabUtils.serialize(this.entity.instance);
-        // 保存到磁盘
-        return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
+        const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
+        if (!saved || saved.uuid !== assetUuid) {
+            throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
+        }
+        this.entity.identifier = this.getIdentifier(saved);
+        return saved;
     }
 
     protected async _doReload(): Promise<INode> {

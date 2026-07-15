@@ -1,4 +1,4 @@
-import { Scene, SceneAsset, Component, Node } from 'cc';
+import { Scene, SceneAsset } from 'cc';
 import { type IBaseIdentifier, ICreateOptions, IEditorTarget, IScene, INodeDumpOptions } from '../../../common';
 import { Rpc } from '../../rpc';
 import { sceneUtils } from '../scene/utils';
@@ -58,8 +58,24 @@ export class SceneEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('[save] 没有打开场景');
         }
+        return this.saveToAsset(this.entity.identifier.assetUuid);
+    }
+
+    async saveTo(asset: IAssetInfo): Promise<IAssetInfo> {
+        return this.saveToAsset(asset.uuid);
+    }
+
+    private async saveToAsset(assetUuid: string): Promise<IAssetInfo> {
+        if (!this.entity) {
+            throw new Error('[save] 没有打开场景');
+        }
         const serializedData = sceneUtils.serialize(this.entity.instance as Scene);
-        return await Rpc.getInstance().request('assetManager', 'saveAsset', [this.entity.identifier.assetUuid, serializedData]);
+        const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
+        if (!saved || saved.uuid !== assetUuid) {
+            throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
+        }
+        this.entity.identifier = this.getIdentifier(saved);
+        return saved;
     }
 
     protected async _doReload(): Promise<IScene> {

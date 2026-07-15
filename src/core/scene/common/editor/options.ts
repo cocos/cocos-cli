@@ -42,4 +42,8 @@ export interface ICloseOptions {
     urlOrUUID?: string;
     /** Whether to save before closing. Defaults to true for backward compatibility. */
     save?: boolean;
+    /** Allows closing the current editor when the requested source asset was deleted. */
+    allowDeletedSourceFallback?: boolean;
+    /** The source editor UUID expected before applying a deleted-source fallback. */
+    expectedCurrentUuid?: string;
 }
