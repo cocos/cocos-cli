@@ -1,7 +1,7 @@
 'use strict';
 
-import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { commonOptions, baseNativeCommonOptions } from '../native-common';
+import { IPlatformBuildPluginConfig } from '../../../@types/protected';
+import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
@@ -61,6 +61,12 @@ const config: IPlatformBuildPluginConfig = {
             type: 'enum',
             items: ['x64', 'x86'],
             default: 'x64',
+        },
+        vsData: {
+            label: 'i18n:windows.options.cmakeGenerators',
+            type: 'string',
+            default: '',
+            hidden: true,
         },
     },
     hooks: './hooks',

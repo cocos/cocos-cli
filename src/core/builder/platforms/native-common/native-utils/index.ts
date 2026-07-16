@@ -1,7 +1,7 @@
 'use strict';
 
-import { remove } from 'fs-extra';
-import { join } from 'path';
+import { pathExists, remove } from 'fs-extra';
+import { dirname, join } from 'path';
 import { GlobalPaths } from '../../../../../global';
 import { IBuildTaskOption } from '../../../@types';
 /**
@@ -17,12 +17,31 @@ export async function clearDest(projectPath: string) {
 }
 
 export async function getCmakePath(): Promise<string> {
-    const internalCmakeRoot = join(GlobalPaths.staticDir, 'tools/cmake');
-    if (process.platform === 'win32') {
-        return join(internalCmakeRoot, 'bin/cmake.exe');
-    } else {
-        return join(internalCmakeRoot, 'bin/cmake');
+    const executable = process.platform === 'win32' ? 'cmake.exe' : 'cmake';
+    const defaultCmakePath = join(GlobalPaths.staticDir, 'tools/cmake', 'bin', executable);
+    if (await pathExists(defaultCmakePath)) {
+        return defaultCmakePath;
     }
+
+    const candidates = [process.cwd(), __dirname];
+    for (const start of candidates) {
+        let current = start;
+        while (true) {
+            const fallback = join(current, 'static', 'tools', 'cmake', 'bin', executable);
+            if (await pathExists(fallback)) {
+                console.warn(`Fallback cmake path from ${defaultCmakePath} to ${fallback}`);
+                return fallback;
+            }
+
+            const parent = dirname(current);
+            if (parent === current) {
+                break;
+            }
+            current = parent;
+        }
+    }
+
+    return defaultCmakePath;
 }
 
 // 支持中文的平台如果有修改，需要同步到 configs

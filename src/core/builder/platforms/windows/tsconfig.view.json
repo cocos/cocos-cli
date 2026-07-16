@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+        "target": "es2022",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "jsx": "react-jsx",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "noEmit": true,
+        "lib": [
+            "esnext",
+            "dom"
+        ],
+        "typeRoots": [
+            "../types",
+            "../../../../../node_modules/@types"
+        ],
+        "types": [
+            "node"
+        ]
+    },
+    "include": [
+        "src/view",
+        "../types"
+    ]
+}

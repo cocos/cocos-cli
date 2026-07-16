@@ -1,0 +1,34 @@
+{
+    "name": "windows",
+    "version": "1.0.0",
+    "author": "Cocos",
+    "description": "Windows platform plugin",
+    "license": "ISC",
+    "type": "commonjs",
+    "contributes": {
+        "builder": {
+            "register": true,
+            "platform": "windows",
+            "config": "./src/config",
+            "hooks": "./src/hooks"
+        },
+        "pinkBuilder": {
+            "platform": "windows",
+            "customView": "./dist/view/build-config.js",
+            "customExtensionHost": "./dist/view/build-config-host.js",
+            "customFields": [
+                "vsData",
+                "encrypted",
+                "xxteaKey",
+                "compressZip",
+                "JobSystem"
+            ],
+            "card": "./static/card.png",
+            "icon": "./static/icon.png"
+        }
+    },
+    "scripts": {
+        "build-view": "node scripts/build-view.js",
+        "watch-view": "node scripts/build-view.js --watch"
+    }
+}
