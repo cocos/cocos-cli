@@ -52,6 +52,11 @@ export async function run(platform: Platform, dest: string) {
     return Launcher.run(platform, dest);
 }
 
+export async function getPreviewUrl(dest: string, platform?: string): Promise<string> {
+    const commonUtils = await import('../../core/builder/platforms/web-common/utils');
+    return commonUtils.getPreviewUrl(dest, platform);
+}
+
 export async function upload(platform: Platform, dest: string, accessToken?: string) {
     const { default: Launcher } = await import('../../core/launcher');
     return Launcher.upload(platform, dest, accessToken);
