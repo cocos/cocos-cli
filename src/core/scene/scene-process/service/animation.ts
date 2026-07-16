@@ -609,6 +609,15 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return saved;
     }
 
+
+    preserveCurrentClipAssetForChange(uuid: string): boolean {
+        if (!this._session || this._session.clipUuid !== uuid || !this._animationStates.get(uuid)) {
+            return false;
+        }
+        this._rebindCurrentAnimationStateClip(uuid);
+        return true;
+    }
+
     onAssetDeleted(uuid: string): void {
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
@@ -740,6 +749,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
         }
+
+        const currentState = this._animationStates.get(uuid);
+        if (currentState) {
+            this._rebindCurrentAnimationStateClip(uuid);
+            return;
+        }
+
         if (this._shouldSuppressSelfSavedClipRefresh(uuid)) {
             return;
         }
@@ -763,10 +779,21 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._broadcastClipChanged('asset-refresh');
     }
 
+    private _rebindCurrentAnimationStateClip(uuid: string): void {
+        const currentState = this._animationStates.get(uuid);
+        if (!currentState) {
+            return;
+        }
+        const rootNode = this._getSessionRootNode();
+        const animComp = queryAnimationComponent(rootNode);
+        if (animComp instanceof Animation) {
+            rebindAnimationComponentClip(animComp, currentState.clip);
+        }
+    }
+
     private _disposeSession(): void {
         this._playback.dispose();
         this._animationStates.clear();
-        this._selfSavedClipRefreshes.clear();
         this._session = null;
         this._curEditTime = 0;
         this._playState = 'stop';

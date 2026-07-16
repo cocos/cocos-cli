@@ -14,6 +14,7 @@ import { IMiddlewareContribution } from './interfaces';
 
 interface ServerOptions {
     port: number,// 端口
+    host?: string,// 绑定/对外地址(ip 或 host);省略则绑定所有网卡
     useHttps: boolean;// 是否启动 HTTPS
     keyFile?: string; // HTTPS 私钥文件路径
     certFile?: string;// HTTPS 证书文件路径
@@ -24,6 +25,7 @@ export class ServerService {
     private app: Express = express();
     private server: HTTPServer | HTTPSServer | undefined;
     private _port = 9527;
+    private _host = 'localhost';// 对外 url 使用的 host/ip
     private useHttps = false;
     private httpsConfig = {
         key: '',// HTTPS 私钥文件路径
@@ -34,20 +36,27 @@ export class ServerService {
     public get url() {
         if (this.server && this.server.listening) {
             const httpRoot = this.useHttps ? 'https' : 'http';
-            return `${httpRoot}://localhost:${this._port}`;
+            return `${httpRoot}://${this._host}:${this._port}`;
         }
         return '服务器未启动';
+    }
+
+    public get host() {
+        return this._host;
     }
 
     public get port() {
         return this._port;
     }
 
-    async start(port?: number) {
+    async start(port?: number, host?: string) {
         console.log('🚀 开始启动服务器...');
         this.init();
+        if (host) {
+            this._host = host;
+        }
         const preferredPort = await getAvailablePort(port || this._port);
-        const { server, port: actualPort } = await this.createServerWithRetry(preferredPort);
+        const { server, port: actualPort } = await this.createServerWithRetry(preferredPort, host);
         this._port = actualPort;
         this.server = server;
         socketService.startup(this.server);
@@ -78,7 +87,7 @@ export class ServerService {
      * @returns Promise<http.Server | https.Server>
      */
     async createServer(options: ServerOptions, requestHandler: Express): Promise<HTTPServer | HTTPSServer> {
-        const { port, useHttps, keyFile, certFile, caFile } = options;
+        const { port, host, useHttps, keyFile, certFile, caFile } = options;
 
         let server: HTTPServer | HTTPSServer;
 
@@ -119,14 +128,20 @@ export class ServerService {
                 reject(err);
             });
 
-            server.listen(port);
+            // host 省略时 listen(port, undefined) 等价于绑定所有网卡(保持原行为)。
+            if (host) {
+                server.listen(port, host);
+            } else {
+                server.listen(port);
+            }
         });
     }
 
-    private async createServerWithRetry(port: number): Promise<{ server: HTTPServer | HTTPSServer; port: number }> {
+    private async createServerWithRetry(port: number, host?: string): Promise<{ server: HTTPServer | HTTPSServer; port: number }> {
         try {
             const server = await this.createServer({
                 port,
+                host,
                 useHttps: this.useHttps,
                 keyFile: this.httpsConfig.key,
                 certFile: this.httpsConfig.cert,
@@ -135,7 +150,7 @@ export class ServerService {
             return { server, port };
         } catch (err: any) {
             if (err.code === 'EADDRINUSE') {
-                return this.createServerWithRetry(port + 1);
+                return this.createServerWithRetry(port + 1, host);
             }
             throw err;
         }

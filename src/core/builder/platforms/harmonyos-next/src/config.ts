@@ -1,14 +1,14 @@
 'use strict';
 
-import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { commonOptions, baseNativeCommonOptions } from '../native-common';
+import { IPlatformBuildPluginConfig } from '../../../@types/protected';
+import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
     displayName: 'HarmonyOS Next',
     platformType: 'OPEN_HARMONY', // 历史原因，理论上应该使用HarmonyOS Next
     doc: 'editor/publish/publish-openharmony.html',
-    hooks: './hooks',
+    hooks: './src/hooks',
     commonOptions: {
         polyfills: {
             hidden: true,
@@ -25,47 +25,13 @@ const config: IPlatformBuildPluginConfig = {
             },
             message: 'Invalid package name specified',
         },
+        appABIs: {
+            func: (value: unknown) => Array.isArray(value) && value.length > 0,
+            message: 'i18n:harmonyos-next.tips.at_least_one',
+        },
     },
     options: {
         ...baseNativeCommonOptions,
-        packageName: {
-            label: 'i18n:harmonyos-next.options.package_name',
-            type: 'string',
-            default: 'com.cocos.test',
-            verifyRules: ['required', 'packageName'],
-        },
-        orientation: {
-            label: 'i18n:harmonyos-next.options.orientation',
-            type: 'object',
-            properties: {
-                portrait: {
-                    label: 'i18n:harmonyos-next.options.portrait',
-                    type: 'boolean',
-                    default: false,
-                },
-                landscapeRight: {
-                    label: 'i18n:harmonyos-next.options.landscape_right',
-                    type: 'boolean',
-                    default: true,
-                },
-                landscapeLeft: {
-                    label: 'i18n:harmonyos-next.options.landscape_left',
-                    type: 'boolean',
-                    default: true,
-                },
-            },
-            default: {
-                portrait: false,
-                upsideDown: false,
-                landscapeRight: true,
-                landscapeLeft: true,
-            },
-        },
-        appABIs: {
-            type: 'array',
-            default: ['arm64-v8a'],
-            items: { type: 'string' },
-        },
         renderBackEnd: {
             label: 'i18n:harmonyos-next.options.render_back_end',
             description: 'i18n:harmonyos-next.options.render_back_end',
@@ -94,9 +60,70 @@ const config: IPlatformBuildPluginConfig = {
             },
         },
         jsEngine: {
-            default: 'JSVM',  // 可以选择 V8 或者 ARK
             label: 'i18n:harmonyos-next.options.js_engine',
+            type: 'enum',
+            default: 'JSVM',
+            items: [
+                {
+                    label: 'i18n:harmonyos-next.options.jsvm',
+                    value: 'JSVM',
+                },
+                {
+                    label: 'i18n:harmonyos-next.options.ark',
+                    value: 'ARK',
+                },
+                {
+                    label: 'i18n:harmonyos-next.options.v8',
+                    value: 'V8',
+                },
+            ],
+        },
+        // 因为游戏手柄适配时，OH的版本要求要大于20，因此默认是关闭的
+        // 后期成熟的话，可以完全移除这个选项，默认应该是开启的。
+        useGamepad: {
+            label: 'i18n:harmonyos-next.options.use_gamepad',
+            type: 'boolean',
+            default: false,
+        },
+        packageName: {
+            label: 'i18n:harmonyos-next.options.package_name',
             type: 'string',
+            default: 'com.cocos.test',
+            verifyRules: ['required', 'packageName'],
+        },
+        appABIs: {
+            label: 'i18n:harmonyos-next.options.appABIs',
+            type: 'array',
+            default: ['arm64-v8a'],
+            items: { type: 'string' },
+            verifyRules: ['appABIs'],
+            hidden: true,
+        },
+        orientation: {
+            label: 'i18n:harmonyos-next.options.orientation',
+            type: 'object',
+            properties: {
+                portrait: {
+                    label: 'i18n:harmonyos-next.options.portrait',
+                    type: 'boolean',
+                    default: false,
+                },
+                landscapeRight: {
+                    label: 'i18n:harmonyos-next.options.landscape_right',
+                    type: 'boolean',
+                    default: true,
+                },
+                landscapeLeft: {
+                    label: 'i18n:harmonyos-next.options.landscape_left',
+                    type: 'boolean',
+                    default: true,
+                },
+            },
+            default: {
+                portrait: false,
+                landscapeRight: true,
+                landscapeLeft: true,
+            },
         },
         deviceTypes: {
             default: {
@@ -141,13 +168,6 @@ const config: IPlatformBuildPluginConfig = {
                     default: false,
                 },
             }
-        },
-        // 因为游戏手柄适配时，OH的版本要求要大于20，因此默认是关闭的
-        // 后期成熟的话，可以完全移除这个选项，默认应该是开启的。
-        useGamepad: {
-            label: 'i18n:harmonyos-next.options.use_gamepad',
-            type: 'boolean',
-            default: false,
         }
         // API11 has changed and is temporarily hidden.
         // useAotOptimization: {

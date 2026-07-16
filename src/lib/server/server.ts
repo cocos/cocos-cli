@@ -11,16 +11,18 @@ let isRunning = false;
 /**
  * Initialize and start the Express HTTP server.
  *
- * @param port Optional port number; auto-selected if omitted
- * @returns The server base URL (e.g. http://localhost:9527)
+ * @param port  Preferred port number. Auto-selected if omitted (retried on conflict).
+ * @param host  Bind address / base-URL host. Defaults to localhost.
+ * @returns The server base URL (e.g. http://localhost:9527), reflecting the
+ *          actual bound port and the configured host.
  */
-export async function start(port?: number): Promise<string> {
+export async function start(port?: number, host?: string): Promise<string> {
     if (isRunning && serverUrl) {
         return serverUrl;
     }
 
     const { serverService } = await import('../../server/server');
-    await serverService.start(port);
+    await serverService.start(port, host);
 
     serverUrl = serverService.url;
     isRunning = true;

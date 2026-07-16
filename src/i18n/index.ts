@@ -44,9 +44,10 @@ function loadLanguageResources(language: string): Record<string, any> {
     return resources;
 }
 
-// 纯 Node.js 初始化 
+// 纯 Node.js 初始化
 i18n.init({
     // 基础配置
+    // 默认英文;目标语言由宿主 (如 PinK) 通过 lib/i18n 入口调用 setLanguage 驱动。
     lng: 'en',
     fallbackLng: 'en',
 

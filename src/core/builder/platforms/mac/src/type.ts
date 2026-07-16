@@ -1,6 +1,6 @@
-import { IInternalBuildOptions, InternalBuildResult } from '../../@types/protected';
-import { CocosParams } from '../native-common/pack-tool/base/default';
-import { ICustomBuildScriptParam, IOptions as INativeOption } from '../native-common/type';
+import { IInternalBuildOptions, InternalBuildResult } from '../../../@types/protected';
+import { CocosParams } from '../../native-common/pack-tool/base/default';
+import { ICustomBuildScriptParam, IOptions as INativeOption } from '../../native-common/type';
 
 
 export type IOrientation = 'landscape' | 'portrait';

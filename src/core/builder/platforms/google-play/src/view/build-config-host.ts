@@ -1,4 +1,6 @@
 import * as fs from 'node:fs';
+import * as pink from 'pink';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -143,8 +145,7 @@ function fileImageSrc(filePath: string): string {
 
 async function getActiveProject(): Promise<string> {
     try {
-        const vscode = require('vscode');
-        const project = await vscode?.commands.executeCommand('pink.workspace.getActiveProject');
+        const project = await pink.workspace.getActiveProject();
         console.log('getActiveProject', JSON.stringify(project));
         return project?.path || '';
     } catch {
@@ -175,7 +176,6 @@ export function activate(context: HostContext): void {
         return fileImageSrc(filePath);
     });
     context.registerMethod('selectFile', async (filters?: Record<string, string[]>) => {
-        const vscode = require('vscode') as typeof import('vscode');
         const result = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectFolders: false,
@@ -194,7 +194,6 @@ export function activate(context: HostContext): void {
     });
     context.registerMethod('openProgramSettings', async () => {
         try {
-            const vscode = require('vscode') as typeof import('vscode');
             await vscode.commands.executeCommand('workbench.action.openSettings', 'android sdk');
             return true;
         } catch {

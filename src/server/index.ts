@@ -4,10 +4,10 @@ import { IMiddlewareContribution } from './interfaces';
 /**
  * 启动服务器
  */
-export async function startServer(port?: number): Promise<void> {
+export async function startServer(port?: number, host?: string): Promise<void> {
     try {
         serverService.init();
-        await serverService.start(port);
+        await serverService.start(port, host);
     } catch (error) {
         console.error(error);
     }

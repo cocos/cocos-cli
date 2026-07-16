@@ -6109,6 +6109,8 @@ export declare interface IClipboardState {
 export declare interface ICloseOptions {
     urlOrUUID?: string;
     save?: boolean;
+    allowDeletedSourceFallback?: boolean;
+    expectedCurrentUuid?: string;
 }
 export declare interface IComponent extends IProperty {
     value: {
@@ -9071,7 +9073,7 @@ export declare interface SpriteFrameVertices {
     maxPos: number[];
 }
 export declare function start(): Promise<void>;
-export declare function start_2(port?: number): Promise<string>;
+export declare function start_2(port?: number, host?: string): Promise<string>;
 export declare function startCompileScript(assetChanges?: AssetChangeInfo[]): Promise<void>;
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
 export declare function startupWorker(projectPath: string): Promise<void>;

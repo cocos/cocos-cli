@@ -29,7 +29,7 @@ const hostOptions = {
     format: 'cjs',
     platform: 'node',
     target: 'node18',
-    external: ['vscode', 'sharp', 'pink'],
+    external: ['vscode'],
     logLevel: 'info',
 };
 
@@ -43,11 +43,11 @@ const allOptions = [viewOptions, hostOptions];
                 await ctx.rebuild();
                 await ctx.watch();
             }
-            console.log('[google-play build-view] watching src/view for changes...');
+            console.log('[harmonyos-next build-view] watching src/view for changes...');
         } else {
-            console.time('Bundle Google Play View');
+            console.time('Bundle HarmonyOS Next View');
             await Promise.all(allOptions.map((options) => esbuild.build(options)));
-            console.timeEnd('Bundle Google Play View');
+            console.timeEnd('Bundle HarmonyOS Next View');
             process.exit(0);
         }
     } catch (error) {

@@ -1,7 +1,7 @@
 'use strict';
 
-import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { commonOptions, baseNativeCommonOptions } from '../native-common';
+import { IPlatformBuildPluginConfig } from '../../../@types/protected';
+import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 import { checkPackageNameValidity } from './utils';
 
 const config: IPlatformBuildPluginConfig = {

@@ -2,14 +2,14 @@
 
 import { existsSync, outputJSON, unlinkSync, readFileSync, outputFileSync, rm, statSync, pathExists } from 'fs-extra';
 import { IBuildResult, IHarmonyOSNextInternalBuildOptions } from './type';
-import { BuilderCache, IBuilder } from '../../@types/protected';
+import { BuilderCache, IBuilder } from '../../../@types/protected';
 import { emptyDir, copy, moveSync, ensureDir, writeFileSync, readdirSync } from 'fs-extra';
 import { basename, relative, join, dirname } from 'path';
-import * as nativeCommonHook from '../native-common/hooks';
+import * as nativeCommonHook from '../../native-common/hooks';
 import { generateOptions } from './utils';
 import Ejs from 'ejs';
 import JSON5 from 'json5';
-import { transformCode } from '../../worker/builder/utils';
+import { transformCode } from '../../../worker/builder/utils';
 
 //export const onBeforeBuild = nativeCommonHook.onBeforeBuild;
 export const onAfterBundleDataTask = nativeCommonHook.onAfterBundleDataTask;

@@ -8,6 +8,7 @@ import { Service } from './core/decorator';
 import type { ICustomLayerConfig, IEngineEvents, IEngineService } from '../../common';
 import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
+import { serviceManager } from './service-manager';
 import { TimerUtil } from './utils/timer-util';
 
 const tickTime = 1000 / 60;
@@ -149,7 +150,8 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
             if (!view || typeof fetch !== 'function') {
                 return;
             }
-            const res = await fetch('/scripting/engine/design-resolution');
+            const serverURL = serviceManager.getServerUrl();
+            const res = await fetch(`${serverURL}/scripting/engine/design-resolution`);
             const dr = await res.json();
             const width = Number(dr?.width);
             const height = Number(dr?.height);

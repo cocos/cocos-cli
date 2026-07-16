@@ -179,33 +179,39 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     async close(params: ICloseOptions): Promise<boolean> {
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
-            if (!urlOrUUID) return true;
+            const currentEditorUuid = this.currentEditorUuid;
+            if (!urlOrUUID || !currentEditorUuid) return true;
 
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
-            if (!assetInfo) {
-                throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
+            const editor = assetInfo
+                ? this.editorMap.get(assetInfo.uuid)
+                : params.allowDeletedSourceFallback && params.expectedCurrentUuid === currentEditorUuid
+                    ? this.editorMap.get(currentEditorUuid)
+                    : undefined;
+            if (!editor) {
+                if (!assetInfo) {
+                    throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
+                }
+                return true;
             }
-
-            const uuid = assetInfo.uuid;
-            const editor = this.editorMap.get(uuid);
-            if (!editor) return true;
 
             const result = await editor.close({ save: params.save ?? true });
 
-            // 如果关闭的是当前打开的编辑器，清除当前状态
-            if (uuid === this.currentEditorUuid) {
+            if (editor === this.editorMap.get(currentEditorUuid)) {
                 this._clearUndoHistory();
                 this.currentEditorUuid = null;
             }
-
-            // 移除编辑器实例以释放内存
-            this.editorMap.delete(uuid);
+            for (const [uuid, candidate] of this.editorMap) {
+                if (candidate === editor) {
+                    this.editorMap.delete(uuid);
+                }
+            }
 
             this.emit('editor:close');
             // 真正关闭编辑器时的会话清理边界；重载只复用内容卸载/挂载边界。
             this.emitInternal(InternalServiceEvents.EditorDisposed);
             this.isOpen = false;
-            console.log(`关闭 ${assetInfo.url}`);
+            console.log(`关闭 ${assetInfo?.url ?? urlOrUUID}`);
             return result;
         } catch (error) {
             console.error(`关闭失败: [${urlOrUUID}]`, error);
@@ -216,7 +222,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     async save(params: ISaveOptions): Promise<IAssetInfo> {
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
-            if (!urlOrUUID) {
+            const currentEditorUuid = this.currentEditorUuid;
+            if (!urlOrUUID || !currentEditorUuid) {
                 throw new Error('当前没有打开任何编辑器');
             }
 
@@ -225,13 +232,25 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
             }
 
-            const uuid = assetInfo.uuid;
-            const editor = this.editorMap.get(uuid);
+            const editor = this.editorMap.get(currentEditorUuid);
             if (!editor) {
-                throw new Error(`当前没有打开任何编辑器`);
+                throw new Error('当前没有打开任何编辑器');
+            }
+            if (!this.isSaveTargetCompatible(editor, assetInfo.type)) {
+                throw new Error(`不能将 ${editor instanceof SceneEditor ? 'scene' : 'prefab'} 保存到 ${assetInfo.type} 资源`);
             }
 
-            const result = await editor.save();
+            const result = assetInfo.uuid === currentEditorUuid
+                ? await editor.save()
+                : await editor.saveTo(assetInfo);
+            if (result.uuid !== assetInfo.uuid) {
+                throw new Error(`保存目标资源标识不一致: 期望 ${assetInfo.uuid}，实际 ${result.uuid}`);
+            }
+            if (assetInfo.uuid !== currentEditorUuid) {
+                this.editorMap.delete(currentEditorUuid);
+                this.editorMap.set(result.uuid, editor);
+                this.currentEditorUuid = result.uuid;
+            }
 
             this._markUndoSaved();
 
@@ -242,6 +261,13 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             console.error(`保存失败: [${urlOrUUID}]`, error);
             throw error;
         }
+    }
+
+    private isSaveTargetCompatible(editor: SceneEditor | PrefabEditor, targetType: string): boolean {
+        if (editor instanceof SceneEditor) {
+            return targetType === 'scene' || targetType === 'cc.SceneAsset';
+        }
+        return targetType === 'prefab' || targetType === 'cc.Prefab';
     }
 
     async reload(params: IReloadOptions): Promise<ReloadResult> {

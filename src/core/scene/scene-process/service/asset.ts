@@ -1,4 +1,4 @@
-import { BaseService, register } from './core';
+import { BaseService, queryRegisteredService, register } from './core';
 import { IAssetEvents, IAssetService } from '../../common';
 import { Asset, assetManager, Component, Node, Prefab } from 'cc';
 import { assetWatcherManager } from './asset/asset-watcher';
@@ -11,9 +11,19 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
      * @param uuid
      */
     public async assetChanged(uuid: string) {
-        this.releaseAsset(uuid);
-        await assetWatcherManager.onAssetChanged(uuid);
+        if (!this._preserveCurrentAnimationClipAsset(uuid)) {
+            this.releaseAsset(uuid);
+            await assetWatcherManager.onAssetChanged(uuid);
+        }
         this.emit('asset:change', uuid);
+    }
+
+
+    private _preserveCurrentAnimationClipAsset(uuid: string): boolean {
+        const animationService = queryRegisteredService<{
+            preserveCurrentClipAssetForChange?: (uuid: string) => boolean;
+        }>('Animation');
+        return animationService?.preserveCurrentClipAssetForChange?.(uuid) === true;
     }
 
     /**

@@ -118,6 +118,7 @@ export abstract class BaseEditor {
     protected abstract _doOpen(asset: IAssetInfo, options?: INodeDumpOptions): Promise<TEditorEntity>;
     abstract close(options?: { save?: boolean }): Promise<boolean>;
     abstract save(): Promise<IAssetInfo>;
+    abstract saveTo(asset: IAssetInfo): Promise<IAssetInfo>;
     /**
      * 执行实际的重载操作，子类需要实现具体的重载逻辑
      */
