@@ -14,7 +14,7 @@ import { IMiddlewareContribution } from './interfaces';
 
 interface ServerOptions {
     port: number,// 端口
-    host?: string,// 绑定/对外地址(ip 或 host);省略则绑定所有网卡
+    host?: string,// 监听地址；省略则绑定所有网卡
     useHttps: boolean;// 是否启动 HTTPS
     keyFile?: string; // HTTPS 私钥文件路径
     certFile?: string;// HTTPS 证书文件路径
@@ -24,6 +24,7 @@ interface ServerOptions {
 export class ServerService {
     private app: Express = express();
     private server: HTTPServer | HTTPSServer | undefined;
+    private internalServer: HTTPServer | HTTPSServer | undefined;
     private _port = 9527;
     private _host = 'localhost';// 对外 url 使用的 host/ip
     private useHttps = false;
@@ -56,9 +57,10 @@ export class ServerService {
             this._host = host;
         }
         const preferredPort = await getAvailablePort(port || this._port);
-        const { server, port: actualPort } = await this.createServerWithRetry(preferredPort, host);
+        const { server, internalServer, port: actualPort } = await this.createServersWithRetry(preferredPort, host);
         this._port = actualPort;
         this.server = server;
+        this.internalServer = internalServer;
         socketService.startup(this.server);
         consoleLogService.startup(this.server);
         // 打印服务器地址
@@ -66,18 +68,14 @@ export class ServerService {
     }
 
     async stop(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.server?.close((err?: Error) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                console.log('关闭服务器');
-                this.server = undefined;
-                resolve();
-            });
-        });
-
+        const servers = [this.server, this.internalServer].filter((server): server is HTTPServer | HTTPSServer => !!server);
+        await Promise.all(servers.map(server => new Promise<void>((resolve, reject) => {
+            server.close((error?: Error) => error ? reject(error) : resolve());
+        })));
+        socketService.disconnect();
+        this.server = undefined;
+        this.internalServer = undefined;
+        console.log('关闭服务器');
     }
 
     /**
@@ -137,9 +135,10 @@ export class ServerService {
         });
     }
 
-    private async createServerWithRetry(port: number, host?: string): Promise<{ server: HTTPServer | HTTPSServer; port: number }> {
+    private async createServersWithRetry(port: number, host?: string): Promise<{ server: HTTPServer | HTTPSServer; internalServer: HTTPServer | HTTPSServer | undefined; port: number }> {
+        let server: HTTPServer | HTTPSServer | undefined;
         try {
-            const server = await this.createServer({
+            server = await this.createServer({
                 port,
                 host,
                 useHttps: this.useHttps,
@@ -147,13 +146,35 @@ export class ServerService {
                 certFile: this.httpsConfig.cert,
                 caFile: this.httpsConfig.ca,
             }, this.app);
-            return { server, port };
+            const internalServer = this.needsInternalServer(host)
+                ? await this.createServer({
+                    port,
+                    host: '127.0.0.1',
+                    useHttps: this.useHttps,
+                    keyFile: this.httpsConfig.key,
+                    certFile: this.httpsConfig.cert,
+                    caFile: this.httpsConfig.ca,
+                }, this.app)
+                : undefined;
+            return { server, internalServer, port };
         } catch (err: any) {
+            await this.closeServer(server);
             if (err.code === 'EADDRINUSE') {
-                return this.createServerWithRetry(port + 1, host);
+                return this.createServersWithRetry(port + 1, host);
             }
             throw err;
         }
+    }
+
+    private needsInternalServer(host: string | undefined): boolean {
+        return !!host && host !== 'localhost' && host !== '127.0.0.1';
+    }
+
+    private closeServer(server: HTTPServer | HTTPSServer | undefined): Promise<void> {
+        if (!server) {
+            return Promise.resolve();
+        }
+        return new Promise(resolve => server.close(() => resolve()));
     }
 
     private printServerUrls() {
