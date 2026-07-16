@@ -1930,6 +1930,7 @@ export declare interface GetManualChunkApi {
 export declare type GetModuleInfo = (moduleId: string) => ModuleInfo | null;
 export declare function getPlatformBuildSchema(platform: Platform | string): Promise<PlatformBuildSchema>;
 export declare function getPreviewSettings<P extends Platform>(options?: IBuildTaskOption<P>): Promise<IPreviewSettingsResult>;
+export declare function getPreviewUrl(dest: string, platform?: string): Promise<string>;
 export declare function getRegisteredPlatforms(): Promise<string[]>;
 export declare type GlobalsOption = { [name: string]: string } | ((name: string) => string);
 export declare interface GltfAnimationAssetUserData {
