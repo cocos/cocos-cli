@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { exec } from 'node:child_process';
 
 type Bundle = Record<string, unknown>;
 
@@ -116,6 +117,37 @@ function registerBuildOutput(rawPath: string, outputName: string): void {
     middleware?.registerBuildPath?.('web-mobile', outputName, rawPath);
 }
 
+function openBrowser(url: string, completedCallback?: () => void): void {
+    let command: string | undefined;
+    switch (process.platform) {
+        case 'win32':
+            command = `start ${url}`;
+            break;
+        case 'darwin':
+            command = `open ${url}`;
+            break;
+        case 'linux':
+            command = `xdg-open ${url}`;
+            break;
+        default:
+            completedCallback?.();
+            return;
+    }
+
+    const processWithGlobalOpenUrl = process as typeof process & { addGlobalOpenUrl?: (targetUrl: string) => void };
+    if (processWithGlobalOpenUrl.addGlobalOpenUrl) {
+        processWithGlobalOpenUrl.addGlobalOpenUrl(url);
+        completedCallback?.();
+        return;
+    }
+
+    exec(command, () => completedCallback?.());
+}
+
+function openUrlAsync(url: string): Promise<void> {
+    return new Promise((resolve) => openBrowser(url, resolve));
+}
+
 async function createQRCodeSrc(url: string): Promise<string> {
     if (!url) {
         return '';
@@ -143,7 +175,7 @@ async function getPreviewInfo(request: PreviewRequest = {}): Promise<PreviewInfo
     const buildRoot = resolveBuildPath(buildPath, projectPath);
     const rawPath = path.join(buildRoot, outputName);
     const serverUrl = getServerUrl();
-    const previewUrl = serverUrl ? `${serverUrl}/web-mobile/${outputName}/index.html` : '';
+    const previewUrl = serverUrl ? `${serverUrl}/build/web-mobile/${outputName}/index.html` : '';
     registerBuildOutput(rawPath, outputName);
 
     const webGPUTips = request.useWebGPU && previewUrl && !previewUrl.startsWith('https')
@@ -165,4 +197,10 @@ export function activate(context: HostContext): void {
         return text === undefined ? key : substitute(text, sub);
     });
     context.registerMethod('getPreviewInfo', (request: PreviewRequest) => getPreviewInfo(request));
+    context.registerMethod('openPreviewUrl', async (url: string) => {
+        if (!url) {
+            return;
+        }
+        await openUrlAsync(url);
+    });
 }
