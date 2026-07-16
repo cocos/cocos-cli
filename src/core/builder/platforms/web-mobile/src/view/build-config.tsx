@@ -79,7 +79,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     const useWebGPU = boolValue(value.useWebGPU);
     const outputName = stringValue(commonValue?.outputName) || 'web-mobile';
     const buildPath = stringValue(commonValue?.buildPath) || 'project://build';
-
+    console.log('buildPath', buildPath, outputName, useWebGPU);
     const t = (key: string) => translate(bundle, key);
     const previewRequest = useMemo(() => ({ buildPath, outputName, useWebGPU }), [buildPath, outputName, useWebGPU]);
 
@@ -179,7 +179,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
                             <a
                                 href={previewInfo.previewUrl}
                                 style={LINK}
-                                onClick={(event) => {
+                                onClick={(event: { preventDefault(): void }) => {
                                     event.preventDefault();
                                     openPreviewUrl(previewInfo.previewUrl);
                                 }}
