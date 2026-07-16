@@ -4,11 +4,14 @@ import path from 'path';
 import fse from 'fs-extra';
 
 function isBrowserRequest(req: Request): boolean {
+    if (req.query.isBrowser === 'true') {
+        return true;
+    }
+
     const userAgent = req.headers['user-agent'];
-    return req.query.isBrowser === 'true'
-        || !!req.headers['sec-ch-ua']
+    return !!req.headers['sec-ch-ua']
         || req.headers['accept']?.includes('text/html') === true
-        || (typeof userAgent === 'string' && userAgent.includes('Mozilla/'));
+        || (typeof userAgent === 'string' && userAgent.includes('Mozilla/') && !userAgent.includes('node.js/'));
 }
 
 export default {
