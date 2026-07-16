@@ -3,6 +3,14 @@ import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fse from 'fs-extra';
 
+function isBrowserRequest(req: Request): boolean {
+    const userAgent = req.headers['user-agent'];
+    return req.query.isBrowser === 'true'
+        || !!req.headers['sec-ch-ua']
+        || req.headers['accept']?.includes('text/html') === true
+        || (typeof userAgent === 'string' && userAgent.includes('Mozilla/'));
+}
+
 export default {
     get: [
         {
@@ -121,9 +129,7 @@ export default {
                     });
                 }
 
-                const isBrowser = !!(req.headers['accept']?.includes('text/html') || 
-                                   req.headers['sec-ch-ua'] || 
-                                   req.query.isBrowser === 'true');
+                const isBrowser = isBrowserRequest(req);
 
                 if (isBrowser) {
                     const content = await fse.readFile(filePath);
@@ -160,9 +166,7 @@ export default {
                     });
                 }
 
-                const isBrowser = !!(req.headers['accept']?.includes('text/html') || 
-                                   req.headers['sec-ch-ua'] || 
-                                   req.query.isBrowser === 'true');
+                const isBrowser = isBrowserRequest(req);
 
                 if (isBrowser) {
                     const content = await fse.readFile(filePath);
