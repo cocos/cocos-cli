@@ -44,7 +44,7 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "npx --yes gulp release --gulpfile workflow/release.js",
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
-        "start:preview": "node ./dist/cli.js preview --project=./tests/fixtures/projects/asset-operation --scene-editor",
+        "start:preview": "node ./dist/cli.js preview --scene-editor",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
         "rebuild": "node workflow/electron-rebuild.js"

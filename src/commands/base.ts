@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { join, resolve } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import chalk from 'chalk';
 
 /**
@@ -37,6 +37,18 @@ export abstract class BaseCommand {
         }
 
         return resolvedPath;
+    }
+
+    protected readLocalConfigProject(): string | undefined {
+        const configPath = resolve('config.local.json');
+        if (!existsSync(configPath)) return undefined;
+        try {
+            const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+            return config.project;
+        } catch {
+            console.warn(chalk.yellow('Warning: Failed to parse config.local.json'));
+            return undefined;
+        }
     }
 
     /**
