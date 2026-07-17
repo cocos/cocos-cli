@@ -192,7 +192,7 @@ export default function OHOSBuildView({ value, onChange, bridge, commonValue }: 
             )}
 
             <div style={ROW}>
-                <TypedField label={t('options.JobSystem')} tooltip={jobSystem === 'taskFlow' ? t('tips.JobSystemTaskFlow') : t('tips.JobSystemOther')}>
+                <TypedField label={t('options.job_system')} tooltip={jobSystem === 'taskFlow' ? t('tips.job_system_task_flow') : t('tips.job_system_other')}>
                     <select
                         style={SELECT}
                         value={jobSystem}
@@ -203,7 +203,7 @@ export default function OHOSBuildView({ value, onChange, bridge, commonValue }: 
                         <option value="taskFlow">TaskFlow</option>
                     </select>
                 </TypedField>
-                {jobSystem === 'taskFlow' && <div style={INFO}>{t('tips.JobSystemTaskFlow')}</div>}
+                {jobSystem === 'taskFlow' && <div style={INFO}>{t('tips.job_system_task_flow')}</div>}
             </div>
         </div>
     );

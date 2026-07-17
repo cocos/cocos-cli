@@ -15,7 +15,7 @@ module.exports = {
         portrait: '竖屏',
 
         render_back_end: '渲染后端',
-        JobSystem: '任务调度系统',
+        job_system: '任务调度系统',
         none: '不开启',
     },
     encrypt: {

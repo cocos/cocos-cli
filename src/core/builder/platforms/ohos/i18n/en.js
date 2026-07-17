@@ -21,7 +21,7 @@ module.exports = {
         google_play_instant: 'Google Play Instant',
         input_sdk: 'Input SDK',
         remoteUrl: 'Remote URL',
-        JobSystem: 'Job System',
+        job_system: 'Job System',
         none: 'None',
     },
     encrypt: {
