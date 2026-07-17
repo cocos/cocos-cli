@@ -18,6 +18,9 @@ export interface ICameraConfig {
     aperture: number;
     shutter: number;
     iso: number;
+    far2D?: number;
+    near2D?: number;
+    wheelSpeed2D?: number;
 }
 
 export interface IRectSnapConfig {
@@ -70,6 +73,15 @@ export interface ISceneConfig {
      * SceneView 配置
      */
     sceneView: ISceneViewConfig;
+    /**
+     * 各节点上编辑器相机的视角信息（按节点 uuid 存储），运行期由 Camera 服务写入。
+     * 提供空默认值以避免首次读取时配置层抛错。
+     */
+    'camera-infos'?: Record<string, unknown>;
+    /**
+     * 记录过相机视角信息的节点 uuid 列表，运行期由 Camera 服务写入。
+     */
+    'camera-uuids'?: string[];
 }
 
 class SceneConfig {
@@ -116,6 +128,9 @@ class SceneConfig {
         sceneView: {
             sceneLightOn: true,
         },
+        // 运行期由 Camera 服务写入；提供空默认值，避免首次 get 时配置层抛错并被 RPC 中间件记为错误日志
+        'camera-infos': {},
+        'camera-uuids': [],
     };
 
     private configInstance!: IBaseConfiguration;

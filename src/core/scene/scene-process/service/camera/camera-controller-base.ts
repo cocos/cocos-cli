@@ -7,6 +7,8 @@ export interface EditorCameraInfo {
     rotation?: Quat;
     viewCenter?: Vec3;
     viewDist?: number;
+    contentRect?: any;
+    scale?: number;
 }
 
 abstract class CameraControllerBase extends EventEmitter {

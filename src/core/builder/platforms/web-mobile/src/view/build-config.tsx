@@ -79,9 +79,12 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     const useWebGPU = boolValue(value.useWebGPU);
     const outputName = stringValue(commonValue?.outputName) || 'web-mobile';
     const buildPath = stringValue(commonValue?.buildPath) || 'project://build';
-
     const t = (key: string) => translate(bundle, key);
     const previewRequest = useMemo(() => ({ buildPath, outputName, useWebGPU }), [buildPath, outputName, useWebGPU]);
+
+    const openPreviewUrl = (url: string) => {
+        bridge?.invoke('openPreviewUrl', url).catch(() => {});
+    };
 
     useEffect(() => {
         if (!bridge) {
@@ -172,7 +175,14 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
                 <TypedField label={t('options.preview_url')}>
                     <div style={INLINE}>
                         {previewInfo.previewUrl ? (
-                            <a href={previewInfo.previewUrl} style={LINK}>
+                            <a
+                                href={previewInfo.previewUrl}
+                                style={LINK}
+                                onClick={(event: { preventDefault(): void }) => {
+                                    event.preventDefault();
+                                    openPreviewUrl(previewInfo.previewUrl);
+                                }}
+                            >
                                 {previewInfo.previewUrl}
                             </a>
                         ) : (

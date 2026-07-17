@@ -11,7 +11,7 @@ export class PreviewCommand extends BaseCommand {
         this.program
             .command('preview')
             .description('Preview a Cocos project')
-            .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
+            .option('-j, --project <path>', 'Path to the Cocos project')
             .option('-p, --port <number>', 'Port number for the preview server', '9527')
             .option('-P, --platform <platform>', 'Target web platform (web-desktop or web-mobile)')
             .option('-c, --build-config <path>', 'Specify build config file path')
@@ -21,7 +21,12 @@ export class PreviewCommand extends BaseCommand {
             .option('--scene-editor', 'Start the scene editor debug preview instead of the game preview')
             .action(async (options: any) => {
                 try {
-                    const resolvedPath = this.validateProjectPath(options.project);
+                    const projectPath = options.project ?? this.readLocalConfigProject();
+                    if (!projectPath) {
+                        console.error(chalk.red('Error: --project is required. Provide it via CLI or config.local.json'));
+                        process.exit(1);
+                    }
+                    const resolvedPath = this.validateProjectPath(projectPath);
                     const port = parseInt(options.port, 10);
 
                     // 验证端口号

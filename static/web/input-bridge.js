@@ -212,7 +212,10 @@ function setupInputBridge(options) {
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', onContextMenu);
     canvas.addEventListener('keydown', onKeyDown);
-    canvas.addEventListener('keyup', onKeyUp);
+    // keyup uses capture phase on document: the engine's KeyboardInputSource calls
+    // stopPropagation() on canvas keyup, so a normal document listener never fires.
+    // Capture runs top-down before the event reaches the canvas, bypassing that.
+    document.addEventListener('keyup', onKeyUp, true);
     document.addEventListener('pointerlockchange', onPointerLockChange);
 
     return function cleanup() {
@@ -232,7 +235,7 @@ function setupInputBridge(options) {
         canvas.removeEventListener('wheel', onWheel);
         canvas.removeEventListener('contextmenu', onContextMenu);
         canvas.removeEventListener('keydown', onKeyDown);
-        canvas.removeEventListener('keyup', onKeyUp);
+        document.removeEventListener('keyup', onKeyUp, true);
         document.removeEventListener('pointerlockchange', onPointerLockChange);
         if (pointerLocked) {
             document.exitPointerLock();

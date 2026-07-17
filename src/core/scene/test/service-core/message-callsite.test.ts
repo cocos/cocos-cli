@@ -162,6 +162,8 @@ jest.mock('../../scene-process/service/gizmo/components/mesh-renderer', () => ({
 jest.mock('../../scene-process/service/gizmo/components/skinned-mesh-renderer', () => ({}));
 jest.mock('../../scene-process/service/gizmo/components/video-player', () => ({}));
 jest.mock('../../scene-process/service/gizmo/components/web-view', () => ({}));
+jest.mock('../../scene-process/service/gizmo/components/light-probe-group', () => ({}));
+jest.mock('../../scene-process/service/gizmo/components/reflection-probe', () => ({}));
 
 jest.mock('../../scene-process/service/dump', () => ({
     __esModule: true,

@@ -1,8 +1,8 @@
 'use strict';
 
 import { join } from 'path';
-import { IPlatformBuildPluginConfig } from '../../@types/protected';
-import { GlobalPaths } from '../../../../global';
+import { IPlatformBuildPluginConfig } from '../../../@types/protected';
+import { GlobalPaths } from '../../../../../global';
 const PLATFORM = 'web-desktop';
 const buildTemplateDir = join(GlobalPaths.enginePath, `templates/${PLATFORM}`);
 
@@ -17,6 +17,7 @@ const config: IPlatformBuildPluginConfig = {
             default: false,
             description: 'i18n:web-desktop.tips.webgpu',
             experiment: true,
+            hidden: true,
         },
         resolution: {
             type: 'object',
@@ -56,7 +57,7 @@ const config: IPlatformBuildPluginConfig = {
             },
         },
     },
-    hooks: './hooks',
+    hooks: './src/hooks',
     textureCompressConfig: {
         platformType: 'web',
         support: {

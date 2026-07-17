@@ -1,4 +1,5 @@
-import * as fs from 'node:fs';
+import * as pink from 'pink';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 
 type Bundle = Record<string, unknown>;
@@ -72,48 +73,12 @@ function substitute(text: string, sub?: Record<string, unknown>): string {
     return text.replace(/%?\{(\w+)\}/g, (match, key: string) => (key in sub ? String(sub[key]) : match));
 }
 
-async function getActiveProject(): Promise<string> {
-    try {
-        const vscode = require('vscode');
-        const project = await vscode?.commands.executeCommand('pink.workspace.getActiveProject');
-        return project?.path || '';
-    } catch {
-        return '';
-    }
-}
-
 function runtimeRequire<T = any>(request: string): T | undefined {
     try {
         return module.require(request) as T;
     } catch {
         return undefined;
     }
-}
-
-function resolveBuildPath(buildPath: string, projectPath: string): string {
-    if (!buildPath || buildPath === 'project://build') {
-        return path.join(projectPath, 'build');
-    }
-    if (buildPath.startsWith('project://')) {
-        return path.join(projectPath, buildPath.replace(/^project:\/\//, ''));
-    }
-    return buildPath;
-}
-
-function getServerUrl(): string {
-    const server = runtimeRequire<{ serverService?: { url?: string } }>(path.join(__dirname, '../../../../../../server/server'));
-    const url = server?.serverService?.url || '';
-    return url && !url.includes('未启动') ? url : 'http://localhost:9527';
-}
-
-function registerBuildOutput(rawPath: string, outputName: string): void {
-    if (!fs.existsSync(rawPath)) {
-        return;
-    }
-    const middleware = runtimeRequire<{ registerBuildPath?: (platform: string, name: string, dest: string) => void }>(
-        path.join(__dirname, '../../../../build.middleware'),
-    );
-    middleware?.registerBuildPath?.('web-mobile', outputName, rawPath);
 }
 
 async function createQRCodeSrc(url: string): Promise<string> {
@@ -137,15 +102,10 @@ async function createQRCodeSrc(url: string): Promise<string> {
 }
 
 async function getPreviewInfo(request: PreviewRequest = {}): Promise<PreviewInfo> {
-    const projectPath = await getActiveProject();
     const buildPath = request.buildPath || 'project://build';
     const outputName = request.outputName || 'web-mobile';
-    const buildRoot = resolveBuildPath(buildPath, projectPath);
-    const rawPath = path.join(buildRoot, outputName);
-    const serverUrl = getServerUrl();
-    const previewUrl = serverUrl ? `${serverUrl}/web-mobile/${outputName}/index.html` : '';
-    registerBuildOutput(rawPath, outputName);
-
+    const platform = 'web-mobile';
+    const previewUrl = await pink.builder.getPreviewUrl(path.join(buildPath, outputName), platform) || '';
     const webGPUTips = request.useWebGPU && previewUrl && !previewUrl.startsWith('https')
         ? lookup(loadBundle(), 'tips.webGPUServer') || ''
         : '';
@@ -165,4 +125,9 @@ export function activate(context: HostContext): void {
         return text === undefined ? key : substitute(text, sub);
     });
     context.registerMethod('getPreviewInfo', (request: PreviewRequest) => getPreviewInfo(request));
+    context.registerMethod('openPreviewUrl', async (url: string) => {
+        if (url) {
+            await vscode.env.openExternal(vscode.Uri.parse(url));
+        }
+    });
 }

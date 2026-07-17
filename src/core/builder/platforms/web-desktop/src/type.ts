@@ -1,5 +1,5 @@
-import { IBuildPaths } from '../../@types';
-import { InternalBuildResult } from '../../@types/protected';
+import { IBuildPaths } from '../../../@types';
+import { InternalBuildResult } from '../../../@types/protected';
 export interface IOptions {
     /**
      * 是否使用 WEBGPU 渲染后端

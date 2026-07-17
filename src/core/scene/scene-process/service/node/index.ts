@@ -173,6 +173,7 @@ export class NodeManager {
         [Node.EventType.CHILD_ADDED]: 'onNodeParentChanged',
         [Node.EventType.CHILD_REMOVED]: 'onNodeParentChanged',
         [Node.EventType.LIGHT_PROBE_CHANGED]: 'onLightProbeChanged',
+        [Node.EventType.LIGHT_PROBE_BAKING_CHANGED]: 'onLightProbeBakingChanged',
     } as const;
     private nodeHandlers = new Map<string, Function>();
 
@@ -283,6 +284,11 @@ export class NodeManager {
      */
     onLightProbeChanged(node: Node) {
         const changeOpts: IChangeNodeOptions = { type: NodeEventType.LIGHT_PROBE_CHANGED, source: EventSourceType.ENGINE };
+        this.emit('node:change', node, changeOpts);
+    }
+
+    onLightProbeBakingChanged(node: Node) {
+        const changeOpts: IChangeNodeOptions = { type: NodeEventType.LIGHT_PROBE_BAKING_CHANGED, source: EventSourceType.ENGINE };
         this.emit('node:change', node, changeOpts);
     }
 

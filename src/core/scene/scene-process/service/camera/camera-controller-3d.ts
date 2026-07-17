@@ -1,4 +1,4 @@
-import { Camera, Color, gfx, js, Layers, Mat4, MeshRenderer, Node, Quat, Vec3, ISizeLike } from 'cc';
+import { Camera, Color, geometry, gfx, js, Layers, Mat4, MeshRenderer, Node, Quat, Vec3, ISizeLike } from 'cc';
 import CameraControllerBase, { EditorCameraInfo } from './camera-controller-base';
 import { CameraMoveMode, CameraUtils } from './utils';
 import FiniteStateMachine from '../utils/state-machine/finite-state-machine';
@@ -29,6 +29,67 @@ function getWorldPosition3D(node: Node): Vec3 {
     return node.getWorldPosition();
 }
 
+function getBoundaryOfMeshNode(node: Node): geometry.AABB | null {
+    if (!node) return null;
+    const modelComp = node.getComponent(MeshRenderer);
+    if (!modelComp) return null;
+
+    const SkinnedMeshRenderer = (cc as any).SkinnedMeshRenderer;
+    if (SkinnedMeshRenderer && modelComp instanceof SkinnedMeshRenderer) {
+        modelComp.model?.updateTransform?.(-1);
+        return modelComp.model?.worldBounds ?? null;
+    }
+
+    if (modelComp.mesh && modelComp.model) {
+        let transformAABB = modelComp.model.modelBounds?.clone() ?? null;
+        if (!transformAABB) {
+            const mesh = modelComp.mesh;
+            if (mesh && mesh.minPosition && mesh.maxPosition) {
+                transformAABB = geometry.AABB.fromPoints(geometry.AABB.create(), mesh.minPosition, mesh.maxPosition);
+            }
+        }
+        if (transformAABB) {
+            geometry.AABB.transform(transformAABB, transformAABB, node.worldMatrix);
+        }
+        return transformAABB;
+    }
+    return null;
+}
+
+// 引擎的粒子发射器形状枚举未从 cc 公开导出，这里与 Creator（utils/node.ts）一致，
+// 按其稳定的序列化值定义一个本地 ShapeType 枚举，避免使用魔法数字。
+enum ShapeType {
+    Box = 0,
+    Circle = 1,
+    Cone = 2,
+    Sphere = 3,
+    Hemisphere = 4,
+}
+
+function getRangeFromParticleComp(component: any): number {
+    let range = 0;
+    if (component.shapeModule?.enable) {
+        const shapeModule = component.shapeModule;
+        const s = shapeModule.scale;
+        // 引擎会把 shapeModule.scale 应用到所有发射器形状，这里对非 Box 形状也乘上最大轴缩放
+        const maxScale = Math.max(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z));
+        switch (shapeModule.shapeType) {
+            case ShapeType.Box:
+                range = Math.max(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z));
+                break;
+            case ShapeType.Circle:
+            case ShapeType.Sphere:
+            case ShapeType.Hemisphere:
+                range = shapeModule.radius * maxScale;
+                break;
+            case ShapeType.Cone:
+                range = Math.max(shapeModule.radius, shapeModule.length) * maxScale;
+                break;
+        }
+    }
+    return range;
+}
+
 function getMaxRangeOfNode(node: Node): number {
     let maxRange = 0.001;
 
@@ -53,6 +114,21 @@ function getMaxRangeOfNode(node: Node): number {
             case 'cc.PointLight':
                 compRange = (component as any).range ?? 3;
                 break;
+            case 'cc.LightProbeGroup': {
+                const comp = component as any;
+                if (comp.maxPos && comp.minPos) {
+                    const probesSize = new Vec3();
+                    Vec3.subtract(probesSize, comp.maxPos, comp.minPos);
+                    // minPos/maxPos 是本地空间，需乘节点世界缩放换算成世界半径（与 mesh 路径一致）
+                    const ws = node.getWorldScale();
+                    compRange = Math.max(
+                        Math.abs((probesSize.x / 2) * ws.x),
+                        Math.abs((probesSize.y / 2) * ws.y),
+                        Math.abs((probesSize.z / 2) * ws.z),
+                    );
+                }
+                break;
+            }
             case 'cc.RangedDirectionalLight':
             case 'cc.DirectionalLight':
             case 'cc.Camera':
@@ -60,15 +136,30 @@ function getMaxRangeOfNode(node: Node): number {
                 break;
             case 'cc.MeshRenderer':
             case 'cc.SkinnedMeshRenderer':
+            case 'cc.AvatarModelComponent':
             case 'cc.SkinnedMeshBatchRenderer': {
                 const mr = component as MeshRenderer;
                 if (mr.mesh && mr.model) {
-                    const worldBound = mr.model.worldBounds;
-                    if (worldBound) {
-                        const he = worldBound.halfExtents;
-                        if (!Number.isNaN(he.x) && !Number.isNaN(he.y) && !Number.isNaN(he.z)) {
-                            compRange = Math.max(he.x, he.y, he.z);
+                    let worldBound: any = mr.model.worldBounds;
+
+                    if (!worldBound) {
+                        const modelBound = mr.model.modelBounds;
+                        if (modelBound) {
+                            worldBound = geometry.AABB.create();
+                            geometry.AABB.transform(worldBound, modelBound, node.worldMatrix);
                         }
+                    }
+
+                    if (worldBound && (
+                        Number.isNaN(worldBound.halfExtents.x)
+                        || Number.isNaN(worldBound.halfExtents.y)
+                        || Number.isNaN(worldBound.halfExtents.z)
+                    )) {
+                        worldBound = getBoundaryOfMeshNode(node);
+                    }
+
+                    if (worldBound) {
+                        compRange = Math.max(worldBound.halfExtents.x, worldBound.halfExtents.y, worldBound.halfExtents.z);
                     }
                 }
                 break;
@@ -105,6 +196,23 @@ function getMaxRangeOfNode(node: Node): number {
                 if (size) compRange = Math.max(size.x, size.y, size.z) / 2;
                 break;
             }
+            case 'cc.ParticleSystem': {
+                // getRangeFromParticleComp 返回的是发射器本地空间尺寸，需按节点绝对世界缩放换算成世界半径
+                const localRange = getRangeFromParticleComp(component);
+                const ws = node.getWorldScale();
+                compRange = localRange * Math.max(Math.abs(ws.x), Math.abs(ws.y), Math.abs(ws.z));
+                break;
+            }
+            default: {
+                const Terrain = (cc as any).Terrain;
+                if (Terrain && className === js.getClassName(Terrain)) {
+                    const info = (component as any).info;
+                    if (info?.size) {
+                        compRange = Math.max(info.size.width / 2, info.size.height / 2);
+                    }
+                }
+                break;
+            }
         }
 
         if (compRange > maxRange) {
@@ -129,7 +237,7 @@ function getMaxRangeOfNodes(nodes: Node[]): number {
         if (childRange > maxRange) maxRange = childRange;
     }
 
-    return Math.max(maxRange, 1);
+    return maxRange;
 }
 
 function makeVec3InRange(v: Vec3, min: number, max: number): void {

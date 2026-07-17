@@ -1,23 +1,24 @@
 'use-strict';
 
-import { copyFileSync, existsSync, outputFileSync } from 'fs-extra';
-import { basename, join, relative } from 'path';
+import { copyFileSync, outputFileSync } from 'fs-extra';
+import { join } from 'path';
 import Ejs from 'ejs';
-import { InternalBuildResult, BuilderCache, IBuilder, IBuildTaskOption, IBuildStageTask, IInterBuildTaskOption } from '../../@types/protected';
+import { InternalBuildResult, BuilderCache, IBuilder, IBuildStageTask } from '../../../@types/protected';
 import { IBuildResult } from './type';
-import { relativeUrl, transformCode } from '../../worker/builder/utils';
-import * as commonUtils from '../web-common/utils';
+import { relativeUrl, transformCode } from '../../../worker/builder/utils';
+import * as commonUtils from '../../web-common/utils';
+import { ITaskOption } from '../../native-common/type';
 
 export const throwError = true;
 
-export function onAfterInit(options: IInterBuildTaskOption<'web-desktop'>, result: InternalBuildResult, cache: BuilderCache) {
+export function onAfterInit(options:ITaskOption, result: InternalBuildResult, cache: BuilderCache) {
     options.buildEngineParam.assetURLFormat = 'runtime-resolved';
     if (options.server && !options.server.endsWith('/')) {
         options.server += '/';
     }
 }
 
-export function onAfterBundleInit(options: IInterBuildTaskOption<'web-desktop'>) {
+export function onAfterBundleInit(options:ITaskOption) {
     options.buildScriptParam.system = { preset: 'web' };
     const useWebGPU = options.packages['web-desktop'].useWebGPU;
     options.buildScriptParam.flags['WEBGPU'] = useWebGPU;
@@ -31,53 +32,43 @@ export function onAfterBundleInit(options: IInterBuildTaskOption<'web-desktop'>)
         options.includeModules.splice(index, 1);
     }
 }
-/**
- * 剔除不需要参与构建的资源
- * @param options
- * @param settings
- */
-export async function onBeforeCompressSettings(options: IInterBuildTaskOption<'web-desktop'>, result: InternalBuildResult, cache: BuilderCache) {
+
+export async function onBeforeCompressSettings(options:ITaskOption, result: InternalBuildResult, cache: BuilderCache) {
     if (!result.paths.dir) {
         return;
     }
-    const settings = result.settings;
-    settings.screen.exactFitScreen = false;
+    result.settings.screen.exactFitScreen = false;
 }
 
-export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInterBuildTaskOption<'web-desktop'>, result: IBuildResult) {
+export async function onBeforeCopyBuildTemplate(this: IBuilder, options:ITaskOption, result: IBuildResult) {
     const staticDir = join(options.engineInfo.typescript.path, 'templates/web-desktop');
     const packageOptions = options.packages['web-desktop'];
 
-    // 拷贝内部提供的模板文件
     const cssFilePath = join(result.paths.dir, 'style.css');
     options.md5CacheOptions.includes.push('style.css');
     if (!this.buildTemplate.findFile('style.css')) {
-        // 生成 style.css
         copyFileSync(join(staticDir, 'style.css'), cssFilePath);
     }
     if (!this.buildTemplate.findFile('favicon.ico')) {
         copyFileSync(join(staticDir, 'favicon.ico'), join(result.paths.dir, 'favicon.ico'));
     }
 
-    // index.js 模板生成
     const indexJsTemplate = this.buildTemplate.initUrl('index.js.ejs', 'indexJs') || join(staticDir, 'index.js.ejs');
     const indexJsContent: string = await Ejs.renderFile(indexJsTemplate, {
         applicationJS: './' + relativeUrl(result.paths.dir, result.paths.applicationJS),
     });
-    // TODO 需要优化，不应该直接读到内存里
     const indexJsSourceTransformedCode = await transformCode(indexJsContent, {
         importMapFormat: 'systemjs',
     });
     if (!indexJsSourceTransformedCode) {
         throw new Error('Cannot generate index.js');
     }
-    const indexJsDest = join(result.paths.dir, `index.js`);
+    const indexJsDest = join(result.paths.dir, 'index.js');
     result.paths.indexJs = indexJsDest;
-    options.md5CacheOptions.includes.push(`index.js`);
+    options.md5CacheOptions.includes.push('index.js');
 
     outputFileSync(indexJsDest, indexJsSourceTransformedCode, 'utf8');
 
-    // index.html 模板生成
     const indexEjsTemplate = this.buildTemplate.initUrl('index.ejs') || join(staticDir, 'index.ejs');
     const data = {
         polyfillsBundleFile: (result.paths.polyfillsJs && relativeUrl(result.paths.dir, result.paths.polyfillsJs)) || false,
@@ -94,11 +85,10 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInterB
     const content = await Ejs.renderFile(indexEjsTemplate, data);
     result.paths.indexHTML = join(result.paths.dir, 'index.html');
     outputFileSync(result.paths.indexHTML, content, 'utf8');
-    // 入口文件排除 md5 写入
     options.md5CacheOptions.replaceOnly.push('index.html');
 }
-export async function onAfterBuild(this: IBuilder, options: IInterBuildTaskOption<'web-desktop'>, result: InternalBuildResult) {
-    // 放在最后处理 url ，否则会破坏 md5 的处理
+
+export async function onAfterBuild(this: IBuilder, options:ITaskOption, result: InternalBuildResult) {
     result.settings.plugins.jsList.forEach((url: string, i: number) => {
         result.settings.plugins.jsList[i] = url.split('/').map(encodeURIComponent).join('/');
     });
@@ -109,9 +99,9 @@ export async function onAfterBuild(this: IBuilder, options: IInterBuildTaskOptio
     };
 }
 
-export async function run(this: IBuildStageTask, root: string) {
+export async function run(this: IBuildStageTask, root: string, options: ITaskOption) {
     const previewUrl = await commonUtils.run('web-desktop', root);
     this.buildExitRes.custom = {
         previewUrl,
     };
-};
+}

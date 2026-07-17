@@ -1473,4 +1473,11 @@ declare module 'pink' {
 		): import('vscode').WebviewPanel;
 	}
 
+	export namespace builder {
+		/**
+		 * Gets the preview URL for a built web platform.
+		 */
+		export function getPreviewUrl(buildPath: string, platform: string): Thenable<string>;
+	}
+
 }

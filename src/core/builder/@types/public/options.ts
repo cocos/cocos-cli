@@ -338,7 +338,7 @@ export interface IBuildTaskItemJSON extends ITaskItemJSON {
 
 export type IOrientation = 'auto' | 'landscape' | 'portrait';
 
-import { IOptions as webDesktopOptions } from '../../platforms/web-desktop/type';
+import { IOptions as webDesktopOptions } from '../../platforms/web-desktop/src/type';
 export { webDesktopOptions };
 import { IOptions as webMobileOptions } from '../../platforms/web-mobile/src/type';
 export { webMobileOptions };

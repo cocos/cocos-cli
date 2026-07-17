@@ -319,6 +319,28 @@ export function setMaterialProperty(node: Node, propName: string, value: any) {
     setNodeMaterialProperty(node, propName, value);
 }
 
+/**
+ * 设置光照探针可视化材质的 SH 系数（对应 internal/editor/light-probe-visualization 的 Constant uniform）。
+ * 移植自 Cocos Creator EngineUtils.setMeshSHCoefficients。
+ */
+export function setMeshSHCoefficients(node: Node, coefficients: Float32Array) {
+    const value = new Vec4();
+    const names = [
+        'cc_sh_linear_const_r',
+        'cc_sh_linear_const_g',
+        'cc_sh_linear_const_b',
+        'cc_sh_quadratic_r',
+        'cc_sh_quadratic_g',
+        'cc_sh_quadratic_b',
+        'cc_sh_quadratic_a',
+    ];
+    for (let i = 0; i < names.length; i++) {
+        const offset = i * 4;
+        value.set(coefficients[offset], coefficients[offset + 1], coefficients[offset + 2], coefficients[offset + 3]);
+        setNodeMaterialProperty(node, names[i], value);
+    }
+}
+
 export function getModel(node: Node) {
     return node.getComponent(MeshRenderer);
 }

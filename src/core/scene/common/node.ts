@@ -497,6 +497,7 @@ export enum NodeEventType {
     NOTIFY_NODE_CHANGED = 'notify-node-changed',
     PREFAB_INFO_CHANGED = 'prefab-info-changed', // prefab数据改变
     LIGHT_PROBE_CHANGED = 'light-probe-changed', // 光照探针数据改变
+    LIGHT_PROBE_BAKING_CHANGED = 'light-probe-baking-changed', // 光照探针烘焙数据改变
 
     //
     SET_PROPERTY = 'set-property', // 设置节点上的属性

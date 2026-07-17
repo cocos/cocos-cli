@@ -23,6 +23,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     private _controllerFirstChange = false;
     private _currentUuid = '';
     private _cameraInfos: Record<string, any> = {};
+    private _cameraUuids: string[] = [];
 
     get controller2D() { return this._controller2D; }
     get controller3D() { return this._controller3D; }
@@ -113,8 +114,10 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
             this._detachSceneCameras();
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 try {
+                    // 每次打开场景都重新加载相机视角记忆，避免复用 CameraService 时取到上一个场景的数据
+                    await this.loadCameraInfos();
                     this._controller.updateGrid();
                     this.defaultFocus(this._currentUuid);
                     Service.Engine.repaintInEditMode();
@@ -143,6 +146,22 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         }
     }
 
+    /**
+     * 加载相机视角记忆（按 scene UUID 存储）。每次打开场景都要重新加载，
+     * 因为 CameraService 会在多个场景间复用，只在首次创建相机时加载会导致后续场景取到旧数据。
+     */
+    async loadCameraInfos(): Promise<void> {
+        try {
+            const rpc = Rpc.getInstance();
+            const cameraInfos = await rpc.request('sceneConfigInstance', 'get', ['camera-infos']);
+            const cameraUuids = await rpc.request('sceneConfigInstance', 'get', ['camera-uuids']);
+            this._cameraInfos = (cameraInfos as Record<string, any>) || {};
+            this._cameraUuids = (cameraUuids as string[]) || [];
+        } catch {
+            // camera-infos 不存在时使用默认空值
+        }
+    }
+
     private _applyGizmoDisplay(config: Partial<IGizmoConfig>): void {
         if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
         if (config.gridColor !== undefined) this.setGridColor(config.gridColor);
@@ -152,11 +171,12 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     }
 
     setGridColor(color: number[]): void {
-        const [r = 166, g = 166, b = 166] = color;
-        this._controller2D.lineColor = new Color(r, g, b, 255);
-        (this._controller3D as any).lineColor = new Color(r, g, b, 50);
-        this._controller2D.updateGrid();
+        if (!color || color.length < 3) return;
+        const [r = 166, g = 166, b = 166, a = 255] = color;
+        this._controller3D.lineColor = new Color(r, g, b, a);
         this._controller3D.updateGrid();
+        this._controller2D.lineColor = new Color(r, g, b, a);
+        this._controller2D.updateGrid();
         Service.Engine?.repaintInEditMode?.();
     }
 
@@ -178,15 +198,24 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         if (config.fov !== undefined) this.setCameraProperty({ fov: config.fov }, false);
         if (config.far !== undefined) {
             this._controller3D.far = config.far;
-            this._camera.far = config.far;
+            if (this._camera && !this.is2D) this._camera.far = config.far;
         }
         if (config.near !== undefined) {
             this._controller3D.near = config.near;
-            this._camera.near = config.near;
+            if (this._camera && !this.is2D) this._camera.near = config.near;
         }
         if (config.wheelSpeed !== undefined) this._controller3D.wheelSpeed = config.wheelSpeed;
         if (config.wanderSpeed !== undefined) this._controller3D.wanderSpeed = config.wanderSpeed;
         if (config.enableAcceleration !== undefined) this._controller3D.enableAcceleration = config.enableAcceleration;
+        if (config.far2D !== undefined) {
+            this._controller2D.far = config.far2D;
+            if (this._camera && this.is2D) this._camera.far = config.far2D;
+        }
+        if (config.near2D !== undefined) {
+            this._controller2D.near = config.near2D;
+            if (this._camera && this.is2D) this._camera.near = config.near2D;
+        }
+        if (config.wheelSpeed2D !== undefined) this._controller2D.wheelSpeed = config.wheelSpeed2D;
         if (config.aperture !== undefined || config.shutter !== undefined || config.iso !== undefined) {
             this.setCameraProperty({
                 aperture: config.aperture,
@@ -306,6 +335,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     resetCameraProperty(): void {
         this._controller3D.wanderSpeed = 10;
         this._controller3D.enableAcceleration = true;
+        this.setCameraProperty({ aperture: 19, shutter: 7, iso: 0 }, false);
         if (this.is2D) {
             this._controller2D.wheelSpeed = 6;
             this.setCameraProperty({ fov: 45, far: 10000, near: 6, clearColor: [48, 48, 48, 255] });
@@ -324,11 +354,15 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
                 ? [Math.round(clearColor.r), Math.round(clearColor.g), Math.round(clearColor.b), Math.round(clearColor.a)]
                 : [48, 48, 48, 255],
             fov: this._camera?.fov ?? 45,
-            far: this._camera?.far ?? this._controller3D.far,
-            near: this._camera?.near ?? this._controller3D.near,
+            // 3D 的 near/far 取自 3D 控制器，避免受当前激活相机（可能是 2D）影响
+            far: this._controller3D.far,
+            near: this._controller3D.near,
             wheelSpeed: this._controller3D.wheelSpeed,
             wanderSpeed: this._controller3D.wanderSpeed,
             enableAcceleration: this._controller3D.enableAcceleration,
+            far2D: this._controller2D.far,
+            near2D: this._controller2D.near,
+            wheelSpeed2D: this._controller2D.wheelSpeed,
             aperture: typeof camera?.aperture === 'number' ? camera.aperture : 19,
             shutter: typeof camera?.shutter === 'number' ? camera.shutter : 7,
             iso: typeof camera?.iso === 'number' ? camera.iso : 0,
@@ -380,6 +414,58 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
     getCamera() {
         return this._camera;
+    }
+
+    getCurCameraInfo(): any {
+        const curCameraNode = this._controller3D.node;
+        const curCameraPos = curCameraNode.getWorldPosition();
+        const curCameraRot = curCameraNode.getWorldRotation();
+        const position = { x: curCameraPos.x, y: curCameraPos.y, z: curCameraPos.z };
+        const rotation = { x: curCameraRot.x, y: curCameraRot.y, z: curCameraRot.z, w: curCameraRot.w };
+        const sceneViewCenter = this._controller3D.sceneViewCenter;
+        const viewCenter = { x: sceneViewCenter.x, y: sceneViewCenter.y, z: sceneViewCenter.z };
+        // 2D 视图状态（对齐 Creator：一并记录 contentRect + scale2D，使 2D 场景视角可完整恢复）
+        const rect2D = this._controller2D.contentRect;
+        const contentRect = { x: rect2D.x, y: rect2D.y, width: rect2D.width, height: rect2D.height };
+        const scale = this._controller2D.scale2D;
+        return { position, rotation, viewCenter, contentRect, scale };
+    }
+
+    async saveCameraInfos(uuid?: string, write = true): Promise<void> {
+        uuid = uuid ?? this._currentUuid;
+        if (!uuid) return;
+        const cameraInfo = this.getCurCameraInfo();
+        const index = this._cameraUuids.indexOf(uuid);
+
+        if (index !== -1) {
+            delete this._cameraInfos[uuid];
+            this._cameraUuids.splice(index, 1);
+            this._cameraUuids.push(uuid);
+        } else {
+            this._cameraUuids.push(uuid);
+            if (this._cameraUuids.length > 50) {
+                delete this._cameraInfos[this._cameraUuids[0]];
+                this._cameraUuids.splice(0, 1);
+            }
+        }
+        this._cameraInfos[uuid] = cameraInfo;
+        if (write) {
+            try {
+                const rpc = Rpc.getInstance();
+                await rpc.request('sceneConfigInstance', 'set', ['camera-infos', this._cameraInfos]);
+                await rpc.request('sceneConfigInstance', 'set', ['camera-uuids', this._cameraUuids]);
+            } catch {
+                // persistence not available
+            }
+        }
+    }
+
+    onEditorClosed(): void {
+        this.saveCameraInfos(undefined, false);
+    }
+
+    onEditorSaved(): void {
+        void this.saveCameraInfos();
     }
 
     /**

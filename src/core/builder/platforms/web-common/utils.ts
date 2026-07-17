@@ -5,7 +5,6 @@ import builderConfig from '../../share/builder-config';
 import { getBuildUrlPath, registerBuildPath } from '../../build.middleware';
 import { exec } from 'child_process';
 
-
 export async function getPreviewUrl(dest: string, platform?: string) {
     const rawPath = utils.Path.resolveToRaw(dest);
     if (!existsSync(rawPath)) {
@@ -20,7 +19,7 @@ export async function getPreviewUrl(dest: string, platform?: string) {
     if (rawPath.startsWith(builderConfig.projectRoot) && platform) {
         const registerName = basename(rawPath);
         registerBuildPath(platform, registerName, rawPath);
-        return `${serverService.url}/build/${platform}/${registerName}/index.html`;
+        return `${serverService.url}/build/${registerName}/index.html`;
     }
     
     const buildRoot = join(builderConfig.projectRoot, 'build');
@@ -91,10 +90,9 @@ function openBrowser(url: string, completedCallback?: () => void): void {
  * @returns Promise，在浏览器打开完成时 resolve
  */
 export function openUrlAsync(url: string): Promise<void> {
+    console.log(`正在打开 URL: ${url}`);
     return new Promise<void>((resolve) => {
-        openBrowser(url, () => {
-            resolve();
-        });
+        openBrowser(url, resolve);
     });
 }
 
