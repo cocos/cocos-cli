@@ -1,0 +1,47 @@
+{
+    "name": "huawei-agc",
+    "version": "1.0.0",
+    "author": "Cocos",
+    "description": "Huawei AppGallery Connect platform plugin",
+    "license": "ISC",
+    "type": "commonjs",
+    "contributes": {
+        "builder": {
+            "register": true,
+            "platform": "huawei-agc",
+            "config": "./src/config",
+            "hooks": "./src/hooks"
+        },
+        "pinkBuilder": {
+            "platform": "huawei-agc",
+            "customView": "./dist/view/build-config.js",
+            "customExtensionHost": "./dist/view/build-config-host.js",
+            "customFields": [
+                "apiLevel",
+                "keystorePath",
+                "useDebugKeystore",
+                "keystorePassword",
+                "keystoreAlias",
+                "keystoreAliasPassword",
+                "resizeableActivity",
+                "maxAspectRatio"
+            ],
+            "optionsUI": {
+                "serviceConfigPath": {
+                    "editPresentation": "filepath",
+                    "editPresentationOptions": {
+                        "protocols": [
+                            "file"
+                        ]
+                    }
+                }
+            },
+            "card": "./static/card.png",
+            "icon": "./static/icon.png"
+        }
+    },
+    "scripts": {
+        "build-view": "node scripts/build-view.js",
+        "watch-view": "node scripts/build-view.js --watch"
+    }
+}
