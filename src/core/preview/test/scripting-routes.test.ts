@@ -4,6 +4,8 @@ const mockGetConfigPath = jest.fn();
 const mockPathExists = jest.fn();
 const mockReadJSON = jest.fn();
 const mockQueryAssetInfo = jest.fn();
+const mockStat = jest.fn();
+const mockWaitForProgrammingFacet = jest.fn();
 
 jest.mock('../../engine', () => ({
     Engine: {
@@ -30,10 +32,20 @@ jest.mock('../../assets', () => ({
 jest.mock('fs-extra', () => ({
     pathExists: mockPathExists,
     readJSON: mockReadJSON,
-    stat: jest.fn(),
+    stat: mockStat,
     readFile: jest.fn(),
 }));
 
+jest.mock('../../scripting/programming/FacetInstance', () => ({
+    waitForProgrammingFacet: mockWaitForProgrammingFacet,
+}));
+
+jest.mock('../../scripting', () => ({
+    __esModule: true,
+    default: { projectPath: '/workspace/.hidden-project' },
+}));
+
+import { join } from 'path';
 import { scriptingRoutes } from '../scripting-routes';
 
 describe('preview scripting routes', () => {
@@ -50,6 +62,10 @@ describe('preview scripting routes', () => {
         mockGetConfigPath.mockResolvedValue('E:/project/settings/cocos.config.json');
         mockPathExists.mockResolvedValue(true);
         mockQueryAssetInfo.mockReturnValue(null);
+        mockStat.mockResolvedValue({ isFile: () => true });
+        mockWaitForProgrammingFacet.mockResolvedValue({
+            systemJsHomeDir: '/workspace/.hidden',
+        });
     });
 
     it('normalizes disk graphics settings when serving engine modules', async () => {
@@ -211,5 +227,41 @@ describe('preview scripting routes', () => {
         const route = scriptingRoutes.find((item) => item.url instanceof RegExp && item.url.test(`/${uuid.slice(0, 2)}/${uuid}.json`));
 
         expect(route).toBeUndefined();
+    });
+
+    it('allows files under a dot-prefixed directory', async () => {
+        const route = scriptingRoutes.find((item) => item.url instanceof RegExp && item.url.source === '^\\/scripting\\/systemjs');
+        const res = {
+            sendFile: jest.fn(),
+        };
+        const next = jest.fn();
+
+        expect(route).toBeDefined();
+
+        await route!.handler({ path: '/scripting/systemjs/example.js' } as any, res as any, next);
+
+        expect(res.sendFile).toHaveBeenCalledWith(
+            join('/workspace/.hidden', 'example.js'),
+            { dotfiles: 'allow' },
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('serves effect settings from a dot-prefixed project path', async () => {
+        const route = scriptingRoutes.find((item) => item.url === '/scripting/engine/effect-settings');
+        const res = {
+            sendFile: jest.fn(),
+        };
+        const next = jest.fn();
+
+        expect(route).toBeDefined();
+
+        await route!.handler({} as any, res as any, next);
+
+        expect(res.sendFile).toHaveBeenCalledWith(
+            join('/workspace/.hidden-project', 'temp', 'asset-db', 'effect', 'effect.bin'),
+            { dotfiles: 'allow' },
+        );
+        expect(next).not.toHaveBeenCalled();
     });
 });

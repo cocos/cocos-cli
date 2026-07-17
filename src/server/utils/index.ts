@@ -1,4 +1,6 @@
 import net from 'net';
+import type { Response } from 'express';
+
 
 /**
  * 获取当前系统可用端口
@@ -24,4 +26,13 @@ export async function getAvailablePort(preferredPort: number): Promise<number> {
             server.close(() => resolve(port));
         });
     });
+}
+
+/**
+ * 以允许点目录/点文件的方式返回文件。
+ * express/send 默认忽略路径中以 `.` 开头的段(dotfiles: 'ignore'),
+ * 项目或资源位于点目录(如 ~/.projects/x)下时会被误判 404,统一走此 helper。
+ */
+export function sendFileAllowingDotfiles(res: Response, filePath: string): void {
+    res.sendFile(filePath, { dotfiles: 'allow' });
 }

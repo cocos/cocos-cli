@@ -10,12 +10,7 @@ import {
     mergeGraphicsConfigWithModules,
     normalizeIncludeModulesWithGraphics,
 } from '../engine/graphics-config';
-
-function sendQuickPackChunk(res: Response, filePath: string): void {
-    // QuickPack may emit chunks under project temp paths used by smoke workspaces.
-    // The path is resolved by the loader, not by raw URL-to-file joining.
-    res.sendFile(filePath, { dotfiles: 'allow' });
-}
+import { sendFileAllowingDotfiles } from '../../server/utils';
 
 let libraryDirsCache: string[] | null = null;
 
@@ -134,7 +129,7 @@ export const scriptingRoutes = [
                 const relPath = decodeURIComponent(rawPath.substring('/external'.length));
                 const resourcePath = join(facet.engineDistRoot, 'external', relPath);
                 if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
-                    res.sendFile(resourcePath, { dotfiles: 'allow' });
+                    sendFileAllowingDotfiles(res, resourcePath);
                 } else {
                     next();
                 }
@@ -316,7 +311,7 @@ export const scriptingRoutes = [
                 const file = info?.library?.['.js'];
                 if (file && await pathExists(file) && (await stat(file)).isFile()) {
                     res.set('Cache-Control', 'no-store');
-                    res.sendFile(file, { dotfiles: 'allow' });
+                    sendFileAllowingDotfiles(res, file);
                 } else {
                     console.warn(`[Preview Server] Plugin script not found: ${relPath}`);
                     next();
@@ -336,7 +331,7 @@ export const scriptingRoutes = [
                 relPath = decodeURIComponent(relPath);
                 const resourcePath = join(facet.engineDistRoot, relPath);
                 if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
-                    res.sendFile(resourcePath, { dotfiles: 'allow' });
+                    sendFileAllowingDotfiles(res, resourcePath);
                 } else {
                     next();
                 }
@@ -442,7 +437,7 @@ export const scriptingRoutes = [
                 const { default: scripting } = await import('../../core/scripting');
                 const effectBinPath = join(scripting.projectPath, 'temp', 'asset-db', 'effect', 'effect.bin');
                 if (await pathExists(effectBinPath) && (await stat(effectBinPath)).isFile()) {
-                    res.sendFile(effectBinPath);
+                    sendFileAllowingDotfiles(res, effectBinPath);
                 } else {
                     next();
                 }
@@ -525,7 +520,7 @@ export const scriptingRoutes = [
                 if (packResource.type === 'json') {
                     res.json(packResource.json);
                 } else if (packResource.type === 'chunk') {
-                    sendQuickPackChunk(res, packResource.chunk.path);
+                    sendFileAllowingDotfiles(res, packResource.chunk.path);
                 } else {
                     console.warn(`[Preview Server] Unknown pack resource type for ${fullUrl}:`, packResource);
                     next(new Error('Unknown pack resource type'));
@@ -545,7 +540,7 @@ export const scriptingRoutes = [
             try {
                 const packResource = await facet.loadPackResource(url);
                 if (packResource.type === 'chunk') {
-                    sendQuickPackChunk(res, packResource.chunk.path);
+                    sendFileAllowingDotfiles(res, packResource.chunk.path);
                 } else if (packResource.type === 'json') {
                     res.json(packResource.json);
                 } else {
@@ -600,7 +595,7 @@ export const scriptingRoutes = [
                 }
 
                 if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
-                    res.sendFile(resourcePath, { dotfiles: 'allow' });
+                    sendFileAllowingDotfiles(res, resourcePath);
                 } else {
                     console.warn(`[Preview Server] Engine resource NOT FOUND on disk: ${resourcePath}`);
                     next();
@@ -637,7 +632,7 @@ export const scriptingRoutes = [
                     }
                 }
                 if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
-                    return res.sendFile(resourcePath, { dotfiles: 'allow' });
+                    return sendFileAllowingDotfiles(res, resourcePath);
                 }
             }
             next();
@@ -649,7 +644,7 @@ export const scriptingRoutes = [
             const relPath = req.path.substring('/static/web'.length);
             const resourcePath = join(GlobalPaths.workspace, 'static', 'web', relPath);
             if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
-                res.sendFile(resourcePath);
+                sendFileAllowingDotfiles(res, resourcePath);
             } else {
                 console.warn(`[Preview Server] Static resource not found: ${resourcePath}`);
                 next();
@@ -665,12 +660,12 @@ export const scriptingRoutes = [
             if (relPath.startsWith('/extras/')) {
                 const extraPath = join(GlobalPaths.workspace, 'node_modules', '@cocos', 'systemjs', 'dist', relPath);
                 if (await pathExists(extraPath) && (await stat(extraPath)).isFile()) {
-                    return res.sendFile(extraPath);
+                    return sendFileAllowingDotfiles(res, extraPath);
                 }
             }
             const resourcePath = join(facet.systemJsHomeDir, relPath);
             if (await pathExists(resourcePath) && (await stat(resourcePath)).isFile()) {
-                res.sendFile(resourcePath);
+                sendFileAllowingDotfiles(res, resourcePath);
             } else {
                 console.warn(`[Preview Server] SystemJS resource not found: ${resourcePath}`);
                 next();
@@ -693,7 +688,7 @@ export const scriptingRoutes = [
             }
 
             if (await pathExists(finalPath) && (await stat(finalPath)).isFile()) {
-                res.sendFile(finalPath, { dotfiles: 'allow' });
+                sendFileAllowingDotfiles(res, finalPath);
             } else {
                 next();
             }

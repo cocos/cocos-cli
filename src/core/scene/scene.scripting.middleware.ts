@@ -4,6 +4,7 @@ import { basename, join } from 'path';
 import ejs from 'ejs';
 import { GlobalPaths } from '../../global';
 import { scriptingRoutes } from '../preview/scripting-routes';
+import { sendFileAllowingDotfiles } from '../../server/utils';
 import { pathExists } from 'fs-extra';
 
 export default {
@@ -57,7 +58,7 @@ export default {
                     const effectBinPath = join(scripting.projectPath, 'temp', 'cli', 'asset-db', 'effect', 'effect.bin');
                     if (await pathExists(effectBinPath)) {
                         res.setHeader('Content-Type', 'application/octet-stream');
-                        res.sendFile(effectBinPath);
+                        sendFileAllowingDotfiles(res, effectBinPath);
                     } else {
                         res.status(404).send('effect.bin not found');
                     }

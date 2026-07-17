@@ -2,6 +2,7 @@ import type { IMiddlewareContribution } from '../../server/interfaces';
 import { Request, Response } from 'express';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { sendFileAllowingDotfiles } from '../../server/utils';
 
 const buildMaps: Record<string, string> = {};
 const destMaps: Record<string, string> = {};
@@ -35,7 +36,7 @@ export default {
                 if (dest && file) {
                     const path = join(dest, file);
                     if (existsSync(path)) {
-                        return res.sendFile(path);
+                        return sendFileAllowingDotfiles(res, path);
                     }
                 }
                 
