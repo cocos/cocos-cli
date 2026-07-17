@@ -40,8 +40,8 @@ module.exports = {
         orientation_portrait: 'The screen is upright and the Home button is down',
         orientation_landscape_left: 'The screen is horizontal, the Home button is on the left side of the screen',
         orientation_landscape_right: 'The screen is horizontal, the Home button is on the right side of the screen',
-        JobSystemTaskFlow: 'TaskFlow needs C++17 support.',
-        JobSystemOther: 'C++17 will be enabled to support compilation.',
+        job_system_task_flow: 'TaskFlow needs C++17 support.',
+        job_system_other: 'C++17 will be enabled to support compilation.',
     },
     make: {
         label: 'Make',

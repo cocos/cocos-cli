@@ -31,8 +31,8 @@ module.exports = {
         ohos_sdk_error: '找不到 HarmonyOS NDK/SDK 路径，请到 偏好设置 -> 外部程序 中设置',
         set_ohos_sdk: '设置 HarmonyOS SDK',
         apilevel_empty: '获取 apiLevel 失败，请点击旁边的“设置 HarmonyOS SDK”按钮到“偏好设置 -> 外部程序”中检查“HarmonyOS NDK/SDK”路径配置',
-        JobSystemTaskFlow: 'TaskFlow 需要启用 C++17',
-        JobSystemOther: '将会自动启用 C++17 以支持编译',
+        job_system_task_flow: 'TaskFlow 需要启用 C++17',
+        job_system_other: '将会自动启用 C++17 以支持编译',
     },
     make: {
         label: '生成',
