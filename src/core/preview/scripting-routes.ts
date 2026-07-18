@@ -366,6 +366,9 @@ export const scriptingRoutes = [
         async handler(req: Request, res: Response, next: NextFunction) {
             const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
             const facet = await waitForProgrammingFacet();
+            // pack 产物（import-map / resolution-detail-map / chunk）会随脚本重编而变化（哈希改变、旧 chunk 被删），
+            // 一旦浏览器缓存了旧 chunk，其内嵌 import 会指向已删除的哈希 → 404（SystemJS Error#3）。禁用缓存。
+            res.set('Cache-Control', 'no-store');
 
             const url = req.path.substring('/scripting/x'.length).replace(/^\//, '');
             if (url === '' || url === '/') {
@@ -442,6 +445,8 @@ export const scriptingRoutes = [
         async handler(req: Request, res: Response, next: NextFunction) {
             const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
             const facet = await waitForProgrammingFacet();
+            // 同 /scripting/x：chunk 随重编变化，禁用浏览器缓存避免旧 chunk 引用已删哈希导致 404。
+            res.set('Cache-Control', 'no-store');
             const url = req.path.substring(1);
             try {
                 const packResource = await facet.loadPackResource(url);

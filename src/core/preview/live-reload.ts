@@ -1,3 +1,6 @@
+import { watch, FSWatcher } from 'fs';
+import { ensureDirSync } from 'fs-extra';
+import { join } from 'path';
 import { socketService } from '../../server/socket';
 import { invalidatePreviewSettings } from './preview-settings';
 
@@ -19,6 +22,9 @@ let configRef: { off?: Function; removeListener?: Function } | null = null;
 let onCompiled: (() => void) | null = null;
 let onRefreshFinish: (() => void) | null = null;
 let onConfigChanged: (() => void) | null = null;
+// pack 产物目录监听：感知本进程或外部进程（如 Creator）对共用 temp/packer-driver 的重编。
+let packWatcher: FSWatcher | null = null;
+let packTimer: NodeJS.Timeout | null = null;
 
 function removeListener(emitter: { off?: Function; removeListener?: Function } | null, event: string, fn: Function | null): void {
     if (!emitter || !fn) {
@@ -46,6 +52,29 @@ function scheduleReload(): void {
  */
 export function triggerPreviewReload(): void {
     scheduleReload();
+}
+
+/**
+ * pack 产物（import-map / chunk）变化后：先刷新 cli 内存态 QuickPackLoader（读到磁盘最新映射），
+ * 再触发浏览器整页刷新，取到一致的 import-map + chunk。去抖，避免一次编译的多次写入触发多次刷新。
+ */
+function schedulePackReload(): void {
+    if (packTimer) {
+        clearTimeout(packTimer);
+    }
+    packTimer = setTimeout(async () => {
+        packTimer = null;
+        try {
+            const { waitForProgrammingFacet } = await import('../scripting/programming/FacetInstance');
+            const facet = await waitForProgrammingFacet();
+            // 重载内存 loader：感知 Creator 等外部进程对共用 temp/packer-driver 的重编，
+            // 避免 cli 仍用旧 import-map 引用已被删除的 chunk 哈希 → 浏览器 chunk 404（SystemJS Error#3）。
+            await facet.notifyPackDriverUpdated();
+        } catch (e) {
+            console.warn('[Live Reload] refresh pack loader failed:', e);
+        }
+        scheduleReload();
+    }, 300);
 }
 
 /**
@@ -78,6 +107,27 @@ export async function registerLiveReload(): Promise<void> {
     // 工程配置变更（set / reload）
     configurationManager.on(MessageType.Update, onConfigChanged);
     configurationManager.on(MessageType.Reload, onConfigChanged);
+
+    // 监听 pack 产物目录：脚本被本进程或外部进程（如 Creator，共用 temp/programming/packer-driver）
+    // 重编时，import-map / chunk 会变化。此时刷新 cli 内存态 loader 并触发浏览器刷新，
+    // 解决「Creator 与 cli 同开一个项目、Creator 重编后 cli 仍用旧 import-map → chunk 404」。
+    try {
+        const packDir = join(scripting.projectPath, 'temp', 'programming', 'packer-driver');
+        ensureDirSync(packDir);
+        // recursive 在 Windows/macOS 支持；Linux 不支持会抛错，降级为不监听（config/compiled 事件仍覆盖本进程改动）。
+        packWatcher = watch(packDir, { recursive: true }, (_event, filename) => {
+            if (!filename) {
+                return;
+            }
+            const name = filename.toString();
+            // 只在编译结束信号（import-map / resolution-detail-map 重写）时刷新，忽略 chunks 写入噪声。
+            if (name.endsWith('import-map.json') || name.endsWith('resolution-detail-map.json')) {
+                schedulePackReload();
+            }
+        });
+    } catch (e) {
+        console.warn('[Live Reload] watch packer-driver dir failed (pack hot-refresh disabled):', e);
+    }
 }
 
 /**
@@ -90,6 +140,14 @@ export function unregisterLiveReload(): void {
     if (timer) {
         clearTimeout(timer);
         timer = null;
+    }
+    if (packTimer) {
+        clearTimeout(packTimer);
+        packTimer = null;
+    }
+    if (packWatcher) {
+        packWatcher.close();
+        packWatcher = null;
     }
     removeListener(scriptingRef, 'compiled', onCompiled);
     removeListener(assetDBRef, 'assets:refresh-finish', onRefreshFinish);
