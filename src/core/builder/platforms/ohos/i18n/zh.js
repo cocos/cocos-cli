@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-    // ！专用名词，不要翻译
+    // 专用名词，不要翻译
     title: 'HarmonyOS',
     options: {
         package_name: '应用 ID 名称',
@@ -15,14 +15,24 @@ module.exports = {
         portrait: '竖屏',
 
         render_back_end: '渲染后端',
+        job_system: '任务调度系统',
+        none: '不开启',
+    },
+    encrypt: {
+        title: '加密 JS',
+        encrypt_key: 'JS 加密密钥',
+        compress_zip: 'Zip 压缩',
+        disable_tips: '调试模式下，JS 加密无效',
     },
     tips: {
         not_empty: '不能为空！',
         at_least_one: '请至少选择一项',
-        package_name_error: '请输入正确的应用 ID：必须至少包含两段（一个或多个圆点），每段必须以字母开头, 包名中只能包含数字、字母和下划线。',
+        package_name_error: '请输入正确的应用 ID：必须至少包含两段（一个或多个圆点），每段必须以字母开头，包名中只能包含数字、字母和下划线。',
         ohos_sdk_error: '找不到 HarmonyOS NDK/SDK 路径，请到 偏好设置 -> 外部程序 中设置',
         set_ohos_sdk: '设置 HarmonyOS SDK',
-        apilevel_empty: '获取 apiLevel 失败，请点击旁边的 \'设置 HarmonyOS SDK\' 按钮到 \'偏好设置 -> 外部程序\' 中检查 \'HarmonyOS NDK/SDK\' 路径配置',
+        apilevel_empty: '获取 apiLevel 失败，请点击旁边的“设置 HarmonyOS SDK”按钮到“偏好设置 -> 外部程序”中检查“HarmonyOS NDK/SDK”路径配置',
+        job_system_task_flow: 'TaskFlow 需要启用 C++17',
+        job_system_other: '将会自动启用 C++17 以支持编译',
     },
     make: {
         label: '生成',

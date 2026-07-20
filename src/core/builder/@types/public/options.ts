@@ -342,7 +342,7 @@ import { IOptions as webDesktopOptions } from '../../platforms/web-desktop/src/t
 export { webDesktopOptions };
 import { IOptions as webMobileOptions } from '../../platforms/web-mobile/src/type';
 export { webMobileOptions };
-import { IOptions as windowsOptions } from '../../platforms/windows/type';
+import { IOptions as windowsOptions } from '../../platforms/windows/src/type';
 export { windowsOptions };
 import { IOptions as nativeOptions } from '../../platforms/native-common/type';
 import { IInternalBuildOptions } from '../protected';

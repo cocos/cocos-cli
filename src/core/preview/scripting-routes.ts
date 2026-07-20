@@ -16,6 +16,14 @@ function sendQuickPackChunk(res: Response, filePath: string): void {
     res.sendFile(filePath, { dotfiles: 'allow' });
 }
 
+function decodePathParam(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
 /**
  * 动态预览的共享资源路由。
  *
@@ -141,7 +149,7 @@ export const scriptingRoutes = [
         url: /^\/query-asset-info\/(.+)$/,
         async handler(req: Request, res: Response, next: NextFunction) {
             try {
-                const uuid = req.params[0];
+                const uuid = decodePathParam(req.params[0]);
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo) {
@@ -175,7 +183,7 @@ export const scriptingRoutes = [
         url: /^\/query-extname\/(.+)$/,
         async handler(req: Request, res: Response, next: NextFunction) {
             try {
-                const uuid = req.params[0];
+                const uuid = decodePathParam(req.params[0]);
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo?.library?.['.bin'] && Object.keys(assetInfo.library).length === 1) {

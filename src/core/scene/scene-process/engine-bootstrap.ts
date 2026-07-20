@@ -149,55 +149,6 @@ export async function startup(options: {
     // Our own edit-mode tick loop (Engine.startTick) takes over later.
     cc.game.pause();
 
-    // Load and register all effect assets so materials (e.g. builtin-standard)
-    // are available before preview services initialize.
-    await (async () => {
-        try {
-            const res = await fetch(`${serverURL}/query-asset-infos/cc.EffectAsset`);
-            if (!res.ok) return;
-            const effectInfos: any[] = await res.json();
-            if (!effectInfos.length) return;
-            const classFinder = (id: string): any => cc.js?.getClassById?.(id) ?? null;
-            await Promise.all(effectInfos.map(async (info: any) => {
-                try {
-                    const uuid: string = info.uuid;
-                    if (!uuid) return;
-                    const lib = info.library;
-                    if (!lib || (!lib['.json'] && !lib['.bin'])) return;
-
-                    const encodedUuid = encodeURIComponent(uuid);
-                    const ext = (lib['.bin'] && !lib['.json']) ? 'bin' : 'json';
-
-                    const r = await fetch(`${serverURL}/import/${encodedUuid}.${ext}?isBrowser=true`);
-                    if (!r.ok) return;
-
-                    const isBinary = ext === 'bin';
-                    let deserializeData: any;
-                    const decode = isBinary ? await getDecodeCCONBinary() : null;
-                    if (isBinary && decode) {
-                        deserializeData = decode(new Uint8Array(await r.arrayBuffer()));
-                    } else {
-                        deserializeData = await r.json();
-                    }
-
-                    const asset = cc.deserialize(deserializeData, undefined, { classFinder });
-                    asset._uuid = uuid;
-                    cc.assetManager.assets.add(uuid, asset);
-                    try {
-                        if (asset.onLoaded) asset.onLoaded();
-                    } catch (e) {
-                        console.warn(`[Effects] onLoaded failed for ${asset._name || uuid}:`, e);
-                        try { cc.EffectAsset.register(asset); } catch {}
-                    }
-                } catch { /* skip individual effect */ }
-            }));
-            const count = Object.keys(cc.EffectAsset.getAll()).length;
-            console.log(`[Effects] Registered ${count} effects`);
-        } catch (e: any) {
-            console.warn('[Effects] Failed to load effects:', e);
-        }
-    })();
-
     function stripNullComponents(node: any) {
         if (node._components) {
             node._components = node._components.filter((c: any) => c != null);
@@ -220,7 +171,6 @@ export async function startup(options: {
     // services create cameras that would otherwise render on mainWindow
     // before any scene is loaded, causing FRAMEBUFFER_INCOMPLETE errors.
     DecoratorService.Engine.pause();
-    await serviceManager.initAllServices();
 
     // Override assetManager.loadAny to fetch project assets from the server
     // when they aren't found in any loaded bundle (e.g., main bundle not loaded).
@@ -486,6 +436,8 @@ export async function startup(options: {
         }
         origLoadAny(requests, options, onComplete);
     };
+
+    await serviceManager.initAllServices();
 
     const canvas = document.getElementById('GameCanvas') as HTMLCanvasElement | null;
     if (canvas && DecoratorService.Operation) {

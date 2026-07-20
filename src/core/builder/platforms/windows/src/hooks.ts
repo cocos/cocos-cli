@@ -1,9 +1,9 @@
 'use strict';
 
 import { IBuildResult, IWindowsInternalBuildOptions } from './type';
-import { BuilderCache, IBuilder } from '../../@types/protected';
+import { BuilderCache, IBuilder } from '../../../@types/protected';
 import { executableNameOrDefault } from './utils';
-import * as nativeCommonHook from '../native-common/hooks';
+import * as nativeCommonHook from '../../native-common/hooks';
 
 export const onBeforeBuild = nativeCommonHook.onBeforeBuild;
 export const onAfterBundleDataTask = nativeCommonHook.onAfterBundleDataTask;

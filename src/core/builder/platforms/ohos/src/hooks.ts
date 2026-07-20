@@ -3,8 +3,8 @@
 import path from 'path';
 import os from 'os';
 import { accessSync, existsSync, constants, outputJSON } from 'fs-extra';
-import * as nativeCommonHook from '../native-common/hooks';
-import { BuilderCache, IBuilder } from '../../@types/protected';
+import * as nativeCommonHook from '../../native-common/hooks';
+import { BuilderCache, IBuilder } from '../../../@types/protected';
 export const throwError = true;
 import { IBuildResult, IOhosInternalBuildOptions } from './type';
 import { generateOptions } from './utils';

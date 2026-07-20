@@ -22,6 +22,7 @@ function createResponse() {
         setHeader: jest.fn(),
         status: jest.fn(),
         send: jest.fn(),
+        json: jest.fn(),
     };
     response.status.mockReturnValue(response);
     return response;
@@ -37,6 +38,9 @@ function createRequest(userAgent: string): any {
 
 describe('scene asset middleware', () => {
     const route = sceneMiddleware.get!.find((item) => item.url === '/:dir/:uuid.:ext');
+    const queryAssetInfoRoute = sceneMiddleware.get!.find((item) => (
+        item.url instanceof RegExp && item.url.source === '^\\/query-asset-info\\/(.+)$'
+    ));
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -69,5 +73,21 @@ describe('scene asset middleware', () => {
         expect(mockReadFile).not.toHaveBeenCalled();
         expect(response.status).toHaveBeenCalledWith(200);
         expect(response.send).toHaveBeenCalledWith(filePath);
+    });
+
+    it('decodes asset URLs before querying asset info', async () => {
+        const response = createResponse();
+        const dbUrl = 'db://internal/effects/builtin-standard.effect';
+        const assetInfo = { uuid: 'builtin-standard-uuid', url: dbUrl };
+        mockQueryAssetInfo.mockReturnValueOnce(assetInfo);
+
+        await queryAssetInfoRoute!.handler(
+            { params: { 0: encodeURIComponent(dbUrl) } } as any,
+            response as any,
+        );
+
+        expect(mockQueryAssetInfo).toHaveBeenCalledWith(dbUrl);
+        expect(response.status).toHaveBeenCalledWith(200);
+        expect(response.json).toHaveBeenCalledWith(assetInfo);
     });
 });

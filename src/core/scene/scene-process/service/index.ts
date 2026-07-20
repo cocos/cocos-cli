@@ -3,6 +3,7 @@ export * from './editor';
 export * from './node';
 export * from './script';
 export * from './asset';
+import './effect';
 export * from './component';
 export * from './engine';
 export * from './animation';

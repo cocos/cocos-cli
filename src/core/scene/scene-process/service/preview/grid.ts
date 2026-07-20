@@ -1,4 +1,4 @@
-import { Camera, Color, Node, Vec3, gfx, MeshRenderer, Layers, utils } from 'cc';
+import { Camera, Color, Node, Vec3, gfx, MeshRenderer, Layers } from 'cc';
 import { CameraUtils } from '../camera/utils';
 import LinearTicks from '../camera/grid/linear-ticks';
 
@@ -9,7 +9,6 @@ export class Grid {
     private _gridMeshComp: MeshRenderer;
     private synchronizeCamera: Camera;
     private _lineColor = cc.color().fromHEX('#A6A6A6');
-    private _useFallback = false;
     hTicks?: LinearTicks;
     vTicks?: LinearTicks;
 
@@ -20,55 +19,9 @@ export class Grid {
 
         this.synchronizeCamera = synchronizeCamera;
 
-        if (!this._gridMeshComp.material) {
-            this._useFallback = true;
-            this.createFallbackGrid(rootNode);
-        }
-
-        if (!this._useFallback) {
-            this.hTicks = new LinearTicks().initTicks([5, 2], 1, 10000).spacing(15, 80);
-            this.vTicks = new LinearTicks().initTicks([5, 2], 1, 10000).spacing(15, 80);
-            this.synchronizeCamera.node.on('transform-changed', this.updateGrid, this);
-        }
-    }
-
-    private createFallbackGrid(rootNode: Node) {
-        this._gridMeshComp.node.destroy();
-
-        const node = new Node('Fallback Grid');
-        node.layer = Layers.Enum.DEFAULT;
-        node.parent = rootNode;
-        node.setWorldPosition(new Vec3(0, 0, 0));
-
-        const comp = node.addComponent(MeshRenderer);
-        const positions: number[] = [];
-        const indices: number[] = [];
-        const gridSize = 10;
-        const step = 1;
-        let idx = 0;
-
-        for (let i = -gridSize; i <= gridSize; i += step) {
-            positions.push(i, 0, -gridSize, i, 0, gridSize);
-            indices.push(idx++, idx++);
-            positions.push(-gridSize, 0, i, gridSize, 0, i);
-            indices.push(idx++, idx++);
-        }
-
-        comp.mesh = utils.createMesh({
-            positions,
-            indices,
-            primitiveMode: gfx.PrimitiveMode.LINE_LIST,
-        });
-
-        const mtl = new cc.Material();
-        mtl.initialize({
-            effectName: 'builtin-unlit',
-            states: { primitive: gfx.PrimitiveMode.LINE_LIST },
-        });
-        try { mtl.setProperty('mainColor', new Color(166, 166, 166, 120)); } catch { /* ignore */ }
-        comp.material = mtl;
-
-        this._gridMeshComp = comp;
+        this.hTicks = new LinearTicks().initTicks([5, 2], 1, 10000).spacing(15, 80);
+        this.vTicks = new LinearTicks().initTicks([5, 2], 1, 10000).spacing(15, 80);
+        this.synchronizeCamera.node.on('transform-changed', this.updateGrid, this);
     }
 
     private _hide = false;
@@ -81,9 +34,6 @@ export class Grid {
     show() {
         this._hide = false;
         this._gridMeshComp.node.active = true;
-        if (!this._useFallback) {
-            this.updateGrid();
-        }
     }
 
     public _updateGridData(positions: number[], colors: number[], lineColor: Color, lineEnd: number | null = null) {
@@ -163,7 +113,7 @@ export class Grid {
     }
 
     public updateGrid() {
-        if (this._hide || this._useFallback) { return; }
+        if (this._hide) { return; }
         const positions: number[] = [];
         const colors: number[] = [];
         const indices: number[] = [];

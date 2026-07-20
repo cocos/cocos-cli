@@ -14,6 +14,14 @@ function isBrowserRequest(req: Request): boolean {
         || (typeof userAgent === 'string' && userAgent.includes('Mozilla/') && !userAgent.includes('node.js/'));
 }
 
+function decodePathParam(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
 export default {
     get: [
         {
@@ -74,7 +82,7 @@ export default {
         {
             url: /^\/query-extname\/(.+)$/,
             async handler(req: Request, res: Response) {
-                const uuid = req.params[0];
+                const uuid = decodePathParam(req.params[0]);
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo?.library?.['.bin'] && Object.keys(assetInfo.library).length === 1) {
@@ -87,7 +95,7 @@ export default {
         {
             url: /^\/query-asset-info\/(.+)$/,
             async handler(req: Request, res: Response) {
-                const uuid = req.params[0];
+                const uuid = decodePathParam(req.params[0]);
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 if (assetInfo) {

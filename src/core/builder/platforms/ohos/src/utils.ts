@@ -10,7 +10,6 @@ import { platform } from 'os';
  */
 export async function generateOptions(options: IOhosInternalBuildOptions) {
     const ohos = options.packages.ohos;
-    ohos.orientation = ohos.orientation || {};
     if(!ohos.sdkPath) {
         ohos.sdkPath = process.env.OHOS_HOME || process.env.OHOS_SDK_ROOT || '';
             

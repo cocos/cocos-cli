@@ -6858,6 +6858,7 @@ export declare enum NodeEventType {
     NOTIFY_NODE_CHANGED = "notify-node-changed",
     PREFAB_INFO_CHANGED = "prefab-info-changed",
     LIGHT_PROBE_CHANGED = "light-probe-changed",
+    LIGHT_PROBE_BAKING_CHANGED = "light-probe-baking-changed",
     SET_PROPERTY = "set-property",
     MOVE_ARRAY_ELEMENT = "move-array-element",
     REMOVE_ARRAY_ELEMENT = "remove-array-element",
