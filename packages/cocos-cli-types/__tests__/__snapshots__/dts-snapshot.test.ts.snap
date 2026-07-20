@@ -3205,7 +3205,7 @@ export declare class InternalBuildResult_2 extends EventEmitter implements Inter
     constructor(task: IBuilder, preview: boolean);
 }
 export declare type InternalModuleFormat = 'amd' | 'cjs' | 'es' | 'iife' | 'system' | 'umd';
-export declare type InternalNativePlatform = 'mac' | 'android' | 'google-play' | 'windows' | 'ios' | 'ohos' | 'harmonyos-next';
+export declare type InternalNativePlatform = 'mac' | 'android' | 'google-play' | 'huawei-agc' | 'windows' | 'ios' | 'ohos' | 'harmonyos-next';
 export declare interface InternalPackageInfo {
     name: string;
     path: string;
