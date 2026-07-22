@@ -267,7 +267,15 @@ export function encodeScene(scene: any): IScene {
     }
     for (const [key, val] of Object.entries(data._globals)) {
         if (val && typeof val === 'object' && 'type' in val && 'value' in val) {
-            (val as IProperty).path = `_globals.${key}`;
+            const prop = val as IProperty;
+            prop.path = `_globals.${key}`;
+            if (prop.value && typeof prop.value === 'object' && !Array.isArray(prop.value)) {
+                for (const [subKey, subProp] of Object.entries(prop.value as Record<string, unknown>)) {
+                    if (subProp && typeof subProp === 'object' && !Array.isArray(subProp) && 'type' in subProp && 'value' in subProp) {
+                        (subProp as IProperty).path = `_globals.${key}.${subKey}`;
+                    }
+                }
+            }
         }
     }
 

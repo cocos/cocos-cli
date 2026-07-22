@@ -763,5 +763,27 @@ describe('Node ForEditor 接口测试', () => {
                 }
             }
         });
+
+        it('场景 _globals 子属性的 path 格式为 _globals.{key}.{subKey}', async () => {
+            const dump = await rpcRequest('query', []) as IScene;
+
+            let count = 0;
+            if (dump._globals && typeof dump._globals === 'object') {
+                for (const [key, val] of Object.entries(dump._globals)) {
+                    if (val && typeof val === 'object' && 'type' in val && 'value' in val) {
+                        const value = (val as any).value;
+                        if (value && typeof value === 'object' && !Array.isArray(value)) {
+                            for (const [subKey, subVal] of Object.entries(value)) {
+                                if (subVal && typeof subVal === 'object' && 'type' in subVal && 'value' in subVal) {
+                                    expect((subVal as any).path).toBe(`_globals.${key}.${subKey}`);
+                                    count++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            expect(count).toBeGreaterThan(0);
+        });
     });
 });
