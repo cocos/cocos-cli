@@ -3141,7 +3141,7 @@ export declare class InfoManager {
     compare(path: string, mtimeMs: number): boolean;
     forEach(handler: Function): Promise<void>;
 }
-export declare function init(platform?: string): Promise<void>;
+export declare function init(platform?: string[]): Promise<void>;
 export declare type InputOption = string | string[] | { [entryAlias: string]: string };
 export declare interface InputOptions {
     	acorn?: Record<string, unknown>;

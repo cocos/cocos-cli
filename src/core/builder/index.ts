@@ -16,12 +16,14 @@ import { BuildGlobalInfo } from './share/global';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheResult } from './cache';
 
-export async function init(platform?: string) {
+export async function init(platform?: string[]) {
     await builderConfig.init();
     await pluginManager.init();
     middlewareService.register('Build', BuildMiddleware);
-    if (platform) {
-        await pluginManager.register(platform);
+    if (platform?.length) {
+        for (const platformName of platform) {
+            await pluginManager.register(platformName);
+        }
     } else {
         await pluginManager.registerAllPlatform();
     }

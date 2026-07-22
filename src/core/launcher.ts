@@ -103,7 +103,7 @@ export default class Launcher {
         await startServer(previewOptions.port);
 
         const { init, build } = await import('./builder');
-        await init(platform);
+        await init([platform]);
 
         const buildOptions: Partial<IBuildCommandOption> = {
             ...previewOptions.buildOptions,
@@ -228,14 +228,14 @@ export default class Launcher {
         await this.import();
         // 执行构建流程
         const { init, build } = await import('./builder');
-        await init(platform);
+        await init([platform]);
         return await build(platform, options);
     }
 
     static async make(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
-        await init(platform);
+        await init([platform]);
         return await executeBuildStageTask('command make', 'make', {
             platform,
             dest,
@@ -248,7 +248,7 @@ export default class Launcher {
         if (platform.startsWith('web')) {
             await startServer();
         }
-        await init(platform);
+        await init([platform]);
         return await executeBuildStageTask('command run', 'run', {
             platform,
             dest,
@@ -258,7 +258,7 @@ export default class Launcher {
     static async upload(platform: Platform, dest: string, accessToken?: string) {
         GlobalConfig.mode = 'simple';
         const { init, executeBuildStageTask } = await import('./builder');
-        await init(platform);
+        await init([platform]);
         return await executeBuildStageTask('command upload', 'upload', {
             platform,
             dest,
