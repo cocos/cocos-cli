@@ -165,7 +165,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
                         ) : previewInfo.qrcodeSrc ? (
                             <img alt="" src={previewInfo.qrcodeSrc} style={QR_CODE} />
                         ) : (
-                            <div style={INFO}>{loadingPreview ? 'Loading...' : 'Preview server is not available.'}</div>
+                            <div style={INFO}>{loadingPreview ? 'Loading...' : 'Preview server is not available. Please build first.'}</div>
                         )}
                     </div>
                 </TypedField>
@@ -186,7 +186,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
                                 {previewInfo.previewUrl}
                             </a>
                         ) : (
-                            <span style={INFO}>{loadingPreview ? 'Loading...' : 'Preview server is not available.'}</span>
+                            <span style={INFO}>{loadingPreview ? 'Loading...' : 'Preview server is not available. Please build first.'}</span>
                         )}
                     </div>
                 </TypedField>

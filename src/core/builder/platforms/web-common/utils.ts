@@ -2,8 +2,12 @@ import { existsSync } from 'fs';
 import { join, relative, basename } from 'path';
 import utils from '../../../base/utils';
 import builderConfig from '../../share/builder-config';
-import { getBuildUrlPath, registerBuildPath } from '../../build.middleware';
-import { exec } from 'child_process';
+import { getBuildPath, getBuildUrlPath, registerBuildPath } from '../../build.middleware';
+import { execFile } from 'child_process';
+
+export async function getBuidPath(platform: string, name: string) {
+    return getBuildPath(platform, name);
+}
 
 export async function getPreviewUrl(dest: string, platform?: string) {
     const rawPath = utils.Path.resolveToRaw(dest);
@@ -12,6 +16,7 @@ export async function getPreviewUrl(dest: string, platform?: string) {
     }
     const serverService = (await import('../../../../server/server')).serverService;
     const buildKey = getBuildUrlPath(rawPath);
+    console.log(`getPreviewUrl: rawPath=${rawPath}, buildKey=${buildKey}, platform=${platform}`);
     if (buildKey) {
         return `${serverService.url}/build/${buildKey}/index.html`;
     }
@@ -36,15 +41,19 @@ function openBrowser(url: string, completedCallback?: () => void): void {
     const currentPlatform = process.platform;
 
     let command: string | undefined;
+    let args: string[] = [];
     switch (currentPlatform) {
         case 'win32':
-            command = `start ${url}`;
+            command = 'rundll32.exe';
+            args = ['url.dll,FileProtocolHandler', url];
             break;
         case 'darwin':
-            command = `open ${url}`;
+            command = 'open';
+            args = [url];
             break;
         case 'linux':
-            command = `xdg-open ${url}`;
+            command = 'xdg-open';
+            args = [url];
             break;
         default:
             console.log(`请手动打开浏览器访问: ${url}`);
@@ -54,19 +63,8 @@ function openBrowser(url: string, completedCallback?: () => void): void {
             return;
     }
 
-    //@ts-expect-error
-    //hack: when run on pink use simple browser instead of default browser
-    if (process && process.addGlobalOpenUrl) {
-        //@ts-expect-error
-        process.addGlobalOpenUrl(url);
-        if (completedCallback) {
-            completedCallback();
-        }
-        return;
-    }
-
     if (command) {
-        exec(command, (error: any) => {
+        execFile(command, args, { windowsHide: true }, (error: any) => {
             if (error) {
                 console.error('打开浏览器失败:', error.message);
                 console.log(`请手动打开浏览器访问: ${url}`);

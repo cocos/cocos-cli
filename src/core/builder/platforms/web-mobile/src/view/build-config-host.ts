@@ -105,7 +105,7 @@ async function getPreviewInfo(request: PreviewRequest = {}): Promise<PreviewInfo
     const buildPath = request.buildPath || 'project://build';
     const outputName = request.outputName || 'web-mobile';
     const platform = 'web-mobile';
-    const previewUrl = await pink.builder.getPreviewUrl(path.join(buildPath, outputName), platform) || '';
+    const previewUrl = await pink.builder.getPreviewUrl(buildPath + "/" + outputName, platform) || '';
     const webGPUTips = request.useWebGPU && previewUrl && !previewUrl.startsWith('https')
         ? lookup(loadBundle(), 'tips.webGPUServer') || ''
         : '';
