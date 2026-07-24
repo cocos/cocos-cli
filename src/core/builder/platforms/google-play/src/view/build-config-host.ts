@@ -10,9 +10,32 @@ import {
 
 type Bundle = Record<string, unknown>;
 
+type PreBuildHookFn = (
+    options: Record<string, unknown>,
+) => Promise<Record<string, unknown> | void>;
+
 interface HostContext {
     registerMethod(name: string, handler: (...args: any[]) => unknown | Promise<unknown>): void;
+    registerPreBuildHook?(fn: PreBuildHookFn): void;
     getProjectPath?(): string | undefined;
+}
+
+const PLATFORM = 'google-play';
+const ANDROID_SDK_CONFIG_KEY = 'programManager.androidSDK';
+const ANDROID_NDK_CONFIG_KEY = 'programManager.androidNDK';
+const JAVA_HOME_CONFIG_KEY = 'programManager.javaHome';
+
+interface GooglePlayPackage {
+    sdkPath?: string;
+    ndkPath?: string;
+    javaHome?: string;
+    javaPath?: string;
+}
+
+interface GooglePlayBuildOptions {
+    packages?: {
+        [PLATFORM]?: GooglePlayPackage;
+    };
 }
 
 function currentLang(): 'zh' | 'en' {
@@ -75,25 +98,79 @@ function existsDir(filePath: string): boolean {
     }
 }
 
-function findSdkPath(): string {
-    const envSdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-    if (envSdk && existsDir(envSdk)) {
-        return envSdk;
+async function findSdkPath(): Promise<string> {
+    return getConfigurationString(ANDROID_SDK_CONFIG_KEY);
+}
+
+async function getConfigurationString(key: string): Promise<string> {
+    const value = await pink.configuration.get(key);
+    return typeof value === 'string' ? value : '';
+}
+
+function resolveJavaPaths(javaHome: string): { javaHome: string; javaPath: string } {
+    if (!javaHome) {
+        return { javaHome: '', javaPath: '' };
     }
 
-    if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
-        const defaultSdkPath = path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk');
-        if (existsDir(defaultSdkPath)) {
-            return defaultSdkPath;
+    try {
+        const st = fs.statSync(javaHome);
+        if (st.isFile()) {
+            return {
+                javaHome: path.normalize(path.join(path.dirname(javaHome), '..')),
+                javaPath: javaHome,
+            };
+        }
+
+        if (st.isDirectory()) {
+            const javaFileName = process.platform === 'win32' ? 'java.exe' : 'java';
+            const javaPath = path.join(javaHome, 'bin', javaFileName);
+            if (fs.existsSync(javaPath)) {
+                return { javaHome, javaPath };
+            }
+            console.error(`Java executable not found at ${javaHome}/bin`);
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
+    return { javaHome, javaPath: '' };
+}
+
+async function createProgramPathPatch(pkg?: GooglePlayPackage): Promise<GooglePlayPackage> {
+    const patch: GooglePlayPackage = {};
+
+    if (!pkg?.sdkPath) {
+        const sdkPath = await getConfigurationString(ANDROID_SDK_CONFIG_KEY);
+        if (sdkPath) {
+            patch.sdkPath = sdkPath;
         }
     }
-    if (process.platform === 'darwin' && process.env.HOME) {
-        const defaultSdkPath = path.join(process.env.HOME, 'Library', 'Android', 'sdk');
-        if (existsDir(defaultSdkPath)) {
-            return defaultSdkPath;
+
+    if (!pkg?.ndkPath) {
+        const ndkPath = await getConfigurationString(ANDROID_NDK_CONFIG_KEY);
+        if (ndkPath) {
+            patch.ndkPath = ndkPath;
         }
     }
-    return '';
+
+    const javaHomeSource = pkg?.javaHome || (await getConfigurationString(JAVA_HOME_CONFIG_KEY));
+    if (!pkg?.javaHome && javaHomeSource) {
+        patch.javaHome = javaHomeSource;
+    }
+
+    if (!pkg?.javaPath && javaHomeSource) {
+        const javaPaths = resolveJavaPaths(javaHomeSource);
+        if (!pkg?.javaHome && javaPaths.javaHome) {
+            patch.javaHome = javaPaths.javaHome;
+        } else if (pkg?.javaHome && javaPaths.javaHome !== pkg.javaHome) {
+            patch.javaHome = javaPaths.javaHome;
+        }
+        if (javaPaths.javaPath) {
+            patch.javaPath = javaPaths.javaPath;
+        }
+    }
+
+    return patch;
 }
 
 function getAPILevel(apiLevelStr: string): number {
@@ -101,13 +178,13 @@ function getAPILevel(apiLevelStr: string): number {
     return match ? Number.parseInt(match[1], 10) : -1;
 }
 
-function getAndroidAPILevels(): number[] {
-    const sdkPath = findSdkPath();
+async function getAndroidAPILevels(): Promise<number[]> {
+    const sdkPath = await findSdkPath();
     if (!sdkPath) {
         return [];
     }
 
-    const platformPath = path.join(sdkPath, 'platforms');
+    const platformPath = sdkPath+'/'+'platforms';
     if (!existsDir(platformPath)) {
         return [];
     }
@@ -155,7 +232,6 @@ async function getActiveProject(): Promise<string> {
 }
 
 async function saveCustomIcon(source: string, outputName: string, projectPath: string): Promise<string> {
-    console.log('saveCustomIcon22', source, outputName, projectPath);
     const sourcePath = source.startsWith('file:') ? fileURLToPath(source) : source;
     return saveProjectCustomIcon(sourcePath, projectPath, 'custom', outputName);
 }
@@ -169,7 +245,6 @@ export function activate(context: HostContext): void {
     context.registerMethod('getAndroidAPILevels', () => getAndroidAPILevels());
     context.registerMethod('getDisplayCustomIcon', async (type: 'default' | 'custom', outputName = 'default', projectPath?: string) => {
         const _projectPath = projectPath || await getActiveProject();
-        console.log('getDisplayCustomIcon11', type, outputName, _projectPath);
         return resolveDisplayCustomIcon(_projectPath, type, outputName);
     });
     context.registerMethod('fileImageSrc', (filePath: string) => {
@@ -199,5 +274,20 @@ export function activate(context: HostContext): void {
         } catch {
             return false;
         }
+    });
+
+    context.registerPreBuildHook?.(async (options) => {
+        const buildOptions = options as GooglePlayBuildOptions;
+        const pkg = buildOptions.packages?.[PLATFORM];
+        const patch = await createProgramPathPatch(pkg);
+
+        if (Object.keys(patch).length) {
+            return {
+                packages: {
+                    [PLATFORM]: patch,
+                },
+            };
+        }
+        return;
     });
 }
