@@ -9,14 +9,13 @@ const mockRpcStartup = jest.fn();
 const mockListenModuleMessages = jest.fn();
 const mockDisposeModuleMessages = jest.fn();
 const mockGetAvailablePort = jest.fn(async (_port: number) => 9230);
-const mockGetServerUrl = jest.fn(() => 'http://localhost:7456');
 
 jest.mock('child_process', () => ({
     fork: (...args: any[]) => mockFork(...args),
 }));
 
 jest.mock('../../../server', () => ({
-    getServerUrl: () => mockGetServerUrl(),
+    getServerUrl: jest.fn(() => 'http://localhost:7456'),
 }));
 
 jest.mock('../../../server/utils', () => ({
@@ -51,7 +50,6 @@ describe('SceneWorker', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockGetAvailablePort.mockResolvedValue(9230);
-        mockGetServerUrl.mockReturnValue('http://localhost:7456');
     });
 
     it('returns true when stop gets EPIPE before exit during manual shutdown', async () => {
@@ -67,38 +65,6 @@ describe('SceneWorker', () => {
         await expect(stopPromise).resolves.toBe(true);
         expect(process.send).toHaveBeenCalledWith(SceneWorker.ExitWorkerEvent);
         expect(mockDisposeModuleMessages).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not pass the server sentinel to a standalone Scene worker', async () => {
-        const worker = new SceneWorker();
-        const process = new MockChildProcess();
-        mockFork.mockReturnValue(process);
-        mockGetServerUrl.mockReturnValue('服务器未启动');
-
-        const startPromise = worker.start('/engine', '/project');
-        await Promise.resolve();
-        process.emit('message', SceneReadyChannel);
-
-        await expect(startPromise).resolves.toBe(true);
-        expect(mockFork.mock.calls[0][1]).toContain('--serverURL=');
-    });
-
-    it('starts without an inspector when the debug port cannot be allocated', async () => {
-        const worker = new SceneWorker();
-        const process = new MockChildProcess();
-        mockFork.mockReturnValue(process);
-        mockGetAvailablePort.mockRejectedValue(new Error('listen EPERM'));
-
-        const startPromise = worker.start('/engine', '/project');
-        await Promise.resolve();
-        process.emit('message', SceneReadyChannel);
-
-        await expect(startPromise).resolves.toBe(true);
-        expect(mockFork).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.any(Array),
-            expect.objectContaining({ execArgv: [] }),
-        );
     });
 
     it('waits for module message listeners before resolving startup', async () => {

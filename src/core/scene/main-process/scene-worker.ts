@@ -63,28 +63,18 @@ export class SceneWorker {
             };
 
             try {
-                const serverUrl = getServerUrl();
-                const serverURL = this.normalizeServerUrl(serverUrl);
                 const args = [
                     `--enginePath=${enginePath}`,
                     `--projectPath=${projectPath}`,
-                    `--serverURL=${serverURL}`,
+                    `--serverURL=${getServerUrl()}`,
                 ];
                 const precessPath = path.join(__dirname, '../../../../dist/core/scene/scene-process/main.js');
-                let execArgv: string[] = [];
-                try {
-                    const inspectPort = await getAvailablePort(9230);
-                    console.log('--inspect= ' + inspectPort);
-                    execArgv = [`--inspect=${inspectPort}`];
-                } catch (error) {
-                    // The Scene worker does not require an inspector to serve the editor.
-                    // In restricted CI/sandbox environments port probing can fail with EPERM.
-                    console.warn('[Scene] Inspector unavailable; starting without inspector.', error);
-                }
+                const inspectPort = await getAvailablePort(9230);
+                console.log('--inspect= ' + inspectPort);
                 this._process = fork(precessPath, args, {
                     detached: false,
                     stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-                    execArgv,
+                    execArgv: [`--inspect=${inspectPort}`],
                 });
 
                 // 监听进程启动错误
@@ -290,18 +280,6 @@ export class SceneWorker {
         } finally {
             this.isRestarting = false;
         }
-    }
-
-    private normalizeServerUrl(value: string): string {
-        try {
-            const url = new URL(value);
-            if (url.protocol === 'http:' || url.protocol === 'https:') {
-                return value;
-            }
-        } catch {
-            // The server is not running; the Scene process can use local project assets.
-        }
-        return '';
     }
 
     async registerListener() {
