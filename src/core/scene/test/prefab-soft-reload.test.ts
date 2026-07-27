@@ -1,3 +1,4 @@
+import { ReloadResult } from '../common';
 import { PrefabSoftReloadScheduler } from '../scene-process/service/prefab/soft-reload';
 
 describe('PrefabSoftReloadScheduler', () => {
@@ -10,7 +11,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('debounces changed prefab assets and emits reload events after editor reload', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,
@@ -39,7 +40,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('does not reload a different editor after the scheduled session becomes stale', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         let session: { uuid: string | null; generation: number } = { uuid: 'scene-a', generation: 1 };
         const scheduler = new PrefabSoftReloadScheduler(
@@ -99,7 +100,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('resolves asset reload waiters after editor reload', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,
@@ -123,7 +124,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('can cancel asset reload waiters', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,
@@ -154,7 +155,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('waits for pending reloads to become idle', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,
@@ -185,7 +186,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('resolves idle immediately when no reload is pending', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,
@@ -203,7 +204,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('deleting a pending changed asset clears its reload event and preserve flag', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,
@@ -233,7 +234,7 @@ describe('PrefabSoftReloadScheduler', () => {
     });
 
     it('resolves asset reload waiters by timeout when reload event is removed before flush', async () => {
-        const reload = jest.fn().mockResolvedValue(undefined);
+        const reload = jest.fn().mockResolvedValue(ReloadResult.SUCCESS);
         const emitAssetReload = jest.fn();
         const scheduler = new PrefabSoftReloadScheduler(
             reload,

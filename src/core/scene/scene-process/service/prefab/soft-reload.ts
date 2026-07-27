@@ -12,7 +12,7 @@ export interface IPrefabSoftReloadOptions {
     editorSession?: IEditorSessionSnapshot;
 }
 
-type ReloadEditor = (params: IReloadOptions, session?: IEditorSessionSnapshot) => Promise<unknown> | unknown;
+type ReloadEditor = (params: IReloadOptions, session?: IEditorSessionSnapshot) => Promise<ReloadResult>;
 type EmitAssetReload = (uuid: string) => void;
 type GetCurrentEditorSession = () => IEditorSessionSnapshot;
 
@@ -142,14 +142,14 @@ export class PrefabSoftReloadScheduler {
                 preserveUndoHistory,
                 urlOrUUID: session.uuid ?? undefined,
             };
-            let result: unknown;
+            let result: ReloadResult;
             try {
                 result = await this._reloadEditor(reloadParams, session);
             } catch (error) {
                 this._rejectAssetReloadWaiters(reloadedUuids, error instanceof Error ? error : new Error(String(error)));
                 return;
             }
-            if (result !== undefined && result !== ReloadResult.SUCCESS) {
+            if (result !== ReloadResult.SUCCESS) {
                 this._rejectAssetReloadWaiters(reloadedUuids, new Error(`Prefab reload failed: ${String(result)}`));
                 return;
             }

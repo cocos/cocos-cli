@@ -161,6 +161,7 @@ function getUuidsOfPropValue(val: any): any[] {
 
 class AssetWatcher {
     public owner: any = null;
+    private active = false;
     public watchingInfos: { [index: string]: any } = Object.create(null);
 
     constructor(owner: any) {
@@ -168,6 +169,7 @@ class AssetWatcher {
     }
 
     public start() {
+        this.active = true;
         const owner = this.owner;
         const ctor = owner.constructor;
         const assetPropsData = CCClass.Attr.getClassAttrs(ctor)[ASSET_PROPS_KEY];
@@ -184,6 +186,7 @@ class AssetWatcher {
     }
 
     public stop() {
+        this.active = false;
         for (const name in this.watchingInfos) {
             if (!(name in this.watchingInfos)) {
                 continue;
@@ -199,6 +202,10 @@ class AssetWatcher {
     }
 
     public changeWatchAsset(propName: string, newUuids: []) {
+        if (!this.active) {
+            return;
+        }
+
         // unRegister old
         this.unRegisterListener(propName);
 
@@ -471,9 +478,12 @@ class AssetUpdater {
 class AssetWatcherManager {
     updater: AssetUpdater = new AssetUpdater();
     private generation = 0;
+    private watchers = new Set<AssetWatcher>();
 
     public invalidate(): void {
         this.generation++;
+        this.watchers.forEach((watcher) => watcher.stop());
+        this.watchers.clear();
         assetListener.removeAllListeners();
         this.updater.clearQueue();
     }
@@ -494,6 +504,7 @@ class AssetWatcherManager {
         }
 
         if (obj._watcherHandle) {
+            this.watchers.add(obj._watcherHandle);
             obj._watcherHandle.start();
         }
 
@@ -547,6 +558,7 @@ class AssetWatcherManager {
         try {
             const asset = await this.loadAsset(uuid);
             if (generation !== this.generation) {
+                this.discardCachedAsset(uuid, asset);
                 return;
             }
             if (oldAsset && asset && oldAsset.constructor.name !== asset.constructor.name) {
@@ -562,6 +574,12 @@ class AssetWatcherManager {
             this.updater.unlock();
         }
         await this.updater.waitForFlush();
+    }
+
+    private discardCachedAsset(uuid: string, asset: Asset): void {
+        if (assetManager.assets.get(uuid) === asset) {
+            assetManager.releaseAsset(asset);
+        }
     }
 
     private loadAsset(uuid: string): Promise<Asset> {
@@ -580,6 +598,12 @@ class AssetWatcherManager {
             }, ASSET_LOAD_TIMEOUT);
 
             assetManager.loadAny(uuid, (err: Error | null, asset: Asset) => {
+                if (settled) {
+                    if (!err && asset) {
+                        this.discardCachedAsset(uuid, asset);
+                    }
+                    return;
+                }
                 if (err) {
                     finish(() => reject(err));
                     return;

@@ -1,3 +1,5 @@
+type Listener = (...args: unknown[]) => void;
+
 const mockLoadAny = jest.fn();
 const mockRpcRequest = jest.fn();
 
@@ -33,8 +35,8 @@ jest.mock('cc', () => {
 
 jest.mock('../scene-process/service/asset/callbacks-invoker', () => ({
     CallbacksInvoker: class {
-        private listeners = new Map<string, Function[]>();
-        on(key: string, listener: Function) {
+        private listeners = new Map<string, Listener[]>();
+        on(key: string, listener: Listener) {
             this.listeners.set(key, [...(this.listeners.get(key) ?? []), listener]);
         }
         off(key: string) {
@@ -73,6 +75,7 @@ describe('AssetWatcherManager completion boundary', () => {
         mockRpcRequest.mockReset().mockResolvedValue({ uuid: 'asset-uuid' });
         assetManager.assets.clear();
         assetManager.references!.clear();
+        (assetManager.releaseAsset as jest.Mock).mockClear();
         assetManager.assetListener.removeAllListeners();
     });
 
@@ -146,6 +149,49 @@ describe('AssetWatcherManager completion boundary', () => {
         await changed;
 
         expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('releases a stale loaded asset after the editor session is invalidated', async () => {
+        let callback!: (error: Error | null, asset: Asset) => void;
+        const asset = new Asset();
+        mockLoadAny.mockImplementation((_uuid: string, next: typeof callback) => {
+            callback = next;
+        });
+        assetManager.assetListener.on('asset-uuid', jest.fn());
+
+        const changed = assetWatcherManager.onAssetChanged('asset-uuid');
+        await flush();
+        (assetWatcherManager as any).invalidate();
+        (assetManager.assets as unknown as Map<string, Asset>).set('asset-uuid', asset);
+
+        callback(null, asset);
+        await flush();
+        jest.advanceTimersByTime(400);
+        await changed;
+
+        expect(assetManager.releaseAsset).toHaveBeenCalledWith(asset);
+    });
+
+    it('releases an asset that completes after the watcher load timeout', async () => {
+        let callback!: (error: Error | null, asset: Asset) => void;
+        const asset = new Asset();
+        mockLoadAny.mockImplementation((_uuid: string, next: typeof callback) => {
+            callback = next;
+        });
+        assetManager.assetListener.on('asset-uuid', jest.fn());
+        const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        const changed = assetWatcherManager.onAssetChanged('asset-uuid');
+        await flush();
+        jest.advanceTimersByTime(10_000);
+        await flush();
+        (assetManager.assets as unknown as Map<string, Asset>).set('asset-uuid', asset);
+        callback(null, asset);
+        jest.advanceTimersByTime(400);
+        await changed;
+
+        expect(assetManager.releaseAsset).toHaveBeenCalledWith(asset);
+        error.mockRestore();
     });
 
     it('releases the watcher lock when loadAny never invokes its callback', async () => {
