@@ -73,11 +73,17 @@ export class PrefabEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('没有打开预制体');
         }
+        const prefabAsset = await sceneUtils.loadAny<Prefab>(assetUuid);
+        const loadedUuid = (prefabAsset as any)?._uuid ?? (prefabAsset as any)?.uuid;
+        if (!(prefabAsset instanceof Prefab) || loadedUuid !== assetUuid) {
+            throw new Error(`目标资源不是有效的 Prefab: ${assetUuid}`);
+        }
         const serializedData = editorPrefabUtils.serialize(this.entity.instance);
         const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
         if (!saved || saved.uuid !== assetUuid) {
             throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
         }
+        editorPrefabUtils.rebindPrefabAsset(this.entity.instance, prefabAsset);
         this.entity.identifier = this.getIdentifier(saved);
         return saved;
     }

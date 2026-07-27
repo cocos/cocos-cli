@@ -27,6 +27,7 @@ afterAll(async () => {
 
 import './editor-proxy-scene.testcase';
 import './editor-proxy-prefab.testcase';
+import './editor-lifecycle-real.testcase';
 import './node-proxy.testcase';
 import './node-for-editor.testcase';
 import './node-hierarchy.testcase';

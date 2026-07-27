@@ -21,7 +21,9 @@ jest.mock('cc', () => {
     class MockComponent { }
     class MockCamera { }
     class MockColor { }
-    class MockRect { }
+    class MockRect {
+        constructor(public x = 0, public y = 0, public width = 0, public height = 0) {}
+    }
     class MockVec3 { }
 
     return {
@@ -29,6 +31,7 @@ jest.mock('cc', () => {
         default: {
             director: {
                 getScene: jest.fn(() => null),
+                root: { curWindow: { width: 1200, height: 900 } },
             },
         },
         Camera: MockCamera,
@@ -50,6 +53,7 @@ jest.mock('cc', () => {
         Vec3: MockVec3,
         director: {
             getScene: jest.fn(() => null),
+            root: { curWindow: { width: 1200, height: 900 } },
         },
     };
 });
@@ -178,6 +182,21 @@ describe('Gizmo editor lifecycle', () => {
         expect(onSelectionSelect).toHaveBeenCalledWith('/Canvas/button');
         jest.runOnlyPendingTimers();
         expect(mockService.Engine.repaintInEditMode).toHaveBeenCalledTimes(1);
+    });
+
+    it('synchronizes the Scene Gizmo runtime viewport and matrices', () => {
+        const { GizmoService } = require('../scene-process/service/gizmo');
+        const gizmo = new GizmoService();
+        const setViewportInOrientedSpace = jest.fn();
+        const update = jest.fn();
+        const camera = { camera: { setViewportInOrientedSpace, update }, rect: null };
+        (gizmo as any).sceneGizmoCamera = camera;
+
+        gizmo.syncSceneGizmoCamera();
+
+        expect(camera.rect).toBeInstanceOf(Object);
+        expect(setViewportInOrientedSpace).toHaveBeenCalledWith(camera.rect);
+        expect(update).toHaveBeenCalledWith(true);
     });
 
     it('does not reuse destroyed gizmos after clearing all gizmos', () => {

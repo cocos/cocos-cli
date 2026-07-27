@@ -187,16 +187,20 @@ class SceneUtil {
      * @param uuid
      */
     async loadAny<TAsset extends cc.Asset>(uuid: string): Promise<TAsset> {
-        return new Promise<TAsset>((resolve, reject) => {
-            cc.assetManager.assets.remove(uuid);
-            cc.assetManager.loadAny<TAsset>(uuid, (error: Error | null, asset: TAsset) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(asset);
-                }
-            });
-        });
+        return withTimeout(
+            new Promise<TAsset>((resolve, reject) => {
+                cc.assetManager.assets.remove(uuid);
+                cc.assetManager.loadAny<TAsset>(uuid, (error: Error | null, asset: TAsset) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(asset);
+                    }
+                });
+            }),
+            SceneUtil.Timeout,
+            `加载资源超时: ${uuid}`,
+        );
     }
 }
 

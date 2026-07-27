@@ -1,4 +1,4 @@
-import { Node, Scene, SceneAsset } from 'cc';
+import { Node, Prefab, Scene, SceneAsset } from 'cc';
 import { prefabUtils } from './utils';
 
 type UUIDMap = Map<string, string | UUIDMap>;
@@ -9,6 +9,25 @@ class EditorPrefabUtils {
         if (prefabInfo) {
             prefabInfo.instance = undefined;
         }
+    }
+
+    rebindPrefabAsset(root: Node, prefabAsset: Prefab): void {
+        const rootPrefabInfo = root['_prefab'];
+        if (!rootPrefabInfo) {
+            return;
+        }
+
+        rootPrefabInfo.asset = prefabAsset;
+        root.walk((node: Node) => {
+            if (node === root) {
+                return;
+            }
+            const prefabInfo = node['_prefab'];
+            // Nested Prefab instance roots retain their own source asset identity.
+            if (prefabInfo && !prefabInfo.instance && prefabInfo.root === root) {
+                prefabInfo.asset = prefabAsset;
+            }
+        });
     }
 
     serialize(node: Node) {

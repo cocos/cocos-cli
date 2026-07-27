@@ -200,7 +200,7 @@ jest.mock('../../scene-process/service/scene/utils', () => ({
     sceneUtils: {},
 }));
 
-const mockConsumePreserveUndoHistoryForPrefabReload = jest.fn(() => ({ preserveUndoHistory: false, editorUuid: null }));
+const mockConsumePreserveUndoHistoryForPrefabReload = jest.fn(() => ({ preserveUndoHistory: false, editorSession: null }));
 const mockPrefabSoftReloadSchedule = jest.fn();
 
 jest.mock('../../scene-process/service/prefab/prefab-undo', () => ({
@@ -213,6 +213,7 @@ jest.mock('../../scene-process/service/prefab/soft-reload', () => ({
     PrefabSoftReloadScheduler: jest.fn().mockImplementation(() => ({
         schedule: mockPrefabSoftReloadSchedule,
         waitForIdle: jest.fn().mockResolvedValue(undefined),
+        invalidate: jest.fn(),
     })),
 }));
 
@@ -399,6 +400,117 @@ describe('ServiceEvents 事件发射集成测试', () => {
             await editorService.close({ urlOrUUID: uuid });
 
             expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('open 新资源时应先释放已删除源资源对应的当前编辑器会话', async () => {
+            const sourceUuid = 'deleted-open-source-uuid';
+            const targetUuid = 'new-open-target-uuid';
+            const deletedEditor = { close: jest.fn().mockResolvedValue(true) };
+            const targetEditor = { open: jest.fn().mockResolvedValue({}) };
+            editorService.editorMap.set(sourceUuid, deletedEditor);
+            editorService.editorMap.set(targetUuid, targetEditor);
+            editorService.currentEditorUuid = sourceUuid;
+
+            mockRpcRequest
+                .mockResolvedValueOnce({ uuid: targetUuid, url: 'db://assets/new.scene', type: 'scene' })
+                .mockResolvedValueOnce(null);
+
+            await editorService.open({ urlOrUUID: 'db://assets/new.scene' });
+
+            expect(deletedEditor.close).toHaveBeenCalledWith({ save: false });
+            expect(editorService.currentEditorUuid).toBe(targetUuid);
+            expect(editorService.editorMap.get(sourceUuid)).toBeUndefined();
+        });
+
+        it('serializes concurrent opens and closes the intermediate editor before switching again', async () => {
+            const oldUuid = 'concurrent-old-uuid';
+            const firstUuid = 'concurrent-first-uuid';
+            const secondUuid = 'concurrent-second-uuid';
+            let releaseOldClose!: () => void;
+            const oldEditor = { close: jest.fn(() => new Promise<boolean>((resolve) => { releaseOldClose = () => resolve(true); })) };
+            const firstEditor = { open: jest.fn().mockResolvedValue({}) , close: jest.fn().mockResolvedValue(true) };
+            const secondEditor = { open: jest.fn().mockResolvedValue({}) , close: jest.fn().mockResolvedValue(true) };
+            editorService.editorMap.set(oldUuid, oldEditor);
+            editorService.editorMap.set(firstUuid, firstEditor);
+            editorService.editorMap.set(secondUuid, secondEditor);
+            editorService.currentEditorUuid = oldUuid;
+
+            mockRpcRequest.mockImplementation(async (_service: string, method: string, args: string[]) => {
+                if (method !== 'queryAssetInfo') {
+                    return undefined;
+                }
+                const value = args[0];
+                if (value === 'first.scene') return { uuid: firstUuid, url: value, type: 'scene' };
+                if (value === 'second.scene') return { uuid: secondUuid, url: value, type: 'scene' };
+                if (value === oldUuid) return undefined;
+                if (value === firstUuid) return { uuid: firstUuid, url: 'first.scene', type: 'scene' };
+                return undefined;
+            });
+
+            const firstOpen = editorService.open({ urlOrUUID: 'first.scene' });
+            const secondOpen = editorService.open({ urlOrUUID: 'second.scene' });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            await new Promise<void>((resolve) => setImmediate(resolve));
+
+            expect(oldEditor.close).toHaveBeenCalledTimes(1);
+            expect(firstEditor.open).not.toHaveBeenCalled();
+            expect(secondEditor.open).not.toHaveBeenCalled();
+
+            releaseOldClose();
+            await Promise.all([firstOpen, secondOpen]);
+
+            expect(firstEditor.open).toHaveBeenCalledTimes(1);
+            expect(firstEditor.close).toHaveBeenCalledWith({ save: true });
+            expect(secondEditor.open).toHaveBeenCalledTimes(1);
+            expect(editorService.currentEditorUuid).toBe(secondUuid);
+            expect(editorService.editorMap.has(firstUuid)).toBe(false);
+        });
+
+        it('does not discard the current editor when closing it fails during open', async () => {
+            const sourceUuid = 'close-failed-source-uuid';
+            const targetUuid = 'close-failed-target-uuid';
+            const sourceEditor = { close: jest.fn().mockRejectedValue(new Error('save failed')) };
+            const targetEditor = { open: jest.fn().mockResolvedValue({}) };
+            editorService.editorMap.set(sourceUuid, sourceEditor);
+            editorService.editorMap.set(targetUuid, targetEditor);
+            editorService.currentEditorUuid = sourceUuid;
+            editorService.isOpen = true;
+
+            mockRpcRequest.mockImplementation(async (_service: string, method: string, args: string[]) => {
+                if (method !== 'queryAssetInfo') return undefined;
+                if (args[0] === 'target.scene') return { uuid: targetUuid, url: 'target.scene', type: 'scene' };
+                return { uuid: sourceUuid, url: 'source.scene', type: 'scene' };
+            });
+
+            await expect(editorService.open({ urlOrUUID: 'target.scene' })).rejects.toThrow('save failed');
+
+            expect(editorService.currentEditorUuid).toBe(sourceUuid);
+            expect(editorService.isOpen).toBe(true);
+            expect(editorService.editorMap.get(sourceUuid)).toBe(sourceEditor);
+            expect(targetEditor.open).not.toHaveBeenCalled();
+        });
+
+        it('open target fails after deleted source close without leaving a stale current session', async () => {
+            const sourceUuid = 'deleted-failed-open-source-uuid';
+            const targetUuid = 'failed-open-target-uuid';
+            const sourceEditor = { close: jest.fn().mockResolvedValue(true) };
+            const targetEditor = { open: jest.fn().mockRejectedValue(new Error('target open failed')) };
+            editorService.editorMap.set(sourceUuid, sourceEditor);
+            editorService.editorMap.set(targetUuid, targetEditor);
+            editorService.currentEditorUuid = sourceUuid;
+            editorService.isOpen = true;
+
+            mockRpcRequest
+                .mockResolvedValueOnce({ uuid: targetUuid, url: 'db://assets/failed.scene', type: 'scene' })
+                .mockResolvedValueOnce(null);
+
+            await expect(editorService.open({ urlOrUUID: 'db://assets/failed.scene' })).rejects.toThrow('target open failed');
+
+            expect(sourceEditor.close).toHaveBeenCalledWith({ save: false });
+            expect(editorService.currentEditorUuid).toBeNull();
+            expect(editorService.isOpen).toBe(false);
+            expect(editorService.editorMap.has(sourceUuid)).toBe(false);
+            expect(editorService.editorMap.has(targetUuid)).toBe(false);
         });
 
         it('close 在源资源已删除时仍可丢弃当前编辑器会话', async () => {
@@ -739,7 +851,7 @@ describe('ServiceEvents 事件发射集成测试', () => {
                 objFlags: 0,
             }));
             NodeMock.getNodePath = jest.fn((node: any) => `/${node.name}`);
-            mockConsumePreserveUndoHistoryForPrefabReload.mockReturnValue({ preserveUndoHistory: false, editorUuid: null });
+            mockConsumePreserveUndoHistoryForPrefabReload.mockReturnValue({ preserveUndoHistory: false, editorSession: null });
         });
 
         it('onAssetChanged preserves undo history when current editor is dirty', async () => {

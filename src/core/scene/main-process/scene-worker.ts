@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 import { SceneProcessEventTag, SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { getServerUrl } from '../../../server';
-import { listenModuleMessages } from './messages';
+import { disposeModuleMessages, listenModuleMessages } from './messages';
 import { getAvailablePort } from '../../../server/utils';
 
 export interface ISceneWorkerEvents {
@@ -157,6 +157,7 @@ export class SceneWorker {
         const process = this._process;
         if (!process) return true;
         this.isManualStop = true;
+        disposeModuleMessages();
         return new Promise<boolean>((resolve) => {
             let settled = false;
             const cleanup = () => {
@@ -311,6 +312,7 @@ export class SceneWorker {
         });
 
         this.process.on('exit', (code: number, signal) => {
+            disposeModuleMessages();
             if (code !== 0) {
                 console.error(`场景进程退出异常 code:${code}, signal:${signal}`);
                 
@@ -423,6 +425,7 @@ export class SceneWorker {
         if (event) {
             this.eventEmitter.removeAllListeners(event);
         } else {
+            disposeModuleMessages();
             this.eventEmitter.removeAllListeners();
             // 重置重启相关状态
             this.currentRestartCount = 0;

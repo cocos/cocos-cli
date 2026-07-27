@@ -3,6 +3,7 @@ import { IAssetEvents, IAssetService } from '../../common';
 import { Asset, assetManager, Component, Node, Prefab } from 'cc';
 import { assetWatcherManager } from './asset/asset-watcher';
 import { isEditorNode } from './node/node-utils';
+import type { IEditorSessionService, IEditorSessionSnapshot } from './core/editor-session';
 
 @register('Asset')
 export class AssetService extends BaseService<IAssetEvents> implements IAssetService {
@@ -10,12 +11,29 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
      * 主进程监听 asset 事件，所触发事件
      * @param uuid
      */
+    private getEditorSession(): IEditorSessionSnapshot | null {
+        return queryRegisteredService<IEditorSessionService>('Editor')?.getEditorSession?.() ?? null;
+    }
+
+    private isCurrentEditorSession(session: IEditorSessionSnapshot | null): boolean {
+        if (!session) {
+            return true;
+        }
+        return queryRegisteredService<IEditorSessionService>('Editor')?.isCurrentEditorSession?.(session) ?? true;
+    }
+
     public async assetChanged(uuid: string) {
+        const session = this.getEditorSession();
+        if (!this.isCurrentEditorSession(session)) {
+            return;
+        }
         if (!this._preserveCurrentAnimationClipAsset(uuid)) {
             this.releaseAsset(uuid);
             await assetWatcherManager.onAssetChanged(uuid);
         }
-        this.emit('asset:change', uuid);
+        if (this.isCurrentEditorSession(session)) {
+            this.emit('asset:change', uuid);
+        }
     }
 
 
@@ -31,12 +49,18 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
      * @param uuid
      */
     public async assetDeleted(uuid: string) {
+        const session = this.getEditorSession();
+        if (!this.isCurrentEditorSession(session)) {
+            return;
+        }
         assetWatcherManager.onAssetDeleted(uuid);
-        this.emit('asset:deleted', uuid);
+        if (this.isCurrentEditorSession(session)) {
+            this.emit('asset:deleted', uuid);
+        }
     }
 
     public onEditorOpened() {
-        assetManager.assetListener.removeAllListeners();
+        assetWatcherManager.invalidate();
         // iterate all component
         const nodeObject = EditorExtends.Node.getNodes();
         for (const key in nodeObject) {
@@ -53,6 +77,14 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
                 }
             }
         }
+    }
+
+    public onEditorClosed() {
+        assetWatcherManager.invalidate();
+    }
+
+    public onEditorDisposed() {
+        assetWatcherManager.invalidate();
     }
 
     public onNodeChanged(node: Node) {

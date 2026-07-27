@@ -1,4 +1,4 @@
-import { BaseService, register, Service, ServiceEvents } from './core';
+import { BaseService, queryRegisteredService, register, Service, ServiceEvents } from './core';
 import { Component, instantiate, Node, Scene } from 'cc';
 import { componentOperation } from './prefab/component';
 import { nodeOperation } from './prefab/node';
@@ -22,19 +22,25 @@ import { sceneUtils } from './scene/utils';
 import { Rpc } from '../rpc';
 import { PrefabUndoHelper } from './prefab/prefab-undo';
 import { PrefabSoftReloadScheduler } from './prefab/soft-reload';
+import type { IEditorSessionService, IEditorSessionSnapshot } from './core/editor-session';
 
-function getCurrentEditorUuid(): string | null {
-    return (Service.Editor as unknown as { getCurrentEditorUuid?: () => string | null })
-        .getCurrentEditorUuid?.() ?? null;
+function getCurrentEditorSession(): IEditorSessionSnapshot {
+    return queryRegisteredService<IEditorSessionService>('Editor')?.getEditorSession() ?? { uuid: null, generation: 0 };
 }
 
 @register('Prefab')
 export class PrefabService extends BaseService<IPrefabEvents> implements IPrefabService {
 
     private _softReload = new PrefabSoftReloadScheduler(
-        (params) => Service.Editor.reload(params),
+        (params, session) => {
+            const editor = queryRegisteredService<IEditorSessionService>('Editor');
+            if (session && editor) {
+                return editor.reloadForSession(params, session);
+            }
+            return Service.Editor.reload(params);
+        },
         (uuid) => ServiceEvents.emit('prefab:asset-reload', uuid),
-        getCurrentEditorUuid,
+        getCurrentEditorSession,
     );
     private _undo = new PrefabUndoHelper();
     private _utils = prefabUtils;
@@ -98,7 +104,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
                 ? this._softReload.waitForAssetReload(prefabAssetUuid)
                 : null;
             if (prefabAssetUuid) {
-                this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid, getCurrentEditorUuid());
+                this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid, getCurrentEditorSession());
             }
             try {
                 const applyInfo = await nodeOperation.applyPrefab(node.uuid);
@@ -239,6 +245,10 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         nodeOperation.onEditorOpened();
     }
 
+    public onEditorDisposed() {
+        this._softReload.invalidate();
+    }
+
     public onNodeRemoved(node: Node) {
         nodeOperation.onNodeRemoved(node);
     }
@@ -359,7 +369,11 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     }
 
     public preserveUndoHistoryForPrefabReload(assetUuid: string, editorUuid: string | null = null): void {
-        this._undo.preserveUndoHistoryForPrefabReload(assetUuid, editorUuid);
+        const session = getCurrentEditorSession();
+        this._undo.preserveUndoHistoryForPrefabReload(assetUuid, {
+            uuid: editorUuid ?? session.uuid,
+            generation: session.generation,
+        });
     }
 
     public cancelPreserveUndoHistoryForPrefabReload(assetUuid: string): void {
@@ -405,22 +419,24 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
 
     public async onAssetChanged(uuid: string) {
         const reloadState = this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
+        const session = getCurrentEditorSession();
         // prefab 资源的变动，softReload场景
         if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.hasOpen()) {
             this._softReload.schedule({
                 changedUuid: uuid,
                 preserveUndoHistory: reloadState.preserveUndoHistory || !!Service.Undo?.isDirty?.(),
-                editorUuid: reloadState.editorUuid ?? getCurrentEditorUuid(),
+                editorSession: reloadState.editorSession ?? { uuid: session.uuid, generation: session.generation },
             });
         }
     }
 
     public async onAssetDeleted(uuid: string) {
         this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
+        const session = getCurrentEditorSession();
         if (nodeOperation.assetToNodesMap.has(uuid) && await Service.Editor.hasOpen()) {
             this._softReload.schedule({
                 deletedUuid: uuid,
-                editorUuid: getCurrentEditorUuid(),
+                editorSession: session,
             });
         }
     }

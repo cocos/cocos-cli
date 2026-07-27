@@ -7,10 +7,11 @@ import {
 import { PrefabNodeStructureCommand } from '../undo/commands/prefab-node-structure-command';
 import { PrefabUnwrapCommand } from '../undo/commands/prefab-unwrap-command';
 import { PrefabApplyCommand } from '../undo/commands/prefab-apply-command';
+import type { IEditorSessionSnapshot } from '../core/editor-session';
 
-interface IPrefabReloadPreserveState {
+export interface IPrefabReloadPreserveState {
     preserveUndoHistory: boolean;
-    editorUuid: string | null;
+    editorSession: IEditorSessionSnapshot | null;
 }
 
 export class PrefabUndoHelper {
@@ -103,11 +104,11 @@ export class PrefabUndoHelper {
         }
     }
 
-    preserveUndoHistoryForPrefabReload(assetUuid: string, editorUuid: string | null = null): void {
+    preserveUndoHistoryForPrefabReload(assetUuid: string, editorSession: IEditorSessionSnapshot | null = null): void {
         const existing = this._prefabReloadsPreservingUndoHistory.get(assetUuid);
         this._prefabReloadsPreservingUndoHistory.set(assetUuid, {
             preserveUndoHistory: true,
-            editorUuid: existing?.editorUuid ?? editorUuid,
+            editorSession: existing?.editorSession ?? editorSession,
         });
     }
 
@@ -120,7 +121,7 @@ export class PrefabUndoHelper {
         this.cancelPreserveUndoHistoryForPrefabReload(assetUuid);
         return state ?? {
             preserveUndoHistory: false,
-            editorUuid: null,
+            editorSession: null,
         };
     }
 
