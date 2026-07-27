@@ -3,6 +3,42 @@ import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-
 import { BuildExitCode, IBuildCommandOption } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, IUploadResultData, SchemaMakeResult, SchemaUploadResult, SchemaUploadAccessToken, TUploadAccessToken, SchemaBuildTemplateName, TBuildTemplateName, SchemaCreateBuildTemplateResult, TCreateBuildTemplateResult } from './schema';
+import assetManager from '../../core/assets/manager/asset';
+
+function normalizeBuildSceneOptions(options?: TBuildOption): IBuildCommandOption | undefined {
+    if (!options) {
+        return options;
+    }
+
+    const normalizedOptions = { ...(options as IBuildCommandOption) } as IBuildCommandOption;
+    if (Array.isArray(normalizedOptions.scenes)) {
+        normalizedOptions.scenes = normalizedOptions.scenes.map((scene, index) => {
+            const sceneRef = scene as { url?: string; uuid?: string };
+            const sceneId = sceneRef.uuid || sceneRef.url;
+            if (!sceneId) {
+                throw new Error(`Scene at index ${index} requires url or uuid`);
+            }
+            const asset = assetManager.queryAsset(sceneId);
+            if (!asset) {
+                throw new Error(`can not find scene asset by uuid or url: ${sceneId}`);
+            }
+            return {
+                ...scene,
+                url: sceneRef.url || asset.url,
+                uuid: sceneRef.uuid || asset.uuid,
+            };
+        });
+    }
+
+    if (normalizedOptions.startScene) {
+        const startSceneAsset = assetManager.queryAsset(normalizedOptions.startScene);
+        if (startSceneAsset) {
+            normalizedOptions.startScene = startSceneAsset.uuid;
+        }
+    }
+
+    return normalizedOptions;
+}
 
 export class BuilderApi {
 
@@ -17,7 +53,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await build(platform, options);
+            const res = await build(platform, normalizeBuildSceneOptions(options));
             ret.data = res as TBuildResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;

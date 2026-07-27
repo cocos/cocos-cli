@@ -1,13 +1,15 @@
 import { z } from 'zod';
+import { SchemaAssetDbUrl } from '../base/schema-asset-db-url';
 
 // ==================== Basic Type Definitions ==================== // 基础类型定义
 
 // Scene Reference // 场景引用
 export const SchemaSceneRef = z.object({
-    url: z.string().describe('Scene URL'), // 场景 URL
-    uuid: z.string().describe('Scene UUID') // 场景 UUID
-}).describe('Scene Reference'); // 场景引用
-
+    url: SchemaAssetDbUrl.optional().describe('Scene URL'),
+    uuid: z.string().min(1).optional().describe('Scene UUID'),
+}).refine((scene) => !!scene.url || !!scene.uuid, {
+    message: 'Either scene URL or UUID is required',
+}).describe('Scene Reference');
 // Polyfills Configuration // Polyfills 配置
 export const SchemaPolyfills = z.object({
     asyncFunctions: z.boolean().optional().describe('Whether async function polyfill is needed'), // 是否需要 async 函数 polyfill
