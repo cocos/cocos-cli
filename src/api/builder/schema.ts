@@ -5,11 +5,9 @@ import { SchemaAssetDbUrl } from '../base/schema-asset-db-url';
 
 // Scene Reference // 场景引用
 export const SchemaSceneRef = z.object({
-    url: SchemaAssetDbUrl.optional().describe('Scene URL'),
-    uuid: z.string().min(1).optional().describe('Scene UUID'),
-}).refine((scene) => !!scene.url || !!scene.uuid, {
-    message: 'Either scene URL or UUID is required',
-}).describe('Scene Reference');
+    url: SchemaAssetDbUrl.optional().describe('Scene URL. Required together with uuid when specifying a scene; do not provide only url.'),
+    uuid: z.string().min(1).optional().describe('Scene UUID. Required together with url when specifying a scene; do not provide only uuid.'),
+}).describe('Scene Reference. When passing scenes, include both url and uuid for each scene item.');
 // Polyfills Configuration // Polyfills 配置
 export const SchemaPolyfills = z.object({
     asyncFunctions: z.boolean().optional().describe('Whether async function polyfill is needed'), // 是否需要 async 函数 polyfill
