@@ -309,10 +309,6 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         if (this.geometryRenderer) {
             this.geometryRenderer.flush();
         }
-        // Prepare editor-owned camera/gizmo state before director.tick submits
-        // the frame. This is required when continuous scene.tick rendering
-        // starts before the first resize event.
-        Service.Gizmo?.syncSceneGizmoCamera?.();
         director.tick(deltaTime);
     }
 

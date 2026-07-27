@@ -265,23 +265,6 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         this.setSceneGizmoCameraRect();
     }
 
-    /**
-     * Synchronize the render-camera viewport and matrices before a manual
-     * director tick. The edit-mode loop can start before the first resize
-     * event; relying on the component rect setter alone leaves the render
-     * pipeline with a stale Scene Gizmo camera state.
-     */
-    syncSceneGizmoCamera(): void {
-        const camera = this.sceneGizmoCamera;
-        if (!camera) {
-            return;
-        }
-
-        this.setSceneGizmoCameraRect();
-        camera.camera?.setViewportInOrientedSpace(camera.rect);
-        camera.camera?.update(true);
-    }
-
     // ── Lifecycle ───────────────────────────────────────────────────────────────
 
     init(): void {

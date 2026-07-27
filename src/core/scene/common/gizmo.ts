@@ -30,8 +30,6 @@ export interface IGizmoService {
     clearAllGizmos(): void;
     callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
     onUpdate(deltaTime: number): void;
-    /** Synchronizes the Scene Gizmo camera state immediately before a render tick. */
-    syncSceneGizmoCamera(): void;
 
     // 与 cocos-editor GizmoManager 一致：GizmoConfig 方法
     queryToolsVisibility3d(): boolean;
