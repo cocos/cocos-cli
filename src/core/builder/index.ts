@@ -297,6 +297,7 @@ export async function getPreviewSettings<P extends Platform>(options?: IBuildTas
         script2library[removeDbHeader(asset.url).replace(/.ts$/, '.js')] = asset.library + '.js';
     }
     console.log(`Get settings.js in preview: ${Date.now() - previewSettingsStart}ms`);
+    
     // 返回数据
     return {
         settings,
