@@ -16,7 +16,10 @@ import {
     CCObject,
 } from 'cc';
 
+import { basename, extname } from 'path';
+
 import { Service } from '../core/decorator';
+import { Rpc } from '../../rpc';
 
 
 /**
@@ -133,7 +136,13 @@ export async function createNodeByAsset(info: {
             break;
         case 'cc.Script':
             {
-                const name = (await Service.Script.queryScriptName(uuid)) || '';
+                let name = (await Service.Script.queryScriptName(uuid)) || '';
+                if (!name) {
+                    const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
+                    if (assetInfo?.name) {
+                        name = basename(assetInfo.name, extname(assetInfo.name));
+                    }
+                }
                 const cid: string = (await Service.Script.queryScriptCid(uuid)) || '';
                 node = new Node(name);
                 if (cid && cid !== 'MissingScript' && cid !== 'cc.MissingScript') {
