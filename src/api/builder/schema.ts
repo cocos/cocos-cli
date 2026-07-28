@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SchemaAssetDbUrl } from '../base/schema-asset-db-url';
+import { SchemaAssetDbUrl, SchemaAssetDbUrlOrUUID } from '../base/schema-asset-db-url';
 
 // ==================== Basic Type Definitions ==================== // 基础类型定义
 
@@ -118,7 +118,7 @@ const BuildConfigCoreFields = z.object({
 
     // Scene Configuration // 场景配置
     scenes: z.array(SchemaSceneRef).describe('List of scenes to build, defaults to all scenes'), // 构建场景列表，默认为全部场景
-    startScene: z.string().describe('First scene to enter after opening the game, supports db url and uuid formats'), // 打开游戏后进入的第一个场景，支持 db url 和 uuid 格式
+    startScene: SchemaAssetDbUrlOrUUID.describe('First scene to enter after opening the game, supports db url and uuid formats'), // 打开游戏后进入的第一个场景，支持 db url 和 uuid 格式
 
     // Build Mode // 构建模式
     debug: z.boolean().describe('Whether it is debug mode'), // 是否是调试模式
