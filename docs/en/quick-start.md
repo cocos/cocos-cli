@@ -113,6 +113,14 @@ npm unlink -g cocos-cli
 npm link
 ```
 
+### ❌ Permission Denied (macOS / Linux)
+
+If `cocos` command fails with permission error after `npm link`:
+
+```bash
+npm run chmod
+```
+
 ### ⚠️ Build Errors
 
 ```bash
