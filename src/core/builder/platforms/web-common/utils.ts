@@ -24,7 +24,7 @@ export async function getPreviewUrl(dest: string, platform?: string) {
     if (rawPath.startsWith(builderConfig.projectRoot) && platform) {
         const registerName = basename(rawPath);
         registerBuildPath(platform, registerName, rawPath);
-        return `${serverService.url}/build/${registerName}/index.html`;
+        return `${serverService.url}/build/${platform}/${registerName}/index.html`;
     }
     
     const buildRoot = join(builderConfig.projectRoot, 'build');
