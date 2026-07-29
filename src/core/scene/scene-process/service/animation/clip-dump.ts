@@ -1,8 +1,10 @@
 import type { AnimationClip, AnimationState } from 'cc';
 import type { IAnimationClipDump, IAnimationCurveDump, IAnimationCurveKeyDump, IAnimationValue } from '../../../common';
 import { dumpAuxiliaryCurves } from './auxiliary-curve';
+import { queryExoticAnimationTracks, type IExoticAnimationTrack } from './exotic-animation-track';
 import { dumpEmbeddedPlayers, queryEmbeddedPlayerGroups } from './embedded-player';
 import { dumpPropertyCurves, type IPropertyCurveMetadataContext } from './property-curve';
+import { dumpUntypedAnimationCurves } from './untyped-animation-track';
 import { cloneValue, getClipSample } from './utils';
 
 export function createClipDump(clip: AnimationClip, state: AnimationState | undefined, options: {
@@ -27,7 +29,7 @@ export function createClipDump(clip: AnimationClip, state: AnimationState | unde
         embeddedPlayerGroups: queryEmbeddedPlayerGroups(clip),
         auxiliaryCurves: dumpAuxiliaryCurves(clip),
         time: state?.current ?? 0,
-        isLock: options.isSkeleton,
+        isLock: false,
         isSkeleton: options.isSkeleton,
         useBakedAnimation: options.useBakedAnimation,
     };
@@ -37,6 +39,13 @@ export function createClipDump(clip: AnimationClip, state: AnimationState | unde
 function dumpAnimationCurves(clip: AnimationClip, options: IPropertyCurveMetadataContext): IAnimationCurveDump[] {
     const curves = dumpPropertyCurves(clip, options);
     const curveKeys = new Set(curves.map((curve) => `${curve.nodePath}\u0000${curve.key}`));
+    for (const curve of dumpUntypedAnimationCurves(clip, options)) {
+        const key = `${curve.nodePath}\u0000${curve.key}`;
+        if (!curveKeys.has(key)) {
+            curves.push(curve);
+            curveKeys.add(key);
+        }
+    }
     for (const curve of dumpExoticAnimationCurves(clip)) {
         const key = `${curve.nodePath}\u0000${curve.key}`;
         if (!curveKeys.has(key)) {
@@ -48,51 +57,22 @@ function dumpAnimationCurves(clip: AnimationClip, options: IPropertyCurveMetadat
 }
 
 function dumpExoticAnimationCurves(clip: AnimationClip): IAnimationCurveDump[] {
-    const exoticAnimation = (clip as any)._exoticAnimation as { _nodeAnimations?: unknown[] } | null | undefined;
-    if (!Array.isArray(exoticAnimation?._nodeAnimations)) {
-        return [];
-    }
-
-    const sample = getClipSample(clip);
     const curves: IAnimationCurveDump[] = [];
-    for (const nodeAnimation of exoticAnimation._nodeAnimations) {
-        const node = nodeAnimation as {
-            _path?: unknown;
-            _position?: unknown;
-            _rotation?: unknown;
-            _scale?: unknown;
-        };
-        const nodePath = normalizeExoticNodePath(node._path);
-        if (!nodePath) {
-            continue;
-        }
-        appendExoticCurve(curves, nodePath, 'position', node._position, sample, 'cc.Vec3', ['x', 'y', 'z']);
-        appendExoticCurve(curves, nodePath, 'rotation', node._rotation, sample, 'cc.Quat', undefined);
-        appendExoticCurve(curves, nodePath, 'scale', node._scale, sample, 'cc.Vec3', ['x', 'y', 'z']);
+    const sample = getClipSample(clip);
+    for (const track of queryExoticAnimationTracks(clip)) {
+        appendExoticCurve(curves, track, sample);
     }
     return curves;
 }
 
-function appendExoticCurve(
-    curves: IAnimationCurveDump[],
-    nodePath: string,
-    key: 'position' | 'rotation' | 'scale',
-    trackValue: unknown,
-    sample: number,
-    type: string,
-    partKeys: readonly string[] | undefined,
-): void {
-    const track = trackValue as {
-        times?: ArrayLike<number>;
-        values?: { get?: (index: number, value: Record<string, number>) => void };
-    } | null | undefined;
-    if (!track || !track.times || !track.values || typeof track.values.get !== 'function') {
+function appendExoticCurve(curves: IAnimationCurveDump[], track: IExoticAnimationTrack, sample: number): void {
+    if (!track.values || typeof track.values.get !== 'function') {
         return;
     }
 
     const times = Array.from(track.times, Number);
     const keyframes: IAnimationCurveKeyDump[] = [];
-    const channels = partKeys?.map((partKey) => ({
+    const channels = track.partKeys?.map((partKey) => ({
         key: partKey,
         displayName: partKey,
         type: { value: 'cc.Number' },
@@ -110,7 +90,7 @@ function appendExoticCurve(
         const dump = {
             value: cloneValue(value) as IAnimationValue,
             readonly: true,
-            type,
+            type: track.type,
         };
         keyframes.push({ frame, dump });
         if (channels) {
@@ -127,19 +107,15 @@ function appendExoticCurve(
         return;
     }
     curves.push({
-        nodePath,
-        key,
+        nodePath: track.nodePath,
+        key: track.key,
         keyframes,
         channels,
-        displayName: key,
-        name: key,
-        menuName: key,
-        type: { value: type },
-        isCurveSupport: key !== 'rotation',
-        partKeys: partKeys ? [...partKeys] : undefined,
+        displayName: track.key,
+        name: track.key,
+        menuName: track.key,
+        type: { value: track.type },
+        isCurveSupport: track.key !== 'rotation',
+        partKeys: track.partKeys ? [...track.partKeys] : undefined,
     });
-}
-
-function normalizeExoticNodePath(path: unknown): string {
-    return String(path || '').replace(/^\/+|\/+$/g, '');
 }

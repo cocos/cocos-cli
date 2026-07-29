@@ -1,5 +1,6 @@
 import type { AnimationClip } from 'cc';
 import { dumpAuxiliaryCurves } from './auxiliary-curve';
+import { queryExoticAnimationTracks } from './exotic-animation-track';
 import { dumpEmbeddedPlayers } from './embedded-player';
 import {
     getClipSample,
@@ -43,21 +44,10 @@ function queryTrackDuration(clip: AnimationClip, sample: number): number {
 }
 
 function queryExoticAnimationDuration(clip: AnimationClip): number {
-    const nodeAnimations = (clip as any)._exoticAnimation?._nodeAnimations;
-    if (!Array.isArray(nodeAnimations)) {
-        return 0;
-    }
-
     let duration = 0;
-    for (const nodeAnimation of nodeAnimations) {
-        for (const trackKey of ['_position', '_rotation', '_scale']) {
-            const times = (nodeAnimation as any)?.[trackKey]?.times;
-            if (!times) {
-                continue;
-            }
-            for (const time of Array.from(times as ArrayLike<unknown>)) {
-                duration = Math.max(duration, queryFiniteDuration(time));
-            }
+    for (const track of queryExoticAnimationTracks(clip)) {
+        for (const time of Array.from(track.times)) {
+            duration = Math.max(duration, queryFiniteDuration(time));
         }
     }
     return duration;

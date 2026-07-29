@@ -26,7 +26,7 @@ jest.mock('../scene-process/service/animation/utils', () => ({
     clipUuid: jest.fn(),
 }));
 
-const { upgradeUntypedAnimationTracks } = require('../scene-process/service/animation/service-target');
+const { createAnimationServiceClipDump, upgradeUntypedAnimationTracks } = require('../scene-process/service/animation/service-target');
 
 function createPropertyPath(property: string) {
     return {
@@ -40,6 +40,15 @@ function createPropertyPath(property: string) {
 }
 
 describe('skeletal animation track upgrade', () => {
+    it('does not upgrade untyped tracks while creating a read-only clip dump', () => {
+        const upgrade = jest.fn();
+        const clip = { upgradeUntypedTracks: upgrade };
+
+        createAnimationServiceClipDump({} as any, clip as any);
+
+        expect(upgrade).not.toHaveBeenCalled();
+    });
+
     it('refines untyped bone transform tracks before clip dumping', () => {
         let refine: ((path: unknown, proxy: unknown) => string | null) | undefined;
         const clip = {

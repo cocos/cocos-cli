@@ -16,14 +16,14 @@ jest.mock('../scene-process/service/animation/utils', () => ({
 const { createClipDump } = require('../scene-process/service/animation/clip-dump');
 
 describe('animation clip dump', () => {
-    it('locks imported skeletal clips while preserving the skeletal and baked flags', () => {
+    it('does not claim an imported skeletal clip is fully locked without an explicit lock contract', () => {
         const dump = createClipDump({ name: 'Idle', duration: 1, speed: 1, wrapMode: 2, events: [] }, undefined, {
             isSkeleton: true,
             useBakedAnimation: true,
         });
 
         expect(dump).toMatchObject({
-            isLock: true,
+            isLock: false,
             isSkeleton: true,
             useBakedAnimation: true,
         });
