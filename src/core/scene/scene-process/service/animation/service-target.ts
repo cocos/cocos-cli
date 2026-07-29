@@ -28,6 +28,79 @@ import {
 import { IAnimationSession } from './types';
 import { clipUuid } from './utils';
 
+
+export function upgradeUntypedAnimationTracks(rootNode: Node, clip: AnimationClip): void {
+    const upgradeUntypedTracks = (clip as AnimationClip & {
+        upgradeUntypedTracks?: (refine: (path: any, proxy: unknown) => string | null) => void;
+    }).upgradeUntypedTracks;
+    if (typeof upgradeUntypedTracks !== 'function') {
+        return;
+    }
+
+    upgradeUntypedTracks.call(clip, (path: any) => {
+        const target = readAnimationTrackTarget(path);
+        if (!target) {
+            return null;
+        }
+
+        const metadata = queryAnimationPropertyMetadata(rootNode, target.nodePath, target.propKey);
+        const type = metadata?.type.value ?? defaultAnimationPropertyType(target.propKey);
+        switch (type) {
+            case 'cc.Vec2':
+                return 'vec2';
+            case 'cc.Vec3':
+                return 'vec3';
+            case 'cc.Vec4':
+                return 'vec4';
+            case 'cc.Color':
+                return 'color';
+            case 'cc.Size':
+                return 'size';
+            default:
+                return null;
+        }
+    });
+}
+
+function readAnimationTrackTarget(path: any): { nodePath: string; propKey: string } | null {
+    if (!path || typeof path.length !== 'number') {
+        return null;
+    }
+
+    let index = 0;
+    let nodePath = '';
+    while (index < path.length && path.isHierarchyAt(index)) {
+        const segment = String(path.parseHierarchyAt(index) || '').replace(/^\/+|\/+$/g, '');
+        if (segment) {
+            nodePath = nodePath ? `${nodePath}/${segment}` : segment;
+        }
+        index++;
+    }
+
+    let component: string | undefined;
+    if (index < path.length && path.isComponentAt(index)) {
+        component = path.parseComponentAt(index);
+        index++;
+    }
+    if (index !== path.length - 1 || !path.isPropertyAt(index)) {
+        return null;
+    }
+
+    const property = path.parsePropertyAt(index);
+    return { nodePath, propKey: component ? `${component}.${property}` : property };
+}
+
+function defaultAnimationPropertyType(propKey: string): string | undefined {
+    switch (propKey) {
+        case 'position':
+        case 'eulerAngles':
+        case 'scale':
+            return 'cc.Vec3';
+        default:
+            return undefined;
+    }
+}
+
 export function assertAnimationEditorOpened(editorRoot: Node | null): asserts editorRoot is Node {
     if (!editorRoot) {
         throw new Error('Animation editor requires an opened scene or prefab.');
@@ -145,6 +218,7 @@ export function queryAnimationServiceProperties(node: Node, root: Node | null): 
 }
 
 export function createAnimationServiceClipDump(rootNode: Node, clip: AnimationClip, state?: AnimationState): IAnimationClipDump {
+    upgradeUntypedAnimationTracks(rootNode, clip);
     return createClipDump(clip, state, {
         isSkeleton: isSkeletonClip(clipUuid(clip), rootNode),
         useBakedAnimation: isUsingBakedAnimation(rootNode),

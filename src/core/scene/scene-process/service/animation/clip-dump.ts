@@ -27,7 +27,7 @@ export function createClipDump(clip: AnimationClip, state: AnimationState | unde
         embeddedPlayerGroups: queryEmbeddedPlayerGroups(clip),
         auxiliaryCurves: dumpAuxiliaryCurves(clip),
         time: state?.current ?? 0,
-        isLock: false,
+        isLock: options.isSkeleton,
         isSkeleton: options.isSkeleton,
         useBakedAnimation: options.useBakedAnimation,
     };
