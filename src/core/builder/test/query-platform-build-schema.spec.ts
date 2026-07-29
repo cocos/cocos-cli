@@ -466,6 +466,36 @@ describe('PluginManager platform config schema queries', () => {
         });
     });
 
+    it('checkBuildOptions validates with platform without mutating caller options', async () => {
+        const options = {
+            name: '',
+            mainBundleCompressionType: 'zip',
+            packages: {
+                [TEST_PLATFORM]: {
+                    mode: '',
+                },
+            },
+        } as any;
+        const originalOptions = JSON.parse(JSON.stringify(options));
+
+        const result = await pm.checkBuildOptions(TEST_PLATFORM, options);
+
+        expect(result.name).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'overridden',
+        });
+        expect(result.mode).toEqual({
+            valid: false,
+            level: 'error',
+            message: 'Required',
+            fixedValue: 'auto',
+        });
+        expect(options).toEqual(originalOptions);
+        expect(options.platform).toBeUndefined();
+    });
+
     it('materializes display fields and stores original i18n keys', () => {
         const config = {
             displayName: 'i18n:test.platform',
