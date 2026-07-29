@@ -1,4 +1,5 @@
 jest.mock('../scene-process/service/animation/auxiliary-curve', () => ({
+    dumpAuxiliaryCurves: jest.fn(() => ({})),
     addAuxiliaryCurve: jest.fn(),
     copyAuxKey: jest.fn(),
     createAuxKey: jest.fn(),
@@ -10,6 +11,7 @@ jest.mock('../scene-process/service/animation/auxiliary-curve', () => ({
 }));
 
 jest.mock('../scene-process/service/animation/embedded-player', () => ({
+    dumpEmbeddedPlayers: jest.fn(() => []),
     addEmbeddedPlayer: jest.fn(),
     addEmbeddedPlayerGroup: jest.fn(),
     clearEmbeddedPlayers: jest.fn(),
@@ -32,8 +34,46 @@ jest.mock('../scene-process/service/animation/property-curve', () => ({
 }));
 
 const { applyClipOperation } = require('../scene-process/service/animation/clip-operations');
+const { syncAnimationClipDuration } = require('../scene-process/service/animation/clip-duration');
 
 describe('animation clip operations', () => {
+    it('preserves a skeletal track duration when an event moves earlier', () => {
+        const clip = {
+            sample: 60,
+            duration: 1,
+            events: [{ frame: 0.8, func: 'onPointEight', params: [] }],
+            _tracks: [],
+            _exoticAnimation: {
+                _nodeAnimations: [{
+                    _path: 'Root/Bone',
+                    _position: { times: [0, 1] },
+                    _rotation: null,
+                    _scale: null,
+                }],
+            },
+        };
+
+        const duration = syncAnimationClipDuration(clip);
+
+        expect(duration).toBe(1);
+        expect(clip.duration).toBe(1);
+    });
+
+    it('keeps an ordinary clip track duration when an event moves earlier', () => {
+        const clip = {
+            sample: 60,
+            duration: 1,
+            events: [{ frame: 0.8, func: 'onPointEight', params: [] }],
+            _tracks: [],
+            range: () => ({ max: 1 }),
+        };
+
+        const duration = syncAnimationClipDuration(clip);
+
+        expect(duration).toBe(1);
+        expect(clip.duration).toBe(1);
+    });
+
     it('keeps event time stable when changing sample rate', async () => {
         const clip = {
             sample: 30,

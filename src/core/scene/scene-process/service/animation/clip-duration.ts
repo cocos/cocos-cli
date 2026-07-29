@@ -21,6 +21,7 @@ function queryAnimationClipDuration(clip: AnimationClip): number {
     const sample = getClipSample(clip);
     return Math.max(
         queryTrackDuration(clip, sample),
+        queryExoticAnimationDuration(clip),
         queryEventDuration(clip),
         queryEmbeddedPlayerDuration(clip, sample),
         queryAuxiliaryCurveDuration(clip, sample),
@@ -35,6 +36,27 @@ function queryTrackDuration(clip: AnimationClip, sample: number): number {
         for (const channel of queryTrackChannels(track)) {
             for (const time of queryCurveTimes(channel.curve)) {
                 duration = Math.max(duration, time + frameDuration);
+            }
+        }
+    }
+    return duration;
+}
+
+function queryExoticAnimationDuration(clip: AnimationClip): number {
+    const nodeAnimations = (clip as any)._exoticAnimation?._nodeAnimations;
+    if (!Array.isArray(nodeAnimations)) {
+        return 0;
+    }
+
+    let duration = 0;
+    for (const nodeAnimation of nodeAnimations) {
+        for (const trackKey of ['_position', '_rotation', '_scale']) {
+            const times = (nodeAnimation as any)?.[trackKey]?.times;
+            if (!times) {
+                continue;
+            }
+            for (const time of Array.from(times as ArrayLike<unknown>)) {
+                duration = Math.max(duration, queryFiniteDuration(time));
             }
         }
     }
