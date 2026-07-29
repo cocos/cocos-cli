@@ -61,7 +61,8 @@ async function generatePreviewSettings(startScene: string): Promise<IPreviewSett
     try {
         const { getPreviewSettings, queryDefaultBuildConfigByPlatform } = await import('../builder');
         const { fillIncludeModulesFromProjectConfig } = await import('../builder/share/common-options-validator');
-        const options = await queryDefaultBuildConfigByPlatform('web-desktop');
+        const tmp = await queryDefaultBuildConfigByPlatform('web-desktop');
+        const options = JSON.parse(JSON.stringify(tmp));
         // 与正式构建（builder createBuildTask）保持一致：从 cocos.config.json 补全 includeModules。
         // 预览路径原本不补全，options.includeModules 为空/默认时，内置资源包会漏掉当前模块（尤其是所选
         // 物理后端 physics-cannon/ammo/physx/builtin）的 dependentAssets，比如内置物理材质
