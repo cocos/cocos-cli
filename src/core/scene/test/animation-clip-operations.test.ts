@@ -37,11 +37,11 @@ const { applyClipOperation } = require('../scene-process/service/animation/clip-
 const { syncAnimationClipDuration } = require('../scene-process/service/animation/clip-duration');
 
 describe('animation clip operations', () => {
-    it('preserves a skeletal track duration when an event moves earlier', () => {
+    it('preserves a skeletal track duration when an event moves earlier', async () => {
         const clip = {
             sample: 60,
             duration: 1,
-            events: [{ frame: 0.8, func: 'onPointEight', params: [] }],
+            events: [{ frame: 1, func: 'onOneSecond', params: [] }],
             _tracks: [],
             _exoticAnimation: {
                 _nodeAnimations: [{
@@ -51,10 +51,19 @@ describe('animation clip operations', () => {
                     _scale: null,
                 }],
             },
+            updateEventDatas: jest.fn(),
         };
 
+        const moveResult = await applyClipOperation(clip, {
+            type: 'moveEvents',
+            clipUuid: 'clip-uuid',
+            frames: [60],
+            offset: -12,
+        }, {});
         const duration = syncAnimationClipDuration(clip);
 
+        expect(moveResult).toBe(true);
+        expect(clip.events[0].frame).toBe(0.8);
         expect(duration).toBe(1);
         expect(clip.duration).toBe(1);
     });
