@@ -2,7 +2,7 @@
 
 declare const cc: any;
 
-import { pathExists, readJSON } from 'fs-extra';
+import { readJSON } from 'fs-extra';
 import type { EffectAsset } from 'cc';
 import type { IAsset } from './@types/protected';
 import type { IAssetInfo, IProperty } from './@types/public';
@@ -81,8 +81,8 @@ export async function queryEffect(effectNameOrUuid: string): Promise<MaterialTec
 }
 
 export async function queryMaterial(uuidOrUrlOrPath: string): Promise<MaterialDump> {
-    const { asset, assetInfo } = resolveMaterialAsset(uuidOrUrlOrPath);
-    const source = await readMaterialSource(asset, assetInfo);
+    const { asset } = resolveMaterialAsset(uuidOrUrlOrPath);
+    const source = await readJSON(asset.source);
     const material = deserializeMaterialSource(source, asset);
     const effectUuid = extractUuid(source?._effectAsset) || extractUuid(material?._effectAsset);
 
@@ -104,19 +104,6 @@ export async function queryMaterial(uuidOrUrlOrPath: string): Promise<MaterialDu
         technique: techniqueIndex,
         data,
     };
-}
-
-async function readMaterialSource(asset: IAsset, assetInfo: IAssetInfo): Promise<any> {
-    if (asset.source && await pathExists(asset.source)) {
-        return readJSON(asset.source);
-    }
-
-    const libraryPath = assetInfo.library['.json'];
-    if (libraryPath && await pathExists(libraryPath)) {
-        return readJSON(libraryPath);
-    }
-
-    throw new Error(`Material JSON can not be found: ${assetInfo.url || asset.uuid}. Please refresh/reimport material.`);
 }
 
 export async function saveMaterial(uuidOrUrlOrPath: string, dump: MaterialDump): Promise<void> {
