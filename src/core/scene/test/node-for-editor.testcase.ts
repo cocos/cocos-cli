@@ -226,9 +226,8 @@ describe('Node ForEditor 接口测试', () => {
             });
             expect(result).toBe(true);
 
-            const segments = oldPath.split('/');
-            segments[segments.length - 1] = 'RenamedNode';
-            const newPath = segments.join('/');
+            const nodeUuid = dump.uuid.value as string;
+            const newPath = await rpcRequest('getPathByUuid', [nodeUuid]) as string;
             testNode!.path = newPath;
 
             const updatedDump = await queryNodeDump(newPath) as INode;
@@ -784,6 +783,207 @@ describe('Node ForEditor 接口测试', () => {
                 }
             }
             expect(count).toBeGreaterThan(0);
+        });
+    });
+
+    describe('10. name 与 path 解耦 - 允许同名节点', () => {
+        const parentPath = '/';
+
+        async function createNode(name: string, path = parentPath): Promise<INodeInfo> {
+            const node = await NodeProxy.createByType({ path, name, nodeType: NodeType.EMPTY });
+            expect(node).toBeDefined();
+            return node!;
+        }
+
+        async function deleteNode(path: string) {
+            try {
+                await NodeProxy.delete({ path, keepWorldTransform: false });
+            } catch {
+                // ignore if already deleted
+            }
+        }
+
+        async function renameNode(nodePath: string, newName: string): Promise<{ name: string; path: string }> {
+            const dump = await queryNodeDump(nodePath) as INode;
+            await setNodeProperty({
+                nodePath,
+                path: 'name',
+                dump: { ...dump.name, value: newName },
+            });
+            const nodeUuid = dump.uuid.value as string;
+            const realPath = await rpcRequest('getPathByUuid', [nodeUuid]) as string;
+            const updatedDump = await queryNodeDump(realPath) as INode;
+            return { name: updatedDump.name.value as string, path: realPath };
+        }
+
+        it('场景1：重命名为与兄弟同名后，再次重命名为另一个名字', async () => {
+            const nodeA = await createNode('Enemy');
+            const nodeB = await createNode('Soldier');
+            let currentBPath = nodeB.path;
+
+            try {
+                // 把 B 重命名为 "Enemy"（与 A 同名）
+                const afterFirst = await renameNode(nodeB.path, 'Enemy');
+                currentBPath = afterFirst.path;
+                expect(afterFirst.name).toBe('Enemy');
+                // path 应该唯一，不等于 A 的 path
+                expect(afterFirst.path).not.toBe(nodeA.path);
+
+                // 再次把 B 重命名为 "Ally"（不冲突）
+                const afterSecond = await renameNode(afterFirst.path, 'Ally');
+                currentBPath = afterSecond.path;
+                expect(afterSecond.name).toBe('Ally');
+                expect(afterSecond.path).toContain('Ally');
+
+                // A 的路径不应受影响
+                const aDump = await queryNodeDump(nodeA.path);
+                expect(aDump).not.toBeNull();
+            } finally {
+                try { await deleteNode(currentBPath); } catch { /* */ }
+                try { await deleteNode(nodeA.path); } catch { /* */ }
+            }
+        });
+
+        it('场景2：重命名为同名的节点被删除后，创建同名新节点', async () => {
+            const nodeA = await createNode('Target');
+            const nodeB = await createNode('Other');
+            let currentBPath = nodeB.path;
+
+            try {
+                // 把 B 重命名为 "Target"（与 A 同名）
+                const renamedB = await renameNode(nodeB.path, 'Target');
+                currentBPath = renamedB.path;
+                expect(renamedB.name).toBe('Target');
+
+                // 删除 A
+                await deleteNode(nodeA.path);
+
+                // 创建同名新节点
+                const nodeC = await createNode('Target');
+                // 新节点应该成功创建，路径唯一
+                expect(nodeC).toBeDefined();
+                expect(nodeC.path).not.toBe(renamedB.path);
+
+                // B 的路径不应受影响
+                const bDump = await queryNodeDump(renamedB.path);
+                expect(bDump).not.toBeNull();
+
+                await deleteNode(nodeC.path);
+            } finally {
+                try { await deleteNode(currentBPath); } catch { /* */ }
+                try { await deleteNode(nodeA.path); } catch { /* */ }
+            }
+        });
+
+        it('场景3：移动节点到已存在同名节点的父节点下', async () => {
+            // 创建目标父节点
+            const parent = await createNode('MoveParent');
+            // 在 parent 下创建一个叫 "Child" 的节点
+            const existingChild = await createNode('Child', parent.path);
+            // 在根下创建另一个叫 "Child" 的节点
+            const movingNode = await createNode('Child');
+
+            try {
+                // 移动 movingNode 到 parent 下（同名冲突）
+                const result = await rpcRequest('setParent', [{ paths: [movingNode.path], parentPath: parent.path }]) as string[];
+                expect(result).toBeDefined();
+                expect(result.length).toBe(1);
+                const movedPath = result[0];
+
+                // 移入后路径应唯一，不等于 existingChild 的路径
+                expect(movedPath).not.toBe(existingChild.path);
+
+                // existingChild 的路径不应受影响
+                const existingDump = await queryNodeDump(existingChild.path);
+                expect(existingDump).not.toBeNull();
+
+                await deleteNode(movedPath);
+            } finally {
+                try { await deleteNode(existingChild.path); } catch { /* */ }
+                try { await deleteNode(parent.path); } catch { /* */ }
+                try { await deleteNode(movingNode.path); } catch { /* */ }
+            }
+        });
+
+        it('场景4：父节点重命名后，子树路径全部更新', async () => {
+            const parent = await createNode('OldParent');
+            const child = await createNode('ChildA', parent.path);
+
+            try {
+                const oldChildPath = child.path;
+
+                // 重命名父节点
+                const renamedParent = await renameNode(parent.path, 'NewParent');
+                expect(renamedParent.name).toBe('NewParent');
+                expect(renamedParent.path).toContain('NewParent');
+
+                // 子节点路径应级联更新
+                const childDump = await queryNodeDump(oldChildPath);
+                expect(childDump).toBeNull(); // 旧路径失效
+
+                const newChildPath = `${renamedParent.path}/ChildA`;
+                const updatedChildDump = await queryNodeDump(newChildPath);
+                expect(updatedChildDump).not.toBeNull();
+
+                await deleteNode(newChildPath);
+            } finally {
+                try { await deleteNode(parent.path); } catch { /* */ }
+                try { await deleteNode('NewParent'); } catch { /* */ }
+            }
+        });
+
+        it('场景5：冲突重命名后，update 返回真实路径而非用户输入', async () => {
+            const nodeA = await createNode('Hero');
+            const nodeB = await createNode('Villain');
+
+            try {
+                // 通过 NodeProxy.update 重命名 B 为 "Hero"（冲突）
+                const result = await NodeProxy.update({ path: nodeB.path, name: 'Hero' });
+                // 返回的路径应该是系统分配的唯一路径，不能是 A 的路径
+                expect(result.path).not.toBe(nodeA.path);
+                // 路径应该包含去重后缀
+                expect(result.path).toBeTruthy();
+
+                // 通过返回的路径能查到节点
+                const queryResult = await NodeProxy.query({ path: result.path });
+                expect(queryResult).not.toBeNull();
+                // name 应该是用户输入的 "Hero"
+                expect(queryResult!.name).toBe('Hero');
+
+                await deleteNode(result.path);
+            } finally {
+                try { await deleteNode(nodeA.path); } catch { /* */ }
+                try { await deleteNode(nodeB.path); } catch { /* */ }
+            }
+        });
+
+        it('场景6：兄弟增删不影响已有路径', async () => {
+            const nodeA = await createNode('Item');
+            const nodeB = await createNode('Item'); // 会变成 Item_001
+            const nodeC = await createNode('Item'); // 会变成 Item_002
+
+            try {
+                const pathA = nodeA.path;
+                const pathB = nodeB.path;
+                const pathC = nodeC.path;
+
+                // 三个路径应各不相同
+                expect(new Set([pathA, pathB, pathC]).size).toBe(3);
+
+                // 删除 A
+                await deleteNode(pathA);
+
+                // B 和 C 的路径不应变化
+                const bDump = await queryNodeDump(pathB);
+                expect(bDump).not.toBeNull();
+
+                const cDump = await queryNodeDump(pathC);
+                expect(cDump).not.toBeNull();
+            } finally {
+                try { await deleteNode(nodeA.path); } catch { /* */ }
+                try { await deleteNode(nodeB.path); } catch { /* */ }
+                try { await deleteNode(nodeC.path); } catch { /* */ }
+            }
         });
     });
 });

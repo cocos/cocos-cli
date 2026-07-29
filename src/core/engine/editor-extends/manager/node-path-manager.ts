@@ -64,14 +64,14 @@ export class NodePathManager {
         this._addPathMapping(uuid, path);
     }
 
-    remove(uuid: string) {
+    remove(uuid: string, parentUuid?: string) {
         const path = this._uuidToPath.get(uuid);
         this._removePathMapping(uuid, path);
         this._uuidToPath.delete(uuid);
         this._nodeNames.delete(uuid);
-        const parentUuid = this._getParentUuid(path);
-        if (parentUuid && this._nodeNames.has(parentUuid)) {
-            const nameSet = this._nodeNames.get(parentUuid)!;
+        const resolvedParent = parentUuid ?? this._getParentUuid(path);
+        if (resolvedParent && this._nodeNames.has(resolvedParent)) {
+            const nameSet = this._nodeNames.get(resolvedParent)!;
             const nodeName = path ? path.split('/').pop() : undefined;
             if (nodeName) {
                 nameSet.delete(nodeName);
@@ -259,13 +259,6 @@ export class NodePathManager {
         this._replaceSubtreePathPrefix(subtreeEntries, oldPath, newPath);
     }
 
-    getNameSet(uuid: string): Set<string> | null {
-        if (!this._nodeNames.has(uuid)) {
-            return null;
-        }
-
-        return this._nodeNames.get(uuid)!;
-    }
 }
 
 export default new NodePathManager();

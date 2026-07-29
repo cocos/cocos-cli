@@ -4,6 +4,7 @@ import type {
     IAnimationPropertyType,
     IAnimationValue,
 } from '../../../common';
+import { getNodeByPath } from './scene-node';
 import {
     getClipSample,
     normalizeFrames,
@@ -176,7 +177,7 @@ export function removePropertyKey(
     context: IPropertyCurveOperationContext,
     operation: IPropertyKeyFramesOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyTarget(context, operation, true);
     const frames = normalizeFrames(operation.frames);
     if (!target || frames.length === 0) {
         return false;
@@ -208,7 +209,7 @@ export function removePropertyCurve(
     context: IPropertyCurveOperationContext,
     operation: IPropertyTarget,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyTarget(context, operation, true);
     if (!target) {
         return false;
     }
@@ -318,8 +319,8 @@ export function replacePropertyCurves(clip: AnimationClip, curves: IAnimationCur
     return true;
 }
 
-function resolvePropertyTarget(context: IPropertyCurveOperationContext, operation: IPropertyTarget): IResolvedPropertyTarget | null {
-    const nodePath = resolveRelativeNodePath(context, operation);
+function resolvePropertyTarget(context: IPropertyCurveOperationContext, operation: IPropertyTarget, lenient = false): IResolvedPropertyTarget | null {
+    const nodePath = resolveRelativeNodePath(context, operation, lenient);
     if (nodePath === null) {
         return null;
     }
@@ -363,22 +364,93 @@ function applyPropertyMetadata(
     };
 }
 
-function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operation: IPropertyTarget): string | null {
-    const nodePath = normalizePath(operation.nodePath || '');
-    if (nodePath) {
-        const rootPath = normalizePath(context.rootPath);
-        if (nodePath === rootPath) {
+function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operation: IPropertyTarget, lenient = false): string | null {
+    let targetUuid = operation.nodeUuid;
+    if (!targetUuid) {
+        const nodePath = normalizePath(operation.nodePath || '');
+        if (!nodePath) {
             return '';
         }
-        if (rootPath && nodePath.startsWith(`${rootPath}/`)) {
-            return nodePath.slice(rootPath.length + 1);
+        const rootPath = normalizePath(context.rootPath);
+        let node: Node | null = null;
+        if (rootPath && (nodePath === rootPath || nodePath.startsWith(`${rootPath}/`))) {
+            node = getNodeByPath(nodePath);
+        } else {
+            node = context.rootNode.getChildByPath(nodePath);
         }
-        return context.rootNode.getChildByPath(nodePath) ? nodePath : null;
+        if (!node) {
+            if (lenient) {
+                return toRelativePathByString(context.rootPath, nodePath);
+            }
+            return null;
+        }
+        targetUuid = node.uuid;
     }
-    return operation.nodeUuid ? findRelativeNodePathByUuid(context.rootNode, operation.nodeUuid) : '';
+
+    const relativePath = findRelativeNodePathByUuid(context.rootNode, targetUuid);
+    if (relativePath === null) {
+        if (lenient && operation.nodePath) {
+            return toRelativePathByString(context.rootPath, operation.nodePath);
+        }
+        return null;
+    }
+    if (relativePath === '') {
+        return '';
+    }
+
+    if (hasSameNameSiblings(context.rootNode, relativePath)) {
+        if (!lenient) {
+            console.warn(
+                `Animation: path "${relativePath}" contains same-name siblings. `
+                + `Animation binding is unstable because sibling order may change.`,
+            );
+            return null;
+        }
+        const resolved = context.rootNode.getChildByPath(relativePath);
+        if (!resolved || resolved.uuid !== targetUuid) {
+            return null;
+        }
+    }
+
+    return relativePath;
 }
 
-function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
+function hasSameNameSiblings(rootNode: Node, relativePath: string): boolean {
+    const segments = relativePath.split('/');
+    let current: Node = rootNode;
+    for (const segment of segments) {
+        let count = 0;
+        let next: Node | null = null;
+        for (const child of current.children) {
+            if (child.name === segment) {
+                count++;
+                if (!next) {
+                    next = child;
+                }
+                if (count > 1) {
+                    return true;
+                }
+            }
+        }
+        if (!next) {
+            return true;
+        }
+        current = next;
+    }
+    return false;
+}
+
+function toRelativePathByString(rootPath: string, nodePath: string): string {
+    const normalized = normalizePath(nodePath);
+    if (!normalized) return '';
+    const normalizedRoot = normalizePath(rootPath);
+    if (!normalizedRoot) return normalized;
+    if (normalized === normalizedRoot) return '';
+    if (normalized.startsWith(`${normalizedRoot}/`)) return normalized.slice(normalizedRoot.length + 1);
+    return normalized;
+}
+
+export function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
     if (node.uuid === uuid) {
         return prefix;
     }

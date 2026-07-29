@@ -242,7 +242,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         // 逐级检查并创建路径
         for (let i = 0; i < pathParts.length; i++) {
             const pathPart = pathParts[i];
-            let nextNode = currentParent.getChildByName(pathPart);
+            const accumulatedPath = pathParts.slice(0, i + 1).join('/');
+            let nextNode = NodeMgr.getNodeByPath(accumulatedPath) as Node | null;
 
             if (!nextNode) {
                 if (pathPart === 'Canvas') {

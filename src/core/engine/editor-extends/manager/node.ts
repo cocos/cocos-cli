@@ -62,8 +62,9 @@ export default class NodeManager extends EventEmitter {
             return;
         }
         const node = this._map[uuid];
+        const parentUuid = this._getParentUuid(uuid);
 
-        pathManager.remove(uuid);
+        pathManager.remove(uuid, parentUuid);
 
         // 清理父子关系
         this._cleanupParentRelations(uuid);
@@ -104,10 +105,6 @@ export default class NodeManager extends EventEmitter {
         // 获取父节点UUID
         const parentUuid = this._getParentUuid(uuid);
         pathManager.updateUuid(uuid, newName, parentUuid);
-        // 更新节点名称计数
-        if (parentUuid) {
-            this._updateNameCount(parentUuid, node.name, newName);
-        }
 
         // 更新节点对象的名称
         node.name = newName;
@@ -141,11 +138,6 @@ export default class NodeManager extends EventEmitter {
                 this._parentChildren.set(newParentUuid, new Set());
             }
             this._parentChildren.get(newParentUuid)!.add(uuid);
-        }
-
-        const finalName = newPath.split('/').pop();
-        if (finalName && node.name !== finalName) {
-            node.name = finalName;
         }
 
         return newPath;
@@ -324,7 +316,6 @@ export default class NodeManager extends EventEmitter {
         const parentUuid = this._getParentUuid(uuid);
         if (parentUuid) {
             this._parentChildren.get(parentUuid)?.delete(uuid);
-            this._updateNameCount(parentUuid, this._map[uuid]?.name, null);
         }
 
         // 递归清理所有子节点
@@ -334,24 +325,6 @@ export default class NodeManager extends EventEmitter {
                 this.remove(childUuid);
             }
             this._parentChildren.delete(uuid);
-        }
-    }
-
-    /**
-     * 更新名称计数
-     */
-    private _updateNameCount(parentUuid: string, oldName: string | null, newName: string | null) {
-        const nameSet = pathManager.getNameSet(parentUuid);
-        if (!nameSet) {
-            return;
-        }
-
-        if (oldName) {
-            nameSet.delete(oldName);
-        }
-
-        if (newName) {
-            nameSet.add(newName);
         }
     }
 }

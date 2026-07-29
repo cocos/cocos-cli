@@ -1,7 +1,9 @@
 import { Node } from 'cc';
 import type { IAnimationOperation, IAnimationValue } from '../../../common';
 import type { IAnimationPropertyMetadata } from './property-curve';
+import { findRelativeNodePathByUuid } from './property-curve';
 import { queryAnimationPropertyMetadata } from './property-metadata';
+import { getNodeByPath } from './scene-node';
 import {
     isAnimationAssetValue,
     loadAnimationAssetValue,
@@ -91,26 +93,26 @@ function resolveOperationRelativeNodePath(
     operation: { nodeUuid?: string; nodePath?: string },
     options: { queryNodeByUuid: (uuid: string) => Node | null; queryNodePath: (node: Node) => string },
 ): string | null {
-    if (operation.nodePath) {
-        return toRelativeNodePath(rootNode, rootPath, operation.nodePath);
+    let targetUuid = operation.nodeUuid;
+    if (!targetUuid) {
+        const nodePath = normalizeNodePath(operation.nodePath || '');
+        if (!nodePath) {
+            return '';
+        }
+        const normalizedRootPath = normalizeNodePath(rootPath);
+        let node: Node | null = null;
+        if (normalizedRootPath && (nodePath === normalizedRootPath || nodePath.startsWith(`${normalizedRootPath}/`))) {
+            node = getNodeByPath(nodePath);
+        } else {
+            node = rootNode.getChildByPath(nodePath);
+        }
+        if (!node) {
+            return null;
+        }
+        targetUuid = node.uuid;
     }
-    const node = options.queryNodeByUuid(operation.nodeUuid || '');
-    if (node) {
-        return toRelativeNodePath(rootNode, rootPath, options.queryNodePath(node));
-    }
-    return toRelativeNodePath(rootNode, rootPath, '');
-}
 
-function toRelativeNodePath(rootNode: Node, rootPath: string, nodePath: string): string | null {
-    const normalizedRootPath = normalizeNodePath(rootPath);
-    const normalizedNodePath = normalizeNodePath(nodePath);
-    if (!normalizedNodePath || normalizedNodePath === normalizedRootPath) {
-        return '';
-    }
-    if (normalizedRootPath && normalizedNodePath.startsWith(`${normalizedRootPath}/`)) {
-        return normalizedNodePath.slice(normalizedRootPath.length + 1);
-    }
-    return rootNode.getChildByPath(normalizedNodePath) ? normalizedNodePath : null;
+    return findRelativeNodePathByUuid(rootNode, targetUuid);
 }
 
 function normalizeNodePath(path: string): string {

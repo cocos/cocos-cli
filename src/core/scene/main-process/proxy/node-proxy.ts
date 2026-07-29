@@ -73,9 +73,15 @@ export const NodeProxy: INodeProxy = {
                 path: 'name',
                 dump: { ...nameDef, value: params.name },
             }]);
-            const segments = currentPath.split('/');
-            segments[segments.length - 1] = params.name;
-            currentPath = segments.join('/');
+            const nodeUuid = nodeDump.uuid?.value;
+            if (!nodeUuid) {
+                throw new Error(`Node at '${params.path}' has no uuid, cannot resolve renamed path`);
+            }
+            const realPath = await Rpc.getInstance().request('Node', 'getPathByUuid', [nodeUuid]);
+            if (!realPath) {
+                throw new Error(`Cannot resolve path for node '${nodeUuid}' after rename`);
+            }
+            currentPath = realPath as string;
         }
 
         return { path: currentPath };

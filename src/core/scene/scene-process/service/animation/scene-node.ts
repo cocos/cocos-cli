@@ -34,7 +34,7 @@ export function getNodeByUuid(uuid: string): Node | null {
 }
 
 export function getNodeByPath(path: string): Node | null {
-    if (!path) {
+    if (!path || !NodeMgr.getNodeByPath) {
         return null;
     }
     return NodeMgr.getNodeByPath(path) || null;

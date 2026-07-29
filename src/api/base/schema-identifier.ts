@@ -331,6 +331,6 @@ export const SchemaComponentIdentifier = z.object({
 
 export const SchemaNodeIdentifier = z.object({
     nodeId: z.string().describe('Node ID'), // 节点的 id
-    path: z.string().describe('Parent node path, full node path is parent path + node name; root node path is "/"'), // 父节点路径，完整节点路径为父路径+节点名；根节点路径为 "/"
-    name: z.string().describe('Node name'), // 节点名称
+    path: z.string().describe('Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is "/"'), // 节点寻址路径（唯一），同名兄弟节点时可能与 name 不同；根节点路径为 "/"
+    name: z.string().describe('Node display name (may be duplicated among siblings)'), // 节点显示名称（兄弟节点间可重复）
 }).describe('Node identifier'); // 节点标识符

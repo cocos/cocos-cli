@@ -134,9 +134,13 @@ const Node = {
                 path: 'name',
                 dump: { ...nodeDump.name, value: params.name },
             }]);
-            const segments = currentPath.split('/');
-            segments[segments.length - 1] = params.name;
-            currentPath = segments.join('/');
+            const nodeUuid = nodeDump.uuid?.value;
+            if (nodeUuid) {
+                const realPath = await request<string>('Node', 'getPathByUuid', [nodeUuid]);
+                if (realPath) {
+                    currentPath = realPath;
+                }
+            }
         }
         return { path: currentPath };
     },
@@ -847,13 +851,14 @@ describe('Undo/Redo 集成测试', () => {
 
         it('update name, undo restores original name, redo reapplies', async () => {
             const updateParams: IUpdateNodeParams = { path, name: 'RenamedNode' };
-            await Node.update(updateParams);
-            const renamedPath = `${path.slice(0, path.lastIndexOf('/') + 1)}RenamedNode`;
+            const updateResult = await Node.update(updateParams);
+            const renamedPath = updateResult.path;
             expect(await queryNode(renamedPath)).not.toBeNull();
 
             await Undo.undo();
             expect(await queryNode(path)).not.toBeNull();
-            expect((await queryNode(path))!.name).toBe(path.split('/').pop());
+            const originalName = path.split('/').pop();
+            expect((await queryNode(path))!.name).toBe(originalName);
 
             await Undo.redo();
             expect(await queryNode(renamedPath)).not.toBeNull();
