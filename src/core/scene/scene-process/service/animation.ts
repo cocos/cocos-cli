@@ -49,7 +49,7 @@ import { IAnimationSession } from './animation/types';
 import { clipUuid, ensureClipEvents, getClipSample } from './animation/utils';
 import { serializeAnimationPropertyValue } from './animation/property-value';
 import { AnimationServicePlayback } from './animation/service-playback';
-import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncClipDuration } from './animation/operation-policy';
+import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncAnimationClipDuration } from './animation/operation-policy';
 import { normalizeAnimationOperation } from './animation/operation-normalizer';
 import {
     loadAnimationClip,
@@ -452,6 +452,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const shouldRecordUndo = options.recordUndo !== false;
         const before = captureAnimationClipSnapshot(clip, propertyMetadataContext);
         const appliedOperations: IAnimationOperation[] = [];
+        const isSkeleton = isSkeletonClip(session.clipUuid, rootNode);
         let shouldSyncDuration = false;
         let shouldRestoreOnFailure = false;
         for (const inputOperation of options.operations) {
@@ -462,7 +463,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 }
                 return inputFailure;
             }
-            if (isSkeletonClip(session.clipUuid, rootNode) && !isAllowedSkeletonAnimationOperation(inputOperation)) {
+            if (isSkeleton && !isAllowedSkeletonAnimationOperation(inputOperation)) {
                 const skeletonFailure = {
                     state: 'failure',
                     result: false,
@@ -524,7 +525,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 return failureResult;
             }
             appliedOperations.push(operation);
-            shouldSyncDuration = shouldSyncDuration || shouldSyncClipDuration(operation);
+            shouldSyncDuration = shouldSyncDuration || shouldSyncAnimationClipDuration(operation, isSkeleton);
         }
 
         if (shouldSyncDuration) {

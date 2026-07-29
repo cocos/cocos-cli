@@ -35,6 +35,7 @@ jest.mock('../scene-process/service/animation/property-curve', () => ({
 
 const { applyClipOperation } = require('../scene-process/service/animation/clip-operations');
 const { syncAnimationClipDuration } = require('../scene-process/service/animation/clip-duration');
+const { shouldSyncAnimationClipDuration } = require('../scene-process/service/animation/operation-policy');
 
 describe('animation clip operations', () => {
     it('preserves a skeletal track duration when an event moves earlier', async () => {
@@ -101,5 +102,28 @@ describe('animation clip operations', () => {
         expect(clip.events[0].frame).toBe(1);
         expect(Math.round(clip.events[0].frame * clip.sample)).toBe(60);
         expect(clip.updateEventDatas).toHaveBeenCalled();
+    });
+
+    it('does not resync imported skeletal duration for editable operations', () => {
+        expect(shouldSyncAnimationClipDuration({
+            type: 'moveEvents',
+            clipUuid: 'clip-uuid',
+            frames: [60],
+            offset: -12,
+        }, true)).toBe(false);
+        expect(shouldSyncAnimationClipDuration({
+            type: 'changeSample',
+            clipUuid: 'clip-uuid',
+            sample: 30,
+        }, true)).toBe(false);
+    });
+
+    it('keeps duration synchronization enabled for ordinary clips', () => {
+        expect(shouldSyncAnimationClipDuration({
+            type: 'moveEvents',
+            clipUuid: 'clip-uuid',
+            frames: [60],
+            offset: -12,
+        }, false)).toBe(true);
     });
 });
