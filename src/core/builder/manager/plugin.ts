@@ -478,8 +478,7 @@ export class PluginManager extends EventEmitter {
     public getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null {
         const config = this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key] || {};
         if (builderConfig.commonOptionConfigs[key]) {
-            const defaultConfig = JSON.parse(JSON.stringify(builderConfig.commonOptionConfigs[key]));
-            lodash.defaultsDeep(config, defaultConfig);
+            lodash.defaultsDeep(config, builderConfig.commonOptionConfigs[key]);
         }
         if (!config || !config.verifyRules) {
             return null;
@@ -815,8 +814,8 @@ export class PluginManager extends EventEmitter {
      * @param platform
      */
     public async getOptionsByPlatform<P extends Platform | string>(platform: P): Promise<IBuildTaskOption> {
-        const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
-        const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
+        const options = lodash.cloneDeep(await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`));
+        const commonOptions = lodash.cloneDeep(await builderConfig.getProject<IBuildCommandOption>(`common`));
         commonOptions.platform = platform;
         commonOptions.outputName = platform;
         return Object.assign(commonOptions, options);
