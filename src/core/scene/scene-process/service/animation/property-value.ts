@@ -1,7 +1,7 @@
 import { Node } from 'cc';
 import type { IAnimationOperation, IAnimationValue } from '../../../common';
 import type { IAnimationPropertyMetadata } from './property-curve';
-import { findRelativeNodePathByUuid } from './property-curve';
+import { findRelativeNodePathByUuid, hasSameNameSiblings } from './property-curve';
 import { queryAnimationPropertyMetadata } from './property-metadata';
 import { getNodeByPath } from './scene-node';
 import {
@@ -44,17 +44,13 @@ export async function normalizeProvidedAnimationPropertyOperationValue(
     rootNode: Node,
     rootPath: string,
     operation: PropertyKeyOperation,
-    options: {
-        queryNodeByUuid: (uuid: string) => Node | null;
-        queryNodePath: (node: Node) => string;
-    },
 ): Promise<IAnimationValue> {
     const value = operation.value;
     if (value === null || value === undefined) {
         return value as IAnimationValue;
     }
 
-    const nodePath = resolveOperationRelativeNodePath(rootNode, rootPath, operation, options);
+    const nodePath = resolveOperationRelativeNodePath(rootNode, rootPath, operation);
     if (nodePath === null) {
         return value;
     }
@@ -91,7 +87,6 @@ function resolveOperationRelativeNodePath(
     rootNode: Node,
     rootPath: string,
     operation: { nodeUuid?: string; nodePath?: string },
-    options: { queryNodeByUuid: (uuid: string) => Node | null; queryNodePath: (node: Node) => string },
 ): string | null {
     let targetUuid = operation.nodeUuid;
     if (!targetUuid) {
@@ -112,7 +107,16 @@ function resolveOperationRelativeNodePath(
         targetUuid = node.uuid;
     }
 
-    return findRelativeNodePathByUuid(rootNode, targetUuid);
+    const relativePath = findRelativeNodePathByUuid(rootNode, targetUuid);
+    if (relativePath === null || relativePath === '') {
+        return relativePath;
+    }
+
+    if (hasSameNameSiblings(rootNode, relativePath)) {
+        return null;
+    }
+
+    return relativePath;
 }
 
 function normalizeNodePath(path: string): string {

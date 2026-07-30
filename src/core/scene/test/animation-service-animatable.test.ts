@@ -1337,10 +1337,6 @@ describe('property-value 碰撞后缀路径解析', () => {
                 frame: 0,
                 value: { x: 0, y: 0, z: 0 },
             },
-            {
-                queryNodeByUuid: (uuid: string) => uuid === enemy.uuid ? enemy : null,
-                queryNodePath: () => 'Root/Enemy_001',
-            },
         );
 
         expect(capturedNodePath).toBe('Enemy');
@@ -1381,12 +1377,46 @@ describe('property-value 碰撞后缀路径解析', () => {
                 frame: 0,
                 value: { x: 0, y: 0, z: 0 },
             },
-            {
-                queryNodeByUuid: () => null,
-                queryNodePath: () => 'Root/Enemy_001',
-            },
         );
 
         expect(capturedNodePath).toBe('Enemy');
+    });
+
+    it('同名兄弟时 resolveOperationRelativeNodePath 返回 null，value 原样返回', async () => {
+        jest.resetModules();
+        (global as any).EditorExtends = { Node: {} };
+        (global as any).cc = require('cc');
+
+        let metadataCalled = false;
+        jest.doMock('../scene-process/service/animation/property-metadata', () => ({
+            queryAnimationPropertyMetadata: () => {
+                metadataCalled = true;
+                return null;
+            },
+        }));
+
+        const { Node } = require('cc');
+        const { normalizeProvidedAnimationPropertyOperationValue } = require('../scene-process/service/animation/property-value');
+
+        const root = new Node('Root');
+        const enemy1 = new Node('Enemy');
+        const enemy2 = new Node('Enemy');
+        root.children = [enemy1, enemy2];
+
+        const inputValue = { x: 1, y: 2, z: 3 };
+        const result = await normalizeProvidedAnimationPropertyOperationValue(
+            root, '',
+            {
+                type: 'createPropertyKey',
+                clipUuid: 'clip',
+                nodeUuid: enemy1.uuid,
+                propKey: 'position',
+                frame: 0,
+                value: inputValue,
+            },
+        );
+
+        expect(metadataCalled).toBe(false);
+        expect(result).toEqual(inputValue);
     });
 });

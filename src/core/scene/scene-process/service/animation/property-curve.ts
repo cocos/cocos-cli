@@ -415,7 +415,7 @@ function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operat
     return relativePath;
 }
 
-function hasSameNameSiblings(rootNode: Node, relativePath: string): boolean {
+export function hasSameNameSiblings(rootNode: Node, relativePath: string): boolean {
     const segments = relativePath.split('/');
     let current: Node = rootNode;
     for (const segment of segments) {
