@@ -120,8 +120,8 @@ export async function queryCreateMap(): Promise<ICreateMenuInfo[]> {
 /**
  * Batch Query Asset Info // 批量查询资源信息
  */
-export async function queryAssetInfos(options?: QueryAssetsOption): Promise<IAssetInfo[]> {
-    return await assetManager.queryAssetInfos(options);
+export async function queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): Promise<IAssetInfo[]> {
+    return await assetManager.queryAssetInfos(options, dataKeys);
 }
 
 /**
