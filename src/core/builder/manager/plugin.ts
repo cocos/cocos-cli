@@ -147,10 +147,9 @@ export class PluginManager extends EventEmitter {
 
     constructor() {
         super();
-        const compsMap: any = {};
-        this.pkgOptionConfigs = compsMap;
-        this.configMap = JSON.parse(JSON.stringify(compsMap));
-        this.customBuildStages = JSON.parse(JSON.stringify(compsMap));
+        this.pkgOptionConfigs = {};
+        this.configMap = {};
+        this.customBuildStages = {};
         CustomAssetHandlerTypes.forEach((handlerName) => {
             this.assetHandlers[handlerName] = {};
         });
@@ -478,8 +477,7 @@ export class PluginManager extends EventEmitter {
     public getCommonOptionConfigByKey(key: keyof IBuildTaskOption, options: IBuildTaskOption): IBuilderConfigItem | null {
         const config = this.commonOptionConfig[options.platform as Platform] && this.commonOptionConfig[options.platform as Platform][key] || {};
         if (builderConfig.commonOptionConfigs[key]) {
-            const defaultConfig = JSON.parse(JSON.stringify(builderConfig.commonOptionConfigs[key]));
-            lodash.defaultsDeep(config, defaultConfig);
+            lodash.defaultsDeep(config, builderConfig.commonOptionConfigs[key]);
         }
         if (!config || !config.verifyRules) {
             return null;
@@ -550,7 +548,7 @@ export class PluginManager extends EventEmitter {
         // (校验处已经做了错误数据使用默认值的处理)检验数据通过后做一次数据融合
         const defaultOptions = await this.getOptionsByPlatform(options.platform);
         // lodash 的 defaultsDeep 会对数组也进行深度合并，不符合我们的使用预期，需要自己编写该函数
-        const rightOptions = defaultsDeep(JSON.parse(JSON.stringify(options)), defaultOptions);
+        const rightOptions = defaultsDeep(lodash.cloneDeep(options), defaultOptions);
         // 传递了 buildStageGroup 的选项，不需要做默认值合并
         if ('buildStageGroup' in options) {
             rightOptions.buildStageGroup = options.buildStageGroup;
@@ -723,8 +721,10 @@ export class PluginManager extends EventEmitter {
     public async checkBuildOptions(platform: string, options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>> {
         const result: Record<string, BuildCheckResult> = {};
         const schema = this.collectPlatformConfigItems(platform);
-        const verifyOptions = lodash.cloneDeep(options || {}) as IBuildTaskOption;
-        verifyOptions.platform = platform;
+        const verifyOptions = {
+            ...(options || {}),
+            platform,
+        } as IBuildTaskOption;
 
         for (const key of Object.keys(schema.common)) {
             result[key] = await this.checkBuildOption(platform, key, (verifyOptions as any)[key], verifyOptions);
@@ -815,8 +815,8 @@ export class PluginManager extends EventEmitter {
      * @param platform
      */
     public async getOptionsByPlatform<P extends Platform | string>(platform: P): Promise<IBuildTaskOption> {
-        const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
-        const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
+        const options = lodash.cloneDeep(await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`));
+        const commonOptions = lodash.cloneDeep(await builderConfig.getProject<IBuildCommandOption>(`common`));
         commonOptions.platform = platform;
         commonOptions.outputName = platform;
         return Object.assign(commonOptions, options);
