@@ -73,10 +73,12 @@ export function isUsingBakedAnimation(rootNode: Node): boolean {
 }
 
 export function isSkeletonClip(uuid: string, rootNode?: Node | null): boolean {
-    if (uuid.includes('@')) {
-        return true;
+    if (rootNode) {
+        // A sub-asset UUID is not enough to identify a skeletal clip. Ordinary
+        // imported AnimationClips use the same `@subAsset` UUID form.
+        return Boolean(rootNode.getComponent(SkeletalAnimation));
     }
-    return Boolean(rootNode && queryAnimationComponent(rootNode) instanceof SkeletalAnimation);
+    return uuid.includes('@');
 }
 
 export function readPropertyValue(node: Node, propKey: string): unknown {
