@@ -18,7 +18,7 @@ export interface IPrefabEvents {
 
 }
 
-export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode'> {
+export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode' | 'filterChildOfPrefabAssetWhenRemoveNode'> {
 }
 
 export interface IPrefabService extends IServiceEvents {
@@ -56,6 +56,12 @@ export interface IPrefabService extends IServiceEvents {
      * 解绑预制体实例，使其成为普通节点
      */
     unlinkPrefab(params: IUnlinkPrefabParams): Promise<boolean>;
+
+    /**
+     * Filters template-owned children of prefab instances before node deletion.
+     * @internal
+     */
+    filterChildOfPrefabAssetWhenRemoveNode(uuids: string | string[]): string[];
 
     /**
      * 移除 prefab info

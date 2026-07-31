@@ -665,6 +665,63 @@ describe('ServiceEvents 事件发射集成测试', () => {
             expect(listener).toHaveBeenCalledWith(node, expect.objectContaining({ propPath: 'name' }));
         });
 
+        it('delete preserves one node:change broadcast when rejecting a prefab template child', async () => {
+            require('../../scene-process/service/editor');
+            require('../../scene-process/service/undo');
+            require('../../scene-process/service/prefab');
+
+            const { Service } = require('../../scene-process/service/core');
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeMgr = require('../../scene-process/service/node/index').default;
+            const { RemoveNodeCommand } = require('../../scene-process/service/undo/commands/remove-node-command');
+            const { prefabUtils } = require('../../scene-process/service/prefab/utils');
+            const { Node: MockNode } = require('cc');
+            const node = new MockNode();
+            node.uuid = 'prefab-child';
+            node.name = 'PrefabChild';
+
+            const listener = jest.fn();
+            globalEventEmitter.on('node:change', listener);
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            NodeMgr.getNodeByPath = jest.fn(() => node);
+            NodeMgr.getNode = jest.fn(() => node);
+            NodeMgr.getNodePath = jest.fn(() => '/PrefabChild');
+
+            const originalLock = Service.Editor.lock;
+            const originalUnlock = Service.Editor.unlock;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            const removeNodeSpy = jest.spyOn(nodeMgr, 'baseRemoveNode');
+            const captureSpy = jest.spyOn(RemoveNodeCommand, 'capture');
+
+            try {
+                Service.Editor.lock = jest.fn().mockResolvedValue(undefined);
+                Service.Editor.unlock = jest.fn();
+                Service.Editor.getRootNode = jest.fn(() => ({}));
+                prefabUtils.isOutmostPrefabInstanceMountedChildren.mockReturnValue(false);
+                prefabUtils.isPrefabInstanceRoot.mockReturnValue(false);
+                prefabUtils.isPartOfAssetInPrefabInstance.mockReturnValue(true);
+
+                const nodeService = new NodeService();
+                nodeService._undo = { shouldRecordStructureCommand: jest.fn(() => true) };
+
+                await expect(nodeService.delete({ path: '/PrefabChild' })).resolves.toBeNull();
+                expect(listener).toHaveBeenCalledTimes(1);
+                expect(listener).toHaveBeenCalledWith('/PrefabChild');
+                expect(captureSpy).not.toHaveBeenCalled();
+                expect(removeNodeSpy).not.toHaveBeenCalled();
+            } finally {
+                Service.Editor.lock = originalLock;
+                Service.Editor.unlock = originalUnlock;
+                Service.Editor.getRootNode = originalGetRootNode;
+                prefabUtils.isOutmostPrefabInstanceMountedChildren.mockReturnValue(false);
+                prefabUtils.isPrefabInstanceRoot.mockReturnValue(false);
+                prefabUtils.isPartOfAssetInPrefabInstance.mockReturnValue(false);
+                captureSpy.mockRestore();
+                removeNodeSpy.mockRestore();
+            }
+        });
+
         it('setProperty(position) 成功后应 broadcast animation:property-committed', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('animation:property-committed', listener);

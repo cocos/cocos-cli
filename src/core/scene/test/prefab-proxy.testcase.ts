@@ -93,6 +93,17 @@ describe('Prefab Proxy In Scene 测试', () => {
             }
         });
 
+        it('createPrefabFromNode - creates a template child for delete protection', async () => {
+            const templateChild = await NodeProxy.createByType({
+                path: testNodePath,
+                name: 'TemplateChild',
+                nodeType: NodeType.EMPTY,
+            });
+
+            expect(templateChild).toBeTruthy();
+            expect(templateChild?.path).toBe(testNodePath + '/TemplateChild');
+        });
+
         it('createPrefabFromNode - 参数验证测试', async () => {
             // 测试空节点路径
             const invalidParams1: ICreatePrefabFromNodeParams = {
@@ -149,6 +160,28 @@ describe('Prefab Proxy In Scene 测试', () => {
             expect(prefabInstanceNode?.prefab).toBeDefined();
             expect(prefabInstanceNode?.prefab?.asset).toBeDefined();
             expect(prefabInstanceNode?.name).toBe('PrefabInstanceNode-CreatePrefabFromNode');
+        });
+
+        it('delete - prevents deleting a prefab template child from an instance', async () => {
+            const prefabInstance = await NodeProxy.createByAsset({
+                dbURL: prefabAssetURL,
+                path: '',
+                name: 'PrefabInstanceNode-DeleteGuard',
+            });
+
+            expect(prefabInstance).toBeTruthy();
+            if (!prefabInstance) return;
+
+            const templateChildPath = prefabInstance.path + '/TemplateChild';
+            expect(await NodeProxy.query({ path: templateChildPath })).toBeTruthy();
+
+            const deleteChildResult = await NodeProxy.delete({ path: templateChildPath });
+            expect(deleteChildResult).toBeNull();
+            expect(await NodeProxy.query({ path: templateChildPath })).toBeTruthy();
+
+            const deleteRootResult = await NodeProxy.delete({ path: prefabInstance.path });
+            expect(deleteRootResult).toEqual({ path: prefabInstance.path });
+            expect(await NodeProxy.query({ path: prefabInstance.path })).toBeNull();
         });
 
         it('isPrefabInstance - 检查节点是否为预制体实例', async () => {

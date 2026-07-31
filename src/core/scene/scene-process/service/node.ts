@@ -282,6 +282,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return null;
             }
 
+            const removableUuids = Service.Prefab.filterChildOfPrefabAssetWhenRemoveNode(node.uuid);
+            if (removableUuids.length === 0) {
+                return null;
+            }
+
             let command: RemoveNodeCommand | null = null;
             if (this._undo.shouldRecordStructureCommand()) {
                 command = RemoveNodeCommand.capture(node, params.keepWorldTransform);

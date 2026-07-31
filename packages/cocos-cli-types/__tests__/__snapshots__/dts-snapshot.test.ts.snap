@@ -774,7 +774,7 @@ export declare function queryAssetConfigMap(): Promise<Record<string, IAssetConf
 export declare function queryAssetDBInfos(): Promise<Record<string, IAssetDBInfo>>;
 export declare function queryAssetDependencies(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
 export declare function queryAssetInfo(urlOrUUIDOrPath: string, dataKeys?: string[] | undefined): Promise<IAssetInfo | null>;
-export declare function queryAssetInfos(options?: QueryAssetsOption): Promise<IAssetInfo[]>;
+export declare function queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): Promise<IAssetInfo[]>;
 export declare function queryAssetMeta(urlOrUUIDOrPath: string): Promise<IAssetMeta<'unknown'> | null>;
 export declare interface QueryAssetsOption {
     ccType?: string | string[],
@@ -6403,6 +6403,7 @@ export declare interface IPrefabService extends IServiceEvents {
     isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean>;
     getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
     unlinkPrefab(params: IUnlinkPrefabParams): Promise<boolean>;
+    filterChildOfPrefabAssetWhenRemoveNode(uuids: string | string[]): string[];
     removePrefabInfoFromNode(node: Node_2, removeNested?: boolean): void;
 }
 export declare interface IPrefabStateInfo {
@@ -8908,7 +8909,7 @@ export declare function queryAssetConfigMap(): Promise<Record<string, IAssetConf
 export declare function queryAssetDBInfos(): Promise<Record<string, IAssetDBInfo>>;
 export declare function queryAssetDependencies(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
 export declare function queryAssetInfo(urlOrUUIDOrPath: string, dataKeys?: string[] | undefined): Promise<IAssetInfo | null>;
-export declare function queryAssetInfos(options?: QueryAssetsOption): Promise<IAssetInfo[]>;
+export declare function queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): Promise<IAssetInfo[]>;
 export declare function queryAssetMeta(urlOrUUIDOrPath: string): Promise<IAssetMeta<'unknown'> | null>;
 export declare interface QueryAssetsOption {
     ccType?: string | string[],
