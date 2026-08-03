@@ -156,6 +156,7 @@ export function createAnimationServiceClipDump(rootNode: Node, clip: AnimationCl
 
 export function createAnimationPropertyCurveMetadataContext(rootNode: Node): IPropertyCurveMetadataContext {
     return {
+        rootNode,
         queryPropertyMetadata: (nodePath, propKey) => queryAnimationPropertyMetadata(rootNode, nodePath, propKey),
     };
 }

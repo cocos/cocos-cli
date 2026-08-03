@@ -6,6 +6,7 @@ import { EventEmitter } from 'events';
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
 import pathManager from './node-path-manager';
+import { sanitizeNodeName, validateNodeName } from './path-utils';
 
 const lodash = require('lodash');
 
@@ -28,6 +29,14 @@ export default class NodeManager extends EventEmitter {
     add(uuid: string, node: Node) {
         if (!this.allow) {
             return;
+        }
+        const originalName = node.name;
+        const migratedName = sanitizeNodeName(originalName);
+        if (migratedName !== originalName) {
+            console.warn(
+                `Node: migrated legacy node name "${originalName}" to "${migratedName}" because it contains unsupported characters.`,
+            );
+            node.name = migratedName;
         }
         this._map[uuid] = node;
 
@@ -93,11 +102,18 @@ export default class NodeManager extends EventEmitter {
 
 
     /**
-     * 更新节点名称和路径
+     * Update node name and path.
+     * Must validate illegal characters here because undo/redo (command-utils-shared)
+     * and legacy-node-name-migration bypass NodeService.setProperty and call this directly.
      */
     updateNodeName(uuid: string, newName: string) {
         if (!this._map[uuid]) {
             return;
+        }
+
+        const error = validateNodeName(newName);
+        if (error) {
+            throw new Error(error);
         }
 
         const node = this._map[uuid];

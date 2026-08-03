@@ -20,8 +20,16 @@ import {
     replaceEmbeddedPlayerGroups,
     replaceEmbeddedPlayers,
 } from './embedded-player';
-import { dumpPropertyCurves, replacePropertyCurves } from './property-curve';
-import type { IPropertyCurveMetadataContext } from './property-curve';
+import {
+    capturePropertyTrackOwners,
+    dumpPropertyCurves,
+    replacePropertyCurves,
+    restorePropertyTrackOwners,
+} from './property-curve';
+import type {
+    IPropertyCurveMetadataContext,
+    IPropertyTrackOwnersSnapshot,
+} from './property-curve';
 import {
     cloneValue,
     getClipSample,
@@ -39,6 +47,8 @@ export interface IAnimationClipSnapshot {
     embeddedPlayers: IAnimationEmbeddedPlayerDump[];
     embeddedPlayerGroups: IAnimationEmbeddedPlayerGroup[];
     auxiliaryCurves: Record<string, IAnimationAuxiliaryCurveDump>;
+    // With same-name siblings, undo/redo must persist track ownership to restore correct bindings
+    propertyTrackOwners?: IPropertyTrackOwnersSnapshot;
 }
 
 type AnimationAssetCtor = new () => Asset;
@@ -61,17 +71,24 @@ export function captureAnimationClipSnapshot(clip: AnimationClip, options: IProp
         embeddedPlayers: dumpEmbeddedPlayers(clip),
         embeddedPlayerGroups: queryEmbeddedPlayerGroups(clip),
         auxiliaryCurves: dumpAuxiliaryCurves(clip, { includeDefaults: true }),
+        propertyTrackOwners: options.rootNode
+            ? capturePropertyTrackOwners(options.rootNode, clip)
+            : undefined,
     };
 }
 
-export async function restoreAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot): Promise<void> {
-    const previous = captureAnimationClipSnapshot(clip);
+export async function restoreAnimationClipSnapshot(
+    clip: AnimationClip,
+    snapshot: IAnimationClipSnapshot,
+    options: IPropertyCurveMetadataContext = {},
+): Promise<void> {
+    const previous = captureAnimationClipSnapshot(clip, options);
     const pendingAssetLoads: PendingAnimationAssetLoads = new Map();
     try {
-        await applyAnimationClipSnapshot(clip, snapshot, pendingAssetLoads);
+        await applyAnimationClipSnapshot(clip, snapshot, pendingAssetLoads, options);
     } catch (error) {
         try {
-            await applyAnimationClipSnapshot(clip, previous, pendingAssetLoads);
+            await applyAnimationClipSnapshot(clip, previous, pendingAssetLoads, options);
         } catch (restoreError) {
             console.error('[Animation] rollback failed animation clip snapshot restore:', restoreError);
         }
@@ -83,6 +100,7 @@ async function applyAnimationClipSnapshot(
     clip: AnimationClip,
     snapshot: IAnimationClipSnapshot,
     pendingAssetLoads: PendingAnimationAssetLoads,
+    options: IPropertyCurveMetadataContext,
 ): Promise<void> {
     (clip as any).duration = snapshot.duration;
     (clip as any).sample = snapshot.sample;
@@ -91,6 +109,9 @@ async function applyAnimationClipSnapshot(
     const curves = await hydrateAnimationAssetCurveValues(snapshot.curves, pendingAssetLoads);
     if (!replacePropertyCurves(clip, curves)) {
         throw new Error('Failed to restore animation property curves.');
+    }
+    if (options.rootNode) {
+        restorePropertyTrackOwners(options.rootNode, clip, snapshot.propertyTrackOwners ?? {});
     }
     restoreEvents(clip, snapshot);
     replaceEmbeddedPlayerGroups(clip, snapshot.embeddedPlayerGroups);
@@ -182,8 +203,11 @@ function loadAnimationAssetOnce(
     return pending;
 }
 
+// propertyTrackOwners is internal bookkeeping, not animation content; exclude it to correctly detect "content changed"
 export function animationClipSnapshotsEqual(left: IAnimationClipSnapshot, right: IAnimationClipSnapshot): boolean {
-    return JSON.stringify(left) === JSON.stringify(right);
+    const { propertyTrackOwners: _leftOwners, ...leftData } = left;
+    const { propertyTrackOwners: _rightOwners, ...rightData } = right;
+    return JSON.stringify(leftData) === JSON.stringify(rightData);
 }
 
 function restoreEvents(clip: AnimationClip, snapshot: IAnimationClipSnapshot): void {

@@ -3,7 +3,7 @@ import type { IAnimationOperation, IAnimationValue } from '../../../common';
 import type { IAnimationPropertyMetadata } from './property-curve';
 import { findRelativeNodePathByUuid, hasSameNameSiblings } from './property-curve';
 import { queryAnimationPropertyMetadata } from './property-metadata';
-import { getNodeByPath } from './scene-node';
+import { getNodeBySystemPath } from './scene-node';
 import {
     isAnimationAssetValue,
     loadAnimationAssetValue,
@@ -83,31 +83,39 @@ async function normalizeProvidedAnimationPropertyValue(
     return await loadAnimationAssetValue(assetCtor, uuid) as unknown as IAnimationValue;
 }
 
+/**
+ * Resolve nodeUuid/nodePath from an operation into a relative display path for property value normalization.
+ * UUID takes priority; returns null when same-name siblings exist (sibling order is unstable);
+ * falls back to getNodeBySystemPath's two-phase lookup.
+ */
 function resolveOperationRelativeNodePath(
     rootNode: Node,
     rootPath: string,
     operation: { nodeUuid?: string; nodePath?: string },
 ): string | null {
-    let targetUuid = operation.nodeUuid;
-    if (!targetUuid) {
-        const nodePath = normalizeNodePath(operation.nodePath || '');
-        if (!nodePath) {
-            return '';
+    if (operation.nodeUuid) {
+        const relativePath = findRelativeNodePathByUuid(rootNode, operation.nodeUuid);
+        if (relativePath !== null) {
+            if (relativePath === '') {
+                return '';
+            }
+            if (hasSameNameSiblings(rootNode, relativePath)) {
+                return null;
+            }
+            return relativePath;
         }
-        const normalizedRootPath = normalizeNodePath(rootPath);
-        let node: Node | null = null;
-        if (normalizedRootPath && (nodePath === normalizedRootPath || nodePath.startsWith(`${normalizedRootPath}/`))) {
-            node = getNodeByPath(nodePath);
-        } else {
-            node = rootNode.getChildByPath(nodePath);
-        }
-        if (!node) {
-            return null;
-        }
-        targetUuid = node.uuid;
     }
 
-    const relativePath = findRelativeNodePathByUuid(rootNode, targetUuid);
+    const nodePath = normalizeNodePath(operation.nodePath || '');
+    if (!nodePath) {
+        return operation.nodeUuid ? null : '';
+    }
+    const node = getNodeBySystemPath(rootNode, rootPath, nodePath);
+    if (!node) {
+        return null;
+    }
+
+    const relativePath = findRelativeNodePathByUuid(rootNode, node.uuid);
     if (relativePath === null || relativePath === '') {
         return relativePath;
     }

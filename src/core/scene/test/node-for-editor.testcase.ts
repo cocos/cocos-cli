@@ -985,5 +985,34 @@ describe('Node ForEditor 接口测试', () => {
                 try { await deleteNode(nodeC.path); } catch { /* */ }
             }
         });
+
+        it('场景7：创建重名节点后 display name 保持用户输入', async () => {
+            const nodeA = await createNode('Enemy');
+            const nodeB = await createNode('Enemy');
+
+            try {
+                // 路径唯一
+                expect(nodeA.path).not.toBe(nodeB.path);
+
+                // display name 都是用户输入的 "Enemy"，不应被系统路径后缀覆盖
+                const dumpA = await queryNodeDump(nodeA.path) as INode;
+                const dumpB = await queryNodeDump(nodeB.path) as INode;
+                expect(dumpA.name.value).toBe('Enemy');
+                expect(dumpB.name.value).toBe('Enemy');
+            } finally {
+                try { await deleteNode(nodeA.path); } catch { /* */ }
+                try { await deleteNode(nodeB.path); } catch { /* */ }
+            }
+        });
+
+        it('场景8：节点名含非法字符时创建报错', async () => {
+            await expect(createNode('A:B')).rejects.toThrow(/illegal character/);
+        });
+
+        it('场景9：路径段含非法字符时创建报错', async () => {
+            const validPrefix = `ValidationParent_${Date.now()}`;
+            await expect(createNode('Leaf', `${validPrefix}/A:B`)).rejects.toThrow(/illegal character/);
+            expect(await queryNodeDump(validPrefix)).toBeNull();
+        });
     });
 });

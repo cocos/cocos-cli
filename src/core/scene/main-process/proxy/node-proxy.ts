@@ -77,6 +77,8 @@ export const NodeProxy: INodeProxy = {
             if (!nodeUuid) {
                 throw new Error(`Node at '${params.path}' has no uuid, cannot resolve renamed path`);
             }
+            // After name/path decoupling, rename no longer simply replaces the last path segment
+            // (same-name siblings produce suffixes); must reverse-lookup via UUID from NodePathManager
             const realPath = await Rpc.getInstance().request('Node', 'getPathByUuid', [nodeUuid]);
             if (!realPath) {
                 throw new Error(`Cannot resolve path for node '${nodeUuid}' after rename`);

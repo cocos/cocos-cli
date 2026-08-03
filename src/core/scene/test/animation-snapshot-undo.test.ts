@@ -62,7 +62,11 @@ jest.mock('../scene-process/service/animation/auxiliary-curve', () => ({
 
 import { editorExtrasTag } from 'cc';
 import { SceneUndoManager } from '../scene-process/service/undo/scene-undo-manager';
-import { restoreAnimationClipSnapshot, type IAnimationClipSnapshot } from '../scene-process/service/animation/clip-snapshot';
+import {
+    animationClipSnapshotsEqual,
+    restoreAnimationClipSnapshot,
+    type IAnimationClipSnapshot,
+} from '../scene-process/service/animation/clip-snapshot';
 import { AnimationClipSnapshotCommand } from '../scene-process/service/animation/undo';
 
 function createSnapshot(partial: Partial<IAnimationClipSnapshot> = {}): IAnimationClipSnapshot {
@@ -169,6 +173,17 @@ describe('Animation clip snapshot undo', () => {
             ],
             requestedUuids: [spriteFrameA._uuid, spriteFrameB._uuid],
         });
+    });
+
+    it('does not treat internal property track ownership as clip asset data', () => {
+        const before = createSnapshot({
+            propertyTrackOwners: { '["Enemy","position"]': 'old-uuid' },
+        });
+        const after = createSnapshot({
+            propertyTrackOwners: { '["Enemy","position"]': 'new-uuid' },
+        });
+
+        expect(animationClipSnapshotsEqual(before, after)).toBe(true);
     });
 
     it('treats empty embedded players as a restorable state for zero-duration child addPropertyCurve undo/redo', async () => {

@@ -41,7 +41,55 @@ export function getNodeByPath(path: string): Node | null {
 }
 
 export function getNodePath(node: Node): string {
-    return NodeMgr.getNodePath(node) || '';
+    return NodeMgr.getNodePath?.(node) || '';
+}
+
+/**
+ * Resolve both the unique system paths used by the CLI and the relative display paths stored in
+ * animation tracks. If the same string resolves to different nodes in the two namespaces, the
+ * path is ambiguous and the caller must provide a UUID instead.
+ */
+export function getNodeBySystemPath(rootNode: Node, rootPath: string, nodePath: string): Node | null {
+    const normalizedRootPath = normalizeNodePath(rootPath);
+    const normalizedNodePath = normalizeNodePath(nodePath);
+    if (!normalizedNodePath) {
+        return rootNode;
+    }
+
+    const isAbsolute = Boolean(
+        normalizedRootPath
+        && (normalizedNodePath === normalizedRootPath || normalizedNodePath.startsWith(`${normalizedRootPath}/`)),
+    );
+    const absolutePath = normalizedRootPath && !isAbsolute
+        ? `${normalizedRootPath}/${normalizedNodePath}`
+        : normalizedNodePath;
+    const systemNode = getNodeByPath(absolutePath);
+
+    // A path that already contains rootPath is explicitly an absolute system path. Do not reinterpret
+    // a missing/stale absolute path as a display path, or it may bind to a different live node.
+    if (isAbsolute) {
+        return systemNode;
+    }
+
+    const relativePath = normalizedNodePath;
+    const displayNode = relativePath ? findUniqueNodeByDisplayPath(rootNode, relativePath) : rootNode;
+
+    if (systemNode && displayNode && systemNode.uuid !== displayNode.uuid) {
+        return null;
+    }
+    return systemNode || displayNode;
+}
+
+function findUniqueNodeByDisplayPath(rootNode: Node, relativePath: string): Node | null {
+    let current = rootNode;
+    for (const segment of relativePath.split('/').filter(Boolean)) {
+        const matches = current.children.filter((child) => child.name === segment);
+        if (matches.length !== 1) {
+            return null;
+        }
+        current = matches[0];
+    }
+    return current;
 }
 
 export function queryAnimationRootNode(node: Node, editorRoot: Node | null): Node {
@@ -132,4 +180,8 @@ function readPathValue(target: unknown, path: string): unknown {
         value = value[key];
     }
     return value;
+}
+
+function normalizeNodePath(path: string): string {
+    return path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
 }

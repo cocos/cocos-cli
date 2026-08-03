@@ -14,7 +14,7 @@ jest.mock('../src/core/scene/common/editor/type', () => ({
 
 import { SchemaAssetDbUrl, SchemaAssetDbUrlOrUUID } from '../src/api/base/schema-asset-db-url';
 import { SchemaCreateOptions, SchemaOpenOptions } from '../src/api/scene/schema';
-import { SchemaNodeCreateByAsset, SchemaNodeQuery } from '../src/api/scene/node-schema';
+import { SchemaNodeCreateByAsset, SchemaNodeQuery, SchemaNodeUpdate } from '../src/api/scene/node-schema';
 import { SchemaCreatePrefabFromNodeOptions } from '../src/api/scene/prefab-schema';
 import { SchemaInsertTextAtLineInfo } from '../src/api/system/file-editor-schema';
 
@@ -89,5 +89,17 @@ describe('AssetDB URL normalization schemas', () => {
 
     it('keeps UUID support for mixed URL-or-UUID fields', () => {
         expect(SchemaAssetDbUrlOrUUID.parse('123456781234123412341234567890ab')).toBe('12345678-1234-1234-1234-1234567890ab');
+    });
+
+    it('rejects illegal node names before create or update reaches the scene process', () => {
+        expect(SchemaNodeCreateByAsset.safeParse({
+            path: '/',
+            name: 'A:B',
+            dbURL: 'db://assets/prefabs/Enemy.prefab',
+        }).success).toBe(false);
+        expect(SchemaNodeUpdate.safeParse({
+            path: 'Enemy',
+            name: 'A:B',
+        }).success).toBe(false);
     });
 });

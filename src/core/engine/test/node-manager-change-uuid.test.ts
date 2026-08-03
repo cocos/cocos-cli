@@ -99,6 +99,16 @@ describe('NodeManager name/path 解耦', () => {
         return node;
     }
 
+    it('创建重名节点后 name 保持用户输入，不被系统路径后缀覆盖', () => {
+        const nodeA = addNode('a', 'Enemy', 'scene');
+        const nodeB = addNode('b', 'Enemy', 'scene');
+
+        expect(nodeA.name).toBe('Enemy');
+        expect(nodeB.name).toBe('Enemy');
+        expect(manager.getNodePath(nodeA)).toBe('Enemy');
+        expect(manager.getNodePath(nodeB)).toBe('Enemy_001');
+    });
+
     it('重命名为与兄弟同名时，name 取用户输入，path 自动去重', () => {
         const nodeA = addNode('a', 'Enemy', 'scene');
         const nodeB = addNode('b', 'Soldier', 'scene');
@@ -149,6 +159,29 @@ describe('NodeManager name/path 解耦', () => {
 
         expect(node.name).toBe('NewName');
         expect(manager.getNodePath(node)).toBe('NewName');
+    });
+
+    it('重命名为含非法字符的名称时抛出错误', () => {
+        addNode('parent', 'Parent', 'scene');
+        const node = addNode('a', 'OldName', 'parent');
+
+        expect(() => manager.updateNodeName('a', 'A:B')).toThrow(/illegal character/);
+
+        expect(node.name).toBe('OldName');
+        expect(manager.getNodePath(node)).toBe('Parent/OldName');
+    });
+
+    it('加载旧场景节点时将非法字符迁移为下划线', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            const node = addNode('legacy', 'A:B', 'scene');
+
+            expect(node.name).toBe('A_B');
+            expect(manager.getNodePath(node)).toBe('A_B');
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('migrated legacy node name'));
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('删除中间节点后新增应复用已删除的路径段', () => {

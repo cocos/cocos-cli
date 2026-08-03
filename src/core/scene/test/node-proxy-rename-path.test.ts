@@ -59,4 +59,5 @@ describe('NodeProxy.update 重命名路径解析', () => {
         expect(result.path).toBe('Canvas/Enemy');
         expect(mockRequest).toHaveBeenCalledTimes(2);
     });
+
 });

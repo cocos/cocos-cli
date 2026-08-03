@@ -284,4 +284,14 @@ describe('NodePathManager name/path 解耦', () => {
         expect(manager.getNodeUuid('A/B/C')).toBe('c1');
         expect(manager.getNodeUuid('A/B_001/C')).toBe('c2');
     });
+
+    it('含非法字符的节点名经内部清洗后路径自动去重', () => {
+        manager.generateUniquePath('a', 'A:B', 'scene');
+        manager.generateUniquePath('b', 'A:B', 'scene');
+
+        expect(manager.getNodePath('a')).toBe('A_B');
+        expect(manager.getNodePath('b')).toBe('A_B_001');
+        expect(manager.getNodeUuid('A_B')).toBe('a');
+        expect(manager.getNodeUuid('A_B_001')).toBe('b');
+    });
 });

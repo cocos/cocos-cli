@@ -251,6 +251,54 @@ describe('AnimationService enter', () => {
         });
     });
 
+    it('caches the removed subtree paths before it leaves the animation root', () => {
+        const propertyCurve = require('../scene-process/service/animation/property-curve');
+        const cacheSpy = jest.spyOn(propertyCurve, 'cacheNodeDisplayPaths');
+        const service = new AnimationService() as any;
+        const removedNode = { uuid: 'removed-uuid', name: 'Enemy', children: [] };
+        const rootNode = { uuid: 'root-uuid', name: 'Root', children: [removedNode] };
+        service._session = { rootUuid: rootNode.uuid };
+        (globalThis as any).EditorExtends.Node.getNode.mockReturnValueOnce(rootNode);
+
+        service.onBeforeRemoveNode(removedNode);
+
+        expect(cacheSpy).toHaveBeenCalledWith(rootNode, removedNode);
+        cacheSpy.mockRestore();
+    });
+
+    it('refreshes the session root path after the animation root is renamed', async () => {
+        const service = new AnimationService() as any;
+        const rootNode = { uuid: 'root-uuid', name: 'RenamedRoot', children: [] };
+        service._session = {
+            rootUuid: rootNode.uuid,
+            rootPath: 'Canvas/OldRoot',
+            clipUuid: 'clip-uuid',
+            undoBaseline: { commandId: null, generation: 0 },
+            restoreSelectionOnExit: true,
+        };
+        (globalThis as any).EditorExtends.Node.getNode.mockReturnValueOnce(rootNode);
+        (globalThis as any).EditorExtends.Node.getNodePath.mockReturnValueOnce('Canvas/RenamedRoot');
+
+        const state = await service.queryState();
+
+        expect(state.rootPath).toBe('Canvas/RenamedRoot');
+        expect(service._session.rootPath).toBe('Canvas/RenamedRoot');
+    });
+
+    it('clears the root-scoped path cache when the animation session is disposed', () => {
+        const propertyCurve = require('../scene-process/service/animation/property-curve');
+        const clearSpy = jest.spyOn(propertyCurve, 'clearNodeDisplayPathCache');
+        const service = new AnimationService() as any;
+        const rootNode = { uuid: 'root-uuid', name: 'Root', children: [] };
+        service._session = { rootUuid: rootNode.uuid };
+        (globalThis as any).EditorExtends.Node.getNode.mockReturnValueOnce(rootNode);
+
+        service.onEditorClosed();
+
+        expect(clearSpy).toHaveBeenCalledWith(rootNode);
+        clearSpy.mockRestore();
+    });
+
     it('waits for animation state initialization before sampling time zero', async () => {
         const { Animation } = require('cc');
         const service = new AnimationService() as any;
@@ -557,7 +605,7 @@ describe('AnimationService enter', () => {
 
         expect(service._restoreClipSnapshotWithStateRecreation).toHaveBeenCalledWith('clip-uuid', currentClip, expect.objectContaining({
             events: [{ frame: 0, func: 'before-save', params: ['ok'] }],
-        }), true);
+        }), rootNode, true);
         expect(service._animationStates.reset).toHaveBeenCalledWith('clip-uuid');
         expect(service._animationStates.create).toHaveBeenCalledWith('clip-uuid', currentClip);
         expect(service.setTime).toHaveBeenCalledWith({ time: 0 });

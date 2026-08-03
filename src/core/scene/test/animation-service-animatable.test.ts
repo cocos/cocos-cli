@@ -1128,7 +1128,59 @@ describe('resolveRelativeNodePath 同名兄弟歧义检测', () => {
         expect(result).toBe(true);
     });
 
-    it('删除操作在同名兄弟歧义时仍然放行', () => {
+    it('兼容 queryClip 返回的唯一 display path，即使 system path 带去重后缀', () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+        nodeMgr.getNodeByPath = (path: string) => path === 'Root/Enemy_001' ? enemy : null;
+        const clip = new AnimationClip();
+
+        expect(addPropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            type: 'addPropertyCurve', clipUuid: 'clip',
+            nodePath: 'Enemy', propKey: 'position',
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(1);
+    });
+
+    it('相对路径同时命中不同的 system/display 节点时拒绝操作', () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const target = new Node('Enemy');
+        const literalPathNode = new Node('Enemy_1');
+        root.children = [target, literalPathNode];
+        nodeMgr.getNodeByPath = (path: string) => path === 'Root/Enemy_1' ? target : null;
+
+        const clip = new AnimationClip();
+        const targetTrack = new animation.VectorTrack();
+        targetTrack.componentsCount = 3;
+        targetTrack.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(targetTrack);
+        const literalPathTrack = new animation.VectorTrack();
+        literalPathTrack.componentsCount = 3;
+        literalPathTrack.path.toHierarchy('Enemy_1').toProperty('position');
+        clip.addTrack(literalPathTrack);
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            nodePath: 'Enemy_1', propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toEqual([targetTrack, literalPathTrack]);
+    });
+
+    it('removePropertyCurve 仅允许删除同名兄弟中当前实际绑定的节点轨道', () => {
         const { AnimationClip, Node } = require('cc');
         const { addPropertyCurve, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
 
@@ -1154,7 +1206,7 @@ describe('resolveRelativeNodePath 同名兄弟歧义检测', () => {
         expect(clip._tracks).toHaveLength(0);
     });
 
-    it('removePropertyKey 在同名兄弟歧义时仍然放行第一个节点', () => {
+    it('removePropertyKey 仅允许删除同名兄弟中当前实际绑定节点的关键帧', () => {
         const { AnimationClip, Node } = require('cc');
         const { createPropertyKey, removePropertyKey } = require('../scene-process/service/animation/property-curve');
 
@@ -1238,7 +1290,7 @@ describe('resolveRelativeNodePath 同名兄弟歧义检测', () => {
         expect(clip._tracks).toHaveLength(1);
     });
 
-    it('removePropertyCurve 节点已删除时通过 nodePath 字符串裁剪删除孤立轨道', () => {
+    it('removePropertyCurve 节点已删除且无缓存时拒绝按 nodePath 猜测孤立轨道', () => {
         const { AnimationClip, Node } = require('cc');
         const { createPropertyKey, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
 
@@ -1258,13 +1310,13 @@ describe('resolveRelativeNodePath 同名兄弟歧义检测', () => {
 
         expect(removePropertyCurve(clip, context, {
             nodePath: 'Root/Enemy', propKey: 'position',
-        })).toBe(true);
-        expect(clip._tracks).toHaveLength(0);
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
     });
 
-    it('removePropertyCurve 节点已删除时通过 nodeUuid + nodePath 兜底删除孤立轨道', () => {
-        const { AnimationClip, Node } = require('cc');
-        const { createPropertyKey, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+    it('removePropertyCurve 节点已删除且无缓存时拒绝按 nodeUuid + nodePath 猜测孤立轨道', () => {
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve } = require('../scene-process/service/animation/property-curve');
 
         const root = new Node('Root');
         const enemy = new Node('Enemy');
@@ -1272,18 +1324,435 @@ describe('resolveRelativeNodePath 同名兄弟歧义检测', () => {
 
         const clip = new AnimationClip();
         const context: any = { rootNode: root, rootPath: 'Root' };
-
-        expect(createPropertyKey(clip, context, {
-            nodeUuid: enemy.uuid, propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 },
-        })).toBe(true);
+        const track = new animation.VectorTrack();
+        track.componentsCount = 3;
+        track.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(track);
 
         const deletedUuid = enemy.uuid;
         root.children = [];
 
         expect(removePropertyCurve(clip, context, {
             nodeUuid: deletedUuid, nodePath: 'Root/Enemy', propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
+    });
+
+    it('removePropertyCurve 节点 name≠系统路径时通过 displayPath 缓存清理轨道', () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+        nodeMgr.getNodeByPath = (path: string) => {
+            if (path === 'Root/Enemy_001') return enemy;
+            return null;
+        };
+
+        const clip = new AnimationClip();
+        const context: any = { rootNode: root, rootPath: 'Root' };
+
+        expect(addPropertyCurve(clip, context, {
+            type: 'addPropertyCurve', clipUuid: 'clip',
+            nodePath: 'Root/Enemy_001', propKey: 'position',
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(1);
+
+        const deletedUuid = enemy.uuid;
+        root.children = [];
+
+        expect(removePropertyCurve(clip, context, {
+            nodeUuid: deletedUuid, propKey: 'position',
         })).toBe(true);
         expect(clip._tracks).toHaveLength(0);
+    });
+
+    it('removePropertyKey 节点 name≠系统路径时通过 displayPath 缓存清理关键帧', () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node } = require('cc');
+        const { createPropertyKey, removePropertyKey } = require('../scene-process/service/animation/property-curve');
+
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+        nodeMgr.getNodeByPath = (path: string) => {
+            if (path === 'Root/Enemy_001') return enemy;
+            return null;
+        };
+
+        const clip = new AnimationClip();
+        const context: any = { rootNode: root, rootPath: 'Root' };
+
+        expect(createPropertyKey(clip, context, {
+            nodePath: 'Root/Enemy_001', propKey: 'position', frame: 0, value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(1);
+
+        const deletedUuid = enemy.uuid;
+        root.children = [];
+
+        expect(removePropertyKey(clip, context, {
+            nodeUuid: deletedUuid, propKey: 'position', frames: [0],
+        })).toBe(true);
+    });
+
+    it('removePropertyCurve 无缓存且无 nodePath 时拒绝删除（无法证明归属）', () => {
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+
+        const root = new Node('Root');
+        const clip = new AnimationClip();
+
+        const track = new animation.VectorTrack();
+        track.componentsCount = 3;
+        track.path.toHierarchy('Deleted').toProperty('position');
+        clip.addTrack(track);
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: 'deleted-uuid', propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
+    });
+
+    it('removePropertyCurve 预缓存 displayPath 后可正确删除已删除节点的轨道', () => {
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve, cacheNodeDisplayPath } = require('../scene-process/service/animation/property-curve');
+
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        const clip = new AnimationClip();
+        const track = new animation.VectorTrack();
+        track.componentsCount = 3;
+        track.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(track);
+
+        const deletedUuid = enemy.uuid;
+        cacheNodeDisplayPath(root, deletedUuid);
+        root.children = [];
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: deletedUuid, propKey: 'position',
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(0);
+    });
+
+    it('removePropertyCurve 活节点无轨道时不会误删其他孤立轨道', () => {
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+
+        const root = new Node('Root');
+        const alive = new Node('Alive');
+        root.children = [alive];
+        const clip = new AnimationClip();
+
+        const orphanTrack = new animation.VectorTrack();
+        orphanTrack.componentsCount = 3;
+        orphanTrack.path.toHierarchy('Deleted').toProperty('position');
+        clip.addTrack(orphanTrack);
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: alive.uuid, propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
+    });
+
+    it('removePropertyCurve 不可靠路径匹配到活节点轨道时拒绝删除', () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+
+        const root = new Node('Root');
+        const nodeC = new Node('Enemy_001');
+        root.children = [nodeC];
+
+        const clip = new AnimationClip();
+        const track = new animation.VectorTrack();
+        track.componentsCount = 3;
+        track.path.toHierarchy('Enemy_001').toProperty('position');
+        clip.addTrack(track);
+
+        nodeMgr.getNodeByPath = () => null;
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            nodePath: 'Root/Enemy_001', propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
+    });
+
+    it('removePropertyCurve 无缓存时不会用系统路径误删同名的孤立轨道', () => {
+        jest.resetModules();
+        const nodeMgr: any = {
+            getNodeByPath: () => null,
+        };
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node, animation } = require('cc');
+        const { removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const clip = new AnimationClip();
+
+        const targetTrack = new animation.VectorTrack();
+        targetTrack.componentsCount = 3;
+        targetTrack.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(targetTrack);
+
+        const collidingTrack = new animation.VectorTrack();
+        collidingTrack.componentsCount = 3;
+        collidingTrack.path.toHierarchy('Enemy_001').toProperty('position');
+        clip.addTrack(collidingTrack);
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            nodeUuid: 'deleted-enemy-uuid',
+            nodePath: 'Root/Enemy_001',
+            propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toEqual([targetTrack, collidingTrack]);
+    });
+
+    it('removePropertyCurve 不把同名兄弟的缓存系统路径当成可靠轨道归属', () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        const { AnimationClip, Node, animation } = require('cc');
+        const { cacheNodeDisplayPaths, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const owner = new Node('Enemy');
+        const target = new Node('Enemy');
+        const literalSuffix = new Node('Enemy_001');
+        root.children = [owner, target, literalSuffix];
+        nodeMgr.getNodeByPath = () => null;
+        nodeMgr.getNodePath = (node: any) => {
+            if (node === root) return 'Root';
+            if (node === owner) return 'Root/Enemy';
+            if (node === target) return 'Root/Enemy_001';
+            if (node === literalSuffix) return 'Root/Enemy_001_001';
+            return '';
+        };
+
+        const clip = new AnimationClip();
+        const ownerTrack = new animation.VectorTrack();
+        ownerTrack.componentsCount = 3;
+        ownerTrack.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(ownerTrack);
+        const literalSuffixTrack = new animation.VectorTrack();
+        literalSuffixTrack.componentsCount = 3;
+        literalSuffixTrack.path.toHierarchy('Enemy_001').toProperty('position');
+        clip.addTrack(literalSuffixTrack);
+
+        cacheNodeDisplayPaths(root);
+        root.children = [owner, literalSuffix];
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            nodePath: 'Root/Enemy_001',
+            propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toEqual([ownerTrack, literalSuffixTrack]);
+    });
+
+    it('removePropertyCurve 不把会话内被不同 UUID 复用的 display path 当成可靠归属', () => {
+        const { AnimationClip, Node, animation } = require('cc');
+        const { cacheNodeDisplayPaths, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        root.children = [first];
+
+        const clip = new AnimationClip();
+        const track = new animation.VectorTrack();
+        track.componentsCount = 3;
+        track.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(track);
+
+        cacheNodeDisplayPaths(root);
+        const firstUuid = first.uuid;
+        root.children = [];
+
+        const second = new Node('Enemy');
+        root.children = [second];
+        cacheNodeDisplayPaths(root, second);
+        root.children = [];
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: firstUuid,
+            propKey: 'position',
+        })).toBe(false);
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toEqual([track]);
+    });
+
+    it('removePropertyCurve 在轨道快照重建后仍允许清理新 UUID 创建的同路径轨道', async () => {
+        const { AnimationClip, Node } = require('cc');
+        const { cacheNodeDisplayPaths, createPropertyKey, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const { captureAnimationClipSnapshot, restoreAnimationClipSnapshot } = require('../scene-process/service/animation/clip-snapshot');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        root.children = [first];
+        cacheNodeDisplayPaths(root);
+
+        first.name = 'Soldier';
+        cacheNodeDisplayPaths(root, first);
+
+        const second = new Node('Enemy');
+        root.children.push(second);
+        const clip = new AnimationClip();
+        expect(createPropertyKey(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+            frame: 0,
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+
+        const originalTrack = clip._tracks[0];
+        const snapshot = captureAnimationClipSnapshot(clip, { rootNode: root });
+        await restoreAnimationClipSnapshot(clip, snapshot, { rootNode: root });
+        expect(clip._tracks[0]).not.toBe(originalTrack);
+
+        root.children = [first];
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(0);
+    });
+
+    it('rename 后重新缓存会移除旧 displayPath entry，不把新同名节点标记为 ambiguous', () => {
+        const { AnimationClip, Node, animation } = require('cc');
+        const { cacheNodeDisplayPaths, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        root.children = [first];
+        cacheNodeDisplayPaths(root);
+
+        first.name = 'Soldier';
+        cacheNodeDisplayPaths(root, first);
+        const second = new Node('Enemy');
+        root.children.push(second);
+        cacheNodeDisplayPaths(root, second);
+
+        const clip = new AnimationClip();
+        const track = new animation.VectorTrack();
+        track.componentsCount = 3;
+        track.path.toHierarchy('Enemy').toProperty('position');
+        clip.addTrack(track);
+
+        root.children = [first];
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(0);
+    });
+
+    it('removePropertyCurve 在轨道快照重建后也不把旧 UUID 轨道转交给新节点', async () => {
+        const { AnimationClip, Node } = require('cc');
+        const { cacheNodeDisplayPaths, createPropertyKey, removePropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const { captureAnimationClipSnapshot, restoreAnimationClipSnapshot } = require('../scene-process/service/animation/clip-snapshot');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        root.children = [first];
+        const clip = new AnimationClip();
+        expect(createPropertyKey(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: first.uuid,
+            propKey: 'position',
+            frame: 0,
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+
+        first.name = 'Soldier';
+        cacheNodeDisplayPaths(root, first);
+        const second = new Node('Enemy');
+        root.children.push(second);
+        cacheNodeDisplayPaths(root, second);
+        root.children = [first];
+
+        const snapshot = captureAnimationClipSnapshot(clip, { rootNode: root });
+        await restoreAnimationClipSnapshot(clip, snapshot, { rootNode: root });
+
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
+    });
+
+    it('普通编辑和快照恢复都不会把旧轨道归属转交给新 UUID', async () => {
+        const { AnimationClip, Node } = require('cc');
+        const {
+            cacheNodeDisplayPaths,
+            createPropertyKey,
+            removePropertyCurve,
+            updatePropertyKey,
+        } = require('../scene-process/service/animation/property-curve');
+        const {
+            captureAnimationClipSnapshot,
+            restoreAnimationClipSnapshot,
+        } = require('../scene-process/service/animation/clip-snapshot');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        root.children = [first];
+        const clip = new AnimationClip();
+        expect(createPropertyKey(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: first.uuid,
+            propKey: 'position',
+            frame: 0,
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        const before = captureAnimationClipSnapshot(clip, { rootNode: root });
+
+        first.name = 'Soldier';
+        cacheNodeDisplayPaths(root, first);
+        const second = new Node('Enemy');
+        root.children.push(second);
+        cacheNodeDisplayPaths(root, second);
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            expect(updatePropertyKey(clip, { rootNode: root, rootPath: '' }, {
+                nodeUuid: second.uuid,
+                propKey: 'position',
+                frame: 0,
+                value: { x: 1, y: 0, z: 0 },
+            })).toBe(false);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('is owned by node'));
+        } finally {
+            warn.mockRestore();
+        }
+        const after = captureAnimationClipSnapshot(clip, { rootNode: root });
+        root.children = [first];
+
+        await restoreAnimationClipSnapshot(clip, before, { rootNode: root });
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+        })).toBe(false);
+
+        await restoreAnimationClipSnapshot(clip, after, { rootNode: root });
+        expect(removePropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            nodeUuid: second.uuid,
+            propKey: 'position',
+        })).toBe(false);
+        expect(clip._tracks).toHaveLength(1);
     });
 
     it('createPropertyKey 节点已删除时仍然拒绝（非 lenient）', () => {
@@ -1380,6 +1849,79 @@ describe('property-value 碰撞后缀路径解析', () => {
         );
 
         expect(capturedNodePath).toBe('Enemy');
+    });
+
+    it('nodePath 分支: 兼容唯一 display path，即使 system path 带去重后缀', async () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        let capturedNodePath: string | undefined;
+        jest.doMock('../scene-process/service/animation/property-metadata', () => ({
+            queryAnimationPropertyMetadata: (_rootNode: any, nodePath: string) => {
+                capturedNodePath = nodePath;
+                return null;
+            },
+        }));
+
+        const { Node } = require('cc');
+        const { normalizeProvidedAnimationPropertyOperationValue } = require('../scene-process/service/animation/property-value');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+        nodeMgr.getNodeByPath = (path: string) => path === 'Root/Enemy_001' ? enemy : null;
+
+        await normalizeProvidedAnimationPropertyOperationValue(
+            root, 'Root',
+            {
+                type: 'createPropertyKey',
+                clipUuid: 'clip',
+                nodePath: 'Enemy',
+                propKey: 'position',
+                frame: 0,
+                value: { x: 0, y: 0, z: 0 },
+            },
+        );
+
+        expect(capturedNodePath).toBe('Enemy');
+    });
+
+    it('nodePath 分支: 相对路径同时命中不同 system/display 节点时拒绝解析', async () => {
+        jest.resetModules();
+        const nodeMgr: any = {};
+        (global as any).EditorExtends = { Node: nodeMgr };
+        (global as any).cc = require('cc');
+
+        let capturedNodePath: string | undefined;
+        jest.doMock('../scene-process/service/animation/property-metadata', () => ({
+            queryAnimationPropertyMetadata: (_rootNode: any, nodePath: string) => {
+                capturedNodePath = nodePath;
+                return null;
+            },
+        }));
+
+        const { Node } = require('cc');
+        const { normalizeProvidedAnimationPropertyOperationValue } = require('../scene-process/service/animation/property-value');
+        const root = new Node('Root');
+        const target = new Node('Enemy');
+        const literalPathNode = new Node('Enemy_1');
+        root.children = [target, literalPathNode];
+        nodeMgr.getNodeByPath = (path: string) => path === 'Root/Enemy_1' ? target : null;
+
+        await normalizeProvidedAnimationPropertyOperationValue(
+            root, 'Root',
+            {
+                type: 'createPropertyKey',
+                clipUuid: 'clip',
+                nodePath: 'Enemy_1',
+                propKey: 'position',
+                frame: 0,
+                value: { x: 0, y: 0, z: 0 },
+            },
+        );
+
+        expect(capturedNodePath).toBeUndefined();
     });
 
     it('同名兄弟时 resolveOperationRelativeNodePath 返回 null，value 原样返回', async () => {
