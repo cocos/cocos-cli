@@ -23,7 +23,7 @@ export interface ICustomIconInfo {
 }
 
 function defaultIconRoot(): string {
-    return join(__dirname, '../../static/icons');
+    return join(__dirname, '../static/icons');
 }
 
 function getCustomIconRoot(projectRoot: string, outputName: string): string {
