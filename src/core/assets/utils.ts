@@ -119,7 +119,12 @@ export function getExtendsFromCCType(ccType: string) {
         return [];
     }
 
-    let superClass = cc.js.getSuper(cc.js.getClassByName(ccType));
+    const assetClass = cc.js.getClassByName(ccType);
+    if (!assetClass) {
+        return [];
+    }
+
+    let superClass = cc.js.getSuper(assetClass);
     const extendClass = [];
     let superClassName = cc.js.getClassName(superClass);
 

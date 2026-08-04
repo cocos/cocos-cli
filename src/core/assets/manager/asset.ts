@@ -151,7 +151,7 @@ class AssetManager extends EventEmitter {
         if (!asset || !asset.uuid) {
             return null;
         }
-        return assetManager.queryAssetInfo(asset.uuid);
+        return assetManager.queryAssetInfo(asset.uuid, ['subAssets', 'displayName', 'extends']);
     }
 
     private _snapshotAssetChangeInfo(asset: IAsset): IAssetInfo | null {
@@ -227,13 +227,13 @@ class AssetManager extends EventEmitter {
 
     _onAssetAdd = async (asset: IAsset) => {
         this._emitProgress(asset, 'processing');
-    }
+    };
     _onAssetChange = async (asset: IAsset) => {
         this._emitProgress(asset, 'processing');
-    }
+    };
     _onAssetDelete = async (asset: IAsset) => {
         this._emitProgress(asset, 'processing');
-    }
+    };
 
     _onAssetAdded = async (asset: IAsset) => {
         if (assetDBManager.ready) {
@@ -243,7 +243,7 @@ class AssetManager extends EventEmitter {
             return;
         }
         this._emitProgress(asset, 'success');
-    }
+    };
     _onAssetChanged = async (asset: IAsset) => {
         if (assetDBManager.ready) {
             this.emit('asset-change', asset);
@@ -252,7 +252,7 @@ class AssetManager extends EventEmitter {
             return;
         }
         this._emitProgress(asset, 'success');
-    }
+    };
     _onAssetDeleted = async (asset: IAsset) => {
         if (assetDBManager.ready) {
             const removedInfo = this._snapshotAssetChangeInfo(asset);
@@ -263,7 +263,7 @@ class AssetManager extends EventEmitter {
             return;
         }
         this._emitProgress(asset, 'success');
-    }
+    };
 
     /**
      * 注册数据库初始化完全完成后的事件监听。
