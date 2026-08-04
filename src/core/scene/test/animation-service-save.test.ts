@@ -48,6 +48,24 @@ describe('saveAnimationServiceClip', () => {
         expect(mockRequest).toHaveBeenNthCalledWith(2, 'assetManager', 'saveAsset', ['clip-uuid', 'serialized-clip']);
     });
 
+    it('saves a clip copy to the requested target without saving the source asset', async () => {
+        mockRequest.mockResolvedValueOnce({ uuid: 'new-clip-uuid', url: 'db://assets/anims/RunCopy.anim' });
+
+        await expect(saveAnimationServiceClip({
+            session: { clipUuid: 'clip-uuid' },
+            rootNode: {},
+            clip: { name: 'Run' },
+            target: '/project/assets/anims/RunCopy.anim',
+        })).resolves.toBe(true);
+
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(mockRequest).toHaveBeenCalledWith('assetManager', 'createAsset', [{
+            target: '/project/assets/anims/RunCopy.anim',
+            content: 'serialized-clip',
+            overwrite: true,
+        }]);
+    });
+
     it('fails instead of creating a clip at a hard-coded fallback path when asset info is missing', async () => {
         mockRequest.mockResolvedValueOnce(null);
 

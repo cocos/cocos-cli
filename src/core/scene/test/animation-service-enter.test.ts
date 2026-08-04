@@ -100,6 +100,36 @@ const { isCurrentAnimationSessionClipQuery } = require('../scene-process/service
 const { saveAnimationServiceClip: saveAnimationServiceClipMock } = require('../scene-process/service/animation/service-save');
 
 describe('AnimationService enter', () => {
+    it('queryState exposes sceneDirty independently from animation dirty', async () => {
+        const service = new AnimationService() as any;
+        service._session = {
+            rootUuid: 'root-uuid',
+            rootPath: 'Root',
+            clipUuid: 'clip-uuid',
+            undoBaseline: { commandId: null, generation: 0 },
+            globalDirtyAtEnter: false,
+        };
+        mockService.Undo.hasScopedDifference.mockReturnValue(true);
+        mockService.Undo.hasScopedDifferenceAfterCheckpoint.mockReturnValue(true);
+        mockService.Undo.hasDifferenceOutsideScope.mockReturnValue(false);
+
+        let state = await service.queryState();
+        expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(false);
+
+        mockService.Undo.hasScopedDifference.mockReturnValue(false);
+        mockService.Undo.hasScopedDifferenceAfterCheckpoint.mockReturnValue(false);
+        mockService.Undo.hasDifferenceOutsideScope.mockReturnValue(true);
+
+        state = await service.queryState();
+        expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
+        expect(mockService.Undo.hasDifferenceOutsideScope).toHaveBeenCalledWith(
+            service._session.undoBaseline,
+            { assetUuid: 'clip-uuid', editorType: 'animation', mode: 'animation' },
+        );
+    });
+
     beforeEach(() => {
         jest.clearAllMocks();
         const { assetManager } = require('cc');

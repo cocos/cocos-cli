@@ -209,6 +209,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 time: 0,
                 playState: 'stop',
                 dirty: false,
+                sceneDirty: Service.Undo.isDirty(),
                 selection,
                 restoreSelectionOnExit: true,
             };
@@ -224,6 +225,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             time: this._curEditTime,
             playState: this._playState,
             dirty: this._isAnimationSessionDirty(this._session),
+            sceneDirty: this._isSceneSessionDirty(this._session),
             selection,
             restoreSelectionOnExit: this._session.restoreSelectionOnExit,
         };
@@ -583,6 +585,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 session,
                 rootNode,
                 clip: state.clip,
+                target: options.target,
             });
         } catch (error) {
             this._selfSavedClipRefreshes.delete(session.clipUuid);
@@ -882,6 +885,16 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return Service.Undo.hasScopedDifference(session.undoBaseline, scope);
         }
         return Service.Undo.hasScopedDifferenceAfterCheckpoint(session.undoBaseline, scope);
+    }
+
+    private _isSceneSessionDirty(session: IAnimationSession): boolean {
+        if (session.globalDirtyAtEnter) {
+            return true;
+        }
+        return Service.Undo.hasDifferenceOutsideScope(
+            session.undoBaseline,
+            this._createAnimationUndoScope(session.clipUuid),
+        );
     }
 
     private _createAnimationUndoScope(clipUuid: string): Partial<IUndoScope> {

@@ -1430,6 +1430,7 @@ describe('Animation Service 场景进程测试', () => {
 
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
 
         await request('applyOperations', [{
@@ -1439,11 +1440,13 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         state = await request('queryState');
         expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(true);
 
         await request('save');
         state = await request('queryState');
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
 
         expectUndoSuccess(await Undo.undoInAnimationScope());
@@ -1470,6 +1473,7 @@ describe('Animation Service 场景进程测试', () => {
 
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
 
         await request('applyOperations', [{
             operations: [
@@ -1478,11 +1482,13 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         state = await request('queryState');
         expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
 
         await request('save');
         state = await request('queryState');
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
     });
 
@@ -1504,6 +1510,7 @@ describe('Animation Service 场景进程测试', () => {
 
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
 
         await request('applyOperations', [{
             operations: [
@@ -1512,11 +1519,13 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         state = await request('queryState');
         expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
 
         await request('save', [{ saveScene: true }]);
         state = await request('queryState');
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
         expect(await Undo.canUndo()).toBe(true);
     });

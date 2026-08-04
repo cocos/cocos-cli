@@ -5932,6 +5932,7 @@ export declare interface IAnimationRootResult {
 }
 export declare interface IAnimationSaveOptions {
     saveScene?: boolean;
+    target?: string;
 }
 export declare interface IAnimationService extends IServiceEvents {
     enter(options: IAnimationEnterOptions): Promise<IAnimationStateInfo>;
@@ -5964,6 +5965,7 @@ export declare interface IAnimationStateInfo {
     time: number;
     playState: AnimationPlayState_2;
     dirty: boolean;
+    sceneDirty: boolean;
     selection: string[];
     restoreSelectionOnExit: boolean;
 }
