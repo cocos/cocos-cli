@@ -535,7 +535,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         this._animationStates.create(session.clipUuid, clip);
         await this.setTime({ time: this._curEditTime });
         const after = shouldRecordUndo ? captureAnimationClipSnapshot(clip, propertyMetadataContext) : null;
-        if (before && after && !animationClipSnapshotsEqual(before, after)) {
+        const undoRecorded = Boolean(before && after && !animationClipSnapshotsEqual(before, after));
+        if (undoRecorded && before && after) {
             const undoCommand = new AnimationClipSnapshotCommand({
                 clipUuid: session.clipUuid,
                 before,
@@ -565,6 +566,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return {
             state: 'success',
             result: true,
+            undoRecorded,
         };
     }
 
