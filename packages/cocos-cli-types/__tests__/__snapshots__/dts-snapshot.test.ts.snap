@@ -5881,6 +5881,7 @@ export declare interface IAnimationOperationOptions {
 export declare interface IAnimationOperationResult {
     state: 'success' | 'failure';
     result: boolean;
+    undoRecorded?: boolean;
     reason?: string;
 }
 export declare interface IAnimationPlayStateOptions {
