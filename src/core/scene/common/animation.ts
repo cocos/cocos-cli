@@ -502,6 +502,8 @@ export interface IAnimationOperationOptions {
 export interface IAnimationOperationResult {
     state: 'success' | 'failure';
     result: boolean;
+    /** 成功操作是否创建了 animation scoped Undo 历史；失败时省略。 */
+    undoRecorded?: boolean;
     reason?: string;
 }
 
