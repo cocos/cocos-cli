@@ -48,7 +48,6 @@ import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationSession } from './animation/types';
 import { clipUuid, ensureClipEvents, getClipSample } from './animation/utils';
 import { serializeAnimationPropertyValue } from './animation/property-value';
-import { cacheNodeDisplayPaths, clearNodeDisplayPathCache } from './animation/property-curve';
 import { AnimationServicePlayback } from './animation/service-playback';
 import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncAnimationClipDuration } from './animation/operation-policy';
 import { normalizeAnimationOperation } from './animation/operation-normalizer';
@@ -69,6 +68,7 @@ import {
     queryAnimationComponent,
     queryAnimationRootNode,
     readPropertyValue,
+    resolveAnimationRelativeNodePath,
 } from './animation/scene-node';
 import {
     assertAnimationEditorOpened,
@@ -149,8 +149,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             undoBaseline: Service.Undo.createCheckpoint(),
             globalDirtyAtEnter: Service.Undo.isDirty(),
         };
-        clearNodeDisplayPathCache(rootNode);
-        cacheNodeDisplayPaths(rootNode);
 
         this._playState = 'stop';
         this._curEditTime = 0;
@@ -189,10 +187,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             this._restoreSelection(session.previousSelection);
         }
 
-        const rootNode = getNodeByUuid(session.rootUuid);
-        if (rootNode) {
-            clearNodeDisplayPathCache(rootNode);
-        }
         this._session = null;
         this._curEditTime = 0;
         this._playState = 'stop';
@@ -476,6 +470,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 }
                 return inputFailure;
             }
+            const targetFailure = validateAnimationPropertyTarget(inputOperation, rootNode, session.rootPath);
+            if (targetFailure) {
+                if (shouldRestoreOnFailure) {
+                    await this._restoreFailedOperationSnapshot(clip, before, rootNode);
+                }
+                return targetFailure;
+            }
             if (isSkeleton && !isAllowedSkeletonAnimationOperation(inputOperation)) {
                 const skeletonFailure = {
                     state: 'failure',
@@ -659,17 +660,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         });
     }
 
-    onBeforeRemoveNode(node: Node): void {
-        if (!this._session) {
-            return;
-        }
-        const rootNode = getNodeByUuid(this._session.rootUuid);
-        if (rootNode) {
-            this._session.rootPath = getNodePath(rootNode);
-            cacheNodeDisplayPaths(rootNode, node);
-        }
-    }
-
     onEditorClosed(): void {
         this._disposeSession();
     }
@@ -717,13 +707,13 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         // newly edited keyframes.
         const snapshot = captureAnimationClipSnapshot(clip, options);
         this._animationStates.reset(uuid);
-        await restoreAnimationClipSnapshot(clip, snapshot, options);
+        await restoreAnimationClipSnapshot(clip, snapshot);
     }
 
-    private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, rootNode: Node): Promise<void> {
+    private async _restoreFailedOperationSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot, _rootNode: Node): Promise<void> {
         const uuid = clipUuid(clip);
         try {
-            await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot, rootNode);
+            await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot);
         } catch (error) {
             console.error('[Animation] restore failed operation snapshot failed:', error);
             throw error;
@@ -739,8 +729,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
         const state = await this._getAnimationState(uuid);
         const clip = state.clip;
-        const rootNode = session.rootUuid ? getNodeByUuid(session.rootUuid) || undefined : undefined;
-        await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot, rootNode, true);
+        await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot, true);
         await this.setTime({ time: this._curEditTime });
         this._broadcastClipChanged('undo-redo');
     }
@@ -761,9 +750,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return;
         }
 
-        await this._restoreClipSnapshotWithStateRecreation(
-            uuid, clip, snapshot, propertyMetadataContext.rootNode, true,
-        );
+        await this._restoreClipSnapshotWithStateRecreation(uuid, clip, snapshot, true);
         await this.setTime({ time: this._curEditTime });
     }
 
@@ -771,7 +758,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         uuid: string,
         clip: AnimationClip,
         snapshot: IAnimationClipSnapshot,
-        rootNode?: Node,
         shouldRecreateState = Boolean(this._animationStates.get(uuid)),
     ): Promise<void> {
         if (shouldRecreateState) {
@@ -779,7 +765,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             this._animationStates.reset(uuid);
         }
         try {
-            await restoreAnimationClipSnapshot(clip, snapshot, rootNode ? { rootNode } : {});
+            await restoreAnimationClipSnapshot(clip, snapshot);
         } catch (error) {
             if (shouldRecreateState) {
                 this._animationStates.create(uuid, clip);
@@ -838,12 +824,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     }
 
     private _disposeSession(): void {
-        if (this._session) {
-            const rootNode = getNodeByUuid(this._session.rootUuid);
-            if (rootNode) {
-                clearNodeDisplayPathCache(rootNode);
-            }
-        }
         this._playback.dispose();
         this._animationStates.clear();
         this._session = null;
@@ -1026,4 +1006,28 @@ export class AnimationService extends BaseService<Record<string, any>> implement
 
 function normalizeSceneNodePath(path: string): string {
     return String(path || '').replace(/^\/+|\/+$/g, '');
+}
+
+function validateAnimationPropertyTarget(
+    operation: IAnimationOperation,
+    rootNode: Node,
+    rootPath: string,
+): IAnimationOperationResult | null {
+    if (!('propKey' in operation)) {
+        return null;
+    }
+    if (resolveAnimationRelativeNodePath(rootNode, rootPath, operation) !== null) {
+        return null;
+    }
+
+    const target = operation.nodeUuid
+        ? `UUID "${operation.nodeUuid}"`
+        : `path "${operation.nodePath || '<root>'}"`;
+    const reason = `Animation property target ${target} is not bound by the current animation hierarchy.`;
+    console.warn(`[Animation] ${reason}`);
+    return {
+        state: 'failure',
+        result: false,
+        reason,
+    };
 }

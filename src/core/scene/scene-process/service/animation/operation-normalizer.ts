@@ -6,9 +6,7 @@ import type {
     IAnimationValue,
 } from '../../../common';
 import { normalizeProvidedAnimationPropertyOperationValue } from './property-value';
-import {
-    extractSampledOperationValue,
-} from './scene-node';
+import { extractSampledOperationValue } from './scene-node';
 
 type PropertyKeyOperation = Extract<IAnimationOperation, { type: 'createPropertyKey' | 'updatePropertyKey' }>;
 

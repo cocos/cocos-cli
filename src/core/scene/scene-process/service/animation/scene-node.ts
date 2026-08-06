@@ -34,62 +34,83 @@ export function getNodeByUuid(uuid: string): Node | null {
 }
 
 export function getNodeByPath(path: string): Node | null {
-    if (!path || !NodeMgr.getNodeByPath) {
+    if (!path) {
         return null;
     }
     return NodeMgr.getNodeByPath(path) || null;
 }
 
 export function getNodePath(node: Node): string {
-    return NodeMgr.getNodePath?.(node) || '';
+    return NodeMgr.getNodePath(node) || '';
 }
 
-/**
- * Resolve both the unique system paths used by the CLI and the relative display paths stored in
- * animation tracks. If the same string resolves to different nodes in the two namespaces, the
- * path is ambiguous and the caller must provide a UUID instead.
- */
-export function getNodeBySystemPath(rootNode: Node, rootPath: string, nodePath: string): Node | null {
-    const normalizedRootPath = normalizeNodePath(rootPath);
-    const normalizedNodePath = normalizeNodePath(nodePath);
-    if (!normalizedNodePath) {
-        return rootNode;
-    }
-
-    const isAbsolute = Boolean(
-        normalizedRootPath
-        && (normalizedNodePath === normalizedRootPath || normalizedNodePath.startsWith(`${normalizedRootPath}/`)),
-    );
-    const absolutePath = normalizedRootPath && !isAbsolute
-        ? `${normalizedRootPath}/${normalizedNodePath}`
-        : normalizedNodePath;
-    const systemNode = getNodeByPath(absolutePath);
-
-    // A path that already contains rootPath is explicitly an absolute system path. Do not reinterpret
-    // a missing/stale absolute path as a display path, or it may bind to a different live node.
-    if (isAbsolute) {
-        return systemNode;
-    }
-
-    const relativePath = normalizedNodePath;
-    const displayNode = relativePath ? findUniqueNodeByDisplayPath(rootNode, relativePath) : rootNode;
-
-    if (systemNode && displayNode && systemNode.uuid !== displayNode.uuid) {
-        return null;
-    }
-    return systemNode || displayNode;
-}
-
-function findUniqueNodeByDisplayPath(rootNode: Node, relativePath: string): Node | null {
-    let current = rootNode;
-    for (const segment of relativePath.split('/').filter(Boolean)) {
-        const matches = current.children.filter((child) => child.name === segment);
-        if (matches.length !== 1) {
+export function resolveAnimationRelativeNodePath(
+    rootNode: Node,
+    rootPath: string,
+    target: { nodePath?: string; nodeUuid?: string },
+): string | null {
+    if (target.nodeUuid) {
+        const relativePath = findRelativeNodePathByUuid(rootNode, target.nodeUuid);
+        if (relativePath === null) {
             return null;
         }
-        current = matches[0];
+        const boundNode = relativePath ? rootNode.getChildByPath(relativePath) : rootNode;
+        return boundNode?.uuid === target.nodeUuid ? relativePath : null;
     }
-    return current;
+
+    const nodePath = normalizeNodePath(target.nodePath || '');
+    if (!nodePath) {
+        return '';
+    }
+
+    const normalizedRootPath = normalizeNodePath(rootPath);
+    if (nodePath === normalizedRootPath) {
+        return '';
+    }
+
+    if (normalizedRootPath && nodePath.startsWith(`${normalizedRootPath}/`)) {
+        const relativePath = nodePath.slice(normalizedRootPath.length + 1);
+        const animationNode = rootNode.getChildByPath(relativePath);
+        const systemNode = getNodeBySystemPathIfAvailable(nodePath);
+        // Keep the old absolute-path behavior for compatibility, including orphaned tracks whose
+        // scene node has already been deleted. A live system node is rejected only when its unique
+        // path suffix cannot represent the name-based path used by Cocos animation tracks.
+        return systemNode && systemNode !== animationNode ? null : relativePath;
+    }
+
+    if (rootNode.getChildByPath(nodePath)) {
+        return nodePath;
+    }
+    return null;
+}
+
+function getNodeBySystemPathIfAvailable(path: string): Node | null {
+    if (typeof NodeMgr.getNodeByPath !== 'function') {
+        return null;
+    }
+    try {
+        return NodeMgr.getNodeByPath(path) || null;
+    } catch {
+        return null;
+    }
+}
+
+function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
+    if (node.uuid === uuid) {
+        return prefix;
+    }
+    for (const child of node.children) {
+        const path = prefix ? `${prefix}/${child.name}` : child.name;
+        const result = findRelativeNodePathByUuid(child, uuid, path);
+        if (result !== null) {
+            return result;
+        }
+    }
+    return null;
+}
+
+function normalizeNodePath(path: string): string {
+    return String(path || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
 }
 
 export function queryAnimationRootNode(node: Node, editorRoot: Node | null): Node {
@@ -180,8 +201,4 @@ function readPathValue(target: unknown, path: string): unknown {
         value = value[key];
     }
     return value;
-}
-
-function normalizeNodePath(path: string): string {
-    return path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
 }

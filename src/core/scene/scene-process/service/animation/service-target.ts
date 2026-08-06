@@ -25,6 +25,7 @@ import {
     isSkeletonClip,
     isUsingBakedAnimation,
     queryAnimationRootNode,
+    resolveAnimationRelativeNodePath,
 } from './scene-node';
 import { IAnimationSession } from './types';
 import { clipUuid } from './utils';
@@ -76,38 +77,23 @@ export function resolveAnimationTargetNode(
 }
 
 export function resolveAnimationFrameQueryNode(options: IAnimationQueryPropertyValueAtFrameOptions, session: IAnimationSession): Node {
-    if (options.nodePath) {
-        const path = options.nodePath;
-        if (path === session.rootPath || path.startsWith(`${session.rootPath}/`)) {
-            const nodeByPath = getNodeByPath(path);
-            if (nodeByPath) {
-                return nodeByPath;
-            }
-        }
-
-        const relativeNode = getNodeByPath(`${session.rootPath}/${path}`);
-        if (relativeNode) {
-            return relativeNode;
-        }
-
-        const nodeByPath = getNodeByPath(path);
-        if (nodeByPath) {
-            return nodeByPath;
-        }
+    const rootNode = getNodeByUuid(session.rootUuid) || getNodeByPath(session.rootPath);
+    const relativePath = rootNode
+        ? resolveAnimationRelativeNodePath(rootNode, session.rootPath, options)
+        : null;
+    const node = relativePath === ''
+        ? rootNode
+        : relativePath && rootNode?.getChildByPath(relativePath);
+    if (node) {
+        return node;
     }
 
-    const nodeByUuid = getNodeByUuid(options.nodeUuid || '');
-    if (nodeByUuid) {
-        return nodeByUuid;
-    }
-    if (!options.nodePath) {
-        const rootNode = getNodeByPath(session.rootPath);
-        if (rootNode) {
-            return rootNode;
-        }
-    }
-
-    throw new Error(`Animation target node is required: ${options.nodePath || session.rootPath}`);
+    const target = options.nodeUuid
+        ? `UUID "${options.nodeUuid}"`
+        : `path "${options.nodePath || '<root>'}"`;
+    const reason = `Animation target ${target} is not bound by the current animation hierarchy.`;
+    console.warn(`[Animation] ${reason}`);
+    throw new Error(reason);
 }
 
 export function isCurrentAnimationSessionClipQuery(
@@ -156,7 +142,6 @@ export function createAnimationServiceClipDump(rootNode: Node, clip: AnimationCl
 
 export function createAnimationPropertyCurveMetadataContext(rootNode: Node): IPropertyCurveMetadataContext {
     return {
-        rootNode,
         queryPropertyMetadata: (nodePath, propKey) => queryAnimationPropertyMetadata(rootNode, nodePath, propKey),
     };
 }

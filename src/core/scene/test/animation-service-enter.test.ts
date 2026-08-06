@@ -96,7 +96,10 @@ jest.mock('../scene-process/service/animation/service-save', () => ({
 };
 
 const { AnimationService } = require('../scene-process/service/animation');
-const { isCurrentAnimationSessionClipQuery, resolveAnimationFrameQueryNode } = require('../scene-process/service/animation/service-target');
+const {
+    isCurrentAnimationSessionClipQuery,
+    resolveAnimationFrameQueryNode,
+} = require('../scene-process/service/animation/service-target');
 const { normalizeAnimationOperation } = require('../scene-process/service/animation/operation-normalizer');
 const { saveAnimationServiceClip: saveAnimationServiceClipMock } = require('../scene-process/service/animation/service-save');
 
@@ -206,65 +209,6 @@ describe('AnimationService enter', () => {
         }, 'clip-uuid', true)).toBe(true);
     });
 
-    it('prefers nodePath over a stale nodeUuid and supports nodeUuid-only frame queries', () => {
-        const nodeByPath = { uuid: 'path-node' };
-        const nodeByUuid = { uuid: 'uuid-node' };
-        const nodeManager = (globalThis as any).EditorExtends.Node;
-        nodeManager.getNode.mockImplementation((uuid: string) => uuid === 'legacy-node' ? nodeByUuid : null);
-        nodeManager.getNodeByPath.mockImplementation((path: string) => path === 'Canvas/AnimatedRoot/Body' ? nodeByPath : null);
-        const session = { rootPath: 'Canvas/AnimatedRoot' };
-
-        expect(resolveAnimationFrameQueryNode({
-            nodePath: 'Canvas/AnimatedRoot/Body',
-            nodeUuid: 'legacy-node',
-            propKey: 'position',
-            frame: 0,
-        }, session)).toBe(nodeByPath);
-        expect(resolveAnimationFrameQueryNode({
-            nodeUuid: 'legacy-node',
-            propKey: 'position',
-            frame: 0,
-        }, session)).toBe(nodeByUuid);
-    });
-
-    it('forwards nodeUuid-only property keys to frame sampling', async () => {
-        const queryPropertyValueAtFrame = jest.fn(async () => true);
-
-        await expect(normalizeAnimationOperation({
-            type: 'createPropertyKey',
-            clipUuid: 'clip-uuid',
-            nodeUuid: 'legacy-node',
-            propKey: 'active',
-            frame: 0,
-        }, {
-            currentClipUuid: 'current-clip',
-            rootNode: {},
-            rootPath: 'Canvas/AnimatedRoot',
-            queryPropertyValueAtFrame,
-        })).resolves.toMatchObject({ value: true });
-        expect(queryPropertyValueAtFrame).toHaveBeenCalledWith({
-            clipUuid: 'clip-uuid',
-            nodePath: undefined,
-            nodeUuid: 'legacy-node',
-            propKey: 'active',
-            frame: 0,
-        });
-    });
-
-    it('caches the removed subtree paths before it leaves the animation root', () => {
-        const propertyCurve = require('../scene-process/service/animation/property-curve');
-        const cacheSpy = jest.spyOn(propertyCurve, 'cacheNodeDisplayPaths');
-        const service = new AnimationService() as any;
-        const removedNode = { uuid: 'removed-uuid', name: 'Enemy', children: [] };
-        const rootNode = { uuid: 'root-uuid', name: 'Root', children: [removedNode] };
-        service._session = { rootUuid: rootNode.uuid };
-        (globalThis as any).EditorExtends.Node.getNode.mockReturnValueOnce(rootNode);
-
-        service.onBeforeRemoveNode(removedNode);
-
-        expect(cacheSpy).toHaveBeenCalledWith(rootNode, removedNode);
-        cacheSpy.mockRestore();
-    });
 
     it('refreshes the session root path after the animation root is renamed', async () => {
         const service = new AnimationService() as any;
@@ -285,18 +229,40 @@ describe('AnimationService enter', () => {
         expect(service._session.rootPath).toBe('Canvas/RenamedRoot');
     });
 
-    it('clears the root-scoped path cache when the animation session is disposed', () => {
-        const propertyCurve = require('../scene-process/service/animation/property-curve');
-        const clearSpy = jest.spyOn(propertyCurve, 'clearNodeDisplayPathCache');
-        const service = new AnimationService() as any;
-        const rootNode = { uuid: 'root-uuid', name: 'Root', children: [] };
-        service._session = { rootUuid: rootNode.uuid };
-        (globalThis as any).EditorExtends.Node.getNode.mockReturnValueOnce(rootNode);
+    it('frame query rejects a later same-name sibling and accepts it after it becomes first', () => {
+        const first = { uuid: 'enemy-a', name: 'Enemy', children: [] };
+        const second = { uuid: 'enemy-b', name: 'Enemy', children: [] };
+        const rootNode = {
+            uuid: 'root-uuid',
+            name: 'Root',
+            children: [first, second],
+            getChildByPath: jest.fn(() => first),
+        };
+        const session = { rootUuid: rootNode.uuid, rootPath: 'Root' };
+        const getNode = (globalThis as any).EditorExtends.Node.getNode;
+        getNode.mockImplementation((uuid: string) => (
+            uuid === rootNode.uuid ? rootNode : null
+        ));
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-        service.onEditorClosed();
+        try {
+            expect(() => resolveAnimationFrameQueryNode({
+                nodeUuid: second.uuid,
+                propKey: 'position',
+                frame: 0,
+            }, session)).toThrow('not bound by the current animation hierarchy');
 
-        expect(clearSpy).toHaveBeenCalledWith(rootNode);
-        clearSpy.mockRestore();
+            rootNode.children = [second];
+            rootNode.getChildByPath.mockReturnValue(second);
+            expect(resolveAnimationFrameQueryNode({
+                nodeUuid: second.uuid,
+                propKey: 'position',
+                frame: 0,
+            }, session)).toBe(second);
+        } finally {
+            warn.mockRestore();
+            getNode.mockReset();
+        }
     });
 
     it('waits for animation state initialization before sampling time zero', async () => {
@@ -605,7 +571,7 @@ describe('AnimationService enter', () => {
 
         expect(service._restoreClipSnapshotWithStateRecreation).toHaveBeenCalledWith('clip-uuid', currentClip, expect.objectContaining({
             events: [{ frame: 0, func: 'before-save', params: ['ok'] }],
-        }), rootNode, true);
+        }), true);
         expect(service._animationStates.reset).toHaveBeenCalledWith('clip-uuid');
         expect(service._animationStates.create).toHaveBeenCalledWith('clip-uuid', currentClip);
         expect(service.setTime).toHaveBeenCalledWith({ time: 0 });
