@@ -58,14 +58,14 @@ export class SceneEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('[save] 没有打开场景');
         }
-        return this.saveToAsset(this.entity.identifier.assetUuid);
+        return this.saveSerializedDataToAsset(this.entity.identifier.assetUuid);
     }
 
-    async saveTo(asset: IAssetInfo): Promise<IAssetInfo> {
-        return this.saveToAsset(asset.uuid);
+    async saveAs(asset: IAssetInfo): Promise<IAssetInfo> {
+        return this.saveSerializedDataToAsset(asset.uuid);
     }
 
-    private async saveToAsset(assetUuid: string): Promise<IAssetInfo> {
+    private async saveSerializedDataToAsset(assetUuid: string): Promise<IAssetInfo> {
         if (!this.entity) {
             throw new Error('[save] 没有打开场景');
         }
@@ -74,7 +74,6 @@ export class SceneEditor extends BaseEditor {
         if (!saved || saved.uuid !== assetUuid) {
             throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
         }
-        this.entity.identifier = this.getIdentifier(saved);
         return saved;
     }
 

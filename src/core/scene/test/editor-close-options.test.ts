@@ -95,9 +95,9 @@ describe('Editor close options', () => {
         await expectCloseSaveCalls(new PrefabEditor(), { save: false }, 0);
     });
 
-    it('scene and prefab saveTo write serialized content to the target asset', async () => {
-        const targetScene = { uuid: 'target-scene-uuid', url: 'db://assets/recovered.scene', type: 'scene', name: 'recovered' };
-        const targetPrefab = { uuid: 'target-prefab-uuid', url: 'db://assets/recovered.prefab', type: 'prefab', name: 'recovered' };
+    it('scene and prefab saveAs write serialized content without changing the opened editor identity', async () => {
+        const targetScene = { uuid: 'target-scene-uuid', url: 'db://assets/copied.scene', type: 'scene', name: 'copied' };
+        const targetPrefab = { uuid: 'target-prefab-uuid', url: 'db://assets/copied.prefab', type: 'prefab', name: 'copied' };
         const sceneEditor = new SceneEditor();
         const prefabEditor = new PrefabEditor();
         setOpen(sceneEditor);
@@ -106,33 +106,30 @@ describe('Editor close options', () => {
         (editorPrefabUtils.serialize as jest.Mock).mockReturnValue('serialized-prefab');
         mockRpcRequest
             .mockResolvedValueOnce(targetScene)
-            .mockResolvedValueOnce(targetPrefab)
-            .mockResolvedValueOnce(undefined);
+            .mockResolvedValueOnce(targetPrefab);
 
-        await sceneEditor.saveTo(targetScene as never);
-        await prefabEditor.saveTo(targetPrefab as never);
+        await sceneEditor.saveAs(targetScene as never);
+        await prefabEditor.saveAs(targetPrefab as never);
 
         expect(mockRpcRequest).toHaveBeenNthCalledWith(1, 'assetManager', 'saveAsset', [targetScene.uuid, 'serialized-scene']);
         expect(mockRpcRequest).toHaveBeenNthCalledWith(2, 'assetManager', 'saveAsset', [targetPrefab.uuid, 'serialized-prefab']);
-        expect((sceneEditor as any).entity.identifier.assetUuid).toBe(targetScene.uuid);
-        expect((prefabEditor as any).entity.identifier.assetUuid).toBe(targetPrefab.uuid);
+        expect((sceneEditor as any).entity.identifier.assetUuid).toBe('asset-uuid');
+        expect((prefabEditor as any).entity.identifier.assetUuid).toBe('asset-uuid');
     });
 
-    it('saveTo rejects an unexpected saved UUID without changing the editor identifier', async () => {
+    it('saveAs rejects an unexpected saved UUID without changing the editor identifier', async () => {
         const editor = new SceneEditor();
         setOpen(editor);
         (sceneUtils.serialize as jest.Mock).mockReturnValue('serialized-scene');
         mockRpcRequest.mockResolvedValueOnce({ uuid: 'unexpected-uuid', url: 'db://assets/unexpected.scene', type: 'scene', name: 'unexpected' });
 
-        await expect(editor.saveTo({ uuid: 'target-scene-uuid' } as never)).rejects.toThrow('保存目标资源标识不一致');
+        await expect(editor.saveAs({ uuid: 'target-scene-uuid' } as never)).rejects.toThrow('保存目标资源标识不一致');
 
         expect((editor as any).entity.identifier.assetUuid).toBe('asset-uuid');
     });
 
-    it('Prefab Save As only rebinds the edited Prefab root and its own nodes', async () => {
-        const targetInfo = { uuid: 'target-prefab-uuid', url: 'db://assets/recovered.prefab', type: 'prefab', name: 'recovered' };
-        const targetAsset = new Prefab();
-        (targetAsset as any)._uuid = targetInfo.uuid;
+    it('Prefab saveAs preserves the opened Prefab root and editor identity', async () => {
+        const targetInfo = { uuid: 'target-prefab-uuid', url: 'db://assets/copied.prefab', type: 'prefab', name: 'copied' };
         const sourceAsset = { _uuid: 'source-prefab-uuid' };
         const nestedAsset = { _uuid: 'nested-prefab-uuid' };
         const root: any = {
@@ -158,37 +155,15 @@ describe('Editor close options', () => {
             },
         } as never);
         (editorPrefabUtils.serialize as jest.Mock).mockReturnValue('serialized-prefab');
-        (sceneUtils.loadAny as jest.Mock).mockResolvedValue(targetAsset);
         mockRpcRequest.mockResolvedValue(targetInfo);
 
-        await editor.saveTo(targetInfo as never);
+        await editor.saveAs(targetInfo as never);
 
-        expect(root._prefab.asset).toBe(targetAsset);
-        expect(ownedChild._prefab.asset).toBe(targetAsset);
+        expect(mockRpcRequest).toHaveBeenCalledWith('assetManager', 'saveAsset', [targetInfo.uuid, 'serialized-prefab']);
+        expect(root._prefab.asset).toBe(sourceAsset);
+        expect(ownedChild._prefab.asset).toBe(sourceAsset);
         expect(nestedRoot._prefab.asset).toBe(nestedAsset);
-        expect((editor as any).entity.identifier.assetUuid).toBe(targetInfo.uuid);
-    });
-
-    it('Prefab Save As rejects a loaded asset with the wrong runtime type', async () => {
-        const editor = new PrefabEditor();
-        setOpen(editor);
-        (sceneUtils.loadAny as jest.Mock).mockResolvedValueOnce({ _uuid: 'target-prefab-uuid' });
-
-        await expect(editor.saveTo({ uuid: 'target-prefab-uuid' } as never)).rejects.toThrow('目标资源不是有效的 Prefab');
-
-        expect(mockRpcRequest).not.toHaveBeenCalled();
-    });
-
-    it('Prefab Save As does not persist the target when its Prefab asset cannot load', async () => {
-        const editor = new PrefabEditor();
-        setOpen(editor);
-        (sceneUtils.loadAny as jest.Mock).mockRejectedValueOnce(new Error('target load failed'));
-        (editorPrefabUtils.serialize as jest.Mock).mockReturnValue('serialized-prefab');
-
-        await expect(editor.saveTo({ uuid: 'target-prefab-uuid' } as never)).rejects.toThrow('target load failed');
-
-        expect(mockRpcRequest).not.toHaveBeenCalled();
-        expect((editor as any).entity.identifier.assetUuid).toBe('asset-uuid');
+        expect((editor as any).entity.identifier.assetUuid).toBe(sourceAsset._uuid);
     });
 
 });
