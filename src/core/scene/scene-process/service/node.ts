@@ -38,7 +38,7 @@ import NodeConfig from './node/node-type-config';
 import { RemoveNodeCommand } from './undo/commands/remove-node-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
 import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
-import { sanitizeNodeName, validateNodeName } from '../../../engine/editor-extends/manager/path-utils';
+import { validateNodeName } from '../../../engine/editor-extends/manager/path-utils';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -144,8 +144,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             return null;
         }
 
-        this._migrateLegacyNodeNames(resultNode);
-
         /**
          * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
          * 是否要 unlink 为普通节点
@@ -237,23 +235,6 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         for (const segment of path.split('/').filter((part) => part.trim() !== '')) {
             this._validateRequestedNodeName(segment);
         }
-    }
-
-    private _migrateLegacyNodeNames(root: Node): void {
-        const visit = (node: Node): void => {
-            const originalName = node.name;
-            const migratedName = sanitizeNodeName(originalName);
-            if (migratedName !== originalName) {
-                console.warn(
-                    `Node: migrated legacy node name "${originalName}" to "${migratedName}" because it contains unsupported characters.`,
-                );
-                node.name = migratedName;
-            }
-            for (const child of node.children) {
-                visit(child);
-            }
-        };
-        visit(root);
     }
 
     /**
@@ -539,7 +520,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             },
         }, async () => {
             if (options.path === 'name' && options.dump.value !== node.name) {
-                // Validate at the API boundary early, before the before-change event fires and updateNodeName rejects
+                // Reject new illegal input at the API boundary; the lower-level manager accepts it only for legacy undo/redo restoration.
                 const nameError = validateNodeName(options.dump.value as string);
                 if (nameError) {
                     throw new Error(nameError);

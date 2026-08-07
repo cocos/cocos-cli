@@ -6,7 +6,7 @@ import { EventEmitter } from 'events';
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
 import pathManager from './node-path-manager';
-import { sanitizeNodeName, validateNodeName } from './path-utils';
+import { validateNodeName } from './path-utils';
 
 const lodash = require('lodash');
 
@@ -30,13 +30,11 @@ export default class NodeManager extends EventEmitter {
         if (!this.allow) {
             return;
         }
-        const originalName = node.name;
-        const migratedName = sanitizeNodeName(originalName);
-        if (migratedName !== originalName) {
+        const nameError = validateNodeName(node.name);
+        if (nameError) {
             console.warn(
-                `Node: migrated legacy node name "${originalName}" to "${migratedName}" because it contains unsupported characters.`,
+                `Node: preserving legacy node name "${node.name}". ${nameError}`,
             );
-            node.name = migratedName;
         }
         this._map[uuid] = node;
 
@@ -103,8 +101,8 @@ export default class NodeManager extends EventEmitter {
 
     /**
      * Update node name and path.
-     * Must validate illegal characters here because undo/redo (command-utils-shared)
-     * and legacy-node-name-migration bypass NodeService.setProperty and call this directly.
+     * API entry points reject illegal names, but undo/redo may restore a legacy name directly.
+     * Preserve that display name and let NodePathManager sanitize only its system path segment.
      */
     updateNodeName(uuid: string, newName: string) {
         if (!this._map[uuid]) {
@@ -113,7 +111,7 @@ export default class NodeManager extends EventEmitter {
 
         const error = validateNodeName(newName);
         if (error) {
-            throw new Error(error);
+            console.warn(`Node: preserving legacy node name "${newName}". ${error}`);
         }
 
         const node = this._map[uuid];

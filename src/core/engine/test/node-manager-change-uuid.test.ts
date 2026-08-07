@@ -161,24 +161,29 @@ describe('NodeManager name/path 解耦', () => {
         expect(manager.getNodePath(node)).toBe('NewName');
     });
 
-    it('重命名为含非法字符的名称时抛出错误', () => {
+    it('底层恢复旧非法名称时保留显示名、清洗系统路径并警告', () => {
         addNode('parent', 'Parent', 'scene');
         const node = addNode('a', 'OldName', 'parent');
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            manager.updateNodeName('a', 'A:B');
 
-        expect(() => manager.updateNodeName('a', 'A:B')).toThrow(/illegal character/);
-
-        expect(node.name).toBe('OldName');
-        expect(manager.getNodePath(node)).toBe('Parent/OldName');
+            expect(node.name).toBe('A:B');
+            expect(manager.getNodePath(node)).toBe('Parent/A_B');
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('preserving legacy node name'));
+        } finally {
+            warn.mockRestore();
+        }
     });
 
-    it('加载旧场景节点时将非法字符迁移为下划线', () => {
+    it('加载旧场景节点时保留非法显示名、清洗系统路径并警告', () => {
         const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
         try {
             const node = addNode('legacy', 'A:B', 'scene');
 
-            expect(node.name).toBe('A_B');
+            expect(node.name).toBe('A:B');
             expect(manager.getNodePath(node)).toBe('A_B');
-            expect(warn).toHaveBeenCalledWith(expect.stringContaining('migrated legacy node name'));
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('preserving legacy node name'));
         } finally {
             warn.mockRestore();
         }
