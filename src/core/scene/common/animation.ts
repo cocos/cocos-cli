@@ -174,8 +174,6 @@ export interface IAnimationQueryPropertyValueAtFrameOptions {
     clipUuid?: string;
     /** 目标节点路径；未传时使用当前动画 root。 */
     nodePath?: string;
-    /** 目标节点 uuid。 */
-    nodeUuid?: string;
     /** 属性 key，例如 `position` 或 `cc.Label.string`。 */
     propKey: string;
     /** 要采样的帧号，不是秒。 */
@@ -453,16 +451,16 @@ export type IAnimationOperation =
     | { type: 'changeSample'; clipUuid: string; sample: number }
     | { type: 'changeSpeed'; clipUuid: string; speed: number }
     | { type: 'changeWrapMode'; clipUuid: string; wrapMode: number }
-    | { type: 'addPropertyCurve'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; value?: IAnimationValue }
-    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
-    | { type: 'updatePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
-    | { type: 'updatePropertyKeyData'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frame: number; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
-    | { type: 'removePropertyCurve'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string }
-    | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
-    | { type: 'removePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; channel?: string }
-    | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; offset: number; channel?: string }
-    | { type: 'copyPropertyKeysTo'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; frames: number[]; dstFrame: number; channel?: string }
-    | { type: 'setPropertyCurveExtrapolation'; clipUuid: string; nodePath?: string; nodeUuid?: string; propKey: string; preExtrap?: number; postExtrap?: number }
+    | { type: 'addPropertyCurve'; clipUuid: string; nodePath?: string; propKey: string; value?: IAnimationValue }
+    | { type: 'createPropertyKey'; clipUuid: string; nodePath?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
+    | { type: 'updatePropertyKey'; clipUuid: string; nodePath?: string; propKey: string; frame: number; value?: IAnimationValue; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
+    | { type: 'updatePropertyKeyData'; clipUuid: string; nodePath?: string; propKey: string; frame: number; channel?: string; keyData?: IAnimationCurveKeyData; curveData?: IAnimationCurveKeyData }
+    | { type: 'removePropertyCurve'; clipUuid: string; nodePath?: string; propKey: string }
+    | { type: 'removePropertyKey'; clipUuid: string; nodePath?: string; propKey: string; frames: number[]; channel?: string }
+    | { type: 'removePropertyKeys'; clipUuid: string; nodePath?: string; propKey: string; frames: number[]; channel?: string }
+    | { type: 'movePropertyKeys'; clipUuid: string; nodePath?: string; propKey: string; frames: number[]; offset: number; channel?: string }
+    | { type: 'copyPropertyKeysTo'; clipUuid: string; nodePath?: string; propKey: string; frames: number[]; dstFrame: number; channel?: string }
+    | { type: 'setPropertyCurveExtrapolation'; clipUuid: string; nodePath?: string; propKey: string; preExtrap?: number; postExtrap?: number }
     | { type: 'addEvent'; clipUuid: string; frame: number; func: string; params?: IAnimationValue[] }
     | { type: 'deleteEvent'; clipUuid: string; frames: number[] }
     | { type: 'updateEvent'; clipUuid: string; frames: number[]; events: IAnimationEventDump[] }

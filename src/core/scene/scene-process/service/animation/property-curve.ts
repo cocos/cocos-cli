@@ -364,10 +364,6 @@ function applyPropertyMetadata(
 }
 
 function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operation: IPropertyTarget): string | null {
-    if (operation.nodeUuid) {
-        return findRelativeNodePathByUuid(context.rootNode, operation.nodeUuid);
-    }
-
     const nodePath = normalizePath(operation.nodePath || '');
     if (!nodePath) {
         return '';
@@ -381,18 +377,4 @@ function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operat
         return nodePath.slice(rootPath.length + 1);
     }
     return context.rootNode.getChildByPath(nodePath) ? nodePath : null;
-}
-
-function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
-    if (node.uuid === uuid) {
-        return prefix;
-    }
-    for (const child of node.children) {
-        const path = prefix ? `${prefix}/${child.name}` : child.name;
-        const result = findRelativeNodePathByUuid(child, uuid, path);
-        if (result !== null) {
-            return result;
-        }
-    }
-    return null;
 }

@@ -76,11 +76,6 @@ export function resolveAnimationTargetNode(
 }
 
 export function resolveAnimationFrameQueryNode(options: IAnimationQueryPropertyValueAtFrameOptions, session: IAnimationSession): Node {
-    const nodeByUuid = getNodeByUuid(options.nodeUuid || '');
-    if (nodeByUuid) {
-        return nodeByUuid;
-    }
-
     if (options.nodePath) {
         const path = options.nodePath;
         if (path === session.rootPath || path.startsWith(`${session.rootPath}/`)) {

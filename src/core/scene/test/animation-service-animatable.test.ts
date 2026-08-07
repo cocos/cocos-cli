@@ -592,7 +592,7 @@ describe('AnimationService animatable property metadata', () => {
         expect(parsePropertyTrack(track)?.descriptor.propKey).toBe(key);
     });
 
-    it('同 nodePath 的替换节点继续复用属性轨道', () => {
+    it('过期 nodeUuid 不能覆盖 nodePath 的属性轨道绑定', () => {
         const { AnimationClip, Node } = require('cc');
         const { addPropertyCurve, createPropertyKey, dumpPropertyCurves } = require('../scene-process/service/animation/property-curve');
         const { parsePropertyTrack } = require('../scene-process/service/animation/property-curve-track');
@@ -609,7 +609,7 @@ describe('AnimationService animatable property metadata', () => {
         expect(addPropertyCurve(clip, context, {
             type: 'addPropertyCurve',
             clipUuid: 'clip',
-            nodeUuid: original.uuid,
+            nodePath: 'Body',
             propKey: 'active',
             value: false,
         })).toBe(true);
@@ -626,7 +626,8 @@ describe('AnimationService animatable property metadata', () => {
         expect(createPropertyKey(clip, context, {
             type: 'createPropertyKey',
             clipUuid: 'clip',
-            nodeUuid: replacement.uuid,
+            nodePath: 'Body',
+            nodeUuid: original.uuid,
             propKey: 'active',
             frame: 0,
             value: true,
