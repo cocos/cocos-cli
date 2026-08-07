@@ -90,10 +90,6 @@ export interface IAnimationCurveChannelDump {
 export interface IAnimationCurveDump {
     /** 相对动画 root 的节点路径。 */
     nodePath: string;
-    /**
-     * 曲线创建时绑定的节点 uuid。缺失表示历史 path-only 轨道，仍遵循旧的路径绑定语义。
-     */
-    nodeUuid?: string;
     /** 属性 key，例如 `position` 或 `cc.Sprite.color`。 */
     key: string;
     /** 曲线关键帧；没有可编辑关键帧时可能为 null。 */

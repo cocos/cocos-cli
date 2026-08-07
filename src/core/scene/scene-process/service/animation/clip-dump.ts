@@ -38,16 +38,16 @@ export function createClipDump(clip: AnimationClip, state: AnimationState | unde
 
 function dumpAnimationCurves(clip: AnimationClip, options: IPropertyCurveMetadataContext): IAnimationCurveDump[] {
     const curves = dumpPropertyCurves(clip, options);
-    const curveKeys = new Set(curves.map((curve) => `${curve.nodePath}\u0000${curve.nodeUuid || ''}\u0000${curve.key}`));
+    const curveKeys = new Set(curves.map((curve) => `${curve.nodePath}\u0000${curve.key}`));
     for (const curve of dumpUntypedAnimationCurves(clip, options)) {
-        const key = `${curve.nodePath}\u0000${curve.nodeUuid || ''}\u0000${curve.key}`;
+        const key = `${curve.nodePath}\u0000${curve.key}`;
         if (!curveKeys.has(key)) {
             curves.push(curve);
             curveKeys.add(key);
         }
     }
     for (const curve of dumpExoticAnimationCurves(clip)) {
-        const key = `${curve.nodePath}\u0000${curve.nodeUuid || ''}\u0000${curve.key}`;
+        const key = `${curve.nodePath}\u0000${curve.key}`;
         if (!curveKeys.has(key)) {
             curves.push(curve);
             curveKeys.add(key);
