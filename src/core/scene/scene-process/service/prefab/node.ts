@@ -615,7 +615,7 @@ class NodeOperation {
         }
     }
 
-    private checkToAddPrefabAssetMap(node: Node) {
+    public checkToAddPrefabAssetMap(node: Node) {
         // @ts-ignore
         const prefabInfo = node['_prefab'];
         const prefabInstance = prefabInfo?.instance;
@@ -1521,6 +1521,12 @@ class NodeOperation {
         // 这里为了 Undo 能正常工作，不使用 softReload 的方式，需要注意处理好数据的一致性
         this.syncPrefabInfo(assetRootNode, node, node);
 
+        // syncPrefabInfo may overwrite prefabInfo.asset with a null/uninitialized
+        // value from the asset root node's _prefab.asset. Re-ensure the correct
+        // reference on the root and propagate to children that syncPrefabInfo may
+        // have skipped (e.g. when mounted children cause a structure mismatch).
+        this.ensurePrefabAssetOnTree(node, asset);
+
         this.checkToAddPrefabAssetMap(node);
 
         return true;
@@ -1656,6 +1662,26 @@ class NodeOperation {
             const srcChildNode = assetNode.children[i];
             const dstChildNode = dstChildren[i];
             this.syncPrefabInfo(srcChildNode, dstChildNode, rootNode);
+        }
+    }
+
+    private ensurePrefabAssetOnTree(node: Node, asset: any): void {
+        // @ts-ignore member access
+        const prefabInfo = node['_prefab'];
+        if (prefabInfo && !prefabInfo.asset) {
+            prefabInfo.asset = asset;
+        }
+
+        for (const child of node.children ?? []) {
+            // @ts-ignore member access
+            const childPrefab = child['_prefab'];
+            if (!childPrefab) {
+                continue;
+            }
+            if (childPrefab.instance) {
+                continue;
+            }
+            this.ensurePrefabAssetOnTree(child, asset);
         }
     }
 
