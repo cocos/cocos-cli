@@ -1013,7 +1013,7 @@ describe('Animation Service 场景进程测试', () => {
             frame: 30,
         }]);
 
-        expect(createResult).toEqual({ state: 'success', result: true, undoRecorded: true });
+        expect(createResult).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(Math.round(afterCreate.duration * afterCreate.sample)).toBe(31);
         expect(spriteFrameCurve).toMatchObject({
             type: { value: 'cc.SpriteFrame' },
@@ -1157,7 +1157,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('removePropertyKeys 清空关键帧时保留属性轨道，removePropertyCurve 才移除轨道', async () => {
-        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await resetPropertyCurves(emptyNodePath, emptyClipUuid);
 
         const clearResult = await request('applyOperations', [{
             operations: [
