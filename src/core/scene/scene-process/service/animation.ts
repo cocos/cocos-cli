@@ -898,14 +898,20 @@ export class AnimationService extends BaseService<Record<string, any>> implement
     private _getSessionRootNode(): Node {
         const session = requireAnimationSession(this._session);
         const rootNode = getAnimationSessionRootNode(session);
-        session.rootPath = getNodePath(rootNode);
+        const rootPath = getNodePath(rootNode);
+        if (rootPath) {
+            session.rootPath = rootPath;
+        }
         return rootNode;
     }
 
     private _refreshSessionRootPath(session: IAnimationSession): void {
         const rootNode = getNodeByUuid(session.rootUuid);
         if (rootNode) {
-            session.rootPath = getNodePath(rootNode);
+            const rootPath = getNodePath(rootNode);
+            if (rootPath) {
+                session.rootPath = rootPath;
+            }
         }
     }
 

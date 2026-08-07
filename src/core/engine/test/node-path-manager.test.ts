@@ -188,6 +188,21 @@ describe('NodePathManager name/path 解耦', () => {
         expect(manager.getNodePath('c')).toBe(pathC);
     });
 
+    it('当前会话保留现有后缀，但重新加载后按剩余兄弟重新分配路径', () => {
+        manager.add('scene', 'Scene');
+        manager.generateUniquePath('a', 'Enemy', 'scene');
+        manager.generateUniquePath('b', 'Enemy', 'scene');
+
+        manager.remove('a');
+        expect(manager.getNodePath('b')).toBe('Scene/Enemy_001');
+
+        manager.clear();
+        manager.add('scene', 'Scene');
+        manager.generateUniquePath('b', 'Enemy', 'scene');
+
+        expect(manager.getNodePath('b')).toBe('Scene/Enemy');
+    });
+
     it('移动到同名兄弟所在的父节点，路径自动去重', () => {
         manager.generateUniquePath('parent', 'Parent', 'scene');
         manager.generateUniquePath('existing', 'Child', 'parent');   // Parent/Child

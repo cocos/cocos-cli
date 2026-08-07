@@ -557,6 +557,29 @@ describe('ServiceEvents 事件发射集成测试', () => {
     // ── NodeService: setProperty(name) → ServiceEvents ──
 
     describe('NodeService (node.ts)', () => {
+        it('createByType 应在场景操作前拒绝非法节点名', async () => {
+            const { NodeType } = require('../../common');
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            await expect(nodeService.createByType({
+                path: '',
+                name: 'A:B',
+                nodeType: NodeType.EMPTY,
+            })).rejects.toThrow(/illegal character/);
+        });
+
+        it('createByAsset 应在资源查询前拒绝含非法段的父路径', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            await expect(nodeService.createByAsset({
+                path: 'Parent/A:B',
+                dbURL: 'db://assets/Test.prefab',
+            })).rejects.toThrow(/illegal character/);
+            expect(mockRpcRequest).not.toHaveBeenCalledWith('assetManager', 'queryUUID', expect.anything());
+        });
+
         it('setProperty(name) 应 emit node:change 到 ServiceEvents', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('node:change', listener);
@@ -588,6 +611,35 @@ describe('ServiceEvents 事件发射集成测试', () => {
             });
 
             expect(listener).toHaveBeenCalledWith(node, expect.objectContaining({ propPath: 'name' }));
+        });
+
+        it('setProperty(name) 应拒绝新的非法名称且不调用底层改名', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            const { Node: MockNode } = require('cc');
+            const node = new MockNode();
+            node.uuid = 'invalid-name-change';
+            node.name = 'OldName';
+
+            nodeService._undo = {
+                recordNodeSnapshot: jest.fn((_node: any, _opts: any, callback: any) => callback()),
+            };
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            NodeMgr.getNodeByPath = jest.fn(() => node);
+            NodeMgr.updateNodeName = jest.fn();
+            nodeService.emit = jest.fn();
+
+            await expect(nodeService.setProperty({
+                nodePath: '/TestNode',
+                path: 'name',
+                dump: { value: 'A:B' },
+            })).rejects.toThrow(/illegal character/);
+
+            expect(NodeMgr.updateNodeName).not.toHaveBeenCalled();
+            expect(nodeService.emit).not.toHaveBeenCalled();
+            expect(node.name).toBe('OldName');
         });
 
         it('setProperty(position) 成功后应 broadcast animation:property-committed', async () => {

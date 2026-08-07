@@ -1106,6 +1106,74 @@ describe('Animation Service 场景进程测试', () => {
         expect(sampled).toMatchObject({ x: 7, y: 8, z: 9 });
     });
 
+    it('applyOperations 通过 UUID 只操作同名节点当前绑定的第一个节点', async () => {
+        const { nodePath: rootPath, clipUuid: duplicateClipUuid } = await createIsolatedAnimationNode('AnimationServiceDuplicateNameCase', { duration: 0 });
+        const duplicateName = `AnimationServiceDuplicateTarget_${testRunId}`;
+        const first = await NodeProxy.createByType({
+            path: rootPath,
+            name: duplicateName,
+            nodeType: NodeType.EMPTY,
+        });
+        const second = await NodeProxy.createByType({
+            path: rootPath,
+            name: duplicateName,
+            nodeType: NodeType.EMPTY,
+        });
+        if (!first || !second) {
+            throw new Error('Failed to create duplicate-name animation targets.');
+        }
+
+        try {
+            expect(first.name).toBe(duplicateName);
+            expect(second.name).toBe(duplicateName);
+            expect(first.path).not.toBe(second.path);
+            await ensureAnimationSession(rootPath, duplicateClipUuid);
+
+            const firstResult = await request('applyOperations', [{
+                operations: [
+                    { type: 'addPropertyCurve', clipUuid: duplicateClipUuid, nodeUuid: first.nodeId, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+                    { type: 'createPropertyKey', clipUuid: duplicateClipUuid, nodeUuid: first.nodeId, propKey: 'position', frame: 0, value: { x: 1, y: 2, z: 3 } },
+                ],
+                recordUndo: false,
+            }]);
+            expect(firstResult).toEqual({ state: 'success', result: true });
+
+            const rejected = await request('applyOperations', [{
+                operations: [
+                    { type: 'createPropertyKey', clipUuid: duplicateClipUuid, nodeUuid: second.nodeId, propKey: 'position', frame: 30, value: { x: 4, y: 5, z: 6 } },
+                ],
+                recordUndo: false,
+            }]);
+            expect(rejected).toMatchObject({
+                state: 'failure',
+                result: false,
+                reason: expect.stringContaining(second.nodeId),
+            });
+
+            await NodeProxy.delete({ path: first.path, keepWorldTransform: false });
+            const secondResult = await request('applyOperations', [{
+                operations: [
+                    { type: 'createPropertyKey', clipUuid: duplicateClipUuid, nodeUuid: second.nodeId, propKey: 'position', frame: 30, value: { x: 4, y: 5, z: 6 } },
+                ],
+                recordUndo: false,
+            }]);
+            expect(secondResult).toEqual({ state: 'success', result: true });
+
+            const dump = await request('queryClip', [{ rootPath, clipUuid: duplicateClipUuid }]);
+            const curve = dump.curves.find((item: any) => item.nodePath === duplicateName && item.key === 'position');
+            expect(curve?.keyframes).toEqual(expect.arrayContaining([
+                expect.objectContaining({ frame: 0 }),
+                expect.objectContaining({ frame: 30 }),
+            ]));
+        } finally {
+            const state = await request('queryState');
+            if (state.active) {
+                await request('exit', [{ save: false, restoreSelection: false, restoreSampledSceneState: false }]);
+            }
+            await NodeProxy.delete({ path: rootPath, keepWorldTransform: false }).catch(() => undefined);
+        }
+    });
+
     it('applyOperations 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
         await ensureAnimationSession(nodePath, clipUuid);
 

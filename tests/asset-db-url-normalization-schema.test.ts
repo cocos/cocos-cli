@@ -91,15 +91,19 @@ describe('AssetDB URL normalization schemas', () => {
         expect(SchemaAssetDbUrlOrUUID.parse('123456781234123412341234567890ab')).toBe('12345678-1234-1234-1234-1234567890ab');
     });
 
-    it('rejects illegal node names before create or update reaches the scene process', () => {
-        expect(SchemaNodeCreateByAsset.safeParse({
-            path: '/',
-            name: 'A:B',
-            dbURL: 'db://assets/prefabs/Enemy.prefab',
-        }).success).toBe(false);
-        expect(SchemaNodeUpdate.safeParse({
-            path: 'Enemy',
-            name: 'A:B',
-        }).success).toBe(false);
-    });
+    it.each(['/', '\\', ':', '*', '?', '"', '<', '>', '|'])(
+        'rejects node names containing %p before create or update reaches the scene process',
+        (character) => {
+            const name = `A${character}B`;
+            expect(SchemaNodeCreateByAsset.safeParse({
+                path: '/',
+                name,
+                dbURL: 'db://assets/prefabs/Enemy.prefab',
+            }).success).toBe(false);
+            expect(SchemaNodeUpdate.safeParse({
+                path: 'Enemy',
+                name,
+            }).success).toBe(false);
+        },
+    );
 });

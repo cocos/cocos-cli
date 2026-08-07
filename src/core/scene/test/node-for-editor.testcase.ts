@@ -1014,5 +1014,23 @@ describe('Node ForEditor 接口测试', () => {
             await expect(createNode('Leaf', `${validPrefix}/A:B`)).rejects.toThrow(/illegal character/);
             expect(await queryNodeDump(validPrefix)).toBeNull();
         });
+
+        it('场景10：在第二个同名父节点的系统路径下自动创建中间层级', async () => {
+            const parentA = await createNode('DuplicateParent');
+            const parentB = await createNode('DuplicateParent');
+            const nestedParentPath = `${parentB.path}/Nested`;
+
+            try {
+                const leaf = await createNode('Leaf', nestedParentPath);
+
+                expect(parentB.path).not.toBe(parentA.path);
+                expect(leaf.path).toBe(`${nestedParentPath}/Leaf`);
+                expect(await queryNodeDump(leaf.path)).not.toBeNull();
+                expect(await queryNodeDump(`${parentA.path}/Nested`)).toBeNull();
+            } finally {
+                await deleteNode(parentB.path);
+                await deleteNode(parentA.path);
+            }
+        });
     });
 });

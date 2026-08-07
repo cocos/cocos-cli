@@ -863,6 +863,37 @@ describe('Undo/Redo 集成测试', () => {
             await Undo.redo();
             expect(await queryNode(renamedPath)).not.toBeNull();
         });
+
+        it('conflicting rename keeps the display name and restores the correct paths through undo/redo', async () => {
+            const conflictingPath = 'UndoConflictName';
+            let renamedPath = '';
+            await Node.createByType({ path: conflictingPath, nodeType: NodeType.EMPTY });
+            await Undo.clearHistory();
+
+            try {
+                const updateResult = await Node.update({ path, name: conflictingPath });
+                renamedPath = updateResult.path;
+
+                expect(renamedPath).not.toBe(conflictingPath);
+                expect((await queryNode(renamedPath))?.name).toBe(conflictingPath);
+                expect((await queryNode(conflictingPath))?.name).toBe(conflictingPath);
+
+                expectUndoSuccess(await Undo.undo());
+                expect((await queryNode(path))?.name).toBe(path);
+                expect(await queryNode(renamedPath)).toBeNull();
+                expect(await queryNode(conflictingPath)).not.toBeNull();
+
+                expectUndoSuccess(await Undo.redo());
+                expect((await queryNode(renamedPath))?.name).toBe(conflictingPath);
+                expect(await queryNode(path)).toBeNull();
+                expect(await queryNode(conflictingPath)).not.toBeNull();
+            } finally {
+                if (renamedPath) {
+                    await safeDelete(renamedPath);
+                }
+                await safeDelete(conflictingPath);
+            }
+        });
     });
 
     // ========================================================================

@@ -122,6 +122,7 @@ describe('SelectionService prefab path resolution', () => {
         mockService.Editor.getRootNode.mockReturnValue(root);
 
         const { SelectionService } = require('../scene-process/service/selection');
+        const { getEditorNodeByPath } = require('../scene-process/service/gizmo/utils/editor-node');
         const selection = new SelectionService();
         jest.spyOn(selection, 'broadcast').mockImplementation(() => undefined);
 
@@ -131,6 +132,8 @@ describe('SelectionService prefab path resolution', () => {
             path: 'Node/Child_001',
             uuid: 'generated-uuid',
         }]);
+        expect(getEditorNodeByPath('Node/Child_001')).toBe(generatedSuffixNode);
+        expect(getEditorNodeByPath('Node\\Child_001')).toBe(generatedSuffixNode);
     });
 
     it('does not alias the prefab display root name when its system path segment differs', () => {

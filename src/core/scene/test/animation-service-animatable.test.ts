@@ -1025,6 +1025,66 @@ describe('AnimationService animatable property metadata', () => {
         expect(clip._tracks[0].path.parseHierarchyAt(0)).toBe('Enemy');
     });
 
+    it('动画根节点 UUID 解析为空相对路径，层级外 UUID 被拒绝', () => {
+        const { Node } = require('cc');
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const outside = new Node('Outside');
+
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodeUuid: root.uuid,
+        })).toBe('');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodeUuid: outside.uuid,
+        })).toBeNull();
+    });
+
+    it('动画 path 解析覆盖根节点、相对子节点和无效相对路径', () => {
+        const { Node } = require('cc');
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {})).toBe('');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodePath: '/Scene/Root/',
+        })).toBe('');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodePath: 'Enemy',
+        })).toBe('Enemy');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodePath: 'Missing',
+        })).toBeNull();
+    });
+
+    it('动画路径解析会规范化反斜杠、重复斜杠和首尾斜杠', () => {
+        const { Node } = require('cc');
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        expect(resolveAnimationRelativeNodePath(root, '/Scene//Root/', {
+            nodePath: '\\Scene\\Root\\Enemy\\',
+        })).toBe('Enemy');
+    });
+
+    it('系统路径查询发生大小写歧义时仍按旧动画 name path 解析', () => {
+        const { Node } = require('cc');
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn(() => {
+            throw new Error('ambiguous');
+        });
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        expect(resolveAnimationRelativeNodePath(root, 'Root', {
+            nodePath: 'Root/Enemy',
+        })).toBe('Enemy');
+    });
+
     it('拒绝不能解析为动画 name path 的系统后缀路径', () => {
         const { AnimationClip, Node } = require('cc');
         const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
