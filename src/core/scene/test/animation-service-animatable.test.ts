@@ -35,6 +35,7 @@ jest.mock('cc', () => {
         components: Component[] = [];
         children: Node[] = [];
         name = '';
+        uuid = '';
 
         constructor(name = '') {
             this.name = name;
@@ -107,6 +108,28 @@ jest.mock('cc', () => {
         toElement(index: number) {
             this._paths.push(index);
             return this;
+        }
+
+        toCustomized(resolver: { get(target: unknown): unknown }) {
+            this._paths.push(resolver);
+            return this;
+        }
+
+        trace(target: any) {
+            let result = target;
+            for (const path of this._paths) {
+                if (path instanceof HierarchyPath) {
+                    result = result?.getChildByPath(path.path) || null;
+                } else if (typeof path === 'string' || typeof path === 'number') {
+                    result = result?.[path] ?? null;
+                } else {
+                    result = path.get(result);
+                }
+                if (result === null) {
+                    return null;
+                }
+            }
+            return result;
         }
 
         isHierarchyAt(index: number) {
@@ -207,6 +230,7 @@ jest.mock('cc', () => {
         AnimationState: class AnimationState { },
         CCClass: {
             attr: mockAttr,
+            fastDefine: jest.fn(),
             Attr: { PrimitiveType },
         },
         Color,
@@ -573,6 +597,69 @@ describe('AnimationService animatable property metadata', () => {
         expect(track.path.parsePropertyAt(1)).toBe('materials');
         expect(track.path.parseElementAt(2)).toBe(0);
         expect(parsePropertyTrack(track)?.descriptor.propKey).toBe(key);
+    });
+
+    it('为同路径的不同节点身份创建独立轨道，并拒绝在替代节点上采样旧轨道', async () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve, createPropertyKey, dumpPropertyCurves } = require('../scene-process/service/animation/property-curve');
+        const { captureAnimationClipSnapshot, restoreAnimationClipSnapshot } = require('../scene-process/service/animation/clip-snapshot');
+        const { parsePropertyTrack } = require('../scene-process/service/animation/property-curve-track');
+        const root = new Node('Root');
+        root.uuid = 'root-uuid';
+        const original = new Node('Body');
+        original.uuid = 'original-body-uuid';
+        original.active = false;
+        root.children = [original];
+        const clip = new AnimationClip();
+        const context = {
+            rootNode: root,
+            rootPath: '',
+            queryPropertyMetadata: () => ({ type: { value: 'cc.Boolean' } }),
+        };
+
+        expect(addPropertyCurve(clip, context, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodeUuid: original.uuid,
+            propKey: 'active',
+            value: false,
+        })).toBe(true);
+        expect((parsePropertyTrack(clip._tracks[0]) as any)?.nodeUuid).toBe(original.uuid);
+
+        expect(createPropertyKey(clip, context, {
+            type: 'createPropertyKey',
+            clipUuid: 'clip',
+            nodeUuid: original.uuid,
+            propKey: 'active',
+            frame: 0,
+            value: false,
+        })).toBe(true);
+        expect((parsePropertyTrack(clip._tracks[0]) as any)?.nodeUuid).toBe(original.uuid);
+        expect((dumpPropertyCurves(clip) as any[])[0]?.nodeUuid).toBe(original.uuid);
+
+        const restored = new AnimationClip();
+        await restoreAnimationClipSnapshot(restored, captureAnimationClipSnapshot(clip));
+        expect((dumpPropertyCurves(restored) as any[])[0]?.nodeUuid).toBe(original.uuid);
+
+        const replacement = new Node('Body');
+        replacement.uuid = 'replacement-body-uuid';
+        replacement.active = true;
+        root.children = [replacement];
+        expect(clip._tracks[0].path.trace(root)).toBeNull();
+
+        expect(createPropertyKey(clip, context, {
+            type: 'createPropertyKey',
+            clipUuid: 'clip',
+            nodeUuid: replacement.uuid,
+            propKey: 'active',
+            frame: 0,
+            value: true,
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(2);
+        expect((dumpPropertyCurves(clip) as any[]).map((curve) => curve.nodeUuid)).toEqual([
+            original.uuid,
+            replacement.uuid,
+        ]);
     });
 
     it('parsePropertyTrack 忽略没有 path 的引擎轨道', () => {

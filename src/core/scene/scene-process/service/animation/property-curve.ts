@@ -46,6 +46,7 @@ import type {
 
 interface IResolvedPropertyTarget {
     nodePath: string;
+    nodeUuid?: string;
     propKey: string;
 }
 
@@ -76,6 +77,7 @@ export function dumpPropertyCurves(clip: AnimationClip, options: IDumpRealKeyDat
         if (curveDump) {
             curves.push({
                 nodePath: parsed.nodePath,
+                nodeUuid: parsed.nodeUuid,
                 key: descriptor.propKey,
                 ...curveDump,
             });
@@ -95,7 +97,7 @@ export function createPropertyKey(
         return false;
     }
 
-    const existedTrack = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const existedTrack = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     const descriptor = existedTrack
         ? queryTrackDescriptor(context, existedTrack)
         : createDescriptor(context, target, operation.value);
@@ -103,7 +105,7 @@ export function createPropertyKey(
         return false;
     }
 
-    const track = existedTrack || createPropertyTrack(clip, target.nodePath, descriptor);
+    const track = existedTrack || createPropertyTrack(clip, target.nodePath, descriptor, target.nodeUuid);
     const time = frame / getClipSample(clip);
     return setTrackKey(track, descriptor, time, operation.value, operation.channel, operation.keyData ?? operation.curveData);
 }
@@ -118,7 +120,7 @@ export function addPropertyCurve(
         return false;
     }
 
-    if (findPropertyTrack(clip, target.nodePath, target.propKey)) {
+    if (findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid)) {
         return true;
     }
 
@@ -127,7 +129,7 @@ export function addPropertyCurve(
         return false;
     }
 
-    createPropertyTrack(clip, target.nodePath, descriptor);
+    createPropertyTrack(clip, target.nodePath, descriptor, target.nodeUuid);
     return true;
 }
 
@@ -142,7 +144,7 @@ export function updatePropertyKey(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (track && descriptor) {
         return updateTrackKey(track, descriptor, frame / getClipSample(clip), operation.value, operation.channel, operation.keyData ?? operation.curveData);
@@ -162,7 +164,7 @@ export function updatePropertyKeyData(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
@@ -182,7 +184,7 @@ export function removePropertyKey(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
@@ -213,7 +215,7 @@ export function removePropertyCurve(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     if (!track) {
         return false;
     }
@@ -240,7 +242,7 @@ export function movePropertyKeys(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
@@ -265,7 +267,7 @@ export function copyPropertyKeysTo(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (!track || !descriptor) {
         return false;
@@ -288,7 +290,7 @@ export function setPropertyCurveExtrapolation(
         return false;
     }
 
-    const track = findPropertyTrack(clip, target.nodePath, target.propKey);
+    const track = findPropertyTrack(clip, target.nodePath, target.propKey, target.nodeUuid);
     if (!track || !queryFirstRealCurve(track)) {
         return false;
     }
@@ -308,7 +310,7 @@ export function replacePropertyCurves(clip: AnimationClip, curves: IAnimationCur
 
         const keyframes = Array.isArray(curve.keyframes) ? [...curve.keyframes].sort((a, b) => a.frame - b.frame) : [];
         const channelDumps = Array.isArray(curve.channels) ? curve.channels : [];
-        const track = createPropertyTrack(clip, curve.nodePath, descriptor);
+        const track = createPropertyTrack(clip, curve.nodePath, descriptor, curve.nodeUuid);
         applyTrackExtrapolation(track, curve.preExtrap, curve.postExtrap);
         if (!restoreTrackKeyframes(clip, track, descriptor, keyframes, channelDumps)) {
             return false;
@@ -319,13 +321,13 @@ export function replacePropertyCurves(clip: AnimationClip, curves: IAnimationCur
 }
 
 function resolvePropertyTarget(context: IPropertyCurveOperationContext, operation: IPropertyTarget): IResolvedPropertyTarget | null {
-    const nodePath = resolveRelativeNodePath(context, operation);
-    if (nodePath === null) {
+    const target = resolveRelativeNodeTarget(context, operation);
+    if (!target) {
         return null;
     }
 
     return {
-        nodePath,
+        ...target,
         propKey: operation.propKey,
     };
 }
@@ -363,24 +365,24 @@ function applyPropertyMetadata(
     };
 }
 
-function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operation: IPropertyTarget): string | null {
+function resolveRelativeNodeTarget(
+    context: IPropertyCurveOperationContext,
+    operation: IPropertyTarget,
+): Pick<IResolvedPropertyTarget, 'nodePath' | 'nodeUuid'> | null {
     if (operation.nodeUuid) {
-        return findRelativeNodePathByUuid(context.rootNode, operation.nodeUuid);
+        const nodePath = findRelativeNodePathByUuid(context.rootNode, operation.nodeUuid);
+        return nodePath === null ? null : { nodePath, nodeUuid: operation.nodeUuid };
     }
 
-    const nodePath = normalizePath(operation.nodePath || '');
-    if (!nodePath) {
-        return '';
-    }
-
+    const requestedPath = normalizePath(operation.nodePath || '');
     const rootPath = normalizePath(context.rootPath);
-    if (nodePath === rootPath) {
-        return '';
-    }
-    if (rootPath && nodePath.startsWith(`${rootPath}/`)) {
-        return nodePath.slice(rootPath.length + 1);
-    }
-    return context.rootNode.getChildByPath(nodePath) ? nodePath : null;
+    const nodePath = !requestedPath || requestedPath === rootPath
+        ? ''
+        : rootPath && requestedPath.startsWith(`${rootPath}/`)
+            ? requestedPath.slice(rootPath.length + 1)
+            : requestedPath;
+    const node = nodePath ? context.rootNode.getChildByPath(nodePath) : context.rootNode;
+    return node ? { nodePath, nodeUuid: node.uuid || undefined } : null;
 }
 
 function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {

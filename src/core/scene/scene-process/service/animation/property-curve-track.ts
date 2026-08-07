@@ -14,6 +14,7 @@ import {
     createMaterialUniformPropertyKey,
     parseMaterialUniformPropertyKey,
 } from './material-uniform';
+import { appendNodeUuidPath, parseNodeUuidPath } from './node-uuid-path';
 
 const VECTOR_COMPONENTS = ['x', 'y', 'z'] as const;
 const VECTOR4_COMPONENTS = ['x', 'y', 'z', 'w'] as const;
@@ -61,21 +62,26 @@ const NODE_PROPERTY_DESCRIPTORS: Record<string, Omit<IPropertyTrackDescriptor, '
     },
 };
 
-export function findPropertyTrack(clip: AnimationClip, nodePath: string, propKey: string): AnyTrack | null {
+export function findPropertyTrack(clip: AnimationClip, nodePath: string, propKey: string, nodeUuid?: string): AnyTrack | null {
     for (const track of getClipTracks(clip)) {
         const target = parsePropertyTrack(track);
-        if (target?.nodePath === nodePath && target.descriptor.propKey === propKey) {
+        if (target?.nodePath === nodePath
+            && target.nodeUuid === nodeUuid
+            && target.descriptor.propKey === propKey) {
             return track;
         }
     }
     return null;
 }
 
-export function createPropertyTrack(clip: AnimationClip, nodePath: string, descriptor: IPropertyTrackDescriptor): AnyTrack {
+export function createPropertyTrack(clip: AnimationClip, nodePath: string, descriptor: IPropertyTrackDescriptor, nodeUuid?: string): AnyTrack {
     const track = createTrackByKind(descriptor);
     const path = new animation.TrackPath();
     if (nodePath) {
         path.toHierarchy(nodePath);
+    }
+    if (nodeUuid) {
+        appendNodeUuidPath(path, nodeUuid);
     }
     if (descriptor.comp) {
         path.toComponent(descriptor.comp);
@@ -98,7 +104,7 @@ export function createPropertyTrack(clip: AnimationClip, nodePath: string, descr
     return track;
 }
 
-export function parsePropertyTrack(track: unknown): { nodePath: string; descriptor: IPropertyTrackDescriptor } | null {
+export function parsePropertyTrack(track: unknown): { nodePath: string; nodeUuid?: string; descriptor: IPropertyTrackDescriptor } | null {
     const kind = queryTrackKind(track);
     if (!kind) {
         return null;
@@ -115,6 +121,11 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
         if (segment) {
             nodePath = nodePath ? `${nodePath}/${segment}` : segment;
         }
+        index++;
+    }
+
+    const nodeUuid = parseNodeUuidPath(path, index);
+    if (nodeUuid) {
         index++;
     }
 
@@ -147,7 +158,7 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
             uniformName: uniformProxy.uniformName,
         });
         const descriptor = createPropertyDescriptor(propKey, undefined, kind, track as AnyTrack);
-        return descriptor ? { nodePath, descriptor } : null;
+        return descriptor ? { nodePath, nodeUuid, descriptor } : null;
     }
 
     const target = parseAnimationTrackTarget(path);
@@ -155,11 +166,12 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
         return null;
     }
     const descriptor = createPropertyDescriptor(target.propKey, undefined, kind, track as AnyTrack);
-    return descriptor ? { nodePath: target.nodePath, descriptor } : null;
+    return descriptor ? { nodePath: target.nodePath, nodeUuid: target.nodeUuid, descriptor } : null;
 }
 
 export interface IAnimationTrackTarget {
     nodePath: string;
+    nodeUuid?: string;
     propKey: string;
 }
 
@@ -178,6 +190,11 @@ export function parseAnimationTrackTarget(path: any): IAnimationTrackTarget | nu
         index++;
     }
 
+    const nodeUuid = parseNodeUuidPath(path, index);
+    if (nodeUuid) {
+        index++;
+    }
+
     let component: string | undefined;
     if (index < path.length && path.isComponentAt(index)) {
         component = path.parseComponentAt(index);
@@ -188,7 +205,7 @@ export function parseAnimationTrackTarget(path: any): IAnimationTrackTarget | nu
     }
 
     const property = path.parsePropertyAt(index);
-    return { nodePath, propKey: component ? `${component}.${property}` : property };
+    return { nodePath, nodeUuid, propKey: component ? `${component}.${property}` : property };
 }
 
 export function createPropertyDescriptor(
