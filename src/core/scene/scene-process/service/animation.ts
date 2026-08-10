@@ -576,10 +576,19 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const session = requireAnimationSession(this._session);
         const state = await this._getAnimationState(session.clipUuid);
         const rootNode = this._getSessionRootNode();
+        ensureClipEvents(state.clip);
+        if (options.target) {
+            return await saveAnimationServiceClip({
+                session,
+                rootNode,
+                clip: state.clip,
+                target: options.target,
+            });
+        }
+
         const propertyMetadataContext = createAnimationPropertyCurveMetadataContext(rootNode);
         const savedSnapshot = captureAnimationClipSnapshot(state.clip, propertyMetadataContext);
         const animationDirtyAtSave = this._isAnimationSessionDirty(session);
-        ensureClipEvents(state.clip);
         this._markSelfSavedClipRefresh(session.clipUuid);
         let saved = false;
         try {
@@ -587,7 +596,6 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 session,
                 rootNode,
                 clip: state.clip,
-                target: options.target,
             });
         } catch (error) {
             this._selfSavedClipRefreshes.delete(session.clipUuid);

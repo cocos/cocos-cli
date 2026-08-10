@@ -138,6 +138,39 @@ describe('AnimationService enter', () => {
         saveAnimationServiceClipMock.mockResolvedValue(true);
     });
 
+    it('saving a clip copy preserves the source session dirty state', async () => {
+        const { AnimationClip } = require('cc');
+        const service = new AnimationService() as any;
+        const clip = new AnimationClip();
+        clip.events = [];
+        const undoBaseline = { commandId: 'source-change', generation: 7 };
+        const session = {
+            clipUuid: 'clip-uuid',
+            rootUuid: 'root-uuid',
+            rootPath: 'Canvas/AnimatedRoot',
+            undoBaseline,
+            globalDirtyAtEnter: false,
+        };
+        service._session = session;
+        service._getSessionRootNode = jest.fn(() => ({ getComponent: jest.fn(() => null) }));
+        service._getAnimationState = jest.fn(async () => ({ clip }));
+        service._restoreCurrentClipAfterSelfSave = jest.fn();
+        service._markSelfSavedClipRefresh = jest.fn();
+
+        await expect(service.save({ target: '/project/assets/anims/RunCopy.anim' })).resolves.toBe(true);
+
+        expect(saveAnimationServiceClipMock).toHaveBeenCalledWith(expect.objectContaining({
+            session,
+            clip,
+            target: '/project/assets/anims/RunCopy.anim',
+        }));
+        expect(service._restoreCurrentClipAfterSelfSave).not.toHaveBeenCalled();
+        expect(service._markSelfSavedClipRefresh).not.toHaveBeenCalled();
+        expect(mockService.Undo.markSaved).not.toHaveBeenCalled();
+        expect(mockService.Undo.createCheckpoint).not.toHaveBeenCalled();
+        expect(session.undoBaseline).toBe(undoBaseline);
+    });
+
     it('treats undoing a saved checkpoint command as animation dirty without changing discard scope detection', () => {
         const service = new AnimationService() as any;
         const session = {
