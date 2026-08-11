@@ -6136,6 +6136,10 @@ export declare interface IClipboardState {
     type: 'cut' | 'copy' | 'none';
     paths: string[];
 }
+export declare interface ICloneNodeParams {
+    sourcePath: string;
+    targetParentPath?: string;
+}
 export declare interface ICloseOptions {
     urlOrUUID?: string;
     save?: boolean;
@@ -6365,6 +6369,7 @@ export declare interface INodeService extends IServiceEvents {
     copy(params: ICopyParams): Promise<string[]>;
     paste(params: IPasteParams): Promise<string[]>;
     duplicate(params: IDuplicateParams): Promise<string[]>;
+    clone(params: ICloneNodeParams): Promise<INode | null>;
     cut(params: ICutParams): Promise<string[]>;
     queryClipboardState(): Promise<IClipboardState>;
     moveArrayElement(params: IMoveArrayElementParams): Promise<boolean>;

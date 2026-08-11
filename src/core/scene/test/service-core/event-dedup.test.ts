@@ -725,7 +725,7 @@ describe('场景事件契约测试', () => {
             });
 
             it('baseRemoveNode 应 emit node:before-remove、node:remove 各 1 次，before-change 最多 1 次', () => {
-                const body = extractMethodBody(source, /baseRemoveNode\(/);
+                const body = extractMethodBody(source, /public baseRemoveNode\(/);
                 expect(countEmitCalls(body, 'node:before-remove')).toBe(1);
                 expect(countEmitCalls(body, 'node:remove')).toBe(1);
                 expect(countEmitCalls(body, 'node:before-change')).toBeLessThanOrEqual(1);

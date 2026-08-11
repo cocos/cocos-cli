@@ -77,6 +77,13 @@ export const SchemaNodeDelete = z.object({
     keepWorldTransform: z.boolean().optional().describe('Keep world transform'), // 保持世界变换
 }).describe('To configure options for node deletion, the Scene must be open first.'); // 删除节点的选项参数，需先打开场景
 
+export const SchemaNodeClone = z.object({
+    sourcePath: z.string().min(1).describe('Path of the source node subtree in the currently opened scene'),
+    targetParentPath: z.string().min(1).optional().describe('Path of the target parent node; defaults to the source node parent'),
+}).describe('Clone one node subtree in the currently opened scene. Prefab editing and cross-scene cloning are not supported.');
+
+export const SchemaNodeCloneResult = SchemaNodeIdentifier;
+
 const SchemaNodeCreateBase = z.object({
     path: z.string().describe('Relative path of the created node, root node is scene node; This path is parent node path, full node path is parent path + node name, and root node path is "/"'), // 创建的节点相对路径，根节点是场景节点; 该路径为父节点路径,完整节点路径为父路径+节点名，根节点路径为 "/"
     name: z.string().optional().describe('Name of the node, if not passed, the system will default a name'), // 节点的名称，不传，系统会默认一个名字
@@ -96,6 +103,7 @@ export const SchemaNodeCreateByType = SchemaNodeCreateBase.extend({
 
 // 类型导出
 export type TDeleteNodeOptions = z.infer<typeof SchemaNodeDelete>;
+export type TCloneNodeOptions = z.infer<typeof SchemaNodeClone>;
 export type TUpdateNodeOptions = z.infer<typeof SchemaNodeUpdate>;
 export type TCreateNodeByAssetOptions = z.infer<typeof SchemaNodeCreateByAsset>;
 export type TCreateNodeByTypeOptions = z.infer<typeof SchemaNodeCreateByType>;
@@ -103,5 +111,6 @@ export type TQueryNodeOptions = z.infer<typeof SchemaNodeQuery>;
 export type TNodeDetail = z.infer<typeof SchemaNodeQueryResult>;
 export type TNodeUpdateResult = z.infer<typeof SchemaNodeUpdateResult>;
 export type TNodeDeleteResult = z.infer<typeof SchemaNodeDeleteResult>;
+export type TNodeCloneResult = z.infer<typeof SchemaNodeCloneResult>;
 export type TNode = z.infer<typeof SchemaNode>;
 export type TNodeIdentifier = z.infer<typeof SchemaNodeIdentifier>;

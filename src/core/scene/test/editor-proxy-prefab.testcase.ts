@@ -7,6 +7,7 @@ import {
     ReloadResult,
     ICopyParams,
     IPasteParams,
+    ICloneNodeParams,
 } from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
@@ -25,6 +26,10 @@ function copy(params: ICopyParams): Promise<string[]> {
 
 function paste(params: IPasteParams): Promise<string[]> {
     return rpcRequest('paste', [params]);
+}
+
+function clone(params: ICloneNodeParams): Promise<INodeInfo | null> {
+    return NodeProxy.clone(params);
 }
 
 describe('EditorProxy Prefab 测试', () => {
@@ -248,6 +253,20 @@ describe('EditorProxy Prefab 测试', () => {
 
             expect(result).toHaveLength(1);
             expect(result[0].startsWith(`${rootPath}/`)).toBe(true);
+        });
+
+        it('rejects subtree clone while a prefab is being edited', async () => {
+            const current = await EditorProxy.queryCurrent() as INodeInfo;
+            const rootPath = current.path || current.name;
+            const source = await NodeProxy.createByType({
+                path: rootPath,
+                nodeType: NodeType.EMPTY,
+                name: 'prefab-clone-rejected-source',
+            });
+
+            await expect(clone({ sourcePath: source!.path })).rejects.toThrow(
+                'cloning is only supported in the scene editor',
+            );
         });
 
         it('close - 不保存地关闭当前预制体', async () => {

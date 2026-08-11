@@ -15,12 +15,54 @@ import {
     SchemaNodeQueryResult,
     SchemaNodeDeleteResult,
     SchemaNodeUpdateResult,
+    SchemaNodeClone,
+    SchemaNodeCloneResult,
+    TCloneNodeOptions,
+    TNodeCloneResult,
 } from './node-schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, getCommonErrorStatus } from '../base/schema-base';
-import { ICreateByNodeTypeParams, INodeInfo, Scene } from '../../core/scene';
+import { ICloneNodeParams, ICreateByNodeTypeParams, INodeInfo, Scene } from '../../core/scene';
+
+function getCloneNodeErrorStatus(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/scene is not opened|only supported in the scene editor|scene root node/i.test(message)) {
+        return COMMON_STATUS.BAD_REQUEST;
+    }
+    return getCommonErrorStatus(error);
+}
 
 export class NodeApi {
+
+    /**
+     * Clone Node Subtree // Clone a subtree without using clipboard state.
+     */
+    @tool('scene-clone-node')
+    @title('Clone Node Subtree')
+    @description('Deep-clone one node subtree in the currently opened scene. By default the clone is appended under the source parent; targetParentPath can select another parent in the same scene. Prefab editing and cross-scene cloning are not supported.')
+    @result(SchemaNodeCloneResult)
+    async cloneNode(@param(SchemaNodeClone) options: TCloneNodeOptions): Promise<CommonResultType<TNodeCloneResult>> {
+        try {
+            const resultNode = await Scene.Node.clone(options as ICloneNodeParams);
+            if (!resultNode) {
+                throw new Error(`Failed to clone node at path: ${options.sourcePath}`);
+            }
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: {
+                    nodeId: resultNode.nodeId,
+                    path: resultNode.path,
+                    name: resultNode.name,
+                },
+            };
+        } catch (error) {
+            console.error('Failed to clone node:', error);
+            return {
+                code: getCloneNodeErrorStatus(error),
+                reason: error instanceof Error ? error.message : String(error),
+            };
+        }
+    }
 
     /**
      * Create Node // 创建节点

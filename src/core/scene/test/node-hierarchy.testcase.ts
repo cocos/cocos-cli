@@ -7,6 +7,7 @@ import {
     type ICopyParams,
     type IPasteParams,
     type IDuplicateParams,
+    type ICloneNodeParams,
     type ICutParams,
     type IClipboardState,
     NodeType,
@@ -15,6 +16,7 @@ import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { Rpc } from '../main-process/rpc';
 import { SceneTestEnv } from './scene-test-env';
+import { ComponentProxy } from '../main-process/proxy/component-proxy';
 
 const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Node', method, args);
@@ -37,6 +39,10 @@ function paste(params: IPasteParams): Promise<string[]> {
 
 function duplicate(params: IDuplicateParams): Promise<string[]> {
     return rpcRequest('duplicate', [params]);
+}
+
+function clone(params: ICloneNodeParams): Promise<INodeInfo | null> {
+    return NodeProxy.clone(params);
 }
 
 function cut(params: ICutParams): Promise<string[]> {
@@ -427,6 +433,96 @@ describe('Node 层级操作测试', () => {
 
             // 清理：paste 掉 cut 的节点
             await paste({ parentPath: parent!.path });
+        });
+    });
+
+    describe('7. clone - clone a single subtree without changing clipboard state', () => {
+        let parent: INodeInfo | null = null;
+        let targetParent: INodeInfo | null = null;
+        let source: INodeInfo | null = null;
+
+        beforeAll(async () => {
+            parent = await NodeProxy.createByType({ path: '/', name: 'CloneParent', nodeType: NodeType.EMPTY });
+            targetParent = await NodeProxy.createByType({ path: '/', name: 'CloneTarget', nodeType: NodeType.EMPTY });
+            source = await NodeProxy.createByType({
+                path: parent!.path,
+                name: 'CloneSource',
+                nodeType: NodeType.EMPTY,
+            });
+            await NodeProxy.update({
+                path: source!.path,
+                properties: {
+                    position: { x: 12, y: 34, z: 5 },
+                    active: false,
+                },
+            });
+            await NodeProxy.createByType({
+                path: source!.path,
+                name: 'CloneChild',
+                nodeType: NodeType.EMPTY,
+            });
+            const component = await ComponentProxy.add({
+                nodePath: source!.path,
+                component: 'cc.Label',
+            });
+            await ComponentProxy.setProperty({
+                componentPath: component.path,
+                properties: { string: 'clone-subtree-value' },
+            });
+        });
+
+        afterAll(async () => {
+            await NodeProxy.delete({ path: parent!.path, keepWorldTransform: false }).catch(() => {});
+            await NodeProxy.delete({ path: targetParent!.path, keepWorldTransform: false }).catch(() => {});
+        });
+
+        it('deep-clones under the source parent, appends the root, and preserves copy state', async () => {
+            await copy({ paths: [source!.path] });
+            const clipboardBefore = await queryClipboardState();
+            const childrenBefore = await getChildNames(parent!.path);
+
+            const result = await clone({ sourcePath: source!.path });
+
+            expect(result).not.toBeNull();
+            expect(result!.path).toBe(`${parent!.path}/CloneSource_001`);
+            expect(result!.name).toBe('CloneSource_001');
+            expect(result!.nodeId).not.toBe(source!.nodeId);
+            expect(await getChildNames(parent!.path)).toEqual([...childrenBefore, 'CloneSource_001']);
+
+            const clonedRoot = await NodeProxy.query({ path: result!.path });
+            expect(clonedRoot?.properties.position).toEqual({ x: 12, y: 34, z: 5 });
+            expect(clonedRoot?.properties.active).toBe(false);
+
+            const clonedChild = await NodeProxy.query({ path: `${result!.path}/CloneChild` });
+            const sourceChild = await NodeProxy.query({ path: `${source!.path}/CloneChild` });
+            expect(clonedChild).not.toBeNull();
+            expect(clonedChild!.nodeId).not.toBe(sourceChild!.nodeId);
+
+            const clonedComponent = await ComponentProxy.query({ path: `${result!.path}/cc.Label` });
+            expect(clonedComponent?.properties.string.value).toBe('clone-subtree-value');
+            expect(await queryClipboardState()).toEqual(clipboardBefore);
+            expect(await NodeProxy.query({ path: source!.path })).not.toBeNull();
+        });
+
+        it('clones under an explicit target parent, keeps local transform, and preserves cut state', async () => {
+            await cut({ paths: [source!.path] });
+            const clipboardBefore = await queryClipboardState();
+
+            const result = await clone({
+                sourcePath: source!.path,
+                targetParentPath: targetParent!.path,
+            });
+
+            expect(result?.path).toBe(`${targetParent!.path}/CloneSource`);
+            expect(result?.properties.position).toEqual({ x: 12, y: 34, z: 5 });
+            expect(await NodeProxy.query({ path: `${result!.path}/CloneChild` })).not.toBeNull();
+            expect(await queryClipboardState()).toEqual(clipboardBefore);
+
+            await copy({ paths: [source!.path] });
+        });
+
+        it('rejects cloning the scene root', async () => {
+            await expect(clone({ sourcePath: '/' })).rejects.toThrow('Cannot clone the scene root node');
         });
     });
 });

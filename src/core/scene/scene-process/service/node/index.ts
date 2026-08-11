@@ -928,6 +928,36 @@ export class NodeManager {
         return newUuids.filter(Boolean);
     }
 
+    clone(sourceUuid: string, targetParentUuid: string): string | undefined {
+        const oldStashInstants = stashInstants;
+        const beforeNodeUuids = new Set(Object.keys(NodeMgr.getNodes()));
+        try {
+            const [copiedUuid] = this.copy(sourceUuid);
+            if (!copiedUuid) {
+                return;
+            }
+            return this.createNodeFromStash(targetParentUuid, null, copiedUuid, false, true);
+        } catch (error) {
+            const nodeMap = NodeMgr.getNodes();
+            const newNodes = Object.keys(nodeMap)
+                .filter(uuid => !beforeNodeUuids.has(uuid))
+                .map(uuid => nodeMap[uuid] as Node | null)
+                .filter((node): node is Node => !!node?.isValid);
+            const newNodeUuids = new Set(newNodes.map(node => node.uuid));
+            const newRootNodes = newNodes.filter(node => !node.parent || !newNodeUuids.has(node.parent.uuid));
+            for (const node of newRootNodes) {
+                try {
+                    this.baseRemoveNode(node, false);
+                } catch (rollbackError) {
+                    console.error('Failed to roll back cloned node:', rollbackError);
+                }
+            }
+            throw error;
+        } finally {
+            stashInstants = oldStashInstants;
+        }
+    }
+
     paste(target: string | null | undefined, uuids: string | string[], keepWorldTransform = false) {
         if (!Array.isArray(uuids)) {
             uuids = [uuids];
@@ -1004,7 +1034,7 @@ export class NodeManager {
 
     /**
      * 实时获取新节点在一个父节点下的有效名称
-     * 规则是 Node 同名时为 Node-001
+     * 规则是 Node 同名时为 Node_001
      * @param name 名称
      * @param parentUuid 父节点 uuid
      */

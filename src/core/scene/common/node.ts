@@ -192,6 +192,12 @@ export interface IDuplicateParams {
     paths: string[];
 }
 
+// Clone a single node subtree in the currently opened scene.
+export interface ICloneNodeParams {
+    sourcePath: string;
+    targetParentPath?: string;
+}
+
 // 节点剪切参数接口
 export interface ICutParams {
     paths: string[];
@@ -461,6 +467,7 @@ export interface INodeService extends IServiceEvents {
     copy(params: ICopyParams): Promise<string[]>;
     paste(params: IPasteParams): Promise<string[]>;
     duplicate(params: IDuplicateParams): Promise<string[]>;
+    clone(params: ICloneNodeParams): Promise<INode | null>;
     cut(params: ICutParams): Promise<string[]>;
     queryClipboardState(): Promise<IClipboardState>;
 

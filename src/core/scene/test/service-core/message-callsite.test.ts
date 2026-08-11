@@ -322,6 +322,45 @@ describe('ServiceEvents 事件发射集成测试', () => {
 
             expect(listener).toHaveBeenCalledWith(node, expect.objectContaining({ type: expect.any(String) }));
         });
+
+        it('clone rolls back the newly created subtree when restoring the stash fails', () => {
+            const nodeMgr = new NodeManager();
+            const source = createMockNode('clone-source');
+            const targetParent = createMockNode('clone-target-parent');
+            const clonedRoot = createMockNode('cloned-root');
+            const clonedChild = createMockNode('cloned-child');
+            clonedRoot.parent = targetParent;
+            clonedRoot.children = [clonedChild];
+            clonedChild.parent = clonedRoot;
+
+            let nodes: Record<string, any> = {
+                [source.uuid]: source,
+                [targetParent.uuid]: targetParent,
+            };
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetNodes = NodeMgr.getNodes;
+            NodeMgr.getNodes = jest.fn(() => nodes);
+
+            const failure = new Error('restore failed');
+            jest.spyOn(nodeMgr, 'copy').mockReturnValue([source.uuid]);
+            jest.spyOn(nodeMgr, 'createNodeFromStash').mockImplementation(() => {
+                nodes = {
+                    ...nodes,
+                    [clonedRoot.uuid]: clonedRoot,
+                    [clonedChild.uuid]: clonedChild,
+                };
+                throw failure;
+            });
+            const rollbackSpy = jest.spyOn(nodeMgr, 'baseRemoveNode').mockImplementation(() => undefined);
+
+            try {
+                expect(() => nodeMgr.clone(source.uuid, targetParent.uuid)).toThrow(failure);
+                expect(rollbackSpy).toHaveBeenCalledTimes(1);
+                expect(rollbackSpy).toHaveBeenCalledWith(clonedRoot, false);
+            } finally {
+                NodeMgr.getNodes = originalGetNodes;
+            }
+        });
     });
 
     // ── CompManager: add / remove → ServiceEvents ──
@@ -557,6 +596,72 @@ describe('ServiceEvents 事件发射集成测试', () => {
     // ── NodeService: setProperty(name) → ServiceEvents ──
 
     describe('NodeService (node.ts)', () => {
+        it('clone rolls back the created node when generating its dump fails', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+            const nodeMgr = require('../../scene-process/service/node/index').default;
+            const { sceneUtils } = require('../../scene-process/service/scene/utils');
+            const { Service } = require('../../scene-process/service/core');
+            const { Node: MockNode } = require('cc');
+
+            const root = new MockNode();
+            root.uuid = 'scene-root';
+            const source = new MockNode();
+            source.uuid = 'clone-source';
+            source.parent = root;
+            const clonedNode = new MockNode();
+            clonedNode.uuid = 'cloned-node';
+            clonedNode.parent = root;
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalEditorMethods = {
+                lock: Service.Editor.lock,
+                unlock: Service.Editor.unlock,
+                getRootNode: Service.Editor.getRootNode,
+                getCurrentEditorType: Service.Editor.getCurrentEditorType,
+            };
+            const originalNodeMethods = {
+                getNodeByPath: NodeMgr.getNodeByPath,
+                getNode: NodeMgr.getNode,
+                getNodePath: NodeMgr.getNodePath,
+            };
+            const originalGenerateNodeDump = sceneUtils.generateNodeDump;
+
+            Service.Editor.lock = jest.fn().mockResolvedValue(undefined);
+            Service.Editor.unlock = jest.fn();
+            Service.Editor.getRootNode = jest.fn(() => root);
+            Service.Editor.getCurrentEditorType = jest.fn(() => 'scene');
+            NodeMgr.getNodeByPath = jest.fn(() => source);
+            NodeMgr.getNode = jest.fn(() => clonedNode);
+            NodeMgr.getNodePath = jest.fn(() => '/CloneSource_001');
+            nodeService._undo = {
+                shouldRecordStructureCommand: jest.fn(() => false),
+                recordCreateNodeCommand: jest.fn(),
+            };
+
+            const cloneSpy = jest.spyOn(nodeMgr, 'clone').mockReturnValue(clonedNode.uuid);
+            const querySpy = jest.spyOn(nodeMgr, 'query').mockReturnValue(clonedNode);
+            const rollbackSpy = jest.spyOn(nodeMgr, 'baseRemoveNode').mockImplementation(() => undefined);
+            const failure = new Error('dump failed');
+            sceneUtils.generateNodeDump = jest.fn(() => {
+                throw failure;
+            });
+
+            try {
+                await expect(nodeService.clone({ sourcePath: '/CloneSource' })).rejects.toThrow(failure);
+                expect(rollbackSpy).toHaveBeenCalledTimes(1);
+                expect(rollbackSpy).toHaveBeenCalledWith(clonedNode, false);
+                expect(Service.Editor.unlock).toHaveBeenCalledTimes(1);
+            } finally {
+                cloneSpy.mockRestore();
+                querySpy.mockRestore();
+                rollbackSpy.mockRestore();
+                Object.assign(Service.Editor, originalEditorMethods);
+                Object.assign(NodeMgr, originalNodeMethods);
+                sceneUtils.generateNodeDump = originalGenerateNodeDump;
+            }
+        });
+
         it('setProperty(name) 应 emit node:change 到 ServiceEvents', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('node:change', listener);

@@ -155,6 +155,10 @@ const Node = {
     copy: (params: { paths: string[] }) => request<string[]>('Node', 'copy', [params]),
     paste: (params: { parentPath?: string; keepWorldTransform?: boolean }) => request<string[]>('Node', 'paste', [params]),
     duplicate: (params: { paths: string[] }) => request<string[]>('Node', 'duplicate', [params]),
+    async clone(params: { sourcePath: string; targetParentPath?: string }): Promise<INodeInfo | null> {
+        const result = await request<any>('Node', 'clone', [params]);
+        return result ? toNodeInfo(result) : null;
+    },
     cut: (params: { paths: string[] }) => request<string[]>('Node', 'cut', [params]),
     moveArrayElement: (params: { nodePath: string; path: string; target: number; offset: number }) => request<boolean>('Node', 'moveArrayElement', [params]),
     removeArrayElement: (params: { nodePath: string; path: string; index: number }) => request<boolean>('Node', 'removeArrayElement', [params]),
@@ -1122,6 +1126,27 @@ describe('Undo/Redo 集成测试', () => {
             const redoResult = await Undo.redo();
             expectUndoSuccess(redoResult);
             expect(await queryNode(duplicatedPath)).not.toBeNull();
+        });
+
+        it('clone creates one subtree and supports undo/redo as one command', async () => {
+            await Node.createByType({ path: childA, name: 'CloneUndoChild', nodeType: NodeType.EMPTY });
+            const cloned = await Node.clone({ sourcePath: childA, targetParentPath });
+            const clonedPath = cloned!.path;
+            const clonedChildPath = `${clonedPath}/CloneUndoChild`;
+
+            expect(await queryNode(clonedPath)).not.toBeNull();
+            expect(await queryNode(clonedChildPath)).not.toBeNull();
+            expect(await Undo.canUndo()).toBe(true);
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+            expect(await queryNode(clonedPath)).toBeNull();
+            expect(await queryNode(clonedChildPath)).toBeNull();
+
+            const redoResult = await Undo.redo();
+            expectUndoSuccess(redoResult);
+            expect(await queryNode(clonedPath)).not.toBeNull();
+            expect(await queryNode(clonedChildPath)).not.toBeNull();
         });
 
         it('copy paste creates nodes and supports undo/redo', async () => {
