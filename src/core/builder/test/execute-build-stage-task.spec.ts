@@ -339,7 +339,7 @@ describe('executeBuildStageTask', () => {
 
         expect(newConsole.record).toHaveBeenCalledTimes(1);
         const logDest = (newConsole.record as jest.Mock).mock.calls[0][0];
-        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]upload build-/);
+        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]openpaas-upload-/);
         expect(logDest).toMatch(/\.log$/);
         expect(receivedOptions.logDest).toBe(logDest);
     });
@@ -355,7 +355,7 @@ describe('executeBuildStageTask', () => {
 
         expect(newConsole.record).toHaveBeenCalledTimes(1);
         const logDest = (newConsole.record as jest.Mock).mock.calls[0][0];
-        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]run build-/);
+        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]web-desktop-run-/);
         expect(logDest).toMatch(/\.log$/);
         expect(hookModule.run).toHaveBeenCalledWith('build/web-desktop', undefined);
     });
@@ -413,11 +413,44 @@ describe('executeBuildStageTask', () => {
         });
 
         const firstLogDest = (newConsole.record as jest.Mock).mock.calls[0][0];
-        expect(firstLogDest).toContain('upload build-');
+        expect(firstLogDest).toContain('openpaas-upload-');
         expect(firstLogDest).toMatch(/\.log$/);
         expect(result).toEqual({
             code: 34,
             reason: 'missing build options',
         });
+    });
+
+    it('uses build as action label when taskName equals platform', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+
+        await executeBuildStageTask('task-id', 'run', {
+            dest: 'build/web-desktop',
+            platform: 'web-desktop',
+            taskName: 'web-desktop',
+        });
+
+        const logDest = (newConsole.record as jest.Mock).mock.calls[0][0];
+        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]web-desktop-build-/);
+        expect(logDest).toMatch(/\.log$/);
+    });
+
+    it('includes platform prefix in log filename for mini-game platforms', async () => {
+        const { executeBuildStageTask } = await import('../index');
+        const { newConsole } = await import('../../base/console');
+        mockGetHooksInfo.mockReturnValue({
+            pkgNameOrder: ['wechatgame'],
+            infos: { wechatgame: { path: 'wechatgame/hooks', internal: true } },
+        });
+
+        await executeBuildStageTask('task-id', 'run', {
+            dest: 'build/wechatgame',
+            platform: 'wechatgame',
+        });
+
+        const logDest = (newConsole.record as jest.Mock).mock.calls[0][0];
+        expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]wechatgame-run-/);
+        expect(logDest).toMatch(/\.log$/);
     });
 });
