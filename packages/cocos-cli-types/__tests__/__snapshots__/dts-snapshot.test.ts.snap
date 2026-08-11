@@ -5690,12 +5690,14 @@ export declare type IAnimationOperation = {
     type: 'addPropertyCurve';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     value?: IAnimationValue;
 } | {
     type: 'createPropertyKey';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frame: number;
     value?: IAnimationValue;
@@ -5706,6 +5708,7 @@ export declare type IAnimationOperation = {
     type: 'updatePropertyKey';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frame: number;
     value?: IAnimationValue;
@@ -5716,6 +5719,7 @@ export declare type IAnimationOperation = {
     type: 'updatePropertyKeyData';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frame: number;
     channel?: string;
@@ -5725,11 +5729,13 @@ export declare type IAnimationOperation = {
     type: 'removePropertyCurve';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
 } | {
     type: 'removePropertyKey';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frames: number[];
     channel?: string;
@@ -5737,6 +5743,7 @@ export declare type IAnimationOperation = {
     type: 'removePropertyKeys';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frames: number[];
     channel?: string;
@@ -5744,6 +5751,7 @@ export declare type IAnimationOperation = {
     type: 'movePropertyKeys';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frames: number[];
     offset: number;
@@ -5752,6 +5760,7 @@ export declare type IAnimationOperation = {
     type: 'copyPropertyKeysTo';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frames: number[];
     dstFrame: number;
@@ -5760,6 +5769,7 @@ export declare type IAnimationOperation = {
     type: 'setPropertyCurveExtrapolation';
     clipUuid: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     preExtrap?: number;
     postExtrap?: number;
@@ -5906,6 +5916,7 @@ export declare interface IAnimationQueryClipOptions extends IAnimationTargetOpti
 export declare interface IAnimationQueryPropertyValueAtFrameOptions {
     clipUuid?: string;
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
     frame: number;
 }
