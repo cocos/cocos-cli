@@ -4,6 +4,7 @@ import { CameraMoveMode, CameraUtils } from '../utils';
 import { AnimVec3 } from '../animate-value';
 import type { ISceneMouseEvent, ISceneKeyboardEvent } from '../../operation/types';
 import type { CameraController3D } from '../camera-controller-3d';
+import { enterCameraState, exitCameraState, NeedAnimState } from './engine-state';
 
 const v3b = new Vec3();
 const v3c = new Vec3();
@@ -94,13 +95,7 @@ class WanderMode extends ModeBase3D {
 
         this._cameraCtrl.emit('camera-move-mode', CameraMoveMode.WANDER);
         CameraUtils.showWanderTip();
-
-        try {
-            const { Service } = require('../../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        enterCameraState(NeedAnimState.CAMERA_WANDER);
     }
 
     public async exit() {
@@ -113,14 +108,8 @@ class WanderMode extends ModeBase3D {
         }
 
         this._cameraCtrl.updateViewCenterByDist(-this._cameraCtrl.viewDist);
+        exitCameraState(NeedAnimState.CAMERA_WANDER);
         this._velocity.set(0, 0, 0);
-
-        try {
-            const { Service } = require('../../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
     }
 
     onMouseMove(event: ISceneMouseEvent): boolean {
@@ -254,16 +243,6 @@ class WanderMode extends ModeBase3D {
         Vec3.transformQuat(v3d, v3d, this._curRot);
         Vec3.add(eye, eye, v3d);
         Vec3.lerp(this._curPos, this._curPos, eye, this._damping);
-
-        // CLI-specific: request repaint since we don't have enterState/exitState
-        if (this._wanderKeyDown || this._curMouseDX !== 0 || this._curMouseDY !== 0) {
-            try {
-                const { Service } = require('../../core/decorator');
-                Service.Engine?.repaintInEditMode?.();
-            } catch (e) {
-                // Engine may not be ready
-            }
-        }
 
         this._cameraCtrl.node.setPosition(this._curPos);
         this._cameraCtrl.node.setRotation(this._curRot);
