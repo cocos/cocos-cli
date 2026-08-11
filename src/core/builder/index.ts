@@ -34,8 +34,15 @@ function getBuilderLogRoot() {
     return basename(projectTempDir) === 'builder' ? projectTempDir : join(projectTempDir, 'builder');
 }
 
-function normalizeBuildLogDest(logDest: string | undefined, taskName: string) {
-    const fallback = join(getBuilderLogRoot(), 'log', `${taskName.replace(/[\\/:*?"<>|]/g, '_')}-${Date.now()}.log`);
+// Log filename: {platform}-{action}-{timestamp}.log
+// e.g. google-play-build-1234567890.log, google-play-make-1234567890.log, google-play-bundle-build-1234567890.log
+function normalizeBuildLogDest(logDest: string | undefined, taskName: string, platform?: string) {
+    const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, '_');
+    const sanitizedTask = sanitize(taskName);
+    const sanitizedPlatform = platform ? sanitize(platform) : undefined;
+    const label = platform === taskName ? 'build' : sanitizedTask;
+    const parts = sanitizedPlatform ? [sanitizedPlatform, label, `${Date.now()}`] : [sanitizedTask, `${Date.now()}`];
+    const fallback = join(getBuilderLogRoot(), 'log', `${parts.join('-')}.log`);
     let resolvedLogDest = logDest ? utils.Path.resolveToRaw(logDest) : fallback;
     if (!isAbsolute(resolvedLogDest)) {
         resolvedLogDest = join(builderConfig.projectRoot, resolvedLogDest);
@@ -46,7 +53,7 @@ function normalizeBuildLogDest(logDest: string | undefined, taskName: string) {
 function ensureBuildLogSink(options: { logDest?: string; taskName?: string; platform?: string }, fallbackTaskName: string, logDest?: string) {
     const taskName = options.taskName || fallbackTaskName;
     options.taskName = taskName;
-    options.logDest = normalizeBuildLogDest(logDest || options.logDest, taskName);
+    options.logDest = normalizeBuildLogDest(logDest || options.logDest, taskName, options.platform);
     newConsole.record(options.logDest);
     return options.logDest;
 }
@@ -129,12 +136,12 @@ export async function createBundleBuildTask(bundleOptions: IBundleBuildOptions) 
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData> {
     const startTime = Date.now();
     const options = bundleOptions.buildTaskOptions;
-    const tasksLabel = bundleOptions.taskName || 'bundle Build';
+    const tasksLabel = bundleOptions.taskName || 'bundle-build';
     const taskStartTime = Date.now();
     const restoreLogSink = newConsole.createLogSinkRestorer();
 
     try {
-        bundleOptions.logDest = ensureBuildLogSink(options, tasksLabel, bundleOptions.logDest);
+        bundleOptions.logDest = ensureBuildLogSink({ platform: options.platform }, tasksLabel, bundleOptions.logDest);
         newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
         console.debug('Start build task, options:', options);
         newConsole.trackMemoryStart(`builder:build-bundle-total`);
@@ -222,7 +229,7 @@ function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, opti
 
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     if (!options.taskName) {
-        options.taskName = stageName + ' build';
+        options.taskName = stageName;
     }
     const restoreLogSink = newConsole.createLogSinkRestorer();
     ensureBuildLogSink(options, options.taskName, options.logDest);
