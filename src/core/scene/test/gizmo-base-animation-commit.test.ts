@@ -37,6 +37,7 @@ describe('GizmoBase animation property commit event', () => {
         const { globalEventEmitter } = require('../scene-process/service/core/global-events');
         globalEventEmitter.removeAllListeners('gizmo:control-end');
         globalEventEmitter.removeAllListeners('animation:property-committed');
+        globalEventEmitter.removeAllListeners('node:change');
         globalEventEmitter.on('gizmo:control-end', (payload: unknown) => {
             broadcasts.push(['gizmo:control-end', payload]);
         });
@@ -55,6 +56,7 @@ describe('GizmoBase animation property commit event', () => {
         const { globalEventEmitter } = require('../scene-process/service/core/global-events');
         globalEventEmitter.removeAllListeners('gizmo:control-end');
         globalEventEmitter.removeAllListeners('animation:property-committed');
+        globalEventEmitter.removeAllListeners('node:change');
     });
 
     it('broadcasts normalized committed property payload on control end', async () => {
@@ -146,5 +148,27 @@ describe('GizmoBase animation property commit event', () => {
             propPath: 'position',
             source: 'engine',
         }]);
+    });
+
+    it('emits a component-changed node event when a component gizmo updates data', () => {
+        const { globalEventEmitter } = require('../scene-process/service/core/global-events');
+        const { NodeEventType } = require('../common');
+        const changes: unknown[][] = [];
+        globalEventEmitter.on('node:change', (...args: unknown[]) => {
+            changes.push(args);
+        });
+        const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
+        class TestGizmo extends GizmoBase {
+            emitComponentChanged(node: any) {
+                this.onComponentChanged(node);
+            }
+        }
+        const node = { uuid: 'Light' };
+
+        new (TestGizmo as any)(null).emitComponentChanged(node);
+
+        expect(changes).toEqual([
+            [node, { type: NodeEventType.COMPONENT_CHANGED }],
+        ]);
     });
 });
