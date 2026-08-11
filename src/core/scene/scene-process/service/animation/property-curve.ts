@@ -365,16 +365,29 @@ function applyPropertyMetadata(
 
 function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operation: IPropertyTarget): string | null {
     const nodePath = normalizePath(operation.nodePath || '');
-    if (!nodePath) {
-        return '';
+    if (nodePath) {
+        const rootPath = normalizePath(context.rootPath);
+        if (nodePath === rootPath) {
+            return '';
+        }
+        if (rootPath && nodePath.startsWith(`${rootPath}/`)) {
+            return nodePath.slice(rootPath.length + 1);
+        }
+        return context.rootNode.getChildByPath(nodePath) ? nodePath : null;
     }
+    return operation.nodeUuid ? findRelativeNodePathByUuid(context.rootNode, operation.nodeUuid) : '';
+}
 
-    const rootPath = normalizePath(context.rootPath);
-    if (nodePath === rootPath) {
-        return '';
+function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
+    if (node.uuid === uuid) {
+        return prefix;
     }
-    if (rootPath && nodePath.startsWith(`${rootPath}/`)) {
-        return nodePath.slice(rootPath.length + 1);
+    for (const child of node.children) {
+        const path = prefix ? `${prefix}/${child.name}` : child.name;
+        const result = findRelativeNodePathByUuid(child, uuid, path);
+        if (result !== null) {
+            return result;
+        }
     }
-    return context.rootNode.getChildByPath(nodePath) ? nodePath : null;
+    return null;
 }

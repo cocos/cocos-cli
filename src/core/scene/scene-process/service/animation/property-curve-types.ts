@@ -12,6 +12,7 @@ export type AnyCurve = ReturnType<AnyTrack['channels']> extends Iterable<infer T
 
 export interface IPropertyTarget {
     nodePath?: string;
+    nodeUuid?: string;
     propKey: string;
 }
 

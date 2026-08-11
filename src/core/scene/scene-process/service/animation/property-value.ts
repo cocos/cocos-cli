@@ -42,13 +42,17 @@ export async function normalizeProvidedAnimationPropertyOperationValue(
     rootNode: Node,
     rootPath: string,
     operation: PropertyKeyOperation,
+    options: {
+        queryNodeByUuid: (uuid: string) => Node | null;
+        queryNodePath: (node: Node) => string;
+    },
 ): Promise<IAnimationValue> {
     const value = operation.value;
     if (value === null || value === undefined) {
         return value as IAnimationValue;
     }
 
-    const nodePath = resolveOperationRelativeNodePath(rootNode, rootPath, operation);
+    const nodePath = resolveOperationRelativeNodePath(rootNode, rootPath, operation, options);
     if (nodePath === null) {
         return value;
     }
@@ -84,9 +88,17 @@ async function normalizeProvidedAnimationPropertyValue(
 function resolveOperationRelativeNodePath(
     rootNode: Node,
     rootPath: string,
-    operation: { nodePath?: string },
+    operation: { nodeUuid?: string; nodePath?: string },
+    options: { queryNodeByUuid: (uuid: string) => Node | null; queryNodePath: (node: Node) => string },
 ): string | null {
-    return toRelativeNodePath(rootNode, rootPath, operation.nodePath || '');
+    if (operation.nodePath) {
+        return toRelativeNodePath(rootNode, rootPath, operation.nodePath);
+    }
+    const node = options.queryNodeByUuid(operation.nodeUuid || '');
+    if (node) {
+        return toRelativeNodePath(rootNode, rootPath, options.queryNodePath(node));
+    }
+    return toRelativeNodePath(rootNode, rootPath, '');
 }
 
 function toRelativeNodePath(rootNode: Node, rootPath: string, nodePath: string): string | null {

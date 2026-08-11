@@ -66,6 +66,20 @@ describe('saveAnimationServiceClip', () => {
         }]);
     });
 
+    it('forwards a Windows Save As path without rewriting it', async () => {
+        const target = 'C:\\project\\assets\\anims\\RunCopy.anim';
+        mockRequest.mockResolvedValueOnce({ uuid: 'new-clip-uuid', url: 'db://assets/anims/RunCopy.anim' });
+
+        await expect(saveAnimationServiceClip({
+            session: { clipUuid: 'clip-uuid' },
+            rootNode: {},
+            clip: { name: 'Run' },
+            target,
+        })).resolves.toBe(true);
+
+        expect(mockRequest).toHaveBeenCalledWith('assetManager', 'createAsset', [expect.objectContaining({ target })]);
+    });
+
     it('fails instead of creating a clip at a hard-coded fallback path when asset info is missing', async () => {
         mockRequest.mockResolvedValueOnce(null);
 

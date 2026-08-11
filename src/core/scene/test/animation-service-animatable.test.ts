@@ -637,6 +637,19 @@ describe('AnimationService animatable property metadata', () => {
         expect(dumpPropertyCurves(clip)).toEqual(expect.arrayContaining([
             expect.objectContaining({ nodePath: 'Body', key: 'active' }),
         ]));
+
+        const legacyClip = new AnimationClip();
+        expect(addPropertyCurve(legacyClip, context, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodeUuid: replacement.uuid,
+            propKey: 'active',
+            value: true,
+        })).toBe(true);
+        expect(parsePropertyTrack(legacyClip._tracks[0])).toMatchObject({
+            nodePath: 'Body',
+            descriptor: { propKey: 'active' },
+        });
     });
 
     it('parsePropertyTrack 忽略没有 path 的引擎轨道', () => {

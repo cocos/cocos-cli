@@ -6,7 +6,11 @@ import type {
     IAnimationValue,
 } from '../../../common';
 import { normalizeProvidedAnimationPropertyOperationValue } from './property-value';
-import { extractSampledOperationValue } from './scene-node';
+import {
+    extractSampledOperationValue,
+    getNodeByUuid,
+    getNodePath,
+} from './scene-node';
 
 type PropertyKeyOperation = Extract<IAnimationOperation, { type: 'createPropertyKey' | 'updatePropertyKey' }>;
 
@@ -40,7 +44,10 @@ async function normalizePropertyKeyOperation(
 ): Promise<IAnimationOperation | IAnimationOperationResult> {
     const keyData = operation.keyData ?? operation.curveData;
     if (operation.value !== undefined) {
-        const value = await normalizeProvidedAnimationPropertyOperationValue(context.rootNode, context.rootPath, operation);
+        const value = await normalizeProvidedAnimationPropertyOperationValue(context.rootNode, context.rootPath, operation, {
+            queryNodeByUuid: getNodeByUuid,
+            queryNodePath: getNodePath,
+        });
         return { ...operation, keyData, value };
     }
     if (operation.type === 'updatePropertyKey' && keyData) {
@@ -55,6 +62,7 @@ async function normalizePropertyKeyOperation(
         const sampled = await context.queryPropertyValueAtFrame({
             clipUuid: operation.clipUuid || context.currentClipUuid,
             nodePath: operation.nodePath,
+            nodeUuid: operation.nodeUuid,
             propKey: operation.propKey,
             frame: operation.frame,
         });

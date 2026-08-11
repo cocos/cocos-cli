@@ -94,7 +94,13 @@ export function resolveAnimationFrameQueryNode(options: IAnimationQueryPropertyV
         if (nodeByPath) {
             return nodeByPath;
         }
-    } else {
+    }
+
+    const nodeByUuid = getNodeByUuid(options.nodeUuid || '');
+    if (nodeByUuid) {
+        return nodeByUuid;
+    }
+    if (!options.nodePath) {
         const rootNode = getNodeByPath(session.rootPath);
         if (rootNode) {
             return rootNode;
