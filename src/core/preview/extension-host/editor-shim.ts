@@ -1,4 +1,5 @@
 import { compressUUID, decompressUUID } from '../../base/utils/uuid';
+import { ensureEditorProjectPath } from '../../base/editor-shim';
 import { MessageBus } from './message-bus';
 import { ProfileStore } from './profile-store';
 
@@ -18,12 +19,12 @@ export interface EditorShimContext {
 export function installEditorShim(ctx: EditorShimContext): void {
     const g = globalThis as any;
     if (g.Editor && g.Editor.__cliExtensionHost) {
-        g.Editor.Project.path = ctx.projectPath;
+        ensureEditorProjectPath(ctx.projectPath);
         return;
     }
     g.Editor = {
         __cliExtensionHost: true,
-        Project: { path: ctx.projectPath },
+        Project: {},
         Message: {
             request: (domain: string, message: string, ...args: any[]) => ctx.bus.dispatch(domain, message, ...args),
             send: (domain: string, message: string, ...args: any[]) => { void ctx.bus.dispatch(domain, message, ...args); },
@@ -47,4 +48,5 @@ export function installEditorShim(ctx: EditorShimContext): void {
         Metrics: { trackEvent: () => { /* no-op */ } },
         Panel: { open: () => { /* no-op */ }, close: () => { /* no-op */ } },
     };
+    ensureEditorProjectPath(ctx.projectPath);
 }
