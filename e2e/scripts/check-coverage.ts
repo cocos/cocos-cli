@@ -1,7 +1,7 @@
 /**
  * 检查 E2E 测试覆盖率
  * 
- * 通过 toolRegistry 扫描所有已注册的 MCP 工具和 E2E 测试文件，检查哪些 API 缺少 E2E 测试。
+ * 通过 API 源码扫描 MCP 工具定义和 E2E 测试文件，检查哪些 API 缺少 E2E 测试。
  * 
  * 用法：
  *   npx tsx e2e/scripts/check-coverage.ts
@@ -10,7 +10,7 @@
 import * as fs from 'fs';
 import * as glob from 'glob';
 import * as path from 'path';
-import { scanToolsFromRegistry, extendToolInfo } from './tool-utils';
+import { scanToolsFromSource, extendToolInfo } from './tool-utils';
 
 interface ApiTool {
     name: string;
@@ -30,14 +30,13 @@ interface TestReference {
 const E2E_TEST_DIRS = ['e2e'];
 
 /**
- * 扫描所有 MCP 工具定义 (通过 toolRegistry)
+ * 扫描所有 MCP 工具定义 (通过 API 源码)
  * 
- * 这个方法与 mcp.middleware.ts 中的实现保持一致，
- * 确保统计的工具数量与实际注册的 MCP 工具一致。
+ * 覆盖率统计只需要工具名、方法名和描述信息，不需要启动运行时服务。
  */
 async function scanApiTools(): Promise<ApiTool[]> {
     // 使用共享的工具扫描函数
-    const baseTools = await scanToolsFromRegistry();
+    const baseTools = scanToolsFromSource();
 
     // 转换为 ApiTool 格式，添加类别字段
     return baseTools.map(tool => {
@@ -698,7 +697,7 @@ async function main() {
     const outputJson = args.includes('--json');
     const shouldSaveReport = args.includes('--save') || args.includes('--report') || args.includes('--html');
 
-    console.log('🔍 扫描 MCP API 工具定义 (通过 toolRegistry)...\n');
+    console.log('🔍 扫描 MCP API 工具定义 (通过 API 源码)...\n');
     const tools = await scanApiTools();
     console.log(`✅ 找到 ${tools.length} 个 MCP 工具\n`);
 
