@@ -81,10 +81,6 @@ class WanderMode extends ModeBase3D {
 
         this._curMouseDX = 0;
         this._curMouseDY = 0;
-        this._wanderKeyDown = false;
-        this._shiftKey = false;
-        this._wanderSpeedTarget = 0;
-        this._wanderAnim.value = new Vec3();
 
         try {
             const { Service } = require('../../core/decorator');
