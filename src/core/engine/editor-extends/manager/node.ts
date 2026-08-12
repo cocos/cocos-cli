@@ -2,13 +2,13 @@
 
 import type { Node } from 'cc';
 import { EventEmitter } from 'events';
+import findLast from 'lodash/findLast';
 
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
 import pathManager from './node-path-manager';
 import { validateNodeName } from './path-utils';
 
-const lodash = require('lodash');
 
 export default class NodeManager extends EventEmitter {
     // 当前在场景树中的节点集合,包括在层级管理器中隐藏的
@@ -252,7 +252,7 @@ export default class NodeManager extends EventEmitter {
                 }
 
                 if (isAsset || isScript) {
-                    const node = lodash.findLast(parsedObjects, (item: any) => item instanceof cc.Node);
+                    const node = findLast(parsedObjects, (item: any) => item instanceof cc.Node);
 
                     if (node && !nodesUuid.includes(node.uuid)) {
                         nodesUuid.push(node.uuid);
