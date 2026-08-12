@@ -142,6 +142,7 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
 
     try {
         bundleOptions.logDest = ensureBuildLogSink({ platform: options.platform }, tasksLabel, bundleOptions.logDest);
+        options.logDest = bundleOptions.logDest;
         newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
         console.debug('Start build task, options:', options);
         newConsole.trackMemoryStart(`builder:build-bundle-total`);

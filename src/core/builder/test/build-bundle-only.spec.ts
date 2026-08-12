@@ -96,6 +96,7 @@ describe('buildBundleOnly', () => {
         expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]google-play-my-bundle-/);
         expect(logDest).toMatch(/\.log$/);
         expect(buildTaskOptions.taskName).toBe('google-play');
+        expect(buildTaskOptions.logDest).toBe(logDest);
     });
 
     it('falls back to bundle-build when bundleOptions.taskName is empty', async () => {
@@ -117,5 +118,6 @@ describe('buildBundleOnly', () => {
         expect(logDest).toMatch(/temp[\\/]builder[\\/]log[\\/]google-play-bundle-build-/);
         expect(logDest).toMatch(/\.log$/);
         expect(buildTaskOptions.taskName).toBe('google-play');
+        expect(buildTaskOptions.logDest).toBe(logDest);
     });
 });
