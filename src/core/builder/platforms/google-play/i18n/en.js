@@ -31,6 +31,7 @@ module.exports = {
         upsideDown: 'Upside Down',
         app_bundle: 'App Bundle',
         google_play_instant: 'Google Play Instant',
+        google_play_billing: 'Google Play Billing',
         input_sdk: 'Input SDK',
         remoteUrl: 'Remote URL',
     },

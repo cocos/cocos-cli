@@ -23,7 +23,21 @@ export interface ICustomIconInfo {
 }
 
 function defaultIconRoot(): string {
-    return join(__dirname, '../static/icons');
+    const sourceRoot = join(__dirname, '../static/icons');
+    if (hasDefaultIcon(sourceRoot)) {
+        return sourceRoot;
+    }
+
+    const distViewRoot = join(__dirname, '../../static/icons');
+    if (hasDefaultIcon(distViewRoot)) {
+        return distViewRoot;
+    }
+
+    return sourceRoot;
+}
+
+function hasDefaultIcon(base: string): boolean {
+    return existsSync(join(base, 'mipmap-mdpi', 'ic_launcher.png'));
 }
 
 function getCustomIconRoot(projectRoot: string, outputName: string): string {

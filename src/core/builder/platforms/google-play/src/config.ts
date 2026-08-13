@@ -67,6 +67,7 @@ const config: IPlatformBuildPluginConfig = {
                 gles3: true,
                 gles2: true,
             },
+            hidden: true,
         },
         packageName: {
             label: 'i18n:google-play.options.package_name',
@@ -94,8 +95,8 @@ const config: IPlatformBuildPluginConfig = {
                     type: 'boolean',
                     default: true,
                 },
-                'arm-v7a': {
-                    label: 'arm-v7a',
+                'armeabi-v7a': {
+                    label: 'armeabi-v7a',
                     type: 'boolean',
                     default: false,
                 },
@@ -116,6 +117,7 @@ const config: IPlatformBuildPluginConfig = {
                 x86: false,
                 x86_64: false,
             },
+            hidden: true,
         },
         useDebugKeystore: {
             label: 'i18n:google-play.KEYSTORE.use_debug_keystore',
@@ -184,6 +186,7 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeRight: true,
                 landscapeLeft: true,
             },
+            hidden: true,
         },
         appBundle: {
             label: 'i18n:google-play.options.app_bundle',
@@ -197,14 +200,16 @@ const config: IPlatformBuildPluginConfig = {
             default: false,
         },
         googleBilling: {
-            label: 'i18n:google-play.tips.google_play_billing',
+            label: 'i18n:google-play.options.google_play_billing',
             type: 'boolean',
             default: true,
+            hidden: true,
         },
         inputSDK: {
             label: 'i18n:google-play.options.input_sdk',
             type: 'boolean',
             default: false,
+            hidden: true,
         },
         remoteUrl: {
             label: 'i18n:google-play.options.remoteUrl',
