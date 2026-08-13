@@ -68,7 +68,16 @@ describe('scene-process engine bootstrap', () => {
             .mockResolvedValueOnce({
                 json: async () => ({
                     overrideSettings: {
+                        engine: {
+                            builtinAssets: ['engine-builtin'],
+                        },
                         rendering: {},
+                        assets: {
+                            server: 'http://localhost:7456',
+                            importBase: 'scripting/asset-library',
+                            nativeBase: 'scripting/asset-library',
+                            remoteBundles: ['internal', 'main'],
+                        },
                     },
                 }),
             })
@@ -125,6 +134,7 @@ describe('scene-process engine bootstrap', () => {
                 loadAny: jest.fn(),
                 loadBundle: jest.fn((_url: string, callback: Function) => callback(null, {})),
                 getBundle: jest.fn(() => null),
+                removeBundle: jest.fn(),
                 downloader: {
                     appendTimeStamp: true,
                 },
@@ -158,7 +168,7 @@ describe('scene-process engine bootstrap', () => {
         }));
     });
 
-    it('applies scene editor asset settings to cc.game.init', async () => {
+    it('keeps engine asset settings when querying scene editor settings', async () => {
         await startup({ serverURL: 'http://localhost:7456' });
 
         expect(global.fetch).toHaveBeenCalledWith(
@@ -169,14 +179,12 @@ describe('scene-process engine bootstrap', () => {
             overrideSettings: expect.objectContaining({
                 assets: expect.objectContaining({
                     server: 'http://localhost:7456',
-                    importBase: 'assets/general/import',
-                    nativeBase: 'assets/general/native',
-                    remoteBundles: [],
-                    subpackages: [],
-                    preloadBundles: [{ bundle: 'main' }],
+                    importBase: 'scripting/asset-library',
+                    nativeBase: 'scripting/asset-library',
+                    remoteBundles: ['internal', 'main'],
                 }),
                 engine: expect.objectContaining({
-                    builtinAssets: ['builtin-material'],
+                    builtinAssets: ['engine-builtin'],
                 }),
             }),
         }));
@@ -219,5 +227,42 @@ describe('scene-process engine bootstrap', () => {
         );
         expect((globalThis as any).cc.assetManager.downloader.appendTimeStamp).toBe(true);
         expect((globalThis as any).cc.assetManager.loadAny).not.toHaveBeenCalled();
+    });
+
+    it('keeps the existing internal bundle while loading scene editor bundles', async () => {
+        const internalBundle = { name: 'internal' };
+        (globalThis as any).cc.assetManager.getBundle = jest.fn((name: string) => {
+            return name === 'internal' ? internalBundle : null;
+        });
+        (global.fetch as jest.Mock).mockReset()
+            .mockResolvedValueOnce({
+                json: async () => ({
+                    overrideSettings: {
+                        rendering: {},
+                    },
+                }),
+            })
+            .mockResolvedValueOnce({
+                json: async () => ['base'],
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    settings: { assets: {} },
+                    bundleConfigs: [
+                        { name: 'resources', deps: ['internal'] },
+                        { name: 'internal', deps: [] },
+                    ],
+                }),
+            });
+
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect((globalThis as any).cc.assetManager.removeBundle).not.toHaveBeenCalledWith(internalBundle);
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenCalledTimes(1);
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenCalledWith(
+            'http://localhost:7456/scene-editor/assets/resources',
+            expect.any(Function),
+        );
     });
 });

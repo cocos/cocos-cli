@@ -5,7 +5,7 @@ import { Service as DecoratorService } from './service/core/decorator';
 import { messageManager } from './service/message';
 import { initLocalI18n } from './i18n';
 import { CUSTOM_PIPELINE_MODULE } from '../../engine/graphics-config';
-import { applySceneEditorAssetSettings, fetchSceneEditorSettings, syncSceneEditorBundles } from './scene-editor-assets';
+import { fetchSceneEditorSettings, syncSceneEditorBundles } from './scene-editor-assets';
 
 import './service';
 
@@ -39,7 +39,6 @@ export async function startup(options: {
         config.overrideSettings.rendering.effectSettingsPath = `${serverURL}/scripting/engine/effect-settings`;
     }
     const sceneEditorSettings = await fetchSceneEditorSettings(serverURL);
-    applySceneEditorAssetSettings(config, serverURL, sceneEditorSettings?.settings);
 
     serviceManager.initialize(serverURL);
 

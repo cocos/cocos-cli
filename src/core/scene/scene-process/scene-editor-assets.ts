@@ -6,6 +6,7 @@ export interface ISceneEditorSettings {
 }
 
 let bundleConfigSignature = '';
+const INTERNAL_BUNDLE_NAME = 'internal';
 
 export async function fetchSceneEditorSettings(serverURL: string): Promise<ISceneEditorSettings | null> {
     try {
@@ -19,28 +20,6 @@ export async function fetchSceneEditorSettings(serverURL: string): Promise<IScen
     } catch (err) {
         console.warn('[scene-editor-assets] Failed to query settings:', err);
         return null;
-    }
-}
-
-export function applySceneEditorAssetSettings(config: Record<string, any>, serverURL: string, sceneSettings?: Record<string, any>): void {
-    const assets = sceneSettings?.assets;
-    if (assets) {
-        config.overrideSettings.assets = {
-            ...assets,
-            server: serverURL,
-            importBase: 'assets/general/import',
-            nativeBase: 'assets/general/native',
-            remoteBundles: [],
-            subpackages: [],
-        };
-    }
-
-    const builtinAssets = sceneSettings?.engine?.builtinAssets;
-    if (Array.isArray(builtinAssets)) {
-        config.overrideSettings.engine = {
-            ...config.overrideSettings.engine,
-            builtinAssets,
-        };
     }
 }
 
@@ -76,6 +55,9 @@ export async function syncSceneEditorBundles(
     }
 
     for (const name of configMap.keys()) {
+        if (name === INTERNAL_BUNDLE_NAME) {
+            continue;
+        }
         const bundle = cc.assetManager.getBundle?.(name);
         if (bundle && cc.assetManager.removeBundle) {
             cc.assetManager.removeBundle(bundle);
@@ -87,6 +69,10 @@ export async function syncSceneEditorBundles(
 
     async function loadByName(name: string): Promise<void> {
         if (!name || loaded.has(name) || loading.has(name)) {
+            return;
+        }
+        if (name === INTERNAL_BUNDLE_NAME && cc.assetManager.getBundle?.(INTERNAL_BUNDLE_NAME)) {
+            loaded.add(name);
             return;
         }
         loading.add(name);
