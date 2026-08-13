@@ -1136,7 +1136,7 @@ describe('Animation Service 场景进程测试', () => {
                 ],
                 recordUndo: false,
             }]);
-            expect(firstResult).toEqual({ state: 'success', result: true });
+            expect(firstResult).toEqual({ state: 'success', result: true, undoRecorded: false });
 
             const rejected = await request('applyOperations', [{
                 operations: [
@@ -1157,7 +1157,7 @@ describe('Animation Service 场景进程测试', () => {
                 ],
                 recordUndo: false,
             }]);
-            expect(secondResult).toEqual({ state: 'success', result: true });
+            expect(secondResult).toEqual({ state: 'success', result: true, undoRecorded: false });
 
             const dump = await request('queryClip', [{ rootPath, clipUuid: duplicateClipUuid }]);
             const curve = dump.curves.find((item: any) => item.nodePath === duplicateName && item.key === 'position');

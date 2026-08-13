@@ -1,3 +1,5 @@
+export {};
+
 const mockNormalizeProvidedValue = jest.fn();
 const mockExtractSampledValue = jest.fn();
 
