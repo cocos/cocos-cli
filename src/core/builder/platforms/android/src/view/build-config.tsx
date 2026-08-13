@@ -17,6 +17,10 @@ interface NativeEngineInfo {
     path?: string;
 }
 
+type AppABI = 'armeabi-v7a' | 'arm64-v8a' | 'x86' | 'x86_64';
+
+const APP_ABIS: AppABI[] = ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'];
+
 const MAX_ASPECT_RATIO_OPTIONS = [
     { label: '2.4 (12:5)', value: '2.4' },
     { label: '1.77 (16:9)', value: '16:9' },
@@ -42,6 +46,7 @@ const DEFAULTS: Record<string, unknown> = {
     xxteaKey: createEncryptionKey(),
     compressZip: false,
     JobSystem: 'none',
+    appABIs: ['arm64-v8a'],
 };
 
 const ROW: CSSProperties = { padding: '2px 16px 6px 0px' };
@@ -121,6 +126,13 @@ function boolValue(value: unknown, fallback = false): boolean {
 function numberValue(value: unknown, fallback: number): number {
     const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10);
     return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function appABIsValue(value: unknown): AppABI[] {
+    if (!Array.isArray(value)) {
+        return ['arm64-v8a'];
+    }
+    return value.filter((item): item is AppABI => APP_ABIS.includes(item as AppABI));
 }
 
 function parseAspectRatio(value: string): number {
@@ -224,6 +236,28 @@ function TextField({
     );
 }
 
+function CheckboxLine({
+    checked,
+    disabled,
+    label,
+    tooltip,
+    onChange,
+}: {
+    key?: unknown;
+    checked: boolean;
+    disabled?: boolean;
+    label?: string;
+    tooltip?: string;
+    onChange: (value: boolean) => void;
+}) {
+    return (
+        <label style={{ ...INLINE, minHeight: 22 }} title={tooltip}>
+            <Checkbox checked={checked} disabled={disabled} onCheckedChange={(next: boolean) => onChange(!!next)} />
+            {label && <span>{label}</span>}
+        </label>
+    );
+}
+
 export default function AndroidBuildView({ value, onChange, bridge, commonValue }: PlatformBuildViewProps) {
     const [bundle, setBundle] = useState<Record<string, unknown>>({});
     const [apiLevels, setApiLevels] = useState<number[]>([]);
@@ -240,6 +274,7 @@ export default function AndroidBuildView({ value, onChange, bridge, commonValue 
     const isDebugMode = boolValue(commonValue?.debug);
     const maxAspectRatio = stringValue(current.maxAspectRatio);
     const jobSystem = stringValue(current.JobSystem) || 'none';
+    const appABIs = appABIsValue(current.appABIs);
     const inferredMaxAspectRatioMode = maxAspectRatioSelection(maxAspectRatio);
     const selectedMaxAspectRatioMode = maxAspectRatioMode || inferredMaxAspectRatioMode;
 
@@ -314,6 +349,9 @@ export default function AndroidBuildView({ value, onChange, bridge, commonValue 
         } else if (apiLevel < 19) {
             next.apiLevel = t('tips.apilevel_limit', { version: '19' });
         }
+        if (!appABIs.length) {
+            next.appABIs = t('tips.at_least_one');
+        }
 
         const normalized = normalizeAspectRatio(maxAspectRatio);
         const ratio = parseAspectRatio(normalized);
@@ -339,8 +377,12 @@ export default function AndroidBuildView({ value, onChange, bridge, commonValue 
             next.xxteaKey = t('tips.not_empty');
         }
         return next;
-    }, [apiLevels.length, androidInstant, bundle, current, encrypted, jobSystem, maxAspectRatio, t, useDebugKeystore]);
+    }, [apiLevels.length, androidInstant, appABIs, bundle, current, encrypted, jobSystem, maxAspectRatio, t, useDebugKeystore]);
 
+    const toggleAbi = (abi: AppABI, checked: boolean) => {
+        const next = checked ? [...appABIs, abi] : appABIs.filter((item) => item !== abi);
+        set('appABIs', Array.from(new Set(next)));
+    };
     const setUseDebugKeystore = (checked: boolean) => {
         set('useDebugKeystore', checked);
         if (checked) {
@@ -446,6 +488,17 @@ export default function AndroidBuildView({ value, onChange, bridge, commonValue 
                     </div>
                 </TypedField>
                 {errors.apiLevel && <div style={ERROR}>{errors.apiLevel}</div>}
+            </div>
+
+            <div style={ROW}>
+                <TypedField label="APP ABI" tooltip={t('tips.appABIs')}>
+                    <div style={STACK}>
+                        {APP_ABIS.map((abi) => (
+                            <CheckboxLine key={abi} checked={appABIs.includes(abi)} label={abi} onChange={(checked) => toggleAbi(abi, checked)} />
+                        ))}
+                    </div>
+                </TypedField>
+                {errors.appABIs && <div style={ERROR}>{errors.appABIs}</div>}
             </div>
 
             <div style={ROW}>

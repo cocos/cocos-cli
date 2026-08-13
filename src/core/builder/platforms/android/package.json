@@ -19,6 +19,7 @@
             "customFields": [
                 "isSoFileCompressed",
                 "androidInstant",
+                "appABIs",
                 "apiLevel",
                 "keystorePath",
                 "useDebugKeystore",
