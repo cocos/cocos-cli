@@ -6,6 +6,7 @@ import { spawn, spawnSync } from 'child_process';
 import { platform } from 'os';
 import * as xml2js from 'xml2js';
 import NativePackTool, { CocosParams } from '../base/default';
+import { cleanBrokenGradleWrapperCache } from './gradle-utils';
 
 export interface IOrientation {
     landscapeLeft: boolean;
@@ -140,6 +141,7 @@ export default class GooglePlayPackTool extends NativePackTool {
         if (!fs.existsSync(projDir)) {
             throw new Error(`dir ${projDir} not exits`);
         }
+        cleanBrokenGradleWrapperCache(projDir, 'GooglePlay');
         let gradle = 'gradlew';
         if (process.platform === 'win32') {
             gradle += '.bat';
