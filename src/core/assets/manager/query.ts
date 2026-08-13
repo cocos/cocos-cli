@@ -14,6 +14,16 @@ import utils from '../../base/utils';
 import { existsSync, readJSONSync, readdirSync } from 'fs-extra';
 import * as path from 'path';
 
+export const DEFAULT_ASSET_INFO_DATA_KEYS = [
+    'subAssets',
+    'displayName',
+] as const satisfies readonly (keyof IAssetInfo)[];
+
+export const ASSET_TREE_INFO_DATA_KEYS = [
+    ...DEFAULT_ASSET_INFO_DATA_KEYS,
+    'extends',
+] as const satisfies readonly (keyof IAssetInfo)[];
+
 declare global {
     var assetQuery: AssetQueryManager;
 }
@@ -137,7 +147,7 @@ class AssetQueryManager {
         return null;
     }
 
-    queryAssetInfo(urlOrUUIDOrPath: string, dataKeys?: (keyof IAssetInfo)[]): IAssetInfo | null {
+    queryAssetInfo(urlOrUUIDOrPath: string, dataKeys?: readonly (keyof IAssetInfo)[]): IAssetInfo | null {
         if (!urlOrUUIDOrPath || typeof urlOrUUIDOrPath !== 'string') {
             throw new Error('parameter error');
         }
@@ -177,7 +187,7 @@ class AssetQueryManager {
      * @param uuid 资源的唯一标识符
      * @param dataKeys 资源输出可选项
      */
-    queryAssetInfoByUUID(uuid: string, dataKeys?: (keyof IAssetInfo)[]): IAssetInfo | null {
+    queryAssetInfoByUUID(uuid: string, dataKeys?: readonly (keyof IAssetInfo)[]): IAssetInfo | null {
         if (!uuid) {
             return null;
         }
@@ -195,7 +205,7 @@ class AssetQueryManager {
      * @param options 搜索配置
      * @param dataKeys 指定需要的资源信息字段
      */
-    queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): IAssetInfo[] {
+    queryAssetInfos(options?: QueryAssetsOption, dataKeys?: readonly (keyof IAssetInfo)[]): IAssetInfo[] {
         let allAssets: IAsset[] = [];
         const dbInfos: IAssetInfo[] = [];
         // 循环每一个已经启动的 database
@@ -323,7 +333,7 @@ class AssetQueryManager {
      * @param asset
      * @param invalid 是否是无效的资源，例如已被删除的资源
      */
-    encodeAsset(asset: IAsset, dataKeys: (keyof IAssetInfo)[] = ['subAssets', 'displayName'], invalid = false) {
+    encodeAsset(asset: IAsset, dataKeys: readonly (keyof IAssetInfo)[] = DEFAULT_ASSET_INFO_DATA_KEYS, invalid = false) {
         let name = '';
         let source = '';
         let file = '';

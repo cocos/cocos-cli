@@ -23,6 +23,7 @@ const mockAddTask = jest.fn(async (func: Function, args: any[]) => await func(..
 const mockGetCreateMenuByName = jest.fn();
 const mockCreateAssetByHandler = jest.fn();
 const mockSaveAssetByHandler = jest.fn();
+const mockAssetTreeInfoDataKeys = ['subAssets', 'displayName', 'extends'] as const;
 const { dirname, join } = require('path') as typeof import('path');
 
 jest.mock('fs-extra', () => ({
@@ -120,6 +121,7 @@ jest.mock('../asset-config', () => ({
 
 jest.mock('../manager/query', () => ({
     __esModule: true,
+    ASSET_TREE_INFO_DATA_KEYS: mockAssetTreeInfoDataKeys,
     default: {
         queryAsset: (...args: any[]) => mockQueryAsset(...args),
         encodeAsset: jest.fn((asset) => ({ source: asset.source })),
@@ -260,6 +262,21 @@ describe('asset operation filesystem bridge', () => {
         expect(mockReimport).toHaveBeenCalledWith(requestPath);
         expect(mockQueryAsset).not.toHaveBeenCalled();
         expect(result).toEqual({ source: asset.source });
+    });
+
+    it('reimportAsset serializes the asset tree metadata contract', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+        const asset = {
+            imported: true,
+            invalid: false,
+            source: 'D:/project/assets/Texture.png',
+        };
+        mockReimport.mockResolvedValue(asset);
+
+        await assetOperation.reimportAsset('texture-uuid');
+
+        expect(assetQuery.encodeAsset).toHaveBeenCalledWith(asset, ['subAssets', 'displayName', 'extends']);
     });
 
     it('reimportAsset still reports a genuinely missing asset', async () => {

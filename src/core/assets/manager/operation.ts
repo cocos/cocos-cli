@@ -15,7 +15,7 @@ import assetHandlerManager from './asset-handler';
 import { copyAssetSource } from './asset-copy';
 import { copyPath, moveAssetSource, removeAssetSource, renamePath } from './filesystem';
 import i18n from '../../base/i18n';
-import assetQuery from './query';
+import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
 import utils from '../../base/utils';
 import EventEmitter from 'events';
 import { mergeMeta } from '../asset-handler/utils';
@@ -705,7 +705,7 @@ class AssetOperation extends EventEmitter {
         if (!asset.imported || asset.invalid) {
             throw asset.importError || new Error(`Reimport asset ${asset.source} failed`);
         }
-        return assetQuery.encodeAsset(asset);
+        return assetQuery.encodeAsset(asset, ASSET_TREE_INFO_DATA_KEYS);
     }
 
     /**

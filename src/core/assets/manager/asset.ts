@@ -4,7 +4,7 @@ import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
 import { AssetManagerEvents, IAsset, IAssetInfo, IAssetDBInfo } from '../@types/private';
 import type { ThumbnailInfo, ThumbnailSize } from '../@types/protected/asset-handler';
-import assetQuery from './query';
+import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
 import animationGraphVariant from '../animation-graph-variant';
@@ -151,7 +151,7 @@ class AssetManager extends EventEmitter {
         if (!asset || !asset.uuid) {
             return null;
         }
-        return assetManager.queryAssetInfo(asset.uuid, ['subAssets', 'displayName', 'extends']);
+        return assetManager.queryAssetInfo(asset.uuid, ASSET_TREE_INFO_DATA_KEYS);
     }
 
     private _snapshotAssetChangeInfo(asset: IAsset): IAssetInfo | null {
