@@ -88,35 +88,9 @@ const config: IPlatformBuildPluginConfig = {
         },
         appABIs: {
             label: 'i18n:google-play.options.appABIs',
-            type: 'object',
-            properties: {
-                'arm64-v8a': {
-                    label: 'arm64-v8a',
-                    type: 'boolean',
-                    default: true,
-                },
-                'armeabi-v7a': {
-                    label: 'armeabi-v7a',
-                    type: 'boolean',
-                    default: false,
-                },
-                x86: {
-                    label: 'x86',
-                    type: 'boolean',
-                    default: false,
-                },
-                x86_64: {
-                    label: 'x86_64',
-                    type: 'boolean',
-                    default: false,
-                },
-            },
-            default: {
-                'arm64-v8a': true,
-                'arm-v7a': false,
-                x86: false,
-                x86_64: false,
-            },
+            type: 'array',
+            items: { type: 'string' },
+            default: ['arm64-v8a'],
             hidden: true,
         },
         useDebugKeystore: {
