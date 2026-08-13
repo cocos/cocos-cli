@@ -1536,6 +1536,7 @@ export declare class BundleManager extends BuildTaskBase implements IBundleManag
     private initInternalBundleConfigs;
     private patchProjectBundleConfig;
     private initBundleRootAssets;
+    private addSceneEditorAssets;
     private initBundleShareAssets;
     bundleDataTask(): Promise<void>;
     private compressImage;

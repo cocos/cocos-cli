@@ -128,8 +128,13 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
         // 清理上一个预览的相机
         if (this._activePreview) {
             const prev = this._activePreview as any;
-            if (prev.cameraComp) {
+            if (typeof prev.hide === 'function') {
+                prev.hide();
+            } else if (prev.cameraComp) {
                 prev.cameraComp.enabled = false;
+                if (prev.camera) {
+                    prev.camera.enabled = false;
+                }
             }
         }
 
@@ -140,7 +145,7 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
 
         // 将相机挂到 mainWindow 上屏渲染
         this.attachToMainWindow(entry.instance as InteractivePreview);
-        Service.Engine.repaintInEditMode();
+        await this.refreshPreviewCameraView(entry.instance as InteractivePreview);
 
         return this._activePreview;
     }
@@ -198,6 +203,7 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
 
         if (inst.worldAxis) {
             inst.worldAxis._sceneGizmoCamera.camera.changeTargetWindow(mainWindow);
+            inst.worldAxis._sceneGizmoCamera.camera.enabled = true;
             if (inst.enableAxis) {
                 inst.worldAxis.show();
             }
@@ -205,6 +211,45 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
     }
 
     // --- 缩略图生成 ---
+
+    private async refreshPreviewCameraView(previewInstance: InteractivePreview) {
+        const preview = previewInstance as any;
+        if (typeof preview.resetCameraView !== 'function') {
+            Service.Engine.repaintInEditMode();
+            return;
+        }
+
+        preview.resetCameraView();
+        Service.Engine.repaintInEditMode();
+
+        await new Promise<void>((resolve) => {
+            let resolved = false;
+            const finish = () => {
+                if (resolved) return;
+                resolved = true;
+                resolve();
+            };
+            const timer = setTimeout(finish, 100);
+            cc.director.once(cc.Director.EVENT_AFTER_DRAW, () => {
+                clearTimeout(timer);
+                finish();
+            });
+        });
+
+        if (this._activePreview !== previewInstance) return;
+        this.attachToMainWindow(previewInstance);
+        preview.resetCameraView();
+        this.forcePreviewRepaint();
+    }
+
+    private forcePreviewRepaint() {
+        const engine = Service.Engine as any;
+        if (typeof engine.forceRepaintInEditMode === 'function') {
+            engine.forceRepaintInEditMode();
+        } else {
+            Service.Engine.repaintInEditMode();
+        }
+    }
 
     public async generateThumbnail(uuid: string, assetType: string, width = 128, height = 128) {
         const entry = this.resolvePreview(assetType);

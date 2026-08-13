@@ -542,6 +542,10 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         }
 
         if (launchBundle) {
+            if (this.options.preview && (this.options as any).sceneEditor) {
+                this.addSceneEditorAssets(launchBundle);
+            }
+
             // 加入项目设置中的 renderPipeline 资源
             if (this.options.renderPipeline) {
                 launchBundle.addRootAsset(buildAssetLibrary.getAsset(this.options.renderPipeline));
@@ -557,6 +561,15 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         console.debug(`  Number of all scripts: ${this.cache.scriptUuids.length}`);
         console.debug(`  Number of other assets: ${this.cache.assetUuids.length}`);
         this.updateProcess('Init bundle root assets success...');
+    }
+
+    private addSceneEditorAssets(bundle: IBundle) {
+        for (const uuid of this.cache.assetUuids) {
+            const asset = buildAssetLibrary.getAsset(uuid);
+            if (asset) {
+                bundle.addRootAsset(asset);
+            }
+        }
     }
 
     /**

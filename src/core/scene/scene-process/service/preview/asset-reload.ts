@@ -20,14 +20,31 @@ export function removePreviewAssetCache(uuid: string): void {
     }
 }
 
-export async function loadPreviewAsset<T>(uuid: string, label: string, timeoutMs = 10000): Promise<T> {
-    removePreviewAssetCache(uuid);
+interface LoadPreviewAssetOptions {
+    reloadAsset?: boolean;
+    timeoutMs?: number;
+}
+
+export async function loadPreviewAsset<T>(
+    uuid: string,
+    label: string,
+    options: LoadPreviewAssetOptions = {},
+): Promise<T> {
+    const timeoutMs = options.timeoutMs ?? 10000;
+    if (options.reloadAsset) {
+        removePreviewAssetCache(uuid);
+    }
     return await new Promise<T>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error(`Load ${label} timeout: ${uuid}`)), timeoutMs);
-        assetManager.loadAny(uuid, { reloadAsset: true }, (err: any, asset: T) => {
+        const done = (err: any, asset: T) => {
             clearTimeout(timeout);
             if (err) reject(err);
             else resolve(asset);
-        });
+        };
+        if (options.reloadAsset) {
+            assetManager.loadAny(uuid, { reloadAsset: true }, done);
+        } else {
+            assetManager.loadAny(uuid, done);
+        }
     });
 }

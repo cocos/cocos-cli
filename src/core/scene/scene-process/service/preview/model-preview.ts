@@ -41,7 +41,7 @@ export class ModelPreview extends InteractivePreview {
         const prefabUuid = await this.resolvePrefabUuid(uuid);
 
         removePreviewAssetCache(uuid);
-        const prefabAsset = await loadPreviewAsset<Prefab>(prefabUuid, 'model');
+        const prefabAsset = await loadPreviewAsset<Prefab>(prefabUuid, 'model', { reloadAsset: true });
 
         this.cameraComp.enabled = true;
 
@@ -57,12 +57,21 @@ export class ModelPreview extends InteractivePreview {
 
         this.resetCamera(this._modelNode);
 
-        Service.Engine.repaintInEditMode();
         return await new Promise((resolve) => {
             cc.director.once(cc.Director.EVENT_AFTER_DRAW, () => {
                 this.perfectCameraView(getBoundaryOfMeshNodes([this._modelNode!]));
+                const engine = Service.Engine as any;
+                if (typeof engine.forceRepaintInEditMode === 'function') {
+                    engine.forceRepaintInEditMode();
+                }
                 resolve(null);
             });
+            const engine = Service.Engine as any;
+            if (typeof engine.forceRepaintInEditMode === 'function') {
+                engine.forceRepaintInEditMode();
+            } else {
+                Service.Engine.repaintInEditMode();
+            }
         });
     }
 

@@ -9,6 +9,10 @@ import type { IPreviewSettingsResult } from '../builder/@types/private';
  */
 const cache = new Map<string, IPreviewSettingsResult>();
 
+function makeCacheKey(startScene: string, sceneEditor: boolean): string {
+    return JSON.stringify({ startScene, sceneEditor });
+}
+
 /**
  * 预览尚未就绪时抛出。路由据此返回可重试的 503，而不是生成缺 builtinAssets 的坏 settings 或裸 500。
  *
@@ -37,7 +41,16 @@ export class PreviewNotReadyError extends Error {
  * @param startScene 启动场景的 uuid 或 db:// url，留空表示使用项目默认启动场景
  */
 export async function getCachedPreviewSettings(startScene = ''): Promise<IPreviewSettingsResult> {
-    const cached = cache.get(startScene);
+    return await getCachedSettings(startScene, false);
+}
+
+export async function getCachedSceneEditorSettings(): Promise<IPreviewSettingsResult> {
+    return await getCachedSettings('', true);
+}
+
+async function getCachedSettings(startScene: string, sceneEditor: boolean): Promise<IPreviewSettingsResult> {
+    const cacheKey = makeCacheKey(startScene, sceneEditor);
+    const cached = cache.get(cacheKey);
     if (cached) {
         return cached;
     }
@@ -46,8 +59,8 @@ export async function getCachedPreviewSettings(startScene = ''): Promise<IPrevie
     if (!assetDBManager.ready) {
         throw new PreviewNotReadyError();
     }
-    const result = await generatePreviewSettings(startScene);
-    cache.set(startScene, result);
+    const result = await generatePreviewSettings(startScene, sceneEditor);
+    cache.set(cacheKey, result);
     return result;
 }
 
@@ -55,7 +68,7 @@ export async function getCachedPreviewSettings(startScene = ''): Promise<IPrevie
  * 生成并**校验**预览 settings。未就绪（生成抛错或 builtinAssets 为空）时抛 PreviewNotReadyError。
  * 抽出为独立函数，供 getCachedPreviewSettings 与 live-reload 的就绪探测复用；不写缓存。
  */
-async function generatePreviewSettings(startScene: string): Promise<IPreviewSettingsResult> {
+async function generatePreviewSettings(startScene: string, sceneEditor: boolean): Promise<IPreviewSettingsResult> {
     const { assetManager } = await import('../assets');
     let result: IPreviewSettingsResult;
     try {
@@ -90,6 +103,7 @@ async function generatePreviewSettings(startScene: string): Promise<IPreviewSett
             effectiveScene = await resolveDefaultStartScene();
         }
         (options as any).startScene = effectiveScene;
+        (options as any).sceneEditor = sceneEditor;
         // 预览模式下注册项目中的全部场景，使运行时 cc.director.loadScene(name)/(uuid) 可加载任意场景，
         // 对齐编辑器预览行为。构建配置里的 scenes 默认只含构建时勾选的子集，会导致脚本里按名
         // loadScene 其它场景时报 "not in the build settings before playing"。

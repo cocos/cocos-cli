@@ -74,6 +74,20 @@ describe('scene-process engine bootstrap', () => {
             })
             .mockResolvedValueOnce({
                 json: async () => ['base', 'custom-pipeline'],
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    settings: {
+                        assets: {
+                            preloadBundles: [{ bundle: 'main' }],
+                        },
+                        engine: {
+                            builtinAssets: ['builtin-material'],
+                        },
+                    },
+                    bundleConfigs: [],
+                }),
             });
         (globalThis as any).document = {
             getElementById: jest.fn(() => null),
@@ -109,6 +123,11 @@ describe('scene-process engine bootstrap', () => {
             },
             assetManager: {
                 loadAny: jest.fn(),
+                loadBundle: jest.fn((_url: string, callback: Function) => callback(null, {})),
+                getBundle: jest.fn(() => null),
+                downloader: {
+                    appendTimeStamp: true,
+                },
                 bundles: {
                     forEach: jest.fn(),
                 },
@@ -139,41 +158,66 @@ describe('scene-process engine bootstrap', () => {
         }));
     });
 
-    it('reloads project assets without using the browser cache', async () => {
-        const oldAsset = { _uuid: 'asset-uuid', old: true };
-        const newAsset = { _uuid: '', old: false };
-        const cache = new Map<string, any>([['asset-uuid', oldAsset]]);
-        const assets = {
-            get: jest.fn((uuid: string) => cache.get(uuid)),
-            add: jest.fn((uuid: string, asset: any) => cache.set(uuid, asset)),
-            remove: jest.fn((uuid: string) => cache.delete(uuid)),
-        };
-        (globalThis as any).cc.assetManager.assets = assets;
-        (globalThis as any).cc.deserialize = jest.fn(() => newAsset);
-        (global.fetch as jest.Mock)
+    it('applies scene editor asset settings to cc.game.init', async () => {
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect(global.fetch).toHaveBeenCalledWith(
+            'http://localhost:7456/scene-editor/settings.json',
+            { cache: 'no-store' },
+        );
+        expect((globalThis as any).cc.game.init).toHaveBeenCalledWith(expect.objectContaining({
+            overrideSettings: expect.objectContaining({
+                assets: expect.objectContaining({
+                    server: 'http://localhost:7456',
+                    importBase: 'assets/general/import',
+                    nativeBase: 'assets/general/native',
+                    remoteBundles: [],
+                    subpackages: [],
+                    preloadBundles: [{ bundle: 'main' }],
+                }),
+                engine: expect.objectContaining({
+                    builtinAssets: ['builtin-material'],
+                }),
+            }),
+        }));
+    });
+
+    it('loads scene editor bundles through the original asset manager', async () => {
+        (global.fetch as jest.Mock).mockReset()
             .mockResolvedValueOnce({
-                text: async () => '.json',
+                json: async () => ({
+                    overrideSettings: {
+                        rendering: {},
+                    },
+                }),
+            })
+            .mockResolvedValueOnce({
+                json: async () => ['base'],
             })
             .mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({}),
+                json: async () => ({
+                    settings: { assets: {} },
+                    bundleConfigs: [
+                        { name: 'main', deps: ['internal'] },
+                        { name: 'internal', deps: [] },
+                    ],
+                }),
             });
 
         await startup({ serverURL: 'http://localhost:7456' });
 
-        const loaded = await new Promise<any>((resolve, reject) => {
-            (globalThis as any).cc.assetManager.loadAny(
-                'asset-uuid',
-                { reloadAsset: true },
-                (err: Error | null, asset: any) => err ? reject(err) : resolve(asset),
-            );
-        });
-
-        expect(loaded).toBe(newAsset);
-        expect(assets.remove).toHaveBeenCalledWith('asset-uuid');
-        expect(global.fetch).toHaveBeenCalledWith(
-            expect.stringMatching(/^http:\/\/localhost:7456\/import\/asset-uuid\.json\?isBrowser=true&_t=/),
-            { cache: 'no-store' },
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenNthCalledWith(
+            1,
+            'http://localhost:7456/scene-editor/assets/internal',
+            expect.any(Function),
         );
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenNthCalledWith(
+            2,
+            'http://localhost:7456/scene-editor/assets/main',
+            expect.any(Function),
+        );
+        expect((globalThis as any).cc.assetManager.downloader.appendTimeStamp).toBe(true);
+        expect((globalThis as any).cc.assetManager.loadAny).not.toHaveBeenCalled();
     });
 });
