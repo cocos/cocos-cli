@@ -525,6 +525,48 @@ describe('AnimationService enter', () => {
         }
     });
 
+    it('prefers nodePath over a stale nodeUuid and supports nodeUuid-only frame queries', () => {
+        const pathNode = { uuid: 'path-node', name: 'Body', children: [] };
+        const uuidNode = { uuid: 'legacy-node', name: 'Legacy', children: [] };
+        const rootNode = {
+            uuid: 'root-uuid',
+            name: 'AnimatedRoot',
+            children: [pathNode, uuidNode],
+            getChildByPath: jest.fn((path: string) => (
+                path === 'Body' ? pathNode : path === 'Legacy' ? uuidNode : null
+            )),
+        };
+        const session = { rootUuid: rootNode.uuid, rootPath: 'Canvas/AnimatedRoot' };
+        const nodeManager = (globalThis as any).EditorExtends.Node;
+        nodeManager.getNode.mockImplementation((uuid: string) => uuid === rootNode.uuid ? rootNode : null);
+        nodeManager.getNodeByPath.mockImplementation((path: string) => (
+            path === 'Canvas/AnimatedRoot/Body' ? pathNode : null
+        ));
+
+        try {
+            expect(resolveAnimationFrameQueryNode({
+                nodePath: 'Canvas/AnimatedRoot/Body',
+                nodeUuid: uuidNode.uuid,
+                propKey: 'position',
+                frame: 0,
+            }, session)).toBe(pathNode);
+            expect(resolveAnimationFrameQueryNode({
+                nodeUuid: uuidNode.uuid,
+                propKey: 'position',
+                frame: 0,
+            }, session)).toBe(uuidNode);
+            expect(resolveAnimationFrameQueryNode({
+                nodePath: 'Canvas/AnimatedRoot/Missing',
+                nodeUuid: uuidNode.uuid,
+                propKey: 'position',
+                frame: 0,
+            }, session)).toBe(uuidNode);
+        } finally {
+            nodeManager.getNode.mockReset();
+            nodeManager.getNodeByPath.mockReset();
+        }
+    });
+
     it('waits for animation state initialization before sampling time zero', async () => {
         const { Animation } = require('cc');
         const service = new AnimationService() as any;

@@ -81,9 +81,17 @@ export function resolveAnimationFrameQueryNode(options: IAnimationQueryPropertyV
     const relativePath = rootNode
         ? resolveAnimationRelativeNodePath(rootNode, session.rootPath, options)
         : null;
-    const node = relativePath === ''
+    let node = relativePath === ''
         ? rootNode
         : relativePath && rootNode?.getChildByPath(relativePath);
+    if (!node && rootNode && options.nodePath && options.nodeUuid) {
+        const uuidRelativePath = resolveAnimationRelativeNodePath(rootNode, session.rootPath, {
+            nodeUuid: options.nodeUuid,
+        });
+        node = uuidRelativePath === ''
+            ? rootNode
+            : uuidRelativePath && rootNode.getChildByPath(uuidRelativePath);
+    }
     if (node) {
         return node;
     }

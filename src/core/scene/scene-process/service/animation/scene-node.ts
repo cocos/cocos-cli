@@ -49,39 +49,39 @@ export function resolveAnimationRelativeNodePath(
     rootPath: string,
     target: { nodePath?: string; nodeUuid?: string },
 ): string | null {
+    const nodePath = normalizeNodePath(target.nodePath || '');
+    const normalizedRootPath = normalizeNodePath(rootPath);
+    if (nodePath) {
+        if (nodePath === normalizedRootPath) {
+            return '';
+        }
+
+        if (normalizedRootPath && nodePath.startsWith(`${normalizedRootPath}/`)) {
+            const relativePath = nodePath.slice(normalizedRootPath.length + 1);
+            const animationNode = rootNode.getChildByPath(relativePath);
+            const systemNode = getNodeBySystemPathIfAvailable(nodePath);
+            // Keep the old absolute-path behavior for compatibility, including orphaned tracks whose
+            // scene node has already been deleted. A live system node is rejected only when its unique
+            // path suffix cannot represent the name-based path used by Cocos animation tracks.
+            if (!systemNode || systemNode === animationNode) {
+                return relativePath;
+            }
+        } else if (rootNode.getChildByPath(nodePath)) {
+            return nodePath;
+        }
+    }
+
     if (target.nodeUuid) {
         const relativePath = findRelativeNodePathByUuid(rootNode, target.nodeUuid);
-        if (relativePath === null) {
-            return null;
+        if (relativePath !== null) {
+            const boundNode = relativePath ? rootNode.getChildByPath(relativePath) : rootNode;
+            if (boundNode?.uuid === target.nodeUuid) {
+                return relativePath;
+            }
         }
-        const boundNode = relativePath ? rootNode.getChildByPath(relativePath) : rootNode;
-        return boundNode?.uuid === target.nodeUuid ? relativePath : null;
     }
 
-    const nodePath = normalizeNodePath(target.nodePath || '');
-    if (!nodePath) {
-        return '';
-    }
-
-    const normalizedRootPath = normalizeNodePath(rootPath);
-    if (nodePath === normalizedRootPath) {
-        return '';
-    }
-
-    if (normalizedRootPath && nodePath.startsWith(`${normalizedRootPath}/`)) {
-        const relativePath = nodePath.slice(normalizedRootPath.length + 1);
-        const animationNode = rootNode.getChildByPath(relativePath);
-        const systemNode = getNodeBySystemPathIfAvailable(nodePath);
-        // Keep the old absolute-path behavior for compatibility, including orphaned tracks whose
-        // scene node has already been deleted. A live system node is rejected only when its unique
-        // path suffix cannot represent the name-based path used by Cocos animation tracks.
-        return systemNode && systemNode !== animationNode ? null : relativePath;
-    }
-
-    if (rootNode.getChildByPath(nodePath)) {
-        return nodePath;
-    }
-    return null;
+    return nodePath || target.nodeUuid ? null : '';
 }
 
 function getNodeBySystemPathIfAvailable(path: string): Node | null {
