@@ -165,7 +165,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             if (config) {
                 this._applyConfig(config, false);
             }
-            const gizmoConfig = await rpc.request('sceneConfigInstance', 'get', ['gizmo', 'local']) as Partial<IGizmoConfig> | undefined;
+            const gizmoConfig = await rpc.request('sceneConfigInstance', 'get', ['gizmo']) as Partial<IGizmoConfig> | undefined;
             if (gizmoConfig) {
                 this._applyGizmoViewMode(gizmoConfig);
                 this._applyGizmoDisplay(gizmoConfig);
@@ -194,8 +194,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     private _applyGizmoDisplay(config: Partial<IGizmoConfig>): void {
         if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
         if (config.gridColor !== undefined) this.setGridColor(config.gridColor);
-        if (config.originAxis2D !== undefined) this.setOriginAxes2D(config.originAxis2D);
-        if (config.originAxis3D !== undefined) this.setOriginAxes3D(config.originAxis3D);
+        this._syncControllerGridVisibility();
         Service.Engine.repaintInEditMode();
     }
 
@@ -220,11 +219,13 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             x: originAxes.x,
             y: originAxes.y,
         });
+        this._syncControllerGridVisibility();
         Service.Engine?.repaintInEditMode?.();
     }
 
     setOriginAxes3D(originAxes: IOriginAxesConfig): void {
         (this._controller3D as any).updateOriginAxisByConfig?.(originAxes);
+        this._syncControllerGridVisibility();
         Service.Engine?.repaintInEditMode?.();
     }
 
@@ -327,10 +328,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         if (value === undefined || value === null) return;
         this._controller2D.isGridVisible = value;
         this._controller3D.isGridVisible = value;
-        const deActiveCtrl = this._controller === this._controller3D
-            ? this._controller2D
-            : this._controller3D;
-        deActiveCtrl.showGrid(false);
+        this._syncControllerGridVisibility();
         Service.Engine.repaintInEditMode();
         if (persist) {
             const rpc = Rpc.getInstance();
@@ -340,6 +338,16 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
     isGridVisible(): boolean {
         return this._controller?.isGridVisible ?? true;
+    }
+
+    private _syncControllerGridVisibility(): void {
+        if (!this._controller || !this._controller2D || !this._controller3D) return;
+        const activeCtrl = this._controller;
+        const inactiveCtrl = activeCtrl === this._controller3D
+            ? this._controller2D
+            : this._controller3D;
+        activeCtrl.showGrid(activeCtrl.isGridVisible);
+        inactiveCtrl.showGrid(false);
     }
 
     setCameraProperty(options: any, persist = true): void {

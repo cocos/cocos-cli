@@ -12,6 +12,7 @@ import type ModeBase3D from './modes/mode-base-3d';
 import type { ISceneMouseEvent, ISceneKeyboardEvent } from '../operation/types';
 import { Service } from '../core/decorator';
 import { getRaycastResultsForSnap } from '../gizmo/utils/engine-utils';
+import { Rpc } from '../../rpc';
 
 // ---------- node utility helpers ----------
 
@@ -499,10 +500,10 @@ export class CameraController3D extends CameraControllerBase {
     showGrid(visible: boolean) {
         super.showGrid(visible);
         if (this._originAxisHorizontalMeshComp?.node) {
-            this._originAxisHorizontalMeshComp.node.active = visible;
+            this._originAxisHorizontalMeshComp.node.active = visible && (this.originAxisX_Visible || this.originAxisZ_Visible);
         }
         if (this._originAxisVerticalMeshComp?.node) {
-            this._originAxisVerticalMeshComp.node.active = visible;
+            this._originAxisVerticalMeshComp.node.active = visible && this.originAxisY_Visible;
         }
     }
 
@@ -519,6 +520,19 @@ export class CameraController3D extends CameraControllerBase {
         this.originAxisZ_Visible = true;
         this._originAxisHorizontalMeshComp.node.active = (this.originAxisX_Visible || this.originAxisZ_Visible);
         this._originAxisVerticalMeshComp.node.active = this.originAxisY_Visible;
+        void this.initOriginAxisFromConfig();
+    }
+
+    private async initOriginAxisFromConfig() {
+        try {
+            const rpc = Rpc.getInstance();
+            const gizmos = await rpc.request('sceneConfigInstance', 'get', ['gizmo']) as any;
+            if (gizmos?.originAxis3D) {
+                this.updateOriginAxisByConfig(gizmos.originAxis3D, false);
+            }
+        } catch {
+            // Use the default 3D origin axes when config is unavailable.
+        }
     }
 
     updateOriginAxisByConfig(config: { x?: boolean; y?: boolean; z?: boolean }, update = true) {
@@ -527,10 +541,10 @@ export class CameraController3D extends CameraControllerBase {
         if (config.z !== undefined) this.originAxisZ_Visible = config.z;
 
         if (this._originAxisHorizontalMeshComp?.node) {
-            this._originAxisHorizontalMeshComp.node.active = (this.originAxisX_Visible || this.originAxisZ_Visible);
+            this._originAxisHorizontalMeshComp.node.active = !!this._gridMeshComp?.node?.active && (this.originAxisX_Visible || this.originAxisZ_Visible);
         }
         if (this._originAxisVerticalMeshComp?.node) {
-            this._originAxisVerticalMeshComp.node.active = this.originAxisY_Visible;
+            this._originAxisVerticalMeshComp.node.active = !!this._gridMeshComp?.node?.active && this.originAxisY_Visible;
         }
 
         if (update) {
@@ -565,8 +579,6 @@ export class CameraController3D extends CameraControllerBase {
     }
 
     private updateOriginAxisVertical() {
-        if (!this._originAxisVerticalMeshComp?.node?.active) return;
-
         const { startY, endY, cameraPos } = this.getOriginAxisData();
         const positions: number[] = [];
         const colors: number[] = [];
@@ -594,8 +606,6 @@ export class CameraController3D extends CameraControllerBase {
     }
 
     private updateOriginAxisHorizontal() {
-        if (!this._originAxisHorizontalMeshComp?.node?.active) return;
-
         const { startY, endY, startX, endX, cameraPos } = this.getOriginAxisData();
         const positions: number[] = [];
         const colors: number[] = [];

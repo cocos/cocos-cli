@@ -8,6 +8,7 @@ import { IdleMode2D } from './modes/idle-mode-2d';
 import { PanMode2D } from './modes/pan-mode-2d';
 import { tweenPosition } from './tween';
 import type { ISceneMouseEvent, ISceneKeyboardEvent } from '../operation/types';
+import { Rpc } from '../../rpc';
 
 function getCanvasSize(): ISizeLike {
     const canvas = (cc as any).game?.canvas;
@@ -77,7 +78,7 @@ export class CameraController2D extends CameraControllerBase {
     showGrid(visible: boolean) {
         super.showGrid(visible);
         if (this._originAxisHorizontalMeshComp?.node) {
-            this._originAxisHorizontalMeshComp.node.active = visible;
+            this._originAxisHorizontalMeshComp.node.active = visible && (this.originAxisX_Visible || this.originAxisY_Visible);
         }
     }
 
@@ -382,6 +383,22 @@ export class CameraController2D extends CameraControllerBase {
         this.originAxisX_Visible = true;
         this.originAxisY_Visible = true;
         this._originAxisHorizontalMeshComp.node.active = false;
+        void this.initOriginAxisFromConfig();
+    }
+
+    private async initOriginAxisFromConfig() {
+        try {
+            const rpc = Rpc.getInstance();
+            const gizmos = await rpc.request('sceneConfigInstance', 'get', ['gizmo']) as any;
+            if (gizmos?.originAxis2D) {
+                this.updateOriginAxisByConfig({
+                    x: gizmos.originAxis2D.x,
+                    y: gizmos.originAxis2D.y,
+                }, false);
+            }
+        } catch {
+            // Use the default 2D origin axes when config is unavailable.
+        }
     }
 
     updateOriginAxisByConfig(config: { x?: boolean; y?: boolean }, update = true) {
@@ -390,7 +407,7 @@ export class CameraController2D extends CameraControllerBase {
 
         const showAxis = this.originAxisX_Visible || this.originAxisY_Visible;
         if (this._originAxisHorizontalMeshComp?.node) {
-            this._originAxisHorizontalMeshComp.node.active = showAxis;
+            this._originAxisHorizontalMeshComp.node.active = !!this._gridMeshComp?.node?.active && showAxis;
         }
 
         if (update) {

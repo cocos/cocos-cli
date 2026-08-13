@@ -31,6 +31,7 @@ class MockController {
     init = jest.fn();
     on = jest.fn();
     updateGrid = jest.fn();
+    updateOriginAxisByConfig = jest.fn();
     refresh = jest.fn();
     focus = jest.fn();
     showGrid = jest.fn();
@@ -171,6 +172,46 @@ describe('CameraService view mode config', () => {
 
         expect(camera.is2D).toBe(true);
         expect(defaultFocus).toHaveBeenCalledWith('scene-uuid');
+    });
+
+    it('loads merged gizmo config without applying origin axes in CameraService', async () => {
+        const originAxis3D = { x: true, y: false, z: true };
+        mockRpcRequest.mockImplementation((_service, _method, args) => {
+            const [key] = args;
+            if (key === 'gizmo') return Promise.resolve({ is2D: false, originAxis3D });
+            return Promise.resolve(undefined);
+        });
+
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+
+        camera.onEditorOpened();
+        await flushConfigRestore();
+
+        expect(mockRpcRequest).toHaveBeenCalledWith('sceneConfigInstance', 'get', ['gizmo']);
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('sceneConfigInstance', 'get', ['gizmo', 'local']);
+        expect(camera.controller2D.updateOriginAxisByConfig).not.toHaveBeenCalled();
+        expect(camera.controller3D.updateOriginAxisByConfig).not.toHaveBeenCalled();
+    });
+
+    it('keeps the inactive controller grid hidden when origin axes are updated externally', () => {
+        const originAxis2D = { x: true, y: true, z: false };
+        const originAxis3D = { x: true, y: false, z: true };
+
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        camera.setOriginAxes2D(originAxis2D);
+        camera.setOriginAxes3D(originAxis3D);
+
+        expect(camera.controller2D.updateOriginAxisByConfig).toHaveBeenCalledWith({
+            x: originAxis2D.x,
+            y: originAxis2D.y,
+        });
+        expect(camera.controller3D.updateOriginAxisByConfig).toHaveBeenCalledWith(originAxis3D);
+        expect(camera.controller2D.showGrid).toHaveBeenLastCalledWith(false);
+        expect(camera.controller3D.showGrid).toHaveBeenLastCalledWith(true);
     });
 });
 
