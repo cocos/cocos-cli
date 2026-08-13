@@ -56,4 +56,20 @@ describe('scene-open error status', () => {
         expect(result.code).toBe(COMMON_STATUS.FAIL);
         expect(result.reason).toContain('Cannot read properties');
     });
+
+    it('returns 404 with the missing prefab uuid', async () => {
+        const missingUuid = '12345678-abcd-1234-abcd-1234567890ab';
+        mockSceneOpen.mockRejectedValue(new Error(
+            `The asset db://assets/scene-with-deleted-prefab.scene cannot be loaded because a dependent asset is missing: ${missingUuid}`
+        ));
+
+        const result = await new SceneApi().open({
+            dbURLOrUUID: 'db://assets/scene-with-deleted-prefab.scene',
+            includeChildren: true,
+            includeComponents: false,
+        });
+
+        expect(result.code).toBe(COMMON_STATUS.NOT_FOUND);
+        expect(result.reason).toContain(missingUuid);
+    });
 });

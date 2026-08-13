@@ -19,6 +19,14 @@ describe('enrichMissingDependencyError', () => {
         expect(msg).toContain(SUB_UUID);
     });
 
+    it('extracts uuid from the browser asset-fetch 404 message', async () => {
+        const errInfo = `Asset fetch failed (404): ${UUID}`;
+        const msg = await enrichMissingDependencyError(errInfo, OWNER);
+        expect(msg).toContain(OWNER);
+        expect(msg).toContain(UUID);
+        expect(msg).toContain('dependent asset is missing');
+    });
+
     it('includes asset url when queryAssetInfo resolves for full uuid', async () => {
         const errInfo = `download failed: http://localhost:1234/${SUB_UUID}.json`;
         const query = jest.fn().mockResolvedValue({ url: 'db://assets/SK_Foo.fbx@b47c0' });

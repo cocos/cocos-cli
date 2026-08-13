@@ -1,4 +1,11 @@
-const DOWNLOAD_FAILED_RE = /^download failed: .*\/([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}(?:@[^.]+)?)\.json/i;
+const UUID_PATTERN = '[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}';
+const DOWNLOAD_FAILED_RE = new RegExp(`download failed: .*\\/(${UUID_PATTERN}(?:@[^.?\\s/]+)?)\\.(?:json|bin)`, 'i');
+const ASSET_FETCH_FAILED_RE = new RegExp(`asset fetch failed\\s*\\(\\s*404\\s*\\)\\s*:\\s*(${UUID_PATTERN}(?:@[^\\s]+)?)`, 'i');
+
+function extractMissingUuid(errInfo: string): string | null {
+    const knownFormat = DOWNLOAD_FAILED_RE.exec(errInfo) || ASSET_FETCH_FAILED_RE.exec(errInfo);
+    return knownFormat?.[1] ?? null;
+}
 
 export async function enrichMissingDependencyError(
     errInfo: string,
@@ -6,11 +13,10 @@ export async function enrichMissingDependencyError(
     queryAssetInfo?: (uuid: string) => Promise<{ url?: string } | null>,
     querySubAssetName?: (mainUuid: string, subId: string) => Promise<string | null>,
 ): Promise<string> {
-    const result = DOWNLOAD_FAILED_RE.exec(errInfo);
-    if (!result) {
+    const missingUuid = extractMissingUuid(errInfo);
+    if (!missingUuid) {
         return `The asset ${ownerAsset} cannot be loaded. Detail: ${errInfo}`;
     }
-    const missingUuid = result[1];
     let assetDesc = missingUuid;
 
     if (queryAssetInfo) {
