@@ -1,0 +1,18 @@
+diff --git a/node_modules/sharp/lib/sharp.js b/node_modules/sharp/lib/sharp.js
+index a41e83d..f1f48b1 100644
+--- a/node_modules/sharp/lib/sharp.js
++++ b/node_modules/sharp/lib/sharp.js
+@@ -7,7 +7,12 @@ const platformAndArch = require('./platform')();
+ 
+ /* istanbul ignore next */
+ try {
+-  module.exports = require(`../build/Release/sharp-${platformAndArch}.node`);
++  // 支持通过环境变量指定原生绑定 .node 文件（宿主 electron 与默认 node 的 ABI 不匹配时使用）
++  const nativeBindingPath = process.env.COCOS_CLI_SHARP_NODE || `../build/Release/sharp-${platformAndArch}.node`;
++  if (process.env.COCOS_CLI_SHARP_NODE) {
++    console.log(`[cocos-cli] sharp: loading native binding from COCOS_CLI_SHARP_NODE=${process.env.COCOS_CLI_SHARP_NODE}`);
++  }
++  module.exports = require(nativeBindingPath);
+ } catch (err) {
+   // Bail early if bindings aren't available
+   const help = ['', 'Something went wrong installing the "sharp" module', '', err.message, '', 'Possible solutions:'];
