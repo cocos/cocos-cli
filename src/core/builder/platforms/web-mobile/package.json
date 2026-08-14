@@ -17,6 +17,11 @@
             "customView": "./dist/view/build-config.js",
             "customExtensionHost": "./dist/view/build-config-host.js",
             "customFields": [
+                "app_id",
+                "uploadEnv",
+                "accessToken",
+                "codeVersion",
+                "bridgeLink",
                 "useWebGPU"
             ],
             "card": "./static/card.png",

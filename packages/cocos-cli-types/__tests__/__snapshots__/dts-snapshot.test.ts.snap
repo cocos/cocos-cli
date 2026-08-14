@@ -445,6 +445,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -2697,6 +2698,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -3352,6 +3354,7 @@ export declare interface IPlatformBuildPluginConfig extends MakeRequired<IIntern
         supportedCompressionTypes: BundleCompressionType[];
         platformType: IPlatformType;
     };
+    supportPlatforms?: IPlatformSupportPlatformsConfig;
     customIconConfigs?: Array<IBuildIconItem>;
 }
 export declare interface IPlatformConfig {
@@ -3377,6 +3380,11 @@ export declare interface IPlatformRegisterInfo {
     hooks?: string;
     pkgName?: string;
     type: 'register';
+}
+export declare interface IPlatformSupportPlatformsConfig {
+    platforms: string[];
+    controlledBy: string;
+    hidden?: boolean;
 }
 export declare type IPlatformType = 'native' | 'miniGame' | 'web';
 export declare type IPluginHook = Record<IPluginHookName, IInternalBaseHooks>;
@@ -4232,6 +4240,7 @@ export declare type Platform = InternalPlatform | string;
 export declare interface PlatformBuildSchema {
     common: ICocosConfigurationPropertySchema;
     platformOptions: ICocosConfigurationPropertySchema;
+    supportPlatforms?: IPlatformSupportPlatformsConfig;
 }
 export declare interface PlatformBundleConfig {
     platformName: string;
@@ -4375,7 +4384,6 @@ export declare class PluginManager extends EventEmitter {
     private cloneConfigItem;
     private applySupportedCompressionTypes;
     private collectPlatformConfigItems;
-    private toRenderSchema;
     getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema;
     queryPlatformConfig(): PlatformConfigItem[];
     getRegisteredPlatforms(): string[];
@@ -5208,6 +5216,8 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	setMaxListeners(n: number): this;
 }
 export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
+export declare type UploadEnv = 'dev' | 'fat' | 'prod';
+export declare type UploadEnv_2 = 'dev' | 'fat' | 'prod';
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
@@ -5311,6 +5321,15 @@ export declare interface WatcherOptions {
 }
 export declare type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;
 export declare interface webDesktopOptions {
+    app_id?: string;
+    versionName?: string;
+    uploadEnv?: UploadEnv;
+    accessToken?: string;
+    codeVersion?: string | number | null;
+    bridgeLink?: string;
+    bridgeBuildToken?: string;
+    entryPath?: string;
+    encryptKey?: string;
     useWebGPU: boolean;
     resolution: {
         designHeight: number;
@@ -5319,6 +5338,15 @@ export declare interface webDesktopOptions {
 }
 export declare type WebMobileBuildOptions = IBuildTaskOption<'web-mobile'>;
 export declare interface webMobileOptions {
+    app_id?: string;
+    versionName?: string;
+    uploadEnv?: UploadEnv_2;
+    accessToken?: string;
+    codeVersion?: string | number | null;
+    bridgeLink?: string;
+    bridgeBuildToken?: string;
+    entryPath?: string;
+    encryptKey?: string;
     useWebGPU: boolean;
     orientation: IOrientation_2;
     embedWebDebugger: boolean;
@@ -7188,6 +7216,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -8230,6 +8259,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;

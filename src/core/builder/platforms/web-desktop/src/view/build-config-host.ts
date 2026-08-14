@@ -1,6 +1,6 @@
+import * as path from 'node:path';
 import * as pink from 'pink';
 import * as vscode from 'vscode';
-import * as path from 'node:path';
 
 type Bundle = Record<string, unknown>;
 type UploadEnv = 'dev' | 'fat' | 'prod';
@@ -49,20 +49,7 @@ interface WebPackageBridgeResult {
     uploadEnv: UploadEnv;
 }
 
-interface PreviewRequest {
-    buildPath?: string;
-    outputName?: string;
-    useWebGPU?: boolean;
-}
-
-interface PreviewInfo {
-    previewUrl: string;
-    qrcodeSrc: string;
-    webGPUTips: string;
-    webGPULink: string;
-}
-
-const PLATFORM = 'web-mobile';
+const PLATFORM = 'web-desktop';
 const BRIDGE_API_PATH = '/api/game/web/package/bridge';
 const BASE_URLS: Record<UploadEnv, string> = {
     dev: 'https://dev-agent-api.s00.tech',
@@ -73,12 +60,12 @@ const BASE_URLS: Record<UploadEnv, string> = {
 function currentLang(): 'zh' | 'en' {
     let locale = 'en';
     try {
-        const cfg = process.env.VSCODE_NLS_CONFIG;
-        if (cfg) {
-            locale = (JSON.parse(cfg) as { locale?: string }).locale || locale;
+        const config = process.env.VSCODE_NLS_CONFIG;
+        if (config) {
+            locale = (JSON.parse(config) as { locale?: string }).locale || locale;
         }
     } catch {
-        // Fallback to English.
+        // Fall back to English when the host locale cannot be parsed.
     }
     return locale.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
@@ -96,24 +83,24 @@ function loadBundle(): Bundle {
         const file = path.join(__dirname, '..', '..', 'i18n', `${lang}.js`);
         delete require.cache[require.resolve(file)];
         bundle = (require(file) as Bundle) ?? {};
-        console.log('loadBundle', 'lang', lang, 'file', file, 'bundle', JSON.stringify(bundle));
     } catch {
         bundle = {};
     }
+
     cache = { lang, bundle };
     return bundle;
 }
 
 function lookup(bundle: Bundle, key: string): string | undefined {
-    let cur: unknown = bundle;
-    for (const seg of key.split('.')) {
-        if (cur && typeof cur === 'object' && seg in (cur as Bundle)) {
-            cur = (cur as Bundle)[seg];
+    let current: unknown = bundle;
+    for (const segment of key.split('.')) {
+        if (current && typeof current === 'object' && segment in (current as Bundle)) {
+            current = (current as Bundle)[segment];
         } else {
             return undefined;
         }
     }
-    return typeof cur === 'string' ? cur : undefined;
+    return typeof current === 'string' ? current : undefined;
 }
 
 function substitute(text: string, sub?: Record<string, unknown>): string {
@@ -121,14 +108,6 @@ function substitute(text: string, sub?: Record<string, unknown>): string {
         return text;
     }
     return text.replace(/%?\{(\w+)\}/g, (match, key: string) => (key in sub ? String(sub[key]) : match));
-}
-
-function runtimeRequire<T = any>(request: string): T | undefined {
-    try {
-        return module.require(request) as T;
-    } catch {
-        return undefined;
-    }
 }
 
 function normalizeEnv(env: unknown): UploadEnv | undefined {
@@ -240,13 +219,11 @@ async function getOpenPaasWebPackageBridge(accessToken: string, uploadEnv: Uploa
         const responseBody = await readResponseBody(response);
         throw new Error(`OpenPaaS request failed: ${BRIDGE_API_PATH}, env=${uploadEnv}, HTTP ${response.status}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
     }
-console.log('getOpenPaasWebPackageBridge11', 'env', uploadEnv, 'response', response);
+
     const responseBody = await readResponseBody(response);
-    console.log('getOpenPaasWebPackageBridge22', 'env', uploadEnv, 'responseBody', responseBody);
     let result: OpenPaasResponse<WebPackageBridgeResponse>;
     try {
         result = JSON.parse(responseBody) as OpenPaasResponse<WebPackageBridgeResponse>;
-        console.log('getOpenPaasWebPackageBridge33', 'env', uploadEnv, 'responseBody', responseBody, 'result', JSON.stringify(result));
     } catch (error) {
         throw new Error(`OpenPaaS response is not valid JSON: ${BRIDGE_API_PATH}, env=${uploadEnv}, reason=${errorMessage(error)}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
     }
@@ -315,42 +292,6 @@ async function getOpenPaasPackageContext(gameId: unknown) {
     };
 }
 
-async function createQRCodeSrc(url: string): Promise<string> {
-    if (!url) {
-        return '';
-    }
-    try {
-        const qrcode = runtimeRequire<{ toDataURL?: (text: string, options?: Record<string, unknown>) => Promise<string> }>('qrcode');
-        if (qrcode?.toDataURL) {
-            return await qrcode.toDataURL(url, {
-                errorCorrectionLevel: 'H',
-                maskPattern: 2,
-                margin: 1,
-                width: 180,
-            });
-        }
-    } catch {
-        // Fallback to a remote image URL below.
-    }
-    return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=1&data=${encodeURIComponent(url)}`;
-}
-
-async function getPreviewInfo(request: PreviewRequest = {}): Promise<PreviewInfo> {
-    const buildPath = request.buildPath || 'project://build';
-    const outputName = request.outputName || PLATFORM;
-    const previewUrl = await pink.builder.getPreviewUrl(`${buildPath}/${outputName}`, PLATFORM) || '';
-    const webGPUTips = request.useWebGPU && previewUrl && !previewUrl.startsWith('https')
-        ? lookup(loadBundle(), 'tips.webGPUServer') || ''
-        : '';
-
-    return {
-        previewUrl,
-        qrcodeSrc: webGPUTips ? '' : await createQRCodeSrc(previewUrl),
-        webGPUTips,
-        webGPULink: 'https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts',
-    };
-}
-
 export function activate(context: HostContext): void {
     context.registerPreBuildHook?.(async () => {
         const { accessToken, uploadEnv, bridgeLink } = await resolveOpenPaasWebPackageBridge();
@@ -369,13 +310,7 @@ export function activate(context: HostContext): void {
         const text = lookup(loadBundle(), key);
         return text === undefined ? key : substitute(text, sub);
     });
-    context.registerMethod('getPreviewInfo', (request: PreviewRequest) => getPreviewInfo(request));
     context.registerMethod('getOpenPaasGameList', () => getOpenPaasGameList());
     context.registerMethod('getOpenPaasPackageContext', (gameId: unknown) => getOpenPaasPackageContext(gameId));
     context.registerMethod('getOpenPaasWebPackageBridge', () => resolveOpenPaasWebPackageBridge());
-    context.registerMethod('openPreviewUrl', async (url: string) => {
-        if (url) {
-            await vscode.env.openExternal(vscode.Uri.parse(url));
-        }
-    });
 }
