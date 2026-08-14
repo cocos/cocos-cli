@@ -2491,6 +2491,13 @@ declare module 'pink' {
 	export interface PlatformBuildSchema {
 	    common: ICocosConfigurationPropertySchema;
 	    platformOptions: ICocosConfigurationPropertySchema;
+	    supportPlatforms?: IPlatformSupportPlatformsConfig;
+	}
+
+	export interface IPlatformSupportPlatformsConfig {
+	    platforms: string[];
+	    controlledBy: string;
+	    hidden?: boolean;
 	}
 
 	export interface ICocosConfigurationPropertySchema {

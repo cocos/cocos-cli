@@ -13,9 +13,9 @@ import { configGroups, textureFormatConfigs, formatsInfo, defaultSupport } from 
 import { BundlecompressionTypeMap, BundlePlatformTypes } from '../share/bundle-utils';
 import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
-import { createBuilderPlatformMetadataNodes } from '../share/metadata';
+import { createBuilderPlatformMetadataNodes, createBuilderRenderSchema } from '../share/metadata';
 import { configurationRegistry } from '../../configuration';
-import { convertConfigItem, ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
+import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import { GlobalPaths } from '../../../global';
 import { existsSync, readdirSync } from 'fs';
 import utils from '../../base/utils';
@@ -868,6 +868,7 @@ export class PluginManager extends EventEmitter {
     private collectPlatformConfigItems(platform: Platform | string): {
         common: Record<string, IBuilderConfigItem>;
         platformOptions: Record<string, IBuilderConfigItem>;
+        supportPlatforms?: IPlatformBuildPluginConfig['supportPlatforms'];
     } {
         const common: Record<string, IBuilderConfigItem> = {};
         const platformCommonOptions = this.commonOptionConfig[platform] || {};
@@ -882,36 +883,12 @@ export class PluginManager extends EventEmitter {
         // 应用支持的压缩类型
         this.applySupportedCompressionTypes(platform, common);
 
-        const config = this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config;
+        const config = (this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config) as IPlatformBuildPluginConfig | undefined;
         return {
             common,
             platformOptions: this.cloneDisplayOptions(config?.options),
+            supportPlatforms: lodash.cloneDeep(config?.supportPlatforms),
         };
-    }
-
-    /**
-     * 把 IBuilderConfigItem 映射成配置系统 schema(ICocosConfigurationPropertySchema)。
-     * 复用配置系统的 convertConfigItem(label->title、type:'enum'->string|number+enum、对象/数组递归、i18n 翻译)。
-     * hidden 项直接过滤(配置系统 schema 无 hidden 字段;如 md5CacheOptions 不渲染,其值仍随构建参数透传)。
-     */
-    private toRenderSchema(items: Record<string, IBuilderConfigItem>): ICocosConfigurationPropertySchema {
-        const properties: Record<string, ICocosConfigurationPropertySchema> = {};
-        const required: string[] = [];
-        for (const [key, item] of Object.entries(items)) {
-            if (!item || item.hidden) {
-                continue;
-            }
-            properties[key] = convertConfigItem(item, key);
-            // 必填:从 verifyRules:['required'] 派生,收进父对象节点的 required(JSON Schema 对象级);拦构建仍由 checkBuildOption 负责
-            if (item.verifyRules?.includes('required')) {
-                required.push(key);
-            }
-        }
-        const node: ICocosConfigurationPropertySchema = { type: 'object', properties };
-        if (required.length) {
-            node.required = required;
-        }
-        return node;
     }
 
     public getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema {
@@ -919,10 +896,11 @@ export class PluginManager extends EventEmitter {
             throw new Error(`Can not find platform config for ${platform}`);
         }
 
-        const { common, platformOptions } = this.collectPlatformConfigItems(platform);
+        const { common, platformOptions, supportPlatforms } = this.collectPlatformConfigItems(platform);
         return {
-            common: this.toRenderSchema(common),
-            platformOptions: this.toRenderSchema(platformOptions),
+            common: createBuilderRenderSchema(common, String(platform)),
+            platformOptions: createBuilderRenderSchema(platformOptions, String(platform)),
+            supportPlatforms,
         };
     }
 

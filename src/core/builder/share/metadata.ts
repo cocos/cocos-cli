@@ -1,6 +1,7 @@
 import type { IBuildCacheUseConfig } from '../@types';
 import type { BuildConfiguration } from '../@types/config-export';
-import type { ICocosConfigurationNode, IConfigurationItem } from '../../configuration/script/metadata';
+import type { IBuilderConfigItem } from '../@types/protected';
+import type { ICocosConfigurationNode, ICocosConfigurationPropertySchema, IConfigurationItem } from '../../configuration/script/metadata';
 import { DefaultBundleConfig } from './bundle-utils';
 import {
     convertConfigItem,
@@ -33,6 +34,33 @@ const DEFAULT_TEXTURE_COMPRESS_CONFIG: BuildConfiguration['textureCompressConfig
     customConfigs: {},
     genMipmaps: false,
 };
+
+const PLATFORM_HIDDEN_SCHEMA_OPTIONS: Record<string, string[]> = {
+    'web-mobile': [
+        'binGroupConfig',
+        'skipCompressTexture',
+        'packAutoAtlas',
+    ],
+    android: [
+        // Example: 'inputSDK',
+    ],
+};
+
+function shouldHidePlatformSchemaOption(platform: string, key: string): boolean {
+    return PLATFORM_HIDDEN_SCHEMA_OPTIONS[platform]?.includes(key) ?? false;
+}
+
+function convertBuilderConfigItem(
+    item: IConfigurationItem,
+    key: string,
+    platform?: string
+): ICocosConfigurationPropertySchema {
+    const schema = convertConfigItem(item, key);
+    if (platform && shouldHidePlatformSchemaOption(platform, key)) {
+        schema.hidden = true;
+    }
+    return schema;
+}
 
 export function createBuilderCoreMetadataNodes(
     commonOptionConfigs: Record<string, IConfigurationItem>,
@@ -73,6 +101,33 @@ export function createBuilderMetadataNodes(source: IBuilderMetadataSource): ICoc
     return nodes;
 }
 
+export function createBuilderRenderSchema(
+    config: Record<string, IBuilderConfigItem>,
+    platform?: string
+): ICocosConfigurationPropertySchema {
+    const properties: Record<string, ICocosConfigurationPropertySchema> = {};
+    const required: string[] = [];
+
+    for (const [key, item] of Object.entries(config)) {
+        if (!hasConfigItemShape(item)) {
+            continue;
+        }
+
+        const schema = convertBuilderConfigItem(item, key, platform);
+        properties[key] = schema;
+
+        if (!schema.hidden && item.verifyRules?.includes('required')) {
+            required.push(key);
+        }
+    }
+
+    const result: ICocosConfigurationPropertySchema = { type: 'object', properties };
+    if (required.length) {
+        result.required = required;
+    }
+    return result;
+}
+
 function createBuilderCommonNode(
     commonOptionConfigs: Record<string, IConfigurationItem>,
     order: number
@@ -81,7 +136,7 @@ function createBuilderCommonNode(
 
     for (const [key, item] of Object.entries(commonOptionConfigs)) {
         if (hasConfigItemShape(item)) {
-            properties[`builder.common.${key}`] = convertConfigItem(item, key);
+            properties[`builder.common.${key}`] = convertBuilderConfigItem(item, key);
         }
     }
 
@@ -169,7 +224,7 @@ function createBuilderPlatformNode(
         const packageProperties: Record<string, ReturnType<typeof convertConfigItem>> = {};
         for (const [key, item] of Object.entries(config.options ?? {})) {
             if (hasConfigItemShape(item)) {
-                packageProperties[key] = convertConfigItem(item, key);
+                packageProperties[key] = convertBuilderConfigItem(item, key, platform);
             }
         }
 
