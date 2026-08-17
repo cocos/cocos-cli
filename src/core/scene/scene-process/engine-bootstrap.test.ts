@@ -120,6 +120,11 @@ describe('scene-process engine bootstrap', () => {
                     runInEditor: false,
                     switchTo: jest.fn(),
                 },
+                PhysicsSystem: {
+                    instance: {
+                        enable: true,
+                    },
+                },
             },
             ResolutionPolicy: {
                 SHOW_ALL: 'show-all',
@@ -188,6 +193,13 @@ describe('scene-process engine bootstrap', () => {
                 }),
             }),
         }));
+    });
+
+    it('disables physics simulation for the scene editor process', async () => {
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect((globalThis as any).cc.physics.selector.switchTo).toHaveBeenCalledWith('builtin');
+        expect((globalThis as any).cc.physics.PhysicsSystem.instance.enable).toBe(false);
     });
 
     it('loads scene editor bundles through the original asset manager', async () => {

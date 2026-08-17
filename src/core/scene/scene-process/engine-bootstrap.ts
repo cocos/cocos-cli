@@ -128,6 +128,9 @@ export async function startup(options: {
 
     // 切换物理引擎
     cc.physics.selector.switchTo(backend);
+    if (cc.physics.PhysicsSystem?.instance) {
+        cc.physics.PhysicsSystem.instance.enable = false;
+    }
     const dr = config?.overrideSettings?.screen?.designResolution;
     const drWidth = dr?.width ?? 1280;
     const drHeight = dr?.height ?? 720;
