@@ -5,7 +5,6 @@ import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
 import type { IProperty } from '../@types/public';
 import type { IScene } from './editor/scene';
-import type { INodeIdentifier } from './cli/node';
 
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
@@ -99,6 +98,13 @@ export enum MobilityMode {
 
 export type PrefabCanvasHandling = 'add-root-ui-transform' | 'create-canvas';
 
+export interface ICreateNodePreflightResult {
+    action: 'create' | 'choose-prefab-canvas-handling';
+    canvasRequired: boolean;
+    canvasPath: string | null;
+    uiTransformPath: string | null;
+}
+
 // generateNodeDump / encode / open 共用的选项
 export interface INodeDumpOptions {
     includeChildren?: boolean; // true: children 以 INodeIdentifier[] 返回，false/undefined: undefined
@@ -108,11 +114,6 @@ export interface INodeDumpOptions {
 // 节点查询参数接口
 export interface IQueryNodeParams extends INodeDumpOptions {
     path: string; // 查询的节点路径
-}
-
-export interface ICanvasContext {
-    canvas: INodeIdentifier | null;
-    uiTransform: INodeIdentifier | null;
 }
 
 export interface IPrefab {
@@ -287,7 +288,7 @@ export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
     'paste' |
     'duplicate' |
     'cut' |
-    'queryCanvasContext' |
+    'preflightCreate' |
     'queryClipboardState' |
     'moveArrayElement' |
     'removeArrayElement' |
@@ -311,6 +312,11 @@ export interface INodeService extends IServiceEvents {
      * @param params
      */
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+
+    /**
+     * Resolve Canvas handling for a node creation request without modifying the scene.
+     */
+    preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult>;
     /**
      * 删除节点
      * @param params
@@ -323,11 +329,6 @@ export interface INodeService extends IServiceEvents {
      * @returns 查询到的节点信息，未找到返回 null
      */
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
-
-    /**
-     * Query the nearest Canvas and UITransform on this node or its ancestors.
-     */
-    queryCanvasContext(path: string): Promise<ICanvasContext>;
 
     /**
      * 查询节点树（层级管理器格式）

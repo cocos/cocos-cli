@@ -6092,10 +6092,6 @@ export declare interface ICameraService {
     setOriginAxes3D(config: IOriginAxesConfig): void;
     onUpdate(deltaTime: number): void;
 }
-export declare interface ICanvasContext {
-    canvas: INodeIdentifier | null;
-    uiTransform: INodeIdentifier | null;
-}
 export declare interface IChangeNodeLockParams {
     paths: string[];
     locked: boolean;
@@ -6162,6 +6158,12 @@ export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
 }
 export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
     nodeType: NodeType;
+}
+export declare interface ICreateNodePreflightResult {
+    action: 'create' | 'choose-prefab-canvas-handling';
+    canvasRequired: boolean;
+    canvasPath: string | null;
+    uiTransformPath: string | null;
 }
 export declare interface ICreateOptions {
     type: ICreateType;
@@ -6325,17 +6327,12 @@ export declare interface INodeDumpOptions {
     includeChildren?: boolean;
     includeComponents?: boolean;
 }
-export declare interface INodeIdentifier {
-    nodeId: string;
-    path: string;
-    name: string;
-}
 export declare interface INodeService extends IServiceEvents {
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult>;
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
-    queryCanvasContext(path: string): Promise<ICanvasContext>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
     queryNodesByAssetUuid(uuid: string): string[];
     queryNodesMissAsset(): Promise<string[]>;

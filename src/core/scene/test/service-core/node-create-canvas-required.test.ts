@@ -6,6 +6,8 @@ const mockRemovePrefabInfoFromNode = jest.fn();
 const mockCreateNodeByAsset = jest.fn();
 const mockCreateShouldHideInHierarchyCanvasNode = jest.fn();
 const mockLoadAny = jest.fn();
+const mockQueryCanvasRequiredByAsset = jest.fn();
+const mockRpcRequest = jest.fn();
 const mockGetUICanvasNode = jest.fn();
 const mockGetUITransformParentNode = jest.fn();
 const mockInstantiate = jest.fn();
@@ -35,6 +37,7 @@ class MockNode {
     setParent = jest.fn((parent: MockNode | null) => {
         this.parent = parent;
     });
+    getChildByName = jest.fn((name: string) => this.children.find(child => child.name === name) ?? null);
     getSiblingIndex = jest.fn(() => this.parent?.children.indexOf(this) ?? 0);
 
     constructor(name = 'Node') {
@@ -94,13 +97,14 @@ jest.mock('../../scene-process/service/core', () => ({
 }));
 
 jest.mock('../../scene-process/rpc', () => ({
-    Rpc: { getInstance: () => ({ request: jest.fn() }) },
+    Rpc: { getInstance: () => ({ request: mockRpcRequest }) },
 }));
 
 jest.mock('../../scene-process/service/node/node-create', () => ({
     createNodeByAsset: mockCreateNodeByAsset,
     createShouldHideInHierarchyCanvasNode: mockCreateShouldHideInHierarchyCanvasNode,
     loadAny: mockLoadAny,
+    queryCanvasRequiredByAsset: mockQueryCanvasRequiredByAsset,
 }));
 
 jest.mock('../../scene-process/service/node/node-utils', () => ({
@@ -133,11 +137,6 @@ jest.mock('../../scene-process/service/prefab/utils', () => ({
 jest.mock('../../scene-process/service/scene/utils', () => ({
     sceneUtils: {
         generateNodeDump: jest.fn((node: MockNode) => ({ path: `/${node.name}` })),
-        generateNodeIdentifier: jest.fn((node: MockNode) => ({
-            nodeId: node.uuid,
-            path: `/${node.name}`,
-            name: node.name,
-        })),
     },
 }));
 
@@ -164,6 +163,8 @@ describe('NodeService Canvas requirement handling', () => {
         mockGetUITransformParentNode.mockReturnValue(null);
         mockLoadAny.mockResolvedValue({});
         mockInstantiate.mockImplementation(() => new MockNode('Canvas'));
+        mockQueryCanvasRequiredByAsset.mockResolvedValue(false);
+        mockRpcRequest.mockReset();
     });
 
     it('keeps empty nodes plain unless Canvas is explicitly requested', async () => {
@@ -256,40 +257,108 @@ describe('NodeService Canvas requirement handling', () => {
         expect(mockInstantiate).not.toHaveBeenCalled();
     });
 
-    it('queries the nearest Canvas and UITransform ancestors independently', async () => {
-        const canvasRoot = new MockNode('CanvasRoot');
-        const uiParent = new MockNode('UIParent');
-        const target = new MockNode('Target');
-        canvasRoot.components.push(new MockCanvas(), new MockUITransform());
-        uiParent.components.push(new MockUITransform());
-        canvasRoot.addChild(uiParent);
-        uiParent.addChild(target);
-        mockGetRootNode.mockReturnValue(canvasRoot);
-        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(target);
-
+    it('asks the host to choose prefab Canvas handling only when creation needs it', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const root = new MockNode('PrefabRoot');
+        mockGetRootNode.mockReturnValue(root);
         const { NodeService } = require('../../scene-process/service/node');
-        const result = await new NodeService().queryCanvasContext('/CanvasRoot/UIParent/Target');
 
-        expect(result).toEqual({
-            canvas: { nodeId: 'CanvasRoot-uuid', path: '/CanvasRoot', name: 'CanvasRoot' },
-            uiTransform: { nodeId: 'UIParent-uuid', path: '/UIParent', name: 'UIParent' },
+        await expect(new NodeService().preflightCreate({
+            path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        })).resolves.toEqual({
+            action: 'choose-prefab-canvas-handling',
+            canvasRequired: true,
+            canvasPath: null,
+            uiTransformPath: null,
         });
     });
 
-    it('does not search above the prefab root', async () => {
+    it('returns existing UI context paths when creation can proceed directly', async () => {
         mockGetCurrentEditorType.mockReturnValue('prefab');
-        const sceneCanvas = new MockNode('SceneCanvas');
-        const prefabRoot = new MockNode('PrefabRoot');
-        const target = new MockNode('Target');
-        sceneCanvas.components.push(new MockCanvas(), new MockUITransform());
-        sceneCanvas.addChild(prefabRoot);
-        prefabRoot.addChild(target);
-        mockGetRootNode.mockReturnValue(prefabRoot);
-        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(target);
-
+        const root = new MockNode('PrefabRoot');
+        root.components.push(new MockUITransform());
+        mockGetRootNode.mockReturnValue(root);
+        mockGetUITransformParentNode.mockReturnValue(root);
         const { NodeService } = require('../../scene-process/service/node');
-        const result = await new NodeService().queryCanvasContext('/PrefabRoot/Target');
 
-        expect(result).toEqual({ canvas: null, uiTransform: null });
+        await expect(new NodeService().preflightCreate({
+            path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        })).resolves.toEqual({
+            action: 'create',
+            canvasRequired: true,
+            canvasPath: null,
+            uiTransformPath: '/PrefabRoot',
+        });
     });
+
+    it('returns the reusable Canvas path when Canvas context exists', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const root = new MockNode('PrefabRoot');
+        root.components.push(new MockCanvas());
+        mockGetRootNode.mockReturnValue(root);
+        mockGetUICanvasNode.mockReturnValue(root);
+        const { NodeService } = require('../../scene-process/service/node');
+
+        await expect(new NodeService().preflightCreate({
+            path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        })).resolves.toEqual({
+            action: 'create',
+            canvasRequired: true,
+            canvasPath: '/PrefabRoot',
+            uiTransformPath: null,
+        });
+    });
+
+    it('does not prompt when a missing ordinary parent path will create UITransform', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const root = new MockNode('PrefabRoot');
+        mockGetRootNode.mockReturnValue(root);
+        const { NodeService } = require('../../scene-process/service/node');
+
+        await expect(new NodeService().preflightCreate({
+            path: '/PrefabRoot/NewParent',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        })).resolves.toEqual({
+            action: 'create',
+            canvasRequired: true,
+            canvasPath: null,
+            uiTransformPath: null,
+        });
+    });
+
+    it('derives Canvas requirements from assets during preflight', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        mockGetRootNode.mockReturnValue(new MockNode('PrefabRoot'));
+        mockRpcRequest.mockImplementation((_service: string, method: string) => {
+            if (method === 'queryUUID') return 'asset-uuid';
+            if (method === 'queryAssetInfo') return { type: 'cc.BitmapFont' };
+            return null;
+        });
+        mockQueryCanvasRequiredByAsset.mockResolvedValue(true);
+        const { NodeService } = require('../../scene-process/service/node');
+
+        await expect(new NodeService().preflightCreate({
+            path: '/',
+            dbURL: 'db://assets/font.fnt',
+            workMode: '2d',
+        })).resolves.toEqual({
+            action: 'choose-prefab-canvas-handling',
+            canvasRequired: true,
+            canvasPath: null,
+            uiTransformPath: null,
+        });
+        expect(mockQueryCanvasRequiredByAsset).toHaveBeenCalledWith({
+            uuid: 'asset-uuid',
+            type: 'cc.BitmapFont',
+            workMode: '2d',
+        });
+    });
+
 });

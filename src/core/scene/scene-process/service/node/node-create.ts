@@ -12,6 +12,7 @@ import {
     Canvas,
     UITransform,
     Scene,
+    director,
     instantiate,
     CCObject,
 } from 'cc';
@@ -50,7 +51,7 @@ export async function createNodeByAsset(info: {
 
     let asset;
     let node;
-    let newCanvasRequired = canvasRequired ?? false;
+    let newCanvasRequired = Boolean(canvasRequired) || getCanvasRequiredByAssetType(type, workMode);
 
     switch (type) {
         case 'cc.AnimationClip':
@@ -127,11 +128,7 @@ export async function createNodeByAsset(info: {
             {
                 asset = await loadAny<Prefab>(uuid);
                 node = cc.instantiate(asset);
-                if (node) {
-                    if (node.getComponentsInChildren(UITransform).length > 0) {
-                        newCanvasRequired = node.getComponentsInChildren(Canvas).length === 0;
-                    }
-                }
+                newCanvasRequired = newCanvasRequired || Boolean(node && getPrefabCanvasRequired(node));
             }
             break;
         case 'cc.Script':
@@ -154,12 +151,7 @@ export async function createNodeByAsset(info: {
             {
                 asset = await loadAny<SpriteFrame>(uuid);
 
-                let useSpriteRenderer = false;
-                if (workMode === '3d') {
-                    const scene = cc.director.getScene();
-                    const hasCanvas = scene && scene.getComponentsInChildren(Canvas).length > 0;
-                    useSpriteRenderer = !hasCanvas;
-                }
+                const useSpriteRenderer = shouldUseSpriteRenderer(workMode);
 
                 const spritePrefabUuid = '9db8cd0b-cbe4-42e7-96a9-a239620c0a9d';
                 const spriteRendererPrefabUuid = '279ed042-5a65-4efe-9afb-2fc23c61e15a';
@@ -171,7 +163,6 @@ export async function createNodeByAsset(info: {
                 node.name = asset.name;
 
                 if (useSpriteRenderer) {
-                    newCanvasRequired = false;
                     const sprite: any = node.getComponent(cc.SpriteRenderer);
                     if (sprite) {
                         sprite.spriteFrame = asset;
@@ -293,6 +284,62 @@ export async function createNodeByAsset(info: {
         node,
         canvasRequired: newCanvasRequired,
     };
+}
+
+/**
+ * Resolve the Canvas requirement of an asset without attaching a node to the scene.
+ */
+export async function queryCanvasRequiredByAsset(info: {
+    uuid: string,
+    type?: string,
+    workMode?: string,
+}): Promise<boolean> {
+    if (info.type === 'cc.Prefab') {
+        const prefab = await loadAny<Prefab>(info.uuid);
+        const node = cc.instantiate(prefab) as Node;
+        try {
+            return getPrefabCanvasRequired(node);
+        } finally {
+            node.destroy();
+        }
+    }
+
+    return getCanvasRequiredByAssetType(info.type, info.workMode);
+}
+
+function getPrefabCanvasRequired(node: Node): boolean {
+    return node.getComponentsInChildren(UITransform).length > 0
+        && node.getComponentsInChildren(Canvas).length === 0;
+}
+
+function getCanvasRequiredByAssetType(type: string | undefined, workMode: string | undefined): boolean {
+    switch (type) {
+        case 'cc.BitmapFont':
+        case 'cc.LabelAtlas':
+        case 'cc.ParticleAsset':
+        case 'cc.TTFFont':
+        case 'cc.TiledMapAsset':
+        case 'cc.VideoClip':
+            return true;
+        case 'cc.SpriteFrame':
+            return !shouldUseSpriteRenderer(workMode);
+        case 'dragonBones.DragonBonesAsset':
+        case 'dragonBones.DragonBonesAtlasAsset':
+            return Boolean(cc.dragonBones);
+        case 'sp.SkeletonData':
+            return Boolean(cc.sp);
+        default:
+            return false;
+    }
+}
+
+function shouldUseSpriteRenderer(workMode: string | undefined): boolean {
+    if (workMode !== '3d') {
+        return false;
+    }
+
+    const scene = director.getScene();
+    return !scene || scene.getComponentsInChildren(Canvas).length === 0;
 }
 
 // 防止多次调用
