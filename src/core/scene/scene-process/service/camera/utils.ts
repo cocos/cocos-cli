@@ -328,7 +328,7 @@ export class CameraUtils {
 
         const label = document.createElement('span');
         label.style.cssText = 'color: white; opacity: 0.6; margin-right: 8px; line-height: 56px;';
-        label.textContent = 'Camera Wander';
+        label.textContent = 'Camera Wander:';
         shortcutRow.appendChild(label);
 
         const keyGrid = document.createElement('div');
@@ -382,9 +382,9 @@ export class CameraUtils {
             container.appendChild(row);
         };
 
-        addKeywordRow('Speed', 'Shift', '80px');
-        addKeywordRow('Speed Up', 'Wheel Up', '100%');
-        addKeywordRow('Speed Down', 'Wheel Down', '100%');
+        addKeywordRow('Speed:', 'Shift', '80px');
+        addKeywordRow('Speed Up:', 'Wheel Up', '120px');
+        addKeywordRow('Speed Down:', 'Wheel Down', '120px');
 
         document.body.appendChild(container);
         CameraUtils._wanderTipElement = container;
