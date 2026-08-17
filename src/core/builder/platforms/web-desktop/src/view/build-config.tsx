@@ -109,7 +109,7 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
 
     const t = (key: string) => translate(bundle, key);
     const set = (key: string, next: unknown) => onChange([key], next);
-    const currentAppId = stringValue(value.app_id);
+    const currentAppId = stringValue(value.appid);
 
     useEffect(() => {
         if (!bridge) {
@@ -227,7 +227,7 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
     const applyGame = (gameId: string) => {
         syncedAppIdRef.current = gameId;
         setContextReady(false);
-        set('app_id', gameId);
+        set('appid', gameId);
         set('accessToken', '');
         const game = games.find((item) => item.id === gameId);
         set('codeVersion', game?.codeVersion || '');

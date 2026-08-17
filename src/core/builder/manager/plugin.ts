@@ -34,6 +34,22 @@ type ICustomAssetHandlerType = 'compressTextures';
 type IAssetHandlers = Record<ICustomAssetHandlerType, Record<string, (...args: unknown[]) => unknown>>;
 // 对外支持的对外公开的资源处理方法汇总
 const CustomAssetHandlerTypes: ICustomAssetHandlerType[] = ['compressTextures'];
+const SUPPORT_PLATFORM_PARENT_OPTION_MAPPINGS = [{
+    childKey: 'appid',
+    parentKeys: ['appid'],
+}, {
+    childKey: 'versionName',
+    parentKeys: ['versionName'],
+}, {
+    childKey: 'uploadEnv',
+    parentKeys: ['uploadEnv'],
+}, {
+    childKey: 'accessToken',
+    parentKeys: ['accessToken'],
+}, {
+    childKey: 'codeVersion',
+    parentKeys: ['codeVersion'],
+}];
 
 type DisplayValueField = 'displayName' | 'label' | 'description';
 type I18nDisplayRecord = Record<string, any>;
@@ -555,6 +571,7 @@ export class PluginManager extends EventEmitter {
         if ('buildStageGroup' in options) {
             rightOptions.buildStageGroup = options.buildStageGroup;
         }
+        await this.completeSupportPlatformOptions(rightOptions);
         // 通用参数的构建校验, 需要使用默认值补全所有的 key
         for (const key of Object.keys(rightOptions)) {
             if (key === 'packages') {
@@ -591,6 +608,87 @@ export class PluginManager extends EventEmitter {
         }
         if (checkRes) {
             return rightOptions;
+        }
+    }
+
+    private getPlatformBuildPluginConfig(platform: Platform | string): IPlatformBuildPluginConfig | undefined {
+        return (this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config) as IPlatformBuildPluginConfig | undefined;
+    }
+
+    private async ensurePlatformRegistered(platform: string) {
+        if (this.checkPlatform(platform)) {
+            return;
+        }
+        if (!this.platformRegisterInfoPool.has(platform)) {
+            throw new Error(`Support platform ${platform} is not registered`);
+        }
+        await this.register(platform);
+    }
+
+    /**
+     * Complete child platform build options for platforms that support combined builds.
+     *
+     * When the parent platform enables `supportPlatforms`, this method:
+     * - registers and enables configured child platforms;
+     * - merges each child platform's own default package options;
+     * - synchronizes parent OpenPaaS upload identity fields into child packages
+     *   so web upload stages use the same app/version/environment/session.
+     */
+    private async completeSupportPlatformOptions(options: IBuildTaskOption) {
+        const platform = String(options.platform);
+        const config = this.getPlatformBuildPluginConfig(platform);
+        const supportPlatforms = config?.supportPlatforms;
+        if (!supportPlatforms?.platforms?.length) {
+            delete options.subTaskPlatforms;
+            delete options.subTaskBuildOutputs;
+            delete options.childTaskIds;
+            return;
+        }
+
+        const enabled = !!lodash.get(options, ['packages', platform, supportPlatforms.controlledBy]);
+        if (!enabled) {
+            delete options.subTaskPlatforms;
+            delete options.subTaskBuildOutputs;
+            delete options.childTaskIds;
+            return;
+        }
+
+        options.packages = options.packages || {};
+        const parentPackageOptions = options.packages[platform] || {};
+        options.subTaskPlatforms = [];
+        delete options.subTaskBuildOutputs;
+        delete options.childTaskIds;
+
+        for (const childPlatform of supportPlatforms.platforms) {
+            await this.ensurePlatformRegistered(childPlatform);
+            const childDefaultOptions = await this.getOptionsByPlatform(childPlatform);
+            const childPackageDefaults = lodash.get(childDefaultOptions, ['packages', childPlatform], {});
+            const childPackageOptions = defaultsDeep(
+                cloneConfigValue(options.packages[childPlatform] || {}),
+                cloneConfigValue(childPackageDefaults),
+            );
+            this.syncParentOptionsToSupportPlatformPackage(parentPackageOptions, childPackageOptions);
+            options.packages[childPlatform] = childPackageOptions;
+            options.subTaskPlatforms.push(childPlatform);
+        }
+    }
+
+    /**
+     * Copy parent OpenPaaS upload fields to a support-platform package.
+     *
+     * OpenPaaS and web packages both consume `appid`. `app_id` is accepted as a
+     * legacy parent key for compatibility. The remaining fields share the same
+     * key names and must stay aligned across parent and child builds for web
+     * package upload.
+     */
+    private syncParentOptionsToSupportPlatformPackage(parentPackageOptions: Record<string, any>, childPackageOptions: Record<string, any>) {
+        for (const { childKey, parentKeys } of SUPPORT_PLATFORM_PARENT_OPTION_MAPPINGS) {
+            for (const parentKey of parentKeys) {
+                if (Object.prototype.hasOwnProperty.call(parentPackageOptions, parentKey) && parentPackageOptions[parentKey] !== undefined) {
+                    childPackageOptions[childKey] = cloneConfigValue(parentPackageOptions[parentKey]);
+                    break;
+                }
+            }
         }
     }
 

@@ -6,7 +6,7 @@ import type { BuildCacheScope, ClearCacheResult } from '../../core/builder/cache
 export type * from '../../core/builder/@types/private';
 export type * from '../../core/builder/@types/config-export';
 export type { BuildCacheScope, ClearCacheResult };
-
+let loop = 1;
 export async function init(platform?: string[]): Promise<void> {
     const builder = await import('../../core/builder');
     return builder.init(platform);
@@ -18,6 +18,10 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
 }
 
 export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+    if (loop > 1) {
+        return Promise.reject(new Error(`createBuildTask failed, loop=${loop}, platform=${platform}, options=${JSON.stringify(options)}`));
+    }
+    loop++;
     const builder = await import('../../core/builder');
     return builder.createBuildTask(platform, options);
 }

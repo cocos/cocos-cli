@@ -153,6 +153,7 @@ export abstract class BuildTaskBase extends EventEmitter {
         if (!Object.keys(this.hookMap).length || this.error || this.options?.preview) {
             return;
         }
+        console.debug(`runPluginTask: ${funcName}`);
         const increment = this.hookWeight / Object.keys(this.hookMap).length;
         for (let i = 0; i < this.hooksInfo.pkgNameOrder.length; i++) {
             if (this.error) {

@@ -18,7 +18,7 @@ const config: IPlatformBuildPluginConfig = {
         },
     },
     options: {
-        app_id: {
+        appid: {
             label: 'i18n:web-desktop.options.app_id',
             description: 'i18n:web-desktop.options.app_id_hint',
             type: 'string',

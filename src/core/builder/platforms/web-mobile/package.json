@@ -17,7 +17,7 @@
             "customView": "./dist/view/build-config.js",
             "customExtensionHost": "./dist/view/build-config-host.js",
             "customFields": [
-                "app_id",
+                "appid",
                 "uploadEnv",
                 "accessToken",
                 "codeVersion",

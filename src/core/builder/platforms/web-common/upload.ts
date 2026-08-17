@@ -13,6 +13,7 @@ import { IBuildStageTask, IInternalBuildOptions } from '../../@types/protected';
 export type UploadEnv = 'dev' | 'fat' | 'prod';
 
 export interface IWebUploadOptions {
+    appid?: string;
     app_id?: string;
     versionName?: string;
     accessToken?: string;
@@ -65,12 +66,13 @@ const UPLOAD_BASE_URLS: Record<UploadEnv, string> = {
 };
 
 export async function onBeforeUpload(platform: string, root: string, options: IWebUploadTaskOption) {
+    console.log(`[web-upload] onBeforeUpload: platform=${platform}, root=${root} options=${JSON.stringify(options)}`);
     const packageOptions = getPackageOptions(platform, options);
     if (!existsSync(root)) {
         throw new Error(`Upload root does not exist: ${root}`);
     }
     if (!resolveGameId(packageOptions)) {
-        throw new Error('Missing app_id, cannot upload web package');
+        throw new Error('Missing appid, cannot upload web package');
     }
     if (!packageOptions.versionName) {
         throw new Error('Missing versionName, cannot upload web package');
@@ -194,7 +196,7 @@ function getPackageOptions(platform: string, options: IWebUploadTaskOption): IWe
 }
 
 function resolveGameId(options: IWebUploadOptions): string {
-    return String(options.app_id || '').trim();
+    return String(options.appid || options.app_id || '').trim();
 }
 
 function resolveAccessToken(options: IWebUploadOptions): string {

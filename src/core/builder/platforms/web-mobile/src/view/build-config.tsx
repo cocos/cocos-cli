@@ -148,7 +148,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     const buildPath = stringValue(commonValue?.buildPath) || 'project://build';
     const t = (key: string) => translate(bundle, key);
     const set = (key: string, next: unknown) => onChange([key], next);
-    const currentAppId = stringValue(value.app_id);
+    const currentAppId = stringValue(value.appid);
     const syncedAppIdRef = useRef('');
     const previewRequest = useMemo(() => ({ buildPath, outputName, useWebGPU }), [buildPath, outputName, useWebGPU]);
 
@@ -272,7 +272,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     const applyGame = (gameId: string) => {
         syncedAppIdRef.current = gameId;
         setContextReady(false);
-        set('app_id', gameId);
+        set('appid', gameId);
         set('accessToken', '');
         const game = games.find((item) => item.id === gameId);
         set('codeVersion', game?.codeVersion || '');

@@ -4,7 +4,7 @@ import { InternalBuildResult } from '../../../@types/protected';
 export type IOrientation = 'auto' | 'landscape' | 'portrait';
 export type UploadEnv = 'dev' | 'fat' | 'prod';
 export interface IOptions {
-    app_id?: string;
+    appid?: string;
     versionName?: string;
     uploadEnv?: UploadEnv;
     accessToken?: string;

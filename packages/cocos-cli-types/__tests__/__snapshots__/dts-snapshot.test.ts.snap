@@ -1338,9 +1338,11 @@ export declare class BuildStageTask extends BuildTaskBase implements IBuildStage
     options: IBuildOptionBase;
     hooksInfo: IBuildHooksInfo;
     private root;
+    private hook;
     hookMap: Record<string, string>;
     constructor(id: string, config: IBuildStageConfig);
     run(): Promise<boolean>;
+    private isStageSupported;
     break(reason: string): void;
     handleHook(func: Function, internal: boolean): Promise<void>;
     saveOptions(): Promise<void>;
@@ -1356,6 +1358,8 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     private mainTaskWeight;
     static isCommandBuild: boolean;
     private currentStageTask?;
+    private currentSubTask?;
+    private subTaskBuildOptions;
     bundleManager: BundleManager;
     hookMap: Record<IPluginHookName, IPluginHookName>;
     pipeline: (string | Function | IBuildTask[])[];
@@ -1373,7 +1377,14 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     run(): Promise<boolean>;
     buildBundleOnly(): Promise<void>;
     private postBuild;
+    private runSubTaskBuilds;
+    private syncSubTaskPackageOptions;
+    private createSubTaskOptions;
+    private getCompileConfigOptions;
     private handleBuildStageTask;
+    private getStagePlatforms;
+    private createChildStageOptions;
+    private runStageForPlatform;
     private initBundleManager;
     break(reason: string): void;
     lockAssetDB(): Promise<void>;
@@ -2221,6 +2232,10 @@ export declare interface IBuildCommonOptions {
     stage?: string;
     buildMode?: 'normal' | 'bundle' | 'script';
     nextStages?: string[];
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    parentTaskId?: string;
+    childTaskIds?: string[];
     packages: Record<string, any>;
     nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
     wasmCompressionMode?: 'brotli';
@@ -2458,6 +2473,9 @@ export declare interface IBuildStageOptions {
     taskName?: string;
     logDest?: string;
     packages?: Record<string, Record<string, unknown>>;
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    childTaskIds?: string[];
 }
 export declare interface IBuildStagesInfo {
     pkgNameOrder: string[];
@@ -3609,6 +3627,15 @@ export declare interface IStorePackInfo {
     versionDev: string;
     result?: IPackResult;
 }
+export declare interface ISubTaskBuildOutput {
+    platform: string;
+    dest: string;
+    buildPath: string;
+    outputName: string;
+    taskId?: string;
+    logDest?: string;
+    parentTaskId?: string;
+}
 export declare interface ISuffixMap {
     native: Record<string, string[]>;
     import: Record<string, string[]>;
@@ -4370,6 +4397,10 @@ export declare class PluginManager extends EventEmitter {
     private hasFixedValue;
     private getFixedValue;
     checkOptions(options: MakeRequired<IBuildCommandOption, 'platform' | 'mainBundleCompressionType'>): Promise<undefined | IBuildTaskOption>;
+    private getPlatformBuildPluginConfig;
+    private ensurePlatformRegistered;
+    private completeSupportPlatformOptions;
+    private syncParentOptionsToSupportPlatformPackage;
     checkCommonOptions(options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>>;
     checkCommonOptionByKey(key: keyof IBuildTaskOption, value: any, options: IBuildTaskOption): Promise<BuildCheckResult>;
     private createVerifyOptions;
@@ -5321,7 +5352,7 @@ export declare interface WatcherOptions {
 }
 export declare type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;
 export declare interface webDesktopOptions {
-    app_id?: string;
+    appid?: string;
     versionName?: string;
     uploadEnv?: UploadEnv;
     accessToken?: string;
@@ -5338,7 +5369,7 @@ export declare interface webDesktopOptions {
 }
 export declare type WebMobileBuildOptions = IBuildTaskOption<'web-mobile'>;
 export declare interface webMobileOptions {
-    app_id?: string;
+    appid?: string;
     versionName?: string;
     uploadEnv?: UploadEnv_2;
     accessToken?: string;

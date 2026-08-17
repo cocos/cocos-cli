@@ -2337,6 +2337,10 @@ declare module 'pink' {
 	    stage?: string;
 	    buildMode?: 'normal' | 'bundle' | 'script';
 	    nextStages?: string[];
+	    subTaskPlatforms?: string[];
+	    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+	    parentTaskId?: string;
+	    childTaskIds?: string[];
 	    packages: Record<string, any>;
 	    nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
 	    wasmCompressionMode?: 'brotli';
@@ -2393,6 +2397,16 @@ declare module 'pink' {
 	export interface IBuildSceneItem {
 	    url: string;
 	    uuid: string;
+	}
+
+	export interface ISubTaskBuildOutput {
+	    platform: string;
+	    dest: string;
+	    buildPath: string;
+	    outputName: string;
+	    taskId?: string;
+	    logDest?: string;
+	    parentTaskId?: string;
 	}
 
 	export type Platform = InternalPlatform | string;
@@ -2528,6 +2542,9 @@ declare module 'pink' {
 	    taskName?: string;
 	    logDest?: string;
 	    packages?: Record<string, Record<string, unknown>>;
+	    subTaskPlatforms?: string[];
+	    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+	    childTaskIds?: string[];
 	}
 
 	export interface IBuildStageItem {
