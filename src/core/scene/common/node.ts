@@ -5,6 +5,7 @@ import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
 import type { IProperty } from '../@types/public';
 import type { IScene } from './editor/scene';
+import type { INodeIdentifier } from './cli/node';
 
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
@@ -107,6 +108,11 @@ export interface INodeDumpOptions {
 // 节点查询参数接口
 export interface IQueryNodeParams extends INodeDumpOptions {
     path: string; // 查询的节点路径
+}
+
+export interface ICanvasContext {
+    canvas: INodeIdentifier | null;
+    uiTransform: INodeIdentifier | null;
 }
 
 export interface IPrefab {
@@ -281,6 +287,7 @@ export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
     'paste' |
     'duplicate' |
     'cut' |
+    'queryCanvasContext' |
     'queryClipboardState' |
     'moveArrayElement' |
     'removeArrayElement' |
@@ -316,6 +323,11 @@ export interface INodeService extends IServiceEvents {
      * @returns 查询到的节点信息，未找到返回 null
      */
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
+
+    /**
+     * Query the nearest Canvas and UITransform on this node or its ancestors.
+     */
+    queryCanvasContext(path: string): Promise<ICanvasContext>;
 
     /**
      * 查询节点树（层级管理器格式）

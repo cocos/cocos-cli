@@ -6,6 +6,7 @@ import {
     type IDeleteNodeResult,
     type INode,
     type INodeService,
+    type ICanvasContext,
     type IQueryNodeParams,
     type IQueryNodeTreeParams,
     type INodeTreeItem,
@@ -353,6 +354,51 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
             if (!node) return null;
             return sceneUtils.generateNodeDump(node, params);
+        } catch (error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
+        }
+    }
+
+    async queryCanvasContext(path: string): Promise<ICanvasContext> {
+        try {
+            await Service.Editor.lock();
+            const root = Service.Editor.getRootNode();
+            if (!root) {
+                throw new Error('Failed to query canvas context: the scene is not opened.');
+            }
+
+            const node = path === '/' ? root : NodeMgr.getNodeByPath(path);
+            if (!node) {
+                return { canvas: null, uiTransform: null };
+            }
+
+            const stopAtRoot = Service.Editor.getCurrentEditorType() === 'prefab'
+                ? root
+                : director.getScene() ?? root;
+            let current: Node | null = node;
+            let canvas: Node | null = null;
+            let uiTransform: Node | null = null;
+
+            while (current) {
+                if (!canvas && hasOneKindOfComponent(current, Canvas)) {
+                    canvas = current;
+                }
+                if (!uiTransform && hasOneKindOfComponent(current, UITransform)) {
+                    uiTransform = current;
+                }
+                if ((canvas && uiTransform) || current === stopAtRoot) {
+                    break;
+                }
+                current = current.parent;
+            }
+
+            return {
+                canvas: canvas ? sceneUtils.generateNodeIdentifier(canvas) : null,
+                uiTransform: uiTransform ? sceneUtils.generateNodeIdentifier(uiTransform) : null,
+            };
         } catch (error) {
             console.error(error);
             throw error;

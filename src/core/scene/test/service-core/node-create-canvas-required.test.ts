@@ -131,7 +131,14 @@ jest.mock('../../scene-process/service/prefab/utils', () => ({
 }));
 
 jest.mock('../../scene-process/service/scene/utils', () => ({
-    sceneUtils: { generateNodeDump: jest.fn((node: MockNode) => ({ path: `/${node.name}` })) },
+    sceneUtils: {
+        generateNodeDump: jest.fn((node: MockNode) => ({ path: `/${node.name}` })),
+        generateNodeIdentifier: jest.fn((node: MockNode) => ({
+            nodeId: node.uuid,
+            path: `/${node.name}`,
+            name: node.name,
+        })),
+    },
 }));
 
 jest.mock('../../scene-process/service/undo/commands/remove-node-command', () => ({
@@ -247,5 +254,42 @@ describe('NodeService Canvas requirement handling', () => {
 
         expect(mockLoadAny).not.toHaveBeenCalled();
         expect(mockInstantiate).not.toHaveBeenCalled();
+    });
+
+    it('queries the nearest Canvas and UITransform ancestors independently', async () => {
+        const canvasRoot = new MockNode('CanvasRoot');
+        const uiParent = new MockNode('UIParent');
+        const target = new MockNode('Target');
+        canvasRoot.components.push(new MockCanvas(), new MockUITransform());
+        uiParent.components.push(new MockUITransform());
+        canvasRoot.addChild(uiParent);
+        uiParent.addChild(target);
+        mockGetRootNode.mockReturnValue(canvasRoot);
+        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(target);
+
+        const { NodeService } = require('../../scene-process/service/node');
+        const result = await new NodeService().queryCanvasContext('/CanvasRoot/UIParent/Target');
+
+        expect(result).toEqual({
+            canvas: { nodeId: 'CanvasRoot-uuid', path: '/CanvasRoot', name: 'CanvasRoot' },
+            uiTransform: { nodeId: 'UIParent-uuid', path: '/UIParent', name: 'UIParent' },
+        });
+    });
+
+    it('does not search above the prefab root', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const sceneCanvas = new MockNode('SceneCanvas');
+        const prefabRoot = new MockNode('PrefabRoot');
+        const target = new MockNode('Target');
+        sceneCanvas.components.push(new MockCanvas(), new MockUITransform());
+        sceneCanvas.addChild(prefabRoot);
+        prefabRoot.addChild(target);
+        mockGetRootNode.mockReturnValue(prefabRoot);
+        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(target);
+
+        const { NodeService } = require('../../scene-process/service/node');
+        const result = await new NodeService().queryCanvasContext('/PrefabRoot/Target');
+
+        expect(result).toEqual({ canvas: null, uiTransform: null });
     });
 });
