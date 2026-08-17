@@ -52,7 +52,6 @@ function ensureBuildLogSink(options: { logDest?: string; taskName?: string; plat
 }
 
 export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
-    console.debug(`[createBuildTask] platform=${platform}, options=${JSON.stringify(options)}`);
     if (!options) {
         options = await pluginManager.getOptionsByPlatform(platform);
     }
@@ -84,7 +83,6 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
 }
 
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
-    console.debug(`[build] platform=${platform}, options=${JSON.stringify(options)}`);
     const startTime = Date.now();
     let buildSuccess = true;
     const restoreLogSink = newConsole.createLogSinkRestorer();
@@ -316,7 +314,6 @@ async function executeBuildStageTaskCascade(
             [stageName]: stageResults,
         },
     };
-    console.log(JSON.stringify(parentResult));
     return parentResult;
 }
 
