@@ -76,6 +76,13 @@ async function generatePreviewSettings(startScene: string, sceneEditor: boolean)
         const { fillIncludeModulesFromProjectConfig } = await import('../builder/share/common-options-validator');
         const tmp = await queryDefaultBuildConfigByPlatform('web-desktop');
         const options = JSON.parse(JSON.stringify(tmp));
+        // 预览必须 debug=true，否则内置 bundle 加载即崩（Cannot read properties of undefined (reading 'cc.EffectAsset')）。
+        // 原因：预览的 getPreviewSettings 只跑 data/setting task，不跑 bundle 构建，bundle 配置永远不经过
+        // bundle.compress()——config.paths 里类型保留为字符串（'cc.EffectAsset' 等），config.types 数组也从未生成。
+        // 而引擎 asset-manager/config.ts processOptions 仅在 config.debug === false 时才把 entry[1] 当索引去
+        // types[entry[1]] 解压；此时 config.types 为 undefined，就会 undefined['cc.EffectAsset'] 抛错。
+        // config.debug 直接取自 options.debug，故这里必须置 true，让引擎按未压缩格式读取，跳过解压分支。
+        options.debug = true;
         // 与正式构建（builder createBuildTask）保持一致：从 cocos.config.json 补全 includeModules。
         // 预览路径原本不补全，options.includeModules 为空/默认时，内置资源包会漏掉当前模块（尤其是所选
         // 物理后端 physics-cannon/ammo/physx/builtin）的 dependentAssets，比如内置物理材质
