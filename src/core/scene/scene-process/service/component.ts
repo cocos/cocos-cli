@@ -1,4 +1,4 @@
-import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas } from 'cc';
+import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas, Scene } from 'cc';
 import { Rpc } from '../rpc';
 import { register, Service, BaseService } from './core';
 import {
@@ -28,8 +28,17 @@ import { RemoveComponentCommand } from './undo/commands/remove-component-command
 import { createUndoId, restoreComponentSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import { isUndoApplying } from './undo/applying-state';
 import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
+import { isRootNodePath } from '../../../engine/editor-extends/manager/path-utils';
 
 const NodeMgr = EditorExtends.Node;
+
+function resolveNodeByPath(nodePath: string): Node | null {
+    // '/' 指当前编辑器的根：prefab 模式下是 prefab 根节点（可以挂组件），而不是承载它的虚拟场景
+    if (isRootNodePath(nodePath)) {
+        return Service.Editor.getRootNode() as Node | null;
+    }
+    return NodeMgr.getNodeByPath(nodePath) as Node | null;
+}
 
 interface IComponentPropertySnapshot {
     nodeUuid: string;
@@ -209,9 +218,12 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 return lastDump!;
             }
 
-            const node = NodeMgr.getNodeByPath(params.nodePath);
+            const node = resolveNodeByPath(params.nodePath);
             if (!node) {
                 throw new Error(`create component failed: ${params.nodePath} does not exist`);
+            }
+            if (node instanceof Scene) {
+                throw new Error(`create component failed: cannot attach a component to the scene root (${params.nodePath})`);
             }
             if (!params.component || params.component.length <= 0) {
                 throw new Error(`create component failed: component name cannot be empty`);
@@ -397,7 +409,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
                 return false;
             }
         }
-        const node = NodeMgr.getNodeByPath(options.nodePath);
+        const node = resolveNodeByPath(options.nodePath);
         if (!node) {
             console.warn(`Set property failed: ${options.nodePath} does not exist`);
             return false;
@@ -776,7 +788,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async queryFunctionOfNode(path: string): Promise<any> {
-        const node = NodeMgr.getNodeByPath(path);
+        const node = resolveNodeByPath(path);
         if (!node) {
             return {};
         }

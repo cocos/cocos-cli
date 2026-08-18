@@ -580,6 +580,41 @@ describe('ServiceEvents 事件发射集成测试', () => {
             expect(mockRpcRequest).not.toHaveBeenCalledWith('assetManager', 'queryUUID', expect.anything());
         });
 
+        it('query 的根路径应解析为当前编辑器根节点，而非 director 场景', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const { Service } = require('../../scene-process/service/core');
+            const { sceneUtils } = require('../../scene-process/service/scene/utils');
+            const nodeService = new NodeService();
+
+            // prefab 模式下 getRootNode() 是 prefab 根，director.getScene() 是承载它的虚拟场景
+            const prefabRoot = { uuid: 'prefab-root' };
+            const virtualScene = { uuid: 'virtual-scene' };
+            const child = { uuid: 'child' };
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetByPath = NodeMgr.getNodeByPath;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            const originalDump = sceneUtils.generateNodeDump;
+
+            NodeMgr.getNodeByPath = jest.fn((path: string) => (path === 'Canvas' ? child : virtualScene));
+            Service.Editor.getRootNode = jest.fn(() => prefabRoot);
+            sceneUtils.generateNodeDump = jest.fn((node: any) => ({ uuid: node.uuid }));
+
+            try {
+                expect(await nodeService.query({ path: '/' })).toEqual({ uuid: 'prefab-root' });
+                expect(await nodeService.query({ path: '//' })).toEqual({ uuid: 'prefab-root' });
+                expect(await nodeService.query({})).toEqual({ uuid: 'prefab-root' });
+                expect(NodeMgr.getNodeByPath).not.toHaveBeenCalled();
+
+                expect(await nodeService.query({ path: 'Canvas' })).toEqual({ uuid: 'child' });
+                expect(NodeMgr.getNodeByPath).toHaveBeenCalledWith('Canvas');
+            } finally {
+                NodeMgr.getNodeByPath = originalGetByPath;
+                Service.Editor.getRootNode = originalGetRootNode;
+                sceneUtils.generateNodeDump = originalDump;
+            }
+        });
+
         it('setProperty(name) 应 emit node:change 到 ServiceEvents', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('node:change', listener);
@@ -747,6 +782,58 @@ describe('ServiceEvents 事件发射集成测试', () => {
     });
 
     describe('ComponentService (component.ts)', () => {
+        it('add 应拒绝挂组件到场景根 (nodePath 指向 scene)', async () => {
+            const { ComponentService } = require('../../scene-process/service/component');
+            const { Service } = require('../../scene-process/service/core');
+            const { Scene } = require('cc');
+            const componentService = new ComponentService();
+
+            const sceneRoot = new Scene();
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetByPath = NodeMgr.getNodeByPath;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            NodeMgr.getNodeByPath = jest.fn(() => sceneRoot);
+            Service.Editor.getRootNode = jest.fn(() => sceneRoot);
+
+            try {
+                await expect(componentService.add({ nodePath: '/', component: 'cc.Label' }))
+                    .rejects.toThrow(/scene root/);
+                await expect(componentService.add({ nodePath: 'SomeScene', component: 'cc.Label' }))
+                    .rejects.toThrow(/scene root/);
+            } finally {
+                NodeMgr.getNodeByPath = originalGetByPath;
+                Service.Editor.getRootNode = originalGetRootNode;
+            }
+        });
+
+        it('add 在 prefab 模式下允许把组件挂到 prefab 根 (nodePath 为 /)', async () => {
+            const { ComponentService } = require('../../scene-process/service/component');
+            const { Service } = require('../../scene-process/service/core');
+            const { Node: MockNode } = require('cc');
+            const componentService = new ComponentService();
+
+            const prefabRoot = new MockNode('Root');
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetByPath = NodeMgr.getNodeByPath;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            NodeMgr.getNodeByPath = jest.fn(() => null);
+            Service.Editor.getRootNode = jest.fn(() => prefabRoot);
+
+            try {
+                // 用空组件名探测：报“组件名为空”而不是“场景根/不存在”，说明 '/' 已解析到 prefab 根且通过了 guard
+                await expect(componentService.add({ nodePath: '/', component: '' }))
+                    .rejects.toThrow(/component name cannot be empty/);
+                expect(NodeMgr.getNodeByPath).not.toHaveBeenCalled();
+
+                await expect(componentService.add({ nodePath: 'Missing', component: '' }))
+                    .rejects.toThrow(/does not exist/);
+                expect(NodeMgr.getNodeByPath).toHaveBeenCalledWith('Missing');
+            } finally {
+                NodeMgr.getNodeByPath = originalGetByPath;
+                Service.Editor.getRootNode = originalGetRootNode;
+            }
+        });
+
         it('setProperty(__comps__) 成功后应 broadcast animation:property-committed', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('animation:property-committed', listener);

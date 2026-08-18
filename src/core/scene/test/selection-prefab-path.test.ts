@@ -208,4 +208,88 @@ describe('SelectionService prefab path resolution', () => {
     });
 });
 
+describe('SelectionService 前导 / 归一化', () => {
+    function createSelection() {
+        (globalThis as any).EditorExtends = {
+            Node: {
+                getNodeUuidByPath: jest.fn((path: string) => (path === 'Canvas' ? 'canvas-uuid' : '')),
+                getNodeByPath: jest.fn(() => null),
+                getNode: jest.fn(() => null),
+            },
+        };
+        const { SelectionService } = require('../scene-process/service/selection');
+        const selection = new SelectionService();
+        jest.spyOn(selection, 'broadcast').mockImplementation(() => undefined);
+        return selection;
+    }
+
+    afterEach(() => {
+        jest.resetModules();
+        jest.clearAllMocks();
+        mockService.Editor.getCurrentEditorType.mockReturnValue('unknown');
+        mockService.Editor.getRootNode.mockReturnValue(null);
+        mockCc.director.getScene.mockReturnValue(null);
+        delete (globalThis as any).EditorExtends;
+    });
+
+    it('带前导 / 选中时存归一化路径并解析出 uuid', () => {
+        const selection = createSelection();
+
+        selection.select('/Canvas');
+
+        expect((selection as any)._selections).toEqual([{ path: 'Canvas', uuid: 'canvas-uuid' }]);
+        expect(selection.query()).toEqual(['Canvas']);
+    });
+
+    it('两种拼法只算一次选中', () => {
+        const selection = createSelection();
+
+        selection.select('Canvas');
+        selection.select('/Canvas');
+        selection.select('//Canvas');
+
+        expect((selection as any)._selections).toHaveLength(1);
+    });
+
+    it('带前导 / 可以取消不带 / 选中的节点', () => {
+        const selection = createSelection();
+
+        selection.select('Canvas');
+        selection.unselect('/Canvas');
+
+        expect((selection as any)._selections).toEqual([]);
+    });
+
+    it('isSelect 忽略前导 /', () => {
+        const selection = createSelection();
+
+        selection.select('/Canvas');
+
+        expect(selection.isSelect('Canvas')).toBe(true);
+        expect(selection.isSelect('/Canvas')).toBe(true);
+        expect(selection.isSelect('//Canvas')).toBe(true);
+        expect(selection.isSelect('Other')).toBe(false);
+    });
+
+    it('broadcast 与 query 一致，都用归一化路径', () => {
+        const selection = createSelection();
+        const broadcast = jest.spyOn(selection, 'broadcast');
+
+        selection.select('/Canvas');
+        expect(broadcast).toHaveBeenCalledWith('selection:select', 'Canvas', ['Canvas']);
+
+        selection.unselect('//Canvas');
+        expect(broadcast).toHaveBeenCalledWith('selection:unselect', 'Canvas', []);
+    });
+
+    it('根路径仍然是 "/"，不会被剥成空串', () => {
+        const selection = createSelection();
+
+        selection.select('///');
+
+        expect((selection as any)._selections).toEqual([{ path: '/', uuid: '' }]);
+        expect(selection.isSelect('/')).toBe(true);
+    });
+});
+
 export {};

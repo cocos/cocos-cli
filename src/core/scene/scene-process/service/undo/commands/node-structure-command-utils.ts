@@ -231,7 +231,7 @@ function findParent(snapshot: INodeStructureSnapshot): Node | null {
         }
     }
 
-    if (snapshot.parentPath && snapshot.parentPath !== '/') {
+    if (snapshot.parentPath) {
         try {
             const byPath = editorNode?.getNodeByPath?.(snapshot.parentPath) as Node | null;
             if (byPath) {

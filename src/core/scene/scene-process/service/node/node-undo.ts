@@ -7,6 +7,7 @@ import { CreateNodeCommand } from '../undo/commands/create-node-command';
 import { SnapshotCommand, type ISnapshotAdapter } from '../undo/commands/snapshot-command';
 import type { INodeStructureCaptureTarget } from '../undo/commands/node-structure-command-utils';
 import { createUndoId, restoreNodeSnapshotDump, snapshotMapsEqual } from '../undo/commands/command-utils-shared';
+import { isRootNodePath } from '../../../../engine/editor-extends/manager/path-utils';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -413,8 +414,8 @@ export class NodeUndoHelper {
         }
         if (snapshot.parentPath) {
             try {
-                const byPath = snapshot.parentPath === '/'
-                    ? Service.Editor.getRootNode()
+                const byPath = isRootNodePath(snapshot.parentPath)
+                    ? Service.Editor.getRootNode() as Node | null
                     : NodeMgr.getNodeByPath(snapshot.parentPath) as Node | null;
                 return byPath?.isValid ? byPath : null;
             } catch (_error) {
@@ -579,7 +580,7 @@ export class NodeUndoHelper {
                 return byUuid;
             }
         }
-        if (snapshot.parentPath && snapshot.parentPath !== '/') {
+        if (snapshot.parentPath && !isRootNodePath(snapshot.parentPath)) {
             try {
                 const byPath = NodeMgr.getNodeByPath(snapshot.parentPath) as Node | null;
                 if (byPath?.isValid) {

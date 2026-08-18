@@ -7,7 +7,7 @@ import findLast from 'lodash/findLast';
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
 import pathManager from './node-path-manager';
-import { validateNodeName } from './path-utils';
+import { normalizeNodePath, validateNodeName } from './path-utils';
 
 
 export default class NodeManager extends EventEmitter {
@@ -166,10 +166,11 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodeByPath(path: string): Node | null {
-        if (path === '/') {
+        const normalized = normalizeNodePath(path);
+        if (normalized === '/') {
             return cc.director.getScene() ?? null;
         }
-        const result = pathManager.getNodeResult(path);
+        const result = pathManager.getNodeResult(normalized);
         if (result.error === 'Ambiguous') {
             throw new Error(`The path "${path}" is ambiguous. Multiple nodes found with case-insensitive match.`);
         }
@@ -195,11 +196,12 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodeUuidByPath(path: string): string | null {
-        if (path === '/') {
+        const normalized = normalizeNodePath(path);
+        if (normalized === '/') {
             const scene = cc.director.getScene();
             return scene ? scene.uuid : null;
         }
-        const uuid = pathManager.getNodeUuid(path);
+        const uuid = pathManager.getNodeUuid(normalized);
         const node = uuid && this.getNode(uuid);
         return node ? node.uuid : null;
     }
