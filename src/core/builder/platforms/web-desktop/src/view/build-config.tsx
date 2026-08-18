@@ -98,7 +98,7 @@ function stringValue(value: unknown): string {
     return typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
 }
 
-export default function WebDesktopBuildView({ value, onChange, bridge }: PlatformBuildViewProps) {
+export default function WebDesktopBuildView({ value, onChange, bridge, commonValue }: PlatformBuildViewProps) {
     const [bundle, setBundle] = useState<Record<string, unknown>>({});
     const [games, setGames] = useState<OpenPaasGameItem[]>([]);
     const [loadingGames, setLoadingGames] = useState(false);
@@ -110,6 +110,7 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
     const t = (key: string) => translate(bundle, key);
     const set = (key: string, next: unknown) => onChange([key], next);
     const currentAppId = stringValue(value.appid);
+    const isOpenPaasHostPlatform = stringValue(commonValue?.platform) === 'openpaas';
 
     useEffect(() => {
         if (!bridge) {
@@ -161,7 +162,7 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
     }, [bridge]);
 
     const loadGames = useCallback(async () => {
-        if (!bridge) {
+        if (!bridge || isOpenPaasHostPlatform) {
             return;
         }
         setLoadingGames(true);
@@ -184,14 +185,14 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
         } finally {
             setLoadingGames(false);
         }
-    }, [bridge]);
+    }, [bridge, isOpenPaasHostPlatform]);
 
     useEffect(() => {
         void loadGames();
     }, [loadGames]);
 
     const fetchPackageContext = async (gameId = currentAppId) => {
-        if (!bridge || !gameId) {
+        if (!bridge || !gameId || isOpenPaasHostPlatform) {
             return;
         }
         setLoadingContext(true);
@@ -213,7 +214,7 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
     };
 
     useEffect(() => {
-        if (!bridge || !currentAppId) {
+        if (!bridge || !currentAppId || isOpenPaasHostPlatform) {
             syncedAppIdRef.current = '';
             return;
         }
@@ -222,7 +223,7 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
         }
         syncedAppIdRef.current = currentAppId;
         void fetchPackageContext(currentAppId);
-    }, [bridge, currentAppId]);
+    }, [bridge, currentAppId, isOpenPaasHostPlatform]);
 
     const applyGame = (gameId: string) => {
         syncedAppIdRef.current = gameId;
@@ -238,37 +239,39 @@ export default function WebDesktopBuildView({ value, onChange, bridge }: Platfor
 
     return (
         <div style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            <div style={ROW}>
-                <TypedField label={t('service.game')} tooltip={t('service.game_hint')}>
-                    <div style={ACTION_ROW}>
-                        <select
-                            style={SELECT}
-                            value={currentAppId}
-                            disabled={loadingGames}
-                            onChange={(event: ChangeEvent<HTMLSelectElement>) => applyGame(event.target.value)}
-                        >
-                            <option value="">{loadingGames ? t('service.loading_games') : t('service.game_placeholder')}</option>
-                            {games.map((game) => (
-                                <option key={game.id} value={game.id}>{game.label}</option>
-                            ))}
-                        </select>
-                        <button style={BUTTON} type="button" disabled={loadingGames} onClick={() => void loadGames()}>
-                            {t('service.refresh_games')}
-                        </button>
+            {!isOpenPaasHostPlatform && (
+                <div style={ROW}>
+                    <TypedField label={t('service.game')} tooltip={t('service.game_hint')}>
+                        <div style={ACTION_ROW}>
+                            <select
+                                style={SELECT}
+                                value={currentAppId}
+                                disabled={loadingGames}
+                                onChange={(event: ChangeEvent<HTMLSelectElement>) => applyGame(event.target.value)}
+                            >
+                                <option value="">{loadingGames ? t('service.loading_games') : t('service.game_placeholder')}</option>
+                                {games.map((game) => (
+                                    <option key={game.id} value={game.id}>{game.label}</option>
+                                ))}
+                            </select>
+                            <button style={BUTTON} type="button" disabled={loadingGames} onClick={() => void loadGames()}>
+                                {t('service.refresh_games')}
+                            </button>
+                        </div>
+                        {!loadingGames && games.length === 0 && <div style={INFO}>{t('service.no_games')}</div>}
+                    </TypedField>
+                    <div style={INFO}>
+                        {loadingContext
+                            ? t('service.loading_context')
+                            : contextReady
+                                ? t('service.context_ready')
+                                : stringValue(value.codeVersion)
+                                    ? t('service.code_version').replace('{codeVersion}', stringValue(value.codeVersion))
+                                    : ''}
                     </div>
-                    {!loadingGames && games.length === 0 && <div style={INFO}>{t('service.no_games')}</div>}
-                </TypedField>
-                <div style={INFO}>
-                    {loadingContext
-                        ? t('service.loading_context')
-                        : contextReady
-                            ? t('service.context_ready')
-                            : stringValue(value.codeVersion)
-                                ? t('service.code_version').replace('{codeVersion}', stringValue(value.codeVersion))
-                                : ''}
+                    {serviceError && <div style={ERROR}>{serviceError}</div>}
                 </div>
-                {serviceError && <div style={ERROR}>{serviceError}</div>}
-            </div>
+            )}
         </div>
     );
 }

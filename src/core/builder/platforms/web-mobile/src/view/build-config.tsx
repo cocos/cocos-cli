@@ -149,6 +149,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     const t = (key: string) => translate(bundle, key);
     const set = (key: string, next: unknown) => onChange([key], next);
     const currentAppId = stringValue(value.appid);
+    const isOpenPaasHostPlatform = stringValue(commonValue?.platform) === 'openpaas';
     const syncedAppIdRef = useRef('');
     const previewRequest = useMemo(() => ({ buildPath, outputName, useWebGPU }), [buildPath, outputName, useWebGPU]);
 
@@ -206,7 +207,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     }, [bridge]);
 
     const loadGames = useCallback(async () => {
-        if (!bridge) {
+        if (!bridge || isOpenPaasHostPlatform) {
             return;
         }
         setLoadingGames(true);
@@ -229,14 +230,14 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
         } finally {
             setLoadingGames(false);
         }
-    }, [bridge]);
+    }, [bridge, isOpenPaasHostPlatform]);
 
     useEffect(() => {
         void loadGames();
     }, [loadGames]);
 
     const fetchPackageContext = async (gameId = currentAppId) => {
-        if (!bridge || !gameId) {
+        if (!bridge || !gameId || isOpenPaasHostPlatform) {
             return;
         }
         setLoadingContext(true);
@@ -258,7 +259,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
     };
 
     useEffect(() => {
-        if (!bridge || !currentAppId) {
+        if (!bridge || !currentAppId || isOpenPaasHostPlatform) {
             syncedAppIdRef.current = '';
             return;
         }
@@ -267,7 +268,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
         }
         syncedAppIdRef.current = currentAppId;
         void fetchPackageContext(currentAppId);
-    }, [bridge, currentAppId]);
+    }, [bridge, currentAppId, isOpenPaasHostPlatform]);
 
     const applyGame = (gameId: string) => {
         syncedAppIdRef.current = gameId;
@@ -321,37 +322,39 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
 
     return (
         <div style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            <div style={ROW}>
-                <TypedField label={t('service.game')} tooltip={t('service.game_hint')}>
-                    <div style={ACTION_ROW}>
-                        <select
-                            style={SELECT}
-                            value={currentAppId}
-                            disabled={loadingGames}
-                            onChange={(event: ChangeEvent<HTMLSelectElement>) => applyGame(event.target.value)}
-                        >
-                            <option value="">{loadingGames ? t('service.loading_games') : t('service.game_placeholder')}</option>
-                            {games.map((game) => (
-                                <option key={game.id} value={game.id}>{game.label}</option>
-                            ))}
-                        </select>
-                        <button style={BUTTON} type="button" disabled={loadingGames} onClick={() => void loadGames()}>
-                            {t('service.refresh_games')}
-                        </button>
+            {!isOpenPaasHostPlatform && (
+                <div style={ROW}>
+                    <TypedField label={t('service.game')} tooltip={t('service.game_hint')}>
+                        <div style={ACTION_ROW}>
+                            <select
+                                style={SELECT}
+                                value={currentAppId}
+                                disabled={loadingGames}
+                                onChange={(event: ChangeEvent<HTMLSelectElement>) => applyGame(event.target.value)}
+                            >
+                                <option value="">{loadingGames ? t('service.loading_games') : t('service.game_placeholder')}</option>
+                                {games.map((game) => (
+                                    <option key={game.id} value={game.id}>{game.label}</option>
+                                ))}
+                            </select>
+                            <button style={BUTTON} type="button" disabled={loadingGames} onClick={() => void loadGames()}>
+                                {t('service.refresh_games')}
+                            </button>
+                        </div>
+                        {!loadingGames && games.length === 0 && <div style={INFO}>{t('service.no_games')}</div>}
+                    </TypedField>
+                    <div style={INFO}>
+                        {loadingContext
+                            ? t('service.loading_context')
+                            : contextReady
+                                ? t('service.context_ready')
+                                : stringValue(value.codeVersion)
+                                    ? t('service.code_version').replace('{codeVersion}', stringValue(value.codeVersion))
+                                    : ''}
                     </div>
-                    {!loadingGames && games.length === 0 && <div style={INFO}>{t('service.no_games')}</div>}
-                </TypedField>
-                <div style={INFO}>
-                    {loadingContext
-                        ? t('service.loading_context')
-                        : contextReady
-                            ? t('service.context_ready')
-                            : stringValue(value.codeVersion)
-                                ? t('service.code_version').replace('{codeVersion}', stringValue(value.codeVersion))
-                                : ''}
+                    {serviceError && <div style={ERROR}>{serviceError}</div>}
                 </div>
-                {serviceError && <div style={ERROR}>{serviceError}</div>}
-            </div>
+            )}
 
             <div style={ROW}>
                 <TypedField label="WEBGPU" tooltip={t('tips.webgpu')}>

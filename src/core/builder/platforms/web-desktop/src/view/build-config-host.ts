@@ -49,13 +49,13 @@ interface WebPackageBridgeResult {
     uploadEnv: UploadEnv;
 }
 
+interface OpenPaasEndpoint {
+    apiBaseUrl: string;
+    uploadEnv: UploadEnv;
+}
+
 const PLATFORM = 'web-desktop';
 const BRIDGE_API_PATH = '/api/game/web/package/bridge';
-const BASE_URLS: Record<UploadEnv, string> = {
-    dev: 'https://dev-agent-api.s00.tech',
-    fat: 'https://fat-agent-api.s00.tech',
-    prod: 'https://cn-000-agent-api.s01.tech',
-};
 
 function currentLang(): 'zh' | 'en' {
     let locale = 'en';
@@ -114,12 +114,19 @@ function normalizeEnv(env: unknown): UploadEnv | undefined {
     return env === 'dev' || env === 'fat' || env === 'prod' ? env : undefined;
 }
 
-async function resolveEnv(): Promise<UploadEnv> {
+async function resolveOpenPaasEndpoint(): Promise<OpenPaasEndpoint> {
     try {
         const config = await pink.baseConfig.getConfig();
-        return normalizeEnv(config?.env) || 'prod';
-    } catch {
-        return 'prod';
+        const apiBaseUrl = String(config?.api?.api || '').trim().replace(/\/+$/, '');
+        if (!apiBaseUrl) {
+            throw new Error('baseConfig.api.api is empty');
+        }
+        return {
+            apiBaseUrl,
+            uploadEnv: normalizeEnv(config?.env) || 'prod',
+        };
+    } catch (error) {
+        throw new Error(`Failed to resolve OpenPaaS API base URL from pink.baseConfig.getConfig(): ${errorMessage(error)}`);
     }
 }
 
@@ -163,9 +170,9 @@ async function readResponseBody(response: Response): Promise<string> {
 }
 
 async function postOpenPaas<T>(apiPath: string, body: Record<string, unknown>): Promise<{ data: T; accessToken: string; uploadEnv: UploadEnv }> {
-    const resolvedEnv = await resolveEnv();
+    const { apiBaseUrl, uploadEnv } = await resolveOpenPaasEndpoint();
     const accessToken = await readAccessToken();
-    const url = `${BASE_URLS[resolvedEnv]}${apiPath}`;
+    const url = `${apiBaseUrl}${apiPath}`;
     let response: Response;
     try {
         response = await fetch(url, {
@@ -178,12 +185,12 @@ async function postOpenPaas<T>(apiPath: string, body: Record<string, unknown>): 
             body: JSON.stringify(body),
         });
     } catch (error) {
-        throw new Error(`OpenPaaS request failed: ${apiPath}, env=${resolvedEnv}, reason=${errorMessage(error)}`);
+        throw new Error(`OpenPaaS request failed: ${apiPath}, env=${uploadEnv}, reason=${errorMessage(error)}`);
     }
 
     if (!response.ok) {
         const responseBody = await readResponseBody(response);
-        throw new Error(`OpenPaaS request failed: ${apiPath}, env=${resolvedEnv}, HTTP ${response.status}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
+        throw new Error(`OpenPaaS request failed: ${apiPath}, env=${uploadEnv}, HTTP ${response.status}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
     }
 
     const responseBody = await readResponseBody(response);
@@ -191,17 +198,18 @@ async function postOpenPaas<T>(apiPath: string, body: Record<string, unknown>): 
     try {
         result = JSON.parse(responseBody) as OpenPaasResponse<T>;
     } catch (error) {
-        throw new Error(`OpenPaaS response is not valid JSON: ${apiPath}, env=${resolvedEnv}, reason=${errorMessage(error)}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
+        throw new Error(`OpenPaaS response is not valid JSON: ${apiPath}, env=${uploadEnv}, reason=${errorMessage(error)}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
     }
     if (result.ret_code !== 0) {
-        throw new Error(`OpenPaaS API error: ${apiPath}, env=${resolvedEnv}, code=${result.ret_code}, message=${result.ret_msg}`);
+        throw new Error(`OpenPaaS API error: ${apiPath}, env=${uploadEnv}, code=${result.ret_code}, message=${result.ret_msg}`);
     }
 
-    return { data: result.data, accessToken, uploadEnv: resolvedEnv };
+    return { data: result.data, accessToken, uploadEnv };
 }
 
-async function getOpenPaasWebPackageBridge(accessToken: string, uploadEnv: UploadEnv): Promise<string> {
-    const url = `${BASE_URLS[uploadEnv]}${BRIDGE_API_PATH}`;
+async function getOpenPaasWebPackageBridge(accessToken: string, endpoint: OpenPaasEndpoint): Promise<string> {
+    const { apiBaseUrl, uploadEnv } = endpoint;
+    const url = `${apiBaseUrl}${BRIDGE_API_PATH}`;
     let response: Response;
     try {
         response = await fetch(url, {
@@ -240,12 +248,12 @@ async function getOpenPaasWebPackageBridge(accessToken: string, uploadEnv: Uploa
 
 async function resolveOpenPaasWebPackageBridge(): Promise<WebPackageBridgeResult> {
     const accessToken = await readAccessToken();
-    const uploadEnv = await resolveEnv();
-    const bridgeLink = await getOpenPaasWebPackageBridge(accessToken, uploadEnv);
+    const endpoint = await resolveOpenPaasEndpoint();
+    const bridgeLink = await getOpenPaasWebPackageBridge(accessToken, endpoint);
     return {
         bridgeLink,
         accessToken,
-        uploadEnv,
+        uploadEnv: endpoint.uploadEnv,
     };
 }
 
