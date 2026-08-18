@@ -299,6 +299,38 @@ describe('RuntimeBundler', () => {
         compileFunction.mockClear();
     });
 
+    it('executes once when persisted V8 cached data is rejected', async () => {
+        const sourcePath = join(tempRoot, 'runtime', 'index.js');
+        const cachePath = join(tempRoot, '.runtime-bundle-cache');
+        mkdirSync(join(tempRoot, 'runtime'), { recursive: true });
+        createModule(sourcePath, 'rejected-cache');
+
+        runtimeBundler.uninstall();
+        bundler = new RuntimeBundler({ cachePath });
+        bundler.install();
+        expect(requireFresh(sourcePath)).toBe('rejected-cache');
+        await bundler.flush();
+        bundler.uninstall();
+
+        const cache = readFileSync(cachePath);
+        const mappingLength = cache.readUInt32LE(12);
+        const mapping = JSON.parse(cache.subarray(16, 16 + mappingLength).toString('utf8'));
+        const entry = mapping.modules[sourcePath];
+        const codeCacheOffset = 16 + mappingLength + entry.codeCacheOffset;
+        const corruptedCache = Buffer.from(cache);
+        corruptedCache[codeCacheOffset] ^= 0xff;
+        writeFileSync(cachePath, corruptedCache);
+
+        bundler = new RuntimeBundler({ cachePath });
+        const compileFunction = vm.compileFunction as jest.MockedFunction<typeof vm.compileFunction>;
+        compileFunction.mockClear();
+        bundler.install();
+
+        expect(requireFresh(sourcePath)).toBe('rejected-cache');
+        expect(compileFunction).toHaveBeenCalledTimes(1);
+        compileFunction.mockClear();
+    });
+
     it('returns cached content before asynchronously checking and refreshing a changed source', async () => {
         const sourcePath = join(tempRoot, 'runtime', 'index.js');
         const cachePath = join(tempRoot, '.runtime-bundle-cache');

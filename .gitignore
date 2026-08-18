@@ -10,6 +10,7 @@
 .user.json
 .DS_Store
 .temp
+.runtime-bundle-cache*
 
 # tsconfig
 tsconfig.tsbuildinfo

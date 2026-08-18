@@ -85,6 +85,12 @@ interface CompiledModule {
     (...args: unknown[]): unknown;
 }
 
+interface CompiledModuleCacheEntry {
+    mtimeMs: number;
+    sourceLength: number;
+    compiled: CompiledModule;
+}
+
 /**
  * Caches runtime-bundle source and V8 CommonJS compiled data at the module
  * resolution/load boundaries.
@@ -110,6 +116,7 @@ export class RuntimeBundler {
     private cacheResolutions = new Map<string, RuntimeBundleResolutionEntry>();
     private pendingModules = new Map<string, PendingModule>();
     private pendingResolutions = new Map<string, RuntimeBundleResolutionEntry>();
+    private compiledModules = new Map<string, CompiledModuleCacheEntry>();
     private freshnessChecks = new Map<string, Promise<void>>();
     private resolutionChecks = new Map<string, Promise<void>>();
     private flushPromise: Promise<void> | undefined;
@@ -172,6 +179,7 @@ export class RuntimeBundler {
         this.originalModuleLoad = undefined;
         this.hookedResolveFilename = undefined;
         this.originalResolveFilename = undefined;
+        this.compiledModules.clear();
         this.installed = false;
     }
 
@@ -246,7 +254,7 @@ export class RuntimeBundler {
         const pending = this.pendingModules.get(filePath);
         if (pending) {
             this.scheduleFreshnessCheck(filePath, pending.mtimeMs);
-            this.executeCompiledModule(module, filename, pending.source, pending.codeCache);
+            this.executeCompiledModule(module, filename, pending.source, pending.codeCache, pending.mtimeMs);
             return;
         }
 
@@ -255,7 +263,7 @@ export class RuntimeBundler {
             const content = this.getCachedModule(cached);
             if (content) {
                 this.scheduleFreshnessCheck(filePath, cached.mtimeMs);
-                const codeCache = this.executeCompiledModule(module, filename, content.source, content.codeCache);
+                const codeCache = this.executeCompiledModule(module, filename, content.source, content.codeCache, cached.mtimeMs);
                 if (codeCache !== undefined) {
                     this.recordAsync(filePath, content.source, codeCache, cached.mtimeMs);
                 }
@@ -274,7 +282,7 @@ export class RuntimeBundler {
             originalModuleLoad.call(module, filename);
             return;
         }
-        const codeCache = this.executeCompiledModule(module, filename, content);
+        const codeCache = this.executeCompiledModule(module, filename, content, undefined, mtimeMs);
         this.recordAsync(filePath, content, codeCache ?? Buffer.alloc(0), mtimeMs);
     }
 
@@ -306,15 +314,38 @@ export class RuntimeBundler {
         }
 
         const source = await fs.promises.readFile(filePath);
-        const codeCache = createCompiledData(source, filePath);
         const currentPending = this.pendingModules.get(filePath);
         if (currentPending && currentPending.mtimeMs > stats.mtimeMs) {
             return;
         }
-        this.recordAsync(filePath, source, codeCache, stats.mtimeMs);
+        this.compiledModules.delete(filePath);
+        this.recordAsync(filePath, source, Buffer.alloc(0), stats.mtimeMs);
     }
 
-    private executeCompiledModule(module: RuntimeModule, filename: string, source: Buffer, cachedData?: Buffer): Buffer | undefined {
+    /*
+    ```mermaid
+    sequenceDiagram
+        participant Load as Module.load
+        participant Memory as compiledModules
+        participant V8 as vm.compileFunction
+        participant Disk as idle refresh
+        Load->>Memory: lookup by path, mtime and source length
+        alt compiled wrapper exists
+            Memory-->>Load: reuse Function
+        else wrapper missing
+            Load->>V8: compile once with cachedData when available
+            V8-->>Memory: store executable Function
+        end
+        Disk-->>Memory: invalidate only after source changes
+    ```
+    */
+    private executeCompiledModule(
+        module: RuntimeModule,
+        filename: string,
+        source: Buffer,
+        cachedData: Buffer | undefined,
+        mtimeMs: number,
+    ): Buffer | undefined {
         // Module.load normally initializes these before invoking the extension.
         module.filename ??= filename;
         module.paths ??= nodeModule._nodeModulePaths(dirname(filename));
@@ -325,16 +356,27 @@ export class RuntimeBundler {
         }
 
         const sourceText = stripShebang(source.toString('utf8'));
-        let compiled = compileCommonJs(sourceText, filename, cachedData);
-        const cachedDataRejected = compiled.cachedDataRejected === true;
-        if (cachedDataRejected) {
-            compiled = compileCommonJs(sourceText, filename);
+        const cacheKey = resolve(filename);
+        const reusableCachedData = cachedData && cachedData.length > 0 ? cachedData : undefined;
+        const existing = this.compiledModules.get(cacheKey);
+        let compiled = existing && existing.mtimeMs === mtimeMs && existing.sourceLength === source.length
+            ? existing.compiled
+            : undefined;
+        let cachedDataRejected = false;
+        if (!compiled) {
+            compiled = compileCommonJs(sourceText, filename, reusableCachedData);
+            cachedDataRejected = compiled.cachedDataRejected === true;
+            this.compiledModules.set(cacheKey, {
+                mtimeMs,
+                sourceLength: source.length,
+                compiled,
+            });
         }
         const moduleExports = module.exports;
         const localRequire = createModuleRequire(module);
         Reflect.apply(compiled, moduleExports, [moduleExports, localRequire, module, filename, dirname(filename)]);
         module.loaded = true;
-        if (cachedData !== undefined && !cachedDataRejected) {
+        if (compiled === existing?.compiled || (reusableCachedData !== undefined && !cachedDataRejected)) {
             return undefined;
         }
         return compiled.cachedData ?? Buffer.alloc(0);
@@ -871,14 +913,6 @@ function compileCommonJs(source: string, filename: string, cachedData?: Buffer):
         cachedData,
         produceCachedData: cachedData === undefined,
     }) as unknown as CompiledModule;
-}
-
-function createCompiledData(source: Buffer, filename: string): Buffer {
-    if (getModuleExtension(filename) === '.json') {
-        return Buffer.alloc(0);
-    }
-    const compiled = compileCommonJs(stripShebang(source.toString('utf8')), filename);
-    return compiled.cachedData ?? Buffer.alloc(0);
 }
 
 function createModuleRequire(module: RuntimeModule): NodeRequire {
