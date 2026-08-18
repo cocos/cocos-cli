@@ -472,7 +472,9 @@ function createReleasePipeline(config) {
     };
 
     const rebuild = async () => {
-        await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir() });
+        if (config.type === 'electron') {
+            await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir() });
+        }
     };
 
     const test = async () => {
