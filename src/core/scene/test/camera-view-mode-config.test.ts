@@ -10,6 +10,7 @@ const mockService: any = {
     Gizmo: {
         backgroundNode: { name: 'background' },
         transformToolData: { is2D: false },
+        setGridColor: jest.fn(),
     },
     Operation: {
         addListener: jest.fn(),
@@ -62,6 +63,7 @@ jest.mock('cc', () => ({
 jest.mock('../scene-process/service/core/decorator', () => ({
     register: () => () => undefined,
     Service: mockService,
+    queryRegisteredService: (name: string) => mockService[name] ?? null,
 }));
 
 jest.mock('../scene-process/rpc', () => ({
@@ -212,6 +214,35 @@ describe('CameraService view mode config', () => {
         expect(camera.controller3D.updateOriginAxisByConfig).toHaveBeenCalledWith(originAxis3D);
         expect(camera.controller2D.showGrid).toHaveBeenLastCalledWith(false);
         expect(camera.controller3D.showGrid).toHaveBeenLastCalledWith(true);
+    });
+
+    it('delegates grid color changes to the Gizmo config owner so they persist', () => {
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        (mockService.Gizmo.setGridColor as jest.Mock).mockClear();
+
+        camera.setGridColor([12, 34, 56, 78]);
+
+        // 归属 Gizmo：由 Gizmo.setGridColor 更新 GizmoConfig 并整块落盘，避免只改渲染而不持久化
+        expect(mockService.Gizmo.setGridColor).toHaveBeenCalledWith([12, 34, 56, 78]);
+    });
+
+    it('only applies grid color to controllers without delegating when persist is false', () => {
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        (mockService.Gizmo.setGridColor as jest.Mock).mockClear();
+
+        camera.setGridColor([12, 34, 56, 78], false);
+
+        expect(mockService.Gizmo.setGridColor).not.toHaveBeenCalled();
+        expect(camera.controller3D.lineColor).toEqual(
+            expect.objectContaining({ r: 12, g: 34, b: 56, a: 78 }),
+        );
+        expect(camera.controller2D.lineColor).toEqual(
+            expect.objectContaining({ r: 12, g: 34, b: 56, a: 78 }),
+        );
     });
 });
 

@@ -1,6 +1,6 @@
 import { Camera, Canvas, Color, Layers, Vec3, gfx } from 'cc';
 import { BaseService } from './core';
-import { register, Service } from './core/decorator';
+import { register, Service, queryRegisteredService } from './core/decorator';
 import { CameraController2D } from './camera/camera-controller-2d';
 import { CameraController3D } from './camera/camera-controller-3d';
 import CameraControllerBase from './camera/camera-controller-base';
@@ -8,7 +8,7 @@ import { CameraMoveMode, CameraUtils } from './camera/utils';
 import EditorCameraComponent from './camera/editor-camera-component';
 import { OperationPriority } from './operation/types';
 import { Rpc } from '../rpc';
-import type { ICameraConfig, ICameraEvents, ICameraService, IOriginAxesConfig } from '../../common';
+import type { ICameraConfig, ICameraEvents, ICameraService, IGizmoService, IOriginAxesConfig } from '../../common';
 import type { IGizmoConfig } from '../../scene-configs';
 
 /**
@@ -193,7 +193,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
     private _applyGizmoDisplay(config: Partial<IGizmoConfig>): void {
         if (config.gridVisible !== undefined) this.setGridVisible(config.gridVisible, false);
-        if (config.gridColor !== undefined) this.setGridColor(config.gridColor);
+        if (config.gridColor !== undefined) this.setGridColor(config.gridColor, false);
         this._syncControllerGridVisibility();
         Service.Engine.repaintInEditMode();
     }
@@ -204,8 +204,18 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         }
     }
 
-    setGridColor(color: number[]): void {
+    setGridColor(color: number[], persist = true): void {
         if (!color || color.length < 3) return;
+        // gridColor 的配置归 Gizmo 的 GizmoConfig 所有并由其统一持久化（与 cocos-editor GizmoManager 一致）。
+        // 面板经由本方法改色时转交 Gizmo：更新运行时配置并定向落盘（gizmo.gridColor），避免只改渲染而不落盘（重开丢失）。
+        // Gizmo.setGridColor 内部会回调本方法（persist=false）完成 2D/3D 控制器渲染。
+        if (persist) {
+            const gizmo = queryRegisteredService<IGizmoService>('Gizmo');
+            if (gizmo) {
+                gizmo.setGridColor(color); // 其内部会回调 setGridColor(color, false) 完成渲染
+                return;
+            }
+        }
         const [r = 166, g = 166, b = 166, a = 255] = color;
         this._controller3D.lineColor = new Color(r, g, b, a);
         this._controller3D.updateGrid();
