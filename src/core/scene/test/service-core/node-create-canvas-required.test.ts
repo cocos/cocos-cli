@@ -37,7 +37,9 @@ class MockNode {
     setParent = jest.fn((parent: MockNode | null) => {
         this.parent = parent;
     });
-    getChildByName = jest.fn((name: string) => this.children.find(child => child.name === name) ?? null);
+    getChildByName: (name: string) => MockNode | null = jest.fn((name: string): MockNode | null => (
+        this.children.find((child: MockNode): boolean => child.name === name) ?? null
+    ));
     getSiblingIndex = jest.fn(() => this.parent?.children.indexOf(this) ?? 0);
 
     constructor(name = 'Node') {
@@ -267,11 +269,12 @@ describe('NodeService Canvas requirement handling', () => {
             path: '/',
             nodeType: NodeType.BUTTON,
             workMode: '2d',
-        })).resolves.toEqual({
+        })).resolves.toMatchObject({
             action: 'choose-prefab-canvas-handling',
             canvasRequired: true,
             canvasPath: null,
             uiTransformPath: null,
+            preflightToken: expect.any(String),
         });
     });
 
@@ -287,11 +290,12 @@ describe('NodeService Canvas requirement handling', () => {
             path: '/',
             nodeType: NodeType.BUTTON,
             workMode: '2d',
-        })).resolves.toEqual({
+        })).resolves.toMatchObject({
             action: 'create',
             canvasRequired: true,
             canvasPath: null,
             uiTransformPath: '/PrefabRoot',
+            preflightToken: expect.any(String),
         });
     });
 
@@ -307,11 +311,33 @@ describe('NodeService Canvas requirement handling', () => {
             path: '/',
             nodeType: NodeType.BUTTON,
             workMode: '2d',
-        })).resolves.toEqual({
+        })).resolves.toMatchObject({
             action: 'create',
             canvasRequired: true,
             canvasPath: '/PrefabRoot',
             uiTransformPath: null,
+            preflightToken: expect.any(String),
+        });
+    });
+
+    it('reports the same Canvas node used by the creation context', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const root = new MockNode('PrefabRoot');
+        const canvasContext = new MockNode('ReusableCanvas');
+        mockGetRootNode.mockReturnValue(root);
+        mockGetUICanvasNode.mockReturnValue(canvasContext);
+        const { NodeService } = require('../../scene-process/service/node');
+
+        await expect(new NodeService().preflightCreate({
+            path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        })).resolves.toMatchObject({
+            action: 'create',
+            canvasRequired: true,
+            canvasPath: '/ReusableCanvas',
+            uiTransformPath: null,
+            preflightToken: expect.any(String),
         });
     });
 
@@ -325,11 +351,12 @@ describe('NodeService Canvas requirement handling', () => {
             path: '/PrefabRoot/NewParent',
             nodeType: NodeType.BUTTON,
             workMode: '2d',
-        })).resolves.toEqual({
+        })).resolves.toMatchObject({
             action: 'create',
             canvasRequired: true,
             canvasPath: null,
             uiTransformPath: null,
+            preflightToken: expect.any(String),
         });
     });
 
@@ -348,17 +375,44 @@ describe('NodeService Canvas requirement handling', () => {
             path: '/',
             dbURL: 'db://assets/font.fnt',
             workMode: '2d',
-        })).resolves.toEqual({
+        })).resolves.toMatchObject({
             action: 'choose-prefab-canvas-handling',
             canvasRequired: true,
             canvasPath: null,
             uiTransformPath: null,
+            preflightToken: expect.any(String),
         });
         expect(mockQueryCanvasRequiredByAsset).toHaveBeenCalledWith({
             uuid: 'asset-uuid',
             type: 'cc.BitmapFont',
             workMode: '2d',
         });
+    });
+
+    it('rejects a stale direct-create preflight token when prefab Canvas handling becomes required', async () => {
+        const root = new MockNode('PrefabRoot');
+        mockGetRootNode.mockReturnValue(root);
+        const { NodeService } = require('../../scene-process/service/node');
+        const service = new NodeService();
+        service._createNode = jest.fn().mockResolvedValue({ path: '/Node' });
+
+        const preflight = await service.preflightCreate({
+            path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        });
+        expect(preflight.action).toBe('create');
+
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        await expect(service.createByType({
+            path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+            preflightToken: preflight.preflightToken,
+        })).rejects.toThrow('Canvas context changed after preflight');
+        consoleError.mockRestore();
+        expect(service._createNode).not.toHaveBeenCalled();
     });
 
 });

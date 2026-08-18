@@ -92,11 +92,15 @@ const SchemaNodeCreateBase = z.object({
     ].join(' ')), // prefab 模式中 canvasRequired 为 true 时的 Canvas 处理
 }).describe('To configure options for node creation, the Scene must be open first.'); // 创建节点的选项参数, 需先打开场景;
 
-export const SchemaNodeCreateByAsset = SchemaNodeCreateBase.extend({
+const SchemaNodeCreateWithPreflight = SchemaNodeCreateBase.extend({
+    preflightToken: z.string().optional().describe('Opaque token returned by preflightCreate. Pass it to the matching create request to reject stale Canvas decisions.'),
+});
+
+export const SchemaNodeCreateByAsset = SchemaNodeCreateWithPreflight.extend({
     dbURL: SchemaAssetDbUrl.describe('Prefab asset path, if created from a prefab, please pass this parameter, format is custom db path e.g. db://assets/abc.prefab'), // 预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab
 });
 
-export const SchemaNodeCreateByType = SchemaNodeCreateBase.extend({
+export const SchemaNodeCreateByType = SchemaNodeCreateWithPreflight.extend({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('Node type'), // 节点类型
 });
 

@@ -55,6 +55,12 @@ interface IPrefabCanvasUndoRecord {
     workMode: string;
 }
 
+interface ICreatePreflightToken {
+    requestKey: string;
+    action: ICreateNodePreflightResult['action'];
+    canvasRequired: boolean;
+}
+
 /**
  * 子进程节点处理器
  * 在子进程中处理所有节点相关操作
@@ -64,6 +70,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     private readonly _undo = new NodeUndoHelper((event, ...args) => this.emit(event as any, ...args));
     private _prefabCanvasUndoRecords: IPrefabCanvasUndoRecord[] | null = null;
     private _prefabCanvasUndoBeforeNodeUuids: Set<string> | null = null;
+    private readonly _preflightTokens = new Map<string, ICreatePreflightToken>();
+    private _preflightTokenSequence = 0;
 
     async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
         try {
@@ -71,6 +79,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
             const createRootPath = this._getCreateRootPathForUndo(beforeNodeUuids, params.path);
             const { assetUuid, canvasRequired: canvasNeeded } = this._resolveTypeCreateOptions(params);
+            this._validatePreflightToken(params);
             const prefabCanvasUndoRecords = this._beginPrefabCanvasUndoCapture(beforeNodeUuids);
             let result: INode | null;
             try {
@@ -107,6 +116,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
             const canvasNeeded = params.canvasRequired || false;
+            this._validatePreflightToken(params);
             const prefabCanvasUndoRecords = this._beginPrefabCanvasUndoCapture(beforeNodeUuids);
             let result: INode | null;
             try {
@@ -149,28 +159,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 canvasRequired = Boolean(params.canvasRequired || assetCanvasRequired);
             }
 
-            const pathPlan = this._getCreatePathPreflight(params.path, currentScene);
-            if (pathPlan.materializesUITransform) {
-                return {
-                    action: 'create',
-                    canvasRequired,
-                    canvasPath: null,
-                    uiTransformPath: null,
-                };
-            }
-
-            canvasRequired = canvasRequired || pathPlan.canvasRequired;
-            const context = this._getCanvasContext(pathPlan.parent);
-            const requiresPrefabCanvasHandling = canvasRequired
-                && Service.Editor.getCurrentEditorType() === 'prefab'
-                && !context.hasCanvasContext
-                && !context.uiTransformNode;
-
+            const result = this._resolveCreatePreflight(params, canvasRequired, currentScene);
             return {
-                action: requiresPrefabCanvasHandling ? 'choose-prefab-canvas-handling' : 'create',
-                canvasRequired,
-                canvasPath: context.canvasNode ? NodeMgr.getNodePath(context.canvasNode) ?? null : null,
-                uiTransformPath: context.uiTransformNode ? NodeMgr.getNodePath(context.uiTransformNode) ?? null : null,
+                ...result,
+                preflightToken: this._createPreflightToken(params, result),
             };
         } catch (error) {
             console.error(error);
@@ -236,35 +228,99 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         const uiTransformNode = getUITransformParentNode(parent);
         return {
             hasCanvasContext: Boolean(canvasContextNode),
-            canvasNode: canvasContextNode ? this._findCanvasNode(parent) : null,
+            canvasNode: canvasContextNode,
             uiTransformNode,
         };
     }
 
-    private _findCanvasNode(parent: Node): Node | null {
-        if (hasOneKindOfComponent(parent, Canvas)) {
-            return parent;
+    private _resolveCreatePreflight(
+        params: ICreateByNodeTypeParams | ICreateByAssetParams,
+        canvasRequired: boolean,
+        currentScene: Node,
+    ): Omit<ICreateNodePreflightResult, 'preflightToken'> {
+        const pathPlan = this._getCreatePathPreflight(params.path, currentScene);
+        if (pathPlan.materializesUITransform) {
+            return {
+                action: 'create',
+                canvasRequired,
+                canvasPath: null,
+                uiTransformPath: null,
+            };
         }
 
-        let ancestor = parent.parent;
-        while (ancestor) {
-            if (hasOneKindOfComponent(ancestor, Canvas)) {
-                return ancestor;
+        const effectiveCanvasRequired = canvasRequired || pathPlan.canvasRequired;
+        const context = this._getCanvasContext(pathPlan.parent);
+        const requiresPrefabCanvasHandling = effectiveCanvasRequired
+            && Service.Editor.getCurrentEditorType() === 'prefab'
+            && !context.hasCanvasContext
+            && !context.uiTransformNode;
+
+        return {
+            action: requiresPrefabCanvasHandling ? 'choose-prefab-canvas-handling' : 'create',
+            canvasRequired: effectiveCanvasRequired,
+            canvasPath: context.canvasNode ? NodeMgr.getNodePath(context.canvasNode) ?? null : null,
+            uiTransformPath: context.uiTransformNode ? NodeMgr.getNodePath(context.uiTransformNode) ?? null : null,
+        };
+    }
+
+    private _createPreflightToken(
+        params: ICreateByNodeTypeParams | ICreateByAssetParams,
+        result: Omit<ICreateNodePreflightResult, 'preflightToken'>,
+    ): string {
+        const token = `node-create-${Date.now().toString(36)}-${(++this._preflightTokenSequence).toString(36)}`;
+        if (this._preflightTokens.size >= 128) {
+            const oldestToken = this._preflightTokens.keys().next().value;
+            if (oldestToken) {
+                this._preflightTokens.delete(oldestToken);
             }
-            if (ancestor === director.getScene()) {
-                break;
-            }
-            ancestor = ancestor.parent;
+        }
+        this._preflightTokens.set(token, {
+            requestKey: this._getPreflightRequestKey(params),
+            action: result.action,
+            canvasRequired: result.canvasRequired,
+        });
+        return token;
+    }
+
+    private _validatePreflightToken(params: ICreateByNodeTypeParams | ICreateByAssetParams): void {
+        if (!params.preflightToken) {
+            return;
         }
 
-        for (let index = parent.children.length - 1; index >= 0; index--) {
-            const child = parent.children[index];
-            if (hasOneKindOfComponent(child, Canvas)) {
-                return child;
-            }
+        const record = this._preflightTokens.get(params.preflightToken);
+        this._preflightTokens.delete(params.preflightToken);
+        if (!record || record.requestKey !== this._getPreflightRequestKey(params)) {
+            throw new Error('The node creation preflight token is invalid or does not match the request. Run preflightCreate again.');
         }
 
-        return null;
+        if (record.action !== 'create') {
+            return;
+        }
+
+        const currentScene = Service.Editor.getRootNode();
+        if (!currentScene) {
+            throw new Error('Failed to create node: the scene is not opened.');
+        }
+        const currentResult = this._resolveCreatePreflight(params, record.canvasRequired, currentScene);
+        if (currentResult.action !== 'create') {
+            throw new Error('Canvas context changed after preflight. Run preflightCreate again before creating the node.');
+        }
+    }
+
+    private _getPreflightRequestKey(params: ICreateByNodeTypeParams | ICreateByAssetParams): string {
+        return JSON.stringify('nodeType' in params ? {
+            kind: 'type',
+            path: params.path,
+            nodeType: params.nodeType,
+            workMode: params.workMode ?? '2d',
+            canvasRequired: Boolean(params.canvasRequired),
+        } : {
+            kind: 'asset',
+            path: params.path,
+            dbURL: params.dbURL,
+            workMode: params.workMode ?? '2d',
+            canvasRequired: Boolean(params.canvasRequired),
+        });
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams, assetType?: string): Promise<INode | null> {

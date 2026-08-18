@@ -40,6 +40,23 @@ export async function loadAny<TAsset extends Asset>(uuid: string): Promise<TAsse
     });
 }
 
+async function loadCachedOrAny<TAsset extends Asset>(uuid: string): Promise<TAsset> {
+    const cached = assetManager.assets.get(uuid) as TAsset | undefined;
+    if (cached) {
+        return cached;
+    }
+
+    return new Promise<TAsset>((resolve, reject) => {
+        assetManager.loadAny<TAsset>(uuid, (error, asset) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(asset);
+            }
+        });
+    });
+}
+
 export async function createNodeByAsset(info: {
     uuid: string,
     canvasRequired?: boolean,
@@ -295,7 +312,7 @@ export async function queryCanvasRequiredByAsset(info: {
     workMode?: string,
 }): Promise<boolean> {
     if (info.type === 'cc.Prefab') {
-        const prefab = await loadAny<Prefab>(info.uuid);
+        const prefab = await loadCachedOrAny<Prefab>(info.uuid);
         const node = cc.instantiate(prefab) as Node;
         try {
             return getPrefabCanvasRequired(node);
