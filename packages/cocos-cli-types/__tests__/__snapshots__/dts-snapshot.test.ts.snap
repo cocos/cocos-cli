@@ -1255,6 +1255,7 @@ export declare class BuilderAssetCache implements BuilderCache {
     init(): Promise<void>;
     hasAsset(uuid: string): Promise<boolean>;
     addAsset(asset: IAsset, type?: string): void;
+    private addSingleAsset;
     removeAsset(uuid: string, type?: string): void;
     getAssetInfo(uuid: string): IAssetInfo;
     addInstance(instance: any): void;

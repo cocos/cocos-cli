@@ -8,6 +8,12 @@ import type { IPreviewSettingsResult } from '../builder/@types/private';
  * live-reload 调 `invalidatePreviewSettings()` 清空缓存，下次请求重新生成。
  */
 const cache = new Map<string, IPreviewSettingsResult>();
+// Builder 以及 buildAssetLibrary 使用了进程级共享状态，不能并发生成预览 settings。
+// 同一个 HTTP 请求的 settings/ bundleConfigs 路由也会同时访问这里：先合并同 key
+// 的请求，再把不同 key 的生成串行化，避免多个 Builder 相互覆盖进度和临时状态。
+const pending = new Map<string, { version: number; promise: Promise<IPreviewSettingsResult>; }>();
+let cacheVersion = 0;
+let generationTail: Promise<void> = Promise.resolve();
 
 function makeCacheKey(startScene: string, sceneEditor: boolean): string {
     return JSON.stringify({ startScene, sceneEditor });
@@ -59,9 +65,44 @@ async function getCachedSettings(startScene: string, sceneEditor: boolean): Prom
     if (!assetDBManager.ready) {
         throw new PreviewNotReadyError();
     }
-    const result = await generatePreviewSettings(startScene, sceneEditor);
-    cache.set(cacheKey, result);
-    return result;
+
+    const pendingEntry = pending.get(cacheKey);
+    if (pendingEntry && pendingEntry.version === cacheVersion) {
+        return await pendingEntry.promise;
+    }
+
+    const version = cacheVersion;
+    const promise = runSettingsGeneration(async () => {
+        const result = await generatePreviewSettings(startScene, sceneEditor);
+        // 资源变化后不能让已经过期的异步生成重新写入缓存。
+        if (version === cacheVersion) {
+            cache.set(cacheKey, result);
+        }
+        return result;
+    });
+    pending.set(cacheKey, { version, promise });
+    try {
+        return await promise;
+    } finally {
+        const current = pending.get(cacheKey);
+        if (current?.promise === promise) {
+            pending.delete(cacheKey);
+        }
+    }
+}
+
+async function runSettingsGeneration<T>(task: () => Promise<T>): Promise<T> {
+    const previous = generationTail;
+    let release!: () => void;
+    generationTail = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await previous;
+    try {
+        return await task();
+    } finally {
+        release();
+    }
 }
 
 /**
@@ -177,5 +218,7 @@ async function resolveDefaultStartScene(): Promise<string> {
  * 清空预览 settings 缓存。脚本重编译或资源变化后调用。
  */
 export function invalidatePreviewSettings(): void {
+    cacheVersion++;
     cache.clear();
+    pending.clear();
 }

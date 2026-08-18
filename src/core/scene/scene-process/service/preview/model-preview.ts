@@ -15,21 +15,20 @@ export class ModelPreview extends InteractivePreview {
 
     // For gltf/fbx root assets, resolve to the Prefab sub-asset UUID
     // (the root asset has no .json library file — only sub-assets do)
-    private async resolvePrefabUuid(uuid: string): Promise<string> {
-        try {
-            const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid, ['subAssets']]);
-            if (assetInfo?.subAssets) {
-                for (const name of Object.keys(assetInfo.subAssets)) {
-                    const sub = assetInfo.subAssets[name];
-                    if (sub.importer === 'gltf-scene' || sub.type === 'cc.Prefab') {
-                        return sub.uuid;
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('[ModelPreview] Failed to resolve prefab sub-asset:', e);
+    private async resolvePrefabUuid(uuid: string): Promise<string | null> {
+        // Creator's FBX inspector explicitly passes the generated cc.Prefab
+        // child to ModelPreview. A source FBX/GLTF root has no library .json,
+        // therefore it must never be used as a fallback load target.
+        const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid, ['subAssets']]);
+        if (assetInfo?.type === 'cc.Prefab') {
+            return assetInfo.uuid || uuid;
         }
-        return uuid;
+        for (const sub of Object.values(assetInfo?.subAssets || {}) as any[]) {
+            if (sub?.type === 'cc.Prefab' || sub?.importer === 'gltf-scene') {
+                return sub.uuid;
+            }
+        }
+        return null;
     }
 
     public async setModel(uuid: string) {
@@ -39,6 +38,9 @@ export class ModelPreview extends InteractivePreview {
         }
 
         const prefabUuid = await this.resolvePrefabUuid(uuid);
+        if (!prefabUuid) {
+            throw new Error(`Unable to preview model ${uuid}: the imported cc.Prefab sub-asset is unavailable.`);
+        }
 
         removePreviewAssetCache(uuid);
         const prefabAsset = await loadPreviewAsset<Prefab>(prefabUuid, 'model', { reloadAsset: true });

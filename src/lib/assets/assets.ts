@@ -100,7 +100,12 @@ export async function queryAssetInfo(
     urlOrUUIDOrPath: string,
     dataKeys?: string[] | undefined
 ): Promise<IAssetInfo | null> {
-    return await assetManager.queryAssetInfo(urlOrUUIDOrPath, dataKeys as (keyof IAssetInfo)[] | undefined);
+    const info = await assetManager.queryAssetInfo(urlOrUUIDOrPath, dataKeys as (keyof IAssetInfo)[] | undefined);
+    // This module is exposed through the Electron MessagePort RPC bridge. Some
+    // asset-db implementations attach helper functions to otherwise plain asset
+    // data; those functions cannot be structured-cloned and made Asset Preview's
+    // queryAssetInfo() fail before it can resolve FBX Prefab sub-assets.
+    return info ? JSON.parse(JSON.stringify(info)) as IAssetInfo : null;
 }
 
 /**

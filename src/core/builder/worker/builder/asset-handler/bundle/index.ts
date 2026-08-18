@@ -566,7 +566,10 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
     private addSceneEditorAssets(bundle: IBundle) {
         for (const uuid of this.cache.assetUuids) {
             const asset = buildAssetLibrary.getAsset(uuid);
-            if (asset) {
+            // 引擎内置资源已经由 internal bundle 统一收集。Scene Editor 预览若再把它们
+            // 加入启动 bundle，会让同一资源进入两个 bundle；例如 default_skybox 的 HDR
+            // 与 PNG 会在主 bundle 中得到相同的动态加载 URL。
+            if (asset && !asset.url.startsWith('db://internal/')) {
                 bundle.addRootAsset(asset);
             }
         }
