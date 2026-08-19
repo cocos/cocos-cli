@@ -29,6 +29,51 @@ export async function init(platform?: string[]) {
     }
 }
 
+/**
+ * 使用平台注册的 verifyRules 对构建参数做严格校验。
+ * 仅供 api 层（CLI/MCP）在调用 build() 前显式调用；Pink 走自己的 UI 校验，不会经过这里。
+ * skipCheck 为 true 时跳过。
+ * 通过返回 null；不通过返回 { code: PARAM_ERROR, reason }。
+ */
+export async function verifyBuildOptions(
+    platform: string,
+    options?: IBuildCommandOption,
+): Promise<{ code: Exclude<BuildExitCode, BuildExitCode.BUILD_SUCCESS>; reason: string } | null> {
+    if (options?.skipCheck) {
+        return null;
+    }
+    try {
+        const results = await pluginManager.checkBuildOptions(platform, (options || {}) as any);
+        const errors: string[] = [];
+        const warnings: string[] = [];
+        for (const key of Object.keys(results)) {
+            const r = results[key];
+            if (r.valid) {
+                continue;
+            }
+            const line = `  - ${key}: ${r.message || 'invalid'}`;
+            // 参考 createBuildTask 里 checkOptions 的做法：如果规则返回了 fixedValue（通常是平台配置的 default），
+            // 说明用户漏传/传错但平台自带 fallback，此时降级为 warn，不阻塞构建；仅在 fixedValue 缺失（不可修复）时才 error。
+            if (r.level === 'warn' || r.fixedValue !== undefined) {
+                warnings.push(line);
+            } else {
+                errors.push(line);
+            }
+        }
+        if (warnings.length) {
+            console.warn(`Build option warnings:\n${warnings.join('\n')}`);
+        }
+        if (errors.length) {
+            const reason = `Build option errors:\n${errors.join('\n')}`;
+            console.error(reason);
+            return { code: BuildExitCode.PARAM_ERROR, reason };
+        }
+    } catch (e) {
+        console.warn('Failed to run build option checks:', e);
+    }
+    return null;
+}
+
 function getBuilderLogRoot() {
     const projectTempDir = builderConfig.projectTempDir;
     return basename(projectTempDir) === 'builder' ? projectTempDir : join(projectTempDir, 'builder');
