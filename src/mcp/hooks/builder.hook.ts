@@ -126,7 +126,7 @@ export class BuilderHook {
                 platform: z.literal(platform).describe('Build platform'),
                 packages: z.object({
                     [platform]: z.any().optional().describe(`${platform} platform specific configuration`)
-                }).optional().describe(`${platform} platform specific configuration`)
+                }).catchall(z.any()).optional().describe(`${platform} platform specific configuration`)
             }).describe(`${platform} complete build options`);
         });
 
