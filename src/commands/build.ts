@@ -97,6 +97,9 @@ export class BuildCommand extends BaseCommand {
                     if (result.code === BuildExitCode.BUILD_SUCCESS) {
                         console.log(chalk.green('✓ Build completed successfully! Build Dest: ' + result.dest));
                     } else {
+                        if (result.reason) {
+                            console.error(chalk.red(result.reason));
+                        }
                         console.error(chalk.red('✗ Build failed!'));
                     }
                     process.exit(result.code);
