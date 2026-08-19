@@ -167,6 +167,7 @@ describe('NodeService Canvas requirement handling', () => {
         mockInstantiate.mockImplementation(() => new MockNode('Canvas'));
         mockQueryCanvasRequiredByAsset.mockResolvedValue(false);
         mockRpcRequest.mockReset();
+        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(null);
     });
 
     it('keeps empty nodes plain unless Canvas is explicitly requested', async () => {
@@ -267,6 +268,26 @@ describe('NodeService Canvas requirement handling', () => {
 
         await expect(new NodeService().preflightCreate({
             path: '/',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        })).resolves.toMatchObject({
+            action: 'choose-prefab-canvas-handling',
+            canvasRequired: true,
+            canvasPath: null,
+            uiTransformPath: null,
+            preflightToken: expect.any(String),
+        });
+    });
+
+    it('resolves an existing Prefab root path before predicting missing path materialization', async () => {
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        const root = new MockNode('Node');
+        mockGetRootNode.mockReturnValue(root);
+        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(root);
+        const { NodeService } = require('../../scene-process/service/node');
+
+        await expect(new NodeService().preflightCreate({
+            path: 'Node',
             nodeType: NodeType.BUTTON,
             workMode: '2d',
         })).resolves.toMatchObject({

@@ -197,6 +197,17 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         materializesUITransform: boolean;
         canvasRequired: boolean;
     } {
+        if (path) {
+            try {
+                const existingParent = NodeMgr.getNodeByPath(path);
+                if (existingParent) {
+                    return { parent: existingParent, materializesUITransform: false, canvasRequired: false };
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
         const pathParts = path?.split('/').filter(part => part.trim() !== '') ?? [];
         let parent = currentScene;
 
