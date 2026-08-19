@@ -3,6 +3,12 @@
 import { IPlatformBuildPluginConfig } from '../../../@types/protected';
 import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 
+// huawei-agc 直接 spread 本配置来复用整套规则，此时选项落在 packages['huawei-agc'] 而不是 packages.android，
+// 所以联动条件必须按 options.platform 取包名（checkBuildOptions 会写入该字段），否则 huawei-agc 上所有 gate 都读到 undefined。
+function pkgOptions(options: any): any {
+    return options?.packages?.[options?.platform] || options?.packages?.android || {};
+}
+
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
     displayName: 'Android',
@@ -28,16 +34,133 @@ const config: IPlatformBuildPluginConfig = {
             },
             message: 'Invalid package name specified',
         },
-        // 当 useDebugKeystore=false 时，keystore 相关字段不能为空
-        // 迁移自 editor 的 getVerifyMap（keystorePath/Password/Alias/AliasPassword）
+        // 当 useDebugKeystore=false 时，keystore 相关字段（keystorePath/Password/Alias/AliasPassword）
+        // 需校验：keystoreRequired 卡 undefined/null（真的没设），keystoreNotEmpty 卡 ''（设了但空）。
+        // 迁移自 editor 的 getVerifyMap，两条规则区分语义。
+        // gate 用 !== false：checkBuildOption 逐字段校验时不会合并平台默认值（createVerifyOptions 只 clone 调用方传入的 options），
+        // 字段缺失时必须按声明的默认值 true 处理，否则会误报"keystore 不能为空"。
         keystoreRequired: {
             func: (value: unknown, options: any) => {
-                if (options?.packages?.android?.useDebugKeystore) {
+                if (pkgOptions(options).useDebugKeystore !== false) {
                     return true;
                 }
-                return value !== null && value !== undefined && value !== '';
+                return value !== null && value !== undefined;
             },
-            message: 'Required when useDebugKeystore is disabled',
+            message: 'Required when useDebugKeystore is false (field must be set for the custom release keystore; set useDebugKeystore to true to use the built-in debug keystore)',
+        },
+        keystoreNotEmpty: {
+            func: (value: unknown, options: any) => {
+                if (pkgOptions(options).useDebugKeystore !== false) {
+                    return true;
+                }
+                return value !== '';
+            },
+            message: 'Cannot be empty when useDebugKeystore is false (a value is needed for the custom release keystore; set useDebugKeystore to true to use the built-in debug keystore)',
+        },
+        // apiLevel 的分支校验（editor 侧 checkAndroidAPILevels 逻辑拆解，每个分支独立 rule 保留精确 message）
+        // checkAndroidAPILevels 现在只剩 huawei-agc/hooks.ts 在调，用作 silent auto-fix；android 自己已完全走这套 rule
+        apiLevelIsNumber: {
+            func: (value: unknown) => typeof value === 'number' ? !isNaN(value) : !isNaN(Number(value)),
+            message: 'API Level must be a number',
+        },
+        apiLevelInstant: {
+            func: (value: unknown, options: any) => {
+                if (!pkgOptions(options).androidInstant) {
+                    return true;
+                }
+                return Number(value) >= 23;
+            },
+            message: 'When Android Instant App is enabled, the minimum API Level required is 23.',
+        },
+        apiLevelTbb: {
+            func: (value: unknown, options: any) => {
+                // CLI 的 JobSystem 由 baseNativeCommonOptions 声明在各平台自己的 options 里，不存在 packages.native（那是编辑器的形态）
+                if (pkgOptions(options).JobSystem !== 'tbb') {
+                    return true;
+                }
+                return Number(value) >= 21;
+            },
+            message: 'When TBB is enabled, the minimum API Level required is 21.',
+        },
+        apiLevelRenderPipeline: {
+            func: (value: unknown, options: any) => {
+                // 与 editor 一致的延迟渲染管线 uuid
+                if (options?.renderPipeline !== '5d45ba66-829a-46d3-948e-2ed3fa7ee421') {
+                    return true;
+                }
+                return Number(value) >= 21;
+            },
+            message: 'When Deferred Render Pipeline is enabled, the minimum API Level required is 21.',
+        },
+        apiLevelMin19: {
+            func: (value: unknown) => Number(value) >= 19,
+            message: 'The minimum API Level required is 19.',
+        },
+        // 迁移自 editor verificationFunc 剩余 case：appABIs / renderBackEnd / orientation
+        // 空数组 [] 和空对象 {} 都不会被 validator-manager 的空值 short-circuit 拦截，规则会正常 fire。
+        appABIs: {
+            func: (value: unknown) => Array.isArray(value) && value.length > 0,
+            message: 'appABIs must include at least one ABI',
+        },
+        renderBackEnd: {
+            func: (value: unknown) => {
+                if (!value || typeof value !== 'object') {
+                    return false;
+                }
+                // 只认可 android/google-play 支持的 backend key；至少 1 个开启才算合法。
+                // 这一层比 editor 严格（editor 侧只查"任一 truthy"，会漏掉 {metal:true} 这种平台不匹配的写法）。
+                const supported = ['vulkan', 'gles3', 'gles2'];
+                const v = value as Record<string, unknown>;
+                return supported.some((k) => !!v[k]);
+            },
+            message: 'renderBackEnd must have at least one supported backend enabled (vulkan / gles3 / gles2 for android)',
+        },
+        orientation: {
+            func: (value: unknown) => {
+                if (!value || typeof value !== 'object') {
+                    return false;
+                }
+                return Object.values(value as Record<string, unknown>).some((v) => !!v);
+            },
+            message: 'orientation must have at least one direction enabled',
+        },
+        // maxAspectRatio 只在 resizeableActivity=false 时校验（editor 逻辑一致），Required 结尾使空值也能走进 func
+        maxAspectRatioRequired: {
+            func: (value: unknown, options: any) => {
+                if (pkgOptions(options).resizeableActivity !== false) {
+                    return true;
+                }
+                if (typeof value !== 'string' || value.trim() === '') {
+                    return false;
+                }
+                const trimmed = value.trim();
+                const LOWER_BOUND = 1.33; // https://developer.android.com/guide/practices/screens-distribution#MaxAspectRatio
+                const optMatch = trimmed.match(/^(\d+(?:\.\d+)?)(?:\s*\(\s*\d+\s*:\s*\d+\s*\))?$/);
+                if (optMatch) {
+                    return Number.parseFloat(optMatch[1]) >= LOWER_BOUND;
+                }
+                const fracMatch = trimmed.match(/^(\d+)\s*:\s*(\d+)$/);
+                if (fracMatch) {
+                    const w = Number.parseInt(fracMatch[1], 10);
+                    const h = Number.parseInt(fracMatch[2], 10);
+                    return w > 0 && h > 0 && w / h >= LOWER_BOUND;
+                }
+                return false;
+            },
+            message: 'maxAspectRatio must be a number, "w:h", or "n.n (w:h)" with value >= 1.33 (required when resizeableActivity is false)',
+        },
+        // remoteUrl 只在 androidInstant=true 且非空时要求 http 前缀（editor 里空值也是允许的）
+        remoteUrlHttp: {
+            func: (value: unknown, options: any) => {
+                if (!pkgOptions(options).androidInstant) {
+                    return true;
+                }
+                if (value === '' || value === null || value === undefined) {
+                    return true;
+                }
+                return typeof value === 'string' && value.startsWith('http');
+            },
+            message: 'remoteUrl should start with http when androidInstant is enabled',
         },
     },
     options: {
@@ -73,6 +196,7 @@ const config: IPlatformBuildPluginConfig = {
                 gles3: true,
                 gles2: true,
             },
+            verifyRules: ['renderBackEnd'],
         },
         packageName: {
             label: 'i18n:android.options.package_name',
@@ -84,7 +208,8 @@ const config: IPlatformBuildPluginConfig = {
             label: 'i18n:android.options.apiLevel',
             type: 'number',
             default: 35,
-            verifyRules: ['required'],
+            // 顺序敏感（validator 短路）：required → 是数字 → 分支特定下限 → 通用下限 19
+            verifyRules: ['required', 'apiLevelIsNumber', 'apiLevelInstant', 'apiLevelTbb', 'apiLevelRenderPipeline', 'apiLevelMin19'],
         },
         appABIs: {
             label: 'i18n:android.options.appABIs',
@@ -92,6 +217,7 @@ const config: IPlatformBuildPluginConfig = {
             items: { type: 'string' },
             default: ['arm64-v8a'],
             hidden: true,
+            verifyRules: ['appABIs'],
         },
         resizeableActivity: {
             label: 'i18n:android.options.resizeable_activity',
@@ -102,6 +228,7 @@ const config: IPlatformBuildPluginConfig = {
             label: 'i18n:android.options.max_aspect_ratio',
             type: 'string',
             default: '2.4',
+            verifyRules: ['maxAspectRatioRequired'],
         },
         orientation: {
             label: 'i18n:android.options.screen_orientation',
@@ -128,6 +255,7 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeRight: true,
                 landscapeLeft: true,
             },
+            verifyRules: ['orientation'],
         },
         useDebugKeystore: {
             label: 'i18n:android.KEYSTORE.use_debug_keystore',
@@ -138,25 +266,25 @@ const config: IPlatformBuildPluginConfig = {
             label: 'i18n:android.KEYSTORE.keystore_path',
             type: 'string',
             default: '',
-            verifyRules: ['keystoreRequired'],
+            verifyRules: ['keystoreRequired', 'keystoreNotEmpty'],
         },
         keystorePassword: {
             label: 'i18n:android.KEYSTORE.keystore_password',
             type: 'string',
             default: '',
-            verifyRules: ['keystoreRequired'],
+            verifyRules: ['keystoreRequired', 'keystoreNotEmpty'],
         },
         keystoreAlias: {
             label: 'i18n:android.KEYSTORE.keystore_alias',
             type: 'string',
             default: '',
-            verifyRules: ['keystoreRequired'],
+            verifyRules: ['keystoreRequired', 'keystoreNotEmpty'],
         },
         keystoreAliasPassword: {
             label: 'i18n:android.KEYSTORE.keystore_alias_password',
             type: 'string',
             default: '',
-            verifyRules: ['keystoreRequired'],
+            verifyRules: ['keystoreRequired', 'keystoreNotEmpty'],
         },
         appBundle: {
             label: 'i18n:android.options.app_bundle',
@@ -180,6 +308,7 @@ const config: IPlatformBuildPluginConfig = {
             type: 'string',
             hidden: true,
             default: '',
+            verifyRules: ['remoteUrlHttp'],
         },
         isSoFileCompressed: {
             label: 'i18n:android.options.compress_so_files',

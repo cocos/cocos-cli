@@ -39,8 +39,10 @@ class ValidatorManager {
         }
 
         try {
-            // 非必选参数空值时不做校验
-            if (['', undefined, null].includes(value) && !rules.includes('required')) {
+            // 非必选参数空值时不做校验；识别字面量 'required' 以及以 'Required' 结尾的自定义规则
+            // （如 keystoreRequired），后者常见于"取决于其他字段的条件必填"场景。
+            const isEmpty = ['', undefined, null].includes(value);
+            if (isEmpty && !rules.some((r) => r === 'required' || /Required$/.test(r))) {
                 return '';
             }
             for (const rule of rules) {

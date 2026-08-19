@@ -3,6 +3,13 @@
 import { IPlatformBuildPluginConfig } from '../../../@types/protected';
 import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 
+function hasEnabledEntry(value: unknown): boolean {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    return Object.values(value as Record<string, unknown>).some((v) => !!v);
+}
+
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
     displayName: 'HarmonyOS Next',
@@ -44,6 +51,26 @@ const config: IPlatformBuildPluginConfig = {
             func: (value: unknown) => Array.isArray(value) && value.length > 0,
             message: 'i18n:harmonyos-next.tips.at_least_one',
         },
+        // 迁移自 editor 的 verificationFunc：renderBackEnd / orientation / deviceTypes 都是"至少开一项"
+        renderBackEnd: {
+            func: (value: unknown) => {
+                if (!value || typeof value !== 'object') {
+                    return false;
+                }
+                const supported = ['vulkan', 'gles3', 'gles2'];
+                const v = value as Record<string, unknown>;
+                return supported.some((k) => !!v[k]);
+            },
+            message: 'renderBackEnd must have at least one supported backend enabled (vulkan / gles3 / gles2)',
+        },
+        orientation: {
+            func: hasEnabledEntry,
+            message: 'orientation must have at least one direction enabled',
+        },
+        deviceTypes: {
+            func: hasEnabledEntry,
+            message: 'deviceTypes must have at least one device type enabled',
+        },
     },
     options: {
         ...baseNativeCommonOptions,
@@ -52,27 +79,28 @@ const config: IPlatformBuildPluginConfig = {
             description: 'i18n:harmonyos-next.options.render_back_end',
             type: 'object',
             properties: {
-                // TODO OHOS 暂时隐藏其他后端选项
-                // vulkan: {
-                //     label: 'VULKAN',
-                //     default: false,
-                //     render: {
-                //         ui: 'ui-checkbox',
-                //     },
-                // },
+                vulkan: {
+                    label: 'VULKAN',
+                    type: 'boolean',
+                    default: false,
+                },
                 gles3: {
                     label: 'GLES3',
                     type: 'boolean',
                     default: true,
                 },
-                // gles2: {
-                //     label: 'GLES2',
-                //     default: false,
-                //     render: {
-                //         ui: 'ui-checkbox',
-                //     },
-                // },
+                gles2: {
+                    label: 'GLES2',
+                    type: 'boolean',
+                    default: false,
+                },
             },
+            default: {
+                vulkan: false,
+                gles3: true,
+                gles2: false,
+            },
+            verifyRules: ['renderBackEnd'],
         },
         jsEngine: {
             label: 'i18n:harmonyos-next.options.js_engine',
@@ -139,6 +167,7 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeRight: true,
                 landscapeLeft: true,
             },
+            verifyRules: ['orientation'],
         },
         deviceTypes: {
             default: {
@@ -146,6 +175,7 @@ const config: IPlatformBuildPluginConfig = {
             },
             label: 'i18n:harmonyos-next.options.device_types',
             type: 'object',
+            verifyRules: ['deviceTypes'],
             properties: {
                 phone: {
                     label: 'i18n:harmonyos-next.options.device_phone',

@@ -3,7 +3,7 @@
 import { join } from 'path';
 import { IBuildResult, IAndroidInternalBuildOptions } from './type';
 import { BuilderCache, IBuilder } from '../../../@types/protected';
-import { generateAndroidOptions, checkAndroidAPILevels } from './utils';
+import { generateAndroidOptions } from './utils';
 import * as nativeCommonHook from '../../native-common/hooks';
 import { GlobalPaths } from '../../../../../global';
 
@@ -26,11 +26,8 @@ export async function onAfterInit(this: IBuilder, options: IAndroidInternalBuild
 
     const renderBackEnd = android.renderBackEnd;
 
-    const res = await checkAndroidAPILevels(android.apiLevel, options);
-    if (!res.valid) {
-        console.error(res.message);
-        typeof res.fixedValue === 'number' && (android.apiLevel = res.fixedValue);
-    }
+    // apiLevel 校验已由 api 层的 verifyBuildOptions 走 verifyRuleMap 处理，非法直接阻断构建；
+    // 这里不再 silent auto-fix。
 
     if (android.useDebugKeystore) {
         android.keystorePath = join(GlobalPaths.staticDir, 'tools/keystore/debug.keystore');
