@@ -23,7 +23,9 @@ describe('BuilderHook builder-build options', () => {
             },
         };
 
-        new BuilderHook().onBeforeExecute('builder-build', args);
+        const hook = new BuilderHook();
+        (hook as any).dynamicPlatforms = [];
+        hook.onBeforeExecute('builder-build', args);
 
         expect(args.options.packages).toMatchObject({
             openpaas: {
