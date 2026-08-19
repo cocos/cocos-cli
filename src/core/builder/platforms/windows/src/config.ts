@@ -21,6 +21,18 @@ const config: IPlatformBuildPluginConfig = {
             },
             message: 'Invalid executable name specified',
         },
+        // 迁移自 editor 的 verificationFunc：至少开启一个后端
+        renderBackEnd: {
+            func: (value: unknown) => {
+                if (!value || typeof value !== 'object') {
+                    return false;
+                }
+                const supported = ['vulkan', 'gles3', 'gles2'];
+                const v = value as Record<string, unknown>;
+                return supported.some((k) => !!v[k]);
+            },
+            message: 'renderBackEnd must have at least one supported backend enabled (vulkan / gles3 / gles2 for windows)',
+        },
     },
     options: {
         ...baseNativeCommonOptions,
@@ -55,6 +67,7 @@ const config: IPlatformBuildPluginConfig = {
                 gles3: true,
                 gles2: true,
             },
+            verifyRules: ['renderBackEnd'],
         },
         targetPlatform: {
             label: 'i18n:windows.options.targetPlatform',

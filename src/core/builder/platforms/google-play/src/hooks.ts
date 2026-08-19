@@ -3,7 +3,7 @@
 import { join } from 'path';
 import { IBuildResult, IGooglePlayInternalBuildOptions } from './type';
 import { BuilderCache, IBuilder } from '../../../@types/protected';
-import { checkAndroidAPILevels, generateAndroidOptions } from './utils';
+import { generateAndroidOptions } from './utils';
 import * as nativeCommonHook from '../../native-common/hooks';
 import { GlobalPaths } from '../../../../../global';
 import { getCustomIconInfo } from './custom-icon';
@@ -30,13 +30,8 @@ export async function onAfterInit(this: IBuilder, options: IGooglePlayInternalBu
     options.packages['google-play'] = googlePlay;
     const renderBackEnd = googlePlay.renderBackEnd;
 
-    const res = await checkAndroidAPILevels(googlePlay.apiLevel, options);
-    if (!res.valid) {
-        console.error(res.message);
-        if (typeof res.fixedValue === 'number') {
-            googlePlay.apiLevel = res.fixedValue;
-        }
-    }
+    // apiLevel 校验已由 api 层的 verifyBuildOptions 走 verifyRuleMap 处理，非法直接阻断构建；
+    // 这里不再 silent auto-fix。
 
     if (googlePlay.useDebugKeystore) {
         googlePlay.keystorePath = join(GlobalPaths.staticDir, '../tools/keystore/debug.keystore');

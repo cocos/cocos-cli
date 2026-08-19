@@ -2,7 +2,7 @@ import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
 import { BuildExitCode, BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { pluginManager } from './manager/plugin';
-import { cloneConfigValue, formatMSTime } from './share/utils';
+import { cloneConfigValue, defaultsDeep, formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
 import { basename, extname, isAbsolute, join } from 'path';
 import assetManager from '../assets/manager/asset';
@@ -13,6 +13,7 @@ import utils from '../base/utils';
 import { middlewareService } from '../../server/middleware/core';
 import BuildMiddleware from './build.middleware';
 import { BuildGlobalInfo } from './share/global';
+import { Engine } from '../engine';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheResult } from './cache';
 
@@ -33,7 +34,10 @@ export async function init(platform?: string[]) {
  * 使用平台注册的 verifyRules 对构建参数做严格校验。
  * 仅供 api 层（CLI/MCP）在调用 build() 前显式调用；Pink 走自己的 UI 校验，不会经过这里。
  * skipCheck 为 true 时跳过。
- * 通过返回 null；不通过返回 { code: PARAM_ERROR, reason }。
+ *
+ * 语义：先把平台 default 合进 options 再校验——用户漏传的字段会用平台默认值兜底通过；
+ * 只有用户明确传了非法值、或字段本身默认值就不合法（例如 iOS/Mac 的 packageName 默认空但 required）
+ * 时才会失败。任何 rule 失败（除 level='warn' 显式声明的）都硬阻塞，返回 { code: PARAM_ERROR, reason }。
  */
 export async function verifyBuildOptions(
     platform: string,
@@ -43,7 +47,23 @@ export async function verifyBuildOptions(
         return null;
     }
     try {
-        const results = await pluginManager.checkBuildOptions(platform, (options || {}) as any);
+        // 与 createBuildTask 里 checkOptions 一致：先用平台 default 兜住漏传字段
+        const defaultOptions = await pluginManager.getOptionsByPlatform(platform);
+        const merged = defaultsDeep(JSON.parse(JSON.stringify(options || {})), defaultOptions);
+        merged.platform = platform;
+        // renderPipeline 是项目设置而非平台选项，构建阶段才由 checkProjectSetting 填进 options。
+        // 入口校验早于构建，这里按编辑器的做法直接读工程配置补上，否则依赖它的规则（apiLevelRenderPipeline）恒不触发。
+        if (!merged.renderPipeline) {
+            try {
+                const renderPipeline = Engine.getConfig().renderPipeline;
+                if (renderPipeline) {
+                    merged.renderPipeline = renderPipeline;
+                }
+            } catch {
+                // Engine 未初始化（如单测/未加载引擎）时忽略，不影响其余规则
+            }
+        }
+        const results = await pluginManager.checkBuildOptions(platform, merged as any);
         const errors: string[] = [];
         const warnings: string[] = [];
         for (const key of Object.keys(results)) {
@@ -52,9 +72,7 @@ export async function verifyBuildOptions(
                 continue;
             }
             const line = `  - ${key}: ${r.message || 'invalid'}`;
-            // 参考 createBuildTask 里 checkOptions 的做法：如果规则返回了 fixedValue（通常是平台配置的 default），
-            // 说明用户漏传/传错但平台自带 fallback，此时降级为 warn，不阻塞构建；仅在 fixedValue 缺失（不可修复）时才 error。
-            if (r.level === 'warn' || r.fixedValue !== undefined) {
+            if (r.level === 'warn') {
                 warnings.push(line);
             } else {
                 errors.push(line);

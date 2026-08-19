@@ -1,8 +1,10 @@
 const checkBuildOptionsMock = jest.fn();
+const getOptionsByPlatformMock = jest.fn(async () => ({}));
 
 jest.mock('../manager/plugin', () => ({
     pluginManager: {
         checkBuildOptions: checkBuildOptionsMock,
+        getOptionsByPlatform: getOptionsByPlatformMock,
     },
 }));
 
@@ -36,6 +38,8 @@ describe('verifyBuildOptions', () => {
 
     beforeEach(() => {
         checkBuildOptionsMock.mockReset();
+        getOptionsByPlatformMock.mockReset();
+        getOptionsByPlatformMock.mockResolvedValue({});
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     });
@@ -49,6 +53,7 @@ describe('verifyBuildOptions', () => {
         const result = await verifyBuildOptions('windows', { skipCheck: true } as any);
         expect(result).toBeNull();
         expect(checkBuildOptionsMock).not.toHaveBeenCalled();
+        expect(getOptionsByPlatformMock).not.toHaveBeenCalled();
     });
 
     it('所有字段合法时返回 null', async () => {
@@ -91,39 +96,53 @@ describe('verifyBuildOptions', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('outputName: auto filled'));
     });
 
-    it('error 但带 fixedValue 时降级为 warn（平台 default 可兜底，不阻塞构建）', async () => {
+    it('error 都硬阻塞，fixedValue 不再降级（区别于之前的语义）', async () => {
         checkBuildOptionsMock.mockResolvedValue({
-            // 模拟 android: 用户没传 packageName，规则失败但平台 default='com.cocos.game' 作为 fixedValue
             packageName: {
                 valid: false,
                 level: 'error',
                 message: 'Required',
+                // 即使 checkBuildOptions 返回了 fixedValue，也应该硬阻塞——
+                // 用户没传的场景通过 defaultsDeep 兜底后不会进到这里
                 fixedValue: 'com.cocos.game',
             },
         });
 
         const result = await verifyBuildOptions('android', { platform: 'android' } as any);
 
-        expect(result).toBeNull();
-        expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('packageName: Required'));
-        expect(consoleErrorSpy).not.toHaveBeenCalled();
-    });
-
-    it('error 且没有 fixedValue 时才真正阻塞构建', async () => {
-        checkBuildOptionsMock.mockResolvedValue({
-            packageName: {
-                valid: false,
-                level: 'error',
-                message: 'Invalid package name specified',
-                // 没有 fixedValue —— 用户传的值非法且平台无 default
-            },
-        });
-
-        const result = await verifyBuildOptions('android', {} as any);
-
         expect(result).not.toBeNull();
         expect(result!.code).toBe(BuildExitCode.PARAM_ERROR);
-        expect(result!.reason).toContain('packageName: Invalid package name specified');
+        expect(result!.reason).toContain('packageName: Required');
+    });
+
+    it('用户漏传的字段会被平台 default 兜底通过（defaultsDeep 语义）', async () => {
+        // 模拟：用户没传 android.packageName；getOptionsByPlatform 返回带有 default 的完整选项
+        getOptionsByPlatformMock.mockResolvedValue({
+            packages: { android: { packageName: 'com.cocos.game' } },
+        });
+        // checkBuildOptions 接到 merged 后应该看到 packageName='com.cocos.game'，规则通过
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.packages?.android?.packageName).toBe('com.cocos.game');
+            return { packageName: { valid: true } };
+        });
+
+        const result = await verifyBuildOptions('android', { platform: 'android' } as any);
+        expect(result).toBeNull();
+        expect(getOptionsByPlatformMock).toHaveBeenCalledWith('android');
+    });
+
+    it('用户传的值优先于 default（defaultsDeep 不覆盖已存在值）', async () => {
+        getOptionsByPlatformMock.mockResolvedValue({
+            packages: { android: { packageName: 'com.cocos.game' } },
+        });
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.packages?.android?.packageName).toBe('com.myapp');
+            return { packageName: { valid: true } };
+        });
+
+        const userOptions = { platform: 'android', packages: { android: { packageName: 'com.myapp' } } };
+        const result = await verifyBuildOptions('android', userOptions as any);
+        expect(result).toBeNull();
     });
 
     it('message 缺失时兜底成 invalid', async () => {
@@ -145,7 +164,5 @@ describe('verifyBuildOptions', () => {
         checkBuildOptionsMock.mockResolvedValue({});
         const result = await verifyBuildOptions('windows');
         expect(result).toBeNull();
-        // 应该传空对象进去，而不是 undefined
-        expect(checkBuildOptionsMock).toHaveBeenCalledWith('windows', {});
     });
 });

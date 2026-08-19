@@ -27,6 +27,16 @@ const config: IPlatformBuildPluginConfig = {
             },
             message: 'Invalid package name specified',
         },
+        // 迁移自 editor 的 verificationFunc：至少开启一个方向
+        orientation: {
+            func: (value: unknown) => {
+                if (!value || typeof value !== 'object') {
+                    return false;
+                }
+                return Object.values(value as Record<string, unknown>).some((v) => !!v);
+            },
+            message: 'orientation must have at least one direction enabled',
+        },
     },
     hooks: './src/hooks',
 
@@ -70,6 +80,7 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeRight: true,
                 landscapeLeft: true,
             },
+            verifyRules: ['orientation'],
         },
 
     },
