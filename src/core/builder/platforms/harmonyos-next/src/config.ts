@@ -21,7 +21,22 @@ const config: IPlatformBuildPluginConfig = {
         packageName: {
             func: (str: string) => {
                 // refer: https://developer.huawei.com/consumer/cn/doc/app/agc-help-createharmonyapp-0000001945392297
-                return /^(?:[a-zA-Z](?:\w*[0-9a-zA-Z])?)(?:\.[0-9a-zA-Z](?:\w*[0-9a-zA-Z])?){2,}$/.test(str);
+                if (!/^(?:[a-zA-Z](?:\w*[0-9a-zA-Z])?)(?:\.[0-9a-zA-Z](?:\w*[0-9a-zA-Z])?){2,}$/.test(str)) {
+                    return false;
+                }
+                if (str.length < 7 || str.length > 128) {
+                    return false;
+                }
+                // HarmonyOS 保留关键字，任一段 token 命中即拒；对齐 editor 的 findKeywordsTokenAware
+                const KEYWORDS = ['openharmony', 'harmonyos', 'harmony', 'system', 'ohos', 'oh'];
+                for (const seg of str.toLowerCase().split('.')) {
+                    for (const kw of KEYWORDS) {
+                        if (new RegExp(`(?:^|_)${kw}(?:$|_)`).test(seg)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
             },
             message: 'Invalid package name specified',
         },
