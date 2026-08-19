@@ -28,6 +28,17 @@ const config: IPlatformBuildPluginConfig = {
             },
             message: 'Invalid package name specified',
         },
+        // 当 useDebugKeystore=false 时，keystore 相关字段不能为空
+        // 迁移自 editor 的 getVerifyMap（keystorePath/Password/Alias/AliasPassword）
+        keystoreRequired: {
+            func: (value: unknown, options: any) => {
+                if (options?.packages?.android?.useDebugKeystore) {
+                    return true;
+                }
+                return value !== null && value !== undefined && value !== '';
+            },
+            message: 'Required when useDebugKeystore is disabled',
+        },
     },
     options: {
         ...baseNativeCommonOptions,
@@ -127,21 +138,25 @@ const config: IPlatformBuildPluginConfig = {
             label: 'i18n:android.KEYSTORE.keystore_path',
             type: 'string',
             default: '',
+            verifyRules: ['keystoreRequired'],
         },
         keystorePassword: {
             label: 'i18n:android.KEYSTORE.keystore_password',
             type: 'string',
             default: '',
+            verifyRules: ['keystoreRequired'],
         },
         keystoreAlias: {
             label: 'i18n:android.KEYSTORE.keystore_alias',
             type: 'string',
             default: '',
+            verifyRules: ['keystoreRequired'],
         },
         keystoreAliasPassword: {
             label: 'i18n:android.KEYSTORE.keystore_alias_password',
             type: 'string',
             default: '',
+            verifyRules: ['keystoreRequired'],
         },
         appBundle: {
             label: 'i18n:android.options.app_bundle',
