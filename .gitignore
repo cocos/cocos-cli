@@ -51,5 +51,5 @@ config.local.json
 # 个人/本机配置（local 作用域），不进版本库
 profiles/cocos.config.json
 
-# 性能分析产物
+# performance profiling artifacts
 perf/
