@@ -240,8 +240,8 @@ class WanderMode extends ModeBase3D {
         Vec3.add(eye, eye, v3d);
         Vec3.lerp(this._curPos, this._curPos, eye, this._damping);
 
-        this._cameraCtrl.node.setPosition(this._curPos);
-        this._cameraCtrl.node.setRotation(this._curRot);
+        this._cameraCtrl.node.setWorldPosition(this._curPos);
+        this._cameraCtrl.node.setWorldRotation(this._curRot);
         this._curMouseDX = 0;
         this._curMouseDY = 0;
         this._cameraCtrl.updateGrid();
