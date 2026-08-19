@@ -7,9 +7,16 @@ type UploadEnv = 'dev' | 'fat' | 'prod';
 
 type PreBuildHookFn = (
     options: Record<string, unknown>,
+    ctx: PreBuildContext,
 ) => Promise<Record<string, unknown> | void>;
 
+interface PreBuildContext {
+    getConfig<T = unknown>(key: string): Promise<T | undefined>;
+    getProjectPath(): string | undefined;
+}
+
 interface HostContext {
+    locale?: string;
     registerMethod(name: string, handler: (...args: any[]) => unknown | Promise<unknown>): void;
     registerPreBuildHook?(fn: PreBuildHookFn): void;
 }
@@ -70,15 +77,22 @@ interface PreviewInfo {
 const PLATFORM = 'web-mobile';
 const BRIDGE_API_PATH = '/api/game/web/package/bridge';
 
+let hostLocale: string | undefined;
+
 function currentLang(): 'zh' | 'en' {
     let locale = 'en';
-    try {
-        const cfg = process.env.VSCODE_NLS_CONFIG;
-        if (cfg) {
-            locale = (JSON.parse(cfg) as { locale?: string }).locale || locale;
+    if (hostLocale) {
+        locale = hostLocale;
+    } else {
+        try {
+            const cfg = process.env.VSCODE_NLS_CONFIG;
+            if (cfg) {
+                const parsed = JSON.parse(cfg) as { resolvedLanguage?: string; locale?: string };
+                locale = parsed.resolvedLanguage || parsed.locale || locale;
+            }
+        } catch {
+            // Fallback to English.
         }
-    } catch {
-        // Fallback to English.
     }
     return locale.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
@@ -96,7 +110,6 @@ function loadBundle(): Bundle {
         const file = path.join(__dirname, '..', '..', 'i18n', `${lang}.js`);
         delete require.cache[require.resolve(file)];
         bundle = (require(file) as Bundle) ?? {};
-        console.log('loadBundle', 'lang', lang, 'file', file, 'bundle', JSON.stringify(bundle));
     } catch {
         bundle = {};
     }
@@ -357,6 +370,10 @@ async function getPreviewInfo(request: PreviewRequest = {}): Promise<PreviewInfo
 }
 
 export function activate(context: HostContext): void {
+    if (context.locale) {
+        hostLocale = context.locale;
+        cache = undefined;
+    }
     context.registerPreBuildHook?.(async () => {
         const { accessToken, uploadEnv, bridgeLink } = await resolveOpenPaasWebPackageBridge();
         return {

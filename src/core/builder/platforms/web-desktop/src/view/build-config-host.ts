@@ -7,9 +7,16 @@ type UploadEnv = 'dev' | 'fat' | 'prod';
 
 type PreBuildHookFn = (
     options: Record<string, unknown>,
+    ctx: PreBuildContext,
 ) => Promise<Record<string, unknown> | void>;
 
+interface PreBuildContext {
+    getConfig<T = unknown>(key: string): Promise<T | undefined>;
+    getProjectPath(): string | undefined;
+}
+
 interface HostContext {
+    locale?: string;
     registerMethod(name: string, handler: (...args: any[]) => unknown | Promise<unknown>): void;
     registerPreBuildHook?(fn: PreBuildHookFn): void;
 }
@@ -57,15 +64,22 @@ interface OpenPaasEndpoint {
 const PLATFORM = 'web-desktop';
 const BRIDGE_API_PATH = '/api/game/web/package/bridge';
 
+let hostLocale: string | undefined;
+
 function currentLang(): 'zh' | 'en' {
     let locale = 'en';
-    try {
-        const config = process.env.VSCODE_NLS_CONFIG;
-        if (config) {
-            locale = (JSON.parse(config) as { locale?: string }).locale || locale;
+    if (hostLocale) {
+        locale = hostLocale;
+    } else {
+        try {
+            const config = process.env.VSCODE_NLS_CONFIG;
+            if (config) {
+                const parsed = JSON.parse(config) as { resolvedLanguage?: string; locale?: string };
+                locale = parsed.resolvedLanguage || parsed.locale || locale;
+            }
+        } catch {
+            // Fall back to English when the host locale cannot be parsed.
         }
-    } catch {
-        // Fall back to English when the host locale cannot be parsed.
     }
     return locale.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
@@ -301,6 +315,10 @@ async function getOpenPaasPackageContext(gameId: unknown) {
 }
 
 export function activate(context: HostContext): void {
+    if (context.locale) {
+        hostLocale = context.locale;
+        cache = undefined;
+    }
     context.registerPreBuildHook?.(async () => {
         const { accessToken, uploadEnv, bridgeLink } = await resolveOpenPaasWebPackageBridge();
         return {

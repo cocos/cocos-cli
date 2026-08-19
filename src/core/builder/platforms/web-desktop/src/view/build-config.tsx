@@ -39,7 +39,6 @@ interface OpenPaasWebPackageBridgeResult {
     uploadEnv?: UploadEnv;
 }
 
-const ROW: CSSProperties = { padding: '2px 16px 6px 0px' };
 const INPUT: CSSProperties = {
     width: '100%',
     minWidth: 0,
@@ -81,6 +80,11 @@ const ERROR: CSSProperties = {
     lineHeight: '16px',
     color: 'var(--vscode-errorForeground, #f14c4c)',
 };
+const OPENPAAS_HIDDEN_SCHEMA_FIELDS = `
+[data-option-key="packages.web-desktop.versionName"] {
+    display: none !important;
+}
+`;
 
 function translate(bundle: Record<string, unknown>, key: string): string {
     let cur: unknown = bundle;
@@ -239,8 +243,9 @@ export default function WebDesktopBuildView({ value, onChange, bridge, commonVal
 
     return (
         <div style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            {isOpenPaasHostPlatform && <style>{OPENPAAS_HIDDEN_SCHEMA_FIELDS}</style>}
             {!isOpenPaasHostPlatform && (
-                <div style={ROW}>
+                <div className="pk-field-row" data-option-key="packages.web-desktop.appid">
                     <TypedField label={t('service.game')} tooltip={t('service.game_hint')}>
                         <div style={ACTION_ROW}>
                             <select

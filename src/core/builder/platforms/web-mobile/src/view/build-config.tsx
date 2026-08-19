@@ -46,9 +46,9 @@ interface OpenPaasWebPackageBridgeResult {
     uploadEnv?: UploadEnv;
 }
 
-const ROW: CSSProperties = { padding: '2px 16px 6px 0px' };
 const STACK: CSSProperties = { display: 'grid', gap: 8 };
 const INLINE: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' };
+const DISPLAY_ROW: CSSProperties = { padding: '2px 16px 6px 0px' };
 const INPUT: CSSProperties = {
     width: '100%',
     minWidth: 0,
@@ -108,6 +108,11 @@ const QR_CODE: CSSProperties = {
     border: '1px solid var(--vscode-panel-border, rgba(127,127,127,.35))',
     background: '#fff',
 };
+const OPENPAAS_HIDDEN_SCHEMA_FIELDS = `
+[data-option-key="packages.web-mobile.versionName"] {
+    display: none !important;
+}
+`;
 
 function translate(bundle: Record<string, unknown>, key: string): string {
     let cur: unknown = bundle;
@@ -322,8 +327,9 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
 
     return (
         <div style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            {isOpenPaasHostPlatform && <style>{OPENPAAS_HIDDEN_SCHEMA_FIELDS}</style>}
             {!isOpenPaasHostPlatform && (
-                <div style={ROW}>
+                <div className="pk-field-row" data-option-key="packages.web-mobile.appid">
                     <TypedField label={t('service.game')} tooltip={t('service.game_hint')}>
                         <div style={ACTION_ROW}>
                             <select
@@ -356,13 +362,13 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
                 </div>
             )}
 
-            <div style={ROW}>
+            <div className="pk-field-row" data-option-key="packages.web-mobile.useWebGPU">
                 <TypedField label="WEBGPU" tooltip={t('tips.webgpu')}>
                     <Checkbox checked={useWebGPU} onCheckedChange={(checked: boolean) => onChange(['useWebGPU'], !!checked)} />
                 </TypedField>
             </div>
 
-            <div style={ROW}>
+            <div style={DISPLAY_ROW}>
                 <TypedField label={t('options.preview_qrcode')}>
                     <div style={STACK}>
                         {previewInfo.webGPUTips ? (
@@ -383,7 +389,7 @@ export default function WebMobileBuildView({ value, onChange, bridge, commonValu
                 </TypedField>
             </div>
 
-            <div style={ROW}>
+            <div style={DISPLAY_ROW}>
                 <TypedField label={t('options.preview_url')}>
                     <div style={INLINE}>
                         {previewInfo.previewUrl ? (
