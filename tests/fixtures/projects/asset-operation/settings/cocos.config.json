@@ -8,6 +8,7 @@
                 "packages": {
                     "web-desktop": {
                         "useWebGPU": false,
+                        "bridgeLink": "https://example.com/bridge.js",
                         "resolution": {
                             "designWidth": 1280,
                             "designHeight": 960
@@ -30,6 +31,7 @@
                 "packages": {
                     "web-mobile": {
                         "useWebGPU": false,
+                        "bridgeLink": "https://example.com/bridge.js",
                         "orientation": "portrait",
                         "embedWebDebugger": false,
                         "polyfills": {

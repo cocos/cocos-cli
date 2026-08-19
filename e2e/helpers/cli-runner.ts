@@ -140,7 +140,7 @@ export class CLIRunner {
         const args = ['build', '--project', options.project, '--platform', options.platform];
 
         if (options.config) {
-            args.push('--config', options.config);
+            args.push('--build-config', options.config);
         }
 
         // 不设置 cwd，让命令在当前目录执行
