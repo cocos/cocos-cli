@@ -72,7 +72,7 @@ docs/dev/**
 # ===========================================
 # 工作流和脚本
 # ===========================================
-workflow/!(postinstall|utils|electron-rebuild).js
+workflow/!(postinstall|utils|electron-rebuild|node-gyp-rebuild).js
 
 # ===========================================
 # 发布和构建产物

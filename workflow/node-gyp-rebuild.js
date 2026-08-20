@@ -6,7 +6,7 @@ function run(cmd) {
 }
 
 try {
-    run('npx --yes patch-package');
+    run('npx --yes patch-package --error-on-fail');
     run('npm rebuild');
 } catch (err) {
     console.error('\n[rebuild] failed');
