@@ -63,6 +63,7 @@ jest.mock('cc', () => ({
     MeshCollider: class MeshCollider {},
     Node: MockNode,
     RigidBody: class RigidBody {},
+    Scene: class Scene {},
     UITransform: MockUITransform,
     js: {
         getClassById: mockGetClassById,
