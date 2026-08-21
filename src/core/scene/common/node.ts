@@ -107,7 +107,7 @@ export interface ICreateNodePreflightResult {
      * Opaque token for the matching create request. Passing it back prevents a
      * stale preflight result from silently skipping required Canvas handling.
      */
-    preflightToken: string;
+    preflightToken1: string;
 }
 
 // generateNodeDump / encode / open 共用的选项
@@ -242,7 +242,7 @@ interface IBaseCreateNodeParams {
     canvasRequired?: boolean;
     prefabCanvasHandling?: PrefabCanvasHandling;
     /** Opaque token returned by preflightCreate for this creation request. */
-    preflightToken?: string;
+    preflightToken1?: string;
     unlinkPrefab?: boolean;
 }
 
