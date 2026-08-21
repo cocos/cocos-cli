@@ -3,6 +3,8 @@ import { join, resolve } from 'path';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { SchemaBuildBaseOption, SchemaKnownBuildOptions, SchemaOtherPlatformBuildOption } from '../../api/builder/schema';
 
+const KNOWN_BUILD_PLATFORMS = ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac', 'ohos', 'harmonyos-next', 'google-play'];
+
 export class BuilderHook {
     private dynamicPlatforms: string[] = [];
 
@@ -52,9 +54,8 @@ export class BuilderHook {
     public onRegisterParam(toolName: string, param: any, inputSchemaFields: Record<string, any>) {
         if (toolName !== 'builder-build') return;
 
-        const knownPlatforms = ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac', 'ohos', 'harmonyos-next', 'google-play'];
         // 合并去重
-        const allPlatforms = Array.from(new Set([...knownPlatforms, ...this.dynamicPlatforms]));
+        const allPlatforms = Array.from(new Set([...KNOWN_BUILD_PLATFORMS, ...this.dynamicPlatforms]));
         const platformDesc = `Platform Identifier (e.g., ${allPlatforms.join(', ')})`;
 
         if (param.name === 'options') {
@@ -121,12 +122,17 @@ export class BuilderHook {
         }
 
         // 动态构建 SchemaBuildOption 并进行严格校验
-        const dynamicSchemas = this.dynamicPlatforms.map(platform => {
+        const dynamicPlatforms = new Set(this.dynamicPlatforms);
+        if (typeof options.platform === 'string' && !KNOWN_BUILD_PLATFORMS.includes(options.platform)) {
+            dynamicPlatforms.add(options.platform);
+        }
+
+        const dynamicSchemas = Array.from(dynamicPlatforms).map(platform => {
             return SchemaBuildBaseOption.extend({
                 platform: z.literal(platform).describe('Build platform'),
                 packages: z.object({
                     [platform]: z.any().optional().describe(`${platform} platform specific configuration`)
-                }).optional().describe(`${platform} platform specific configuration`)
+                }).catchall(z.any()).optional().describe(`${platform} platform specific configuration`)
             }).describe(`${platform} complete build options`);
         });
 

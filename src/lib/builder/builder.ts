@@ -6,7 +6,6 @@ import type { BuildCacheScope, ClearCacheResult } from '../../core/builder/cache
 export type * from '../../core/builder/@types/private';
 export type * from '../../core/builder/@types/config-export';
 export type { BuildCacheScope, ClearCacheResult };
-
 export async function init(platform?: string[]): Promise<void> {
     const builder = await import('../../core/builder');
     return builder.init(platform);

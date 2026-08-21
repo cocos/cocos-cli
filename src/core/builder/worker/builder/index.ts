@@ -15,7 +15,7 @@ import { formatMSTime, getBuildPath } from '../../share/utils';
 import { BuildTemplate } from './manager/build-template';
 import { newConsole } from '../../../base/console';
 import { ITaskResultMap } from '../../@types/builder';
-import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildOptionBase, IBuildResultData, IBuildUtils } from '../../@types/protected';
+import { IBuilder, IInternalBuildOptions, IBuildHooksInfo, IBuildTask, IPluginHookName, IBuildOptionBase, IBuildResultData, IBuildUtils, ISubTaskBuildOutput } from '../../@types/protected';
 import { assetDBManager } from '../../../assets';
 import Utils from '../../../base/utils';
 import { pluginManager } from '../../manager/plugin';
@@ -47,6 +47,8 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
     static isCommandBuild = false;
 
     private currentStageTask?: BuildStageTask;
+    private currentSubTask?: BuildTask;
+    private subTaskBuildOptions: Record<string, IInternalBuildOptions> = {};
 
     public bundleManager!: BundleManager;
 
@@ -108,9 +110,10 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         this.options.md5Cache && (this.taskManager.activeTask('md5Tasks'));
         this.taskManager.activeTask('postprocessTasks');
         this.buildResult = new BuildResult(this);
-        if (this.options.nextStages) {
+        const buildUnitCount = 1 + (this.options.subTaskPlatforms?.length || 0);
+        if (this.options.nextStages?.length || buildUnitCount > 1) {
             // 当存在阶段性任务时，构建主流程的权重降级
-            this.mainTaskWeight = 1 / (this.options.nextStages.length + 1);
+            this.mainTaskWeight = 1 / (buildUnitCount + (this.options.nextStages?.length || 0));
         }
         this.hookWeight = this.mainTaskWeight * this.taskManager.taskWeight;
         this.buildTemplate = new BuildTemplate(this.options.platform, this.options.taskName, pluginManager.getBuildTemplateConfig(this.options.platform));
@@ -170,6 +173,8 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 执行具体的构建任务
      */
     public async run() {
+        const restoreLogSink = newConsole.createLogSinkRestorer();
+        let failed = false;
         const { dir } = this.result.paths;
         if (!dir) {
             console.error('No output path can be built.');
@@ -220,10 +225,27 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             // 构建进程结束之前
             await this.runPluginTask(TaskManager.pluginTasks.onAfterBuild);
             await this.postBuild();
+            if(this.options.subTaskPlatforms) await this.runSubTaskBuilds();
+            if (this.error) {
+                failed = true;
+                return false;
+            }
             this.options.nextStages && (await this.handleBuildStageTask(this.options.nextStages));
+            if (this.error) {
+                failed = true;
+                return false;
+            }
             return true;
+        } catch (error) {
+            failed = true;
+            throw error;
         } finally {
             this.stopProgressHeartbeat();
+            if (failed || this.error) {
+                newConsole.stopRecord();
+            } else {
+                restoreLogSink();
+            }
         }
     }
 
@@ -266,9 +288,9 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
 
         this.unLockAssetDB();
 
-        if (this.options.generateCompileConfig) {
+        if (this.options.generateCompileConfig || this.options.subTaskPlatforms?.length) {
             // 保存当前的 options 到实际包内，作为后续编译参数也为将来制作仅构建引擎等等处理做备份
-            outputJSONSync(this.result.paths.compileConfig, this.result.compileOptions || this.options);
+            outputJSONSync(this.result.paths.compileConfig, this.getCompileConfigOptions());
         }
         // 统计流程放在最后，避免出错时干扰其他流程
         // 追踪构建时长，统计构建错误，发送统计消息
@@ -276,8 +298,146 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         console.debug(`build task(${this.options.taskName}) in ${totalTime}!`);
     }
 
+    private async runSubTaskBuilds() {
+        const subTaskPlatforms = this.options.subTaskPlatforms || [];
+        if (!subTaskPlatforms.length || this.options.parentTaskId) {
+            return;
+        }
+
+        this.options.childTaskIds = [];
+        this.options.subTaskBuildOutputs = {};
+        this.buildExitRes.custom.subTasks = {
+            platforms: subTaskPlatforms,
+            outputs: {},
+        };
+
+        for (const platform of subTaskPlatforms) {
+            const childOptions = await this.createSubTaskOptions(platform);
+            this.options.childTaskIds.push(childOptions.taskId!);
+            const childTask = new BuildTask(childOptions.taskId!, childOptions);
+            this.currentSubTask = childTask;
+            let lastProgress = 0;
+            childTask.on('update', (message: string, progress: number) => {
+                const increment = Math.max(progress - lastProgress, 0) * this.mainTaskWeight;
+                lastProgress = Math.max(lastProgress, progress);
+                this.updateProcess(`[sub-build:${platform}] ${message}`, increment);
+            });
+
+            console.log(`[sub-build:${platform}] start`);
+            const success = await childTask.run();
+            if (!success || childTask.error) {
+                this.error = childTask.error || new Error(`Sub platform ${platform} build failed`);
+                this.currentSubTask = undefined;
+                return;
+            }
+            if (lastProgress < 1) {
+                this.updateProcess(`[sub-build:${platform}] complete`, (1 - lastProgress) * this.mainTaskWeight, 'success');
+            }
+
+            const output: ISubTaskBuildOutput = {
+                platform,
+                dest: childTask.result.paths.dir,
+                buildPath: childOptions.buildPath,
+                outputName: childOptions.outputName,
+                taskId: childOptions.taskId,
+                parentTaskId: this.options.taskId,
+                logDest: childOptions.logDest,
+            };
+            this.options.subTaskBuildOutputs[platform] = output;
+            this.syncSubTaskPackageOptions(platform, childTask);
+            this.subTaskBuildOptions[platform] = childTask.options;
+            this.buildExitRes.custom.subTasks.outputs[platform] = {
+                ...output,
+                custom: childTask.buildExitRes.custom,
+            };
+            console.log(`[sub-build:${platform}] success`);
+        }
+        this.currentSubTask = undefined;
+        outputJSONSync(this.result.paths.compileConfig, this.getCompileConfigOptions());
+    }
+
+    private syncSubTaskPackageOptions(platform: string, childTask: BuildTask) {
+        const childCompileOptions = childTask.result.compileOptions || childTask.options;
+        const childPackageOptions = childCompileOptions.packages?.[platform];
+        if (!childPackageOptions) {
+            return;
+        }
+        const clonedPackageOptions = JSON.parse(JSON.stringify(childPackageOptions));
+        this.options.packages = this.options.packages || {};
+        this.options.packages[platform] = clonedPackageOptions;
+
+        if (this.result.compileOptions) {
+            this.result.compileOptions.packages = this.result.compileOptions.packages || {};
+            this.result.compileOptions.packages[platform] = JSON.parse(JSON.stringify(childPackageOptions));
+        }
+    }
+
+    private async createSubTaskOptions(platform: string): Promise<IInternalBuildOptions> {
+        const childOptions = JSON.parse(JSON.stringify(this.options));
+        childOptions.platform = platform;
+        childOptions.outputName = platform;
+        childOptions.buildPath = this.result.paths.dir;
+        childOptions.taskName = `${this.options.taskName || this.options.platform}-${platform}`;
+        childOptions.taskId = `${this.options.taskId}:${platform}`;
+        childOptions.parentTaskId = this.options.taskId;
+        childOptions.generateCompileConfig = true;
+        childOptions.subTaskPlatforms = undefined;
+        childOptions.subTaskBuildOutputs = undefined;
+        childOptions.childTaskIds = undefined;
+        childOptions.nextStages = undefined;
+        childOptions.buildStageGroup = undefined;
+        childOptions.packages = {
+            [platform]: this.options.packages?.[platform] || {},
+        };
+        const checkedOptions = await pluginManager.checkOptions(childOptions as any);
+        if (!checkedOptions) {
+            throw new Error(`Check sub platform ${platform} build options failed`);
+        }
+        checkedOptions.taskId = childOptions.taskId;
+        checkedOptions.taskName = childOptions.taskName;
+        checkedOptions.logDest = childOptions.logDest;
+        checkedOptions.parentTaskId = this.options.taskId;
+        (checkedOptions as IInternalBuildOptions).generateCompileConfig = true;
+        checkedOptions.subTaskPlatforms = undefined;
+        checkedOptions.subTaskBuildOutputs = undefined;
+        checkedOptions.childTaskIds = undefined;
+        checkedOptions.nextStages = undefined;
+        (checkedOptions as any).buildStageGroup = undefined;
+        return checkedOptions as IInternalBuildOptions;
+    }
+
+    private getCompileConfigOptions() {
+        const compileOptions = this.result.compileOptions || this.options;
+        if (this.options.parentTaskId) {
+            compileOptions.parentTaskId = this.options.parentTaskId;
+        }
+        if (this.options.childTaskIds) {
+            compileOptions.childTaskIds = this.options.childTaskIds;
+        }
+        if (this.options.subTaskPlatforms) {
+            compileOptions.subTaskPlatforms = this.options.subTaskPlatforms;
+        }
+        if (this.options.subTaskBuildOutputs) {
+            compileOptions.subTaskBuildOutputs = this.options.subTaskBuildOutputs;
+        }
+        return compileOptions;
+    }
+
     private async handleBuildStageTask(stages: string[]) {
         const stageWeight = 1 - this.mainTaskWeight;
+        const stagePlatforms = this.getStagePlatforms();
+        if (stagePlatforms.length > 1) {
+            const unitStageWeight = stageWeight / (stages.length * stagePlatforms.length);
+            for (const taskName of stages) {
+                for (const stagePlatform of stagePlatforms) {
+                    await this.runStageForPlatform(taskName, stagePlatform, unitStageWeight);
+                    if (this.error) {
+                        return;
+                    }
+                }
+            }
+            return;
+        }
         for (const taskName of stages) {
             const stageConfig = pluginManager.getBuildStageWithHookTasks(this.options.platform, taskName);
             if (!stageConfig) {
@@ -315,6 +475,93 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         }
     }
 
+    private getStagePlatforms() {
+        return [
+            {
+                platform: String(this.options.platform),
+                root: getBuildPath(this.options),
+                buildTaskOptions: this.options,
+                hooksInfo: this.hooksInfo,
+                required: true,
+            },
+            ...(this.options.subTaskPlatforms || []).map((platform) => {
+                const output = this.options.subTaskBuildOutputs?.[platform];
+                return {
+                    platform,
+                    root: output?.dest || '',
+                    buildTaskOptions: this.createChildStageOptions(platform, output),
+                    hooksInfo: pluginManager.getHooksInfo(platform),
+                    required: false,
+                };
+            }),
+        ];
+    }
+
+    private createChildStageOptions(platform: string, output?: ISubTaskBuildOutput): IInternalBuildOptions {
+        if (this.subTaskBuildOptions[platform]) {
+            return JSON.parse(JSON.stringify(this.subTaskBuildOptions[platform]));
+        }
+        const options = JSON.parse(JSON.stringify(this.options));
+        options.platform = platform;
+        options.outputName = output?.outputName || platform;
+        options.buildPath = output?.buildPath || this.result.paths.dir;
+        options.taskId = output?.taskId || `${this.options.taskId}:${platform}`;
+        options.parentTaskId = this.options.taskId;
+        options.subTaskPlatforms = undefined;
+        options.subTaskBuildOutputs = undefined;
+        options.childTaskIds = undefined;
+        options.nextStages = undefined;
+        options.buildStageGroup = undefined;
+        options.packages = {
+            [platform]: this.options.packages?.[platform] || {},
+        };
+        return options;
+    }
+
+    private async runStageForPlatform(taskName: string, stagePlatform: {
+        platform: string;
+        root: string;
+        buildTaskOptions: IInternalBuildOptions;
+        hooksInfo: IBuildHooksInfo;
+        required: boolean;
+    }, stageWeight: number) {
+        const stageConfig = pluginManager.getBuildStageWithHookTasks(stagePlatform.platform, taskName);
+        if (!stageConfig) {
+            this.updateProcess(`No stage task: ${taskName} in platform ${stagePlatform.platform}, skip`, 0);
+            return;
+        }
+        if (!stagePlatform.root) {
+            this.error = new Error(`Missing build output for stage platform ${stagePlatform.platform}`);
+            return;
+        }
+        const buildStageTask = new BuildStageTask(this.id, {
+            ...stageConfig,
+            hooksInfo: stagePlatform.hooksInfo,
+            root: stagePlatform.root,
+            buildTaskOptions: stagePlatform.buildTaskOptions,
+            progressHeartbeat: false,
+        });
+        buildStageTask.buildExitRes.custom = {
+            ...this.buildExitRes.custom,
+        };
+        this.currentStageTask = buildStageTask;
+        buildStageTask.on('update', (message: string, increment: number) => {
+            this.updateProcess(`[${stagePlatform.platform}] ${message}`, increment * stageWeight);
+        });
+        await buildStageTask.run();
+        if (this.error) {
+            await this.onError(this.error);
+            return;
+        } else if (buildStageTask.error) {
+            this.error = buildStageTask.error;
+            return;
+        }
+        this.buildExitRes.custom = {
+            ...this.buildExitRes.custom,
+            ...buildStageTask.buildExitRes.custom,
+        };
+    }
+
     private async initBundleManager() {
         // TODO 所有类似的新流程，都应该走统一的 runBuildTask 处理，否则可能无法中断
         if (this.error) {
@@ -344,6 +591,9 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         if (this.currentStageTask) {
             // 这里不需要等待，break 触发一下即可，后续有抛异常会被正常捕获
             this.currentStageTask.break(reason);
+        }
+        if (this.currentSubTask) {
+            this.currentSubTask.break(reason);
         }
 
         this.onError(new Error(`Build task ${this.options.taskName || this.options.outputName} is break!`), false);

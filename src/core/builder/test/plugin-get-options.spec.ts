@@ -42,4 +42,62 @@ describe('PluginManager.getOptionsByPlatform', () => {
         expect((commonOptions as any).platform).toBeUndefined();
         expect((commonOptions as any).outputName).toBeUndefined();
     });
+
+    it('syncs parent upload identity options into support platform packages', async () => {
+        const pm = new PluginManager() as any;
+        pm.getPlatformBuildPluginConfig = jest.fn(() => ({
+            supportPlatforms: {
+                platforms: ['web-desktop', 'web-mobile'],
+                controlledBy: 'enableWebBuild',
+            },
+        }));
+        pm.ensurePlatformRegistered = jest.fn(async () => undefined);
+        pm.getOptionsByPlatform = jest.fn(async (platform: string) => ({
+            packages: {
+                [platform]: {
+                    appid: 'default-app-id',
+                    versionName: 'default-version',
+                    uploadEnv: 'prod',
+                    accessToken: 'default-token',
+                    childDefault: true,
+                },
+            },
+        }));
+
+        const options: any = {
+            platform: 'openpaas',
+            packages: {
+                openpaas: {
+                    enableWebBuild: true,
+                    appid: 'parent-app-id',
+                    versionName: '2.0.0',
+                    uploadEnv: 'dev',
+                    accessToken: 'parent-token',
+                },
+                'web-desktop': {
+                    versionName: 'stale-child-version',
+                    bridgeLink: 'https://example.com/bridge.js',
+                },
+            },
+        };
+
+        await pm.completeSupportPlatformOptions(options);
+
+        expect(options.subTaskPlatforms).toEqual(['web-desktop', 'web-mobile']);
+        expect(options.packages['web-desktop']).toEqual({
+            appid: 'parent-app-id',
+            versionName: '2.0.0',
+            uploadEnv: 'dev',
+            accessToken: 'parent-token',
+            childDefault: true,
+            bridgeLink: 'https://example.com/bridge.js',
+        });
+        expect(options.packages['web-mobile']).toEqual({
+            appid: 'parent-app-id',
+            versionName: '2.0.0',
+            uploadEnv: 'dev',
+            accessToken: 'parent-token',
+            childDefault: true,
+        });
+    });
 });

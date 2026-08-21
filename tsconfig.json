@@ -30,7 +30,7 @@
         "src/**/@types/**/*"
     ],
     "exclude": [
-        "dist",
+        "**/dist/**",
         "node_modules",
         "**/test/**",
         "**/*.test.ts",

@@ -445,6 +445,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -1338,9 +1339,11 @@ export declare class BuildStageTask extends BuildTaskBase implements IBuildStage
     options: IBuildOptionBase;
     hooksInfo: IBuildHooksInfo;
     private root;
+    private hook;
     hookMap: Record<string, string>;
     constructor(id: string, config: IBuildStageConfig);
     run(): Promise<boolean>;
+    private isStageSupported;
     break(reason: string): void;
     handleHook(func: Function, internal: boolean): Promise<void>;
     saveOptions(): Promise<void>;
@@ -1356,6 +1359,8 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     private mainTaskWeight;
     static isCommandBuild: boolean;
     private currentStageTask?;
+    private currentSubTask?;
+    private subTaskBuildOptions;
     bundleManager: BundleManager;
     hookMap: Record<IPluginHookName, IPluginHookName>;
     pipeline: (string | Function | IBuildTask[])[];
@@ -1373,7 +1378,14 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     run(): Promise<boolean>;
     buildBundleOnly(): Promise<void>;
     private postBuild;
+    private runSubTaskBuilds;
+    private syncSubTaskPackageOptions;
+    private createSubTaskOptions;
+    private getCompileConfigOptions;
     private handleBuildStageTask;
+    private getStagePlatforms;
+    private createChildStageOptions;
+    private runStageForPlatform;
     private initBundleManager;
     break(reason: string): void;
     lockAssetDB(): Promise<void>;
@@ -2221,6 +2233,10 @@ export declare interface IBuildCommonOptions {
     stage?: string;
     buildMode?: 'normal' | 'bundle' | 'script';
     nextStages?: string[];
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    parentTaskId?: string;
+    childTaskIds?: string[];
     packages: Record<string, any>;
     nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
     wasmCompressionMode?: 'brotli';
@@ -2458,6 +2474,9 @@ export declare interface IBuildStageOptions {
     taskName?: string;
     logDest?: string;
     packages?: Record<string, Record<string, unknown>>;
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    childTaskIds?: string[];
 }
 export declare interface IBuildStagesInfo {
     pkgNameOrder: string[];
@@ -2698,6 +2717,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -3353,6 +3373,7 @@ export declare interface IPlatformBuildPluginConfig extends MakeRequired<IIntern
         supportedCompressionTypes: BundleCompressionType[];
         platformType: IPlatformType;
     };
+    supportPlatforms?: IPlatformSupportPlatformsConfig;
     customIconConfigs?: Array<IBuildIconItem>;
 }
 export declare interface IPlatformConfig {
@@ -3378,6 +3399,11 @@ export declare interface IPlatformRegisterInfo {
     hooks?: string;
     pkgName?: string;
     type: 'register';
+}
+export declare interface IPlatformSupportPlatformsConfig {
+    platforms: string[];
+    controlledBy: string;
+    hidden?: boolean;
 }
 export declare type IPlatformType = 'native' | 'miniGame' | 'web';
 export declare type IPluginHook = Record<IPluginHookName, IInternalBaseHooks>;
@@ -3601,6 +3627,15 @@ export declare interface IStorePackInfo {
     md5: string;
     versionDev: string;
     result?: IPackResult;
+}
+export declare interface ISubTaskBuildOutput {
+    platform: string;
+    dest: string;
+    buildPath: string;
+    outputName: string;
+    taskId?: string;
+    logDest?: string;
+    parentTaskId?: string;
 }
 export declare interface ISuffixMap {
     native: Record<string, string[]>;
@@ -4233,6 +4268,7 @@ export declare type Platform = InternalPlatform | string;
 export declare interface PlatformBuildSchema {
     common: ICocosConfigurationPropertySchema;
     platformOptions: ICocosConfigurationPropertySchema;
+    supportPlatforms?: IPlatformSupportPlatformsConfig;
 }
 export declare interface PlatformBundleConfig {
     platformName: string;
@@ -4362,6 +4398,10 @@ export declare class PluginManager extends EventEmitter {
     private hasFixedValue;
     private getFixedValue;
     checkOptions(options: MakeRequired<IBuildCommandOption, 'platform' | 'mainBundleCompressionType'>): Promise<undefined | IBuildTaskOption>;
+    private getPlatformBuildPluginConfig;
+    private ensurePlatformRegistered;
+    private completeSupportPlatformOptions;
+    private syncParentOptionsToSupportPlatformPackage;
     checkCommonOptions(options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>>;
     checkCommonOptionByKey(key: keyof IBuildTaskOption, value: any, options: IBuildTaskOption): Promise<BuildCheckResult>;
     private createVerifyOptions;
@@ -4376,7 +4416,6 @@ export declare class PluginManager extends EventEmitter {
     private cloneConfigItem;
     private applySupportedCompressionTypes;
     private collectPlatformConfigItems;
-    private toRenderSchema;
     getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema;
     queryPlatformConfig(): PlatformConfigItem[];
     getRegisteredPlatforms(): string[];
@@ -5209,6 +5248,8 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	setMaxListeners(n: number): this;
 }
 export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
+export declare type UploadEnv = 'dev' | 'fat' | 'prod';
+export declare type UploadEnv_2 = 'dev' | 'fat' | 'prod';
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
@@ -5312,6 +5353,15 @@ export declare interface WatcherOptions {
 }
 export declare type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;
 export declare interface webDesktopOptions {
+    appid?: string;
+    versionName?: string;
+    uploadEnv?: UploadEnv;
+    accessToken?: string;
+    codeVersion?: string | number | null;
+    bridgeLink?: string;
+    bridgeBuildToken?: string;
+    entryPath?: string;
+    encryptKey?: string;
     useWebGPU: boolean;
     resolution: {
         designHeight: number;
@@ -5320,6 +5370,15 @@ export declare interface webDesktopOptions {
 }
 export declare type WebMobileBuildOptions = IBuildTaskOption<'web-mobile'>;
 export declare interface webMobileOptions {
+    appid?: string;
+    versionName?: string;
+    uploadEnv?: UploadEnv_2;
+    accessToken?: string;
+    codeVersion?: string | number | null;
+    bridgeLink?: string;
+    bridgeBuildToken?: string;
+    entryPath?: string;
+    encryptKey?: string;
     useWebGPU: boolean;
     orientation: IOrientation_2;
     embedWebDebugger: boolean;
@@ -7200,6 +7259,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -8242,6 +8302,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;

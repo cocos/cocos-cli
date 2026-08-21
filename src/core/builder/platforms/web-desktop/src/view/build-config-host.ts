@@ -1,6 +1,6 @@
+import * as path from 'node:path';
 import * as pink from 'pink';
 import * as vscode from 'vscode';
-import * as path from 'node:path';
 
 type Bundle = Record<string, unknown>;
 type UploadEnv = 'dev' | 'fat' | 'prod';
@@ -61,20 +61,7 @@ interface OpenPaasEndpoint {
     uploadEnv: UploadEnv;
 }
 
-interface PreviewRequest {
-    buildPath?: string;
-    outputName?: string;
-    useWebGPU?: boolean;
-}
-
-interface PreviewInfo {
-    previewUrl: string;
-    qrcodeSrc: string;
-    webGPUTips: string;
-    webGPULink: string;
-}
-
-const PLATFORM = 'web-mobile';
+const PLATFORM = 'web-desktop';
 const BRIDGE_API_PATH = '/api/game/web/package/bridge';
 
 let hostLocale: string | undefined;
@@ -85,13 +72,13 @@ function currentLang(): 'zh' | 'en' {
         locale = hostLocale;
     } else {
         try {
-            const cfg = process.env.VSCODE_NLS_CONFIG;
-            if (cfg) {
-                const parsed = JSON.parse(cfg) as { resolvedLanguage?: string; locale?: string };
+            const config = process.env.VSCODE_NLS_CONFIG;
+            if (config) {
+                const parsed = JSON.parse(config) as { resolvedLanguage?: string; locale?: string };
                 locale = parsed.resolvedLanguage || parsed.locale || locale;
             }
         } catch {
-            // Fallback to English.
+            // Fall back to English when the host locale cannot be parsed.
         }
     }
     return locale.toLowerCase().startsWith('zh') ? 'zh' : 'en';
@@ -113,20 +100,21 @@ function loadBundle(): Bundle {
     } catch {
         bundle = {};
     }
+
     cache = { lang, bundle };
     return bundle;
 }
 
 function lookup(bundle: Bundle, key: string): string | undefined {
-    let cur: unknown = bundle;
-    for (const seg of key.split('.')) {
-        if (cur && typeof cur === 'object' && seg in (cur as Bundle)) {
-            cur = (cur as Bundle)[seg];
+    let current: unknown = bundle;
+    for (const segment of key.split('.')) {
+        if (current && typeof current === 'object' && segment in (current as Bundle)) {
+            current = (current as Bundle)[segment];
         } else {
             return undefined;
         }
     }
-    return typeof cur === 'string' ? cur : undefined;
+    return typeof current === 'string' ? current : undefined;
 }
 
 function substitute(text: string, sub?: Record<string, unknown>): string {
@@ -134,14 +122,6 @@ function substitute(text: string, sub?: Record<string, unknown>): string {
         return text;
     }
     return text.replace(/%?\{(\w+)\}/g, (match, key: string) => (key in sub ? String(sub[key]) : match));
-}
-
-function runtimeRequire<T = any>(request: string): T | undefined {
-    try {
-        return module.require(request) as T;
-    } catch {
-        return undefined;
-    }
 }
 
 function normalizeEnv(env: unknown): UploadEnv | undefined {
@@ -261,6 +241,7 @@ async function getOpenPaasWebPackageBridge(accessToken: string, endpoint: OpenPa
         const responseBody = await readResponseBody(response);
         throw new Error(`OpenPaaS request failed: ${BRIDGE_API_PATH}, env=${uploadEnv}, HTTP ${response.status}${responseBody ? `, body=${responseBody.slice(0, 1000)}` : ''}`);
     }
+
     const responseBody = await readResponseBody(response);
     let result: OpenPaasResponse<WebPackageBridgeResponse>;
     try {
@@ -333,42 +314,6 @@ async function getOpenPaasPackageContext(gameId: unknown) {
     };
 }
 
-async function createQRCodeSrc(url: string): Promise<string> {
-    if (!url) {
-        return '';
-    }
-    try {
-        const qrcode = runtimeRequire<{ toDataURL?: (text: string, options?: Record<string, unknown>) => Promise<string> }>('qrcode');
-        if (qrcode?.toDataURL) {
-            return await qrcode.toDataURL(url, {
-                errorCorrectionLevel: 'H',
-                maskPattern: 2,
-                margin: 1,
-                width: 180,
-            });
-        }
-    } catch {
-        // Fallback to a remote image URL below.
-    }
-    return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=1&data=${encodeURIComponent(url)}`;
-}
-
-async function getPreviewInfo(request: PreviewRequest = {}): Promise<PreviewInfo> {
-    const buildPath = request.buildPath || 'project://build';
-    const outputName = request.outputName || PLATFORM;
-    const previewUrl = await pink.builder.getPreviewUrl(`${buildPath}/${outputName}`, PLATFORM) || '';
-    const webGPUTips = request.useWebGPU && previewUrl && !previewUrl.startsWith('https')
-        ? lookup(loadBundle(), 'tips.webGPUServer') || ''
-        : '';
-
-    return {
-        previewUrl,
-        qrcodeSrc: webGPUTips ? '' : await createQRCodeSrc(previewUrl),
-        webGPUTips,
-        webGPULink: 'https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts',
-    };
-}
-
 export function activate(context: HostContext): void {
     if (context.locale) {
         hostLocale = context.locale;
@@ -391,13 +336,7 @@ export function activate(context: HostContext): void {
         const text = lookup(loadBundle(), key);
         return text === undefined ? key : substitute(text, sub);
     });
-    context.registerMethod('getPreviewInfo', (request: PreviewRequest) => getPreviewInfo(request));
     context.registerMethod('getOpenPaasGameList', () => getOpenPaasGameList());
     context.registerMethod('getOpenPaasPackageContext', (gameId: unknown) => getOpenPaasPackageContext(gameId));
     context.registerMethod('getOpenPaasWebPackageBridge', () => resolveOpenPaasWebPackageBridge());
-    context.registerMethod('openPreviewUrl', async (url: string) => {
-        if (url) {
-            await vscode.env.openExternal(vscode.Uri.parse(url));
-        }
-    });
 }

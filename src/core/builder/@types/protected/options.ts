@@ -1,7 +1,7 @@
 import { StatsQuery } from '@cocos/ccbuild';
 import * as rollup from 'rollup';
 import type { PluginItem } from '@babel/core';
-import { IPolyFills, IBuildOptionBase, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired, IPlatformType } from '../public';
+import { IPolyFills, IBuildOptionBase, ITaskItemJSON, BundleCompressionType, IPhysicsConfig, IBundleOptions, Platform, BundleFilterConfig, MakeRequired, IPlatformType, ISubTaskBuildOutput } from '../public';
 export { IPlatformType };
 import { IAssetInfo as IAssetInfoFromDB, IAssetMeta } from '../../../assets/@types/private';
 import { BuiltinBundleName } from './bundle-config';
@@ -370,6 +370,9 @@ export interface IBuildStageOptions {
     taskName?: string;
     logDest?: string;
     packages?: Record<string, Record<string, unknown>>;
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    childTaskIds?: string[];
 }
 
 export type BuildStageProgressCallback = (message: string, progress: number) => void;
