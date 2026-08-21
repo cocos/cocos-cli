@@ -252,7 +252,7 @@ export interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
 
 export interface ICreateByAssetParams extends IBaseCreateNodeParams {
     dbURL: string;
-    test: string;
+    test?: string;
 }
 
 // TODO 目前先从 3x 迁移，后续在进行优化
