@@ -14,6 +14,7 @@ import { middlewareService } from '../../server/middleware/core';
 import BuildMiddleware from './build.middleware';
 import { BuildGlobalInfo } from './share/global';
 import { Engine } from '../engine';
+import { getDefaultScenes, getDefaultStartScene } from './share/common-options-validator';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheResult } from './cache';
 
@@ -51,6 +52,29 @@ export async function verifyBuildOptions(
         const defaultOptions = await pluginManager.getOptionsByPlatform(platform);
         const merged = defaultsDeep(JSON.parse(JSON.stringify(options || {})), defaultOptions);
         merged.platform = platform;
+        // taskName 是 common option 里 default='' + verifyRules=['required']，
+        // 老流程靠 createBuildTask 里 `options.taskName = options.taskName || platform` 兜底，
+        // 而入口校验早于 build()，这里必须复刻同样的归一化，否则 required 规则永远拦。
+        merged.taskName = merged.taskName || platform;
+        // scenes / startScene 的合法默认值是从 asset-db 现算的（getDefaultScenes / getDefaultStartScene），
+        // 不是 commonOptionConfigs 里的静态 '' / []。老流程里 checkOptions 靠 fixedValue 自动回落到这两个函数，
+        // 新入口校验对 error 硬阻塞（不消费 fixedValue），因此必须在校验前先按同样逻辑把项目默认场景填进来。
+        try {
+            if (!merged.startScene) {
+                const defaultStartScene = getDefaultStartScene();
+                if (defaultStartScene) {
+                    merged.startScene = defaultStartScene;
+                }
+            }
+            if (!Array.isArray(merged.scenes) || merged.scenes.length === 0) {
+                const defaultScenes = getDefaultScenes();
+                if (defaultScenes.length) {
+                    merged.scenes = defaultScenes;
+                }
+            }
+        } catch {
+            // asset-db 未初始化时忽略（单测/引擎未加载），交给下游的 required-like 规则处理
+        }
         // renderPipeline 是项目设置而非平台选项，构建阶段才由 checkProjectSetting 填进 options。
         // 入口校验早于构建，这里按编辑器的做法直接读工程配置补上，否则依赖它的规则（apiLevelRenderPipeline）恒不触发。
         if (!merged.renderPipeline) {

@@ -1,5 +1,7 @@
 const checkBuildOptionsMock = jest.fn();
 const getOptionsByPlatformMock = jest.fn(async () => ({}));
+const getDefaultScenesMock = jest.fn(() => [] as Array<{ url: string; uuid: string; bundle: string }>);
+const getDefaultStartSceneMock = jest.fn(() => undefined as string | undefined);
 
 jest.mock('../manager/plugin', () => ({
     pluginManager: {
@@ -24,6 +26,12 @@ jest.mock('../../base/console', () => ({
 }));
 jest.mock('../../base/i18n', () => ({ __esModule: true, default: { t: (k: string) => k, transI18nName: (k: string) => k } }));
 jest.mock('../../assets/manager/asset', () => ({ __esModule: true, default: {} }));
+// getDefaultScenes / getDefaultStartScene 会读 assetManager；单测里桩成可控的返回值，
+// 让 verifyBuildOptions 的场景兜底逻辑可以被独立断言。
+jest.mock('../share/common-options-validator', () => ({
+    getDefaultScenes: getDefaultScenesMock,
+    getDefaultStartScene: getDefaultStartSceneMock,
+}));
 
 import { BuildExitCode } from '../@types/protected';
 
@@ -40,6 +48,10 @@ describe('verifyBuildOptions', () => {
         checkBuildOptionsMock.mockReset();
         getOptionsByPlatformMock.mockReset();
         getOptionsByPlatformMock.mockResolvedValue({});
+        getDefaultScenesMock.mockReset();
+        getDefaultScenesMock.mockReturnValue([]);
+        getDefaultStartSceneMock.mockReset();
+        getDefaultStartSceneMock.mockReturnValue(undefined);
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     });
@@ -164,5 +176,79 @@ describe('verifyBuildOptions', () => {
         checkBuildOptionsMock.mockResolvedValue({});
         const result = await verifyBuildOptions('windows');
         expect(result).toBeNull();
+    });
+
+    it('taskName 空时兜底成 platform（复刻 createBuildTask 的归一化，避免 required 规则误伤）', async () => {
+        // getOptionsByPlatform 里 taskName 默认就是 ''，如果不兜底，required 规则会永远拦下来
+        getOptionsByPlatformMock.mockResolvedValue({ taskName: '' });
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.taskName).toBe('web-desktop');
+            return { taskName: { valid: true } };
+        });
+
+        const result = await verifyBuildOptions('web-desktop', {} as any);
+        expect(result).toBeNull();
+    });
+
+    it('调用方显式传的 taskName 不会被平台名覆盖', async () => {
+        getOptionsByPlatformMock.mockResolvedValue({ taskName: '' });
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.taskName).toBe('nightly-build');
+            return {};
+        });
+
+        await verifyBuildOptions('web-desktop', { taskName: 'nightly-build' } as any);
+    });
+
+    it('startScene 空且 asset-db 有可用场景时兜底成 getDefaultStartScene()', async () => {
+        getDefaultStartSceneMock.mockReturnValue('scene-uuid-1');
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.startScene).toBe('scene-uuid-1');
+            return { startScene: { valid: true } };
+        });
+
+        await verifyBuildOptions('web-desktop', {} as any);
+        expect(getDefaultStartSceneMock).toHaveBeenCalled();
+    });
+
+    it('调用方显式传的 startScene 不被兜底覆盖', async () => {
+        getDefaultStartSceneMock.mockReturnValue('scene-uuid-default');
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.startScene).toBe('scene-uuid-user');
+            return {};
+        });
+
+        await verifyBuildOptions('web-desktop', { startScene: 'scene-uuid-user' } as any);
+    });
+
+    it('scenes 空数组时兜底成 getDefaultScenes()', async () => {
+        getDefaultScenesMock.mockReturnValue([{ url: 'db://a.scene', uuid: 'a', bundle: '' }]);
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.scenes).toEqual([{ url: 'db://a.scene', uuid: 'a', bundle: '' }]);
+            return { scenes: { valid: true } };
+        });
+
+        await verifyBuildOptions('web-desktop', {} as any);
+        expect(getDefaultScenesMock).toHaveBeenCalled();
+    });
+
+    it('调用方显式传的 scenes 不被兜底覆盖', async () => {
+        getDefaultScenesMock.mockReturnValue([{ url: 'db://default.scene', uuid: 'd', bundle: '' }]);
+        checkBuildOptionsMock.mockImplementation(async (_p, opts: any) => {
+            expect(opts.scenes).toEqual([{ url: 'db://user.scene', uuid: 'u', bundle: '' }]);
+            return {};
+        });
+
+        await verifyBuildOptions('web-desktop', {
+            scenes: [{ url: 'db://user.scene', uuid: 'u', bundle: '' }],
+        } as any);
+    });
+
+    it('asset-db 未初始化（getDefaultStartScene / getDefaultScenes 抛异常）时不崩，继续走后续校验', async () => {
+        getDefaultStartSceneMock.mockImplementation(() => { throw new Error('asset-db not ready'); });
+        getDefaultScenesMock.mockImplementation(() => { throw new Error('asset-db not ready'); });
+        checkBuildOptionsMock.mockResolvedValue({ name: { valid: true } });
+
+        await expect(verifyBuildOptions('web-desktop', {} as any)).resolves.toBeNull();
     });
 });
