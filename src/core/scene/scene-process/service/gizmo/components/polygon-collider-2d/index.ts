@@ -1,6 +1,6 @@
 'use strict';
 
-import { Color, js, Mat4, MeshRenderer, Node, PolygonCollider2D, Quat, Vec2, Vec3 } from 'cc';
+import { Color, js, Layers, Mat4, MeshRenderer, Node, PolygonCollider2D, Quat, Vec2, Vec3 } from 'cc';
 import GizmoBase from '../../base/gizmo-base';
 import EditableController from '../../controller/editable';
 import LineController from '../../controller/line';
@@ -31,7 +31,7 @@ function makeVec3InPrecision(v: Vec3, p: number): Vec3 {
     return v;
 }
 
-const panPlaneLayer = 1 << 30;
+const panPlaneLayer = Layers.Enum.EDITOR;
 
 enum PolygonHandleType {
     None = 'none',

@@ -1,6 +1,6 @@
 'use strict';
 
-import { Node, Vec3, Vec2, Color, MeshRenderer, Quat } from 'cc';
+import { Layers, Node, Vec3, Vec2, Color, MeshRenderer, Quat } from 'cc';
 
 import EditableController from '../controller/editable';
 import ControllerShape from '../utils/controller-shape';
@@ -15,7 +15,7 @@ import {
     updateBoundingBox,
 } from '../utils/engine-utils';
 
-const panPlaneLayer = 1 << 30;
+const panPlaneLayer = Layers.Enum.EDITOR;
 
 /**
  * 获取编辑器摄像机组件（惰性访问避免循环依赖）
@@ -281,10 +281,10 @@ class RectangleController extends EditableController {
             if (this.getPositionOnPanPlane(hitPos, event.x, event.y, this._panPlane!)) {
                 const deltaPos = new Vec3(hitPos);
                 deltaPos.subtract(this._mouseDownOnPlanePos);
-                const axisDir = this._axisDir[event.handleName as keyof AxisDir];
-                if (!axisDir) return;
                 let deltaDist = 0;
                 if (this.isBorder(event.handleName)) {
+                    const axisDir = this._axisDir[event.handleName as keyof AxisDir];
+                    if (!axisDir) return;
                     Vec3.transformQuat(tempVec3, axisDir, this.getRotation());
                     deltaDist = deltaPos.dot(tempVec3);
                     if (this._curHandleType === RectHandleType.Left || this._curHandleType === RectHandleType.Right) {
@@ -293,6 +293,8 @@ class RectangleController extends EditableController {
                         this._deltaSize.y = deltaDist;
                     }
                 } else if (this.isCorner(event.handleName)) {
+                    const axisDir = this._axisDir[event.handleName as keyof AxisDir];
+                    if (!axisDir) return;
                     tempVec3.x = axisDir.x;
                     tempVec3.y = 0;
                     tempVec3.z = 0;

@@ -1,6 +1,6 @@
 'use strict';
 
-import { Node, Vec3, Color, MeshRenderer, Vec2 } from 'cc';
+import { Layers, Node, Vec3, Color, MeshRenderer, Vec2 } from 'cc';
 
 import EditableController from './editable';
 import ControllerShape from '../utils/controller-shape';
@@ -18,7 +18,7 @@ import {
 const axisDirMap = ControllerUtils.axisDirectionMap;
 const AxisName = ControllerUtils.AxisName;
 
-const panPlaneLayer = 1 << 30;
+const panPlaneLayer = Layers.Enum.EDITOR;
 
 const tempVec3 = new Vec3();
 const tempVec3_a = new Vec3();
