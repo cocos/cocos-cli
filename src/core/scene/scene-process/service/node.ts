@@ -165,7 +165,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             const result = this._resolveCreatePreflight(params, canvasRequired, currentScene);
             return {
                 ...result,
-                preflightToken1: this._createPreflightToken(params, result),
+                preflightToken: this._createPreflightToken(params, result),
             };
         } catch (error) {
             console.error(error);
@@ -251,7 +251,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         params: ICreateByNodeTypeParams | ICreateByAssetParams,
         canvasRequired: boolean,
         currentScene: Node,
-    ): Omit<ICreateNodePreflightResult, 'preflightToken1'> {
+    ): Omit<ICreateNodePreflightResult, 'preflightToken'> {
         const pathPlan = this._getCreatePathPreflight(params.path, currentScene);
         if (pathPlan.materializesUITransform) {
             return {
@@ -279,7 +279,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
     private _createPreflightToken(
         params: ICreateByNodeTypeParams | ICreateByAssetParams,
-        result: Omit<ICreateNodePreflightResult, 'preflightToken1'>,
+        result: Omit<ICreateNodePreflightResult, 'preflightToken'>,
     ): string {
         const token = `node-create-${Date.now().toString(36)}-${(++this._preflightTokenSequence).toString(36)}`;
         if (this._preflightTokens.size >= 128) {
@@ -297,12 +297,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     private _validatePreflightToken(params: ICreateByNodeTypeParams | ICreateByAssetParams): void {
-        if (!params.preflightToken1) {
+        if (!params.preflightToken) {
             return;
         }
 
-        const record = this._preflightTokens.get(params.preflightToken1);
-        this._preflightTokens.delete(params.preflightToken1);
+        const record = this._preflightTokens.get(params.preflightToken);
+        this._preflightTokens.delete(params.preflightToken);
         if (!record || record.requestKey !== this._getPreflightRequestKey(params)) {
             throw new Error('The node creation preflight token is invalid or does not match the request. Run preflightCreate again.');
         }
