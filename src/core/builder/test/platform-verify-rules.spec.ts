@@ -554,8 +554,10 @@ describe('platform verifyRuleMap migrated from editor', () => {
         it('三条规则都是"至少开一项"', () => {
             expect(rules.renderBackEnd.func({ vulkan: false, gles3: false, gles2: false }, {})).toBe(false);
             expect(rules.renderBackEnd.func({ gles3: true }, {})).toBe(true);
-            expect(rules.renderBackEnd.func({ vulkan: true }, {})).toBe(true);
-            expect(rules.renderBackEnd.func({ gles2: true }, {})).toBe(true);
+            // vulkan / gles2 目前刻意未收进 supported——后端还没在 HarmonyOS Next 上验证稳定，
+            // 单独开这两个（不叠 gles3）应当被判为无效；等验证通过再放开时同步放开这里的期望。
+            expect(rules.renderBackEnd.func({ vulkan: true }, {})).toBe(false);
+            expect(rules.renderBackEnd.func({ gles2: true }, {})).toBe(false);
             expect(rules.renderBackEnd.func({ metal: true }, {})).toBe(false);
             expect(rules.orientation.func({ portrait: false, landscapeLeft: false }, {})).toBe(false);
             expect(rules.orientation.func({ landscapeLeft: true }, {})).toBe(true);
