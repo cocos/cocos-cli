@@ -200,7 +200,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         materializesUITransform: boolean;
         canvasRequired: boolean;
     } {
-        if (path) {
+        if (path && !isRootNodePath(path)) {
             try {
                 const existingParent = NodeMgr.getNodeByPath(path);
                 if (existingParent) {
@@ -425,7 +425,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
      * 获取或创建路径节点
      */
     private async _getOrCreateNodeByPath(path: string | undefined, currentScene: Node, prefabCanvasHandling?: PrefabCanvasHandling): Promise<Node | null> {
-        if (!path) {
+        // '/' 指当前编辑器的根：prefab 模式下是 prefab 根节点，而不是承载它的虚拟场景。
+        // 交回 null 让上层 fallback 到 currentScene（= Service.Editor.getRootNode()）。
+        if (!path || isRootNodePath(path)) {
             return null;
         }
 
