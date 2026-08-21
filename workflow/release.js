@@ -474,6 +474,8 @@ function createReleasePipeline(config) {
     const rebuild = async () => {
         if (config.type === 'electron') {
             await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir() });
+        } else {
+            await runCommand('npm', ['run', 'rebuild:node-gyp'], { cwd: extensionDir() });
         }
     };
 

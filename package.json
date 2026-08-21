@@ -49,7 +49,8 @@
         "start:preview": "node ./dist/cli.js preview --scene-editor",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
-        "rebuild": "node workflow/electron-rebuild.js"
+        "rebuild": "node workflow/electron-rebuild.js",
+        "rebuild:node-gyp": "node workflow/node-gyp-rebuild.js"
     },
     "author": "COCOS",
     "files": [
@@ -175,7 +176,7 @@
         "rollup-plugin-terser": "^7.0.2",
         "rotating-file-stream": "^3.2.7",
         "semver": "^7.7.2",
-        "sharp": "^0.32.6",
+        "sharp": "0.32.6",
         "socket.io": "^4.8.1",
         "socket.io-client": "^4.8.1",
         "strip-ansi": "^6.0.1",
