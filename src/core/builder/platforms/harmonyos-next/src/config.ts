@@ -57,11 +57,13 @@ const config: IPlatformBuildPluginConfig = {
                 if (!value || typeof value !== 'object') {
                     return false;
                 }
-                const supported = ['vulkan', 'gles3', 'gles2'];
+                // vulkan / gles2 尚未在 HarmonyOS Next 上完整验证，暂不允许开启；
+                // 后续跑通稳定性验证后再放开成 ['vulkan', 'gles3', 'gles2']。
+                const supported = ['gles3'];
                 const v = value as Record<string, unknown>;
                 return supported.some((k) => !!v[k]);
             },
-            message: 'renderBackEnd must have at least one supported backend enabled (vulkan / gles3 / gles2)',
+            message: 'renderBackEnd must have at least one supported backend enabled (gles3)',
         },
         orientation: {
             func: hasEnabledEntry,
