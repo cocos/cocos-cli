@@ -21,6 +21,7 @@ export class ScenePreview extends PreviewBase {
     public onComponentAdded(comp: CameraComponent) {
         if (!comp) return;
         if (comp instanceof Camera) {
+            if (comp.node?.layer & editorMask) return;
             Promise.resolve().then(() => {
                 if (comp.camera) comp.camera.detachCamera();
             });

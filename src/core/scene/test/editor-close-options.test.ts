@@ -49,6 +49,7 @@ jest.mock('../scene-process/rpc', () => ({
 import { Prefab } from 'cc';
 import { SceneEditor } from '../scene-process/service/editors/scene-editor';
 import { PrefabEditor } from '../scene-process/service/editors/prefab-editor';
+import { EditorService } from '../scene-process/service/editor';
 import { sceneUtils } from '../scene-process/service/scene/utils';
 import { editorPrefabUtils } from '../scene-process/service/prefab/prefab-editor-utils';
 
@@ -166,4 +167,100 @@ describe('Editor close options', () => {
         expect((editor as any).entity.identifier.assetUuid).toBe(sourceAsset._uuid);
     });
 
+});
+
+describe('Screenshot scene preparation', () => {
+    function createService(currentUuid: string | null, dirty: boolean) {
+        const service = new EditorService();
+        (service as any).currentEditorUuid = currentUuid;
+        jest.spyOn(service as any, 'isCurrentEditorDirty').mockReturnValue(dirty);
+        const close = jest.spyOn(service as any, 'closeUnlocked').mockImplementation(async () => {
+            (service as any).currentEditorUuid = null;
+            return true;
+        });
+        const open = jest.spyOn(service as any, 'openUnlocked').mockImplementation(async (...args: unknown[]) => {
+            const { urlOrUUID } = args[0] as { urlOrUUID: string };
+            (service as any).currentEditorUuid = urlOrUUID;
+            return {};
+        });
+        return { service, close, open };
+    }
+
+    beforeEach(() => {
+        mockRpcRequest.mockReset();
+    });
+
+    it('reopens a clean current scene without saving before a screenshot', async () => {
+        const { service, close, open } = createService('scene-uuid', false);
+        const operation = jest.fn(async () => 'captured');
+
+        await expect(service.withScreenshotScene(undefined, operation)).resolves.toBe('captured');
+
+        expect(close).toHaveBeenCalledWith({ urlOrUUID: 'scene-uuid', save: false });
+        expect(open).toHaveBeenCalledWith({ urlOrUUID: 'scene-uuid' });
+        expect(operation).toHaveBeenCalledTimes(1);
+    });
+
+    it('prefers the scene currently opened in PinK over the worker current scene', async () => {
+        mockRpcRequest
+            .mockResolvedValueOnce({ uuid: 'pink-scene-uuid' })
+            .mockResolvedValueOnce({ uuid: 'pink-scene-uuid' });
+        const { service, close, open } = createService('worker-scene-uuid', false);
+
+        await service.withScreenshotScene(undefined, async () => undefined);
+
+        expect(mockRpcRequest).toHaveBeenNthCalledWith(1, 'browserSceneState', 'getCurrent', []);
+        expect(mockRpcRequest).toHaveBeenNthCalledWith(2, 'assetManager', 'queryAssetInfo', ['pink-scene-uuid']);
+        expect(close).toHaveBeenCalledWith({ urlOrUUID: 'worker-scene-uuid', save: false });
+        expect(open).toHaveBeenCalledWith({ urlOrUUID: 'pink-scene-uuid' });
+    });
+
+    it('keeps unsaved scene-process changes when capturing the current scene', async () => {
+        const { service, close, open } = createService('scene-uuid', true);
+        const operation = jest.fn(async () => undefined);
+
+        await service.withScreenshotScene(undefined, operation);
+
+        expect(close).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalled();
+        expect(operation).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores the previous clean scene after capturing an explicit target', async () => {
+        mockRpcRequest.mockResolvedValue({ uuid: 'target-uuid' });
+        const { service, close, open } = createService('current-uuid', false);
+
+        await service.withScreenshotScene('db://assets/target.scene', async () => undefined);
+
+        expect(close).toHaveBeenNthCalledWith(1, { urlOrUUID: 'current-uuid', save: false });
+        expect(open).toHaveBeenNthCalledWith(1, { urlOrUUID: 'target-uuid' });
+        expect(close).toHaveBeenNthCalledWith(2, { urlOrUUID: 'target-uuid', save: false });
+        expect(open).toHaveBeenNthCalledWith(2, { urlOrUUID: 'current-uuid' });
+        expect((service as any).currentEditorUuid).toBe('current-uuid');
+    });
+
+    it('rejects an explicit target instead of discarding unsaved changes', async () => {
+        mockRpcRequest.mockResolvedValue({ uuid: 'target-uuid' });
+        const { service, close, open } = createService('current-uuid', true);
+
+        await expect(service.withScreenshotScene('target-uuid', async () => undefined))
+            .rejects.toThrow('存在未保存修改');
+
+        expect(close).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalled();
+        expect((service as any).currentEditorUuid).toBe('current-uuid');
+    });
+
+    it('restores the previous scene when capture fails', async () => {
+        mockRpcRequest.mockResolvedValue({ uuid: 'target-uuid' });
+        const { service, close, open } = createService('current-uuid', false);
+
+        await expect(service.withScreenshotScene('target-uuid', async () => {
+            throw new Error('capture failed');
+        })).rejects.toThrow('capture failed');
+
+        expect(close).toHaveBeenCalledTimes(2);
+        expect(open).toHaveBeenCalledTimes(2);
+        expect((service as any).currentEditorUuid).toBe('current-uuid');
+    });
 });

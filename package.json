@@ -126,11 +126,12 @@
         "@ffprobe-installer/ffprobe": "^1.4.1",
         "@microsoft/api-extractor": "^7.55.0",
         "@modelcontextprotocol/sdk": "^1.18.0",
+        "@napi-rs/canvas": "^1.0.7",
         "@sentry/node": "^10.21.0",
         "@types/semver": "^7.7.1",
         "@types/ws": "^8.18.1",
-        "@types/xxhashjs": "^0.2.4",
         "@types/xml2js": "^0.4.11",
+        "@types/xxhashjs": "^0.2.4",
         "cc": "file:./packages/cc-module",
         "chalk": "^2.4.2",
         "cli-progress": "^3.12.0",
@@ -185,12 +186,12 @@
         "uuid": "^8.3.2",
         "ws": "^8.18.3",
         "xhr2": "^0.2.1",
+        "xml2js": "^0.6.0",
         "xmldom": "^0.1.31",
         "xxhashjs": "^0.2.2",
         "xxtea-node": "^1.1.5",
         "zod": "^3.25.76",
         "zod-to-json-schema": "^3.24.6",
-        "zod-to-ts": "1.1.4",
-        "xml2js": "^0.6.0"
+        "zod-to-ts": "1.1.4"
     }
 }

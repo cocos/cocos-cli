@@ -43,9 +43,14 @@ async function startup() {
         nativeBase: assetBase,
         writablePath: join(projectPath, 'temp'),
         enableCustomPipeline: false,
+        // scene-get-screenshot needs a real render target. EmptyDevice executes
+        // the pipeline but deliberately produces no pixels.
+        enableHeadlessWebGL: true,
     }, async () => {
         // 导入 service，处理装饰器，捕获开发的 api
         await import('./service');
+        // Screenshot 依赖 pngjs/fs/os，仅在 Node 场景进程注册，避免进入浏览器 scene-bundle。
+        await import('./service/screenshot');
         console.log('[Scene] import service');
         await Rpc.startup();
         console.log('[Scene] startup Rpc');

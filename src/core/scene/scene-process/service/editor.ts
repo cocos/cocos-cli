@@ -128,6 +128,84 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? await editor.encode() : null;
     }
 
+    /**
+     * Run screenshot work against a safely prepared scene while holding the
+     * editor lifecycle queue. Explicit target switches are restored afterwards.
+     * A switch/reload that would discard unsaved scene-process edits is rejected.
+     */
+    async withScreenshotScene<T>(urlOrUUID: string | undefined, operation: () => Promise<T>): Promise<T> {
+        return this.runLifecycle(async () => {
+            const previousUuid = this.currentEditorUuid;
+            let targetRef = urlOrUUID;
+            if (!targetRef) {
+                try {
+                    const browserCurrent = await Rpc.getInstance().request('browserSceneState', 'getCurrent', []);
+                    targetRef = browserCurrent?.uuid;
+                } catch (error) {
+                    // Older/standalone hosts may not provide the browser-state bridge.
+                    console.warn('[Scene] Unable to query PinK current scene, using scene-process current scene.', error);
+                }
+            }
+
+            const targetInfo = targetRef
+                ? await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [targetRef])
+                : null;
+
+            if (targetRef && !targetInfo) {
+                throw new Error(`Unable to find screenshot scene asset: ${targetRef}`);
+            }
+
+            const targetUuid = targetInfo?.uuid ?? previousUuid;
+            if (!targetUuid) {
+                return operation();
+            }
+
+            const targetChanged = Boolean(previousUuid && targetUuid !== previousUuid);
+            const isDirty = Boolean(previousUuid && this.isCurrentEditorDirty());
+            if (isDirty && (Boolean(urlOrUUID) || targetChanged)) {
+                throw new Error(
+                    `当前场景 ${previousUuid} 存在未保存修改，无法切换或重新加载截图目标 ${targetUuid}。请先保存或撤销修改。`,
+                );
+            }
+            if (previousUuid && !urlOrUUID && !targetChanged && isDirty) {
+                // Scene-process edits and screenshots already share this instance,
+                // so keep unsaved edits visible in the captured image.
+                return operation();
+            }
+
+            const shouldRestore = Boolean(urlOrUUID && targetUuid !== previousUuid);
+            let primaryError: unknown;
+            try {
+                if (previousUuid) {
+                    await this.closeUnlocked({ urlOrUUID: previousUuid, save: false });
+                }
+                await this.openUnlocked({ urlOrUUID: targetUuid });
+                return await operation();
+            } catch (error) {
+                primaryError = error;
+                throw error;
+            } finally {
+                if (shouldRestore && this.currentEditorUuid !== previousUuid) {
+                    try {
+                        const captureUuid = this.currentEditorUuid;
+                        if (captureUuid) {
+                            await this.closeUnlocked({ urlOrUUID: captureUuid, save: false });
+                        }
+                        if (previousUuid) {
+                            await this.openUnlocked({ urlOrUUID: previousUuid });
+                        }
+                    } catch (restoreError) {
+                        if (primaryError) {
+                            console.error('[Screenshot] Failed to restore the previous editor after capture failure.', restoreError);
+                        } else {
+                            throw restoreError;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     getRootNode(): cc.Scene | cc.Node | null {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         return editor ? editor.getRootNode() : null;
@@ -199,6 +277,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             this.invalidateEditorSession();
             this.emit('editor:open', cc.director.getScene());
             this.isOpen = true;
+            await this.publishBrowserSceneState(assetInfo);
             console.log(`打开 ${assetInfo.url}`);
             return encode;
         } catch (err) {
@@ -208,6 +287,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 this.currentEditorUuid = null;
                 this.isOpen = false;
             }
+            await this.clearBrowserSceneState(currentEditorUuid ?? uuid);
             console.error(err);
             throw err;
         }
@@ -253,6 +333,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             // 真正关闭编辑器时的会话清理边界；重载只复用内容卸载/挂载边界。
             this.emitInternal(InternalServiceEvents.EditorDisposed);
             this.isOpen = false;
+            await this.clearBrowserSceneState(currentEditorUuid);
             console.log(`关闭 ${assetInfo?.url ?? urlOrUUID}`);
             return result;
         } catch (error) {
@@ -482,6 +563,42 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             Service.Undo?.clearHistory();
         } catch (_e) {
             // UndoService may not be registered during early editor setup.
+        }
+    }
+
+    private isCurrentEditorDirty(): boolean {
+        try {
+            return Boolean(Service.Undo?.isDirty?.());
+        } catch (_e) {
+            // UndoService may not be registered during early editor setup.
+            return false;
+        }
+    }
+
+    private async publishBrowserSceneState(assetInfo: IAssetInfo): Promise<void> {
+        if (!(Rpc as any).isWebTransport?.()) {
+            return;
+        }
+        try {
+            await Rpc.getInstance().request('browserSceneState', 'setCurrent', [{
+                uuid: assetInfo.uuid,
+                url: assetInfo.url,
+                type: assetInfo.type,
+                name: assetInfo.name,
+            }]);
+        } catch (error) {
+            console.warn('[Scene] Failed to publish PinK current scene.', error);
+        }
+    }
+
+    private async clearBrowserSceneState(expectedUuid: string): Promise<void> {
+        if (!(Rpc as any).isWebTransport?.()) {
+            return;
+        }
+        try {
+            await Rpc.getInstance().request('browserSceneState', 'clearCurrent', [expectedUuid]);
+        } catch (error) {
+            console.warn('[Scene] Failed to clear PinK current scene.', error);
         }
     }
 

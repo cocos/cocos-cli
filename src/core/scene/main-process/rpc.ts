@@ -4,6 +4,7 @@ import { assetManager } from '../../assets';
 import scriptManager from '../../scripting';
 import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
+import { browserSceneState } from '../browser-scene-state';
 
 import type { IPublicServiceManager } from '../scene-process';
 
@@ -35,6 +36,7 @@ export class RpcProxy {
             programming: scriptManager,
             sceneConfigInstance: sceneConfigInstance,
             i18n: i18n,
+            browserSceneState,
         });
         console.log(`[Node] Scene Process RPC ready ${prc ? '(Attached)' : '(Detached - Web Mode)'}`);
     }

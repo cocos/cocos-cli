@@ -22,17 +22,21 @@ import { Scene, TSceneTemplateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
 import { PrefabApi } from './prefab';
+import { SceneScreenshotApi } from './screenshot';
 import { options } from '../../core/builder/platforms/android/i18n/en';
 
 export class SceneApi {
     public component: ComponentApi;
     public node: NodeApi;
     public prefab: PrefabApi;
+    public screenshot: SceneScreenshotApi;
 
     constructor() {
         this.component = new ComponentApi();
         this.node = new NodeApi();
         this.prefab = new PrefabApi();
+        // 场景截图工具（实例化以触发 @tool 装饰器注册）
+        this.screenshot = new SceneScreenshotApi();
     }
 
     @tool('scene-query-current')

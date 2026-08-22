@@ -134,6 +134,10 @@ export class ProcessRPC<TModules extends Record<string, any>> {
         return this.process?.connected;
     }
 
+    public isWebTransport() {
+        return this.isWebMode;
+    }
+
     /**
      * 监听 incoming 消息
      */

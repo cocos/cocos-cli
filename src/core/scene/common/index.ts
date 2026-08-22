@@ -16,4 +16,5 @@ export * from './gizmo';
 export * from './scene-view';
 export * from './preview';
 export * from './ui';
+export * from './screenshot';
 export * from './message';

@@ -36,6 +36,7 @@ export interface IEditorTarget {
 export interface IPublicEditorService extends Omit<IEditorService,
     'getRootNode' |
     'getCurrentEditorType' |
+    'withScreenshotScene' |
     'lock' |
     'unlock' |
     keyof IServiceEvents
@@ -87,6 +88,13 @@ export interface IEditorService extends IServiceEvents {
      * 获取当前打开的资产
      */
     queryCurrent(): Promise<TEditorEntity | null>;
+
+    /**
+     * Run screenshot work while the selected scene is open. Explicit target
+     * switches are restored afterwards and never discard unsaved editor state.
+     * This callback-based API is scene-process internal only.
+     */
+    withScreenshotScene<T>(urlOrUUID: string | undefined, operation: () => Promise<T>): Promise<T>;
 
     /**
      *

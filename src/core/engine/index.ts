@@ -47,6 +47,222 @@ for (let i = 0; i <= 19; i++) {
     layerMask[i] = 1 << i;
 }
 
+const headlessCanvasBacking = Symbol('headlessCanvasBacking');
+
+/**
+ * The Node web adapter only implements a 2D canvas context. When a worker
+ * actually needs pixels (for example scene screenshots), bridge that canvas
+ * to headless-gl before cc.game initializes the gfx device.
+ */
+function installHeadlessWebGLCanvas(): void {
+    const globalWindow = (globalThis as any).window;
+    const canvas = globalWindow?.__canvas as HTMLCanvasElement | undefined;
+    if (!canvas) {
+        throw new Error('Unable to initialize headless WebGL: engine canvas is unavailable.');
+    }
+    // findCanvas() looks up #GameCanvas. The Node adapter names its singleton
+    // canvas "glcanvas" by default, so without this the engine receives a plain
+    // HTMLElement whose getContext is missing and silently falls back to
+    // EmptyDevice.
+    canvas.id = 'GameCanvas';
+
+    // Load the native dependency only for rendering workers. Most CLI engine
+    // users intentionally keep using EmptyDevice and must not require a GL ABI.
+    const createContext = require('gl') as typeof import('gl');
+    const context = createContext(
+        Math.max(1, Math.floor(canvas.width || 1)),
+        Math.max(1, Math.floor(canvas.height || 1)),
+        {
+            alpha: true,
+            antialias: true,
+            depth: true,
+            stencil: true,
+            premultipliedAlpha: false,
+            preserveDrawingBuffer: true,
+        },
+    );
+    if (!context) {
+        throw new Error('Unable to initialize headless WebGL: context creation failed.');
+    }
+
+    const originalGetContext = canvas.getContext.bind(canvas);
+    canvas.getContext = ((contextId: string, ...args: any[]) => {
+        if (contextId === 'webgl' || contextId === 'experimental-webgl') {
+            return context;
+        }
+        return originalGetContext(contextId as any, ...args);
+    }) as typeof canvas.getContext;
+    globalWindow.WebGLRenderingContext = createContext.WebGLRenderingContext;
+    (globalThis as any).WebGLRenderingContext = createContext.WebGLRenderingContext;
+
+    installHeadlessCanvas2D(globalWindow);
+    installHeadlessImageDecoder(globalWindow);
+}
+
+/**
+ * A real gfx device is optional for most scene-process APIs. Native GL/canvas
+ * initialization can fail on unsupported hosts, so keep the worker usable and
+ * let rendering-only features report that no gfx device is available.
+ */
+function tryInstallHeadlessWebGLCanvas(): boolean {
+    try {
+        installHeadlessWebGLCanvas();
+        return true;
+    } catch (error) {
+        console.warn(
+            '[Engine] Headless WebGL initialization failed; falling back to EmptyDevice. '
+            + 'Rendering features such as scene screenshots will be unavailable.',
+            error,
+        );
+        return false;
+    }
+}
+
+/**
+ * The Node web adapter ships a placeholder 2D context: its text methods do not
+ * rasterize anything. Keep the adapter's HTMLCanvasElement wrapper (the engine
+ * relies on its DOM identity), but back its 2D operations with Skia so labels
+ * produce real pixels that headless-gl can upload.
+ */
+function installHeadlessCanvas2D(globalWindow: any): void {
+    const canvasPrototype = globalWindow.HTMLCanvasElement?.prototype;
+    if (!canvasPrototype) {
+        throw new Error('Unable to initialize headless WebGL: HTMLCanvasElement is unavailable.');
+    }
+
+    const { createCanvas } = require('@napi-rs/canvas') as typeof import('@napi-rs/canvas');
+    const originalGetContext = canvasPrototype.getContext;
+
+    const getBackingCanvas = (canvas: any): any => {
+        const width = Math.max(1, Math.floor(canvas._width || 1));
+        const height = Math.max(1, Math.floor(canvas._height || 1));
+        let backing = canvas[headlessCanvasBacking];
+        if (!backing) {
+            backing = createCanvas(width, height);
+            canvas[headlessCanvasBacking] = backing;
+        } else {
+            if (backing.width !== width) backing.width = width;
+            if (backing.height !== height) backing.height = height;
+        }
+        return backing;
+    };
+
+    Object.defineProperty(canvasPrototype, 'getContext', {
+        configurable: true,
+        value(this: any, contextId: string, ...args: any[]) {
+            if (contextId === '2d') {
+                return getBackingCanvas(this).getContext('2d', args[0]);
+            }
+            return originalGetContext.call(this, contextId, ...args);
+        },
+    });
+
+    Object.defineProperty(canvasPrototype, 'width', {
+        configurable: true,
+        get(this: any) {
+            return this._width;
+        },
+        set(this: any, value: number) {
+            this._width = Math.max(0, Math.ceil(Number(value) || 0));
+            const backing = this[headlessCanvasBacking];
+            if (backing) backing.width = Math.max(1, this._width);
+        },
+    });
+
+    Object.defineProperty(canvasPrototype, 'height', {
+        configurable: true,
+        get(this: any) {
+            return this._height;
+        },
+        set(this: any, value: number) {
+            this._height = Math.max(0, Math.ceil(Number(value) || 0));
+            const backing = this[headlessCanvasBacking];
+            if (backing) backing.height = Math.max(1, this._height);
+        },
+    });
+
+    Object.defineProperty(canvasPrototype, 'data', {
+        configurable: true,
+        get(this: any) {
+            if (this._width <= 0 || this._height <= 0) {
+                return new Uint8ClampedArray(0);
+            }
+            return getBackingCanvas(this).getContext('2d').getImageData(0, 0, this._width, this._height).data;
+        },
+    });
+}
+
+/**
+ * headless-gl accepts image-like objects only when they expose decoded pixel
+ * data. The Node web adapter's HTMLImageElement normally reads metadata only,
+ * which makes headless-gl fall back to CanvasRenderingContext2D.drawImage (not
+ * implemented by that adapter). Decode to RGBA before emitting the load event
+ * so every texture upload path can consume the image synchronously afterwards.
+ */
+function installHeadlessImageDecoder(globalWindow: any): void {
+    const imagePrototype = globalWindow.HTMLImageElement?.prototype;
+    const sharp = (globalThis as any).nodeEnv?.sharp;
+    if (!imagePrototype || !sharp) {
+        throw new Error('Unable to initialize headless WebGL: image decoder is unavailable.');
+    }
+
+    Object.defineProperty(imagePrototype, 'data', {
+        configurable: true,
+        get(this: any) {
+            return this._data;
+        },
+    });
+
+    Object.defineProperty(imagePrototype, 'src', {
+        configurable: true,
+        get(this: any) {
+            return this._src;
+        },
+        set(this: any, value: string | ArrayBufferView) {
+            this._src = value;
+            this._data = null;
+            this.complete = false;
+            if (value === '') {
+                return;
+            }
+
+            let source: string | ArrayBufferView = value;
+            if (typeof value === 'string' && value.startsWith('data:')) {
+                const match = /^data:[^;,]+;base64,(.*)$/.exec(value);
+                if (match) {
+                    source = Buffer.from(match[1], 'base64');
+                }
+            }
+
+            sharp(source)
+                .toColourspace('srgb')
+                .ensureAlpha()
+                .raw()
+                .toBuffer({ resolveWithObject: true })
+                .then(({ data, info }: { data: Buffer; info: { width: number; height: number } }) => {
+                    // Ignore a decode that completed after the image was reused.
+                    if (this._src !== value) {
+                        return;
+                    }
+                    this.width = info.width;
+                    this.height = info.height;
+                    this._data = data;
+                    this.complete = true;
+                    setTimeout(() => this.dispatchEvent(new globalWindow.Event('load')), 0);
+                })
+                .catch((error: unknown) => {
+                    if (this._src !== value) {
+                        return;
+                    }
+                    const label = typeof value === 'string' && !value.startsWith('data:') ? value : '<inline image>';
+                    console.warn(`Failed to decode source image ${label}:`, error);
+                    this._data = null;
+                    setTimeout(() => this.dispatchEvent(new globalWindow.Event('error')), 0);
+                });
+        },
+    });
+}
+
 const Backends = {
     'physics-cannon': 'cannon.js',
     'physics-ammo': 'bullet',
@@ -473,27 +689,36 @@ class EngineManager implements IEngine {
     async initEngine(info: IInitEngineInfo, onBeforeGameInit?: () => Promise<void>, onAfterGameInit?: () => Promise<void>) {
         const { default: preload } = await import('cc/preload');
         await this.importEditorExtensions();
+        const requiredModules = [
+            'cc',
+            'cc/editor/populate-internal-constants',
+            'cc/editor/serialization',
+            'cc/editor/new-gen-anim',
+            'cc/editor/embedded-player',
+            'cc/editor/reflection-probe',
+            'cc/editor/lod-group-utils',
+            'cc/editor/material',
+            'cc/editor/2d-misc',
+            'cc/editor/offline-mappings',
+            'cc/editor/custom-pipeline',
+            'cc/editor/animation-clip-migration',
+            'cc/editor/exotic-animation',
+            'cc/editor/color-utils',
+        ];
+        if (info.enableHeadlessWebGL) {
+            // The default editor bundle only installs EmptyDevice. Importing
+            // this module registers WebGLDevice on cclegacy before game.init.
+            requiredModules.push('cce:/internal/x/cc-fu/gfx-webgl');
+        }
         await preload({
             engineRoot: this._info.typescript.path,
             engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
             writablePath: info.writablePath,
-            requiredModules: [
-                'cc',
-                'cc/editor/populate-internal-constants',
-                'cc/editor/serialization',
-                'cc/editor/new-gen-anim',
-                'cc/editor/embedded-player',
-                'cc/editor/reflection-probe',
-                'cc/editor/lod-group-utils',
-                'cc/editor/material',
-                'cc/editor/2d-misc',
-                'cc/editor/offline-mappings',
-                'cc/editor/custom-pipeline',
-                'cc/editor/animation-clip-migration',
-                'cc/editor/exotic-animation',
-                'cc/editor/color-utils',
-            ]
+            requiredModules,
         });
+        const headlessWebGLReady = info.enableHeadlessWebGL
+            ? tryInstallHeadlessWebGLCanvas()
+            : false;
         await this.initEditorExtensions();
 
         const modules = this.getConfig().includeModules || [];
@@ -525,7 +750,7 @@ class EngineManager implements IEngine {
                     exactFitScreen: true,
                 },
                 rendering: {
-                    renderMode: 3,
+                    renderMode: headlessWebGLReady ? 2 : 3,
                     renderPipeline,
                     customPipeline: enableCustomPipeline,
                     highQualityMode: highQuality,

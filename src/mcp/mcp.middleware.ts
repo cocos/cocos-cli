@@ -14,6 +14,7 @@ import stripAnsi from 'strip-ansi';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { assetManager } from '../core/assets';
+import { redactInlineImageData } from './image-result';
 
 export function isToolErrorCode(code: unknown): boolean {
     return typeof code === 'number' && code >= 500 && code < 600;
@@ -154,25 +155,34 @@ export class McpMiddleware {
                             // 注意：args 是对象，prepareMethodArguments 需要处理对象
                             const methodArgs = this.prepareMethodArguments(meta, args, toolName);
                             const result = await this.callToolMethod(target, meta, methodArgs);
-                            
-                            const formattedResult = this.formatToolResult(meta, result);
-                            
-                            let structuredContent: any;
-                            if (meta.returnSchema) {
-                                try {
-                                    const validatedResult = meta.returnSchema.parse(result);
-                                    structuredContent = { result: validatedResult };
-                                } catch {
-                                    structuredContent = { result: result };
-                                }
-                            } else {
-                                structuredContent = { result: result };
-                            }
+                            // The binary payload is intentionally outside the advertised
+                            // structured output schema and is emitted only as image content.
+                            const image = result?.data?.image;
+                            const validatedResult = this.validateToolResult(meta, result);
+                            const responseResult = image?.base64 && typeof image.base64 === 'string'
+                                ? redactInlineImageData(validatedResult)
+                                : validatedResult;
+                            const formattedResult = this.formatToolResult(responseResult);
+                            const structuredContent = { result: responseResult };
+
                              console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
+
+                             // 图片二进制只放进 MCP image 内容块。文本、structuredContent 和日志
+                             // 仅保留图片元数据，避免同一份 base64 被重复传输和写入日志。
+                             const content: any[] = [
+                                 { type: 'text' as const, text: formattedResult },
+                             ];
+                             if (image?.base64 && typeof image.base64 === 'string') {
+                                 content.push({
+                                     type: 'image' as const,
+                                     data: image.base64,
+                                     mimeType: image.mimeType || 'image/png',
+                                 });
+                             }
                              return {
-                                content: [{ type: 'text' as const, text: formattedResult }],
+                                content,
                                 structuredContent: structuredContent,
-                                isError: isToolErrorCode(result?.code)
+                                isError: isToolErrorCode(validatedResult?.code)
                              };
 
                         } catch (error) {
@@ -317,21 +327,21 @@ export class McpMiddleware {
     /**
      * 格式化工具结果
      */
-    private formatToolResult(meta: any, result: any): string {
-        // 构建符合 schema 的结果结构，用 result 字段包装
+    private validateToolResult(meta: any, result: any): any {
+        const normalizedResult = result?.reason
+            ? { ...result, reason: stripAnsi(result.reason) }
+            : result;
         if (meta.returnSchema) {
-            // 验证结果是否符合预期的 schema
             try {
-                if (result.reason) {
-                    result.reason = stripAnsi(result.reason);
-                }
-                const validatedResult = meta.returnSchema.parse(result);
-                return JSON.stringify({ result: validatedResult }, null, 2);
+                return meta.returnSchema.parse(normalizedResult);
             } catch (error) {
                 throw new Error(`Tool result validation failed: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
+        return normalizedResult;
+    }
 
+    private formatToolResult(result: any): string {
         return JSON.stringify({ result: result }, null, 2);
     }
 

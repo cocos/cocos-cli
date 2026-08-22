@@ -170,6 +170,11 @@ export interface IInitEngineInfo {
     writablePath: string;
     serverURL?: string;
     enableCustomPipeline?: boolean;
+    /**
+     * Use a real WebGL device backed by the Node headless-gl context.
+     * The default remains the empty headless device for non-rendering workers.
+     */
+    enableHeadlessWebGL?: boolean;
 }
 
 interface CCEModuleConfig {

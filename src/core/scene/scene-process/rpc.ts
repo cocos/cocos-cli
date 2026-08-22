@@ -26,6 +26,10 @@ export class RpcProxy {
         }
     }
 
+    isWebTransport(): boolean {
+        return this.rpcInstance?.isWebTransport() ?? false;
+    }
+
     /**
      * 清理 RPC 实例
      */

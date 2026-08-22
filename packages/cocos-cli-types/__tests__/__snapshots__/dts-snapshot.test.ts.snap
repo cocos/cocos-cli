@@ -6084,6 +6084,7 @@ export declare interface IBaseCreateNodeParams {
     keepWorldTransform?: boolean;
     canvasRequired?: boolean;
     prefabCanvasHandling?: PrefabCanvasHandling;
+    preflightToken?: string;
     unlinkPrefab?: boolean;
 }
 export declare interface IBaseIdentifier {
@@ -6204,6 +6205,7 @@ export declare interface ICreateNodePreflightResult {
     canvasRequired: boolean;
     canvasPath: string | null;
     uiTransformPath: string | null;
+    preflightToken: string;
 }
 export declare interface ICreateOptions {
     type: ICreateType;
@@ -6243,6 +6245,7 @@ export declare interface IEditorService extends IServiceEvents {
     create(params: ICreateOptions): Promise<IBaseIdentifier>;
     hasOpen(): Promise<boolean>;
     queryCurrent(): Promise<TEditorEntity | null>;
+    withScreenshotScene<T>(urlOrUUID: string | undefined, operation: () => Promise<T>): Promise<T>;
     getRootNode(): TEditorInstance | null;
     lock(): Promise<void>;
     unlock(): void;
@@ -6629,6 +6632,61 @@ export declare interface ISceneViewService {
     onComponentAdded(comp: Component): void;
     onComponentRemoved(comp: Component): void;
 }
+export declare interface IScreenshotCameraInfo {
+    source: 'scene' | 'editor';
+    nodeName?: string;
+    projection: 'perspective' | 'ortho';
+    position: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    rotation: {
+        x: number;
+        y: number;
+        z: number;
+        w: number;
+    };
+    fov?: number;
+    orthoHeight?: number;
+    priority: number;
+    clearFlags: number;
+    visibility: number;
+    viewport: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+}
+export declare interface IScreenshotNodeSummary {
+    name: string;
+    active: boolean;
+    components: string[];
+    children?: IScreenshotNodeSummary[];
+}
+export declare interface IScreenshotOptions {
+    sceneUrlOrUUID?: string;
+    width?: number;
+    height?: number;
+    camera?: string;
+    viewMode?: TScreenshotViewMode;
+}
+export declare interface IScreenshotResult {
+    filePath: string;
+    width: number;
+    height: number;
+    sceneUrl?: string;
+    sceneName?: string;
+    mtime?: number;
+    actualCamera: IScreenshotCameraInfo;
+    actualCameras: IScreenshotCameraInfo[];
+    nodeSummary?: IScreenshotNodeSummary;
+    renderNote?: string;
+}
+export declare interface IScreenshotService {
+    capture(options: IScreenshotOptions): Promise<IScreenshotResult>;
+}
 export declare interface IScriptService extends IServiceEvents {
     investigatePackerDriver(): Promise<void>;
     loadScript(): Promise<void>;
@@ -6695,6 +6753,7 @@ export declare interface IServiceManager {
     SceneView: ISceneViewService;
     Preview: IPreviewService;
     UI: IUIService;
+    Screenshot: IScreenshotService;
 }
 export declare interface ISetParentParams {
     paths: string[];
@@ -7148,6 +7207,7 @@ export declare interface TextureCubeAssetUserData extends TextureBaseAssetUserDa
     bottom?: string;
 }
 export declare type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
+export declare type TScreenshotViewMode = 'auto' | '2d' | '3d';
 export declare type UIAlignType = 'top' | 'v-center' | 'bottom' | 'left' | 'h-center' | 'right';
 export declare interface Vec2 {
     x: number;
@@ -7376,6 +7436,7 @@ export declare interface IInitEngineInfo {
     writablePath: string;
     serverURL?: string;
     enableCustomPipeline?: boolean;
+    enableHeadlessWebGL?: boolean;
 }
 export declare interface IJointTextureLayoutDeviceTip {
     level: JointTextureLayoutDeviceTipLevel;
@@ -8378,6 +8439,7 @@ export declare interface IInitEngineInfo {
     writablePath: string;
     serverURL?: string;
     enableCustomPipeline?: boolean;
+    enableHeadlessWebGL?: boolean;
 }
 export declare interface IJointTextureLayoutDeviceTip {
     level: JointTextureLayoutDeviceTipLevel;
