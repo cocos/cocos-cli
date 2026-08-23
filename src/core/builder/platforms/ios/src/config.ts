@@ -6,6 +6,32 @@ import { checkPackageNameValidity } from './utils';
 
 const astcTypes: ITextureCompressType[] = ['astc_4x4', 'astc_5x5', 'astc_6x6', 'astc_8x8', 'astc_10x5', 'astc_10x10', 'astc_12x12'];
 
+// JobSystem 由 baseNativeCommonOptions 声明在平台自己的 options 里，取值时按 options.platform 定位包名
+function pkgOptions(options: any): any {
+    return options?.packages?.[options?.platform] || options?.packages?.ios || {};
+}
+
+function hasEnabledEntry(value: unknown): boolean {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    return Object.values(value as Record<string, unknown>).some((v) => !!v);
+}
+
+// 逐段比较，不用 utils.compareVersion：后者把版本号拼成一个数字（只替换第一个 '.'），'9.10' 会被判成 >= '11.0'
+function versionGte(value: string, min: string): boolean {
+    const left = value.split('.').map((s) => Number.parseInt(s, 10));
+    const right = min.split('.').map((s) => Number.parseInt(s, 10));
+    for (let i = 0; i < Math.max(left.length, right.length); i++) {
+        const a = left[i] || 0;
+        const b = right[i] || 0;
+        if (a !== b) {
+            return a > b;
+        }
+    }
+    return true;
+}
+
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
     displayName: 'iOS',
@@ -27,6 +53,33 @@ const config: IPlatformBuildPluginConfig = {
                 return /^[0-9a-zA-Z_-]*$/.test(str);
             },
             message: 'Invalid executable name specified',
+        },
+        // 迁移自 editor 的 verificationFunc（CLI 侧 utils.ts 里有同名实现但没有接入校验流）
+        targetVersionStyle: {
+            // 2~3 段，x.x(.x) 的形式，每段范围分别为 1-99 / 0-99 / 0-99
+            func: (value: unknown) => /^([1-9]\d|[1-9])(\.([1-9]\d|\d)){1,2}$/.test(String(value)),
+            message: 'targetVersion must look like "12.0" or "12.0.1"',
+        },
+        targetVersionTaskFlow: {
+            func: (value: unknown, options: any) => {
+                if (pkgOptions(options).JobSystem !== 'taskFlow') {
+                    return true;
+                }
+                return versionGte(String(value), '12.0');
+            },
+            message: 'When TaskFlow is enabled, the minimum target version required is 12.0.',
+        },
+        targetVersionMin: {
+            func: (value: unknown) => versionGte(String(value), '11.0'),
+            message: 'The minimum target version required is 11.0.',
+        },
+        orientation: {
+            func: hasEnabledEntry,
+            message: 'orientation must have at least one direction enabled',
+        },
+        osTarget: {
+            func: hasEnabledEntry,
+            message: 'osTarget must have at least one target enabled',
         },
     },
     commonOptions: {
@@ -79,8 +132,9 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeLeft: true,
             },
             properties: {
-                
-            }
+
+            },
+            verifyRules: ['orientation'],
         },
         osTarget: {
             type: 'object',
@@ -90,7 +144,8 @@ const config: IPlatformBuildPluginConfig = {
             },
             properties: {
 
-            }
+            },
+            verifyRules: ['osTarget'],
         },
         developerTeam: {
             label: 'i18n:ios.options.developerTeam',
@@ -99,7 +154,9 @@ const config: IPlatformBuildPluginConfig = {
         },
         targetVersion: {
             default: '12.0',
-            type: 'string'
+            type: 'string',
+            // 顺序敏感（validator 短路）：required → 格式 → TaskFlow 下限 12.0 → 通用下限 11.0
+            verifyRules: ['required', 'targetVersionStyle', 'targetVersionTaskFlow', 'targetVersionMin'],
         },
     },
     hooks: './src/hooks',

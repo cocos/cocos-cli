@@ -3,6 +3,13 @@
 import { IPlatformBuildPluginConfig } from '../../../@types/protected';
 import { commonOptions, baseNativeCommonOptions } from '../../native-common';
 
+function hasEnabledEntry(value: unknown): boolean {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    return Object.values(value as Record<string, unknown>).some((v) => !!v);
+}
+
 const config: IPlatformBuildPluginConfig = {
     ...commonOptions,
     displayName: 'HarmonyOS Next',
@@ -21,13 +28,50 @@ const config: IPlatformBuildPluginConfig = {
         packageName: {
             func: (str: string) => {
                 // refer: https://developer.huawei.com/consumer/cn/doc/app/agc-help-createharmonyapp-0000001945392297
-                return /^(?:[a-zA-Z](?:\w*[0-9a-zA-Z])?)(?:\.[0-9a-zA-Z](?:\w*[0-9a-zA-Z])?){2,}$/.test(str);
+                if (!/^(?:[a-zA-Z](?:\w*[0-9a-zA-Z])?)(?:\.[0-9a-zA-Z](?:\w*[0-9a-zA-Z])?){2,}$/.test(str)) {
+                    return false;
+                }
+                if (str.length < 7 || str.length > 128) {
+                    return false;
+                }
+                // HarmonyOS 保留关键字，任一段 token 命中即拒；对齐 editor 的 findKeywordsTokenAware
+                const KEYWORDS = ['openharmony', 'harmonyos', 'harmony', 'system', 'ohos', 'oh'];
+                for (const seg of str.toLowerCase().split('.')) {
+                    for (const kw of KEYWORDS) {
+                        if (new RegExp(`(?:^|_)${kw}(?:$|_)`).test(seg)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
             },
             message: 'Invalid package name specified',
         },
         appABIs: {
             func: (value: unknown) => Array.isArray(value) && value.length > 0,
             message: 'i18n:harmonyos-next.tips.at_least_one',
+        },
+        // 迁移自 editor 的 verificationFunc：renderBackEnd / orientation / deviceTypes 都是"至少开一项"
+        renderBackEnd: {
+            func: (value: unknown) => {
+                if (!value || typeof value !== 'object') {
+                    return false;
+                }
+                // vulkan / gles2 尚未在 HarmonyOS Next 上完整验证，暂不允许开启；
+                // 后续跑通稳定性验证后再放开成 ['vulkan', 'gles3', 'gles2']。
+                const supported = ['gles3'];
+                const v = value as Record<string, unknown>;
+                return supported.some((k) => !!v[k]);
+            },
+            message: 'renderBackEnd must have at least one supported backend enabled (gles3)',
+        },
+        orientation: {
+            func: hasEnabledEntry,
+            message: 'orientation must have at least one direction enabled',
+        },
+        deviceTypes: {
+            func: hasEnabledEntry,
+            message: 'deviceTypes must have at least one device type enabled',
         },
     },
     options: {
@@ -37,27 +81,28 @@ const config: IPlatformBuildPluginConfig = {
             description: 'i18n:harmonyos-next.options.render_back_end',
             type: 'object',
             properties: {
-                // TODO OHOS 暂时隐藏其他后端选项
-                // vulkan: {
-                //     label: 'VULKAN',
-                //     default: false,
-                //     render: {
-                //         ui: 'ui-checkbox',
-                //     },
-                // },
+                vulkan: {
+                    label: 'VULKAN',
+                    type: 'boolean',
+                    default: false,
+                },
                 gles3: {
                     label: 'GLES3',
                     type: 'boolean',
                     default: true,
                 },
-                // gles2: {
-                //     label: 'GLES2',
-                //     default: false,
-                //     render: {
-                //         ui: 'ui-checkbox',
-                //     },
-                // },
+                gles2: {
+                    label: 'GLES2',
+                    type: 'boolean',
+                    default: false,
+                },
             },
+            default: {
+                vulkan: false,
+                gles3: true,
+                gles2: false,
+            },
+            verifyRules: ['renderBackEnd'],
         },
         jsEngine: {
             label: 'i18n:harmonyos-next.options.js_engine',
@@ -124,6 +169,7 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeRight: true,
                 landscapeLeft: true,
             },
+            verifyRules: ['orientation'],
         },
         deviceTypes: {
             default: {
@@ -131,6 +177,7 @@ const config: IPlatformBuildPluginConfig = {
             },
             label: 'i18n:harmonyos-next.options.device_types',
             type: 'object',
+            verifyRules: ['deviceTypes'],
             properties: {
                 phone: {
                     label: 'i18n:harmonyos-next.options.device_phone',

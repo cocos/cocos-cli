@@ -1,4 +1,4 @@
-import { build, createBuildTemplate as createCoreBuildTemplate, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from '../../core/builder';
+import { build, createBuildTemplate as createCoreBuildTemplate, executeBuildStageTask, queryDefaultBuildConfigByPlatform, verifyBuildOptions } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
@@ -17,6 +17,13 @@ export class BuilderApi {
             data: null,
         };
         try {
+            const checkFail = await verifyBuildOptions(platform, options as any);
+            if (checkFail) {
+                ret.code = COMMON_STATUS.FAIL;
+                ret.data = checkFail as unknown as TBuildResultData;
+                ret.reason = checkFail.reason;
+                return ret;
+            }
             const res = await build(platform, options);
             ret.data = res as TBuildResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {

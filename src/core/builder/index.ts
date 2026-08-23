@@ -2,7 +2,7 @@ import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
 import { BuildExitCode, BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { pluginManager } from './manager/plugin';
-import { cloneConfigValue, formatMSTime } from './share/utils';
+import { cloneConfigValue, defaultsDeep, formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
 import { basename, extname, isAbsolute, join } from 'path';
 import assetManager from '../assets/manager/asset';
@@ -13,6 +13,8 @@ import utils from '../base/utils';
 import { middlewareService } from '../../server/middleware/core';
 import BuildMiddleware from './build.middleware';
 import { BuildGlobalInfo } from './share/global';
+import { Engine } from '../engine';
+import { getDefaultScenes, getDefaultStartScene } from './share/common-options-validator';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheResult } from './cache';
 
@@ -27,6 +29,91 @@ export async function init(platform?: string[]) {
     } else {
         await pluginManager.registerAllPlatform();
     }
+}
+
+/**
+ * 使用平台注册的 verifyRules 对构建参数做严格校验。
+ * 仅供 api 层（CLI/MCP）在调用 build() 前显式调用；Pink 走自己的 UI 校验，不会经过这里。
+ * skipCheck 为 true 时跳过。
+ *
+ * 语义：先把平台 default 合进 options 再校验——用户漏传的字段会用平台默认值兜底通过；
+ * 只有用户明确传了非法值、或字段本身默认值就不合法（例如 iOS/Mac 的 packageName 默认空但 required）
+ * 时才会失败。任何 rule 失败（除 level='warn' 显式声明的）都硬阻塞，返回 { code: PARAM_ERROR, reason }。
+ */
+export async function verifyBuildOptions(
+    platform: string,
+    options?: IBuildCommandOption,
+): Promise<{ code: Exclude<BuildExitCode, BuildExitCode.BUILD_SUCCESS>; reason: string } | null> {
+    if (options?.skipCheck) {
+        return null;
+    }
+    try {
+        // 与 createBuildTask 里 checkOptions 一致：先用平台 default 兜住漏传字段
+        const defaultOptions = await pluginManager.getOptionsByPlatform(platform);
+        const merged = defaultsDeep(JSON.parse(JSON.stringify(options || {})), defaultOptions);
+        merged.platform = platform;
+        // taskName 是 common option 里 default='' + verifyRules=['required']，
+        // 老流程靠 createBuildTask 里 `options.taskName = options.taskName || platform` 兜底，
+        // 而入口校验早于 build()，这里必须复刻同样的归一化，否则 required 规则永远拦。
+        merged.taskName = merged.taskName || platform;
+        // scenes / startScene 的合法默认值是从 asset-db 现算的（getDefaultScenes / getDefaultStartScene），
+        // 不是 commonOptionConfigs 里的静态 '' / []。老流程里 checkOptions 靠 fixedValue 自动回落到这两个函数，
+        // 新入口校验对 error 硬阻塞（不消费 fixedValue），因此必须在校验前先按同样逻辑把项目默认场景填进来。
+        try {
+            if (!merged.startScene) {
+                const defaultStartScene = getDefaultStartScene();
+                if (defaultStartScene) {
+                    merged.startScene = defaultStartScene;
+                }
+            }
+            if (!Array.isArray(merged.scenes) || merged.scenes.length === 0) {
+                const defaultScenes = getDefaultScenes();
+                if (defaultScenes.length) {
+                    merged.scenes = defaultScenes;
+                }
+            }
+        } catch {
+            // asset-db 未初始化时忽略（单测/引擎未加载），交给下游的 required-like 规则处理
+        }
+        // renderPipeline 是项目设置而非平台选项，构建阶段才由 checkProjectSetting 填进 options。
+        // 入口校验早于构建，这里按编辑器的做法直接读工程配置补上，否则依赖它的规则（apiLevelRenderPipeline）恒不触发。
+        if (!merged.renderPipeline) {
+            try {
+                const renderPipeline = Engine.getConfig().renderPipeline;
+                if (renderPipeline) {
+                    merged.renderPipeline = renderPipeline;
+                }
+            } catch {
+                // Engine 未初始化（如单测/未加载引擎）时忽略，不影响其余规则
+            }
+        }
+        const results = await pluginManager.checkBuildOptions(platform, merged as any);
+        const errors: string[] = [];
+        const warnings: string[] = [];
+        for (const key of Object.keys(results)) {
+            const r = results[key];
+            if (r.valid) {
+                continue;
+            }
+            const line = `  - ${key}: ${r.message || 'invalid'}`;
+            if (r.level === 'warn') {
+                warnings.push(line);
+            } else {
+                errors.push(line);
+            }
+        }
+        if (warnings.length) {
+            console.warn(`Build option warnings:\n${warnings.join('\n')}`);
+        }
+        if (errors.length) {
+            const reason = `Build option errors:\n${errors.join('\n')}`;
+            console.error(reason);
+            return { code: BuildExitCode.PARAM_ERROR, reason };
+        }
+    } catch (e) {
+        console.warn('Failed to run build option checks:', e);
+    }
+    return null;
 }
 
 function getBuilderLogRoot() {
