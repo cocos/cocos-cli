@@ -1,5 +1,17 @@
 import { init as sceneInit } from '../../core/scene';
 import { GlobalPaths } from '../../global';
+import { Rpc } from '../../core/scene/main-process/rpc';
+import type {
+    ISceneCommandProvider,
+    SceneCommandProviderRegistration,
+} from '../../core/scene/main-process/rpc';
+
+export type {
+    ISceneCommandProvider,
+    SceneCommandProviderRegistration,
+    SceneCommandRequestOptions,
+} from '../../core/scene/main-process/rpc';
+export { WorkerSceneCommandProvider } from '../../core/scene/main-process/rpc';
 
 /**
  * Initialize the scene module.
@@ -17,4 +29,16 @@ export async function init(): Promise<void> {
 export async function startupWorker(projectPath: string): Promise<void> {
     const { sceneWorker } = await import('../../core/scene/main-process/scene-worker');
     await sceneWorker.start(GlobalPaths.enginePath, projectPath);
+}
+
+/** Installs a Scene command provider and returns an ownership-bound registration. */
+export function setCommandProvider(
+    provider: ISceneCommandProvider,
+): SceneCommandProviderRegistration {
+    return Rpc.setCommandProvider(provider);
+}
+
+/** Clears and disposes the active Scene command provider. */
+export function resetCommandProvider(): void {
+    Rpc.resetCommandProvider();
 }

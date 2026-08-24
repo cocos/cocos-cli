@@ -7664,6 +7664,7 @@ export { }
 
 exports[`DTS API compatibility index.d.ts should match snapshot 1`] = `
 "import { __private } from 'cc';
+import type { ChildProcess } from 'child_process';
 import { ChunkInfo } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { EventEmitter } from 'events';
 import { default as i18n_2 } from 'i18next';
@@ -8712,6 +8713,12 @@ export declare interface IResolvedCustomJointTextureLayout {
     textureLength: number;
     contents: IResolvedChunkContent[];
 }
+export declare interface ISceneCommandProvider {
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify?(module: string, method: string, args?: any[]): void;
+    isConnect?(): boolean | undefined;
+    dispose?(): void;
+}
 export declare interface ISocketConfig {
     connection: (socket: any) => void;
     disconnect: (socket: any) => void;
@@ -9141,6 +9148,7 @@ export declare interface RenderTextureAssetUserData extends TextureBaseAssetUser
     width: number;
     height: number;
 }
+export declare function resetCommandProvider(): void;
 export declare interface RtSpriteFrameAssetUserData {
     imageUuidOrDatabaseUri: string;
     width?: number;
@@ -9153,8 +9161,20 @@ export declare function saveSerializedData(uuidOrUrlOrPath: string, patch: Seria
 export declare namespace Scene {
     export {
         init_6 as init,
-        startupWorker
+        startupWorker,
+        setCommandProvider,
+        resetCommandProvider,
+        ISceneCommandProvider,
+        SceneCommandProviderRegistration,
+        SceneCommandRequestOptions,
+        WorkerSceneCommandProvider
     }
+}
+export declare interface SceneCommandProviderRegistration {
+    dispose(): void;
+}
+export declare interface SceneCommandRequestOptions {
+    timeout?: number;
 }
 export declare namespace Scripting {
     export {
@@ -9205,6 +9225,7 @@ export declare namespace Server {
     }
 }
 export declare function set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
 export declare function setFileSystemProvider(provider: IAssetFileSystemProvider): void;
 export declare interface SharedSettings {
     useDefineForClassFields: boolean;
@@ -9335,6 +9356,14 @@ export declare interface Vec4 {
     z: number;
     w: number;
 }
+export declare class WorkerSceneCommandProvider implements ISceneCommandProvider {
+    private readonly rpc;
+    constructor(process: ChildProcess | NodeJS.Process);
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify(module: string, method: string, args?: any[]): void;
+    isConnect(): boolean | undefined;
+    dispose(): void;
+}
 export declare type WrapMode = 'repeat' | 'clamp-to-edge' | 'mirrored-repeat';
 export { }
 "
@@ -9402,6 +9431,36 @@ export declare interface ProjectInfo {
     [key: string]: any;
 }
 export declare type ProjectType = '2d' | '3d';
+export { }
+"
+`;
+
+exports[`DTS API compatibility scene.d.ts should match snapshot 1`] = `
+"import type { ChildProcess } from 'child_process';
+export declare function init(): Promise<void>;
+export declare interface ISceneCommandProvider {
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify?(module: string, method: string, args?: any[]): void;
+    isConnect?(): boolean | undefined;
+    dispose?(): void;
+}
+export declare function resetCommandProvider(): void;
+export declare interface SceneCommandProviderRegistration {
+    dispose(): void;
+}
+export declare interface SceneCommandRequestOptions {
+    timeout?: number;
+}
+export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
+export declare function startupWorker(projectPath: string): Promise<void>;
+export declare class WorkerSceneCommandProvider implements ISceneCommandProvider {
+    private readonly rpc;
+    constructor(process: ChildProcess | NodeJS.Process);
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify(module: string, method: string, args?: any[]): void;
+    isConnect(): boolean | undefined;
+    dispose(): void;
+}
 export { }
 "
 `;

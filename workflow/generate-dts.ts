@@ -162,6 +162,10 @@ const entries: IDtsEntry[] = [
         source: 'src/lib/project/project.ts',
         output: 'project.d.ts'
     }, {
+        name: 'scene',
+        source: 'src/lib/scene/scene.ts',
+        output: 'scene.d.ts'
+    }, {
         name: 'scripting',
         source: 'src/lib/scripting/scripting.ts',
         output: 'scripting.d.ts'
