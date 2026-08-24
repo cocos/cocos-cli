@@ -318,7 +318,10 @@ export class Raycast {
     public raycastAllModels(renderScene: renderer.RenderScene, worldRay: ray, mask = Layers.Enum.DEFAULT, distance = Infinity, forSnap: boolean, excludeMask?: number): boolean {
         pool.reset();
         const models: any[][] = [];
-        const editorCamera = getEditorCamera();
+        // renderScene.isCulledByLod expects the internal renderer camera.
+        // Passing the public Camera component changes the LOD culling result
+        // and can incorrectly exclude large Gizmo hit meshes such as RectArea.
+        const editorCamera = getEditorCamera()?.camera;
         for (const m of renderScene.models) {
             const transform = m.transform;
             if (editorCamera && (renderScene as any).isCulledByLod?.(editorCamera, m)) {

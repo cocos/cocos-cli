@@ -123,6 +123,48 @@ describe('测试 db 的操作接口', function () {
         });
     });
 
+    describe('copy-asset', () => {
+        it('copies a texture cube image without falling back to sprite-frame', async function () {
+            const sourceUrl = 'db://internal/default_skybox/default_skybox.png';
+            const targetName = `${name}-copy-texture-cube.png`;
+            const targetUrl = `${TestGlobalEnv.testRootUrl}/${targetName}`;
+            const targetPath = join(databasePath, targetName);
+            const sourceMeta = readJSONSync(join(TestGlobalEnv.engineRoot, 'editor/assets/default_skybox/default_skybox.png.meta'));
+
+            const copiedAsset = await assetManager.copyAsset(sourceUrl, targetUrl);
+            const targetMeta = readJSONSync(`${targetPath}.meta`);
+            const cubeId = 'b47c0';
+
+            expect(copiedAsset.url).toBe(targetUrl);
+            expect(targetMeta.userData.type).toBe('texture cube');
+            expect(targetMeta.uuid).not.toBe(sourceMeta.uuid);
+            expect(targetMeta.subMetas[cubeId].uuid).toBe(`${targetMeta.uuid}@${cubeId}`);
+            expect(targetMeta.subMetas[cubeId].userData.imageDatabaseUri).toBe(targetMeta.uuid);
+            for (const faceId of Object.keys(sourceMeta.subMetas[cubeId].subMetas)) {
+                expect(targetMeta.subMetas[cubeId].subMetas[faceId].uuid).toBe(`${targetMeta.uuid}@${cubeId}@${faceId}`);
+            }
+        });
+
+        it('copies a sprite-frame image with new UUIDs and preserved metadata', async function () {
+            const sourceUrl = 'db://assets/default_btn_normal.png';
+            const targetName = `${name}-copy-sprite-frame.png`;
+            const targetUrl = `${TestGlobalEnv.testRootUrl}/${targetName}`;
+            const targetPath = join(databasePath, targetName);
+            const sourceMeta = readJSONSync(join(TestGlobalEnv.projectRoot, 'assets/default_btn_normal.png.meta'));
+
+            const copiedAsset = await assetManager.copyAsset(sourceUrl, targetUrl);
+            const targetMeta = readJSONSync(`${targetPath}.meta`);
+
+            expect(copiedAsset.url).toBe(targetUrl);
+            expect(targetMeta.userData.type).toBe('sprite-frame');
+            expect(targetMeta.uuid).not.toBe(sourceMeta.uuid);
+            expect(targetMeta.subMetas['6c48a'].uuid).toBe(`${targetMeta.uuid}@6c48a`);
+            expect(targetMeta.subMetas['f9941'].uuid).toBe(`${targetMeta.uuid}@f9941`);
+            expect(targetMeta.subMetas['f9941'].userData.imageUuidOrDatabaseUri).toBe(`${targetMeta.uuid}@6c48a`);
+            expect(targetMeta.userData.redirect).toBe(`${targetMeta.uuid}@6c48a`);
+        });
+    });
+
     // describe('copy-asset', () => {
     //     it('复制文件夹', async function() {
     //         await assetManager.copyAsset(

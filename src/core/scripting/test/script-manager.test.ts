@@ -2,7 +2,7 @@ import scriptManagerDefault, { AssetChangeInfo } from '../index';
 import { PackerDriver } from '../packer-driver';
 import { eventEmitter } from '../event-emitter';
 import { DBInfo } from '../@types/config-export';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { AssetActionEnum } from '@cocos/asset-db';
 import { DBChangeType } from '../packer-driver/asset-db-interop';
 import { Engine } from '../../engine';
 import path, { join } from 'path';
@@ -45,7 +45,7 @@ async function waitFor(
     interval: number = 50
 ): Promise<void> {
     const startTime = Date.now();
-    
+
     return new Promise((resolve, reject) => {
         const check = () => {
             if (checkFn()) {
@@ -211,7 +211,7 @@ describe('ScriptManager', () => {
     describe('initialize', () => {
         it('should initialize PackerDriver with correct parameters', async () => {
             await scriptManager.initialize(_ProjectRoot, _EngineRoot, Engine.getConfig().includeModules);
-            
+
             expect((scriptManager as any)._initialized).toBe(true);
             // Verify PackerDriver instance is available
             expect(PackerDriver.getInstance()).toBeDefined();
@@ -219,10 +219,10 @@ describe('ScriptManager', () => {
 
         it('should not initialize twice', async () => {
             const firstInstance = PackerDriver.getInstance();
-            
+
             await scriptManager.initialize(_ProjectRoot, _EngineRoot, Engine.getConfig().includeModules);
             const secondInstance = PackerDriver.getInstance();
-            
+
             expect(firstInstance).toEqual(secondInstance);
         });
     });
@@ -245,7 +245,7 @@ describe('ScriptManager', () => {
         it('should register event listeners', () => {
             const listener = jest.fn();
             const result = scriptManager.on('compile-start', listener);
-            
+
             expect(result).toBe(eventEmitter);
             // Verify listener is actually registered by emitting an event
             eventEmitter.emit('compile-start');
@@ -255,15 +255,15 @@ describe('ScriptManager', () => {
         it('should unregister event listeners', () => {
             const listener = jest.fn();
             scriptManager.on('compile-start', listener);
-            
+
             // Verify listener is registered
             eventEmitter.emit('compile-start');
             expect(listener).toHaveBeenCalledTimes(1);
-            
+
             // Unregister listener
             const result = scriptManager.off('compile-start', listener);
             expect(result).toBe(eventEmitter);
-            
+
             // Verify listener is removed
             listener.mockClear();
             eventEmitter.emit('compile-start');
@@ -273,13 +273,13 @@ describe('ScriptManager', () => {
         it('should register one-time event listeners', () => {
             const listener = jest.fn();
             const result = scriptManager.once('compile-start', listener);
-            
+
             expect(result).toBe(eventEmitter);
-            
+
             // Verify listener is registered and called once
             eventEmitter.emit('compile-start');
             expect(listener).toHaveBeenCalledTimes(1);
-            
+
             // Verify listener is automatically removed after first call
             listener.mockClear();
             eventEmitter.emit('compile-start');
@@ -289,12 +289,12 @@ describe('ScriptManager', () => {
         it('should handle multiple listeners for same event', () => {
             const listener1 = jest.fn();
             const listener2 = jest.fn();
-            
+
             scriptManager.on('compile-start', listener1);
             scriptManager.on('compile-start', listener2);
-            
+
             eventEmitter.emit('compile-start');
-            
+
             expect(listener1).toHaveBeenCalledTimes(1);
             expect(listener2).toHaveBeenCalledTimes(1);
         });
@@ -342,7 +342,7 @@ describe('ScriptManager', () => {
             scriptManager.compileScripts(assetChanges2);
             scriptManager.compileScripts(assetChanges3);
         }, 60000); // Increase timeout for real compilation
-    
+
         it('should compile scripts with asset changes', async () => {
             const assetChanges: AssetChangeInfo[] = [
                 {
@@ -367,7 +367,7 @@ describe('ScriptManager', () => {
                     userData: {},
                 }
             ];
-            
+
             // Should not throw - actual compilation may take time
             await expect(scriptManager.compileScripts(assetChanges)).resolves.not.toThrow();
         }, 60000); // Increase timeout for real compilation
@@ -377,8 +377,8 @@ describe('ScriptManager', () => {
         it('should query script users', async () => {
             const testPath = _url2path('db://assets/scripts/SecondFile.ts');
             const result = await scriptManager.queryScriptUsers(testPath);
-            
-            
+
+
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBeGreaterThan(0);
         });
@@ -386,7 +386,7 @@ describe('ScriptManager', () => {
         it('should return empty array when no users found', async () => {
             const testPath = _url2path('db://assets/scripts/nonexistent.ts');
             const result = await scriptManager.queryScriptUsers(testPath);
-            
+
             expect(Array.isArray(result)).toBe(true);
         });
     });
@@ -396,19 +396,19 @@ describe('ScriptManager', () => {
             // Query dependencies for FirstFile.ts
             const testPath = _url2path('db://assets/scripts/FirstFile.ts');
             const result = await scriptManager.queryScriptDependencies(testPath);
-            
+
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBeGreaterThan(0); // Should have dependencies
-            
+
             // FirstFile.ts imports SecondFile.ts and ThirdFile.ts
             // Verify that dependencies include SecondFile.ts and ThirdFile.ts
             // Note: queryScriptDeps returns file system paths (normalized)
             const hasSecondFile = result.some(path => path.includes('SecondFile.ts') || path.includes('SecondFile'));
             const hasThirdFile = result.some(path => path.includes('ThirdFile.ts') || path.includes('ThirdFile'));
-            
+
             // FirstFile.ts should have at least SecondFile.ts or ThirdFile.ts as dependency
             expect(hasSecondFile || hasThirdFile).toBe(true);
-            
+
             // Log dependencies for debugging
             if (result.length === 0) {
                 console.warn('No dependencies found for FirstFile.ts. This might indicate a compilation issue.');
@@ -420,7 +420,7 @@ describe('ScriptManager', () => {
         it('should return empty array when no dependencies found', async () => {
             const testPath = _url2path('db://assets/scripts/nonexistent.ts');
             const result = await scriptManager.queryScriptDependencies(testPath);
-            
+
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBe(0); // Should be empty for non-existent file
         });
@@ -429,7 +429,7 @@ describe('ScriptManager', () => {
     describe('querySharedSettings', () => {
         it('should query shared settings', async () => {
             const result = await scriptManager.querySharedSettings();
-            
+
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
             // Verify it has expected properties
@@ -448,7 +448,7 @@ describe('ScriptManager', () => {
                 importer: 'typescript',
                 userData: {},
             };
-            
+
             // Should not throw
             expect(() => {
                 scriptManager.dispatchAssetChange(assetChange);
@@ -460,14 +460,14 @@ describe('ScriptManager', () => {
         it('should schedule delayed compilation', async () => {
             const delay = 100;
             const taskId = scriptManager.postCompileScripts(delay);
-            
+
             expect(taskId).toBeDefined();
             expect(typeof taskId).toBe('string');
             expect((scriptManager as any)._pendingCompileTimer).not.toBeNull();
-            
+
             // Wait for timer to complete (add some buffer time)
             await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay + 200);
-            
+
             // Timer should be cleared after execution
             expect((scriptManager as any)._pendingCompileTimer).toBeNull();
         }, 10000); // Increase timeout for real timer
@@ -475,18 +475,18 @@ describe('ScriptManager', () => {
         it('should cancel previous delayed compilation and schedule new one', async () => {
             const delay1 = 200;
             const delay2 = 100;
-            
+
             const taskId1 = scriptManager.postCompileScripts(delay1);
             const taskId2 = scriptManager.postCompileScripts(delay2);
-            
+
             expect(taskId1).toBeDefined();
             expect(taskId2).toBeDefined();
             // Should reuse same task ID
             expect(taskId1).toBe(taskId2);
-            
+
             // Wait for the second timer to complete (which should cancel the first)
             await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay2 + 200);
-            
+
             // Timer should be cleared
             expect((scriptManager as any)._pendingCompileTimer).toBeNull();
         }, 10000); // Increase timeout for real timer
@@ -494,13 +494,13 @@ describe('ScriptManager', () => {
         it('should clear timer after execution', async () => {
             const delay = 100;
             scriptManager.postCompileScripts(delay);
-            
+
             expect((scriptManager as any)._pendingCompileTimer).not.toBeNull();
-            
+
             // Wait for timer to complete
             await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay + 100);
             await waitFor(() => scriptManager.isCompiling() === false, delay + 1000);
-            
+
             expect((scriptManager as any)._pendingCompileTimer).toBeNull();
             expect((scriptManager as any)._pendingCompileTaskId).toBeNull();
         }, 10000); // Increase timeout for real timer
@@ -509,7 +509,7 @@ describe('ScriptManager', () => {
     describe('isCompiling', () => {
         it('should return compilation status', () => {
             const result = scriptManager.isCompiling();
-            
+
             expect(typeof result).toBe('boolean');
         });
     });
@@ -517,7 +517,7 @@ describe('ScriptManager', () => {
     describe('getCurrentTaskId', () => {
         it('should return current task ID or null', () => {
             const result = scriptManager.getCurrentTaskId();
-            
+
             expect(result === null || typeof result === 'string').toBe(true);
         });
     });
@@ -525,13 +525,13 @@ describe('ScriptManager', () => {
     describe('isTargetReady', () => {
         it('should return target readiness status', () => {
             const result = scriptManager.isTargetReady('editor');
-            
+
             expect(typeof result).toBe('boolean');
         });
 
         it('should return false for unknown target', () => {
             const result = scriptManager.isTargetReady('unknown');
-            
+
             expect(result).toBe(false);
         });
     });
@@ -540,18 +540,18 @@ describe('ScriptManager', () => {
 
         it('should return early when scriptUuids is empty', async () => {
             const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
-            
+
             await scriptManager.loadScript([]);
-            
+
             expect(consoleSpy).toHaveBeenCalledWith('No script need reload.');
-            
+
             consoleSpy.mockRestore();
         });
 
         it('should log reload message when scriptUuids is provided', async () => {
             const scriptUuids = ['test-uuid-1', 'test-uuid-2'];
             const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
-            
+
             // This test verifies the method starts the loading process
             // Actual executor creation may fail in test environment, which is acceptable
             try {
@@ -559,9 +559,9 @@ describe('ScriptManager', () => {
             } catch {
                 // Expected if executor dependencies are not available in test environment
             }
-            
+
             expect(consoleSpy).toHaveBeenCalledWith('reload all scripts.');
-            
+
             consoleSpy.mockRestore();
         });
     });
@@ -569,7 +569,7 @@ describe('ScriptManager', () => {
     describe('queryCCEModuleMap', () => {
         it('should query CCE module map', () => {
             const result = scriptManager.queryCCEModuleMap();
-            
+
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
         });
@@ -579,14 +579,14 @@ describe('ScriptManager', () => {
         it('should get loader context for target', () => {
             const targetName = 'editor';
             const result = scriptManager.getPackerDriverLoaderContext(targetName);
-            
+
             // May return undefined if target is not ready, or return serialized context
             expect(result === undefined || typeof result === 'object').toBe(true);
         });
 
         it('should return undefined when context is not available', () => {
             const result = scriptManager.getPackerDriverLoaderContext('unknown');
-            
+
             expect(result).toBeUndefined();
         });
     });
@@ -604,7 +604,7 @@ describe('ScriptManager', () => {
             // Compile with error file - should throw error
             // testError.js has syntax error: missing closing quote
             for (let i = 0; i < _TEXT_MAX_COUNT; i++) {
-                
+
                 await expect(scriptManager.compileScripts([
                 {
                     type: AssetActionEnum.add,

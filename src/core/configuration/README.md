@@ -5,12 +5,12 @@
 ## 特性
 
 - **模块化配置**：支持按模块注册和管理配置
-- **多作用域支持**：支持 `default`、`project`、`local` 三种配置作用域
+- **多作用域支持**：支持 `default`、`project`、`local`、`global` 四种配置作用域
 - **点号路径操作**：支持嵌套配置的便捷访问，如 `'database.connection.pool.max'`
 - **事件驱动**：基于 EventEmitter 的事件系统，支持配置变更监听
 - **自动迁移**：内置配置迁移系统，支持版本升级时的配置自动迁移
 - **类型安全**：完整的 TypeScript 类型定义
-- **持久化存储**：自动保存 project 配置到 `settings/cocos.config.json`，local 配置到 `profiles/cocos.config.json`
+- **持久化存储**：自动保存配置到 `cocos.config.json` 文件
 
 ## 使用建议
 
@@ -74,7 +74,7 @@ await dbConfig.set('timeout', 5000, 'default');
 // 设置项目配置
 await dbConfig.set('timeout', 10000, 'project');
 
-// 获取配置（default -> project -> local，后者覆盖前者）
+// 获取配置（项目配置优先）
 const timeout = await dbConfig.get('timeout'); // 10000
 
 // 或者通过配置管理器操作（兼容方式）
@@ -154,8 +154,7 @@ await config.save();
 ```
 
 ### 配置作用域说明
-- `default`: 默认配置，作为基础模板，不写入项目磁盘文件。
-- `project`: 项目级配置，写入 `settings/cocos.config.json`，适合随项目共享的配置。
-- `local`: 本地配置，写入 `profiles/cocos.config.json`，适合个人/本机状态。
-
-不指定 `scope` 读取时按 `default -> project -> local` 合并，后者覆盖前者。显式读取 `project` 或 `local` 时只返回对应作用域的数据；其中 `local` 缺失时返回 `undefined`，不会回退到默认值。`set`、`remove` 和 `save` 不指定 `scope` 时默认写入 `project`。
+- `default`: 默认配置，作为基础模板
+- `project`: 项目级配置，优先级最高
+- `local`: 本地配置，仅当前环境有效（暂无）
+- `global`: 全局配置，跨项目共享（暂无）

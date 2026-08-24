@@ -5,11 +5,14 @@ const mockOutputJSONSync = jest.fn();
 const mockGetHooksInfo = jest.fn();
 const mockGetBuildTemplateConfig = jest.fn();
 const mockGetBuildStageWithHookTasks = jest.fn();
+const mockCheckOptions = jest.fn();
 const mockGetBuildPath = jest.fn();
 const mockStageTaskConfigs: any[] = [];
 const mockStageTaskRuns: string[] = [];
 const mockNewConsoleDebug = jest.fn();
 const mockNewConsoleTrackTimeEnd = jest.fn();
+const mockRestoreLogSink = jest.fn();
+const mockStopRecord = jest.fn();
 
 jest.mock('fs-extra', () => ({
     ensureDir: mockEnsureDir,
@@ -32,6 +35,7 @@ jest.mock('../manager/plugin', () => ({
         getHooksInfo: mockGetHooksInfo,
         getBuildTemplateConfig: mockGetBuildTemplateConfig,
         getBuildStageWithHookTasks: mockGetBuildStageWithHookTasks,
+        checkOptions: mockCheckOptions,
     },
 }));
 
@@ -54,6 +58,8 @@ jest.mock('../../base/console', () => ({
         trackMemoryStart: jest.fn(),
         trackMemoryEnd: jest.fn(),
         pluginTask: jest.fn(),
+        createLogSinkRestorer: jest.fn(() => mockRestoreLogSink),
+        stopRecord: mockStopRecord,
     },
 }));
 
@@ -106,10 +112,11 @@ jest.mock('../worker/builder/manager/asset', () => ({
 }));
 
 jest.mock('../worker/builder/manager/build-result', () => ({
-    InternalBuildResult: jest.fn().mockImplementation(() => ({
+    InternalBuildResult: jest.fn().mockImplementation((task: any) => ({
         paths: {
-            dir: 'build/test-platform',
-            output: 'build/test-platform',
+            dir: `build/${task.options.platform}`,
+            output: `build/${task.options.platform}`,
+            compileConfig: `build/${task.options.platform}/cocos.compile.config.json`,
         },
         settings: {
             assets: {
@@ -203,6 +210,8 @@ describe('BuildTask nextStages', () => {
         jest.clearAllMocks();
         mockStageTaskConfigs.length = 0;
         mockStageTaskRuns.length = 0;
+        mockRestoreLogSink.mockClear();
+        mockStopRecord.mockClear();
         mockNewConsoleTrackTimeEnd.mockResolvedValue(1);
         mockGetHooksInfo.mockReturnValue({
             pkgNameOrder: [],
@@ -216,6 +225,7 @@ describe('BuildTask nextStages', () => {
             displayName: taskName,
             parallelism: 'all',
         }));
+        mockCheckOptions.mockImplementation(async (options) => options);
     });
 
     it('runs configured nextStages after the main build and merges their custom results', async () => {
@@ -296,5 +306,185 @@ describe('BuildTask nextStages', () => {
             { message: 'make progress', progress: 0.2 },
             { message: 'run progress', progress: 0.4 },
         ]);
+        expect(mockRestoreLogSink).toHaveBeenCalled();
+    });
+
+    it('restores log sink when main build fails', async () => {
+        const { BuildTask } = await import('../worker/builder');
+        const options = {
+            platform: 'test-platform',
+            taskName: 'test-task',
+            outputName: 'test-platform',
+            packages: {},
+            useCache: true,
+            md5Cache: false,
+        };
+        const task = new BuildTask('task-id', options as any);
+        const taskAny = task as any;
+
+        taskAny.runPluginTask = jest.fn();
+        taskAny.lockAssetDB = jest.fn();
+        taskAny.init = jest.fn();
+        taskAny.initBundleManager = jest.fn(async () => {
+            taskAny.bundleManager = {
+                hookMap: {
+                    onBeforeBundleDataTask: 'onBeforeBundleDataTask',
+                    onAfterBundleDataTask: 'onAfterBundleDataTask',
+                    onBeforeBundleBuildTask: 'onBeforeBundleBuildTask',
+                    onAfterBundleBuildTask: 'onAfterBundleBuildTask',
+                },
+                runPluginTask: jest.fn(),
+            };
+        });
+        taskAny.runBuildTask = jest.fn(async () => {
+            throw new Error('main build failed');
+        });
+
+        await expect(task.run()).rejects.toThrow('main build failed');
+        expect(mockStopRecord).toHaveBeenCalledTimes(1);
+        expect(mockRestoreLogSink).not.toHaveBeenCalled();
+    });
+
+    it('builds sub platforms after parent postBuild and persists parent-child metadata', async () => {
+        const { BuildTask } = await import('../worker/builder');
+        const options = {
+            platform: 'openpaas',
+            taskId: 'parent-task',
+            taskName: 'openpaas-task',
+            outputName: 'openpaas',
+            packages: {
+                openpaas: {},
+                'web-desktop': {
+                    bridgeBuildToken: 'token-1',
+                },
+            },
+            subTaskPlatforms: ['web-desktop'],
+            nextStages: ['make', 'upload'],
+            buildStageGroup: {
+                afterBuild: ['make', 'upload'],
+            },
+            useCache: true,
+            md5Cache: false,
+        };
+        const task = new BuildTask('parent-task', options as any);
+        const childRun = jest.spyOn(BuildTask.prototype, 'run').mockImplementation(async function(this: any) {
+            this.result.compileOptions = {
+                ...this.options,
+                packages: {
+                    [this.options.platform]: {
+                        ...this.options.packages[this.options.platform],
+                        bridgeBuildToken: 'token-generated',
+                        codeVersion: '182',
+                    },
+                },
+            };
+            this.buildExitRes.custom.child = {
+                platform: this.options.platform,
+            };
+            this.updateProcess('child done', 1);
+            return true;
+        });
+
+        await (task as any).runSubTaskBuilds();
+
+        expect(mockCheckOptions).toHaveBeenCalledWith(expect.objectContaining({
+            platform: 'web-desktop',
+            taskId: 'parent-task:web-desktop',
+            parentTaskId: 'parent-task',
+            buildPath: 'build/openpaas',
+            outputName: 'web-desktop',
+            generateCompileConfig: true,
+            subTaskPlatforms: undefined,
+            nextStages: undefined,
+            buildStageGroup: undefined,
+            packages: {
+                'web-desktop': {
+                    bridgeBuildToken: 'token-1',
+                },
+            },
+        }));
+        expect(task.options.childTaskIds).toEqual(['parent-task:web-desktop']);
+        expect(task.options.subTaskBuildOutputs).toEqual({
+            'web-desktop': {
+                platform: 'web-desktop',
+                dest: 'build/web-desktop',
+                buildPath: 'build/openpaas',
+                outputName: 'web-desktop',
+                taskId: 'parent-task:web-desktop',
+                parentTaskId: 'parent-task',
+                logDest: undefined,
+            },
+        });
+        expect(task.buildExitRes.custom.subTasks.outputs['web-desktop'].custom).toEqual({
+            child: {
+                platform: 'web-desktop',
+            },
+        });
+        expect(task.options.packages['web-desktop']).toEqual({
+            bridgeBuildToken: 'token-generated',
+            codeVersion: '182',
+        });
+        expect(mockOutputJSONSync).toHaveBeenCalledWith('build/openpaas/cocos.compile.config.json', expect.objectContaining({
+            childTaskIds: ['parent-task:web-desktop'],
+            subTaskPlatforms: ['web-desktop'],
+            subTaskBuildOutputs: task.options.subTaskBuildOutputs,
+            packages: expect.objectContaining({
+                'web-desktop': {
+                    bridgeBuildToken: 'token-generated',
+                    codeVersion: '182',
+                },
+            }),
+        }));
+
+        childRun.mockRestore();
+    });
+
+    it('does not inherit parent stage chain options when creating child stage options', async () => {
+        const { BuildTask } = await import('../worker/builder');
+        const options = {
+            platform: 'openpaas',
+            taskId: 'parent-task',
+            taskName: 'openpaas-task',
+            outputName: 'openpaas',
+            packages: {
+                openpaas: {},
+                'web-desktop': {
+                    bridgeBuildToken: 'token-1',
+                },
+            },
+            subTaskPlatforms: ['web-desktop'],
+            nextStages: ['make', 'upload'],
+            buildStageGroup: {
+                afterBuild: ['make', 'upload'],
+            },
+            useCache: true,
+            md5Cache: false,
+        };
+        const task = new BuildTask('parent-task', options as any);
+
+        const childStageOptions = (task as any).createChildStageOptions('web-desktop', {
+            platform: 'web-desktop',
+            dest: 'build/openpaas/web-desktop',
+            buildPath: 'build/openpaas',
+            outputName: 'web-desktop',
+            taskId: 'parent-task:web-desktop',
+            parentTaskId: 'parent-task',
+        });
+
+        expect(childStageOptions).toEqual(expect.objectContaining({
+            platform: 'web-desktop',
+            taskId: 'parent-task:web-desktop',
+            parentTaskId: 'parent-task',
+            subTaskPlatforms: undefined,
+            subTaskBuildOutputs: undefined,
+            childTaskIds: undefined,
+            nextStages: undefined,
+            buildStageGroup: undefined,
+            packages: {
+                'web-desktop': {
+                    bridgeBuildToken: 'token-1',
+                },
+            },
+        }));
     });
 });

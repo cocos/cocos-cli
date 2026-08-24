@@ -2,7 +2,7 @@ export {};
 
 const mockRemoveAssetSource = jest.fn();
 
-jest.mock('@cocos/asset-db/index', () => ({
+jest.mock('@cocos/asset-db', () => ({
     Asset: class {},
     VirtualAsset: class {},
     queryUUID: jest.fn(),

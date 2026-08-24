@@ -7,6 +7,15 @@ import { RectangleController } from '../node/rectangle-controller';
 
 const tempQuat_a = new Quat();
 
+function hasUISkewInSelfOrParent(node: any): boolean {
+    for (let current = node; current; current = current.parent) {
+        if (current._uiProps?._uiSkewComp) {
+            return true;
+        }
+    }
+    return false;
+}
+
 class UITransformComponentGizmo extends GizmoBase<UITransform> {
     private _controller!: RectangleController;
 
@@ -44,6 +53,11 @@ class UITransformComponentGizmo extends GizmoBase<UITransform> {
         }
 
         const node = this.target.node;
+        if (hasUISkewInSelfOrParent(node)) {
+            this._controller.setWorldMatrix(node.worldMatrix);
+            return;
+        }
+
         const worldPos = node.getWorldPosition();
         node.getWorldRotation(tempQuat_a);
         const worldScale = node.getWorldScale();

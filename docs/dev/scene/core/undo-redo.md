@@ -21,7 +21,7 @@ Scene undo/redo 是 scene-process 里的编辑历史系统。它记录当前正�
 - 节点结构命令：create、delete。
 - 组件结构命令：add、remove。
 - Prefab 命令：create/revert、apply、unlink/unpack。
-- snapshot 命令：node set/reset/resetProperty、scene property setProperty（包括 `_globals`）、component set/reset、gizmo recording、UI align/distribute recording、子树 layer、children order、component order、reparent、node lock。
+- snapshot 命令：node set/reset/resetProperty、component set/reset、gizmo recording、UI align/distribute recording、子树 layer、children order、component order、reparent、node lock。
 - open / close / reload 清空历史记录，save 标记 clean。
 
 目前不覆盖：
@@ -37,25 +37,12 @@ Scene undo/redo 是 scene-process 里的编辑历史系统。它记录当前正�
 
 Undo/redo 只覆盖“当前正在编辑的 scene/prefab 资源中，会被保存下来的数据变更”。dirty 表示当前内容和最近一次保存或标记为已保存时相比，是否还有未保存的变更；这个判断来自 `UndoService` 的历史状态，不从 `node:change`、`component:*`、reload、selection、camera 或 view 事件推断。
 
-## Undo 纳入标准
-
-一个修改是否进入 undo，不由 dump 中是否存在 `IProperty` 决定，而由修改 API 的领域契约决定。当前统一标准是：
-
-1. 修改的是当前 scene/prefab 资源中会被保存的数据；
-2. 修改来自用户可见的编辑操作，而不是运行时同步、缓存、预览或选择状态；
-3. 对 `setProperty` 来说，调用没有显式传 `record: false`，底层修改成功，并且 before/after 快照确实发生变化；
-4. 修改存在完整且安全的恢复路径，并能正确维护 dirty 与 change 事件；
-5. 结构、身份和动画等有独立语义的修改，使用对应的 structure/domain command，而不是普通 snapshot。
-
-因此，Scene 不需要单独定义一套“哪些字段可以 undo”的准入白名单。`Node.setProperty`（包括 `nodePath: '/'` 的 Scene）就是属性修改的 undo 边界；Scene 恢复器只负责适配 Scene dump 中 `_globals` 这类特殊数据形状。新增属性如果通过这个 API 作为持久化属性成功修改，就复用 snapshot command；如果它属于结构、运行时或其他独立领域，则不应伪装成普通 `setProperty`。
-
 ### 已覆盖并会影响 dirty
 
 | 范围 | 已覆盖 API / 行为 | 记录方式 |
 | --- | --- | --- |
 | Node 生命周期 | create、delete、copy paste、duplicate | structure command |
 | Node 属性 | setProperty、reset、resetProperty、updatePropertyFromNull、setNodeAndChildrenLayer、changeNodeLock | snapshot command |
-| Scene 属性 | 已由 Scene 编辑 API 明确纳入持久化编辑契约的属性（包括 `_globals.{key}` 及其子属性） | snapshot command；普通属性复用通用 dump 恢复器，特殊属性单独处理 |
 | Node 层级 | setParent、reorder、children moveArrayElement、cut paste | reparent / order snapshot |
 | Component 生命周期 | add、remove、removeArrayElement(`__comps__`) | component structure command |
 | Component 属性 | setProperty、reset | snapshot command |
@@ -81,6 +68,7 @@ Undo/redo 只覆盖“当前正在编辑的 scene/prefab 资源中，会被保�
 | 范围 | 当前状态 |
 | --- | --- |
 | Animation 编辑 | 暂未定义 command，keyframe、curve、clip、时间轴选择需要单独设计 |
+| Scene globals / 全局设置 | 当前没有统一公开的修改 API 纳入本轮覆盖；以后新增会写入 scene 的 globals 设置时，必须接入 undo/dirty |
 | 任意数组属性 | 当前只验证 `children` 和 `__comps__/_components`，其他数组路径默认不生成 undo command |
 | 多 editor context 历史 | 当前 scene-process 只有当前资源一套历史记录 |
 | History UI 查询 | 暂无 getHistory/getNextUndo/getNextRedo |

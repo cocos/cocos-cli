@@ -8,6 +8,11 @@ import { SchemaPrefabInfo } from './prefab-info-schema';
 import { SchemaAssetDbUrl } from '../base/schema-asset-db-url';
 import { SchemaComponent } from './component-schema';
 
+const SchemaNodeName = z.string().refine(
+    (name) => !/[/\\:*?"<>|]/.test(name),
+    { message: 'Characters /\\:*?"<>| are not allowed in node names.' },
+);
+
 // 节点属性的 schema，
 export const SchemaNodeProperty = z.object({
     position: SchemaVec3.describe('Node position'), // 节点位置
@@ -57,7 +62,7 @@ export const SchemaNodeQueryResult: z.ZodType<INodeInfo> = SchemaNode;
 //节点更新的参数
 export const SchemaNodeUpdate = z.object({
     path: z.string().describe('Relative path of the node'), // 节点相对路径
-    name: z.string().optional().describe('Name of the node to update'), // 更新的节点名称
+    name: SchemaNodeName.optional().describe('Name of the node to update. Characters /\\:*?"<>| are not allowed.'), // Name of the node to update
     properties: SchemaNodeProperty.partial().optional().describe('Node properties to update, can update partial properties'), // 要更新的节点属性，可以只更新部分属性
 }).describe('To configure options for node update, the Scene must be open first.'); // 更新节点的选项参数, 需先打开场景
 
@@ -78,19 +83,29 @@ export const SchemaNodeDelete = z.object({
 }).describe('To configure options for node deletion, the Scene must be open first.'); // 删除节点的选项参数，需先打开场景
 
 const SchemaNodeCreateBase = z.object({
-    path: z.string().describe('Relative path of the created node, root node is scene node; This path is parent node path, full node path is parent path + node name, and root node path is "/"'), // 创建的节点相对路径，根节点是场景节点; 该路径为父节点路径,完整节点路径为父路径+节点名，根节点路径为 "/"
-    name: z.string().optional().describe('Name of the node, if not passed, the system will default a name'), // 节点的名称，不传，系统会默认一个名字
+    path: z.string().describe('Relative path of the created node, root node is scene node; This path is parent node path, full node path is returned by the API, and root node path is "/"'), // 创建的节点相对路径，根节点是场景节点；该路径为父节点路径，完整节点路径以接口返回值为准，根节点路径为 "/"
+    name: SchemaNodeName.optional().describe('Name of the node. Characters /\\:*?"<>| are not allowed. If not passed, the system will default a name.'), // Node name; defaults to a system-generated name if omitted
     workMode: z.enum(['2d', '3d']).optional().describe('Node work mode, 2D or 3D; same nodeType may support both 2d and 3d'), // 节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d
     keepWorldTransform: z.boolean().optional().describe('Keep world transform'), // 保持世界变换
     position: SchemaVec3.optional().describe('Node position'), // 节点位置
     canvasRequired: z.boolean().optional().describe('Whether Canvas is required'), // 是否需要 Canvas
+    prefabCanvasHandling: z.enum(['add-root-ui-transform', 'create-canvas']).optional().describe([
+        'Prefab Canvas handling when canvasRequired is true and the parent has no Canvas or UITransform ancestor.',
+        'add-root-ui-transform adds UITransform to the prefab root and creates a hidden preview Canvas if needed.',
+        'create-canvas creates a Canvas parent for the new node.',
+        'Omit this option to skip Canvas creation when the host cancels the prefab Canvas prompt.',
+    ].join(' ')), // prefab 模式中 canvasRequired 为 true 时的 Canvas 处理
 }).describe('To configure options for node creation, the Scene must be open first.'); // 创建节点的选项参数, 需先打开场景;
 
-export const SchemaNodeCreateByAsset = SchemaNodeCreateBase.extend({
+const SchemaNodeCreateWithPreflight = SchemaNodeCreateBase.extend({
+    preflightToken: z.string().optional().describe('Opaque token returned by preflightCreate. Pass it to the matching create request to reject stale Canvas decisions.'),
+});
+
+export const SchemaNodeCreateByAsset = SchemaNodeCreateWithPreflight.extend({
     dbURL: SchemaAssetDbUrl.describe('Prefab asset path, if created from a prefab, please pass this parameter, format is custom db path e.g. db://assets/abc.prefab'), // 预制体资源路径，如果是从某个预制体创建，请传入这个参数，格式为自定义的db 路径比如 db://assets/abc.prefab
 });
 
-export const SchemaNodeCreateByType = SchemaNodeCreateBase.extend({
+export const SchemaNodeCreateByType = SchemaNodeCreateWithPreflight.extend({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('Node type'), // 节点类型
 });
 

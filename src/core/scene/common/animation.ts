@@ -370,6 +370,8 @@ export interface IAnimationStateInfo {
     playState: AnimationPlayState;
     /** 当前 animation authoring session 相对进入/保存 baseline 是否有未保存修改。 */
     dirty: boolean;
+    /** 当前 Scene 相对进入/保存 baseline 是否有未保存修改；不包含当前 Animation scope。 */
+    sceneDirty: boolean;
     /** 当前 selection paths。 */
     selection: string[];
     /** 退出 session 时默认是否恢复进入前的 selection。 */
@@ -500,6 +502,8 @@ export interface IAnimationOperationOptions {
 export interface IAnimationOperationResult {
     state: 'success' | 'failure';
     result: boolean;
+    /** 成功操作是否创建了 animation scoped Undo 历史；失败时省略。 */
+    undoRecorded?: boolean;
     reason?: string;
 }
 
@@ -508,6 +512,10 @@ export interface IAnimationSaveOptions {
      * 保存 clip 成功后同步保存当前 scene/prefab 资源，并用普通 editor save 语义清理 shared undo dirty。
      */
     saveScene?: boolean;
+    /**
+     * 将当前 clip 内容保存到指定的新资源路径，不保存宿主 scene。
+     */
+    target?: string;
 }
 
 /**

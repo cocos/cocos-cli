@@ -178,7 +178,7 @@ export class AssetsApi {
      */
     @tool('assets-query-asset-info')
     @title('Query Detailed Asset Info') // 查询资源详细信息
-    @description('Query detailed information of an asset based on its URL, UUID, or file path. You can specify the fields to query via the dataKeys parameter to optimize performance. Returned information includes asset name, type, path, UUID, import status, etc.') // 根据资源的 URL、UUID 或文件路径查询资源的详细信息。可以通过 dataKeys 参数指定需要查询的字段，以优化性能。返回的信息包括资源名称、类型、路径、UUID、导入状态等。
+    @description('Query detailed asset information by URL, UUID, or file path. By default the result includes subAssets; use each sub-asset type (for example type === "cc.SpriteFrame") to select the UUID required by a component property. Specify dataKeys, including "subAssets" and "extends", when an explicit field list is needed.') // 根据 URL、UUID 或文件路径查询资源详情；默认包含子资源，可按 type 选择组件属性所需的子资源 UUID
     @result(SchemaAssetInfoResult)
     async queryAssetInfo(
         @param(SchemaUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath,
@@ -392,6 +392,34 @@ export class AssetsApi {
     }
 
     /**
+     * Copy Asset // 复制资源
+     */
+    @tool('assets-copy-asset')
+    @title('Copy Asset') // 复制资源
+    @description('Copy an existing main asset to a new location together with its complete metadata. The copied asset receives new UUIDs while preserving importer settings, userData, subMetas, and internal references. Supports overwrite or automatic rename on conflicts.') // 将现有主资源及其完整元数据复制到新位置。副本会获得新 UUID，同时保留导入设置、userData、subMetas 和内部引用。支持冲突时覆盖或自动重命名。
+    @result(SchemaAssetInfoResult)
+    async copyAsset(
+        @param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath,
+        @param(SchemaTargetPath) target: TDirOrDbPath,
+        @param(SchemaAssetOperationOption) options?: TAssetOperationOption
+    ): Promise<CommonResultType<TAssetInfoResult>> {
+        const ret: CommonResultType<TAssetInfoResult> = {
+            code: COMMON_STATUS.SUCCESS,
+            data: null,
+        };
+
+        try {
+            ret.data = await assetManager.copyAsset(source, target, options);
+        } catch (e) {
+            ret.code = getCommonErrorStatus(e);
+            console.error('copy asset fail:', e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+
+        return ret;
+    }
+
+    /**
      * Reimport Asset // 重新导入资源
      */
     @tool('assets-reimport-asset')
@@ -409,7 +437,7 @@ export class AssetsApi {
             const assetInfo = await assetManager.reimportAsset(pathOrUrlOrUUID);
             ret.data = assetInfo;
         } catch (e) {
-            ret.code = COMMON_STATUS.FAIL;
+            ret.code = getCommonErrorStatus(e);
             console.error(e);
             ret.reason = e instanceof Error ? e.message + e.stack : String(e);
         }
@@ -792,7 +820,7 @@ export class AssetsApi {
      */
     @tool('assets-query-uuid')
     @title('Query Asset UUID') // 查询资源 UUID
-    @description('Query the unique identifier UUID of an asset based on its URL or file path. Supports db:// protocol paths and file system paths.') // 根据资源的 URL 或文件路径查询资源的唯一标识符 UUID。支持 db:// 协议路径和文件系统路径。
+    @description('Query the UUID of the exact asset addressed by a URL or file path. This does not automatically choose a typed sub-asset: querying an image URL returns its parent ImageAsset UUID. Use assets-query-asset-info and inspect subAssets when a component requires cc.SpriteFrame or another specific Asset type.') // 查询 URL 或路径直接指向资源的 UUID；不会自动选择 SpriteFrame 等子资源
     @result(SchemaUUIDResult)
     async queryUUID(@param(SchemaUrlOrPath) urlOrPath: TUrlOrPath): Promise<CommonResultType<TUUIDResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
@@ -1170,7 +1198,7 @@ export class AssetsApi {
      */
     @tool('assets-query-property-schema')
     @title('Query Asset Import Property Schema') // 查询资源导入属性 schema
-    @description('Query the standardized import property schema for a specific asset importer. The result is designed for panels to render import settings automatically and includes stable fields such as label, type, default, options, assetType, min, max, step, readOnly, and order. The raw field is only for debugging and should not be used as a UI contract.') // 查询指定资源导入器的标准化导入属性 schema，用于面板自动渲染导入设置。
+    @description('Query the import property schema map for a specific asset importer. The result value follows ICocosConfigurationPropertySchema, using fields such as title, type, default, enum, enumDescriptions, minimum, maximum, step, properties, and items.') // 查询指定资源导入器的标准化导入属性 schema，用于面板自动渲染导入设置。
     @result(SchemaAssetPropertySchemaResult)
     async queryPropertySchema(
         @param(SchemaUserDataHandler) importer: TUserDataHandler

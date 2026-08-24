@@ -65,24 +65,42 @@ export class BuilderAssetCache implements IBuilderCache {
             console.warn('The addAsset method no longer supports the AssetInfo type, so please pass parameters that conform to the IAsset interface definition.');
             asset = buildAssetLibrary.getAsset(asset.uuid);
         }
+
+        // FBX/GLTF 的根资源本身没有 library .json；可预览的 Prefab、Material、Mesh
+        // 都是其 VirtualAsset 子资源。Creator 的资源检查器会直接传这些子资源 UUID 给
+        // scene preview，所以预览构建也必须把整棵资源树加入 cache。此前仅缓存根节点，
+        // 导致 scene-editor bundle 漏掉这些子资源，最终预览请求到不存在的根 UUID .json。
+        const visit = (current: IAsset, currentType?: string) => {
+            this.addSingleAsset(current, currentType);
+            for (const subAsset of Object.values(current.subAssets || {})) {
+                visit(subAsset);
+            }
+        };
+        visit(asset, type);
+    }
+
+    private addSingleAsset(asset: IAsset, type?: string) {
         const ccType = type || assetManager.queryAssetProperty(asset, 'type');
-        // 分类到指定的位置
         switch (ccType) {
             case 'cc.SceneAsset':
-                this.scenes.push({
-                    uuid: asset.uuid,
-                    url: asset.url,
-                });
+                if (!this.scenes.some((scene) => scene.uuid === asset.uuid)) {
+                    this.scenes.push({
+                        uuid: asset.uuid,
+                        url: asset.url,
+                    });
+                }
                 break;
             case 'cc.Script':
                 // hack 过滤特殊的声明文件，过滤资源模板内的脚本
-                if (asset.url.toLowerCase().endsWith('.d.ts')) {
-                    break;
+                if (!asset.url.toLowerCase().endsWith('.d.ts') && !this.scriptUuids.includes(asset.uuid)) {
+                    this.scriptUuids.push(asset.uuid);
                 }
-                this.scriptUuids.push(asset.uuid);
                 break;
             default:
-                if (asset.meta.files.includes('.json') || hasCCONFormatAssetInLibrary(asset)) {
+                if (
+                    (asset.meta.files.includes('.json') || hasCCONFormatAssetInLibrary(asset))
+                    && !this.assetUuids.includes(asset.uuid)
+                ) {
                     this.assetUuids.push(asset.uuid);
                 }
         }

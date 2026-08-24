@@ -1,14 +1,14 @@
 {
     "name": "cocos-cli",
-    "version": "0.0.1-alpha.36",
+    "version": "0.0.1-alpha.39",
     "displayName": "COCOS CLI",
     "icon": "static/logo/logo.png",
     "description": "COCOS CLI",
     "main": "dist/index.js",
     "engines": {
         "vscode": ">=1.107.1",
-        "electron": "39.2.3",
-        "pink": ">=0.0.1.30"
+        "electron": "42.3.0",
+        "pink": ">=0.0.1.33"
     },
     "bin": {
         "cocos": "./dist/cli.js"
@@ -19,11 +19,12 @@
         "update:repos": "node workflow/update-repo.js",
         "test": "jest",
         "test:quiet": "jest --silent",
+        "test:asset-db": "npm run test --workspace @cocos/asset-db",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:e2e": "node e2e/scripts/prepare-test.js",
         "test:e2e:debug": "node e2e/scripts/prepare-test.js --preserve --verbose --no-cache",
-        "test:all": "npm run test && npm run test:e2e",
+        "test:all": "npm run test && npm run test:asset-db && npm run test:e2e",
         "check:e2e-coverage": "tsx e2e/scripts/check-coverage.ts",
         "check:e2e-coverage:report": "tsx e2e/scripts/check-coverage.ts --save",
         "generate:mcp-types": "node --max-old-space-size=4096 node_modules/tsx/dist/cli.mjs e2e/scripts/generate-mcp-types.ts",
@@ -33,10 +34,11 @@
         "compiler": "FORCE_UPDATE=true npm i",
         "compiler:engine": "node --max-old-space-size=8192 workflow/compiler-engine.js --force",
         "build:cc-module": "node workflow/build-cc-module.js",
+        "build:asset-db": "npm run build --workspace @cocos/asset-db",
         "build:static-web": "node workflow/build-scene-bundle.js && node workflow/build-polyfills.js",
         "build:platform-views": "node workflow/build-platform-views.js && node workflow/build-platform-assets.js",
-        "build": "npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:static-web && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views",
-        "compile": "npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && npm run build:static-web && node workflow/generate-schema.js",
+        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:static-web && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views",
+        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && npm run build:static-web && node workflow/generate-schema.js",
         "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
         "postinstall": "node workflow/postinstall.js",
@@ -64,6 +66,9 @@
         "fsevents": "2.3.3"
     },
     "license": "ISC",
+    "workspaces": [
+        "packages/asset-db"
+    ],
     "devDependencies": {
         "@types/cli-progress": "^3.11.6",
         "@types/commander": "^2.12.5",
@@ -139,7 +144,7 @@
         "express": "^5.1.0",
         "figlet": "^1.9.3",
         "fs-extra": "^10.0.0",
-        "gl": "^9.0.0-rc.8",
+        "gl": "^9.0.0-rc.10",
         "globby": "^14.1.0",
         "glsl-parser": "^2.0.1",
         "glsl-tokenizer": "^2.1.5",

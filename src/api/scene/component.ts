@@ -96,7 +96,7 @@ export class ComponentApi {
      */
     @tool('scene-set-component-property')
     @title('Set component property') // 设置组件属性
-    @description('Set component property. Input component path (unique index of component), property name, property value to modify corresponding property info. Property types can be queried via scene-query-component') // 设置组件属性，输入组件path（唯一索引的组件）、属性名称、属性值，修改对应属性的信息，属性的类型可以通过 scene-query-component 查询到
+    @description('Set component properties. Query scene-query-component first and match each Asset reference to the returned property type. Asset values use { uuid: "..." }; uuid may be an exact UUID or db:// URL. If a parent asset has exactly one compatible sub-asset, it is normalized automatically; incompatible or ambiguous references return 400 without modifying the component.') // 设置组件属性前先查询属性类型；Asset 引用必须匹配类型，唯一兼容子资源会自动规范化，失配或歧义时不修改组件并返回 400
     @result(SchemaBooleanResult)
     async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         try {

@@ -6,6 +6,7 @@ const { Client } = require('basic-ftp');
 const { Command } = require('commander');
 const gulp = require('gulp');
 const { runCommand, create7ZipArchive, zipArchive } = require('./utils');
+const { materializeAssetDbWorkspace } = require('./materialize-asset-db-workspace');
 
 // Global context to share state between tasks
 const context = {
@@ -466,6 +467,10 @@ function createReleasePipeline(config) {
         await runCommand('npm', ['install', '--production', '--ignore-scripts'], { cwd: path.join(dir, 'packages/engine') });
     };
 
+    const materializeWorkspaces = async () => {
+        await materializeAssetDbWorkspace(extensionDir());
+    };
+
     const rebuild = async () => {
         if (config.type === 'electron') {
             await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir() });
@@ -529,6 +534,7 @@ function createReleasePipeline(config) {
         prepareDir,
         copyFiles,
         installProd,
+        materializeWorkspaces,
         rebuild,
         test,
         sign,

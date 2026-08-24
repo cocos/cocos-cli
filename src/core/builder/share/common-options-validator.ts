@@ -13,6 +13,7 @@ import Utils from '../../base/utils';
 import assetManager from '../../assets/manager/asset';
 import { Engine } from '../../engine';
 import builderConfig from './builder-config';
+import { cloneConfigValue } from './utils';
 import { validatorManager } from './validator-manager';
 interface ModuleConfig {
     match: (module: string) => boolean;
@@ -368,7 +369,7 @@ export function checkBundleCompressionSetting(value: BundleCompressionType, supp
  */
 export function handleOverwriteProjectSettings(options: IBuildTaskOption) {
     const overwriteModules = options.overwriteProjectSettings?.includeModules;
-    let includeModules = options.includeModules;
+    let includeModules = options.includeModules ? [...options.includeModules] : options.includeModules;
     if (includeModules && overwriteModules && includeModules.length) {
         for (const module in overwriteModules) {
             if (overwriteModules[module] !== 'inherit-project-setting') {
@@ -434,25 +435,26 @@ export async function fillIncludeModulesFromProjectConfig(
     }
 }
 
-export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {    options.engineInfo = options.engineInfo || Engine.getInfo();
+export async function checkProjectSetting(options: IInternalBuildOptions | IInternalBundleBuildOptions) {
+    options.engineInfo = options.engineInfo || cloneConfigValue(Engine.getInfo());
 
     const engineConfig = Engine.getConfig();
     const { designResolution, renderPipeline, physicsConfig, customLayers, sortingLayers, macroConfig } = engineConfig;
     // 默认 Canvas 设置
     if (!options.designResolution) {
-        options.designResolution = designResolution;
+        options.designResolution = cloneConfigValue(designResolution);
     }
 
     // renderPipeline
     if (!options.renderPipeline) {
         if (renderPipeline) {
-            options.renderPipeline = renderPipeline;
+            options.renderPipeline = cloneConfigValue(renderPipeline);
         }
     }
 
     // physicsConfig
     if (!options.physicsConfig) {
-        options.physicsConfig = physicsConfig;
+        options.physicsConfig = cloneConfigValue(physicsConfig);
         if (!options.physicsConfig.defaultMaterial) {
             options.physicsConfig.defaultMaterial = 'ba21476f-2866-4f81-9c4d-6e359316e448';
         }
@@ -460,20 +462,20 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
 
     // customLayers
     if (!options.customLayers) {
-        options.customLayers = customLayers;
+        options.customLayers = cloneConfigValue(customLayers);
     }
 
     // sortingLayers
     if (!options.sortingLayers) {
         if (sortingLayers) {
-            options.sortingLayers = sortingLayers;
+            options.sortingLayers = cloneConfigValue(sortingLayers);
         }
     }
 
     // macro 配置
     if (!options.macroConfig) {
         if (macroConfig) {
-            options.macroConfig = macroConfig;
+            options.macroConfig = cloneConfigValue(macroConfig);
         }
     }
 
@@ -497,7 +499,7 @@ export async function checkProjectSetting(options: IInternalBuildOptions | IInte
     }
 
     if (!options.splashScreen) {
-        options.splashScreen = Engine.getConfig().splashScreen;
+        options.splashScreen = cloneConfigValue(engineConfig.splashScreen);
     }
 
 }

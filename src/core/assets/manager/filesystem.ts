@@ -1,6 +1,6 @@
 'use strict';
 
-import type { IAssetFileSystemProvider, IAssetRenameOptions, IAssetWriteFileOptions } from '@cocos/asset-db/libs/filesystem';
+import type { IAssetFileSystemProvider, IAssetRenameOptions, IAssetWriteFileOptions } from '@cocos/asset-db';
 import { copy as fsCopy, ensureDir, existsSync, move, outputFile, readFile as fsReadFile, remove } from 'fs-extra';
 import { dirname, join, relative } from 'path';
 import type { IMoveOptions } from '../@types/private';
@@ -97,7 +97,7 @@ export async function createDirectoryPath(path: string): Promise<void> {
     await Promise.resolve(provider.createDirectory!(path));
 }
 
-async function deletePath(path: string, options: DeleteAssetOptions = {}): Promise<void> {
+export async function deletePath(path: string, options: DeleteAssetOptions = {}): Promise<void> {
     await Promise.resolve(provider.delete!(path, options));
 }
 

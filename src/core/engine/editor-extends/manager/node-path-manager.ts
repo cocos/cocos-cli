@@ -1,5 +1,12 @@
-import { formatUniqueName } from './path-utils';
+import { formatUniqueName, sanitizeNodeName } from './path-utils';
 
+/**
+ * Node path manager (singleton).
+ *
+ * Core problem solved: after name/path decoupling, node.name is a repeatable display name,
+ * while system paths must be unique (same-name siblings are disambiguated via _001, _002 suffixes).
+ * This class maintains a bidirectional UUID <-> unique system path mapping with case-insensitive lookup.
+ */
 export class NodePathManager {
     private _uuidToPath: Map<string, string> = new Map();          // UUID -> 路径
     private _pathToUuid: Map<string, string> = new Map();          // 路径 -> UUID
@@ -10,8 +17,7 @@ export class NodePathManager {
         * 清理名称中的非法字符
         */
     private _sanitizeName(name: string): string {
-        // 移除或替换路径中的非法字符
-        return name.replace(/[/\\:*?"<>|]/g, '_');
+        return sanitizeNodeName(name);
     }
 
     /**
@@ -64,14 +70,14 @@ export class NodePathManager {
         this._addPathMapping(uuid, path);
     }
 
-    remove(uuid: string) {
+    remove(uuid: string, parentUuid?: string) {
         const path = this._uuidToPath.get(uuid);
         this._removePathMapping(uuid, path);
         this._uuidToPath.delete(uuid);
         this._nodeNames.delete(uuid);
-        const parentUuid = this._getParentUuid(path);
-        if (parentUuid && this._nodeNames.has(parentUuid)) {
-            const nameSet = this._nodeNames.get(parentUuid)!;
+        const resolvedParent = parentUuid ?? this._getParentUuid(path);
+        if (resolvedParent && this._nodeNames.has(resolvedParent)) {
+            const nameSet = this._nodeNames.get(resolvedParent)!;
             const nodeName = path ? path.split('/').pop() : undefined;
             if (nodeName) {
                 nameSet.delete(nodeName);
@@ -259,13 +265,6 @@ export class NodePathManager {
         this._replaceSubtreePathPrefix(subtreeEntries, oldPath, newPath);
     }
 
-    getNameSet(uuid: string): Set<string> | null {
-        if (!this._nodeNames.has(uuid)) {
-            return null;
-        }
-
-        return this._nodeNames.get(uuid)!;
-    }
 }
 
 export default new NodePathManager();

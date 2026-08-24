@@ -1,6 +1,6 @@
 'use strict';
 
-import { Vec3, Node, Color, Vec2, Quat, MeshRenderer } from 'cc';
+import { Layers, Vec3, Node, Color, Vec2, Quat, MeshRenderer } from 'cc';
 
 import ControllerBase from '../controller/base';
 import ControllerUtils from '../utils/controller-utils';
@@ -12,7 +12,7 @@ import {
     getRaycastResultsByNodes,
 } from '../utils/engine-utils';
 
-const panPlaneLayer = 1 << 30;
+const panPlaneLayer = Layers.Enum.EDITOR;
 const axisDirMap = ControllerUtils.axisDirectionMap;
 const SnapPlaneName = 'SnapPlane';
 

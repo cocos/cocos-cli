@@ -96,6 +96,20 @@ export enum MobilityMode {
     Movable = 2
 }
 
+export type PrefabCanvasHandling = 'add-root-ui-transform' | 'create-canvas';
+
+export interface ICreateNodePreflightResult {
+    action: 'create' | 'choose-prefab-canvas-handling';
+    canvasRequired: boolean;
+    canvasPath: string | null;
+    uiTransformPath: string | null;
+    /**
+     * Opaque token for the matching create request. Passing it back prevents a
+     * stale preflight result from silently skipping required Canvas handling.
+     */
+    preflightToken: string;
+}
+
 // generateNodeDump / encode / open 共用的选项
 export interface INodeDumpOptions {
     includeChildren?: boolean; // true: children 以 INodeIdentifier[] 返回，false/undefined: undefined
@@ -226,6 +240,9 @@ interface IBaseCreateNodeParams {
     position?: IVec3;
     keepWorldTransform?: boolean;
     canvasRequired?: boolean;
+    prefabCanvasHandling?: PrefabCanvasHandling;
+    /** Opaque token returned by preflightCreate for this creation request. */
+    preflightToken?: string;
     unlinkPrefab?: boolean;
 }
 
@@ -278,6 +295,7 @@ export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
     'paste' |
     'duplicate' |
     'cut' |
+    'preflightCreate' |
     'queryClipboardState' |
     'moveArrayElement' |
     'removeArrayElement' |
@@ -301,6 +319,11 @@ export interface INodeService extends IServiceEvents {
      * @param params
      */
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+
+    /**
+     * Resolve Canvas handling for a node creation request without modifying the scene.
+     */
+    preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult>;
     /**
      * 删除节点
      * @param params

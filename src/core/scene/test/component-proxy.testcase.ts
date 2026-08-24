@@ -679,7 +679,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - 设置SpriteFrame', async () => {
             try {
-                // 对错误的值 类型 会修改失败，但是返回还是true
+                // 正确的 SpriteFrame 子资源 UUID 应原样写入
                 const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
@@ -697,6 +697,33 @@ describe('Component Proxy 测试', () => {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
             }
+        });
+        it('setProperty - 设置组件属性 - 图片父UUID自动规范化为SpriteFrame', async () => {
+            const result = await ComponentProxy.setProperty({
+                componentPath,
+                properties: {
+                    spriteFrame: {
+                        uuid: '20835ba4-6145-4fbc-a58a-051ce700aa3e'
+                    }
+                }
+            });
+
+            expect(result).toBe(true);
+            componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
+            expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe('20835ba4-6145-4fbc-a58a-051ce700aa3e@f9941');
+        });
+        it('setProperty - 设置组件属性 - 未解析UUID保持历史placeholder行为', async () => {
+            const missingUuid = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+            const result = await ComponentProxy.setProperty({
+                componentPath,
+                properties: {
+                    spriteFrame: { uuid: missingUuid }
+                }
+            });
+
+            expect(result).toBe(true);
+            componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
+            expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe(missingUuid);
         });
     });
 

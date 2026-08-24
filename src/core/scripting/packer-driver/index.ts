@@ -18,7 +18,7 @@ import {
     ImportMap,
 } from '@cocos/creator-programming-mod-lo/lib/mod-lo';
 import { AssetChange, AssetChangeInfo, AssetDatabaseDomain, AssetDbInterop, DBChangeType, ModifiedAssetChange } from './asset-db-interop';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { AssetActionEnum } from '@cocos/asset-db';
 import { PackerDriverLogger } from './logger';
 import { LanguageServiceAdapter } from '../language-service';
 import { AsyncDelegate } from '../utils/delegate';

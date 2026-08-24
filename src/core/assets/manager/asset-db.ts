@@ -2,7 +2,7 @@
 
 import { AssetDBRegisterInfo, IAsset, IAssetDBInfo, IAssetInfo, QueryAssetsOption } from '../@types/private';
 import * as assetdb from '@cocos/asset-db';
-import type { IAssetFileSystemProvider } from '@cocos/asset-db/libs/filesystem';
+import type { IAssetFileSystemProvider } from '@cocos/asset-db';
 import EventEmitter from 'events';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import { extname, join, relative } from 'path';
@@ -16,7 +16,7 @@ import Utils from '../../base/utils';
 import assetConfig from '../asset-config';
 import scripting from '../../scripting';
 import { AssetChangeInfo, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { AssetActionEnum } from '@cocos/asset-db';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,

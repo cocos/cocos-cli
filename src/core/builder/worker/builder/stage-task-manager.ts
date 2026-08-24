@@ -6,6 +6,7 @@ import { newConsole } from '../../../base/console';
 import { IBuildOptionBase } from '../../@types';
 import { IBuildHooksInfo, IBuildStageTask, IBuildStageItem } from '../../@types/protected';
 import { BuildGlobalInfo } from '../../share/global';
+import { pluginManager } from '../../manager/plugin';
 
 export interface IBuildStageConfig extends IBuildStageItem {
     root: string;
@@ -19,6 +20,7 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     options: IBuildOptionBase;
     hooksInfo: IBuildHooksInfo;
     private root: string;
+    private hook: string;
     hookMap: Record<string, string>;
 
     constructor(id: string, config: IBuildStageConfig) {
@@ -26,6 +28,7 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
         this.hooksInfo = config.hooksInfo;
         this.root = config.root;
         this.options = config.buildTaskOptions;
+        this.hook = config.hook;
         this.progressHeartbeatEnabled = config.progressHeartbeat !== false;
         // 首字母转为大写后走前后钩子函数流程
         const name = config.name[0].toUpperCase() + config.name.slice(1, config.name.length);
@@ -38,7 +41,11 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     }
 
     public async run() {
+        const restoreLogSink = newConsole.createLogSinkRestorer();
         try {
+            if (!this.isStageSupported()) {
+                return true;
+            }
             const trickTimeLabel = `// ---- builder:run-build-stage-${this.name} ----`;
             console.debug(trickTimeLabel);
             // 为了保障构建 + 编译或者单独编译的情况都有统计到，直接加在此处
@@ -59,7 +66,22 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
             return true;
         } finally {
             this.stopProgressHeartbeat();
+            restoreLogSink();
         }
+    }
+
+    private isStageSupported() {
+        const platform = String(this.options?.platform || '');
+        const stageConfig = platform ? pluginManager.getBuildStageWithHookTasks(platform, this.hook) : null;
+        if (stageConfig) {
+            return true;
+        }
+        this.buildExitRes.custom = {
+            ...this.buildExitRes.custom,
+            skipped: true,
+        };
+        console.log(`[task:${this.hook}:${platform}]: skipped`);
+        return false;
     }
 
     public break(reason: string) {

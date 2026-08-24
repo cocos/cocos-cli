@@ -6,7 +6,7 @@ import type {
     IAssetFileSystemProvider,
     IAssetRenameOptions,
     IAssetWriteFileOptions,
-} from '@cocos/asset-db/libs/filesystem';
+} from '@cocos/asset-db';
 import { resetFileSystemProvider as resetAssetDBFileSystemProvider } from '@cocos/asset-db';
 
 jest.mock('../../scripting', () => ({

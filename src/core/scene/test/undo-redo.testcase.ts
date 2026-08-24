@@ -134,9 +134,13 @@ const Node = {
                 path: 'name',
                 dump: { ...nodeDump.name, value: params.name },
             }]);
-            const segments = currentPath.split('/');
-            segments[segments.length - 1] = params.name;
-            currentPath = segments.join('/');
+            const nodeUuid = nodeDump.uuid?.value;
+            if (nodeUuid) {
+                const realPath = await request<string>('Node', 'getPathByUuid', [nodeUuid]);
+                if (realPath) {
+                    currentPath = realPath;
+                }
+            }
         }
         return { path: currentPath };
     },
@@ -847,16 +851,48 @@ describe('Undo/Redo 集成测试', () => {
 
         it('update name, undo restores original name, redo reapplies', async () => {
             const updateParams: IUpdateNodeParams = { path, name: 'RenamedNode' };
-            await Node.update(updateParams);
-            const renamedPath = `${path.slice(0, path.lastIndexOf('/') + 1)}RenamedNode`;
+            const updateResult = await Node.update(updateParams);
+            const renamedPath = updateResult.path;
             expect(await queryNode(renamedPath)).not.toBeNull();
 
             await Undo.undo();
             expect(await queryNode(path)).not.toBeNull();
-            expect((await queryNode(path))!.name).toBe(path.split('/').pop());
+            const originalName = path.split('/').pop();
+            expect((await queryNode(path))!.name).toBe(originalName);
 
             await Undo.redo();
             expect(await queryNode(renamedPath)).not.toBeNull();
+        });
+
+        it('conflicting rename keeps the display name and restores the correct paths through undo/redo', async () => {
+            const conflictingPath = 'UndoConflictName';
+            let renamedPath = '';
+            await Node.createByType({ path: conflictingPath, nodeType: NodeType.EMPTY });
+            await Undo.clearHistory();
+
+            try {
+                const updateResult = await Node.update({ path, name: conflictingPath });
+                renamedPath = updateResult.path;
+
+                expect(renamedPath).not.toBe(conflictingPath);
+                expect((await queryNode(renamedPath))?.name).toBe(conflictingPath);
+                expect((await queryNode(conflictingPath))?.name).toBe(conflictingPath);
+
+                expectUndoSuccess(await Undo.undo());
+                expect((await queryNode(path))?.name).toBe(path);
+                expect(await queryNode(renamedPath)).toBeNull();
+                expect(await queryNode(conflictingPath)).not.toBeNull();
+
+                expectUndoSuccess(await Undo.redo());
+                expect((await queryNode(renamedPath))?.name).toBe(conflictingPath);
+                expect(await queryNode(path)).toBeNull();
+                expect(await queryNode(conflictingPath)).not.toBeNull();
+            } finally {
+                if (renamedPath) {
+                    await safeDelete(renamedPath);
+                }
+                await safeDelete(conflictingPath);
+            }
         });
     });
 

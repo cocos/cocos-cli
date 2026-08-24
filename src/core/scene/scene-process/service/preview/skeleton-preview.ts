@@ -1,6 +1,7 @@
 import { InteractivePreview } from './interactive-preview';
-import { DirectionalLight, Scene, Node, assetManager, Vec3 } from 'cc';
+import { DirectionalLight, Scene, Node, Vec3 } from 'cc';
 import { Service } from '../core/decorator';
+import { loadPreviewAsset } from './asset-reload';
 
 export class SkeletonPreview extends InteractivePreview {
     private lightComp: DirectionalLight | any;
@@ -21,14 +22,7 @@ export class SkeletonPreview extends InteractivePreview {
         this.clearJoints();
 
         try {
-            const skeleton = await new Promise<any>((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error(`Load skeleton timeout: ${uuid}`)), 10000);
-                assetManager.loadAny(uuid, (err: any, asset: any) => {
-                    clearTimeout(timeout);
-                    if (err) reject(err);
-                    else resolve(asset);
-                });
-            });
+            const skeleton = await loadPreviewAsset<any>(uuid, 'skeleton');
 
             if (!skeleton || !skeleton.joints) {
                 return;

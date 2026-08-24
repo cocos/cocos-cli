@@ -68,12 +68,35 @@ describe('scene-process engine bootstrap', () => {
             .mockResolvedValueOnce({
                 json: async () => ({
                     overrideSettings: {
+                        engine: {
+                            builtinAssets: ['engine-builtin'],
+                        },
                         rendering: {},
+                        assets: {
+                            server: 'http://localhost:7456',
+                            importBase: 'scripting/asset-library',
+                            nativeBase: 'scripting/asset-library',
+                            remoteBundles: ['internal', 'main'],
+                        },
                     },
                 }),
             })
             .mockResolvedValueOnce({
                 json: async () => ['base', 'custom-pipeline'],
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    settings: {
+                        assets: {
+                            preloadBundles: [{ bundle: 'main' }],
+                        },
+                        engine: {
+                            builtinAssets: ['builtin-material'],
+                        },
+                    },
+                    bundleConfigs: [],
+                }),
             });
         (globalThis as any).document = {
             getElementById: jest.fn(() => null),
@@ -97,6 +120,11 @@ describe('scene-process engine bootstrap', () => {
                     runInEditor: false,
                     switchTo: jest.fn(),
                 },
+                PhysicsSystem: {
+                    instance: {
+                        enable: true,
+                    },
+                },
             },
             ResolutionPolicy: {
                 SHOW_ALL: 'show-all',
@@ -109,6 +137,12 @@ describe('scene-process engine bootstrap', () => {
             },
             assetManager: {
                 loadAny: jest.fn(),
+                loadBundle: jest.fn((_url: string, callback: Function) => callback(null, {})),
+                getBundle: jest.fn(() => null),
+                removeBundle: jest.fn(),
+                downloader: {
+                    appendTimeStamp: true,
+                },
                 bundles: {
                     forEach: jest.fn(),
                 },
@@ -137,5 +171,110 @@ describe('scene-process engine bootstrap', () => {
                 }),
             }),
         }));
+    });
+
+    it('keeps engine asset settings when querying scene editor settings', async () => {
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect(global.fetch).toHaveBeenCalledWith(
+            'http://localhost:7456/scene-editor/settings.json',
+            { cache: 'no-store' },
+        );
+        expect((globalThis as any).cc.game.init).toHaveBeenCalledWith(expect.objectContaining({
+            overrideSettings: expect.objectContaining({
+                assets: expect.objectContaining({
+                    server: 'http://localhost:7456',
+                    importBase: 'scripting/asset-library',
+                    nativeBase: 'scripting/asset-library',
+                    remoteBundles: ['internal', 'main'],
+                }),
+                engine: expect.objectContaining({
+                    builtinAssets: ['engine-builtin'],
+                }),
+            }),
+        }));
+    });
+
+    it('disables physics simulation for the scene editor process', async () => {
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect((globalThis as any).cc.physics.selector.switchTo).toHaveBeenCalledWith('builtin');
+        expect((globalThis as any).cc.physics.PhysicsSystem.instance.enable).toBe(false);
+    });
+
+    it('loads scene editor bundles through the original asset manager', async () => {
+        (global.fetch as jest.Mock).mockReset()
+            .mockResolvedValueOnce({
+                json: async () => ({
+                    overrideSettings: {
+                        rendering: {},
+                    },
+                }),
+            })
+            .mockResolvedValueOnce({
+                json: async () => ['base'],
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    settings: { assets: {} },
+                    bundleConfigs: [
+                        { name: 'main', deps: ['internal'] },
+                        { name: 'internal', deps: [] },
+                    ],
+                }),
+            });
+
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenNthCalledWith(
+            1,
+            'http://localhost:7456/scene-editor/assets/internal',
+            expect.any(Function),
+        );
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenNthCalledWith(
+            2,
+            'http://localhost:7456/scene-editor/assets/main',
+            expect.any(Function),
+        );
+        expect((globalThis as any).cc.assetManager.downloader.appendTimeStamp).toBe(true);
+        expect((globalThis as any).cc.assetManager.loadAny).not.toHaveBeenCalled();
+    });
+
+    it('keeps the existing internal bundle while loading scene editor bundles', async () => {
+        const internalBundle = { name: 'internal' };
+        (globalThis as any).cc.assetManager.getBundle = jest.fn((name: string) => {
+            return name === 'internal' ? internalBundle : null;
+        });
+        (global.fetch as jest.Mock).mockReset()
+            .mockResolvedValueOnce({
+                json: async () => ({
+                    overrideSettings: {
+                        rendering: {},
+                    },
+                }),
+            })
+            .mockResolvedValueOnce({
+                json: async () => ['base'],
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    settings: { assets: {} },
+                    bundleConfigs: [
+                        { name: 'resources', deps: ['internal'] },
+                        { name: 'internal', deps: [] },
+                    ],
+                }),
+            });
+
+        await startup({ serverURL: 'http://localhost:7456' });
+
+        expect((globalThis as any).cc.assetManager.removeBundle).not.toHaveBeenCalledWith(internalBundle);
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenCalledTimes(1);
+        expect((globalThis as any).cc.assetManager.loadBundle).toHaveBeenCalledWith(
+            'http://localhost:7456/scene-editor/assets/resources',
+            expect.any(Function),
+        );
     });
 });

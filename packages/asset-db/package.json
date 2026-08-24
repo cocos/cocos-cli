@@ -1,0 +1,27 @@
+{
+    "name": "@cocos/asset-db",
+    "version": "3.0.0-alpha.10",
+    "description": "Asset database runtime used by Cocos CLI",
+    "private": true,
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+        "test": "npm run build && node ./scripts/test.js"
+    },
+    "license": "MIT",
+    "dependencies": {
+        "fast-glob": "^3.2.5",
+        "fs-extra": "^6.0.1",
+        "node-uuid": "^1.4.8",
+        "workflow-extra": "^0.2.3"
+    },
+    "devDependencies": {
+        "@types/fs-extra": "^5.0.4",
+        "@types/node": "^10.5.2",
+        "@types/node-uuid": "0.0.28",
+        "chai": "^4.2.0",
+        "mocha": "^5.2.0",
+        "typescript": "^4.9.5"
+    }
+}

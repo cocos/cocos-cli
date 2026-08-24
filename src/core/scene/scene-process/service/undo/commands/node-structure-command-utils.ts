@@ -1,8 +1,9 @@
 import { Node } from 'cc';
 import { NodeEventType, type IUndoCommandMeta, type IUndoRedoResult } from '../../../../common';
-import { Service } from '../../core';
 import nodeMgr from '../../node/index';
 import { editorPrefabUtils } from '../../prefab/prefab-editor-utils';
+import { nodeOperation } from '../../prefab/node';
+import { sceneUtils } from '../../scene/utils';
 import {
     createUndoId,
     success,
@@ -87,28 +88,10 @@ export function captureNodeStructureSnapshot(
 }
 
 function serializeNodeStructure(node: Node, serialization: NodeStructureSerialization): string {
-    const serialized = shouldSerializeAsPrefab(node, serialization)
+    const serialized = serialization === 'prefab'
         ? editorPrefabUtils.serialize(node)
-        : EditorExtends.serialize(node);
+        : EditorExtends.serialize(node, { reserveContentsForSyncablePrefab: true });
     return typeof serialized === 'string' ? serialized : JSON.stringify(serialized);
-}
-
-function shouldSerializeAsPrefab(node: Node, serialization: NodeStructureSerialization): boolean {
-    if (serialization === 'prefab') {
-        return true;
-    }
-    if (serialization === 'node') {
-        return false;
-    }
-    return hasPrefabData(node);
-}
-
-function hasPrefabData(node: Node): boolean {
-    if (node['_prefab']) {
-        return true;
-    }
-
-    return (node.children ?? []).some(child => hasPrefabData(child));
 }
 
 function captureUuidTree(node: Node): INodeUuidSnapshot {
@@ -135,7 +118,6 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
     }
 
     try {
-        await relinkPrefabAsset(restoredNode, snapshot);
         nodeMgr.emit('node:before-add', restoredNode);
         nodeMgr.emit('node:before-change', parent);
 
@@ -144,6 +126,10 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
             restoredNode.setSiblingIndex(snapshot.siblingIndex);
         }
         restoreSubtreeUuids(restoredNode, snapshot.uuidTree);
+
+        // Relink after addChild — setParent triggers engine-side prefab
+        // processing that can clear _prefab.asset set before the add.
+        await relinkPrefabAsset(restoredNode, snapshot);
 
         nodeMgr.emit('node:add', restoredNode);
         nodeMgr.emit('node:change', parent, { source: 'undo', type: NodeEventType.CHILD_CHANGED });
@@ -168,10 +154,37 @@ async function relinkPrefabAsset(node: Node, snapshot: INodeStructureSnapshot): 
         return;
     }
 
-    const prefabService = Service.Prefab as unknown as {
-        linkNodeWithPrefabAsset: (node: Node, assetUuid: string) => Promise<void>;
-    };
-    await prefabService.linkNodeWithPrefabAsset(node, snapshot.prefabAssetUuid);
+    try {
+        const asset = await sceneUtils.loadAny(snapshot.prefabAssetUuid);
+        setPrefabAssetOnTree(node, asset);
+        nodeOperation.checkToAddPrefabAssetMap(node);
+    } catch (_error) {
+        // best-effort: asset may have been removed from the project
+    }
+}
+
+function setPrefabAssetOnTree(node: Node, asset: any): void {
+    const prefabInfo = (node as any)['_prefab'];
+    if (prefabInfo) {
+        prefabInfo.asset = asset;
+    }
+    for (const child of node.children ?? []) {
+        setPrefabAssetOnChildren(child, asset);
+    }
+}
+
+function setPrefabAssetOnChildren(node: Node, asset: any): void {
+    const prefabInfo = (node as any)['_prefab'];
+    if (!prefabInfo) {
+        return;
+    }
+    if (prefabInfo.instance) {
+        return;
+    }
+    prefabInfo.asset = asset;
+    for (const child of node.children ?? []) {
+        setPrefabAssetOnChildren(child, asset);
+    }
 }
 
 export function removeNodeStructureSnapshot(
@@ -218,7 +231,7 @@ function findParent(snapshot: INodeStructureSnapshot): Node | null {
         }
     }
 
-    if (snapshot.parentPath && snapshot.parentPath !== '/') {
+    if (snapshot.parentPath) {
         try {
             const byPath = editorNode?.getNodeByPath?.(snapshot.parentPath) as Node | null;
             if (byPath) {

@@ -13,6 +13,7 @@ import {
     Node,
     renderer,
     director,
+    assetManager,
 } from 'cc';
 
 const regions = [new gfx.BufferTextureCopy()];
@@ -79,8 +80,163 @@ function getPrimitiveData(): Record<string, IPrimitiveInfo> {
 
 const tempVec3A = new Vec3();
 const tempVec3B = new Vec3();
+const transientMaterialOverridePatchKey = Symbol.for('cocos.cli.materialPreview.transientMaterialOverrides');
 
 import type { IMaterialPreviewInstance } from '../../../common/preview';
+import { loadPreviewAsset } from './asset-reload';
+
+function collectTextureProperties(value: any, out: any[]) {
+    if (!value) return;
+    if (Array.isArray(value)) {
+        value.forEach((item) => collectTextureProperties(item, out));
+        return;
+    }
+    if (typeof value.getGFXTexture === 'function') {
+        out.push(value);
+    }
+}
+
+function getMaterialTextureProperties(material: Material): any[] {
+    const textures: any[] = [];
+    const propsArray = (material as any)._props;
+    if (!Array.isArray(propsArray)) {
+        return textures;
+    }
+    for (const props of propsArray) {
+        if (!props) continue;
+        for (const key of Object.keys(props)) {
+            collectTextureProperties(props[key], textures);
+        }
+    }
+    return textures;
+}
+
+function getMaterialTextureEntries(material: Material): Array<{ passIndex: number; name: string; value: any }> {
+    const entries: Array<{ passIndex: number; name: string; value: any }> = [];
+    const propsArray = (material as any)._props;
+    if (!Array.isArray(propsArray)) {
+        return entries;
+    }
+    propsArray.forEach((props, passIndex) => {
+        if (!props) return;
+        for (const name of Object.keys(props)) {
+            const value = props[name];
+            const textures: any[] = [];
+            collectTextureProperties(value, textures);
+            if (textures.length) {
+                entries.push({ passIndex, name, value });
+            }
+        }
+    });
+    return entries;
+}
+
+function areTexturesReady(textures: any[]): boolean {
+    return textures.every((texture) => {
+        const gfxTexture = texture.getGFXTexture?.();
+        return !!gfxTexture && !!gfxTexture.width && !!gfxTexture.height;
+    });
+}
+
+async function waitForMaterialTextures(material: Material, timeoutMs = 1000): Promise<void> {
+    const textures = getMaterialTextureProperties(material);
+    if (!textures.length || areTexturesReady(textures)) {
+        return;
+    }
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 16));
+        if (areTexturesReady(textures)) {
+            return;
+        }
+    }
+}
+
+function refreshMaterialTextureBindings(material: Material) {
+    for (const { passIndex, name, value } of getMaterialTextureEntries(material)) {
+        material.setProperty(name, value, passIndex);
+    }
+}
+
+function getActivePreviewService(): any {
+    return (globalThis as any).cli?.Scene?.Preview;
+}
+
+function isMaterialPreviewActive(): boolean {
+    const previewService = getActivePreviewService();
+    return !!previewService && previewService.activePreview === previewService.materialPreview;
+}
+
+function isTransientPreviewMaterial(material: any): boolean {
+    return isMaterialPreviewActive()
+        && material
+        && material.constructor === Material
+        && !material._uuid;
+}
+
+function getPassCount(material: any): number {
+    const effectAsset = material._effectAsset;
+    const techIdx = material._techIdx || 0;
+    const technique = effectAsset?.techniques?.[techIdx];
+    return technique?.passes?.length || material._passes?.length || 1;
+}
+
+function applyMaterialRecord(material: any, key: '_defines' | '_states', overrides: Record<string, any>, passIdx?: number) {
+    if (!overrides || typeof overrides !== 'object') {
+        return;
+    }
+
+    const records = Array.isArray(material[key]) ? material[key] : (material[key] = []);
+    const applyAt = (index: number) => {
+        records[index] = {
+            ...(records[index] || {}),
+            ...overrides,
+        };
+    };
+
+    if (passIdx === undefined) {
+        for (let i = 0; i < getPassCount(material); i++) {
+            applyAt(i);
+        }
+    } else {
+        applyAt(passIdx);
+    }
+
+    material._update?.(true);
+}
+
+function installTransientMaterialOverridePatch() {
+    const proto = Material.prototype as any;
+    if (proto[transientMaterialOverridePatchKey]) {
+        return;
+    }
+
+    const recompileShaders = proto.recompileShaders;
+    const overridePipelineStates = proto.overridePipelineStates;
+
+    Object.defineProperty(proto, transientMaterialOverridePatchKey, {
+        configurable: false,
+        enumerable: false,
+        value: true,
+    });
+
+    proto.recompileShaders = function patchedRecompileShaders(overrides: Record<string, any>, passIdx?: number) {
+        if (isTransientPreviewMaterial(this)) {
+            applyMaterialRecord(this, '_defines', overrides, passIdx);
+            return;
+        }
+        return recompileShaders.call(this, overrides, passIdx);
+    };
+
+    proto.overridePipelineStates = function patchedOverridePipelineStates(overrides: Record<string, any>, passIdx?: number) {
+        if (isTransientPreviewMaterial(this)) {
+            applyMaterialRecord(this, '_states', overrides, passIdx);
+            return;
+        }
+        return overridePipelineStates.call(this, overrides, passIdx);
+    };
+}
 
 export class MaterialPreview extends InteractivePreview implements IMaterialPreviewInstance {
     private lightComp!: DirectionalLight;
@@ -102,7 +258,9 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
 
     public init(registerName: string, queryName: string) {
         super.init(registerName, queryName);
+        installTransientMaterialOverridePatch();
         const device = director.root!.device;
+        const isSceneNative = !!(globalThis as any).isSceneNative;
 
         this.uniformBuffer = device.createBuffer(new gfx.BufferInfo(
             gfx.BufferUsageBit.UNIFORM,
@@ -111,12 +269,13 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
         ));
         this.dummyUniformBuffer = device.createBuffer(new gfx.BufferViewInfo(this.uniformBuffer, 0, this.uniformBuffer.size));
 
-        this.storageBuffer = device.createBuffer(new gfx.BufferInfo(
-            gfx.BufferUsageBit.UNIFORM,
+        this.storageBuffer = !isSceneNative ? this.uniformBuffer : device.createBuffer(new gfx.BufferInfo(
+            gfx.BufferUsageBit.STORAGE,
             gfx.MemoryUsageBit.HOST | gfx.MemoryUsageBit.DEVICE,
             16,
         ));
-        this.dummyStorageBuffer = device.createBuffer(new gfx.BufferViewInfo(this.storageBuffer, 0, this.storageBuffer.size));
+        this.dummyStorageBuffer = !isSceneNative ? this.dummyUniformBuffer :
+            device.createBuffer(new gfx.BufferViewInfo(this.storageBuffer, 0, this.storageBuffer.size));
 
         this.dummySampleTexture = device.createTexture(new gfx.TextureInfo(
             gfx.TextureType.TEX2D,
@@ -124,9 +283,9 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
             gfx.Format.RGBA8,
             4, 4,
         ));
-        this.dummyStorageTexture = device.createTexture(new gfx.TextureInfo(
+        this.dummyStorageTexture = !isSceneNative ? this.dummySampleTexture : device.createTexture(new gfx.TextureInfo(
             gfx.TextureType.TEX2D,
-            gfx.TextureUsageBit.SAMPLED,
+            gfx.TextureUsageBit.STORAGE,
             gfx.Format.RGBA8,
             4, 4,
         ));
@@ -149,8 +308,8 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
         this._modelNode = this.modelComp.node;
     }
 
-    public setMaterial(material: Material | null) {
-        if (material && material !== this.material) {
+    public setMaterial(material: Material | null, force = false) {
+        if (material && (force || material !== this.material)) {
             const comp = this.modelComp;
             const _matInsInfo = {
                 parent: material,
@@ -208,15 +367,11 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
             return;
         }
         try {
-            const material = await new Promise<Material>((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error(`Load material timeout: ${uuid}`)), 10000);
-                cc.assetManager.loadAny(uuid, (err: any, asset: any) => {
-                    clearTimeout(timeout);
-                    if (err) reject(err);
-                    else resolve(asset);
-                });
-            });
-            this.setMaterial(material);
+            const material = await loadPreviewAsset<Material>(uuid, 'material');
+            await waitForMaterialTextures(material);
+            refreshMaterialTextureBindings(material);
+            this.setMaterial(material, true);
+            assetManager.assetListener?.emit(uuid, material);
             this.resetCameraView();
         } catch (e) {
             console.warn(`[MaterialPreview] setMaterial failed:`, e);
@@ -227,12 +382,12 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
     public switchPrimitive(type: string) {
         const data = getPrimitiveData();
         if (!data[type]) return;
+        if (type === this.currentPrimitive) return;
         this.currentPrimitive = type;
         this.modelComp.mesh = data[type].mesh;
         this.updateDs();
         this.modelComp.node.setScale(data[type].scale);
         this.cameraComp.enabled = true;
-        this.resetCameraView();
     }
 
     public setLightEnable(enable: boolean) {

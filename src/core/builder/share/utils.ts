@@ -11,6 +11,10 @@ export function compareNumeric(lhs: string, rhs: string): number {
 
 export { compareNumeric as compareUUID };
 
+export function cloneConfigValue<T>(value: T): T {
+    return value === undefined || value === null ? value : JSON.parse(JSON.stringify(value));
+}
+
 /**
  * 解析配置 options 内的默认值
  * @param options

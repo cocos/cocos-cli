@@ -3,6 +3,7 @@ import ModeBase3D from './mode-base-3d';
 import { CameraMoveMode } from '../utils';
 import type { ISceneMouseEvent } from '../../operation/types';
 import type { CameraController3D } from '../camera-controller-3d';
+import { enterCameraState, exitCameraState, NeedAnimState } from './engine-state';
 
 const v3a = new Vec3();
 const v3b = new Vec3();
@@ -26,22 +27,12 @@ class PanMode extends ModeBase3D {
         Vec3.normalize(this._up, this._up);
 
         this._cameraCtrl.emit('camera-move-mode', CameraMoveMode.PAN);
-        try {
-            const { Service } = require('../../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        enterCameraState(NeedAnimState.CAMERA_PAN);
     }
 
     public async exit() {
         this._cameraCtrl.updateViewCenterByDist(-this._cameraCtrl.viewDist);
-        try {
-            const { Service } = require('../../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        exitCameraState(NeedAnimState.CAMERA_PAN);
     }
 
     onMouseMove(event: ISceneMouseEvent): boolean {

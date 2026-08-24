@@ -1,5 +1,6 @@
 import { InteractivePreview, getBoundaryOfMeshNodes } from './interactive-preview';
-import { DirectionalLight, Material, Mesh, MeshRenderer, Scene, Node, assetManager } from 'cc';
+import { DirectionalLight, Material, Mesh, MeshRenderer, Scene, Node } from 'cc';
+import { loadPreviewAsset } from './asset-reload';
 
 export class MeshPreview extends InteractivePreview {
     private lightComp: DirectionalLight | any;
@@ -26,15 +27,7 @@ export class MeshPreview extends InteractivePreview {
         }
 
         try {
-            assetManager.assets.remove(uuid);
-            const meshAsset = await new Promise<Mesh>((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error(`Load mesh timeout: ${uuid}`)), 10000);
-                assetManager.loadAny(uuid, (err: any, asset: any) => {
-                    clearTimeout(timeout);
-                    if (err) reject(err);
-                    else resolve(asset);
-                });
-            });
+            const meshAsset = await loadPreviewAsset<Mesh>(uuid, 'mesh');
 
             this._modelComp.mesh = meshAsset;
             this._modelNode!.parent = this.scene;

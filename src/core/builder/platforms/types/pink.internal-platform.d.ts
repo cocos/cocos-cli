@@ -2337,6 +2337,10 @@ declare module 'pink' {
 	    stage?: string;
 	    buildMode?: 'normal' | 'bundle' | 'script';
 	    nextStages?: string[];
+	    subTaskPlatforms?: string[];
+	    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+	    parentTaskId?: string;
+	    childTaskIds?: string[];
 	    packages: Record<string, any>;
 	    nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
 	    wasmCompressionMode?: 'brotli';
@@ -2393,6 +2397,16 @@ declare module 'pink' {
 	export interface IBuildSceneItem {
 	    url: string;
 	    uuid: string;
+	}
+
+	export interface ISubTaskBuildOutput {
+	    platform: string;
+	    dest: string;
+	    buildPath: string;
+	    outputName: string;
+	    taskId?: string;
+	    logDest?: string;
+	    parentTaskId?: string;
 	}
 
 	export type Platform = InternalPlatform | string;
@@ -2491,6 +2505,13 @@ declare module 'pink' {
 	export interface PlatformBuildSchema {
 	    common: ICocosConfigurationPropertySchema;
 	    platformOptions: ICocosConfigurationPropertySchema;
+	    supportPlatforms?: IPlatformSupportPlatformsConfig;
+	}
+
+	export interface IPlatformSupportPlatformsConfig {
+	    platforms: string[];
+	    controlledBy: string;
+	    hidden?: boolean;
 	}
 
 	export interface ICocosConfigurationPropertySchema {
@@ -2521,6 +2542,9 @@ declare module 'pink' {
 	    taskName?: string;
 	    logDest?: string;
 	    packages?: Record<string, Record<string, unknown>>;
+	    subTaskPlatforms?: string[];
+	    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+	    childTaskIds?: string[];
 	}
 
 	export interface IBuildStageItem {
@@ -5445,6 +5469,10 @@ declare module 'pink' {
 			keepWorldTransform?: boolean;
 			/** 是否需要 Canvas（2D UI 节点自动创建 Canvas） */
 			canvasRequired?: boolean;
+			/** prefab 模式下需要 Canvas 处理时，使用外部 UI 选择的处理方式 */
+			prefabCanvasHandling?: 'add-root-ui-transform' | 'create-canvas';
+			/** preflightCreate 返回的 token，用于验证 Canvas 决策仍然有效 */
+			preflightToken?: string;
 		}
 
 		/** 创建节点的参数 */

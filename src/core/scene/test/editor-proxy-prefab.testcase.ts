@@ -1,10 +1,31 @@
-import { IBaseIdentifier, INodeInfo, INodeIdentifier, IComponentIdentifier, NodeType, ReloadResult } from '../common';
+import {
+    IBaseIdentifier,
+    INodeInfo,
+    INodeIdentifier,
+    IComponentIdentifier,
+    NodeType,
+    ReloadResult,
+    ICopyParams,
+    IPasteParams,
+} from '../common';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
 import { readFileSync } from 'fs-extra';
 import { ComponentProxy } from '../main-process/proxy/component-proxy';
 import { assetManager } from '../../assets';
+import { Rpc } from '../main-process/rpc';
+
+const rpcRequest = (method: string, args?: any[]) =>
+    (Rpc.getInstance() as any).request('Node', method, args);
+
+function copy(params: ICopyParams): Promise<string[]> {
+    return rpcRequest('copy', [params]);
+}
+
+function paste(params: IPasteParams): Promise<string[]> {
+    return rpcRequest('paste', [params]);
+}
 
 describe('EditorProxy Prefab 测试', () => {
     describe('预制体操作', () => {
@@ -208,6 +229,25 @@ describe('EditorProxy Prefab 测试', () => {
 
             expect(result).not.toBeNull();
             expect(JSON.stringify(result)).toContain('current-prefab-test-node');
+        });
+
+        it('paste without parent path uses the opened prefab root as parent', async () => {
+            const current = await EditorProxy.queryCurrent() as INodeInfo;
+            expect(current).not.toBeNull();
+
+            const rootPath = current.path || current.name;
+            const source = await NodeProxy.createByType({
+                path: rootPath,
+                nodeType: NodeType.EMPTY,
+                name: 'prefab-paste-default-parent-source',
+            });
+            expect(source).not.toBeNull();
+
+            await copy({ paths: [source!.path] });
+            const result = await paste({});
+
+            expect(result).toHaveLength(1);
+            expect(result[0].startsWith(`${rootPath}/`)).toBe(true);
         });
 
         it('close - 不保存地关闭当前预制体', async () => {

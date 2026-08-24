@@ -71,7 +71,10 @@ jest.mock('../scene-process/service/gizmo/transform-tool', () => ({
     TransformToolData: class TransformToolData extends EventEmitter {
         toolName = 'position';
         is2D = true;
-        snapConfigs = {};
+        snapConfigs = {
+            getPureDataObject: () => ({}),
+            initFromData: () => undefined,
+        };
     },
 }));
 
@@ -344,5 +347,114 @@ describe('Gizmo editor lifecycle', () => {
         expect(secondGizmo).not.toBe(firstGizmo);
         expect(secondGizmo.destroyed).toBe(false);
         expect(secondGizmo.target).toBe(secondComponent);
+    });
+
+    it('persists grid color with a targeted write, independent of the whole-object save', async () => {
+        const stored: Record<string, any> = { gridColor: [11, 22, 33, 44] };
+        const request = jest.fn((_svc: string, method: string, args: any[]) => {
+            const [key] = args;
+            if (method === 'get') {
+                if (key === 'gizmo') return Promise.resolve(stored);
+                if (key === 'gizmo.gridColor') return Promise.resolve(stored.gridColor);
+                return Promise.resolve(undefined);
+            }
+            if (method === 'set') {
+                if (key === 'gizmo.gridColor') stored.gridColor = args[1];
+                else if (key === 'gizmo') Object.assign(stored, args[1]);
+                return Promise.resolve(true);
+            }
+            return Promise.resolve(undefined);
+        });
+        const { Rpc } = require('../scene-process/rpc');
+        Rpc.getInstance.mockReturnValue({ request });
+
+        const { GizmoService } = require('../scene-process/service/gizmo');
+        const gizmo = new GizmoService();
+
+        // 面板改色：定向写入 gizmo.gridColor（local），不依赖初始加载/整块 saveConfig
+        gizmo.setGridColor([200, 100, 50, 255]);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const gridSet = request.mock.calls.find(
+            (c: any[]) => c[1] === 'set' && c[2][0] === 'gizmo.gridColor',
+        );
+        expect(gridSet).toBeDefined();
+        expect(gridSet![2][1]).toEqual([200, 100, 50, 255]);
+        expect(gridSet![2][2]).toBe('local');
+        expect(stored.gridColor).toEqual([200, 100, 50, 255]);
+    });
+
+    it('does not let the whole-object saveConfig clobber previously saved GizmoConfig fields with defaults', async () => {
+        // 磁盘上已保存的、非默认的 GizmoConfig 字段
+        const stored: Record<string, any> = {
+            gridColor: [11, 22, 33, 44],
+            is3DIcon: true,
+            iconSize: 5,
+            toolsVisibility3d: false,
+            originAxis2D: { x: false, y: false, z: true },
+            originAxis3D: { x: false, y: true, z: false },
+        };
+        const request = jest.fn((_svc: string, method: string, args: any[]) => {
+            if (method === 'get') return Promise.resolve(stored);
+            if (method === 'set') {
+                Object.assign(stored, args[1]);
+                return Promise.resolve(true);
+            }
+            return Promise.resolve(undefined);
+        });
+        const { Rpc } = require('../scene-process/rpc');
+        Rpc.getInstance.mockReturnValue({ request });
+
+        const { GizmoService } = require('../scene-process/service/gizmo');
+        const gizmo = new GizmoService();
+
+        // 模拟切工具/切视图触发的 saveConfig：此时 GizmoConfig 各静态量仍是默认值，
+        // saveConfig 不应写入这些字段，应保留磁盘上已保存的值。
+        await gizmo.saveConfig();
+
+        const setCall = request.mock.calls.find((c: any[]) => c[1] === 'set');
+        expect(setCall).toBeDefined();
+        const written = setCall![2][1];
+        // ...current 保留了已保存的字段，而非被默认值覆盖
+        expect(written.gridColor).toEqual([11, 22, 33, 44]);
+        expect(written.is3DIcon).toBe(true);
+        expect(written.iconSize).toBe(5);
+        expect(written.toolsVisibility3d).toBe(false);
+        expect(written.originAxis2D).toEqual({ x: false, y: false, z: true });
+        expect(written.originAxis3D).toEqual({ x: false, y: true, z: false });
+    });
+
+    it('persists other GizmoConfig fields with their own targeted writes', async () => {
+        const stored: Record<string, any> = {};
+        const request = jest.fn((_svc: string, method: string, args: any[]) => {
+            const [key] = args;
+            if (method === 'get') {
+                if (key === 'gizmo') return Promise.resolve(stored);
+                return Promise.resolve(stored[String(key).replace('gizmo.', '')]);
+            }
+            if (method === 'set') {
+                if (String(key).startsWith('gizmo.')) stored[String(key).replace('gizmo.', '')] = args[1];
+                else if (key === 'gizmo') Object.assign(stored, args[1]);
+                return Promise.resolve(true);
+            }
+            return Promise.resolve(undefined);
+        });
+        const { Rpc } = require('../scene-process/rpc');
+        Rpc.getInstance.mockReturnValue({ request });
+
+        const { GizmoService } = require('../scene-process/service/gizmo');
+        const gizmo = new GizmoService();
+
+        gizmo.setOriginAxes2D({ x: false, y: true, z: false });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const axisSet = request.mock.calls.find(
+            (c: any[]) => c[1] === 'set' && c[2][0] === 'gizmo.originAxis2D',
+        );
+        expect(axisSet).toBeDefined();
+        expect(axisSet![2][1]).toEqual({ x: false, y: true, z: false });
+        expect(axisSet![2][2]).toBe('local');
     });
 });

@@ -41,7 +41,7 @@ describe('normalizeDtsRollupContent', () => {
 
         const normalized = normalizeDtsRollupContent('builder.d.ts', macBuilderRollup);
 
-        expect(normalized).toContain("import { IAssetDeleteOptions, IAssetWriteFileOptions } from '@cocos/asset-db/libs/filesystem';");
+        expect(normalized).toContain("import { IAssetDeleteOptions, IAssetWriteFileOptions } from '@cocos/asset-db';");
         expect(normalized).toContain('save(): Promise<boolean>;');
         expect(normalized).toContain('write(path: string, options?: IAssetWriteFileOptions): Promise<false | undefined>;');
         expect(normalized).toContain('remove(path: string, options?: IAssetDeleteOptions): Promise<void>;');

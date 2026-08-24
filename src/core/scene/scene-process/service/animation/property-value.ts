@@ -2,6 +2,7 @@ import { Node } from 'cc';
 import type { IAnimationOperation, IAnimationValue } from '../../../common';
 import type { IAnimationPropertyMetadata } from './property-curve';
 import { queryAnimationPropertyMetadata } from './property-metadata';
+import { resolveAnimationRelativeNodePath } from './scene-node';
 import {
     isAnimationAssetValue,
     loadAnimationAssetValue,
@@ -42,17 +43,13 @@ export async function normalizeProvidedAnimationPropertyOperationValue(
     rootNode: Node,
     rootPath: string,
     operation: PropertyKeyOperation,
-    options: {
-        queryNodeByUuid: (uuid: string) => Node | null;
-        queryNodePath: (node: Node) => string;
-    },
 ): Promise<IAnimationValue> {
     const value = operation.value;
     if (value === null || value === undefined) {
         return value as IAnimationValue;
     }
 
-    const nodePath = resolveOperationRelativeNodePath(rootNode, rootPath, operation, options);
+    const nodePath = resolveAnimationRelativeNodePath(rootNode, rootPath, operation);
     if (nodePath === null) {
         return value;
     }
@@ -83,33 +80,4 @@ async function normalizeProvidedAnimationPropertyValue(
     }
 
     return await loadAnimationAssetValue(assetCtor, uuid) as unknown as IAnimationValue;
-}
-
-function resolveOperationRelativeNodePath(
-    rootNode: Node,
-    rootPath: string,
-    operation: { nodeUuid?: string; nodePath?: string },
-    options: { queryNodeByUuid: (uuid: string) => Node | null; queryNodePath: (node: Node) => string },
-): string | null {
-    const node = options.queryNodeByUuid(operation.nodeUuid || '');
-    if (node) {
-        return toRelativeNodePath(rootNode, rootPath, options.queryNodePath(node));
-    }
-    return toRelativeNodePath(rootNode, rootPath, operation.nodePath || '');
-}
-
-function toRelativeNodePath(rootNode: Node, rootPath: string, nodePath: string): string | null {
-    const normalizedRootPath = normalizeNodePath(rootPath);
-    const normalizedNodePath = normalizeNodePath(nodePath);
-    if (!normalizedNodePath || normalizedNodePath === normalizedRootPath) {
-        return '';
-    }
-    if (normalizedRootPath && normalizedNodePath.startsWith(`${normalizedRootPath}/`)) {
-        return normalizedNodePath.slice(normalizedRootPath.length + 1);
-    }
-    return rootNode.getChildByPath(normalizedNodePath) ? normalizedNodePath : null;
-}
-
-function normalizeNodePath(path: string): string {
-    return String(path || '').replace(/^\/+|\/+$/g, '');
 }

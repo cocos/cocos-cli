@@ -14,8 +14,21 @@
         },
         "pinkBuilder": {
             "platform": "web-desktop",
+            "customView": "./dist/view/build-config.js",
+            "customExtensionHost": "./dist/view/build-config-host.js",
+            "customFields": [
+                "appid",
+                "uploadEnv",
+                "accessToken",
+                "codeVersion",
+                "bridgeLink"
+            ],
             "card": "./static/card.png",
             "icon": "./static/icon.png"
         }
+    },
+    "scripts": {
+        "build-view": "node scripts/build-view.js",
+        "watch-view": "node scripts/build-view.js --watch"
     }
 }

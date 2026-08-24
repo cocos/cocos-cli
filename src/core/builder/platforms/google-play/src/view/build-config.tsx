@@ -461,7 +461,6 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
         }
     };
     const refreshIconDisplay = async (type: CustomIconType, cancelled?: () => boolean) => {
-            console.log('refreshIconDisplay11');
         if (!bridge) {
             iconDisplayRequestRef.current = '';
             setIconDisplay('');
@@ -474,7 +473,6 @@ export default function GooglePlayBuildView({ value, onChange, bridge, commonVal
         iconDisplayRequestRef.current = requestKey;
         try {
             const display = await bridge.invoke<string>('getDisplayCustomIcon', type, outputName);
-            console.log('refreshIconDisplay', display, type, outputName);
             if (!cancelled?.()) {
                 setIconDisplay(display || '');
                 setCustomError('');

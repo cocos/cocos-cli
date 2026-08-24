@@ -91,6 +91,18 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         }
     }
 
+    public forceRepaintInEditMode() {
+        this._shouldRepaintInEM = true;
+        if (this._paused) {
+            this._shouldRepaintInEM = false;
+            this.tickInEditMode(0);
+            this.broadcast('engine:update');
+            try { Service.Camera?.onUpdate?.(0); } catch { /* not registered yet */ }
+            try { Service.Gizmo?.onUpdate?.(0); } catch { /* not registered yet */ }
+            this.broadcast('engine:ticked');
+        }
+    }
+
     /**
      * 渲染调试视图（DebugView）：单一通道调试 / 组合光照项开关 / 纯光照带固有色 / 级联阴影染色。
      * 与 cocos-editor scene-facade-manager.changeDebugOption 对齐。

@@ -1,22 +1,65 @@
-import fs from 'fs';
-import { Severity, validateBytes, validateString, ValidationOptions } from 'gltf-validator';
+import { fork } from 'child_process';
+import path from 'path';
+import type { Report } from 'gltf-validator';
+
+const enum ValidationSeverity {
+    Error = 0,
+    Warning = 1,
+    Information = 3,
+}
+
+interface ValidationWorkerResponse {
+    report?: Report;
+    error?: {
+        message: string;
+        stack?: string;
+    };
+}
+
+function runValidatorInNodeProcess(gltfFilePath: string): Promise<Report> {
+    return new Promise((resolve, reject) => {
+        const worker = fork(path.join(__dirname, 'validation-worker.js'), [], {
+            stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+        });
+        let settled = false;
+        const finish = (callback: () => void) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            callback();
+        };
+        const timeout = setTimeout(() => {
+            finish(() => {
+                worker.kill();
+                reject(new Error(`glTF validation timed out: ${gltfFilePath}`));
+            });
+        }, 30_000);
+
+        worker.once('error', (error) => finish(() => reject(error)));
+        worker.once('exit', (code, signal) => {
+            if (!settled) {
+                finish(() => reject(new Error(`glTF validation worker exited before replying (code=${code}, signal=${signal})`)));
+            }
+        });
+        worker.once('message', (message: ValidationWorkerResponse) => {
+            if (message?.error) {
+                const error = new Error(message.error.message);
+                error.stack = message.error.stack ?? error.stack;
+                finish(() => reject(error));
+                return;
+            }
+            if (!message?.report) {
+                finish(() => reject(new Error('glTF validation worker returned an invalid response.')));
+                return;
+            }
+            finish(() => resolve(message.report!));
+        });
+        worker.send({ gltfFilePath });
+    });
+}
 
 export async function validateGlTf(gltfFilePath: string, assetPath: string) {
-    const validationOptions: ValidationOptions = {
-        uri: gltfFilePath,
-        ignoredIssues: [],
-        severityOverrides: {
-            NON_RELATIVE_URI: Severity.Information,
-            UNDECLARED_EXTENSION: Severity.Warning,
-            ACCESSOR_TOTAL_OFFSET_ALIGNMENT: Severity.Information,
-        },
-    };
-    const isGlb = gltfFilePath.endsWith('.glb');
-    // For some gltf(fbx2glTf exported), the gltf-validator may emit `invalid JSON` error.
-    // We should read the string by self.
-    const report = await (isGlb
-        ? validateBytes(Uint8Array.from(fs.readFileSync(gltfFilePath)), validationOptions)
-        : validateString(fs.readFileSync(gltfFilePath).toString()));
+    const report = await runValidatorInNodeProcess(gltfFilePath);
 
     // Remove specified errors.
     const ignoredMessages = report.issues.messages.filter((message) => {
@@ -36,10 +79,10 @@ export async function validateGlTf(gltfFilePath: string, assetPath: string) {
     });
     for (const message of ignoredMessages) {
         switch (message.severity) {
-            case Severity.Error:
+            case ValidationSeverity.Error:
                 --report.issues.numErrors;
                 break;
-            case Severity.Warning:
+            case ValidationSeverity.Warning:
                 --report.issues.numInfos;
                 break;
         }
@@ -60,7 +103,7 @@ export async function validateGlTf(gltfFilePath: string, assetPath: string) {
                 'this may cause problem unexpectly, ' +
                 'please fix them: ' +
                 '\n' +
-                `${strintfyMessages(Severity.Error)}\n`,
+                `${strintfyMessages(ValidationSeverity.Error)}\n`,
         );
         // throw new Error(`Bad glTf format ${assetPath}.`);
     } else if (report.issues.numWarnings !== 0) {
@@ -69,9 +112,9 @@ export async function validateGlTf(gltfFilePath: string, assetPath: string) {
                 'the result may be not what you want, ' +
                 'please fix them if possible: ' +
                 '\n' +
-                `${strintfyMessages(Severity.Warning)}\n`,
+                `${strintfyMessages(ValidationSeverity.Warning)}\n`,
         );
     } else if (report.issues.numHints !== 0 || report.issues.numInfos !== 0) {
-        console.debug(`Logs from ${assetPath}:` + '\n' + `${strintfyMessages(Severity.Information)}\n`);
+        console.debug(`Logs from ${assetPath}:` + '\n' + `${strintfyMessages(ValidationSeverity.Information)}\n`);
     }
 }

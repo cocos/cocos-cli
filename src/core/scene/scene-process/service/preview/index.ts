@@ -24,6 +24,8 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
     private _typeMap: Map<string, PreviewTypeEntry> = new Map();
     private _initialized = false;
     private _activePreview: IPreviewInstance | null = null;
+    private _activeUuid: string | null = null;
+    private _reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
     scenePreview = scenePreview;
     materialPreview = new MaterialPreview();
@@ -126,20 +128,40 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
         // 清理上一个预览的相机
         if (this._activePreview) {
             const prev = this._activePreview as any;
-            if (prev.cameraComp) {
+            if (typeof prev.hide === 'function') {
+                prev.hide();
+            } else if (prev.cameraComp) {
                 prev.cameraComp.enabled = false;
+                if (prev.camera) {
+                    prev.camera.enabled = false;
+                }
             }
         }
 
         // 设置资源
         await (entry.instance as any)[entry.setup](uuid);
         this._activePreview = entry.instance as unknown as IPreviewInstance;
+        this._activeUuid = uuid;
 
         // 将相机挂到 mainWindow 上屏渲染
         this.attachToMainWindow(entry.instance as InteractivePreview);
-        Service.Engine.repaintInEditMode();
+        await this.refreshPreviewCameraView(entry.instance as InteractivePreview);
 
         return this._activePreview;
+    }
+
+    onAssetChanged(uuid: string) {
+        if (!this._activeUuid || this._activeUuid !== uuid) return;
+        if (this._reloadTimer) {
+            clearTimeout(this._reloadTimer);
+        }
+        this._reloadTimer = setTimeout(() => {
+            this._reloadTimer = null;
+            if (this._activeUuid !== uuid) return;
+            void this.open(uuid).catch((err) => {
+                console.warn(`[Preview] Failed to reload changed asset ${uuid}:`, err);
+            });
+        }, 50);
     }
 
     private attachToMainWindow(previewInstance: InteractivePreview) {
@@ -181,6 +203,7 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
 
         if (inst.worldAxis) {
             inst.worldAxis._sceneGizmoCamera.camera.changeTargetWindow(mainWindow);
+            inst.worldAxis._sceneGizmoCamera.camera.enabled = true;
             if (inst.enableAxis) {
                 inst.worldAxis.show();
             }
@@ -188,6 +211,45 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
     }
 
     // --- 缩略图生成 ---
+
+    private async refreshPreviewCameraView(previewInstance: InteractivePreview) {
+        const preview = previewInstance as any;
+        if (typeof preview.resetCameraView !== 'function') {
+            Service.Engine.repaintInEditMode();
+            return;
+        }
+
+        preview.resetCameraView();
+        Service.Engine.repaintInEditMode();
+
+        await new Promise<void>((resolve) => {
+            let resolved = false;
+            const finish = () => {
+                if (resolved) return;
+                resolved = true;
+                resolve();
+            };
+            const timer = setTimeout(finish, 100);
+            cc.director.once(cc.Director.EVENT_AFTER_DRAW, () => {
+                clearTimeout(timer);
+                finish();
+            });
+        });
+
+        if (this._activePreview !== previewInstance) return;
+        this.attachToMainWindow(previewInstance);
+        preview.resetCameraView();
+        this.forcePreviewRepaint();
+    }
+
+    private forcePreviewRepaint() {
+        const engine = Service.Engine as any;
+        if (typeof engine.forceRepaintInEditMode === 'function') {
+            engine.forceRepaintInEditMode();
+        } else {
+            Service.Engine.repaintInEditMode();
+        }
+    }
 
     public async generateThumbnail(uuid: string, assetType: string, width = 128, height = 128) {
         const entry = this.resolvePreview(assetType);

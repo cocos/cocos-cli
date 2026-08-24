@@ -2,7 +2,7 @@
  * MCP 工具扫描共享工具函数
  * 
  * 用于 check-coverage.ts 和 generate-mcp-types.ts 等脚本
- * 完全基于运行时数据，不读取源码
+ * 覆盖率检查使用源码扫描，类型生成仍使用运行时注册表
  */
 
 
@@ -35,6 +35,89 @@ export function inferToolCategory(target: any): string {
         return className.replace(/Api$/, '');
     }
     return 'Unknown';
+}
+
+/**
+ * 通过源码扫描覆盖率检查所需的工具信息。
+ *
+ * 覆盖率统计只需要工具名、方法名、标题、描述和分类，不需要启动运行时服务。
+ */
+export function scanToolsFromSource(apiRoot = 'src/api'): ExtendedToolInfo[] {
+    const fs = require('fs') as typeof import('fs');
+    const glob = require('glob') as typeof import('glob');
+    const normalizedRoot = apiRoot.replace(/\\/g, '/');
+    const files = glob.sync(`${normalizedRoot}/**/*.ts`, {
+        ignore: [
+            `${normalizedRoot}/**/*.d.ts`,
+            `${normalizedRoot}/decorator/**`,
+        ],
+    });
+    const tools: ExtendedToolInfo[] = [];
+
+    for (const file of files) {
+        const content = fs.readFileSync(file, 'utf-8');
+        const lines = content.split(/\r?\n/);
+        let currentClass = 'Unknown';
+        let pending: Partial<ExtendedToolInfo> = {};
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('//')) {
+                continue;
+            }
+
+            const classMatch = trimmed.match(/(?:export\s+)?class\s+(\w+Api)\b/);
+            if (classMatch) {
+                currentClass = classMatch[1].replace(/Api$/, '');
+                pending = {};
+                continue;
+            }
+
+            const toolName = matchDecoratorValue(trimmed, 'tool');
+            if (toolName) {
+                pending = {
+                    toolName,
+                    category: currentClass,
+                };
+                continue;
+            }
+
+            if (!pending.toolName) {
+                continue;
+            }
+
+            const title = matchDecoratorValue(trimmed, 'title');
+            if (title) {
+                pending.title = title;
+                continue;
+            }
+
+            const description = matchDecoratorValue(trimmed, 'description');
+            if (description) {
+                pending.description = description;
+                continue;
+            }
+
+            const methodMatch = trimmed.match(/^(?:public\s+|private\s+|protected\s+)?(?:async\s+)?(\w+)\s*\(/);
+            if (methodMatch) {
+                tools.push({
+                    toolName: pending.toolName,
+                    methodName: methodMatch[1],
+                    title: pending.title,
+                    description: pending.description,
+                    category: pending.category || currentClass,
+                });
+                pending = {};
+            }
+        }
+    }
+
+    return tools.sort((a, b) => a.toolName.localeCompare(b.toolName));
+}
+
+function matchDecoratorValue(line: string, decorator: string): string | undefined {
+    const match = line.match(new RegExp(`^@${decorator}\\((['"\`])([\\s\\S]*?)\\1\\)`));
+    return match?.[2];
 }
 
 /**

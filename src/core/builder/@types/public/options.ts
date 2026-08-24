@@ -185,6 +185,10 @@ export interface IBuildCommonOptions {
     stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
     buildMode?: 'normal' | 'bundle' | 'script';
     nextStages?: string[];
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    parentTaskId?: string;
+    childTaskIds?: string[];
     packages: Record<string, any>;
     // 构建阶段性任务绑定分组
     // buildStageGroup?: Record<string, string[]>;
@@ -354,6 +358,16 @@ export { nativeOptions };
 export interface IBuildTaskOption<P extends Platform = Platform> extends IBuildOptionBase {
     platform: P;
     packages: Record<P, PlatformPackageOptionMap[P]>;
+}
+
+export interface ISubTaskBuildOutput {
+    platform: string;
+    dest: string;
+    buildPath: string;
+    outputName: string;
+    taskId?: string;
+    logDest?: string;
+    parentTaskId?: string;
 }
 
 export interface PlatformPackageOptionMap {

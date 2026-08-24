@@ -4,6 +4,9 @@ const mockGetConfigPath = jest.fn();
 const mockPathExists = jest.fn();
 const mockReadJSON = jest.fn();
 const mockQueryAssetInfo = jest.fn();
+const mockScripting = {
+    projectPath: '/project',
+};
 
 jest.mock('../../engine', () => ({
     Engine: {
@@ -27,6 +30,11 @@ jest.mock('../../assets', () => ({
     },
 }));
 
+jest.mock('../../scripting', () => ({
+    __esModule: true,
+    default: mockScripting,
+}));
+
 jest.mock('fs-extra', () => ({
     pathExists: mockPathExists,
     readJSON: mockReadJSON,
@@ -35,10 +43,12 @@ jest.mock('fs-extra', () => ({
 }));
 
 import { scriptingRoutes } from '../scripting-routes';
+import { join } from 'path';
 
 describe('preview scripting routes', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockScripting.projectPath = '/project';
         mockGetModules.mockReturnValue(['base', 'custom-pipeline']);
         mockGetGameConfig.mockResolvedValue({
             overrideSettings: {
@@ -50,6 +60,40 @@ describe('preview scripting routes', () => {
         mockGetConfigPath.mockResolvedValue('E:/project/settings/cocos.config.json');
         mockPathExists.mockResolvedValue(true);
         mockQueryAssetInfo.mockReturnValue(null);
+    });
+
+    it('serves userland custom macro module from project temp programming output', async () => {
+        const route = scriptingRoutes.find((item) => item.url === '/userland/macro');
+        const next = jest.fn();
+        const res = {
+            setHeader: jest.fn(),
+            sendFile: jest.fn(),
+        };
+
+        expect(route).toBeDefined();
+
+        await route!.handler({} as any, res as any, next);
+
+        expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/javascript; charset=utf-8');
+        expect(res.sendFile).toHaveBeenCalledWith(join(mockScripting.projectPath, 'temp', 'programming', 'custom-macro.js'));
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('passes userland custom macro requests through when the generated file is missing', async () => {
+        mockPathExists.mockResolvedValueOnce(false);
+        const route = scriptingRoutes.find((item) => item.url === '/userland/macro');
+        const next = jest.fn();
+        const res = {
+            setHeader: jest.fn(),
+            sendFile: jest.fn(),
+        };
+
+        expect(route).toBeDefined();
+
+        await route!.handler({} as any, res as any, next);
+
+        expect(res.sendFile).not.toHaveBeenCalled();
+        expect(next).toHaveBeenCalledWith();
     });
 
     it('normalizes disk graphics settings when serving engine modules', async () => {

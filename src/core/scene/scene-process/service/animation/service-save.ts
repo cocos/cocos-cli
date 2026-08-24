@@ -11,8 +11,26 @@ export async function saveAnimationServiceClip(options: {
     session: IAnimationSession;
     rootNode: Node;
     clip: AnimationClip;
+    target?: string;
 }): Promise<boolean> {
-    const { session, rootNode, clip } = options;
+    const { session, rootNode, clip, target } = options;
+    if (target) {
+        if (isSkeletonClip(session.clipUuid, rootNode)) {
+            throw new Error('Save As is not supported for skeletal animation clips.');
+        }
+
+        const content = EditorExtends.serialize(clip);
+        const assetInfo = await Rpc.getInstance().request('assetManager', 'createAsset', [{
+            target,
+            content,
+            overwrite: true,
+        }]);
+        if (!assetInfo) {
+            throw new Error(`Animation clip Save As failed: ${target}`);
+        }
+        return true;
+    }
+
     if (isSkeletonClip(session.clipUuid, rootNode)) {
         await saveSkeletonAnimationMeta(session.clipUuid, clip);
         return true;

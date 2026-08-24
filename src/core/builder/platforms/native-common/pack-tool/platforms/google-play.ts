@@ -6,6 +6,7 @@ import { spawn, spawnSync } from 'child_process';
 import { platform } from 'os';
 import * as xml2js from 'xml2js';
 import NativePackTool, { CocosParams } from '../base/default';
+import { cleanBrokenGradleWrapperCache } from './gradle-utils';
 
 export interface IOrientation {
     landscapeLeft: boolean;
@@ -55,7 +56,7 @@ export interface IGooglePlayParams {
     isSoFileCompressed: boolean;
 }
 
-const DefaultAPILevel = 27;
+const DefaultAPILevel = 36;
 
 
 export default class GooglePlayPackTool extends NativePackTool {
@@ -140,10 +141,12 @@ export default class GooglePlayPackTool extends NativePackTool {
         if (!fs.existsSync(projDir)) {
             throw new Error(`dir ${projDir} not exits`);
         }
+        cleanBrokenGradleWrapperCache(projDir, 'GooglePlay');
         let gradle = 'gradlew';
         if (process.platform === 'win32') {
             gradle += '.bat';
         } else {
+            await fs.chmod(ps.join(projDir, 'gradlew'), '755');
             gradle = './' + gradle;
         }
 
@@ -371,11 +374,7 @@ export default class GooglePlayPackTool extends NativePackTool {
             if (process.platform === 'win32') {
                 keystorePath = cchelper.fixPath(keystorePath);
             }
-            let apiLevel = options.apiLevel;
-            if (!apiLevel) {
-                apiLevel = DefaultAPILevel;
-            }
-            console.log(`AndroidAPI level ${apiLevel}`);
+
             let content = fs.readFileSync(gradlePropertyPath, 'utf-8');
             if (keystorePath) {
                 content = content.replace(/.*RELEASE_STORE_FILE=.*/, `RELEASE_STORE_FILE=${keystorePath}`);
@@ -389,8 +388,18 @@ export default class GooglePlayPackTool extends NativePackTool {
                 content = content.replace(/.*RELEASE_KEY_PASSWORD=.*/, `# RELEASE_KEY_PASSWORD=${options.keystoreAliasPassword}`);
             }
 
-            const compileSDKVersion = this.parseVersion(content, 'PROP_COMPILE_SDK_VERSION', 27);
-            const minimalSDKVersion = this.parseVersion(content, 'PROP_MIN_SDK_VERSION', 21);
+            // compileSdkVersion: 27 -> 36, avoid android-36 (Preview) resource linking errors
+            // https://developer.android.com/google/play/requirements/target-sdk
+            let apiLevel = options.apiLevel || DefaultAPILevel;
+            console.log(`Android API level ${apiLevel}`);
+            const compileSdkVersion = Math.max(apiLevel, 36);
+            const compileSDKVersion = this.parseVersion(content, 'PROP_COMPILE_SDK_VERSION', compileSdkVersion);
+
+            // play-services-oss-licenses, introduced on Feb 2, 2026, requires minSdkVersion 24.
+            // https://developers.google.com/android/guides/releases
+            // Previously, Google Play Games Services for C++ required minSdkVersion 19:
+            // https://developer.android.com/games/pgs/cpp/cpp-setup
+            const minimalSDKVersion = this.parseVersion(content, 'PROP_MIN_SDK_VERSION', 24);
 
             content = content.replace(/PROP_TARGET_SDK_VERSION=.*/, `PROP_TARGET_SDK_VERSION=${apiLevel}`);
             content = content.replace(/PROP_COMPILE_SDK_VERSION=.*/, `PROP_COMPILE_SDK_VERSION=${Math.max(apiLevel, compileSDKVersion, 27)}`);

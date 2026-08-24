@@ -18,7 +18,7 @@ export interface IPrefabEvents {
 
 }
 
-export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode'> {
+export interface IPublicPrefabService extends Omit<IPrefabService, keyof IServiceEvents | 'removePrefabInfoFromNode' | 'filterChildOfPrefabAssetWhenRemoveNode'> {
 }
 
 export interface IPrefabService extends IServiceEvents {
@@ -63,4 +63,9 @@ export interface IPrefabService extends IServiceEvents {
      * @param removeNested
      */
     removePrefabInfoFromNode(node: Node, removeNested?: boolean): void;
+
+    /**
+     * Filter out prefab asset children that cannot be removed from the current context.
+     */
+    filterChildOfPrefabAssetWhenRemoveNode(uuids: string | string[]): string[];
 }

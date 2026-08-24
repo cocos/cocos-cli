@@ -1,5 +1,6 @@
 import { AssetHandlerType, ISupportCreateType, AssetUserDataMap, IAssetType } from './asset-types';
 import type { IProperty } from '../../scene/@types/public';
+import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 export type { IProperty } from '../../scene/@types/public';
 export type {
     IAssetDeleteOptions,
@@ -9,7 +10,7 @@ export type {
     IAssetOperationOrigin,
     IAssetRenameOptions,
     IAssetWriteFileOptions,
-} from '@cocos/asset-db/libs/filesystem';
+} from '@cocos/asset-db';
 
 export interface IAssetMeta<T extends ISupportCreateType | 'unknown' = 'unknown'> {
     ver: string;
@@ -66,30 +67,7 @@ export interface MaterialDump {
     data: MaterialTechniqueDump[];
 }
 
-export type AssetPropertySchemaType = 'string' | 'number' | 'boolean' | 'enum' | 'asset' | 'array' | 'object';
-
-export interface AssetPropertySchemaOption {
-    label: string;
-    value: string | number | boolean;
-}
-
-export interface AssetPropertySchema {
-    label: string;
-    description?: string;
-    type: AssetPropertySchemaType;
-    default?: unknown;
-    options?: AssetPropertySchemaOption[];
-    assetType?: string;
-    min?: number;
-    max?: number;
-    step?: number;
-    readOnly?: boolean;
-    order?: number;
-    properties?: Record<string, AssetPropertySchema>;
-    items?: AssetPropertySchema | AssetPropertySchema[];
-}
-
-export type AssetPropertySchemaMap = Record<string, AssetPropertySchema>;
+export type AssetPropertySchemaMap = Record<string, ICocosConfigurationPropertySchema>;
 
 // 如果使用了 datakeys 过滤，请使用此接口定义
 export interface IAssetInfo {

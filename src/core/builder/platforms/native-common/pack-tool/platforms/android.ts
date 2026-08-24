@@ -340,6 +340,7 @@ export default class AndroidPackTool extends NativePackTool {
         try {
             process.chdir(nativePrjDir);
             await cchelper.runCmd(gradlew, [buildMode], false, nativePrjDir);
+        // eslint-disable-next-line no-useless-catch
         } catch (e) {
             throw e;
         } finally {

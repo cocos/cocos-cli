@@ -126,7 +126,14 @@ export async function handleImageUserData(asset: Asset | VirtualAsset, imageData
 
     if (userData.fixAlphaTransparencyArtifacts && metaData.hasAlpha) {
         userData.fixAlphaTransparencyArtifacts = true;
-        const img = await Sharp(imageDataBufferOrimagePath).raw().toBuffer();
+        let imgObject = await Sharp(imageDataBufferOrimagePath);
+        const meta = await imgObject.metadata();
+        // 强制 pipeline 使用 sRGB，避免线性转换 + sRGB 转换导致 16 bit 的图片在转换成 8 bit 的时候出现颜色偏差
+        if (meta.depth === 'ushort') {
+            imgObject = imgObject.pipelineColourspace('srgb').toColourspace('srgb');
+        }
+        const img = await imgObject.raw().toBuffer();
+
         /**
          * sharp 库获取含 alpha 通道的 png 图片的原始 buffer 的时候,会将图片展成四个通道。
          * 部分情况下会是有透明度的使用灰度通道的 Png ,这个时候通道数量为 2 所以不能够使用原图的通道数，

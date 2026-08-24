@@ -4,6 +4,7 @@ import type {
     IAnimationPropertyType,
     IAnimationValue,
 } from '../../../common';
+import { resolveAnimationRelativeNodePath } from './scene-node';
 import {
     getClipSample,
     normalizeFrames,
@@ -26,7 +27,6 @@ import {
     createPropertyTrack,
     findPropertyTrack,
     getClipTracks,
-    normalizePath,
     parsePropertyTrack,
     queryFirstRealCurve,
     removeSupportedPropertyTracks,
@@ -319,8 +319,14 @@ export function replacePropertyCurves(clip: AnimationClip, curves: IAnimationCur
 }
 
 function resolvePropertyTarget(context: IPropertyCurveOperationContext, operation: IPropertyTarget): IResolvedPropertyTarget | null {
-    const nodePath = resolveRelativeNodePath(context, operation);
+    const nodePath = resolveAnimationRelativeNodePath(context.rootNode, context.rootPath, operation);
     if (nodePath === null) {
+        const target = operation.nodeUuid
+            ? `UUID "${operation.nodeUuid}"`
+            : `path "${operation.nodePath || '<root>'}"`;
+        console.warn(
+            `[Animation] Rejected property operation because target ${target} is not bound by the current animation hierarchy.`,
+        );
         return null;
     }
 
@@ -361,38 +367,4 @@ function applyPropertyMetadata(
         type: metadata.type,
         valueCtor: metadata.valueCtor,
     };
-}
-
-function resolveRelativeNodePath(context: IPropertyCurveOperationContext, operation: IPropertyTarget): string | null {
-    if (operation.nodeUuid) {
-        return findRelativeNodePathByUuid(context.rootNode, operation.nodeUuid);
-    }
-
-    const nodePath = normalizePath(operation.nodePath || '');
-    if (!nodePath) {
-        return '';
-    }
-
-    const rootPath = normalizePath(context.rootPath);
-    if (nodePath === rootPath) {
-        return '';
-    }
-    if (rootPath && nodePath.startsWith(`${rootPath}/`)) {
-        return nodePath.slice(rootPath.length + 1);
-    }
-    return context.rootNode.getChildByPath(nodePath) ? nodePath : null;
-}
-
-function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
-    if (node.uuid === uuid) {
-        return prefix;
-    }
-    for (const child of node.children) {
-        const path = prefix ? `${prefix}/${child.name}` : child.name;
-        const result = findRelativeNodePathByUuid(child, uuid, path);
-        if (result !== null) {
-            return result;
-        }
-    }
-    return null;
 }

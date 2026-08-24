@@ -3,6 +3,7 @@ import ModeBase3D from './mode-base-3d';
 import { CameraMoveMode } from '../utils';
 import type { ISceneMouseEvent } from '../../operation/types';
 import type { CameraController3D } from '../camera-controller-3d';
+import { enterCameraState, exitCameraState, NeedAnimState } from './engine-state';
 
 class OrbitMode extends ModeBase3D {
     private _rotateSpeed = 0.006;
@@ -17,21 +18,11 @@ class OrbitMode extends ModeBase3D {
         node.getWorldRotation(this._curRot);
         this._cameraCtrl.viewDist = Vec3.distance(this._curPos, this._cameraCtrl.sceneViewCenter);
         this._cameraCtrl.emit('camera-move-mode', CameraMoveMode.ORBIT);
-        try {
-            const { Service } = require('../../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        enterCameraState(NeedAnimState.CAMERA_ORBIT);
     }
 
     public async exit() {
-        try {
-            const { Service } = require('../../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        exitCameraState(NeedAnimState.CAMERA_ORBIT);
     }
 
     onMouseDown(event: ISceneMouseEvent): boolean {

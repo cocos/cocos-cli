@@ -8,6 +8,16 @@ import type { IPreviewSettingsResult } from '../builder/@types/private';
  * live-reload 调 `invalidatePreviewSettings()` 清空缓存，下次请求重新生成。
  */
 const cache = new Map<string, IPreviewSettingsResult>();
+// Builder 以及 buildAssetLibrary 使用了进程级共享状态，不能并发生成预览 settings。
+// 同一个 HTTP 请求的 settings/ bundleConfigs 路由也会同时访问这里：先合并同 key
+// 的请求，再把不同 key 的生成串行化，避免多个 Builder 相互覆盖进度和临时状态。
+const pending = new Map<string, { version: number; promise: Promise<IPreviewSettingsResult>; }>();
+let cacheVersion = 0;
+let generationTail: Promise<void> = Promise.resolve();
+
+function makeCacheKey(startScene: string, sceneEditor: boolean): string {
+    return JSON.stringify({ startScene, sceneEditor });
+}
 
 /**
  * 预览尚未就绪时抛出。路由据此返回可重试的 503，而不是生成缺 builtinAssets 的坏 settings 或裸 500。
@@ -37,7 +47,16 @@ export class PreviewNotReadyError extends Error {
  * @param startScene 启动场景的 uuid 或 db:// url，留空表示使用项目默认启动场景
  */
 export async function getCachedPreviewSettings(startScene = ''): Promise<IPreviewSettingsResult> {
-    const cached = cache.get(startScene);
+    return await getCachedSettings(startScene, false);
+}
+
+export async function getCachedSceneEditorSettings(): Promise<IPreviewSettingsResult> {
+    return await getCachedSettings('', true);
+}
+
+async function getCachedSettings(startScene: string, sceneEditor: boolean): Promise<IPreviewSettingsResult> {
+    const cacheKey = makeCacheKey(startScene, sceneEditor);
+    const cached = cache.get(cacheKey);
     if (cached) {
         return cached;
     }
@@ -46,22 +65,65 @@ export async function getCachedPreviewSettings(startScene = ''): Promise<IPrevie
     if (!assetDBManager.ready) {
         throw new PreviewNotReadyError();
     }
-    const result = await generatePreviewSettings(startScene);
-    cache.set(startScene, result);
-    return result;
+
+    const pendingEntry = pending.get(cacheKey);
+    if (pendingEntry && pendingEntry.version === cacheVersion) {
+        return await pendingEntry.promise;
+    }
+
+    const version = cacheVersion;
+    const promise = runSettingsGeneration(async () => {
+        const result = await generatePreviewSettings(startScene, sceneEditor);
+        // 资源变化后不能让已经过期的异步生成重新写入缓存。
+        if (version === cacheVersion) {
+            cache.set(cacheKey, result);
+        }
+        return result;
+    });
+    pending.set(cacheKey, { version, promise });
+    try {
+        return await promise;
+    } finally {
+        const current = pending.get(cacheKey);
+        if (current?.promise === promise) {
+            pending.delete(cacheKey);
+        }
+    }
+}
+
+async function runSettingsGeneration<T>(task: () => Promise<T>): Promise<T> {
+    const previous = generationTail;
+    let release!: () => void;
+    generationTail = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await previous;
+    try {
+        return await task();
+    } finally {
+        release();
+    }
 }
 
 /**
  * 生成并**校验**预览 settings。未就绪（生成抛错或 builtinAssets 为空）时抛 PreviewNotReadyError。
  * 抽出为独立函数，供 getCachedPreviewSettings 与 live-reload 的就绪探测复用；不写缓存。
  */
-async function generatePreviewSettings(startScene: string): Promise<IPreviewSettingsResult> {
+async function generatePreviewSettings(startScene: string, sceneEditor: boolean): Promise<IPreviewSettingsResult> {
     const { assetManager } = await import('../assets');
     let result: IPreviewSettingsResult;
     try {
         const { getPreviewSettings, queryDefaultBuildConfigByPlatform } = await import('../builder');
         const { fillIncludeModulesFromProjectConfig } = await import('../builder/share/common-options-validator');
-        const options = await queryDefaultBuildConfigByPlatform('web-desktop');
+        const tmp = await queryDefaultBuildConfigByPlatform('web-desktop');
+        const options = JSON.parse(JSON.stringify(tmp));
+        // 预览必须 debug=true，否则内置 bundle 加载即崩（Cannot read properties of undefined (reading 'cc.EffectAsset')）。
+        // 原因：预览的 getPreviewSettings 只跑 data/setting task，不跑 bundle 构建，bundle 配置永远不经过
+        // bundle.compress()——config.paths 里类型保留为字符串（'cc.EffectAsset' 等），config.types 数组也从未生成。
+        // 而引擎 asset-manager/config.ts processOptions 仅在 config.debug === false 时才把 entry[1] 当索引去
+        // types[entry[1]] 解压；此时 config.types 为 undefined，就会 undefined['cc.EffectAsset'] 抛错。
+        // config.debug 直接取自 options.debug，故这里必须置 true，让引擎按未压缩格式读取，跳过解压分支。
+        options.debug = true;
         // 与正式构建（builder createBuildTask）保持一致：从 cocos.config.json 补全 includeModules。
         // 预览路径原本不补全，options.includeModules 为空/默认时，内置资源包会漏掉当前模块（尤其是所选
         // 物理后端 physics-cannon/ammo/physx/builtin）的 dependentAssets，比如内置物理材质
@@ -89,6 +151,7 @@ async function generatePreviewSettings(startScene: string): Promise<IPreviewSett
             effectiveScene = await resolveDefaultStartScene();
         }
         (options as any).startScene = effectiveScene;
+        (options as any).sceneEditor = sceneEditor;
         // 预览模式下注册项目中的全部场景，使运行时 cc.director.loadScene(name)/(uuid) 可加载任意场景，
         // 对齐编辑器预览行为。构建配置里的 scenes 默认只含构建时勾选的子集，会导致脚本里按名
         // loadScene 其它场景时报 "not in the build settings before playing"。
@@ -162,5 +225,7 @@ async function resolveDefaultStartScene(): Promise<string> {
  * 清空预览 settings 缓存。脚本重编译或资源变化后调用。
  */
 export function invalidatePreviewSettings(): void {
+    cacheVersion++;
     cache.clear();
+    pending.clear();
 }

@@ -12,13 +12,32 @@ import assetConfig from '../asset-config';
 import { url2path, ensureOutputData, url2uuid, pathToDbUrlIfAssetDBPath, dirnameForDbUrlOrPath } from '../utils';
 import assetDBManager from './asset-db';
 import assetHandlerManager from './asset-handler';
+import { copyAssetSource } from './asset-copy';
 import { copyPath, moveAssetSource, removeAssetSource, renamePath } from './filesystem';
 import i18n from '../../base/i18n';
-import assetQuery from './query';
+import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
 import utils from '../../base/utils';
 import EventEmitter from 'events';
 import { mergeMeta } from '../asset-handler/utils';
 import * as lodash from 'lodash';
+
+const REIMPORT_BUSY_TIMEOUT_MS = 10_000;
+
+function waitForAssetInit(asset: IAsset, timeoutMs: number, pathOrUrlOrUUID: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`Reimport asset ${pathOrUrlOrUUID} timed out waiting for the current import to finish`));
+        }, timeoutMs);
+
+        asset.waitInit().then(() => {
+            clearTimeout(timer);
+            resolve();
+        }, (error) => {
+            clearTimeout(timer);
+            reject(error);
+        });
+    });
+}
 
 function isScriptAsset(asset: IAsset) {
     const importer = asset.meta?.importer;
@@ -479,6 +498,63 @@ class AssetOperation extends EventEmitter {
     }
 
     /**
+     * Copy an existing main asset together with its complete meta information.
+     */
+    async copyAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo> {
+        return await assetDBManager.addTask(this._copyAsset.bind(this), [source, target, options]);
+    }
+
+    private async _copyAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo> {
+        const asset = assetQuery.queryAsset(source);
+        if (!asset) {
+            throw new Error(`asset in source file ${source} not exists`);
+        }
+        if (asset._parent) {
+            throw new Error('Sub-assets cannot be copied independently; copy their main asset instead.');
+        }
+
+        this.checkValidUrl(target);
+        source = asset.source;
+        this._checkExists(source);
+        if (target.startsWith('db://')) {
+            target = url2path(target);
+        }
+        target = this._checkOverwrite(target, options);
+
+        const targetIsAssetDBRoot = Object.values(assetDBManager.assetDBInfo).some((info) => (
+            utils.Path.contains(info.target, target) && utils.Path.contains(target, info.target)
+        ));
+        if (targetIsAssetDBRoot) {
+            throw new Error(`Cannot copy an asset over an AssetDB root.\ntarget: ${target}`);
+        }
+        if (utils.Path.contains(source, target) || utils.Path.contains(target, source)) {
+            throw new Error(`Cannot copy an asset into or over itself.\nsource: ${source}\ntarget: ${target}`);
+        }
+
+        const transaction = await copyAssetSource(source, target, options);
+        let copiedAsset: IAsset | null = null;
+        try {
+            await this._refreshAsset(target);
+            copiedAsset = assetQuery.queryAsset(target);
+            if (!copiedAsset || !copiedAsset.imported || copiedAsset.invalid) {
+                throw copiedAsset?.importError || new Error(`Copy asset from ${source} to ${target} failed`);
+            }
+        } catch (error) {
+            try {
+                await transaction.rollback();
+                await this._refreshAsset(dirname(target), false);
+            } catch (rollbackError) {
+                const rollbackMessage = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
+                throw new Error(`Copy asset from ${source} to ${target} failed and rollback also failed: ${rollbackMessage}`, { cause: error });
+            }
+            throw error;
+        }
+
+        await transaction.finalize();
+        return assetQuery.encodeAsset(copiedAsset);
+    }
+
+    /**
      * 生成导出数据接口，主要用于：预览、构建阶段
      * @param asset 
      * @param options 
@@ -606,14 +682,30 @@ class AssetOperation extends EventEmitter {
         if (pathOrUrlOrUUID.startsWith('db://')) {
             pathOrUrlOrUUID = url2uuid(pathOrUrlOrUUID);
         }
-        const asset = await reimport(pathOrUrlOrUUID);
-        if (!asset) {
-            throw new Error(`无法找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+        let asset = await reimport(pathOrUrlOrUUID);
+        let busyDeadline = 0;
+        while (!asset) {
+            const existingAsset = assetQuery.queryAsset(pathOrUrlOrUUID);
+            if (!existingAsset) {
+                throw new Error(`无法找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+            }
+            busyDeadline ||= Date.now() + REIMPORT_BUSY_TIMEOUT_MS;
+            const remainingTime = busyDeadline - Date.now();
+            if (remainingTime <= 0) {
+                throw new Error(`Reimport asset ${pathOrUrlOrUUID} timed out waiting for the current import to finish`);
+            }
+            if (!existingAsset.init) {
+                await waitForAssetInit(existingAsset, remainingTime, pathOrUrlOrUUID);
+            }
+            if (Date.now() >= busyDeadline) {
+                throw new Error(`Reimport asset ${pathOrUrlOrUUID} timed out waiting for the current import to finish`);
+            }
+            asset = await reimport(pathOrUrlOrUUID);
         }
-        if (asset && (!asset.imported || asset.invalid)) {
+        if (!asset.imported || asset.invalid) {
             throw asset.importError || new Error(`Reimport asset ${asset.source} failed`);
         }
-        return assetQuery.encodeAsset(asset);
+        return assetQuery.encodeAsset(asset, ASSET_TREE_INFO_DATA_KEYS);
     }
 
     /**

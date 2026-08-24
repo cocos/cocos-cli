@@ -7,6 +7,7 @@ import { InternalBuildResult, BuilderCache, IBuilder, IBuildStageTask } from '..
 import { IBuildResult } from './type';
 import { relativeUrl, transformCode } from '../../../worker/builder/utils';
 import * as commonUtils from '../../web-common/utils';
+import * as webUpload from '../../web-common/upload';
 import { ITaskOption } from '../../native-common/type';
 
 export const throwError = true;
@@ -82,7 +83,8 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options:ITaskOpt
         indexJsName: './index.js',
         cssUrl: './style.css',
     };
-    const content = await Ejs.renderFile(indexEjsTemplate, data);
+    let content = await Ejs.renderFile(indexEjsTemplate, data);
+    content = commonUtils.injectBridgeScripts(content, packageOptions);
     result.paths.indexHTML = join(result.paths.dir, 'index.html');
     outputFileSync(result.paths.indexHTML, content, 'utf8');
     options.md5CacheOptions.replaceOnly.push('index.html');
@@ -100,4 +102,16 @@ export async function run(this: IBuildStageTask, root: string, options: ITaskOpt
     this.buildExitRes.custom = {
         previewUrl,
     };
+}
+
+export async function onBeforeUpload(this: IBuildStageTask, root: string, options: ITaskOption) {
+    await webUpload.onBeforeUpload('web-desktop', root, options);
+}
+
+export async function upload(this: IBuildStageTask, root: string, options: ITaskOption) {
+    await webUpload.upload(this, 'web-desktop', root, options);
+}
+
+export async function onAfterUpload(this: IBuildStageTask) {
+    await webUpload.onAfterUpload(this);
 }

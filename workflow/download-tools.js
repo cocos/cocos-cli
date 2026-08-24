@@ -59,7 +59,7 @@ const tools = {
             essential: true,
         },
         {
-            url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-windows-x86_64.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/cmake-4.4.2-windows-x86_64.zip',
             dist: 'cmake',
             essential: true,
         },
@@ -110,7 +110,7 @@ const tools = {
             essential: true,
         },
         {
-            url: 'http://download.cocos.com/CocosSDK/tools/cmake-3.24.3-macos-universal.zip',
+            url: 'http://download.cocos.com/CocosSDK/tools/cmake-4.4.2-macos-universal.zip',
             dist: 'cmake',
             essential: true,
         },

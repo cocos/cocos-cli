@@ -17,7 +17,7 @@ import {
     TSaveResult,
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
-import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
+import { COMMON_STATUS, CommonResultType, getCommonErrorStatus } from '../base/schema-base';
 import { Scene, TSceneTemplateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
@@ -51,7 +51,7 @@ export class SceneApi {
                 (result as any).reason = 'No scene is currently open.';
             }
             return result;
-        } catch (e) { 
+        } catch (e) {
             console.error(e);
             return {
                 code: COMMON_STATUS.FAIL,
@@ -74,7 +74,7 @@ export class SceneApi {
         } catch (e) {
             console.error(e);
             return {
-                code: COMMON_STATUS.FAIL,
+                code: getCommonErrorStatus(e),
                 reason: e instanceof Error ? e.message : String(e)
             };
         }

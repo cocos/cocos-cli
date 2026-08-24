@@ -39,6 +39,16 @@ node_modules/**
 @types/**
 packages/engine/node_modules/**
 packages/platforms/*/src/**
+packages/asset-db/source/**
+packages/asset-db/test/**
+packages/asset-db/scripts/**
+packages/asset-db/node_modules/**
+packages/asset-db/db/**
+packages/asset-db/docs/**
+packages/asset-db/tsconfig*.json
+packages/asset-db/README*
+packages/asset-db/.npm*
+packages/asset-db/.gitignore
 # ===========================================
 # 测试和覆盖率
 # ===========================================
