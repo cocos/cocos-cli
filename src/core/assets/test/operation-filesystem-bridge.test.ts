@@ -23,6 +23,7 @@ const mockAddTask = jest.fn(async (func: Function, args: any[]) => await func(..
 const mockGetCreateMenuByName = jest.fn();
 const mockCreateAssetByHandler = jest.fn();
 const mockSaveAssetByHandler = jest.fn();
+const mockGetName = jest.fn((path: string) => path);
 const mockAssetTreeInfoDataKeys = ['subAssets', 'displayName', 'extends'] as const;
 const { dirname, join } = require('path') as typeof import('path');
 
@@ -56,6 +57,9 @@ jest.mock('../utils', () => ({
     pathToDbUrlIfAssetDBPath: jest.fn((value: string, assetDBInfo: Record<string, { name: string; target: string }>) => {
         if (!value || value.startsWith('db://')) {
             return value;
+        }
+        if (value.startsWith('D:/project/assets/')) {
+            return `db://assets/${value.slice('D:/project/assets/'.length)}`;
         }
         if (value.startsWith('assets/') || value === 'assets') {
             return value === 'assets' ? 'db://assets' : `db://assets/${value.slice('assets/'.length)}`;
@@ -134,6 +138,20 @@ jest.mock('../manager/query', () => ({
 jest.mock('../asset-handler/utils', () => ({
     mergeMeta: jest.fn(),
 }));
+
+jest.mock('../../base/utils', () => {
+    const actual = jest.requireActual('../../base/utils') as typeof import('../../base/utils');
+    return {
+        __esModule: true,
+        default: {
+            ...actual.default,
+            File: {
+                ...actual.default.File,
+                getName: (...args: [string]) => mockGetName(...args),
+            },
+        },
+    };
+});
 
 jest.mock('../../base/i18n', () => ({
     __esModule: true,
@@ -614,6 +632,160 @@ describe('asset operation filesystem bridge', () => {
         expect(mockRefresh).toHaveBeenCalledWith('db://assets/resources/Image/snake_head.png');
         expect(mockQueryAssetInfo).toHaveBeenCalledWith('db://assets/resources/Image/snake_head.png');
         expect(result).toEqual([assetInfo]);
+    });
+
+    it('importAsset should serialize repeated rename imports before the filesystem bridge', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const source = 'D:/outside/snake_head.png';
+        const target = 'D:/project/assets/resources/Image/snake_head.png';
+        const firstRenamedTarget = 'D:/project/assets/resources/Image/snake_head-001.png';
+        const secondRenamedTarget = 'D:/project/assets/resources/Image/snake_head-002.png';
+        const occupiedTargets = new Set([target]);
+        const inFlightTargets = new Set<string>();
+        const assetInfo = {
+            isDirectory: false,
+            url: 'db://assets/resources/Image/snake_head-001.png',
+        };
+        let releaseFirstCopy: () => void;
+        const firstCopyCanFinish = new Promise<void>((resolve) => {
+            releaseFirstCopy = resolve;
+        });
+        let signalFirstCopyStarted: () => void;
+        const firstCopyStarted = new Promise<void>((resolve) => {
+            signalFirstCopyStarted = resolve;
+        });
+        let copyCount = 0;
+
+        setAssetDBInfo();
+        mockExistsSync.mockImplementation((path: string) => occupiedTargets.has(path));
+        mockGetName.mockImplementation(() => (
+            occupiedTargets.has(firstRenamedTarget) ? secondRenamedTarget : firstRenamedTarget
+        ));
+        mockCopyPath.mockImplementation(async (_source: string, destination: string, options?: { overwrite?: boolean }) => {
+            if (occupiedTargets.has(destination) || inFlightTargets.has(destination)) {
+                throw new Error(
+                    `Unable to move/copy '${source}' because target '${destination}' already exists at destination.`,
+                );
+            }
+
+            inFlightTargets.add(destination);
+            copyCount += 1;
+            if (copyCount === 1) {
+                signalFirstCopyStarted();
+                await firstCopyCanFinish;
+            }
+            expect(options?.overwrite).not.toBe(true);
+            inFlightTargets.delete(destination);
+            occupiedTargets.add(destination);
+        });
+        mockQueryAssetInfo.mockReturnValue(assetInfo);
+        jest.spyOn(assetOperation, 'refreshAsset').mockResolvedValue(0);
+
+        const imports = Promise.all([
+            assetOperation.importAsset(source, target, { rename: true }),
+            assetOperation.importAsset(source, target, { rename: true }),
+        ]);
+
+        await Promise.race([
+            firstCopyStarted,
+            imports.catch(error => {
+                throw error;
+            }),
+        ]);
+        releaseFirstCopy!();
+
+        await expect(imports).resolves.toEqual([[assetInfo], [assetInfo]]);
+        expect(mockCopyPath.mock.calls).toEqual([
+            [source, firstRenamedTarget, undefined],
+            [source, secondRenamedTarget, undefined],
+        ]);
+    });
+
+    it('importAsset should continue a queued same-target import after the previous one fails', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const source = 'D:/outside/snake_head.png';
+        const target = 'D:/project/assets/resources/Image/snake_head.png';
+        const copyError = new Error('copy failed');
+        const assetInfo = {
+            isDirectory: false,
+            url: 'db://assets/resources/Image/snake_head.png',
+        };
+        let rejectFirstCopy: (error: Error) => void;
+        const firstCopy = new Promise<void>((_resolve, reject) => {
+            rejectFirstCopy = reject;
+        });
+        let signalFirstCopyStarted: () => void;
+        const firstCopyStarted = new Promise<void>((resolve) => {
+            signalFirstCopyStarted = resolve;
+        });
+        let copyCount = 0;
+
+        setAssetDBInfo();
+        mockExistsSync.mockReturnValue(false);
+        mockCopyPath.mockImplementation(() => {
+            copyCount += 1;
+            if (copyCount === 1) {
+                signalFirstCopyStarted();
+                return firstCopy;
+            }
+            return Promise.resolve();
+        });
+        mockQueryAssetInfo.mockReturnValue(assetInfo);
+        jest.spyOn(assetOperation, 'refreshAsset').mockResolvedValue(0);
+
+        const firstImport = assetOperation.importAsset(source, target);
+        await firstCopyStarted;
+        const secondImport = assetOperation.importAsset(source, target);
+        rejectFirstCopy!(copyError);
+
+        await expect(firstImport).rejects.toThrow(copyError);
+        await expect(secondImport).resolves.toEqual([assetInfo]);
+        expect(copyCount).toBe(2);
+    });
+
+    it('importAsset should not serialize independent targets in the same directory', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const sourceA = 'D:/outside/a.png';
+        const sourceB = 'D:/outside/b.png';
+        const targetA = 'D:/project/assets/resources/Image/a.png';
+        const targetB = 'D:/project/assets/resources/Image/b.png';
+        const assetInfo = {
+            isDirectory: false,
+            url: 'db://assets/resources/Image/imported.png',
+        };
+        let releaseCopies: () => void;
+        const copiesCanFinish = new Promise<void>((resolve) => {
+            releaseCopies = resolve;
+        });
+        let signalFirstCopyStarted: () => void;
+        const firstCopyStarted = new Promise<void>((resolve) => {
+            signalFirstCopyStarted = resolve;
+        });
+        let copyCount = 0;
+
+        setAssetDBInfo();
+        mockExistsSync.mockReturnValue(false);
+        mockCopyPath.mockImplementation(async () => {
+            copyCount += 1;
+            if (copyCount === 1) {
+                signalFirstCopyStarted();
+            }
+            await copiesCanFinish;
+        });
+        mockQueryAssetInfo.mockReturnValue(assetInfo);
+        jest.spyOn(assetOperation, 'refreshAsset').mockResolvedValue(0);
+
+        const imports = Promise.all([
+            assetOperation.importAsset(sourceA, targetA),
+            assetOperation.importAsset(sourceB, targetB),
+        ]);
+
+        await firstCopyStarted;
+        const copiesStartedBeforeRelease = copyCount;
+        releaseCopies!();
+
+        await expect(imports).resolves.toEqual([[assetInfo], [assetInfo]]);
+        expect(copiesStartedBeforeRelease).toBe(2);
     });
 
     it('createAsset should accept a Windows asset path after queryUrl normalizes its drive-letter case', async () => {

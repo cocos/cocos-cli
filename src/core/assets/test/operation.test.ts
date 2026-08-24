@@ -708,7 +708,7 @@ describe('测试 db 的操作接口', function () {
             await outputFile(tempFilePath, 'new content');
 
             // 导入并覆盖
-            const assets = await assetManager.importAsset(tempFilePath, join(databasePath, targetName));
+            const assets = await assetManager.importAsset(tempFilePath, join(databasePath, targetName), { overwrite: true });
 
             // 验证返回的是数组
             expect(Array.isArray(assets)).toBeTruthy();

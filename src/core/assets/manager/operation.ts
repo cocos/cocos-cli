@@ -231,6 +231,8 @@ function getSceneOrPrefabJsonError(asset: IAsset, content: string | Buffer): str
 
 class AssetOperation extends EventEmitter {
 
+    private readonly _importTaskByTargetPath = new Map<string, Promise<void>>();
+
     /**
      * 检查一个资源文件夹是否为只读
      */
@@ -479,11 +481,19 @@ class AssetOperation extends EventEmitter {
      */
     async importAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
         const targetPath = target.startsWith('db://') ? url2path(target) : target;
-        const assetTarget = this._pathToDbUrlIfInsideAssetDB(target);
+        return this._queueImportByTargetPath(targetPath, () => this._importAsset(source, targetPath, options));
+    }
 
-        if (!this._isSameFilesystemPath(source, targetPath)) {
-            await copyPath(source, targetPath, options);
+    private async _importAsset(source: string, targetPath: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
+        const isSamePath = this._isSameFilesystemPath(source, targetPath);
+
+        if (!isSamePath) {
+            targetPath = this._checkOverwrite(targetPath, options);
+            const copyOptions = options?.overwrite === undefined ? undefined : { overwrite: options.overwrite };
+            await copyPath(source, targetPath, copyOptions);
         }
+
+        const assetTarget = this._pathToDbUrlIfInsideAssetDB(targetPath);
         await this.refreshAsset(assetTarget);
         const assetInfo = assetQuery.queryAssetInfo(assetTarget);
         if (!assetInfo) {
@@ -494,6 +504,24 @@ class AssetOperation extends EventEmitter {
         }
         return assetQuery.queryAssetInfos({
             pattern: `${assetInfo.url}/**/*`
+        });
+    }
+
+    private _queueImportByTargetPath<T = unknown>(targetPath: string, task: () => Promise<T>): Promise<T> {
+        let targetKey = utils.Path.normalize(targetPath);
+        if (process.platform === 'win32') {
+            targetKey = targetKey.toLowerCase();
+        }
+
+        const previousTask = this._importTaskByTargetPath.get(targetKey) ?? Promise.resolve();
+        const taskResult = previousTask.then(task);
+        const taskTail = taskResult.then(() => undefined, () => undefined); // never reject
+        this._importTaskByTargetPath.set(targetKey, taskTail);
+
+        return taskResult.finally(() => {
+            if (this._importTaskByTargetPath.get(targetKey) === taskTail) {
+                this._importTaskByTargetPath.delete(targetKey);
+            }
         });
     }
 
