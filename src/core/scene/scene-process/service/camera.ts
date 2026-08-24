@@ -1,4 +1,4 @@
-import { Camera, Canvas, Color, Layers, Vec3, gfx } from 'cc';
+import { Camera, Canvas, Color, Layers, Quat, Vec3, gfx } from 'cc';
 import { BaseService } from './core';
 import { register, Service, queryRegisteredService } from './core/decorator';
 import { CameraController2D } from './camera/camera-controller-2d';
@@ -24,6 +24,8 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     private _currentUuid = '';
     private _cameraInfos: Record<string, any> = {};
     private _cameraUuids: string[] = [];
+    private _restorePromise: Promise<void> = Promise.resolve();
+    private _browserCameraPublishTimer: ReturnType<typeof setTimeout> | null = null;
 
     get controller2D() { return this._controller2D; }
     get controller3D() { return this._controller3D; }
@@ -47,6 +49,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             this._controllerFirstChange = true;
         }
         Service.Engine.repaintInEditMode();
+        this._scheduleBrowserCameraStatePublish();
     }
 
     get is2D() { return this._controller === this._controller2D; }
@@ -112,7 +115,8 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             }
 
             this._detachSceneCameras();
-            void this._restoreCameraView(initConfigTask);
+            this._restorePromise = this._restoreCameraView(initConfigTask);
+            void this._restorePromise;
         } catch (e) {
             console.warn('[Camera] onEditorOpened failed:', e);
         }
@@ -130,6 +134,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             this.defaultFocus(uuid);
             this._refreshSelectedGizmos();
             Service.Engine.repaintInEditMode();
+            this._scheduleBrowserCameraStatePublish();
         } catch (e) {
             console.warn('[Camera] restore camera view failed:', e);
         }
@@ -304,6 +309,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     // --- 代理方法 ---
     focus(nodes?: string[] | null, editorCameraInfo?: any, immediate = false): void {
         this._controller?.focus(nodes as any, editorCameraInfo, immediate);
+        this._scheduleBrowserCameraStatePublish(immediate ? 50 : 350);
     }
 
     defaultFocus(uuid: string): void {
@@ -332,6 +338,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
     changeProjection(): void {
         this._controller?.changeProjection();
+        this._scheduleBrowserCameraStatePublish();
     }
 
     setGridVisible(value: boolean, persist = true): void {
@@ -383,6 +390,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         if (persist) {
             void this._saveConfig();
         }
+        this._scheduleBrowserCameraStatePublish();
     }
 
     resetCameraProperty(): void {
@@ -431,9 +439,9 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         return this._camera?.fov ?? 45;
     }
 
-    zoomUp(): void { this._controller?.zoomUp(); }
-    zoomDown(): void { this._controller?.zoomDown(); }
-    zoomReset(): void { this._controller?.zoomReset(); }
+    zoomUp(): void { this._controller?.zoomUp(); this._scheduleBrowserCameraStatePublish(); }
+    zoomDown(): void { this._controller?.zoomDown(); this._scheduleBrowserCameraStatePublish(); }
+    zoomReset(): void { this._controller?.zoomReset(); this._scheduleBrowserCameraStatePublish(); }
 
     alignNodeToSceneView(nodes: string[]): void {
         this._controller?.alignNodeToSceneView(nodes);
@@ -451,14 +459,23 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     private onMouseDBlDown(event: any) { return this._controller?.onMouseDBlDown(event); }
     private onMouseDown(event: any) { return this._controller?.onMouseDown(event); }
     private onMouseMove(event: any) { return this._controller?.onMouseMove(event); }
-    private onMouseUp(event: any) { return this._controller?.onMouseUp(event); }
-    private onMouseWheel(event: any) { return this._controller?.onMouseWheel(event); }
+    private onMouseUp(event: any) {
+        const result = this._controller?.onMouseUp(event);
+        this._scheduleBrowserCameraStatePublish();
+        return result;
+    }
+    private onMouseWheel(event: any) {
+        const result = this._controller?.onMouseWheel(event);
+        this._scheduleBrowserCameraStatePublish();
+        return result;
+    }
     private onKeyDown(event: any) { return this._controller?.onKeyDown(event); }
     private onKeyUp(event: any) { return this._controller?.onKeyUp(event); }
 
     // --- 其他方法 ---
     onResize(size: any): void {
         this._controller?.onResize(size);
+        this._scheduleBrowserCameraStatePublish();
     }
 
     refresh(): void {
@@ -467,6 +484,88 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
 
     getCamera() {
         return this._camera;
+    }
+
+    async waitForRestore(): Promise<void> {
+        await this._restorePromise;
+    }
+
+    getScreenshotState(): any {
+        const camera = this._camera;
+        if (!camera?.node) {
+            return undefined;
+        }
+        const position = camera.node.getWorldPosition();
+        const rotation = camera.node.getWorldRotation();
+        return {
+            is2D: this.is2D,
+            position: { x: position.x, y: position.y, z: position.z },
+            rotation: { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w },
+            projection: camera.projection,
+            fov: camera.fov,
+            fovAxis: camera.fovAxis,
+            orthoHeight: camera.orthoHeight,
+            near: camera.near,
+            far: camera.far,
+        };
+    }
+
+    applyScreenshotState(state: any): void {
+        if (!state || !this._camera?.node) {
+            return;
+        }
+        if (typeof state.is2D === 'boolean') {
+            this.is2D = state.is2D;
+        }
+        if (state.position) {
+            this._camera.node.setWorldPosition(new Vec3(
+                state.position.x ?? 0,
+                state.position.y ?? 0,
+                state.position.z ?? 0,
+            ));
+        }
+        if (state.rotation) {
+            this._camera.node.setWorldRotation(new Quat(
+                state.rotation.x ?? 0,
+                state.rotation.y ?? 0,
+                state.rotation.z ?? 0,
+                state.rotation.w ?? 1,
+            ));
+        }
+        for (const key of ['projection', 'fov', 'fovAxis', 'orthoHeight', 'near', 'far'] as const) {
+            if (Number.isFinite(state[key])) {
+                (this._camera as any)[key] = state[key];
+            }
+        }
+        this._controller?.updateGrid();
+        this._refreshSelectedGizmos();
+        Service.Engine?.repaintInEditMode?.();
+    }
+
+    private _scheduleBrowserCameraStatePublish(delay = 50): void {
+        if (!(Rpc as any).isWebTransport?.()) {
+            return;
+        }
+        if (this._browserCameraPublishTimer) {
+            clearTimeout(this._browserCameraPublishTimer);
+        }
+        this._browserCameraPublishTimer = setTimeout(() => {
+            this._browserCameraPublishTimer = null;
+            try {
+                const editorUuid = (Service.Editor as any)?.getCurrentEditorUuid?.();
+                const camera = this.getScreenshotState();
+                if (!editorUuid || !camera) {
+                    return;
+                }
+                void Rpc.getInstance()
+                    .request('browserSceneState', 'setEditorState', [editorUuid, { camera }])
+                    .catch((error: unknown) => {
+                        console.warn('[Camera] Failed to publish PinK camera state.', error);
+                    });
+            } catch (error) {
+                console.warn('[Camera] Failed to publish PinK camera state.', error);
+            }
+        }, delay);
     }
 
     getCurCameraInfo(): any {

@@ -1,4 +1,4 @@
-import { Camera, Canvas, Color, Layers, Node as CCNode, Quat, Rect, UITransform, Vec3, renderer } from 'cc';
+import { Camera, Canvas, Color, gfx, Layers, Node as CCNode, Quat, Rect, UITransform, Vec3, renderer } from 'cc';
 import { PNG } from 'pngjs';
 import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
@@ -6,6 +6,12 @@ import { join } from 'path';
 import { BaseService, register, Service } from './core';
 import { Rpc } from '../rpc';
 import { ScreenshotBuffer } from './screenshot/screenshot-buffer';
+import { getEditorNodeByPath, getEditorNodeByUuid } from './gizmo/utils/editor-node';
+import dumpUtil from './dump';
+import type {
+    IBrowserNodeSnapshotState,
+    IBrowserNodeTransformState,
+} from '../../browser-scene-state';
 import type {
     IScreenshotCameraInfo,
     IScreenshotEvents,
@@ -22,6 +28,10 @@ const NODE_SUMMARY_MAX_CHILDREN = 40;
 
 /** 临时截图相机在场景树里的节点名，销毁后不残留 */
 const TEMP_CAMERA_NODE_NAME = '__cli_screenshot_camera__';
+// These names are engine contracts. PostProcessBuilder explicitly recognizes
+// them when ordering editor cameras, so do not add CLI-specific prefixes.
+const EDITOR_GIZMO_CAMERA_NAME = 'Editor UIGizmoCamera';
+const SCENE_GIZMO_CAMERA_NAME = 'Scene Gizmo Camera';
 
 /** 从任意相机组件抽取出的、创建临时相机所需的取景参数（JSON 无关，含引擎对象） */
 interface ICameraParams {
@@ -54,10 +64,20 @@ interface IResolvedFraming {
     source: 'scene' | 'editor';
     renderNote?: string;
     params: ICameraParams;
+    /** Engine-recognized camera name used by editor render-pipeline ordering. */
+    runtimeCameraName?: string;
     /** 原始场景相机，仅用于判断它是否由 Canvas 自动适配。 */
     sourceCamera?: Camera;
     /** Prefab 自动取景时直接记录 Canvas，避免依赖场景相机。 */
     canvas?: Canvas;
+}
+
+interface IBrowserSceneCaptureState {
+    uuid?: string;
+    selection?: string[];
+    camera?: unknown;
+    nodeTransforms?: IBrowserNodeTransformState[];
+    nodeSnapshots?: IBrowserNodeSnapshotState[];
 }
 
 /**
@@ -97,13 +117,149 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         // 在重新打开场景前主动同步，让 Canvas/Widget 在实例化时就按最新设计分辨率布局。
         await (Service.Engine as any)?.syncDesignResolution?.();
 
+        const browserState = await this._queryBrowserSceneState();
+
         // Keep prepare/render/restore in one serialized editor lifecycle scope.
         // Explicit target captures restore the previous clean scene afterwards;
         // a switch that would discard unsaved edits is rejected.
         return Service.Editor.withScreenshotScene(
             options.sceneUrlOrUUID,
-            () => this._capturePreparedScene(options),
+            async () => {
+                await (Service.Camera as any)?.waitForRestore?.();
+                await this._applyBrowserEditorStateForCapture(browserState);
+                return this._capturePreparedScene(options);
+            },
         );
+    }
+
+    private async _queryBrowserSceneState(): Promise<IBrowserSceneCaptureState | null> {
+        // A browser scene owns its local SelectionService and publishes changes;
+        // only the separate headless worker needs to consume that snapshot.
+        if ((Rpc as any).isWebTransport?.()) {
+            return null;
+        }
+        try {
+            return await Rpc.getInstance().request('browserSceneState', 'getCurrent', []);
+        } catch (error) {
+            console.warn('[Screenshot] Unable to query PinK selection state.', error);
+            return null;
+        }
+    }
+
+    private async _applyBrowserEditorStateForCapture(browserState: IBrowserSceneCaptureState | null): Promise<void> {
+        if (!browserState) {
+            return;
+        }
+        const currentUuid = (Service.Editor as any)?.getCurrentEditorUuid?.();
+        if (!currentUuid || currentUuid !== browserState.uuid) {
+            return;
+        }
+        if (browserState.camera) {
+            (Service.Camera as any)?.applyScreenshotState?.(browserState.camera);
+        }
+        const snapshotRevisions = await this._applyBrowserNodeSnapshots(browserState.nodeSnapshots);
+        this._applyBrowserNodeTransforms(browserState.nodeTransforms, snapshotRevisions);
+        if (!Array.isArray(browserState.selection)) {
+            return;
+        }
+        const currentSelection: string[] = (Service.Selection as any)?.query?.() ?? [];
+        if (currentSelection.length === browserState.selection.length
+            && currentSelection.every((path, index) => path === browserState.selection![index])) {
+            return;
+        }
+        (Service.Selection as any)?.clear?.();
+        for (const path of browserState.selection) {
+            if (typeof path === 'string' && path) {
+                (Service.Selection as any)?.select?.(path);
+            }
+        }
+    }
+
+    private async _applyBrowserNodeSnapshots(
+        snapshots?: IBrowserNodeSnapshotState[],
+    ): Promise<Map<string, number>> {
+        const revisions = new Map<string, number>();
+        if (!Array.isArray(snapshots)) {
+            return revisions;
+        }
+        for (const snapshot of snapshots) {
+            const node = this._resolveBrowserStateNode(snapshot.uuid, snapshot.path);
+            if (!node || !snapshot.dump) {
+                continue;
+            }
+            await dumpUtil.restoreNodeSnapshotProperties(node, snapshot.dump);
+            const componentDumps = Array.isArray((snapshot.dump as any).__comps__)
+                ? (snapshot.dump as any).__comps__
+                : [];
+            for (let index = 0; index < componentDumps.length; index++) {
+                const component = this._resolveSnapshotComponent(node, componentDumps[index], index);
+                if (component) {
+                    await dumpUtil.restoreComponentSnapshotProperties(component, componentDumps[index]);
+                }
+            }
+            (node as any).updateWorldTransform?.();
+            revisions.set(snapshot.uuid || snapshot.path, snapshot.revision);
+        }
+        return revisions;
+    }
+
+    private _applyBrowserNodeTransforms(
+        transforms?: IBrowserNodeTransformState[],
+        snapshotRevisions = new Map<string, number>(),
+    ): void {
+        if (!Array.isArray(transforms)) {
+            return;
+        }
+        for (const transform of transforms) {
+            const snapshotRevision = snapshotRevisions.get(transform.uuid || transform.path) ?? -1;
+            if (transform.revision <= snapshotRevision) {
+                continue;
+            }
+            const node = this._resolveBrowserStateNode(transform.uuid, transform.path);
+            if (!node) {
+                continue;
+            }
+            node.setPosition(new Vec3(
+                this._finiteNumber(transform.position?.x, node.position.x),
+                this._finiteNumber(transform.position?.y, node.position.y),
+                this._finiteNumber(transform.position?.z, node.position.z),
+            ));
+            node.setRotation(new Quat(
+                this._finiteNumber(transform.rotation?.x, node.rotation.x),
+                this._finiteNumber(transform.rotation?.y, node.rotation.y),
+                this._finiteNumber(transform.rotation?.z, node.rotation.z),
+                this._finiteNumber(transform.rotation?.w, node.rotation.w),
+            ));
+            node.setScale(new Vec3(
+                this._finiteNumber(transform.scale?.x, node.scale.x),
+                this._finiteNumber(transform.scale?.y, node.scale.y),
+                this._finiteNumber(transform.scale?.z, node.scale.z),
+            ));
+            (node as any).updateWorldTransform?.();
+        }
+    }
+
+    private _resolveBrowserStateNode(uuid: string, path: string): CCNode | null {
+        return getEditorNodeByUuid(uuid) ?? getEditorNodeByPath(path);
+    }
+
+    private _resolveSnapshotComponent(node: CCNode, componentDump: any, index: number): any | null {
+        const components = (node as any).components ?? (node as any)._components ?? [];
+        const uuid = componentDump?.value?.uuid?.value;
+        if (uuid) {
+            const byUuid = components.find((component: any) => component?.uuid === uuid);
+            if (byUuid) {
+                return byUuid;
+            }
+        }
+        const candidate = components[index];
+        if (!candidate) {
+            return null;
+        }
+        const className = (cc as any).js?.getClassName?.(candidate);
+        return !componentDump?.type || !className || className === componentDump.type
+            ? candidate
+            : null;
     }
 
     private async _capturePreparedScene(options: IScreenshotOptions): Promise<IScreenshotResult> {
@@ -111,22 +267,45 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         if (!scene) {
             throw new Error('当前没有打开的场景，请先调用 scene-open 打开场景后再截图。');
         }
+        const includeGizmos = this._shouldIncludeEditorGizmos(options);
+        const captureOptions = includeGizmos === options.includeGizmos
+            ? options
+            : { ...options, includeGizmos };
 
-        if (!options.camera && this._findSceneCameras().length === 0) {
-            this._focusEditorCameraForCapture(options);
+        if (includeGizmos && captureOptions.camera) {
+            throw new Error('includeGizmos 不能与 camera 同时指定。');
         }
 
-        const { width, height } = this._resolveCaptureSize(options, scene);
+        // Whether or not gizmos are requested, resolve the content exactly like a
+        // normal screenshot. Gizmos are appended later as a transparent overlay.
+        if (!captureOptions.camera && this._findSceneCameras().length === 0) {
+            this._focusEditorCameraForCapture(captureOptions);
+        }
+
+        const { width, height } = this._resolveCaptureSize(captureOptions, scene);
         // 解析取景后，按最终离屏目标修正每台自动适配的 Canvas 相机。
-        const framings = this._resolveFramings(options);
+        const framings = this._resolveFramings(captureOptions, width, height);
         framings.forEach(framing => this._fitAlignedCanvasFraming(framing, width, height));
 
         // 每个源相机对应一台完全自持的临时相机；所有临时相机共享同一个离屏窗口，
         // 由 RenderWindow 按 priority 从小到大完成一帧合成。
         const temporaryCameras: Array<{ node: CCNode; comp: Camera; cam: any }> = [];
+        let restoreEditorCamera: (() => void) | null = null;
 
         let result: { width: number; height: number; buffer: Uint8Array };
         try {
+            if (includeGizmos) {
+                const reference = this._topmostFraming(framings);
+                restoreEditorCamera = this._alignEditorCameraForGizmoCapture(reference);
+                this._refreshEditorGizmosForCapture();
+                framings.push(...this._resolveGizmoOverlayFramings(
+                    reference,
+                    captureOptions,
+                    width,
+                    height,
+                ));
+            }
+
             for (let index = 0; index < framings.length; index++) {
                 temporaryCameras.push(this._createTemporaryCamera(scene, framings[index], index));
             }
@@ -136,6 +315,16 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         } finally {
             for (const { node, comp } of temporaryCameras.reverse()) {
                 this._teardownCamera(node, comp);
+            }
+            if (restoreEditorCamera) {
+                try {
+                    restoreEditorCamera();
+                } catch (error) {
+                    console.warn('[Screenshot] Failed to restore editor camera after capture.', error);
+                }
+                // The gizmo models were rebuilt against the temporary scene-camera
+                // view. Restore their normal editor-view geometry as well.
+                this._refreshEditorGizmosForCapture();
             }
             // 恢复编辑器正常渲染
             try {
@@ -176,7 +365,7 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         index: number,
     ): { node: CCNode; comp: Camera; cam: any } {
         const { params } = framing;
-        const node = new CCNode(`${TEMP_CAMERA_NODE_NAME}_${index}`);
+        const node = new CCNode(framing.runtimeCameraName ?? `${TEMP_CAMERA_NODE_NAME}_${index}`);
         let comp: Camera | null = null;
         try {
             // Must be on the EDITOR layer before addComponent(Camera), otherwise
@@ -233,7 +422,30 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
 
     // ---- 取景 ----
 
-    private _resolveFramings(options: IScreenshotOptions): IResolvedFraming[] {
+    private _shouldIncludeEditorGizmos(options: IScreenshotOptions): boolean {
+        if (typeof options.includeGizmos === 'boolean') {
+            return options.includeGizmos;
+        }
+        if (options.camera) {
+            return false;
+        }
+        try {
+            const selectedPaths = (Service.Selection as any)?.query?.();
+            return Array.isArray(selectedPaths) && selectedPaths.length > 0;
+        } catch {
+            return false;
+        }
+    }
+
+    private _resolveFramings(
+        options: IScreenshotOptions,
+        targetWidth = DEFAULT_SIZE,
+        targetHeight = DEFAULT_SIZE,
+    ): IResolvedFraming[] {
+        if (options.includeGizmos && options.camera) {
+            throw new Error('includeGizmos 不能与 camera 同时指定。');
+        }
+
         // 1) 指定相机
         if (options.camera) {
             const cam = this._findCameraByRef(options.camera);
@@ -292,6 +504,158 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             params,
             renderNote: '场景内无相机，已使用编辑器相机当前视角取景（不含 Gizmo/网格）。',
         }];
+    }
+
+    /**
+     * 只在正常内容相机栈上追加 Gizmo 覆盖层，不改变场景内容的取景。
+     */
+    private _resolveGizmoOverlayFramings(
+        reference: IResolvedFraming,
+        options: IScreenshotOptions,
+        targetWidth: number,
+        targetHeight: number,
+    ): IResolvedFraming[] {
+        const gizmoParams = this._cloneCameraParams(reference.params);
+        gizmoParams.priority = reference.params.priority + 2;
+        gizmoParams.clearFlags = gfx.ClearFlagBit.NONE;
+        gizmoParams.visibility = Layers.Enum.GIZMOS | Layers.Enum.IGNORE_RAYCAST;
+        gizmoParams.usePostProcess = false;
+        gizmoParams.postProcess = undefined;
+        const framings: IResolvedFraming[] = [{
+            info: this._cameraInfoFromParams(gizmoParams, 'editor', EDITOR_GIZMO_CAMERA_NAME),
+            source: 'editor',
+            params: gizmoParams,
+            runtimeCameraName: EDITOR_GIZMO_CAMERA_NAME,
+            renderNote: '已保持场景相机取景，并叠加选中节点/组件 Gizmo。',
+        }];
+
+        const gizmoService = Service.Gizmo as any;
+        const sceneGizmoCamera = gizmoService?.sceneGizmoCamera as Camera | null;
+        const is2DView = options.viewMode === '2d'
+            || (options.viewMode !== '3d' && gizmoService?.is2D === true);
+        const includeSceneGizmo = !is2DView
+            && Boolean(sceneGizmoCamera?.node)
+            && sceneGizmoCamera?.enabledInHierarchy !== false;
+        if (includeSceneGizmo && sceneGizmoCamera) {
+            const sceneGizmoParams = this._paramsFromComponent(sceneGizmoCamera);
+            sceneGizmoParams.priority = Math.max(sceneGizmoParams.priority, gizmoParams.priority + 1);
+            sceneGizmoParams.rect = this._sceneGizmoRect(targetWidth, targetHeight);
+            sceneGizmoParams.visibility = Layers.Enum.SCENE_GIZMO;
+            sceneGizmoParams.clearFlags = gfx.ClearFlagBit.DEPTH_STENCIL;
+            sceneGizmoParams.usePostProcess = false;
+            sceneGizmoParams.postProcess = undefined;
+            framings.push({
+                info: this._cameraInfoFromParams(sceneGizmoParams, 'editor', SCENE_GIZMO_CAMERA_NAME),
+                source: 'editor',
+                params: sceneGizmoParams,
+                runtimeCameraName: SCENE_GIZMO_CAMERA_NAME,
+                renderNote: '已按截图尺寸叠加右上角 3D 场景坐标轴。',
+            });
+        }
+
+        return framings;
+    }
+
+    private _topmostFraming(framings: IResolvedFraming[]): IResolvedFraming {
+        if (!framings.length) {
+            throw new Error('没有可用于 Gizmo 叠加的内容相机。');
+        }
+        return framings.reduce((topmost, framing) => (
+            framing.params.priority >= topmost.params.priority ? framing : topmost
+        ));
+    }
+
+    /**
+     * Transform Gizmo 的世界几何由编辑器相机计算。截图期间让编辑器相机临时
+     * 对齐内容栈最上层相机，使生成的 Gizmo 与离屏覆盖相机拥有相同投影；调用者
+     * 必须在 finally 中执行返回的恢复函数。
+     */
+    private _alignEditorCameraForGizmoCapture(reference: IResolvedFraming): (() => void) | null {
+        const cameraService = Service.Camera as any;
+        if (typeof cameraService?.getScreenshotState !== 'function'
+            || typeof cameraService?.applyScreenshotState !== 'function') {
+            return null;
+        }
+
+        const previousState = cameraService.getScreenshotState();
+        if (!previousState) {
+            return null;
+        }
+        const { params } = reference;
+        const captureState = {
+            is2D: params.projection === (Camera.ProjectionType?.ORTHO ?? 0),
+            position: { x: params.position.x, y: params.position.y, z: params.position.z },
+            rotation: {
+                x: params.rotation.x,
+                y: params.rotation.y,
+                z: params.rotation.z,
+                w: params.rotation.w,
+            },
+            projection: params.projection,
+            fov: params.fov,
+            fovAxis: params.fovAxis,
+            orthoHeight: params.orthoHeight,
+            near: params.near,
+            far: params.far,
+        };
+
+        try {
+            cameraService.applyScreenshotState(captureState);
+        } catch (error) {
+            try {
+                cameraService.applyScreenshotState(previousState);
+            } catch {
+                // Preserve the original alignment failure.
+            }
+            throw error;
+        }
+        return () => cameraService.applyScreenshotState(previousState);
+    }
+
+    private _cloneCameraParams(params: ICameraParams): ICameraParams {
+        return {
+            ...params,
+            position: params.position.clone(),
+            rotation: params.rotation.clone(),
+            clearColor: params.clearColor?.clone(),
+            rect: params.rect.clone(),
+        };
+    }
+
+    /** 与 GizmoService.setSceneGizmoCameraRect 相同，但按离屏截图尺寸计算。 */
+    private _sceneGizmoRect(width: number, height: number): Rect {
+        const safeWidth = this._finitePositive(width, DEFAULT_SIZE);
+        const safeHeight = this._finitePositive(height, DEFAULT_SIZE);
+        const heightPercent = 1 / 6;
+        const delta = ((safeWidth - safeHeight) * heightPercent) / 2 / safeWidth;
+        const pixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+        const padding = (30 * pixelRatio) / safeHeight;
+        return new Rect(
+            1 - heightPercent + delta,
+            1 - heightPercent - padding,
+            heightPercent,
+            heightPercent,
+        );
+    }
+
+    private _refreshEditorGizmosForCapture(): void {
+        try {
+            const gizmo = Service.Gizmo as any;
+            const selectedPaths: string[] = (Service.Selection as any)?.query?.() ?? [];
+            // refreshSelectedGizmos only updates already-associated gizmos. Rebind
+            // the current selection first so a just-opened/reloaded editor cannot
+            // reach capture with selection state but without its render models.
+            for (const path of selectedPaths) {
+                gizmo?.onSelectionSelect?.(path);
+            }
+            for (const node of gizmo?.querySelectNodes?.() ?? []) {
+                gizmo?.showAllGizmoOfNode?.(node);
+            }
+            gizmo?.refreshSelectedGizmos?.();
+            gizmo?.onUpdate?.(0);
+        } catch (error) {
+            console.warn('[Screenshot] Failed to refresh editor gizmos before capture.', error);
+        }
     }
 
     private get _editorMask(): number {

@@ -190,14 +190,14 @@ describe('Screenshot scene preparation', () => {
         mockRpcRequest.mockReset();
     });
 
-    it('reopens a clean current scene without saving before a screenshot', async () => {
+    it('keeps a clean current scene open so editor-only screenshot state is preserved', async () => {
         const { service, close, open } = createService('scene-uuid', false);
         const operation = jest.fn(async () => 'captured');
 
         await expect(service.withScreenshotScene(undefined, operation)).resolves.toBe('captured');
 
-        expect(close).toHaveBeenCalledWith({ urlOrUUID: 'scene-uuid', save: false });
-        expect(open).toHaveBeenCalledWith({ urlOrUUID: 'scene-uuid' });
+        expect(close).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalled();
         expect(operation).toHaveBeenCalledTimes(1);
     });
 

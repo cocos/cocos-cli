@@ -1,4 +1,5 @@
 import cc, { type Node } from 'cc';
+import { formatUniqueName, normalizeNodePath, sanitizeNodeName } from '../../../../../engine/editor-extends/manager/path-utils';
 
 function getEditorNodeApi(): any {
     const ccGlobal = (globalThis as any).cc;
@@ -12,14 +13,35 @@ export function getEditorNodeByPath(path: string): Node | null {
     if (!path) {
         return null;
     }
-    return getEditorNodeApi()?.getNodeByPath?.(path) ?? getPrefabNodeByRelativePath(path);
+    const editorType = getCurrentEditorType();
+    if (editorType !== 'prefab') {
+        const nodeInEditor = findSceneNodeByPath(getCurrentEditorRoot(), path);
+        if (nodeInEditor) {
+            return nodeInEditor;
+        }
+    }
+
+    const node = getEditorNodeApi()?.getNodeByPath?.(path) ?? null;
+    if (node && !isEditorOnlyNode(node)) {
+        return node;
+    }
+    return getPrefabNodeByRelativePath(path);
 }
 
 export function getEditorNodeByUuid(uuid: string): Node | null {
     if (!uuid) {
         return null;
     }
-    return getEditorNodeApi()?.getNode?.(uuid) ?? null;
+
+    // Runtime-created editor helpers (grid, gizmos, temporary cameras, etc.)
+    // use generated `Node.xxx` UUIDs. A deserialized scene node can carry the
+    // same UUID, while EditorExtends.Node.getNode() only returns one entry from
+    // the global lookup table. Prefer the node that belongs to the currently
+    // edited scene so selection/gizmo lookup cannot be redirected to an editor
+    // helper with a colliding UUID.
+    const editorRoot = getCurrentEditorRoot();
+    const nodeInEditor = findNodeByUuid(editorRoot, uuid);
+    return nodeInEditor ?? getEditorNodeApi()?.getNode?.(uuid) ?? null;
 }
 
 export function getEditorNodeUuidByPath(path: string): string {
@@ -48,6 +70,99 @@ function getPrefabNodeByRelativePath(path: string): Node | null {
     } catch {
         return null;
     }
+}
+
+function getCurrentEditorRoot(): Node | null {
+    try {
+        const { Service } = require('../../core/decorator');
+        return Service.Editor?.getRootNode?.() as Node | null;
+    } catch {
+        return null;
+    }
+}
+
+function getCurrentEditorType(): 'scene' | 'prefab' | 'unknown' {
+    try {
+        const { Service } = require('../../core/decorator');
+        return Service.Editor?.getCurrentEditorType?.() ?? 'unknown';
+    } catch {
+        return 'unknown';
+    }
+}
+
+function findNodeByUuid(root: Node | null, uuid: string): Node | null {
+    if (!root) {
+        return null;
+    }
+    if (root.uuid === uuid && !isEditorOnlyNode(root)) {
+        return root;
+    }
+    for (const child of root.children ?? []) {
+        const result = findNodeByUuid(child, uuid);
+        if (result) {
+            return result;
+        }
+    }
+    return null;
+}
+
+/**
+ * Resolve a scene path from the actual hierarchy. NodeManager indexes by UUID,
+ * so a generated editor helper with a colliding UUID can otherwise make a
+ * perfectly valid path resolve to that helper. This mirrors NodePathManager's
+ * sibling suffix allocation while excluding editor-only branches.
+ */
+function findSceneNodeByPath(root: Node | null, path: string): Node | null {
+    if (!root) {
+        return null;
+    }
+    const normalized = normalizeNodePath(path.replace(/\\/g, '/'));
+    if (normalized === '/') {
+        return root;
+    }
+    const segments = normalized.split('/').filter(Boolean);
+    let current = root;
+    for (const segment of segments) {
+        const usedNames = new Set<string>();
+        const exactMatches: Node[] = [];
+        const insensitiveMatches: Node[] = [];
+        for (const child of current.children ?? []) {
+            if (isEditorOnlyNode(child)) {
+                continue;
+            }
+            const baseName = sanitizeNodeName(child.name);
+            let uniqueName = baseName;
+            let suffix = 1;
+            while (usedNames.has(uniqueName)) {
+                uniqueName = formatUniqueName(baseName, suffix++);
+            }
+            usedNames.add(uniqueName);
+            if (uniqueName === segment) {
+                exactMatches.push(child);
+            } else if (uniqueName.toLowerCase() === segment.toLowerCase()) {
+                insensitiveMatches.push(child);
+            }
+        }
+        const next = exactMatches[0] ?? (insensitiveMatches.length === 1 ? insensitiveMatches[0] : null);
+        if (!next) {
+            return null;
+        }
+        current = next;
+    }
+    return current;
+}
+
+function isEditorOnlyNode(node: Node): boolean {
+    const layers = (cc as any)?.Layers?.Enum ?? (globalThis as any)?.cc?.Layers?.Enum;
+    const editorMask = (layers?.GIZMOS ?? 0) | (layers?.SCENE_GIZMO ?? 0) | (layers?.EDITOR ?? 0);
+    let current: Node | null = node;
+    while (current) {
+        if (editorMask && (current.layer & editorMask) !== 0) {
+            return true;
+        }
+        current = current.parent;
+    }
+    return false;
 }
 
 /**

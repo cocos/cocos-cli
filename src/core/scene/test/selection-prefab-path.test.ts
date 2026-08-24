@@ -1,12 +1,20 @@
 const mockService = {
     Editor: {
         getCurrentEditorType: jest.fn(),
+        getCurrentEditorUuid: jest.fn(),
         getRootNode: jest.fn(),
     },
 };
 const mockCc = {
     director: {
         getScene: jest.fn(),
+    },
+    Layers: {
+        Enum: {
+            GIZMOS: 1 << 21,
+            SCENE_GIZMO: 1 << 24,
+            EDITOR: 1 << 22,
+        },
     },
 };
 
@@ -20,11 +28,21 @@ jest.mock('../scene-process/service/core/decorator', () => ({
     Service: mockService,
 }));
 
+const mockDumpNode = jest.fn((node: any) => ({
+    active: { value: true },
+    __comps__: node.components ?? [],
+}));
+jest.mock('../scene-process/service/dump', () => ({
+    __esModule: true,
+    default: { dumpNode: mockDumpNode },
+}));
+
 describe('SelectionService prefab path resolution', () => {
     afterEach(() => {
         jest.resetModules();
         jest.clearAllMocks();
         mockService.Editor.getCurrentEditorType.mockReturnValue('unknown');
+        mockService.Editor.getCurrentEditorUuid.mockReturnValue(null);
         mockService.Editor.getRootNode.mockReturnValue(null);
         mockCc.director.getScene.mockReturnValue(null);
         delete (globalThis as any).EditorExtends;
@@ -205,6 +223,118 @@ describe('SelectionService prefab path resolution', () => {
         selection.select('Other/Node/Child');
 
         expect((selection as any)._selections).toEqual([{ path: 'Other/Node/Child', uuid: '' }]);
+    });
+
+    it('prefers the node in the current editor when an editor helper has the same runtime uuid', () => {
+        const selectedNode = { name: 'GreenBtn', uuid: 'Node.520', layer: 1 << 25, children: [], components: [] };
+        const canvas = { name: 'Canvas', uuid: 'canvas-uuid', layer: 1 << 25, children: [selectedNode], components: [] };
+        const editorGrid = {
+            name: 'internal/editor/grid-2d',
+            uuid: 'Node.520',
+            layer: 1 << 22,
+            children: [],
+            components: [],
+        };
+        const root = {
+            name: 'scene-2d',
+            uuid: 'scene-uuid',
+            layer: 0,
+            children: [canvas, editorGrid],
+            components: [],
+        };
+        (globalThis as any).EditorExtends = {
+            Node: {
+                // Reproduces the engine lookup collision observed in the scene
+                // process: the generated editor node shadows the scene node.
+                getNode: jest.fn(() => editorGrid),
+            },
+        };
+        mockService.Editor.getCurrentEditorType.mockReturnValue('scene');
+        mockService.Editor.getRootNode.mockReturnValue(root);
+
+        const { getEditorNodeByPath, getEditorNodeByUuid } = require('../scene-process/service/gizmo/utils/editor-node');
+
+        expect(getEditorNodeByUuid('Node.520')).toBe(selectedNode);
+        expect(getEditorNodeByPath('Canvas/GreenBtn')).toBe(selectedNode);
+    });
+
+    it('publishes the latest unsaved node transform for screenshot capture', async () => {
+        const root: any = { name: 'Scene', uuid: 'scene-uuid', children: [], parent: null };
+        const node: any = {
+            name: 'Button',
+            uuid: 'button-uuid',
+            children: [],
+            parent: root,
+            position: { x: -360, y: 140, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+            scale: { x: 1, y: 1, z: 1 },
+        };
+        root.children.push(node);
+        (globalThis as any).EditorExtends = {
+            Node: { getNodePath: jest.fn(() => 'Canvas/Button') },
+        };
+        mockService.Editor.getCurrentEditorUuid.mockReturnValue('scene-uuid');
+        mockService.Editor.getRootNode.mockReturnValue(root);
+        const { Rpc } = require('../scene-process/rpc');
+        const request = jest.fn(() => Promise.resolve(true));
+        jest.spyOn(Rpc, 'isWebTransport').mockReturnValue(true);
+        jest.spyOn(Rpc, 'getInstance').mockReturnValue({ request });
+        const { SelectionService } = require('../scene-process/service/selection');
+        const selection = new SelectionService();
+
+        (selection as any)._publishBrowserNodeTransform(node);
+        await Promise.resolve();
+
+        expect(request).toHaveBeenCalledWith('browserSceneState', 'setEditorState', [
+            'scene-uuid',
+            {
+                nodeTransforms: [expect.objectContaining({
+                    uuid: 'button-uuid',
+                    path: 'Canvas/Button',
+                    revision: 1,
+                    position: { x: -360, y: 140, z: 0 },
+                })],
+            },
+        ]);
+    });
+
+    it('publishes unsaved node and component inspector values for screenshot capture', async () => {
+        const root: any = { name: 'Scene', uuid: 'scene-uuid', children: [], parent: null };
+        const node: any = {
+            name: 'Button',
+            uuid: 'button-uuid',
+            children: [],
+            components: [{ type: 'cc.Sprite', value: { color: { value: '#ff0000' } } }],
+            parent: root,
+        };
+        root.children.push(node);
+        (globalThis as any).EditorExtends = {
+            Node: { getNodePath: jest.fn(() => 'Canvas/Button') },
+        };
+        mockService.Editor.getCurrentEditorUuid.mockReturnValue('scene-uuid');
+        mockService.Editor.getRootNode.mockReturnValue(root);
+        const { Rpc } = require('../scene-process/rpc');
+        const request = jest.fn(() => Promise.resolve(true));
+        jest.spyOn(Rpc, 'isWebTransport').mockReturnValue(true);
+        jest.spyOn(Rpc, 'getInstance').mockReturnValue({ request });
+        const { SelectionService } = require('../scene-process/service/selection');
+        const selection = new SelectionService();
+
+        (selection as any)._publishBrowserNodeSnapshot(node);
+        await Promise.resolve();
+
+        expect(mockDumpNode).toHaveBeenCalledWith(node);
+        expect(request).toHaveBeenCalledWith('browserSceneState', 'setEditorState', [
+            'scene-uuid',
+            {
+                nodeSnapshots: [expect.objectContaining({
+                    uuid: 'button-uuid',
+                    path: 'Canvas/Button',
+                    revision: 1,
+                    dump: expect.objectContaining({ active: { value: true } }),
+                })],
+            },
+        ]);
     });
 });
 

@@ -20,6 +20,12 @@ export interface IScreenshotOptions {
     camera?: string;
     /** 视图模式：auto 跟随场景 2D/3D 判定 */
     viewMode?: TScreenshotViewMode;
+    /**
+     * 是否在正常场景相机取景上叠加选中节点/组件 Gizmo 和 3D 场景坐标轴。
+     * Gizmo 会临时按内容相机计算大小和朝向，因此启用后不能同时指定 camera；
+     * 未传时，当前编辑器存在选中节点则自动启用。
+     */
+    includeGizmos?: boolean;
 }
 
 /** 实际使用的相机参数（回传给 Agent 便于复现取景） */

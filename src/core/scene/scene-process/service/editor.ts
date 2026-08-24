@@ -167,9 +167,12 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                     `当前场景 ${previousUuid} 存在未保存修改，无法切换或重新加载截图目标 ${targetUuid}。请先保存或撤销修改。`,
                 );
             }
-            if (previousUuid && !urlOrUUID && !targetChanged && isDirty) {
-                // Scene-process edits and screenshots already share this instance,
-                // so keep unsaved edits visible in the captured image.
+            if (previousUuid && !urlOrUUID && !targetChanged) {
+                // The browser and scene process already point at the same live editor
+                // instance. Reopening it would unnecessarily rebuild editor-only state
+                // (selection gizmos, grid/controller nodes, and the current camera view)
+                // immediately before capture. Explicit targets are still reopened below
+                // so callers can deliberately request the latest imported asset.
                 return operation();
             }
 
@@ -585,6 +588,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 url: assetInfo.url,
                 type: assetInfo.type,
                 name: assetInfo.name,
+                selection: Service.Selection?.query?.() ?? [],
+                camera: (Service.Camera as any)?.getScreenshotState?.(),
             }]);
         } catch (error) {
             console.warn('[Scene] Failed to publish PinK current scene.', error);

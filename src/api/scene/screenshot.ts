@@ -42,6 +42,7 @@ export class SceneScreenshotApi {
                 height: options.height,
                 camera: options.camera,
                 viewMode: options.viewMode,
+                includeGizmos: options.includeGizmos,
             });
             tempFilePath = shot.filePath;
 

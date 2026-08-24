@@ -6671,6 +6671,7 @@ export declare interface IScreenshotOptions {
     height?: number;
     camera?: string;
     viewMode?: TScreenshotViewMode;
+    includeGizmos?: boolean;
 }
 export declare interface IScreenshotResult {
     filePath: string;

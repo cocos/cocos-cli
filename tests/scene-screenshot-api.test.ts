@@ -111,6 +111,9 @@ describe('SceneScreenshotApi image transport', () => {
             attached: true,
         });
         expect(mockUnlink).toHaveBeenCalledWith(shot.filePath);
+        expect(mockCapture).toHaveBeenCalledWith(expect.objectContaining({
+            includeGizmos: undefined,
+        }));
 
         const structured = SchemaScreenshotResult.parse(result.data);
         expect(structured.image).toEqual({ mimeType: 'image/jpeg', attached: true });
@@ -128,5 +131,17 @@ describe('SceneScreenshotApi image transport', () => {
         } finally {
             consoleError.mockRestore();
         }
+    });
+
+    it('passes the editor-gizmo option to the scene process', async () => {
+        await new SceneScreenshotApi().getSceneScreenshot({
+            format: 'png',
+            quality: 80,
+            includeGizmos: true,
+        });
+
+        expect(mockCapture).toHaveBeenCalledWith(expect.objectContaining({
+            includeGizmos: true,
+        }));
     });
 });

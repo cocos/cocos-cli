@@ -1,9 +1,17 @@
 jest.mock('cc', () => {
     class Vec3 {
         constructor(public x = 0, public y = 0, public z = 0) {}
+
+        clone() {
+            return new Vec3(this.x, this.y, this.z);
+        }
     }
     class Quat {
         constructor(public x = 0, public y = 0, public z = 0, public w = 1) {}
+
+        clone() {
+            return new Quat(this.x, this.y, this.z, this.w);
+        }
     }
     class Rect {
         constructor(
@@ -50,10 +58,17 @@ jest.mock('cc', () => {
         default: {},
         Camera,
         Canvas: class {},
-        Color: class {},
+        Color: class {
+            constructor(public r = 0, public g = 0, public b = 0, public a = 255) {}
+
+            clone() {
+                return new (this.constructor as any)(this.r, this.g, this.b, this.a);
+            }
+        },
+        gfx: { ClearFlagBit: { NONE: 0, DEPTH_STENCIL: 6 } },
         Layers: {
             BitMask: { PROFILER: 1 },
-            Enum: { EDITOR: 2, GIZMOS: 4, SCENE_GIZMO: 8 },
+            Enum: { EDITOR: 2, GIZMOS: 4, SCENE_GIZMO: 8, IGNORE_RAYCAST: 16 },
             makeMaskExclude: jest.fn(() => 0),
             makeMaskInclude: jest.fn((layers: number[]) => layers.reduce((mask, layer) => mask | layer, 0)),
         },
@@ -78,6 +93,14 @@ jest.mock('../scene-process/rpc', () => ({
 
 jest.mock('../scene-process/service/screenshot/screenshot-buffer', () => ({
     ScreenshotBuffer: class {},
+}));
+
+jest.mock('../scene-process/service/dump', () => ({
+    __esModule: true,
+    default: {
+        restoreNodeSnapshotProperties: jest.fn(() => Promise.resolve()),
+        restoreComponentSnapshotProperties: jest.fn(() => Promise.resolve()),
+    },
 }));
 
 import { Canvas, Node, UITransform } from 'cc';
@@ -318,6 +341,374 @@ describe('Screenshot camera parameter normalization', () => {
             info: { nodeName: 'Requested Camera', priority: 25 },
         });
         expect(findSceneCameras).not.toHaveBeenCalled();
+    });
+
+    it('preserves the normal scene-camera stack and appends gizmo overlays', () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const makeNode = (name: string, position = new (jest.requireMock('cc').Vec3)(0, 0, 10)) => ({
+            name,
+            getWorldPosition: jest.fn(() => position),
+            getWorldRotation: jest.fn(() => new (jest.requireMock('cc').Quat)()),
+        });
+        const mainCamera = {
+            node: makeNode('Main Camera', new (jest.requireMock('cc').Vec3)(1, 2, 30)),
+            enabledInHierarchy: true,
+            targetTexture: null,
+            projection: 1,
+            priority: 0,
+            fov: 55,
+            near: 0.1,
+            far: 10000,
+            clearFlags: 1,
+            visibility: 0xffff,
+            rect: new (jest.requireMock('cc').Rect)(0, 0, 1, 1),
+        };
+        const uiCamera = {
+            node: makeNode('UI Camera', new (jest.requireMock('cc').Vec3)(640, 360, 1000)),
+            enabledInHierarchy: true,
+            targetTexture: null,
+            projection: 0,
+            priority: 100,
+            orthoHeight: 360,
+            near: 0.1,
+            far: 10000,
+            clearFlags: 1,
+            visibility: 0xffffffff,
+            rect: new (jest.requireMock('cc').Rect)(0, 0, 1, 1),
+        };
+        const sceneGizmoCamera = {
+            node: makeNode('Live Scene Gizmo Camera', new (jest.requireMock('cc').Vec3)(0, 0, 40)),
+            enabledInHierarchy: true,
+            projection: 1,
+            priority: 1000,
+            fov: 45,
+            near: 0.1,
+            far: 1000,
+            clearFlags: 6,
+            visibility: 8,
+            rect: new (jest.requireMock('cc').Rect)(0.7, 0.8, 0.2, 0.2),
+        };
+        jest.spyOn(service as any, '_findSceneCameras').mockReturnValue([mainCamera, uiCamera]);
+        Service.Gizmo = { sceneGizmoCamera };
+
+        const contentFramings = (service as any)._resolveFramings({ includeGizmos: true }, 1200, 600);
+        const reference = (service as any)._topmostFraming(contentFramings);
+        const overlays = (service as any)._resolveGizmoOverlayFramings(
+            reference,
+            { includeGizmos: true },
+            1200,
+            600,
+        );
+
+        expect(contentFramings.map((framing: any) => framing.info.nodeName)).toEqual([
+            'Main Camera',
+            'UI Camera',
+        ]);
+        expect(reference.info.nodeName).toBe('UI Camera');
+        expect(overlays).toHaveLength(2);
+        expect(overlays.map((framing: any) => framing.info.nodeName)).toEqual([
+            'Editor UIGizmoCamera',
+            'Scene Gizmo Camera',
+        ]);
+        expect(overlays.map((framing: any) => framing.runtimeCameraName)).toEqual([
+            'Editor UIGizmoCamera',
+            'Scene Gizmo Camera',
+        ]);
+        expect(overlays[0].params).toMatchObject({
+            position: { x: 640, y: 360, z: 1000 },
+            projection: 0,
+            orthoHeight: 360,
+            priority: 102,
+            clearFlags: 0,
+            visibility: 20,
+            rect: { x: 0, y: 0, width: 1, height: 1 },
+            usePostProcess: false,
+        });
+        expect(overlays[1].params).toMatchObject({
+            clearFlags: 6,
+            visibility: 8,
+            rect: { width: 1 / 6, height: 1 / 6 },
+        });
+    });
+
+    it('rejects an explicit game camera combined with editor gizmos', () => {
+        const service = new ScreenshotService();
+
+        expect(() => (service as any)._resolveFramings({
+            camera: 'Main Camera',
+            includeGizmos: true,
+        })).toThrow('不能与 camera 同时指定');
+    });
+
+    it('omits the 3D scene-axis camera in the current 2D editor view', () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const { Quat, Rect, Vec3 } = jest.requireMock('cc');
+        const node = {
+            name: 'Editor Camera',
+            getWorldPosition: () => new Vec3(0, 0, 10),
+            getWorldRotation: () => new Quat(),
+        };
+        Service.Gizmo = {
+            is2D: true,
+            sceneGizmoCamera: { node: {}, enabledInHierarchy: true },
+        };
+        const params = (service as any)._paramsFromComponent({
+            node,
+            projection: 0,
+            priority: 0,
+            rect: new Rect(0, 0, 1, 1),
+        });
+        const reference = {
+            info: (service as any)._cameraInfoFromParams(params, 'scene', 'Canvas Camera'),
+            source: 'scene',
+            params,
+        };
+
+        const framings = (service as any)._resolveGizmoOverlayFramings(
+            reference,
+            { includeGizmos: true },
+            800,
+            600,
+        );
+
+        expect(framings).toHaveLength(1);
+        expect(framings[0].info.nodeName).toBe('Editor UIGizmoCamera');
+    });
+
+    it('temporarily aligns the editor camera to the content framing and restores it', () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const { Quat, Rect, Vec3 } = jest.requireMock('cc');
+        const previousState = {
+            is2D: false,
+            position: { x: 0, y: 0, z: 20 },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+            projection: 1,
+            fov: 45,
+            fovAxis: 0,
+            orthoHeight: 10,
+            near: 0.1,
+            far: 1000,
+        };
+        const applyScreenshotState = jest.fn();
+        Service.Camera = {
+            getScreenshotState: jest.fn(() => previousState),
+            applyScreenshotState,
+        };
+        const reference = {
+            info: { nodeName: 'Canvas Camera' },
+            source: 'scene',
+            params: {
+                position: new Vec3(640, 360, 1000),
+                rotation: new Quat(),
+                projection: 0,
+                priority: 100,
+                fov: 60,
+                fovAxis: 1,
+                orthoHeight: 360,
+                near: 0.01,
+                far: 10000,
+                clearFlags: 1,
+                clearDepth: 1,
+                clearStencil: 0,
+                visibility: 0xffff,
+                rect: new Rect(0, 0, 1, 1),
+            },
+        };
+
+        const restore = (service as any)._alignEditorCameraForGizmoCapture(reference);
+
+        expect(applyScreenshotState).toHaveBeenCalledWith(expect.objectContaining({
+            is2D: true,
+            position: { x: 640, y: 360, z: 1000 },
+            projection: 0,
+            fovAxis: 1,
+            orthoHeight: 360,
+        }));
+        restore();
+        expect(applyScreenshotState).toHaveBeenLastCalledWith(previousState);
+    });
+
+    it('rebinds and refreshes selected gizmos before capture', () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const selectedNode = {};
+        Service.Selection = { query: jest.fn(() => ['/Canvas/Button']) };
+        Service.Gizmo = {
+            onSelectionSelect: jest.fn(),
+            querySelectNodes: jest.fn(() => [selectedNode]),
+            showAllGizmoOfNode: jest.fn(),
+            refreshSelectedGizmos: jest.fn(),
+            onUpdate: jest.fn(),
+        };
+
+        (service as any)._refreshEditorGizmosForCapture();
+
+        expect(Service.Gizmo.onSelectionSelect).toHaveBeenCalledWith('/Canvas/Button');
+        expect(Service.Gizmo.showAllGizmoOfNode).toHaveBeenCalledWith(selectedNode);
+        expect(Service.Gizmo.refreshSelectedGizmos).toHaveBeenCalledTimes(1);
+        expect(Service.Gizmo.onUpdate).toHaveBeenCalledWith(0);
+    });
+
+    it('automatically includes editor gizmos when a node is selected', () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        Service.Selection = { query: jest.fn(() => ['/Canvas/Button']) };
+
+        expect((service as any)._shouldIncludeEditorGizmos({})).toBe(true);
+        expect((service as any)._shouldIncludeEditorGizmos({ includeGizmos: false })).toBe(false);
+        expect((service as any)._shouldIncludeEditorGizmos({ camera: 'Main Camera' })).toBe(false);
+    });
+
+    it('restores the browser editor selection in the headless worker before capture', async () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const clear = jest.fn();
+        const select = jest.fn();
+        const applyScreenshotState = jest.fn();
+        Service.Editor = { getCurrentEditorUuid: jest.fn(() => 'scene-uuid') };
+        Service.Camera = { applyScreenshotState };
+        Service.Selection = { query: jest.fn(() => []), clear, select };
+
+        const camera = { is2D: true, orthoHeight: 360 };
+        await (service as any)._applyBrowserEditorStateForCapture({
+            uuid: 'scene-uuid',
+            selection: ['Canvas/GreenBtn'],
+            camera,
+        });
+
+        expect(applyScreenshotState).toHaveBeenCalledWith(camera);
+        expect(clear).toHaveBeenCalledTimes(1);
+        expect(select).toHaveBeenCalledWith('Canvas/GreenBtn');
+    });
+
+    it('applies unsaved browser node transforms before capture', async () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const previousEditorExtends = (globalThis as any).EditorExtends;
+        const setPosition = jest.fn();
+        const setRotation = jest.fn();
+        const setScale = jest.fn();
+        const updateWorldTransform = jest.fn();
+        const button: any = {
+            uuid: 'button-uuid',
+            name: 'Button',
+            layer: 0,
+            children: [],
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+            scale: { x: 1, y: 1, z: 1 },
+            setPosition,
+            setRotation,
+            setScale,
+            updateWorldTransform,
+        };
+        const root: any = {
+            uuid: 'scene-uuid',
+            name: 'Scene',
+            layer: 0,
+            children: [button],
+            parent: null,
+        };
+        button.parent = root;
+        (globalThis as any).EditorExtends = {
+            Node: { getNode: jest.fn(() => button) },
+        };
+        Service.Editor = {
+            getCurrentEditorUuid: jest.fn(() => 'scene-uuid'),
+            getCurrentEditorType: jest.fn(() => 'scene'),
+            getRootNode: jest.fn(() => root),
+        };
+        Service.Camera = {};
+        Service.Selection = { query: jest.fn(() => []) };
+
+        try {
+            await (service as any)._applyBrowserEditorStateForCapture({
+                uuid: 'scene-uuid',
+                nodeTransforms: [{
+                    uuid: 'button-uuid',
+                    path: 'Canvas/Button',
+                    revision: 1,
+                    position: { x: -360, y: 140, z: 0 },
+                    rotation: { x: 0, y: 0, z: 0, w: 1 },
+                    scale: { x: 1.5, y: 1.5, z: 1 },
+                }],
+            });
+
+            expect(setPosition).toHaveBeenCalledWith(expect.objectContaining({ x: -360, y: 140, z: 0 }));
+            expect(setRotation).toHaveBeenCalledWith(expect.objectContaining({ x: 0, y: 0, z: 0, w: 1 }));
+            expect(setScale).toHaveBeenCalledWith(expect.objectContaining({ x: 1.5, y: 1.5, z: 1 }));
+            expect(updateWorldTransform).toHaveBeenCalledTimes(1);
+        } finally {
+            (globalThis as any).EditorExtends = previousEditorExtends;
+        }
+    });
+
+    it('restores unsaved node and component inspector dumps before capture', async () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const dumpUtil = jest.requireMock('../scene-process/service/dump').default;
+        const previousEditorExtends = (globalThis as any).EditorExtends;
+        const component = { uuid: 'sprite-uuid' };
+        const node: any = {
+            uuid: 'button-uuid',
+            name: 'Button',
+            layer: 0,
+            children: [],
+            components: [component],
+            updateWorldTransform: jest.fn(),
+        };
+        (globalThis as any).EditorExtends = {
+            Node: { getNode: jest.fn(() => node) },
+        };
+        Service.Editor = { getCurrentEditorUuid: jest.fn(() => 'scene-uuid') };
+        Service.Camera = {};
+        Service.Selection = { query: jest.fn(() => []) };
+        const componentDump = {
+            type: 'cc.Sprite',
+            value: { uuid: { value: 'sprite-uuid' }, color: { value: '#ff0000' } },
+        };
+        const nodeDump = {
+            active: { value: true },
+            __comps__: [componentDump],
+        };
+
+        try {
+            await (service as any)._applyBrowserEditorStateForCapture({
+                uuid: 'scene-uuid',
+                nodeSnapshots: [{
+                    uuid: 'button-uuid',
+                    path: 'Canvas/Button',
+                    revision: 2,
+                    dump: nodeDump,
+                }],
+            });
+
+            expect(dumpUtil.restoreNodeSnapshotProperties).toHaveBeenCalledWith(node, nodeDump);
+            expect(dumpUtil.restoreComponentSnapshotProperties).toHaveBeenCalledWith(component, componentDump);
+            expect(node.updateWorldTransform).toHaveBeenCalledTimes(1);
+        } finally {
+            (globalThis as any).EditorExtends = previousEditorExtends;
+        }
+    });
+
+    it('does not apply a browser selection to a different screenshot scene', async () => {
+        const service = new ScreenshotService();
+        const { Service } = jest.requireMock('../scene-process/service/core');
+        const clear = jest.fn();
+        const select = jest.fn();
+        Service.Editor = { getCurrentEditorUuid: jest.fn(() => 'target-scene-uuid') };
+        Service.Selection = { query: jest.fn(() => []), clear, select };
+
+        await (service as any)._applyBrowserEditorStateForCapture({
+            uuid: 'browser-scene-uuid',
+            selection: ['Canvas/GreenBtn'],
+        });
+
+        expect(clear).not.toHaveBeenCalled();
+        expect(select).not.toHaveBeenCalled();
     });
 
     it('tears down a temporary camera when parameter assignment fails', () => {

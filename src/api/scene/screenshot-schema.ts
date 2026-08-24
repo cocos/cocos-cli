@@ -19,6 +19,11 @@ export const SchemaScreenshotOptions = z.object({
     viewMode: z.enum(['auto', '2d', '3d']).optional().describe(
         'View mode: auto follows the scene 2D/3D state.',
     ),
+    includeGizmos: z.boolean().optional().describe(
+        'Overlay selected-node/component gizmos and the 3D scene-axis gizmo while preserving the normal scene-camera framing. '
+        + 'This cannot be combined with camera. '
+        + 'If omitted, it is enabled automatically when the current editor has a node selection.',
+    ),
     format: z.enum(['jpeg', 'png']).default('jpeg').describe(
         'Output image format sent to the agent (default jpeg for smaller size).',
     ),
