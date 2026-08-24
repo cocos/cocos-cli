@@ -11,6 +11,7 @@ const dtsFiles = [
     'cli.d.ts',
     'configuration.d.ts',
     'engine.d.ts',
+    'mcp.d.ts',
     'project.d.ts',
     'scene.d.ts',
     'scripting.d.ts',

@@ -158,6 +158,10 @@ const entries: IDtsEntry[] = [
         source: 'src/lib/engine/engine.ts',
         output: 'engine.d.ts'
     }, {
+        name: 'mcp',
+        source: 'src/lib/mcp/mcp.ts',
+        output: 'mcp.d.ts'
+    }, {
         name: 'project',
         source: 'src/lib/project/project.ts',
         output: 'project.d.ts'

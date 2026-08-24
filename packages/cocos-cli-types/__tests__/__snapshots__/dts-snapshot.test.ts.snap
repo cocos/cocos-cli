@@ -8168,6 +8168,7 @@ export declare function get<T>(key: string, scope?: ConfigurationScope): Promise
 export declare function get_2(): Promise<Project_2>;
 export declare function getConfig(useDefault?: boolean): Promise<IEngineConfig>;
 export declare function getConfigPath(scope?: ConfigurationScope): Promise<string>;
+export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext> | undefined;
 export declare function getInfo(): Promise<EngineInfo>;
 export declare function getInfo_2(): Promise<ProjectInfo>;
 export declare function getMetadata(): Promise<ICocosConfigurationNode[]>;
@@ -8882,9 +8883,19 @@ export declare namespace Mcp {
     export {
         register,
         unregister,
-        getStatus
+        getStatus,
+        McpToolCallContext,
+        McpToolCallLifecycleState,
+        getCurrentToolCallContext,
+        registerToolCallFinalizer
     }
 }
+export declare interface McpToolCallContext {
+    readonly operationId: string;
+    readonly lifecycleState: McpToolCallLifecycleState;
+    getHeader(name: string): string | undefined;
+}
+export declare type McpToolCallLifecycleState = 'running' | 'completing' | 'completed';
 export declare interface MeshClusterOptions {
     enable: boolean;
     coneCluster?: boolean;
@@ -9140,6 +9151,7 @@ export declare function queryUUID(urlOrPath: string): Promise<string | null>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function register(): Promise<string>;
 export declare function register_2(name: string, module: IMiddlewareContribution): Promise<void>;
+export declare function registerToolCallFinalizer(key: string | symbol, callback: () => void | Promise<void>): void;
 export declare function reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo>;
 export declare function reload(): Promise<void>;
 export declare function remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
@@ -9365,6 +9377,25 @@ export declare class WorkerSceneCommandProvider implements ISceneCommandProvider
     dispose(): void;
 }
 export declare type WrapMode = 'repeat' | 'clamp-to-edge' | 'mirrored-repeat';
+export { }
+"
+`;
+
+exports[`DTS API compatibility mcp.d.ts should match snapshot 1`] = `
+"export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext> | undefined;
+export declare function getStatus(): {
+    registered: boolean;
+    url?: string;
+};
+export declare interface McpToolCallContext {
+    readonly operationId: string;
+    readonly lifecycleState: McpToolCallLifecycleState;
+    getHeader(name: string): string | undefined;
+}
+export declare type McpToolCallLifecycleState = 'running' | 'completing' | 'completed';
+export declare function register(): Promise<string>;
+export declare function registerToolCallFinalizer(key: string | symbol, callback: () => void | Promise<void>): void;
+export declare function unregister(): Promise<void>;
 export { }
 "
 `;
