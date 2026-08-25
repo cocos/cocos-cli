@@ -84,6 +84,7 @@ const transientMaterialOverridePatchKey = Symbol.for('cocos.cli.materialPreview.
 
 import type { IMaterialPreviewInstance } from '../../../common/preview';
 import { loadPreviewAsset } from './asset-reload';
+import { omitEmptyMaterialPhaseOverrides } from './material-preview-states';
 
 function collectTextureProperties(value: any, out: any[]) {
     if (!value) return;
@@ -203,6 +204,10 @@ function applyMaterialRecord(material: any, key: '_defines' | '_states', overrid
         applyAt(passIdx);
     }
 
+    if (key === '_states') {
+        omitEmptyMaterialPhaseOverrides(records);
+    }
+
     material._update?.(true);
 }
 
@@ -236,6 +241,13 @@ function installTransientMaterialOverridePatch() {
         }
         return overridePipelineStates.call(this, overrides, passIdx);
     };
+}
+
+/** Drops dump-default `phase: ''` and rebuilds passes so the preview camera can still draw. */
+function rebuildPassesWithoutEmptyPhase(material: Material) {
+    if (omitEmptyMaterialPhaseOverrides((material as any)._states)) {
+        (material as any)._update?.(true);
+    }
 }
 
 export class MaterialPreview extends InteractivePreview implements IMaterialPreviewInstance {
@@ -308,8 +320,23 @@ export class MaterialPreview extends InteractivePreview implements IMaterialPrev
         this._modelNode = this.modelComp.node;
     }
 
+    /*
+    ```mermaid
+    sequenceDiagram
+        participant Panel as MaterialPanel apply
+        participant Preview as MaterialPreview.setMaterial
+        participant Material as cc.Material
+        participant Pass as cc.Pass
+        Panel->>Preview: dump-built Material (_states.phase === "")
+        Preview->>Material: omit empty phase, _update
+        Material->>Pass: fillPipelineInfo without phase override
+        Pass-->>Preview: default phase (camera can draw)
+        Preview->>Preview: wrap MaterialInstance and assign
+    ```
+    */
     public setMaterial(material: Material | null, force = false) {
         if (material && (force || material !== this.material)) {
+            rebuildPassesWithoutEmptyPhase(material);
             const comp = this.modelComp;
             const _matInsInfo = {
                 parent: material,
