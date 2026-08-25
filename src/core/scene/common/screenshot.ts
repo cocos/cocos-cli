@@ -2,7 +2,7 @@
  * 场景截图服务的公共类型定义。
  *
  * 截图由场景进程以 headless 方式离屏渲染当前打开的场景生成，
- * 返回临时 PNG 文件路径 + 元数据（不跨进程传裸像素，见 screenshot.ts 说明）。
+ * 返回临时 PNG 文件路径 + 元数据（不跨进程传裸像素，见 API scene.ts 说明）。
  */
 
 /** 取景 / 视图模式 */
@@ -51,32 +51,18 @@ export interface IScreenshotCameraInfo {
     viewport: { x: number; y: number; width: number; height: number };
 }
 
-/** 节点树概要中的单个节点 */
-export interface IScreenshotNodeSummary {
-    name: string;
-    active: boolean;
-    components: string[];
-    children?: IScreenshotNodeSummary[];
-}
-
 /** 场景进程返回的原始截图结果（JSON-safe） */
 export interface IScreenshotResult {
     /** 离屏渲染写出的临时 PNG 绝对路径 */
     filePath: string;
-    width: number;
-    height: number;
     /** 当前场景在 asset-db 中的 url */
     sceneUrl?: string;
     /** 场景文件名 */
     sceneName?: string;
     /** 场景磁盘文件修改时间（ms），供 Agent 判断时效 */
     mtime?: number;
-    actualCamera: IScreenshotCameraInfo;
     /** All cameras rendered into the offscreen target, ordered by priority. */
     actualCameras: IScreenshotCameraInfo[];
-    nodeSummary?: IScreenshotNodeSummary;
-    /** 渲染备注（如无场景相机、退回编辑器相机等提示） */
-    renderNote?: string;
 }
 
 export interface IScreenshotEvents {}

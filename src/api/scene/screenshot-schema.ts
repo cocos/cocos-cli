@@ -54,30 +54,17 @@ const SchemaScreenshotCameraInfo = z.object({
     }),
 }).describe('Actual camera parameters used for the shot');
 
-const SchemaScreenshotNodeSummary: z.ZodType<any> = z.lazy(() => z.object({
-    name: z.string(),
-    active: z.boolean(),
-    components: z.array(z.string()),
-    children: z.array(SchemaScreenshotNodeSummary).optional(),
-}));
-
 export const SchemaScreenshotResult = z.object({
     image: z.object({
         mimeType: z.string().describe('e.g. image/jpeg or image/png'),
-        attached: z.literal(true).describe('The rendered image is attached as an MCP image content block'),
     }).describe('Metadata for the rendered image attached to the MCP response'),
     meta: z.object({
         sceneUrl: z.string().optional(),
         sceneName: z.string().optional(),
         mtime: z.number().optional().describe('Scene file mtime in ms; use it to judge whether the shot matches the on-disk file'),
-        actualCamera: SchemaScreenshotCameraInfo,
         actualCameras: z.array(SchemaScreenshotCameraInfo).describe('All rendered cameras in ascending priority order'),
-        nodeSummary: SchemaScreenshotNodeSummary.optional(),
-        renderNote: z.string().optional().describe('Notes about the render, e.g. editor-camera fallback'),
         width: z.number().describe('Width of the returned image after maxSize processing'),
         height: z.number().describe('Height of the returned image after maxSize processing'),
-        renderWidth: z.number().describe('Original offscreen render width before output resizing'),
-        renderHeight: z.number().describe('Original offscreen render height before output resizing'),
     }).describe('Scene metadata bound to the screenshot'),
 }).describe('Scene screenshot result');
 

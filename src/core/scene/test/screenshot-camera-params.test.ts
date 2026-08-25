@@ -241,7 +241,6 @@ describe('Screenshot camera parameter normalization', () => {
                 projection: 'ortho',
                 orthoHeight: 360,
             });
-            expect(framing.renderNote).toContain('工程设计分辨率');
         } finally {
             (globalThis as any).cc = previousCc;
         }

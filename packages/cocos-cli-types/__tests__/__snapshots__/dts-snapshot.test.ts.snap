@@ -6659,12 +6659,6 @@ export declare interface IScreenshotCameraInfo {
         height: number;
     };
 }
-export declare interface IScreenshotNodeSummary {
-    name: string;
-    active: boolean;
-    components: string[];
-    children?: IScreenshotNodeSummary[];
-}
 export declare interface IScreenshotOptions {
     sceneUrlOrUUID?: string;
     width?: number;
@@ -6675,15 +6669,10 @@ export declare interface IScreenshotOptions {
 }
 export declare interface IScreenshotResult {
     filePath: string;
-    width: number;
-    height: number;
     sceneUrl?: string;
     sceneName?: string;
     mtime?: number;
-    actualCamera: IScreenshotCameraInfo;
     actualCameras: IScreenshotCameraInfo[];
-    nodeSummary?: IScreenshotNodeSummary;
-    renderNote?: string;
 }
 export declare interface IScreenshotService {
     capture(options: IScreenshotOptions): Promise<IScreenshotResult>;

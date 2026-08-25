@@ -14,7 +14,6 @@ import stripAnsi from 'strip-ansi';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { assetManager } from '../core/assets';
-import { redactInlineImageData } from './image-result';
 
 export function isToolErrorCode(code: unknown): boolean {
     return typeof code === 'number' && code >= 500 && code < 600;
@@ -159,11 +158,8 @@ export class McpMiddleware {
                             // structured output schema and is emitted only as image content.
                             const image = result?.data?.image;
                             const validatedResult = this.validateToolResult(meta, result);
-                            const responseResult = image?.base64 && typeof image.base64 === 'string'
-                                ? redactInlineImageData(validatedResult)
-                                : validatedResult;
-                            const formattedResult = this.formatToolResult(responseResult);
-                            const structuredContent = { result: responseResult };
+                            const formattedResult = this.formatToolResult(validatedResult);
+                            const structuredContent = { result: validatedResult };
 
                              console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
 

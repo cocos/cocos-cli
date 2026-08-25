@@ -26,6 +26,8 @@ jest.mock('../src/api/decorator/decorator.js', () => ({
 }), { virtual: true });
 
 jest.mock('../src/core/scene', () => ({
+    NodeType: { EMPTY: 'Empty' },
+    SCENE_TEMPLATE_TYPE: ['empty'],
     Scene: {
         Screenshot: {
             capture: (...args: unknown[]) => mockCapture(...args),
@@ -43,26 +45,17 @@ jest.mock('sharp', () => ({
     default: jest.fn(() => mockPipeline),
 }));
 
-import { SceneScreenshotApi } from '../src/api/scene/screenshot';
+jest.mock('../src/api/scene/component', () => ({ ComponentApi: jest.fn() }));
+jest.mock('../src/api/scene/node', () => ({ NodeApi: jest.fn() }));
+jest.mock('../src/api/scene/prefab', () => ({ PrefabApi: jest.fn() }));
+
+import { SceneApi } from '../src/api/scene/scene';
 import { SchemaScreenshotResult } from '../src/api/scene/screenshot-schema';
 
 const shot = {
     filePath: 'C:\\Temp\\cocos-cli-screenshot-test.png',
-    width: 1200,
-    height: 600,
     sceneUrl: 'db://assets/main.scene',
     sceneName: 'main.scene',
-    actualCamera: {
-        source: 'scene' as const,
-        projection: 'perspective' as const,
-        position: { x: 0, y: 0, z: 10 },
-        rotation: { x: 0, y: 0, z: 0, w: 1 },
-        fov: 45,
-        priority: 0,
-        clearFlags: 1,
-        visibility: 0xffffffff,
-        viewport: { x: 0, y: 0, width: 1, height: 1 },
-    },
     actualCameras: [{
         source: 'scene' as const,
         projection: 'perspective' as const,
@@ -76,7 +69,7 @@ const shot = {
     }],
 };
 
-describe('SceneScreenshotApi image transport', () => {
+describe('SceneApi screenshot image transport', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockResize.mockReturnValue(mockPipeline);
@@ -92,7 +85,7 @@ describe('SceneScreenshotApi image transport', () => {
     });
 
     it('returns output dimensions and removes the temporary PNG', async () => {
-        const result = await new SceneScreenshotApi().getSceneScreenshot({
+        const result = await new SceneApi().getSceneScreenshot({
             format: 'jpeg',
             quality: 80,
             maxSize: 400,
@@ -102,13 +95,10 @@ describe('SceneScreenshotApi image transport', () => {
         expect(result.data?.meta).toMatchObject({
             width: 400,
             height: 200,
-            renderWidth: 1200,
-            renderHeight: 600,
         });
         expect(result.data?.image).toMatchObject({
             base64: Buffer.from('encoded-image').toString('base64'),
             mimeType: 'image/jpeg',
-            attached: true,
         });
         expect(mockUnlink).toHaveBeenCalledWith(shot.filePath);
         expect(mockCapture).toHaveBeenCalledWith(expect.objectContaining({
@@ -116,7 +106,7 @@ describe('SceneScreenshotApi image transport', () => {
         }));
 
         const structured = SchemaScreenshotResult.parse(result.data);
-        expect(structured.image).toEqual({ mimeType: 'image/jpeg', attached: true });
+        expect(structured.image).toEqual({ mimeType: 'image/jpeg' });
         expect(structured).not.toHaveProperty('meta.filePath');
     });
 
@@ -125,7 +115,7 @@ describe('SceneScreenshotApi image transport', () => {
         mockToBuffer.mockRejectedValue(new Error('encode failed'));
 
         try {
-            const result = await new SceneScreenshotApi().getSceneScreenshot({ format: 'jpeg', quality: 80 });
+            const result = await new SceneApi().getSceneScreenshot({ format: 'jpeg', quality: 80 });
             expect(result.code).toBeGreaterThanOrEqual(500);
             expect(mockUnlink).toHaveBeenCalledWith(shot.filePath);
         } finally {
@@ -134,7 +124,7 @@ describe('SceneScreenshotApi image transport', () => {
     });
 
     it('passes the editor-gizmo option to the scene process', async () => {
-        await new SceneScreenshotApi().getSceneScreenshot({
+        await new SceneApi().getSceneScreenshot({
             format: 'png',
             quality: 80,
             includeGizmos: true,

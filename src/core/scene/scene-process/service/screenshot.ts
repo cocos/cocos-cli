@@ -15,7 +15,6 @@ import type {
 import type {
     IScreenshotCameraInfo,
     IScreenshotEvents,
-    IScreenshotNodeSummary,
     IScreenshotOptions,
     IScreenshotResult,
     IScreenshotService,
@@ -23,8 +22,6 @@ import type {
 
 const DEFAULT_SIZE = 1024;
 const MAX_SIZE = 4096;
-const NODE_SUMMARY_MAX_DEPTH = 4;
-const NODE_SUMMARY_MAX_CHILDREN = 40;
 
 /** 临时截图相机在场景树里的节点名，销毁后不残留 */
 const TEMP_CAMERA_NODE_NAME = '__cli_screenshot_camera__';
@@ -62,7 +59,6 @@ interface ICameraParams {
 interface IResolvedFraming {
     info: IScreenshotCameraInfo;
     source: 'scene' | 'editor';
-    renderNote?: string;
     params: ICameraParams;
     /** Engine-recognized camera name used by editor render-pipeline ordering. */
     runtimeCameraName?: string;
@@ -342,20 +338,13 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         const filePath = this._writePng(result.width, result.height, result.buffer);
         const meta = await this._collectSceneMeta();
         const cameraInfos = framings.map(framing => framing.info);
-        const renderNotes = [...new Set(framings.map(framing => framing.renderNote).filter(Boolean))];
 
         return {
             filePath,
-            width: result.width,
-            height: result.height,
             sceneUrl: meta.url,
             sceneName: meta.name,
             mtime: meta.mtime,
-            // Keep the historical singular field as the top-most/only camera.
-            actualCamera: cameraInfos[cameraInfos.length - 1],
             actualCameras: cameraInfos,
-            nodeSummary: this._summarizeNode(scene, 0),
-            renderNote: renderNotes.length ? renderNotes.join(' ') : undefined,
         };
     }
 
@@ -502,7 +491,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             info: this._cameraInfoFromParams(params, 'editor', editorCam.node.name),
             source: 'editor',
             params,
-            renderNote: '场景内无相机，已使用编辑器相机当前视角取景（不含 Gizmo/网格）。',
         }];
     }
 
@@ -526,7 +514,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             source: 'editor',
             params: gizmoParams,
             runtimeCameraName: EDITOR_GIZMO_CAMERA_NAME,
-            renderNote: '已保持场景相机取景，并叠加选中节点/组件 Gizmo。',
         }];
 
         const gizmoService = Service.Gizmo as any;
@@ -549,7 +536,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
                 source: 'editor',
                 params: sceneGizmoParams,
                 runtimeCameraName: SCENE_GIZMO_CAMERA_NAME,
-                renderNote: '已按截图尺寸叠加右上角 3D 场景坐标轴。',
             });
         }
 
@@ -696,7 +682,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
     private _resolvePrefab2DFraming(options: IScreenshotOptions): {
         info: IScreenshotCameraInfo;
         source: 'editor';
-        renderNote: string;
         params: ICameraParams;
         canvas: Canvas;
     } | null {
@@ -763,7 +748,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             source: 'editor',
             params,
             canvas,
-            renderNote: 'UI Prefab 已按预览 Canvas 边界自动取景（不含 Gizmo/网格）。',
         };
     }
 
@@ -803,8 +787,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             framing.info.nodeName,
         );
 
-        const note = 'Canvas 相机已按工程设计分辨率重新取景。';
-        framing.renderNote = framing.renderNote ? `${framing.renderNote} ${note}` : note;
     }
 
     private _findAlignedCanvasForCamera(camera: Camera): Canvas | null {
@@ -1053,29 +1035,6 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         } catch {
             return {};
         }
-    }
-
-    private _summarizeNode(node: CCNode, depth: number): IScreenshotNodeSummary {
-        const components = (node.components ?? [])
-            .map((c) => cc.js.getClassName(c))
-            .filter(Boolean);
-        const summary: IScreenshotNodeSummary = {
-            name: node.name,
-            active: node.active,
-            components,
-        };
-        if (depth < NODE_SUMMARY_MAX_DEPTH && node.children?.length) {
-            const kids = node.children.slice(0, NODE_SUMMARY_MAX_CHILDREN);
-            summary.children = kids.map((child) => this._summarizeNode(child, depth + 1));
-            if (node.children.length > NODE_SUMMARY_MAX_CHILDREN) {
-                summary.children.push({
-                    name: `…(+${node.children.length - NODE_SUMMARY_MAX_CHILDREN} more)`,
-                    active: true,
-                    components: [],
-                });
-            }
-        }
-        return summary;
     }
 
     private _clampSize(value: number | undefined, fallback: number): number {
