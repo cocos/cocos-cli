@@ -6,6 +6,10 @@
         windows: {
             generators: [
                 {
+                    G: 'Visual Studio 18 2026',
+                    V: '2026',
+                },
+                {
                     G: 'Visual Studio 17 2022',
                     V: '2022',
                 },
