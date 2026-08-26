@@ -237,6 +237,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
 
             this.invalidateEditorSession();
+            if (params.save !== false) {
+                await this.saveTerrainAssets();
+            }
             const result = await editor.close({ save: params.save ?? true });
 
             if (editor === this.editorMap.get(currentEditorUuid)) {
@@ -273,6 +276,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
             const { assetInfo, currentEditorUuid, editor } = await this.resolveSaveTarget(urlOrUUID);
+            await this.saveTerrainAssets();
             const result = assetInfo.uuid === currentEditorUuid
                 ? await editor.save()
                 : await this.recoverDeletedSourceTo(assetInfo, currentEditorUuid, editor);
@@ -286,6 +290,22 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         } catch (error) {
             console.error(`保存失败: [${urlOrUUID}]`, error);
             throw error;
+        }
+    }
+
+    /** Terrain data lives in .terrain assets, not in the scene JSON. */
+    private async saveTerrainAssets(): Promise<void> {
+        try {
+            const terrain = (Service as any).Terrain;
+            if (!terrain?.saveAsset) return;
+            const result = await terrain.saveAsset(false);
+            if (result === 2) {
+                throw new Error('Terrain asset save failed or requires a Save As target.');
+            }
+        } catch (error) {
+            // During early bootstrap or isolated editor tests TerrainService may
+            // not be registered. Real terrain save failures use the explicit error above.
+            if (error instanceof Error && error.message.includes('requires a Save As')) throw error;
         }
     }
 
