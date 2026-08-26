@@ -34,8 +34,15 @@ import {
     IAnimationService,
     IPublicReferenceImageService,
     IReferenceImageService,
+<<<<<<< HEAD
     IParticleService,
     IPublicParticleService,
+    IPublicTerrainService,
+    ITerrainService,
+=======
+    IPublicTerrainService,
+    ITerrainService,
+>>>>>>> dba13ebb (Porting the terrain editor from cocos-creator)
 } from '../../common';
 
 /**
@@ -59,7 +66,12 @@ export interface IPublicServiceManager {
     Preview: IPublicPreviewService,
     UI: IPublicUIService,
     ReferenceImage: IPublicReferenceImageService,
+<<<<<<< HEAD
     Particle: IPublicParticleService,
+    Terrain: IPublicTerrainService,
+=======
+    Terrain: IPublicTerrainService,
+>>>>>>> dba13ebb (Porting the terrain editor from cocos-creator)
 }
 
 export interface IServiceManager {
@@ -81,5 +93,10 @@ export interface IServiceManager {
     Preview: IPreviewService,
     UI: IUIService,
     ReferenceImage: IReferenceImageService,
+<<<<<<< HEAD
     Particle: IParticleService,
+    Terrain: ITerrainService,
+=======
+    Terrain: ITerrainService,
+>>>>>>> dba13ebb (Porting the terrain editor from cocos-creator)
 }

@@ -1,5 +1,12 @@
 import { Vec3, Vec2, primitives, Node, Color, MeshRenderer, IVec3Like, Event as CCEvent } from 'cc';
 
+// Some CLI unit tests intentionally provide a minimal `cc` mock without Event.
+// Keep the data-only mouse event usable in that environment while using the
+// engine Event implementation whenever it is available.
+const GizmoMouseEventBase = (CCEvent ?? class {
+    constructor(_type?: string, _bubbles?: boolean) {}
+}) as typeof CCEvent;
+
 export interface IMeshPrimitive {
     primitiveType?: number; // 图元类型
     positions: Readonly<IVec3Like>[]; // 顶点坐标
@@ -118,7 +125,7 @@ export interface IHandleData {
  * 简化版 GizmoMouseEvent
  * 编辑器版本继承自 CCEvent，此处作为独立的纯数据类
  */
-export class GizmoMouseEvent<T extends Record<string, any> = {}> extends CCEvent {
+export class GizmoMouseEvent<T extends Record<string, any> = {}> extends GizmoMouseEventBase {
     ctrlKey = false;
     shiftKey = false;
     altKey = false;

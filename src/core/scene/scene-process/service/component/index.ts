@@ -8,6 +8,7 @@ import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { type IComponentEvents } from '../../../common';
 import { ServiceEvents } from '../core/global-events';
+import { queryRegisteredService } from '../core/decorator';
 
 export class CompManager {
     protected _recycleComponent: Record<string, Component> = {};
@@ -213,6 +214,14 @@ export class CompManager {
 
         const pathKeys = (name || '').split('.');
         const methodName = pathKeys.pop() || '';
+        // 3.x terrain UI calls component methods through `gizmo.xxx`. Gizmos are
+        // held by GizmoService's WeakMap in CLI, so they cannot be resolved by lodash/get.
+        if (pathKeys.length === 1 && pathKeys[0] === 'gizmo') {
+            const gizmo = queryRegisteredService<any>('Gizmo')?.getComponentGizmo?.(comp);
+            if (gizmo && methodName && typeof gizmo[methodName] === 'function') {
+                return await gizmo[methodName](...(args || []));
+            }
+        }
         if (pathKeys.length > 0) {
             const methodObjPath = pathKeys.join('.');
             const methodObj = get(comp, methodObjPath);
