@@ -161,25 +161,25 @@ export class McpMiddleware {
                             const formattedResult = this.formatToolResult(validatedResult);
                             const structuredContent = { result: validatedResult };
 
-                             console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
+                            console.debug(`call ${toolName} with args:${methodArgs.toString()} result: ${formattedResult}`);
 
-                             // 图片二进制只放进 MCP image 内容块。文本、structuredContent 和日志
-                             // 仅保留图片元数据，避免同一份 base64 被重复传输和写入日志。
-                             const content: any[] = [
-                                 { type: 'text' as const, text: formattedResult },
-                             ];
-                             if (image?.base64 && typeof image.base64 === 'string') {
-                                 content.push({
-                                     type: 'image' as const,
-                                     data: image.base64,
-                                     mimeType: image.mimeType || 'image/png',
-                                 });
-                             }
-                             return {
+                            // 图片二进制只放进 MCP image 内容块。文本、structuredContent 和日志
+                            // 仅保留图片元数据，避免同一份 base64 被重复传输和写入日志。
+                            const content: any[] = [
+                                { type: 'text' as const, text: formattedResult },
+                            ];
+                            if (image?.base64 && typeof image.base64 === 'string') {
+                                content.push({
+                                    type: 'image' as const,
+                                    data: image.base64,
+                                    mimeType: image.mimeType || 'image/png',
+                                });
+                            }
+                            return {
                                 content,
                                 structuredContent: structuredContent,
                                 isError: isToolErrorCode(validatedResult?.code)
-                             };
+                            };
 
                         } catch (error) {
                              const errorMessage = error instanceof Error ? error.message : String(error);

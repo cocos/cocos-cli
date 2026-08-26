@@ -8,7 +8,7 @@ import { CameraMoveMode, CameraUtils } from './camera/utils';
 import EditorCameraComponent from './camera/editor-camera-component';
 import { OperationPriority } from './operation/types';
 import { Rpc } from '../rpc';
-import type { ICameraConfig, ICameraEvents, ICameraService, IGizmoService, IOriginAxesConfig } from '../../common';
+import type { ICameraConfig, ICameraEvents, ICameraScreenshotState, ICameraService, IGizmoService, IOriginAxesConfig } from '../../common';
 import type { IGizmoConfig } from '../../scene-configs';
 
 /**
@@ -490,7 +490,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         await this._restorePromise;
     }
 
-    getScreenshotState(): any {
+    getScreenshotState(): ICameraScreenshotState | undefined {
         const camera = this._camera;
         if (!camera?.node) {
             return undefined;
@@ -510,7 +510,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         };
     }
 
-    applyScreenshotState(state: any): void {
+    applyScreenshotState(state: ICameraScreenshotState): void {
         if (!state || !this._camera?.node) {
             return;
         }

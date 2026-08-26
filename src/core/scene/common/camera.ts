@@ -3,6 +3,19 @@ import type { ICameraConfig, IOriginAxesConfig } from '../scene-configs';
 
 export type { ICameraConfig, IOriginAxesConfig };
 
+/** Editor-camera view snapshot used to align/restore the camera around a screenshot. */
+export interface ICameraScreenshotState {
+    is2D: boolean;
+    position: { x: number; y: number; z: number };
+    rotation: { x: number; y: number; z: number; w: number };
+    projection: number;
+    fov: number;
+    fovAxis: number;
+    orthoHeight: number;
+    near: number;
+    far: number;
+}
+
 export interface ICameraService {
     init(): void;
     initFromConfig(): Promise<void>;
@@ -27,6 +40,12 @@ export interface ICameraService {
     setOriginAxes2D(config: IOriginAxesConfig): void;
     setOriginAxes3D(config: IOriginAxesConfig): void;
     onUpdate(deltaTime: number): void;
+    /** Wait until the async camera-view restore triggered by opening an editor has settled. */
+    waitForRestore(): Promise<void>;
+    /** Snapshot the current editor-camera view, or undefined when no camera is available. */
+    getScreenshotState(): ICameraScreenshotState | undefined;
+    /** Apply a previously captured editor-camera view (used to align/restore around a screenshot). */
+    applyScreenshotState(state: ICameraScreenshotState): void;
 }
 
 export type IPublicCameraService = Pick<ICameraService,

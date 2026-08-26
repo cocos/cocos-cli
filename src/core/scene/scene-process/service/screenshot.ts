@@ -18,6 +18,7 @@ import type {
     IScreenshotOptions,
     IScreenshotResult,
     IScreenshotService,
+    ICameraScreenshotState,
 } from '../../common';
 
 const DEFAULT_SIZE = 1024;
@@ -121,7 +122,7 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
         return Service.Editor.withScreenshotScene(
             options.sceneUrlOrUUID,
             async () => {
-                await (Service.Camera as any)?.waitForRestore?.();
+                await Service.Camera?.waitForRestore?.();
                 await this._applyBrowserEditorStateForCapture(browserState);
                 return this._capturePreparedScene(options);
             },
@@ -151,7 +152,7 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             return;
         }
         if (browserState.camera) {
-            (Service.Camera as any)?.applyScreenshotState?.(browserState.camera);
+            Service.Camera?.applyScreenshotState?.(browserState.camera as ICameraScreenshotState);
         }
         const snapshotRevisions = await this._applyBrowserNodeSnapshots(browserState.nodeSnapshots);
         this._applyBrowserNodeTransforms(browserState.nodeTransforms, snapshotRevisions);
@@ -335,9 +336,11 @@ export class ScreenshotService extends BaseService<IScreenshotEvents> implements
             }
         }
 
-        const filePath = this._writePng(result.width, result.height, result.buffer);
+        // Collect everything that can still fail before writing the file, so a
+        // late error cannot orphan a temp PNG the API layer never learns about.
         const meta = await this._collectSceneMeta();
         const cameraInfos = framings.map(framing => framing.info);
+        const filePath = this._writePng(result.width, result.height, result.buffer);
 
         return {
             filePath,

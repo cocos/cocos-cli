@@ -589,7 +589,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 type: assetInfo.type,
                 name: assetInfo.name,
                 selection: Service.Selection?.query?.() ?? [],
-                camera: (Service.Camera as any)?.getScreenshotState?.(),
+                camera: Service.Camera?.getScreenshotState?.(),
             }]);
         } catch (error) {
             console.warn('[Scene] Failed to publish PinK current scene.', error);

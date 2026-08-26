@@ -56,6 +56,11 @@ const SchemaScreenshotCameraInfo = z.object({
 
 export const SchemaScreenshotResult = z.object({
     image: z.object({
+        // NOTE: the raw base64 payload is deliberately NOT part of this schema.
+        // It is carried on the tool result's `data.image.base64` field and emitted
+        // only as an MCP image content block (see mcp.middleware.ts), so it stays
+        // out of structuredContent and logs. Do not add `.strict()` here or the
+        // extra base64 key would make schema validation throw.
         mimeType: z.string().describe('e.g. image/jpeg or image/png'),
     }).describe('Metadata for the rendered image attached to the MCP response'),
     meta: z.object({

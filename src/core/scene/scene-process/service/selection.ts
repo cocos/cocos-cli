@@ -137,7 +137,7 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
             void Rpc.getInstance()
                 .request('browserSceneState', 'setEditorState', [editorUuid, {
                     selection: this._getPaths(),
-                    camera: (Service.Camera as any)?.getScreenshotState?.(),
+                    camera: Service.Camera?.getScreenshotState?.(),
                 }])
                 .catch((error: unknown) => {
                     console.warn('[Selection] Failed to publish PinK selection.', error);
