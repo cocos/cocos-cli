@@ -18,6 +18,7 @@ import {
     outputJson,
     pathExists,
     readJson,
+    move,
     remove,
 } from 'fs-extra';
 import { join } from 'path';
@@ -45,6 +46,11 @@ interface IAssetInfo {
 interface ICapturedFaces {
     resolution: number;
     faces: string[];
+}
+
+interface IOutputTransaction {
+    commit(): Promise<void>;
+    rollback(): Promise<void>;
 }
 
 @register('ReflectionProbe')
@@ -129,59 +135,65 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             const outputPath = `${outputBase}.png`;
             const outputUrl = `db://assets/${sceneName}/reflectionProbe_${probeId}.png`;
             const textureCubeUrl = `${outputUrl}/textureCube`;
+            const stagedBase = join(sceneDir, `.reflection-probe-${probeId}-${Date.now()}`);
+            const stagedOutputPath = `${stagedBase}.png`;
 
             try {
-                await this._runCmft(facePaths, outputBase, deadline);
-                await this._prepareMeta(outputPath, fastBake);
-                // Match Creator: every manual rebake invalidates importer-generated
-                // convolution images, including when switching bake modes.
-                await this._clearConvolutionCache(outputBase);
-                this._assertBeforeDeadline(deadline, 'asset import');
-                await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]);
-                const cubeInfo = await this._waitForTextureCube(textureCubeUrl, deadline);
-                const textureCube = await this._loadTextureCube(cubeInfo.uuid, deadline);
-
-                const commandId = Service.Undo.beginRecording([component.uuid], {
-                    label: 'Bake reflection probe',
-                    scope: {
-                        nodePath,
-                        propPath: `_components.${node.components.indexOf(component)}._cubemap`,
-                        editorType: 'scene',
-                    },
-                });
+                await this._runCmft(facePaths, stagedBase, deadline);
+                await this._prepareMeta(stagedOutputPath, fastBake, outputPath);
+                const outputTransaction = await this._replaceOutput(stagedOutputPath, outputPath);
                 try {
-                    component.cubemap = textureCube;
-                    await Service.Undo.endRecording(commandId);
+                    this._assertBeforeDeadline(deadline, 'asset import');
+                    await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]);
+                    const cubeInfo = await this._waitForTextureCube(textureCubeUrl, deadline);
+                    const textureCube = await this._loadTextureCube(cubeInfo.uuid, deadline);
+                    const previousCubemap = component.cubemap;
+                    const commandId = Service.Undo.beginRecording([component.uuid], {
+                        label: 'Bake reflection probe',
+                        scope: {
+                            nodePath,
+                            propPath: `_components.${node.components.indexOf(component)}._cubemap`,
+                            editorType: 'scene',
+                        },
+                    });
+                    try {
+                        component.cubemap = textureCube;
+                        this._notifyCubemapChanged(node, component, nodePath);
+                        await Service.Engine.repaintInEditMode();
+
+                        if (options.saveScene !== false) {
+                            this._assertBeforeDeadline(deadline, 'scene save');
+                            await Service.Editor.save({});
+                        }
+                        await Service.Undo.endRecording(commandId);
+                    } catch (error) {
+                        Service.Undo.cancelRecording(commandId);
+                        component.cubemap = previousCubemap;
+                        this._notifyCubemapChanged(node, component, nodePath);
+                        await Service.Engine.repaintInEditMode();
+                        throw error;
+                    }
+                    await outputTransaction.commit();
+                    this.broadcast('reflection-probe:bake-end', nodePath);
+                    return {
+                        nodePath,
+                        componentUuid: component.uuid,
+                        probeId,
+                        cubemapUuid: cubeInfo.uuid,
+                        cubemapUrl: cubeInfo.url,
+                        fastBake,
+                    };
                 } catch (error) {
-                    Service.Undo.cancelRecording(commandId);
+                    await outputTransaction.rollback();
+                    await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]).catch(() => undefined);
                     throw error;
                 }
-                ReflectionProbeManager.probeManager.updateBakedCubemap(component.probe);
-                ReflectionProbeManager.probeManager.updatePreviewSphere(component.probe);
-                const componentIndex = node.components.indexOf(component);
-                ServiceEvents.emit('node:change', node, {
-                    type: NodeEventType.SET_PROPERTY,
-                    propPath: `_components.${componentIndex}._cubemap`,
-                });
-                ServiceEvents.broadcast('node:change', nodePath);
-                await Service.Engine.repaintInEditMode();
-
-                if (options.saveScene !== false) {
-                    this._assertBeforeDeadline(deadline, 'scene save');
-                    await Service.Editor.save({});
-                }
-
-                this.broadcast('reflection-probe:bake-end', nodePath);
-                return {
-                    nodePath,
-                    componentUuid: component.uuid,
-                    probeId,
-                    cubemapUuid: cubeInfo.uuid,
-                    cubemapUrl: cubeInfo.url,
-                    fastBake,
-                };
             } finally {
-                await Promise.all(facePaths.map(async (path) => remove(path).catch(() => undefined)));
+                await Promise.all([
+                    ...facePaths,
+                    stagedOutputPath,
+                    `${stagedOutputPath}.meta`,
+                ].map(async (path) => remove(path).catch(() => undefined)));
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -420,11 +432,12 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         return executable;
     }
 
-    private async _prepareMeta(outputPath: string, fastBake: boolean): Promise<void> {
+    private async _prepareMeta(outputPath: string, fastBake: boolean, previousOutputPath?: string): Promise<void> {
         const metaPath = `${outputPath}.meta`;
         let meta: any = {};
-        if (await pathExists(metaPath)) {
-            meta = await readJson(metaPath);
+        const previousMetaPath = previousOutputPath ? `${previousOutputPath}.meta` : metaPath;
+        if (await pathExists(previousMetaPath)) {
+            meta = await readJson(previousMetaPath);
         }
         meta.ver ??= '0.0.0';
         meta.importer ??= '*';
@@ -438,11 +451,52 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         await outputJson(metaPath, meta, { spaces: 2 });
     }
 
-    private async _clearConvolutionCache(outputBase: string): Promise<void> {
-        const cacheDir = `${outputBase}_convolution`;
-        for (let i = 0; i < 6; i++) {
-            await remove(join(cacheDir, `mipmap_${i}.png`)).catch(() => undefined);
+    private async _replaceOutput(stagedOutputPath: string, outputPath: string): Promise<IOutputTransaction> {
+        const suffix = `.bake-backup-${process.pid}-${Date.now()}`;
+        const outputBase = outputPath.slice(0, -4);
+        const targets = [outputPath, `${outputPath}.meta`, `${outputBase}_convolution`];
+        const backups = targets.map((target) => `${target}${suffix}`);
+        const movedBackups: Array<{ target: string; backup: string }> = [];
+
+        const restore = async () => {
+            await Promise.all(targets.map(async (target) => remove(target).catch(() => undefined)));
+            for (const { target, backup } of movedBackups) {
+                if (await pathExists(backup)) {
+                    await move(backup, target, { overwrite: true });
+                }
+            }
+        };
+
+        try {
+            for (let i = 0; i < targets.length; i++) {
+                if (await pathExists(targets[i])) {
+                    await move(targets[i], backups[i], { overwrite: false });
+                    movedBackups.push({ target: targets[i], backup: backups[i] });
+                }
+            }
+            await move(stagedOutputPath, outputPath, { overwrite: false });
+            await move(`${stagedOutputPath}.meta`, `${outputPath}.meta`, { overwrite: false });
+        } catch (error) {
+            await restore();
+            throw error;
         }
+
+        return {
+            commit: async () => {
+                await Promise.all(backups.map(async (backup) => remove(backup).catch(() => undefined)));
+            },
+            rollback: restore,
+        };
+    }
+
+    private _notifyCubemapChanged(node: any, component: ReflectionProbe, nodePath: string): void {
+        ReflectionProbeManager.probeManager.updateBakedCubemap(component.probe);
+        ReflectionProbeManager.probeManager.updatePreviewSphere(component.probe);
+        ServiceEvents.emit('node:change', node, {
+            type: NodeEventType.SET_PROPERTY,
+            propPath: `_components.${node.components.indexOf(component)}._cubemap`,
+        });
+        ServiceEvents.broadcast('node:change', nodePath);
     }
 
     private async _waitForTextureCube(url: string, deadline: number): Promise<IAssetInfo> {

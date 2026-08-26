@@ -493,6 +493,10 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             return;
         }
         const socket = io(serverURL);
+        const querySceneUrl = async (): Promise<string> => {
+            const current = await DecoratorService.Editor.queryCurrent();
+            return (current as any)?.__identifier__?.assetUrl ?? (current as any)?.assetUrl ?? '';
+        };
         const invoke = (module: string, method: string, args?: any[]) => {
             try {
                 const svc = (DecoratorService as any)[module];
@@ -522,6 +526,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 if (currentAssetUrl !== msg.sceneUrl) {
                     await DecoratorService.Editor.open({ urlOrUUID: msg.sceneUrl });
                 }
+                socket.emit('scene-renderer:scene', { sceneUrl: msg.sceneUrl });
                 const result = await (DecoratorService.ReflectionProbe as any).capturePixels(
                     msg.nodePath,
                     msg.timeoutMs,
@@ -532,7 +537,17 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             }
         });
         // 连接建立时同步一次设计分辨率（首次进入 / 断线重连时补齐错过的变更）
-        socket.on('connect', () => invoke('Engine', 'syncDesignResolution', []));
+        socket.on('connect', async () => {
+            let sceneUrl = '';
+            try {
+                sceneUrl = await querySceneUrl();
+            } catch {
+                // A renderer without an open scene is still available and can
+                // open the requested scene when a bake starts.
+            }
+            socket.emit('scene-renderer:register', { sceneUrl });
+            invoke('Engine', 'syncDesignResolution', []);
+        });
     } catch (e) {
         console.warn('[engine-bootstrap] setup browser-invoke channel failed:', e);
     }

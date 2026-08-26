@@ -1,6 +1,6 @@
 import type { RemoteSocket } from 'socket.io';
 import type { DefaultEventsMap } from 'socket.io/dist/typed-events';
-import { socketService } from '../../../server/socket';
+import { SCENE_RENDERER_ROOM, socketService } from '../../../server/socket';
 
 export interface IReflectionProbeCaptureResult {
     resolution: number;
@@ -44,27 +44,20 @@ export const reflectionProbeRenderer = {
         if (!io) {
             throw new Error('The WebGL scene renderer is unavailable because the HTTP server is not running.');
         }
-        const sockets = await io.fetchSockets();
+        const sockets = await io.in(SCENE_RENDERER_ROOM).fetchSockets();
         if (sockets.length === 0) {
             throw new Error('Reflection Probe Bake requires a WebGL scene renderer. Open /scene-editor/ in a browser and retry.');
         }
 
-        const errors: string[] = [];
-        return await new Promise<IReflectionProbeCaptureResult>((resolve, reject) => {
-            let pending = sockets.length;
-            for (const socket of sockets) {
-                requestSocket(socket, { sceneUrl, nodePath, timeoutMs }).then(resolve).catch((error) => {
-                    errors.push(error instanceof Error ? error.message : String(error));
-                    pending--;
-                    if (pending === 0) {
-                        reject(new Error(
-                            'No connected WebGL scene renderer completed the reflection-probe capture. '
-                            + 'Open /scene-editor/ and wait for it to finish loading, then retry.'
-                            + (errors.length ? ` (${errors.join('; ')})` : ''),
-                        ));
-                    }
-                });
-            }
-        });
+        const socket = sockets.find((candidate) => candidate.data.sceneUrl === sceneUrl) ?? sockets[0];
+        try {
+            return await requestSocket(socket, { sceneUrl, nodePath, timeoutMs });
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new Error(
+                'The selected WebGL scene renderer could not complete the reflection-probe capture. '
+                + `Open /scene-editor/ and wait for it to finish loading, then retry. (${detail})`,
+            );
+        }
     },
 };
