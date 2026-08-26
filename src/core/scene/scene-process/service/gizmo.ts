@@ -50,6 +50,17 @@ import './gizmo/components/light-probe-group';
 import './gizmo/components/reflection-probe';
 import './gizmo/components/lod-group';
 
+// Terrain is available only in engine versions that expose the Terrain
+// component. Keep its registration conditional so lightweight CLI/test `cc`
+// mocks do not eagerly load the terrain controller's rendering dependencies.
+try {
+    if ((require('cc') as { Terrain?: unknown }).Terrain) {
+        require('./gizmo/components/terrain');
+    }
+} catch {
+    // Terrain registration is optional when the engine module is incomplete.
+}
+
 type TGizmoType = 'icon' | 'persistent' | 'component';
 
 // 与 cocos-editor GizmoConfig 一致：Gizmo 全局显示配置
@@ -827,6 +838,11 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         return !stopped;
+    }
+
+    /** Returns the component gizmo without exposing the internal WeakMap to callers. */
+    getComponentGizmo(component: Component): GizmoBase | null {
+        return getGizmoProperty('component', component) ?? null;
     }
 
     // ── Selection integration (与 cocos-editor SelectionGizmoManager 一致) ─────
