@@ -28,6 +28,7 @@ describe('SceneConfig', () => {
             expect(config.camera).toBeDefined();
             expect(config.gizmo).toBeDefined();
             expect(config.sceneView).toBeDefined();
+            expect(config.referenceImage).toEqual({ images: [], sceneBindings: {}, desiredVisible: true });
         });
     });
 
@@ -124,6 +125,14 @@ describe('SceneConfig', () => {
             expect(saveSpy).toHaveBeenLastCalledWith('local');
             expect(await sceneConfigInstance.get('camera.fov', 'local')).toBe(60);
             await expect(sceneConfigInstance.get('camera.fov', 'project')).rejects.toThrow();
+        });
+
+        it('stores reference images only in the local scope', async () => {
+            const value = { images: [], sceneBindings: {}, desiredVisible: false };
+            await sceneConfigInstance.set('referenceImage', value);
+
+            expect(saveSpy).toHaveBeenLastCalledWith('local');
+            expect(await sceneConfigInstance.get('referenceImage', 'local')).toEqual(value);
         });
 
         it('should write to default scope and read back', async () => {

@@ -13,6 +13,11 @@ class NodeService {
     async ping() {
         return 'pong';
     }
+
+    async addReferenceImage(path) {
+        const dataUrl = await rpc.request('referenceImageFiles', 'readDataUrl', [path]);
+        return { path, dataUrl };
+    }
 }
 
 const rpc = new ProcessRPC();
@@ -22,12 +27,17 @@ rpc.attach({
     process,
 });
 
+const nodeService = new NodeService();
+
 // 注册对象实例
 rpc.register({
-    node: new NodeService(),
+    node: nodeService,
     scene: {
         async loadScene(id) {
             return id === 'Level01';
+        },
+        async addReferenceImage(path) {
+            return nodeService.addReferenceImage(path);
         },
     }
 });

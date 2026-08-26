@@ -6612,6 +6612,70 @@ export declare interface IRedoService {
     redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
     canRedo(options?: IUndoOperationOptions): boolean;
 }
+export declare interface IReferenceImageCancelOptions {
+    interactionId: number;
+}
+export declare interface IReferenceImageCommitOptions {
+    interactionId?: number;
+    patch: IReferenceImageParameters;
+}
+export declare interface IReferenceImageConfigItem {
+    path: string;
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    opacity: number;
+}
+export declare interface IReferenceImageError {
+    stage: 'config' | 'file' | 'decode';
+    message: string;
+}
+export declare interface IReferenceImageItem extends IReferenceImageConfigItem {
+    missing: boolean;
+}
+export declare interface IReferenceImageParameters {
+    x?: number;
+    y?: number;
+    scaleX?: number;
+    scaleY?: number;
+    opacity?: number;
+}
+export declare interface IReferenceImagePathOptions {
+    path: string;
+}
+export declare interface IReferenceImagePreviewOptions {
+    interactionId: number;
+    patch: IReferenceImageParameters;
+}
+export declare interface IReferenceImageService extends IServiceEvents {
+    getState(): Promise<IReferenceImageState>;
+    addAndSelect(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    remove(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    select(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState>;
+    refresh(): Promise<IReferenceImageState>;
+    previewParameters(options: IReferenceImagePreviewOptions): Promise<IReferenceImageState>;
+    commitParameters(options: IReferenceImageCommitOptions): Promise<IReferenceImageState>;
+    cancelPreview(options: IReferenceImageCancelOptions): Promise<IReferenceImageState>;
+}
+export declare interface IReferenceImageState {
+    images: IReferenceImageItem[];
+    current: {
+        sceneUuid: string | null;
+        imagePath: string | null;
+        image: IReferenceImageItem | null;
+    };
+    desiredVisible: boolean;
+    effectiveVisible: boolean;
+    visibilityReason: ReferenceImageVisibilityReason;
+    is2D: boolean;
+    hasOpenEditor: boolean;
+    error: IReferenceImageError | null;
+}
+export declare interface IReferenceImageVisibilityOptions {
+    desiredVisible: boolean;
+}
 export declare interface IReloadOptions {
     urlOrUUID?: string;
     preserveUndoHistory?: boolean;
@@ -6756,6 +6820,7 @@ export declare interface IServiceManager {
     SceneView: ISceneViewService;
     Preview: IPreviewService;
     UI: IUIService;
+    ReferenceImage: IReferenceImageService;
 }
 export declare interface ISetParentParams {
     paths: string[];
@@ -7090,6 +7155,7 @@ export declare enum PrefabState {
     PrefabInstance = 2,
     PrefabLostAsset = 3
 }
+export declare type ReferenceImageVisibilityReason = 'visible' | 'disabled' | 'no-editor' | 'not-2d' | 'unbound' | 'missing' | 'load-error';
 export declare enum ReloadResult {
     SUCCESS = 0,
     FAILED = 1,

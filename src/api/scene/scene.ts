@@ -22,17 +22,20 @@ import { Scene, TSceneTemplateType } from '../../core/scene';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
 import { PrefabApi } from './prefab';
+import { ReferenceImageApi } from './reference-image';
 import { options } from '../../core/builder/platforms/android/i18n/en';
 
 export class SceneApi {
     public component: ComponentApi;
     public node: NodeApi;
     public prefab: PrefabApi;
+    public referenceImage: ReferenceImageApi;
 
     constructor() {
         this.component = new ComponentApi();
         this.node = new NodeApi();
         this.prefab = new PrefabApi();
+        this.referenceImage = new ReferenceImageApi();
     }
 
     @tool('scene-query-current')

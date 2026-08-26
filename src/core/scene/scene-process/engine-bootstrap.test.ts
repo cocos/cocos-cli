@@ -44,6 +44,9 @@ jest.mock('./i18n', () => ({
 }));
 
 jest.mock('./service', () => ({}));
+jest.mock('./service/reference-image', () => ({
+    ReferenceImageService: class ReferenceImageService {},
+}));
 jest.mock('cc/polyfill/engine', () => ({}), { virtual: true });
 jest.mock('cc/overwrite', () => ({ default: (...args: any[]) => mockOverwrite(...args) }), { virtual: true });
 jest.mock('../../engine/editor-extends/utils/serialize', () => ({
