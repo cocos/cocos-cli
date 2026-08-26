@@ -508,6 +508,29 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 invoke(msg.module, msg.method, msg.args);
             }
         });
+        socket.on('scene:capture-reflection-probe', async (
+            msg: { sceneUrl?: string; nodePath?: string; timeoutMs?: number },
+            reply: (response: { result?: unknown; error?: string }) => void,
+        ) => {
+            try {
+                if (!msg?.sceneUrl || !msg?.nodePath) {
+                    throw new Error('Invalid reflection-probe capture request.');
+                }
+                const current = await DecoratorService.Editor.queryCurrent();
+                const currentAssetUrl = (current as any)?.__identifier__?.assetUrl
+                    ?? (current as any)?.assetUrl;
+                if (currentAssetUrl !== msg.sceneUrl) {
+                    await DecoratorService.Editor.open({ urlOrUUID: msg.sceneUrl });
+                }
+                const result = await (DecoratorService.ReflectionProbe as any).capturePixels(
+                    msg.nodePath,
+                    msg.timeoutMs,
+                );
+                reply({ result });
+            } catch (error) {
+                reply({ error: error instanceof Error ? error.message : String(error) });
+            }
+        });
         // 连接建立时同步一次设计分辨率（首次进入 / 断线重连时补齐错过的变更）
         socket.on('connect', () => invoke('Engine', 'syncDesignResolution', []));
     } catch (e) {

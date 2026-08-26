@@ -6500,6 +6500,23 @@ export declare interface IRedoService {
     redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
     canRedo(options?: IUndoOperationOptions): boolean;
 }
+export declare interface IReflectionProbeBakeOptions {
+    nodePath: string;
+    fastBake?: boolean;
+    saveScene?: boolean;
+    timeoutMs?: number;
+}
+export declare interface IReflectionProbeBakeResult {
+    nodePath: string;
+    componentUuid: string;
+    probeId: number;
+    cubemapUuid: string;
+    cubemapUrl: string;
+    fastBake: boolean;
+}
+export declare interface IReflectionProbeService extends IServiceEvents {
+    bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
+}
 export declare interface IReloadOptions {
     urlOrUUID?: string;
     preserveUndoHistory?: boolean;
@@ -6644,6 +6661,7 @@ export declare interface IServiceManager {
     SceneView: ISceneViewService;
     Preview: IPreviewService;
     UI: IUIService;
+    ReflectionProbe: IReflectionProbeService;
 }
 export declare interface ISetParentParams {
     paths: string[];

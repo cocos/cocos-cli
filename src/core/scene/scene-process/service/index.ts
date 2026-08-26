@@ -18,4 +18,5 @@ export * from './scene-view';
 export * from './particle';
 export * from './preview';
 export * from './ui';
+export * from './reflection-probe';
 export * from './core/global-events';
