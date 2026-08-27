@@ -13,15 +13,17 @@ import {
 } from 'cc';
 import { ReflectionProbeManager } from 'cc/editor/reflection-probe';
 import {
+    copy,
     ensureDir,
     existsSync,
     outputJson,
     pathExists,
     readJson,
+    readdir,
     move,
     remove,
 } from 'fs-extra';
-import { join } from 'path';
+import { basename, dirname, join } from 'path';
 import type {
     IReflectionProbeBakeOptions,
     IReflectionProbeBakeResult,
@@ -129,6 +131,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
 
             const sceneDir = join(assetRoot, sceneName);
+            const backupRoot = join(assetRoot, '..', 'temp', 'reflection-probe-bake');
             await ensureDir(sceneDir);
             const facePaths = await this._writeFaces(captured.faces, sceneDir, probeId, resolution, deadline);
             const outputBase = join(sceneDir, `reflectionProbe_${probeId}`);
@@ -141,10 +144,18 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             try {
                 await this._runCmft(facePaths, stagedBase, deadline);
                 await this._prepareMeta(stagedOutputPath, fastBake, outputPath);
-                const outputTransaction = await this._replaceOutput(stagedOutputPath, outputPath);
+                const outputTransaction = await this._replaceOutput(
+                    stagedOutputPath,
+                    outputPath,
+                    backupRoot,
+                    fastBake,
+                );
                 try {
                     this._assertBeforeDeadline(deadline, 'asset import');
                     await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]);
+                    if (!fastBake) {
+                        await this._ensureConvolution(outputBase, outputUrl, deadline);
+                    }
                     const cubeInfo = await this._waitForTextureCube(textureCubeUrl, deadline);
                     const textureCube = await this._loadTextureCube(cubeInfo.uuid, deadline);
                     const previousCubemap = component.cubemap;
@@ -158,7 +169,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     });
                     try {
                         component.cubemap = textureCube;
-                        this._notifyCubemapChanged(node, component, nodePath);
+                        this._notifyCubemapChanged(node, component);
                         await Service.Engine.repaintInEditMode();
 
                         if (options.saveScene !== false) {
@@ -169,7 +180,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     } catch (error) {
                         Service.Undo.cancelRecording(commandId);
                         component.cubemap = previousCubemap;
-                        this._notifyCubemapChanged(node, component, nodePath);
+                        this._notifyCubemapChanged(node, component);
                         await Service.Engine.repaintInEditMode();
                         throw error;
                     }
@@ -246,8 +257,12 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     private async _waitForCapture(probe: any, deadline: number): Promise<void> {
         do {
             this._assertBeforeDeadline(deadline, 'cubemap capture');
+            // Subscribe before requesting a repaint. The browser editor renders
+            // on demand, so subscribing afterwards can miss the only frame and
+            // leave the bake waiting for an unrelated future repaint.
+            const endFrame = this._waitForEndFrame(deadline);
             await Service.Engine.repaintInEditMode();
-            await this._waitForEndFrame(deadline);
+            await endFrame;
         } while (typeof probe.isFinishedRendering === 'function' && !probe.isFinishedRendering());
 
         if (!Array.isArray(probe.bakedCubeTextures) || probe.bakedCubeTextures.length !== 6) {
@@ -441,41 +456,60 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         }
         meta.ver ??= '0.0.0';
         meta.importer ??= '*';
+        meta.imported = false;
         meta.userData ??= {};
         meta.userData.type = 'texture cube';
         meta.userData.isRGBE = true;
         meta.subMetas ??= {};
         meta.subMetas.b47c0 ??= {};
+        meta.subMetas.b47c0.imported = false;
         meta.subMetas.b47c0.userData ??= {};
         meta.subMetas.b47c0.userData.mipBakeMode = fastBake ? 1 : 2;
         await outputJson(metaPath, meta, { spaces: 2 });
     }
 
-    private async _replaceOutput(stagedOutputPath: string, outputPath: string): Promise<IOutputTransaction> {
-        const suffix = `.bake-backup-${process.pid}-${Date.now()}`;
+    private async _replaceOutput(
+        stagedOutputPath: string,
+        outputPath: string,
+        backupRoot: string,
+        fastBake: boolean,
+    ): Promise<IOutputTransaction> {
+        await this._cleanupLegacyBackupMetas(outputPath);
+        const backupDir = join(backupRoot, `${process.pid}-${Date.now()}`);
+        await ensureDir(backupDir);
         const outputBase = outputPath.slice(0, -4);
         const targets = [outputPath, `${outputPath}.meta`, `${outputBase}_convolution`];
-        const backups = targets.map((target) => `${target}${suffix}`);
-        const movedBackups: Array<{ target: string; backup: string }> = [];
+        const backups = targets.map((_target, index) => join(backupDir, String(index)));
+        const savedBackups: Array<{ target: string; backup: string }> = [];
 
         const restore = async () => {
             await Promise.all(targets.map(async (target) => remove(target).catch(() => undefined)));
-            for (const { target, backup } of movedBackups) {
+            for (const { target, backup } of savedBackups) {
                 if (await pathExists(backup)) {
-                    await move(backup, target, { overwrite: true });
+                    await copy(backup, target, { overwrite: true });
                 }
             }
+            await remove(backupDir).catch(() => undefined);
         };
 
         try {
             for (let i = 0; i < targets.length; i++) {
                 if (await pathExists(targets[i])) {
-                    await move(targets[i], backups[i], { overwrite: false });
-                    movedBackups.push({ target: targets[i], backup: backups[i] });
+                    await copy(targets[i], backups[i], { overwrite: false });
+                    savedBackups.push({ target: targets[i], backup: backups[i] });
                 }
             }
-            await move(stagedOutputPath, outputPath, { overwrite: false });
-            await move(`${stagedOutputPath}.meta`, `${outputPath}.meta`, { overwrite: false });
+            if (fastBake) {
+                await remove(`${outputBase}_convolution`).catch(() => undefined);
+            } else {
+                // Preserve AssetDB-generated meta files and their UUIDs while
+                // invalidating only the six stale convolution images.
+                await Promise.all(FACE_NAMES.map(async (_face, index) => (
+                    remove(join(`${outputBase}_convolution`, `mipmap_${index}.png`)).catch(() => undefined)
+                )));
+            }
+            await move(stagedOutputPath, outputPath, { overwrite: true });
+            await move(`${stagedOutputPath}.meta`, `${outputPath}.meta`, { overwrite: true });
         } catch (error) {
             await restore();
             throw error;
@@ -483,20 +517,52 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
         return {
             commit: async () => {
-                await Promise.all(backups.map(async (backup) => remove(backup).catch(() => undefined)));
+                await remove(backupDir).catch(() => undefined);
             },
             rollback: restore,
         };
     }
 
-    private _notifyCubemapChanged(node: any, component: ReflectionProbe, nodePath: string): void {
+    private async _cleanupLegacyBackupMetas(outputPath: string): Promise<void> {
+        const prefix = `${basename(outputPath)}.bake-backup-`;
+        const entries = await readdir(dirname(outputPath)).catch(() => []);
+        await Promise.all(entries
+            .filter((entry) => entry.startsWith(prefix) && entry.endsWith('.meta'))
+            .map(async (entry) => remove(join(dirname(outputPath), entry)).catch(() => undefined)));
+    }
+
+    private _notifyCubemapChanged(node: any, component: ReflectionProbe): void {
         ReflectionProbeManager.probeManager.updateBakedCubemap(component.probe);
         ReflectionProbeManager.probeManager.updatePreviewSphere(component.probe);
         ServiceEvents.emit('node:change', node, {
             type: NodeEventType.SET_PROPERTY,
             propPath: `_components.${node.components.indexOf(component)}._cubemap`,
         });
-        ServiceEvents.broadcast('node:change', nodePath);
+    }
+
+    private async _ensureConvolution(outputBase: string, outputUrl: string, deadline: number): Promise<void> {
+        const convolutionDir = `${outputBase}_convolution`;
+        if (!await this._hasCompleteConvolution(convolutionDir)) {
+            // A brand-new PNG is imported in two stages: the image importer
+            // first creates the TextureCube subasset, then erp-texture-cube can
+            // run its convolution importer on the following refresh.
+            this._assertBeforeDeadline(deadline, 'texture cube convolution');
+            await this._prepareMeta(`${outputBase}.png`, false);
+            await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]);
+        }
+        while (Date.now() < deadline) {
+            if (await this._hasCompleteConvolution(convolutionDir)) {
+                return;
+            }
+            await this._delay(Math.min(POLL_INTERVAL_MS, Math.max(1, deadline - Date.now())));
+        }
+        throw new Error(`TextureCube convolution mipmaps were not generated before timeout: ${outputUrl}`);
+    }
+
+    private async _hasCompleteConvolution(convolutionDir: string): Promise<boolean> {
+        return (await Promise.all(FACE_NAMES.map((_face, index) => (
+            pathExists(join(convolutionDir, `mipmap_${index}.png`))
+        )))).every(Boolean);
     }
 
     private async _waitForTextureCube(url: string, deadline: number): Promise<IAssetInfo> {
