@@ -5412,6 +5412,7 @@ exports[`DTS API compatibility cli.d.ts should match snapshot 1`] = `
 "import type { Component } from 'cc';
 import type { Node as Node_2 } from 'cc';
 import type { Scene } from 'cc';
+import type { Terrain } from 'cc';
 import type { Vec3 as Vec3_2 } from 'cc';
 export declare interface AnimationClipAssetUserData {
     name: string;
@@ -6367,6 +6368,7 @@ export declare interface IGizmoService {
     removeAllGizmoOfNode(node: any, recursive?: boolean): void;
     clearAllGizmos(): void;
     callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
+    getComponentGizmo(component: any): any;
     onUpdate(deltaTime: number): void;
     queryToolsVisibility3d(): boolean;
     setToolsVisibility3d(value: boolean): void;
@@ -6867,6 +6869,7 @@ export declare interface IServiceManager {
     Preview: IPreviewService;
     UI: IUIService;
     ReferenceImage: IReferenceImageService;
+    Terrain: ITerrainService;
 }
 export declare interface ISetParentParams {
     paths: string[];
@@ -6902,6 +6905,105 @@ export declare interface ITargetOverrideInfo {
     propertyPath: string[];
     target: string;
     targetInfo?: string[];
+}
+export declare interface ITerrainBlockData {
+    index: {
+        x: number;
+        y: number;
+    };
+    layers: Array<string | null>;
+    weight: {
+        width: number;
+        height: number;
+        data: number[];
+    } | null;
+}
+export declare interface ITerrainBlockSnapshot {
+    target: ITerrainTarget;
+    valid: true;
+    block: ITerrainBlockData | null;
+}
+export declare interface ITerrainBrushPatch {
+    kind?: TerrainBrushKind;
+    radius?: number;
+    strength?: number;
+    rotation?: number;
+    setHeight?: number;
+}
+export declare interface ITerrainBrushState {
+    kind: TerrainBrushKind;
+    imageUuid: string | null;
+    radius: number;
+    strength: number;
+    rotation: number;
+    setHeight: number;
+}
+export declare interface ITerrainEditorState {
+    manage: ITerrainManageState;
+    layers: Array<ITerrainLayerState | null>;
+    mode: TerrainEditorMode;
+    currentLayer: number;
+    sculpt: ITerrainSculptState;
+    paint: ITerrainPaintState;
+}
+export declare interface ITerrainInvalidSnapshot {
+    target: ITerrainTarget;
+    valid: false;
+}
+export declare interface ITerrainLayerState {
+    detailMapUuid: string | null;
+    normalMapUuid: string | null;
+    metallic: number;
+    roughness: number;
+    tileSize: number;
+}
+export declare interface ITerrainManageState {
+    tileSize: number;
+    weightMapSize: number;
+    lightMapSize: number;
+    blockCount: [number, number];
+}
+export declare interface ITerrainPaintSessionPatch {
+    brush?: ITerrainBrushPatch;
+}
+export declare interface ITerrainPaintState {
+    brush: ITerrainBrushState;
+}
+export declare interface ITerrainSculptSessionPatch {
+    tool?: TerrainSculptTool;
+    brush?: ITerrainBrushPatch;
+}
+export declare interface ITerrainSculptState {
+    tool: TerrainSculptTool;
+    brush: ITerrainBrushState;
+}
+export declare interface ITerrainService {
+    readonly name: 'cc.Terrain';
+    readonly editedComponents: Terrain[];
+    readonly selectedComponents: Terrain[];
+    isTerrainChange: boolean;
+    select(nodeUuid: string): void;
+    unselect(nodeUuid: string): void;
+    close(): Promise<0 | 1 | 2>;
+    saveAsset(isClose?: boolean, component?: Terrain): Promise<0 | 1 | 2>;
+    saveAssetDialog(file?: string, isClose?: boolean): Promise<0 | 1 | 2>;
+    addAssetToComp(assetUuid: string): Promise<void>;
+    serialize(component: Terrain): Uint8Array;
+    onSculpt(node: any): void;
+    read(target: ITerrainTarget): TerrainReadResult;
+    setMode(target: ITerrainTarget, mode: TerrainEditorMode): TerrainReadResult;
+    setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
+    setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
+    setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
+    readBlock(target: ITerrainTarget): TerrainBlockReadResult;
+}
+export declare interface ITerrainSnapshot extends ITerrainEditorState {
+    target: ITerrainTarget;
+    valid: true;
+}
+export declare interface ITerrainTarget {
+    nodeUuid: string;
+    componentUuid: string;
 }
 export declare interface IUIService {
     alignSelection(type: UIAlignType): Promise<void>;
@@ -7296,6 +7398,11 @@ export declare enum TangentImportSetting {
 }
 export declare type TEditorEntity = IScene | INode;
 export declare type TEditorInstance = Scene | Node_2;
+export declare type TerrainBlockReadResult = ITerrainBlockSnapshot | ITerrainInvalidSnapshot;
+export declare type TerrainBrushKind = 'circle' | 'image';
+export declare type TerrainEditorMode = 'manage' | 'sculpt' | 'paint' | 'block';
+export declare type TerrainReadResult = ITerrainSnapshot | ITerrainInvalidSnapshot;
+export declare type TerrainSculptTool = 'bulge' | 'sunken' | 'smooth' | 'flatten' | 'set-height';
 export declare interface Texture2DAssetUserData extends TextureBaseAssetUserData {
     isUuid?: boolean;
     imageUuidOrDatabaseUri?: string;

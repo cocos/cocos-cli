@@ -1,17 +1,100 @@
 import { Component, Terrain, TerrainAsset } from 'cc';
-import { BaseService, register } from './core';
+import { BaseService, queryRegisteredService, register } from './core';
 import { ServiceEvents } from './core/global-events';
 import { getEditorNodeByUuid, getEditorNodeByPath } from './gizmo/utils/editor-node';
 import { loadAny } from './node/node-create';
 import { Rpc } from '../rpc';
-import type { ITerrainEvents, ITerrainService } from '../../common';
+import type {
+    ITerrainBlockData,
+    ITerrainBrushPatch,
+    ITerrainEditorState,
+    ITerrainEvents,
+    ITerrainInvalidSnapshot,
+    ITerrainPaintSessionPatch,
+    ITerrainService,
+    ITerrainSculptSessionPatch,
+    ITerrainTarget,
+    TerrainBlockReadResult,
+    TerrainEditorMode,
+    TerrainReadResult,
+} from '../../common';
+
+interface ITerrainSessionGizmo {
+    target: Terrain | null;
+    readTerrainState(): ITerrainEditorState;
+    setTerrainMode(mode: TerrainEditorMode): void;
+    setTerrainCurrentLayer(currentLayer: number): void;
+    updateTerrainSculptSession(patch: ITerrainSculptSessionPatch): void;
+    updateTerrainPaintSession(patch: ITerrainPaintSessionPatch): void;
+    readTerrainBlock(): ITerrainBlockData | null;
+}
+
+interface IGizmoServiceLookup {
+    getComponentGizmo(component: Component): unknown;
+}
+
+const terrainEditorModes = new Set<TerrainEditorMode>(['manage', 'sculpt', 'paint', 'block']);
+const terrainSculptTools = new Set<NonNullable<ITerrainSculptSessionPatch['tool']>>([
+    'bulge', 'sunken', 'smooth', 'flatten', 'set-height',
+]);
+const terrainBrushKinds = new Set<NonNullable<ITerrainBrushPatch['kind']>>(['circle', 'image']);
+
+function copyTarget(target: ITerrainTarget): ITerrainTarget {
+    return { nodeUuid: target.nodeUuid, componentUuid: target.componentUuid };
+}
+
+function isTerrainTarget(value: unknown): value is ITerrainTarget {
+    if (!value || typeof value !== 'object') return false;
+    const target = value as Partial<ITerrainTarget>;
+    return typeof target.nodeUuid === 'string' && target.nodeUuid.length > 0
+        && typeof target.componentUuid === 'string' && target.componentUuid.length > 0;
+}
+
+function isTerrainSessionGizmo(value: unknown): value is ITerrainSessionGizmo {
+    if (!value || typeof value !== 'object') return false;
+    const gizmo = value as Partial<ITerrainSessionGizmo>;
+    return 'target' in gizmo
+        && typeof gizmo.readTerrainState === 'function'
+        && typeof gizmo.setTerrainMode === 'function'
+        && typeof gizmo.setTerrainCurrentLayer === 'function'
+        && typeof gizmo.updateTerrainSculptSession === 'function'
+        && typeof gizmo.updateTerrainPaintSession === 'function'
+        && typeof gizmo.readTerrainBlock === 'function';
+}
+
+function normalizeBrushPatch(value: unknown): ITerrainBrushPatch | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const source = value as ITerrainBrushPatch;
+    const patch: ITerrainBrushPatch = {};
+    if (source.kind && terrainBrushKinds.has(source.kind)) patch.kind = source.kind;
+    for (const key of ['radius', 'strength', 'rotation', 'setHeight'] as const) {
+        if (typeof source[key] === 'number' && Number.isFinite(source[key])) patch[key] = source[key];
+    }
+    return Object.keys(patch).length ? patch : undefined;
+}
+
+function normalizeSculptPatch(value: unknown): ITerrainSculptSessionPatch | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const source = value as ITerrainSculptSessionPatch;
+    const patch: ITerrainSculptSessionPatch = {};
+    if (source.tool && terrainSculptTools.has(source.tool)) patch.tool = source.tool;
+    const brush = normalizeBrushPatch(source.brush);
+    if (brush) patch.brush = brush;
+    return Object.keys(patch).length ? patch : undefined;
+}
+
+function normalizePaintPatch(value: unknown): ITerrainPaintSessionPatch | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const brush = normalizeBrushPatch((value as ITerrainPaintSessionPatch).brush);
+    return brush ? { brush } : undefined;
+}
 
 /**
- * Terrain 资源生命周期管理。
+ * Terrain asset lifecycle and target-safe editor-session access.
  *
- * 3.x 的 terrain manager 依赖 Editor.Dialog/Plugin；CLI 只保留其数据和资产接口，
- * 将“是否询问用户”交给 pink。已有 .terrain 资源直接 saveAsset，未绑定资源时返回 2，
- * 由 UI 决定 Save As 的目标 URL。
+ * The public Terrain capability never exposes gizmos. This service validates the
+ * requested node/component pair, adapts the matching internal gizmo, and returns
+ * JSON-safe canonical snapshots for the Scene webview.
  */
 @register('Terrain')
 export class TerrainService extends BaseService<ITerrainEvents> implements ITerrainService {
@@ -27,13 +110,90 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         ServiceEvents.on('selection:clear', () => this.onSelectionClear());
     }
 
+    private isTerrainComponent(component: Component | null | undefined): component is Terrain {
+        return component instanceof Terrain || (component as any)?.__classname__ === 'cc.Terrain';
+    }
+
     private terrainOfNode(node: any): Terrain | null {
-        return node?.components?.find((component: Component) => component instanceof Terrain
-            || (component as any).__classname__ === 'cc.Terrain') as Terrain | null ?? null;
+        return node?.components?.find((component: Component) => this.isTerrainComponent(component)) as Terrain | null ?? null;
     }
 
     private terrainOfUuid(uuid: string): Terrain | null {
         return this.terrainOfNode(getEditorNodeByUuid(uuid));
+    }
+
+    private resolveTarget(target: ITerrainTarget): { component: Terrain; gizmo: ITerrainSessionGizmo } | null {
+        if (!isTerrainTarget(target)) return null;
+        const node = getEditorNodeByUuid(target.nodeUuid);
+        const component = node?.components?.find((candidate: Component) => candidate.uuid === target.componentUuid
+            && this.isTerrainComponent(candidate)) as Terrain | undefined;
+        if (!component || component.node !== node || !this.selectedComponents.includes(component)) return null;
+
+        const gizmoService = queryRegisteredService<IGizmoServiceLookup>('Gizmo');
+        const gizmo = gizmoService?.getComponentGizmo(component);
+        if (!isTerrainSessionGizmo(gizmo) || gizmo.target !== component) return null;
+        return { component, gizmo };
+    }
+
+    private invalidResult(target: ITerrainTarget): ITerrainInvalidSnapshot {
+        return { target: copyTarget(target), valid: false };
+    }
+
+    private readResolved(target: ITerrainTarget, gizmo: ITerrainSessionGizmo): TerrainReadResult {
+        return { target: copyTarget(target), valid: true, ...gizmo.readTerrainState() };
+    }
+
+    /** Returns a canonical snapshot or `valid: false`; it never falls back to another Terrain. */
+    public read(target: ITerrainTarget): TerrainReadResult {
+        if (!isTerrainTarget(target)) return { target: { nodeUuid: '', componentUuid: '' }, valid: false };
+        const resolved = this.resolveTarget(target);
+        return resolved ? this.readResolved(target, resolved.gizmo) : this.invalidResult(target);
+    }
+
+    public setMode(target: ITerrainTarget, mode: TerrainEditorMode): TerrainReadResult {
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        if (!terrainEditorModes.has(mode)) return this.readResolved(target, resolved.gizmo);
+        resolved.gizmo.setTerrainMode(mode);
+        this.emit('terrain:session-changed', copyTarget(target));
+        return this.read(target);
+    }
+
+    public setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult {
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        if (!Number.isInteger(currentLayer) || currentLayer < -1) return this.readResolved(target, resolved.gizmo);
+        resolved.gizmo.setTerrainCurrentLayer(currentLayer);
+        this.emit('terrain:session-changed', copyTarget(target));
+        return this.read(target);
+    }
+
+    public setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult {
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const normalized = normalizeSculptPatch(patch);
+        if (!normalized) return this.readResolved(target, resolved.gizmo);
+        resolved.gizmo.updateTerrainSculptSession(normalized);
+        this.emit('terrain:session-changed', copyTarget(target));
+        return this.read(target);
+    }
+
+    public setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult {
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const normalized = normalizePaintPatch(patch);
+        if (!normalized) return this.readResolved(target, resolved.gizmo);
+        resolved.gizmo.updateTerrainPaintSession(normalized);
+        this.emit('terrain:session-changed', copyTarget(target));
+        return this.read(target);
+    }
+
+    /** Reads the currently inspected block only; no Terrain mutation or Undo occurs. */
+    public readBlock(target: ITerrainTarget): TerrainBlockReadResult {
+        if (!isTerrainTarget(target)) return { target: { nodeUuid: '', componentUuid: '' }, valid: false };
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return this.invalidResult(target);
+        return { target: copyTarget(target), valid: true, block: resolved.gizmo.readTerrainBlock() };
     }
 
     private setManager(component: Terrain, value: any) {
@@ -96,7 +256,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     }
 
     public onComponentRemoved(component: Component): void {
-        if (component instanceof Terrain) this.removeComponent(component);
+        if (this.isTerrainComponent(component)) this.removeComponent(component);
     }
 
     private removeComponent(component: Terrain) {
@@ -118,6 +278,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     }
 
     public async saveAsset(isClose = false, component?: Terrain): Promise<0 | 1 | 2> {
+        void isClose;
         const targets = component ? [component] : this.editedComponents;
         let result: 0 | 1 | 2 = 1;
         for (const terrain of targets) {
@@ -217,5 +378,9 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     public onEditorClosed(): void {
         this.onSelectionClear();
         this.editedComponents.length = 0;
+    }
+
+    public onEditorDisposed(): void {
+        this.onEditorClosed();
     }
 }
