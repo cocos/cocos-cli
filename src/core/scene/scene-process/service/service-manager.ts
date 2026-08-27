@@ -32,6 +32,7 @@ const MESSAGE_ONLY_EVENTS = [
     'terrain:changed',
     'terrain:sculpt',
     'terrain:block-update',
+    'terrain:session-changed',
 ] as const;
 
 // 定义事件分组映射
