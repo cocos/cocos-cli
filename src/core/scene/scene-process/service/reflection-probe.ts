@@ -105,7 +105,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             if (!sceneName) {
                 throw new Error('No scene is currently open.');
             }
-            const fastBake = options.fastBake ?? component.fastBake;
+            const fastBake = component.fastBake;
 
             const current = await Service.Editor.queryCurrent();
             const currentAssetUrl = ((current as any)?.__identifier__?.assetUrl

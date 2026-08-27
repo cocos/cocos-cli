@@ -34,6 +34,11 @@ describe('reflection probe bake API', () => {
             saveScene: true,
             timeoutMs: 120_000,
         });
+        expect(SchemaReflectionProbeBakeOptions.parse({ nodePath: 'Probe', fastBake: true })).toEqual({
+            nodePath: 'Probe',
+            saveScene: true,
+            timeoutMs: 120_000,
+        });
         expect(() => SchemaReflectionProbeBakeOptions.parse({ nodePath: ' ' })).toThrow();
         expect(() => SchemaReflectionProbeBakeOptions.parse({ nodePath: 'Probe', timeoutMs: 0 })).toThrow();
         expect(() => SchemaReflectionProbeBakeOptions.parse({ nodePath: 'Probe', timeoutMs: 600_001 })).toThrow();
@@ -63,14 +68,12 @@ describe('reflection probe bake API', () => {
 
         const result = await new ReflectionProbeApi().bake({
             nodePath: 'Probe',
-            fastBake: true,
             saveScene: true,
             timeoutMs: 120_000,
         });
 
         expect(mockBake).toHaveBeenCalledWith({
             nodePath: 'Probe',
-            fastBake: true,
             saveScene: true,
             timeoutMs: 120_000,
         });

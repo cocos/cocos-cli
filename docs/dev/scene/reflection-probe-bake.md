@@ -15,7 +15,6 @@ Node 场景进程使用 EmptyDevice，不能进行有效的 GPU 捕获。因此�
 ```json
 {
   "nodePath": "Reflection Probe",
-  "fastBake": false,
   "saveScene": true,
   "timeoutMs": 120000
 }
@@ -24,7 +23,7 @@ Node 场景进程使用 EmptyDevice，不能进行有效的 GPU 捕获。因此�
 参数：
 
 - `nodePath`：探针节点在当前场景中的路径，必填。
-- `fastBake`：使用自动 mipmap；省略时采用组件当前配置。
+- `fastBake` 直接读取场景中 ReflectionProbe 组件的当前配置。
 - `saveScene`：绑定后保存场景，默认 `true`。
 - `timeoutMs`：完整流程超时，默认 120 秒，最大 600 秒。
 

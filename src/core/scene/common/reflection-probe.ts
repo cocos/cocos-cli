@@ -2,7 +2,6 @@ import type { IServiceEvents } from '../scene-process/service/core';
 
 export interface IReflectionProbeBakeOptions {
     nodePath: string;
-    fastBake?: boolean;
     saveScene?: boolean;
     timeoutMs?: number;
 }

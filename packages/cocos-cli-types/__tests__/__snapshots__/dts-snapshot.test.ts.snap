@@ -6502,7 +6502,6 @@ export declare interface IRedoService {
 }
 export declare interface IReflectionProbeBakeOptions {
     nodePath: string;
-    fastBake?: boolean;
     saveScene?: boolean;
     timeoutMs?: number;
 }
