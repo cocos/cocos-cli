@@ -6950,6 +6950,13 @@ export declare interface ITerrainInvalidSnapshot {
     target: ITerrainTarget;
     valid: false;
 }
+export declare interface ITerrainLayerPatch {
+    detailMapUuid?: string | null;
+    normalMapUuid?: string | null;
+    metallic?: number;
+    roughness?: number;
+    tileSize?: number;
+}
 export declare interface ITerrainLayerState {
     detailMapUuid: string | null;
     normalMapUuid: string | null;
@@ -6995,6 +7002,10 @@ export declare interface ITerrainService {
     setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
     setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
+    saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
+    addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
+    removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult>;
+    updateLayer(target: ITerrainTarget, index: number, patch: ITerrainLayerPatch): Promise<TerrainReadResult>;
     readBlock(target: ITerrainTarget): TerrainBlockReadResult;
 }
 export declare interface ITerrainSnapshot extends ITerrainEditorState {
