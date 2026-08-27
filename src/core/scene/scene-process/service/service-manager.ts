@@ -29,6 +29,9 @@ const MESSAGE_ONLY_EVENTS = [
     'camera:fov-changed',
     'scene-view:visibility-changed',
     'scene-view:light-changed',
+    'terrain:changed',
+    'terrain:sculpt',
+    'terrain:block-update',
 ] as const;
 
 // 定义事件分组映射

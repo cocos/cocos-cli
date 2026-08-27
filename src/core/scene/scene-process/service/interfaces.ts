@@ -32,6 +32,8 @@ import {
     IPublicUIService,
     IUIService,
     IAnimationService,
+    IPublicTerrainService,
+    ITerrainService,
 } from '../../common';
 
 /**
@@ -54,6 +56,7 @@ export interface IPublicServiceManager {
     SceneView: IPublicSceneViewService,
     Preview: IPublicPreviewService,
     UI: IPublicUIService,
+    Terrain: IPublicTerrainService,
 }
 
 export interface IServiceManager {
@@ -74,4 +77,5 @@ export interface IServiceManager {
     SceneView: ISceneViewService,
     Preview: IPreviewService,
     UI: IUIService,
+    Terrain: ITerrainService,
 }
