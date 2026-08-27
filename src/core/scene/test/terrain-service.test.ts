@@ -1,6 +1,13 @@
 const mockNodesByUuid = new Map<string, any>();
 const mockEmit = jest.fn();
 const mockQueryRegisteredService = jest.fn();
+const mockLoadAny = jest.fn();
+const mockServiceEventEmit = jest.fn();
+const mockUndo = {
+    push: jest.fn(),
+    isApplying: jest.fn(() => false),
+};
+const mockConsoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 jest.mock('cc', () => {
     class Component {
@@ -10,8 +17,24 @@ jest.mock('cc', () => {
 
     class Terrain extends Component { }
     class TerrainAsset { }
+    class TerrainLayer {
+        public detailMap: any = null;
+        public normalMap: any = null;
+        public metallic = 0;
+        public roughness = 1;
+        public tileSize = 1;
+    }
+    class TerrainInfo {
+        public tileSize = 1;
+        public weightMapSize = 128;
+        public lightMapSize = 128;
+        public blockCount = [1, 1];
+    }
+    class Texture2D {
+        constructor(public _uuid = '') { }
+    }
 
-    return { Component, Terrain, TerrainAsset };
+    return { Component, Terrain, TerrainAsset, TerrainInfo, TerrainLayer, Texture2D, TERRAIN_MAX_LAYER_COUNT: 4 };
 });
 
 jest.mock('../scene-process/service/core', () => ({
@@ -30,14 +53,21 @@ jest.mock('../scene-process/service/gizmo/utils/editor-node', () => ({
 }));
 
 jest.mock('../scene-process/service/node/node-create', () => ({
-    loadAny: jest.fn(),
+    loadAny: mockLoadAny,
+}));
+
+jest.mock('../scene-process/service/core/global-events', () => ({
+    ServiceEvents: {
+        emit: mockServiceEventEmit,
+        on: jest.fn(),
+    },
 }));
 
 jest.mock('../scene-process/rpc', () => ({
     Rpc: { getInstance: () => ({ request: jest.fn() }) },
 }));
 
-import { Terrain } from 'cc';
+import { Terrain, Texture2D } from 'cc';
 import type {
     IPublicTerrainService,
     ITerrainEditorState,
@@ -84,6 +114,59 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
         weight: { width: 2, height: 1, data: [255, 0, 0, 0, 128, 127, 0, 0] },
     };
 
+    Object.assign(terrain as any, {
+        _asset: {},
+        rebuild: jest.fn((info: any) => {
+            state.manage = {
+                tileSize: info.tileSize,
+                weightMapSize: info.weightMapSize,
+                lightMapSize: info.lightMapSize,
+                blockCount: [info.blockCount[0], info.blockCount[1]],
+            };
+        }),
+        getLayer: jest.fn((index: number) => {
+            const layer = state.layers[index];
+            if (!layer) return null;
+            return {
+                get detailMap() { return layer.detailMapUuid ? new Texture2D(layer.detailMapUuid) : null; },
+                set detailMap(value: any) { layer.detailMapUuid = value?._uuid ?? null; },
+                get normalMap() { return layer.normalMapUuid ? new Texture2D(layer.normalMapUuid) : null; },
+                set normalMap(value: any) { layer.normalMapUuid = value?._uuid ?? null; },
+                get metallic() { return layer.metallic; },
+                set metallic(value: number) { layer.metallic = value; },
+                get roughness() { return layer.roughness; },
+                set roughness(value: number) { layer.roughness = value; },
+                get tileSize() { return layer.tileSize; },
+                set tileSize(value: number) { layer.tileSize = value; },
+            };
+        }),
+        setLayer: jest.fn((index: number, layer: any) => {
+            state.layers[index] = {
+                detailMapUuid: layer.detailMap?._uuid ?? null,
+                normalMapUuid: layer.normalMap?._uuid ?? null,
+                metallic: layer.metallic,
+                roughness: layer.roughness,
+                tileSize: layer.tileSize,
+            };
+        }),
+        removeLayer: jest.fn((index: number) => {
+            state.layers[index] = null;
+        }),
+        addLayer: jest.fn((layer: any) => {
+            const index = state.layers.findIndex((item) => item === null);
+            if (index < 0) return -1;
+            state.layers[index] = {
+                detailMapUuid: layer.detailMap?._uuid ?? null,
+                normalMapUuid: layer.normalMap?._uuid ?? null,
+                metallic: layer.metallic,
+                roughness: layer.roughness,
+                tileSize: layer.tileSize,
+            };
+            return index;
+        }),
+        exportLayerListToAsset: jest.fn(),
+    });
+
     const gizmo = {
         target: terrain,
         readTerrainState: jest.fn(() => clone(state)),
@@ -118,6 +201,12 @@ describe('TerrainService target-safe public capability', () => {
         mockNodesByUuid.clear();
         mockEmit.mockReset();
         mockQueryRegisteredService.mockReset();
+        mockLoadAny.mockReset();
+        mockServiceEventEmit.mockReset();
+        mockUndo.push.mockReset();
+        mockUndo.isApplying.mockReset();
+        mockUndo.isApplying.mockReturnValue(false);
+        mockConsoleWarn.mockReset();
     });
 
     it('publishes only typed target-safe reads and editor-session commands', () => {
@@ -129,7 +218,13 @@ describe('TerrainService target-safe public capability', () => {
             service.setCurrentLayer(target, 0);
             service.setSculptSession(target, { tool: 'set-height', brush: { radius: 8, setHeight: 12 } });
             service.setPaintSession(target, { brush: { kind: 'circle', strength: 7 } });
-            return { read, block };
+            const manage = service.saveManage(target, { tileSize: 1, weightMapSize: 128, lightMapSize: 128, blockCount: [1, 1] });
+            const add = service.addLayer(target, {
+                detailMapUuid: 'detail', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
+            });
+            const update = service.updateLayer(target, 0, { roughness: 0.5 });
+            const remove = service.removeLayer(target, 0);
+            return { read, block, manage, add, update, remove };
         };
 
         expect(assertPublicTerrainInterface).toBeDefined();
@@ -231,4 +326,218 @@ describe('TerrainService target-safe public capability', () => {
         fixture.node.components = [Object.assign(new Terrain(), { uuid: 'replacement-terrain', node: fixture.node })];
         expect(service.read(fixture.target)).toEqual({ target: fixture.target, valid: false });
     });
+
+    it('rejects every authoring command before it touches a missing, non-Terrain, or mismatched target', async () => {
+        const fixture = createFixture();
+        const nonTerrainNode: { uuid: string; components: Array<{ uuid: string; node?: any }> } = {
+            uuid: 'node-non-terrain', components: [{ uuid: 'component-non-terrain' }],
+        };
+        nonTerrainNode.components[0].node = nonTerrainNode;
+        mockNodesByUuid.set(nonTerrainNode.uuid, nonTerrainNode);
+        mockQueryRegisteredService.mockImplementation((name: string) => {
+            if (name === 'Gizmo') return { getComponentGizmo: () => fixture.gizmo };
+            if (name === 'Undo') return mockUndo;
+            return null;
+        });
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        const before = clone(fixture.state);
+        const missing: ITerrainTarget = { nodeUuid: 'missing-node', componentUuid: 'missing-terrain' };
+        const nonTerrain: ITerrainTarget = { nodeUuid: nonTerrainNode.uuid, componentUuid: 'component-non-terrain' };
+        const mismatched: ITerrainTarget = { nodeUuid: fixture.target.nodeUuid, componentUuid: 'wrong-terrain' };
+        const layer = { detailMapUuid: 'detail-rejected', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1 };
+
+        await expect(service.saveManage(missing, fixture.state.manage)).resolves.toEqual({ target: missing, valid: false });
+        await expect(service.addLayer(nonTerrain, layer)).resolves.toEqual({ target: nonTerrain, valid: false });
+        await expect(service.removeLayer(mismatched, 0)).resolves.toEqual({ target: mismatched, valid: false });
+        await expect(service.updateLayer(missing, 0, { roughness: 0.5 })).resolves.toEqual({ target: missing, valid: false });
+
+        expect(fixture.state).toEqual(before);
+        expect(mockLoadAny).not.toHaveBeenCalled();
+        expect(mockUndo.push).not.toHaveBeenCalled();
+    });
+
+    it('leaves authoring state untouched when the CLI Undo service is unavailable', async () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockImplementation((name: string) => name === 'Gizmo'
+            ? { getComponentGizmo: () => fixture.gizmo }
+            : null);
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        const before = clone(fixture.state);
+        const layer = { detailMapUuid: 'detail-without-undo', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1 };
+
+        await expect(service.saveManage(fixture.target, { ...fixture.state.manage, tileSize: 3 })).resolves.toEqual({
+            target: fixture.target,
+            valid: true,
+            ...before,
+        });
+        await expect(service.addLayer(fixture.target, layer)).resolves.toEqual({ target: fixture.target, valid: true, ...before });
+        await expect(service.removeLayer(fixture.target, 0)).resolves.toEqual({ target: fixture.target, valid: true, ...before });
+        await expect(service.updateLayer(fixture.target, 0, { roughness: 0.5 })).resolves.toEqual({ target: fixture.target, valid: true, ...before });
+
+        expect(fixture.state).toEqual(before);
+        expect(mockLoadAny).not.toHaveBeenCalled();
+    });
+
+    it('reports a texture-load error while leaving the explicit Terrain unchanged', async () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockImplementation((name: string) => {
+            if (name === 'Gizmo') return { getComponentGizmo: () => fixture.gizmo };
+            if (name === 'Undo') return mockUndo;
+            return null;
+        });
+        const error = new Error('asset database unavailable');
+        mockLoadAny.mockRejectedValue(error);
+
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        const before = clone(fixture.state);
+        await expect(service.addLayer(fixture.target, {
+            detailMapUuid: 'detail-load-error', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
+        })).resolves.toEqual({ target: fixture.target, valid: true, ...before });
+
+        expect(mockConsoleWarn).toHaveBeenCalledWith('[Terrain] load layer texture failed: detail-load-error', error);
+        expect(fixture.state).toEqual(before);
+        expect(mockUndo.push).not.toHaveBeenCalled();
+    });
+
+    it('rejects a target invalidated while a layer texture is loading', async () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockImplementation((name: string) => {
+            if (name === 'Gizmo') return { getComponentGizmo: () => fixture.gizmo };
+            if (name === 'Undo') return mockUndo;
+            return null;
+        });
+        let finishLoad: ((texture: Texture2D) => void) | undefined;
+        mockLoadAny.mockImplementation(() => new Promise<Texture2D>((resolve) => {
+            finishLoad = resolve;
+        }));
+
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        const before = clone(fixture.state);
+        const pending = service.addLayer(fixture.target, {
+            detailMapUuid: 'detail-delayed', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
+        });
+        service.onSelectionClear();
+        finishLoad?.(new Texture2D('detail-delayed'));
+
+        await expect(pending).resolves.toEqual({ target: fixture.target, valid: false });
+        expect(fixture.state).toEqual(before);
+        expect(mockUndo.push).not.toHaveBeenCalled();
+    });
+
+    it('commits target-safe Manage and layer mutations as one authoritative Undo command each', async () => {
+        const fixture = createFixture();
+        const other = createFixture('node-b', 'terrain-b');
+        const gizmoService = {
+            getComponentGizmo: jest.fn((component) => component === fixture.terrain ? fixture.gizmo : other.gizmo),
+        };
+        const engine = { repaintInEditMode: jest.fn() };
+        mockQueryRegisteredService.mockImplementation((name: string) => {
+            if (name === 'Gizmo') return gizmoService;
+            if (name === 'Undo') return mockUndo;
+            if (name === 'Engine') return engine;
+            return null;
+        });
+        mockLoadAny.mockImplementation(async (uuid: string) => new Texture2D(uuid));
+
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        const initialManage = clone(fixture.state.manage);
+        const initialLayers = clone(fixture.state.layers);
+
+        const managed = await service.saveManage(fixture.target, {
+            tileSize: 3,
+            weightMapSize: 128,
+            lightMapSize: 64,
+            blockCount: [4, 2],
+        });
+        expect(managed).toMatchObject({
+            valid: true,
+            manage: { tileSize: 3, weightMapSize: 128, lightMapSize: 64, blockCount: [4, 2] },
+        });
+
+        const added = await service.addLayer(fixture.target, {
+            detailMapUuid: 'detail-b',
+            normalMapUuid: 'normal-b',
+            metallic: 0.4,
+            roughness: 0.6,
+            tileSize: 8,
+        });
+        expect(added).toMatchObject({ valid: true });
+        expect((added as any).layers[0]).toMatchObject({ detailMapUuid: 'detail-a' });
+        expect((added as any).layers[1]).toMatchObject({ detailMapUuid: 'detail-b', normalMapUuid: 'normal-b' });
+
+        const updated = await service.updateLayer(fixture.target, 1, {
+            detailMapUuid: 'detail-c',
+            roughness: 0.25,
+        });
+        expect(updated).toMatchObject({ valid: true });
+        expect((updated as any).layers[0]).toMatchObject({ detailMapUuid: 'detail-a' });
+        expect((updated as any).layers[1]).toMatchObject({ detailMapUuid: 'detail-c', roughness: 0.25 });
+
+        const removed = await service.removeLayer(fixture.target, 1);
+        expect(removed).toMatchObject({ valid: true });
+        expect((removed as any).layers[0]).toMatchObject({ detailMapUuid: 'detail-a' });
+        expect((removed as any).layers[1]).toBeNull();
+
+        // Current-layer selection is a session control, not an asset mutation or an Undo entry.
+        service.setCurrentLayer(fixture.target, 0);
+        expect(mockUndo.push).toHaveBeenCalledTimes(4);
+        expect(mockUndo.push.mock.calls.map(([command]) => command.meta.type)).toEqual([
+            'terrain:save-manage',
+            'terrain:add-layer',
+            'terrain:update-layer',
+            'terrain:remove-layer',
+        ]);
+        expect(mockUndo.push.mock.calls.every(([command]) => command.meta.scope.editorType === 'scene')).toBe(true);
+        expect((fixture.terrain as any).exportLayerListToAsset).toHaveBeenCalled();
+        expect(mockServiceEventEmit).toHaveBeenCalledWith('node:change', fixture.node, { type: 'component-changed' });
+        expect(engine.repaintInEditMode).toHaveBeenCalledTimes(4);
+
+        const [manageCommand, addCommand, updateCommand, removeCommand] = mockUndo.push.mock.calls.map(([command]) => command);
+        expect(mockEmit).toHaveBeenCalledWith('terrain:changed', fixture.terrain);
+        await manageCommand.undo();
+        expect(fixture.state.manage).toEqual(initialManage);
+        await manageCommand.redo();
+        expect(fixture.state.manage).toEqual({ tileSize: 3, weightMapSize: 128, lightMapSize: 64, blockCount: [4, 2] });
+
+        const assetSyncCallsBeforeLayerUndo = (fixture.terrain as any).exportLayerListToAsset.mock.calls.length;
+        await addCommand.undo();
+        expect(fixture.state.layers).toEqual(initialLayers);
+        expect((fixture.terrain as any).exportLayerListToAsset).toHaveBeenCalledTimes(assetSyncCallsBeforeLayerUndo + 1);
+        await addCommand.redo();
+        expect(fixture.state.layers[1]).toMatchObject({ detailMapUuid: 'detail-b', normalMapUuid: 'normal-b' });
+        expect((fixture.terrain as any).exportLayerListToAsset).toHaveBeenCalledTimes(assetSyncCallsBeforeLayerUndo + 2);
+        expect(mockEmit).toHaveBeenCalledWith('terrain:changed', fixture.terrain);
+
+        await updateCommand.undo();
+        expect(fixture.state.layers[1]).toMatchObject({ detailMapUuid: 'detail-b', roughness: 0.6 });
+        await updateCommand.redo();
+        expect(fixture.state.layers[1]).toMatchObject({ detailMapUuid: 'detail-c', roughness: 0.25 });
+
+        await removeCommand.undo();
+        expect(fixture.state.layers[1]).toMatchObject({ detailMapUuid: 'detail-c', roughness: 0.25 });
+        await removeCommand.redo();
+        expect(fixture.state.layers[1]).toBeNull();
+
+        const beforeRejectedDrop = clone(fixture.state);
+        mockLoadAny.mockResolvedValueOnce({ _uuid: 'not-a-texture' });
+        expect(await service.addLayer(fixture.target, {
+            detailMapUuid: 'not-a-texture', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
+        })).toEqual({ target: fixture.target, valid: true, ...beforeRejectedDrop });
+        expect(mockUndo.push).toHaveBeenCalledTimes(4);
+
+        expect(await service.updateLayer(other.target, 0, { roughness: 0.5 })).toEqual({ target: other.target, valid: false });
+        const textureLoadsBeforeRejectedTarget = mockLoadAny.mock.calls.length;
+        expect(await service.addLayer(other.target, {
+            detailMapUuid: 'detail-on-stale-target', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
+        })).toEqual({ target: other.target, valid: false });
+        expect(mockLoadAny).toHaveBeenCalledTimes(textureLoadsBeforeRejectedTarget);
+        expect(mockUndo.push).toHaveBeenCalledTimes(4);
+        expect(other.state).not.toEqual(fixture.state);
+    });
+
 });

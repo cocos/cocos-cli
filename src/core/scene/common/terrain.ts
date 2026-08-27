@@ -13,7 +13,7 @@ export type TerrainSculptTool = 'bulge' | 'sunken' | 'smooth' | 'flatten' | 'set
 /** The brush implementation currently selected for a Terrain editor session. */
 export type TerrainBrushKind = 'circle' | 'image';
 
-/** JSON-safe TerrainInfo values used to hydrate the Manage view. */
+/** A complete JSON-safe TerrainInfo snapshot and `saveManage` payload; map sizes and block counts must be positive integers. */
 export interface ITerrainManageState {
     tileSize: number;
     weightMapSize: number;
@@ -28,6 +28,15 @@ export interface ITerrainLayerState {
     metallic: number;
     roughness: number;
     tileSize: number;
+}
+
+/** A partial JSON-safe Terrain layer update: omitted fields are unchanged, null texture UUIDs clear maps, and other UUIDs must resolve to compatible Texture2D assets. */
+export interface ITerrainLayerPatch {
+    detailMapUuid?: string | null;
+    normalMapUuid?: string | null;
+    metallic?: number;
+    roughness?: number;
+    tileSize?: number;
 }
 
 /** JSON-safe, non-asset Terrain editor brush state. */
@@ -123,10 +132,11 @@ export interface ITerrainBlockSnapshot {
 export type TerrainBlockReadResult = ITerrainBlockSnapshot | ITerrainInvalidSnapshot;
 
 /**
- * Terrain editor capability consumed by the Scene webview.
+ * Target-safe Terrain editor capability consumed by the Scene webview.
  *
  * Reads and commands always require an explicit node/component pair. Results are
  * canonical snapshots; a `valid: false` result must replace any cached state.
+ * A rejected target does not mutate Terrain or create a new Undo entry.
  */
 export interface ITerrainService {
     readonly name: 'cc.Terrain';
@@ -152,6 +162,14 @@ export interface ITerrainService {
     setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
     /** Applies a partial Paint session update without assigning brush assets or creating Scene Undo. */
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
+    /** Commits a complete Manage draft as one TerrainInfo/Undo mutation. */
+    saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
+    /** Adds a fully specified Terrain layer; `detailMapUuid` must identify a compatible Texture2D. */
+    addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
+    /** Removes one Terrain layer slot and returns the authoritative state. */
+    removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult>;
+    /** Applies one explicit layer patch and returns the authoritative state. */
+    updateLayer(target: ITerrainTarget, index: number, patch: ITerrainLayerPatch): Promise<TerrainReadResult>;
     /** Reads the current block without mutation or Scene Undo; `block` is null when no block is selected. */
     readBlock(target: ITerrainTarget): TerrainBlockReadResult;
 }
@@ -160,7 +178,8 @@ export type IPublicTerrainService = Pick<ITerrainService,
     'name' | 'isTerrainChange' | 'select' | 'unselect' | 'close' |
     'saveAsset' | 'saveAssetDialog' | 'addAssetToComp' |
     'read' | 'setMode' | 'setCurrentLayer' | 'setSculptSession' |
-    'setPaintSession' | 'readBlock'
+    'setPaintSession' | 'saveManage' | 'addLayer' | 'removeLayer' |
+    'updateLayer' | 'readBlock'
 >;
 
 export interface ITerrainEvents {

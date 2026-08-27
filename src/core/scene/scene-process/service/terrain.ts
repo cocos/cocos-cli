@@ -1,4 +1,4 @@
-import { Component, Terrain, TerrainAsset } from 'cc';
+import { Component, Terrain, TerrainAsset, TerrainInfo, TerrainLayer, Texture2D, TERRAIN_MAX_LAYER_COUNT } from 'cc';
 import { BaseService, queryRegisteredService, register } from './core';
 import { ServiceEvents } from './core/global-events';
 import { getEditorNodeByUuid, getEditorNodeByPath } from './gizmo/utils/editor-node';
@@ -10,6 +10,9 @@ import type {
     ITerrainEditorState,
     ITerrainEvents,
     ITerrainInvalidSnapshot,
+    ITerrainLayerPatch,
+    ITerrainLayerState,
+    ITerrainManageState,
     ITerrainPaintSessionPatch,
     ITerrainService,
     ITerrainSculptSessionPatch,
@@ -17,6 +20,9 @@ import type {
     TerrainBlockReadResult,
     TerrainEditorMode,
     TerrainReadResult,
+    IUndoCommand,
+    IUndoRedoResult,
+    IUndoService,
 } from '../../common';
 
 interface ITerrainSessionGizmo {
@@ -89,6 +95,106 @@ function normalizePaintPatch(value: unknown): ITerrainPaintSessionPatch | undefi
     return brush ? { brush } : undefined;
 }
 
+
+interface ITerrainLayerAssets {
+    detailMap?: Texture2D | null;
+    normalMap?: Texture2D | null;
+}
+
+function copyManageState(value: ITerrainManageState): ITerrainManageState {
+    return {
+        tileSize: value.tileSize,
+        weightMapSize: value.weightMapSize,
+        lightMapSize: value.lightMapSize,
+        blockCount: [value.blockCount[0], value.blockCount[1]],
+    };
+}
+
+function copyLayerState(value: ITerrainLayerState): ITerrainLayerState {
+    return {
+        detailMapUuid: value.detailMapUuid,
+        normalMapUuid: value.normalMapUuid,
+        metallic: value.metallic,
+        roughness: value.roughness,
+        tileSize: value.tileSize,
+    };
+}
+
+function copyLayerStates(values: Array<ITerrainLayerState | null>): Array<ITerrainLayerState | null> {
+    return values.map((value) => value ? copyLayerState(value) : null);
+}
+
+function isFinitePositive(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isPositiveInteger(value: unknown, maximum = Number.MAX_SAFE_INTEGER): value is number {
+    return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= maximum;
+}
+
+function isUuidOrNull(value: unknown): value is string | null {
+    return value === null || (typeof value === 'string' && value.length > 0);
+}
+
+function normalizeManageState(value: unknown): ITerrainManageState | null {
+    if (!value || typeof value !== 'object') return null;
+    const source = value as Partial<ITerrainManageState>;
+    if (!isFinitePositive(source.tileSize)
+        || !isPositiveInteger(source.weightMapSize, 0x7fff)
+        || !isPositiveInteger(source.lightMapSize, 0x7fff)
+        || !Array.isArray(source.blockCount)
+        || source.blockCount.length !== 2
+        || !isPositiveInteger(source.blockCount[0])
+        || !isPositiveInteger(source.blockCount[1])) {
+        return null;
+    }
+    return {
+        tileSize: source.tileSize,
+        weightMapSize: source.weightMapSize,
+        lightMapSize: source.lightMapSize,
+        blockCount: [source.blockCount[0], source.blockCount[1]],
+    };
+}
+
+function normalizeLayerState(value: unknown): ITerrainLayerState | null {
+    if (!value || typeof value !== 'object') return null;
+    const source = value as Partial<ITerrainLayerState>;
+    const { detailMapUuid, normalMapUuid, metallic, roughness, tileSize } = source;
+    if (!isUuidOrNull(detailMapUuid)
+        || !isUuidOrNull(normalMapUuid)
+        || typeof metallic !== 'number' || !Number.isFinite(metallic)
+        || typeof roughness !== 'number' || !Number.isFinite(roughness)
+        || !isFinitePositive(tileSize)) {
+        return null;
+    }
+    return { detailMapUuid, normalMapUuid, metallic, roughness, tileSize };
+}
+
+function normalizeLayerPatch(value: unknown): ITerrainLayerPatch | null {
+    if (!value || typeof value !== 'object') return null;
+    const source = value as ITerrainLayerPatch;
+    const patch: ITerrainLayerPatch = {};
+    for (const key of ['detailMapUuid', 'normalMapUuid'] as const) {
+        if (!Object.hasOwn(source, key)) continue;
+        if (!isUuidOrNull(source[key])) return null;
+        patch[key] = source[key];
+    }
+    for (const key of ['metallic', 'roughness'] as const) {
+        if (!Object.hasOwn(source, key)) continue;
+        if (!Number.isFinite(source[key])) return null;
+        patch[key] = source[key];
+    }
+    if (Object.hasOwn(source, 'tileSize')) {
+        if (!isFinitePositive(source.tileSize)) return null;
+        patch.tileSize = source.tileSize;
+    }
+    return Object.keys(patch).length ? patch : null;
+}
+
+function statesEqual(left: unknown, right: unknown): boolean {
+    return JSON.stringify(left) === JSON.stringify(right);
+}
+
 /**
  * Terrain asset lifecycle and target-safe editor-session access.
  *
@@ -101,6 +207,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     public readonly name = 'cc.Terrain' as const;
     public readonly editedComponents: Terrain[] = [];
     public readonly selectedComponents: Terrain[] = [];
+    private _terrainUndoSequence = 0;
 
     init() {
         // SelectionService broadcasts paths, while the old manager received node UUIDs.
@@ -194,6 +301,244 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const resolved = this.resolveTarget(target);
         if (!resolved) return this.invalidResult(target);
         return { target: copyTarget(target), valid: true, block: resolved.gizmo.readTerrainBlock() };
+    }
+
+    /** Commits a full Manage draft as one CLI-owned Terrain mutation and Undo command. */
+    public async saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult> {
+        const next = normalizeManageState(manage);
+        if (!next) return this.read(target);
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const undoService = this.getTerrainUndoService();
+        if (!undoService) return this.readResolved(target, resolved.gizmo);
+
+        const before = copyManageState(resolved.gizmo.readTerrainState().manage);
+        if (statesEqual(before, next)) return this.readResolved(target, resolved.gizmo);
+        if (!this.applyTerrainManageState(resolved.component, next)) return this.read(target);
+
+        const result = this.read(target);
+        if (!result.valid) return result;
+        const after = copyManageState(result.manage);
+        this.pushTerrainUndo(undoService, resolved.component, 'Save Terrain Manage', 'terrain:save-manage',
+            () => this.applyTerrainManageState(resolved.component, before),
+            () => this.applyTerrainManageState(resolved.component, after));
+        return result;
+    }
+
+    /** Adds one complete layer; incompatible or unavailable textures leave Terrain untouched. */
+    public async addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult> {
+        const next = normalizeLayerState(layer);
+        if (!next || !next.detailMapUuid) return this.read(target);
+        const initial = this.resolveTarget(target);
+        if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const undoService = this.getTerrainUndoService();
+        if (!undoService) return this.readResolved(target, initial.gizmo);
+        const assets = await this.loadLayerAssets(next);
+        if (!assets?.detailMap) return this.read(target);
+
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const before = copyLayerStates(resolved.gizmo.readTerrainState().layers);
+        if (!this.addTerrainLayer(resolved.component, next, assets)) return this.read(target);
+
+        const result = this.read(target);
+        if (!result.valid) return result;
+        const after = copyLayerStates(result.layers);
+        this.pushTerrainUndo(undoService, resolved.component, 'Add Terrain Layer', 'terrain:add-layer',
+            () => this.applyTerrainLayerStates(resolved.component, before),
+            () => this.applyTerrainLayerStates(resolved.component, after));
+        return result;
+    }
+
+    /** Removes a single layer slot as one CLI-owned Terrain mutation and Undo command. */
+    public async removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult> {
+        if (!this.isLayerIndex(index)) return this.read(target);
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const undoService = this.getTerrainUndoService();
+        if (!undoService) return this.readResolved(target, resolved.gizmo);
+        const before = copyLayerStates(resolved.gizmo.readTerrainState().layers);
+        if (!this.removeTerrainLayer(resolved.component, index)) return this.read(target);
+
+        const result = this.read(target);
+        if (!result.valid) return result;
+        const after = copyLayerStates(result.layers);
+        this.pushTerrainUndo(undoService, resolved.component, 'Remove Terrain Layer', 'terrain:remove-layer',
+            () => this.applyTerrainLayerStates(resolved.component, before),
+            () => this.applyTerrainLayerStates(resolved.component, after));
+        return result;
+    }
+
+    /** Updates one layer slot; texture references are resolved before the target can mutate. */
+    public async updateLayer(target: ITerrainTarget, index: number, patch: ITerrainLayerPatch): Promise<TerrainReadResult> {
+        if (!this.isLayerIndex(index)) return this.read(target);
+        const next = normalizeLayerPatch(patch);
+        if (!next) return this.read(target);
+        const initial = this.resolveTarget(target);
+        if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const undoService = this.getTerrainUndoService();
+        if (!undoService) return this.readResolved(target, initial.gizmo);
+        const assets = await this.loadLayerAssets(next);
+        if (!assets) return this.read(target);
+
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        const before = copyLayerStates(resolved.gizmo.readTerrainState().layers);
+        if (!this.updateTerrainLayer(resolved.component, index, next, assets)) return this.read(target);
+
+        const result = this.read(target);
+        if (!result.valid) return result;
+        const after = copyLayerStates(result.layers);
+        this.pushTerrainUndo(undoService, resolved.component, 'Update Terrain Layer', 'terrain:update-layer',
+            () => this.applyTerrainLayerStates(resolved.component, before),
+            () => this.applyTerrainLayerStates(resolved.component, after));
+        return result;
+    }
+
+    private isLayerIndex(index: number): boolean {
+        return Number.isInteger(index) && index >= 0 && index < TERRAIN_MAX_LAYER_COUNT;
+    }
+
+    private isAttachedTerrain(component: Terrain): boolean {
+        return this.isTerrainComponent(component)
+            && (component as any).isValid !== false
+            && Array.isArray(component.node?.components)
+            && component.node.components.includes(component);
+    }
+
+    private createTerrainInfo(state: ITerrainManageState): TerrainInfo {
+        const info = new TerrainInfo();
+        info.tileSize = state.tileSize;
+        info.weightMapSize = state.weightMapSize;
+        info.lightMapSize = state.lightMapSize;
+        info.blockCount = [state.blockCount[0], state.blockCount[1]];
+        return info;
+    }
+
+    private createTerrainLayer(state: ITerrainLayerState, assets: ITerrainLayerAssets): TerrainLayer {
+        const layer = new TerrainLayer();
+        layer.detailMap = assets.detailMap ?? null;
+        layer.normalMap = assets.normalMap ?? null;
+        layer.metallic = state.metallic;
+        layer.roughness = state.roughness;
+        layer.tileSize = state.tileSize;
+        return layer;
+    }
+
+    private async loadTerrainTexture(uuid: string): Promise<Texture2D | null> {
+        try {
+            const texture = await loadAny<Texture2D>(uuid);
+            return texture instanceof Texture2D ? texture : null;
+        } catch (error) {
+            console.warn(`[Terrain] load layer texture failed: ${uuid}`, error);
+            return null;
+        }
+    }
+
+    private async loadLayerAssets(value: Pick<ITerrainLayerState, 'detailMapUuid' | 'normalMapUuid'> | ITerrainLayerPatch): Promise<ITerrainLayerAssets | null> {
+        const assets: ITerrainLayerAssets = {};
+        for (const key of ['detailMapUuid', 'normalMapUuid'] as const) {
+            if (!Object.hasOwn(value, key)) continue;
+            const uuid = value[key];
+            const assetKey = key === 'detailMapUuid' ? 'detailMap' : 'normalMap';
+            if (uuid === null) {
+                assets[assetKey] = null;
+                continue;
+            }
+            if (typeof uuid !== 'string') return null;
+            const texture = await this.loadTerrainTexture(uuid);
+            if (!texture) return null;
+            assets[assetKey] = texture;
+        }
+        return assets;
+    }
+
+    private applyTerrainManageState(component: Terrain, state: ITerrainManageState): boolean {
+        if (!this.isAttachedTerrain(component)) return false;
+        component.rebuild(this.createTerrainInfo(state));
+        this.reportTerrainAuthoringChange(component);
+        return true;
+    }
+
+    private addTerrainLayer(component: Terrain, state: ITerrainLayerState, assets: ITerrainLayerAssets): boolean {
+        if (!this.isAttachedTerrain(component) || !assets.detailMap) return false;
+        if (component.addLayer(this.createTerrainLayer(state, assets)) < 0) return false;
+        this.reportTerrainAuthoringChange(component);
+        return true;
+    }
+
+    private removeTerrainLayer(component: Terrain, index: number): boolean {
+        if (!this.isAttachedTerrain(component) || !component.getLayer(index)) return false;
+        component.removeLayer(index);
+        this.reportTerrainAuthoringChange(component);
+        return true;
+    }
+
+    private updateTerrainLayer(component: Terrain, index: number, patch: ITerrainLayerPatch, assets: ITerrainLayerAssets): boolean {
+        if (!this.isAttachedTerrain(component)) return false;
+        const layer = component.getLayer(index);
+        if (!layer) return false;
+        if (Object.hasOwn(patch, 'detailMapUuid')) layer.detailMap = assets.detailMap ?? null;
+        if (Object.hasOwn(patch, 'normalMapUuid')) layer.normalMap = assets.normalMap ?? null;
+        if (typeof patch.metallic === 'number') layer.metallic = patch.metallic;
+        if (typeof patch.roughness === 'number') layer.roughness = patch.roughness;
+        if (typeof patch.tileSize === 'number') layer.tileSize = patch.tileSize;
+        this.reportTerrainAuthoringChange(component);
+        return true;
+    }
+
+    private async applyTerrainLayerStates(component: Terrain, states: Array<ITerrainLayerState | null>): Promise<boolean> {
+        const loaded = await Promise.all(states.map(async (state) => {
+            if (!state) return null;
+            const assets = await this.loadLayerAssets(state);
+            return assets ? { state, assets } : undefined;
+        }));
+        if (loaded.some((value, index) => states[index] !== null && value === undefined) || !this.isAttachedTerrain(component)) {
+            return false;
+        }
+
+        for (let index = 0; index < TERRAIN_MAX_LAYER_COUNT; index++) {
+            const layer = loaded[index];
+            if (layer) component.setLayer(index, this.createTerrainLayer(layer.state, layer.assets));
+            else component.removeLayer(index);
+        }
+        this.reportTerrainAuthoringChange(component);
+        return true;
+    }
+
+    private reportTerrainAuthoringChange(component: Terrain): void {
+        if (component._asset) component.exportLayerListToAsset(component._asset);
+        this.setDirty(component, true);
+        ServiceEvents.emit('node:change', component.node, { type: 'component-changed' });
+        queryRegisteredService<{ repaintInEditMode(): void }>('Engine')?.repaintInEditMode();
+    }
+
+    private getTerrainUndoService(): IUndoService | null {
+        const undoService = queryRegisteredService<IUndoService>('Undo');
+        return undoService && !undoService.isApplying() ? undoService : null;
+    }
+
+    private pushTerrainUndo(
+        undoService: IUndoService,
+        component: Terrain,
+        label: string,
+        type: string,
+        undo: () => boolean | Promise<boolean>,
+        redo: () => boolean | Promise<boolean>,
+    ): void {
+        const id = `${type}:${++this._terrainUndoSequence}`;
+        const result = async (apply: () => boolean | Promise<boolean>): Promise<IUndoRedoResult> => {
+            const success = await apply();
+            return success
+                ? { success: true, commandId: id, label }
+                : { success: false, commandId: id, label, reason: 'Terrain target or texture is unavailable' };
+        };
+        const command: IUndoCommand = {
+            meta: { id, label, type, scope: { editorType: 'scene' }, timestamp: Date.now() },
+            undo: () => result(undo),
+            redo: () => result(redo),
+        };
+        undoService.push(command);
     }
 
     private setManager(component: Terrain, value: any) {
