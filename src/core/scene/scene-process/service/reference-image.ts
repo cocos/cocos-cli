@@ -48,6 +48,8 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     private error: IReferenceImageError | null = null;
     /** Last main-process authority revision applied to this Webview's renderer. */
     private authorityRevision: number | null = null;
+    /** Runtime identity paired with authorityRevision to survive main-process restarts. */
+    private authorityInstanceId: string | null = null;
     private authorityApplyQueue: Promise<void> = Promise.resolve();
     private loadGeneration = 0;
     private activeInteractionId: number | null = null;
@@ -90,7 +92,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     async clearBinding(): Promise<IReferenceImageState> {
         const sceneUuid = this.requireCurrentScene();
         this.invalidatePreview();
-        return this.mutateAuthority({ type: 'clear-binding', sceneUuid }, true, false);
+        return this.mutateAuthority({ type: 'clear-binding', sceneUuid }, true);
     }
 
     async setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState> {
@@ -168,8 +170,9 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     private async handleDimensionChanged(): Promise<void> {
         if (this.is2D()) {
             await this.loadBoundImage();
+        } else {
+            this.applyVisibility();
         }
-        this.applyVisibility();
         this.publishState();
     }
 
@@ -321,13 +324,13 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         const color = this.sprite.color.clone();
         color.a = Math.round(parameters.opacity / 100 * 255);
         this.sprite.color = color;
-        this.applyVisibility();
+        this.applyVisibility(false);
         void Service.Engine.repaintInEditMode();
     }
 
-    private applyVisibility(): void {
+    private applyVisibility(repaint = true): void {
         if (this.imageNode) this.imageNode.active = this.computeVisibility().effectiveVisible;
-        void Service.Engine.repaintInEditMode();
+        if (repaint) void Service.Engine.repaintInEditMode();
     }
 
     private computeVisibility(): { effectiveVisible: boolean; reason: ReferenceImageVisibilityReason } {
@@ -416,15 +419,22 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     }
 
     private async applyAuthoritySnapshot(snapshot: IReferenceImageAuthoritySnapshot, publish: boolean): Promise<boolean> {
-        if (!snapshot || !Number.isSafeInteger(snapshot.revision) || snapshot.revision < 0) {
+        if (!snapshot
+            || typeof snapshot.instanceId !== 'string'
+            || !snapshot.instanceId
+            || !Number.isSafeInteger(snapshot.revision)
+            || snapshot.revision < 0) {
             throw new Error('Reference image authority returned an invalid snapshot.');
         }
         // A socket notification may arrive before the RPC response that caused it.
         // Never let an older or already-applied response roll the renderer back.
-        if (this.authorityRevision !== null && snapshot.revision <= this.authorityRevision) {
+        if (this.authorityInstanceId === snapshot.instanceId
+            && this.authorityRevision !== null
+            && snapshot.revision <= this.authorityRevision) {
             return false;
         }
         this.config = normalizeReferenceImageConfig(snapshot.config);
+        this.authorityInstanceId = snapshot.instanceId;
         this.authorityRevision = snapshot.revision;
         this.invalidatePreview();
         await this.loadBoundImage();
@@ -439,7 +449,9 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     }
 
     private invalidatePreview(): void {
-        this.interactionWatermark = Math.max(this.interactionWatermark, (this.activeInteractionId ?? 0) + 1);
+        if (this.activeInteractionId !== null) {
+            this.interactionWatermark = Math.max(this.interactionWatermark, this.activeInteractionId);
+        }
         this.activeInteractionId = null;
         this.previewPatch = null;
     }

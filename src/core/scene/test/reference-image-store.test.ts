@@ -58,7 +58,7 @@ describe('ReferenceImageStore', () => {
     it('does not write or fan out an idempotent no-op', async () => {
         const snapshot = await store.mutate({ type: 'clear-binding', sceneUuid: 'scene-a' });
 
-        expect(snapshot).toMatchObject({ revision: 0, changed: false, config: emptyConfig() });
+        expect(snapshot).toMatchObject({ instanceId: expect.any(String), revision: 0, changed: false, config: emptyConfig() });
         expect(set).not.toHaveBeenCalled();
         expect(emit).not.toHaveBeenCalled();
     });
@@ -88,7 +88,8 @@ describe('ReferenceImageStore', () => {
         const restartedStore = new ReferenceImageStore();
 
         const snapshot = await restartedStore.getSnapshot();
-        expect(snapshot.revision).toBe(0);
+        expect(snapshot).toMatchObject({ instanceId: expect.any(String), revision: 0 });
+        expect(snapshot.instanceId).not.toBe((await store.getSnapshot()).instanceId);
         expect(snapshot.config).toEqual(persisted);
     });
 });

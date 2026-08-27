@@ -7,6 +7,7 @@ import {
     normalizeReferenceImageConfig,
     validateReferenceImageParameters,
 } from '../common/reference-image';
+import { randomUUID } from 'crypto';
 import { socketService } from '../../../server/socket';
 import { sceneConfigInstance } from '../scene-configs';
 
@@ -24,6 +25,8 @@ const DEFAULT_IMAGE_PARAMETERS: Omit<IReferenceImageConfigItem, 'path'> = {
  * never overwrite another Webview's changes.
  */
 export class ReferenceImageStore implements IReferenceImageAuthorityStore {
+    /** Changes after a main-process restart; it is intentionally not persisted. */
+    private readonly instanceId = randomUUID();
     private revision = 0;
     private mutationQueue: Promise<void> = Promise.resolve();
 
@@ -130,7 +133,7 @@ export class ReferenceImageStore implements IReferenceImageAuthorityStore {
     }
 
     private createSnapshot(config: IReferenceImageConfig, changed: boolean): IReferenceImageAuthoritySnapshot {
-        return { revision: this.revision, config: cloneConfig(config), changed };
+        return { instanceId: this.instanceId, revision: this.revision, config: cloneConfig(config), changed };
     }
 }
 

@@ -1,5 +1,6 @@
 const request = jest.fn();
 const broadcast = jest.fn();
+const repaintInEditMode = jest.fn();
 
 jest.mock('../scene-process/rpc', () => ({
     Rpc: { getInstance: () => ({ request }) },
@@ -14,7 +15,7 @@ jest.mock('../scene-process/service/core', () => {
         register: () => (target: unknown) => target,
         Service: {
             Camera: { is2D: true },
-            Engine: { repaintInEditMode: jest.fn() },
+            Engine: { repaintInEditMode },
             Editor: { getEditorSession: () => ({ uuid: 'scene-a', generation: 1 }), isCurrentEditorSession: () => true },
             Gizmo: { backgroundNode: {} },
         },
@@ -42,7 +43,9 @@ describe('ReferenceImageService state and preview boundary', () => {
     beforeEach(() => {
         request.mockReset();
         broadcast.mockReset();
+        repaintInEditMode.mockReset();
         authority = {
+            instanceId: 'authority-a',
             revision: 1,
             changed: false,
             config: {
@@ -72,7 +75,12 @@ describe('ReferenceImageService state and preview boundary', () => {
                     changed = true;
                 }
             }
-            if (changed) authority = { revision: authority.revision + 1, config, changed: true };
+            if (changed) authority = {
+                instanceId: authority.instanceId,
+                revision: authority.revision + 1,
+                config,
+                changed: true,
+            };
             return Promise.resolve({ ...authority, changed });
         });
         service = new ReferenceImageService();
@@ -83,6 +91,7 @@ describe('ReferenceImageService state and preview boundary', () => {
                 sceneBindings: { 'scene-a': 'C:\\design.png' },
             },
             authorityRevision: 1,
+            authorityInstanceId: 'authority-a',
             currentSceneUuid: 'scene-a',
             spriteFrame: { destroy: jest.fn() },
             loadedPath: 'C:\\design.png',
@@ -118,6 +127,35 @@ describe('ReferenceImageService state and preview boundary', () => {
         await service.previewParameters({ interactionId: 4, patch: { opacity: 10 } });
         expect((service as any).previewPatch).toBeNull();
         expect((service as any).config.images[0].opacity).toBe(40);
+
+        await service.previewParameters({ interactionId: 5, patch: { opacity: 30 } });
+        expect((service as any).previewPatch).toEqual({ opacity: 30 });
+    });
+
+    it('keeps the first host interaction valid and only invalidates an active ID', async () => {
+        (service as any).invalidatePreview();
+        expect((service as any).interactionWatermark).toBe(0);
+
+        await service.previewParameters({ interactionId: 1, patch: { opacity: 40 } });
+        expect((service as any).activeInteractionId).toBe(1);
+
+        (service as any).invalidatePreview();
+        expect((service as any).interactionWatermark).toBe(1);
+
+        await service.previewParameters({ interactionId: 2, patch: { opacity: 30 } });
+        expect((service as any).activeInteractionId).toBe(2);
+        expect((service as any).previewPatch).toEqual({ opacity: 30 });
+    });
+
+    it('repaints once for each applied parameter preview', async () => {
+        Object.assign(service as any, {
+            imageNode: { setPosition: jest.fn(), setScale: jest.fn(), active: true },
+            sprite: { color: { clone: () => ({ a: 255 }) } },
+        });
+
+        await service.previewParameters({ interactionId: 5, patch: { opacity: 40 } });
+
+        expect(repaintInEditMode).toHaveBeenCalledTimes(1);
     });
 
     it('restores committed runtime parameters when a preview commit is a persistence no-op', async () => {
@@ -134,6 +172,7 @@ describe('ReferenceImageService state and preview boundary', () => {
 
     it('does not roll back after a newer socket snapshot arrives before an older RPC response', async () => {
         const newer = {
+            instanceId: 'authority-a',
             revision: 2,
             changed: true,
             config: {
@@ -142,7 +181,7 @@ describe('ReferenceImageService state and preview boundary', () => {
                 sceneBindings: { 'scene-a': 'C:\\new.png' },
             },
         };
-        const older = { revision: 1, changed: true, config: (service as any).config };
+        const older = { instanceId: 'authority-a', revision: 1, changed: true, config: (service as any).config };
 
         await (service as any).enqueueAuthoritySnapshot(newer, false);
         await (service as any).enqueueAuthoritySnapshot(older, false);
@@ -151,15 +190,36 @@ describe('ReferenceImageService state and preview boundary', () => {
         expect((service as any).config.images).toEqual(newer.config.images);
     });
 
+    it('applies a lower revision from a restarted main-process authority', async () => {
+        const restarted = {
+            instanceId: 'authority-b',
+            revision: 0,
+            changed: false,
+            config: {
+                desiredVisible: true,
+                images: [{ path: 'C:\\recovered.png', x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 100 }],
+                sceneBindings: { 'scene-a': 'C:\\recovered.png' },
+            },
+        };
+
+        await (service as any).enqueueAuthoritySnapshot(restarted, false);
+
+        expect((service as any).authorityInstanceId).toBe('authority-b');
+        expect((service as any).authorityRevision).toBe(0);
+        expect((service as any).config.images).toEqual(restarted.config.images);
+    });
+
     it('clears only the current binding while preserving the image library and other scene bindings', async () => {
         (service as any).config.sceneBindings['scene-b'] = 'C:\\design.png';
         authority.config.sceneBindings['scene-b'] = 'C:\\design.png';
+        (service as any).error = { stage: 'decode', message: 'Reference image decoding failed.' };
         const frame = (service as any).spriteFrame;
 
         const state = await service.clearBinding();
 
         expect(state.current).toEqual({ sceneUuid: 'scene-a', imagePath: null, image: null });
         expect(state.visibilityReason).toBe('unbound');
+        expect(state.error).toBeNull();
         expect(frame.destroy).toHaveBeenCalledTimes(1);
         expect((service as any).spriteFrame).toBeNull();
         expect((service as any).config.images).toEqual([

@@ -19,6 +19,8 @@ export interface IReferenceImageConfig {
 
 /** Runtime-only authority envelope; revision is never persisted in the profile. */
 export interface IReferenceImageAuthoritySnapshot {
+    /** Runtime-only identity for one main-process authority lifetime. */
+    instanceId: string;
     revision: number;
     config: IReferenceImageConfig;
     /** Whether the requested formal mutation changed persisted configuration. */

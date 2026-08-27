@@ -231,12 +231,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             try {
                 const svc = (DecoratorService as any)[module];
                 if (svc && typeof svc[method] === 'function') {
-                    const result = svc[method](...(args || []));
-                    if (result && typeof result.catch === 'function') {
-                        void result.catch((error: unknown) => {
-                            console.warn(`[scene:invoke] ${module}.${method} rejected:`, error);
-                        });
-                    }
+                    svc[method](...(args || []));
                 }
             } catch (e) {
                 console.warn('[scene:invoke] failed:', e);
