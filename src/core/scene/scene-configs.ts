@@ -83,6 +83,7 @@ export interface ISceneConfig {
      * 记录过相机视角信息的节点 uuid 列表，运行期由 Camera 服务写入。
      */
     'camera-uuids'?: string[];
+    /** Personal editor-only reference-image library and Scene bindings; never committed with Scene data. */
     referenceImage?: IReferenceImageConfig;
 }
 

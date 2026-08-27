@@ -1,3 +1,4 @@
+/** Runtime schemas for the public AI/MCP reference-image operations. */
 import { z } from 'zod';
 
 export const SchemaReferenceImageParameters = z.object({

@@ -1,3 +1,4 @@
+/** Targeted ReferenceImageStore tests for serialized project-local mutations and fan-out. */
 const get = jest.fn();
 const set = jest.fn();
 const emit = jest.fn();

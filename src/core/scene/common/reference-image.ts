@@ -1,3 +1,4 @@
+/** Shared reference-image contracts for configuration, Scene services, and Node RPC. */
 import type { IServiceEvents } from '../scene-process/service/core';
 
 /** Persisted locally; external files themselves are never imported into AssetDB. */

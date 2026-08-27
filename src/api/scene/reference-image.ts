@@ -1,3 +1,4 @@
+/** Public AI/MCP facade for formal reference-image operations. */
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { Scene } from '../../core/scene';

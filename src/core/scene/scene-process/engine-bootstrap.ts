@@ -242,7 +242,8 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 invoke(msg.module, msg.method, msg.args);
             }
         });
-        // 连接建立时同步一次设计分辨率（首次进入 / 断线重连时补齐错过的变更）
+        // Reconcile feature-local runtime state after first connection or reconnect.
+        // Reference images need this because their Sprite objects are not persisted with configuration.
         socket.on('connect', () => {
             invoke('Engine', 'syncDesignResolution', []);
             invoke('ReferenceImage', 'syncFromAuthority', []);

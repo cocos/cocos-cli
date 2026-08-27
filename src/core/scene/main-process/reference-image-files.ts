@@ -1,3 +1,4 @@
+/** Node-side external-image reader used by Scene services without importing files into AssetDB. */
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { IReferenceImageFileService } from '../common/reference-image';

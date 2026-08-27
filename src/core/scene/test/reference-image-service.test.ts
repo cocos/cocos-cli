@@ -1,3 +1,4 @@
+/** Targeted ReferenceImageService tests for authority sync, runtime rendering, and preview boundaries. */
 const request = jest.fn();
 const broadcast = jest.fn();
 const repaintInEditMode = jest.fn();
@@ -74,7 +75,15 @@ describe('ReferenceImageService state and preview boundary', () => {
                 sceneBindings: { ...authority.config.sceneBindings },
             };
             let changed = false;
-            if (mutation.type === 'clear-binding' && config.sceneBindings[mutation.sceneUuid]) {
+            if (mutation.type === 'add-and-select') {
+                if (!config.images.some((image: any) => image.path === mutation.path)) {
+                    config.images.push({ path: mutation.path, x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 100 });
+                }
+                if (config.sceneBindings[mutation.sceneUuid] !== mutation.path) {
+                    config.sceneBindings[mutation.sceneUuid] = mutation.path;
+                    changed = true;
+                }
+            } else if (mutation.type === 'clear-binding' && config.sceneBindings[mutation.sceneUuid]) {
                 delete config.sceneBindings[mutation.sceneUuid];
                 changed = true;
             } else if (mutation.type === 'commit-parameters') {
@@ -198,6 +207,65 @@ describe('ReferenceImageService state and preview boundary', () => {
 
         expect(loadBoundImage).toHaveBeenCalledTimes(1);
         expect(request).not.toHaveBeenCalledWith('referenceImageStore', 'mutate', expect.anything());
+    });
+
+    it('keeps a preview committable after another Scene adds a library image', async () => {
+        await service.previewParameters({ interactionId: 12, patch: { opacity: 40 } });
+
+        const otherScene = new ReferenceImageService();
+        Object.assign(otherScene as any, {
+            currentSceneUuid: 'scene-b',
+            authorityRevision: 1,
+            authorityInstanceId: 'authority-a',
+        });
+        jest.spyOn(otherScene as any, 'createSpriteFrameForPath').mockResolvedValue({ destroy: jest.fn() });
+        jest.spyOn(otherScene as any, 'loadBoundImage').mockResolvedValue(undefined);
+
+        await otherScene.addAndSelect({ path: 'C:\\other.png' });
+        await service.syncFromAuthority(false);
+
+        expect((service as any).activeInteractionId).toBe(12);
+        expect((service as any).previewPatch).toEqual({ opacity: 40 });
+        expect((service as any).interactionWatermark).toBe(0);
+
+        await service.commitParameters({ interactionId: 12, patch: { opacity: 40 } });
+
+        expect(authority.config.images).toEqual(expect.arrayContaining([
+            expect.objectContaining({ path: 'C:\\design.png', opacity: 40 }),
+            expect.objectContaining({ path: 'C:\\other.png' }),
+        ]));
+    });
+
+    it('cancels a preview when an authority snapshot removes its current binding', async () => {
+        await service.previewParameters({ interactionId: 13, patch: { opacity: 40 } });
+        authority = {
+            instanceId: 'authority-a',
+            revision: 2,
+            changed: true,
+            config: {
+                desiredVisible: true,
+                images: [],
+                sceneBindings: {},
+            },
+        };
+
+        await service.syncFromAuthority(false);
+
+        expect((service as any).activeInteractionId).toBeNull();
+        expect((service as any).interactionWatermark).toBe(13);
+        request.mockClear();
+        await service.commitParameters({ interactionId: 13, patch: { opacity: 40 } });
+        expect(request).not.toHaveBeenCalledWith('referenceImageStore', 'mutate', expect.anything());
+    });
+
+    it('does not publish for a no-op refresh or repeated 2D dimension signal', async () => {
+        jest.spyOn(service as any, 'loadBoundImage').mockResolvedValue(undefined);
+
+        await service.refresh();
+        await (service as any).handleDimensionChanged();
+        await (service as any).handleDimensionChanged();
+
+        expect(broadcast).not.toHaveBeenCalled();
     });
 
     it('keeps preview ephemeral and rejects a late preview after commit', async () => {

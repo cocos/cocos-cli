@@ -1,3 +1,4 @@
+/** Main-process authority for the shared, project-local reference-image configuration. */
 import {
     IReferenceImageAuthorityMutation,
     IReferenceImageAuthoritySnapshot,
@@ -28,6 +29,7 @@ export class ReferenceImageStore implements IReferenceImageAuthorityStore {
     /** Changes after a main-process restart; it is intentionally not persisted. */
     private readonly instanceId = randomUUID();
     private revision = 0;
+    /** Serializes the complete read-modify-write operation, not only the disk write. */
     private mutationQueue: Promise<void> = Promise.resolve();
 
     async getSnapshot(): Promise<IReferenceImageAuthoritySnapshot> {
@@ -60,6 +62,7 @@ export class ReferenceImageStore implements IReferenceImageAuthorityStore {
     }
 
     private async mutateLatest(options: IReferenceImageAuthorityMutation): Promise<IReferenceImageAuthoritySnapshot> {
+        // Read inside the queue so another Scene cannot overwrite this mutation with a stale snapshot.
         const current = normalizeReferenceImageConfig(
             await sceneConfigInstance.get<unknown>('referenceImage', 'local')
         );

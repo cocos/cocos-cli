@@ -37,6 +37,7 @@ export class RpcProxy {
             programming: scriptManager,
             sceneConfigInstance: sceneConfigInstance,
             i18n: i18n,
+            // Feature-owned Node modules: external file reads and serialized local configuration writes.
             referenceImageFiles,
             referenceImageStore,
         });

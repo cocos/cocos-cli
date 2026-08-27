@@ -1,3 +1,4 @@
+/** Scene-side reference-image runtime: it renders ephemeral editor nodes from main-process authority state. */
 import { Canvas, CCObject, Color, Layers, Node, Sprite, SpriteFrame, UITransform } from 'cc';
 import {
     IReferenceImageCancelOptions,
@@ -102,11 +103,12 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     }
 
     async refresh(): Promise<IReferenceImageState> {
-        await this.pullAuthoritySnapshot();
+        const before = this.createRuntimeStateKey();
+        const authorityChanged = await this.pullAuthoritySnapshot();
         this.invalidatePreview();
         this.error = null;
         await this.loadBoundImage(true);
-        this.publishState();
+        if (authorityChanged || before !== this.createRuntimeStateKey()) this.publishState();
         return this.createState();
     }
 
@@ -167,8 +169,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     };
 
     private async handleDimensionChanged(): Promise<void> {
-        await this.reconcileRuntime();
-        this.publishState();
+        if (await this.reconcileRuntime()) this.publishState();
     }
 
     /** Socket entrypoint; reconnects reconcile runtime even when authority revision is unchanged. */
@@ -217,6 +218,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     }
 
     private createRuntimeStateKey(): string {
+        // Only these public runtime fields determine whether a lifecycle event needs a state broadcast.
         const visibility = this.computeVisibility();
         return JSON.stringify({
             sceneUuid: this.currentSceneUuid,
@@ -469,10 +471,20 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
             && snapshot.revision <= this.authorityRevision) {
             return false;
         }
+        const previewTargetPath = this.activeInteractionId === null ? null : this.getCurrentPath();
         this.config = normalizeReferenceImageConfig(snapshot.config);
         this.authorityInstanceId = snapshot.instanceId;
         this.authorityRevision = snapshot.revision;
-        this.invalidatePreview();
+        // Authority snapshots describe the whole shared library. Keep a local slider
+        // interaction alive when another Scene changes unrelated library entries; its
+        // commit is still applied against the Store's latest configuration. A changed
+        // or removed current binding is the actual boundary that invalidates the edit.
+        if (this.activeInteractionId !== null
+            && (!previewTargetPath
+                || this.getCurrentPath() !== previewTargetPath
+                || !this.config.images.some((image) => image.path === previewTargetPath))) {
+            this.invalidatePreview();
+        }
         if (reconcileRuntime) await this.reconcileRuntime();
         if (publish) this.publishState();
         return true;
