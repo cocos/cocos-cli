@@ -57,13 +57,12 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     private previewPatch: IReferenceImageParameters | null = null;
 
     async init(): Promise<void> {
-        await this.syncFromAuthority(false);
         ServiceEvents.on('scene:dimension-changed', this.onDimensionChanged);
         await this.reconcileCurrentEditor(false);
     }
 
     async getState(): Promise<IReferenceImageState> {
-        await this.syncFromAuthority(false);
+        await this.pullAuthoritySnapshot();
         return this.createState();
     }
 
@@ -103,7 +102,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     }
 
     async refresh(): Promise<IReferenceImageState> {
-        await this.syncFromAuthority(false);
+        await this.pullAuthoritySnapshot();
         this.invalidatePreview();
         this.error = null;
         await this.loadBoundImage(true);
@@ -168,36 +167,65 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     };
 
     private async handleDimensionChanged(): Promise<void> {
-        if (this.is2D()) {
-            await this.loadBoundImage();
-        } else {
-            this.applyVisibility();
-        }
+        await this.reconcileRuntime();
         this.publishState();
     }
 
-    /** Socket entrypoint and active pull path; failures stay observable without unhandled rejections. */
+    /** Socket entrypoint; reconnects reconcile runtime even when authority revision is unchanged. */
     async syncFromAuthority(publish = true): Promise<void> {
+        const authorityChanged = await this.pullAuthoritySnapshot();
+        const runtimeChanged = await this.reconcileRuntime();
+        if (publish && (authorityChanged || runtimeChanged)) this.publishState();
+    }
+
+    /** Pulls authority only; callers decide whether the renderer should be reconciled. */
+    private async pullAuthoritySnapshot(): Promise<boolean> {
         try {
             const snapshot = await Rpc.getInstance().request('referenceImageStore', 'getSnapshot');
-            await this.enqueueAuthoritySnapshot(snapshot, publish);
+            return await this.enqueueAuthoritySnapshot(snapshot, false, false);
         } catch (error) {
             this.error = { stage: 'config', message: error instanceof Error ? error.message : String(error) };
             console.warn('[ReferenceImage] failed to synchronize authority:', error);
+            return false;
         }
     }
 
     private async reconcileCurrentEditor(publish: boolean): Promise<void> {
+        let editorChanged = false;
         const nextSceneUuid = this.getEditorSession().uuid;
         if (nextSceneUuid !== this.currentSceneUuid) {
+            editorChanged = true;
             this.currentSceneUuid = nextSceneUuid;
             this.invalidatePreview();
             this.clearRuntime(true);
             this.error = null;
         }
-        await this.syncFromAuthority(false);
-        await this.loadBoundImage();
-        if (publish) this.publishState();
+        const authorityChanged = await this.pullAuthoritySnapshot();
+        const runtimeChanged = await this.reconcileRuntime();
+        if (publish && (editorChanged || authorityChanged || runtimeChanged)) this.publishState();
+    }
+
+    /** Recreates or clears ephemeral editor objects without mutating authority state. */
+    private async reconcileRuntime(): Promise<boolean> {
+        const before = this.createRuntimeStateKey();
+        if (this.is2D()) {
+            await this.loadBoundImage();
+        } else {
+            this.applyVisibility();
+        }
+        return before !== this.createRuntimeStateKey();
+    }
+
+    private createRuntimeStateKey(): string {
+        const visibility = this.computeVisibility();
+        return JSON.stringify({
+            sceneUuid: this.currentSceneUuid,
+            imagePath: this.getCurrentPath(),
+            desiredVisible: this.config.desiredVisible,
+            effectiveVisible: visibility.effectiveVisible,
+            visibilityReason: visibility.reason,
+            error: this.error,
+        });
     }
 
     private async loadBoundImage(force = false): Promise<void> {
@@ -394,12 +422,16 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         const snapshot = await Rpc.getInstance().request('referenceImageStore', 'mutate', [mutation]);
         if (invalidatePreview) this.invalidatePreview();
         if (clearError && snapshot.changed) this.error = null;
-        const applied = await this.enqueueAuthoritySnapshot(snapshot, snapshot.changed);
+        const applied = await this.enqueueAuthoritySnapshot(snapshot, snapshot.changed, true);
         if (applyRuntimeOnNoop && !snapshot.changed && !applied) this.applyCurrentParameters();
         return this.createState();
     }
 
-    private async enqueueAuthoritySnapshot(snapshot: IReferenceImageAuthoritySnapshot, publish: boolean): Promise<boolean> {
+    private async enqueueAuthoritySnapshot(
+        snapshot: IReferenceImageAuthoritySnapshot,
+        publish: boolean,
+        reconcileRuntime = false,
+    ): Promise<boolean> {
         let resolveTask!: (applied: boolean) => void;
         let rejectTask!: (reason: unknown) => void;
         const result = new Promise<boolean>((resolve, reject) => {
@@ -410,7 +442,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
             .catch(() => undefined)
             .then(async () => {
                 try {
-                    resolveTask(await this.applyAuthoritySnapshot(snapshot, publish));
+                    resolveTask(await this.applyAuthoritySnapshot(snapshot, publish, reconcileRuntime));
                 } catch (error) {
                     rejectTask(error);
                 }
@@ -418,7 +450,11 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         return result;
     }
 
-    private async applyAuthoritySnapshot(snapshot: IReferenceImageAuthoritySnapshot, publish: boolean): Promise<boolean> {
+    private async applyAuthoritySnapshot(
+        snapshot: IReferenceImageAuthoritySnapshot,
+        publish: boolean,
+        reconcileRuntime: boolean,
+    ): Promise<boolean> {
         if (!snapshot
             || typeof snapshot.instanceId !== 'string'
             || !snapshot.instanceId
@@ -437,7 +473,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         this.authorityInstanceId = snapshot.instanceId;
         this.authorityRevision = snapshot.revision;
         this.invalidatePreview();
-        await this.loadBoundImage();
+        if (reconcileRuntime) await this.reconcileRuntime();
         if (publish) this.publishState();
         return true;
     }
@@ -480,7 +516,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
 
     private is2D(): boolean {
         try {
-            return Boolean(Service.Camera.is2D);
+            return Boolean(Service.Gizmo.is2D);
         } catch {
             return false;
         }

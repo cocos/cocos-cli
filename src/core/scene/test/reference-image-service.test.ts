@@ -1,6 +1,12 @@
 const request = jest.fn();
 const broadcast = jest.fn();
 const repaintInEditMode = jest.fn();
+const camera = { is2D: true };
+const gizmo = { is2D: true, backgroundNode: {} };
+const editor = {
+    getEditorSession: jest.fn(() => ({ uuid: 'scene-a', generation: 1 })),
+    isCurrentEditorSession: jest.fn(() => true),
+};
 
 jest.mock('../scene-process/rpc', () => ({
     Rpc: { getInstance: () => ({ request }) },
@@ -14,10 +20,10 @@ jest.mock('../scene-process/service/core', () => {
         BaseService,
         register: () => (target: unknown) => target,
         Service: {
-            Camera: { is2D: true },
+            Camera: camera,
             Engine: { repaintInEditMode },
-            Editor: { getEditorSession: () => ({ uuid: 'scene-a', generation: 1 }), isCurrentEditorSession: () => true },
-            Gizmo: { backgroundNode: {} },
+            Editor: editor,
+            Gizmo: gizmo,
         },
         ServiceEvents: { on: jest.fn() },
     };
@@ -44,6 +50,10 @@ describe('ReferenceImageService state and preview boundary', () => {
         request.mockReset();
         broadcast.mockReset();
         repaintInEditMode.mockReset();
+        camera.is2D = true;
+        gizmo.is2D = true;
+        editor.getEditorSession.mockReturnValue({ uuid: 'scene-a', generation: 1 });
+        editor.isCurrentEditorSession.mockReturnValue(true);
         authority = {
             instanceId: 'authority-a',
             revision: 1,
@@ -107,6 +117,87 @@ describe('ReferenceImageService state and preview boundary', () => {
             image: expect.objectContaining({ path: 'C:\\design.png', opacity: 75, missing: false }),
         });
         expect(state.visibilityReason).toBe('visible');
+    });
+
+    it('keeps getState as an authority query without rehydrating runtime objects', async () => {
+        Object.assign(service as any, { spriteFrame: null, loadedPath: null });
+        authority = {
+            ...authority,
+            revision: 2,
+            changed: true,
+            config: {
+                ...authority.config,
+                images: authority.config.images.map((image: any) => ({ ...image, opacity: 50 })),
+            },
+        };
+        const reconcileRuntime = jest.spyOn(service as any, 'reconcileRuntime');
+
+        const state = await service.getState();
+
+        expect(reconcileRuntime).not.toHaveBeenCalled();
+        expect(request).toHaveBeenCalledWith('referenceImageStore', 'getSnapshot');
+        expect(state.current.image?.opacity).toBe(50);
+    });
+
+    it('rehydrates runtime after a same-revision socket sync without writing authority', async () => {
+        Object.assign(service as any, { spriteFrame: null, loadedPath: null, error: null });
+        jest.spyOn(service as any, 'loadBoundImage').mockImplementation(async () => {
+            Object.assign(service as any, {
+                spriteFrame: { destroy: jest.fn() },
+                loadedPath: 'C:\\design.png',
+                error: null,
+            });
+        });
+
+        await service.syncFromAuthority();
+
+        expect((service as any).loadedPath).toBe('C:\\design.png');
+        expect(broadcast).toHaveBeenCalledTimes(1);
+        expect(request).not.toHaveBeenCalledWith('referenceImageStore', 'mutate', expect.anything());
+    });
+
+    it('rehydrates runtime when the current editor opens with an existing authority snapshot', async () => {
+        const reinitialized = new ReferenceImageService();
+        const loadBoundImage = jest.spyOn(reinitialized as any, 'loadBoundImage').mockResolvedValue(undefined);
+
+        await reinitialized.init();
+
+        expect(loadBoundImage).toHaveBeenCalledTimes(1);
+        expect((reinitialized as any).currentSceneUuid).toBe('scene-a');
+        expect(request).not.toHaveBeenCalledWith('referenceImageStore', 'mutate', expect.anything());
+    });
+
+    it('loads on cold editor open after Gizmo restores 2D before Camera is ready', async () => {
+        camera.is2D = false;
+        gizmo.is2D = true;
+        const reinitialized = new ReferenceImageService();
+        const frame = { destroy: jest.fn() };
+        const readDataUrl = jest.spyOn(reinitialized as any, 'readDataUrl').mockResolvedValue('data:image/png;base64,valid');
+        jest.spyOn(reinitialized as any, 'createSpriteFrame').mockResolvedValue(frame);
+        const replaceSpriteFrame = jest.spyOn(reinitialized as any, 'replaceSpriteFrame').mockImplementation((_frame, path) => {
+            Object.assign(reinitialized as any, { spriteFrame: frame, loadedPath: path });
+        });
+        jest.spyOn(reinitialized as any, 'applyCurrentParameters').mockImplementation(() => undefined);
+
+        await reinitialized.init();
+
+        expect(readDataUrl).toHaveBeenCalledWith('C:\\design.png');
+        expect(replaceSpriteFrame).toHaveBeenCalledWith(frame, 'C:\\design.png');
+        expect((reinitialized as any).loadedPath).toBe('C:\\design.png');
+        expect((reinitialized as any).error).toBeNull();
+    });
+
+    it('reconciles runtime for both 3D and return-to-2D dimension lifecycle events', async () => {
+        const loadBoundImage = jest.spyOn(service as any, 'loadBoundImage').mockResolvedValue(undefined);
+
+        gizmo.is2D = false;
+        await (service as any).handleDimensionChanged();
+        expect(loadBoundImage).not.toHaveBeenCalled();
+        gizmo.is2D = true;
+        await (service as any).handleDimensionChanged();
+
+        expect(loadBoundImage).toHaveBeenCalledTimes(1);
+        expect(request).not.toHaveBeenCalledWith('referenceImageStore', 'mutate', expect.anything());
     });
 
     it('keeps preview ephemeral and rejects a late preview after commit', async () => {
