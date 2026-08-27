@@ -21,6 +21,9 @@ export const ReferenceImageProxy: IPublicReferenceImageService = {
     select(options: IReferenceImagePathOptions): Promise<IReferenceImageState> {
         return Rpc.getInstance().request('ReferenceImage', 'select', [options]);
     },
+    clearBinding(): Promise<IReferenceImageState> {
+        return Rpc.getInstance().request('ReferenceImage', 'clearBinding');
+    },
     setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState> {
         return Rpc.getInstance().request('ReferenceImage', 'setVisible', [options]);
     },

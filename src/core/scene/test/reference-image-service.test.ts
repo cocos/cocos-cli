@@ -50,7 +50,7 @@ describe('ReferenceImageService state and preview boundary', () => {
                 sceneBindings: { 'scene-a': 'C:\\design.png' },
             },
             currentSceneUuid: 'scene-a',
-            spriteFrame: {},
+            spriteFrame: { destroy: jest.fn() },
             loadedPath: 'C:\\design.png',
         });
     });
@@ -82,6 +82,61 @@ describe('ReferenceImageService state and preview boundary', () => {
         await service.previewParameters({ interactionId: 4, patch: { opacity: 10 } });
         expect((service as any).previewPatch).toBeNull();
         expect((service as any).config.images[0].opacity).toBe(40);
+    });
+
+    it('clears only the current binding while preserving the image library and other scene bindings', async () => {
+        (service as any).config.sceneBindings['scene-b'] = 'C:\\design.png';
+        const frame = (service as any).spriteFrame;
+
+        const state = await service.clearBinding();
+
+        expect(state.current).toEqual({ sceneUuid: 'scene-a', imagePath: null, image: null });
+        expect(state.visibilityReason).toBe('unbound');
+        expect(frame.destroy).toHaveBeenCalledTimes(1);
+        expect((service as any).spriteFrame).toBeNull();
+        expect((service as any).config.images).toEqual([
+            { path: 'C:\\design.png', x: 2, y: 3, scaleX: 1, scaleY: 1, opacity: 75 },
+        ]);
+        expect((service as any).config.sceneBindings).toEqual({ 'scene-b': 'C:\\design.png' });
+        expect(request).toHaveBeenCalledWith('sceneConfigInstance', 'set', ['referenceImage', expect.any(Object), 'local']);
+        expect(broadcast).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a cleared binding unbound after reinitialization and ignores its late preview', async () => {
+        let persisted: any;
+        request.mockImplementation((serviceName: string, method: string, args: unknown[]) => {
+            if (serviceName === 'sceneConfigInstance' && method === 'set') {
+                persisted = args[1];
+                return Promise.resolve();
+            }
+            if (serviceName === 'sceneConfigInstance' && method === 'get') {
+                return Promise.resolve(persisted);
+            }
+            return Promise.resolve();
+        });
+
+        await service.previewParameters({ interactionId: 7, patch: { opacity: 40 } });
+        await service.clearBinding();
+        await service.previewParameters({ interactionId: 7, patch: { opacity: 10 } });
+
+        expect((await service.getState()).current.image).toBeNull();
+        expect((service as any).previewPatch).toBeNull();
+
+        const reinitialized = new ReferenceImageService();
+        await reinitialized.init();
+        expect((await reinitialized.getState()).current).toEqual({ sceneUuid: 'scene-a', imagePath: null, image: null });
+    });
+
+    it('does not persist or broadcast when the current scene is already unbound', async () => {
+        await service.clearBinding();
+        request.mockClear();
+        broadcast.mockClear();
+
+        const state = await service.clearBinding();
+
+        expect(state.visibilityReason).toBe('unbound');
+        expect(request).not.toHaveBeenCalled();
+        expect(broadcast).not.toHaveBeenCalled();
     });
 
     it('validates opacity as a percentage before changing runtime state', async () => {

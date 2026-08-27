@@ -126,6 +126,21 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         return this.createState();
     }
 
+    async clearBinding(): Promise<IReferenceImageState> {
+        const sceneUuid = this.requireCurrentScene();
+        const hasBinding = Object.prototype.hasOwnProperty.call(this.config.sceneBindings, sceneUuid);
+        this.invalidatePreview();
+        if (!hasBinding) {
+            return this.createState();
+        }
+
+        delete this.config.sceneBindings[sceneUuid];
+        this.error = null;
+        await this.loadBoundImage();
+        await this.persistAndPublish();
+        return this.createState();
+    }
+
     async setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState> {
         if (typeof options?.desiredVisible !== 'boolean') {
             throw new Error('desiredVisible must be a boolean.');

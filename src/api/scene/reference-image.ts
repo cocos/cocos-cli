@@ -46,6 +46,14 @@ export class ReferenceImageApi {
         return this.execute(() => Scene.ReferenceImage.select(options));
     }
 
+    @tool('reference-image-clear-binding')
+    @title('Clear current reference image binding')
+    @description('Unbind the reference image from the current scene or prefab while preserving the local library and other bindings.')
+    @result(SchemaReferenceImageState)
+    async clearBinding(): Promise<CommonResultType<TReferenceImageState>> {
+        return this.execute(() => Scene.ReferenceImage.clearBinding());
+    }
+
     @tool('reference-image-set-visible')
     @title('Set reference image visibility')
     @description('Set the persisted desired visibility. Reference images remain hidden while the editor is not in 2D mode.')

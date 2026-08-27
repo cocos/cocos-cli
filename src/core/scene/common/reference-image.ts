@@ -91,6 +91,7 @@ export interface IReferenceImageService extends IServiceEvents {
     addAndSelect(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
     remove(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
     select(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    clearBinding(): Promise<IReferenceImageState>;
     setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState>;
     refresh(): Promise<IReferenceImageState>;
     previewParameters(options: IReferenceImagePreviewOptions): Promise<IReferenceImageState>;
@@ -100,7 +101,7 @@ export interface IReferenceImageService extends IServiceEvents {
 
 /** Node/MCP facade excludes ephemeral preview state and interaction generations. */
 export type IPublicReferenceImageService = Pick<IReferenceImageService,
-    'getState' | 'addAndSelect' | 'remove' | 'select' | 'setVisible' | 'refresh' | 'commitParameters'
+    'getState' | 'addAndSelect' | 'remove' | 'select' | 'clearBinding' | 'setVisible' | 'refresh' | 'commitParameters'
 >;
 
 export interface IReferenceImageFileService {

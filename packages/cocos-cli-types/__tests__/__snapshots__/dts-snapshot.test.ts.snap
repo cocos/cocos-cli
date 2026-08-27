@@ -6653,6 +6653,7 @@ export declare interface IReferenceImageService extends IServiceEvents {
     addAndSelect(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
     remove(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
     select(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    clearBinding(): Promise<IReferenceImageState>;
     setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState>;
     refresh(): Promise<IReferenceImageState>;
     previewParameters(options: IReferenceImagePreviewOptions): Promise<IReferenceImageState>;
