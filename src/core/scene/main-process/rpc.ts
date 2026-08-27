@@ -5,6 +5,7 @@ import scriptManager from '../../scripting';
 import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
 import { referenceImageFiles } from './reference-image-files';
+import { referenceImageStore } from './reference-image-store';
 
 import type { IPublicServiceManager } from '../scene-process';
 
@@ -37,6 +38,7 @@ export class RpcProxy {
             sceneConfigInstance: sceneConfigInstance,
             i18n: i18n,
             referenceImageFiles,
+            referenceImageStore,
         });
         console.log(`[Node] Scene Process RPC ready ${prc ? '(Attached)' : '(Detached - Web Mode)'}`);
     }

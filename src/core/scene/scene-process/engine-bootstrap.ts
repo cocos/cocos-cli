@@ -231,7 +231,12 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             try {
                 const svc = (DecoratorService as any)[module];
                 if (svc && typeof svc[method] === 'function') {
-                    svc[method](...(args || []));
+                    const result = svc[method](...(args || []));
+                    if (result && typeof result.catch === 'function') {
+                        void result.catch((error: unknown) => {
+                            console.warn(`[scene:invoke] ${module}.${method} rejected:`, error);
+                        });
+                    }
                 }
             } catch (e) {
                 console.warn('[scene:invoke] failed:', e);
@@ -243,7 +248,10 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             }
         });
         // 连接建立时同步一次设计分辨率（首次进入 / 断线重连时补齐错过的变更）
-        socket.on('connect', () => invoke('Engine', 'syncDesignResolution', []));
+        socket.on('connect', () => {
+            invoke('Engine', 'syncDesignResolution', []);
+            invoke('ReferenceImage', 'syncFromAuthority', []);
+        });
     } catch (e) {
         console.warn('[engine-bootstrap] setup browser-invoke channel failed:', e);
     }

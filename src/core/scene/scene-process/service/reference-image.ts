@@ -1,6 +1,8 @@
 import { Canvas, CCObject, Color, Layers, Node, Sprite, SpriteFrame, UITransform } from 'cc';
 import {
     IReferenceImageCancelOptions,
+    IReferenceImageAuthorityMutation,
+    IReferenceImageAuthoritySnapshot,
     IReferenceImageCommitOptions,
     IReferenceImageConfig,
     IReferenceImageConfigItem,
@@ -14,6 +16,8 @@ import {
     IReferenceImageState,
     IReferenceImageVisibilityOptions,
     ReferenceImageVisibilityReason,
+    normalizeReferenceImageConfig,
+    validateReferenceImageParameters,
 } from '../../common';
 import { Rpc } from '../rpc';
 import { BaseService, register, Service, ServiceEvents } from './core';
@@ -23,14 +27,6 @@ const DEFAULT_CONFIG: IReferenceImageConfig = {
     images: [],
     sceneBindings: {},
     desiredVisible: true,
-};
-
-const DEFAULT_IMAGE_PARAMETERS: Omit<IReferenceImageConfigItem, 'path'> = {
-    x: 0,
-    y: 0,
-    scaleX: 1,
-    scaleY: 1,
-    opacity: 100,
 };
 
 type EditorSession = { uuid: string | null; generation: number };
@@ -50,18 +46,22 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     private loadedPath: string | null = null;
     private missingPaths = new Set<string>();
     private error: IReferenceImageError | null = null;
+    /** Last main-process authority revision applied to this Webview's renderer. */
+    private authorityRevision: number | null = null;
+    private authorityApplyQueue: Promise<void> = Promise.resolve();
     private loadGeneration = 0;
     private activeInteractionId: number | null = null;
     private interactionWatermark = 0;
     private previewPatch: IReferenceImageParameters | null = null;
 
     async init(): Promise<void> {
-        await this.loadConfig();
+        await this.syncFromAuthority(false);
         ServiceEvents.on('scene:dimension-changed', this.onDimensionChanged);
         await this.reconcileCurrentEditor(false);
     }
 
     async getState(): Promise<IReferenceImageState> {
+        await this.syncFromAuthority(false);
         return this.createState();
     }
 
@@ -69,96 +69,39 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         const path = this.validatePath(options?.path);
         const sceneUuid = this.requireCurrentScene();
         const frame = await this.createSpriteFrameForPath(path);
-        const existing = this.config.images.find((image) => image.path === path);
-        if (!existing) {
-            this.config.images.push({ path, ...DEFAULT_IMAGE_PARAMETERS });
-        }
-        this.config.sceneBindings[sceneUuid] = path;
-        this.invalidatePreview();
-        this.error = null;
-        this.replaceSpriteFrame(frame, path);
-        this.applyCurrentParameters();
-        await this.persistAndPublish();
-        return this.createState();
+        frame.destroy();
+        return this.mutateAuthority({ type: 'add-and-select', path, sceneUuid }, true);
     }
 
     async remove(options: IReferenceImagePathOptions): Promise<IReferenceImageState> {
         const path = this.validatePath(options?.path);
-        const index = this.config.images.findIndex((image) => image.path === path);
-        if (index === -1) {
-            return this.createState();
-        }
-
-        this.config.images.splice(index, 1);
-        const currentWasBound = this.currentSceneUuid !== null && this.config.sceneBindings[this.currentSceneUuid] === path;
-        for (const [sceneUuid, boundPath] of Object.entries(this.config.sceneBindings)) {
-            if (boundPath === path) {
-                delete this.config.sceneBindings[sceneUuid];
-            }
-        }
-        if (currentWasBound && this.currentSceneUuid) {
-            const next = this.config.images[index] ?? this.config.images[index - 1];
-            if (next) {
-                this.config.sceneBindings[this.currentSceneUuid] = next.path;
-            }
-        }
         this.missingPaths.delete(path);
-        this.invalidatePreview();
-        this.error = null;
-        await this.loadBoundImage();
-        await this.persistAndPublish();
-        return this.createState();
+        return this.mutateAuthority({ type: 'remove', path }, true);
     }
 
     async select(options: IReferenceImagePathOptions): Promise<IReferenceImageState> {
         const path = this.validatePath(options?.path);
         const sceneUuid = this.requireCurrentScene();
-        if (!this.config.images.some((image) => image.path === path)) {
-            throw new Error('Reference image is not in the local image library.');
-        }
         const frame = await this.createSpriteFrameForPath(path);
-        this.config.sceneBindings[sceneUuid] = path;
-        this.invalidatePreview();
-        this.error = null;
-        this.replaceSpriteFrame(frame, path);
-        this.applyCurrentParameters();
-        await this.persistAndPublish();
-        return this.createState();
+        frame.destroy();
+        return this.mutateAuthority({ type: 'select', path, sceneUuid }, true);
     }
 
     async clearBinding(): Promise<IReferenceImageState> {
         const sceneUuid = this.requireCurrentScene();
-        const hasBinding = Object.prototype.hasOwnProperty.call(this.config.sceneBindings, sceneUuid);
         this.invalidatePreview();
-        if (!hasBinding) {
-            return this.createState();
-        }
-
-        delete this.config.sceneBindings[sceneUuid];
-        this.error = null;
-        await this.loadBoundImage();
-        await this.persistAndPublish();
-        return this.createState();
+        return this.mutateAuthority({ type: 'clear-binding', sceneUuid }, true, false);
     }
 
     async setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState> {
         if (typeof options?.desiredVisible !== 'boolean') {
             throw new Error('desiredVisible must be a boolean.');
         }
-        if (this.config.desiredVisible === options.desiredVisible) {
-            return this.createState();
-        }
-        this.config.desiredVisible = options.desiredVisible;
-        this.error = null;
-        if (options.desiredVisible) {
-            await this.loadBoundImage();
-        }
-        this.applyVisibility();
-        await this.persistAndPublish();
-        return this.createState();
+        return this.mutateAuthority({ type: 'set-visible', desiredVisible: options.desiredVisible }, false);
     }
 
     async refresh(): Promise<IReferenceImageState> {
+        await this.syncFromAuthority(false);
         this.invalidatePreview();
         this.error = null;
         await this.loadBoundImage(true);
@@ -189,19 +132,11 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
             return this.createState();
         }
         const patch = this.validateParameters(options?.patch);
-        const current = this.requireCurrentImage();
-        const next = { ...current, ...patch };
-        const changed = !this.parametersEqual(current, next);
+        const sceneUuid = this.requireCurrentScene();
+        this.requireCurrentImage();
         this.closeInteraction(interactionId);
         this.error = null;
-        if (!changed) {
-            this.applyCurrentParameters();
-            return this.createState();
-        }
-        Object.assign(current, patch);
-        this.applyCurrentParameters();
-        await this.persistAndPublish();
-        return this.createState();
+        return this.mutateAuthority({ type: 'commit-parameters', sceneUuid, patch }, false, false, true);
     }
 
     async cancelPreview(options: IReferenceImageCancelOptions): Promise<IReferenceImageState> {
@@ -238,43 +173,15 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         this.publishState();
     }
 
-    private async loadConfig(): Promise<void> {
+    /** Socket entrypoint and active pull path; failures stay observable without unhandled rejections. */
+    async syncFromAuthority(publish = true): Promise<void> {
         try {
-            const stored = await Rpc.getInstance().request('sceneConfigInstance', 'get', ['referenceImage', 'local']);
-            this.config = this.normalizeConfig(stored);
+            const snapshot = await Rpc.getInstance().request('referenceImageStore', 'getSnapshot');
+            await this.enqueueAuthoritySnapshot(snapshot, publish);
         } catch (error) {
-            this.config = { ...DEFAULT_CONFIG, images: [], sceneBindings: {} };
             this.error = { stage: 'config', message: error instanceof Error ? error.message : String(error) };
+            console.warn('[ReferenceImage] failed to synchronize authority:', error);
         }
-    }
-
-    private normalizeConfig(value: unknown): IReferenceImageConfig {
-        const raw = value && typeof value === 'object' ? value as Partial<IReferenceImageConfig> : {};
-        const seen = new Set<string>();
-        const images = Array.isArray(raw.images) ? raw.images.flatMap((item) => {
-            if (!item || typeof item.path !== 'string' || !item.path || seen.has(item.path)) return [];
-            seen.add(item.path);
-            try {
-                return [{
-                    path: item.path,
-                    x: this.finiteOrDefault(item.x, 0),
-                    y: this.finiteOrDefault(item.y, 0),
-                    scaleX: this.finiteOrDefault(item.scaleX, 1),
-                    scaleY: this.finiteOrDefault(item.scaleY, 1),
-                    opacity: this.opacityOrDefault(item.opacity),
-                }];
-            } catch {
-                return [];
-            }
-        }) : [];
-        const paths = new Set(images.map((image) => image.path));
-        const bindings: Record<string, string> = {};
-        if (raw.sceneBindings && typeof raw.sceneBindings === 'object') {
-            for (const [sceneUuid, imagePath] of Object.entries(raw.sceneBindings)) {
-                if (typeof imagePath === 'string' && paths.has(imagePath)) bindings[sceneUuid] = imagePath;
-            }
-        }
-        return { images, sceneBindings: bindings, desiredVisible: raw.desiredVisible !== false };
     }
 
     private async reconcileCurrentEditor(publish: boolean): Promise<void> {
@@ -285,6 +192,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
             this.clearRuntime(true);
             this.error = null;
         }
+        await this.syncFromAuthority(false);
         await this.loadBoundImage();
         if (publish) this.publishState();
     }
@@ -474,9 +382,54 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
         return image ? { ...image, ...this.previewPatch } : null;
     }
 
-    private async persistAndPublish(): Promise<void> {
-        await Rpc.getInstance().request('sceneConfigInstance', 'set', ['referenceImage', this.config, 'local']);
-        this.publishState();
+    private async mutateAuthority(
+        mutation: IReferenceImageAuthorityMutation,
+        invalidatePreview: boolean,
+        clearError = true,
+        applyRuntimeOnNoop = false,
+    ): Promise<IReferenceImageState> {
+        const snapshot = await Rpc.getInstance().request('referenceImageStore', 'mutate', [mutation]);
+        if (invalidatePreview) this.invalidatePreview();
+        if (clearError && snapshot.changed) this.error = null;
+        const applied = await this.enqueueAuthoritySnapshot(snapshot, snapshot.changed);
+        if (applyRuntimeOnNoop && !snapshot.changed && !applied) this.applyCurrentParameters();
+        return this.createState();
+    }
+
+    private async enqueueAuthoritySnapshot(snapshot: IReferenceImageAuthoritySnapshot, publish: boolean): Promise<boolean> {
+        let resolveTask!: (applied: boolean) => void;
+        let rejectTask!: (reason: unknown) => void;
+        const result = new Promise<boolean>((resolve, reject) => {
+            resolveTask = resolve;
+            rejectTask = reject;
+        });
+        this.authorityApplyQueue = this.authorityApplyQueue
+            .catch(() => undefined)
+            .then(async () => {
+                try {
+                    resolveTask(await this.applyAuthoritySnapshot(snapshot, publish));
+                } catch (error) {
+                    rejectTask(error);
+                }
+            });
+        return result;
+    }
+
+    private async applyAuthoritySnapshot(snapshot: IReferenceImageAuthoritySnapshot, publish: boolean): Promise<boolean> {
+        if (!snapshot || !Number.isSafeInteger(snapshot.revision) || snapshot.revision < 0) {
+            throw new Error('Reference image authority returned an invalid snapshot.');
+        }
+        // A socket notification may arrive before the RPC response that caused it.
+        // Never let an older or already-applied response roll the renderer back.
+        if (this.authorityRevision !== null && snapshot.revision <= this.authorityRevision) {
+            return false;
+        }
+        this.config = normalizeReferenceImageConfig(snapshot.config);
+        this.authorityRevision = snapshot.revision;
+        this.invalidatePreview();
+        await this.loadBoundImage();
+        if (publish) this.publishState();
+        return true;
     }
 
     private publishState(): void {
@@ -510,34 +463,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
     }
 
     private validateParameters(patch: unknown): IReferenceImageParameters {
-        if (!patch || typeof patch !== 'object') throw new Error('Reference image parameters are required.');
-        const result: IReferenceImageParameters = {};
-        for (const key of ['x', 'y', 'scaleX', 'scaleY', 'opacity'] as const) {
-            const value = (patch as Record<string, unknown>)[key];
-            if (value === undefined) continue;
-            if (typeof value !== 'number' || !Number.isFinite(value)) {
-                throw new Error(`${key} must be a finite number.`);
-            }
-            if (key === 'opacity' && (value < 0 || value > 100)) {
-                throw new Error('opacity must be between 0 and 100.');
-            }
-            result[key] = value;
-        }
-        if (Object.keys(result).length === 0) throw new Error('At least one reference image parameter is required.');
-        return result;
-    }
-
-    private parametersEqual(a: IReferenceImageConfigItem, b: IReferenceImageConfigItem): boolean {
-        return a.x === b.x && a.y === b.y && a.scaleX === b.scaleX && a.scaleY === b.scaleY && a.opacity === b.opacity;
-    }
-
-    private finiteOrDefault(value: unknown, fallback: number): number {
-        return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-    }
-
-    private opacityOrDefault(value: unknown): number {
-        const opacity = this.finiteOrDefault(value, 100);
-        return opacity >= 0 && opacity <= 100 ? opacity : 100;
+        return validateReferenceImageParameters(patch);
     }
 
     private is2D(): boolean {

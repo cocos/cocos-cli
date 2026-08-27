@@ -37,11 +37,44 @@ import { ReferenceImageService } from '../scene-process/service/reference-image'
 
 describe('ReferenceImageService state and preview boundary', () => {
     let service: ReferenceImageService;
+    let authority: any;
 
     beforeEach(() => {
         request.mockReset();
         broadcast.mockReset();
-        request.mockResolvedValue(undefined);
+        authority = {
+            revision: 1,
+            changed: false,
+            config: {
+                desiredVisible: true,
+                images: [{ path: 'C:\\design.png', x: 2, y: 3, scaleX: 1, scaleY: 1, opacity: 75 }],
+                sceneBindings: { 'scene-a': 'C:\\design.png' },
+            },
+        };
+        request.mockImplementation((module: string, method: string, args: any[] = []) => {
+            if (module !== 'referenceImageStore') return Promise.resolve(undefined);
+            if (method === 'getSnapshot') return Promise.resolve(authority);
+            const mutation = args[0];
+            const config = {
+                desiredVisible: authority.config.desiredVisible,
+                images: authority.config.images.map((image: any) => ({ ...image })),
+                sceneBindings: { ...authority.config.sceneBindings },
+            };
+            let changed = false;
+            if (mutation.type === 'clear-binding' && config.sceneBindings[mutation.sceneUuid]) {
+                delete config.sceneBindings[mutation.sceneUuid];
+                changed = true;
+            } else if (mutation.type === 'commit-parameters') {
+                const path = config.sceneBindings[mutation.sceneUuid];
+                const image = config.images.find((candidate: any) => candidate.path === path);
+                if (image && Object.keys(mutation.patch).some((key) => image[key] !== mutation.patch[key])) {
+                    Object.assign(image, mutation.patch);
+                    changed = true;
+                }
+            }
+            if (changed) authority = { revision: authority.revision + 1, config, changed: true };
+            return Promise.resolve({ ...authority, changed });
+        });
         service = new ReferenceImageService();
         Object.assign(service as any, {
             config: {
@@ -49,6 +82,7 @@ describe('ReferenceImageService state and preview boundary', () => {
                 images: [{ path: 'C:\\design.png', x: 2, y: 3, scaleX: 1, scaleY: 1, opacity: 75 }],
                 sceneBindings: { 'scene-a': 'C:\\design.png' },
             },
+            authorityRevision: 1,
             currentSceneUuid: 'scene-a',
             spriteFrame: { destroy: jest.fn() },
             loadedPath: 'C:\\design.png',
@@ -76,7 +110,9 @@ describe('ReferenceImageService state and preview boundary', () => {
         await service.commitParameters({ interactionId: 4, patch: { opacity: 40 } });
 
         expect((service as any).config.images[0].opacity).toBe(40);
-        expect(request).toHaveBeenCalledWith('sceneConfigInstance', 'set', ['referenceImage', expect.any(Object), 'local']);
+        expect(request).toHaveBeenCalledWith('referenceImageStore', 'mutate', [
+            expect.objectContaining({ type: 'commit-parameters', sceneUuid: 'scene-a', patch: { opacity: 40 } }),
+        ]);
         expect(broadcast).toHaveBeenCalledTimes(1);
 
         await service.previewParameters({ interactionId: 4, patch: { opacity: 10 } });
@@ -84,8 +120,40 @@ describe('ReferenceImageService state and preview boundary', () => {
         expect((service as any).config.images[0].opacity).toBe(40);
     });
 
+    it('restores committed runtime parameters when a preview commit is a persistence no-op', async () => {
+        (service as any).config.images[0].opacity = 40;
+        authority.config.images[0].opacity = 40;
+        const apply = jest.spyOn(service as any, 'applyCurrentParameters');
+
+        await service.previewParameters({ interactionId: 8, patch: { opacity: 30 } });
+        await service.commitParameters({ interactionId: 8, patch: { opacity: 40 } });
+
+        expect((service as any).previewPatch).toBeNull();
+        expect(apply).toHaveBeenLastCalledWith();
+    });
+
+    it('does not roll back after a newer socket snapshot arrives before an older RPC response', async () => {
+        const newer = {
+            revision: 2,
+            changed: true,
+            config: {
+                desiredVisible: true,
+                images: [{ path: 'C:\\new.png', x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 100 }],
+                sceneBindings: { 'scene-a': 'C:\\new.png' },
+            },
+        };
+        const older = { revision: 1, changed: true, config: (service as any).config };
+
+        await (service as any).enqueueAuthoritySnapshot(newer, false);
+        await (service as any).enqueueAuthoritySnapshot(older, false);
+
+        expect((service as any).authorityRevision).toBe(2);
+        expect((service as any).config.images).toEqual(newer.config.images);
+    });
+
     it('clears only the current binding while preserving the image library and other scene bindings', async () => {
         (service as any).config.sceneBindings['scene-b'] = 'C:\\design.png';
+        authority.config.sceneBindings['scene-b'] = 'C:\\design.png';
         const frame = (service as any).spriteFrame;
 
         const state = await service.clearBinding();
@@ -98,23 +166,13 @@ describe('ReferenceImageService state and preview boundary', () => {
             { path: 'C:\\design.png', x: 2, y: 3, scaleX: 1, scaleY: 1, opacity: 75 },
         ]);
         expect((service as any).config.sceneBindings).toEqual({ 'scene-b': 'C:\\design.png' });
-        expect(request).toHaveBeenCalledWith('sceneConfigInstance', 'set', ['referenceImage', expect.any(Object), 'local']);
+        expect(request).toHaveBeenCalledWith('referenceImageStore', 'mutate', [
+            { type: 'clear-binding', sceneUuid: 'scene-a' },
+        ]);
         expect(broadcast).toHaveBeenCalledTimes(1);
     });
 
     it('keeps a cleared binding unbound after reinitialization and ignores its late preview', async () => {
-        let persisted: any;
-        request.mockImplementation((serviceName: string, method: string, args: unknown[]) => {
-            if (serviceName === 'sceneConfigInstance' && method === 'set') {
-                persisted = args[1];
-                return Promise.resolve();
-            }
-            if (serviceName === 'sceneConfigInstance' && method === 'get') {
-                return Promise.resolve(persisted);
-            }
-            return Promise.resolve();
-        });
-
         await service.previewParameters({ interactionId: 7, patch: { opacity: 40 } });
         await service.clearBinding();
         await service.previewParameters({ interactionId: 7, patch: { opacity: 10 } });
@@ -135,7 +193,9 @@ describe('ReferenceImageService state and preview boundary', () => {
         const state = await service.clearBinding();
 
         expect(state.visibilityReason).toBe('unbound');
-        expect(request).not.toHaveBeenCalled();
+        expect(request).toHaveBeenCalledWith('referenceImageStore', 'mutate', [
+            { type: 'clear-binding', sceneUuid: 'scene-a' },
+        ]);
         expect(broadcast).not.toHaveBeenCalled();
     });
 

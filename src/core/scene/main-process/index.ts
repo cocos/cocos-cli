@@ -13,6 +13,7 @@ import scriptManager from '../../scripting';
 import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
 import { referenceImageFiles } from './reference-image-files';
+import { referenceImageStore } from './reference-image-store';
 
 export interface IMainModule {
     'assetManager': typeof assetManager;
@@ -20,6 +21,7 @@ export interface IMainModule {
     'sceneConfigInstance': typeof sceneConfigInstance;
     'i18n': typeof i18n;
     'referenceImageFiles': typeof referenceImageFiles;
+    'referenceImageStore': typeof referenceImageStore;
 }
 
 export const Scene = {
