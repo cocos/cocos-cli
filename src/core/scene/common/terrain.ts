@@ -85,9 +85,8 @@ export interface ITerrainInvalidSnapshot {
 /** Discriminated read result. Callers must replace cached state when `valid` is `false`. */
 export type TerrainReadResult = ITerrainSnapshot | ITerrainInvalidSnapshot;
 
-/** A partial, non-asset brush-session update. Omitted fields keep their current values. */
+/** A partial, non-asset numeric brush-session update. Brush image selection is controlled by dedicated asset commands. */
 export interface ITerrainBrushPatch {
-    kind?: TerrainBrushKind;
     radius?: number;
     strength?: number;
     rotation?: number;
@@ -160,6 +159,8 @@ export interface ITerrainService {
     setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
     /** Applies a partial Sculpt session update without assigning brush assets or creating Scene Undo. */
     setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
+    /** Assigns a Texture2D asset UUID to Sculpt; pass null to clear it and restore the circle brush without creating Scene Undo. */
+    setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
     /** Applies a partial Paint session update without assigning brush assets or creating Scene Undo. */
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
     /** Commits a complete Manage draft as one TerrainInfo/Undo mutation. */
@@ -178,7 +179,7 @@ export type IPublicTerrainService = Pick<ITerrainService,
     'name' | 'isTerrainChange' | 'select' | 'unselect' | 'close' |
     'saveAsset' | 'saveAssetDialog' | 'addAssetToComp' |
     'read' | 'setMode' | 'setCurrentLayer' | 'setSculptSession' |
-    'setPaintSession' | 'saveManage' | 'addLayer' | 'removeLayer' |
+    'setSculptBrushAsset' | 'setPaintSession' | 'saveManage' | 'addLayer' | 'removeLayer' |
     'updateLayer' | 'readBlock'
 >;
 
