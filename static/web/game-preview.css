@@ -134,6 +134,10 @@ body.preview-webpage-fullscreen #preview-content {
     min-width: 0;
 }
 
+#preview-rotate {
+    min-width: 52px;
+}
+
 #preview-toolbar button.checked {
     color: #0099ff;
     background-image: linear-gradient(#333333, #222222);
