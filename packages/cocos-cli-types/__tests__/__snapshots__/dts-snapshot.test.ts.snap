@@ -7001,6 +7001,7 @@ export declare interface ITerrainService {
     setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
     setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
     setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
+    setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
     saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
     addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
