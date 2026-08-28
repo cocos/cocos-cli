@@ -56,13 +56,27 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         this._editor?.clearBrush(); this._editor?.setEditTerrain(null); this._editor?.setCurrentLayer(0);
         Service.Engine.repaintInEditMode();
     }
-    public onTargetUpdate() { if (this._isInitialized) this.initEditor(); }
+    public onTargetUpdate() {
+        // Target clearing happens after onHide() while a pooled gizmo is detached.
+        // Never let the detached target consume the editor-initialized guard.
+        if (!this.target) {
+            this._isEditorInit = false;
+            return;
+        }
+        if (this._isInitialized) this.initEditor();
+    }
     public onNodeChanged() { if (this._isInitialized) this.initEditor(); }
     public onEditorCameraMoved() { this._editor?.updateBlockDepthOffset(); }
     private initEditor() {
-        if (!this._isEditorInit && this._editor) {
-            this._editor.setEditTerrain(this.target); this._isEditorInit = true; Service.Engine.repaintInEditMode();
+        const target = this.target;
+        if (!target || !this._editor) {
+            this._isEditorInit = false;
+            return;
         }
+        if (this._isEditorInit && this._editor.getEditTerrain() === target) return;
+        this._editor.setEditTerrain(target);
+        this._isEditorInit = true;
+        Service.Engine.repaintInEditMode();
     }
 
     /**
