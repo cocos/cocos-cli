@@ -75,9 +75,11 @@ export default async function gameBoot() {
 
         // 构建引擎启动选项：以 settings 为基础，覆盖资源路径与启动场景（对齐编辑器 main.ts）
         const toolbarOptions = previewToolbarEnabled ? window.__previewToolbarOptions : undefined;
-        const initialDebugMode = cc.debug?.DebugMode?.[toolbarOptions?.debugMode];
+        // Creator 的公开模块 API 将 DebugMode 直接导出为 cc.DebugMode；cc.debug 是
+        // legacy/global 调试对象，不能作为启动配置的枚举来源。
+        const initialDebugMode = cc.DebugMode?.[toolbarOptions?.debugMode];
         const option = {
-            debugMode: initialDebugMode ?? cc.debug?.DebugMode?.INFO ?? 1,
+            debugMode: initialDebugMode ?? cc.DebugMode?.INFO ?? 1,
             overrideSettings: Object.assign({}, settings),
         };
         option.overrideSettings.assets = Object.assign({}, option.overrideSettings.assets, {
