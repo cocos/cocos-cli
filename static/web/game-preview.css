@@ -7,6 +7,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
 }
 
 #preview-content #GameDiv {
@@ -14,6 +15,8 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    /* GameDiv 是模拟设备帧；宿主缩小时必须裁切，不能被 flex 单独压缩某一轴。 */
+    flex: 0 0 auto;
 }
 
 #preview-content #Cocos3dGameContainer {
