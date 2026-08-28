@@ -239,7 +239,7 @@ export default async function gameBoot() {
 
         // 走 Cocos 日志通道：当用户已选择 Info For Web Page 并刷新预览时，
         // 引擎会以这条启动日志创建 Creator 同款的页面日志框。
-        cc.debug.log('Cocos game preview started');
+        cc.log('Cocos game preview started');
     } catch (err) {
         console.error('Failed to start game preview:', err.stack || err);
         showError(err);
