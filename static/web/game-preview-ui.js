@@ -180,12 +180,13 @@ export default async function initializePreviewToolbar() {
 
     // 与 Creator 一致：Webpage Full Screen 下工具栏默认隐藏；鼠标进入顶部命中区才以覆盖层方式
     // 露出，离开后立即隐藏，因此不会改变模拟设备帧的可用尺寸。
+    // 游戏 Canvas 可能会在冒泡阶段消费 mousemove；使用捕获阶段才能稳定观察到顶部触发区。
     document.addEventListener('mousemove', (event) => {
         if (!webpageFullScreen) {
             return;
         }
         document.body.classList.toggle('preview-toolbar-revealed', event.clientY <= TOOLBAR_HEIGHT);
-    });
+    }, true);
 
     showFpsButton.addEventListener('click', () => {
         setStatsVisible(!getStatsVisible());
