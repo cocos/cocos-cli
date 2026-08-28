@@ -19,7 +19,7 @@ export const JavascriptHandler: AssetHandlerBase = {
 
     importer: {
         // 版本号如果变更，则会强制重新导入
-        version: '4.0.25',
+        version: '4.0.24',
 
         /**
          * 实际导入流程

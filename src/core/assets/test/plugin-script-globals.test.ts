@@ -16,6 +16,14 @@ describe('plugin script globals', () => {
         expect(resolveSimulatedGlobals(true)).toEqual(DEFAULT_SIMULATED_GLOBALS);
     });
 
+    test('preserves an empty alias array as disabled aliases', () => {
+        expect(resolveSimulatedGlobals([])).toEqual([]);
+    });
+
+    test('preserves legacy false metadata as disabled aliases', () => {
+        expect(resolveSimulatedGlobals(false)).toEqual([]);
+    });
+
     test('deduplicates default and custom aliases', () => {
         expect(resolveSimulatedGlobals(['window', 'PINK_PLUGIN_ALIAS', 'PINK_PLUGIN_ALIAS'])).toEqual([
             ...DEFAULT_SIMULATED_GLOBALS,
