@@ -19,4 +19,8 @@ export * from './particle';
 export * from './preview';
 export * from './ui';
 export * from './reflection-probe';
+// Keep a runtime export so the web Scene bundle follows this decorator
+// registration module instead of replacing its CommonJS side-effect import
+// with an empty tree-shaken namespace.
+export { ReferenceImageService } from './reference-image';
 export * from './core/global-events';

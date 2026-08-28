@@ -25,6 +25,21 @@ export const ImageHandler: AssetHandler = {
     // 引擎内对应的类型
     assetType: 'cc.ImageAsset',
     open: openImageAsset,
+    propertySchemaConfig: {
+        type: {
+            title: 'i18n:ENGINE.assets.image.type',
+            description: 'i18n:ENGINE.assets.image.typeTip',
+            type: 'string',
+            default: 'sprite-frame',
+            enum: ['raw', 'texture', 'normal map', 'sprite-frame', 'texture cube'],
+            enumDescriptions: ['raw', 'texture', 'normal map', 'sprite-frame', 'texture cube'],
+        },
+        flipVertical: {
+            title: 'i18n:ENGINE.assets.image.flipVertical',
+            description: 'i18n:ENGINE.assets.image.flipVerticalTip',
+            type: 'boolean',
+        },
+    },
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '1.0.27',

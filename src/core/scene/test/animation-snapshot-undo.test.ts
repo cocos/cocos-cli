@@ -8,13 +8,38 @@ const mockReplaceAuxiliaryCurves = jest.fn((clip: any, curves: Record<string, un
     return true;
 });
 
-jest.mock('cc', () => ({
-    AnimationClip: class AnimationClip {},
-    assetManager: {
-        loadAny: jest.fn(),
-    },
-    editorExtrasTag: Symbol.for('editorExtrasTag'),
-}));
+const mockLoadAny = jest.fn();
+
+jest.mock('cc', () => {
+    class Asset {
+        _uuid = '';
+        isDefault = false;
+
+        initDefault(uuid?: string) {
+            this._uuid = uuid || this._uuid;
+            this.isDefault = true;
+        }
+    }
+
+    class SpriteFrame extends Asset {
+        texture: unknown = null;
+    }
+
+    return {
+        AnimationClip: class AnimationClip {},
+        Asset,
+        SpriteFrame,
+        assetManager: {
+            loadAny: mockLoadAny,
+        },
+        js: {
+            getClassByName(name: string) {
+                return name === 'cc.SpriteFrame' ? SpriteFrame : null;
+            },
+        },
+        editorExtrasTag: Symbol.for('editorExtrasTag'),
+    };
+});
 
 jest.mock('cc/editor/embedded-player', () => ({
     EmbeddedAnimationClipPlayable: class EmbeddedAnimationClipPlayable {},
@@ -73,6 +98,77 @@ function createClip(snapshot: IAnimationClipSnapshot): any {
 describe('Animation clip snapshot undo', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockLoadAny.mockReset();
+    });
+
+    it('loads SpriteFrame snapshot UUIDs as real assets instead of restoring initDefault placeholders', async () => {
+        const { SpriteFrame } = require('cc');
+        const spriteFrameA = new SpriteFrame();
+        spriteFrameA._uuid = 'sprite-frame-a';
+        spriteFrameA.texture = { id: 'texture-a', isValid: true };
+        const spriteFrameB = new SpriteFrame();
+        spriteFrameB._uuid = 'sprite-frame-b';
+        spriteFrameB.texture = { id: 'texture-b', isValid: true };
+        const loadedAssets = new Map([
+            [spriteFrameA._uuid, spriteFrameA],
+            [spriteFrameB._uuid, spriteFrameB],
+        ]);
+        mockLoadAny.mockImplementation((uuid: string, callback: (error: Error | null, asset?: unknown) => void) => {
+            callback(null, loadedAssets.get(uuid));
+        });
+
+        const clip = createClip(createSnapshot());
+        mockReplacePropertyCurves.mockImplementationOnce((targetClip: any, curves: any[]) => {
+            targetClip.__restoredSpriteFrames = curves[0].keyframes.map((keyframe: any) => {
+                const value = keyframe.dump.value;
+                if (value instanceof SpriteFrame) {
+                    return value;
+                }
+                const placeholder = new SpriteFrame();
+                placeholder.initDefault(value?.uuid);
+                return placeholder;
+            });
+            targetClip.__curves = curves;
+            return true;
+        });
+
+        await restoreAnimationClipSnapshot(clip, createSnapshot({
+            curves: [{
+                nodePath: '',
+                key: 'cc.Sprite.spriteFrame',
+                type: { value: 'cc.SpriteFrame' },
+                keyframes: [
+                    { frame: 0, dump: { value: { uuid: spriteFrameA._uuid }, type: 'cc.SpriteFrame' } },
+                    { frame: 10, dump: { value: { uuid: spriteFrameB._uuid }, type: 'cc.SpriteFrame' } },
+                ],
+            } as any],
+        }));
+
+        expect({
+            restored: clip.__restoredSpriteFrames.map((value: any) => ({
+                uuid: value._uuid,
+                isDefault: value.isDefault,
+                texture: value.texture,
+                isLoadedInstance: value === loadedAssets.get(value._uuid),
+            })),
+            requestedUuids: mockLoadAny.mock.calls.map(([uuid]) => uuid),
+        }).toEqual({
+            restored: [
+                {
+                    uuid: spriteFrameA._uuid,
+                    isDefault: false,
+                    texture: spriteFrameA.texture,
+                    isLoadedInstance: true,
+                },
+                {
+                    uuid: spriteFrameB._uuid,
+                    isDefault: false,
+                    texture: spriteFrameB.texture,
+                    isLoadedInstance: true,
+                },
+            ],
+            requestedUuids: [spriteFrameA._uuid, spriteFrameB._uuid],
+        });
     });
 
     it('treats empty embedded players as a restorable state for zero-duration child addPropertyCurve undo/redo', async () => {

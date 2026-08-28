@@ -41,6 +41,7 @@ import './gizmo/components/video-player';
 import './gizmo/components/web-view';
 import './gizmo/components/light-probe-group';
 import './gizmo/components/reflection-probe';
+import './gizmo/components/lod-group';
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
 
@@ -433,23 +434,34 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         try {
             const rpc = Rpc.getInstance();
             const current = await rpc.request('sceneConfigInstance', 'get', ['gizmo', 'local']) as Record<string, any> ?? {};
+            // 注意：GizmoConfig 拥有的字段（gridColor、is3DIcon、iconSize、toolsVisibility3d、
+            // originAxis2D、originAxis3D）不在此写入，改由各自 setter 定向落盘（见 _saveGizmoConfigField），
+            // 避免打开场景切回 position 触发的 saveConfig 用尚未载入的默认值覆盖已保存的配置。
+            // 这里用 ...current 保留磁盘上已有的这些字段，只写会随场景/操作实时变化的字段。
             const gizmoConfig = {
                 ...current,
                 is2D: this.is2D,
-                is3DIcon: this.isIconGizmo3D(),
-                iconSize: this.queryIconGizmoSize(),
                 transformToolName: this.transformToolName,
                 viewMode: this.viewMode,
                 pivot: this.pivot,
                 coordinate: this.coordinate,
-                toolsVisibility3d: this.queryToolsVisibility3d(),
                 snapConfigs: this.transformToolData.snapConfigs.getPureDataObject(),
                 rectSnapConfig: rectTransformSnapping.getPureDataObject(),
-                gridColor: this.queryGridColor(),
-                originAxis2D: this.queryOriginAxes2D(),
-                originAxis3D: this.queryOriginAxes3D(),
             };
             await rpc.request('sceneConfigInstance', 'set', ['gizmo', gizmoConfig, 'local']);
+        } catch {
+            // Config persistence not available
+        }
+    }
+
+    // GizmoConfig 拥有的字段单独定向落盘，与 _saveSnapConfig 一致，不经过整块 saveConfig。
+    // 原因：saveConfig 会用 GizmoConfig 静态量重新快照所有字段，若某字段尚未从磁盘载入（仍是默认值），
+    // 由其它改动触发的 saveConfig 会把它写回默认值，覆盖上次保存的个性化配置。改为逐字段定向落盘后，
+    // 每次只写发生变化的那个字段，其余字段由 saveConfig 的 ...current 从磁盘原样保留。
+    private async _saveGizmoConfigField(subKey: string, value: unknown): Promise<void> {
+        try {
+            const rpc = Rpc.getInstance();
+            await rpc.request('sceneConfigInstance', 'set', [`gizmo.${subKey}`, value, 'local']);
         } catch {
             // Config persistence not available
         }
@@ -504,7 +516,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         }
         Service.Engine?.repaintInEditMode?.();
-        void this.saveConfig();
+        void this._saveGizmoConfigField('toolsVisibility3d', GizmoConfig.toolsVisibility3d);
     }
 
     isIconGizmo3D(): boolean {
@@ -521,7 +533,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         Service.Engine?.repaintInEditMode?.();
-        void this.saveConfig();
+        void this._saveGizmoConfigField('is3DIcon', GizmoConfig.isIconGizmo3D);
     }
 
     queryIconGizmoSize(): number {
@@ -538,7 +550,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         Service.Engine?.repaintInEditMode?.();
-        void this.saveConfig();
+        void this._saveGizmoConfigField('iconSize', GizmoConfig.iconGizmoSize);
     }
 
     queryGridColor(): number[] {
@@ -548,8 +560,8 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
     setGridColor(color: number[]): void {
         if (!color) return;
         GizmoConfig.gridColor = [...color];
-        Service.Camera?.setGridColor?.(color);
-        void this.saveConfig();
+        Service.Camera?.setGridColor?.(color, false);
+        void this._saveGizmoConfigField('gridColor', [...color]);
     }
 
     queryOriginAxes2D(): IOriginAxesConfig {
@@ -560,7 +572,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         if (!config) return;
         GizmoConfig.originAxis2D = { ...config };
         Service.Camera?.setOriginAxes2D?.(config);
-        void this.saveConfig();
+        void this._saveGizmoConfigField('originAxis2D', { ...GizmoConfig.originAxis2D });
     }
 
     queryOriginAxes3D(): IOriginAxesConfig {
@@ -571,7 +583,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         if (!config) return;
         GizmoConfig.originAxis3D = { ...config };
         Service.Camera?.setOriginAxes3D?.(config);
-        void this.saveConfig();
+        void this._saveGizmoConfigField('originAxis3D', { ...GizmoConfig.originAxis3D });
     }
 
     setIconVisible(visible: boolean): void {

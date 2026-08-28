@@ -6,9 +6,36 @@ import { replaceInFile } from 'replace-in-file';
 import path from 'path';
 import { resolveToRaw, contains } from '../base/utils/path';
 import { assetManager } from '../../core/assets';
-import { queryPath } from '@cocos/asset-db/libs/manager';
+import { queryPath } from '@cocos/asset-db';
 
 const LF = '\n';
+const fileEditQueues = new Map<string, Promise<void>>();
+
+function getFileEditQueueKey(filename: string): string {
+    const resolved = path.resolve(filename);
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+async function withFileEditLock<T>(filename: string, operation: () => Promise<T>): Promise<T> {
+    const key = getFileEditQueueKey(filename);
+    const previous = fileEditQueues.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const turn = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const tail = previous.catch(() => undefined).then(() => turn);
+    fileEditQueues.set(key, tail);
+
+    await previous.catch(() => undefined);
+    try {
+        return await operation();
+    } finally {
+        release();
+        if (fileEditQueues.get(key) === tail) {
+            fileEditQueues.delete(key);
+        }
+    }
+}
 
 function asyncWrite(stream: fs.WriteStream, chunk: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -56,64 +83,66 @@ export async function insertTextAtLine(
     textToInsert = eol.auto(textToInsert);
 
     const filename = getScriptFilename(dbURL, fileType);
-    const tmpFilename = filename + '.tmp';
-    const fileStream = fs.createReadStream(filename);
+    return await withFileEditLock(filename, async () => {
+        const tmpFilename = filename + '.tmp';
+        const fileStream = fs.createReadStream(filename);
 
-    const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity
-    });
+        const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity
+        });
 
-    // Create a temporary write stream
-    const writeStream = fs.createWriteStream(tmpFilename);
+        // Create a temporary write stream
+        const writeStream = fs.createWriteStream(tmpFilename);
 
-    let currentLine = 0;
-    let modified = false;
-    let errorOccurred = false;
-    try {
-        for await (const line of rl) {
-            if (currentLine === lineNumber) { // Insert text before the current line
+        let currentLine = 0;
+        let modified = false;
+        let errorOccurred = false;
+        try {
+            for await (const line of rl) {
+                if (currentLine === lineNumber) { // Insert text before the current line
+                    await asyncWrite(writeStream, textToInsert);
+                    modified = true;
+                }
+                // Write the current line
+                await asyncWrite(writeStream, line);
+                ++currentLine;
+            }
+
+            if (!modified) { // If lineNumber is greater than total lines, append at the end
                 await asyncWrite(writeStream, textToInsert);
                 modified = true;
             }
-            // Write the current line
-            await asyncWrite(writeStream, line);
-            ++currentLine;
+        } catch (err) {
+            console.error('insertTextAtLine error:', err);
+            errorOccurred = true;
+        } finally {
+            rl.close();
+            fileStream.destroy();
+
+            await new Promise<void>((resolve, reject) => {
+                writeStream.on('finish', resolve);
+                writeStream.on('error', reject);
+                writeStream.end();
+            });
         }
 
-        if (!modified) { // If lineNumber is greater than total lines, append at the end
-            await asyncWrite(writeStream, textToInsert);
-            modified = true;
+        // If an error occurred, delete the temporary file
+        if (errorOccurred || !modified) {
+            if (fs.existsSync(tmpFilename)) {
+                fs.unlinkSync(tmpFilename);
+            }
+            throw new Error('Failed to insert text at the specified line.');
         }
-    } catch (err) {
-        console.error('insertTextAtLine error:', err);
-        errorOccurred = true;
-    } finally {
-        rl.close();
-        fileStream.destroy();
 
-        await new Promise<void>((resolve, reject) => {
-            writeStream.on('finish', resolve);
-            writeStream.on('error', reject);
-            writeStream.end();
-        });
-    }
+        // Replace the original file with the modified temporary file
+        fs.renameSync(tmpFilename, filename);
 
-    // If an error occurred, delete the temporary file
-    if (errorOccurred || !modified) {
-        if (fs.existsSync(tmpFilename)) {
-            fs.unlinkSync(tmpFilename);
-        }
-        throw new Error('Failed to insert text at the specified line.');
-    }
+        // Reimport script
+        await assetManager.reimportAsset(dbURL);
 
-    // Replace the original file with the modified temporary file
-    fs.renameSync(tmpFilename, filename);
-
-    // Reimport script
-    await assetManager.reimportAsset(dbURL);
-
-    return true;
+        return true;
+    });
 }
 
 // End line is inclusive
@@ -131,62 +160,64 @@ export async function eraseLinesInRange(
     }
 
     const filename = getScriptFilename(dbURL, fileType);
-    const tmpFilename = filename + '.tmp';
-    const fileStream = fs.createReadStream(filename);
-    const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity
-    });
-    // Create a temporary write stream
-    const writeStream = fs.createWriteStream(tmpFilename);
-    let currentLine = 0;
-    let modified = false;
-    let errorOccurred = false;
-    try {
-        for await (const line of rl) {
-            if (currentLine < startLine || currentLine > endLine) {
-                // Write the current line if it's outside the range
-                await asyncWrite(writeStream, line);
-            } else {
-                modified = true; // Lines in range are skipped
-            }
-            ++currentLine;
-        }
-    } catch (err) {
-        console.error('eraseLinesInRange error:', err);
-        errorOccurred = true;
-    } finally {
-        rl.close();
-        fileStream.destroy();
-
-        await new Promise<void>((resolve, reject) => {
-            writeStream.on('finish', resolve);
-            writeStream.on('error', reject);
-            writeStream.end();
+    return await withFileEditLock(filename, async () => {
+        const tmpFilename = filename + '.tmp';
+        const fileStream = fs.createReadStream(filename);
+        const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity
         });
-    }
+        // Create a temporary write stream
+        const writeStream = fs.createWriteStream(tmpFilename);
+        let currentLine = 0;
+        let modified = false;
+        let errorOccurred = false;
+        try {
+            for await (const line of rl) {
+                if (currentLine < startLine || currentLine > endLine) {
+                    // Write the current line if it's outside the range
+                    await asyncWrite(writeStream, line);
+                } else {
+                    modified = true; // Lines in range are skipped
+                }
+                ++currentLine;
+            }
+        } catch (err) {
+            console.error('eraseLinesInRange error:', err);
+            errorOccurred = true;
+        } finally {
+            rl.close();
+            fileStream.destroy();
 
-    // If an error occurred, delete the temporary file
-    if (errorOccurred) {
-        if (fs.existsSync(tmpFilename)) {
-            fs.unlinkSync(tmpFilename);
+            await new Promise<void>((resolve, reject) => {
+                writeStream.on('finish', resolve);
+                writeStream.on('error', reject);
+                writeStream.end();
+            });
         }
-        throw new Error('Failed to erase lines in the specified range.');
-    }
 
-    // Replace the original file with the modified temporary file
-    if (modified) {
-        fs.renameSync(tmpFilename, filename);
-
-        await assetManager.reimportAsset(dbURL);
-
-        return true;
-    } else {
-        if (fs.existsSync(tmpFilename)) {
-            fs.unlinkSync(tmpFilename);
+        // If an error occurred, delete the temporary file
+        if (errorOccurred) {
+            if (fs.existsSync(tmpFilename)) {
+                fs.unlinkSync(tmpFilename);
+            }
+            throw new Error('Failed to erase lines in the specified range.');
         }
-        throw new Error('No lines were erased. Please check the specified range.');
-    }
+
+        // Replace the original file with the modified temporary file
+        if (modified) {
+            fs.renameSync(tmpFilename, filename);
+
+            await assetManager.reimportAsset(dbURL);
+
+            return true;
+        } else {
+            if (fs.existsSync(tmpFilename)) {
+                fs.unlinkSync(tmpFilename);
+            }
+            throw new Error('No lines were erased. Please check the specified range.');
+        }
+    });
 }
 
 export function findTextOccurrencesInFile(
@@ -216,43 +247,45 @@ export async function replaceTextInFile(
     // Get filename
     const filename = getScriptFilename(dbURL, fileType);
 
-    let count = 0;
-    if (regex) {
-        // First, count occurrences
-        const results = await replaceInFile({
-            files: filename,
-            from: new RegExp(targetText1, 'g'), // Global replace
-            to: replacementText,
-            countMatches: true,
-            dry: true, // Dry run to count matches first
-        });
-        for (const result of results) {
-            if (result.numMatches) {
-                count += result.numMatches;
+    return await withFileEditLock(filename, async () => {
+        let count = 0;
+        if (regex) {
+            // First, count occurrences
+            const results = await replaceInFile({
+                files: filename,
+                from: new RegExp(targetText1, 'g'), // Global replace
+                to: replacementText,
+                countMatches: true,
+                dry: true, // Dry run to count matches first
+            });
+            for (const result of results) {
+                if (result.numMatches) {
+                    count += result.numMatches;
+                }
             }
+        } else {
+            count = findTextOccurrencesInFile(filename, targetText1);
         }
-    } else {
-        count = findTextOccurrencesInFile(filename, targetText1);
-    }
 
-    if (count > 1) {
-        throw new Error(`Multiple (${count}) occurrences found. File is not changed.`);
-    }
+        if (count > 1) {
+            throw new Error(`Multiple (${count}) occurrences found. File is not changed.`);
+        }
 
-    if (count == 1) {
-        const results = await replaceInFile({
-            files: filename,
-            from: regex
-                ? new RegExp(targetText1, 'g') // Global replace
-                : targetText1, // First occurrence
-            to: replacementText,
-        });
+        if (count == 1) {
+            const results = await replaceInFile({
+                files: filename,
+                from: regex
+                    ? new RegExp(targetText1, 'g') // Global replace
+                    : targetText1, // First occurrence
+                to: replacementText,
+            });
 
-        await assetManager.reimportAsset(dbURL);
+            await assetManager.reimportAsset(dbURL);
 
-        return results.some(result => result.hasChanged);
-    }
-    throw new Error(`No replacement was performed, TargetText ${targetText} did not appear verbatim in ${filename}.`);
+            return results.some(result => result.hasChanged);
+        }
+        throw new Error(`No replacement was performed, TargetText ${targetText} did not appear verbatim in ${filename}.`);
+    });
 }
 
 export async function queryLinesInFile(

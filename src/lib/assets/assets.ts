@@ -100,7 +100,12 @@ export async function queryAssetInfo(
     urlOrUUIDOrPath: string,
     dataKeys?: string[] | undefined
 ): Promise<IAssetInfo | null> {
-    return await assetManager.queryAssetInfo(urlOrUUIDOrPath, dataKeys as (keyof IAssetInfo)[] | undefined);
+    const info = await assetManager.queryAssetInfo(urlOrUUIDOrPath, dataKeys as (keyof IAssetInfo)[] | undefined);
+    // This module is exposed through the Electron MessagePort RPC bridge. Some
+    // asset-db implementations attach helper functions to otherwise plain asset
+    // data; those functions cannot be structured-cloned and made Asset Preview's
+    // queryAssetInfo() fail before it can resolve FBX Prefab sub-assets.
+    return info ? JSON.parse(JSON.stringify(info)) as IAssetInfo : null;
 }
 
 /**
@@ -120,8 +125,8 @@ export async function queryCreateMap(): Promise<ICreateMenuInfo[]> {
 /**
  * Batch Query Asset Info // 批量查询资源信息
  */
-export async function queryAssetInfos(options?: QueryAssetsOption): Promise<IAssetInfo[]> {
-    return await assetManager.queryAssetInfos(options);
+export async function queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): Promise<IAssetInfo[]> {
+    return await assetManager.queryAssetInfos(options, dataKeys);
 }
 
 /**
@@ -161,6 +166,17 @@ export async function importAsset(
     options?: AssetOperationOption
 ): Promise<IAssetInfo[]> {
     return await assetManager.importAsset(source, target, options);
+}
+
+/**
+ * Copy Asset // 复制资源及其完整元数据
+ */
+export async function copyAsset(
+    source: string,
+    target: string,
+    options?: AssetOperationOption
+): Promise<IAssetInfo> {
+    return await assetManager.copyAsset(source, target, options);
 }
 
 /**

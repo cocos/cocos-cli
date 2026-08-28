@@ -1,6 +1,6 @@
 'use strict';
 
-import { Asset, VirtualAsset, queryUUID, Utils as dbUtils, queryAsset as dbQueryAsset, queryPath } from '@cocos/asset-db/index';
+import { Asset, VirtualAsset, queryUUID, Utils as dbUtils, queryAsset as dbQueryAsset, queryPath } from '@cocos/asset-db';
 import { extname, isAbsolute, join, resolve } from 'path';
 import { readFile, readJSON } from 'fs-extra';
 import type { Asset as CCAsset, Details } from 'cc';
@@ -119,7 +119,12 @@ export function getExtendsFromCCType(ccType: string) {
         return [];
     }
 
-    let superClass = cc.js.getSuper(cc.js.getClassByName(ccType));
+    const assetClass = cc.js.getClassByName(ccType);
+    if (!assetClass) {
+        return [];
+    }
+
+    let superClass = cc.js.getSuper(assetClass);
     const extendClass = [];
     let superClassName = cc.js.getClassName(superClass);
 

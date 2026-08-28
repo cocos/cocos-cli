@@ -106,6 +106,22 @@ function getAssetLibraryBaseUrl(serverBaseUrl: string): string {
  */
 export const scriptingRoutes = [
     {
+        url: '/userland/macro',
+        async handler(req: Request, res: Response, next: NextFunction) {
+            try {
+                const { default: scripting } = await import('../../core/scripting');
+                const macroPath = join(scripting.projectPath, 'temp', 'programming', 'custom-macro.js');
+                if (!(await pathExists(macroPath))) {
+                    return next();
+                }
+                res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+                res.sendFile(macroPath);
+            } catch (err) {
+                next(err);
+            }
+        },
+    },
+    {
         url: '/scripting/web-env',
         async handler(req: Request, res: Response, next: NextFunction) {
             try {

@@ -4,6 +4,7 @@ const mockGetBuildStageWithHookTasks = jest.fn();
 const mockGetHooksInfo = jest.fn();
 const mockReadJSONSync = jest.fn();
 const mockRecord = jest.fn();
+const mockCreateLogSinkRestorer = jest.fn(() => jest.fn());
 const mockRequireFile = jest.fn();
 
 jest.mock('fs-extra', () => ({
@@ -24,6 +25,7 @@ jest.mock('../share/common-options-validator', () => ({
 jest.mock('../../base/console', () => ({
     newConsole: {
         record: mockRecord,
+        createLogSinkRestorer: mockCreateLogSinkRestorer,
         trackMemoryStart: jest.fn(),
         trackMemoryEnd: jest.fn(),
         trackTimeStart: jest.fn(),
@@ -88,21 +90,31 @@ describe('createBuildStageTask', () => {
         jest.restoreAllMocks();
     });
 
-    it('creates a web stage task without reading persisted build options', async () => {
+    it('reads persisted build options for registered web stage tasks', async () => {
         const { createBuildStageTask } = await import('../index');
+        const buildOptions = {
+            platform: 'web-desktop',
+            packages: {
+                'web-desktop': {
+                    versionName: '1.0.0',
+                    bridgeLink: 'https://example.com/bridge.js',
+                },
+            },
+        };
+        mockReadJSONSync.mockReturnValue(buildOptions);
 
         const task = await createBuildStageTask('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         });
 
-        expect(mockReadJSONSync).not.toHaveBeenCalled();
+        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/web-desktop', 'cocos.compile.config.json'));
         expect(mockGetBuildStageWithHookTasks).toHaveBeenCalledWith('web-desktop', 'run');
         expect(mockGetHooksInfo).toHaveBeenCalledWith('web-desktop');
         expect(task.id).toBe('task-id');
         expect(task.name).toBe('run');
         expect(task.hooksInfo).toBe(hooksInfo);
-        expect(task.options).toBeUndefined();
+        expect(task.options).toBe(buildOptions);
         expect(task.hookMap).toEqual({
             onBeforeRun: 'onBeforeRun',
             run: 'run',
@@ -153,7 +165,7 @@ describe('createBuildStageTask', () => {
         expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/openpaas', 'cocos.compile.config.json'));
         expect(task.name).toBe('upload');
         expect(task.hooksInfo).toBe(openpaasHooksInfo);
-        expect(task.options.packages.openpaas).toEqual({
+        expect(task.options!.packages.openpaas).toEqual({
             versionName: '1.0.0',
             accessToken: 'runtime-token',
         });
@@ -191,8 +203,8 @@ describe('createBuildStageTask', () => {
         });
 
         expect(mockRecord).not.toHaveBeenCalled();
-        expect(task.options.logDest).toBe('custom-stage-log');
-        expect((task.options as any).packages.openpaas.logDest).toBeUndefined();
+        expect(task.options!.logDest).toBe('custom-stage-log');
+        expect((task.options! as any).packages.openpaas.logDest).toBeUndefined();
     });
 
     it('runs the corresponding platform stage hooks', async () => {
@@ -244,13 +256,75 @@ describe('createBuildStageTask', () => {
         expect(hookModule.run).toHaveBeenCalledTimes(1);
     });
 
-    it('throws when the requested build stage is not registered', async () => {
+    it('skips unsupported stage when the task runs', async () => {
         const { createBuildStageTask } = await import('../index');
+        const buildOptions = {
+            platform: 'web-desktop',
+            packages: {
+                'web-desktop': {
+                    versionName: '1.0.0',
+                },
+            },
+        };
         mockGetBuildStageWithHookTasks.mockReturnValue(undefined);
+        mockReadJSONSync.mockReturnValue(buildOptions);
 
-        await expect(createBuildStageTask('task-id', 'deploy', {
+        const task = await createBuildStageTask('task-id', 'deploy', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
-        })).rejects.toThrow('No Build stage deploy');
+        });
+        const result = await task.run();
+
+        expect(result).toBe(true);
+        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/web-desktop', 'cocos.compile.config.json'));
+        expect(task.name).toBe('deploy');
+        expect(task.options).toBe(buildOptions);
+        expect(task.buildExitRes).toEqual({
+            code: 0,
+            dest: 'raw:build/web-desktop',
+            custom: {
+                skipped: true,
+            },
+        });
+    });
+
+    it('skips missing make stage when the task runs', async () => {
+        const { createBuildStageTask } = await import('../index');
+        const buildOptions = {
+            platform: 'web-desktop',
+            packages: {
+                'web-desktop': {
+                    versionName: '1.0.0',
+                },
+            },
+        };
+        mockGetBuildStageWithHookTasks.mockReturnValue(undefined);
+        mockReadJSONSync.mockReturnValue(buildOptions);
+
+        const task = await createBuildStageTask('task-id', 'make', {
+            dest: 'build/openpaas/web-desktop',
+            platform: 'web-desktop',
+        });
+        const result = await task.run();
+
+        expect(result).toBe(true);
+        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/openpaas/web-desktop', 'cocos.compile.config.json'));
+        expect(mockGetHooksInfo).toHaveBeenCalledWith('web-desktop');
+        expect(task.id).toBe('task-id');
+        expect(task.name).toBe('make');
+        expect(task.hooksInfo).toBe(hooksInfo);
+        expect(task.options).toBe(buildOptions);
+        expect(task.hookMap).toEqual({
+            onBeforeMake: 'onBeforeMake',
+            make: 'make',
+            onAfterMake: 'onAfterMake',
+        });
+        expect(task.buildExitRes).toEqual({
+            code: 0,
+            dest: 'raw:build/openpaas/web-desktop',
+            custom: {
+                skipped: true,
+            },
+        });
     });
 });

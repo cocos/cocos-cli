@@ -1,11 +1,18 @@
-import type { AnimationClip } from 'cc';
+import type { AnimationClip, Asset } from 'cc';
 import type {
     IAnimationAuxiliaryCurveDump,
     IAnimationCurveDump,
+    IAnimationCurveKeyDump,
     IAnimationEmbeddedPlayerDump,
     IAnimationEmbeddedPlayerGroup,
     IAnimationEventDump,
+    IAnimationValue,
 } from '../../../common';
+import {
+    loadAnimationAssetValue,
+    queryAnimationAssetCtor,
+    queryAnimationAssetUuid,
+} from './asset-value';
 import { dumpAuxiliaryCurves, replaceAuxiliaryCurves } from './auxiliary-curve';
 import {
     dumpEmbeddedPlayers,
@@ -34,6 +41,9 @@ export interface IAnimationClipSnapshot {
     auxiliaryCurves: Record<string, IAnimationAuxiliaryCurveDump>;
 }
 
+type AnimationAssetCtor = new () => Asset;
+type PendingAnimationAssetLoads = Map<AnimationAssetCtor, Map<string, Promise<Asset>>>;
+
 export function captureAnimationClipSnapshot(clip: AnimationClip, options: IPropertyCurveMetadataContext = {}): IAnimationClipSnapshot {
     const sample = getClipSample(clip);
     const events = queryClipEvents(clip) || [];
@@ -56,11 +66,12 @@ export function captureAnimationClipSnapshot(clip: AnimationClip, options: IProp
 
 export async function restoreAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot): Promise<void> {
     const previous = captureAnimationClipSnapshot(clip);
+    const pendingAssetLoads: PendingAnimationAssetLoads = new Map();
     try {
-        await applyAnimationClipSnapshot(clip, snapshot);
+        await applyAnimationClipSnapshot(clip, snapshot, pendingAssetLoads);
     } catch (error) {
         try {
-            await applyAnimationClipSnapshot(clip, previous);
+            await applyAnimationClipSnapshot(clip, previous, pendingAssetLoads);
         } catch (restoreError) {
             console.error('[Animation] rollback failed animation clip snapshot restore:', restoreError);
         }
@@ -68,12 +79,17 @@ export async function restoreAnimationClipSnapshot(clip: AnimationClip, snapshot
     }
 }
 
-async function applyAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimationClipSnapshot): Promise<void> {
+async function applyAnimationClipSnapshot(
+    clip: AnimationClip,
+    snapshot: IAnimationClipSnapshot,
+    pendingAssetLoads: PendingAnimationAssetLoads,
+): Promise<void> {
     (clip as any).duration = snapshot.duration;
     (clip as any).sample = snapshot.sample;
     (clip as any).speed = snapshot.speed;
     (clip as any).wrapMode = snapshot.wrapMode;
-    if (!replacePropertyCurves(clip, snapshot.curves)) {
+    const curves = await hydrateAnimationAssetCurveValues(snapshot.curves, pendingAssetLoads);
+    if (!replacePropertyCurves(clip, curves)) {
         throw new Error('Failed to restore animation property curves.');
     }
     restoreEvents(clip, snapshot);
@@ -84,6 +100,86 @@ async function applyAnimationClipSnapshot(clip: AnimationClip, snapshot: IAnimat
     if (!replaceAuxiliaryCurves(clip, snapshot.auxiliaryCurves)) {
         throw new Error('Failed to restore animation auxiliary curves.');
     }
+}
+
+async function hydrateAnimationAssetCurveValues(
+    curves: IAnimationCurveDump[],
+    pendingAssetLoads: PendingAnimationAssetLoads,
+): Promise<IAnimationCurveDump[]> {
+    return await Promise.all(curves.map(async (curve) => {
+        if (!Array.isArray(curve.keyframes) || curve.keyframes.length === 0) {
+            return curve;
+        }
+
+        let changed = false;
+        const keyframes = await Promise.all(curve.keyframes.map(async (keyframe) => {
+            const value = await hydrateAnimationAssetKeyframeValue(curve, keyframe, pendingAssetLoads);
+            if (value === keyframe.dump.value) {
+                return keyframe;
+            }
+            changed = true;
+            return {
+                ...keyframe,
+                dump: {
+                    ...keyframe.dump,
+                    value: value as IAnimationValue,
+                },
+            };
+        }));
+
+        return changed ? { ...curve, keyframes } : curve;
+    }));
+}
+
+async function hydrateAnimationAssetKeyframeValue(
+    curve: IAnimationCurveDump,
+    keyframe: IAnimationCurveKeyDump,
+    pendingAssetLoads: PendingAnimationAssetLoads,
+): Promise<unknown> {
+    const assetCtor = queryAnimationAssetKeyframeCtor(curve, keyframe);
+    const value = keyframe.dump.value as unknown;
+    if (!assetCtor || value === null || value === undefined || value instanceof assetCtor) {
+        return value;
+    }
+
+    const uuid = queryAnimationAssetUuid(value);
+    if (!uuid) {
+        return value;
+    }
+
+    return await loadAnimationAssetOnce(assetCtor, uuid, pendingAssetLoads);
+}
+
+function queryAnimationAssetKeyframeCtor(
+    curve: IAnimationCurveDump,
+    keyframe: IAnimationCurveKeyDump,
+): AnimationAssetCtor | null {
+    if (keyframe.dump.type) {
+        const keyframeCtor = queryAnimationAssetCtor({ type: { value: keyframe.dump.type } });
+        if (keyframeCtor) {
+            return keyframeCtor;
+        }
+    }
+    return curve.type ? queryAnimationAssetCtor({ type: curve.type }) : null;
+}
+
+function loadAnimationAssetOnce(
+    assetCtor: AnimationAssetCtor,
+    uuid: string,
+    pendingAssetLoads: PendingAnimationAssetLoads,
+): Promise<Asset> {
+    let ctorLoads = pendingAssetLoads.get(assetCtor);
+    if (!ctorLoads) {
+        ctorLoads = new Map();
+        pendingAssetLoads.set(assetCtor, ctorLoads);
+    }
+
+    let pending = ctorLoads.get(uuid);
+    if (!pending) {
+        pending = loadAnimationAssetValue(assetCtor, uuid);
+        ctorLoads.set(uuid, pending);
+    }
+    return pending;
 }
 
 export function animationClipSnapshotsEqual(left: IAnimationClipSnapshot, right: IAnimationClipSnapshot): boolean {

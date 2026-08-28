@@ -69,7 +69,7 @@ export const TexturePackerHandler: AssetHandler = {
                     return false;
                 }
 
-                userData.textureUuid = uuid + '@' + require('@cocos/asset-db/libs/utils').nameToId('texture');
+                userData.textureUuid = uuid + '@' + require('@cocos/asset-db').nameToId('texture');
             }
 
             // 如果依赖的资源已经导入完成了，则生成对应的数据

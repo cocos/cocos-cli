@@ -6,7 +6,7 @@ import ComponentManager from '../editor-extends/manager/component';
 // Mock pathManager.getNodePath used by _generateUniquePath
 jest.mock('../editor-extends/manager/node-path-manager', () => ({
     __esModule: true,
-    default: { getNodePath: (uuid: string) => `/${uuid}` },
+    default: { getNodePath: (uuid: string) => uuid },
     NodePathManager: class {},
 }));
 

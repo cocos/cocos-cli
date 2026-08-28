@@ -264,7 +264,6 @@ export function activate(context: HostContext): void {
             return '';
         }
         const _projectPath = projectPath || await getActiveProject();
-        console.log('saveCustomIcon11', source, outputName, _projectPath);
         return saveCustomIcon(source, outputName, _projectPath);
     });
     context.registerMethod('openProgramSettings', async () => {

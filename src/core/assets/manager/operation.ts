@@ -12,13 +12,32 @@ import assetConfig from '../asset-config';
 import { url2path, ensureOutputData, url2uuid, pathToDbUrlIfAssetDBPath, dirnameForDbUrlOrPath } from '../utils';
 import assetDBManager from './asset-db';
 import assetHandlerManager from './asset-handler';
+import { copyAssetSource } from './asset-copy';
 import { copyPath, moveAssetSource, removeAssetSource, renamePath } from './filesystem';
 import i18n from '../../base/i18n';
-import assetQuery from './query';
+import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
 import utils from '../../base/utils';
 import EventEmitter from 'events';
 import { mergeMeta } from '../asset-handler/utils';
 import * as lodash from 'lodash';
+
+const REIMPORT_BUSY_TIMEOUT_MS = 10_000;
+
+function waitForAssetInit(asset: IAsset, timeoutMs: number, pathOrUrlOrUUID: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`Reimport asset ${pathOrUrlOrUUID} timed out waiting for the current import to finish`));
+        }, timeoutMs);
+
+        asset.waitInit().then(() => {
+            clearTimeout(timer);
+            resolve();
+        }, (error) => {
+            clearTimeout(timer);
+            reject(error);
+        });
+    });
+}
 
 function isScriptAsset(asset: IAsset) {
     const importer = asset.meta?.importer;
@@ -212,6 +231,9 @@ function getSceneOrPrefabJsonError(asset: IAsset, content: string | Buffer): str
 
 class AssetOperation extends EventEmitter {
 
+    private readonly _importTaskByTargetPath = new Map<string, Promise<void>>();
+    private readonly _reservedImportTargetPaths = new Map<string, number>();
+
     /**
      * 检查一个资源文件夹是否为只读
      */
@@ -232,10 +254,10 @@ class AssetOperation extends EventEmitter {
      * @param option 
      * @returns 返回新的文件路径
      */
-    _checkOverwrite(path: string, option?: AssetOperationOption) {
-        if (existsSync(path) && !option?.overwrite) {
+    _checkOverwrite(path: string, option?: AssetOperationOption, isOccupied: (path: string) => boolean = existsSync) {
+        if (isOccupied(path) && !option?.overwrite) {
             if (option?.rename) {
-                return utils.File.getName(path);
+                return utils.File.getName(path, isOccupied);
             }
             throw new Error(`file ${path} already exists, please use overwrite option to overwrite it or use rename option to auto rename it first.`);
         }
@@ -459,12 +481,26 @@ class AssetOperation extends EventEmitter {
      * @param options 
      */
     async importAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
-        const targetPath = target.startsWith('db://') ? url2path(target) : target;
-        const assetTarget = this._pathToDbUrlIfInsideAssetDB(target);
+        const targetUrl = this._pathToDbUrlIfInsideAssetDB(target);
+        const targetPath = targetUrl.startsWith('db://') ? url2path(targetUrl) : target;
+        return this._queueImportByTargetPath(targetPath, () => this._importAsset(source, targetPath, options));
+    }
 
-        if (!this._isSameFilesystemPath(source, targetPath)) {
-            await copyPath(source, targetPath, options);
+    private async _importAsset(source: string, targetPath: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
+        const isSamePath = this._isSameFilesystemPath(source, targetPath);
+
+        if (!isSamePath) {
+            const reservation = this._reserveImportTargetPath(targetPath, options);
+            targetPath = reservation.targetPath;
+            try {
+                const copyOptions = options?.overwrite === undefined ? undefined : { overwrite: options.overwrite };
+                await copyPath(source, targetPath, copyOptions);
+            } finally {
+                reservation.release();
+            }
         }
+
+        const assetTarget = this._pathToDbUrlIfInsideAssetDB(targetPath);
         await this.refreshAsset(assetTarget);
         const assetInfo = assetQuery.queryAssetInfo(assetTarget);
         if (!assetInfo) {
@@ -476,6 +512,107 @@ class AssetOperation extends EventEmitter {
         return assetQuery.queryAssetInfos({
             pattern: `${assetInfo.url}/**/*`
         });
+    }
+
+    private _queueImportByTargetPath<T = unknown>(targetPath: string, task: () => Promise<T>): Promise<T> {
+        const targetKey = this._getImportTargetKey(targetPath);
+
+        const previousTask = this._importTaskByTargetPath.get(targetKey) ?? Promise.resolve();
+        const taskResult = previousTask.then(task);
+        const taskTail = taskResult.then(() => undefined, () => undefined); // never reject
+        this._importTaskByTargetPath.set(targetKey, taskTail);
+
+        return taskResult.finally(() => {
+            if (this._importTaskByTargetPath.get(targetKey) === taskTail) {
+                this._importTaskByTargetPath.delete(targetKey);
+            }
+        });
+    }
+
+    private _isPathOccupied = (path: string) => {
+        return existsSync(path) || this._reservedImportTargetPaths.has(this._getImportTargetKey(path));
+    };
+    private _reserveImportTargetPath(targetPath: string, options?: AssetOperationOption) {
+        const resolvedTargetPath = this._checkOverwrite(targetPath, options, this._isPathOccupied);
+        const targetKey = this._getImportTargetKey(resolvedTargetPath);
+        this._reservedImportTargetPaths.set(targetKey, (this._reservedImportTargetPaths.get(targetKey) ?? 0) + 1);
+
+        return {
+            targetPath: resolvedTargetPath,
+            release: () => {
+                const reservationCount = this._reservedImportTargetPaths.get(targetKey);
+                if (reservationCount === undefined || reservationCount <= 1) {
+                    this._reservedImportTargetPaths.delete(targetKey);
+                } else {
+                    this._reservedImportTargetPaths.set(targetKey, reservationCount - 1);
+                }
+            },
+        };
+    }
+
+    private _getImportTargetKey(targetPath: string) {
+        let targetKey = utils.Path.normalize(targetPath);
+        if (process.platform === 'win32') {
+            targetKey = targetKey.toLowerCase();
+        }
+        return targetKey;
+    }
+
+    /**
+     * Copy an existing main asset together with its complete meta information.
+     */
+    async copyAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo> {
+        return await assetDBManager.addTask(this._copyAsset.bind(this), [source, target, options]);
+    }
+
+    private async _copyAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo> {
+        const asset = assetQuery.queryAsset(source);
+        if (!asset) {
+            throw new Error(`asset in source file ${source} not exists`);
+        }
+        if (asset._parent) {
+            throw new Error('Sub-assets cannot be copied independently; copy their main asset instead.');
+        }
+
+        this.checkValidUrl(target);
+        source = asset.source;
+        this._checkExists(source);
+        if (target.startsWith('db://')) {
+            target = url2path(target);
+        }
+        target = this._checkOverwrite(target, options);
+
+        const targetIsAssetDBRoot = Object.values(assetDBManager.assetDBInfo).some((info) => (
+            utils.Path.contains(info.target, target) && utils.Path.contains(target, info.target)
+        ));
+        if (targetIsAssetDBRoot) {
+            throw new Error(`Cannot copy an asset over an AssetDB root.\ntarget: ${target}`);
+        }
+        if (utils.Path.contains(source, target) || utils.Path.contains(target, source)) {
+            throw new Error(`Cannot copy an asset into or over itself.\nsource: ${source}\ntarget: ${target}`);
+        }
+
+        const transaction = await copyAssetSource(source, target, options);
+        let copiedAsset: IAsset | null = null;
+        try {
+            await this._refreshAsset(target);
+            copiedAsset = assetQuery.queryAsset(target);
+            if (!copiedAsset || !copiedAsset.imported || copiedAsset.invalid) {
+                throw copiedAsset?.importError || new Error(`Copy asset from ${source} to ${target} failed`);
+            }
+        } catch (error) {
+            try {
+                await transaction.rollback();
+                await this._refreshAsset(dirname(target), false);
+            } catch (rollbackError) {
+                const rollbackMessage = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
+                throw new Error(`Copy asset from ${source} to ${target} failed and rollback also failed: ${rollbackMessage}`, { cause: error });
+            }
+            throw error;
+        }
+
+        await transaction.finalize();
+        return assetQuery.encodeAsset(copiedAsset);
     }
 
     /**
@@ -606,14 +743,30 @@ class AssetOperation extends EventEmitter {
         if (pathOrUrlOrUUID.startsWith('db://')) {
             pathOrUrlOrUUID = url2uuid(pathOrUrlOrUUID);
         }
-        const asset = await reimport(pathOrUrlOrUUID);
-        if (!asset) {
-            throw new Error(`无法找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+        let asset = await reimport(pathOrUrlOrUUID);
+        let busyDeadline = 0;
+        while (!asset) {
+            const existingAsset = assetQuery.queryAsset(pathOrUrlOrUUID);
+            if (!existingAsset) {
+                throw new Error(`无法找到资源 ${pathOrUrlOrUUID}, 请检查参数是否正确`);
+            }
+            busyDeadline ||= Date.now() + REIMPORT_BUSY_TIMEOUT_MS;
+            const remainingTime = busyDeadline - Date.now();
+            if (remainingTime <= 0) {
+                throw new Error(`Reimport asset ${pathOrUrlOrUUID} timed out waiting for the current import to finish`);
+            }
+            if (!existingAsset.init) {
+                await waitForAssetInit(existingAsset, remainingTime, pathOrUrlOrUUID);
+            }
+            if (Date.now() >= busyDeadline) {
+                throw new Error(`Reimport asset ${pathOrUrlOrUUID} timed out waiting for the current import to finish`);
+            }
+            asset = await reimport(pathOrUrlOrUUID);
         }
-        if (asset && (!asset.imported || asset.invalid)) {
+        if (!asset.imported || asset.invalid) {
             throw asset.importError || new Error(`Reimport asset ${asset.source} failed`);
         }
-        return assetQuery.encodeAsset(asset);
+        return assetQuery.encodeAsset(asset, ASSET_TREE_INFO_DATA_KEYS);
     }
 
     /**

@@ -134,9 +134,13 @@ const Node = {
                 path: 'name',
                 dump: { ...nodeDump.name, value: params.name },
             }]);
-            const segments = currentPath.split('/');
-            segments[segments.length - 1] = params.name;
-            currentPath = segments.join('/');
+            const nodeUuid = nodeDump.uuid?.value;
+            if (nodeUuid) {
+                const realPath = await request<string>('Node', 'getPathByUuid', [nodeUuid]);
+                if (realPath) {
+                    currentPath = realPath;
+                }
+            }
         }
         return { path: currentPath };
     },
@@ -204,6 +208,18 @@ const Component = {
         return true;
     },
     reset: (params: { path: string }) => request<boolean>('Component', 'reset', [params]),
+    recalculateLODGroupBounds: (params: { path: string; record?: boolean }) => request<{
+        localBoundaryCenter: { x: number; y: number; z: number };
+        objectSize: number;
+    }>('Component', 'recalculateLODGroupBounds', [params]),
+    insertLOD: (params: { path: string; index: number; screenUsagePercentage?: number; record?: boolean }) => request<{
+        lodCount: number;
+        screenUsagePercentages: number[];
+    }>('Component', 'insertLOD', [params]),
+    eraseLOD: (params: { path: string; index: number; record?: boolean }) => request<{
+        lodCount: number;
+        screenUsagePercentages: number[];
+    }>('Component', 'eraseLOD', [params]),
 };
 
 const Prefab = {
@@ -242,6 +258,12 @@ async function queryComp(path: string) {
         // scene-process 找不到组件时会抛错，而不是返回 null；这里统一当成“不存在”。
         return null;
     }
+}
+
+function getLODLevels(component: any): unknown[] {
+    const lodProperty = component?.properties?.LODs ?? component?.properties?._LODs;
+    expect(lodProperty).toBeDefined();
+    return lodProperty.value;
 }
 
 async function safeDelete(path: string) {
@@ -847,16 +869,48 @@ describe('Undo/Redo 集成测试', () => {
 
         it('update name, undo restores original name, redo reapplies', async () => {
             const updateParams: IUpdateNodeParams = { path, name: 'RenamedNode' };
-            await Node.update(updateParams);
-            const renamedPath = `${path.slice(0, path.lastIndexOf('/') + 1)}RenamedNode`;
+            const updateResult = await Node.update(updateParams);
+            const renamedPath = updateResult.path;
             expect(await queryNode(renamedPath)).not.toBeNull();
 
             await Undo.undo();
             expect(await queryNode(path)).not.toBeNull();
-            expect((await queryNode(path))!.name).toBe(path.split('/').pop());
+            const originalName = path.split('/').pop();
+            expect((await queryNode(path))!.name).toBe(originalName);
 
             await Undo.redo();
             expect(await queryNode(renamedPath)).not.toBeNull();
+        });
+
+        it('conflicting rename keeps the display name and restores the correct paths through undo/redo', async () => {
+            const conflictingPath = 'UndoConflictName';
+            let renamedPath = '';
+            await Node.createByType({ path: conflictingPath, nodeType: NodeType.EMPTY });
+            await Undo.clearHistory();
+
+            try {
+                const updateResult = await Node.update({ path, name: conflictingPath });
+                renamedPath = updateResult.path;
+
+                expect(renamedPath).not.toBe(conflictingPath);
+                expect((await queryNode(renamedPath))?.name).toBe(conflictingPath);
+                expect((await queryNode(conflictingPath))?.name).toBe(conflictingPath);
+
+                expectUndoSuccess(await Undo.undo());
+                expect((await queryNode(path))?.name).toBe(path);
+                expect(await queryNode(renamedPath)).toBeNull();
+                expect(await queryNode(conflictingPath)).not.toBeNull();
+
+                expectUndoSuccess(await Undo.redo());
+                expect((await queryNode(renamedPath))?.name).toBe(conflictingPath);
+                expect(await queryNode(path)).toBeNull();
+                expect(await queryNode(conflictingPath)).not.toBeNull();
+            } finally {
+                if (renamedPath) {
+                    await safeDelete(renamedPath);
+                }
+                await safeDelete(conflictingPath);
+            }
         });
     });
 
@@ -1000,6 +1054,114 @@ describe('Undo/Redo 集成测试', () => {
             const redoResult = await Undo.redo();
             expectUndoSuccess(redoResult);
             expect((await queryComp(compPath))!.properties.string.value).toBe('label');
+        });
+    });
+
+    // ========================================================================
+    // LODGroup 包围盒重算（快照）
+    // ========================================================================
+    describe('LODGroup recalculate bounds (snapshot)', () => {
+        const path = 'UndoRecalculateLODGroupNode';
+        const compPath = `${path}/cc.LODGroup`;
+
+        beforeEach(async () => {
+            await Node.createByType({ path, nodeType: NodeType.EMPTY });
+            await Component.add({ nodePath: path, component: 'cc.LODGroup' });
+            await Component.setProperty({
+                componentPath: compPath,
+                properties: { _objectSize: 42 },
+                record: false,
+            });
+            await Undo.clearHistory();
+        });
+
+        afterEach(async () => {
+            await safeDelete(path);
+            await Undo.clearHistory();
+        });
+
+        it('recalculate pushes one snapshot and supports undo/redo', async () => {
+            expect((await queryComp(compPath))!.properties._objectSize.value).toBe(42);
+
+            const bounds = await Component.recalculateLODGroupBounds({ path: compPath });
+            expect(bounds).toEqual({
+                localBoundaryCenter: { x: 0, y: 0, z: 0 },
+                objectSize: 0,
+            });
+            expect((await queryComp(compPath))!.properties._objectSize.value).toBe(0);
+            expect(await Undo.canUndo()).toBe(true);
+
+            const undoResult = await Undo.undo();
+            expectUndoSuccess(undoResult);
+            expect((await queryComp(compPath))!.properties._objectSize.value).toBe(42);
+
+            const redoResult = await Undo.redo();
+            expectUndoSuccess(redoResult);
+            expect((await queryComp(compPath))!.properties._objectSize.value).toBe(0);
+        });
+
+        it('record=false does not push an undo snapshot', async () => {
+            const bounds = await Component.recalculateLODGroupBounds({
+                path: compPath,
+                record: false,
+            });
+
+            expect(bounds.objectSize).toBe(0);
+            expect(await Undo.canUndo()).toBe(false);
+        });
+    });
+
+    // ========================================================================
+    // LODGroup 层级增删（快照）
+    // ========================================================================
+    describe('LODGroup level mutations (snapshot)', () => {
+        const path = 'UndoLODGroupLevelsNode';
+        const compPath = `${path}/cc.LODGroup`;
+
+        beforeEach(async () => {
+            await Node.createByType({ path, nodeType: NodeType.EMPTY });
+            await Component.add({ nodePath: path, component: 'cc.LODGroup' });
+            await Undo.clearHistory();
+        });
+
+        afterEach(async () => {
+            await safeDelete(path);
+            await Undo.clearHistory();
+        });
+
+        it('insert pushes one snapshot and supports undo/redo', async () => {
+            const inserted = await Component.insertLOD({ path: compPath, index: 0 });
+            expect(inserted.lodCount).toBe(4);
+            expect(inserted.screenUsagePercentages).toHaveLength(4);
+            expect(getLODLevels(await queryComp(compPath))).toHaveLength(4);
+            expect(await Undo.canUndo()).toBe(true);
+
+            expectUndoSuccess(await Undo.undo());
+            expect(getLODLevels(await queryComp(compPath))).toHaveLength(3);
+
+            expectUndoSuccess(await Undo.redo());
+            expect(getLODLevels(await queryComp(compPath))).toHaveLength(4);
+        });
+
+        it('erase pushes one snapshot and supports undo', async () => {
+            await Component.insertLOD({ path: compPath, index: 0, record: false });
+            await Component.insertLOD({ path: compPath, index: 1, record: false });
+            await Undo.clearHistory();
+
+            const erased = await Component.eraseLOD({ path: compPath, index: 1 });
+            expect(erased.lodCount).toBe(4);
+            expect(getLODLevels(await queryComp(compPath))).toHaveLength(4);
+            expect(await Undo.canUndo()).toBe(true);
+
+            expectUndoSuccess(await Undo.undo());
+            expect(getLODLevels(await queryComp(compPath))).toHaveLength(5);
+        });
+
+        it('record=false does not push an undo snapshot', async () => {
+            await Component.insertLOD({ path: compPath, index: 0, record: false });
+
+            expect(getLODLevels(await queryComp(compPath))).toHaveLength(4);
+            expect(await Undo.canUndo()).toBe(false);
         });
     });
 

@@ -39,6 +39,15 @@ export function shouldSyncClipDuration(operation: IAnimationOperation): boolean 
     }
 }
 
+/**
+ * Imported skeletal clips keep the duration authored by the importer. Their
+ * editable event/settings operations must not recompute duration from the
+ * currently visible event list and accidentally shorten the source clip.
+ */
+export function shouldSyncAnimationClipDuration(operation: IAnimationOperation, isSkeleton: boolean): boolean {
+    return !isSkeleton && shouldSyncClipDuration(operation);
+}
+
 export function isAllowedSkeletonAnimationOperation(operation: IAnimationOperation): boolean {
     switch (operation.type) {
         case 'changeSample':

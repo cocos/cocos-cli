@@ -24,7 +24,7 @@ function ensureBuilderFilesystemImports(content: string): string {
     // Remove any legacy relative filesystem imports that may have been generated previously
     content = content.replace(/import\s*\{[^}]*\}\s*from\s*'\.\/filesystem';\s*/g, '');
     const imports = [
-        "import { IAssetDeleteOptions, IAssetWriteFileOptions } from '@cocos/asset-db/libs/filesystem';",
+        "import { IAssetDeleteOptions, IAssetWriteFileOptions } from '@cocos/asset-db';",
     ];
 
 

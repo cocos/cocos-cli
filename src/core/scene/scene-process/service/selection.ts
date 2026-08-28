@@ -5,6 +5,7 @@ import type { ISelectionService, ISelectionEvents, IChangeNodeOptions } from '..
 import { NodeEventType } from '../../common';
 import type { Node } from 'cc';
 import { getEditorNodeByUuid, getEditorNodePath, getEditorNodeUuidByPath } from './gizmo/utils/editor-node';
+import { normalizeNodePath } from '../../../engine/editor-extends/manager/path-utils';
 
 function pathToUuid(path: string): string {
     return getEditorNodeUuidByPath(path);
@@ -57,25 +58,28 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
     }
 
     select(path: string): void {
-        const index = this._selections.findIndex(e => e.path === path);
+        // 选中项以归一化路径为键，'/Canvas' 与 'Canvas' 是同一个节点，不能存成两条
+        const normalized = normalizeNodePath(path);
+        const index = this._selections.findIndex(e => e.path === normalized);
         if (index !== -1) return;
-        const uuid = pathToUuid(path);
-        this._selections.unshift({ path, uuid });
+        const uuid = pathToUuid(normalized);
+        this._selections.unshift({ path: normalized, uuid });
         if (uuid) {
             this._callFocusInEditor(uuid);
         }
-        this.broadcast('selection:select', path, this._getPaths());
+        this.broadcast('selection:select', normalized, this._getPaths());
     }
 
     unselect(path: string): void {
-        const index = this._selections.findIndex(e => e.path === path);
+        const normalized = normalizeNodePath(path);
+        const index = this._selections.findIndex(e => e.path === normalized);
         if (index === -1) return;
         const entry = this._selections[index];
         this._selections.splice(index, 1);
         if (entry.uuid) {
             this._callLostFocusInEditor(entry.uuid);
         }
-        this.broadcast('selection:unselect', path, this._getPaths());
+        this.broadcast('selection:unselect', normalized, this._getPaths());
     }
 
     clear(): void {
@@ -96,7 +100,8 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
     }
 
     isSelect(path: string): boolean {
-        return this._selections.some(e => e.path === path);
+        const normalized = normalizeNodePath(path);
+        return this._selections.some(e => e.path === normalized);
     }
 
     reset(): void {

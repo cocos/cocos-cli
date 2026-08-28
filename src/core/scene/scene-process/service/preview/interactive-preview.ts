@@ -515,6 +515,13 @@ class InteractivePreview extends PreviewBase implements IPreviewInstance {
 
     public hide() {
         this.cameraComp.enabled = false;
+        if (this.camera) {
+            this.camera.enabled = false;
+        }
+        if (this.worldAxis) {
+            this.worldAxis.hide();
+            this.worldAxis._sceneGizmoCamera.camera.enabled = false;
+        }
     }
 
     public resetCameraView() {

@@ -6,6 +6,13 @@ import {
     SchemaQueryAllComponentResult,
     SchemaQueryComponent,
     SchemaRemoveComponent,
+    SchemaRecalculateLODGroupBoundsOptions,
+    SchemaLODGroupBoundsResult,
+    SchemaInsertLODOptions,
+    SchemaEraseLODOptions,
+    SchemaQueryLODGroupRelativeHeightOptions,
+    SchemaLODGroupLevelsResult,
+    SchemaLODGroupRelativeHeightResult,
 
     TAddComponentInfo,
     TSetPropertyOptions,
@@ -13,6 +20,13 @@ import {
     TQueryAllComponentResult,
     TRemoveComponentOptions,
     TQueryComponentOptions,
+    TRecalculateLODGroupBoundsOptions,
+    TLODGroupBoundsResult,
+    TInsertLODOptions,
+    TEraseLODOptions,
+    TQueryLODGroupRelativeHeightOptions,
+    TLODGroupLevelsResult,
+    TLODGroupRelativeHeightResult,
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -96,7 +110,7 @@ export class ComponentApi {
      */
     @tool('scene-set-component-property')
     @title('Set component property') // 设置组件属性
-    @description('Set component property. Input component path (unique index of component), property name, property value to modify corresponding property info. Property types can be queried via scene-query-component') // 设置组件属性，输入组件path（唯一索引的组件）、属性名称、属性值，修改对应属性的信息，属性的类型可以通过 scene-query-component 查询到
+    @description('Set component properties. Query scene-query-component first and match each Asset reference to the returned property type. Asset values use { uuid: "..." }; uuid may be an exact UUID or db:// URL. If a parent asset has exactly one compatible sub-asset, it is normalized automatically; incompatible or ambiguous references return 400 without modifying the component.') // 设置组件属性前先查询属性类型；Asset 引用必须匹配类型，唯一兼容子资源会自动规范化，失配或歧义时不修改组件并返回 400
     @result(SchemaBooleanResult)
     async setProperty(@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions): Promise<CommonResultType<boolean>> {
         try {
@@ -131,6 +145,102 @@ export class ComponentApi {
             return {
                 code: getCommonErrorStatus(e),
                 reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
+
+    /**
+     * Recalculate LODGroup bounds // 重新计算 LODGroup 包围盒
+     */
+    @tool('scene-recalculate-lod-group-bounds')
+    @title('Recalculate LODGroup bounds') // 重新计算 LODGroup 包围盒
+    @description('Recalculate localBoundaryCenter and objectSize from all Renderers referenced by a cc.LODGroup. The path must identify a cc.LODGroup component, e.g. "Root/LOD/cc.LODGroup". Returns zero values when no valid Renderer exists.') // 根据 LODGroup 引用的 Renderer 重算边界；路径必须指向 cc.LODGroup 组件
+    @result(SchemaLODGroupBoundsResult)
+    async recalculateLODGroupBounds(
+        @param(SchemaRecalculateLODGroupBoundsOptions) options: TRecalculateLODGroupBoundsOptions,
+    ): Promise<CommonResultType<TLODGroupBoundsResult>> {
+        try {
+            const bounds = await Scene.Component.recalculateLODGroupBounds(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: bounds,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Insert an LOD level // 插入 LOD 层级
+     */
+    @tool('scene-insert-lod')
+    @title('Insert LOD level') // 插入 LOD 层级
+    @description('Insert an LOD level into a cc.LODGroup. Index must be from 0 through lodCount, at most 8 levels are allowed, and screenUsagePercentage must be in (0, 1]. Omit screenUsagePercentage to let the engine calculate it.')
+    @result(SchemaLODGroupLevelsResult)
+    async insertLOD(
+        @param(SchemaInsertLODOptions) options: TInsertLODOptions,
+    ): Promise<CommonResultType<TLODGroupLevelsResult>> {
+        try {
+            const lodState = await Scene.Component.insertLOD(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: lodState,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Erase an LOD level // 删除 LOD 层级
+     */
+    @tool('scene-erase-lod')
+    @title('Erase LOD level') // 删除 LOD 层级
+    @description('Erase an LOD level from a cc.LODGroup. Index must identify an existing level, and at least one LOD level must remain.')
+    @result(SchemaLODGroupLevelsResult)
+    async eraseLOD(
+        @param(SchemaEraseLODOptions) options: TEraseLODOptions,
+    ): Promise<CommonResultType<TLODGroupLevelsResult>> {
+        try {
+            const lodState = await Scene.Component.eraseLOD(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: lodState,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Query LODGroup relative height // 查询 LODGroup 屏幕相对高度
+     */
+    @tool('scene-query-lod-group-relative-height')
+    @title('Query LODGroup relative height') // 查询 LODGroup 屏幕相对高度
+    @description('Query the raw screen-relative height of a cc.LODGroup under the current editor camera. Supports perspective and orthographic cameras; the result is not clamped to [0, 1].')
+    @result(SchemaLODGroupRelativeHeightResult)
+    async queryLODGroupRelativeHeight(
+        @param(SchemaQueryLODGroupRelativeHeightOptions) options: TQueryLODGroupRelativeHeightOptions,
+    ): Promise<CommonResultType<TLODGroupRelativeHeightResult>> {
+        try {
+            const relativeHeight = await Scene.Component.queryLODGroupRelativeHeight(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: relativeHeight,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
             };
         }
     }

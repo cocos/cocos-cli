@@ -4,6 +4,7 @@ import * as os from 'os';
 import { execSync } from "child_process";
 import NativePackTool, { CocosParams } from '../base/default';
 import { cchelper, toolHelper } from "../utils";
+import { compareVersion } from '../../../../../base/utils/parse';
 
 export interface IOrientation {
     landscapeLeft: boolean;
@@ -51,15 +52,33 @@ export abstract class MacOSPackTool extends NativePackTool {
         return /Apple/.test(model) && process.platform === 'darwin';
     }
 
-    protected getXcodeMajorVerion(): number {
+    protected getXcodeVersion(): string {
         try {
             const output = execSync('xcrun xcodebuild -version').toString('utf8');
-            return Number.parseInt(output.match(/Xcode\s(\d+)\.\d+/)![1]);
+            const match = output.match(/Xcode\s+(\d+(?:\.\d+)+)/);
+            return match?.[1] || '0.0';
+        } catch (e) {
+            console.error(e);
+            return '0.0';
+        }
+    }
+
+    protected getXcodeMajorVerion(): number {
+        try {
+            return Number.parseInt(this.getXcodeVersion().split('.')[0] || '0', 10);
         } catch (e) {
             console.error(e);
             // fallback to default Xcode version
             return 11;
         }
+    }
+
+    protected getIosSimulatorArch(): 'arm64' | 'x86_64' {
+        // Xcode 14.3+ no longer supports running iOS Simulator under Rosetta on Apple Silicon.
+        if (this.isAppleSilicon() && compareVersion(this.getXcodeVersion(), '14.3') >= 0) {
+            return 'arm64';
+        }
+        return 'x86_64';
     }
 
     async modifyXcodeProject() {

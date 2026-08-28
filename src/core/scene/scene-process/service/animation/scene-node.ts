@@ -44,6 +44,75 @@ export function getNodePath(node: Node): string {
     return NodeMgr.getNodePath(node) || '';
 }
 
+export function resolveAnimationRelativeNodePath(
+    rootNode: Node,
+    rootPath: string,
+    target: { nodePath?: string; nodeUuid?: string },
+): string | null {
+    const nodePath = normalizeNodePath(target.nodePath || '');
+    const normalizedRootPath = normalizeNodePath(rootPath);
+    if (nodePath) {
+        if (nodePath === normalizedRootPath) {
+            return '';
+        }
+
+        if (normalizedRootPath && nodePath.startsWith(`${normalizedRootPath}/`)) {
+            const relativePath = nodePath.slice(normalizedRootPath.length + 1);
+            const animationNode = rootNode.getChildByPath(relativePath);
+            const systemNode = getNodeBySystemPathIfAvailable(nodePath);
+            // Keep the old absolute-path behavior for compatibility, including orphaned tracks whose
+            // scene node has already been deleted. A live system node is rejected only when its unique
+            // path suffix cannot represent the name-based path used by Cocos animation tracks.
+            if (!systemNode || systemNode === animationNode) {
+                return relativePath;
+            }
+        } else if (rootNode.getChildByPath(nodePath)) {
+            return nodePath;
+        }
+    }
+
+    if (target.nodeUuid) {
+        const relativePath = findRelativeNodePathByUuid(rootNode, target.nodeUuid);
+        if (relativePath !== null) {
+            const boundNode = relativePath ? rootNode.getChildByPath(relativePath) : rootNode;
+            if (boundNode?.uuid === target.nodeUuid) {
+                return relativePath;
+            }
+        }
+    }
+
+    return nodePath || target.nodeUuid ? null : '';
+}
+
+function getNodeBySystemPathIfAvailable(path: string): Node | null {
+    if (typeof NodeMgr.getNodeByPath !== 'function') {
+        return null;
+    }
+    try {
+        return NodeMgr.getNodeByPath(path) || null;
+    } catch {
+        return null;
+    }
+}
+
+function findRelativeNodePathByUuid(node: Node, uuid: string, prefix = ''): string | null {
+    if (node.uuid === uuid) {
+        return prefix;
+    }
+    for (const child of node.children) {
+        const path = prefix ? `${prefix}/${child.name}` : child.name;
+        const result = findRelativeNodePathByUuid(child, uuid, path);
+        if (result !== null) {
+            return result;
+        }
+    }
+    return null;
+}
+
+function normalizeNodePath(path: string): string {
+    return String(path || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
+}
+
 export function queryAnimationRootNode(node: Node, editorRoot: Node | null): Node {
     let current: Node | null = node;
     while (current) {
@@ -73,10 +142,12 @@ export function isUsingBakedAnimation(rootNode: Node): boolean {
 }
 
 export function isSkeletonClip(uuid: string, rootNode?: Node | null): boolean {
-    if (uuid.includes('@')) {
-        return true;
+    if (rootNode) {
+        // A sub-asset UUID is not enough to identify a skeletal clip. Ordinary
+        // imported AnimationClips use the same `@subAsset` UUID form.
+        return Boolean(rootNode.getComponent(SkeletalAnimation));
     }
-    return Boolean(rootNode && queryAnimationComponent(rootNode) instanceof SkeletalAnimation);
+    return uuid.includes('@');
 }
 
 export function readPropertyValue(node: Node, propKey: string): unknown {

@@ -3,7 +3,7 @@
 import { EventEmitter } from 'events';
 import pathManager from './node-path-manager';
 import { rsort } from 'semver';
-import { formatUniqueName } from './path-utils';
+import { formatUniqueName, stripLeadingSlashes } from './path-utils';
 
 interface MenuItem {
     component: Function,
@@ -217,6 +217,7 @@ export default class ComponentManager extends EventEmitter {
     }
 
     getComponentFromPath(path: string) {
+        path = stripLeadingSlashes(path);
         const uuid = this._pathToUuid.get(path);
         if (uuid) {
             return this.getComponent(uuid);

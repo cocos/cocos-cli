@@ -3,7 +3,7 @@ import { basename, join } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting } from '../share/common-options-validator';
 import { NATIVE_PLATFORM, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
-import { checkConfigDefault, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
+import { checkConfigDefault, cloneConfigValue, defaultMerge, defaultsDeep, getOptionsDefault, resolveToRaw } from '../share/utils';
 import { Platform, IDisplayOptions, IBuildTaskOption, IConsoleType, TextureCompressRenderConfig, TextureCompressFullRenderConfig } from '../@types';
 import { IInternalBuildPluginConfig, IPlatformBuildPluginConfig, PlatformBundleConfig, BundleQueryConfig, IBuildStageItem, BuildCheckResult, BuildTemplateConfig, IConfigGroupsInfo, IPlatformConfig, ITextureCompressConfig, IBuildHooksInfo, IBuildCommandOption, MakeRequired, IBuilderConfigItem, IPlatformRegisterInfo, IPluginRegisterInfo, IPackageRegisterInfo, IBuilderRegisterInfo, PlatformBuildSchema, PlatformConfigItem } from '../@types/protected';
 import Utils from '../../base/utils';
@@ -13,9 +13,9 @@ import { configGroups, textureFormatConfigs, formatsInfo, defaultSupport } from 
 import { BundlecompressionTypeMap, BundlePlatformTypes } from '../share/bundle-utils';
 import { newConsole } from '../../base/console';
 import builderConfig from '../share/builder-config';
-import { createBuilderPlatformMetadataNodes } from '../share/metadata';
+import { createBuilderPlatformMetadataNodes, createBuilderRenderSchema } from '../share/metadata';
 import { configurationRegistry } from '../../configuration';
-import { convertConfigItem, ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
+import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import { GlobalPaths } from '../../../global';
 import { existsSync, readdirSync } from 'fs';
 import utils from '../../base/utils';
@@ -34,6 +34,22 @@ type ICustomAssetHandlerType = 'compressTextures';
 type IAssetHandlers = Record<ICustomAssetHandlerType, Record<string, (...args: unknown[]) => unknown>>;
 // 对外支持的对外公开的资源处理方法汇总
 const CustomAssetHandlerTypes: ICustomAssetHandlerType[] = ['compressTextures'];
+const SUPPORT_PLATFORM_PARENT_OPTION_MAPPINGS = [{
+    childKey: 'appid',
+    parentKeys: ['appid'],
+}, {
+    childKey: 'versionName',
+    parentKeys: ['versionName'],
+}, {
+    childKey: 'uploadEnv',
+    parentKeys: ['uploadEnv'],
+}, {
+    childKey: 'accessToken',
+    parentKeys: ['accessToken'],
+}, {
+    childKey: 'codeVersion',
+    parentKeys: ['codeVersion'],
+}];
 
 type DisplayValueField = 'displayName' | 'label' | 'description';
 type I18nDisplayRecord = Record<string, any>;
@@ -555,6 +571,7 @@ export class PluginManager extends EventEmitter {
         if ('buildStageGroup' in options) {
             rightOptions.buildStageGroup = options.buildStageGroup;
         }
+        await this.completeSupportPlatformOptions(rightOptions);
         // 通用参数的构建校验, 需要使用默认值补全所有的 key
         for (const key of Object.keys(rightOptions)) {
             if (key === 'packages') {
@@ -591,6 +608,87 @@ export class PluginManager extends EventEmitter {
         }
         if (checkRes) {
             return rightOptions;
+        }
+    }
+
+    private getPlatformBuildPluginConfig(platform: Platform | string): IPlatformBuildPluginConfig | undefined {
+        return (this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config) as IPlatformBuildPluginConfig | undefined;
+    }
+
+    private async ensurePlatformRegistered(platform: string) {
+        if (this.checkPlatform(platform)) {
+            return;
+        }
+        if (!this.platformRegisterInfoPool.has(platform)) {
+            throw new Error(`Support platform ${platform} is not registered`);
+        }
+        await this.register(platform);
+    }
+
+    /**
+     * Complete child platform build options for platforms that support combined builds.
+     *
+     * When the parent platform enables `supportPlatforms`, this method:
+     * - registers and enables configured child platforms;
+     * - merges each child platform's own default package options;
+     * - synchronizes parent OpenPaaS upload identity fields into child packages
+     *   so web upload stages use the same app/version/environment/session.
+     */
+    private async completeSupportPlatformOptions(options: IBuildTaskOption) {
+        const platform = String(options.platform);
+        const config = this.getPlatformBuildPluginConfig(platform);
+        const supportPlatforms = config?.supportPlatforms;
+        if (!supportPlatforms?.platforms?.length) {
+            delete options.subTaskPlatforms;
+            delete options.subTaskBuildOutputs;
+            delete options.childTaskIds;
+            return;
+        }
+
+        const enabled = !!lodash.get(options, ['packages', platform, supportPlatforms.controlledBy]);
+        if (!enabled) {
+            delete options.subTaskPlatforms;
+            delete options.subTaskBuildOutputs;
+            delete options.childTaskIds;
+            return;
+        }
+
+        options.packages = options.packages || {};
+        const parentPackageOptions = options.packages[platform] || {};
+        options.subTaskPlatforms = [];
+        delete options.subTaskBuildOutputs;
+        delete options.childTaskIds;
+
+        for (const childPlatform of supportPlatforms.platforms) {
+            await this.ensurePlatformRegistered(childPlatform);
+            const childDefaultOptions = await this.getOptionsByPlatform(childPlatform);
+            const childPackageDefaults = lodash.get(childDefaultOptions, ['packages', childPlatform], {});
+            const childPackageOptions = defaultsDeep(
+                cloneConfigValue(options.packages[childPlatform] || {}),
+                cloneConfigValue(childPackageDefaults),
+            );
+            this.syncParentOptionsToSupportPlatformPackage(parentPackageOptions, childPackageOptions);
+            options.packages[childPlatform] = childPackageOptions;
+            options.subTaskPlatforms.push(childPlatform);
+        }
+    }
+
+    /**
+     * Copy parent OpenPaaS upload fields to a support-platform package.
+     *
+     * OpenPaaS and web packages both consume `appid`. `app_id` is accepted as a
+     * legacy parent key for compatibility. The remaining fields share the same
+     * key names and must stay aligned across parent and child builds for web
+     * package upload.
+     */
+    private syncParentOptionsToSupportPlatformPackage(parentPackageOptions: Record<string, any>, childPackageOptions: Record<string, any>) {
+        for (const { childKey, parentKeys } of SUPPORT_PLATFORM_PARENT_OPTION_MAPPINGS) {
+            for (const parentKey of parentKeys) {
+                if (Object.prototype.hasOwnProperty.call(parentPackageOptions, parentKey) && parentPackageOptions[parentKey] !== undefined) {
+                    childPackageOptions[childKey] = cloneConfigValue(parentPackageOptions[parentKey]);
+                    break;
+                }
+            }
         }
     }
 
@@ -815,11 +913,11 @@ export class PluginManager extends EventEmitter {
      * @param platform
      */
     public async getOptionsByPlatform<P extends Platform | string>(platform: P): Promise<IBuildTaskOption> {
-        const options = await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`);
-        const commonOptions = await builderConfig.getProject<IBuildCommandOption>(`common`);
+        const options = cloneConfigValue(await builderConfig.getProject<IBuildTaskOption>(`platforms.${platform}`));
+        const commonOptions = cloneConfigValue(await builderConfig.getProject<IBuildCommandOption>(`common`));
         commonOptions.platform = platform;
         commonOptions.outputName = platform;
-        return Object.assign(commonOptions, options);
+        return Object.assign({}, commonOptions, options);
     }
 
     public getTexturePlatformConfigs(): Record<string, ITextureCompressConfig> {
@@ -868,6 +966,7 @@ export class PluginManager extends EventEmitter {
     private collectPlatformConfigItems(platform: Platform | string): {
         common: Record<string, IBuilderConfigItem>;
         platformOptions: Record<string, IBuilderConfigItem>;
+        supportPlatforms?: IPlatformBuildPluginConfig['supportPlatforms'];
     } {
         const common: Record<string, IBuilderConfigItem> = {};
         const platformCommonOptions = this.commonOptionConfig[platform] || {};
@@ -882,36 +981,12 @@ export class PluginManager extends EventEmitter {
         // 应用支持的压缩类型
         this.applySupportedCompressionTypes(platform, common);
 
-        const config = this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config;
+        const config = (this.configMap[platform]?.[platform] || this.platformRegisterInfoPool.get(platform)?.config) as IPlatformBuildPluginConfig | undefined;
         return {
             common,
             platformOptions: this.cloneDisplayOptions(config?.options),
+            supportPlatforms: lodash.cloneDeep(config?.supportPlatforms),
         };
-    }
-
-    /**
-     * 把 IBuilderConfigItem 映射成配置系统 schema(ICocosConfigurationPropertySchema)。
-     * 复用配置系统的 convertConfigItem(label->title、type:'enum'->string|number+enum、对象/数组递归、i18n 翻译)。
-     * hidden 项直接过滤(配置系统 schema 无 hidden 字段;如 md5CacheOptions 不渲染,其值仍随构建参数透传)。
-     */
-    private toRenderSchema(items: Record<string, IBuilderConfigItem>): ICocosConfigurationPropertySchema {
-        const properties: Record<string, ICocosConfigurationPropertySchema> = {};
-        const required: string[] = [];
-        for (const [key, item] of Object.entries(items)) {
-            if (!item || item.hidden) {
-                continue;
-            }
-            properties[key] = convertConfigItem(item, key);
-            // 必填:从 verifyRules:['required'] 派生,收进父对象节点的 required(JSON Schema 对象级);拦构建仍由 checkBuildOption 负责
-            if (item.verifyRules?.includes('required')) {
-                required.push(key);
-            }
-        }
-        const node: ICocosConfigurationPropertySchema = { type: 'object', properties };
-        if (required.length) {
-            node.required = required;
-        }
-        return node;
     }
 
     public getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema {
@@ -919,10 +994,11 @@ export class PluginManager extends EventEmitter {
             throw new Error(`Can not find platform config for ${platform}`);
         }
 
-        const { common, platformOptions } = this.collectPlatformConfigItems(platform);
+        const { common, platformOptions, supportPlatforms } = this.collectPlatformConfigItems(platform);
         return {
-            common: this.toRenderSchema(common),
-            platformOptions: this.toRenderSchema(platformOptions),
+            common: createBuilderRenderSchema(common, String(platform)),
+            platformOptions: createBuilderRenderSchema(platformOptions, String(platform)),
+            supportPlatforms,
         };
     }
 

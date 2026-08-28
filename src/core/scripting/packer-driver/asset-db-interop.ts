@@ -5,7 +5,7 @@ import { getDatabaseModuleRootURL } from '../utils/db-module-url';
 import { tsScriptAssetCache, TypeScriptAssetInfoCache } from '../shared/cache';
 import { resolveFileName } from '../utils/path';
 import { normalize } from 'path';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { AssetActionEnum } from '@cocos/asset-db';
 import { DBInfo } from '../@types/config-export';
 
 export interface QueryAllAssetOption<T = { assetInfo: AssetInfo }> {

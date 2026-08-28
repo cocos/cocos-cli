@@ -5,7 +5,7 @@ import { openCode } from '../utils';
 import { AssetHandlerBase } from '../../@types/protected';
 import { JavaScriptAssetUserData, PluginScriptUserData } from '../../@types/userDatas';
 import scripting from '../../../scripting';
-import { AssetActionEnum } from '@cocos/asset-db/libs/asset';
+import { AssetActionEnum } from '@cocos/asset-db';
 
 export const JavascriptHandler: AssetHandlerBase = {
     // Handler 的名字，用于指定 Handler as 等

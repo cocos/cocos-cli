@@ -150,14 +150,45 @@ export function parsePropertyTrack(track: unknown): { nodePath: string; descript
         return descriptor ? { nodePath, descriptor } : null;
     }
 
+    const target = parseAnimationTrackTarget(path);
+    if (!target) {
+        return null;
+    }
+    const descriptor = createPropertyDescriptor(target.propKey, undefined, kind, track as AnyTrack);
+    return descriptor ? { nodePath: target.nodePath, descriptor } : null;
+}
+
+export interface IAnimationTrackTarget {
+    nodePath: string;
+    propKey: string;
+}
+
+export function parseAnimationTrackTarget(path: any): IAnimationTrackTarget | null {
+    if (!path || typeof path.length !== 'number') {
+        return null;
+    }
+
+    let index = 0;
+    let nodePath = '';
+    while (index < path.length && path.isHierarchyAt(index)) {
+        const segment = normalizePath(String(path.parseHierarchyAt(index) || ''));
+        if (segment) {
+            nodePath = nodePath ? `${nodePath}/${segment}` : segment;
+        }
+        index++;
+    }
+
+    let component: string | undefined;
+    if (index < path.length && path.isComponentAt(index)) {
+        component = path.parseComponentAt(index);
+        index++;
+    }
     if (index !== path.length - 1 || !path.isPropertyAt(index)) {
         return null;
     }
 
-    const propName = path.parsePropertyAt(index);
-    const propKey = comp ? `${comp}.${propName}` : propName;
-    const descriptor = createPropertyDescriptor(propKey, undefined, kind, track as AnyTrack);
-    return descriptor ? { nodePath, descriptor } : null;
+    const property = path.parsePropertyAt(index);
+    return { nodePath, propKey: component ? `${component}.${property}` : property };
 }
 
 export function createPropertyDescriptor(

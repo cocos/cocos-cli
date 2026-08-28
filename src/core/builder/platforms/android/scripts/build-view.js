@@ -29,7 +29,7 @@ const hostOptions = {
     format: 'cjs',
     platform: 'node',
     target: 'node18',
-    external: ['vscode'],
+    external: ['vscode', 'pink'],
     logLevel: 'info',
 };
 

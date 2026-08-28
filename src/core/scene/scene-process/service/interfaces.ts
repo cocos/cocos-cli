@@ -34,6 +34,8 @@ import {
     IAnimationService,
     IReflectionProbeService,
     IPublicReflectionProbeService,
+    IPublicReferenceImageService,
+    IReferenceImageService,
 } from '../../common';
 
 /**
@@ -57,6 +59,7 @@ export interface IPublicServiceManager {
     Preview: IPublicPreviewService,
     UI: IPublicUIService,
     ReflectionProbe: IPublicReflectionProbeService,
+    ReferenceImage: IPublicReferenceImageService,
 }
 
 export interface IServiceManager {
@@ -78,4 +81,5 @@ export interface IServiceManager {
     Preview: IPreviewService,
     UI: IUIService,
     ReflectionProbe: IReflectionProbeService,
+    ReferenceImage: IReferenceImageService,
 }

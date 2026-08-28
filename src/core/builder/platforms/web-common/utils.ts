@@ -1,9 +1,17 @@
+import { randomBytes } from 'crypto';
 import { existsSync } from 'fs';
 import { join, relative, basename } from 'path';
 import utils from '../../../base/utils';
 import builderConfig from '../../share/builder-config';
 import { getBuildPath, getBuildUrlPath, registerBuildPath } from '../../build.middleware';
 import { execFile } from 'child_process';
+
+const BRIDGE_TOKEN_GLOBAL_NAME = '__SUDOP_GAME_BRIDGE_BUILD_TOKEN__';
+
+export interface IWebBridgeScriptOptions {
+    bridgeLink?: unknown;
+    bridgeBuildToken?: string;
+}
 
 export async function getBuidPath(platform: string, name: string) {
     return getBuildPath(platform, name);
@@ -24,7 +32,7 @@ export async function getPreviewUrl(dest: string, platform?: string) {
     if (rawPath.startsWith(builderConfig.projectRoot) && platform) {
         const registerName = basename(rawPath);
         registerBuildPath(platform, registerName, rawPath);
-        return `${serverService.url}/build/${registerName}/index.html`;
+        return `${serverService.url}/build/${platform}/${registerName}/index.html`;
     }
     
     const buildRoot = join(builderConfig.projectRoot, 'build');
@@ -93,7 +101,6 @@ export function openUrlAsync(url: string): Promise<void> {
         openBrowser(url, resolve);
     });
 }
-
 export async function run(platform: string, dest: string) {
     // if (GlobalConfig.mode === 'simple') {
     //     throw new Error('simple mode not support run in platform ' + platform);
@@ -107,4 +114,47 @@ export async function run(platform: string, dest: string) {
         console.log(`请手动打开浏览器访问: ${url}`);
     }
     return url;
+}
+
+export function injectBridgeScripts(html: string, options: IWebBridgeScriptOptions): string {
+    const normalizedBridgeLink = String(options.bridgeLink || '').trim();
+    if (!normalizedBridgeLink) {
+        throw new Error('Missing web bridge script link');
+    }
+
+    const token = randomBytes(32).toString('hex');
+    options.bridgeBuildToken = token;
+
+    const bridgeScripts = [
+        `<script>globalThis.${BRIDGE_TOKEN_GLOBAL_NAME}=${JSON.stringify(token)};</script>`,
+        `<script src="${escapeHtmlAttribute(normalizedBridgeLink)}" charset="utf-8"></script>`,
+    ].join('\n');
+
+    return insertBeforeFirstScriptTag(html, bridgeScripts);
+}
+
+function insertBeforeFirstScriptTag(html: string, bridgeScripts: string): string {
+    const firstScriptTag = /<script\b/i.exec(html);
+    if (!firstScriptTag) {
+        throw new Error('Cannot find script tag in index.html');
+    }
+
+    return `${html.slice(0, firstScriptTag.index)}${bridgeScripts}\n${html.slice(firstScriptTag.index)}`;
+}
+
+function escapeHtmlAttribute(value: string): string {
+    return value.replace(/[&"<>]/g, (char) => {
+        switch (char) {
+        case '&':
+            return '&amp;';
+        case '"':
+            return '&quot;';
+        case '<':
+            return '&lt;';
+        case '>':
+            return '&gt;';
+        default:
+            return char;
+        }
+    });
 }

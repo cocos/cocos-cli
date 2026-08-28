@@ -15,6 +15,7 @@ import type {
     IAnimationTargetOptions,
 } from '../../../common';
 import { createClipDump } from './clip-dump';
+import { normalizePath } from './property-curve-track';
 import type { IPropertyCurveMetadataContext } from './property-curve';
 import { ACTIVE_PROPERTY, DEFAULT_PROPERTIES } from './property-menu';
 import { queryAnimationPropertyMetadata, queryComponentAnimableProperties } from './property-metadata';
@@ -24,9 +25,13 @@ import {
     isSkeletonClip,
     isUsingBakedAnimation,
     queryAnimationRootNode,
+    resolveAnimationRelativeNodePath,
 } from './scene-node';
 import { IAnimationSession } from './types';
 import { clipUuid } from './utils';
+
+
+export { upgradeUntypedAnimationTracks } from './untyped-animation-track';
 
 export function assertAnimationEditorOpened(editorRoot: Node | null): asserts editorRoot is Node {
     if (!editorRoot) {
@@ -72,37 +77,31 @@ export function resolveAnimationTargetNode(
 }
 
 export function resolveAnimationFrameQueryNode(options: IAnimationQueryPropertyValueAtFrameOptions, session: IAnimationSession): Node {
-    const nodeByUuid = getNodeByUuid(options.nodeUuid || '');
-    if (nodeByUuid) {
-        return nodeByUuid;
+    const rootNode = getNodeByUuid(session.rootUuid) || getNodeByPath(session.rootPath);
+    const relativePath = rootNode
+        ? resolveAnimationRelativeNodePath(rootNode, session.rootPath, options)
+        : null;
+    let node = relativePath === ''
+        ? rootNode
+        : relativePath && rootNode?.getChildByPath(relativePath);
+    if (!node && rootNode && options.nodePath && options.nodeUuid) {
+        const uuidRelativePath = resolveAnimationRelativeNodePath(rootNode, session.rootPath, {
+            nodeUuid: options.nodeUuid,
+        });
+        node = uuidRelativePath === ''
+            ? rootNode
+            : uuidRelativePath && rootNode.getChildByPath(uuidRelativePath);
+    }
+    if (node) {
+        return node;
     }
 
-    if (options.nodePath) {
-        const path = options.nodePath;
-        if (path === session.rootPath || path.startsWith(`${session.rootPath}/`)) {
-            const nodeByPath = getNodeByPath(path);
-            if (nodeByPath) {
-                return nodeByPath;
-            }
-        }
-
-        const relativeNode = getNodeByPath(`${session.rootPath}/${path}`);
-        if (relativeNode) {
-            return relativeNode;
-        }
-
-        const nodeByPath = getNodeByPath(path);
-        if (nodeByPath) {
-            return nodeByPath;
-        }
-    } else {
-        const rootNode = getNodeByPath(session.rootPath);
-        if (rootNode) {
-            return rootNode;
-        }
-    }
-
-    throw new Error(`Animation target node is required: ${options.nodePath || session.rootPath}`);
+    const target = options.nodeUuid
+        ? `UUID "${options.nodeUuid}"`
+        : `path "${options.nodePath || '<root>'}"`;
+    const reason = `Animation target ${target} is not bound by the current animation hierarchy.`;
+    console.warn(`[Animation] ${reason}`);
+    throw new Error(reason);
 }
 
 export function isCurrentAnimationSessionClipQuery(
@@ -117,18 +116,15 @@ export function isCurrentAnimationSessionClipQuery(
     if (!hasTarget) {
         return true;
     }
-    const sessionRootPath = normalizeTargetPath(session.rootPath);
-    const optionRootPath = normalizeTargetPath(options.rootPath || '');
-    const optionNodePath = normalizeTargetPath(options.nodePath || '');
+    const sessionRootPath = normalizePath(session.rootPath);
+    const optionRootPath = normalizePath(options.rootPath || '');
+    const optionNodePath = normalizePath(options.nodePath || '');
     return options.rootUuid === session.rootUuid
         || (options.rootPath !== undefined && optionRootPath === sessionRootPath)
         || options.nodeUuid === session.rootUuid
         || (options.nodePath !== undefined && optionNodePath === sessionRootPath);
 }
 
-function normalizeTargetPath(path: string): string {
-    return String(path || '').replace(/^\/+|\/+$/g, '');
-}
 
 export function queryAnimationServiceProperties(node: Node, root: Node | null): IAnimationPropertyInfo[] {
     const isChild = Boolean(root && root !== node);

@@ -1,5 +1,6 @@
 import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../configuration';
 import { createSceneMetadataNodes } from './metadata';
+import type { IReferenceImageConfig } from './common/reference-image';
 
 export interface IOriginAxesConfig {
     x: boolean;
@@ -82,6 +83,8 @@ export interface ISceneConfig {
      * 记录过相机视角信息的节点 uuid 列表，运行期由 Camera 服务写入。
      */
     'camera-uuids'?: string[];
+    /** Personal editor-only reference-image library and Scene bindings; never committed with Scene data. */
+    referenceImage?: IReferenceImageConfig;
 }
 
 class SceneConfig {
@@ -131,12 +134,17 @@ class SceneConfig {
         // 运行期由 Camera 服务写入；提供空默认值，避免首次 get 时配置层抛错并被 RPC 中间件记为错误日志
         'camera-infos': {},
         'camera-uuids': [],
+        referenceImage: {
+            images: [],
+            sceneBindings: {},
+            desiredVisible: true,
+        },
     };
 
     private configInstance!: IBaseConfiguration;
 
     // 个人/本机键：存 local(profiles/)，不进版本库
-    private static readonly PERSONAL_KEYS = ['camera', 'gizmo', 'sceneView', 'camera-infos', 'camera-uuids'];
+    private static readonly PERSONAL_KEYS = ['camera', 'gizmo', 'sceneView', 'camera-infos', 'camera-uuids', 'referenceImage'];
 
     async init() {
         this.configInstance = await configurationRegistry.register('scene', {

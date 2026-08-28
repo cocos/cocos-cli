@@ -28,9 +28,11 @@ describe('assets-query-property-schema api', () => {
     it('delegates to assetManager.queryPropertySchema', async () => {
         const schema = {
             type: {
-                label: 'Import Type',
-                type: 'enum',
+                title: 'Import Type',
+                type: 'string',
                 default: 'sprite-frame',
+                enum: ['raw', 'sprite-frame'],
+                enumDescriptions: ['Raw', 'Sprite Frame'],
             },
         };
         mockQueryPropertySchema.mockResolvedValue(schema);

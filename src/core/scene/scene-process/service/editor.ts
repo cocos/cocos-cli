@@ -265,39 +265,18 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return this.runLifecycle(() => this.saveUnlocked(params));
     }
 
+    async saveAs(params: ISaveOptions): Promise<IAssetInfo> {
+        return this.runLifecycle(() => this.saveAsUnlocked(params));
+    }
+
     private async saveUnlocked(params: ISaveOptions): Promise<IAssetInfo> {
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
-            const currentEditorUuid = this.currentEditorUuid;
-            if (!urlOrUUID || !currentEditorUuid) {
-                throw new Error('当前没有打开任何编辑器');
-            }
-
-            const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
-            if (!assetInfo) {
-                throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
-            }
-
-            const editor = this.editorMap.get(currentEditorUuid);
-            if (!editor) {
-                throw new Error('当前没有打开任何编辑器');
-            }
-            if (!this.isSaveTargetCompatible(editor, assetInfo.type)) {
-                throw new Error(`不能将 ${editor instanceof SceneEditor ? 'scene' : 'prefab'} 保存到 ${assetInfo.type} 资源`);
-            }
-
+            const { assetInfo, currentEditorUuid, editor } = await this.resolveSaveTarget(urlOrUUID);
             const result = assetInfo.uuid === currentEditorUuid
                 ? await editor.save()
-                : await editor.saveTo(assetInfo);
-            if (result.uuid !== assetInfo.uuid) {
-                throw new Error(`保存目标资源标识不一致: 期望 ${assetInfo.uuid}，实际 ${result.uuid}`);
-            }
-            if (assetInfo.uuid !== currentEditorUuid) {
-                this.editorMap.delete(currentEditorUuid);
-                this.editorMap.set(result.uuid, editor);
-                this.currentEditorUuid = result.uuid;
-                this.invalidateEditorSession();
-            }
+                : await this.recoverDeletedSourceTo(assetInfo, currentEditorUuid, editor);
+            this.assertSavedTarget(result, assetInfo);
 
             this._markUndoSaved();
 
@@ -307,6 +286,63 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         } catch (error) {
             console.error(`保存失败: [${urlOrUUID}]`, error);
             throw error;
+        }
+    }
+
+    private async recoverDeletedSourceTo(assetInfo: IAssetInfo, currentEditorUuid: string, editor: SceneEditor | PrefabEditor): Promise<IAssetInfo> {
+        const currentAssetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [currentEditorUuid]);
+        if (currentAssetInfo) {
+            throw new Error(`不能保存到非当前资源 ${assetInfo.url}，请使用另存为`);
+        }
+
+        const result = await editor.saveAs(assetInfo);
+        this.assertSavedTarget(result, assetInfo);
+        await this.openUnlocked({ urlOrUUID: result.uuid });
+        return result;
+    }
+
+    private async saveAsUnlocked(params: ISaveOptions): Promise<IAssetInfo> {
+        const urlOrUUID = params.urlOrUUID;
+        if (!urlOrUUID) {
+            throw new Error('另存为需要指定目标资源');
+        }
+        try {
+            const { assetInfo, editor } = await this.resolveSaveTarget(urlOrUUID);
+            const result = await editor.saveAs(assetInfo);
+            this.assertSavedTarget(result, assetInfo);
+            console.log(`另存为 ${assetInfo.url}`);
+            return result;
+        } catch (error) {
+            console.error(`另存为失败: [${urlOrUUID}]`, error);
+            throw error;
+        }
+    }
+
+    private async resolveSaveTarget(urlOrUUID: string | null | undefined): Promise<{ assetInfo: IAssetInfo; currentEditorUuid: string; editor: SceneEditor | PrefabEditor }> {
+        const currentEditorUuid = this.currentEditorUuid;
+        if (!urlOrUUID || !currentEditorUuid) {
+            throw new Error('当前没有打开任何编辑器');
+        }
+
+        const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [urlOrUUID]);
+        if (!assetInfo) {
+            throw new Error(`通过 ${urlOrUUID} 请求资源失败`);
+        }
+
+        const editor = this.editorMap.get(currentEditorUuid);
+        if (!editor) {
+            throw new Error('当前没有打开任何编辑器');
+        }
+        if (!this.isSaveTargetCompatible(editor, assetInfo.type)) {
+            throw new Error(`不能将 ${editor instanceof SceneEditor ? 'scene' : 'prefab'} 保存到 ${assetInfo.type} 资源`);
+        }
+
+        return { assetInfo, currentEditorUuid, editor };
+    }
+
+    private assertSavedTarget(result: IAssetInfo, target: IAssetInfo): void {
+        if (result.uuid !== target.uuid) {
+            throw new Error(`保存目标资源标识不一致: 期望 ${target.uuid}，实际 ${result.uuid}`);
         }
     }
 

@@ -5,6 +5,8 @@ import scriptManager from '../../scripting';
 import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
 import { reflectionProbeRenderer } from './reflection-probe-renderer';
+import { referenceImageFiles } from './reference-image-files';
+import { referenceImageStore } from './reference-image-store';
 
 import type { IPublicServiceManager } from '../scene-process';
 
@@ -36,6 +38,9 @@ export class RpcProxy {
             programming: scriptManager,
             sceneConfigInstance: sceneConfigInstance,
             i18n: i18n,
+            // Feature-owned Node modules: external file reads and serialized local configuration writes.
+            referenceImageFiles,
+            referenceImageStore,
             reflectionProbeRenderer,
         });
         console.log(`[Node] Scene Process RPC ready ${prc ? '(Attached)' : '(Detached - Web Mode)'}`);

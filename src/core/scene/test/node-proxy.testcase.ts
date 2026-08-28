@@ -660,7 +660,7 @@ describe('Node Proxy 测试', () => {
 
             const node2 = await NodeProxy.createByType(params);
             expect(node2).toBeDefined();
-            expect(node2!.name).toBe('DupNode_001');
+            expect(node2!.name).toBe('DupNode');
             expect(node2!.path).toBe('DupNode_001');
             createdNodes.push(node2!);
         });
@@ -676,9 +676,9 @@ describe('Node Proxy 测试', () => {
                 };
                 const node = await NodeProxy.createByType(params);
                 expect(node).toBeDefined();
-                const expectedName = i === 0 ? baseName : `${baseName}_${String(i).padStart(3, '0')}`;
-                expect(node!.name).toBe(expectedName);
-                expect(node!.path).toBe(expectedName);
+                const expectedPath = i === 0 ? baseName : `${baseName}_${String(i).padStart(3, '0')}`;
+                expect(node!.name).toBe(baseName);
+                expect(node!.path).toBe(expectedPath);
                 createdNodes.push(node!);
             }
         });

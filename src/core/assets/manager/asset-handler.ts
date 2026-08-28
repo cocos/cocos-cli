@@ -12,7 +12,7 @@ import type { AssetHandlerInfo } from '../asset-handler/config';
 import assetConfig from '../asset-config';
 import { copyPath, createDirectoryPath, writePath } from './filesystem';
 import eol from 'eol';
-import { convertUserDataConfigToPropertySchema, mergeUserDataConfigForPropertySchema } from '../property-schema';
+import { createAssetPropertySchemaMap } from '../property-schema';
 import type { AssetPropertySchemaMap } from '../@types/public';
 
 interface HandlerInfo extends AssetHandlerInfo {
@@ -564,11 +564,7 @@ class AssetHandlerManager {
             throw new Error(`Asset handler not found: ${importer}`);
         }
 
-        const propertyConfig = mergeUserDataConfigForPropertySchema(
-            assetHandler.userDataConfig?.default,
-            assetHandler.propertySchemaConfig,
-        );
-        return convertUserDataConfigToPropertySchema(propertyConfig);
+        return createAssetPropertySchemaMap(assetHandler.propertySchemaConfig);
     }
 
     async runImporterHook(asset: IAsset, hookName: 'before' | 'after') {

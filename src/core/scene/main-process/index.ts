@@ -8,11 +8,14 @@ import { EngineProxy } from './proxy/engine-proxy';
 import { PrefabProxy } from './proxy/prefab-proxy';
 import { ReflectionProbeProxy } from './proxy/reflection-probe-proxy';
 import { reflectionProbeRenderer } from './reflection-probe-renderer';
+import { ReferenceImageProxy } from './proxy/reference-image-proxy';
 
 import { assetManager } from '../../assets';
 import scriptManager from '../../scripting';
 import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
+import { referenceImageFiles } from './reference-image-files';
+import { referenceImageStore } from './reference-image-store';
 
 export interface IMainModule {
     'assetManager': typeof assetManager;
@@ -20,6 +23,8 @@ export interface IMainModule {
     'sceneConfigInstance': typeof sceneConfigInstance;
     'i18n': typeof i18n;
     'reflectionProbeRenderer': typeof reflectionProbeRenderer;
+    'referenceImageFiles': typeof referenceImageFiles;
+    'referenceImageStore': typeof referenceImageStore;
 }
 
 export const Scene = {
@@ -28,6 +33,7 @@ export const Scene = {
     ...AssetProxy,
     ...EngineProxy,
     ...PrefabProxy,
+    ReferenceImage: ReferenceImageProxy,
     // 节点相关的接口
     Node: NodeProxy,
     // 组件相关的接口

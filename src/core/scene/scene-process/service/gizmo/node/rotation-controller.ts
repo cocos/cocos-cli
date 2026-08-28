@@ -13,9 +13,9 @@ import {
     setMeshColor,
     getRaycastResultsByNodes,
 } from '../utils/engine-utils';
-import { Node, Quat, Vec3, Color, MeshRenderer, Vec2, Mat4 } from 'cc';
+import { Layers, Node, Quat, Vec3, Color, MeshRenderer, Vec2, Mat4 } from 'cc';
 
-const panPlaneLayer = 1 << 30;
+const panPlaneLayer = Layers.Enum.EDITOR;
 
 /**
  * 获取编辑器摄像机组件（惰性访问避免循环依赖）

@@ -1,5 +1,5 @@
 import { Node, Component } from 'cc';
-import type { IUndoScope } from '../../../../common';
+import { NodeEventType, type IUndoScope } from '../../../../common';
 import {
     broadcastAnimationPropertyCommitted,
     normalizeAnimationPropertyCommitPath,
@@ -257,8 +257,13 @@ class GizmoBase<T extends Component = Component> {
         }
     }
 
-    protected onComponentChanged(_node: Node) {
-        // broadcast node change（CLI 中暂不实现）
+    protected onComponentChanged(node: Node) {
+        try {
+            const svcEvents = getServiceEvents();
+            svcEvents?.emit?.('node:change', node, { type: NodeEventType.COMPONENT_CHANGED });
+        } catch (e) {
+            console.warn('[Gizmo] Failed to emit component change event:', e);
+        }
     }
 
     public onEditorCameraMoved() {}

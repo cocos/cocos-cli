@@ -118,27 +118,7 @@ export declare interface AssetOperationOption {
     overwrite?: boolean;
     rename?: boolean;
 }
-export declare interface AssetPropertySchema {
-    label: string;
-    description?: string;
-    type: AssetPropertySchemaType;
-    default?: unknown;
-    options?: AssetPropertySchemaOption[];
-    assetType?: string;
-    min?: number;
-    max?: number;
-    step?: number;
-    readOnly?: boolean;
-    order?: number;
-    properties?: Record<string, AssetPropertySchema>;
-    items?: AssetPropertySchema | AssetPropertySchema[];
-}
-export declare type AssetPropertySchemaMap = Record<string, AssetPropertySchema>;
-export declare interface AssetPropertySchemaOption {
-    label: string;
-    value: string | number | boolean;
-}
-export declare type AssetPropertySchemaType = 'string' | 'number' | 'boolean' | 'enum' | 'asset' | 'array' | 'object';
+export declare type AssetPropertySchemaMap = Record<string, ICocosConfigurationPropertySchema>;
 export declare interface AssetUserDataMap {
     'animation-clip': AnimationClipAssetUserData;
     'auto-atlas': AutoAtlasAssetUserData;
@@ -202,6 +182,7 @@ export declare interface BitmapFontAssetUserData {
     fontSize: number;
     textureUuid: string;
 }
+export declare function copyAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo>;
 export declare function createAsset(options: CreateAssetOptions): Promise<IAssetInfo>;
 export declare function createAssetByType(ccType: ISupportCreateType, dirOrUrl: string, baseName: string, options?: CreateAssetByTypeOptions): Promise<IAssetInfo>;
 export declare interface CreateAssetByTypeOptions extends AssetOperationOption {
@@ -458,6 +439,28 @@ export declare type IAssetType =
 export declare interface IAssetWriteFileOptions extends IAssetOperationOptionsBase {
     create?: boolean;
     overwrite?: boolean;
+}
+export declare interface ICocosConfigurationPropertySchema {
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+    default?: unknown;
+    title?: string;
+    description?: string;
+    hidden?: boolean;
+    enum?: Array<string | number | boolean>;
+    enumDescriptions?: string[];
+    minimum?: number;
+    maximum?: number;
+    step?: number;
+    order?: number;
+    properties?: Record<string, ICocosConfigurationPropertySchema>;
+    items?: ICocosConfigurationPropertySchema | ICocosConfigurationPropertySchema[];
+    additionalProperties?: boolean | ICocosConfigurationPropertySchema;
+    required?: string[];
+    ui?: 'asset-picker' | string;
+    assetType?: string;
+    valueField?: string;
+    displayFields?: string[];
+    query?: Record<string, unknown>;
 }
 export declare interface ICreateMenuInfo {
     label: string;
@@ -774,7 +777,7 @@ export declare function queryAssetConfigMap(): Promise<Record<string, IAssetConf
 export declare function queryAssetDBInfos(): Promise<Record<string, IAssetDBInfo>>;
 export declare function queryAssetDependencies(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
 export declare function queryAssetInfo(urlOrUUIDOrPath: string, dataKeys?: string[] | undefined): Promise<IAssetInfo | null>;
-export declare function queryAssetInfos(options?: QueryAssetsOption): Promise<IAssetInfo[]>;
+export declare function queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): Promise<IAssetInfo[]>;
 export declare function queryAssetMeta(urlOrUUIDOrPath: string): Promise<IAssetMeta<'unknown'> | null>;
 export declare interface QueryAssetsOption {
     ccType?: string | string[],
@@ -961,7 +964,7 @@ export { }
 exports[`DTS API compatibility builder.d.ts should match snapshot 1`] = `
 "import EventEmitter from 'events';
 import { EventEmitter as EventEmitter_2 } from 'stream';
-import { IAssetDeleteOptions, IAssetWriteFileOptions } from '@cocos/asset-db/libs/filesystem';
+import { IAssetDeleteOptions, IAssetWriteFileOptions } from '@cocos/asset-db';
 import type { PluginItem } from '@babel/core';
 import { SpriteFrame } from 'cc';
 export declare interface AcornNode {
@@ -1104,6 +1107,7 @@ export declare class AssetDB extends EventEmitter {
     reimport(fileOrUUID: string): Promise<VirtualAsset | null>;
     refresh(path: string, options?: AssetDBRefreshOptions): Promise<number>;
     private _replaceUUID;
+    private _updateAssetPathCase;
     private _checkAssetsStatSync;
     private _checkAssetStat;
 }
@@ -1252,6 +1256,7 @@ export declare class BuilderAssetCache implements BuilderCache {
     init(): Promise<void>;
     hasAsset(uuid: string): Promise<boolean>;
     addAsset(asset: IAsset, type?: string): void;
+    private addSingleAsset;
     removeAsset(uuid: string, type?: string): void;
     getAssetInfo(uuid: string): IAssetInfo;
     addInstance(instance: any): void;
@@ -1334,9 +1339,11 @@ export declare class BuildStageTask extends BuildTaskBase implements IBuildStage
     options: IBuildOptionBase;
     hooksInfo: IBuildHooksInfo;
     private root;
+    private hook;
     hookMap: Record<string, string>;
     constructor(id: string, config: IBuildStageConfig);
     run(): Promise<boolean>;
+    private isStageSupported;
     break(reason: string): void;
     handleHook(func: Function, internal: boolean): Promise<void>;
     saveOptions(): Promise<void>;
@@ -1352,6 +1359,8 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     private mainTaskWeight;
     static isCommandBuild: boolean;
     private currentStageTask?;
+    private currentSubTask?;
+    private subTaskBuildOptions;
     bundleManager: BundleManager;
     hookMap: Record<IPluginHookName, IPluginHookName>;
     pipeline: (string | Function | IBuildTask[])[];
@@ -1369,7 +1378,14 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     run(): Promise<boolean>;
     buildBundleOnly(): Promise<void>;
     private postBuild;
+    private runSubTaskBuilds;
+    private syncSubTaskPackageOptions;
+    private createSubTaskOptions;
+    private getCompileConfigOptions;
     private handleBuildStageTask;
+    private getStagePlatforms;
+    private createChildStageOptions;
+    private runStageForPlatform;
     private initBundleManager;
     break(reason: string): void;
     lockAssetDB(): Promise<void>;
@@ -1534,6 +1550,7 @@ export declare class BundleManager extends BuildTaskBase implements IBundleManag
     private initInternalBundleConfigs;
     private patchProjectBundleConfig;
     private initBundleRootAssets;
+    private addSceneEditorAssets;
     private initBundleShareAssets;
     bundleDataTask(): Promise<void>;
     private compressImage;
@@ -1731,6 +1748,7 @@ export declare class DependencyManager {
     dependMap: DependMap;
     _saveTimer: any;
     private console;
+    cacheConflict: PathCaseConflictError | null;
     constructor(customConsole: CustomConsole, pathRoot: string);
     setRecordJSON(path: string): Promise<void>;
     private _restoreCache;
@@ -1739,6 +1757,7 @@ export declare class DependencyManager {
     saveImmediate(): void;
     add(type: string, key: string, depends: string | string[]): void;
     remove(type: string, key: string): void;
+    updatePathCase(previousPath: string, nextPath: string): void;
     destroy(): void;
 }
 export declare interface DependMap {
@@ -1747,6 +1766,9 @@ export declare interface DependMap {
     };
     uuid: {
         [uuid: string]: string[];
+    };
+    [type: string]: {
+        [path: string]: string[];
     };
 }
 export declare interface DirectoryAssetUserData {
@@ -2008,6 +2030,10 @@ export declare interface GlTFUserData {
 }
 export declare type HasModuleSideEffects = (id: string, external: boolean) => boolean;
 export declare type IAsset = VirtualAsset | Asset;
+export declare interface IAssetDeleteOptions extends IAssetOperationOptionsBase {
+    recursive?: boolean;
+    useTrash?: boolean;
+}
 export declare interface IAssetGroupItem {
     baseUrls: string[];
     scriptDest: string;
@@ -2073,6 +2099,19 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
     id?: string;
     name?: string;
 }
+export declare interface IAssetOperationContext {
+    opId: string;
+    kind: IAssetOperationKind;
+    origin: IAssetOperationOrigin;
+    source: string;
+    paths: string[];
+    timestamp: number;
+}
+export declare type IAssetOperationKind = 'write' | 'rename' | 'move' | 'copy' | 'delete';
+export declare interface IAssetOperationOptionsBase {
+    context?: IAssetOperationContext;
+}
+export declare type IAssetOperationOrigin = 'direct-op' | 'watcher';
 export declare interface IAssetPathBase {
     bundleName?: string;
     redirect?: string;
@@ -2109,6 +2148,10 @@ export declare type IAssetType =
 | 'dragonBones.DragonBonesAtlasAsset'
 | 'RenderStage'
 | 'RenderFlow';
+export declare interface IAssetWriteFileOptions extends IAssetOperationOptionsBase {
+    create?: boolean;
+    overwrite?: boolean;
+}
 export declare type IASTCQuality = 'veryfast' | 'fast' | 'medium' | 'thorough' | 'exhaustive';
 export declare interface IAtlasInfo {
     spriteFrameInfos: ISpriteFrameInfo[];
@@ -2190,6 +2233,10 @@ export declare interface IBuildCommonOptions {
     stage?: string;
     buildMode?: 'normal' | 'bundle' | 'script';
     nextStages?: string[];
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    parentTaskId?: string;
+    childTaskIds?: string[];
     packages: Record<string, any>;
     nativeCodeBundleMode: 'wasm' | 'asmjs' | 'both';
     wasmCompressionMode?: 'brotli';
@@ -2427,6 +2474,9 @@ export declare interface IBuildStageOptions {
     taskName?: string;
     logDest?: string;
     packages?: Record<string, Record<string, unknown>>;
+    subTaskPlatforms?: string[];
+    subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
+    childTaskIds?: string[];
 }
 export declare interface IBuildStagesInfo {
     pkgNameOrder: string[];
@@ -2667,6 +2717,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -3125,6 +3176,7 @@ export declare class InfoManager {
     pathRoot: string;
     private recordInfo;
     private console;
+    cacheConflict: PathCaseConflictError | null;
     constructor(customConsole: CustomConsole, pathRoot: string);
     _saveTimer: null | NodeJS.Timeout;
     setRecordJSON(path: string): Promise<void>;
@@ -3138,6 +3190,7 @@ export declare class InfoManager {
     get(path: string): SimpleInfo;
     private addMissing;
     getMissingInfo(uuid: string): MissingAssetInfo;
+    updatePathCase(previousPath: string, nextPath: string): void;
     compare(path: string, mtimeMs: number): boolean;
     forEach(handler: Function): Promise<void>;
 }
@@ -3320,6 +3373,7 @@ export declare interface IPlatformBuildPluginConfig extends MakeRequired<IIntern
         supportedCompressionTypes: BundleCompressionType[];
         platformType: IPlatformType;
     };
+    supportPlatforms?: IPlatformSupportPlatformsConfig;
     customIconConfigs?: Array<IBuildIconItem>;
 }
 export declare interface IPlatformConfig {
@@ -3345,6 +3399,11 @@ export declare interface IPlatformRegisterInfo {
     hooks?: string;
     pkgName?: string;
     type: 'register';
+}
+export declare interface IPlatformSupportPlatformsConfig {
+    platforms: string[];
+    controlledBy: string;
+    hidden?: boolean;
 }
 export declare type IPlatformType = 'native' | 'miniGame' | 'web';
 export declare type IPluginHook = Record<IPluginHookName, IInternalBaseHooks>;
@@ -3568,6 +3627,15 @@ export declare interface IStorePackInfo {
     md5: string;
     versionDev: string;
     result?: IPackResult;
+}
+export declare interface ISubTaskBuildOutput {
+    platform: string;
+    dest: string;
+    buildPath: string;
+    outputName: string;
+    taskId?: string;
+    logDest?: string;
+    parentTaskId?: string;
 }
 export declare interface ISuffixMap {
     native: Record<string, string[]>;
@@ -3805,6 +3873,7 @@ export declare class MetaManager {
     remove(path: string, options?: IAssetDeleteOptions): Promise<void>;
     get(path: string): Promise<MetaInfo>;
     move(pathA: string, pathB: string): void;
+    updatePathCase(previousPath: string, nextPath: string): void;
 }
 export declare enum MinigamePlatform {
     WECHAT = 0,
@@ -4189,11 +4258,17 @@ export declare interface ParticleAssetUserData {
     rotatePerSVar: number;
     spriteFrameUuid: string;
 }
+export declare class PathCaseConflictError extends Error {
+    readonly code = "ASSET_DB_PATH_CASE_CONFLICT";
+    readonly paths: readonly [string, string];
+    constructor(existingPath: string, incomingPath: string);
+}
 export declare type Physics = 'cannon' | 'ammo' | 'builtin';
 export declare type Platform = InternalPlatform | string;
 export declare interface PlatformBuildSchema {
     common: ICocosConfigurationPropertySchema;
     platformOptions: ICocosConfigurationPropertySchema;
+    supportPlatforms?: IPlatformSupportPlatformsConfig;
 }
 export declare interface PlatformBundleConfig {
     platformName: string;
@@ -4323,6 +4398,10 @@ export declare class PluginManager extends EventEmitter {
     private hasFixedValue;
     private getFixedValue;
     checkOptions(options: MakeRequired<IBuildCommandOption, 'platform' | 'mainBundleCompressionType'>): Promise<undefined | IBuildTaskOption>;
+    private getPlatformBuildPluginConfig;
+    private ensurePlatformRegistered;
+    private completeSupportPlatformOptions;
+    private syncParentOptionsToSupportPlatformPackage;
     checkCommonOptions(options: IBuildTaskOption): Promise<Record<string, BuildCheckResult>>;
     checkCommonOptionByKey(key: keyof IBuildTaskOption, value: any, options: IBuildTaskOption): Promise<BuildCheckResult>;
     private createVerifyOptions;
@@ -4337,7 +4416,6 @@ export declare class PluginManager extends EventEmitter {
     private cloneConfigItem;
     private applySupportedCompressionTypes;
     private collectPlatformConfigItems;
-    private toRenderSchema;
     getPlatformBuildSchema(platform: Platform | string): PlatformBuildSchema;
     queryPlatformConfig(): PlatformConfigItem[];
     getRegisteredPlatforms(): string[];
@@ -5170,6 +5248,8 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	setMaxListeners(n: number): this;
 }
 export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
+export declare type UploadEnv = 'dev' | 'fat' | 'prod';
+export declare type UploadEnv_2 = 'dev' | 'fat' | 'prod';
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
@@ -5273,6 +5353,15 @@ export declare interface WatcherOptions {
 }
 export declare type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;
 export declare interface webDesktopOptions {
+    appid?: string;
+    versionName?: string;
+    uploadEnv?: UploadEnv;
+    accessToken?: string;
+    codeVersion?: string | number | null;
+    bridgeLink?: string;
+    bridgeBuildToken?: string;
+    entryPath?: string;
+    encryptKey?: string;
     useWebGPU: boolean;
     resolution: {
         designHeight: number;
@@ -5281,6 +5370,15 @@ export declare interface webDesktopOptions {
 }
 export declare type WebMobileBuildOptions = IBuildTaskOption<'web-mobile'>;
 export declare interface webMobileOptions {
+    appid?: string;
+    versionName?: string;
+    uploadEnv?: UploadEnv_2;
+    accessToken?: string;
+    codeVersion?: string | number | null;
+    bridgeLink?: string;
+    bridgeBuildToken?: string;
+    entryPath?: string;
+    encryptKey?: string;
     useWebGPU: boolean;
     orientation: IOrientation_2;
     embedWebDebugger: boolean;
@@ -5858,6 +5956,7 @@ export declare interface IAnimationOperationOptions {
 export declare interface IAnimationOperationResult {
     state: 'success' | 'failure';
     result: boolean;
+    undoRecorded?: boolean;
     reason?: string;
 }
 export declare interface IAnimationPlayStateOptions {
@@ -5909,6 +6008,7 @@ export declare interface IAnimationRootResult {
 }
 export declare interface IAnimationSaveOptions {
     saveScene?: boolean;
+    target?: string;
 }
 export declare interface IAnimationService extends IServiceEvents {
     enter(options: IAnimationEnterOptions): Promise<IAnimationStateInfo>;
@@ -5941,6 +6041,7 @@ export declare interface IAnimationStateInfo {
     time: number;
     playState: AnimationPlayState_2;
     dirty: boolean;
+    sceneDirty: boolean;
     selection: string[];
     restoreSelectionOnExit: boolean;
 }
@@ -6041,6 +6142,8 @@ export declare interface IBaseCreateNodeParams {
     position?: IVec3;
     keepWorldTransform?: boolean;
     canvasRequired?: boolean;
+    prefabCanvasHandling?: PrefabCanvasHandling;
+    preflightToken?: string;
     unlinkPrefab?: boolean;
 }
 export declare interface IBaseIdentifier {
@@ -6084,7 +6187,7 @@ export declare interface ICameraService {
     zoomReset(): void;
     alignNodeToSceneView(nodes: string[]): void;
     alignSceneViewToNode(nodes: string[]): void;
-    setGridColor(color: number[]): void;
+    setGridColor(color: number[], persist?: boolean): void;
     setOriginAxes2D(config: IOriginAxesConfig): void;
     setOriginAxes3D(config: IOriginAxesConfig): void;
     onUpdate(deltaTime: number): void;
@@ -6131,6 +6234,10 @@ export declare interface IComponentService extends IServiceEvents {
     setProperty(params: ISetPropertyOptions): Promise<boolean>;
     query(params: IQueryComponentOptions | string): Promise<IComponent | null>;
     queryAll(): Promise<string[]>;
+    recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult>;
+    insertLOD(options: IInsertLODOptions): Promise<ILODGroupLevelsResult>;
+    eraseLOD(options: IEraseLODOptions): Promise<ILODGroupLevelsResult>;
+    queryLODGroupRelativeHeight(options: IQueryLODGroupRelativeHeightOptions): Promise<number>;
     reset(params: IQueryComponentOptions): Promise<boolean>;
     queryClasses(options?: IQueryClassesOptions): Promise<{
         name: string;
@@ -6155,6 +6262,13 @@ export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
 }
 export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
     nodeType: NodeType;
+}
+export declare interface ICreateNodePreflightResult {
+    action: 'create' | 'choose-prefab-canvas-handling';
+    canvasRequired: boolean;
+    canvasPath: string | null;
+    uiTransformPath: string | null;
+    preflightToken: string;
 }
 export declare interface ICreateOptions {
     type: ICreateType;
@@ -6206,6 +6320,11 @@ export declare interface IEngineService extends IServiceEvents {
     initCustomLayer(layers?: ICustomLayerConfig[]): Promise<void>;
     enterAnimationMode(): void;
     exitAnimationMode(): void;
+}
+export declare interface IEraseLODOptions {
+    path: string;
+    index: number;
+    record?: boolean;
 }
 export declare interface IExecuteComponentMethodOptions {
     path: string;
@@ -6267,8 +6386,22 @@ export declare interface IGizmoService {
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
 }
+export declare interface IInsertLODOptions {
+    path: string;
+    index: number;
+    screenUsagePercentage?: number;
+    record?: boolean;
+}
 export declare interface IIsPrefabInstanceParams {
     nodePath: string;
+}
+export declare interface ILODGroupBoundsResult {
+    localBoundaryCenter: IVec3;
+    objectSize: number;
+}
+export declare interface ILODGroupLevelsResult {
+    lodCount: number;
+    screenUsagePercentages: number[];
 }
 export declare interface ImageAssetUserData {
     type: ImageImportType;
@@ -6321,6 +6454,7 @@ export declare interface INodeDumpOptions {
 export declare interface INodeService extends IServiceEvents {
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
+    preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult>;
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
@@ -6404,6 +6538,7 @@ export declare interface IPrefabService extends IServiceEvents {
     getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefab | null>;
     unlinkPrefab(params: IUnlinkPrefabParams): Promise<boolean>;
     removePrefabInfoFromNode(node: Node_2, removeNested?: boolean): void;
+    filterChildOfPrefabAssetWhenRemoveNode(uuids: string | string[]): string[];
 }
 export declare interface IPrefabStateInfo {
     state: PrefabState;
@@ -6482,11 +6617,18 @@ export declare interface IQueryClassesOptions {
 export declare interface IQueryComponentOptions {
     path: string;
 }
+export declare interface IQueryLODGroupRelativeHeightOptions {
+    path: string;
+}
 export declare interface IQueryNodeParams extends INodeDumpOptions {
     path: string;
 }
 export declare interface IQueryNodeTreeParams {
     path?: string;
+}
+export declare interface IRecalculateLODGroupBoundsOptions {
+    path: string;
+    record?: boolean;
 }
 export declare interface IRectSnapConfigData {
     enableSnapping: boolean;
@@ -6499,6 +6641,71 @@ export declare interface IRedirectInfo {
 export declare interface IRedoService {
     redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
     canRedo(options?: IUndoOperationOptions): boolean;
+}
+export declare interface IReferenceImageCancelOptions {
+    interactionId: number;
+}
+export declare interface IReferenceImageCommitOptions {
+    interactionId?: number;
+    patch: IReferenceImageParameters;
+}
+export declare interface IReferenceImageConfigItem {
+    path: string;
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    opacity: number;
+}
+export declare interface IReferenceImageError {
+    stage: 'config' | 'file' | 'decode';
+    message: string;
+}
+export declare interface IReferenceImageItem extends IReferenceImageConfigItem {
+    missing: boolean;
+}
+export declare interface IReferenceImageParameters {
+    x?: number;
+    y?: number;
+    scaleX?: number;
+    scaleY?: number;
+    opacity?: number;
+}
+export declare interface IReferenceImagePathOptions {
+    path: string;
+}
+export declare interface IReferenceImagePreviewOptions {
+    interactionId: number;
+    patch: IReferenceImageParameters;
+}
+export declare interface IReferenceImageService extends IServiceEvents {
+    getState(): Promise<IReferenceImageState>;
+    addAndSelect(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    remove(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    select(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    clearBinding(): Promise<IReferenceImageState>;
+    setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState>;
+    refresh(): Promise<IReferenceImageState>;
+    previewParameters(options: IReferenceImagePreviewOptions): Promise<IReferenceImageState>;
+    commitParameters(options: IReferenceImageCommitOptions): Promise<IReferenceImageState>;
+    cancelPreview(options: IReferenceImageCancelOptions): Promise<IReferenceImageState>;
+}
+export declare interface IReferenceImageState {
+    images: IReferenceImageItem[];
+    current: {
+        sceneUuid: string | null;
+        imagePath: string | null;
+        image: IReferenceImageItem | null;
+    };
+    desiredVisible: boolean;
+    effectiveVisible: boolean;
+    visibilityReason: ReferenceImageVisibilityReason;
+    is2D: boolean;
+    hasOpenEditor: boolean;
+    error: IReferenceImageError | null;
+}
+export declare interface IReferenceImageVisibilityOptions {
+    desiredVisible: boolean;
 }
 export declare interface IReflectionProbeBakeOptions {
     nodePath: string;
@@ -6661,6 +6868,7 @@ export declare interface IServiceManager {
     Preview: IPreviewService;
     UI: IUIService;
     ReflectionProbe: IReflectionProbeService;
+    ReferenceImage: IReferenceImageService;
 }
 export declare interface ISetParentParams {
     paths: string[];
@@ -6988,12 +7196,14 @@ export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
 }
+export declare type PrefabCanvasHandling = 'add-root-ui-transform' | 'create-canvas';
 export declare enum PrefabState {
     NotAPrefab = 0,
     PrefabChild = 1,
     PrefabInstance = 2,
     PrefabLostAsset = 3
 }
+export declare type ReferenceImageVisibilityReason = 'visible' | 'disabled' | 'no-editor' | 'not-2d' | 'unbound' | 'missing' | 'load-error';
 export declare enum ReloadResult {
     SUCCESS = 0,
     FAILED = 1,
@@ -7163,6 +7373,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -7607,27 +7818,7 @@ export declare interface AssetOperationOption {
     overwrite?: boolean;
     rename?: boolean;
 }
-export declare interface AssetPropertySchema {
-    label: string;
-    description?: string;
-    type: AssetPropertySchemaType;
-    default?: unknown;
-    options?: AssetPropertySchemaOption[];
-    assetType?: string;
-    min?: number;
-    max?: number;
-    step?: number;
-    readOnly?: boolean;
-    order?: number;
-    properties?: Record<string, AssetPropertySchema>;
-    items?: AssetPropertySchema | AssetPropertySchema[];
-}
-export declare type AssetPropertySchemaMap = Record<string, AssetPropertySchema>;
-export declare interface AssetPropertySchemaOption {
-    label: string;
-    value: string | number | boolean;
-}
-export declare type AssetPropertySchemaType = 'string' | 'number' | 'boolean' | 'enum' | 'asset' | 'array' | 'object';
+export declare type AssetPropertySchemaMap = Record<string, ICocosConfigurationPropertySchema>;
 export declare namespace Assets {
     export {
         init,
@@ -7646,6 +7837,7 @@ export declare namespace Assets {
         createAssetByType,
         createAsset,
         importAsset,
+        copyAsset,
         reimportAsset,
         saveAsset,
         querySerializedData,
@@ -7702,9 +7894,6 @@ export declare namespace Assets {
         MaterialPassDump,
         MaterialTechniqueDump,
         MaterialDump,
-        AssetPropertySchemaType,
-        AssetPropertySchemaOption,
-        AssetPropertySchema,
         AssetPropertySchemaMap,
         IAssetInfo,
         AssetOperationOption,
@@ -7844,6 +8033,7 @@ export declare namespace Configuration {
     }
 }
 export declare type ConfigurationScope = 'default' | 'project' | 'local';
+export declare function copyAsset(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo>;
 export declare function createAsset(options: CreateAssetOptions): Promise<IAssetInfo>;
 export declare function createAssetByType(ccType: ISupportCreateType, dirOrUrl: string, baseName: string, options?: CreateAssetByTypeOptions): Promise<IAssetInfo>;
 export declare interface CreateAssetByTypeOptions extends AssetOperationOption {
@@ -8226,6 +8416,7 @@ export declare interface ICocosConfigurationPropertySchema {
     default?: unknown;
     title?: string;
     description?: string;
+    hidden?: boolean;
     enum?: Array<string | number | boolean>;
     enumDescriptions?: string[];
     minimum?: number;
@@ -8925,7 +9116,7 @@ export declare function queryAssetConfigMap(): Promise<Record<string, IAssetConf
 export declare function queryAssetDBInfos(): Promise<Record<string, IAssetDBInfo>>;
 export declare function queryAssetDependencies(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
 export declare function queryAssetInfo(urlOrUUIDOrPath: string, dataKeys?: string[] | undefined): Promise<IAssetInfo | null>;
-export declare function queryAssetInfos(options?: QueryAssetsOption): Promise<IAssetInfo[]>;
+export declare function queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)[]): Promise<IAssetInfo[]>;
 export declare function queryAssetMeta(urlOrUUIDOrPath: string): Promise<IAssetMeta<'unknown'> | null>;
 export declare interface QueryAssetsOption {
     ccType?: string | string[],

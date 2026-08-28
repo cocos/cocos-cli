@@ -50,27 +50,45 @@
     "property_schema": {
         "auto_atlas": {
             "max_width": "Max Width",
+            "max_width_description": "Limits the width of each generated atlas. Sprites may be split across multiple atlases when exceeded.",
             "max_height": "Max Height",
+            "max_height_description": "Limits the height of each generated atlas. Sprites may be split across multiple atlases when exceeded.",
             "padding": "Padding",
+            "padding_description": "Sets the spacing, in pixels, between sprites in the atlas.",
             "allow_rotation": "Allow Rotation",
+            "allow_rotation_description": "Allows sprites to be rotated while packing to improve space usage.",
             "force_squared": "Force Squared",
+            "force_squared_description": "Forces each generated atlas to use equal width and height.",
             "power_of_two": "Power Of Two",
+            "power_of_two_description": "Rounds each generated atlas dimension up to a power of two.",
             "algorithm": "Algorithm",
+            "algorithm_description": "Selects the algorithm used to pack sprites into the atlas.",
             "max_rects": "MaxRects",
             "format": "Format",
+            "format_description": "Selects the output image format for the generated atlas.",
             "png": "PNG",
             "jpg": "JPG",
             "quality": "Quality",
+            "quality_description": "Sets the output image quality from 0 to 100.",
             "contour_bleed": "Contour Bleed",
+            "contour_bleed_description": "Extends visible edge colors into adjacent transparent pixels to reduce texture filtering artifacts.",
             "padding_bleed": "Padding Bleed",
+            "padding_bleed_description": "Copies sprite edge pixels into the one-pixel padding area to reduce texture filtering seams.",
             "filter_unused": "Filter Unused",
+            "filter_unused_description": "Includes only sprites referenced by the build in generated atlases. This has no effect during preview.",
             "remove_texture_in_bundle": "Remove Texture In Bundle",
+            "remove_texture_in_bundle_description": "Removes unused Texture2D resources from the containing Bundle during the build.",
             "remove_image_in_bundle": "Remove Image In Bundle",
+            "remove_image_in_bundle_description": "Removes unused ImageAsset resources from the containing Bundle during the build.",
             "remove_sprite_atlas_in_bundle": "Remove SpriteAtlas In Bundle",
-            "texture_setting": "Texture Setting"
+            "remove_sprite_atlas_in_bundle_description": "Removes unused SpriteAtlas resources from the containing Bundle during the build.",
+            "texture_setting": "Texture Setting",
+            "texture_setting_description": "Configures sampling and wrapping for the generated atlas texture."
         },
         "texture": {
             "use_uuid": "Use UUID",
+            "use_uuid_description": "Indicates whether the image reference is a UUID instead of a database URI.",
+            "image_uuid_or_database_uri_description": "Identifies the ImageAsset used as this texture's source, by UUID or database URI.",
             "wrap_repeat": "Repeat",
             "wrap_clamp_to_edge": "Clamp To Edge",
             "wrap_mirrored_repeat": "Mirrored Repeat",
@@ -94,21 +112,33 @@
         },
         "gltf": {
             "mesh_optimizer": "Mesh Optimizer",
+            "mesh_optimizer_description": "Configures optional mesh optimization during model import.",
             "mesh_optimizer_enable": "Enable",
+            "mesh_optimizer_enable_description": "Enables mesh optimization for the imported model.",
             "mesh_optimizer_algorithm": "Algorithm",
+            "mesh_optimizer_algorithm_description": "Selects the mesh optimization algorithm.",
             "mesh_optimizer_simplify": "Simplify",
             "mesh_optimizer_gltfpack": "gltfpack",
             "simplify_options": "Simplify Options",
+            "simplify_options_description": "Configures mesh simplification when the Simplify algorithm is selected.",
             "enable_smart_link": "Enable Smart Link",
+            "enable_smart_link_description": "Links matching boundary vertices before simplification to reduce mesh cracks.",
             "agressiveness": "Aggressiveness",
-            "max_iteration_count": "Max Iteration Count"
+            "agressiveness_description": "Controls how aggressively edges are collapsed. Higher values simplify faster but may reduce quality.",
+            "max_iteration_count": "Max Iteration Count",
+            "max_iteration_count_description": "Limits the number of mesh simplification iterations.",
+            "mount_all_animations_on_prefab_description": "Mounts all imported animation clips on the generated prefab's Animation component.",
+            "target_ratio_description": "Sets the target ratio for the simplified mesh."
         },
         "fbx": {
             "unit_conversion": "Unit Conversion",
+            "unit_conversion_description": "Selects how model units are handled during FBX-to-glTF conversion.",
             "unit_conversion_geometry_level": "Geometry Level",
             "unit_conversion_hierarchy_level": "Hierarchy Level",
             "unit_conversion_disabled": "Disabled",
-            "match_mesh_names": "Match Mesh Names"
+            "match_mesh_names": "Match Mesh Names",
+            "match_mesh_names_description": "Matches converted mesh names to their original DCC model names.",
+            "fbx_description": "Configures FBX-to-glTF conversion before import."
         }
     }
 }

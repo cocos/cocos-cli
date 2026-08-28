@@ -119,6 +119,46 @@ export const SchemaComponent: z.ZodType<IComponentInfo> = SchemaComponentIdentif
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('Collection of all components, including built-in and custom components'); // 所有组件集合，包含内置与自定义组件
 
+// Recalculate LODGroup bounds // 重新计算 LODGroup 包围盒
+export const SchemaRecalculateLODGroupBoundsOptions = z.object({
+    path: z.string().min(1).describe('cc.LODGroup component path, e.g. "Root/LOD/cc.LODGroup"'), // cc.LODGroup 组件路径
+    record: z.boolean().optional().describe('Whether to record undo, defaults to true'), // 是否记录 undo，默认 true
+}).describe('Information required to recalculate cc.LODGroup bounds'); // 重新计算 cc.LODGroup 包围盒所需信息
+
+export const SchemaLODGroupBoundsResult = z.object({
+    localBoundaryCenter: Vec3Type.describe('Recalculated local boundary center'), // 重算后的局部边界中心
+    objectSize: z.number().describe('Recalculated object size'), // 重算后的对象尺寸
+}).describe('Recalculated cc.LODGroup bounds'); // 重算后的 cc.LODGroup 包围盒
+
+// Insert an LOD level // 插入 LOD 层级
+export const SchemaInsertLODOptions = z.object({
+    path: z.string().min(1).describe('cc.LODGroup component path, e.g. "Root/LOD/cc.LODGroup"'),
+    index: z.number().int().nonnegative().describe('Insertion index, from 0 through the current lodCount'),
+    screenUsagePercentage: z.number().gt(0).max(1).optional()
+        .describe('Screen usage percentage in (0, 1]; omit it to let the engine calculate a value'),
+    record: z.boolean().optional().describe('Whether to record undo, defaults to true'),
+}).describe('Information required to insert an LOD level');
+
+// Erase an LOD level // 删除 LOD 层级
+export const SchemaEraseLODOptions = z.object({
+    path: z.string().min(1).describe('cc.LODGroup component path, e.g. "Root/LOD/cc.LODGroup"'),
+    index: z.number().int().nonnegative().describe('Index of the LOD level to erase'),
+    record: z.boolean().optional().describe('Whether to record undo, defaults to true'),
+}).describe('Information required to erase an LOD level');
+
+// Query LODGroup relative height // 查询 LODGroup 屏幕相对高度
+export const SchemaQueryLODGroupRelativeHeightOptions = z.object({
+    path: z.string().min(1).describe('cc.LODGroup component path, e.g. "Root/LOD/cc.LODGroup"'),
+}).describe('Information required to query the LODGroup relative height under the editor camera');
+
+export const SchemaLODGroupLevelsResult = z.object({
+    lodCount: z.number().int().nonnegative().describe('Current number of LOD levels'),
+    screenUsagePercentages: z.array(z.number()).describe('Screen usage percentages in LOD order'),
+}).describe('Current cc.LODGroup level state');
+
+export const SchemaLODGroupRelativeHeightResult = z.number().finite()
+    .describe('Raw relative height under the current editor camera; the value is not clamped to [0, 1]');
+
 export const SchemaComponentResult = z.union([SchemaComponent, z.null()]).describe('Interface returned when getting current component information'); // 获取当前组件信息返回的接口
 export const SchemaBooleanResult = z.boolean().describe('Interface return result'); // 接口返回结果
 
@@ -130,4 +170,11 @@ export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponent>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
 export type TQueryAllComponentResult = z.infer<typeof SchemaQueryAllComponentResult>;
+export type TRecalculateLODGroupBoundsOptions = z.infer<typeof SchemaRecalculateLODGroupBoundsOptions>;
+export type TLODGroupBoundsResult = z.infer<typeof SchemaLODGroupBoundsResult>;
+export type TInsertLODOptions = z.infer<typeof SchemaInsertLODOptions>;
+export type TEraseLODOptions = z.infer<typeof SchemaEraseLODOptions>;
+export type TQueryLODGroupRelativeHeightOptions = z.infer<typeof SchemaQueryLODGroupRelativeHeightOptions>;
+export type TLODGroupLevelsResult = z.infer<typeof SchemaLODGroupLevelsResult>;
+export type TLODGroupRelativeHeightResult = z.infer<typeof SchemaLODGroupRelativeHeightResult>;
 export type TBooleanResult = z.infer<typeof SchemaBooleanResult>;

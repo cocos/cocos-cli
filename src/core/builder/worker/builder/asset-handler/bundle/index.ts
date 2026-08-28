@@ -542,6 +542,10 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         }
 
         if (launchBundle) {
+            if (this.options.preview && (this.options as any).sceneEditor) {
+                this.addSceneEditorAssets(launchBundle);
+            }
+
             // 加入项目设置中的 renderPipeline 资源
             if (this.options.renderPipeline) {
                 launchBundle.addRootAsset(buildAssetLibrary.getAsset(this.options.renderPipeline));
@@ -557,6 +561,18 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
         console.debug(`  Number of all scripts: ${this.cache.scriptUuids.length}`);
         console.debug(`  Number of other assets: ${this.cache.assetUuids.length}`);
         this.updateProcess('Init bundle root assets success...');
+    }
+
+    private addSceneEditorAssets(bundle: IBundle) {
+        for (const uuid of this.cache.assetUuids) {
+            const asset = buildAssetLibrary.getAsset(uuid);
+            // 引擎内置资源已经由 internal bundle 统一收集。Scene Editor 预览若再把它们
+            // 加入启动 bundle，会让同一资源进入两个 bundle；例如 default_skybox 的 HDR
+            // 与 PNG 会在主 bundle 中得到相同的动态加载 URL。
+            if (asset && !asset.url.startsWith('db://internal/')) {
+                bundle.addRootAsset(asset);
+            }
+        }
     }
 
     /**

@@ -10,13 +10,14 @@ export const FbxHandler: AssetHandlerBase = {
     propertySchemaConfig: {
         ...(GltfHandler.propertySchemaConfig ?? {}),
         legacyFbxImporter: {
-            label: 'i18n:ENGINE.assets.fbx.legacyFbxImporter.name',
+            title: 'i18n:ENGINE.assets.fbx.legacyFbxImporter.name',
             description: 'i18n:ENGINE.assets.fbx.legacyFbxImporter.title',
+            type: 'boolean',
             default: false,
-            render: { ui: 'ui-checkbox' },
         },
         fbx: {
-            label: 'i18n:ENGINE.assets.fbx.fbx',
+            title: 'i18n:ENGINE.assets.fbx.fbx',
+            description: 'i18n:importer.property_schema.fbx.fbx_description',
             type: 'object',
             default: {
                 unitConversion: 'geometry-level',
@@ -25,50 +26,44 @@ export const FbxHandler: AssetHandlerBase = {
                 smartMaterialEnabled: false,
                 matchMeshNames: false,
             },
-            itemConfigs: {
+            properties: {
                 unitConversion: {
-                    label: 'i18n:importer.property_schema.fbx.unit_conversion',
+                    title: 'i18n:importer.property_schema.fbx.unit_conversion',
+                    description: 'i18n:importer.property_schema.fbx.unit_conversion_description',
+                    type: 'string',
                     default: 'geometry-level',
-                    render: {
-                        ui: 'ui-select',
-                        items: [
-                            { label: 'i18n:importer.property_schema.fbx.unit_conversion_geometry_level', value: 'geometry-level' },
-                            { label: 'i18n:importer.property_schema.fbx.unit_conversion_hierarchy_level', value: 'hierarchy-level' },
-                            { label: 'i18n:importer.property_schema.fbx.unit_conversion_disabled', value: 'disabled' },
-                        ],
-                    },
+                    enum: ['geometry-level', 'hierarchy-level', 'disabled'],
+                    enumDescriptions: [
+                        'i18n:importer.property_schema.fbx.unit_conversion_geometry_level',
+                        'i18n:importer.property_schema.fbx.unit_conversion_hierarchy_level',
+                        'i18n:importer.property_schema.fbx.unit_conversion_disabled',
+                    ],
                 },
                 animationBakeRate: {
-                    label: 'i18n:ENGINE.assets.fbx.animationBakeRate.name',
+                    title: 'i18n:ENGINE.assets.fbx.animationBakeRate.name',
                     description: 'i18n:ENGINE.assets.fbx.animationBakeRate.title',
+                    type: 'number',
                     default: 24,
-                    render: {
-                        ui: 'ui-select',
-                        items: [
-                            { label: 'i18n:ENGINE.assets.fbx.animationBakeRate.auto', value: '0' },
-                            { label: '24 FPS', value: '24' },
-                            { label: '25 FPS', value: '25' },
-                            { label: '30 FPS', value: '30' },
-                            { label: '60 FPS', value: '60' },
-                        ],
-                    },
+                    enum: [0, 24, 25, 30, 60],
+                    enumDescriptions: ['i18n:ENGINE.assets.fbx.animationBakeRate.auto', '24 FPS', '25 FPS', '30 FPS', '60 FPS'],
                 },
                 preferLocalTimeSpan: {
-                    label: 'i18n:ENGINE.assets.fbx.preferLocalTimeSpan.name',
+                    title: 'i18n:ENGINE.assets.fbx.preferLocalTimeSpan.name',
                     description: 'i18n:ENGINE.assets.fbx.preferLocalTimeSpan.title',
+                    type: 'boolean',
                     default: true,
-                    render: { ui: 'ui-checkbox' },
                 },
                 smartMaterialEnabled: {
-                    label: 'i18n:ENGINE.assets.fbx.smartMaterialEnabled.name',
+                    title: 'i18n:ENGINE.assets.fbx.smartMaterialEnabled.name',
                     description: 'i18n:ENGINE.assets.fbx.smartMaterialEnabled.title',
+                    type: 'boolean',
                     default: false,
-                    render: { ui: 'ui-checkbox' },
                 },
                 matchMeshNames: {
-                    label: 'i18n:importer.property_schema.fbx.match_mesh_names',
+                    title: 'i18n:importer.property_schema.fbx.match_mesh_names',
+                    description: 'i18n:importer.property_schema.fbx.match_mesh_names_description',
+                    type: 'boolean',
                     default: false,
-                    render: { ui: 'ui-checkbox' },
                 },
             },
         },

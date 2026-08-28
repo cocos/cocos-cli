@@ -1,107 +1,102 @@
-import {
-    convertUserDataConfigItemToPropertySchema,
-    convertUserDataConfigToPropertySchema,
-    mergeUserDataConfigForPropertySchema,
-} from '../property-schema';
+jest.mock('../asset-handler/assets/gltf/material', () => ({
+    dumpMaterial: jest.fn(),
+}));
+jest.mock('../asset-handler/assets/gltf/reader-manager', () => ({
+    glTfReaderManager: {
+        delete: jest.fn(),
+        getOrCreate: jest.fn(),
+    },
+}));
+jest.mock('../asset-handler/assets/gltf/meshSimplify', () => ({
+    getDefaultSimplifyOptions: () => ({
+        targetRatio: 1,
+        enableSmartLink: true,
+        agressiveness: 7,
+        maxIterationCount: 100,
+    }),
+}));
+jest.mock('../asset-handler/assets/utils/gltf-converter', () => ({
+    GltfConverter: jest.fn(),
+    GltfSubAsset: jest.fn(),
+}));
+jest.mock('../manager/query', () => ({
+    __esModule: true,
+    default: {},
+}));
+jest.mock('../asset-config', () => ({
+    __esModule: true,
+    default: {},
+}));
+
+import { createAssetPropertySchemaMap } from '../property-schema';
+import AutoAtlasHandler from '../asset-handler/assets/auto-atlas';
+import { FbxHandler } from '../asset-handler/assets/fbx';
+import { GltfHandler } from '../asset-handler/assets/gltf';
+import { ImageHandler } from '../asset-handler/assets/image';
+import { SpriteFrameHandler } from '../asset-handler/assets/sprite-frame';
+import { TextureHandler } from '../asset-handler/assets/texture';
+import type { AssetPropertySchemaMap } from '../@types/public';
+import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import i18n from '../../base/i18n';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-describe('asset property schema conversion', () => {
+describe('asset property schema map', () => {
     afterEach(async () => {
         await i18n.setLanguage('en');
     });
 
-    it('maps legacy userDataConfig controls to stable property schema fields', () => {
-        const schema = convertUserDataConfigToPropertySchema({
-            type: {
-                label: 'Import Type',
-                default: 'sprite-frame',
-                render: {
-                    ui: 'ui-select',
-                    items: [
-                        { label: 'Raw', value: 'raw' },
-                        { label: 'Sprite Frame', value: 'sprite-frame' },
-                    ],
-                },
+    it('keeps asset property schema aligned with configuration property schema', () => {
+        const schema = createAssetPropertySchemaMap({
+            meshType: {
+                title: 'Mesh Type',
+                type: 'number',
+                default: 0,
+                enum: [0, 1],
+                enumDescriptions: ['Rect', 'Polygon'],
             },
-            flipVertical: {
-                label: 'Flip Vertical',
-                render: {
-                    ui: 'ui-checkbox',
+            textureSetting: {
+                title: 'Texture Setting',
+                type: 'object',
+                default: {
+                    anisotropy: 0,
                 },
-            },
-            quality: {
-                label: 'Quality',
-                default: 80,
-                render: {
-                    ui: 'ui-number-input',
-                    attributes: {
-                        min: 0,
-                        max: 100,
+                properties: {
+                    anisotropy: {
+                        title: 'Anisotropy',
+                        type: 'number',
+                        default: 0,
+                        minimum: 0,
                         step: 1,
                     },
                 },
             },
-            image: {
-                label: 'Image',
-                default: '',
-                render: {
-                    ui: 'ui-asset',
-                    attributes: {
-                        assetType: 'cc.ImageAsset',
-                    },
-                },
-            },
         });
 
-        expect(schema.type).toMatchObject({
-            label: 'Import Type',
-            type: 'enum',
-            default: 'sprite-frame',
-            options: [
-                { label: 'Raw', value: 'raw' },
-                { label: 'Sprite Frame', value: 'sprite-frame' },
-            ],
-        });
-        expect(schema.flipVertical.type).toBe('boolean');
-        expect(schema.quality).toMatchObject({
+        expect(schema.meshType).toEqual({
+            title: 'Mesh Type',
             type: 'number',
-            min: 0,
-            max: 100,
+            default: 0,
+            enum: [0, 1],
+            enumDescriptions: ['Rect', 'Polygon'],
+        });
+        expect(schema.textureSetting.properties?.anisotropy).toEqual({
+            title: 'Anisotropy',
+            type: 'number',
+            default: 0,
+            minimum: 0,
             step: 1,
         });
-        expect(schema.image).toMatchObject({
-            type: 'asset',
-            assetType: 'cc.ImageAsset',
-        });
-        expect(schema.type).not.toHaveProperty('raw');
-        expect(schema.flipVertical).not.toHaveProperty('raw');
-        expect(schema.quality).not.toHaveProperty('raw');
-        expect(schema.image).not.toHaveProperty('raw');
+        expect(schema.meshType).not.toHaveProperty('label');
+        expect(schema.meshType).not.toHaveProperty('options');
+        expect(schema.meshType).not.toHaveProperty('raw');
     });
 
-    it('normalizes numeric enum option values when the default is numeric', () => {
-        const schema = convertUserDataConfigItemToPropertySchema('meshType', {
-            label: 'Mesh Type',
-            default: 0,
-            render: {
-                ui: 'ui-select',
-                items: [
-                    { label: 'Rect', value: '0' },
-                    { label: 'Polygon', value: '1' },
-                ],
-            },
-        });
-
-        expect(schema.type).toBe('enum');
-        expect(schema.options).toEqual([
-            { label: 'Rect', value: 0 },
-            { label: 'Polygon', value: 1 },
-        ]);
+    it('returns an empty map when a handler has no explicit property schema config', () => {
+        expect(createAssetPropertySchemaMap(undefined)).toEqual({});
     });
 
-    it('localizes display fields before returning the property schema', async () => {
+    it('localizes config-style display fields before returning the property schema', async () => {
         i18n.registerLanguagePatch('en', 'assets.propertySchemaTest', {
             field: 'Localized Field',
             help: 'Localized Help',
@@ -113,62 +108,141 @@ describe('asset property schema conversion', () => {
             option: 'ZH Option',
         });
 
-        await i18n.setLanguage('en');
-        const enSchema = convertUserDataConfigItemToPropertySchema('localized', {
-            label: 'i18n:assets.propertySchemaTest.field',
-            description: 'i18n:assets.propertySchemaTest.help',
-            default: 'enabled',
-            render: {
-                ui: 'ui-select',
-                items: [
-                    { label: 'i18n:assets.propertySchemaTest.option', value: 'enabled' },
-                ],
+        const config = {
+            localized: {
+                title: 'i18n:assets.propertySchemaTest.field',
+                description: 'i18n:assets.propertySchemaTest.help',
+                type: 'string' as const,
+                default: 'enabled',
+                enum: ['enabled'],
+                enumDescriptions: ['i18n:assets.propertySchemaTest.option'],
             },
-        });
+        };
 
-        expect(enSchema).toMatchObject({
-            label: 'Localized Field',
+        await i18n.setLanguage('en');
+        expect(createAssetPropertySchemaMap(config).localized).toMatchObject({
+            title: 'Localized Field',
             description: 'Localized Help',
-            options: [
-                {
-                    label: 'Localized Option',
-                    value: 'enabled',
-                },
-            ],
+            enumDescriptions: ['Localized Option'],
         });
-        expect(enSchema).not.toHaveProperty('labelI18nKey');
-        expect(enSchema).not.toHaveProperty('descriptionI18nKey');
-        expect(enSchema.options?.[0]).not.toHaveProperty('labelI18nKey');
 
         await i18n.setLanguage('zh');
-        const zhSchema = convertUserDataConfigItemToPropertySchema('localized', {
-            label: 'i18n:assets.propertySchemaTest.field',
-            description: 'i18n:assets.propertySchemaTest.help',
-            default: 'enabled',
-            render: {
-                ui: 'ui-select',
-                items: [
-                    { label: 'i18n:assets.propertySchemaTest.option', value: 'enabled' },
-                ],
-            },
+        expect(createAssetPropertySchemaMap(config).localized).toMatchObject({
+            title: 'ZH Field',
+            description: 'ZH Help',
+            enumDescriptions: ['ZH Option'],
         });
-
-        expect(zhSchema.label).toBe('ZH Field');
-        expect(zhSchema.description).toBe('ZH Help');
-        expect(zhSchema.options?.[0].label).toBe('ZH Option');
     });
 
-    it('uses static importer i18n resources loaded by the shared i18n instance', async () => {
-        await i18n.setLanguage('zh');
+    it('builds config-style property schema from built-in asset handler declarations', () => {
+        const imageSchema = createAssetPropertySchemaMap(ImageHandler.propertySchemaConfig);
+        const spriteFrameSchema = createAssetPropertySchemaMap(SpriteFrameHandler.propertySchemaConfig);
 
-        const schema = convertUserDataConfigItemToPropertySchema('maxWidth', {
-            label: 'i18n:importer.property_schema.auto_atlas.max_width',
-            default: 1024,
-            render: { ui: 'ui-number-input' },
+        expect(imageSchema.type).toMatchObject({
+            type: 'string',
+            default: 'sprite-frame',
+            enum: ['raw', 'texture', 'normal map', 'sprite-frame', 'texture cube'],
         });
+        expect(imageSchema.type).not.toHaveProperty('label');
+        expect(imageSchema.type).not.toHaveProperty('options');
 
-        expect(schema.label).toBe('最大宽度');
-        expect(schema).not.toHaveProperty('labelI18nKey');
+        expect(spriteFrameSchema.trimType).toMatchObject({
+            type: 'string',
+            default: 'auto',
+            enum: ['auto', 'custom', 'none'],
+        });
+        expect(spriteFrameSchema.trimThreshold).toMatchObject({
+            type: 'number',
+            minimum: 0,
+            step: 1,
+        });
+        expect(spriteFrameSchema.trimType).not.toHaveProperty('raw');
+    });
+
+    it('keeps the Chinese AutoAtlas schema wording aligned with Creator', async () => {
+        await i18n.setLanguage('zh');
+        const autoAtlasSchema = createAssetPropertySchemaMap(AutoAtlasHandler.propertySchemaConfig);
+
+        expect(autoAtlasSchema).toMatchObject({
+            maxWidth: {
+                title: '最大宽度',
+                description: '单张图集最大宽度，超出将自动合成多张图像或无法合图',
+            },
+            maxHeight: {
+                title: '最大高度',
+                description: '单张图集最大高度，超出将自动合成多张图像或无法合图',
+            },
+            padding: {
+                title: '间距',
+                description: '图集中碎图之间的间距',
+            },
+            allowRotation: {
+                title: '允许旋转',
+                description: '是否允许旋转碎图',
+            },
+            forceSquared: {
+                title: '输出大小为正方形',
+                description: '是否强制将图集长宽大小设置成正方形',
+            },
+            powerOfTwo: {
+                title: '二次幂',
+                description: '是否将图集长宽大小设置为二次方倍数',
+            },
+            algorithm: {
+                title: '算法',
+                description: '合图策略，目前暂时只有一个选项',
+            },
+            paddingBleed: {
+                title: '扩边',
+                description: '在碎图的边框外扩展出一像素外框，并复制相邻碎图像素到外框中。该功能也称作 Extrude',
+            },
+            filterUnused: {
+                title: '剔除未使用的图片',
+                description: '仅被使用的图片会被合并进图集（仅构建阶段生效）',
+            },
+            removeTextureInBundle: {
+                title: '剔除在 Bundle 内未被使用的 Texture2D',
+                description: '剔除在 Bundle 内未被使用的 Texture2D',
+            },
+            removeImageInBundle: {
+                title: '剔除在 Bundle 内未被使用的 ImageAsset',
+                description: '剔除在 Bundle 内未被使用的 ImageAsset',
+            },
+            removeSpriteAtlasInBundle: {
+                title: '剔除在 Bundle 内未被使用的 Sprite Atlas',
+                description: '剔除在 Bundle 内未被使用的 Sprite Atlas',
+            },
+        });
+    });
+
+    it('keeps every built-in asset property schema description non-empty', async () => {
+        const handlerSchemas: Array<[string, AssetPropertySchemaMap | undefined]> = [
+            ['auto-atlas', AutoAtlasHandler.propertySchemaConfig],
+            ['image', ImageHandler.propertySchemaConfig],
+            ['gltf', GltfHandler.propertySchemaConfig],
+            ['fbx', FbxHandler.propertySchemaConfig],
+            ['sprite-frame', SpriteFrameHandler.propertySchemaConfig],
+            ['texture', TextureHandler.propertySchemaConfig],
+        ];
+        const missingDescriptions: string[] = [];
+
+        for (const [handlerName, schema] of handlerSchemas) {
+            missingDescriptions.push(
+                ...findMissingDescriptions(schema).map((path) => `raw:${handlerName}.${path}`),
+            );
+        }
+
+        for (const language of ['en', 'zh']) {
+            await i18n.setLanguage(language);
+            for (const [handlerName, schema] of handlerSchemas) {
+                const localizedSchema = createAssetPropertySchemaMap(schema);
+                missingDescriptions.push(
+                    ...findMissingDescriptions(localizedSchema).map((path) => `${language}:${handlerName}.${path}`),
+                );
+            }
+        }
+
+        expect(missingDescriptions).toEqual([]);
     });
 
     it('keeps built-in property schema i18n keys resolvable', () => {
@@ -207,135 +281,6 @@ describe('asset property schema conversion', () => {
 
         expect(missingKeys).toEqual([]);
     });
-
-    it('keeps nested object itemConfigs as nested properties', () => {
-        const schema = convertUserDataConfigItemToPropertySchema('textureSetting', {
-            label: 'Texture Setting',
-            type: 'object',
-            default: {
-                anisotropy: 0,
-            },
-            itemConfigs: {
-                anisotropy: {
-                    label: 'Anisotropy',
-                    default: 0,
-                    render: {
-                        ui: 'ui-number-input',
-                        attributes: {
-                            min: 0,
-                            step: 1,
-                        },
-                    },
-                },
-            },
-        });
-
-        expect(schema).toMatchObject({
-            label: 'Texture Setting',
-            type: 'object',
-            properties: {
-                anisotropy: {
-                    label: 'Anisotropy',
-                    type: 'number',
-                    default: 0,
-                    min: 0,
-                    step: 1,
-                },
-            },
-        });
-        expect(schema).not.toHaveProperty('raw');
-        expect(schema.properties?.anisotropy).not.toHaveProperty('raw');
-    });
-
-    it('treats array-form itemConfigs as object properties when the parent is not an array', () => {
-        const schema = convertUserDataConfigItemToPropertySchema('rect', {
-            label: 'Rect',
-            itemConfigs: [
-                {
-                    key: 'x',
-                    label: 'X',
-                    default: 0,
-                    render: { ui: 'ui-number-input' },
-                },
-            ],
-        });
-
-        expect(schema).toMatchObject({
-            label: 'Rect',
-            type: 'object',
-            properties: {
-                x: {
-                    label: 'X',
-                    type: 'number',
-                    default: 0,
-                },
-            },
-        });
-        expect(schema).not.toHaveProperty('raw');
-        expect(schema.properties?.x).not.toHaveProperty('raw');
-    });
-
-    it('does not expose raw legacy config through array item schemas', () => {
-        const schema = convertUserDataConfigItemToPropertySchema('entries', {
-            label: 'Entries',
-            type: 'array',
-            itemConfigs: [
-                {
-                    key: 'name',
-                    label: 'Name',
-                    default: '',
-                    render: { ui: 'ui-input' },
-                },
-            ],
-        });
-
-        expect(schema).toMatchObject({
-            label: 'Entries',
-            type: 'array',
-            items: {
-                label: 'Name',
-                type: 'string',
-                default: '',
-            },
-        });
-        expect(schema).not.toHaveProperty('raw');
-        expect(schema.items).not.toHaveProperty('raw');
-    });
-
-    it('merges schema-only config for property schema without mutating runtime userDataConfig', () => {
-        const runtimeConfig = {
-            runtimeOnly: {
-                label: 'Runtime Only',
-                default: true,
-                render: { ui: 'ui-checkbox' },
-            },
-        };
-        const schemaOnlyConfig = {
-            schemaOnly: {
-                label: 'Schema Only',
-                default: 1,
-                render: { ui: 'ui-number-input' },
-            },
-        };
-
-        const mergedConfig = mergeUserDataConfigForPropertySchema(runtimeConfig, schemaOnlyConfig);
-        const schema = convertUserDataConfigToPropertySchema(mergedConfig);
-
-        expect(schema).toMatchObject({
-            runtimeOnly: {
-                label: 'Runtime Only',
-                type: 'boolean',
-                default: true,
-            },
-            schemaOnly: {
-                label: 'Schema Only',
-                type: 'number',
-                default: 1,
-            },
-        });
-        expect(runtimeConfig).toHaveProperty('runtimeOnly');
-        expect(runtimeConfig).not.toHaveProperty('schemaOnly');
-    });
 });
 
 function readNestedValue(value: unknown, key: string): unknown {
@@ -351,7 +296,34 @@ function extractPropertySchemaSource(source: string): string {
     const start = [
         source.indexOf('propertySchemaConfig'),
         source.indexOf('userDataConfig'),
-        source.indexOf('createTextureBaseUserDataConfig'),
+        source.indexOf('createTextureBasePropertySchema'),
     ].filter((index) => index >= 0).sort((a, b) => a - b)[0];
     return start === undefined ? source : source.slice(start);
+}
+
+function findMissingDescriptions(schemaMap: AssetPropertySchemaMap | undefined): string[] {
+    const missingDescriptions: string[] = [];
+
+    function visit(schema: ICocosConfigurationPropertySchema, path: string) {
+        if (typeof schema.description !== 'string' || !schema.description.trim()) {
+            missingDescriptions.push(path);
+        }
+
+        for (const [key, property] of Object.entries(schema.properties ?? {})) {
+            visit(property, `${path}.${key}`);
+        }
+
+        const items = Array.isArray(schema.items) ? schema.items : schema.items ? [schema.items] : [];
+        items.forEach((item, index) => visit(item, `${path}.items[${index}]`));
+
+        if (schema.additionalProperties && typeof schema.additionalProperties !== 'boolean') {
+            visit(schema.additionalProperties, `${path}.additionalProperties`);
+        }
+    }
+
+    for (const [key, schema] of Object.entries(schemaMap ?? {})) {
+        visit(schema, key);
+    }
+
+    return missingDescriptions;
 }

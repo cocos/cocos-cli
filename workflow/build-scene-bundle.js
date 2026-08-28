@@ -4,6 +4,7 @@ const { nodeResolve } = require('@rollup/plugin-node-resolve');
 const virtual = require('@rollup/plugin-virtual');
 const json = require('@rollup/plugin-json');
 const path = require('path');
+const { createDeferredModuleSource } = require('./deferred-module-proxy');
 
 async function buildSceneBundle() {
     const workspaceDir = path.join(__dirname, '..');
@@ -23,8 +24,9 @@ async function buildSceneBundle() {
             virtual({
                 entry: `
                     import * as Bridge from '${bridgeFile}';
-                    const { startup, serviceManager, EditorExtends, Service } = Bridge;
-                    export { startup, serviceManager, EditorExtends, Service };
+                    // Keep the decorated ReferenceImage service reachable so Rollup retains its registration side effect.
+                    const { startup, serviceManager, EditorExtends, Service, ReferenceImageService } = Bridge;
+                    export { startup, serviceManager, EditorExtends, Service, ReferenceImageService };
                 `
             }),
             {
@@ -156,30 +158,7 @@ async function buildSceneBundle() {
                             `;
                         }
                         if (originalId === 'cc/mods-mgr') {
-                            return `
-                                function _createDeferredModule(id) {
-                                    return new Proxy({}, {
-                                        get: function(target, prop) {
-                                            if (typeof System !== 'undefined' && System.get) {
-                                                var real = System.get(id);
-                                                if (real) return real[prop];
-                                            }
-                                            return undefined;
-                                        },
-                                        has: function(target, prop) {
-                                            if (typeof System !== 'undefined' && System.get) {
-                                                var real = System.get(id);
-                                                if (real) return prop in real;
-                                            }
-                                            return false;
-                                        }
-                                    });
-                                }
-                                export function syncImport(id) {
-                                    return _createDeferredModule(id);
-                                }
-                                export default { syncImport: syncImport };
-                            `;
+                            return createDeferredModuleSource();
                         }
                         if (originalId === 'proper-lockfile') {
                             return `

@@ -1,4 +1,5 @@
 const mockAssetManager = {
+    copyAsset: jest.fn(),
     updateUserData: jest.fn(),
     updateUserDataByPath: jest.fn(),
     querySerializedData: jest.fn(),
@@ -28,6 +29,22 @@ describe('lib assets api', () => {
 
     it('does not expose updateAssetMetaUserData from the public lib API', () => {
         expect((Assets as { updateAssetMetaUserData?: unknown }).updateAssetMetaUserData).toBeUndefined();
+    });
+
+    it('copyAsset delegates resource and metadata copying to assetManager', async () => {
+        const copiedAsset = { uuid: 'copied-uuid', url: 'db://assets/copied.png' };
+        mockAssetManager.copyAsset.mockResolvedValue(copiedAsset);
+
+        await expect(Assets.copyAsset(
+            'db://assets/source.png',
+            'db://assets/copied.png',
+            { rename: true },
+        )).resolves.toBe(copiedAsset);
+        expect(mockAssetManager.copyAsset).toHaveBeenCalledWith(
+            'db://assets/source.png',
+            'db://assets/copied.png',
+            { rename: true },
+        );
     });
 
     it('updateAssetUserData delegates complete userData replacement to assetManager', async () => {
@@ -131,9 +148,11 @@ describe('lib assets api', () => {
     it('exposes queryPropertySchema and delegates to assetManager', async () => {
         const schema = {
             type: {
-                label: 'Import Type',
-                type: 'enum' as const,
+                title: 'Import Type',
+                type: 'string' as const,
                 default: 'sprite-frame',
+                enum: ['raw', 'sprite-frame'],
+                enumDescriptions: ['Raw', 'Sprite Frame'],
             },
         };
         mockAssetManager.queryPropertySchema.mockResolvedValue(schema);

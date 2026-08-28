@@ -2,6 +2,7 @@ import { register, BaseService, Service } from './core';
 import {
     type ICreateByAssetParams,
     type ICreateByNodeTypeParams,
+    type ICreateNodePreflightResult,
     type IDeleteNodeParams,
     type IDeleteNodeResult,
     type INode,
@@ -20,15 +21,16 @@ import {
     type IMoveArrayElementParams,
     type IRemoveArrayElementParams,
     type IChangeNodeLockParams,
+    type PrefabCanvasHandling,
     NodeType,
     NodeEventType,
     ISetPropertyOptions,
 } from '../../common';
 import { type IScene } from '../../common/editor/scene';
 import { Rpc } from '../rpc';
-import { CCClass, CCObject, Component, Node, Prefab, Quat, Vec3 } from 'cc';
-import { createNodeByAsset, loadAny } from './node/node-create';
-import { getUICanvasNode, setLayer } from './node/node-utils';
+import { Canvas, CCClass, CCObject, Component, director, Node, Prefab, Quat, UITransform, Vec3 } from 'cc';
+import { createNodeByAsset, createShouldHideInHierarchyCanvasNode, loadAny, queryCanvasRequiredByAsset } from './node/node-create';
+import { getUICanvasNode, getUITransformParentNode, hasOneKindOfComponent, setLayer } from './node/node-utils';
 import { NodeUndoHelper } from './node/node-undo';
 import { isUndoApplying } from './undo/applying-state';
 import { prefabUtils } from './prefab/utils';
@@ -37,9 +39,28 @@ import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
 import { RemoveNodeCommand } from './undo/commands/remove-node-command';
 import { RemoveComponentCommand } from './undo/commands/remove-component-command';
+import { PrefabPreviewCanvasCommand } from './undo/commands/prefab-preview-canvas-command';
 import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
+import { isRootNodePath, stripLeadingSlashes, validateNodeName } from '../../../engine/editor-extends/manager/path-utils';
 
 const NodeMgr = EditorExtends.Node;
+
+interface IPrefabCanvasUndoRecord {
+    rootNode: Node;
+    rootParentUuid: string | null;
+    rootParentPath: string;
+    rootSiblingIndex: number;
+    addedUITransform: Component | null;
+    previewCanvasNode: Node | null;
+    previewCanvasCreated: boolean;
+    workMode: string;
+}
+
+interface ICreatePreflightToken {
+    requestKey: string;
+    action: ICreateNodePreflightResult['action'];
+    canvasRequired: boolean;
+}
 
 /**
  * 子进程节点处理器
@@ -48,28 +69,27 @@ const NodeMgr = EditorExtends.Node;
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
     private readonly _undo = new NodeUndoHelper((event, ...args) => this.emit(event as any, ...args));
+    private _prefabCanvasUndoRecords: IPrefabCanvasUndoRecord[] | null = null;
+    private _prefabCanvasUndoBeforeNodeUuids: Set<string> | null = null;
+    private readonly _preflightTokens = new Map<string, ICreatePreflightToken>();
+    private _preflightTokenSequence = 0;
 
     async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
+        this._validateCreateParams(params);
         try {
             await Service.Editor.lock();
             const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
             const createRootPath = this._getCreateRootPathForUndo(beforeNodeUuids, params.path);
-            let canvasNeeded = params.canvasRequired || false;
-            const nodeType = params.nodeType as string;
-            const paramsArray = NodeConfig[nodeType];
-            if (!paramsArray || paramsArray.length < 0) {
-                throw new Error(`Node type '${nodeType}' is not implemented`);
+            const { assetUuid, canvasRequired: canvasNeeded } = this._resolveTypeCreateOptions(params);
+            this._validatePreflightToken(params);
+            const prefabCanvasUndoRecords = this._beginPrefabCanvasUndoCapture(beforeNodeUuids);
+            let result: INode | null;
+            try {
+                result = await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
+            } finally {
+                this._endPrefabCanvasUndoCapture();
             }
-            let assetUuid = paramsArray[0].assetUuid || null;
-            canvasNeeded = Boolean(paramsArray[0].canvasRequired);
-            const projectType = paramsArray[0]['project-type'];
-            const workMode = params.workMode;
-            if (projectType && workMode && projectType !== workMode.toLowerCase() && paramsArray.length > 1) {
-                assetUuid = paramsArray[1]['assetUuid'] || null;
-                canvasNeeded = Boolean(paramsArray[1].canvasRequired);
-            }
-            const result = await this._createNode(assetUuid, canvasNeeded, params.nodeType == NodeType.EMPTY, params);
-            this._undo.recordCreateNodeCommand(beforeNodeUuids, [createRootPath, result?.path].filter(Boolean) as string[]);
+            this._recordCreateNodeCommand(beforeNodeUuids, [createRootPath, result?.path].filter(Boolean) as string[], prefabCanvasUndoRecords);
             return result;
         } catch (error) {
             console.error(error);
@@ -80,6 +100,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async createByAsset(params: ICreateByAssetParams): Promise<INode | null> {
+        this._validateCreateParams(params);
         try {
             await Service.Editor.lock();
             const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
@@ -98,8 +119,15 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
             const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
             const canvasNeeded = params.canvasRequired || false;
-            const result = await this._createNode(assetUuid, canvasNeeded, false, params, assetInfo?.type);
-            this._undo.recordCreateNodeCommand(beforeNodeUuids, [createRootPath, result?.path].filter(Boolean) as string[]);
+            this._validatePreflightToken(params);
+            const prefabCanvasUndoRecords = this._beginPrefabCanvasUndoCapture(beforeNodeUuids);
+            let result: INode | null;
+            try {
+                result = await this._createNode(assetUuid, canvasNeeded, false, params, assetInfo?.type);
+            } finally {
+                this._endPrefabCanvasUndoCapture();
+            }
+            this._recordCreateNodeCommand(beforeNodeUuids, [createRootPath, result?.path].filter(Boolean) as string[], prefabCanvasUndoRecords);
             return result;
         } catch (error) {
             console.error(error);
@@ -107,6 +135,206 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         } finally {
             Service.Editor.unlock();
         }
+    }
+
+    async preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult> {
+        try {
+            await Service.Editor.lock();
+            const currentScene = Service.Editor.getRootNode();
+            if (!currentScene) {
+                throw new Error('Failed to preflight node creation: the scene is not opened.');
+            }
+
+            let canvasRequired: boolean;
+            if ('nodeType' in params) {
+                canvasRequired = this._resolveTypeCreateOptions(params).canvasRequired;
+            } else {
+                const assetUuid = await Rpc.getInstance().request('assetManager', 'queryUUID', [params.dbURL]);
+                if (!assetUuid) {
+                    throw new Error(`Asset not found for dbURL: ${params.dbURL}`);
+                }
+                const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
+                const assetCanvasRequired = await queryCanvasRequiredByAsset({
+                    uuid: assetUuid,
+                    type: assetInfo?.type,
+                    workMode: params.workMode || '2d',
+                });
+                canvasRequired = Boolean(params.canvasRequired || assetCanvasRequired);
+            }
+
+            const result = this._resolveCreatePreflight(params, canvasRequired, currentScene);
+            return {
+                ...result,
+                preflightToken: this._createPreflightToken(params, result),
+            };
+        } catch (error) {
+            console.error(error);
+            throw error;
+        } finally {
+            Service.Editor.unlock();
+        }
+    }
+
+    private _resolveTypeCreateOptions(params: ICreateByNodeTypeParams): { assetUuid: string | null; canvasRequired: boolean } {
+        const explicitCanvasRequired = Boolean(params.canvasRequired);
+        const nodeType = params.nodeType as string;
+        const paramsArray = NodeConfig[nodeType];
+        if (!paramsArray || paramsArray.length === 0) {
+            throw new Error(`Node type '${nodeType}' is not implemented`);
+        }
+
+        let config = paramsArray[0];
+        const projectType = config['project-type'];
+        if (projectType && params.workMode && projectType !== params.workMode.toLowerCase() && paramsArray.length > 1) {
+            config = paramsArray[1];
+        }
+
+        return {
+            assetUuid: config.assetUuid || null,
+            canvasRequired: explicitCanvasRequired || Boolean(config.canvasRequired),
+        };
+    }
+
+    private _getCreatePathPreflight(path: string | undefined, currentScene: Node): {
+        parent: Node;
+        materializesUITransform: boolean;
+        canvasRequired: boolean;
+    } {
+        if (path && !isRootNodePath(path)) {
+            try {
+                const existingParent = NodeMgr.getNodeByPath(path);
+                if (existingParent) {
+                    return { parent: existingParent, materializesUITransform: false, canvasRequired: false };
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        const pathParts = path?.split('/').filter(part => part.trim() !== '') ?? [];
+        let parent = currentScene;
+
+        for (const pathPart of pathParts) {
+            const child = parent.getChildByName(pathPart);
+            if (child) {
+                parent = child;
+                continue;
+            }
+
+            if (pathPart === 'Canvas') {
+                return { parent, materializesUITransform: false, canvasRequired: true };
+            }
+
+            // _ensurePathExists() adds UITransform to the first missing ordinary path segment.
+            return { parent, materializesUITransform: true, canvasRequired: false };
+        }
+
+        return { parent, materializesUITransform: false, canvasRequired: false };
+    }
+
+    private _getCanvasContext(parent: Node): {
+        hasCanvasContext: boolean;
+        canvasNode: Node | null;
+        uiTransformNode: Node | null;
+    } {
+        const isPrefabMode = Service.Editor.getCurrentEditorType() === 'prefab';
+        const canvasContextNode = getUICanvasNode(parent, !isPrefabMode);
+        const uiTransformNode = getUITransformParentNode(parent);
+        return {
+            hasCanvasContext: Boolean(canvasContextNode),
+            canvasNode: canvasContextNode,
+            uiTransformNode,
+        };
+    }
+
+    private _resolveCreatePreflight(
+        params: ICreateByNodeTypeParams | ICreateByAssetParams,
+        canvasRequired: boolean,
+        currentScene: Node,
+    ): Omit<ICreateNodePreflightResult, 'preflightToken'> {
+        const pathPlan = this._getCreatePathPreflight(params.path, currentScene);
+        if (pathPlan.materializesUITransform) {
+            return {
+                action: 'create',
+                canvasRequired,
+                canvasPath: null,
+                uiTransformPath: null,
+            };
+        }
+
+        const effectiveCanvasRequired = canvasRequired || pathPlan.canvasRequired;
+        const context = this._getCanvasContext(pathPlan.parent);
+        const requiresPrefabCanvasHandling = effectiveCanvasRequired
+            && Service.Editor.getCurrentEditorType() === 'prefab'
+            && !context.hasCanvasContext
+            && !context.uiTransformNode;
+
+        return {
+            action: requiresPrefabCanvasHandling ? 'choose-prefab-canvas-handling' : 'create',
+            canvasRequired: effectiveCanvasRequired,
+            canvasPath: context.canvasNode ? NodeMgr.getNodePath(context.canvasNode) ?? null : null,
+            uiTransformPath: context.uiTransformNode ? NodeMgr.getNodePath(context.uiTransformNode) ?? null : null,
+        };
+    }
+
+    private _createPreflightToken(
+        params: ICreateByNodeTypeParams | ICreateByAssetParams,
+        result: Omit<ICreateNodePreflightResult, 'preflightToken'>,
+    ): string {
+        const token = `node-create-${Date.now().toString(36)}-${(++this._preflightTokenSequence).toString(36)}`;
+        if (this._preflightTokens.size >= 128) {
+            const oldestToken = this._preflightTokens.keys().next().value;
+            if (oldestToken) {
+                this._preflightTokens.delete(oldestToken);
+            }
+        }
+        this._preflightTokens.set(token, {
+            requestKey: this._getPreflightRequestKey(params),
+            action: result.action,
+            canvasRequired: result.canvasRequired,
+        });
+        return token;
+    }
+
+    private _validatePreflightToken(params: ICreateByNodeTypeParams | ICreateByAssetParams): void {
+        if (!params.preflightToken) {
+            return;
+        }
+
+        const record = this._preflightTokens.get(params.preflightToken);
+        this._preflightTokens.delete(params.preflightToken);
+        if (!record || record.requestKey !== this._getPreflightRequestKey(params)) {
+            throw new Error('The node creation preflight token is invalid or does not match the request. Run preflightCreate again.');
+        }
+
+        if (record.action !== 'create') {
+            return;
+        }
+
+        const currentScene = Service.Editor.getRootNode();
+        if (!currentScene) {
+            throw new Error('Failed to create node: the scene is not opened.');
+        }
+        const currentResult = this._resolveCreatePreflight(params, record.canvasRequired, currentScene);
+        if (currentResult.action !== 'create') {
+            throw new Error('Canvas context changed after preflight. Run preflightCreate again before creating the node.');
+        }
+    }
+
+    private _getPreflightRequestKey(params: ICreateByNodeTypeParams | ICreateByAssetParams): string {
+        return JSON.stringify('nodeType' in params ? {
+            kind: 'type',
+            path: params.path,
+            nodeType: params.nodeType,
+            workMode: params.workMode ?? '2d',
+            canvasRequired: Boolean(params.canvasRequired),
+        } : {
+            kind: 'asset',
+            path: params.path,
+            dbURL: params.dbURL,
+            workMode: params.workMode ?? '2d',
+            canvasRequired: Boolean(params.canvasRequired),
+        });
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams, assetType?: string): Promise<INode | null> {
@@ -117,21 +345,22 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
         const workMode = params.workMode || '2d';
         // 使用增强的路径处理方法
-        let parent = await this._getOrCreateNodeByPath(params.path, currentScene);
+        let parent = await this._getOrCreateNodeByPath(params.path, currentScene, params.prefabCanvasHandling);
         if (!parent) {
             parent = currentScene;
         }
 
         let resultNode;
+        let canvasRequired = canvasNeeded;
         if (assetUuid) {
-            const { node, canvasRequired } = await createNodeByAsset({
+            const createResult = await createNodeByAsset({
                 uuid: assetUuid,
                 canvasRequired: canvasNeeded,
                 type: assetType,
                 workMode: workMode,
             });
-            resultNode = node;
-            parent = await this.checkCanvasRequired(workMode.toLowerCase(), Boolean(canvasRequired), parent, params.position as Vec3) as Node;
+            resultNode = createResult.node;
+            canvasRequired = Boolean(canvasNeeded || createResult.canvasRequired);
         }
         if (!resultNode) {
             resultNode = new cc.Node();
@@ -140,6 +369,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!resultNode) {
             return null;
         }
+
+        if (checkUITransform) {
+            nodeMgr.ensureUITransformComponent(resultNode);
+        }
+
+        parent = await this.checkCanvasRequired(workMode.toLowerCase(), Boolean(canvasRequired), parent, params.position as Vec3, params.prefabCanvasHandling) as Node;
 
         /**
          * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
@@ -175,21 +410,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         resultNode.setParent(parent, params.keepWorldTransform);
-        // setParent 后，node的path可能会变，node的name需要同步path中对应的name
-        const path = NodeMgr.getNodePath(resultNode);
-        const name = path.split('/').pop();
-        if (name && resultNode.name !== name) {
-            resultNode.name = name;
-        }
         // 挂到 prefab instance 下时，setParent 相关流程可能重新补回模板 prefab 信息。
         // 但在 prefab asset 编辑器中，新节点需要保留 setParent 补齐的 prefab 元数据。
         if (shouldUnlinkPrefab && Service.Editor.getCurrentEditorType() !== 'prefab') {
             Service.Prefab.removePrefabInfoFromNode(resultNode, true);
         }
-        if (checkUITransform) {
-            nodeMgr.ensureUITransformComponent(resultNode);
-        }
-
         // 发送添加节点事件，添加节点中的根节点
         this.emit('node:add', resultNode);
 
@@ -199,8 +424,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     /**
      * 获取或创建路径节点
      */
-    private async _getOrCreateNodeByPath(path: string | undefined, currentScene: Node): Promise<Node | null> {
-        if (!path) {
+    private async _getOrCreateNodeByPath(path: string | undefined, currentScene: Node, prefabCanvasHandling?: PrefabCanvasHandling): Promise<Node | null> {
+        // '/' 指当前编辑器的根：prefab 模式下是 prefab 根节点，而不是承载它的虚拟场景。
+        // 交回 null 让上层 fallback 到 currentScene（= Service.Editor.getRootNode()）。
+        if (!path || isRootNodePath(path)) {
             return null;
         }
 
@@ -216,13 +443,34 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
 
         // 如果不存在，则创建路径
-        return await this._ensurePathExists(path, currentScene);
+        return await this._ensurePathExists(path, currentScene, prefabCanvasHandling);
+    }
+
+    private _validateCreateParams(params: ICreateByNodeTypeParams | ICreateByAssetParams): void {
+        this._validateRequestedNodeName(params.name);
+        this._validateRequestedNodePath(params.path);
+    }
+
+    private _validateRequestedNodeName(name: string | undefined): void {
+        if (name === undefined) {
+            return;
+        }
+        const error = validateNodeName(name);
+        if (error) {
+            throw new Error(error);
+        }
+    }
+
+    private _validateRequestedNodePath(path: string): void {
+        for (const segment of path.split('/').filter((part) => part.trim() !== '')) {
+            this._validateRequestedNodeName(segment);
+        }
     }
 
     /**
      * 确保路径存在，如果不存在则创建空节点
      */
-    private async _ensurePathExists(path: string | undefined, currentScene: Node): Promise<Node | null> {
+    private async _ensurePathExists(path: string | undefined, currentScene: Node, prefabCanvasHandling?: PrefabCanvasHandling): Promise<Node | null> {
         if (!path) {
             return null;
         }
@@ -242,11 +490,13 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         // 逐级检查并创建路径
         for (let i = 0; i < pathParts.length; i++) {
             const pathPart = pathParts[i];
-            let nextNode = currentParent.getChildByName(pathPart);
+            const parentPrefix = stripLeadingSlashes(NodeMgr.getNodePath(currentParent));
+            const candidatePath = parentPrefix ? `${parentPrefix}/${pathPart}` : pathPart;
+            let nextNode = NodeMgr.getNodeByPath(candidatePath) as Node | null;
 
             if (!nextNode) {
                 if (pathPart === 'Canvas') {
-                    nextNode = await this.checkCanvasRequired('2d', true, currentParent, undefined);
+                    nextNode = await this.checkCanvasRequired('2d', true, currentParent, undefined, prefabCanvasHandling);
                 } else {
                     // 创建空节点
                     nextNode = new Node(pathPart);
@@ -282,6 +532,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return null;
             }
 
+            const uuids = Service.Prefab.filterChildOfPrefabAssetWhenRemoveNode(node.uuid);
+            if (!uuids.length) {
+                return null;
+            }
+
             let command: RemoveNodeCommand | null = null;
             if (this._undo.shouldRecordStructureCommand()) {
                 command = RemoveNodeCommand.capture(node, params.keepWorldTransform);
@@ -312,7 +567,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
             const path = params?.path;
             let node: Node | null = root;
-            if (path && path !== '/') {
+            // '/' 指当前编辑器的根：场景模式下是场景，prefab 模式下是 prefab 根，而非承载它的虚拟场景
+            if (path && !isRootNodePath(path)) {
                 node = NodeMgr.getNodeByPath(path);
             }
             if (!node) return null;
@@ -409,26 +665,51 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
      * @param position
      * @returns
      */
-    async checkCanvasRequired(workMode: string, canvasRequiredParam: boolean | undefined, parent: Node | null, position: Vec3 | undefined): Promise<Node | null> {
+    async checkCanvasRequired(
+        workMode: string,
+        canvasRequiredParam: boolean | undefined,
+        parent: Node | null,
+        position: Vec3 | undefined,
+        prefabCanvasHandling?: PrefabCanvasHandling,
+    ): Promise<Node | null> {
 
         if (canvasRequiredParam && parent?.isValid) {
             let canvasNode: Node | null;
+            const isPrefabMode = Service.Editor.getCurrentEditorType() === 'prefab';
 
-            canvasNode = getUICanvasNode(parent);
-            if (canvasNode) {
-                parent = canvasNode;
+            if (isPrefabMode) {
+                const rootNode = Service.Editor.getRootNode();
+                if (parent === director.getScene() && rootNode) {
+                    parent = rootNode;
+                }
+                canvasNode = getUICanvasNode(parent, false);
+                const uiTransformParentNode = getUITransformParentNode(parent);
+
+                if (!canvasNode) {
+                    if (uiTransformParentNode) {
+                        canvasNode = uiTransformParentNode;
+                    } else if (prefabCanvasHandling === 'add-root-ui-transform') {
+                        canvasNode = await this.ensurePrefabRootUITransform(workMode);
+                    } else if (!prefabCanvasHandling) {
+                        canvasNode = new Node();
+                    }
+                } else if (canvasNode.parent !== director.getScene()) {
+                    parent = canvasNode;
+                }
+            } else {
+                canvasNode = getUICanvasNode(parent);
+                if (canvasNode) {
+                    parent = canvasNode;
+                }
             }
 
             // 自动创建一个 canvas 节点
             if (!canvasNode) {
-                // TODO 这里会导致如果在 3D 场景下创建 2d canvas 摄像机的优先级跟主摄像机一样，
-                //  导致显示不出 UI 来，先都用 ui canvas
-                const canvasAssetUuid = 'f773db21-62b8-4540-956a-29bacf5ddbf5';
+                let canvasAssetUuid = 'f773db21-62b8-4540-956a-29bacf5ddbf5';
 
-                // // 2d 项目创建的 ui 节点，canvas 下的 camera 的 visibility 默认勾上 default
-                // if (workMode === '2d') {
-                //     canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
-                // }
+                if (workMode === '2d') {
+                    canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
+                }
 
                 const canvasAsset = await loadAny<Prefab>(canvasAssetUuid);
                 canvasNode = cc.instantiate(canvasAsset) as Node;
@@ -446,6 +727,54 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
         }
         return parent;
+    }
+
+    private async ensurePrefabRootUITransform(workMode: string): Promise<Node | null> {
+        const rootNode = Service.Editor.getRootNode();
+        if (!rootNode?.isValid) {
+            return null;
+        }
+
+        const undoRecord = this._createPrefabCanvasUndoRecord(rootNode, workMode);
+        if (!hasOneKindOfComponent(rootNode, UITransform)) {
+            undoRecord.addedUITransform = rootNode.addComponent('cc.UITransform') as Component;
+        }
+
+        if (rootNode.parent && !hasOneKindOfComponent(rootNode.parent, Canvas)) {
+            const canvasNode = await createShouldHideInHierarchyCanvasNode(director.getScene()!, workMode);
+            undoRecord.previewCanvasNode = canvasNode;
+            undoRecord.previewCanvasCreated = !this._prefabCanvasUndoBeforeNodeUuids?.has(canvasNode.uuid);
+            rootNode.parent = canvasNode;
+            this._pushPrefabCanvasUndoRecord(undoRecord);
+            return canvasNode;
+        }
+
+        this._pushPrefabCanvasUndoRecord(undoRecord);
+        return rootNode;
+    }
+
+    private _createPrefabCanvasUndoRecord(rootNode: Node, workMode: string): IPrefabCanvasUndoRecord {
+        const rootParent = rootNode.parent as Node | null;
+        return {
+            rootNode,
+            rootParentUuid: rootParent?.uuid ?? null,
+            rootParentPath: rootParent ? (NodeMgr.getNodePath(rootParent) ?? '/') : '/',
+            rootSiblingIndex: rootNode.getSiblingIndex(),
+            addedUITransform: null,
+            previewCanvasNode: null,
+            previewCanvasCreated: false,
+            workMode,
+        };
+    }
+
+    private _pushPrefabCanvasUndoRecord(record: IPrefabCanvasUndoRecord): void {
+        if (!this._prefabCanvasUndoRecords) {
+            return;
+        }
+        if (!record.addedUITransform && !record.previewCanvasNode) {
+            return;
+        }
+        this._prefabCanvasUndoRecords.push(record);
     }
 
     public onEditorOpened() {
@@ -493,8 +822,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             },
         }, async () => {
             if (options.path === 'name' && options.dump.value !== node.name) {
-                // 这里相当于是做个hack的补充功能，因为setProperty并没有改变path。
-                // 而在cli上是期望改变path的，后期感觉可以通过node:change消息来实现这个功能
+                // Reject new illegal input at the API boundary; the lower-level manager accepts it only for legacy undo/redo restoration.
+                const nameError = validateNodeName(options.dump.value as string);
+                if (nameError) {
+                    throw new Error(nameError);
+                }
                 this.emit('node:before-change', node);
                 NodeMgr.updateNodeName(node.uuid, options.dump.value as string);
                 this.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: 'name' });
@@ -547,6 +879,77 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             return null;
         }
         return this._undo.getCreateRootPath(path);
+    }
+
+    private _beginPrefabCanvasUndoCapture(beforeNodeUuids: Set<string> | null): IPrefabCanvasUndoRecord[] | null {
+        if (!beforeNodeUuids) {
+            return null;
+        }
+        const records: IPrefabCanvasUndoRecord[] = [];
+        this._prefabCanvasUndoRecords = records;
+        this._prefabCanvasUndoBeforeNodeUuids = beforeNodeUuids;
+        return records;
+    }
+
+    private _endPrefabCanvasUndoCapture(): void {
+        this._prefabCanvasUndoRecords = null;
+        this._prefabCanvasUndoBeforeNodeUuids = null;
+    }
+
+    private _recordCreateNodeCommand(
+        beforeNodeUuids: Set<string> | null,
+        preferredRootPaths: string[],
+        prefabCanvasUndoRecords: IPrefabCanvasUndoRecord[] | null,
+    ): void {
+        if (!prefabCanvasUndoRecords?.length) {
+            this._undo.recordCreateNodeCommand(beforeNodeUuids, preferredRootPaths);
+            return;
+        }
+
+        const ownsGroup = !Service.Undo?.isGroupActive?.();
+        const groupId = ownsGroup ? Service.Undo?.beginGroup?.({ label: 'Create Node' }) : null;
+        try {
+            this._recordPrefabCanvasUndoCommands(prefabCanvasUndoRecords);
+            this._undo.recordCreateNodeCommand(beforeNodeUuids, preferredRootPaths);
+            if (groupId) {
+                Service.Undo?.endGroup?.(groupId);
+            }
+        } catch (error) {
+            if (groupId) {
+                Service.Undo?.cancelGroup?.(groupId);
+            }
+            throw error;
+        }
+    }
+
+    private _recordPrefabCanvasUndoCommands(records: IPrefabCanvasUndoRecord[]): void {
+        for (const record of records) {
+            if (record.addedUITransform?.isValid) {
+                const command = this._captureAddComponentCommand(record.addedUITransform);
+                if (command) {
+                    Service.Undo?.push(command);
+                }
+            }
+
+            if (record.previewCanvasNode?.isValid) {
+                Service.Undo?.push(new PrefabPreviewCanvasCommand({
+                    rootUuid: record.rootNode.uuid,
+                    rootPath: NodeMgr.getNodePath(record.rootNode) ?? '',
+                    rootParentUuid: record.rootParentUuid,
+                    rootParentPath: record.rootParentPath,
+                    rootSiblingIndex: record.rootSiblingIndex,
+                    previewCanvasUuid: record.previewCanvasNode.uuid,
+                    previewCanvasPath: NodeMgr.getNodePath(record.previewCanvasNode) ?? '',
+                    removePreviewCanvasOnUndo: record.previewCanvasCreated,
+                    workMode: record.workMode,
+                }));
+            }
+        }
+    }
+
+    private _captureAddComponentCommand(component: Component) {
+        const { AddComponentCommand } = require('./undo/commands/add-component-command') as typeof import('./undo/commands/add-component-command');
+        return AddComponentCommand.capture(component);
     }
 
     private _captureReparentSnapshotsForUndo(nodes: Node[]) {
@@ -742,7 +1145,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             }
 
             const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
-            const newUuids = nodeMgr.paste(parentUuid, copiedUuids, params.keepWorldTransform);
+            const newUuids = nodeMgr.paste(parentUuid || root.uuid, copiedUuids, params.keepWorldTransform);
             const newPaths = newUuids.map(uuid => this._getNodePathByUuid(uuid)).filter(Boolean);
             this._undo.recordCreateNodeCommand(beforeNodeUuids, newPaths);
             return newPaths;

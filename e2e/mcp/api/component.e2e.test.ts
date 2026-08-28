@@ -239,4 +239,107 @@ describe('MCP Component API', () => {
             expect(allResult.data).toEqual(expect.arrayContaining(['cc.Label']));
         });
     });
+
+    describe('LODGroup 专用操作', () => {
+        it('should recalculate empty LODGroup bounds to zero values', async () => {
+            const addResult = await mcpClient.callTool('scene-add-component', {
+                addComponentInfo: {
+                    nodePath: testNodePath,
+                    component: 'cc.LODGroup',
+                },
+            });
+            expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
+
+            const recalculateResult = await mcpClient.callTool('scene-recalculate-lod-group-bounds', {
+                options: {
+                    path: addResult.data.path,
+                    record: false,
+                },
+            });
+
+            expect(recalculateResult.code).toBe(200);
+            expect(recalculateResult.data).toEqual({
+                localBoundaryCenter: { x: 0, y: 0, z: 0 },
+                objectSize: 0,
+            });
+        });
+
+        it('should reject a non-LODGroup component', async () => {
+            const addResult = await mcpClient.callTool('scene-add-component', {
+                addComponentInfo: {
+                    nodePath: testNodePath,
+                    component: 'cc.Label',
+                },
+            });
+            expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
+
+            const recalculateResult = await mcpClient.callTool('scene-recalculate-lod-group-bounds', {
+                options: {
+                    path: addResult.data.path,
+                    record: false,
+                },
+            });
+
+            expect(recalculateResult.code).toBe(400);
+            expect(recalculateResult.reason).toContain('component is not cc.LODGroup');
+        });
+
+        it('should insert, query relative height, and erase an LOD level', async () => {
+            const addResult = await mcpClient.callTool('scene-add-component', {
+                addComponentInfo: {
+                    nodePath: testNodePath,
+                    component: 'cc.LODGroup',
+                },
+            });
+            expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
+
+            const insertResult = await mcpClient.callTool('scene-insert-lod', {
+                options: {
+                    path: addResult.data.path,
+                    index: 0,
+                    record: false,
+                },
+            });
+            expect(insertResult.code).toBe(200);
+            expect(insertResult.data?.lodCount).toBe(4);
+            expect(insertResult.data?.screenUsagePercentages).toHaveLength(4);
+            expect(insertResult.data?.screenUsagePercentages[0]).toBe(0.25);
+
+            const relativeHeightResult = await mcpClient.callTool('scene-query-lod-group-relative-height', {
+                options: {
+                    path: addResult.data.path,
+                },
+            });
+            expect(relativeHeightResult).toEqual(expect.objectContaining({
+                code: 200,
+                data: 0,
+            }));
+
+            const secondInsertResult = await mcpClient.callTool('scene-insert-lod', {
+                options: {
+                    path: addResult.data.path,
+                    index: 1,
+                    record: false,
+                },
+            });
+            expect(secondInsertResult.code).toBe(200);
+            expect(secondInsertResult.data?.lodCount).toBe(5);
+
+            const eraseResult = await mcpClient.callTool('scene-erase-lod', {
+                options: {
+                    path: addResult.data.path,
+                    index: 1,
+                    record: false,
+                },
+            });
+            expect(eraseResult.code).toBe(200);
+            expect(eraseResult.data).toEqual(insertResult.data);
+        });
+    });
 });

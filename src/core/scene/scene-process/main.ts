@@ -4,6 +4,7 @@ import { parseCommandLineArgs, resolveSceneAssetBase } from './utils';
 import { Engine } from '../../engine';
 import { join } from 'path';
 import { serviceManager } from './service/service-manager';
+import { installSceneEditorShim } from './editor-shim';
 
 async function startup() {
     // 监听进程退出事件
@@ -30,6 +31,7 @@ async function startup() {
     }
 
     // 初始化 service-manager
+    installSceneEditorShim(projectPath);
     serviceManager.initialize(serverURL ?? '');
 
     await Engine.init(enginePath);

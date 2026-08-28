@@ -3,6 +3,8 @@ export {};
 const mockQueryUUID = jest.fn();
 const mockQueryAsset = jest.fn();
 const mockQueryPath = jest.fn();
+const mockQueryUrl = jest.fn();
+const mockAssetDBMap: Record<string, any> = {};
 
 jest.mock('@cocos/asset-db', () => ({
     queryUUID: (...args: any[]) => mockQueryUUID(...args),
@@ -12,18 +14,10 @@ jest.mock('@cocos/asset-db', () => ({
     Asset: class {},
     forEach: jest.fn(),
     queryPath: (...args: any[]) => mockQueryPath(...args),
-    queryUrl: jest.fn(),
-}));
-
-jest.mock('@cocos/asset-db/index', () => ({
-    queryUUID: (...args: any[]) => mockQueryUUID(...args),
-    queryAsset: (...args: any[]) => mockQueryAsset(...args),
+    queryUrl: (...args: any[]) => mockQueryUrl(...args),
     Utils: {
         nameToId: (value: string) => value,
     },
-    queryPath: (...args: any[]) => mockQueryPath(...args),
-    Asset: class {},
-    VirtualAsset: class {},
 }));
 
 jest.mock('../manager/asset-db', () => ({
@@ -44,7 +38,7 @@ jest.mock('../manager/asset-db', () => ({
                 preImportExtList: [],
             },
         },
-        assetDBMap: {},
+        assetDBMap: mockAssetDBMap,
         path2url: jest.fn(),
     },
 }));
@@ -82,6 +76,13 @@ jest.mock('../../base/i18n', () => ({
 describe('asset query path normalization', () => {
     beforeEach(() => {
         jest.resetAllMocks();
+        Object.keys(mockAssetDBMap).forEach((key) => delete mockAssetDBMap[key]);
+        mockAssetDBMap.assets = {
+            options: {
+                name: 'assets',
+                target: 'D:/project/assets',
+            },
+        };
     });
 
     afterEach(() => {
@@ -123,5 +124,53 @@ describe('asset query path normalization', () => {
         expect(mockQueryUUID).toHaveBeenCalledWith('db://assets/resources/Image/gem_red.png');
         expect(mockQueryPath).toHaveBeenCalledWith('gem-red-uuid');
         expect(result).toBe('D:/project/assets/resources/Image/gem_red.png');
+    });
+
+    it('queryUrl should normalize a Windows absolute asset path with a differently cased drive letter', () => {
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+
+        const result = assetQuery.queryUrl('d:\\project\\assets\\extended\\clip-settings\\baseline.scene');
+
+        expect(result).toBe('db://assets/extended/clip-settings/baseline.scene');
+        expect(mockQueryUrl).not.toHaveBeenCalled();
+    });
+
+    it('queryUrl should normalize mixed separators in an absolute asset path', () => {
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+
+        const result = assetQuery.queryUrl('d:/project/assets\\extended/clip-settings\\baseline.scene');
+
+        expect(result).toBe('db://assets/extended/clip-settings/baseline.scene');
+        expect(mockQueryUrl).not.toHaveBeenCalled();
+    });
+
+    it('queryUrl should not resolve a path for a database that is configured but not registered', () => {
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+        const target = 'd:\\project\\assets\\extended\\clip-settings\\baseline.scene';
+
+        delete mockAssetDBMap.assets;
+        mockQueryUrl.mockReturnValue('');
+
+        expect(assetQuery.queryUrl(target)).toBe('');
+        expect(mockQueryUrl).toHaveBeenCalledWith(target);
+    });
+
+    it('queryUrl should not treat a similarly prefixed external directory as part of the asset database', () => {
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+        const externalPath = 'D:\\project\\assets-copy\\baseline.scene';
+
+        mockQueryUrl.mockReturnValue('');
+
+        expect(assetQuery.queryUrl(externalPath)).toBe('');
+        expect(mockQueryUrl).toHaveBeenCalledWith(externalPath);
+    });
+
+    it('queryUrl should preserve the existing UUID fallback', () => {
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+
+        mockQueryUrl.mockReturnValue('db://assets/scenes/Game.scene');
+
+        expect(assetQuery.queryUrl('scene-uuid')).toBe('db://assets/scenes/Game.scene');
+        expect(mockQueryUrl).toHaveBeenCalledWith('scene-uuid');
     });
 });

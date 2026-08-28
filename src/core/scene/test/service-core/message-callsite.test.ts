@@ -164,6 +164,7 @@ jest.mock('../../scene-process/service/gizmo/components/video-player', () => ({}
 jest.mock('../../scene-process/service/gizmo/components/web-view', () => ({}));
 jest.mock('../../scene-process/service/gizmo/components/light-probe-group', () => ({}));
 jest.mock('../../scene-process/service/gizmo/components/reflection-probe', () => ({}));
+jest.mock('../../scene-process/service/gizmo/components/lod-group', () => ({}));
 
 jest.mock('../../scene-process/service/dump', () => ({
     __esModule: true,
@@ -533,81 +534,6 @@ describe('ServiceEvents 事件发射集成测试', () => {
             expect(editorService.editorMap.get(uuid)).toBeUndefined();
         });
 
-        it('save 到新资源应使用当前编辑器内容并更新当前资源标识', async () => {
-            const { SceneEditor } = require('../../scene-process/service/editors');
-            const sourceUuid = 'source-uuid';
-            const target = { uuid: 'target-uuid', url: 'db://assets/recovered.scene', type: 'scene' };
-            const mockEditor = Object.assign(Object.create(SceneEditor.prototype), {
-                saveTo: jest.fn().mockResolvedValue(target),
-            });
-            editorService.editorMap.set(sourceUuid, mockEditor);
-            editorService.currentEditorUuid = sourceUuid;
-
-            mockRpcRequest.mockResolvedValueOnce(target);
-
-            await editorService.save({ urlOrUUID: target.url });
-
-            expect(mockEditor.saveTo).toHaveBeenCalledWith(target);
-            expect(editorService.currentEditorUuid).toBe(target.uuid);
-            expect(editorService.editorMap.get(sourceUuid)).toBeUndefined();
-            expect(editorService.editorMap.get(target.uuid)).toBe(mockEditor);
-        });
-
-        it('deleted-source fallback 不会关闭 Save As 后已重绑的目标编辑器', async () => {
-            const sourceUuid = 'source-uuid';
-            const targetUuid = 'target-uuid';
-            const mockEditor = { close: jest.fn().mockResolvedValue(true) };
-            editorService.editorMap.set(targetUuid, mockEditor);
-            editorService.currentEditorUuid = targetUuid;
-            mockRpcRequest.mockResolvedValueOnce(null);
-
-            await expect(editorService.close({
-                urlOrUUID: 'db://assets/deleted.scene',
-                save: false,
-                allowDeletedSourceFallback: true,
-                expectedCurrentUuid: sourceUuid,
-            })).rejects.toThrow('请求资源失败');
-
-            expect(mockEditor.close).not.toHaveBeenCalled();
-            expect(editorService.currentEditorUuid).toBe(targetUuid);
-            expect(editorService.editorMap.get(targetUuid)).toBe(mockEditor);
-        });
-
-        it('save 到不同类型的资源时保持当前编辑器状态不变', async () => {
-            const { SceneEditor } = require('../../scene-process/service/editors');
-            const sourceUuid = 'source-uuid';
-            const target = { uuid: 'target-prefab-uuid', url: 'db://assets/recovered.prefab', type: 'prefab' };
-            const mockEditor = Object.assign(Object.create(SceneEditor.prototype), {
-                saveTo: jest.fn(),
-            });
-            editorService.editorMap.set(sourceUuid, mockEditor);
-            editorService.currentEditorUuid = sourceUuid;
-            mockRpcRequest.mockResolvedValueOnce(target);
-
-            await expect(editorService.save({ urlOrUUID: target.url })).rejects.toThrow('不能将 scene 保存到 prefab 资源');
-
-            expect(mockEditor.saveTo).not.toHaveBeenCalled();
-            expect(editorService.currentEditorUuid).toBe(sourceUuid);
-            expect(editorService.editorMap.get(sourceUuid)).toBe(mockEditor);
-        });
-
-        it('saveTo 返回非目标 UUID 时保持当前编辑器映射不变', async () => {
-            const { SceneEditor } = require('../../scene-process/service/editors');
-            const sourceUuid = 'source-uuid';
-            const target = { uuid: 'target-uuid', url: 'db://assets/recovered.scene', type: 'scene' };
-            const mockEditor = Object.assign(Object.create(SceneEditor.prototype), {
-                saveTo: jest.fn().mockResolvedValue({ ...target, uuid: 'unexpected-uuid' }),
-            });
-            editorService.editorMap.set(sourceUuid, mockEditor);
-            editorService.currentEditorUuid = sourceUuid;
-            mockRpcRequest.mockResolvedValueOnce(target);
-
-            await expect(editorService.save({ urlOrUUID: target.url })).rejects.toThrow('保存目标资源标识不一致');
-
-            expect(editorService.currentEditorUuid).toBe(sourceUuid);
-            expect(editorService.editorMap.get(sourceUuid)).toBe(mockEditor);
-            expect(editorService.editorMap.get(target.uuid)).toBeUndefined();
-        });
 
         it('save 应 emit editor:save 到 ServiceEvents', async () => {
             const { PrefabEditor } = require('../../scene-process/service/editors');
@@ -632,6 +558,64 @@ describe('ServiceEvents 事件发射集成测试', () => {
     // ── NodeService: setProperty(name) → ServiceEvents ──
 
     describe('NodeService (node.ts)', () => {
+        it('createByType 应在场景操作前拒绝非法节点名', async () => {
+            const { NodeType } = require('../../common');
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            await expect(nodeService.createByType({
+                path: '',
+                name: 'A:B',
+                nodeType: NodeType.EMPTY,
+            })).rejects.toThrow(/illegal character/);
+        });
+
+        it('createByAsset 应在资源查询前拒绝含非法段的父路径', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            await expect(nodeService.createByAsset({
+                path: 'Parent/A:B',
+                dbURL: 'db://assets/Test.prefab',
+            })).rejects.toThrow(/illegal character/);
+            expect(mockRpcRequest).not.toHaveBeenCalledWith('assetManager', 'queryUUID', expect.anything());
+        });
+
+        it('query 的根路径应解析为当前编辑器根节点，而非 director 场景', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const { Service } = require('../../scene-process/service/core');
+            const { sceneUtils } = require('../../scene-process/service/scene/utils');
+            const nodeService = new NodeService();
+
+            // prefab 模式下 getRootNode() 是 prefab 根，director.getScene() 是承载它的虚拟场景
+            const prefabRoot = { uuid: 'prefab-root' };
+            const virtualScene = { uuid: 'virtual-scene' };
+            const child = { uuid: 'child' };
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetByPath = NodeMgr.getNodeByPath;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            const originalDump = sceneUtils.generateNodeDump;
+
+            NodeMgr.getNodeByPath = jest.fn((path: string) => (path === 'Canvas' ? child : virtualScene));
+            Service.Editor.getRootNode = jest.fn(() => prefabRoot);
+            sceneUtils.generateNodeDump = jest.fn((node: any) => ({ uuid: node.uuid }));
+
+            try {
+                expect(await nodeService.query({ path: '/' })).toEqual({ uuid: 'prefab-root' });
+                expect(await nodeService.query({ path: '//' })).toEqual({ uuid: 'prefab-root' });
+                expect(await nodeService.query({})).toEqual({ uuid: 'prefab-root' });
+                expect(NodeMgr.getNodeByPath).not.toHaveBeenCalled();
+
+                expect(await nodeService.query({ path: 'Canvas' })).toEqual({ uuid: 'child' });
+                expect(NodeMgr.getNodeByPath).toHaveBeenCalledWith('Canvas');
+            } finally {
+                NodeMgr.getNodeByPath = originalGetByPath;
+                Service.Editor.getRootNode = originalGetRootNode;
+                sceneUtils.generateNodeDump = originalDump;
+            }
+        });
+
         it('setProperty(name) 应 emit node:change 到 ServiceEvents', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('node:change', listener);
@@ -663,6 +647,35 @@ describe('ServiceEvents 事件发射集成测试', () => {
             });
 
             expect(listener).toHaveBeenCalledWith(node, expect.objectContaining({ propPath: 'name' }));
+        });
+
+        it('setProperty(name) 应拒绝新的非法名称且不调用底层改名', async () => {
+            const { NodeService } = require('../../scene-process/service/node');
+            const nodeService = new NodeService();
+
+            const { Node: MockNode } = require('cc');
+            const node = new MockNode();
+            node.uuid = 'invalid-name-change';
+            node.name = 'OldName';
+
+            nodeService._undo = {
+                recordNodeSnapshot: jest.fn((_node: any, _opts: any, callback: any) => callback()),
+            };
+
+            const NodeMgr = (global as any).EditorExtends.Node;
+            NodeMgr.getNodeByPath = jest.fn(() => node);
+            NodeMgr.updateNodeName = jest.fn();
+            nodeService.emit = jest.fn();
+
+            await expect(nodeService.setProperty({
+                nodePath: '/TestNode',
+                path: 'name',
+                dump: { value: 'A:B' },
+            })).rejects.toThrow(/illegal character/);
+
+            expect(NodeMgr.updateNodeName).not.toHaveBeenCalled();
+            expect(nodeService.emit).not.toHaveBeenCalled();
+            expect(node.name).toBe('OldName');
         });
 
         it('setProperty(position) 成功后应 broadcast animation:property-committed', async () => {
@@ -770,6 +783,58 @@ describe('ServiceEvents 事件发射集成测试', () => {
     });
 
     describe('ComponentService (component.ts)', () => {
+        it('add 应拒绝挂组件到场景根 (nodePath 指向 scene)', async () => {
+            const { ComponentService } = require('../../scene-process/service/component');
+            const { Service } = require('../../scene-process/service/core');
+            const { Scene } = require('cc');
+            const componentService = new ComponentService();
+
+            const sceneRoot = new Scene();
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetByPath = NodeMgr.getNodeByPath;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            NodeMgr.getNodeByPath = jest.fn(() => sceneRoot);
+            Service.Editor.getRootNode = jest.fn(() => sceneRoot);
+
+            try {
+                await expect(componentService.add({ nodePath: '/', component: 'cc.Label' }))
+                    .rejects.toThrow(/scene root/);
+                await expect(componentService.add({ nodePath: 'SomeScene', component: 'cc.Label' }))
+                    .rejects.toThrow(/scene root/);
+            } finally {
+                NodeMgr.getNodeByPath = originalGetByPath;
+                Service.Editor.getRootNode = originalGetRootNode;
+            }
+        });
+
+        it('add 在 prefab 模式下允许把组件挂到 prefab 根 (nodePath 为 /)', async () => {
+            const { ComponentService } = require('../../scene-process/service/component');
+            const { Service } = require('../../scene-process/service/core');
+            const { Node: MockNode } = require('cc');
+            const componentService = new ComponentService();
+
+            const prefabRoot = new MockNode('Root');
+            const NodeMgr = (global as any).EditorExtends.Node;
+            const originalGetByPath = NodeMgr.getNodeByPath;
+            const originalGetRootNode = Service.Editor.getRootNode;
+            NodeMgr.getNodeByPath = jest.fn(() => null);
+            Service.Editor.getRootNode = jest.fn(() => prefabRoot);
+
+            try {
+                // 用空组件名探测：报“组件名为空”而不是“场景根/不存在”，说明 '/' 已解析到 prefab 根且通过了 guard
+                await expect(componentService.add({ nodePath: '/', component: '' }))
+                    .rejects.toThrow(/component name cannot be empty/);
+                expect(NodeMgr.getNodeByPath).not.toHaveBeenCalled();
+
+                await expect(componentService.add({ nodePath: 'Missing', component: '' }))
+                    .rejects.toThrow(/does not exist/);
+                expect(NodeMgr.getNodeByPath).toHaveBeenCalledWith('Missing');
+            } finally {
+                NodeMgr.getNodeByPath = originalGetByPath;
+                Service.Editor.getRootNode = originalGetRootNode;
+            }
+        });
+
         it('setProperty(__comps__) 成功后应 broadcast animation:property-committed', async () => {
             const listener = jest.fn();
             globalEventEmitter.on('animation:property-committed', listener);
@@ -888,7 +953,7 @@ describe('ServiceEvents 事件发射集成测试', () => {
 
             prefabService.filterChildOfAssetOfPrefabInstance(['child-uuid-1'], 'test operation');
 
-            expect(listener).toHaveBeenCalledWith('/Node-child-uuid-1');
+            expect(listener).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'child-uuid-1' }));
         });
 
         it('filterChildOfAssetOfPrefabInstance 中非 prefab 子节点不应 emit node:change', () => {
@@ -913,7 +978,7 @@ describe('ServiceEvents 事件发射集成测试', () => {
 
             prefabService.filterPartOfPrefabAsset(['part-uuid'], 'test operation');
 
-            expect(listener).toHaveBeenCalledWith('/Node-part-uuid');
+            expect(listener).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'part-uuid' }));
         });
 
         it('filterPartOfPrefabAsset 中非 prefab 部件不应 emit node:change', () => {
@@ -953,7 +1018,7 @@ describe('ServiceEvents 事件发射集成测试', () => {
 
             prefabService.canModifySibling('parent', 0, 1);
 
-            expect(listener).toHaveBeenCalledWith('/PrefabChild');
+            expect(listener).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'prefab-child' }));
         });
     });
 });

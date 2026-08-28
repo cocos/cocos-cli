@@ -473,7 +473,7 @@ describe('Animation Service 场景进程测试', () => {
         const event = await eventPromise;
         const dump = await request('queryClip', [{ clipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(event).toMatchObject({
             reason: 'operation',
             rootPath: nodePath,
@@ -501,7 +501,7 @@ describe('Animation Service 场景进程测试', () => {
         const afterCreate = await request('queryClip', [{ clipUuid }]);
         const positionCurve = afterCreate.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
 
-        expect(createResult).toEqual({ state: 'success', result: true });
+        expect(createResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(positionCurve).toMatchObject({
             nodePath: '',
             key: 'position',
@@ -537,7 +537,7 @@ describe('Animation Service 场景进程测试', () => {
         const afterRemove = await request('queryClip', [{ clipUuid }]);
         const removedCurve = afterRemove.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
 
-        expect(removeResult).toEqual({ state: 'success', result: true });
+        expect(removeResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(removedCurve.keyframes).toEqual([
             { frame: 30, dump: { value: { x: 8, y: 9, z: 10 }, type: 'cc.Vec3' } },
         ]);
@@ -562,7 +562,7 @@ describe('Animation Service 场景进程测试', () => {
         const saveResult = await request('save');
         const afterSave = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(afterCreate.duration).toBe(1);
         expect(Math.round(afterCreate.duration * afterCreate.sample)).toBe(30);
         expect(time).toBe(1);
@@ -595,7 +595,7 @@ describe('Animation Service 场景进程测试', () => {
         const time = await request<number>('queryTime', [{ clipUuid: childClipUuid }]);
         const childNode = await NodeProxy.query({ path: childTrackNodePath, includeChildren: false, includeComponents: false }) as any;
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(Math.round(dump.duration * dump.sample)).toBe(60);
         expect(dump.curves.find((curve: any) => curve.nodePath === 'AnimationServiceChildSamplingChild' && curve.key === 'position')).toBeDefined();
         expect(time).toBe(1);
@@ -624,7 +624,7 @@ describe('Animation Service 场景进程测试', () => {
         const afterEdit = await request('queryClip', [{ rootPath: rootEditNodePath, clipUuid: rootEditClipUuid }]);
         const positionCurve = afterEdit.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(Math.round(afterEdit.duration * afterEdit.sample)).toBe(90);
         expect(positionCurve.keyframes).toEqual([
             { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
@@ -675,7 +675,7 @@ describe('Animation Service 场景进程测试', () => {
         const dump = await request('queryClip', [{ clipUuid }]);
         const scaleCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(scaleCurve.partKeys).toEqual(['x', 'y', 'z']);
         expect(scaleCurve.keyframes).toEqual([
             { frame: 0, dump: { value: { x: 1, y: 1, z: 1 }, type: 'cc.Vec3' } },
@@ -718,7 +718,7 @@ describe('Animation Service 场景进程测试', () => {
         const brokenScaleCurve = afterBroken.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
         const brokenKey = brokenScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
 
-        expect(createResult).toEqual({ state: 'success', result: true });
+        expect(createResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(brokenKey.broken).toBe(true);
 
         const updateResult = await request('applyOperations', [{
@@ -730,7 +730,7 @@ describe('Animation Service 场景进程测试', () => {
         const linkedScaleCurve = afterLinked.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
         const linkedKey = linkedScaleCurve.channels.find((channel: any) => channel.key === 'y').keyframes.find((keyframe: any) => keyframe.frame === 21);
 
-        expect(updateResult).toEqual({ state: 'success', result: true });
+        expect(updateResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(linkedKey.broken).toBe(false);
 
         expectUndoSuccess(await Undo.undo());
@@ -770,7 +770,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const afterUpdateKey = await queryPositionXKey();
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(afterUpdateKey).toMatchObject({
             frame: 60,
             dump: { value: 80, type: 'cc.Number' },
@@ -795,7 +795,7 @@ describe('Animation Service 场景进程测试', () => {
             operations: [
                 { type: 'updatePropertyKey', clipUuid: keyDataClipUuid, propKey: 'position', channel: 'x', frame: 60, keyData: { broken: false } },
             ],
-        }])).toEqual({ state: 'success', result: true });
+        }])).toEqual({ state: 'success', result: true, undoRecorded: true });
         const afterBrokenFalseKey = await queryPositionXKey();
         expect(afterBrokenFalseKey).toMatchObject({
             frame: 60,
@@ -878,7 +878,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const key = await queryEulerYKey();
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(key).toMatchObject({
             frame: 84,
             dump: { value: 84, type: 'cc.Number' },
@@ -924,7 +924,7 @@ describe('Animation Service 场景进程测试', () => {
                 { type: 'createPropertyKey', clipUuid: keyDataClipUuid, propKey: 'eulerAngles', channel: 'x', frame: 36, value: 1 },
             ],
         }]);
-        expect(createResult).toEqual({ state: 'success', result: true });
+        expect(createResult).toEqual({ state: 'success', result: true, undoRecorded: true });
 
         const before = await request('queryClip', [{ rootPath: keyDataNodePath, clipUuid: keyDataClipUuid }]);
         const result = await request('applyOperations', [{
@@ -962,7 +962,7 @@ describe('Animation Service 场景进程测试', () => {
         const dump = await request('queryClip', [{ clipUuid }]);
 
         expect(properties.map((item: any) => item.key)).toEqual(expect.arrayContaining(['rotation', 'active']));
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'rotation')).toMatchObject({
             type: { value: 'cc.Quat' },
             keyframes: [
@@ -1013,7 +1013,7 @@ describe('Animation Service 场景进程测试', () => {
             frame: 30,
         }]);
 
-        expect(createResult).toEqual({ state: 'success', result: true });
+        expect(createResult).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(Math.round(afterCreate.duration * afterCreate.sample)).toBe(31);
         expect(spriteFrameCurve).toMatchObject({
             type: { value: 'cc.SpriteFrame' },
@@ -1065,7 +1065,7 @@ describe('Animation Service 场景进程测试', () => {
             frame: 0,
         }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(sampled).toMatchObject({ r: 32, g: 64, b: 128, a: 255 });
     });
 
@@ -1102,8 +1102,76 @@ describe('Animation Service 场景进程测试', () => {
             frame: 30,
         }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(sampled).toMatchObject({ x: 7, y: 8, z: 9 });
+    });
+
+    it('applyOperations 通过 UUID 只操作同名节点当前绑定的第一个节点', async () => {
+        const { nodePath: rootPath, clipUuid: duplicateClipUuid } = await createIsolatedAnimationNode('AnimationServiceDuplicateNameCase', { duration: 0 });
+        const duplicateName = `AnimationServiceDuplicateTarget_${testRunId}`;
+        const first = await NodeProxy.createByType({
+            path: rootPath,
+            name: duplicateName,
+            nodeType: NodeType.EMPTY,
+        });
+        const second = await NodeProxy.createByType({
+            path: rootPath,
+            name: duplicateName,
+            nodeType: NodeType.EMPTY,
+        });
+        if (!first || !second) {
+            throw new Error('Failed to create duplicate-name animation targets.');
+        }
+
+        try {
+            expect(first.name).toBe(duplicateName);
+            expect(second.name).toBe(duplicateName);
+            expect(first.path).not.toBe(second.path);
+            await ensureAnimationSession(rootPath, duplicateClipUuid);
+
+            const firstResult = await request('applyOperations', [{
+                operations: [
+                    { type: 'addPropertyCurve', clipUuid: duplicateClipUuid, nodeUuid: first.nodeId, propKey: 'position', value: { x: 0, y: 0, z: 0 } },
+                    { type: 'createPropertyKey', clipUuid: duplicateClipUuid, nodeUuid: first.nodeId, propKey: 'position', frame: 0, value: { x: 1, y: 2, z: 3 } },
+                ],
+                recordUndo: false,
+            }]);
+            expect(firstResult).toEqual({ state: 'success', result: true, undoRecorded: false });
+
+            const rejected = await request('applyOperations', [{
+                operations: [
+                    { type: 'createPropertyKey', clipUuid: duplicateClipUuid, nodeUuid: second.nodeId, propKey: 'position', frame: 30, value: { x: 4, y: 5, z: 6 } },
+                ],
+                recordUndo: false,
+            }]);
+            expect(rejected).toMatchObject({
+                state: 'failure',
+                result: false,
+                reason: expect.stringContaining(second.nodeId),
+            });
+
+            await NodeProxy.delete({ path: first.path, keepWorldTransform: false });
+            const secondResult = await request('applyOperations', [{
+                operations: [
+                    { type: 'createPropertyKey', clipUuid: duplicateClipUuid, nodeUuid: second.nodeId, propKey: 'position', frame: 30, value: { x: 4, y: 5, z: 6 } },
+                ],
+                recordUndo: false,
+            }]);
+            expect(secondResult).toEqual({ state: 'success', result: true, undoRecorded: false });
+
+            const dump = await request('queryClip', [{ rootPath, clipUuid: duplicateClipUuid }]);
+            const curve = dump.curves.find((item: any) => item.nodePath === duplicateName && item.key === 'position');
+            expect(curve?.keyframes).toEqual(expect.arrayContaining([
+                expect.objectContaining({ frame: 0 }),
+                expect.objectContaining({ frame: 30 }),
+            ]));
+        } finally {
+            const state = await request('queryState');
+            if (state.active) {
+                await request('exit', [{ save: false, restoreSelection: false, restoreSampledSceneState: false }]);
+            }
+            await NodeProxy.delete({ path: rootPath, keepWorldTransform: false }).catch(() => undefined);
+        }
     });
 
     it('applyOperations 支持普通属性曲线的创建、更新、复制、批量删除和 extrapolation', async () => {
@@ -1123,7 +1191,7 @@ describe('Animation Service 场景进程测试', () => {
         const dump = await request('queryClip', [{ clipUuid }]);
         const positionCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(positionCurve).toMatchObject({
             preExtrap: 1,
             postExtrap: 2,
@@ -1148,7 +1216,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const dump = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(dump.curves.map((curve: any) => curve.key)).toEqual([
             'position',
             'cc.Sprite.color',
@@ -1157,7 +1225,7 @@ describe('Animation Service 场景进程测试', () => {
     });
 
     it('removePropertyKeys 清空关键帧时保留属性轨道，removePropertyCurve 才移除轨道', async () => {
-        await ensureAnimationSession(emptyNodePath, emptyClipUuid);
+        await resetPropertyCurves(emptyNodePath, emptyClipUuid);
 
         const clearResult = await request('applyOperations', [{
             operations: [
@@ -1169,7 +1237,7 @@ describe('Animation Service 场景进程测试', () => {
         const afterClear = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
         const scaleCurveAfterClear = afterClear.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale');
 
-        expect(clearResult).toEqual({ state: 'success', result: true });
+        expect(clearResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(scaleCurveAfterClear).toBeDefined();
         expect(scaleCurveAfterClear.keyframes).toEqual([]);
         expect(scaleCurveAfterClear.channels.every((channel: any) => channel.keyframes.length === 0)).toBe(true);
@@ -1181,7 +1249,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const afterRemove = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
 
-        expect(removeResult).toEqual({ state: 'success', result: true });
+        expect(removeResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(afterRemove.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'scale')).toBeUndefined();
     });
 
@@ -1203,7 +1271,7 @@ describe('Animation Service 场景进程测试', () => {
         const dump = await request('queryClip', [{ clipUuid }]);
         const positionCurve = dump.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(positionCurve.keyframes).toEqual(expect.arrayContaining([
             { frame: 6, dump: { value: sampled, type: 'cc.Vec3' } },
         ]));
@@ -1257,7 +1325,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const dump = await request('queryClip', [{ clipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(dump.embeddedPlayerGroups).toEqual([
             { key: 'particle-track', name: 'Particle Track', type: 'particle-system' },
         ]);
@@ -1302,7 +1370,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const dump = await request('queryClip', [{ clipUuid: embeddedClipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(dump.embeddedPlayers).toEqual([secondPlayer]);
     });
 
@@ -1318,7 +1386,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const dump = await request('queryClip', [{ clipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(dump.auxiliaryCurves.BlendWeight.keyframes).toEqual([
             { frame: 0, value: 0.25 },
             { frame: 60, value: 0.75 },
@@ -1341,7 +1409,7 @@ describe('Animation Service 场景进程测试', () => {
         const sampled = await request('queryAuxiliaryCurveValueAtFrame', [{ clipUuid, name: 'CurveWeight', frame: 15 }]);
         const sampledEnd = await request('queryAuxiliaryCurveValueAtFrame', [{ clipUuid, name: 'CurveWeight', frame: 30 }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(dump.auxiliaryCurves.CurveWeight.keyframes).toEqual([
             { frame: 0, value: 0, interpMode: 1 },
             { frame: 30, value: 1, broken: true, outTangent: 0.5 },
@@ -1365,7 +1433,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const dump = await request('queryClip', [{ clipUuid: emptyClipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(Math.round(dump.duration * dump.sample)).toBeGreaterThanOrEqual(90);
     });
 
@@ -1383,7 +1451,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const after = await request('queryClip', [{ clipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(await Undo.isDirty()).toBe(true);
         expect(await Undo.canUndo()).toBe(true);
         expect(await Undo.canRedo()).toBe(false);
@@ -1430,6 +1498,7 @@ describe('Animation Service 场景进程测试', () => {
 
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
 
         await request('applyOperations', [{
@@ -1439,11 +1508,13 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         state = await request('queryState');
         expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(true);
 
         await request('save');
         state = await request('queryState');
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
 
         expectUndoSuccess(await Undo.undoInAnimationScope());
@@ -1470,6 +1541,7 @@ describe('Animation Service 场景进程测试', () => {
 
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
 
         await request('applyOperations', [{
             operations: [
@@ -1478,11 +1550,13 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         state = await request('queryState');
         expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
 
         await request('save');
         state = await request('queryState');
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
     });
 
@@ -1504,6 +1578,7 @@ describe('Animation Service 场景进程测试', () => {
 
         let state = await request('enter', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid, restoreSelectionOnExit: false }]);
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(true);
 
         await request('applyOperations', [{
             operations: [
@@ -1512,11 +1587,13 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         state = await request('queryState');
         expect(state.dirty).toBe(true);
+        expect(state.sceneDirty).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
 
         await request('save', [{ saveScene: true }]);
         state = await request('queryState');
         expect(state.dirty).toBe(false);
+        expect(state.sceneDirty).toBe(false);
         expect(await Undo.isDirty()).toBe(false);
         expect(await Undo.canUndo()).toBe(true);
     });
@@ -1577,7 +1654,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const after = await request('queryClip', [{ clipUuid: addCurveClipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(after.curves.some((curve: any) => curve.nodePath === '' && curve.key === 'position')).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
         expect(await Undo.canUndo()).toBe(true);
@@ -1617,7 +1694,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const after = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(after.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'position')).toBe(true);
         expect(await Undo.isDirty()).toBe(true);
         expect(await Undo.canUndo()).toBe(true);
@@ -1644,7 +1721,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const afterAdd = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
 
-        expect(addResult).toEqual({ state: 'success', result: true });
+        expect(addResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(afterAdd.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'active')).toBe(true);
 
         const removeResult = await request('applyOperations', [{
@@ -1654,7 +1731,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const afterRemove = await request('queryClip', [{ rootPath: childRootNodePath, clipUuid: childClipUuid }]);
 
-        expect(removeResult).toEqual({ state: 'success', result: true });
+        expect(removeResult).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(afterRemove.curves.some((curve: any) => curve.nodePath === childRelativePath && curve.key === 'active')).toBe(false);
     });
 
@@ -1680,7 +1757,7 @@ describe('Animation Service 场景进程测试', () => {
         const after = await request('queryClip', [{ rootPath: emptyNodePath, clipUuid: emptyClipUuid }]);
         const positionCurve = after.curves.find((curve: any) => curve.nodePath === '' && curve.key === 'position');
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(positionCurve.keyframes).toEqual([
             { frame: 0, dump: { value: { x: 0, y: 0, z: 0 }, type: 'cc.Vec3' } },
             { frame: 30, dump: { value: { x: 123, y: 0, z: 0 }, type: 'cc.Vec3' } },
@@ -1738,7 +1815,7 @@ describe('Animation Service 场景进程测试', () => {
             absorbPreviousScenePropertyUndo: true,
         }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(await Undo.canUndoInAnimationScope()).toBe(true);
 
         expectUndoSuccess(await Undo.undoInAnimationScope());
@@ -1772,7 +1849,7 @@ describe('Animation Service 场景进程测试', () => {
             absorbPreviousScenePropertyUndo: true,
         }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(await Undo.canUndoInAnimationScope()).toBe(true);
 
         expectUndoSuccess(await Undo.undoInAnimationScope());
@@ -1813,7 +1890,7 @@ describe('Animation Service 场景进程测试', () => {
             absorbPreviousScenePropertyUndo: true,
         }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(await Undo.canUndoInAnimationScope()).toBe(true);
 
         expectUndoSuccess(await Undo.undoInAnimationScope());
@@ -1844,7 +1921,7 @@ describe('Animation Service 场景进程测试', () => {
             absorbPreviousScenePropertyUndo: true,
         }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect(await Undo.canUndoInAnimationScope()).toBe(true);
 
         expectUndoSuccess(await Undo.undoInAnimationScope());
@@ -1906,7 +1983,7 @@ describe('Animation Service 场景进程测试', () => {
                 { type: 'createPropertyKey', clipUuid: emptyClipUuid, propKey: 'position', frame: 30, value: { x: 30, y: 0, z: 0 } },
             ],
         }]);
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: true });
         expect((await request('queryState')).dirty).toBe(true);
 
         await request('exit', [{ save: false, restoreSelection: false }]);
@@ -1915,6 +1992,24 @@ describe('Animation Service 场景进程测试', () => {
 
         expect(afterDiscard.curves).toEqual(before.curves);
         expect((await request('queryState')).dirty).toBe(false);
+    });
+
+    it('applyOperations 无实际变更时不写入 undo 栈', async () => {
+        await ensureAnimationSession(nodePath, clipUuid);
+        await Undo.clearHistory();
+        await Undo.markSaved();
+
+        const before = await request('queryClip', [{ clipUuid }]);
+        const result = await request('applyOperations', [{
+            operations: [
+                { type: 'changeSpeed', clipUuid, speed: before.speed },
+            ],
+        }]);
+
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
+        expect(await Undo.isDirty()).toBe(false);
+        expect(await Undo.canUndo()).toBe(false);
+        expect(await Undo.canRedo()).toBe(false);
     });
 
     it('applyOperations recordUndo 为 false 时不写入 undo 栈', async () => {
@@ -1931,7 +2026,7 @@ describe('Animation Service 场景进程测试', () => {
         }]);
         const after = await request('queryClip', [{ clipUuid }]);
 
-        expect(result).toEqual({ state: 'success', result: true });
+        expect(result).toEqual({ state: 'success', result: true, undoRecorded: false });
         expect(after.speed).toBe(before.speed + 0.125);
         expect(await Undo.isDirty()).toBe(false);
         expect(await Undo.canUndo()).toBe(false);

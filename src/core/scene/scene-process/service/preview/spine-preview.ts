@@ -2,6 +2,7 @@ import { InteractivePreview, getBoundaryOfMeshNodes } from './interactive-previe
 import { Scene, Node, assetManager, DirectionalLight, Canvas } from 'cc';
 import { Service } from '../core/decorator';
 import type { ISpinePreviewInstance } from '../../../common/preview';
+import { loadPreviewAsset } from './asset-reload';
 
 export class SpinePreview extends InteractivePreview implements ISpinePreviewInstance {
     protected is2D = true;
@@ -46,14 +47,7 @@ export class SpinePreview extends InteractivePreview implements ISpinePreviewIns
         this.close();
 
         try {
-            const skeletonData = await new Promise<any>((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error(`Load spine timeout: ${uuid}`)), 10000);
-                assetManager.loadAny(uuid, (err: any, asset: any) => {
-                    clearTimeout(timeout);
-                    if (err) reject(err);
-                    else resolve(asset);
-                });
-            });
+            const skeletonData = await loadPreviewAsset<any>(uuid, 'spine');
 
             this.skeletonComponent.node.active = true;
             this.skeletonComponent.skeletonData = skeletonData;

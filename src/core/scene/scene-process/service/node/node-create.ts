@@ -12,6 +12,7 @@ import {
     Canvas,
     UITransform,
     Scene,
+    director,
     instantiate,
     CCObject,
 } from 'cc';
@@ -39,6 +40,23 @@ export async function loadAny<TAsset extends Asset>(uuid: string): Promise<TAsse
     });
 }
 
+async function loadCachedOrAny<TAsset extends Asset>(uuid: string): Promise<TAsset> {
+    const cached = assetManager.assets.get(uuid) as TAsset | undefined;
+    if (cached) {
+        return cached;
+    }
+
+    return new Promise<TAsset>((resolve, reject) => {
+        assetManager.loadAny<TAsset>(uuid, (error, asset) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(asset);
+            }
+        });
+    });
+}
+
 export async function createNodeByAsset(info: {
     uuid: string,
     canvasRequired?: boolean,
@@ -50,7 +68,7 @@ export async function createNodeByAsset(info: {
 
     let asset;
     let node;
-    let newCanvasRequired = canvasRequired ?? false;
+    let newCanvasRequired = Boolean(canvasRequired) || getCanvasRequiredByAssetType(type, workMode);
 
     switch (type) {
         case 'cc.AnimationClip':
@@ -127,11 +145,7 @@ export async function createNodeByAsset(info: {
             {
                 asset = await loadAny<Prefab>(uuid);
                 node = cc.instantiate(asset);
-                if (node) {
-                    if (node.getComponentsInChildren(UITransform).length > 0) {
-                        newCanvasRequired = node.getComponentsInChildren(Canvas).length === 0;
-                    }
-                }
+                newCanvasRequired = newCanvasRequired || Boolean(node && getPrefabCanvasRequired(node));
             }
             break;
         case 'cc.Script':
@@ -154,12 +168,7 @@ export async function createNodeByAsset(info: {
             {
                 asset = await loadAny<SpriteFrame>(uuid);
 
-                let useSpriteRenderer = false;
-                if (workMode === '3d') {
-                    const scene = cc.director.getScene();
-                    const hasCanvas = scene && scene.getComponentsInChildren(Canvas).length > 0;
-                    useSpriteRenderer = !hasCanvas;
-                }
+                const useSpriteRenderer = shouldUseSpriteRenderer(workMode);
 
                 const spritePrefabUuid = '9db8cd0b-cbe4-42e7-96a9-a239620c0a9d';
                 const spriteRendererPrefabUuid = '279ed042-5a65-4efe-9afb-2fc23c61e15a';
@@ -171,7 +180,6 @@ export async function createNodeByAsset(info: {
                 node.name = asset.name;
 
                 if (useSpriteRenderer) {
-                    newCanvasRequired = false;
                     const sprite: any = node.getComponent(cc.SpriteRenderer);
                     if (sprite) {
                         sprite.spriteFrame = asset;
@@ -295,6 +303,62 @@ export async function createNodeByAsset(info: {
     };
 }
 
+/**
+ * Resolve the Canvas requirement of an asset without attaching a node to the scene.
+ */
+export async function queryCanvasRequiredByAsset(info: {
+    uuid: string,
+    type?: string,
+    workMode?: string,
+}): Promise<boolean> {
+    if (info.type === 'cc.Prefab') {
+        const prefab = await loadCachedOrAny<Prefab>(info.uuid);
+        const node = cc.instantiate(prefab) as Node;
+        try {
+            return getPrefabCanvasRequired(node);
+        } finally {
+            node.destroy();
+        }
+    }
+
+    return getCanvasRequiredByAssetType(info.type, info.workMode);
+}
+
+function getPrefabCanvasRequired(node: Node): boolean {
+    return node.getComponentsInChildren(UITransform).length > 0
+        && node.getComponentsInChildren(Canvas).length === 0;
+}
+
+function getCanvasRequiredByAssetType(type: string | undefined, workMode: string | undefined): boolean {
+    switch (type) {
+        case 'cc.BitmapFont':
+        case 'cc.LabelAtlas':
+        case 'cc.ParticleAsset':
+        case 'cc.TTFFont':
+        case 'cc.TiledMapAsset':
+        case 'cc.VideoClip':
+            return true;
+        case 'cc.SpriteFrame':
+            return !shouldUseSpriteRenderer(workMode);
+        case 'dragonBones.DragonBonesAsset':
+        case 'dragonBones.DragonBonesAtlasAsset':
+            return Boolean(cc.dragonBones);
+        case 'sp.SkeletonData':
+            return Boolean(cc.sp);
+        default:
+            return false;
+    }
+}
+
+function shouldUseSpriteRenderer(workMode: string | undefined): boolean {
+    if (workMode !== '3d') {
+        return false;
+    }
+
+    const scene = director.getScene();
+    return !scene || scene.getComponentsInChildren(Canvas).length === 0;
+}
+
 // 防止多次调用
 const pendingCanvasPromises = new Map<Scene, Promise<Node>>();
 /**
@@ -317,13 +381,10 @@ export async function createShouldHideInHierarchyCanvasNode(scene: Scene, workMo
     }
 
     const creationPromise = (async () => {
-        const canvasAssetUuid = 'f773db21-62b8-4540-956a-29bacf5ddbf5';
-        // TODO 这里的需要知道当前场景是 2D 还是 3D，如果使用了 2D 的 canvas，
-        //  它的 camera 的优先级是为 0，会导致 3D 场景创建了 canvas 运行显示不出 UI 节点
-        //  目前先改注释掉，后续场景有 2D/3D 才去做判断
-        // if (workMode === '2d') {
-        //     canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
-        // }
+        let canvasAssetUuid = 'f773db21-62b8-4540-956a-29bacf5ddbf5';
+        if (workMode === '2d') {
+            canvasAssetUuid = '4c33600e-9ca9-483b-b734-946008261697';
+        }
 
         const canvasAsset = await loadAny<Prefab>(canvasAssetUuid);
         // 实例化后是一个 prefab, 需要继续 unlink prefab

@@ -679,7 +679,7 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - 设置SpriteFrame', async () => {
             try {
-                // 对错误的值 类型 会修改失败，但是返回还是true
+                // 正确的 SpriteFrame 子资源 UUID 应原样写入
                 const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
@@ -697,6 +697,33 @@ describe('Component Proxy 测试', () => {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
             }
+        });
+        it('setProperty - 设置组件属性 - 图片父UUID自动规范化为SpriteFrame', async () => {
+            const result = await ComponentProxy.setProperty({
+                componentPath,
+                properties: {
+                    spriteFrame: {
+                        uuid: '20835ba4-6145-4fbc-a58a-051ce700aa3e'
+                    }
+                }
+            });
+
+            expect(result).toBe(true);
+            componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
+            expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe('20835ba4-6145-4fbc-a58a-051ce700aa3e@f9941');
+        });
+        it('setProperty - 设置组件属性 - 未解析UUID保持历史placeholder行为', async () => {
+            const missingUuid = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+            const result = await ComponentProxy.setProperty({
+                componentPath,
+                properties: {
+                    spriteFrame: { uuid: missingUuid }
+                }
+            });
+
+            expect(result).toBe(true);
+            componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
+            expect(componentInfo?.properties['spriteFrame'].value.uuid).toBe(missingUuid);
         });
     });
 
@@ -1224,6 +1251,148 @@ describe('Component Proxy 测试', () => {
             expect(result).toContain('cc.Label');
             expect(result).toContain('cc.Sprite');
             expect(result).toContain('cc.Button');
+        });
+    });
+
+    describe('19. recalculateLODGroupBounds - 重算 LODGroup 包围盒', () => {
+        it('空 LODGroup 应返回零值边界', async () => {
+            const component = await ComponentProxy.add({
+                nodePath,
+                component: 'cc.LODGroup',
+            });
+            try {
+                const result = await ComponentProxy.recalculateLODGroupBounds({
+                    path: component.path,
+                    record: false,
+                });
+
+                expect(result).toEqual({
+                    localBoundaryCenter: { x: 0, y: 0, z: 0 },
+                    objectSize: 0,
+                });
+            } finally {
+                await ComponentProxy.remove({ path: component.path });
+            }
+        });
+
+        it('非 LODGroup 组件应拒绝重算', async () => {
+            const component = await ComponentProxy.add({
+                nodePath,
+                component: 'cc.Label',
+            });
+            try {
+                await expect(ComponentProxy.recalculateLODGroupBounds({
+                    path: component.path,
+                    record: false,
+                })).rejects.toThrow('component is not cc.LODGroup');
+            } finally {
+                await ComponentProxy.remove({ path: component.path });
+            }
+        });
+    });
+
+    describe('20. LODGroup level operations - LOD 层级操作', () => {
+        it('inserts and erases LOD levels with serialized state', async () => {
+            const component = await ComponentProxy.add({
+                nodePath,
+                component: 'cc.LODGroup',
+            });
+            try {
+                const first = await ComponentProxy.insertLOD({
+                    path: component.path,
+                    index: 0,
+                    record: false,
+                });
+                expect(first.lodCount).toBe(4);
+                expect(first.screenUsagePercentages).toHaveLength(4);
+                expect(first.screenUsagePercentages[0]).toBe(0.25);
+
+                const second = await ComponentProxy.insertLOD({
+                    path: component.path,
+                    index: 1,
+                    record: false,
+                });
+                expect(second.lodCount).toBe(5);
+                expect(second.screenUsagePercentages).toHaveLength(5);
+
+                const erased = await ComponentProxy.eraseLOD({
+                    path: component.path,
+                    index: 1,
+                    record: false,
+                });
+                expect(erased).toEqual(first);
+            } finally {
+                await ComponentProxy.remove({ path: component.path });
+            }
+        });
+
+        it('rejects invalid indices, zero screen usage, and erasing the final level', async () => {
+            const component = await ComponentProxy.add({
+                nodePath,
+                component: 'cc.LODGroup',
+            });
+            try {
+                await expect(ComponentProxy.insertLOD({
+                    path: component.path,
+                    index: 4,
+                    record: false,
+                })).rejects.toThrow('LOD insert index');
+                await expect(ComponentProxy.insertLOD({
+                    path: component.path,
+                    index: 0,
+                    screenUsagePercentage: 0,
+                    record: false,
+                })).rejects.toThrow('screenUsagePercentage must be in (0, 1]');
+
+                await ComponentProxy.eraseLOD({ path: component.path, index: 2, record: false });
+                await ComponentProxy.eraseLOD({ path: component.path, index: 1, record: false });
+                await expect(ComponentProxy.eraseLOD({
+                    path: component.path,
+                    index: 0,
+                    record: false,
+                })).rejects.toThrow('at least 1 LOD level');
+
+                for (let index = 1; index < 8; index++) {
+                    await ComponentProxy.insertLOD({
+                        path: component.path,
+                        index,
+                        record: false,
+                    });
+                }
+                await expect(ComponentProxy.insertLOD({
+                    path: component.path,
+                    index: 8,
+                    record: false,
+                })).rejects.toThrow('more than 8 LOD levels');
+            } finally {
+                await ComponentProxy.remove({ path: component.path });
+            }
+        });
+
+        it('queries raw relative height from the current editor camera', async () => {
+            const component = await ComponentProxy.add({
+                nodePath,
+                component: 'cc.LODGroup',
+            });
+            try {
+                const zeroSizeResult = await ComponentProxy.queryLODGroupRelativeHeight({
+                    path: component.path,
+                });
+                expect(zeroSizeResult).toBe(0);
+
+                await ComponentProxy.setProperty({
+                    componentPath: component.path,
+                    properties: { objectSize: 2 },
+                    record: false,
+                });
+                const result = await ComponentProxy.queryLODGroupRelativeHeight({
+                    path: component.path,
+                });
+                expect(Number.isFinite(result)).toBe(true);
+                expect(result).toBeGreaterThan(0);
+            } finally {
+                await ComponentProxy.remove({ path: component.path });
+            }
         });
     });
 });

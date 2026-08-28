@@ -1,5 +1,6 @@
 import { InteractivePreview, getBoundaryOfMeshNodes } from './interactive-preview';
-import { DirectionalLight, Scene, assetManager, Prefab, instantiate, UITransform, Canvas, Node } from 'cc';
+import { DirectionalLight, Scene, Prefab, instantiate, UITransform, Canvas, Node } from 'cc';
+import { loadPreviewAsset } from './asset-reload';
 
 export class PrefabPreview extends InteractivePreview {
     private lightComp: DirectionalLight | any;
@@ -26,19 +27,8 @@ export class PrefabPreview extends InteractivePreview {
             this.canvasNode.parent = null;
         }
 
-        if (assetManager.assets.has(uuid)) {
-            assetManager.releaseAsset(assetManager.assets.get(uuid)!);
-            assetManager.assets.remove(uuid);
-        }
         try {
-            const prefabAsset = await new Promise<Prefab>((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error(`Load prefab timeout: ${uuid}`)), 10000);
-                assetManager.loadAny(uuid, (err: any, asset: any) => {
-                    clearTimeout(timeout);
-                    if (err) reject(err);
-                    else resolve(asset);
-                });
-            });
+            const prefabAsset = await loadPreviewAsset<Prefab>(uuid, 'prefab');
             this._modelNode = instantiate(prefabAsset);
 
             const needCreateCanvas = this._modelNode.getComponentsInChildren(UITransform).length > 0

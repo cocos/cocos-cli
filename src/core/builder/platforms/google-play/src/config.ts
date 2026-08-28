@@ -67,6 +67,7 @@ const config: IPlatformBuildPluginConfig = {
                 gles3: true,
                 gles2: true,
             },
+            hidden: true,
         },
         packageName: {
             label: 'i18n:google-play.options.package_name',
@@ -87,35 +88,10 @@ const config: IPlatformBuildPluginConfig = {
         },
         appABIs: {
             label: 'i18n:google-play.options.appABIs',
-            type: 'object',
-            properties: {
-                'arm64-v8a': {
-                    label: 'arm64-v8a',
-                    type: 'boolean',
-                    default: true,
-                },
-                'arm-v7a': {
-                    label: 'arm-v7a',
-                    type: 'boolean',
-                    default: false,
-                },
-                x86: {
-                    label: 'x86',
-                    type: 'boolean',
-                    default: false,
-                },
-                x86_64: {
-                    label: 'x86_64',
-                    type: 'boolean',
-                    default: false,
-                },
-            },
-            default: {
-                'arm64-v8a': true,
-                'arm-v7a': false,
-                x86: false,
-                x86_64: false,
-            },
+            type: 'array',
+            items: { type: 'string' },
+            default: ['arm64-v8a'],
+            hidden: true,
         },
         useDebugKeystore: {
             label: 'i18n:google-play.KEYSTORE.use_debug_keystore',
@@ -184,6 +160,7 @@ const config: IPlatformBuildPluginConfig = {
                 landscapeRight: true,
                 landscapeLeft: true,
             },
+            hidden: true,
         },
         appBundle: {
             label: 'i18n:google-play.options.app_bundle',
@@ -197,14 +174,16 @@ const config: IPlatformBuildPluginConfig = {
             default: false,
         },
         googleBilling: {
-            label: 'i18n:google-play.tips.google_play_billing',
+            label: 'i18n:google-play.options.google_play_billing',
             type: 'boolean',
             default: true,
+            hidden: true,
         },
         inputSDK: {
             label: 'i18n:google-play.options.input_sdk',
             type: 'boolean',
             default: false,
+            hidden: true,
         },
         remoteUrl: {
             label: 'i18n:google-play.options.remoteUrl',

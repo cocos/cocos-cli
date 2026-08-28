@@ -2,12 +2,13 @@
 
 import type { Node } from 'cc';
 import { EventEmitter } from 'events';
+import findLast from 'lodash/findLast';
 
 import * as ObjectWalker from '../missing-reporter/object-walker';
 import utils from '../../../base/utils';
 import pathManager from './node-path-manager';
+import { normalizeNodePath, validateNodeName } from './path-utils';
 
-const lodash = require('lodash');
 
 export default class NodeManager extends EventEmitter {
     // 当前在场景树中的节点集合,包括在层级管理器中隐藏的
@@ -28,6 +29,12 @@ export default class NodeManager extends EventEmitter {
     add(uuid: string, node: Node) {
         if (!this.allow) {
             return;
+        }
+        const nameError = validateNodeName(node.name);
+        if (nameError) {
+            console.warn(
+                `Node: preserving legacy node name "${node.name}". ${nameError}`,
+            );
         }
         this._map[uuid] = node;
 
@@ -62,8 +69,9 @@ export default class NodeManager extends EventEmitter {
             return;
         }
         const node = this._map[uuid];
+        const parentUuid = this._getParentUuid(uuid);
 
-        pathManager.remove(uuid);
+        pathManager.remove(uuid, parentUuid);
 
         // 清理父子关系
         this._cleanupParentRelations(uuid);
@@ -92,11 +100,18 @@ export default class NodeManager extends EventEmitter {
 
 
     /**
-     * 更新节点名称和路径
+     * Update node name and path.
+     * API entry points reject illegal names, but undo/redo may restore a legacy name directly.
+     * Preserve that display name and let NodePathManager sanitize only its system path segment.
      */
     updateNodeName(uuid: string, newName: string) {
         if (!this._map[uuid]) {
             return;
+        }
+
+        const error = validateNodeName(newName);
+        if (error) {
+            console.warn(`Node: preserving legacy node name "${newName}". ${error}`);
         }
 
         const node = this._map[uuid];
@@ -104,10 +119,6 @@ export default class NodeManager extends EventEmitter {
         // 获取父节点UUID
         const parentUuid = this._getParentUuid(uuid);
         pathManager.updateUuid(uuid, newName, parentUuid);
-        // 更新节点名称计数
-        if (parentUuid) {
-            this._updateNameCount(parentUuid, node.name, newName);
-        }
 
         // 更新节点对象的名称
         node.name = newName;
@@ -143,11 +154,6 @@ export default class NodeManager extends EventEmitter {
             this._parentChildren.get(newParentUuid)!.add(uuid);
         }
 
-        const finalName = newPath.split('/').pop();
-        if (finalName && node.name !== finalName) {
-            node.name = finalName;
-        }
-
         return newPath;
     }
 
@@ -160,10 +166,11 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodeByPath(path: string): Node | null {
-        if (path === '/') {
+        const normalized = normalizeNodePath(path);
+        if (normalized === '/') {
             return cc.director.getScene() ?? null;
         }
-        const result = pathManager.getNodeResult(path);
+        const result = pathManager.getNodeResult(normalized);
         if (result.error === 'Ambiguous') {
             throw new Error(`The path "${path}" is ambiguous. Multiple nodes found with case-insensitive match.`);
         }
@@ -189,11 +196,12 @@ export default class NodeManager extends EventEmitter {
     }
 
     getNodeUuidByPath(path: string): string | null {
-        if (path === '/') {
+        const normalized = normalizeNodePath(path);
+        if (normalized === '/') {
             const scene = cc.director.getScene();
             return scene ? scene.uuid : null;
         }
-        const uuid = pathManager.getNodeUuid(path);
+        const uuid = pathManager.getNodeUuid(normalized);
         const node = uuid && this.getNode(uuid);
         return node ? node.uuid : null;
     }
@@ -246,7 +254,7 @@ export default class NodeManager extends EventEmitter {
                 }
 
                 if (isAsset || isScript) {
-                    const node = lodash.findLast(parsedObjects, (item: any) => item instanceof cc.Node);
+                    const node = findLast(parsedObjects, (item: any) => item instanceof cc.Node);
 
                     if (node && !nodesUuid.includes(node.uuid)) {
                         nodesUuid.push(node.uuid);
@@ -324,7 +332,6 @@ export default class NodeManager extends EventEmitter {
         const parentUuid = this._getParentUuid(uuid);
         if (parentUuid) {
             this._parentChildren.get(parentUuid)?.delete(uuid);
-            this._updateNameCount(parentUuid, this._map[uuid]?.name, null);
         }
 
         // 递归清理所有子节点
@@ -334,24 +341,6 @@ export default class NodeManager extends EventEmitter {
                 this.remove(childUuid);
             }
             this._parentChildren.delete(uuid);
-        }
-    }
-
-    /**
-     * 更新名称计数
-     */
-    private _updateNameCount(parentUuid: string, oldName: string | null, newName: string | null) {
-        const nameSet = pathManager.getNameSet(parentUuid);
-        if (!nameSet) {
-            return;
-        }
-
-        if (oldName) {
-            nameSet.delete(oldName);
-        }
-
-        if (newName) {
-            nameSet.add(newName);
         }
     }
 }

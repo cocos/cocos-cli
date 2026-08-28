@@ -40,9 +40,12 @@ const gizmoMap: Record<TransformToolDataToolNameType, TransformBaseGizmo> = {
 class TransformGizmo extends GizmoBase<Component> {
     private _gizmo: TransformBaseGizmo;
     protected updateControllerTransform?(): void;
-
-    private static _activeInstances = new Set<TransformGizmo>();
-    private static _sharedEventMap: { [key: string]: () => void } | null = null;
+    private _eventMap: { [key: string]: () => void } = {
+        toolNameChanged: () => {
+            const toolName = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
+            this.changeTool(toolName as TransformToolDataToolNameType);
+        },
+    };
 
     constructor(target: Component | null) {
         super(target);
@@ -83,33 +86,6 @@ class TransformGizmo extends GizmoBase<Component> {
         this._gizmo.show();
     }
 
-    private static _ensureSharedEventMap() {
-        if (TransformGizmo._sharedEventMap) return;
-        TransformGizmo._sharedEventMap = {
-            toolNameChanged: () => {
-                const tn = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
-                for (const inst of TransformGizmo._activeInstances) {
-                    inst.changeTool(tn as TransformToolDataToolNameType);
-                }
-            },
-            viewModeChanged: () => {
-                repaintEngine();
-            },
-            pivotChanged: () => {
-                const toolName = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
-                const gizmo = gizmoMap[toolName as TransformToolDataToolNameType];
-                (gizmo as any)?.updateControllerTransform?.();
-                repaintEngine();
-            },
-            coordinateChanged: () => {
-                const toolName = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
-                const gizmo = gizmoMap[toolName as TransformToolDataToolNameType];
-                (gizmo as any)?.updateControllerTransform?.();
-                repaintEngine();
-            },
-        };
-    }
-
     init() {
         (this._gizmo as any).init?.();
     }
@@ -133,18 +109,27 @@ class TransformGizmo extends GizmoBase<Component> {
         const toolName = svc?.Gizmo?.transformToolData?.toolName ?? 'position';
         this.changeTool(toolName as TransformToolDataToolNameType);
 
-        const wasEmpty = TransformGizmo._activeInstances.size === 0;
-        TransformGizmo._activeInstances.add(this);
+        this._eventMap.toolNameChanged = () => {
+            const name = getService()?.Gizmo?.transformToolData?.toolName ?? 'position';
+            this.changeTool(name as TransformToolDataToolNameType);
+        };
+        this._eventMap.viewModeChanged = () => {
+            repaintEngine();
+        };
+        this._eventMap.pivotChanged = () => {
+            (this._gizmo as any).updateControllerTransform?.();
+            repaintEngine();
+        };
+        this._eventMap.coordinateChanged = () => {
+            (this._gizmo as any).updateControllerTransform?.();
+            repaintEngine();
+        };
 
-        if (wasEmpty) {
-            TransformGizmo._ensureSharedEventMap();
-            const ttd = svc?.Gizmo?.transformToolData;
-            const em = TransformGizmo._sharedEventMap!;
-            ttd?.addListener?.('tool-name-changed', em.toolNameChanged);
-            ttd?.addListener?.('view-mode-changed', em.viewModeChanged);
-            ttd?.addListener?.('pivot-changed', em.pivotChanged);
-            ttd?.addListener?.('coordinate-changed', em.coordinateChanged);
-        }
+        const ttd = svc?.Gizmo?.transformToolData;
+        ttd?.addListener?.('tool-name-changed', this._eventMap.toolNameChanged);
+        ttd?.addListener?.('view-mode-changed', this._eventMap.viewModeChanged);
+        ttd?.addListener?.('pivot-changed', this._eventMap.pivotChanged);
+        ttd?.addListener?.('coordinate-changed', this._eventMap.coordinateChanged);
 
         this._gizmo.onShow?.();
     }
@@ -154,20 +139,12 @@ class TransformGizmo extends GizmoBase<Component> {
             super.onHide();
         }
 
-        TransformGizmo._activeInstances.delete(this);
-
-        if (TransformGizmo._activeInstances.size === 0) {
-            const svc = getService();
-            const ttd = svc?.Gizmo?.transformToolData;
-            const em = TransformGizmo._sharedEventMap;
-            if (em) {
-                ttd?.removeListener?.('tool-name-changed', em.toolNameChanged);
-                ttd?.removeListener?.('view-mode-changed', em.viewModeChanged);
-                ttd?.removeListener?.('pivot-changed', em.pivotChanged);
-                ttd?.removeListener?.('coordinate-changed', em.coordinateChanged);
-            }
-            TransformGizmo._sharedEventMap = null;
-        }
+        const svc = getService();
+        const ttd = svc?.Gizmo?.transformToolData;
+        ttd?.removeListener?.('tool-name-changed', this._eventMap.toolNameChanged);
+        ttd?.removeListener?.('view-mode-changed', this._eventMap.viewModeChanged);
+        ttd?.removeListener?.('pivot-changed', this._eventMap.pivotChanged);
+        ttd?.removeListener?.('coordinate-changed', this._eventMap.coordinateChanged);
 
         this._gizmo.onHide?.();
     }
@@ -177,21 +154,6 @@ class TransformGizmo extends GizmoBase<Component> {
     }
 
     public onDestroy(): void {
-        if (TransformGizmo._activeInstances.has(this)) {
-            TransformGizmo._activeInstances.delete(this);
-            if (TransformGizmo._activeInstances.size === 0) {
-                const svc = getService();
-                const ttd = svc?.Gizmo?.transformToolData;
-                const em = TransformGizmo._sharedEventMap;
-                if (em) {
-                    ttd?.removeListener?.('tool-name-changed', em.toolNameChanged);
-                    ttd?.removeListener?.('view-mode-changed', em.viewModeChanged);
-                    ttd?.removeListener?.('pivot-changed', em.pivotChanged);
-                    ttd?.removeListener?.('coordinate-changed', em.coordinateChanged);
-                }
-                TransformGizmo._sharedEventMap = null;
-            }
-        }
         this._gizmo.onDestroy?.();
     }
 

@@ -1,6 +1,7 @@
 import { type } from 'os';
 import { IAsset, IAssetInfo, VirtualAsset, Asset, IExportData, IAssetType } from './asset';
-import { Migrate } from '@cocos/asset-db/libs/importer';
+import { Migrate } from '@cocos/asset-db';
+import type { AssetPropertySchemaMap } from '../public';
 
 export interface CustomOperator {
     label?: string; // 处理方法名，displayName 将会出现在一些文档定义上
@@ -93,8 +94,8 @@ export interface AssetHandlerBase extends CustomHandlerBase {
     // 对应导入资源在导入后的资源类型信息，未传递默认为 cc.Asset
     assetType?: IAssetType;
 
-    // Schema-only userData config. It is not registered as runtime default userData.
-    propertySchemaConfig?: Record<string, IUerDataConfigItem>;
+    // Schema-only userData property schema. It is not registered as runtime default userData.
+    propertySchemaConfig?: AssetPropertySchemaMap;
 
     // 指定资源的 userData 配置
     userDataConfig?: {

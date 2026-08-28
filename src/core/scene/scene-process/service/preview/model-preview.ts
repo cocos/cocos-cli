@@ -1,7 +1,8 @@
 import { InteractivePreview, getBoundaryOfMeshNodes } from './interactive-preview';
-import { DirectionalLight, Scene, Node, Prefab, assetManager, instantiate } from 'cc';
+import { DirectionalLight, Scene, Node, Prefab, instantiate } from 'cc';
 import { Service } from '../core/decorator';
 import { Rpc } from '../../rpc';
+import { loadPreviewAsset, removePreviewAssetCache } from './asset-reload';
 
 export class ModelPreview extends InteractivePreview {
     private lightComp: DirectionalLight | any;
@@ -14,21 +15,20 @@ export class ModelPreview extends InteractivePreview {
 
     // For gltf/fbx root assets, resolve to the Prefab sub-asset UUID
     // (the root asset has no .json library file — only sub-assets do)
-    private async resolvePrefabUuid(uuid: string): Promise<string> {
-        try {
-            const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid, ['subAssets']]);
-            if (assetInfo?.subAssets) {
-                for (const name of Object.keys(assetInfo.subAssets)) {
-                    const sub = assetInfo.subAssets[name];
-                    if (sub.importer === 'gltf-scene' || sub.type === 'cc.Prefab') {
-                        return sub.uuid;
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('[ModelPreview] Failed to resolve prefab sub-asset:', e);
+    private async resolvePrefabUuid(uuid: string): Promise<string | null> {
+        // Creator's FBX inspector explicitly passes the generated cc.Prefab
+        // child to ModelPreview. A source FBX/GLTF root has no library .json,
+        // therefore it must never be used as a fallback load target.
+        const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid, ['subAssets']]);
+        if (assetInfo?.type === 'cc.Prefab') {
+            return assetInfo.uuid || uuid;
         }
-        return uuid;
+        for (const sub of Object.values(assetInfo?.subAssets || {}) as any[]) {
+            if (sub?.type === 'cc.Prefab' || sub?.importer === 'gltf-scene') {
+                return sub.uuid;
+            }
+        }
+        return null;
     }
 
     public async setModel(uuid: string) {
@@ -38,14 +38,12 @@ export class ModelPreview extends InteractivePreview {
         }
 
         const prefabUuid = await this.resolvePrefabUuid(uuid);
+        if (!prefabUuid) {
+            throw new Error(`Unable to preview model ${uuid}: the imported cc.Prefab sub-asset is unavailable.`);
+        }
 
-        assetManager.assets.remove(prefabUuid);
-        const prefabAsset = await new Promise<Prefab>((resolve, reject) => {
-            assetManager.loadAny(prefabUuid, { reloadAsset: true }, (err: any, result: any) => {
-                if (err) reject(err);
-                else resolve(result);
-            });
-        });
+        removePreviewAssetCache(uuid);
+        const prefabAsset = await loadPreviewAsset<Prefab>(prefabUuid, 'model', { reloadAsset: true });
 
         this.cameraComp.enabled = true;
 
@@ -61,12 +59,21 @@ export class ModelPreview extends InteractivePreview {
 
         this.resetCamera(this._modelNode);
 
-        Service.Engine.repaintInEditMode();
         return await new Promise((resolve) => {
             cc.director.once(cc.Director.EVENT_AFTER_DRAW, () => {
                 this.perfectCameraView(getBoundaryOfMeshNodes([this._modelNode!]));
+                const engine = Service.Engine as any;
+                if (typeof engine.forceRepaintInEditMode === 'function') {
+                    engine.forceRepaintInEditMode();
+                }
                 resolve(null);
             });
+            const engine = Service.Engine as any;
+            if (typeof engine.forceRepaintInEditMode === 'function') {
+                engine.forceRepaintInEditMode();
+            } else {
+                Service.Engine.repaintInEditMode();
+            }
         });
     }
 

@@ -4,7 +4,7 @@ import { url2path, url2uuid } from '../utils';
 import EventEmitter from 'events';
 import { AssetManagerEvents, IAsset, IAssetInfo, IAssetDBInfo } from '../@types/private';
 import type { ThumbnailInfo, ThumbnailSize } from '../@types/protected/asset-handler';
-import assetQuery from './query';
+import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
 import animationGraphVariant from '../animation-graph-variant';
@@ -37,6 +37,7 @@ class AssetManager extends EventEmitter {
     queryAssetMtime = assetQuery.queryAssetMtime.bind(assetQuery);
     // ---------- operation ---------
     importAsset = assetOperation.importAsset.bind(assetOperation);
+    copyAsset = assetOperation.copyAsset.bind(assetOperation);
     saveAssetMeta = assetOperation.saveAssetMeta.bind(assetOperation);
     saveAsset = assetOperation.saveAsset.bind(assetOperation);
     createAsset = assetOperation.createAsset.bind(assetOperation);
@@ -150,7 +151,7 @@ class AssetManager extends EventEmitter {
         if (!asset || !asset.uuid) {
             return null;
         }
-        return assetManager.queryAssetInfo(asset.uuid);
+        return assetManager.queryAssetInfo(asset.uuid, ASSET_TREE_INFO_DATA_KEYS);
     }
 
     private _snapshotAssetChangeInfo(asset: IAsset): IAssetInfo | null {
@@ -226,13 +227,13 @@ class AssetManager extends EventEmitter {
 
     _onAssetAdd = async (asset: IAsset) => {
         this._emitProgress(asset, 'processing');
-    }
+    };
     _onAssetChange = async (asset: IAsset) => {
         this._emitProgress(asset, 'processing');
-    }
+    };
     _onAssetDelete = async (asset: IAsset) => {
         this._emitProgress(asset, 'processing');
-    }
+    };
 
     _onAssetAdded = async (asset: IAsset) => {
         if (assetDBManager.ready) {
@@ -242,7 +243,7 @@ class AssetManager extends EventEmitter {
             return;
         }
         this._emitProgress(asset, 'success');
-    }
+    };
     _onAssetChanged = async (asset: IAsset) => {
         if (assetDBManager.ready) {
             this.emit('asset-change', asset);
@@ -251,7 +252,7 @@ class AssetManager extends EventEmitter {
             return;
         }
         this._emitProgress(asset, 'success');
-    }
+    };
     _onAssetDeleted = async (asset: IAsset) => {
         if (assetDBManager.ready) {
             const removedInfo = this._snapshotAssetChangeInfo(asset);
@@ -262,7 +263,7 @@ class AssetManager extends EventEmitter {
             return;
         }
         this._emitProgress(asset, 'success');
-    }
+    };
 
     /**
      * 注册数据库初始化完全完成后的事件监听。
@@ -356,6 +357,7 @@ export interface TypedAssetManager extends EventEmitter {
     queryAssetMtime: typeof assetQuery.queryAssetMtime;
 
     importAsset: typeof assetOperation.importAsset;
+    copyAsset: typeof assetOperation.copyAsset;
     saveAssetMeta: typeof assetOperation.saveAssetMeta;
     saveAsset: typeof assetOperation.saveAsset;
     createAsset: typeof assetOperation.createAsset;

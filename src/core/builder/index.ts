@@ -2,7 +2,7 @@ import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
 import { BuildExitCode, BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
 import { pluginManager } from './manager/plugin';
-import { formatMSTime } from './share/utils';
+import { cloneConfigValue, formatMSTime } from './share/utils';
 import { newConsole } from '../base/console';
 import { basename, extname, isAbsolute, join } from 'path';
 import assetManager from '../assets/manager/asset';
@@ -34,8 +34,15 @@ function getBuilderLogRoot() {
     return basename(projectTempDir) === 'builder' ? projectTempDir : join(projectTempDir, 'builder');
 }
 
-function normalizeBuildLogDest(logDest: string | undefined, taskName: string) {
-    const fallback = join(getBuilderLogRoot(), 'log', `${taskName.replace(/[\\/:*?"<>|]/g, '_')}-${Date.now()}.log`);
+// Log filename: {platform}-{action}-{timestamp}.log
+// e.g. google-play-build-1234567890.log, google-play-make-1234567890.log, google-play-bundle-build-1234567890.log
+function normalizeBuildLogDest(logDest: string | undefined, taskName: string, platform?: string) {
+    const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, '_');
+    const sanitizedTask = sanitize(taskName);
+    const sanitizedPlatform = platform ? sanitize(platform) : undefined;
+    const label = platform === taskName ? 'build' : sanitizedTask;
+    const parts = sanitizedPlatform ? [sanitizedPlatform, label, `${Date.now()}`] : [sanitizedTask, `${Date.now()}`];
+    const fallback = join(getBuilderLogRoot(), 'log', `${parts.join('-')}.log`);
     let resolvedLogDest = logDest ? utils.Path.resolveToRaw(logDest) : fallback;
     if (!isAbsolute(resolvedLogDest)) {
         resolvedLogDest = join(builderConfig.projectRoot, resolvedLogDest);
@@ -46,7 +53,7 @@ function normalizeBuildLogDest(logDest: string | undefined, taskName: string) {
 function ensureBuildLogSink(options: { logDest?: string; taskName?: string; platform?: string }, fallbackTaskName: string, logDest?: string) {
     const taskName = options.taskName || fallbackTaskName;
     options.taskName = taskName;
-    options.logDest = normalizeBuildLogDest(logDest || options.logDest, taskName);
+    options.logDest = normalizeBuildLogDest(logDest || options.logDest, taskName, options.platform);
     newConsole.record(options.logDest);
     return options.logDest;
 }
@@ -100,6 +107,9 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         await builder.run();
         buildSuccess = !builder.error;
         const duration = formatMSTime(Date.now() - startTime);
+        if (!buildSuccess) {
+            restoreLogSink();
+        }
         newConsole.buildComplete(platform, duration, buildSuccess);
         builder.buildExitRes.dest = utils.Path.resolveToUrl(builder.buildExitRes.dest, 'project');
         console.debug(JSON.stringify(builder.buildExitRes));
@@ -129,12 +139,12 @@ export async function createBundleBuildTask(bundleOptions: IBundleBuildOptions) 
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData> {
     const startTime = Date.now();
     const options = bundleOptions.buildTaskOptions;
-    const tasksLabel = bundleOptions.taskName || 'bundle Build';
+    const tasksLabel = bundleOptions.taskName || 'bundle-build';
     const taskStartTime = Date.now();
     const restoreLogSink = newConsole.createLogSinkRestorer();
 
     try {
-        bundleOptions.logDest = ensureBuildLogSink(options, tasksLabel, bundleOptions.logDest);
+        bundleOptions.logDest = ensureBuildLogSink({ platform: options.platform }, tasksLabel, bundleOptions.logDest);
         newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
         console.debug('Start build task, options:', options);
         newConsole.trackMemoryStart(`builder:build-bundle-total`);
@@ -147,13 +157,14 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
         await builder.run();
         newConsole.trackMemoryEnd(`builder:build-bundle-total`);
         const totalDuration = formatMSTime(Date.now() - startTime);
-        newConsole.taskComplete('Bundle Build', !!builder.error, totalDuration);
         if (builder.error) {
             const errorMsg = typeof builder.error == 'object' ? (builder.error.stack || builder.error.message) : builder.error;
             newConsole.error(`${tasksLabel} (${options.platform}) failed: ${errorMsg}`);
+            newConsole.taskComplete('Bundle Build', false, totalDuration);
             return { code: BuildExitCode.BUILD_FAILED, reason: errorMsg };
         } else {
             const duration = formatMSTime(Date.now() - taskStartTime);
+            newConsole.taskComplete('Bundle Build', true, totalDuration);
             newConsole.success(`${tasksLabel} (${options.platform}) completed in ${duration}`);
             return builder.buildExitRes;
         }
@@ -175,10 +186,10 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
 async function createBuildStageTaskWithBuildOptions(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions?: IBuildTaskOption<any>) {
     options.dest = utils.Path.resolveToRaw(options.dest);
     const { BuildStageTask } = await import('./worker/builder/stage-task-manager');
-    const stageConfig = pluginManager.getBuildStageWithHookTasks(options.platform, stageName);
-    if (!stageConfig) {
-        throw new Error(`No Build stage ${stageName}`);
-    }
+    const stageConfig = pluginManager.getBuildStageWithHookTasks(options.platform, stageName) || {
+        name: stageName,
+        hook: stageName,
+    };
 
     return new BuildStageTask(taskId, {
         hooksInfo: pluginManager.getHooksInfo(options.platform),
@@ -190,14 +201,11 @@ async function createBuildStageTaskWithBuildOptions(taskId: string, stageName: s
 
 function readBuildOptionsForBuildStage(options: IBuildStageOptions) {
     options.dest = utils.Path.resolveToRaw(options.dest);
-    let buildOptions;
-    if (!options.platform.startsWith('web')) {
-        buildOptions = readBuildTaskOptions(options.dest);
-        if (!buildOptions) {
-            throw new Error('Build options is not exist!');
-        }
-        mergeBuildStageRuntimeOptions(buildOptions, options);
+    const buildOptions = readBuildTaskOptions(options.dest);
+    if (!buildOptions) {
+        throw new Error('Build options is not exist!');
     }
+    mergeBuildStageRuntimeOptions(buildOptions, options);
     return buildOptions;
 }
 
@@ -222,28 +230,124 @@ function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, opti
 
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     if (!options.taskName) {
-        options.taskName = stageName + ' build';
+        options.taskName = stageName;
     }
+
     const restoreLogSink = newConsole.createLogSinkRestorer();
     ensureBuildLogSink(options, options.taskName, options.logDest);
-    let buildStageTask: Awaited<ReturnType<typeof createBuildStageTask>> | undefined;
 
     try {
-        let buildOptions: IBuildTaskOption<any> | undefined;
-        if (!options.platform.startsWith('web')) {
-            options.dest = utils.Path.resolveToRaw(options.dest);
-            buildOptions = readBuildTaskOptions(options.dest);
-            if (!buildOptions) {
-                throw new Error('Build options is not exist!');
-            }
-            mergeBuildStageRuntimeOptions(buildOptions, options);
+        options.dest = utils.Path.resolveToRaw(options.dest);
+        const buildOptions = readBuildTaskOptions(options.dest);
+        if (!buildOptions) {
+            throw new Error('Build options is not exist!');
         }
+        mergeBuildStageRuntimeOptions(buildOptions, options);
+        let result: IBuildResultData;
+        if (shouldCascadeBuildStage(options, buildOptions)) {
+            result = await executeBuildStageTaskCascade(taskId, stageName, options, buildOptions, onProgress, restoreLogSink);
+        } else {
+            result = await executeSingleBuildStageTask(taskId, stageName, options, buildOptions, onProgress, restoreLogSink);
+        }
+        if (result.code !== BuildExitCode.BUILD_SUCCESS) {
+            restoreLogSink();
+        }
+        return result;
+    } catch (error: any) {
+        console.error(error);
+        return { code: BuildExitCode.BUILD_FAILED, reason: error?.message || String(error) };
+    } finally {
+        restoreLogSink();
+    }
+}
+
+function shouldCascadeBuildStage(options: IBuildStageOptions, buildOptions: IBuildTaskOption<any>) {
+    return String(options.platform) === String(buildOptions.platform)
+        && !buildOptions.parentTaskId
+        && !!buildOptions.subTaskPlatforms?.length;
+}
+
+async function executeBuildStageTaskCascade(
+    taskId: string,
+    stageName: string,
+    options: IBuildStageOptions,
+    parentBuildOptions: IBuildTaskOption<any>,
+    onProgress?: BuildStageProgressCallback,
+    restoreLogSink?: () => void,
+): Promise<IBuildResultData> {
+    const targets = [{
+        platform: String(options.platform),
+        dest: options.dest,
+        required: true,
+    }, ...(parentBuildOptions.subTaskPlatforms || []).map((platform) => ({
+        platform,
+        dest: parentBuildOptions.subTaskBuildOutputs?.[platform]?.dest || '',
+        required: false,
+    }))];
+    const stageResults: Record<string, unknown> = {};
+    let parentResult: IBuildResultData | undefined;
+
+    for (const target of targets) {
+        if (!target.dest) {
+            return failBuildStage(`Missing build output for stage platform ${target.platform}`);
+        }
+        const targetOptions: IBuildStageOptions = {
+            ...options,
+            platform: target.platform,
+            dest: target.dest,
+        };
+        const buildOptions = readBuildTaskOptions(utils.Path.resolveToRaw(target.dest));
+        if (!buildOptions) {
+            return failBuildStage(`Build options is not exist for ${target.platform}!`);
+        }
+        mergeBuildStageRuntimeOptions(buildOptions, targetOptions);
+        const result = await executeSingleBuildStageTask(taskId, stageName, targetOptions, buildOptions, onProgress, restoreLogSink);
+        if (result.code !== BuildExitCode.BUILD_SUCCESS) {
+            return result;
+        }
+        stageResults[target.platform] = result.custom;
+        if (target.required) {
+            parentResult = result;
+        }
+    }
+
+    if (!parentResult || parentResult.code !== BuildExitCode.BUILD_SUCCESS) {
+        return failBuildStage(`Build stage task ${stageName} did not run for ${options.platform}`);
+    }
+    parentResult.custom = {
+        ...parentResult.custom,
+        stageResults: {
+            ...(parentResult.custom.stageResults || {}),
+            [stageName]: stageResults,
+        },
+    };
+    return parentResult;
+}
+
+function failBuildStage(reason: string): IBuildResultData {
+    console.error(reason);
+    return {
+        code: BuildExitCode.BUILD_FAILED,
+        reason,
+    };
+}
+
+async function executeSingleBuildStageTask(
+    taskId: string,
+    stageName: string,
+    options: IBuildStageOptions,
+    buildOptions: IBuildTaskOption<any>,
+    onProgress?: BuildStageProgressCallback,
+    restoreLogSink?: () => void,
+): Promise<IBuildResultData> {
+    let buildStageTask: Awaited<ReturnType<typeof createBuildStageTask>> | undefined;
+    try {
         buildStageTask = await createBuildStageTaskWithBuildOptions(taskId, stageName, options, buildOptions);
         if (onProgress) {
             buildStageTask.on('update', onProgress);
         }
         const stageConfig = pluginManager.getBuildStageWithHookTasks(options.platform, stageName);
-        const stageLabel = stageConfig!.name;
+        const stageLabel = stageConfig?.name || stageName;
 
         newConsole.trackMemoryStart(`builder:build-stage-total ${stageName}`);
         const buildSuccess = await buildStageTask.run();
@@ -265,7 +369,7 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         if (buildStageTask && onProgress) {
             buildStageTask.off('update', onProgress);
         }
-        restoreLogSink();
+        restoreLogSink?.();
     }
 }
 
@@ -351,5 +455,5 @@ export function getRegisteredPlatforms() {
 }
 
 export async function queryDefaultBuildConfigByPlatform(platform: Platform) {
-    return await pluginManager.getOptionsByPlatform(platform);
+    return cloneConfigValue(await pluginManager.getOptionsByPlatform(platform));
 }

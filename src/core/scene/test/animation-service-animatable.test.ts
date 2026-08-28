@@ -3,6 +3,7 @@ export {};
 const mockAttr = jest.fn();
 
 jest.mock('cc', () => {
+    let nextNodeId = 0;
     class Component { }
     class Renderer extends Component { }
     class Color {
@@ -32,6 +33,7 @@ jest.mock('cc', () => {
         ) { }
     }
     class Node {
+        uuid = `mock-node-${++nextNodeId}`;
         components: Component[] = [];
         children: Node[] = [];
         name = '';
@@ -107,6 +109,23 @@ jest.mock('cc', () => {
         toElement(index: number) {
             this._paths.push(index);
             return this;
+        }
+
+        trace(target: any) {
+            let result = target;
+            for (const path of this._paths) {
+                if (path instanceof HierarchyPath) {
+                    result = result?.getChildByPath(path.path) || null;
+                } else if (path instanceof ComponentPath) {
+                    result = result?.getComponent(path.component) || null;
+                } else {
+                    result = result?.[path] ?? null;
+                }
+                if (result === null) {
+                    return null;
+                }
+            }
+            return result;
         }
 
         isHierarchyAt(index: number) {
@@ -575,6 +594,66 @@ describe('AnimationService animatable property metadata', () => {
         expect(parsePropertyTrack(track)?.descriptor.propKey).toBe(key);
     });
 
+    it('过期 nodeUuid 不能覆盖 nodePath 的属性轨道绑定', () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve, createPropertyKey, dumpPropertyCurves } = require('../scene-process/service/animation/property-curve');
+        const { parsePropertyTrack } = require('../scene-process/service/animation/property-curve-track');
+        const root = new Node('Root');
+        const original = Object.assign(new Node('Body'), { uuid: 'original-body-uuid', active: false });
+        root.children = [original];
+        const clip = new AnimationClip();
+        const context = {
+            rootNode: root,
+            rootPath: '',
+            queryPropertyMetadata: () => ({ type: { value: 'cc.Boolean' } }),
+        };
+
+        expect(addPropertyCurve(clip, context, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodePath: 'Body',
+            propKey: 'active',
+            value: false,
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(1);
+        expect(parsePropertyTrack(clip._tracks[0])).toMatchObject({
+            nodePath: 'Body',
+            descriptor: { propKey: 'active' },
+        });
+        expect(parsePropertyTrack(clip._tracks[0])).not.toHaveProperty('nodeUuid');
+
+        const replacement = Object.assign(new Node('Body'), { uuid: 'replacement-body-uuid', active: true });
+        root.children = [replacement];
+        expect(clip._tracks[0].path.trace(root)).toBe(true);
+        expect(createPropertyKey(clip, context, {
+            type: 'createPropertyKey',
+            clipUuid: 'clip',
+            nodePath: 'Body',
+            nodeUuid: original.uuid,
+            propKey: 'active',
+            frame: 0,
+            value: true,
+        })).toBe(true);
+
+        expect(clip._tracks).toHaveLength(1);
+        expect(dumpPropertyCurves(clip)).toEqual(expect.arrayContaining([
+            expect.objectContaining({ nodePath: 'Body', key: 'active' }),
+        ]));
+
+        const legacyClip = new AnimationClip();
+        expect(addPropertyCurve(legacyClip, context, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodeUuid: replacement.uuid,
+            propKey: 'active',
+            value: true,
+        })).toBe(true);
+        expect(parsePropertyTrack(legacyClip._tracks[0])).toMatchObject({
+            nodePath: 'Body',
+            descriptor: { propKey: 'active' },
+        });
+    });
+
     it('parsePropertyTrack 忽略没有 path 的引擎轨道', () => {
         const { animation } = require('cc');
         const { parsePropertyTrack } = require('../scene-process/service/animation/property-curve-track');
@@ -867,5 +946,259 @@ describe('AnimationService animatable property metadata', () => {
                 type: { value: 'cc.Number' },
             }),
         ]);
+    });
+
+    it('同名兄弟按 Cocos 路径语义绑定第一个节点', () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        const second = new Node('Enemy');
+        root.children = [first, second];
+        const clip = new AnimationClip();
+
+        expect(root.getChildByPath('Enemy')).toBe(first);
+        expect(addPropertyCurve(clip, { rootNode: root, rootPath: '' }, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodePath: 'Enemy',
+            propKey: 'position',
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(1);
+        expect(clip._tracks[0].path.parseHierarchyAt(0)).toBe('Enemy');
+    });
+
+    it('UUID 只能操作动画路径当前绑定的第一个同名节点', () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        const second = new Node('Enemy');
+        root.children = [first, second];
+        const context = { rootNode: root, rootPath: 'Root' };
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        try {
+            const rejectedClip = new AnimationClip();
+            expect(addPropertyCurve(rejectedClip, context, {
+                type: 'addPropertyCurve',
+                clipUuid: 'clip',
+                nodeUuid: second.uuid,
+                propKey: 'position',
+                value: { x: 0, y: 0, z: 0 },
+            })).toBe(false);
+            expect(rejectedClip._tracks).toHaveLength(0);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining(second.uuid));
+
+            const acceptedClip = new AnimationClip();
+            expect(addPropertyCurve(acceptedClip, context, {
+                type: 'addPropertyCurve',
+                clipUuid: 'clip',
+                nodeUuid: first.uuid,
+                propKey: 'position',
+                value: { x: 0, y: 0, z: 0 },
+            })).toBe(true);
+            expect(acceptedClip._tracks[0].path.parseHierarchyAt(0)).toBe('Enemy');
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
+    it('第一个同名节点删除后，原第二个节点可通过 UUID 操作', () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const first = new Node('Enemy');
+        const second = new Node('Enemy');
+        root.children = [first, second];
+
+        root.children = [second];
+        const clip = new AnimationClip();
+        expect(addPropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodeUuid: second.uuid,
+            propKey: 'position',
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        expect(clip._tracks[0].path.parseHierarchyAt(0)).toBe('Enemy');
+    });
+
+    it('动画根节点 UUID 解析为空相对路径，层级外 UUID 被拒绝', () => {
+        const { Node } = require('cc');
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const outside = new Node('Outside');
+
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodeUuid: root.uuid,
+        })).toBe('');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodeUuid: outside.uuid,
+        })).toBeNull();
+    });
+
+    it('动画 path 解析覆盖根节点、相对子节点和无效相对路径', () => {
+        const { Node } = require('cc');
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {})).toBe('');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodePath: '/Scene/Root/',
+        })).toBe('');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodePath: 'Enemy',
+        })).toBe('Enemy');
+        expect(resolveAnimationRelativeNodePath(root, 'Scene/Root', {
+            nodePath: 'Missing',
+        })).toBeNull();
+    });
+
+    it('动画路径解析会规范化反斜杠、重复斜杠和首尾斜杠', () => {
+        const { Node } = require('cc');
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        expect(resolveAnimationRelativeNodePath(root, '/Scene//Root/', {
+            nodePath: '\\Scene\\Root\\Enemy\\',
+        })).toBe('Enemy');
+    });
+
+    it('系统路径查询发生大小写歧义时仍按旧动画 name path 解析', () => {
+        const { Node } = require('cc');
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn(() => {
+            throw new Error('ambiguous');
+        });
+        const { resolveAnimationRelativeNodePath } = require('../scene-process/service/animation/scene-node');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+
+        expect(resolveAnimationRelativeNodePath(root, 'Root', {
+            nodePath: 'Root/Enemy',
+        })).toBe('Enemy');
+    });
+
+    it('拒绝不能解析为动画 name path 的系统后缀路径', () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const remaining = new Node('Enemy');
+        root.children = [remaining];
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn((path: string) => (
+            path === 'Root/Enemy_001' ? remaining : null
+        ));
+        const clip = new AnimationClip();
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        try {
+            expect(addPropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+                type: 'addPropertyCurve',
+                clipUuid: 'clip',
+                nodePath: 'Root/Enemy_001',
+                propKey: 'position',
+                value: { x: 0, y: 0, z: 0 },
+            })).toBe(false);
+            expect(clip._tracks).toHaveLength(0);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('Root/Enemy_001'));
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
+    it('完整系统路径保持旧的 root 前缀优先解析行为', () => {
+        const { AnimationClip, Node } = require('cc');
+        const { addPropertyCurve } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const direct = new Node('B');
+        const nestedRoot = new Node('Root');
+        const nested = new Node('B');
+        nestedRoot.children = [nested];
+        root.children = [direct, nestedRoot];
+        root.getChildByPath = (path: string) => {
+            if (path === 'B') return direct;
+            if (path === 'Root/B') return nested;
+            return null;
+        };
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn((path: string) => (
+            path === 'Root/B' ? direct : null
+        ));
+        const clip = new AnimationClip();
+
+        expect(addPropertyCurve(clip, { rootNode: root, rootPath: 'Root' }, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodePath: 'Root/B',
+            propKey: 'position',
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        expect(clip._tracks[0].path.parseHierarchyAt(0)).toBe('B');
+    });
+
+    it('节点删除后仍可通过完整系统路径清理孤立轨道', () => {
+        const { AnimationClip, Node } = require('cc');
+        const {
+            addPropertyCurve,
+            removePropertyCurve,
+        } = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const enemy = new Node('Enemy');
+        root.children = [enemy];
+        const clip = new AnimationClip();
+        const context = { rootNode: root, rootPath: 'Root' };
+
+        expect(addPropertyCurve(clip, context, {
+            type: 'addPropertyCurve',
+            clipUuid: 'clip',
+            nodePath: 'Root/Enemy',
+            propKey: 'position',
+            value: { x: 0, y: 0, z: 0 },
+        })).toBe(true);
+        root.children = [];
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn(() => null);
+
+        expect(removePropertyCurve(clip, context, {
+            type: 'removePropertyCurve',
+            clipUuid: 'clip',
+            nodePath: 'Root/Enemy',
+            propKey: 'position',
+        })).toBe(true);
+        expect(clip._tracks).toHaveLength(0);
+    });
+
+    it('属性值归一化通过 UUID 使用动画 name path，而不是系统后缀路径', async () => {
+        let capturedPath: string | undefined;
+        jest.doMock('../scene-process/service/animation/property-metadata', () => ({
+            queryAnimationPropertyMetadata: (_rootNode: unknown, nodePath: string) => {
+                capturedPath = nodePath;
+                return null;
+            },
+        }));
+
+        const { Node } = require('cc');
+        const { normalizeProvidedAnimationPropertyOperationValue } = require('../scene-process/service/animation/property-value');
+        const root = new Node('Root');
+        const remaining = new Node('Enemy');
+        root.children = [remaining];
+
+        try {
+            await normalizeProvidedAnimationPropertyOperationValue(root, 'Root', {
+                type: 'createPropertyKey',
+                clipUuid: 'clip',
+                nodeUuid: remaining.uuid,
+                propKey: 'position',
+                frame: 0,
+                value: { x: 0, y: 0, z: 0 },
+            });
+            expect(capturedPath).toBe('Enemy');
+        } finally {
+            jest.dontMock('../scene-process/service/animation/property-metadata');
+        }
     });
 });

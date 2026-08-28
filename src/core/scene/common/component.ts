@@ -2,6 +2,7 @@ import type { Component, Node } from 'cc';
 import type { IPropertyValueType, IProperty } from '../@types/public';
 import type { IServiceEvents } from '../scene-process/service/core';
 import type { IChangeNodeOptions, INodeEvents } from './node';
+import type { IVec3 } from './value-types';
 
 /**
  * 编辑器使用的组件详细信息，属性值以 IProperty 编码形式呈现，
@@ -41,6 +42,66 @@ export interface IRemovedComponentInfo {
  */
 export interface IQueryComponentOptions {
     path: string;
+}
+
+/**
+ * 重新计算 LODGroup 包围盒的选项
+ */
+export interface IRecalculateLODGroupBoundsOptions {
+    /** cc.LODGroup 组件路径 */
+    path: string;
+    /** 是否记录 undo，默认 true */
+    record?: boolean;
+}
+
+/**
+ * LODGroup 包围盒重算结果
+ */
+export interface ILODGroupBoundsResult {
+    localBoundaryCenter: IVec3;
+    objectSize: number;
+}
+
+/**
+ * 插入 LODGroup 层级的选项
+ */
+export interface IInsertLODOptions {
+    /** cc.LODGroup 组件路径 */
+    path: string;
+    /** 插入位置，范围为 0 到当前 lodCount */
+    index: number;
+    /** 屏幕占比，范围为 (0, 1]；省略时由引擎自动计算 */
+    screenUsagePercentage?: number;
+    /** 是否记录 undo，默认 true */
+    record?: boolean;
+}
+
+/**
+ * 删除 LODGroup 层级的选项
+ */
+export interface IEraseLODOptions {
+    /** cc.LODGroup 组件路径 */
+    path: string;
+    /** 删除位置，范围为 0 到 lodCount - 1 */
+    index: number;
+    /** 是否记录 undo，默认 true */
+    record?: boolean;
+}
+
+/**
+ * 查询 LODGroup 当前编辑器相机屏占比的选项
+ */
+export interface IQueryLODGroupRelativeHeightOptions {
+    /** cc.LODGroup 组件路径 */
+    path: string;
+}
+
+/**
+ * LODGroup 层级状态
+ */
+export interface ILODGroupLevelsResult {
+    lodCount: number;
+    screenUsagePercentages: number[];
 }
 
 /**
@@ -170,6 +231,36 @@ export interface IComponentService extends IServiceEvents {
      * @returns 组件类名数组，如 ['cc.Label', 'cc.Sprite', 'MyCustomComponent']
      */
     queryAll(): Promise<string[]>;
+
+    /**
+     * 根据 LOD 层级中的 Renderer 重新计算 cc.LODGroup 的局部包围盒
+     * @param options - 重算选项
+     * @param options.path - cc.LODGroup 组件路径
+     * @param options.record - 是否记录 undo，默认 true
+     * @returns 重算后的局部边界中心和对象尺寸
+     */
+    recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult>;
+
+    /**
+     * 在 cc.LODGroup 中插入一级 LOD
+     * @param options - 插入选项
+     * @returns 插入后的 LOD 层级状态
+     */
+    insertLOD(options: IInsertLODOptions): Promise<ILODGroupLevelsResult>;
+
+    /**
+     * 删除 cc.LODGroup 中的一级 LOD
+     * @param options - 删除选项
+     * @returns 删除后的 LOD 层级状态
+     */
+    eraseLOD(options: IEraseLODOptions): Promise<ILODGroupLevelsResult>;
+
+    /**
+     * 查询 cc.LODGroup 在当前编辑器相机下的屏幕相对高度
+     * @param options - 查询选项
+     * @returns 原始相对高度；不钳制到 [0, 1]
+     */
+    queryLODGroupRelativeHeight(options: IQueryLODGroupRelativeHeightOptions): Promise<number>;
 
     // ---- 编辑器相关接口 ----
 

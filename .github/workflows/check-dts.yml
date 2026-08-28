@@ -34,9 +34,9 @@ jobs:
         shell: bash
         run: |
           cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
+          npx jest --roots packages/cocos-cli-types --testPathPattern dts-snapshot --no-cache
           npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
-          npx jest --roots packages/cocos-cli-types --testPathPattern dts-snapshot --no-cache -u
-          npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types"
+          npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types" --testPathIgnorePatterns dts-snapshot
 
       - name: Typecheck DTS declarations
         shell: bash
