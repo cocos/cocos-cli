@@ -89,6 +89,8 @@ export default async function initializePreviewToolbar() {
     const presets = new Map(DEVICE_PRESETS.map((preset) => [preset.id, preset]));
     let rotated = true;
     let webpageFullScreen = false;
+    // 游戏启动时会短暂 pause 以等待场景加载；这不是用户通过预览工具栏发起的暂停，不能展示 Step 控件。
+    let pausedByToolbar = false;
 
     DEVICE_PRESETS.forEach((preset) => deviceSelect.appendChild(createOption(preset, designResolution)));
     deviceSelect.value = 'design';
@@ -139,10 +141,9 @@ export default async function initializePreviewToolbar() {
     };
 
     const updatePauseControls = () => {
-        const paused = cc.game.isPaused();
-        setChecked(pauseButton, paused);
-        stepButton.classList.toggle('show', paused);
-        stepLength.classList.toggle('show', paused);
+        setChecked(pauseButton, pausedByToolbar);
+        stepButton.classList.toggle('show', pausedByToolbar);
+        stepLength.classList.toggle('show', pausedByToolbar);
         frameTimeInput.value = String(Math.round(cc.game.frameTime || 1));
     };
 
@@ -205,10 +206,12 @@ export default async function initializePreviewToolbar() {
     });
 
     pauseButton.addEventListener('click', () => {
-        if (cc.game.isPaused()) {
+        if (pausedByToolbar) {
             cc.game.resume();
+            pausedByToolbar = false;
         } else {
             cc.game.pause();
+            pausedByToolbar = true;
         }
         updatePauseControls();
     });
@@ -224,10 +227,6 @@ export default async function initializePreviewToolbar() {
 
     if (cc.director && cc.Director?.EVENT_END_FRAME) {
         cc.director.on(cc.Director.EVENT_END_FRAME, updatePauseControls);
-    }
-    if (cc.game && cc.Game?.EVENT_PAUSE && cc.Game?.EVENT_RESUME) {
-        cc.game.on(cc.Game.EVENT_PAUSE, updatePauseControls);
-        cc.game.on(cc.Game.EVENT_RESUME, updatePauseControls);
     }
     document.body.classList.add('preview-toolbar-enabled');
     toolbar.classList.remove('disabled');
