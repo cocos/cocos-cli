@@ -38,4 +38,24 @@ describe('DTS API compatibility', () => {
             expect(content).toMatchSnapshot();
         });
     }
+
+    it('cli.d.ts preserves literal asset handler types', () => {
+        const filePath = path.join(dtsRoot, 'cli.d.ts');
+        const content = stripComments(fs.readFileSync(filePath, 'utf-8'));
+        const declaration = content.match(
+            /export declare const ASSET_HANDLER_TYPES: ([^;]+);/,
+        )?.[1];
+
+        if (!declaration) {
+            throw new Error('ASSET_HANDLER_TYPES declaration not found in cli.d.ts');
+        }
+
+        expect(declaration).toMatch(/^readonly \[/);
+        expect(declaration).toContain('"directory"');
+        expect(declaration).toContain('"database"');
+        expect(content).toMatch(
+            /export declare type AssetHandlerType =\s*\|?\s*typeof ASSET_HANDLER_TYPES\[number\]\s*\|\s*(?:\(string & \{\}\)|string & \{\});/,
+        );
+    });
+
 });

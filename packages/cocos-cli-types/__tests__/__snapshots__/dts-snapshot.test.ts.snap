@@ -60,7 +60,7 @@ export declare interface AnimGraphVariantDump {
     clips: Record<string, string>;
     invalids?: Record<string, string>;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare interface AssetDBOptions {
     name: string;
     target: string;
@@ -88,7 +88,9 @@ export declare interface AssetDBOptions_2 {
     };
     importConcurrency?: number;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetInfo extends IAssetInfo {
     name: string;
     displayName: string;
@@ -1058,7 +1060,7 @@ export declare class Asset extends VirtualAsset {
     save(): Promise<boolean>;
     isDirectory(): boolean;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare enum AssetActionEnum {
     'add' = 0,
     'change' = 1,
@@ -1149,7 +1151,9 @@ export declare interface AssetDBStartOptions {
 export declare namespace AssetHandlers {
     export type compressTextures = (tasks: ICompressConfig[]) => Promise<void>;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare type AssetInfoArr = Array<string | number>;
 export declare interface AssetSerializeOptions {
     'cc.EffectAsset': {
@@ -5445,8 +5449,10 @@ export declare interface AnimationImportSetting {
 export declare type AnimationMode = 'general' | 'prefab' | 'animation' | 'preview' | 'unknown';
 export declare type AnimationPlayOperation = 'play' | 'pause' | 'resume' | 'stop';
 export declare type AnimationPlayState_2 = 'stop' | 'playing' | 'pause';
-export declare const ASSET_HANDLER_TYPES: string[];
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetUserDataMap {
     'animation-clip': AnimationClipAssetUserData;
     'auto-atlas': AutoAtlasAssetUserData;
@@ -7865,7 +7871,7 @@ export declare interface AnimGraphVariantDump {
     clips: Record<string, string>;
     invalids?: Record<string, string>;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare enum AssetActionEnum {
     'add' = 0,
     'change' = 1,
@@ -7907,7 +7913,9 @@ export declare interface AssetDBOptions_2 {
     visible: boolean;
     ignoreGlob?: string;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetInfo extends IAssetInfo {
     name: string;
     displayName: string;
