@@ -1,0 +1,170 @@
+
+/* The browser-preview toolbar is intentionally isolated to pages that opt in with previewToolbar=1. */
+#preview-content {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#preview-content #GameDiv {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#preview-content #Cocos3dGameContainer {
+    width: 100%;
+    height: 100%;
+}
+
+#preview-toolbar {
+    display: none;
+    height: 50px;
+    box-sizing: border-box;
+    padding: 4px 0 4px 10px;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    color: #aaaaaa;
+    background: #333333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
+    line-height: 25px;
+}
+
+body.preview-toolbar-enabled #preview-toolbar {
+    display: flex;
+}
+
+body.preview-toolbar-enabled {
+    display: flex;
+    flex-direction: column;
+}
+
+body.preview-toolbar-enabled #preview-content {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+/* Creator 的 Webpage Full Screen 保持游戏帧占满页面；鼠标到顶部时，工具栏浮在游戏帧上方，
+ * 而不是重新分配游戏帧高度。 */
+body.preview-webpage-fullscreen #preview-toolbar {
+    display: none;
+}
+
+body.preview-webpage-fullscreen.preview-toolbar-revealed #preview-toolbar {
+    position: absolute;
+    z-index: 10;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+}
+
+body.preview-webpage-fullscreen #preview-content {
+    height: 100%;
+    flex: 1 1 auto;
+}
+
+#preview-toolbar.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+#preview-toolbar .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 10px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+#preview-toolbar select,
+#preview-toolbar input {
+    height: 25px;
+    box-sizing: border-box;
+    border: 1px solid #171717;
+    border-radius: 0;
+    padding: 0 8px;
+    color: #aaaaaa;
+    background: #444444;
+    font: inherit;
+}
+
+#preview-toolbar #preview-device {
+    width: 220px;
+}
+
+#preview-toolbar input {
+    width: 54px;
+    padding: 0 4px;
+}
+
+#preview-toolbar button {
+    height: 25px;
+    box-sizing: border-box;
+    border: 1px solid #171717;
+    border-radius: 2px;
+    padding: 3px 8px;
+    color: #bdbdbd;
+    cursor: pointer;
+    background-image: linear-gradient(#5a5a5a, #444444);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+#preview-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#preview-show-fps {
+    min-width: 72px;
+}
+
+#preview-toolbar button.checked {
+    color: #0099ff;
+    background-image: linear-gradient(#333333, #222222);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 50%);
+}
+
+#preview-toolbar .controls {
+    gap: 0;
+}
+
+#preview-toolbar .controls button + button {
+    border-left: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+#preview-toolbar .controls button:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+#preview-step-length {
+    display: none;
+}
+
+#preview-step {
+    display: none;
+}
+
+#preview-step.show {
+    display: inline-block;
+}
+
+#preview-step-length.show {
+    display: inline-flex;
+}

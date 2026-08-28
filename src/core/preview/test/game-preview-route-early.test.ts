@@ -69,6 +69,10 @@ describe('game preview `/` route works before builder init (early-registration i
         // （preview-live-reload.js 负责创建 socket + 注册 browser:reload 监听），CLI 就绪后即可被广播刷新。
         expect(res.body).toContain('/socket.io/socket.io.js');
         expect(res.body).toContain('/static/web/preview-live-reload.js');
+        // 工具栏是浏览器预览页面的可选层；普通 URL 仍保持纯游戏画面，由查询参数显式启用。
+        expect(res.body).toContain('/static/web/game-preview.css');
+        expect(res.body).toContain('/static/web/game-preview-ui.js');
+        expect(res.body).toContain("get('previewToolbar') === '1'");
         // settings.js 带上 scene 查询，指向惰性计算的预览 settings 路由
         expect(res.body).toContain('/preview/settings.js?scene=');
     });
