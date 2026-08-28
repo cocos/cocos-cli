@@ -48,9 +48,15 @@
 <body>
     <div id="preview-toolbar" class="toolbar disabled" aria-label="Game preview controls">
         <div class="item">
-            <select id="preview-device" aria-label="Device"></select>
+            <div id="preview-device" class="view-select-container" value="design" tabindex="-1" aria-label="Device">
+                <div class="view-select">
+                    <div class="label"><span id="preview-device-name"></span></div>
+                    <i class="arrow-triangle"></i>
+                </div>
+                <div id="preview-device-options" class="options"><ul></ul></div>
+            </div>
         </div>
-        <div class="item"><button id="preview-rotate" type="button" class="checked">Rotate</button></div>
+        <div class="item"><button id="preview-rotate" type="button">Rotate</button></div>
         <span class="item toolbar-label">Debug Mode:</span>
         <div class="item">
             <select id="preview-debug-mode">

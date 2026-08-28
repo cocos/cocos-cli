@@ -44,17 +44,24 @@ function getDesignResolution() {
     };
 }
 
-function createOption(preset, designResolution) {
-    const option = document.createElement('option');
-    option.value = preset.id;
-    option.disabled = !!preset.disabled;
+function getPresetLabel(preset, designResolution) {
     if (preset.id === 'design') {
-        option.textContent = `${preset.name} (${designResolution.width}×${designResolution.height})`;
-    } else if (preset.width && preset.height) {
-        option.textContent = `${preset.name} (${preset.width}×${preset.height})`;
-    } else {
-        option.textContent = preset.name;
+        return `${preset.name} (${designResolution.width}×${designResolution.height})`;
     }
+    if (preset.width && preset.height) {
+        return `${preset.name} (${preset.width}×${preset.height})`;
+    }
+    return preset.name;
+}
+
+function createDeviceOption(preset, designResolution) {
+    const option = document.createElement('li');
+    if (preset.id === 'separator') {
+        option.className = 'separator';
+        return option;
+    }
+    option.dataset.device = preset.id;
+    option.textContent = getPresetLabel(preset, designResolution);
     return option;
 }
 
@@ -73,7 +80,11 @@ function setPreviewWindowSize(cc, width, height) {
 
 export default async function initializePreviewToolbar() {
     const toolbar = getElement('preview-toolbar');
-    const deviceSelect = getElement('preview-device');
+    const devicePicker = getElement('preview-device');
+    const deviceName = getElement('preview-device-name');
+    const deviceOptions = getElement('preview-device-options');
+    const deviceOptionList = deviceOptions.querySelector('ul');
+    const deviceSelectTrigger = devicePicker.querySelector('.view-select');
     const rotateButton = getElement('preview-rotate');
     const debugModeSelect = getElement('preview-debug-mode');
     const showFpsButton = getElement('preview-show-fps');
@@ -87,18 +98,29 @@ export default async function initializePreviewToolbar() {
     const debug = getDebugApi(cc);
     const designResolution = getDesignResolution();
     const presets = new Map(DEVICE_PRESETS.map((preset) => [preset.id, preset]));
-    let rotated = true;
+    let selectedDevice = 'design';
+    let rotated = false;
     let webpageFullScreen = false;
     // 游戏启动时会短暂 pause 以等待场景加载；这不是用户通过预览工具栏发起的暂停，不能展示 Step 控件。
     let pausedByToolbar = false;
 
-    DEVICE_PRESETS.forEach((preset) => deviceSelect.appendChild(createOption(preset, designResolution)));
-    deviceSelect.value = 'design';
-    debugModeSelect.value = 'WARN_FOR_WEB_PAGE';
+    DEVICE_PRESETS.forEach((preset) => deviceOptionList?.appendChild(createDeviceOption(preset, designResolution)));
+    debugModeSelect.value = 'WARN';
     frameRateInput.value = '60';
 
+    const updateSelectedDevice = (deviceId) => {
+        selectedDevice = deviceId;
+        devicePicker.setAttribute('value', deviceId);
+        const preset = presets.get(deviceId);
+        deviceName.textContent = getPresetLabel(preset || DEVICE_PRESETS[0], designResolution);
+        deviceOptionList?.querySelectorAll('li[data-device]').forEach((option) => {
+            option.classList.toggle('selected', option.dataset.device === deviceId);
+        });
+    };
+    updateSelectedDevice(selectedDevice);
+
     const getCurrentSize = () => {
-        const preset = presets.get(deviceSelect.value);
+        const preset = presets.get(selectedDevice);
         if (preset?.id === 'webpage-fullscreen' || preset?.id === 'fullscreen') {
             return { width: window.innerWidth, height: window.innerHeight };
         }
@@ -116,6 +138,22 @@ export default async function initializePreviewToolbar() {
         webpageFullScreen = enabled;
         document.body.classList.toggle('preview-webpage-fullscreen', enabled);
         document.body.classList.remove('preview-toolbar-revealed');
+    };
+
+    const selectDevice = async (deviceId) => {
+        updateSelectedDevice(deviceId);
+        setWebpageFullScreen(deviceId === 'webpage-fullscreen');
+        if (deviceId === 'fullscreen') {
+            if (typeof cc.screen?.requestFullScreen === 'function') {
+                try {
+                    await cc.screen.requestFullScreen();
+                } catch (error) {
+                    console.warn('[Game Preview] request fullscreen failed:', error);
+                }
+            }
+        } else {
+            applyWindowSize();
+        }
     };
 
     const getStatsVisible = () => {
@@ -152,29 +190,31 @@ export default async function initializePreviewToolbar() {
     rotateButton.addEventListener('click', () => {
         rotated = !rotated;
         setChecked(rotateButton, rotated);
-        if (deviceSelect.value !== 'fullscreen') {
+        if (selectedDevice !== 'fullscreen') {
             applyWindowSize();
         }
         window.dispatchEvent(new Event('orientationchange'));
     });
 
-    deviceSelect.addEventListener('change', async () => {
-        setWebpageFullScreen(deviceSelect.value === 'webpage-fullscreen');
-        if (deviceSelect.value === 'fullscreen') {
-            if (typeof cc.screen?.requestFullScreen === 'function') {
-                try {
-                    await cc.screen.requestFullScreen();
-                } catch (error) {
-                    console.warn('[Game Preview] request fullscreen failed:', error);
-                }
-            }
-        } else {
-            applyWindowSize();
+    deviceSelectTrigger?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        deviceOptions.toggleAttribute('open');
+    });
+
+    document.addEventListener('click', () => {
+        deviceOptions.removeAttribute('open');
+    });
+
+    deviceOptionList?.addEventListener('click', async (event) => {
+        const option = event.target.closest('li[data-device]');
+        if (option?.dataset.device) {
+            await selectDevice(option.dataset.device);
         }
+        deviceOptions.removeAttribute('open');
     });
 
     window.addEventListener('resize', () => {
-        if (deviceSelect.value === 'webpage-fullscreen') {
+        if (selectedDevice === 'webpage-fullscreen') {
             applyWindowSize();
         }
     });
