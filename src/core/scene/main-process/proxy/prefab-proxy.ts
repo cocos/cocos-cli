@@ -6,8 +6,8 @@ import type {
     IPrefabInfo,
 } from '../../common';
 import { INodeInfo } from '../../common/cli/node';
-import { Rpc } from '../rpc';
 import { DumpConverter } from './dump-converter';
+import { requestSceneService } from './scene-authority-request';
 
 export interface IPrefabProxy extends Omit<IPublicPrefabService, 'createPrefabFromNode' | 'unpackPrefabInstance' | 'getPrefabInfo' | 'unlinkPrefab'> {
     createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INodeInfo>;
@@ -17,25 +17,25 @@ export interface IPrefabProxy extends Omit<IPublicPrefabService, 'createPrefabFr
 
 export const PrefabProxy: IPrefabProxy = {
     applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean> {
-        return Rpc.getInstance().request('Prefab', 'applyPrefabChanges', [params]);
+        return requestSceneService('Prefab', 'applyPrefabChanges', [params]);
     },
     async createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INodeInfo> {
-        const result: any = await Rpc.getInstance().request('Prefab', 'createPrefabFromNode', [params]);
+        const result: any = await requestSceneService('Prefab', 'createPrefabFromNode', [params]);
         return DumpConverter.toNode(result);
     },
     async getPrefabInfo(params: IGetPrefabInfoParams): Promise<IPrefabInfo | null> {
-        const result: any = await Rpc.getInstance().request('Prefab', 'getPrefabInfo', [params]);
+        const result: any = await requestSceneService('Prefab', 'getPrefabInfo', [params]);
         if (!result) return null;
         return DumpConverter.convertPrefab(result);
     },
     isPrefabInstance(params: IIsPrefabInstanceParams): Promise<boolean> {
-        return Rpc.getInstance().request('Prefab', 'isPrefabInstance', [params]);
+        return requestSceneService('Prefab', 'isPrefabInstance', [params]);
     },
     revertToPrefab(params: IRevertToPrefabParams): Promise<boolean> {
-        return Rpc.getInstance().request('Prefab', 'revertToPrefab', [params]);
+        return requestSceneService('Prefab', 'revertToPrefab', [params]);
     },
     async unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INodeInfo> {
-        const result: any = await Rpc.getInstance().request('Prefab', 'unpackPrefabInstance', [params]);
+        const result: any = await requestSceneService('Prefab', 'unpackPrefabInstance', [params]);
         return DumpConverter.toNode(result);
     }
 };

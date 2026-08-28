@@ -15,9 +15,9 @@ import { ISetPropertyOptionsInfo } from '../../common/cli/component';
 import type { IAssetInfo } from '../../../assets/@types/public';
 import { assetManager } from '../../../assets';
 
-import { Rpc } from '../rpc';
 import { DumpConverter } from './dump-converter';
 import { getExpectedAssetType, resolveAssetReference } from './asset-reference-resolver';
+import { requestSceneService } from './scene-authority-request';
 
 export interface IComponentProxy extends Omit<IPublicComponentService, 'add' | 'query' | 'setProperty' | 'getPathByUuid'> {
     add(params: IAddComponentOptions): Promise<IComponentInfo>;
@@ -27,16 +27,16 @@ export interface IComponentProxy extends Omit<IPublicComponentService, 'add' | '
 
 export const ComponentProxy: IComponentProxy = {
     async add(params: IAddComponentOptions): Promise<IComponentInfo> {
-        const result: any = await Rpc.getInstance().request('Component', 'add', [params]);
+        const result: any = await requestSceneService('Component', 'add', [params]);
         return DumpConverter.toComponent(result);
     },
 
     remove(params: IRemoveComponentOptions): Promise<boolean> {
-        return Rpc.getInstance().request('Component', 'remove', [params]);
+        return requestSceneService('Component', 'remove', [params]);
     },
 
     async query(params: IQueryComponentOptions): Promise<IComponentInfo | null> {
-        const result: any = await Rpc.getInstance().request('Component', 'query', [params]);
+        const result: any = await requestSceneService('Component', 'query', [params]);
         if (!result) return null;
         if (typeof params !== 'string') {
             return DumpConverter.toComponent(result);
@@ -49,12 +49,12 @@ export const ComponentProxy: IComponentProxy = {
         segments.pop();
         const nodePath = segments.join('/');
 
-        const compDump: any = await Rpc.getInstance().request('Component', 'query', [params.componentPath]);
+        const compDump: any = await requestSceneService('Component', 'query', [params.componentPath]);
         if (!compDump) {
             throw new Error(`Component not found: ${params.componentPath}`);
         }
 
-        const nodeTree: any = await Rpc.getInstance().request('Node', 'queryNodeTree', [{ path: nodePath }]);
+        const nodeTree: any = await requestSceneService('Node', 'queryNodeTree', [{ path: nodePath }]);
         if (!nodeTree) {
             throw new Error(`Node not found: ${nodePath}`);
         }
@@ -101,7 +101,7 @@ export const ComponentProxy: IComponentProxy = {
         }
 
         for (const { key, propDef, dumpValue } of pendingUpdates) {
-            await Rpc.getInstance().request('Component', 'setProperty', [{
+            await requestSceneService('Component', 'setProperty', [{
                 nodePath,
                 path: `__comps__.${compIndex}.${key}`,
                 dump: { ...propDef, value: dumpValue },
@@ -112,22 +112,22 @@ export const ComponentProxy: IComponentProxy = {
     },
 
     queryAll(): Promise<string[]> {
-        return Rpc.getInstance().request('Component', 'queryAll');
+        return requestSceneService('Component', 'queryAll');
     },
 
     recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult> {
-        return Rpc.getInstance().request('Component', 'recalculateLODGroupBounds', [options]);
+        return requestSceneService('Component', 'recalculateLODGroupBounds', [options]);
     },
 
     insertLOD(options: IInsertLODOptions): Promise<ILODGroupLevelsResult> {
-        return Rpc.getInstance().request('Component', 'insertLOD', [options]);
+        return requestSceneService('Component', 'insertLOD', [options]);
     },
 
     eraseLOD(options: IEraseLODOptions): Promise<ILODGroupLevelsResult> {
-        return Rpc.getInstance().request('Component', 'eraseLOD', [options]);
+        return requestSceneService('Component', 'eraseLOD', [options]);
     },
 
     queryLODGroupRelativeHeight(options: IQueryLODGroupRelativeHeightOptions): Promise<number> {
-        return Rpc.getInstance().request('Component', 'queryLODGroupRelativeHeight', [options]);
+        return requestSceneService('Component', 'queryLODGroupRelativeHeight', [options]);
     },
 };

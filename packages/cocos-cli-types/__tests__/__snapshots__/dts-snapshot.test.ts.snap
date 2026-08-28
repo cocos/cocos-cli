@@ -7903,6 +7903,12 @@ export declare interface BaseItem {
     required?: boolean;
     dependencies?: string[];
 }
+export declare function bindIdeSceneAuthority(sceneApi: IPinkSceneApi): {
+    dispose(): void;
+};
+export declare function bindIdeSceneAuthorityRpc(authorityRpc: ISceneAuthorityRpc): {
+    dispose(): void;
+};
 export declare interface BitmapFontAssetUserData {
     _fntConfig: any;
     fontSize: number;
@@ -8570,6 +8576,13 @@ export declare interface IPhysicsMaterial {
     spinningFriction: number;
     restitution: number;
 }
+export declare interface IPinkSceneApi {
+    getActiveScene(): Promise<any | undefined>;
+    queryOpenedScenes(): Promise<any[]>;
+    open(urlOrUUID: string, options?: {
+        openEditor?: boolean;
+    }): Promise<any>;
+}
 export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
@@ -8644,6 +8657,9 @@ export declare interface IResolvedChunkContent {
 export declare interface IResolvedCustomJointTextureLayout {
     textureLength: number;
     contents: IResolvedChunkContent[];
+}
+export declare interface ISceneAuthorityRpc {
+    request(module: string, method: string, args: unknown[]): Promise<unknown>;
 }
 export declare interface ISocketConfig {
     connection: (socket: any) => void;
@@ -9085,6 +9101,8 @@ export declare function saveMaterial(uuidOrUrlOrPath: string, dump: MaterialDump
 export declare function saveSerializedData(uuidOrUrlOrPath: string, patch: SerializedAssetPatch): Promise<SerializedAssetQueryResult>;
 export declare namespace Scene {
     export {
+        bindIdeSceneAuthority,
+        bindIdeSceneAuthorityRpc,
         init_6 as init,
         startupWorker
     }
@@ -9210,7 +9228,7 @@ export declare function start(): Promise<void>;
 export declare function start_2(port?: number, host?: string): Promise<string>;
 export declare function startCompileScript(assetChanges?: AssetChangeInfo[]): Promise<void>;
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
-export declare function startupWorker(projectPath: string): Promise<void>;
+export declare function startupWorker(_projectPath: string): Promise<void>;
 export declare function stop_2(): Promise<void>;
 export declare const SUPPORT_CREATE_TYPES: readonly ["animation-clip", "typescript", "auto-atlas", "effect", "scene", "prefab", "material", "texture-cube", "terrain", "physics-material", "label-atlas", "render-texture", "directory", "effect-header"];
 export declare enum TangentImportSetting {
