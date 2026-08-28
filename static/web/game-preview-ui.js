@@ -226,7 +226,10 @@ export default async function initializePreviewToolbar() {
         if (!webpageFullScreen) {
             return;
         }
-        document.body.classList.toggle('preview-toolbar-revealed', event.clientY <= TOOLBAR_HEIGHT);
+        // 下拉菜单位于工具栏下方。菜单打开后，鼠标离开顶部 50px 不应隐藏其宿主工具栏，
+        // 否则 Webpage Full Screen 下无法点选任何设备项。
+        const isDeviceMenuOpen = deviceOptions.hasAttribute('open');
+        document.body.classList.toggle('preview-toolbar-revealed', isDeviceMenuOpen || event.clientY <= TOOLBAR_HEIGHT);
     }, true);
 
     showFpsButton.addEventListener('click', () => {
