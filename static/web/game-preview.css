@@ -28,8 +28,7 @@
     padding: 4px 0 4px 10px;
     align-items: center;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
+    min-width: 0;
     color: #aaaaaa;
     background: #333333;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -78,12 +77,11 @@ body.preview-webpage-fullscreen #preview-content {
 }
 
 #preview-toolbar .item {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+    display: inline-block;
     margin-right: 10px;
-    flex: 0 0 auto;
-    white-space: nowrap;
+    min-width: 0;
+    flex: 0 1 auto;
+    vertical-align: middle;
 }
 
 #preview-toolbar select,
@@ -98,8 +96,14 @@ body.preview-webpage-fullscreen #preview-content {
     font: inherit;
 }
 
+#preview-toolbar select {
+    min-width: 0;
+    max-width: 100%;
+}
+
 #preview-toolbar #preview-device {
-    width: 220px;
+    width: 175px;
+    max-width: 100%;
 }
 
 #preview-toolbar input {
@@ -108,7 +112,7 @@ body.preview-webpage-fullscreen #preview-content {
 }
 
 #preview-toolbar button {
-    height: 25px;
+    min-height: 25px;
     box-sizing: border-box;
     border: 1px solid #171717;
     border-radius: 2px;
@@ -118,18 +122,16 @@ body.preview-webpage-fullscreen #preview-content {
     background-image: linear-gradient(#5a5a5a, #444444);
     font: inherit;
     font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
+    line-height: normal;
+    max-width: 100%;
 }
 
 #preview-toolbar button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    white-space: normal;
 }
 
 #preview-show-fps {
-    min-width: 72px;
+    min-width: 0;
 }
 
 #preview-toolbar button.checked {
@@ -139,32 +141,27 @@ body.preview-webpage-fullscreen #preview-content {
 }
 
 #preview-toolbar .controls {
-    gap: 0;
+    margin-right: 0;
 }
 
 #preview-toolbar .controls button + button {
     border-left: 0;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
 }
 
-#preview-toolbar .controls button:first-child {
+#preview-toolbar .controls button:first-child.checked {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
 
-#preview-step-length {
+#preview-toolbar #preview-step-length,
+#preview-toolbar #preview-step {
     display: none;
 }
 
-#preview-step {
-    display: none;
-}
-
-#preview-step.show {
+#preview-toolbar #preview-step.show {
     display: inline-block;
 }
 
-#preview-step-length.show {
-    display: inline-flex;
+#preview-toolbar #preview-step-length.show {
+    display: inline-block;
 }
