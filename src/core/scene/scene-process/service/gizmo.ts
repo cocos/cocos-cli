@@ -1,6 +1,6 @@
 'use strict';
 
-import { Camera, Color, Component, gfx, js, Layers, Node, Rect, Vec3, director } from 'cc';
+import { Camera, Color, Component, gfx, js, Layers, Node, Rect, Terrain, Vec3, director } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { ServiceEvents } from './core/global-events';
@@ -49,16 +49,9 @@ import './gizmo/components/web-view';
 import './gizmo/components/light-probe-group';
 import './gizmo/components/reflection-probe';
 import './gizmo/components/lod-group';
-
-// Terrain is available only in engine versions that expose the Terrain
-// component. Keep its registration conditional so lightweight CLI/test `cc`
-// mocks do not eagerly load the terrain controller's rendering dependencies.
-try {
-    if ((require('cc') as { Terrain?: unknown }).Terrain) {
-        require('./gizmo/components/terrain');
-    }
-} catch {
-    // Terrain registration is optional when the engine module is incomplete.
+// Avoid browser-runtime require('cc') while keeping lightweight cc mocks from loading Terrain dependencies.
+if (Terrain) {
+    require('./gizmo/components/terrain');
 }
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
@@ -525,7 +518,11 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                             if (gizmo.target !== component) {
                                 this._showGizmo('component', component, true);
                             }
-                            gizmo.checkVisible() ? gizmo.show() : gizmo.hide();
+                            const visible = gizmo.checkVisible();
+                            if (visible)
+                                gizmo.show();
+                            else
+                                gizmo.hide();
                         }
                     });
                 }

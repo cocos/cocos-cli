@@ -31,6 +31,7 @@ interface ITerrainSessionGizmo {
     setTerrainMode(mode: TerrainEditorMode): void;
     setTerrainCurrentLayer(currentLayer: number): void;
     updateTerrainSculptSession(patch: ITerrainSculptSessionPatch): void;
+    setSculptBrushTexture(texture: Texture2D | null): void;
     updateTerrainPaintSession(patch: ITerrainPaintSessionPatch): void;
     readTerrainBlock(): ITerrainBlockData | null;
 }
@@ -43,7 +44,6 @@ const terrainEditorModes = new Set<TerrainEditorMode>(['manage', 'sculpt', 'pain
 const terrainSculptTools = new Set<NonNullable<ITerrainSculptSessionPatch['tool']>>([
     'bulge', 'sunken', 'smooth', 'flatten', 'set-height',
 ]);
-const terrainBrushKinds = new Set<NonNullable<ITerrainBrushPatch['kind']>>(['circle', 'image']);
 
 function copyTarget(target: ITerrainTarget): ITerrainTarget {
     return { nodeUuid: target.nodeUuid, componentUuid: target.componentUuid };
@@ -64,6 +64,7 @@ function isTerrainSessionGizmo(value: unknown): value is ITerrainSessionGizmo {
         && typeof gizmo.setTerrainMode === 'function'
         && typeof gizmo.setTerrainCurrentLayer === 'function'
         && typeof gizmo.updateTerrainSculptSession === 'function'
+        && typeof gizmo.setSculptBrushTexture === 'function'
         && typeof gizmo.updateTerrainPaintSession === 'function'
         && typeof gizmo.readTerrainBlock === 'function';
 }
@@ -72,7 +73,6 @@ function normalizeBrushPatch(value: unknown): ITerrainBrushPatch | undefined {
     if (!value || typeof value !== 'object') return undefined;
     const source = value as ITerrainBrushPatch;
     const patch: ITerrainBrushPatch = {};
-    if (source.kind && terrainBrushKinds.has(source.kind)) patch.kind = source.kind;
     for (const key of ['radius', 'strength', 'rotation', 'setHeight'] as const) {
         if (typeof source[key] === 'number' && Number.isFinite(source[key])) patch[key] = source[key];
     }
@@ -285,6 +285,24 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         return this.read(target);
     }
 
+    /** Assigns a validated Texture2D asset to Sculpt, or clears it to restore the circle brush, without creating Scene Undo. */
+    public async setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult> {
+        if (assetUuid !== null && (typeof assetUuid !== 'string' || assetUuid.length === 0)) {
+            return this.read(target);
+        }
+        const initial = this.resolveTarget(target);
+        if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+
+        const texture = assetUuid === null ? null : await this.loadTerrainTexture(assetUuid, 'sculpt brush');
+        if (assetUuid !== null && !texture) return this.read(target);
+
+        const resolved = this.resolveTarget(target);
+        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+        resolved.gizmo.setSculptBrushTexture(texture);
+        this.emit('terrain:session-changed', copyTarget(target));
+        return this.read(target);
+    }
+
     public setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult {
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
@@ -425,12 +443,12 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         return layer;
     }
 
-    private async loadTerrainTexture(uuid: string): Promise<Texture2D | null> {
+    private async loadTerrainTexture(uuid: string, usage = 'layer'): Promise<Texture2D | null> {
         try {
             const texture = await loadAny<Texture2D>(uuid);
             return texture instanceof Texture2D ? texture : null;
         } catch (error) {
-            console.warn(`[Terrain] load layer texture failed: ${uuid}`, error);
+            console.warn(`[Terrain] load ${usage} texture failed: ${uuid}`, error);
             return null;
         }
     }

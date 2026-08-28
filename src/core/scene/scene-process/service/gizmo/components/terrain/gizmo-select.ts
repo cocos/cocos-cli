@@ -1,4 +1,5 @@
 import { Terrain, TerrainInfo, TerrainLayer, TERRAIN_MAX_LAYER_COUNT } from 'cc';
+import type { Texture2D } from 'cc';
 import { Service } from '../../../core/decorator';
 import { loadAny } from '../../../node/node-create';
 import GizmoBase from '../../base/gizmo-base';
@@ -182,9 +183,6 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
     private updateTerrainBrush(mode: eTerrainEditorMode.SCULPT | eTerrainEditorMode.PAINT, patch: ITerrainBrushPatch): void {
         const editor = this.getTerrainBrushEditor(mode);
         const image = editor.getBrush(TerrainBrushType.IMAGE) as TerrainImageBrush;
-        if (patch.kind === 'circle') editor.setCurrentBrush(TerrainBrushType.CIRCLE);
-        else if (patch.kind === 'image' && image.image) editor.setCurrentBrush(TerrainBrushType.IMAGE);
-
         const brush = editor.getCurrentBrush();
         if (typeof patch.radius === 'number') brush.radius = patch.radius;
         if (typeof patch.strength === 'number') brush.strength = patch.strength;
@@ -205,15 +203,12 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         const index = this.target.addLayer(layer); this.updateTerrainAsset(); this.isTerrainChange = true; this.emitNodeChange();
         Service.Engine.repaintInEditMode(); return index;
     }
-    async setSculptBrush(uuid: string) { return this.setBrushImage(eTerrainEditorMode.SCULPT, uuid); }
-    async setPaintBrush(uuid: string) { return this.setBrushImage(eTerrainEditorMode.PAINT, uuid); }
-    private async setBrushImage(mode: eTerrainEditorMode, uuid: string) {
-        const editMode: any = this._editor.getMode(mode);
-        if (!uuid) { editMode.setBrushImage(null); return true; }
-        const texture = await loadAny<any>(uuid);
-        const imageBrush = editMode.getBrush(TerrainBrushType.IMAGE) as TerrainImageBrush;
-        if (imageBrush.image !== texture) editMode.setBrushImage(texture);
-        this.isTerrainChange = true; Service.Engine.repaintInEditMode(); return true;
+
+    /** Applies a service-validated Sculpt brush texture without changing Terrain asset state. */
+    public setSculptBrushTexture(texture: Texture2D | null): void {
+        const sculpt = this.getTerrainBrushEditor(eTerrainEditorMode.SCULPT);
+        sculpt.setBrushImage(texture);
+        Service.Engine.repaintInEditMode();
     }
     async setSculptBrushRotation(rotation: number) {
         (this._editor.getMode(eTerrainEditorMode.SCULPT) as any).setSculptBrushRotation(rotation);

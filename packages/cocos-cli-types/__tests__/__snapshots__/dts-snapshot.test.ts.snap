@@ -6924,7 +6924,6 @@ export declare interface ITerrainBlockSnapshot {
     block: ITerrainBlockData | null;
 }
 export declare interface ITerrainBrushPatch {
-    kind?: TerrainBrushKind;
     radius?: number;
     strength?: number;
     rotation?: number;
@@ -7001,6 +7000,7 @@ export declare interface ITerrainService {
     setMode(target: ITerrainTarget, mode: TerrainEditorMode): TerrainReadResult;
     setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
     setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
+    setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
     saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
     addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
