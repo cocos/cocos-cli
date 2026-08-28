@@ -9,6 +9,15 @@ import fse from 'fs-extra';
  * library 目录中唯一定位文件（与预览 game-preview.middleware.getLibraryDirs 对齐）。
  */
 let libraryDirsCache: string[] | null = null;
+
+/**
+ * 「Preview in Editor」当前场景快照缓存（内存中继）。
+ * 浏览器场景编辑器点 Play 时把编辑器里的实时场景（含未保存改动）序列化后 POST 到
+ * /scene/current；游戏预览 iframe 以 /?scene=__current__ 启动，其 game-boot 通过
+ * GET /scene/current.json 读回该快照并 loadWithJson 运行。缓存的是 serialize 输出的
+ * JSON 字符串（非对象）。MVP 只保留单个活动预览。
+ */
+let currentSceneCache: string | null = null;
 async function getLibraryDirs(): Promise<string[]> {
     if (libraryDirsCache) {
         return libraryDirsCache;
@@ -165,6 +174,22 @@ export default {
             },
         },
         {
+            // Preview in Editor：读回「当前编辑场景」快照。
+            // 必须注册在下面的通用资源路由 `/:dir/:uuid.:ext` 之前，否则会被其捕获
+            // （dir=scene, uuid=current, ext=json），走 asset-db 查询而 404。
+            url: '/scene/current.json',
+            async handler(req: Request, res: Response) {
+                if (currentSceneCache == null) {
+                    return res.status(404).json({ error: 'no current scene cached' });
+                }
+                // iframe reload 时必须实时读回最新快照，禁止缓存。
+                res.setHeader('Cache-Control', 'no-store');
+                // 缓存的是 serialize 输出的 JSON 字符串，直接以 application/json 原样发出，
+                // game-boot 侧 fetch 后 .json() 解析（与 /scene/{uuid}.json 一致）。
+                res.type('application/json').send(currentSceneCache);
+            },
+        },
+        {
             // Serve library assets by UUID - try asset database first,
             // then fall back to library directories on disk
             url: '/:dir/:uuid/:nativeName.:ext',
@@ -256,6 +281,21 @@ export default {
         }
     ],
     post: [
+        {
+            // Preview in Editor：写入「当前编辑场景」快照。
+            // 约定 body 为 { data: <serialize 输出的 JSON 字符串> }：serialize 交付的是字符串，
+            // 若客户端直接把顶层字符串作为 JSON 发送，会被 express.json 的 strict 模式（默认）
+            // 以 400 拒绝，故用对象包裹。
+            url: '/scene/current',
+            async handler(req: Request, res: Response) {
+                const data = req.body?.data;
+                if (typeof data !== 'string') {
+                    return res.status(400).json({ error: 'body.data (serialized scene string) is required' });
+                }
+                currentSceneCache = data;
+                res.status(200).json({ ok: true });
+            },
+        },
         {
             url: '/rpc/:module/:method',
             async handler(req: Request, res: Response) {

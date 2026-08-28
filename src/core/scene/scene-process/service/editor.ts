@@ -128,6 +128,19 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? await editor.encode() : null;
     }
 
+    /**
+     * 序列化当前正在编辑的场景（含未保存改动），返回可被 loadWithJson 加载的 JSON 字符串。
+     * 用于「Preview in Editor」：把编辑器里的实时场景交给游戏运行时预览。
+     * 该方法经 Service proxy 自动暴露到浏览器侧 window.cli.Scene.Editor.querySceneSerializedData。
+     */
+    async querySceneSerializedData(): Promise<string> {
+        const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
+        if (editor instanceof SceneEditor) {
+            return editor.serializeCurrent();
+        }
+        throw new Error('[querySceneSerializedData] 当前没有打开场景');
+    }
+
     getRootNode(): cc.Scene | cc.Node | null {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         return editor ? editor.getRootNode() : null;

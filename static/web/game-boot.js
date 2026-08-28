@@ -187,37 +187,72 @@ export default async function gameBoot() {
             console.warn('[Game Preview] set design resolution failed:', e);
         }
 
+        // 场景 run 完成信号：resolve 于 runSceneImmediate 回调、reject 于加载错误。
+        // gameBoot 只有在场景真正跑起来后才视为成功——IDE 预览 boot 据此 fire view:ready，
+        // 避免在场景仍在加载/失败时过早上报就绪。
+        let resolveSceneRun;
+        let rejectSceneRun;
+        const sceneRunDone = new Promise((resolve, reject) => {
+            resolveSceneRun = resolve;
+            rejectSceneRun = reject;
+        });
+
         await cc.game.run(async () => {
             cc.game.pause();
 
-            const json = await (await fetch(`${env.serverURL}/scene/${encodeURIComponent(launchScene)}.json`)).json();
-            try {
-                launchScene = json[1]._id;
-            } catch (e) {
-                // ignore
+            // Preview in Editor：当启动场景为 __current__ 时，读回编辑器 POST 上来的
+            // 「当前编辑场景」实时快照（/scene/current.json），而非从磁盘按 uuid 取已保存场景。
+            // 该快照是 sceneUtils.serialize 的输出（与编辑器 save/reload 同一路径），
+            // 故与常规路径一样 fetch → .json() → loadWithJson。
+            const isCurrent = launchScene === '__current__';
+            const sceneJsonUrl = isCurrent
+                ? `${env.serverURL}/scene/current.json`
+                : `${env.serverURL}/scene/${encodeURIComponent(launchScene)}.json`;
+            const json = await (await fetch(sceneJsonUrl)).json();
+            let loadOptions = null;
+            if (!isCurrent) {
+                try {
+                    launchScene = json[1]._id;
+                } catch (e) {
+                    // ignore
+                }
+                loadOptions = { assetId: launchScene };
             }
             cc.assetManager.loadWithJson(
                 json,
-                { assetId: launchScene },
+                loadOptions,
                 () => { /* progress */ },
                 (err, sceneAsset) => {
                     if (err) {
                         showError(err);
                         cc.error(err);
+                        rejectSceneRun(err instanceof Error ? err : new Error(String(err)));
                         return;
                     }
-                    const scene = sceneAsset.scene;
-                    scene._name = sceneAsset._name;
-                    cc.director.runSceneImmediate(scene, () => {
-                        cc.game.resume();
-                    });
+                    try {
+                        const scene = sceneAsset.scene;
+                        scene._name = sceneAsset._name;
+                        cc.director.runSceneImmediate(scene, () => {
+                            cc.game.resume();
+                            resolveSceneRun();
+                        });
+                    } catch (e) {
+                        showError(e);
+                        rejectSceneRun(e instanceof Error ? e : new Error(String(e)));
+                    }
                 }
             );
         });
+
+        // 等待场景真正 run 起来后再视为 boot 成功。
+        await sceneRunDone;
 
         console.log('Cocos game preview started');
     } catch (err) {
         console.error('Failed to start game preview:', err.stack || err);
         showError(err);
+        // 重新抛出，让 await gameBoot() 的调用方（IDE 预览 boot、game.ejs）能感知失败。
+        // 浏览器 game.ejs 已用 try/catch 包裹，不会产生未处理拒绝。
+        throw err;
     }
 }
