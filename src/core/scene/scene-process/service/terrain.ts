@@ -32,6 +32,7 @@ interface ITerrainSessionGizmo {
     setTerrainCurrentLayer(currentLayer: number): void;
     updateTerrainSculptSession(patch: ITerrainSculptSessionPatch): void;
     setSculptBrushTexture(texture: Texture2D | null): void;
+    setPaintBrushTexture(texture: Texture2D | null): void;
     updateTerrainPaintSession(patch: ITerrainPaintSessionPatch): void;
     readTerrainBlock(): ITerrainBlockData | null;
 }
@@ -65,6 +66,7 @@ function isTerrainSessionGizmo(value: unknown): value is ITerrainSessionGizmo {
         && typeof gizmo.setTerrainCurrentLayer === 'function'
         && typeof gizmo.updateTerrainSculptSession === 'function'
         && typeof gizmo.setSculptBrushTexture === 'function'
+        && typeof gizmo.setPaintBrushTexture === 'function'
         && typeof gizmo.updateTerrainPaintSession === 'function'
         && typeof gizmo.readTerrainBlock === 'function';
 }
@@ -287,18 +289,32 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
 
     /** Assigns a validated Texture2D asset to Sculpt, or clears it to restore the circle brush, without creating Scene Undo. */
     public async setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult> {
+        return this.setBrushAsset(target, assetUuid, 'sculpt brush', (gizmo, texture) => gizmo.setSculptBrushTexture(texture));
+    }
+
+    /** Assigns a validated Texture2D asset to Paint, or clears it to restore the circle brush, without creating Scene Undo. */
+    public async setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult> {
+        return this.setBrushAsset(target, assetUuid, 'paint brush', (gizmo, texture) => gizmo.setPaintBrushTexture(texture));
+    }
+
+    private async setBrushAsset(
+        target: ITerrainTarget,
+        assetUuid: string | null,
+        usage: string,
+        apply: (gizmo: ITerrainSessionGizmo, texture: Texture2D | null) => void,
+    ): Promise<TerrainReadResult> {
         if (assetUuid !== null && (typeof assetUuid !== 'string' || assetUuid.length === 0)) {
             return this.read(target);
         }
         const initial = this.resolveTarget(target);
         if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
 
-        const texture = assetUuid === null ? null : await this.loadTerrainTexture(assetUuid, 'sculpt brush');
+        const texture = assetUuid === null ? null : await this.loadTerrainTexture(assetUuid, usage);
         if (assetUuid !== null && !texture) return this.read(target);
 
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
-        resolved.gizmo.setSculptBrushTexture(texture);
+        apply(resolved.gizmo, texture);
         this.emit('terrain:session-changed', copyTarget(target));
         return this.read(target);
     }

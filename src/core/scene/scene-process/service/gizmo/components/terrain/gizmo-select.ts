@@ -210,6 +210,13 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         sculpt.setBrushImage(texture);
         Service.Engine.repaintInEditMode();
     }
+
+    /** Applies a service-validated Paint brush texture without changing Terrain asset state. */
+    public setPaintBrushTexture(texture: Texture2D | null): void {
+        const paint = this.getTerrainBrushEditor(eTerrainEditorMode.PAINT);
+        paint.setBrushImage(texture);
+        Service.Engine.repaintInEditMode();
+    }
     async setSculptBrushRotation(rotation: number) {
         (this._editor.getMode(eTerrainEditorMode.SCULPT) as any).setSculptBrushRotation(rotation);
     }

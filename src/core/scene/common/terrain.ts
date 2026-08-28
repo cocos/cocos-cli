@@ -161,6 +161,8 @@ export interface ITerrainService {
     setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
     /** Assigns a Texture2D asset UUID to Sculpt; pass null to clear it and restore the circle brush without creating Scene Undo. */
     setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
+    /** Assigns a Texture2D asset UUID to Paint; pass null to clear it and restore the circle brush without creating Scene Undo. */
+    setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
     /** Applies a partial Paint session update without assigning brush assets or creating Scene Undo. */
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
     /** Commits a complete Manage draft as one TerrainInfo/Undo mutation. */
@@ -179,7 +181,7 @@ export type IPublicTerrainService = Pick<ITerrainService,
     'name' | 'isTerrainChange' | 'select' | 'unselect' | 'close' |
     'saveAsset' | 'saveAssetDialog' | 'addAssetToComp' |
     'read' | 'setMode' | 'setCurrentLayer' | 'setSculptSession' |
-    'setSculptBrushAsset' | 'setPaintSession' | 'saveManage' | 'addLayer' | 'removeLayer' |
+    'setSculptBrushAsset' | 'setPaintBrushAsset' | 'setPaintSession' | 'saveManage' | 'addLayer' | 'removeLayer' |
     'updateLayer' | 'readBlock'
 >;
 

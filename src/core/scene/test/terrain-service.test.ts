@@ -184,6 +184,10 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
             state.sculpt.brush.imageUuid = texture?._uuid ?? null;
             state.sculpt.brush.kind = texture ? 'image' : 'circle';
         }),
+        setPaintBrushTexture: jest.fn((texture: Texture2D | null) => {
+            state.paint.brush.imageUuid = texture?._uuid ?? null;
+            state.paint.brush.kind = texture ? 'image' : 'circle';
+        }),
         updateTerrainPaintSession: jest.fn((patch: any) => {
             if (patch.brush) Object.assign(state.paint.brush, patch.brush);
         }),
@@ -222,6 +226,7 @@ describe('TerrainService target-safe public capability', () => {
             service.setCurrentLayer(target, 0);
             service.setSculptSession(target, { tool: 'set-height', brush: { radius: 8, setHeight: 12 } });
             const brush = service.setSculptBrushAsset(target, 'brush');
+            const paintBrush = service.setPaintBrushAsset(target, 'brush');
             service.setPaintSession(target, { brush: { strength: 7 } });
             const manage = service.saveManage(target, { tileSize: 1, weightMapSize: 128, lightMapSize: 128, blockCount: [1, 1] });
             const add = service.addLayer(target, {
@@ -229,7 +234,7 @@ describe('TerrainService target-safe public capability', () => {
             });
             const update = service.updateLayer(target, 0, { roughness: 0.5 });
             const remove = service.removeLayer(target, 0);
-            return { read, block, brush, manage, add, update, remove };
+            return { read, block, brush, paintBrush, manage, add, update, remove };
         };
 
         expect(assertPublicTerrainInterface).toBeDefined();
@@ -313,6 +318,36 @@ describe('TerrainService target-safe public capability', () => {
         expect(fixture.gizmo.setSculptBrushTexture).toHaveBeenNthCalledWith(1, expect.objectContaining({ _uuid: 'new-brush' }));
         expect(fixture.gizmo.setSculptBrushTexture).toHaveBeenNthCalledWith(2, null);
         expect(other.gizmo.setSculptBrushTexture).not.toHaveBeenCalled();
+        expect(mockEmit).toHaveBeenCalledWith('terrain:session-changed', fixture.target);
+        expect((fixture.terrain as any).isTerrainChange).not.toBe(true);
+    });
+
+    it('assigns or clears only the explicit target Paint image brush and emits invalidation', async () => {
+        const fixture = createFixture();
+        const other = createFixture('node-b', 'terrain-b');
+        mockQueryRegisteredService.mockReturnValue({
+            getComponentGizmo: (component: Terrain) => component === fixture.terrain ? fixture.gizmo : other.gizmo,
+        });
+        mockLoadAny.mockImplementation(async (uuid: string) => new Texture2D(uuid));
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+
+        await expect(service.setPaintBrushAsset(fixture.target, 'paint-brush')).resolves.toMatchObject({
+            valid: true,
+            paint: { brush: { kind: 'image', imageUuid: 'paint-brush' } },
+        });
+        await expect(service.setPaintBrushAsset(fixture.target, null)).resolves.toMatchObject({
+            valid: true,
+            paint: { brush: { kind: 'circle', imageUuid: null } },
+        });
+        await expect(service.setPaintBrushAsset(other.target, 'other-brush')).resolves.toEqual({
+            target: other.target,
+            valid: false,
+        });
+
+        expect(fixture.gizmo.setPaintBrushTexture).toHaveBeenNthCalledWith(1, expect.objectContaining({ _uuid: 'paint-brush' }));
+        expect(fixture.gizmo.setPaintBrushTexture).toHaveBeenNthCalledWith(2, null);
+        expect(other.gizmo.setPaintBrushTexture).not.toHaveBeenCalled();
         expect(mockEmit).toHaveBeenCalledWith('terrain:session-changed', fixture.target);
         expect((fixture.terrain as any).isTerrainChange).not.toBe(true);
     });
