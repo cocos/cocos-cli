@@ -1,5 +1,6 @@
 import { join } from 'path';
 import GamePreviewMiddleware from '../game-preview.middleware';
+import { getPreviewToolbarOptions, resetPreviewToolbarOptions } from '../preview-toolbar-options';
 
 /**
  * 回归测试：浏览器预览入口 `/` 必须能在「builder / scene 尚未初始化」时就渲染 game.ejs。
@@ -49,6 +50,8 @@ function findRootHandler() {
 }
 
 describe('game preview `/` route works before builder init (early-registration invariant)', () => {
+    beforeEach(() => resetPreviewToolbarOptions());
+
     it('renders game.ejs (200) with only scripting.projectPath, no builder', async () => {
         const handler = findRootHandler();
         const req = {
@@ -81,5 +84,34 @@ describe('game preview `/` route works before builder init (early-registration i
         // GamePreview 必须显式提供 `/`，registerBrowserPreview 早注册时它才能先于场景宽泛路由命中。
         const urls = (GamePreviewMiddleware.get || []).map((m: any) => String(m.url));
         expect(urls).toContain('/');
+    });
+
+    it('keeps Creator-style toolbar options across a refreshed page', async () => {
+        const handlers = new Map<string, Function>();
+        (GamePreviewMiddleware.socket as any).connection({
+            on: (event: string, handler: Function) => handlers.set(event, handler),
+        });
+
+        handlers.get('changeOption')?.('debugMode', 'INFO_FOR_WEB_PAGE');
+        handlers.get('changeOption')?.('showFps', true);
+        handlers.get('changeOption')?.('device', 'iphone-14');
+        handlers.get('changeOption')?.('rotate', true);
+
+        expect(getPreviewToolbarOptions()).toEqual({
+            debugMode: 'INFO_FOR_WEB_PAGE',
+            showFps: true,
+            device: 'iphone-14',
+            rotate: true,
+        });
+
+        const handler = findRootHandler();
+        const req = { protocol: 'http', get: () => 'localhost:9527', query: {} };
+        const res = makeRes();
+        await handler(req, res, jest.fn());
+
+        expect(res.body).toContain('"debugMode":"INFO_FOR_WEB_PAGE"');
+        expect(res.body).toContain('"showFps":true');
+        expect(res.body).toContain('"device":"iphone-14"');
+        expect(res.body).toContain('"rotate":true');
     });
 });

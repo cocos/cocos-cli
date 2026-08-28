@@ -69,6 +69,19 @@ function getDebugApi(cc) {
     return cc.debug || window.cc?.debug || cc;
 }
 
+function getPreviewToolbarOptions() {
+    return window.__previewToolbarOptions || {
+        device: 'design',
+        rotate: false,
+        debugMode: 'WARN',
+        showFps: true,
+    };
+}
+
+function emitOptionChange(name, value) {
+    window.__previewSocket?.emit('changeOption', name, value);
+}
+
 function setChecked(button, checked) {
     button.classList.toggle('checked', checked);
 }
@@ -96,16 +109,17 @@ export default async function initializePreviewToolbar() {
 
     const cc = window.cc || await System.import('cc');
     const debug = getDebugApi(cc);
+    const toolbarOptions = getPreviewToolbarOptions();
     const designResolution = getDesignResolution();
     const presets = new Map(DEVICE_PRESETS.map((preset) => [preset.id, preset]));
-    let selectedDevice = 'design';
-    let rotated = false;
-    let webpageFullScreen = false;
+    let selectedDevice = presets.has(toolbarOptions.device) ? toolbarOptions.device : 'design';
+    let rotated = !!toolbarOptions.rotate;
+    let webpageFullScreen = selectedDevice === 'webpage-fullscreen';
     // 游戏启动时会短暂 pause 以等待场景加载；这不是用户通过预览工具栏发起的暂停，不能展示 Step 控件。
     let pausedByToolbar = false;
 
     DEVICE_PRESETS.forEach((preset) => deviceOptionList?.appendChild(createDeviceOption(preset, designResolution)));
-    debugModeSelect.value = 'WARN';
+    debugModeSelect.value = toolbarOptions.debugMode;
     frameRateInput.value = '60';
 
     const updateSelectedDevice = (deviceId) => {
@@ -141,8 +155,6 @@ export default async function initializePreviewToolbar() {
     };
 
     const selectDevice = async (deviceId) => {
-        updateSelectedDevice(deviceId);
-        setWebpageFullScreen(deviceId === 'webpage-fullscreen');
         if (deviceId === 'fullscreen') {
             if (typeof cc.screen?.requestFullScreen === 'function') {
                 try {
@@ -151,9 +163,11 @@ export default async function initializePreviewToolbar() {
                     console.warn('[Game Preview] request fullscreen failed:', error);
                 }
             }
-        } else {
-            applyWindowSize();
+            return;
         }
+        updateSelectedDevice(deviceId);
+        setWebpageFullScreen(deviceId === 'webpage-fullscreen');
+        applyWindowSize();
     };
 
     const getStatsVisible = () => {
@@ -194,6 +208,7 @@ export default async function initializePreviewToolbar() {
             applyWindowSize();
         }
         window.dispatchEvent(new Event('orientationchange'));
+        emitOptionChange('rotate', rotated);
     });
 
     deviceSelectTrigger?.addEventListener('click', (event) => {
@@ -209,6 +224,9 @@ export default async function initializePreviewToolbar() {
         const option = event.target.closest('li[data-device]');
         if (option?.dataset.device) {
             await selectDevice(option.dataset.device);
+            if (option.dataset.device !== 'fullscreen') {
+                emitOptionChange('device', option.dataset.device);
+            }
         }
         deviceOptions.removeAttribute('open');
     });
@@ -216,6 +234,13 @@ export default async function initializePreviewToolbar() {
     window.addEventListener('resize', () => {
         if (selectedDevice === 'webpage-fullscreen') {
             applyWindowSize();
+        }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            applyWindowSize();
+            window.dispatchEvent(new Event('resize'));
         }
     });
 
@@ -235,10 +260,12 @@ export default async function initializePreviewToolbar() {
     showFpsButton.addEventListener('click', () => {
         setStatsVisible(!getStatsVisible());
         updateFpsControl();
+        emitOptionChange('showFps', getStatsVisible());
     });
 
     debugModeSelect.addEventListener('change', () => {
         applyDebugMode();
+        emitOptionChange('debugMode', debugModeSelect.value);
     });
 
     frameRateInput.addEventListener('change', () => {
@@ -273,8 +300,11 @@ export default async function initializePreviewToolbar() {
     }
     document.body.classList.add('preview-toolbar-enabled');
     toolbar.classList.remove('disabled');
+    setChecked(rotateButton, rotated);
+    setWebpageFullScreen(webpageFullScreen);
+    updateSelectedDevice(selectedDevice);
     applyDebugMode();
-    setStatsVisible(true);
+    setStatsVisible(!!toolbarOptions.showFps);
     cc.game.setFrameRate(60);
     applyWindowSize();
     updateFpsControl();

@@ -74,8 +74,10 @@ export default async function gameBoot() {
         }
 
         // 构建引擎启动选项：以 settings 为基础，覆盖资源路径与启动场景（对齐编辑器 main.ts）
+        const toolbarOptions = previewToolbarEnabled ? window.__previewToolbarOptions : undefined;
+        const initialDebugMode = cc.debug?.DebugMode?.[toolbarOptions?.debugMode];
         const option = {
-            debugMode: (cc.debug && cc.debug.DebugMode && cc.debug.DebugMode.INFO) || 1,
+            debugMode: initialDebugMode ?? cc.debug?.DebugMode?.INFO ?? 1,
             overrideSettings: Object.assign({}, settings),
         };
         option.overrideSettings.assets = Object.assign({}, option.overrideSettings.assets, {
@@ -103,6 +105,9 @@ export default async function gameBoot() {
             // 而不把宿主窗口 resize 传给游戏。
             option.overrideSettings.screen = Object.assign({}, option.overrideSettings.screen, {
                 exactFitScreen: false,
+            });
+            option.overrideSettings.profiling = Object.assign({}, option.overrideSettings.profiling, {
+                showFPS: !!toolbarOptions?.showFps,
             });
         }
 
