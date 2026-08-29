@@ -28,6 +28,18 @@ const DEVICE_PRESETS = [
 ];
 const TOOLBAR_HEIGHT = 50;
 
+function getLocalizedDevicePresets() {
+    const deviceText = window.__previewToolbarI18n?.device || {};
+    return DEVICE_PRESETS.map((preset) => {
+        const localizedName = {
+            design: deviceText.designResolution,
+            fullscreen: deviceText.fullScreen,
+            'webpage-fullscreen': deviceText.webpageFullScreen,
+        }[preset.id];
+        return localizedName ? { ...preset, name: localizedName } : preset;
+    });
+}
+
 function getElement(id) {
     const element = document.getElementById(id);
     if (!element) {
@@ -111,14 +123,15 @@ export default async function initializePreviewToolbar() {
     const debug = getDebugApi(cc);
     const toolbarOptions = getPreviewToolbarOptions();
     const designResolution = getDesignResolution();
-    const presets = new Map(DEVICE_PRESETS.map((preset) => [preset.id, preset]));
+    const devicePresets = getLocalizedDevicePresets();
+    const presets = new Map(devicePresets.map((preset) => [preset.id, preset]));
     let selectedDevice = presets.has(toolbarOptions.device) ? toolbarOptions.device : 'design';
     let rotated = !!toolbarOptions.rotate;
     let webpageFullScreen = selectedDevice === 'webpage-fullscreen';
     // 游戏启动时会短暂 pause 以等待场景加载；这不是用户通过预览工具栏发起的暂停，不能展示 Step 控件。
     let pausedByToolbar = false;
 
-    DEVICE_PRESETS.forEach((preset) => deviceOptionList?.appendChild(createDeviceOption(preset, designResolution)));
+    devicePresets.forEach((preset) => deviceOptionList?.appendChild(createDeviceOption(preset, designResolution)));
     debugModeSelect.value = toolbarOptions.debugMode;
     frameRateInput.value = '60';
 
@@ -126,7 +139,7 @@ export default async function initializePreviewToolbar() {
         selectedDevice = deviceId;
         devicePicker.setAttribute('value', deviceId);
         const preset = presets.get(deviceId);
-        deviceName.textContent = getPresetLabel(preset || DEVICE_PRESETS[0], designResolution);
+        deviceName.textContent = getPresetLabel(preset || devicePresets[0], designResolution);
         deviceOptionList?.querySelectorAll('li[data-device]').forEach((option) => {
             option.classList.toggle('selected', option.dataset.device === deviceId);
         });

@@ -8,6 +8,7 @@ import { scriptingRoutes } from './scripting-routes';
 import { getCachedPreviewSettings, PreviewNotReadyError } from './preview-settings';
 import { notePreviewNotReady } from './live-reload';
 import { getPreviewToolbarOptions, setPreviewToolbarOption } from './preview-toolbar-options';
+import i18n from '../base/i18n';
 
 /**
  * 各资源数据库的 library（已导入数据）目录缓存。
@@ -197,6 +198,16 @@ export default {
                         settingsJs: `/preview/settings.js${sceneQuery}`,
                         sceneQuery,
                         previewToolbarOptions: getPreviewToolbarOptions(),
+                        // Keep the preview page aligned with Creator: localize device-mode names on the
+                        // server, then inject the resolved values into the browser page. The toolbar
+                        // itself does not need a second client-side i18n runtime.
+                        previewToolbarI18n: {
+                            device: {
+                                designResolution: i18n.t('common.preview.device.design_resolution'),
+                                fullScreen: i18n.t('common.preview.device.full_screen'),
+                                webpageFullScreen: i18n.t('common.preview.device.webpage_full_screen'),
+                            },
+                        },
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'game.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);

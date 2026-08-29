@@ -97,6 +97,7 @@
         window.WebEnv = { serverURL: '<%= serverURL %>' };
         window.__launchSceneQuery = '<%= sceneQuery %>';
         window.__previewToolbarOptions = <%- JSON.stringify(previewToolbarOptions) %>;
+        window.__previewToolbarI18n = <%- JSON.stringify(previewToolbarI18n) %>;
         // 构建标记：确认浏览器拿到的是「早注册 / 自愈」版本的 game.ejs（而非旧缓存或旧构建）。
         console.log('[Game Preview] page build marker: EARLY-ROUTE-FIX v6 (served from static/web/game.ejs)');
     </script>

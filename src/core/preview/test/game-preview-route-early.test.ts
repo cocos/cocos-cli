@@ -1,6 +1,7 @@
 import { join } from 'path';
 import GamePreviewMiddleware from '../game-preview.middleware';
 import { getPreviewToolbarOptions, resetPreviewToolbarOptions } from '../preview-toolbar-options';
+import i18n from '../../base/i18n';
 
 /**
  * 回归测试：浏览器预览入口 `/` 必须能在「builder / scene 尚未初始化」时就渲染 game.ejs。
@@ -50,7 +51,10 @@ function findRootHandler() {
 }
 
 describe('game preview `/` route works before builder init (early-registration invariant)', () => {
-    beforeEach(() => resetPreviewToolbarOptions());
+    beforeEach(async () => {
+        resetPreviewToolbarOptions();
+        await i18n.setLanguage('en');
+    });
 
     it('renders game.ejs (200) with only scripting.projectPath, no builder', async () => {
         const handler = findRootHandler();
@@ -113,5 +117,18 @@ describe('game preview `/` route works before builder init (early-registration i
         expect(res.body).toContain('"showFps":true');
         expect(res.body).toContain('"device":"iphone-14"');
         expect(res.body).toContain('"rotate":true');
+    });
+
+    it('injects Creator-style localized device names from the CLI i18n service', async () => {
+        await i18n.setLanguage('zh');
+        const handler = findRootHandler();
+        const req = { protocol: 'http', get: () => 'localhost:9527', query: {} };
+        const res = makeRes();
+
+        await handler(req, res, jest.fn());
+
+        expect(res.body).toContain('"designResolution":"设计分辨率"');
+        expect(res.body).toContain('"fullScreen":"全屏"');
+        expect(res.body).toContain('"webpageFullScreen":"网页全屏"');
     });
 });
