@@ -22,4 +22,6 @@ export * from './ui';
 // registration module instead of replacing its CommonJS side-effect import
 // with an empty tree-shaken namespace.
 export { ReferenceImageService } from './reference-image';
+export { LightProbeBakeService } from './light-probe-bake';
+export { LightmapBakeService } from './lightmap-bake';
 export * from './core/global-events';

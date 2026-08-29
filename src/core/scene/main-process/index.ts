@@ -7,6 +7,7 @@ import { AssetProxy } from './proxy/asset-proxy';
 import { EngineProxy } from './proxy/engine-proxy';
 import { PrefabProxy } from './proxy/prefab-proxy';
 import { ReferenceImageProxy } from './proxy/reference-image-proxy';
+import { LightmapBakeProxy, LightProbeBakeProxy } from './proxy/lightfx-bake-proxy';
 
 import { assetManager } from '../../assets';
 import scriptManager from '../../scripting';
@@ -31,6 +32,8 @@ export const Scene = {
     ...EngineProxy,
     ...PrefabProxy,
     ReferenceImage: ReferenceImageProxy,
+    LightProbeBake: LightProbeBakeProxy,
+    LightmapBake: LightmapBakeProxy,
     // 节点相关的接口
     Node: NodeProxy,
     // 组件相关的接口
