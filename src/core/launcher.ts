@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { BuildExitCode, IBuildCommandOption, Platform } from './builder/@types/protected';
+import { BuildExitCode, IBuildCommandOption, IBuildResultData, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
 import { startServer, getServerUrl } from '../server';
@@ -222,13 +222,17 @@ export default class Launcher {
      * @param platform
      * @param options
      */
-    async build(platform: Platform, options: Partial<IBuildCommandOption>) {
+    async build(platform: Platform, options: Partial<IBuildCommandOption>): Promise<IBuildResultData> {
         GlobalConfig.mode = 'simple';
         // 先导入项目
         await this.import();
         // 执行构建流程
-        const { init, build } = await import('./builder');
+        const { init, build, verifyBuildOptions } = await import('./builder');
         await init([platform]);
+        const checkFail = await verifyBuildOptions(platform, options as any);
+        if (checkFail) {
+            return checkFail;
+        }
         return await build(platform, options);
     }
 

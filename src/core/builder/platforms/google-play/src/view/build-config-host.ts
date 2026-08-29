@@ -181,21 +181,36 @@ function getAPILevel(apiLevelStr: string): number {
 async function getAndroidAPILevels(): Promise<number[]> {
     const sdkPath = await findSdkPath();
     if (!sdkPath) {
+        console.warn('Android SDK path not found, cannot list available API Levels.');
         return [];
     }
 
     const platformPath = sdkPath+'/'+'platforms';
     if (!existsDir(platformPath)) {
+        console.warn(`Android SDK platforms directory not found: ${platformPath}`);
         return [];
     }
 
-    return fs.readdirSync(platformPath)
-        .filter((name) => {
-            const apiLevel = getAPILevel(name);
-            return apiLevel >= 19 && existsDir(path.join(platformPath, name));
-        })
-        .map((name) => Number.parseInt(name.split('-')[1], 10))
+    const installed = fs.readdirSync(platformPath)
+        .filter((name) => getAPILevel(name) > 0 && existsDir(path.join(platformPath, name)))
+        .map((name) => getAPILevel(name))
         .sort((a, b) => b - a);
+
+    // Google Play 政策最低 API 24，UI 下拉只列可用的
+    const levels = installed.filter((apiLevel) => apiLevel >= 24);
+    if (!levels.length) {
+        console.warn(
+            `No installed Android SDK platform meets the Google Play minimum API Level 24 (${platformPath}).`
+            + ` Installed: ${installed.length ? installed.map((l) => `android-${l}`).join(', ') : 'none'}.`
+            + ' Install a platform with API Level 24 or above to build for Google Play.',
+        );
+    } else if (installed.length !== levels.length) {
+        console.log(
+            'Android SDK platforms below API Level 24 are excluded for Google Play: '
+            + installed.filter((apiLevel) => apiLevel < 24).map((l) => `android-${l}`).join(', '),
+        );
+    }
+    return levels;
 }
 
 function fileImageSrc(filePath: string): string {

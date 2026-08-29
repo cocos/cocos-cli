@@ -30,9 +30,9 @@ export interface IOptions extends INativeOption {
     appABIs: IAppABI[];
 
     renderBackEnd: {
-        // vulkan: boolean;
+        vulkan: boolean;
         gles3: boolean;
-        // gles2: boolean;
+        gles2: boolean;
     };
     jsEngine: IJsEngine
     useAotOptimization: boolean;

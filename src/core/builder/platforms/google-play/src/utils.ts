@@ -4,7 +4,6 @@ import { existsSync, statSync, readdirSync } from 'fs-extra';
 import { dirname, join, normalize } from 'path';
 import { platform } from 'os';
 import { IGooglePlayInternalBuildOptions } from './type';
-import { BuildCheckResult } from '../../../@types/protected';
 
 export function checkPackageNameValidity(packageName: string) {
     return /^[a-zA-Z]\w*(\.[a-zA-Z]\w*)+$/.test(packageName);
@@ -12,55 +11,6 @@ export function checkPackageNameValidity(packageName: string) {
 
 export function checkIsEmpty(value: any) {
     return value === null || value === undefined || value === '';
-}
-
-export async function checkAndroidAPILevels(value: number, options: IGooglePlayInternalBuildOptions): Promise<BuildCheckResult> {
-    const res: BuildCheckResult = {
-        valid: true,
-    };
-    if (checkIsEmpty(value)) {
-        res.valid = false;
-        res.level = 'error';
-        res.message = 'API Level cannot be empty';
-        return res;
-    }
-    if (isNaN(value)) {
-        res.valid = false;
-        res.level = 'error';
-        res.message = 'API Level must be a number';
-        return res;
-    }
-    const APIVersion = value;
-    if (options.packages['google-play'].androidInstant && APIVersion < 23) {
-        res.valid = false;
-        res.level = 'error';
-        res.message = 'When Android Instant App is enabled, the minimum API Level required is 23.';
-        res.fixedValue = 23;
-        return res;
-    }
-    if ((options.packages as any).native?.JobSystem === 'tbb' && APIVersion < 21) {
-        res.valid = false;
-        res.level = 'error';
-        res.message = 'When TBB is enabled, the minimum API Level required is 21.';
-        res.fixedValue = 21;
-        return res;
-    }
-    if (options.renderPipeline === '5d45ba66-829a-46d3-948e-2ed3fa7ee421' && APIVersion < 21) {
-        res.valid = false;
-        res.level = 'error';
-        res.message = 'When Deferred Render Pipeline is enabled, the minimum API Level required is 21.';
-        res.fixedValue = 21;
-        return res;
-    }
-    if (APIVersion < 19) {
-        res.valid = false;
-        res.level = 'error';
-        res.message = 'The minimum API Level required is 19.';
-        res.fixedValue = 19;
-        return res;
-    }
-
-    return res;
 }
 
 function findSdkPath(): string {
