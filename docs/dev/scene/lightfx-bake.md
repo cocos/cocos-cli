@@ -7,11 +7,11 @@ Cocos CLI 需要接入以下两种离线烘焙能力：
 - Light Probe Bake：计算场景中光照探针的球谐光照系数（SH coefficients），将结果写回场景全局数据。
 - Lightmap Bake：生成场景静态模型和地形使用的 Lightmap 纹理，导入 Asset DB 后绑定到对应组件。
 
-两种能力都使用 Creator 的 LightFX 工具，并共享场景导出、二进制协议、外部进程管理和结果解析。实现采用“一套公共 LightFX 内核、两个独立业务服务和两个独立 MCP 工具”的结构。
+两种能力都使用 Creator 的 LightFX 工具，并共享场景导出、二进制协议、外部进程管理和结果解析。实现采用“一套公共 LightFX 内核、两个独立业务服务和独立 MCP 工具”的结构。
 
 本设计的目标是：
 
-1. 第一阶段完成 Light Probe Bake 时即建立可供 Lightmap 复用的基础设施。
+1. Light Probe Bake 与 Lightmap Bake 共享同一套 LightFX 基础设施。
 2. 两种烘焙可以独立调用、独立失败和独立回滚。
 3. 不直接复制 Creator 中同时混合面板、Metrics、Lightmap 和 Light Probe 的大文件。
 4. 保持烘焙输入、LightFX 协议和结果应用逻辑与 Creator 兼容。
@@ -19,7 +19,7 @@ Cocos CLI 需要接入以下两种离线烘焙能力：
 
 非目标：
 
-- 第一阶段不提供一个同时烘焙 Light Probe 和 Lightmap 的公开 `both` 接口。
+- 不提供同时烘焙 Light Probe 和 Lightmap 的公开 `both` 接口；调用方按需分别调用两个工具。
 - MCP 可以可选覆盖真正参与计算的烘焙参数；未传参数时读取场景或项目现有配置。编辑器可视化参数不混入 Bake 接口。
 - 不实现新的 LightFX 算法，也不修改引擎的光照探针或 Lightmap 数据结构。
 - 不要求浏览器 `/scene-editor/` 提供 WebGL 捕获能力。
@@ -151,7 +151,7 @@ src/api/scene/lightmap.ts
 type LightFXBakeTarget = 'light-probe' | 'lightmap';
 ```
 
-内部数据结构可以为未来组合执行保留两个布尔位，但第一阶段不公开 `both`，也不让一个业务服务同时提交两类结果。
+内部协议保留两个烘焙目标位，但不公开 `both`，也不让一个业务服务同时提交两类结果。
 
 ### 4.2 场景导出
 
@@ -218,7 +218,7 @@ type LightFXBakeTarget = 'light-probe' | 'lightmap';
 
 - 成功后默认清理临时输入；Lightmap 输出完成资产提交后再清理。
 - 失败、取消和超时均执行 finally 清理。
-- 可增加内部 `keepTemporaryFiles` 调试开关，但不作为首版 MCP 参数。
+- 临时文件不作为 MCP 输出；成功、失败、取消和超时均由服务清理自身 workspace。
 - 不删除 operation-id 目录以外的任何文件。
 
 ### 4.6 LightFX 进程生命周期
@@ -261,7 +261,7 @@ type LightFXBakeStage =
     | 'completed';
 ```
 
-业务服务可广播内部进度事件。MCP 首版仍等待最终结果，不依赖 Inspector 对通知的展示能力。
+业务服务广播内部进度事件；MCP 调用等待最终结果，不依赖 Inspector 对通知的展示能力。
 
 ## 5. Light Probe Bake
 
@@ -273,7 +273,7 @@ type LightFXBakeStage =
 scene-bake-light-probes
 ```
 
-建议参数：
+调用参数：
 
 ```ts
 interface ILightProbeBakeOptions {
@@ -371,13 +371,13 @@ Light Probe 结果直接序列化在 `.scene` 中，不创建新的 Asset DB 资
 
 ### 5.4 清除接口
 
-清除烘焙结果可作为后续独立工具：
+清除烘焙结果使用独立工具：
 
 ```text
 scene-clear-light-probes
 ```
 
-其语义应调用 `lightProbeInfo.onProbeBakeCleared()`，进入 Undo，并按需保存场景。首个 Bake PR 不必同时实现。
+该工具调用 `lightProbeInfo.onProbeBakeCleared()`，进入 Undo，并按需保存场景。
 
 ## 6. Lightmap Bake
 
@@ -389,7 +389,7 @@ scene-clear-light-probes
 scene-bake-lightmap
 ```
 
-建议参数：
+调用参数：
 
 ```ts
 interface ILightmapBakeOptions {
@@ -407,15 +407,13 @@ interface ILightmapBakeOptions {
     threads?: number;
     saveScene?: boolean;
     timeoutMs?: number;
-    outputDir?: string;
 }
 ```
 
 - `msaa`、`resolution`、`filter`、`highp`、GI、AO 和 `threads` 都会影响 LightFX 计算，允许 MCP 对本次烘焙进行可选覆盖。
-- 未传入的参数读取项目现有 Lightmap 配置；项目配置也不存在时才使用与 Creator 一致的默认值。
+- 未传入的参数使用与 Creator 面板初始值一致的 CLI 默认值。
 - MCP 覆盖值默认只作用于本次烘焙，不写回项目 Lightmap 配置。永久修改配置应使用独立配置接口。
-- 第一版可以暂不开放 `outputDir`，统一输出到场景对应目录；若开放，只接受 `db://assets` 下的目录。
-- 不允许传入任意绝对输出路径。
+- 不开放 `outputDir`，统一输出到场景对应目录，不允许传入任意文件系统路径。
 
 面板参数映射：
 
@@ -455,7 +453,7 @@ MCP JSON 示例：
 }
 ```
 
-返回值建议包含：
+返回值包含：
 
 ```ts
 interface ILightmapBakeResult {
@@ -534,13 +532,13 @@ Lightmap 同时修改文件资产和场景，事务边界为：
 
 ### 6.6 清除接口
 
-后续可增加：
+清理工具：
 
 ```text
 scene-clear-lightmap
 ```
 
-清除应解除组件绑定并更新 globals。是否删除磁盘纹理由显式参数控制，默认只解除绑定，避免破坏被其他场景引用的资源。
+`scene-clear-lightmap` 解除组件绑定并更新 globals。是否删除磁盘纹理由 `deleteAssets` 显式控制，默认只解除绑定，避免破坏被其他场景引用的资源。
 
 ## 7. 进程与运行环境边界
 
@@ -564,7 +562,7 @@ LightFX 烘焙不同于 Reflection Probe 捕获：
 - 取消应同时终止 LightFX、关闭 Socket.IO、停止结果提交并清理 workspace。
 - 一旦进入结果提交阶段，取消按失败处理并执行事务回滚。
 
-首版可以只提供内部取消能力；后续再增加公开的 `scene-cancel-lightfx-bake`，同时返回被取消任务的类型和 operation id。
+公开的 `scene-cancel-lightfx-bake` 可取消当前任务，并返回是否取消成功及任务类型。
 
 ## 9. 错误模型
 
@@ -635,33 +633,14 @@ LightFX 烘焙不同于 Reflection Probe 捕获：
 - Lightmap 纹理引用有效，模型和 Terrain 显示正确。
 - 场景和资产目录没有 staging、backup 或失效 meta 残留。
 
-## 11. 分阶段交付
+## 11. 已实现能力与验收标准
 
-### 阶段一：公共内核与 Light Probe Bake
+- 公共 LightFX 场景导出、二进制协议、进程管理、超时、取消和 workspace 清理。
+- `scene-bake-light-probes` 与 `scene-clear-light-probes`，包括 SH 回填、Undo、失败恢复和场景保存。
+- `scene-bake-lightmap` 与 `scene-clear-lightmap`，包括 PNG 导入、meta/UUID 复用、Mesh/Terrain 独立绑定、Undo、失败恢复和可选资源删除。
+- `scene-cancel-lightfx-bake`，用于取消当前 LightFX 任务。
 
-- LightFX 数据类型和二进制协议。
-- Scene exporter 和 texture resolver。
-- LightFX 进程、workspace、超时和取消。
-- Light Probe MCP/Service、SH 回填、Undo 和保存。
-- 协议测试、服务测试和真实场景验证。
-
-阶段一验收条件：同一场景在 Creator 与 CLI 烘焙后探针数量、系数结构和运行时光照表现一致；失败与重复烘焙不破坏旧数据。
-
-### 阶段二：Lightmap Bake
-
-- 扩展公共 exporter 的 Lightmap 专用数据。
-- Lightmap 输出解析、图片事务和 Asset DB 导入。
-- MeshRenderer/Terrain 绑定、globals、Undo 和保存。
-- 重烘焙与失败回滚验证。
-
-阶段二验收条件：基础 Mesh/Terrain 场景可在 CLI 完整烘焙，重新打开后纹理与组件引用保持有效。
-
-### 阶段三：完善能力
-
-- 公开取消接口。
-- Light Probe/Lightmap 清除接口。
-- 更多材质、灯光和平台兼容。
-- 根据实际需求评估组合烘焙入口和进度查询接口。
+提交验收要求：Light Probe、Mesh Lightmap 和 Terrain Lightmap 的 Bake/Clear 均通过真实场景验证；重复烘焙不改变已有贴图 UUID；重新打开场景后数据与资源引用仍有效；编译、协议测试、API 测试及资产事务测试通过。
 
 ## 12. 实现约束与评审重点
 
@@ -671,4 +650,4 @@ LightFX 烘焙不同于 Reflection Probe 捕获：
 - 不在循环内反复创建 Undo snapshot；一次烘焙只形成一个业务操作。
 - 所有外部进程、Socket.IO 服务和临时目录必须有确定的 finally 清理路径。
 - 所有最终文件替换必须可回滚，不能先删除旧资产再尝试导入新资产。
-- 第一阶段新增公共接口时，要用 Lightmap 场景验证其模型索引、纹理解析和结果结构是否足够，避免第二阶段推翻公共层。
+- 公共接口变更必须同时验证 Light Probe 与包含 Mesh/Terrain 的 Lightmap 场景。

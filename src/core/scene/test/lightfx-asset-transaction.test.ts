@@ -12,9 +12,12 @@ describe('LightmapAssetTransaction', () => {
     it('restores an existing lightmap directory after a failed import', async () => {
         const target = join(root, 'assets', 'Scene', 'lightmap');
         await outputFile(join(target, 'old.png'), 'old');
+        await outputFile(join(target, 'old.png.meta'), 'meta');
         const transaction = new LightmapAssetTransaction(target, join(root, 'workspace'));
         await transaction.prepare();
         expect(await pathExists(join(target, 'old.png'))).toBe(false);
+        await transaction.preserveMeta('old.png');
+        expect((await readFile(join(target, 'old.png.meta'))).toString()).toBe('meta');
         await outputFile(join(target, 'new.png'), 'new');
         await transaction.rollback();
         expect((await readFile(join(target, 'old.png'))).toString()).toBe('old');

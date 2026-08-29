@@ -26,4 +26,11 @@ export class LightmapAssetTransaction {
             await copy(this.backupDir, this.targetDir);
         }
     }
+
+    async preserveMeta(relativeAssetPath: string): Promise<void> {
+        if (!this.hadTarget) return;
+        const metaPath = `${relativeAssetPath}.meta`;
+        const source = join(this.backupDir, metaPath);
+        if (await pathExists(source)) await copy(source, join(this.targetDir, metaPath));
+    }
 }
