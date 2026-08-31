@@ -6308,6 +6308,7 @@ export declare interface IEditorService extends IServiceEvents {
     create(params: ICreateOptions): Promise<IBaseIdentifier>;
     hasOpen(): Promise<boolean>;
     queryCurrent(): Promise<TEditorEntity | null>;
+    querySceneSerializedData(): Promise<string>;
     getRootNode(): TEditorInstance | null;
     lock(): Promise<void>;
     unlock(): void;
