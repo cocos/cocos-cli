@@ -193,6 +193,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             const encode = await editor.open(assetInfo, params);
 
             this._clearUndoHistory();
+            if (editor instanceof PrefabEditor) {
+                await editor.beginUndoGroup();
+            }
 
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
@@ -410,6 +413,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
 
                         if (!currentParams.preserveUndoHistory) {
                             this._clearUndoHistory();
+                            if (editor instanceof PrefabEditor) {
+                                await editor.beginUndoGroup();
+                            }
                         }
 
                         if (this.needReloadAgain) {
