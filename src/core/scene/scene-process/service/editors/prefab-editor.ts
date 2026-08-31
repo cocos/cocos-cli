@@ -111,6 +111,10 @@ export class PrefabEditor extends BaseEditor {
         }
         const afterSnapshot = changed ? await this._captureCurrentPrefabSnapshot() : null;
         if (changed && beforeSnapshot && afterSnapshot) {
+            // Structural edits produce regular node commands while this group is
+            // active. Replaying them with a whole-prefab snapshot would overwrite
+            // the restored root on redo, so keep only the prefab-level command.
+            this._discardUndoGroup();
             const { PrefabApplyCommand } = await import('../undo/commands/prefab-apply-command');
             Service.Undo?.push(new PrefabApplyCommand(
                 'prefab:edit',
@@ -145,6 +149,13 @@ export class PrefabEditor extends BaseEditor {
         }
         const { captureNodeStructureSnapshot } = await import('../undo/commands/node-structure-command-utils');
         return captureNodeStructureSnapshot(this.entity.instance, '', { serialization: 'prefab' });
+    }
+
+    private _discardUndoGroup(): void {
+        if (this._undoGroupId) {
+            Service.Undo?.cancelGroup(this._undoGroupId);
+            this._undoGroupId = null;
+        }
     }
 
     private _finishUndoGroup(): void {
