@@ -353,30 +353,36 @@ function initVerticesData(userData: SpriteFrameBaseAssetUserData) {
         };
     }
     const vertices = userData.vertices;
-    vertices.rawPosition.length = 0;
 
     if (userData.meshType === cc.SpriteFrame.MeshType.POLYGON) {
-        // 使用 Bayazit 来生成顶点并赋值
-    } else {
-        const width = userData.width;
-        const height = userData.height;
-        const halfWidth = width / 2;
-        const halfHeight = height / 2;
-        const texw = userData.rawWidth;
-        const texh = userData.rawHeight;
-        const rectX = userData.trimX;
-        const rectY = texh - userData.trimY - height;
-        const l = texw === 0 ? 0 : rectX / texw;
-        const r = texw === 0 ? 1 : (rectX + width) / texw;
-        const t = texh === 0 ? 1 : (rectY + height) / texh;
-        const b = texh === 0 ? 0 : rectY / texh;
-        vertices.rawPosition = [-halfWidth, -halfHeight, 0, halfWidth, -halfHeight, 0, -halfWidth, halfHeight, 0, halfWidth, halfHeight, 0];
-        vertices.uv = [rectX, rectY + height, rectX + width, rectY + height, rectX, rectY, rectX + width, rectY];
-        vertices.nuv = [l, b, r, b, l, t, r, t];
-        vertices.indexes = [0, 1, 2, 2, 1, 3];
-        vertices.minPos = [-halfWidth, -halfHeight, 0];
-        vertices.maxPos = [halfWidth, halfHeight, 0];
+        // PinK Sprite Editor writes polygon vertices into meta. Keep them across
+        // reimport — the Bayazit generator below was never implemented, and
+        // clearing rawPosition would destroy custom meshes on every save.
+        if (Array.isArray(vertices.rawPosition) && vertices.rawPosition.length >= 9 && vertices.rawPosition.length % 3 === 0) {
+            return;
+        }
+        console.warn(`SpriteFrame polygon mesh has invalid rawPosition length ${Array.isArray(vertices.rawPosition) ? vertices.rawPosition.length : 0}; falling back to rect mesh.`);
+        userData.meshType = cc.SpriteFrame.MeshType.RECT;
     }
+
+    const width = userData.width;
+    const height = userData.height;
+    const halfWidth = width / 2;
+    const halfHeight = height / 2;
+    const texw = userData.rawWidth;
+    const texh = userData.rawHeight;
+    const rectX = userData.trimX;
+    const rectY = texh - userData.trimY - height;
+    const l = texw === 0 ? 0 : rectX / texw;
+    const r = texw === 0 ? 1 : (rectX + width) / texw;
+    const t = texh === 0 ? 1 : (rectY + height) / texh;
+    const b = texh === 0 ? 0 : rectY / texh;
+    vertices.rawPosition = [-halfWidth, -halfHeight, 0, halfWidth, -halfHeight, 0, -halfWidth, halfHeight, 0, halfWidth, halfHeight, 0];
+    vertices.uv = [rectX, rectY + height, rectX + width, rectY + height, rectX, rectY, rectX + width, rectY];
+    vertices.nuv = [l, b, r, b, l, t, r, t];
+    vertices.indexes = [0, 1, 2, 2, 1, 3];
+    vertices.minPos = [-halfWidth, -halfHeight, 0];
+    vertices.maxPos = [halfWidth, halfHeight, 0];
 }
 
 function initVertices(sprite: cc.SpriteFrame, userData: SpriteFrameBaseAssetUserData) {
