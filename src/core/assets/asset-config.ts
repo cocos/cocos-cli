@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { AssetDBRegisterInfo } from './@types/private';
 import { configurationManager, configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../configuration';
 import { MessageType } from '../configuration/script/interface';
@@ -36,6 +36,51 @@ export interface AssetDBConfig {
     createTemplateRoot: string;
 
     sortingPlugin: string[];
+}
+
+/** package.json 中 asset-db mount 声明的形状 */
+interface AssetDBMountContribution {
+    name?: string;
+    path?: string;
+    readonly?: boolean;
+    visible?: boolean;
+    enable?: string;
+}
+
+/**
+ * 定位正式打包产物中的内置扩展根目录。
+ * Cocos 进程为 Electron Utility Process，可通过 process.resourcesPath 定位 resources 目录；
+ * 打包后的内置扩展位于 <resources>/app/extensions；开发/解包环境无该目录时返回 undefined。
+ */
+function resolveBuiltinExtensionsRoot(): string | undefined {
+    const resourcesPath = (process as { resourcesPath?: string }).resourcesPath;
+    if (!resourcesPath) {
+        return undefined;
+    }
+    const builtinExtensionsRoot = join(resourcesPath, 'app', 'extensions');
+    return existsSync(builtinExtensionsRoot) ? builtinExtensionsRoot : undefined;
+}
+
+/**
+ * 判断带开关的 asset-db mount 是否启用。
+ * mount.enable 引用项目包配置中的布尔开关键（原 1.0.4 为 localization-editor.json 的 L10nEnable），
+ * 文件路径沿用 Creator 包配置约定 <project>/settings/v2/packages/<dbName>.json。
+ * 文件缺失、解析失败或开关不为 true 时均视为未启用，不注册对应数据库。
+ */
+function isMountEnabled(projectRoot: string, dbName: string, enableKey?: string): boolean {
+    if (!enableKey) {
+        return true;
+    }
+    try {
+        const settingsPath = join(projectRoot, 'settings', 'v2', 'packages', `${dbName}.json`);
+        if (!existsSync(settingsPath)) {
+            return false;
+        }
+        const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown> | null;
+        return settings?.[enableKey] === true;
+    } catch {
+        return false;
+    }
 }
 
 class AssetConfig {
@@ -105,28 +150,51 @@ class AssetConfig {
             library: join(enginePath, 'editor/library'),
         }];
 
-        // Scan project extensions for asset-db mount contributions and register their db:// domains
-        const extensionsDir = join(this._assetConfig.root, 'extensions');
-        if (existsSync(extensionsDir)) {
+        // 扫描项目扩展与打包内置扩展的 asset-db mount 声明，并注册 db:// 域
+        const registeredNames = new Set<string>();
+        const registerExtensionMounts = (extensionsRoot: string | undefined): void => {
+            if (!extensionsRoot || !existsSync(extensionsRoot)) {
+                return;
+            }
             try {
-                const entries = readdirSync(extensionsDir, { withFileTypes: true });
+                const entries = readdirSync(extensionsRoot, { withFileTypes: true });
                 for (const entry of entries) {
-                    if (!entry.isDirectory()) continue;
-                    const extDir = join(extensionsDir, entry.name);
+                    if (!entry.isDirectory()) {
+                        continue;
+                    }
+                    const extDir = join(extensionsRoot, entry.name);
                     const pkgJsonPath = join(extDir, 'package.json');
-                    if (!existsSync(pkgJsonPath)) continue;
+                    if (!existsSync(pkgJsonPath)) {
+                        continue;
+                    }
                     try {
-                        const pkgJson = JSON.parse(require('fs').readFileSync(pkgJsonPath, 'utf8'));
-                        const mount = pkgJson?.contributions?.['asset-db']?.mount;
-                        if (!mount?.path) continue;
+                        const pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as Record<string, any> | null;
+                        const mount = (pkgJson?.contributions?.['asset-db']?.mount ?? null) as AssetDBMountContribution | null;
+                        if (!mount?.path) {
+                            continue;
+                        }
                         const mountTarget = join(extDir, mount.path);
-                        if (!existsSync(mountTarget)) continue;
+                        if (!existsSync(mountTarget)) {
+                            continue;
+                        }
+                        // AssetDB 域名优先使用 mount.name，manifest name 仅作回退，
+                        // 以保持旧项目 db://localization-editor 兼容
+                        const dbName = mount.name || pkgJson?.name || entry.name;
+                        if (registeredNames.has(dbName)) {
+                            console.warn(`[AssetConfig] Ignore duplicate asset-db mount '${dbName}' from ${extDir}`);
+                            continue;
+                        }
+                        if (!isMountEnabled(this._assetConfig.root, dbName, mount.enable)) {
+                            console.info(`[AssetConfig] Skip disabled asset-db mount '${dbName}' from ${extDir}`);
+                            continue;
+                        }
+                        registeredNames.add(dbName);
                         this._assetConfig.assetDBList.push({
-                            name: pkgJson.name || entry.name,
+                            name: dbName,
                             target: mountTarget,
                             readonly: mount.readonly ?? true,
                             visible: mount.visible ?? false,
-                            library: join(this._assetConfig.root, `library/${pkgJson.name || entry.name}`),
+                            library: join(this._assetConfig.root, `library/${dbName}`),
                         });
                     } catch {
                         // Skip extensions with invalid package.json
@@ -135,7 +203,14 @@ class AssetConfig {
             } catch {
                 // Ignore errors scanning extensions directory
             }
-        }
+        };
+
+        // 1. 项目扩展保持原有扫描范围（项目下 extensions 目录）
+        registerExtensionMounts(join(this._assetConfig.root, 'extensions'));
+        // 2. 正式打包产物的内置扩展根（<resources>/app/extensions），开发模式自动跳过
+        const builtinExtensionsRoot = resolveBuiltinExtensionsRoot();
+        console.info('[AssetConfig] asset-db mount scan roots: projectExtensions=' + join(this._assetConfig.root, 'extensions') + ', builtin=' + (builtinExtensionsRoot ?? 'none'));
+        registerExtensionMounts(builtinExtensionsRoot);
 
         this._init = true;
     }
