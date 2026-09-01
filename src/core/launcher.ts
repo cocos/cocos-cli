@@ -6,6 +6,7 @@ import { startServer, getServerUrl } from '../server';
 import { GlobalConfig, GlobalPaths } from '../global';
 import scripting from './scripting';
 import { startupScene } from './scene';
+import { getExternalGamePreviewUrl } from './preview/game-preview-url';
 
 interface IPreviewStartOptions {
     port?: number;
@@ -150,7 +151,7 @@ export default class Launcher {
         await registerBrowserPreview(this.projectPath);
 
         const serverUrl = getServerUrl();
-        const url = options.scene ? `${serverUrl}/?scene=${encodeURIComponent(options.scene)}` : serverUrl;
+        const url = getExternalGamePreviewUrl(serverUrl, options.scene);
         console.log(`Game preview: ${url}`);
         await this.printPreviewScenes(serverUrl, options.scene);
         if (options.open !== false) {
