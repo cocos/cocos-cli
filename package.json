@@ -1,6 +1,6 @@
 {
     "name": "cocos-cli",
-    "version": "0.0.1-alpha.39",
+    "version": "0.0.1-alpha.40",
     "displayName": "COCOS CLI",
     "icon": "static/logo/logo.png",
     "description": "COCOS CLI",
@@ -8,7 +8,7 @@
     "engines": {
         "vscode": ">=1.107.1",
         "electron": "42.3.0",
-        "pink": ">=0.0.1.33"
+        "pink": ">=0.0.1.35"
     },
     "bin": {
         "cocos": "./dist/cli.js"
