@@ -1313,6 +1313,7 @@ export declare namespace BuildHook {
     export type onBeforeUpload = IBuildStageHooks;
     export type upload = IBuildStageHooks;
     export type onAfterUpload = IBuildStageHooks;
+    export type publish = IBuildStageHooks;
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }
@@ -3070,6 +3071,7 @@ export declare namespace IInternalHook {
     export type onBeforeUpload = IInternalStageTaskHooks;
     export type upload = IInternalStageTaskHooks;
     export type onAfterUpload = IInternalStageTaskHooks;
+    export type publish = IInternalStageTaskHooks;
 }
 export declare interface IInternalPackOptions {
     maxWidth: number;
@@ -4480,6 +4482,7 @@ export declare interface PreviewPackResult {
     storeInfo: PacStoreInfo;
     atlases: IAtlasInfo[];
 }
+export declare function publish(platform: Platform, dest: string): Promise<IBuildResultData>;
 export declare type PureModulesOption = boolean | string[] | IsPureModule;
 export declare function queryAssetsInBundle(uuid: string, bundleFilterConfig?: BundleFilterConfig[]): Promise<string[]>;
 export declare function queryAutoAtlasFileCache(pacUuid: string): Promise<PreviewPackResult | null>;

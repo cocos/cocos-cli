@@ -61,6 +61,11 @@ export async function upload(platform: Platform, dest: string, accessToken?: str
     return Launcher.upload(platform, dest, accessToken);
 }
 
+export async function publish(platform: Platform, dest: string) {
+    const { default: Launcher } = await import('../../core/launcher');
+    return Launcher.publish(platform, dest);
+}
+
 export async function queryBuildConfig(): Promise<BuildConfiguration> {
     const builder = await import('../../core/builder');
     return builder.queryBuildConfig();
