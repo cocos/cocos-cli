@@ -164,6 +164,12 @@ const config: IPlatformBuildPluginConfig = {
         displayName: 'i18n:web-desktop.publish.label',
         description: 'i18n:web-desktop.publish.description',
         parallelism: 'all',
+    }, {
+        name: 'publish',
+        hook: 'publish',
+        displayName: 'i18n:web-desktop.publishStage.label',
+        description: 'i18n:web-desktop.publishStage.description',
+        parallelism: 'all',
     }],
 };
 

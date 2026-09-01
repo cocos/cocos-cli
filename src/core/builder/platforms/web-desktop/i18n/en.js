@@ -53,4 +53,8 @@ module.exports = {
         label: 'Publish',
         description: 'Click to publish and your game and claim more earnings.',
     },
+    publishStage: {
+        label: 'Release',
+        description: 'Release the uploaded package to make it publicly available.',
+    },
 };

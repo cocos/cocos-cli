@@ -270,6 +270,16 @@ export default class Launcher {
         });
     }
 
+    static async publish(platform: Platform, dest: string) {
+        GlobalConfig.mode = 'simple';
+        const { init, executeBuildStageTask } = await import('./builder');
+        await init([platform]);
+        return await executeBuildStageTask('command publish', 'publish', {
+            platform,
+            dest,
+        });
+    }
+
     async close() {
         // 释放浏览器预览资源（扩展预览后端 + 热重载监听），对齐 Creator 生命周期
         try {

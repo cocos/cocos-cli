@@ -8,6 +8,7 @@ import { IBuildResult } from './type';
 import { relativeUrl, transformCode } from '../../../worker/builder/utils';
 import * as commonUtils from '../../web-common/utils';
 import * as webUpload from '../../web-common/upload';
+import * as webPublish from '../../web-common/publish';
 import { ITaskOption } from '../../native-common/type';
 
 export const throwError = true;
@@ -114,4 +115,8 @@ export async function upload(this: IBuildStageTask, root: string, options: ITask
 
 export async function onAfterUpload(this: IBuildStageTask) {
     await webUpload.onAfterUpload(this);
+}
+
+export async function publish(this: IBuildStageTask, root: string, options: ITaskOption) {
+    await webPublish.publish(this, 'web-desktop', root, options);
 }

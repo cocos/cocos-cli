@@ -182,6 +182,12 @@ const config: IPlatformBuildPluginConfig = {
         displayName: 'i18n:web-mobile.publish.label',
         description: 'i18n:web-mobile.publish.description',
         parallelism: 'all',
+    }, {
+        name: 'publish',
+        hook: 'publish',
+        displayName: 'i18n:web-mobile.publishStage.label',
+        description: 'i18n:web-mobile.publishStage.description',
+        parallelism: 'all',
     }],
 };
 
