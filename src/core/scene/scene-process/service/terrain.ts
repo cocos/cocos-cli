@@ -3,7 +3,7 @@ import { BaseService, queryRegisteredService, register } from './core';
 import { ServiceEvents } from './core/global-events';
 import { getEditorNodeByUuid, getEditorNodeByPath } from './gizmo/utils/editor-node';
 import { loadAny } from './node/node-create';
-import { Rpc } from '../rpc';
+import { sceneAssetBinaryClient } from '../scene-asset-binary-client';
 import type {
     ITerrainBlockData,
     ITerrainBrushPatch,
@@ -668,10 +668,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
                 continue;
             }
             try {
-                const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [
-                    uuid,
-                    Buffer.from(this.serialize(terrain)),
-                ]);
+                const saved = await sceneAssetBinaryClient.save(uuid, this.serialize(terrain));
                 if (!saved || saved.uuid !== uuid) {
                     result = 2;
                     continue;
@@ -705,11 +702,11 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
                 continue;
             }
             try {
-                const created = await Rpc.getInstance().request('assetManager', 'createAsset', [{
+                const created = await sceneAssetBinaryClient.create({
                     target: file,
-                    content: Buffer.from(this.serialize(terrain)),
                     overwrite: true,
-                }]);
+                    content: this.serialize(terrain),
+                });
                 if (created) {
                     (terrain as any)._asset = await loadAny<TerrainAsset>(created.uuid ?? created);
                     this.setDirty(terrain, false);

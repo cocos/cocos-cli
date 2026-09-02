@@ -3,6 +3,8 @@ const mockEmit = jest.fn();
 const mockQueryRegisteredService = jest.fn();
 const mockLoadAny = jest.fn();
 const mockServiceEventEmit = jest.fn();
+const mockAssetBinarySave = jest.fn();
+const mockAssetBinaryCreate = jest.fn();
 const mockUndo = {
     push: jest.fn(),
     isApplying: jest.fn(() => false),
@@ -63,8 +65,11 @@ jest.mock('../scene-process/service/core/global-events', () => ({
     },
 }));
 
-jest.mock('../scene-process/rpc', () => ({
-    Rpc: { getInstance: () => ({ request: jest.fn() }) },
+jest.mock('../scene-process/scene-asset-binary-client', () => ({
+    sceneAssetBinaryClient: {
+        save: (...args: unknown[]) => mockAssetBinarySave(...args),
+        create: (...args: unknown[]) => mockAssetBinaryCreate(...args),
+    },
 }));
 
 import { Terrain, Texture2D } from 'cc';
@@ -211,6 +216,8 @@ describe('TerrainService target-safe public capability', () => {
         mockQueryRegisteredService.mockReset();
         mockLoadAny.mockReset();
         mockServiceEventEmit.mockReset();
+        mockAssetBinarySave.mockReset();
+        mockAssetBinaryCreate.mockReset();
         mockUndo.push.mockReset();
         mockUndo.isApplying.mockReset();
         mockUndo.isApplying.mockReturnValue(false);
@@ -657,6 +664,61 @@ describe('TerrainService target-safe public capability', () => {
         expect(mockLoadAny).toHaveBeenCalledTimes(textureLoadsBeforeRejectedTarget);
         expect(mockUndo.push).toHaveBeenCalledTimes(4);
         expect(other.state).not.toEqual(fixture.state);
+    });
+
+    it('saves existing Terrain bytes through the binary client and clears dirty state only after the matching asset succeeds', async () => {
+        const fixture = createFixture();
+        (fixture.terrain as any)._asset = { _uuid: '10f83b52-8786-4de7-89e1-92e34e3176fc' };
+        (fixture.terrain as any).isTerrainChange = true;
+        const bytes = new Uint8Array([0, 1, 127, 255]);
+        mockAssetBinarySave.mockResolvedValue({ uuid: '10f83b52-8786-4de7-89e1-92e34e3176fc' });
+
+        const service = new TerrainService();
+        jest.spyOn(service, 'serialize').mockReturnValue(bytes);
+
+        await expect(service.saveAsset(false, fixture.terrain)).resolves.toBe(0);
+
+        expect(mockAssetBinarySave).toHaveBeenCalledWith('10f83b52-8786-4de7-89e1-92e34e3176fc', bytes);
+        expect((fixture.terrain as any).isTerrainChange).toBe(false);
+    });
+
+    it('keeps a Terrain dirty when the binary client rejects', async () => {
+        const fixture = createFixture();
+        (fixture.terrain as any)._asset = { _uuid: '10f83b52-8786-4de7-89e1-92e34e3176fc' };
+        (fixture.terrain as any).isTerrainChange = true;
+        mockAssetBinarySave.mockRejectedValue(new Error('Raw binary body exceeds 50 MiB'));
+        const service = new TerrainService();
+        jest.spyOn(service, 'serialize').mockReturnValue(new Uint8Array([1]));
+        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await expect(service.saveAsset(false, fixture.terrain)).resolves.toBe(2);
+
+        expect((fixture.terrain as any).isTerrainChange).toBe(true);
+        consoleError.mockRestore();
+    });
+
+    it('creates a Terrain asset through the binary client using the requested db:// target', async () => {
+        const fixture = createFixture();
+        (fixture.terrain as any)._asset = null;
+        (fixture.terrain as any).isTerrainChange = true;
+        const bytes = new Uint8Array([9, 8, 7]);
+        const loadedAsset = { _uuid: 'created-terrain-uuid' };
+        mockAssetBinaryCreate.mockResolvedValue({ uuid: 'created-terrain-uuid' });
+        mockLoadAny.mockResolvedValue(loadedAsset);
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        jest.spyOn(service, 'serialize').mockReturnValue(bytes);
+
+        await expect(service.saveAssetDialog('db://assets/terrain/New.terrain')).resolves.toBe(0);
+
+        expect(mockAssetBinaryCreate).toHaveBeenCalledWith({
+            target: 'db://assets/terrain/New.terrain',
+            overwrite: true,
+            content: bytes,
+        });
+        expect(mockLoadAny).toHaveBeenCalledWith('created-terrain-uuid');
+        expect((fixture.terrain as any)._asset).toBe(loadedAsset);
+        expect((fixture.terrain as any).isTerrainChange).toBe(false);
     });
 
 });
