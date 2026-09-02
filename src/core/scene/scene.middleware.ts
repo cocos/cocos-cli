@@ -2,6 +2,7 @@ import type { IMiddlewareContribution } from '../../server/interfaces';
 import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fse from 'fs-extra';
+import { createAssetBinaryRoutes } from './asset-binary-routes';
 
 /**
  * 各资源数据库的 library（已导入数据）目录缓存。
@@ -281,6 +282,7 @@ export default {
         }
     ],
     post: [
+        ...createAssetBinaryRoutes(),
         {
             // Preview in Editor：写入「当前编辑场景」快照。
             // 约定 body 为 { data: <serialize 输出的 JSON 字符串> }：serialize 交付的是字符串，
