@@ -18,7 +18,8 @@ import {
 } from './schema';
 import { description, param, result, title, tool } from '../decorator/decorator.js';
 import { COMMON_STATUS, CommonResultType, getCommonErrorStatus } from '../base/schema-base';
-import { Scene, TSceneTemplateType } from '../../core/scene';
+import { Scene } from '../../core/scene';
+import { assetManager } from '../../core/assets';
 import { ComponentApi } from './component';
 import { NodeApi } from './node';
 import { PrefabApi } from './prefab';
@@ -132,16 +133,22 @@ export class SceneApi {
     @result(SchemaCreateResult)
     async createScene(@param(SchemaCreateOptions) options: TCreateOptions): Promise<CommonResultType<TCreateResult>> {
         try {
-            const data = await Scene.create({
-                type: 'scene',
-                baseName: options.baseName,
-                targetDirectory: options.dbURL,
-                templateType: options.templateType as TSceneTemplateType,
-            });
-            
+            const assetInfo = await assetManager.createAssetByType(
+                'scene',
+                options.dbURL,
+                options.baseName,
+                { templateName: options.templateType ?? '2d' },
+            );
+            const data: TCreateResult = {
+                assetName: assetInfo.name,
+                assetUuid: assetInfo.uuid,
+                assetUrl: assetInfo.url,
+                assetType: assetInfo.type,
+            };
+
             return {
                 code: COMMON_STATUS.SUCCESS,
-                data: data as TCreateResult,
+                data,
             };
         } catch (e) {
             console.error(e);

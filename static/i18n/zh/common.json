@@ -25,5 +25,12 @@
     "stop": "停止",
     "pause": "暂停",
     "resume": "继续",
-    "deprecated_tip": "此功能已废弃"
+    "deprecated_tip": "此功能已废弃",
+    "preview": {
+        "device": {
+            "design_resolution": "设计分辨率",
+            "full_screen": "全屏",
+            "webpage_full_screen": "网页全屏"
+        }
+    }
 }

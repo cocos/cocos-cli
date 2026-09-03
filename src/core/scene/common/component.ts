@@ -125,6 +125,32 @@ export interface IExecuteComponentMethodOptions {
 }
 
 /**
+ * PolygonCollider2D 顶点重新生成的数据来源。
+ */
+export type Polygon2DPointsSource = 'sprite-alpha' | 'rect-fallback';
+
+/**
+ * 重新生成 PolygonCollider2D.points 的选项。
+ */
+export interface IRegeneratePolygon2DPointsOptions {
+    /** PolygonCollider2D 组件路径、UUID 或 URL。 */
+    path: string;
+    /** 是否记录 Undo；默认 true。 */
+    record?: boolean;
+}
+
+/**
+ * 重新生成 PolygonCollider2D.points 的成功结果。
+ * 失败通过 Error 抛出，由 RPC/API 边界决定如何呈现。
+ */
+export interface IRegeneratePolygon2DPointsResult {
+    path: string;
+    changed: boolean;
+    pointCount: number;
+    source: Polygon2DPointsSource;
+}
+
+/**
  * 查询注册类的过滤选项
  */
 export interface IQueryClassesOptions {
@@ -206,6 +232,30 @@ export interface IComponentService extends IServiceEvents {
      * ```
      */
     setProperty(params: ISetPropertyOptions): Promise<boolean>;
+
+    /**
+     * 根据同节点 Sprite 或 UITransform 重新生成 PolygonCollider2D.points。
+     *
+     * Sprite Alpha 轮廓生成、资源读取、校验或提交失败时抛出 Error，不会修改组件现有 points。
+     * 没有 Sprite、SpriteFrame 或无法解析源图片时，使用 UITransform 矩形回退。
+     *
+     * @param options - 重新生成选项
+     * @param options.path - PolygonCollider2D 组件路径、UUID 或 db:// URL
+     * @param options.record - 是否记录 Undo，默认 true
+     * @returns 生成结果，包含是否变更、最终顶点数和顶点来源
+     * @throws 组件不存在或类型不正确，以及资源读取、轮廓生成、顶点校验或属性提交失败时抛出 Error
+     *
+     * @example
+     * ```ts
+     * const result = await regeneratePolygon2DPoints({
+     *     path: 'Canvas/MyNode/cc.PolygonCollider2D',
+     *     record: true,
+     * });
+     * ```
+     */
+    regeneratePolygon2DPoints(
+        options: IRegeneratePolygon2DPointsOptions,
+    ): Promise<IRegeneratePolygon2DPointsResult>;
 
     /**
      * 查询组件信息

@@ -8,6 +8,15 @@
  * and registering MCP routes on the running server.
  */
 
+export type {
+	McpToolCallContext,
+	McpToolCallLifecycleState,
+} from '../../mcp/tool-call-context';
+export {
+	getCurrentToolCallContext,
+	registerToolCallFinalizer,
+} from '../../mcp/tool-call-context';
+
 let mcpUrl: string | undefined;
 let registeringPromise: Promise<string> | undefined;
 

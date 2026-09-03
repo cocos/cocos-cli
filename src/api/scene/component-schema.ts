@@ -119,6 +119,23 @@ export const SchemaComponent: z.ZodType<IComponentInfo> = SchemaComponentIdentif
 
 export const SchemaQueryAllComponentResult = z.array(z.string()).describe('Collection of all components, including built-in and custom components'); // 所有组件集合，包含内置与自定义组件
 
+// Regenerate PolygonCollider2D points // 重新生成 PolygonCollider2D 顶点
+export const SchemaRegeneratePolygon2DPointsOptions = z.object({
+    path: z.string().min(1)
+        .describe('cc.PolygonCollider2D component path, UUID, or db:// URL'),
+    record: z.boolean().optional().describe('Whether to record undo, defaults to true'),
+}).describe('Information required to regenerate cc.PolygonCollider2D points');
+
+export const SchemaPolygon2DPointsSource = z.enum(['sprite-alpha', 'rect-fallback'])
+    .describe('Source used to generate the PolygonCollider2D points');
+
+export const SchemaRegeneratePolygon2DPointsResult = z.object({
+    path: z.string().min(1).describe('PolygonCollider2D component identifier supplied for the operation'),
+    changed: z.boolean().describe('Whether the generated points changed the component'),
+    pointCount: z.number().int().min(3).describe('Number of generated polygon points'),
+    source: SchemaPolygon2DPointsSource,
+}).describe('Result of regenerating cc.PolygonCollider2D points');
+
 // Recalculate LODGroup bounds // 重新计算 LODGroup 包围盒
 export const SchemaRecalculateLODGroupBoundsOptions = z.object({
     path: z.string().min(1).describe('cc.LODGroup component path, e.g. "Root/LOD/cc.LODGroup"'), // cc.LODGroup 组件路径
@@ -170,6 +187,9 @@ export type TQueryComponentOptions = z.infer<typeof SchemaQueryComponent>;
 export type TSetPropertyOptions = z.infer<typeof SchemaSetPropertyOptions>;
 export type TComponentResult = z.infer<typeof SchemaComponentResult>;
 export type TQueryAllComponentResult = z.infer<typeof SchemaQueryAllComponentResult>;
+export type TRegeneratePolygon2DPointsOptions = z.infer<typeof SchemaRegeneratePolygon2DPointsOptions>;
+export type TPolygon2DPointsSource = z.infer<typeof SchemaPolygon2DPointsSource>;
+export type TRegeneratePolygon2DPointsResult = z.infer<typeof SchemaRegeneratePolygon2DPointsResult>;
 export type TRecalculateLODGroupBoundsOptions = z.infer<typeof SchemaRecalculateLODGroupBoundsOptions>;
 export type TLODGroupBoundsResult = z.infer<typeof SchemaLODGroupBoundsResult>;
 export type TInsertLODOptions = z.infer<typeof SchemaInsertLODOptions>;

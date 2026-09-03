@@ -117,4 +117,14 @@ export class CocosAPI {
         const { default: Launcher } = await import('../core/launcher');
         return await Launcher.upload(platform, dest, accessToken);
     }
+
+    /**
+     * 命令行发布入口
+     * @param platform
+     * @param dest
+     */
+    public static async publishProject(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest) {
+        const { default: Launcher } = await import('../core/launcher');
+        return await Launcher.publish(platform, dest);
+    }
 }
