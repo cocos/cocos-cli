@@ -72,21 +72,33 @@ function isMountEnabled(projectRoot: string, dbName: string, enableKey?: string)
     }
 }
 
+const LOCALIZATION_RUNTIME_EXTENSION_NAME = 'pink-localization-editor';
+
+interface AssetDBMountCandidate {
+    extensionName: string;
+    dbName: string;
+    packageName?: string;
+    mountName?: string;
+    enabled: boolean;
+    registerInfo: AssetDBRegisterInfo;
+}
+
 /**
- * Resolve asset-db mounts from one extension root using the same manifest,
- * enable-key and duplicate-name rules used by cold-start discovery.
+ * Read asset-db mount candidates from one extension root. Cold-start discovery
+ * supplies registeredNames to apply its project-first duplicate filtering;
+ * hot Localization reconcile omits it so it can fail closed on conflicts.
  */
-function scanExtensionMounts(
+function scanExtensionMountCandidates(
     extensionsRoot: string | undefined,
     projectRoot: string,
     libraryRoot: string,
-    registeredNames: Set<string>,
-): AssetDBRegisterInfo[] {
+    registeredNames?: Set<string>,
+): AssetDBMountCandidate[] {
     if (!extensionsRoot || !existsSync(extensionsRoot)) {
         return [];
     }
 
-    const mounts: AssetDBRegisterInfo[] = [];
+    const mounts: AssetDBMountCandidate[] = [];
     try {
         const entries = readdirSync(extensionsRoot, { withFileTypes: true });
         for (const entry of entries) {
@@ -110,22 +122,33 @@ function scanExtensionMounts(
                 }
                 // AssetDB 域名优先使用 mount.name，manifest name 仅作回退，
                 // 以保持旧项目 db://localization-editor 兼容
-                const dbName = mount.name || pkgJson?.name || entry.name;
-                if (registeredNames.has(dbName)) {
+                const packageName = typeof pkgJson?.name === 'string' ? pkgJson.name : undefined;
+                const dbName = mount.name || packageName || entry.name;
+                if (registeredNames?.has(dbName)) {
                     console.warn(`[AssetConfig] Ignore duplicate asset-db mount '${dbName}' from ${extDir}`);
                     continue;
                 }
-                if (!isMountEnabled(projectRoot, dbName, mount.enable)) {
+                const enabled = isMountEnabled(projectRoot, dbName, mount.enable);
+                if (!enabled) {
                     console.info(`[AssetConfig] Skip disabled asset-db mount '${dbName}' from ${extDir}`);
+                }
+                if (registeredNames && !enabled) {
                     continue;
                 }
-                registeredNames.add(dbName);
+                registeredNames?.add(dbName);
                 mounts.push({
-                    name: dbName,
-                    target: mountTarget,
-                    readonly: mount.readonly ?? true,
-                    visible: mount.visible ?? false,
-                    library: join(libraryRoot, dbName),
+                    extensionName: entry.name,
+                    dbName,
+                    packageName,
+                    mountName: typeof mount.name === 'string' ? mount.name : undefined,
+                    enabled,
+                    registerInfo: {
+                        name: dbName,
+                        target: mountTarget,
+                        readonly: mount.readonly ?? true,
+                        visible: mount.visible ?? false,
+                        library: join(libraryRoot, dbName),
+                    },
                 });
             } catch {
                 // Skip extensions with invalid package.json
@@ -135,6 +158,16 @@ function scanExtensionMounts(
         // Ignore errors scanning extensions directory
     }
     return mounts;
+}
+
+function scanExtensionMounts(
+    extensionsRoot: string | undefined,
+    projectRoot: string,
+    libraryRoot: string,
+    registeredNames: Set<string>,
+): AssetDBRegisterInfo[] {
+    return scanExtensionMountCandidates(extensionsRoot, projectRoot, libraryRoot, registeredNames)
+        .map((candidate) => candidate.registerInfo);
 }
 
 class AssetConfig {
@@ -181,16 +214,37 @@ class AssetConfig {
         if (!builtinExtensionsRoot) {
             throw new Error('Localization Runtime builtin extension root is unavailable.');
         }
-        const mount = scanExtensionMounts(
+
+        const projectConflicts = scanExtensionMountCandidates(
+            join(this._assetConfig.root, 'extensions'),
+            this._assetConfig.root,
+            this._assetConfig.libraryRoot,
+        ).filter((candidate) => [
+            candidate.extensionName,
+            candidate.packageName,
+            candidate.dbName,
+            candidate.mountName,
+        ].includes(LOCALIZATION_RUNTIME_EXTENSION_NAME)
+            || [candidate.dbName, candidate.mountName].includes(LOCALIZATION_RUNTIME_DB_NAME));
+        if (projectConflicts.length > 0) {
+            const names = projectConflicts.map((candidate) => candidate.extensionName).join(', ');
+            throw new Error(`Localization Runtime project extension conflict: ${names}.`);
+        }
+
+        const canonicalCandidates = scanExtensionMountCandidates(
             builtinExtensionsRoot,
             this._assetConfig.root,
             this._assetConfig.libraryRoot,
-            new Set<string>(),
-        ).find((info) => info.name === LOCALIZATION_RUNTIME_DB_NAME);
-        if (!mount) {
+        ).filter((candidate) => candidate.packageName === LOCALIZATION_RUNTIME_EXTENSION_NAME
+            && candidate.mountName === LOCALIZATION_RUNTIME_DB_NAME);
+        if (canonicalCandidates.length !== 1) {
+            throw new Error('Localization Runtime builtin manifest/mount is not unique.');
+        }
+        const canonical = canonicalCandidates[0];
+        if (!canonical.enabled) {
             throw new Error('Localization Runtime builtin mount is unavailable or disabled for this project.');
         }
-        return mount;
+        return canonical.registerInfo;
     }
 
     async init() {

@@ -37,7 +37,7 @@ export async function start(): Promise<void> {
  * re-reads the persisted enable flag and packaged manifest, then uses the
  * canonical register info with AssetDBManager.addDB().
  */
-export async function reconcileLocalizationRuntimeMount(): Promise<IAssetDBInfo> {
+export async function reconcileLocalizationRuntimeMount(): Promise<void> {
     if (!assetDBManager.ready) {
         throw new Error('Asset database is not ready; call Assets.start before reconciling the Localization Runtime.');
     }
@@ -53,14 +53,12 @@ export async function reconcileLocalizationRuntimeMount(): Promise<IAssetDBInfo>
         await assetDBManager.addDB(registerInfo);
     }
 
-    const dbInfo = assetDBManager.assetDBInfo[registerInfo.name];
-    if (!dbInfo) {
+    if (!assetDBManager.assetDBMap[registerInfo.name]) {
         throw new Error(`Localization Runtime AssetDB '${registerInfo.name}' was not registered.`);
     }
     if (!assetConfig.data.assetDBList.some((info) => info.name === registerInfo.name)) {
         assetConfig.data.assetDBList.push(registerInfo);
     }
-    return dbInfo;
 }
 
 /**

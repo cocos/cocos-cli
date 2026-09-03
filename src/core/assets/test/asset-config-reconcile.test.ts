@@ -15,7 +15,7 @@ describe('asset-config builtin Localization mount reconcile', () => {
             readonly: true,
             visible: true,
             enable: 'L10nEnable',
-        });
+        }, 'pink-localization-editor');
         await createMount('other-extension', {
             name: 'other-assets',
             readonly: false,
@@ -72,6 +72,33 @@ describe('asset-config builtin Localization mount reconcile', () => {
         ]);
     });
 
+    it('fails closed when a project extension claims the legacy Localization identity', async () => {
+        await createProjectMount('legacy-localization-editor', {
+            name: 'localization-editor',
+            readonly: true,
+            visible: true,
+        }, 'localization-editor');
+        await writeEnable(true);
+        const assetConfig = await loadAssetConfig();
+        await assetConfig.init();
+
+        expect(() => assetConfig.resolveBuiltinLocalizationMount()).toThrow('project extension conflict');
+    });
+
+    it('fails closed when builtin identity and mount contribution are not unique', async () => {
+        await createMount('duplicate-localization-editor', {
+            name: 'localization-editor',
+            readonly: true,
+            visible: true,
+            enable: 'L10nEnable',
+        }, 'pink-localization-editor');
+        await writeEnable(true);
+        const assetConfig = await loadAssetConfig();
+        await assetConfig.init();
+
+        expect(() => assetConfig.resolveBuiltinLocalizationMount()).toThrow('not unique');
+    });
+
     async function loadAssetConfig(): Promise<any> {
         jest.resetModules();
         const configurationInstance = {
@@ -100,11 +127,13 @@ describe('asset-config builtin Localization mount reconcile', () => {
     async function createMount(
         extensionName: string,
         mount: { name: string; readonly: boolean; visible: boolean; enable?: string },
+        packageName = extensionName,
+        extensionsRoot = join(fixtureRoot, 'resources', 'app', 'extensions'),
     ): Promise<void> {
-        const extensionRoot = join(fixtureRoot, 'resources', 'app', 'extensions', extensionName);
+        const extensionRoot = join(extensionsRoot, extensionName);
         await ensureDir(join(extensionRoot, 'static', 'assets'));
         await outputJSON(join(extensionRoot, 'package.json'), {
-            name: extensionName,
+            name: packageName,
             contributions: {
                 'asset-db': {
                     mount: {
@@ -114,6 +143,19 @@ describe('asset-config builtin Localization mount reconcile', () => {
                 },
             },
         });
+    }
+
+    async function createProjectMount(
+        extensionName: string,
+        mount: { name: string; readonly: boolean; visible: boolean; enable?: string },
+        packageName = extensionName,
+    ): Promise<void> {
+        await createMount(
+            extensionName,
+            mount,
+            packageName,
+            join(fixtureRoot, 'project', 'extensions'),
+        );
     }
 
     async function writeEnable(enabled: boolean): Promise<void> {

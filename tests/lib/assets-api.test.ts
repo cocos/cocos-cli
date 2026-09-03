@@ -205,7 +205,7 @@ describe('lib assets api', () => {
         });
 
         const reconcile = (Assets as {
-            reconcileLocalizationRuntimeMount?: () => Promise<unknown>;
+            reconcileLocalizationRuntimeMount?: () => Promise<void>;
         }).reconcileLocalizationRuntimeMount;
         expect(reconcile).toEqual(expect.any(Function));
         expect(reconcile?.length).toBe(0);
@@ -217,7 +217,7 @@ describe('lib assets api', () => {
         expect(mockAssetDBManager.addDB).not.toHaveBeenCalled();
 
         persistedEnable = true;
-        await expect(reconcile?.()).resolves.toBe(canonical);
+        await expect(reconcile()).resolves.toBeUndefined();
         expect(mockAssetConfig.resolveBuiltinLocalizationMount).toHaveBeenCalledWith();
         expect(mockAssetDBManager.addDB).toHaveBeenCalledWith(canonical);
         expect(mockAssetConfig.data.assetDBList).toEqual([canonical]);
@@ -238,12 +238,11 @@ describe('lib assets api', () => {
         });
 
         const reconcile = (Assets as {
-            reconcileLocalizationRuntimeMount: () => Promise<unknown>;
+            reconcileLocalizationRuntimeMount: () => Promise<void>;
         }).reconcileLocalizationRuntimeMount;
-        const first = await reconcile();
-        const second = await reconcile();
+        await expect(reconcile()).resolves.toBeUndefined();
+        await expect(reconcile()).resolves.toBeUndefined();
 
-        expect(first).toBe(second);
         expect(mockAssetDBManager.addDB).toHaveBeenCalledTimes(1);
         expect(mockAssetConfig.data.assetDBList).toEqual([canonical]);
     });
@@ -261,7 +260,7 @@ describe('lib assets api', () => {
             throw resolverError;
         });
         const reconcile = (Assets as {
-            reconcileLocalizationRuntimeMount: () => Promise<unknown>;
+            reconcileLocalizationRuntimeMount: () => Promise<void>;
         }).reconcileLocalizationRuntimeMount;
 
         await expect(reconcile()).rejects.toBe(resolverError);
@@ -286,7 +285,7 @@ describe('lib assets api', () => {
         };
         mockAssetConfig.resolveBuiltinLocalizationMount.mockReturnValue(canonical);
         const reconcile = (Assets as {
-            reconcileLocalizationRuntimeMount: () => Promise<unknown>;
+            reconcileLocalizationRuntimeMount: () => Promise<void>;
         }).reconcileLocalizationRuntimeMount;
 
         mockAssetDBManager.ready = false;
