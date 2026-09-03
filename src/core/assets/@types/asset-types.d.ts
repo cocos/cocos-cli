@@ -24,7 +24,6 @@ import {
     SpriteAtlasAssetUserData,
     RtSpriteFrameAssetUserData,
 } from './userDatas';
-import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from './interface';
 
 // 支持创建的资源类型（引擎类型）
 export type ISupportCreateCCType =
@@ -71,12 +70,83 @@ export type IAssetType =
     | 'RenderStage'            // 渲染阶段
     | 'RenderFlow';            // 渲染流程
 
-/** 支持创建的资源类型（从常量数组派生） */
-export type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
+/** 支持创建的资源类型 */
+export type ISupportCreateType =
+    | 'animation-clip'
+    | 'typescript'
+    | 'auto-atlas'
+    | 'effect'
+    | 'scene'
+    | 'prefab'
+    | 'material'
+    | 'texture-cube'
+    | 'terrain'
+    | 'physics-material'
+    | 'label-atlas'
+    | 'render-texture'
+    | 'directory'
+    | 'effect-header';
 
 
-/** 资源处理器类型（从常量数组派生） */
-export type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+/** 资源处理器类型 */
+export type AssetHandlerType =
+    | 'directory'
+    | 'unknown'
+    | 'text'
+    | 'json'
+    | 'spine-data'
+    | 'dragonbones'
+    | 'dragonbones-atlas'
+    | 'terrain'
+    | 'javascript'
+    | 'typescript'
+    | 'scene'
+    | 'prefab'
+    | 'sprite-frame'
+    | 'tiled-map'
+    | 'buffer'
+    | 'image'
+    | 'sign-image'
+    | 'alpha-image'
+    | 'texture'
+    | 'texture-cube'
+    | 'erp-texture-cube'
+    | 'render-texture'
+    | 'texture-cube-face'
+    | 'rt-sprite-frame'
+    | 'gltf'
+    | 'gltf-mesh'
+    | 'gltf-animation'
+    | 'gltf-skeleton'
+    | 'gltf-material'
+    | 'gltf-scene'
+    | 'gltf-embeded-image'
+    | 'fbx'
+    | 'material'
+    | 'physics-material'
+    | 'effect'
+    | 'effect-header'
+    | 'audio-clip'
+    | 'animation-clip'
+    | 'animation-graph'
+    | 'animation-graph-variant'
+    | 'animation-mask'
+    | 'ttf-font'
+    | 'bitmap-font'
+    | 'particle'
+    | 'sprite-atlas'
+    | 'auto-atlas'
+    | 'label-atlas'
+    | 'render-pipeline'
+    | 'render-stage'
+    | 'render-flow'
+    | 'instantiation-material'
+    | 'instantiation-mesh'
+    | 'instantiation-skeleton'
+    | 'instantiation-animation'
+    | 'video-clip'
+    | '*'
+    | 'database';
 
 export interface AssetUserDataMap {
     'animation-clip': AnimationClipAssetUserData;
