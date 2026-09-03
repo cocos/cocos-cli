@@ -80,6 +80,8 @@ export namespace BuildHook {
     export type upload = IBuildStageHooks;
     export type onAfterUpload = IBuildStageHooks;
 
+    export type publish = IBuildStageHooks;
+
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }

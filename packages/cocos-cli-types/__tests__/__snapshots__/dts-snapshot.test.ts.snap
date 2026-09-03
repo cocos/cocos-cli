@@ -1313,6 +1313,7 @@ export declare namespace BuildHook {
     export type onBeforeUpload = IBuildStageHooks;
     export type upload = IBuildStageHooks;
     export type onAfterUpload = IBuildStageHooks;
+    export type publish = IBuildStageHooks;
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }
@@ -3070,6 +3071,7 @@ export declare namespace IInternalHook {
     export type onBeforeUpload = IInternalStageTaskHooks;
     export type upload = IInternalStageTaskHooks;
     export type onAfterUpload = IInternalStageTaskHooks;
+    export type publish = IInternalStageTaskHooks;
 }
 export declare interface IInternalPackOptions {
     maxWidth: number;
@@ -4480,6 +4482,7 @@ export declare interface PreviewPackResult {
     storeInfo: PacStoreInfo;
     atlases: IAtlasInfo[];
 }
+export declare function publish(platform: Platform, dest: string): Promise<IBuildResultData>;
 export declare type PureModulesOption = boolean | string[] | IsPureModule;
 export declare function queryAssetsInBundle(uuid: string, bundleFilterConfig?: BundleFilterConfig[]): Promise<string[]>;
 export declare function queryAutoAtlasFileCache(pacUuid: string): Promise<PreviewPackResult | null>;
@@ -6232,6 +6235,7 @@ export declare interface IComponentService extends IServiceEvents {
     add(params: IAddComponentOptions): Promise<IComponent>;
     remove(params: IRemoveComponentOptions): Promise<boolean>;
     setProperty(params: ISetPropertyOptions): Promise<boolean>;
+    regeneratePolygon2DPoints(options: IRegeneratePolygon2DPointsOptions): Promise<IRegeneratePolygon2DPointsResult>;
     query(params: IQueryComponentOptions | string): Promise<IComponent | null>;
     queryAll(): Promise<string[]>;
     recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult>;
@@ -6708,6 +6712,16 @@ export declare interface IReferenceImageState {
 export declare interface IReferenceImageVisibilityOptions {
     desiredVisible: boolean;
 }
+export declare interface IRegeneratePolygon2DPointsOptions {
+    path: string;
+    record?: boolean;
+}
+export declare interface IRegeneratePolygon2DPointsResult {
+    path: string;
+    changed: boolean;
+    pointCount: number;
+    source: Polygon2DPointsSource;
+}
 export declare interface IReloadOptions {
     urlOrUUID?: string;
     preserveUndoHistory?: boolean;
@@ -7176,6 +7190,7 @@ export declare interface PluginScriptUserData {
     loadPluginInMiniGame?: boolean;
     loadPluginInNative?: boolean;
 }
+export declare type Polygon2DPointsSource = 'sprite-alpha' | 'rect-fallback';
 export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;

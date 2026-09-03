@@ -52,4 +52,8 @@ module.exports = {
         label: '发布',
         description: '点击发布游戏并获取更多收益。',
     },
+    publishStage: {
+        label: '正式发布',
+        description: '将已上传的包正式发布上线。',
+    },
 };

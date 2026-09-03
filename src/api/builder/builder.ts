@@ -2,7 +2,7 @@ import { build, createBuildTemplate as createCoreBuildTemplate, executeBuildStag
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
-import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, IUploadResultData, SchemaMakeResult, SchemaUploadResult, SchemaUploadAccessToken, TUploadAccessToken, SchemaBuildTemplateName, TBuildTemplateName, SchemaCreateBuildTemplateResult, TCreateBuildTemplateResult } from './schema';
+import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, IUploadResultData, IPublishResultData, SchemaMakeResult, SchemaUploadResult, SchemaPublishResult, SchemaUploadAccessToken, TUploadAccessToken, SchemaBuildTemplateName, TBuildTemplateName, SchemaCreateBuildTemplateResult, TCreateBuildTemplateResult } from './schema';
 
 export class BuilderApi {
 
@@ -178,6 +178,34 @@ export class BuilderApi {
         } catch (e) {
             ret.code = COMMON_STATUS.FAIL;
             console.error(`upload project ${dest} in platform ${platform} failed:`, e instanceof Error ? e.message : String(e));
+            ret.reason = e instanceof Error ? e.message : String(e);
+        }
+        return ret;
+    }
+
+    @tool('builder-publish')
+    @title('Publish Build Package') // 发布构建产物
+    @description('Publish a previously uploaded game package, supported only by some platforms. Requires a successful upload stage to have produced a packageId.') // 发布已经上传成功的游戏包，仅部分平台支持，需要先成功执行过上传阶段以获取 packageId
+    @result(SchemaPublishResult)
+    async publish(@param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildDest) dest: TBuildDest): Promise<CommonResultType<IPublishResultData>> {
+        const code: HttpStatusCode = COMMON_STATUS.SUCCESS;
+        const ret: CommonResultType<IPublishResultData> = {
+            code: code,
+            data: null,
+        };
+        try {
+            const res = await executeBuildStageTask(platform, 'publish', {
+                dest,
+                platform,
+            });
+            ret.data = res as IPublishResultData;
+            if (res.code !== BuildExitCode.BUILD_SUCCESS) {
+                ret.code = COMMON_STATUS.FAIL;
+                ret.reason = res.reason || `Publish ${platform} in ${dest} failed!`;
+            }
+        } catch (e) {
+            ret.code = COMMON_STATUS.FAIL;
+            console.error(`publish project ${dest} in platform ${platform} failed:`, e instanceof Error ? e.message : String(e));
             ret.reason = e instanceof Error ? e.message : String(e);
         }
         return ret;

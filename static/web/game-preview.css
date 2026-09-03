@@ -1,0 +1,272 @@
+
+/* The browser-preview toolbar is intentionally isolated to pages that opt in with previewToolbar=1. */
+#preview-content {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#preview-content #GameDiv {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    /* GameDiv 是模拟设备帧；宿主缩小时必须裁切，不能被 flex 单独压缩某一轴。 */
+    flex: 0 0 auto;
+}
+
+#preview-content #Cocos3dGameContainer {
+    width: 100%;
+    height: 100%;
+}
+
+#preview-toolbar {
+    display: none;
+    height: 50px;
+    box-sizing: border-box;
+    padding: 4px 0 4px 10px;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-width: 0;
+    color: #aaaaaa;
+    background: #333333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
+    line-height: 25px;
+}
+
+body.preview-toolbar-enabled #preview-toolbar {
+    display: flex;
+}
+
+body.preview-toolbar-enabled {
+    display: flex;
+    flex-direction: column;
+}
+
+body.preview-toolbar-enabled #preview-content {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+/* Creator 的 Webpage Full Screen 保持游戏帧占满页面；鼠标到顶部时，工具栏浮在游戏帧上方，
+ * 而不是重新分配游戏帧高度。 */
+body.preview-webpage-fullscreen #preview-toolbar {
+    display: none;
+}
+
+body.preview-webpage-fullscreen.preview-toolbar-revealed #preview-toolbar {
+    position: absolute;
+    z-index: 10;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+}
+
+body.preview-webpage-fullscreen #preview-content {
+    height: 100%;
+    flex: 1 1 auto;
+}
+
+#preview-toolbar.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+#preview-toolbar .item {
+    display: inline-block;
+    margin-right: 10px;
+    min-width: 0;
+    flex: 0 1 auto;
+    vertical-align: middle;
+}
+
+#preview-toolbar select,
+#preview-toolbar input {
+    height: 25px;
+    box-sizing: border-box;
+    border: 1px solid #171717;
+    border-radius: 0;
+    padding: 0 8px;
+    color: #aaaaaa;
+    background: #444444;
+    font: inherit;
+}
+
+#preview-toolbar select {
+    min-width: 0;
+    max-width: 100%;
+}
+
+#preview-toolbar .view-select-container {
+    position: relative;
+    display: flex;
+    width: 175px;
+    max-width: 100%;
+    height: 25px;
+    padding: 0 8px;
+    color: #aaaaaa;
+    cursor: pointer;
+    background: #444444;
+    line-height: 25px;
+    user-select: none;
+}
+
+#preview-toolbar .view-select-container .view-select {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+    padding-right: 20px;
+    padding-left: 6px;
+}
+
+#preview-toolbar .view-select-container .label,
+#preview-toolbar .view-select-container .label > span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#preview-toolbar .view-select-container .label {
+    flex: 1;
+}
+
+#preview-toolbar .view-select-container .arrow-triangle::after {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 5px;
+    height: 5px;
+    border-top: 1px solid #cccccc;
+    border-right: 1px solid #cccccc;
+    content: '';
+    transform: rotate(135deg);
+}
+
+#preview-toolbar .view-select-container .options {
+    position: absolute;
+    z-index: 99;
+    top: 28px;
+    left: 0;
+    display: none;
+    width: 100%;
+    max-height: 300px;
+    padding: 5px 0;
+    overflow: auto;
+    color: #aaaaaa;
+    background: #444444;
+    border: 1px solid #171717;
+}
+
+#preview-toolbar .view-select-container .options[open] {
+    display: block;
+}
+
+#preview-toolbar .view-select-container .options ul {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+#preview-toolbar .view-select-container .options li {
+    height: 24px;
+    padding: 0 8px;
+    overflow: hidden;
+    cursor: pointer;
+    line-height: 24px;
+    list-style: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#preview-toolbar .view-select-container .options li:hover,
+#preview-toolbar .view-select-container .options li.selected {
+    color: #ffffff;
+    background: #0099ff;
+}
+
+#preview-toolbar .view-select-container .options li.separator {
+    align-self: center;
+    width: calc(100% - 8px);
+    height: 1px;
+    padding: 0;
+    margin: 4px 0;
+    pointer-events: none;
+    background: #cccccc;
+}
+
+#preview-toolbar input {
+    width: 54px;
+    padding: 0 4px;
+}
+
+#preview-toolbar button {
+    min-height: 25px;
+    box-sizing: border-box;
+    border: 1px solid #171717;
+    border-radius: 2px;
+    padding: 3px 8px;
+    color: #bdbdbd;
+    cursor: pointer;
+    background-image: linear-gradient(#5a5a5a, #444444);
+    font: inherit;
+    font-weight: 600;
+    line-height: normal;
+    max-width: 100%;
+}
+
+#preview-toolbar button {
+    white-space: normal;
+}
+
+#preview-show-fps {
+    min-width: 0;
+}
+
+#preview-rotate {
+    min-width: 52px;
+}
+
+#preview-toolbar button.checked {
+    color: #0099ff;
+    background-image: linear-gradient(#333333, #222222);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 50%);
+}
+
+#preview-toolbar .controls {
+    margin-right: 0;
+}
+
+#preview-toolbar .controls button + button {
+    border-left: 0;
+}
+
+#preview-toolbar .controls button:first-child.checked {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+#preview-toolbar #preview-step-length,
+#preview-toolbar #preview-step {
+    display: none;
+}
+
+#preview-toolbar #preview-step.show {
+    display: inline-block;
+}
+
+#preview-toolbar #preview-step-length.show {
+    display: inline-block;
+}
