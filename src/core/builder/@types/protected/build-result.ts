@@ -166,7 +166,13 @@ export interface IBuildStageTask {
 
 export interface IBuildHooksInfo {
     pkgNameOrder: string[];
-    infos: Record<string, { path: string; internal: boolean }>;
+    infos: Record<string, {
+        path: string;
+        /** Whether the hook uses the internal Builder ABI. */
+        internal: boolean;
+        /** Whether a hook failure should fail the build; omitted values fall back to internal. */
+        failOnError?: boolean;
+    }>;
 }
 
 export interface IBundle {

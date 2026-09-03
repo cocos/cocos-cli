@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import { basename, join } from 'path';
+import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting } from '../share/common-options-validator';
 import { NATIVE_PLATFORM, PLATFORMS } from '../share/platforms-options';
 import { validator, validatorManager } from '../share/validator-manager';
@@ -17,9 +17,10 @@ import { createBuilderPlatformMetadataNodes, createBuilderRenderSchema } from '.
 import { configurationRegistry } from '../../configuration';
 import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
 import { GlobalPaths } from '../../../global';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, realpathSync, statSync } from 'fs';
 import utils from '../../base/utils';
 import { copy, outputJSON, readJSON, readJSONSync } from 'fs-extra';
+import { resolveBuiltinExtensionsRoot } from '../../extension-roots';
 
 export interface InternalPackageInfo {
     name: string; // 插件名
@@ -80,6 +81,112 @@ const pluginRoots = [
     join(__dirname, '../platforms'),
     join(GlobalPaths.workspace, 'packages/platforms'),
 ];
+
+interface ExtensionBuilderHook {
+    extensionName: string;
+    path: string;
+    root: string;
+}
+
+interface ExtensionManifest {
+    name?: unknown;
+    contributions?: {
+        builder?: unknown;
+    };
+}
+
+function isPathInsideRoot(root: string, target: string): boolean {
+    const relativeTarget = relative(root, target);
+    return relativeTarget !== ''
+        && relativeTarget !== '..'
+        && !relativeTarget.startsWith(`..${sep}`)
+        && !isAbsolute(relativeTarget);
+}
+
+function scanExtensionBuilderHooks(root: string): ExtensionBuilderHook[] {
+    if (!existsSync(root)) {
+        return [];
+    }
+
+    let entries: import('fs').Dirent[];
+    try {
+        entries = readdirSync(root, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+        console.warn(`[Build] Failed to scan builtin extension root ${root}: ${String(error)}`);
+        return [];
+    }
+
+    const result: ExtensionBuilderHook[] = [];
+    for (const entry of entries) {
+        const extensionDir = resolve(root, entry.name);
+        const manifestPath = join(extensionDir, 'package.json');
+        if (!existsSync(manifestPath)) {
+            continue;
+        }
+
+        let manifest: ExtensionManifest;
+        try {
+            manifest = readJSONSync(manifestPath) as ExtensionManifest;
+        } catch (error) {
+            console.warn(`[Build] Skip builtin extension manifest for ${extensionDir}: ${String(error)}`);
+            continue;
+        }
+
+        const declaredBuilder = manifest?.contributions?.builder;
+        if (declaredBuilder === undefined) {
+            continue;
+        }
+        if (typeof declaredBuilder !== 'string' || !declaredBuilder.trim()) {
+            console.warn(`[Build] Skip builtin extension with invalid contributions.builder: extension=${String(manifest?.name)}, root=${root}, directory=${extensionDir}, declaration=${JSON.stringify(declaredBuilder)}`);
+            continue;
+        }
+
+        const extensionName = typeof manifest.name === 'string' ? manifest.name.trim() : '';
+        if (!extensionName) {
+            console.warn(`[Build] Skip builtin extension with invalid manifest.name: root=${root}, directory=${extensionDir}`);
+            continue;
+        }
+
+        const declaredEntry = resolve(extensionDir, declaredBuilder);
+        let extensionRoot: string;
+        let entryPath: string;
+        try {
+            extensionRoot = realpathSync(extensionDir);
+            entryPath = realpathSync(declaredEntry);
+        } catch (error) {
+            console.warn(`[Build] Skip builtin extension builder entry: extension=${extensionName}, root=${root}, directory=${extensionDir}, declaration=${declaredBuilder}, reason=${String(error)}`);
+            continue;
+        }
+
+        const relativeEntry = relative(extensionRoot, entryPath);
+        if (!isPathInsideRoot(extensionRoot, entryPath)) {
+            console.warn(`[Build] Reject builtin extension builder entry outside extension root: extension=${extensionName}, root=${root}, directory=${extensionDir}, declaration=${declaredBuilder}, resolved=${declaredEntry}, relative=${relativeEntry}`);
+            continue;
+        }
+        try {
+            if (!statSync(entryPath).isFile()) {
+                console.warn(`[Build] Reject builtin extension builder entry that is not a regular file: extension=${extensionName}, root=${root}, directory=${extensionDir}, declaration=${declaredBuilder}, resolved=${declaredEntry}`);
+                continue;
+            }
+        } catch (error) {
+            console.warn(`[Build] Skip builtin extension builder entry: extension=${extensionName}, root=${root}, directory=${extensionDir}, declaration=${declaredBuilder}, reason=${String(error)}`);
+            continue;
+        }
+
+        if (result.some((item) => item.extensionName === extensionName)) {
+            console.warn(`[Build] Skip duplicate builtin extension builder hook: extension=${extensionName}, root=${root}, directory=${extensionDir}, declaration=${declaredBuilder}`);
+            continue;
+        }
+        result.push({
+            extensionName,
+            path: declaredEntry,
+            root,
+        });
+    }
+    return result;
+}
 
 function getRegisterInfo(root: string, dirName: string) : IPlatformRegisterInfo | null {
     const packageJSONPath = join(root, 'package.json');
@@ -142,6 +249,9 @@ export class PluginManager extends EventEmitter {
     public configMap: Record<string, Record<string, IInternalBuildPluginConfig>>; // 存储注入进来的 config
     // 存储注册进来的，带有 hooks 的插件路径，[pkgName][platform]: hooks
     private builderPathsMap: Record<string, Record<string, string>> = {};
+    // 仅记录精确的 builtin extension hook slot，避免把同名平台 hook 误判为 extension hook。
+    private extensionBuilderHookSlots: Record<string, Set<string>> = {};
+    private extensionBuilderHooks: ExtensionBuilderHook[] = [];
     private customBuildStagesMap: {
         [pkgName: string]: {
             [platform: string]: IBuildStageItem[];
@@ -184,6 +294,8 @@ export class PluginManager extends EventEmitter {
                 this.platformRegisterInfoPool.set(info.platform, info);
             }
         }
+        const builtinExtensionsRoot = resolveBuiltinExtensionsRoot();
+        this.extensionBuilderHooks = builtinExtensionsRoot ? this.scanBuiltinExtensionBuilderHooks(builtinExtensionsRoot) : [];
         this.translateConfigItemsDisplayFields(builderConfig.commonOptionConfigs);
     }
 
@@ -209,7 +321,34 @@ export class PluginManager extends EventEmitter {
         }
         await this.registerPlatform(info);
         await this.internalRegister(info);
+        this.registerExtensionBuilderHooks(platform);
         console.log(`register platform ${platform} success!`);
+    }
+
+    private registerExtensionBuilderHooks(platform: string): void {
+        if (!this.extensionBuilderHooks.length) {
+            return;
+        }
+        const platformPaths = this.builderPathsMap[platform] || (this.builderPathsMap[platform] = {});
+        const extensionSlots = this.extensionBuilderHookSlots[platform] || (this.extensionBuilderHookSlots[platform] = new Set<string>());
+        for (const extensionHook of this.extensionBuilderHooks) {
+            const { extensionName, path } = extensionHook;
+            if (this.platformConfig[extensionName] || this.platformRegisterInfoPool.has(extensionName)) {
+                console.warn(`[Build] Skip builtin extension builder hook with platform name conflict: extension=${extensionName}, platform=${platform}`);
+                continue;
+            }
+            if (Object.prototype.hasOwnProperty.call(platformPaths, extensionName)) {
+                console.warn(`[Build] Skip builtin extension builder hook because the platform hook slot is occupied: extension=${extensionName}, platform=${platform}`);
+                continue;
+            }
+            platformPaths[extensionName] = path;
+            extensionSlots.add(extensionName);
+            this.pkgPriorities[extensionName] = 0;
+        }
+    }
+
+    private scanBuiltinExtensionBuilderHooks(root: string): ExtensionBuilderHook[] {
+        return scanExtensionBuilderHooks(root);
     }
 
     public checkPlatform(platform: string) {
@@ -1174,10 +1313,15 @@ export class PluginManager extends EventEmitter {
             pkgNameOrder: [],
             infos: {},
         };
-        Object.keys(this.builderPathsMap[platform]).forEach((pkgName) => {
+        const platformPaths = this.builderPathsMap[platform] || {};
+        const extensionSlots = this.extensionBuilderHookSlots[platform];
+        Object.keys(platformPaths).forEach((pkgName) => {
+            const isExtensionHook = !!extensionSlots?.has(pkgName);
+            const internal = isExtensionHook || pkgName === platform;
             result.infos[pkgName] = {
-                path: this.builderPathsMap[platform][pkgName],
-                internal: pkgName === platform,
+                path: platformPaths[pkgName],
+                internal,
+                failOnError: isExtensionHook ? false : internal,
             };
         });
         result.pkgNameOrder = this.sortPkgNameWidthPriority(Object.keys(result.infos));

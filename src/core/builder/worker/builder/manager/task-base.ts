@@ -186,7 +186,7 @@ export abstract class BuildTaskBase extends EventEmitter {
                 newConsole.pluginTask(pkgName, funcName, 'error');
                 this.updateProcess(errorMsg, increment, 'error');
                 this.updateProcess(String(error), increment, 'error');
-                if (hooks && hooks.throwError || info.internal) {
+                if (hooks?.throwError || (info.failOnError ?? info.internal)) {
                     this.onError(error as Error);
                 }
             }
