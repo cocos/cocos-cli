@@ -60,8 +60,14 @@ interface IPrefabCanvasUndoRecord {
 
 interface ICreatePreflightToken {
     requestKey: string;
-    action: ICreateNodePreflightResult['action'];
-    canvasRequired: boolean;
+    result: Omit<ICreateNodePreflightResult, 'preflightToken'>;
+    anchorUuid?: string;
+    anchorParentUuid?: string;
+}
+
+interface IAnchoredCreateTarget {
+    anchor: Node;
+    parent: Node;
 }
 
 /**
@@ -140,6 +146,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult> {
+        this._validateCreateParams(params);
         try {
             await Service.Editor.lock();
             const currentScene = Service.Editor.getRootNode();
@@ -197,11 +204,20 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         };
     }
 
-    private _getCreatePathPreflight(path: string | undefined, currentScene: Node): {
+    private _getCreatePathPreflight(params: ICreateByNodeTypeParams | ICreateByAssetParams, currentScene: Node): {
         parent: Node;
         materializesUITransform: boolean;
         canvasRequired: boolean;
     } {
+        if (params.insertSide) {
+            return {
+                parent: this._getAnchoredCreateParent(params),
+                materializesUITransform: false,
+                canvasRequired: false,
+            };
+        }
+
+        const { path } = params;
         if (path && !isRootNodePath(path)) {
             try {
                 const existingParent = NodeMgr.getNodeByPath(path);
@@ -254,7 +270,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         canvasRequired: boolean,
         currentScene: Node,
     ): Omit<ICreateNodePreflightResult, 'preflightToken'> {
-        const pathPlan = this._getCreatePathPreflight(params.path, currentScene);
+        const pathPlan = this._getCreatePathPreflight(params, currentScene);
         if (pathPlan.materializesUITransform) {
             return {
                 action: 'create',
@@ -292,8 +308,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
         this._preflightTokens.set(token, {
             requestKey: this._getPreflightRequestKey(params),
-            action: result.action,
-            canvasRequired: result.canvasRequired,
+            result,
+            ...this._getAnchoredPreflightIdentity(params),
         });
         return token;
     }
@@ -309,34 +325,106 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             throw new Error('The node creation preflight token is invalid or does not match the request. Run preflightCreate again.');
         }
 
-        if (record.action !== 'create') {
-            return;
+        const anchorIdentity = this._getAnchoredPreflightIdentity(params);
+        if (
+            record.anchorUuid !== anchorIdentity.anchorUuid
+            || record.anchorParentUuid !== anchorIdentity.anchorParentUuid
+        ) {
+            throw new Error('The node creation preflight token has a stale anchor. Run preflightCreate again.');
         }
 
         const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
             throw new Error('Failed to create node: the scene is not opened.');
         }
-        const currentResult = this._resolveCreatePreflight(params, record.canvasRequired, currentScene);
-        if (currentResult.action !== 'create') {
+        const currentResult = this._resolveCreatePreflight(params, record.result.canvasRequired, currentScene);
+        if (!this._samePreflightResult(record.result, currentResult)) {
             throw new Error('Canvas context changed after preflight. Run preflightCreate again before creating the node.');
         }
     }
 
+    private _samePreflightResult(
+        left: Omit<ICreateNodePreflightResult, 'preflightToken'>,
+        right: Omit<ICreateNodePreflightResult, 'preflightToken'>,
+    ): boolean {
+        return left.action === right.action
+            && left.canvasRequired === right.canvasRequired
+            && left.canvasPath === right.canvasPath
+            && left.uiTransformPath === right.uiTransformPath;
+    }
+
     private _getPreflightRequestKey(params: ICreateByNodeTypeParams | ICreateByAssetParams): string {
+        // Prefab Canvas handling is selected by the host after preflight, so it must not
+        // invalidate the token issued before the user makes that choice.
         return JSON.stringify('nodeType' in params ? {
             kind: 'type',
             path: params.path,
+            insertSide: params.insertSide,
             nodeType: params.nodeType,
             workMode: params.workMode ?? '2d',
             canvasRequired: Boolean(params.canvasRequired),
         } : {
             kind: 'asset',
             path: params.path,
+            insertSide: params.insertSide,
             dbURL: params.dbURL,
             workMode: params.workMode ?? '2d',
             canvasRequired: Boolean(params.canvasRequired),
         });
+    }
+
+    private _getAnchoredCreateParent(params: ICreateByNodeTypeParams | ICreateByAssetParams): Node {
+        return this._getAnchoredCreateTarget(params).parent;
+    }
+
+    private _getAnchoredCreateTarget(params: ICreateByNodeTypeParams | ICreateByAssetParams): IAnchoredCreateTarget {
+        if (!params.insertSide) {
+            throw new Error('An insertion side is required for anchored node creation.');
+        }
+        if (isRootNodePath(params.path)) {
+            throw new Error('An anchored node creation path must identify a sibling anchor, not the scene root.');
+        }
+
+        const anchor = NodeMgr.getNodeByPath(params.path) as Node | null;
+        if (!anchor?.isValid) {
+            throw new Error(`The anchored node creation target was not found at path: ${params.path}`);
+        }
+
+        const parent = anchor.parent as Node | null;
+        if (!parent?.isValid) {
+            throw new Error(`The anchored node creation target has no valid parent at path: ${params.path}`);
+        }
+        return { anchor, parent };
+    }
+
+    private _getAnchoredPreflightIdentity(params: ICreateByNodeTypeParams | ICreateByAssetParams): {
+        anchorUuid?: string;
+        anchorParentUuid?: string;
+    } {
+        if (!params.insertSide) {
+            return {};
+        }
+
+        const { anchor, parent } = this._getAnchoredCreateTarget(params);
+        return {
+            anchorUuid: anchor.uuid,
+            anchorParentUuid: parent.uuid,
+        };
+    }
+
+    private _insertAtAnchoredTarget(
+        node: Node,
+        params: ICreateByNodeTypeParams | ICreateByAssetParams,
+        expectedParent: Node,
+        capturedTarget?: IAnchoredCreateTarget,
+    ): void {
+        const { anchor, parent } = capturedTarget ?? this._getAnchoredCreateTarget(params);
+        if (!anchor.isValid || !parent.isValid || parent !== expectedParent || anchor.parent !== expectedParent) {
+            throw new Error('The anchored node creation target became stale before insertion.');
+        }
+
+        const siblingIndex = anchor.getSiblingIndex() + (params.insertSide === 'after' ? 1 : 0);
+        expectedParent.insertChild(node, siblingIndex);
     }
 
     async _createNode(assetUuid: string | null, canvasNeeded: boolean, checkUITransform: boolean, params: ICreateByNodeTypeParams | ICreateByAssetParams, assetType?: string): Promise<INode | null> {
@@ -346,8 +434,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         const workMode = params.workMode || '2d';
+        const anchoredParent = params.insertSide ? this._getAnchoredCreateParent(params) : null;
         // 使用增强的路径处理方法
-        let parent = await this._getOrCreateNodeByPath(params.path, currentScene, params.prefabCanvasHandling);
+        let parent = anchoredParent ?? await this._getOrCreateNodeByPath(params.path, currentScene, params.prefabCanvasHandling);
         if (!parent) {
             parent = currentScene;
         }
@@ -376,7 +465,21 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             nodeMgr.ensureUITransformComponent(resultNode);
         }
 
-        parent = await this.checkCanvasRequired(workMode.toLowerCase(), Boolean(canvasRequired), parent, params.position as Vec3, params.prefabCanvasHandling) as Node;
+        const anchoredTarget = params.insertSide ? this._getAnchoredCreateTarget(params) : null;
+        if (anchoredTarget) {
+            parent = anchoredTarget.parent;
+        }
+        parent = await this._resolveCanvasRequired(
+            workMode.toLowerCase(),
+            Boolean(canvasRequired),
+            parent,
+            params.position as Vec3,
+            params.prefabCanvasHandling,
+            params.insertSide ? params : undefined,
+        ) as Node;
+        if (!parent) {
+            throw new Error('Failed to resolve a parent for node creation.');
+        }
 
         /**
          * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
@@ -411,7 +514,19 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             resultNode.setPosition(params.position);
         }
 
-        resultNode.setParent(parent, params.keepWorldTransform);
+        if (params.insertSide) {
+            if (anchoredTarget && parent === anchoredTarget.parent) {
+                // This branch reparents the Prefab root and invalidates its serialized anchor path.
+                const capturedTarget = params.prefabCanvasHandling === 'add-root-ui-transform'
+                    ? anchoredTarget
+                    : undefined;
+                this._insertAtAnchoredTarget(resultNode, params, parent, capturedTarget);
+            } else {
+                resultNode.setParent(parent, params.keepWorldTransform);
+            }
+        } else {
+            resultNode.setParent(parent, params.keepWorldTransform);
+        }
         // 挂到 prefab instance 下时，setParent 相关流程可能重新补回模板 prefab 信息。
         // 但在 prefab asset 编辑器中，新节点需要保留 setParent 补齐的 prefab 元数据。
         if (shouldUnlinkPrefab && Service.Editor.getCurrentEditorType() !== 'prefab') {
@@ -451,6 +566,16 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     private _validateCreateParams(params: ICreateByNodeTypeParams | ICreateByAssetParams): void {
         this._validateRequestedNodeName(params.name);
         this._validateRequestedNodePath(params.path);
+        if (params.insertSide !== undefined && params.insertSide !== 'before' && params.insertSide !== 'after') {
+            throw new Error(`Unsupported node insertion side: ${String(params.insertSide)}`);
+        }
+        if (
+            params.prefabCanvasHandling !== undefined
+            && params.prefabCanvasHandling !== 'add-root-ui-transform'
+            && params.prefabCanvasHandling !== 'create-canvas'
+        ) {
+            throw new Error(`Unsupported Prefab Canvas handling: ${String(params.prefabCanvasHandling)}`);
+        }
     }
 
     private _validateRequestedNodeName(name: string | undefined): void {
@@ -682,6 +807,23 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         position: Vec3 | undefined,
         prefabCanvasHandling?: PrefabCanvasHandling,
     ): Promise<Node | null> {
+        return await this._resolveCanvasRequired(
+            workMode,
+            canvasRequiredParam,
+            parent,
+            position,
+            prefabCanvasHandling,
+        );
+    }
+
+    private async _resolveCanvasRequired(
+        workMode: string,
+        canvasRequiredParam: boolean | undefined,
+        parent: Node | null,
+        position: Vec3 | undefined,
+        prefabCanvasHandling?: PrefabCanvasHandling,
+        anchoredParams?: ICreateByNodeTypeParams | ICreateByAssetParams,
+    ): Promise<Node | null> {
 
         if (canvasRequiredParam && parent?.isValid) {
             let canvasNode: Node | null;
@@ -726,7 +868,11 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 Service.Prefab.removePrefabInfoFromNode(canvasNode);
 
                 if (parent) {
-                    parent.addChild(canvasNode);
+                    if (anchoredParams) {
+                        this._insertAtAnchoredTarget(canvasNode, anchoredParams, parent);
+                    } else {
+                        parent.addChild(canvasNode);
+                    }
                 }
                 parent = canvasNode;
             }

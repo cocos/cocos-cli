@@ -84,6 +84,7 @@ export const SchemaNodeDelete = z.object({
 
 const SchemaNodeCreateBase = z.object({
     path: z.string().describe('Relative path of the created node, root node is scene node; This path is parent node path, full node path is returned by the API, and root node path is "/"'), // 创建的节点相对路径，根节点是场景节点；该路径为父节点路径，完整节点路径以接口返回值为准，根节点路径为 "/"
+    insertSide: z.enum(['before', 'after']).optional().describe('Create beside the existing sibling at path. When omitted, path remains the parent and the new node appends.'),
     name: SchemaNodeName.optional().describe('Name of the node. Characters /\\:*?"<>| are not allowed. If not passed, the system will default a name.'), // Node name; defaults to a system-generated name if omitted
     workMode: z.enum(['2d', '3d']).optional().describe('Node work mode, 2D or 3D; same nodeType may support both 2d and 3d'), // 节点工作模式，2D 还是 3D; 同一个 nodeType 有些支持2d也支持3d
     keepWorldTransform: z.boolean().optional().describe('Keep world transform'), // 保持世界变换
