@@ -11,7 +11,7 @@ import {
 export class ReflectionProbeApi {
     @tool('scene-bake-reflection-probe')
     @title('Bake reflection probe')
-    @description('Capture and bake a cube reflection probe, import its TextureCube, bind it to the component, and optionally save the scene.')
+    @description('Bake a cube reflection probe in the active Pink/browser scene, hot-apply its TextureCube to that same scene, and optionally save it. No scene-open call is required.')
     @result(SchemaReflectionProbeBakeResult)
     async bake(
         @param(SchemaReflectionProbeBakeOptions) options: TReflectionProbeBakeOptions,

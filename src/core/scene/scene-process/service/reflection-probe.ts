@@ -34,6 +34,9 @@ import { NodeEventType } from '../../common';
 import { BaseService, register, Service } from './core';
 import { ServiceEvents } from './core/global-events';
 import { Rpc } from '../rpc';
+import { syncSceneEditorBundles } from '../scene-editor-assets';
+import { removePreviewAssetCache } from './preview/asset-reload';
+import { isReflectionProbeTextureCubeImported } from './reflection-probe-import-state';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 200;
@@ -46,8 +49,26 @@ interface IAssetInfo {
 }
 
 interface ICapturedFaces {
+    sceneUrl: string;
+    sceneName: string;
+    componentUuid: string;
+    probeId: number;
     resolution: number;
+    fastBake: boolean;
+    captureToken: string;
     faces: string[];
+    rendererId?: string;
+}
+
+interface IApplyBakedCubemapOptions {
+    sceneUrl: string;
+    nodePath: string;
+    componentUuid: string;
+    cubemapUuid: string;
+    captureToken: string;
+    saveScene: boolean;
+    timeoutMs: number;
+    serverURL?: string;
 }
 
 interface IOutputTransaction {
@@ -79,51 +100,21 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         this.broadcast('reflection-probe:bake-start', nodePath);
 
         try {
-            const node = this._getNodeByExactPath(nodePath);
-            if (!node) {
-                throw new Error(`Reflection probe node was not found: ${nodePath}`);
-            }
-
-            const component = node.getComponent(ReflectionProbe);
-            if (!component) {
-                throw new Error(`Node does not contain cc.ReflectionProbe: ${nodePath}`);
-            }
-            if (!component.enabled || !node.activeInHierarchy) {
-                throw new Error(`Reflection probe is disabled or inactive: ${nodePath}`);
-            }
-            if (component.probeType !== renderer.scene.ProbeType.CUBE) {
-                throw new Error(`Only cube reflection probes can be baked: ${nodePath}`);
-            }
-
-            const probe = component.probe;
-            const probeId = probe.getProbeId();
-            const resolution = Number((component as any)._resolution);
-            if (!Number.isInteger(resolution) || resolution <= 0) {
-                throw new Error(`Reflection probe has an invalid resolution: ${resolution}`);
-            }
-            const sceneName = node.scene?.name;
-            if (!sceneName) {
-                throw new Error('No scene is currently open.');
-            }
-            const fastBake = component.fastBake;
-
-            const current = await Service.Editor.queryCurrent();
-            const currentAssetUrl = ((current as any)?.__identifier__?.assetUrl
-                ?? (current as any)?.assetUrl) as string | undefined;
-            if (!currentAssetUrl) {
-                throw new Error('The currently opened scene has no asset URL.');
-            }
-
-            const captured = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN
-                ? await Rpc.getInstance().request('reflectionProbeRenderer', 'capture', [
-                    currentAssetUrl,
+            const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+            const captured = this._validateCapturedFaces(remoteRenderer
+                ? await Rpc.getInstance().request('reflectionProbeRenderer', 'captureActive', [
                     nodePath,
                     Math.max(1, deadline - Date.now()),
                 ])
-                : await this.capturePixels(nodePath, Math.max(1, deadline - Date.now()));
-            if (captured.resolution !== resolution || captured.faces.length !== 6) {
-                throw new Error('The WebGL scene renderer returned invalid reflection-probe faces.');
-            }
+                : await this.capturePixels(nodePath, Math.max(1, deadline - Date.now())), remoteRenderer);
+            const {
+                sceneUrl,
+                sceneName,
+                componentUuid,
+                probeId,
+                resolution,
+                fastBake,
+            } = captured;
 
             const assetRoot = await Rpc.getInstance().request('assetManager', 'queryPath', ['db://assets']) as string | null;
             if (!assetRoot) {
@@ -132,16 +123,19 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
             const sceneDir = join(assetRoot, sceneName);
             const backupRoot = join(assetRoot, '..', 'temp', 'reflection-probe-bake');
+            const workDir = join(backupRoot, `work-${process.pid}-${Date.now()}-${probeId}`);
             await ensureDir(sceneDir);
-            const facePaths = await this._writeFaces(captured.faces, sceneDir, probeId, resolution, deadline);
-            const outputBase = join(sceneDir, `reflectionProbe_${probeId}`);
-            const outputPath = `${outputBase}.png`;
-            const outputUrl = `db://assets/${sceneName}/reflectionProbe_${probeId}.png`;
-            const textureCubeUrl = `${outputUrl}/textureCube`;
-            const stagedBase = join(sceneDir, `.reflection-probe-${probeId}-${Date.now()}`);
-            const stagedOutputPath = `${stagedBase}.png`;
-
+            await ensureDir(workDir);
             try {
+                await this._cleanupLegacyWorkingFiles(sceneDir, probeId);
+                const facePaths = await this._writeFaces(captured.faces, workDir, resolution, deadline);
+                const outputBase = join(sceneDir, `reflectionProbe_${probeId}`);
+                const outputPath = `${outputBase}.png`;
+                const outputUrl = `db://assets/${sceneName}/reflectionProbe_${probeId}.png`;
+                const textureCubeUrl = `${outputUrl}/textureCube`;
+                const stagedBase = join(workDir, `reflectionProbe_${probeId}`);
+                const stagedOutputPath = `${stagedBase}.png`;
+
                 await this._runCmft(facePaths, stagedBase, deadline);
                 await this._prepareMeta(stagedOutputPath, fastBake, outputPath);
                 const outputTransaction = await this._replaceOutput(
@@ -152,59 +146,55 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 );
                 try {
                     this._assertBeforeDeadline(deadline, 'asset import');
-                    await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]);
+                    await Rpc.getInstance().request('assetManager', 'refreshAssetOnly', [outputUrl]);
                     if (!fastBake) {
                         await this._ensureConvolution(outputBase, outputUrl, deadline);
                     }
+                    await this._waitForTextureCubeImport(outputPath, fastBake, deadline);
                     const cubeInfo = await this._waitForTextureCube(textureCubeUrl, deadline);
-                    const textureCube = await this._loadTextureCube(cubeInfo.uuid, deadline);
-                    const previousCubemap = component.cubemap;
-                    const commandId = Service.Undo.beginRecording([component.uuid], {
-                        label: 'Bake reflection probe',
-                        scope: {
-                            nodePath,
-                            propPath: `_components.${node.components.indexOf(component)}._cubemap`,
-                            editorType: 'scene',
-                        },
-                    });
-                    try {
-                        component.cubemap = textureCube;
-                        this._notifyCubemapChanged(node, component);
-                        await Service.Engine.repaintInEditMode();
-
-                        if (options.saveScene !== false) {
-                            this._assertBeforeDeadline(deadline, 'scene save');
-                            await Service.Editor.save({});
-                        }
-                        await Service.Undo.endRecording(commandId);
-                    } catch (error) {
-                        Service.Undo.cancelRecording(commandId);
-                        component.cubemap = previousCubemap;
-                        this._notifyCubemapChanged(node, component);
-                        await Service.Engine.repaintInEditMode();
-                        throw error;
+                    const applyOptions: IApplyBakedCubemapOptions = {
+                        sceneUrl,
+                        nodePath,
+                        componentUuid,
+                        cubemapUuid: cubeInfo.uuid,
+                        captureToken: captured.captureToken,
+                        saveScene: options.saveScene !== false,
+                        timeoutMs: Math.max(1, deadline - Date.now()),
+                    };
+                    if (remoteRenderer) {
+                        await Rpc.getInstance().request('reflectionProbeRenderer', 'apply', [
+                            captured.rendererId!,
+                            applyOptions,
+                            applyOptions.timeoutMs,
+                        ]);
+                    } else {
+                        await this.applyBakedCubemap(applyOptions);
                     }
                     await outputTransaction.commit();
                     this.broadcast('reflection-probe:bake-end', nodePath);
                     return {
                         nodePath,
-                        componentUuid: component.uuid,
+                        componentUuid,
                         probeId,
                         cubemapUuid: cubeInfo.uuid,
                         cubemapUrl: cubeInfo.url,
                         fastBake,
                     };
                 } catch (error) {
-                    await outputTransaction.rollback();
-                    await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]).catch(() => undefined);
+                    if (this._isUnknownRemoteApplyState(error)) {
+                        // The Webview may still finish binding/saving after the
+                        // acknowledgement transport times out. Keep the valid
+                        // imported asset so a late save cannot reference a
+                        // rolled-back or missing TextureCube.
+                        await outputTransaction.commit();
+                    } else {
+                        await outputTransaction.rollback();
+                        await Rpc.getInstance().request('assetManager', 'refreshAssetOnly', [outputUrl]).catch(() => undefined);
+                    }
                     throw error;
                 }
             } finally {
-                await Promise.all([
-                    ...facePaths,
-                    stagedOutputPath,
-                    `${stagedOutputPath}.meta`,
-                ].map(async (path) => remove(path).catch(() => undefined)));
+                await this._removeWithRetry(workDir);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -235,23 +225,201 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         if (!component) {
             throw new Error(`Node does not contain cc.ReflectionProbe in the WebGL scene renderer: ${nodePath}`);
         }
+        if (!component.enabled || !node.activeInHierarchy) {
+            throw new Error(`Reflection probe is disabled or inactive: ${nodePath}`);
+        }
+        if (component.probeType !== renderer.scene.ProbeType.CUBE) {
+            throw new Error(`Only cube reflection probes can be baked: ${nodePath}`);
+        }
         const resolution = Number((component as any)._resolution);
         if (!Number.isInteger(resolution) || resolution <= 0) {
             throw new Error(`Reflection probe has an invalid resolution: ${resolution}`);
         }
 
+        const sceneName = node.scene?.name;
+        if (!sceneName) {
+            throw new Error('No scene is currently open in the WebGL scene renderer.');
+        }
+        const sceneUrl = await this._queryCurrentSceneUrl();
+        const captureToken = this._createCaptureToken(node, component);
         const deadline = Date.now() + timeoutMs;
         component.probe.captureCubemap();
         await this._waitForCapture(component.probe, deadline);
+        if (this._createCaptureToken(node, component) !== captureToken) {
+            throw new Error(`Reflection probe changed during cubemap capture: ${nodePath}`);
+        }
         const flip = director.root!.device.capabilities.clipSpaceMinZ === -1;
         return {
+            sceneUrl,
+            sceneName,
+            componentUuid: component.uuid,
+            probeId: component.probe.getProbeId(),
             resolution,
+            fastBake: component.fastBake,
+            captureToken,
             faces: component.probe.bakedCubeTextures.map((texture: unknown) => {
                 const pixels = this._readPixels(texture);
                 const data = flip ? this._flipImage(pixels, resolution, resolution) : pixels;
                 return this._encodeBase64(data);
             }),
         };
+    }
+
+    /** Applies an imported TextureCube to the live WebGL scene that captured it. */
+    public async applyBakedCubemap(options: IApplyBakedCubemapOptions): Promise<{ applied: true; saved: boolean }> {
+        if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
+            throw new Error('A reflection-probe cubemap can only be applied by a WebGL scene renderer.');
+        }
+        if (!options?.sceneUrl || !options.nodePath || !options.componentUuid
+            || !options.cubemapUuid || !options.captureToken) {
+            throw new Error('Invalid reflection-probe apply request.');
+        }
+        const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+            throw new Error('Reflection probe apply timeoutMs must be greater than zero.');
+        }
+        const deadline = Date.now() + timeoutMs;
+        await this._assertCurrentScene(options.sceneUrl);
+        await syncSceneEditorBundles(options.serverURL);
+        this._assertBeforeDeadline(deadline, 'TextureCube bundle refresh');
+        const textureCube = await this._loadTextureCube(options.cubemapUuid, deadline, true);
+        await this._assertCurrentScene(options.sceneUrl);
+
+        const node = this._getNodeByExactPath(options.nodePath);
+        const component = node?.getComponent(ReflectionProbe) as ReflectionProbe | null;
+        if (!node || !component || component.uuid !== options.componentUuid
+            || this._createCaptureToken(node, component) !== options.captureToken) {
+            throw new Error(`Reflection probe changed before the baked cubemap could be applied: ${options.nodePath}`);
+        }
+
+        const previousCubemap = component.cubemap;
+        let sceneSaved = false;
+        const commandId = Service.Undo.beginRecording([component.uuid], {
+            label: 'Bake reflection probe',
+            scope: {
+                nodePath: options.nodePath,
+                propPath: `_components.${node.components.indexOf(component)}._cubemap`,
+                editorType: 'scene',
+            },
+        });
+        try {
+            component.cubemap = textureCube;
+            this._notifyCubemapChanged(node, component);
+            await Service.Engine.repaintInEditMode();
+            if (options.saveScene) {
+                this._assertBeforeDeadline(deadline, 'scene save');
+                await Service.Editor.save({});
+                sceneSaved = true;
+            }
+            await Service.Undo.endRecording(commandId);
+            if (options.saveScene) {
+                // Editor.save marks the command that existed before this
+                // recording was finalized. Advance the saved checkpoint to
+                // the newly committed bake command so Pink is not left dirty.
+                Service.Undo.markSaved();
+            }
+            return { applied: true, saved: options.saveScene };
+        } catch (error) {
+            Service.Undo.cancelRecording(commandId);
+            if (sceneSaved) {
+                // The scene already references the new TextureCube on disk.
+                // Keep both the live binding and the imported asset even if
+                // finalizing Undo/dirty state fails after the save completed.
+                const detail = error instanceof Error ? error.message : String(error);
+                throw new Error(
+                    'The reflection-probe scene was saved, but the final WebGL apply state is unknown. '
+                    + `(${detail})`,
+                );
+            }
+            component.cubemap = previousCubemap;
+            try {
+                this._notifyCubemapChanged(node, component);
+                await Service.Engine.repaintInEditMode();
+            } catch {
+                // Preserve the original apply/save failure.
+            }
+            throw error;
+        }
+    }
+
+    private _validateCapturedFaces(value: unknown, requireRendererId: boolean): ICapturedFaces {
+        const captured = value as Partial<ICapturedFaces> | null;
+        const validSceneName = typeof captured?.sceneName === 'string'
+            && captured.sceneName.length > 0
+            && captured.sceneName === basename(captured.sceneName)
+            && captured.sceneName !== '.'
+            && captured.sceneName !== '..';
+        if (
+            typeof captured?.sceneUrl !== 'string'
+            || captured.sceneUrl.length === 0
+            || !validSceneName
+            || typeof captured.componentUuid !== 'string'
+            || captured.componentUuid.length === 0
+            || !Number.isInteger(captured.probeId)
+            || (captured.probeId as number) < 0
+            || !Number.isInteger(captured.resolution)
+            || (captured.resolution as number) <= 0
+            || typeof captured.fastBake !== 'boolean'
+            || typeof captured.captureToken !== 'string'
+            || captured.captureToken.length === 0
+            || !Array.isArray(captured.faces)
+            || captured.faces.length !== FACE_NAMES.length
+            || captured.faces.some((face) => typeof face !== 'string')
+            || (requireRendererId && (typeof captured.rendererId !== 'string' || captured.rendererId.length === 0))
+        ) {
+            throw new Error('The WebGL scene renderer returned invalid reflection-probe data.');
+        }
+        return captured as ICapturedFaces;
+    }
+
+    private _createCaptureToken(node: any, component: ReflectionProbe): string {
+        const session = (Service.Editor as any).getEditorSession?.();
+        const tuple = (value: any, keys: string[]) => keys.map((key) => Number(value?.[key] ?? 0));
+        return JSON.stringify({
+            editor: [session?.uuid ?? null, session?.generation ?? null],
+            component: component.uuid,
+            probeId: component.probe.getProbeId(),
+            probeType: component.probeType,
+            enabled: component.enabled,
+            active: node.activeInHierarchy,
+            resolution: Number((component as any)._resolution),
+            fastBake: component.fastBake,
+            cubemap: component.cubemap?.uuid ?? null,
+            clearFlag: (component as any)._clearFlag ?? (component as any).clearFlag,
+            visibility: (component as any)._visibility ?? (component as any).visibility,
+            backgroundColor: tuple(
+                (component as any)._backgroundColor ?? (component as any).backgroundColor,
+                ['r', 'g', 'b', 'a'],
+            ),
+            size: tuple((component as any)._size ?? (component as any).size, ['x', 'y', 'z']),
+            position: tuple(node.worldPosition, ['x', 'y', 'z']),
+            rotation: tuple(node.worldRotation, ['x', 'y', 'z', 'w']),
+            scale: tuple(node.worldScale, ['x', 'y', 'z']),
+        });
+    }
+
+    private async _queryCurrentSceneUrl(): Promise<string> {
+        const current = await Service.Editor.queryCurrent();
+        const sceneUrl = ((current as any)?.__identifier__?.assetUrl
+            ?? (current as any)?.assetUrl) as string | undefined;
+        if (!sceneUrl) {
+            throw new Error('The currently opened WebGL scene has no asset URL.');
+        }
+        return sceneUrl;
+    }
+
+    private async _assertCurrentScene(expectedSceneUrl: string): Promise<void> {
+        const currentSceneUrl = await this._queryCurrentSceneUrl();
+        if (currentSceneUrl !== expectedSceneUrl) {
+            throw new Error(
+                `The WebGL scene changed during reflection-probe bake: expected ${expectedSceneUrl}, got ${currentSceneUrl}.`,
+            );
+        }
+    }
+
+    private _isUnknownRemoteApplyState(error: unknown): boolean {
+        const message = error instanceof Error ? error.message : String(error);
+        return message.includes('final WebGL apply state is unknown');
     }
 
     private async _waitForCapture(probe: any, deadline: number): Promise<void> {
@@ -306,8 +474,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     private async _writeFaces(
         faces: string[],
-        sceneDir: string,
-        probeId: number,
+        workDir: string,
         resolution: number,
         deadline: number,
     ): Promise<string[]> {
@@ -337,7 +504,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             for (let i = 0; i < FACE_NAMES.length; i++) {
                 this._assertBeforeDeadline(deadline, 'render texture readback');
                 const data = decodedFaces[i];
-                const facePath = join(sceneDir, `.reflection-probe-${probeId}-${FACE_NAMES[i]}.png`);
+                const facePath = join(workDir, `${FACE_NAMES[i]}.png`);
                 result.push(facePath);
                 await sharp(data, {
                     raw: { width: resolution, height: resolution, channels: 4 },
@@ -465,6 +632,9 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         meta.subMetas.b47c0.imported = false;
         meta.subMetas.b47c0.userData ??= {};
         meta.subMetas.b47c0.userData.mipBakeMode = fastBake ? 1 : 2;
+        for (const child of Object.values(meta.subMetas.b47c0.subMetas ?? {}) as any[]) {
+            child.imported = false;
+        }
         await outputJson(metaPath, meta, { spaces: 2 });
     }
 
@@ -528,7 +698,20 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const entries = await readdir(dirname(outputPath)).catch(() => []);
         await Promise.all(entries
             .filter((entry) => entry.startsWith(prefix) && entry.endsWith('.meta'))
-            .map(async (entry) => remove(join(dirname(outputPath), entry)).catch(() => undefined)));
+            .map(async (entry) => this._removeWithRetry(join(dirname(outputPath), entry))));
+    }
+
+    private async _cleanupLegacyWorkingFiles(sceneDir: string, probeId: number): Promise<void> {
+        const prefix = `.reflection-probe-${probeId}-`;
+        const entries = await readdir(sceneDir).catch(() => []);
+        await Promise.all(entries.filter((entry) => {
+            if (!entry.startsWith(prefix)) {
+                return false;
+            }
+            const suffix = entry.slice(prefix.length);
+            return FACE_NAMES.some((face) => suffix === `${face}.png` || suffix === `${face}.png.meta`)
+                || /^\d+\.png(?:\.meta)?$/.test(suffix);
+        }).map(async (entry) => this._removeWithRetry(join(sceneDir, entry))));
     }
 
     private _notifyCubemapChanged(node: any, component: ReflectionProbe): void {
@@ -548,7 +731,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             // run its convolution importer on the following refresh.
             this._assertBeforeDeadline(deadline, 'texture cube convolution');
             await this._prepareMeta(`${outputBase}.png`, false);
-            await Rpc.getInstance().request('assetManager', 'refreshAsset', [outputUrl]);
+            await Rpc.getInstance().request('assetManager', 'refreshAssetOnly', [outputUrl]);
         }
         while (Date.now() < deadline) {
             if (await this._hasCompleteConvolution(convolutionDir)) {
@@ -563,6 +746,26 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         return (await Promise.all(FACE_NAMES.map((_face, index) => (
             pathExists(join(convolutionDir, `mipmap_${index}.png`))
         )))).every(Boolean);
+    }
+
+    private async _waitForTextureCubeImport(
+        outputPath: string,
+        fastBake: boolean,
+        deadline: number,
+    ): Promise<void> {
+        const metaPath = `${outputPath}.meta`;
+        while (Date.now() < deadline) {
+            try {
+                const meta = await readJson(metaPath);
+                if (isReflectionProbeTextureCubeImported(meta, fastBake ? 1 : 2)) {
+                    return;
+                }
+            } catch {
+                // AssetDB may be replacing the meta file while an import is in progress.
+            }
+            await this._delay(Math.min(POLL_INTERVAL_MS, Math.max(1, deadline - Date.now())));
+        }
+        throw new Error(`TextureCube and its six faces were not fully imported before timeout: ${metaPath}`);
     }
 
     private async _waitForTextureCube(url: string, deadline: number): Promise<IAssetInfo> {
@@ -582,7 +785,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         throw new Error(`TextureCube subasset was not imported before timeout: ${url}.${detail}`);
     }
 
-    private async _loadTextureCube(uuid: string, deadline: number): Promise<TextureCube> {
+    private async _loadTextureCube(uuid: string, deadline: number, reloadAsset = false): Promise<TextureCube> {
+        if (reloadAsset) {
+            removePreviewAssetCache(uuid);
+        }
         while (Date.now() < deadline) {
             const remaining = deadline - Date.now();
             const asset = await new Promise<TextureCube | null | 'timeout'>((resolve) => {
@@ -591,14 +797,19 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     settled = true;
                     resolve('timeout');
                 }, remaining);
-                assetManager.loadAny(uuid, (error: Error | null, value: TextureCube) => {
+                const done = (error: Error | null, value: TextureCube) => {
                     if (settled) {
                         return;
                     }
                     settled = true;
                     clearTimeout(timer);
                     resolve(error ? null : value);
-                });
+                };
+                if (reloadAsset) {
+                    assetManager.loadAny(uuid, { reloadAsset: true }, done);
+                } else {
+                    assetManager.loadAny(uuid, done);
+                }
             });
             if (asset === 'timeout') {
                 break;
@@ -617,5 +828,18 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     private _delay(ms: number): Promise<void> {
         return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    private async _removeWithRetry(path: string): Promise<void> {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                await remove(path);
+                return;
+            } catch {
+                if (attempt < 2) {
+                    await this._delay(50 * (attempt + 1));
+                }
+            }
+        }
     }
 }
