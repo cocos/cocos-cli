@@ -49,12 +49,12 @@ jest.mock('../../configuration', () => ({
 }));
 
 jest.mock('../../../global', () => ({
-    GlobalPaths: { workspace: '/tmp/test-workspace' },
+    GlobalPaths: { workspace: '/tmp/test-workspace', enginePath: '/tmp/test-engine' },
 }));
 
 let builtinRoot = '';
 jest.mock('../../extension-roots', () => ({
-    resolveBuiltinExtensionsRoot: jest.fn(() => undefined),
+    resolveBuiltinExtensionsRoot: jest.fn(() => (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot),
 }));
 
 type HookInfo = {
@@ -80,6 +80,28 @@ class TestBuildTask extends BuildTaskBase {
             await func.call(this, this.options, this.result, this.cache, ...args);
         } else {
             await func(this.result.rawOptions, this.buildResult, ...args);
+        }
+    }
+
+    async run() {
+        return true;
+    }
+}
+
+class TestBundleTask extends BuildTaskBase {
+    public hooksInfo: { pkgNameOrder: string[]; infos: Record<string, HookInfo> } = { pkgNameOrder: [], infos: {} };
+    public options: any = { preview: false };
+    public hookMap: Record<string, string> = {
+        onBeforeBundleInit: 'onBeforeBundleInit',
+    };
+    public bundles: any[] = [{ name: 'main' }];
+    public cache: any = { marker: 'bundle-cache' };
+
+    async handleHook(func: Function, internal: boolean, ...args: any[]) {
+        if (internal) {
+            await func.call(this, this.options, this.bundles, this.cache, ...args);
+        } else {
+            await func(this.options, this.bundles, ...args);
         }
     }
 
@@ -128,11 +150,13 @@ describe('PluginManager builtin extension Builder hooks', () => {
         tempRoot = mkdtempSync(join(tmpdir(), 'cocos-cli-builder-hooks-'));
         builtinRoot = join(tempRoot, 'builtin-extensions');
         mkdirSync(builtinRoot, { recursive: true });
+        (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot = builtinRoot;
     });
 
     afterEach(() => {
         rmSync(tempRoot, { recursive: true, force: true });
         builtinRoot = '';
+        delete (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot;
     });
 
     it('reads only the plural contributions.builder string shape', () => {
@@ -169,6 +193,8 @@ describe('PluginManager builtin extension Builder hooks', () => {
             name: 'valid-extension',
             contributions: { builder: './dist/builder.js' },
         }, 'dist/builder.js');
+        const outsidePath = join(tempRoot, 'outside.js');
+        writeFileSync(outsidePath, 'module.exports = {};');
         createExtension('missing-name', {
             contributions: { builder: './builder.js' },
         });
@@ -187,6 +213,7 @@ describe('PluginManager builtin extension Builder hooks', () => {
         mkdirSync(join(directoryEntryDir, 'builder-dir'), { recursive: true });
 
         const manager = createManager();
+        const warning = jest.spyOn(console, 'warn').mockImplementation();
         const hooks = (manager as any).scanBuiltinExtensionBuilderHooks(builtinRoot);
 
         expect(hooks).toEqual([{
@@ -194,6 +221,41 @@ describe('PluginManager builtin extension Builder hooks', () => {
             path: join(validDir, 'dist', 'builder.js'),
             root: builtinRoot,
         }]);
+        expect(warning.mock.calls.some(([message]) => String(message).includes('outside extension root'))).toBe(true);
+        expect(existsSync(outsidePath)).toBe(true);
+        warning.mockRestore();
+    });
+
+    it('uses the builtin resolver in init and mounts only after register(platform)', async () => {
+        const missingRootManager = new PluginManager();
+        delete (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot;
+        await missingRootManager.init();
+        expect((missingRootManager as any).extensionBuilderHooks).toEqual([]);
+
+        const entryDir = createExtension('localization', {
+            name: 'pink-localization-editor',
+            contributions: { builder: './builder.js' },
+        });
+        const manager = new PluginManager();
+        (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot = builtinRoot;
+        await manager.init();
+
+        expect((manager as any).extensionBuilderHooks).toEqual([{
+            extensionName: 'pink-localization-editor',
+            path: join(entryDir, 'builder.js'),
+            root: builtinRoot,
+        }]);
+        expect((manager as any).builderPathsMap['web-mobile']).toBeUndefined();
+
+        await manager.register('web-mobile');
+
+        expect((manager as any).builderPathsMap['web-mobile']['pink-localization-editor']).toBe(join(entryDir, 'builder.js'));
+        expect((manager as any).builderPathsMap['pink-localization-editor']).toBeUndefined();
+        expect(manager.getHooksInfo('web-mobile').infos['pink-localization-editor']).toEqual({
+            path: join(entryDir, 'builder.js'),
+            internal: true,
+            failOnError: false,
+        });
     });
 
     it('scans builtin extensions only and keeps the first stable duplicate name', () => {
@@ -334,6 +396,43 @@ describe('PluginManager builtin extension Builder hooks', () => {
                 sameCache: true,
             },
         ]);
+    });
+
+    it('keeps bundle hook ABI and soft-failure behavior on a BuildTaskBase bundle path', async () => {
+        const marker = join(tempRoot, 'bundle-hook.json');
+        const contents = `
+            const fs = require('fs');
+            module.exports = {
+                throwError: false,
+                onBeforeBundleInit(options, bundles, cache) {
+                    fs.writeFileSync(${JSON.stringify(marker)}, JSON.stringify({
+                        sameOptions: options === this.options,
+                        sameBundles: bundles === this.bundles,
+                        sameCache: cache === this.cache,
+                    }));
+                    throw new Error('bundle soft failure');
+                },
+            };
+        `;
+        const entryDir = createExtension('bundle-hook', {
+            name: 'pink-localization-editor',
+            contributions: { builder: './builder.js' },
+        }, 'builder.js', contents);
+        const manager = createManager();
+        (manager as any).builderPathsMap = { 'web-mobile': {} };
+        setExtensionHooks(manager, [{ extensionName: 'pink-localization-editor', path: join(entryDir, 'builder.js'), root: builtinRoot }]);
+        (manager as any).registerExtensionBuilderHooks('web-mobile');
+
+        const task = new TestBundleTask('bundle-task', 'bundle-task');
+        task.hooksInfo = getHookInfo(manager, 'web-mobile');
+        await task.runPluginTask('onBeforeBundleInit');
+
+        expect(JSON.parse(readFileSync(marker, 'utf8'))).toEqual({
+            sameOptions: true,
+            sameBundles: true,
+            sameCache: true,
+        });
+        expect(task.error).toBeUndefined();
     });
 
     it('keeps throwError and failOnError decisions independent and preserves legacy fallback', async () => {
