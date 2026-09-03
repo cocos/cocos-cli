@@ -7,8 +7,6 @@ import { InternalBuildResult, BuilderCache, IBuilder, IInterBuildTaskOption, IBu
 import { relativeUrl, transformCode } from '../../../worker/builder/utils';
 import { IBuildResult } from './type';
 import * as commonUtils from '../../web-common/utils';
-import * as webUpload from '../../web-common/upload';
-import * as webPublish from '../../web-common/publish';
 export const throwError = true;
 
 export async function onAfterInit(options: IInterBuildTaskOption<'web-mobile'>, result: InternalBuildResult, cache: BuilderCache) {
@@ -104,8 +102,7 @@ export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInterB
         indexJsName: basename(indexJsDest),
         cssUrl: basename(cssFilePath),
     };
-    let content = await Ejs.renderFile(indexEjsTemplate, data);
-    content = commonUtils.injectBridgeScripts(content, packageOptions);
+    const content = await Ejs.renderFile(indexEjsTemplate, data);
     result.paths.indexHTML = join(result.paths.dir, 'index.html');
     outputFileSync(result.paths.indexHTML, content, 'utf8');
     options.md5CacheOptions.replaceOnly.push('index.html');
@@ -126,19 +123,3 @@ export async function run(this: IBuildStageTask, root: string) {
         previewUrl,
     };
 };
-
-export async function onBeforeUpload(this: IBuildStageTask, root: string, options: IInterBuildTaskOption<'web-mobile'>) {
-    await webUpload.onBeforeUpload('web-mobile', root, options);
-}
-
-export async function upload(this: IBuildStageTask, root: string, options: IInterBuildTaskOption<'web-mobile'>) {
-    await webUpload.upload(this, 'web-mobile', root, options);
-}
-
-export async function onAfterUpload(this: IBuildStageTask) {
-    await webUpload.onAfterUpload(this);
-}
-
-export async function publish(this: IBuildStageTask, root: string, options: IInterBuildTaskOption<'web-mobile'>) {
-    await webPublish.publish(this, 'web-mobile', root, options);
-}

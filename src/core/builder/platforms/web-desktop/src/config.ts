@@ -22,12 +22,14 @@ const config: IPlatformBuildPluginConfig = {
             label: 'i18n:web-desktop.options.app_id',
             description: 'i18n:web-desktop.options.app_id_hint',
             type: 'string',
+            hidden: true,
         },
         versionName: {
             default: '1.0.0',
             type: 'string',
             label: 'i18n:web-desktop.options.version_name',
             description: 'i18n:web-desktop.options.version_name_hint',
+            hidden: true,
         },
         uploadEnv: {
             default: 'prod',
@@ -93,7 +95,6 @@ const config: IPlatformBuildPluginConfig = {
             default: false,
             description: 'i18n:web-desktop.tips.webgpu',
             experiment: true,
-            hidden: true,
         },
         resolution: {
             type: 'object',
@@ -158,12 +159,6 @@ const config: IPlatformBuildPluginConfig = {
         hook: 'run',
         name: 'run',
         requiredBuildOptions: false,
-    }, {
-        name: 'upload',
-        hook: 'upload',
-        displayName: 'i18n:web-desktop.publish.label',
-        description: 'i18n:web-desktop.publish.description',
-        parallelism: 'all',
     }],
 };
 
