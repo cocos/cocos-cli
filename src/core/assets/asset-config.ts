@@ -7,6 +7,7 @@ import project from '../project';
 import { Engine } from '../engine';
 import { createImportMetadataNodes } from './metadata';
 import { DEFAULT_CREATE_TEMPLATE_ROOT, resolveImportTemplateRoot } from './import-config-defaults';
+import { resolveBuiltinExtensionsRoot } from '../extension-roots';
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
@@ -45,20 +46,6 @@ interface AssetDBMountContribution {
     readonly?: boolean;
     visible?: boolean;
     enable?: string;
-}
-
-/**
- * 定位正式打包产物中的内置扩展根目录。
- * Cocos 进程为 Electron Utility Process，可通过 process.resourcesPath 定位 resources 目录；
- * 打包后的内置扩展位于 <resources>/app/extensions；开发/解包环境无该目录时返回 undefined。
- */
-function resolveBuiltinExtensionsRoot(): string | undefined {
-    const resourcesPath = (process as { resourcesPath?: string }).resourcesPath;
-    if (!resourcesPath) {
-        return undefined;
-    }
-    const builtinExtensionsRoot = join(resourcesPath, 'app', 'extensions');
-    return existsSync(builtinExtensionsRoot) ? builtinExtensionsRoot : undefined;
 }
 
 /**
