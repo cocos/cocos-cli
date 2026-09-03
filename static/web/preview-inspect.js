@@ -3,7 +3,14 @@
 /**
  * 预览运行时 Inspect Agent(M1:只读 Hierarchy + selection + 结构 liveness;M5:组件增删/reset/排序/整包粘贴;M6:资产拖拽创建节点)。
  *
- * 由 previewMain 在 game-boot 跑起启动场景后装配,直接读活 `cc.director` 的场景图,
+ * 装配契约:本文件是运行时库,game.ejs / game-boot.js 都**不**会自动装配它——
+ * 生产装配方是 IDE 侧预览 webview(PinK 仓库 PreviewInEditor 分支 previewMain.pink.ts):
+ * 先复用 game-boot.js 跑起启动场景,再动态 import 本文件调 createPreviewInspect,
+ * 把 agent 经 PreviewSceneApi 挂到宿主 SceneViewBridge(scene:invoke 等)后才 fire view:ready。
+ * 普通浏览器预览没有 Hierarchy/Inspector 宿主 UI 消费这些能力,故刻意不装配;
+ * IDE 预览时页面内只有这一个实例,也避免了双重装配(两个 agent 同时轮询/抢占 undo)。
+ *
+ * 装配后直接读活 `cc.director` 的场景图,
  * 产出与编辑器 `node.query-tree` 契约一致的 INodeTreeItem,并以轻量结构快照 diff
  * 广播 node:added/node:removed/node:change,以及 selection 回显事件。
  *

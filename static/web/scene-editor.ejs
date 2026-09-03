@@ -489,6 +489,9 @@
          * Play：序列化编辑器里的实时场景（含未保存改动）→ POST /scene/current →
          *   在覆盖画布的 iframe 里以 /?scene=__current__ 运行游戏运行时。
          * Stop：卸掉 iframe，恢复编辑器视图。
+         * 注意：本页的预览 iframe 只叠加游戏画面，不装配 static/web/preview-inspect.js
+         * （运行态 Hierarchy 编辑 agent）——该 agent 需要宿主侧 Hierarchy/Inspector UI 消费，
+         * 由 IDE 侧预览 webview（PinK previewMain.pink.ts）装配；本页没有这套 UI。
          */
         let _previewPlaying = false;
 

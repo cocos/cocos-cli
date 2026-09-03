@@ -222,50 +222,73 @@ export default async function gameBoot() {
         });
 
         await cc.game.run(async () => {
-            cc.game.pause();
+            // 引擎的 game.run 返回 void：该 async 回调是 fire-and-forget，回调内的异常不会传播到
+            // 外层 try/catch。因此整条场景加载路径必须在这里全部捕获并收敛到 rejectSceneRun——
+            // 否则 fetch/解析失败时 `await sceneRunDone` 永远 pending，boot 挂死：
+            // IDE 预览（PinK previewMain 等 await gameBoot() 的消费方）卡在 loading 且无法触发
+            // view:error 重试，浏览器首屏则表现为游戏停在 pause 无任何报错。
+            try {
+                cc.game.pause();
 
-            // Preview in Editor：当启动场景为 __current__ 时，读回编辑器 POST 上来的
-            // 「当前编辑场景」实时快照（/scene/current.json），而非从磁盘按 uuid 取已保存场景。
-            // 该快照是 sceneUtils.serialize 的输出（与编辑器 save/reload 同一路径），
-            // 故与常规路径一样 fetch → .json() → loadWithJson。
-            const isCurrent = launchScene === '__current__';
-            const sceneJsonUrl = isCurrent
-                ? `${env.serverURL}/scene/current.json`
-                : `${env.serverURL}/scene/${encodeURIComponent(launchScene)}.json`;
-            const json = await (await fetch(sceneJsonUrl)).json();
-            let loadOptions = null;
-            if (!isCurrent) {
-                try {
-                    launchScene = json[1]._id;
-                } catch (e) {
-                    // ignore
-                }
-                loadOptions = { assetId: launchScene };
-            }
-            cc.assetManager.loadWithJson(
-                json,
-                loadOptions,
-                () => { /* progress */ },
-                (err, sceneAsset) => {
-                    if (err) {
-                        showError(err);
-                        cc.error(err);
-                        rejectSceneRun(err instanceof Error ? err : new Error(String(err)));
-                        return;
-                    }
+                // Preview in Editor：当启动场景为 __current__ 时，读回编辑器 POST 上来的
+                // 「当前编辑场景」实时快照（/scene/current.json），而非从磁盘按 uuid 取已保存场景。
+                // 该快照是 sceneUtils.serialize 的输出（与编辑器 save/reload 同一路径），
+                // 故与常规路径一样 fetch → .json() → loadWithJson。
+                const isCurrent = launchScene === '__current__';
+                const sceneJsonUrl = isCurrent
+                    ? `${env.serverURL}/scene/current.json`
+                    : `${env.serverURL}/scene/${encodeURIComponent(launchScene)}.json`;
+                const resp = await fetch(sceneJsonUrl);
+                if (!resp.ok) {
+                    // 快照未写入（未点 Play / 已停止）时 /scene/current.json 返回 404 且带
+                    // { error } JSON body；磁盘场景缺失走 next() 兜底也可能是非 200。把状态码与
+                    // 服务端 error 一并带进消息，便于错误浮层定位。
+                    let detail = '';
                     try {
-                        const scene = sceneAsset.scene;
-                        scene._name = sceneAsset._name;
-                        cc.director.runSceneImmediate(scene, () => {
-                            cc.game.resume();
-                            resolveSceneRun();
-                        });
+                        detail = (await resp.json()).error || '';
                     } catch (e) {
-                        showError(e);
-                        rejectSceneRun(e instanceof Error ? e : new Error(String(e)));
+                        // 非 JSON body（如网关 502 HTML），忽略
                     }
+                    throw new Error(`fetch scene failed: ${resp.status}${detail ? ` (${detail})` : ''} ${sceneJsonUrl}`);
                 }
-            );
+                const json = await resp.json();
+                let loadOptions = null;
+                if (!isCurrent) {
+                    try {
+                        launchScene = json[1]._id;
+                    } catch (e) {
+                        // ignore
+                    }
+                    loadOptions = { assetId: launchScene };
+                }
+                cc.assetManager.loadWithJson(
+                    json,
+                    loadOptions,
+                    () => { /* progress */ },
+                    (err, sceneAsset) => {
+                        if (err) {
+                            showError(err);
+                            cc.error(err);
+                            rejectSceneRun(err instanceof Error ? err : new Error(String(err)));
+                            return;
+                        }
+                        try {
+                            const scene = sceneAsset.scene;
+                            scene._name = sceneAsset._name;
+                            cc.director.runSceneImmediate(scene, () => {
+                                cc.game.resume();
+                                resolveSceneRun();
+                            });
+                        } catch (e) {
+                            showError(e);
+                            rejectSceneRun(e instanceof Error ? e : new Error(String(e)));
+                        }
+                    }
+                );
+            } catch (e) {
+                showError(e);
+                rejectSceneRun(e instanceof Error ? e : new Error(String(e)));
+            }
         });
 
         // 等待场景真正 run 起来后再视为 boot 成功。
