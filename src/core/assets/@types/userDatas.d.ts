@@ -1,4 +1,16 @@
-import { NormalImportSetting, TangentImportSetting } from './interface';
+export declare enum NormalImportSetting {
+    optional = 0,
+    exclude = 1,
+    require = 2,
+    recalculate = 3,
+}
+
+export declare enum TangentImportSetting {
+    exclude = 0,
+    optional = 1,
+    require = 2,
+    recalculate = 3,
+}
 // 这个文件用于记录导入器的各种类型定义，导出声明文件的时候将导出这个配置文件
 export type ImageImportType = 'raw' | 'texture' | 'normal map' | 'sprite-frame' | 'texture cube';
 
@@ -738,6 +750,3 @@ interface IFbxSetting {
      */
     matchMeshNames?: boolean;
 }
-
-// 重新导出其他类型定义
-export * from './interface';
