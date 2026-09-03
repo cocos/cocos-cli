@@ -103,10 +103,8 @@ describe('public Localization Runtime reconcile', () => {
             mockAssetDBManager.assetDBInfo[info.name] = info;
         });
 
-        const first = await reconcileLocalizationRuntimeMount();
-        const second = await reconcileLocalizationRuntimeMount();
-
-        expect(first).toBe(second);
+        await expect(reconcileLocalizationRuntimeMount()).resolves.toBeUndefined();
+        await expect(reconcileLocalizationRuntimeMount()).resolves.toBeUndefined();
         expect(mockAssetDBManager.addDB).toHaveBeenCalledTimes(1);
         expect(mockAssetDBManager.addDB.mock.calls[0][0]).toMatchObject({
             name: 'localization-editor',
