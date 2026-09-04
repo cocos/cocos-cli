@@ -66,10 +66,19 @@ const CurveRangeMode = {
     TwoConstants: 3,
 };
 
-const tempVec3 = new Vec3();
-const tempQuat_a = new Quat();
-
 type TShapeController = any;
+
+// 懒加载 Vec3 和 Quat，避免在模块加载时实例化
+let tempVec3: any;
+let tempQuat_a: any;
+
+function lazyRequireTempVectors() {
+    if (!tempVec3) {
+        const cc = require('cc');
+        tempVec3 = new cc.Vec3();
+        tempQuat_a = new cc.Quat();
+    }
+}
 
 /**
  * ParticleSystem 组件选中 Gizmo：
@@ -334,6 +343,9 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             const node = this.target.node;
             const shapeModule = this.target.shapeModule!;
 
+            // 确保临时向量已初始化
+            lazyRequireTempVectors();
+
             switch (this._curEmitterShape) {
                 case ShapeType.Box: {
                     const deltaSize = (this._activeController as any).getDeltaSize();
@@ -401,6 +413,9 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             const shapeModule = this.target.shapeModule;
 
             if (shapeModule.enable && this._pSGizmoRoot) {
+                // 确保临时向量已初始化
+                lazyRequireTempVectors();
+
                 const node = this.target.node;
                 const worldRot = tempQuat_a;
                 const worldPos = node.getWorldPosition();
@@ -491,6 +506,9 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         if (this._boundingBoxController.updated && this.target) {
             this.recordChanges();
             const node = this.target.node;
+
+            // 确保临时向量已初始化
+            lazyRequireTempVectors();
 
             const deltaSize = this._boundingBoxController.getDeltaSize();
             Vec3.add(tempVec3, this._bbHalfSize, deltaSize);
