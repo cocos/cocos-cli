@@ -9,9 +9,8 @@ import CircleController from '../../controller/circle';
 import HemisphereController from '../../controller/hemisphere';
 import SphereController from '../../controller/sphere';
 import ParticleSystemConeController from './controller-cone';
-
-const GizmoBase = new Function('return require("../../base/gizmo-base").default')();
-const IconGizmoBase = new Function('return require("../../base/gizmo-icon").default')();
+import GizmoBase from '../../base/gizmo-base';
+import IconGizmoBase from '../../base/gizmo-icon';
 
 const D2R = Math.PI / 180;
 const R2D = 180 / Math.PI;
