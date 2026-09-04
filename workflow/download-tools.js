@@ -144,10 +144,15 @@ class ToolDownloader {
         this.tempDir = path.join(this.projectRoot, '.temp');
         this.platform = process.platform;
         this.minimal = process.argv.includes('--minimal');
+        this.manifestPath = path.join(this.toolsDir, 'manifest.json');
 
         if (this.minimal) {
             console.log('🚀 正在以最小依赖模式 (minimal) 运行，仅下载测试必需工具...');
         }
+
+        // 加载已存在的 manifest（如果存在）
+        this.manifest = this.loadManifestLocalFile();
+        this.manifestDirty = false;
     }
 
     // 确保目录存在
@@ -156,6 +161,32 @@ class ToolDownloader {
             fs.mkdirSync(dirPath, { recursive: true });
             console.log(`📁 创建目录: ${path.relative(this.projectRoot, dirPath)}`);
         }
+    }
+
+    // 加载 manifest
+    loadManifestLocalFile() {
+        if (fs.existsSync(this.manifestPath)) {
+            try {
+                const data = fs.readFileSync(this.manifestPath, 'utf-8');
+                return JSON.parse(data);
+            } catch (error) {
+                console.warn(`⚠️  无法读取 manifest.json: ${error.message}`);
+                return {};
+            }
+        }
+        return {};
+    }
+
+    recordTool(tool) {
+        this.manifest[tool.dist] = { url: tool.url, timestamp: new Date().toISOString() };
+        this.manifestDirty = true;
+    }
+
+    saveManifest() { // 先写临时文件，再 rename，避免写入一半导致文件损坏
+        const tempManifestPath = this.manifestPath + '.tmp';
+        fs.writeFileSync(tempManifestPath, JSON.stringify(this.manifest, null, 2), 'utf-8');
+        fs.renameSync(tempManifestPath, this.manifestPath);
+        console.log(`📝 更新 manifest.json`);
     }
 
     // 下载文件（带重试机制）
@@ -252,10 +283,14 @@ class ToolDownloader {
     }
 
     // 解压文件
-    async extractFile(zipPath, extractDir) {
+    async extractFile(zipPath, extractDir, cleanup = false) {
         console.log(`📦 解压: ${path.basename(zipPath)}`);
 
         try {
+            if (cleanup && fs.existsSync(extractDir)) {
+                fs.rmSync(extractDir, { recursive: true, force: true });
+                console.log(`🧹 清理旧目录: ${path.relative(this.projectRoot, extractDir)}`);
+            }
             let command , options = {};
             if (this.platform === 'win32') {
                 // Windows 使用 PowerShell 的 Expand-Archive
@@ -335,10 +370,17 @@ class ToolDownloader {
             const tempFilePath = path.join(this.tempDir, fileName);
             const targetDir = path.join(this.toolsDir, tool.dist);
 
-            // 检查是否已存在
+            // 目录已存在时：无记录（老用户首次）或 url 未变化，则跳过；url 变化则重新下载
             if (fs.existsSync(targetDir)) {
-                console.log(`⏭️  跳过 ${tool.dist} (已存在)`);
-                return { success: true, skipped: true };
+                const existing = this.manifest[tool.dist];
+                if (!existing || existing.url === tool.url) {
+                    if (!existing) {
+                        // 老用户首次升级：以当前 url 建立基线，不重新下载
+                        this.recordTool(tool);
+                    }
+                    console.log(`⏭️  跳过 ${tool.dist} (未变化)`);
+                    return { success: true, skipped: true };
+                }
             }
 
             // 下载
@@ -350,7 +392,7 @@ class ToolDownloader {
             // 判断是否需要解压
             if (this.isArchiveFile(tempFilePath)) {
                 // 解压文件
-                await this.extractFile(tempFilePath, targetDir);
+                await this.extractFile(tempFilePath, targetDir, true);
             } else {
                 // 直接复制文件
                 await this.copyFile(tempFilePath, targetDir);
@@ -371,6 +413,7 @@ class ToolDownloader {
             }
 
             console.log(`✅ ${tool.dist} 处理完成`);
+            this.recordTool(tool);
 
             // 在 CI 环境下打印目录结构，方便调试
             if (process.env.GITHUB_ACTIONS) {
@@ -449,6 +492,10 @@ class ToolDownloader {
             }
         }
 
+        // 仅在 manifest 有变化时保存（新建基线或下载成功）
+        if (this.manifestDirty) {
+            this.saveManifest();
+        }
         // 清理临时目录
         this.cleanupTempDir();
 
