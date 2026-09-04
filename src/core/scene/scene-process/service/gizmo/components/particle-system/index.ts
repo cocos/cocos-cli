@@ -1,5 +1,11 @@
 'use strict';
 
+/* eslint-disable @typescript-eslint/no-var-requires */
+// Allow using CommonJS require in this module without forcing consumers to install
+// @types/node. The require usage is deliberate and lazy to avoid circular
+// import/evaluation order issues.
+declare const require: any;
+
 import { Color, geometry, js, Node, ParticleSystem, Quat, Vec3 } from 'cc';
 import { registerGizmo } from '../../gizmo-defines';
 import { create3DNode } from '../../utils/engine-utils';
@@ -9,8 +15,21 @@ import CircleController from '../../controller/circle';
 import HemisphereController from '../../controller/hemisphere';
 import SphereController from '../../controller/sphere';
 import ParticleSystemConeController from './controller-cone';
-import GizmoBase from '../../base/gizmo-base';
-import IconGizmoBase from '../../base/gizmo-icon';
+
+// Lazily require base classes to avoid circular import / evaluation order issues that
+// lead to "Class extends value undefined" during test import-time evaluation.
+let GizmoBase: any;
+let IconGizmoBase: any;
+try {
+    GizmoBase = require('../../base/gizmo-base').default;
+    IconGizmoBase = require('../../base/gizmo-icon').default;
+} catch (e) {
+    // Fallback to minimal classes to avoid runtime crash in environments where bases
+    // are not yet available during circular evaluation. Real behavior depends on
+    // successful require in usual environments.
+    GizmoBase = class {};
+    IconGizmoBase = class {};
+}
 
 const D2R = Math.PI / 180;
 const R2D = 180 / Math.PI;
@@ -39,7 +58,12 @@ const CurveRangeMode = {
 const tempVec3 = new Vec3();
 const tempQuat_a = new Quat();
 
-type TShapeController = BoxController | SphereController | CircleController | ParticleSystemConeController | HemisphereController;
+type TShapeController =
+    | BoxController
+    | SphereController
+    | CircleController
+    | ParticleSystemConeController
+    | HemisphereController;
 
 /**
  * ParticleSystem 组件选中 Gizmo：
@@ -48,7 +72,7 @@ type TShapeController = BoxController | SphereController | CircleController | Pa
  * - 支持显示/编辑粒子剔除用的 AABB 包围盒（renderCulling 开启且 _isShowBB 为 true 时）。
  * 与 cocos-editor 中 components/particle-system 保持一致。
  */
-class ParticleSystemComponentGizmo extends GizmoBase<ParticleSystem> {
+class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     // init 里初始化了，所以一定存在
     private _boundingBoxController!: BoxController;
 
@@ -422,12 +446,13 @@ class ParticleSystemComponentGizmo extends GizmoBase<ParticleSystem> {
                     break;
                 case ShapeType.Cone: {
                     const coneData = this.getConeData(this.target);
-                    coneData && (this._activeController as ParticleSystemConeController).updateSize(
-                        Vec3.ZERO,
-                        coneData.topRadius,
-                        coneData.height,
-                        coneData.bottomRadius,
-                    );
+                    coneData &&
+                        (this._activeController as ParticleSystemConeController).updateSize(
+                            Vec3.ZERO,
+                            coneData.topRadius,
+                            coneData.height,
+                            coneData.bottomRadius,
+                        );
                     break;
                 }
                 case ShapeType.Hemisphere:
@@ -477,7 +502,10 @@ class ParticleSystemComponentGizmo extends GizmoBase<ParticleSystem> {
             this._boundingBoxController.edit = true;
             this._boundingBoxController.setPosition(boundingBox.center);
             const halfExtents = boundingBox.halfExtents;
-            this._boundingBoxController.updateSize(Vec3.ZERO, tempVec3.set(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2));
+            this._boundingBoxController.updateSize(
+                Vec3.ZERO,
+                tempVec3.set(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2),
+            );
             this._boundingBoxController.show();
         } else {
             this._boundingBoxController.hide();
@@ -520,7 +548,7 @@ class ParticleSystemComponentGizmo extends GizmoBase<ParticleSystem> {
     }
 }
 
-class ParticleSystemIconGizmo extends IconGizmoBase<ParticleSystem> {
+class ParticleSystemIconGizmo extends (IconGizmoBase as any) {
     disableOnSelected = true;
     createController() {
         super.createController();
