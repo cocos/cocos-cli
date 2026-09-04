@@ -17,7 +17,6 @@ const config: IPlatformBuildPluginConfig = {
             default: false,
             description: 'i18n:web-desktop.tips.webgpu',
             experiment: true,
-            hidden: true,
         },
         resolution: {
             type: 'object',
