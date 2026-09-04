@@ -59,6 +59,10 @@ jest.mock('../scene-process/rpc', () => ({
     },
 }));
 
+jest.mock('../scene-process/service/preview/asset-reload', () => ({
+    removePreviewAssetCache: jest.fn(),
+}));
+
 import { ReflectionProbeService } from '../scene-process/service/reflection-probe';
 import { isReflectionProbeTextureCubeImported } from '../scene-process/service/reflection-probe-import-state';
 
