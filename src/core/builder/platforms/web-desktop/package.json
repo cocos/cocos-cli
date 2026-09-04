@@ -17,9 +17,5 @@
             "card": "./static/card.png",
             "icon": "./static/icon.png"
         }
-    },
-    "scripts": {
-        "build-view": "node scripts/build-view.js",
-        "watch-view": "node scripts/build-view.js --watch"
     }
 }
