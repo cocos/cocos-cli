@@ -1,7 +1,7 @@
 import { mkdtemp, outputFile, pathExists, readFile, remove } from 'fs-extra';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { LightmapAssetTransaction } from '../scene-process/service/baking/lightfx/asset-transaction';
+import { LightmapAssetTransaction } from '../main-process/lightfx/asset-transaction';
 
 describe('LightmapAssetTransaction', () => {
     let root: string;
@@ -31,5 +31,20 @@ describe('LightmapAssetTransaction', () => {
         await outputFile(join(target, 'new.png'), 'new');
         await transaction.rollback();
         expect(await pathExists(target)).toBe(false);
+    });
+
+    it('keeps rollback retryable when restoring the backup fails', async () => {
+        const target = join(root, 'assets', 'Scene', 'lightmap');
+        await outputFile(join(target, 'old.png'), 'old');
+        const workspace = join(root, 'workspace');
+        const backup = join(workspace, 'lightmap-asset-backup');
+        const transaction = new LightmapAssetTransaction(target, workspace);
+        await transaction.prepare();
+        await remove(backup);
+
+        await expect(transaction.rollback()).rejects.toThrow();
+        await outputFile(join(backup, 'old.png'), 'old');
+        await expect(transaction.rollback()).resolves.toBeUndefined();
+        await expect(readFile(join(target, 'old.png'), 'utf8')).resolves.toBe('old');
     });
 });

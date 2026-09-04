@@ -15,6 +15,7 @@ import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
 import { referenceImageFiles } from './reference-image-files';
 import { referenceImageStore } from './reference-image-store';
+import { lightFXBakeHost } from './lightfx-bake-host';
 
 export interface IMainModule {
     'assetManager': typeof assetManager;
@@ -23,6 +24,7 @@ export interface IMainModule {
     'i18n': typeof i18n;
     'referenceImageFiles': typeof referenceImageFiles;
     'referenceImageStore': typeof referenceImageStore;
+    'lightFXBakeHost': typeof lightFXBakeHost;
 }
 
 export const Scene = {

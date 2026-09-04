@@ -1,5 +1,5 @@
 import { LightFXBuffer } from './buffer';
-import { LIGHTFX_FILE_VERSION, LIGHTFX_OUTPUT_VERSIONS, LightFXChunk, LightFXResult, LightFXWorld } from './types';
+import { LIGHTFX_FILE_VERSION, LightFXChunk, LightFXWorld } from './types';
 
 export function encodeLightFXInput(world: LightFXWorld): Uint8Array {
     const b = new LightFXBuffer(); const s = world.settings;
@@ -20,17 +20,4 @@ export function encodeLightFXInput(world: LightFXWorld): Uint8Array {
     for (const l of world.lights) { b.writeInt32(LightFXChunk.LIGHT); b.writeInt32(l.type); b.writeFloats(l.position); b.writeFloats(l.direction); b.writeFloats(l.color); b.writeFloat(l.size); b.writeFloat(l.range); b.writeFloat(l.attenuationFalloff); b.writeFloat(l.spotInner); b.writeFloat(l.spotOuter); b.writeFloat(l.spotFalloff); b.writeFloat(l.directScale); b.writeFloat(l.indirectScale); b.writeInt8(l.giEnabled ? 1 : 0); b.writeInt8(l.castShadow ? 1 : 0); b.writeFloat(l.shadowMask); }
     for (const p of world.probes) { b.writeInt32(LightFXChunk.LIGHT_PROBE); b.writeFloats(p.position); b.writeFloats(p.normal); }
     b.writeInt32(LightFXChunk.EOF); return b.toUint8Array();
-}
-
-export function decodeLightFXOutput(input: Uint8Array): LightFXResult {
-    const b = new LightFXBuffer(input); const result: LightFXResult = { version: b.readInt32(), meshes: [], terrains: [], probes: [] };
-    if (!LIGHTFX_OUTPUT_VERSIONS.has(result.version)) throw new Error(`Unsupported LightFX output version: 0x${result.version.toString(16)}.`);
-    while (b.remaining > 0) {
-        const chunk = b.readInt32(); if (chunk === LightFXChunk.EOF) return result;
-        if (chunk === LightFXChunk.TERRAIN) { const id = b.readInt32(); const count = b.readCount('terrain'); for (let i = 0; i < count; i++) result.terrains.push({ id, blockId: b.readInt32(), index: b.readInt32(), offset: b.readFloats(2), scale: b.readFloats(2) }); }
-        else if (chunk === LightFXChunk.MESH) { const count = b.readCount('mesh'); for (let i = 0; i < count; i++) result.meshes.push({ id: b.readInt32(), index: b.readInt32(), offset: b.readFloats(2), scale: b.readFloats(2) }); }
-        else if (chunk === LightFXChunk.LIGHT_PROBE) { const count = b.readCount('light probe'); for (let i = 0; i < count; i++) result.probes.push({ position: b.readFloats(3), normal: b.readFloats(3), coefficients: b.readFloats(b.readCount('coefficient')) }); }
-        else throw new Error(`Unknown LightFX output chunk: ${chunk}.`);
-    }
-    throw new Error('LightFX output has no EOF chunk.');
 }

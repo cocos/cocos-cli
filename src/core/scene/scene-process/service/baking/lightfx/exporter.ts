@@ -1,13 +1,18 @@
 import { DirectionalLight, director, gfx, Light, MeshRenderer, MobilityMode, renderer, Scene, SphereLight, SpotLight, Terrain, Texture2D, Vec3 } from 'cc';
-import { basename, join } from 'path';
-import { copy, pathExists } from 'fs-extra';
-import { Rpc } from '../../../rpc';
+import type { ILightFXTextureSource } from '../../../../common/lightfx-host';
+import { lightFXBakeHost } from './host';
 import { LightFXBakeTarget, LightFXLight, LightFXMaterial, LightFXMesh, LightFXSettings, LightFXTerrain, LightFXWorld } from './types';
 
-export interface LightFXExport { world: LightFXWorld; models: MeshRenderer[]; terrains: Terrain[]; stationaryMainLight: boolean }
+export interface LightFXExport {
+    world: LightFXWorld;
+    models: MeshRenderer[];
+    terrains: Terrain[];
+    stationaryMainLight: boolean;
+    textureSources: ILightFXTextureSource[];
+}
 
 export class LightFXExporter {
-    constructor(private readonly textureDir: string, private readonly projectRoot: string) {}
+    private readonly textureSources = new Map<string, ILightFXTextureSource>();
 
     async export(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings): Promise<LightFXExport> {
         const world: LightFXWorld = { name: scene.name, settings, meshes: [], terrains: [], lights: [], probes: [], textures: [] };
@@ -31,7 +36,7 @@ export class LightFXExporter {
         const exposure = hdr ? renderer.scene.Camera.standardExposureValue : 1;
         for (const light of world.lights) light.color = light.color.map((value) => value * exposure);
         if (scene.globals.lightProbeInfo.data) for (const probe of scene.globals.lightProbeInfo.data.probes) world.probes.push({ position: [probe.position.x, probe.position.y, probe.position.z], normal: [probe.normal.x, probe.normal.y, probe.normal.z] });
-        return { world, models, terrains, stationaryMainLight };
+        return { world, models, terrains, stationaryMainLight, textureSources: [...this.textureSources.values()] };
     }
 
     private exportTerrain(terrain: Terrain): LightFXTerrain {
@@ -83,11 +88,15 @@ export class LightFXExporter {
         const pixelFormat = Texture2D.PixelFormat;
         if (texture && texture.getPixelFormat() !== pixelFormat.RGBA8888 && texture.getPixelFormat() !== pixelFormat.RGB888) return '';
         const image: any = texture?.mipmaps?.[0]; if (!image?._uuid) return '';
-        const uuid = String(image._uuid); let source: string | null;
-        if (uuid.includes('@')) source = join(this.projectRoot, 'library', uuid.slice(0, 2), `${uuid}${image._native ?? ''}`);
-        else source = await Rpc.getInstance().request('assetManager', 'queryPath', [uuid]) as string | null;
-        if (!source || !(await pathExists(source))) return '';
-        const name = `${uuid.replace(/[^a-zA-Z0-9_.-]/g, '_')}-${basename(source)}`; await copy(source, join(this.textureDir, name)); return name;
+        const uuid = String(image._uuid);
+        const nativeExtension = String(image._native ?? '');
+        const key = `${uuid}\0${nativeExtension}`;
+        const existing = this.textureSources.get(key);
+        if (existing) return existing.fileName;
+        const resolved = await lightFXBakeHost.resolveTextureSource({ uuid, nativeExtension });
+        if (!resolved) return '';
+        this.textureSources.set(key, { uuid, nativeExtension, fileName: resolved.fileName });
+        return resolved.fileName;
     }
 
     private exportLight(light: Light, hdr: boolean): LightFXLight | null {

@@ -1,7 +1,8 @@
 import { LightFXBuffer } from '../scene-process/service/baking/lightfx/buffer';
-import { decodeLightFXOutput, encodeLightFXInput } from '../scene-process/service/baking/lightfx/format';
+import { encodeLightFXInput } from '../scene-process/service/baking/lightfx/format';
 import { LIGHTFX_FILE_VERSION, LightFXChunk, LightFXWorld } from '../scene-process/service/baking/lightfx/types';
 import { createDefaultLightFXSettings } from '../scene-process/service/baking/lightfx/settings';
+import { decodeLightFXOutput } from '../main-process/lightfx/output';
 
 describe('LightFX binary format', () => {
     it('encodes both bake target flags and scene chunks', () => {

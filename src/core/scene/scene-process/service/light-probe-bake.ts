@@ -1,5 +1,4 @@
 import { director, Scene, SH, Vec3 } from 'cc';
-import { remove } from 'fs-extra';
 import type {
     ILightFXBakeEvents,
     ILightFXCancelResult,
@@ -50,6 +49,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
                 await Service.Engine.repaintInEditMode();
                 if (options.saveScene !== false) await Service.Editor.save({});
                 await Service.Undo.endRecording(undo);
+                await lightFXCoordinator.commit(output.operationId);
             } catch (error) {
                 Service.Undo.cancelRecording(undo);
                 throw error;
@@ -58,13 +58,12 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             this.broadcast('lightfx:bake-end', 'light-probe');
             return { sceneUrl, probeCount: probes.length, giScale, giSamples, bounces, durationMs: Date.now() - started };
         } catch (error) {
+            if (output) await lightFXCoordinator.rollback(output.operationId).catch(() => undefined);
             this.restore(probes, previous);
             info.onProbeBakeFinished();
             await Service.Engine.repaintInEditMode();
             this.broadcast('lightfx:bake-end', 'light-probe', this.errorMessage(error));
             throw error;
-        } finally {
-            if (output) await remove(output.workspace).catch(() => undefined);
         }
     }
 

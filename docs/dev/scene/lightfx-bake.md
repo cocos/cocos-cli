@@ -9,15 +9,17 @@ Cocos CLI 通过 Creator 随附的 LightFX 工具提供离线光照烘焙能力�
 - 清理：解除 Light Probe 或 Lightmap 的烘焙结果，可选择保存场景及删除 Lightmap 资产。
 - 取消：终止当前正在运行的 LightFX 任务。
 
-MCP API 只负责参数校验和结果封装。场景数据读取、LightFX 调用、结果绑定、Undo、保存和回滚均在 scene-process 服务中完成。Light Probe 与 Lightmap 共享场景导出、二进制协议、进程管理和临时目录管理。
+MCP API 只负责参数校验和结果封装。场景运行时负责导出场景数据、应用烘焙结果、Undo、重绘和保存；Node Host 负责启动 LightFX、临时文件、Asset DB 导入和资产事务。Light Probe 与 Lightmap 共享场景导出、二进制协议、进程管理和临时目录管理。
+
+在 Pink 等集成场景编辑器中，CLI 会把请求路由到当前可见且已加载场景的 WebGL Scene Webview，使烘焙结果立即显示在正在编辑的场景中。没有连接 Scene Webview 时，CLI 才回退到 scene-process worker。
 
 ## 使用前提
 
-1. 使用 CLI 打开一个已保存的 `.scene` 资产；不支持未保存场景和 prefab。
+1. 当前场景必须是已保存的 `.scene` 资产；不支持未保存场景和 prefab。
 2. Light Probe 烘焙前，场景中需要至少 4 个已生成的有效探针。
 3. Lightmap 烘焙前，需要在 MeshRenderer、SkinnedMeshRenderer 或 Terrain 上配置有效的烘焙设置。
 4. 同一时间只允许运行一个 LightFX 烘焙任务。
-5. LightFX 在 Node scene-process 中执行，不要求打开浏览器 `/scene-editor/`，也不依赖 WebGL 场景渲染器。
+5. 在 Pink 中调用时，目标场景必须已在当前可见的场景视图中加载完成；不需要额外调用 `scene-open`。同时存在多个可见场景视图时，应先激活目标场景标签并关闭重复视图。
 
 ## MCP 工具
 
@@ -201,6 +203,8 @@ MCP API 只负责参数校验和结果封装。场景数据读取、LightFX 调�
 
 没有任务运行时，返回 `cancelled: false` 和 `target: null`。
 
+取消成功后，取消工具本身返回 `code: 200`；原烘焙请求结束并返回 `code: 500`、`reason: "LightFX bake was cancelled."`。这是被取消任务的预期终态。
+
 ## Lightmap 资产规则
 
 Lightmap 统一输出到：
@@ -224,7 +228,7 @@ LFX_Terrain_0000.png
 
 ## Creator 互操作说明
 
-CLI 烘焙并保存后，Creator 重新打开场景可以正常加载和显示 Light Probe 与 Lightmap 结果。
+CLI 烘焙并保存后，Creator 重新打开场景可以正常加载和显示 Light Probe 与 Lightmap 结果。在 Pink 中通过当前可见的 Scene Webview 烘焙时，结果会直接应用并重绘，无需重启编辑器。
 
 Creator Lightmap 面板的“清除”操作依赖该面板自己保存的 `latestLightmapResultDir`。CLI 不写入 Creator 的私有面板状态，因此 Creator 面板可能无法清除 CLI 生成的 Lightmap。请使用 `scene-clear-lightmap` 清理 CLI 烘焙结果。CLI 不伪造 Creator Profile 状态，以避免耦合面板内部实现或误删资源。
 
@@ -249,6 +253,7 @@ LightFX 当前可能输出 Creator 历史协议版本。解析器只接受已知
 - 输出协议不兼容或结果损坏。
 - Asset DB 导入、Texture2D 加载或场景保存失败。
 - 已有另一个 LightFX 任务运行。
+- 当前可见场景尚未加载完成，或同时存在多个可见的场景渲染器。
 
 Bake 和 Clear 都记录为单次 Undo 操作。场景结果提交失败时恢复原组件数据和全局标记；Lightmap 资产提交失败时还会恢复原 PNG 与 `.meta`。
 
@@ -261,6 +266,7 @@ Bake 和 Clear 都记录为单次 Undo 操作。场景结果提交失败时恢�
 - Terrain Lightmap Bake/Clear。
 - Mesh 与 Terrain 混合场景的独立贴图绑定。
 - 重复烘焙的 `.meta` 与 UUID 复用。
+- Pink 当前可见场景中的即时结果应用、清理和取消。
 - TypeScript 编译、ESLint、API、协议和资产事务测试。
 
 新增材质类型、灯光类型、LightFX 版本或目标平台时，应补充对应真实场景回归。

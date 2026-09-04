@@ -1,29 +1,74 @@
 import { Scene } from 'cc';
-import { ensureDir, outputFile, readFile, remove } from 'fs-extra';
-import { dirname, join } from 'path';
-import { Rpc } from '../../../rpc';
-import { decodeLightFXOutput, encodeLightFXInput } from './format';
+import { encodeLightFXBase64 } from './buffer';
+import { encodeLightFXInput } from './format';
 import { LightFXExporter, LightFXExport } from './exporter';
-import { LightFXProcess } from './process';
+import { lightFXBakeHost } from './host';
 import { LightFXBakeTarget, LightFXResult, LightFXSettings } from './types';
 
-export interface LightFXBakeOutput extends LightFXExport { result: LightFXResult; workspace: string; outputDir: string }
+const INPUT_CHUNK_SIZE = 512 * 1024;
+
+export interface LightFXBakeOutput extends LightFXExport {
+    result: LightFXResult;
+    operationId: string;
+    textureUrls: string[];
+}
 
 class LightFXCoordinator {
-    private target: LightFXBakeTarget | null = null; private controller: AbortController | null = null; private runner: LightFXProcess | null = null;
+    private target: LightFXBakeTarget | null = null;
+
     get activeTarget(): LightFXBakeTarget | null { return this.target; }
+
     async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number): Promise<LightFXBakeOutput> {
-        if (this.target) throw new Error(`A ${this.target} LightFX bake is already in progress.`); this.target = target; this.controller = new AbortController(); this.runner = new LightFXProcess();
-        const assetRoot = await Rpc.getInstance().request('assetManager', 'queryPath', ['db://assets']) as string | null; if (!assetRoot) throw new Error('The db://assets directory is unavailable.');
-        const projectRoot = dirname(assetRoot); const workspace = join(projectRoot, 'temp', 'lightfx-bake', `${target}-${Date.now()}-${process.pid}`); const tmpDir = join(workspace, 'tmp'); const outputDir = join(workspace, 'output');
+        if (this.target) throw new Error(`A ${this.target} LightFX bake is already in progress.`);
+        this.target = target;
+        let operationId: string | undefined;
         try {
-            await ensureDir(tmpDir); await ensureDir(outputDir); const exported = await new LightFXExporter(tmpDir, projectRoot).export(scene, target, settings);
-            await outputFile(join(tmpDir, 'lfx.in'), encodeLightFXInput(exported.world));
-            await this.runner.run({ cwd: workspace, timeoutMs, signal: this.controller.signal, onLog: (line) => console.log(`[LightFX] ${line}`) });
-            const result = decodeLightFXOutput(await readFile(join(outputDir, 'lfx.out'))); return { ...exported, result, workspace, outputDir };
-        } catch (error) { await remove(workspace).catch(() => undefined); throw error; }
-        finally { this.target = null; this.controller = null; this.runner = null; }
+            const exported = await new LightFXExporter().export(scene, target, settings);
+            ({ operationId } = await lightFXBakeHost.begin({
+                target,
+                sceneName: scene.name,
+                textureSources: exported.textureSources,
+                timeoutMs,
+            }));
+            const input = encodeLightFXInput(exported.world);
+            for (let offset = 0; offset < input.length; offset += INPUT_CHUNK_SIZE) {
+                await lightFXBakeHost.appendInput({
+                    operationId,
+                    chunkBase64: encodeLightFXBase64(input.subarray(offset, Math.min(offset + INPUT_CHUNK_SIZE, input.length))),
+                });
+            }
+            const output = await lightFXBakeHost.run({ operationId });
+            return { ...exported, result: output.result, textureUrls: output.textureUrls, operationId };
+        } catch (error) {
+            if (operationId) await lightFXBakeHost.rollback({ operationId }).catch(() => undefined);
+            this.target = null;
+            throw error;
+        }
     }
-    async cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> { const target = this.target; if (!target) return { cancelled: false, target: null }; this.controller?.abort(); await this.runner?.cancel(); return { cancelled: true, target }; }
+
+    async commit(operationId: string): Promise<void> {
+        try {
+            await lightFXBakeHost.commit({ operationId });
+        } finally {
+            this.target = null;
+        }
+    }
+
+    async rollback(operationId: string): Promise<void> {
+        try {
+            await lightFXBakeHost.rollback({ operationId });
+        } finally {
+            this.target = null;
+        }
+    }
+
+    removeLightmapAssets(sceneName: string): Promise<void> {
+        return lightFXBakeHost.removeLightmapAssets({ sceneName });
+    }
+
+    async cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {
+        return lightFXBakeHost.cancel();
+    }
 }
+
 export const lightFXCoordinator = new LightFXCoordinator();

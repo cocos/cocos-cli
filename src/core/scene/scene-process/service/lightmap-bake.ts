@@ -1,16 +1,14 @@
-import { assetManager, director, MeshRenderer, Scene, Terrain, Texture2D } from 'cc';
-import { copy, readdir, remove } from 'fs-extra';
-import { join } from 'path';
+import { director, MeshRenderer, Scene, Terrain, Texture2D } from 'cc';
 import type {
     ILightFXBakeEvents, ILightFXCancelResult, ILightmapBakeOptions,
     ILightmapBakeResult, ILightmapBakeService,
 } from '../../common';
 import { Rpc } from '../rpc';
-import { LightmapAssetTransaction } from './baking/lightfx/asset-transaction';
 import { lightFXCoordinator } from './baking/lightfx/baker';
 import type { LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { BaseService, register, Service } from './core';
+import { loadPreviewAsset } from './preview/asset-reload';
 
 interface LightmapBinding {
     target: any;
@@ -45,8 +43,6 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
 
         const timeoutMs = options.timeoutMs ?? 600_000;
         let output: LightFXBakeOutput | undefined;
-        let assets: LightmapAssetTransaction | undefined;
-        let refreshUrl: string | undefined;
         this.broadcast('lightfx:bake-start', 'lightmap');
         try {
             output = await lightFXCoordinator.bake(scene, 'lightmap', settings, timeoutMs);
@@ -54,14 +50,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 throw new Error('No bakeable meshes or terrains were found.');
             }
 
-            const assetRoot = await Rpc.getInstance().request('assetManager', 'queryPath', ['db://assets']) as string;
-            const targetDir = join(assetRoot, scene.name, 'lightmap');
             const targetUrl = `db://assets/${scene.name}/lightmap`;
-            refreshUrl = `db://assets/${scene.name}`;
-            assets = new LightmapAssetTransaction(targetDir, output.workspace);
-            await assets.prepare();
-
-            const textureUrls = await this.importOutputTextures(output, assets, targetDir, targetUrl);
             const textures = await this.loadOutputTextures(output, targetUrl, timeoutMs);
             const previousBindings = this.snapshotBindings(output);
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
@@ -74,6 +63,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 await Service.Engine.repaintInEditMode();
                 if (options.saveScene !== false) await Service.Editor.save({});
                 await Service.Undo.endRecording(undo);
+                await lightFXCoordinator.commit(output.operationId);
             } catch (error) {
                 this.restoreBindings(previousBindings);
                 (scene.globals as any).bakedWithHighpLightmap = previousHighp;
@@ -85,24 +75,17 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             this.broadcast('lightfx:bake-end', 'lightmap');
             return {
                 sceneUrl,
-                textureUrls,
+                textureUrls: output.textureUrls,
                 meshCount: output.result.meshes.length,
                 terrainCount: output.result.terrains.length,
                 durationMs: Date.now() - started,
             };
         } catch (error) {
-            if (assets) {
-                try {
-                    await assets.rollback();
-                    if (refreshUrl) await Rpc.getInstance().request('assetManager', 'refreshAsset', [refreshUrl]);
-                } catch (rollbackError) {
-                    console.error('[LightFX] Failed to roll back lightmap assets:', rollbackError);
-                }
-            }
+            if (output) await lightFXCoordinator.rollback(output.operationId).catch((rollbackError) => {
+                console.error('[LightFX] Failed to roll back lightmap assets:', rollbackError);
+            });
             this.broadcast('lightfx:bake-end', 'lightmap', this.errorMessage(error));
             throw error;
-        } finally {
-            if (output) await remove(output.workspace).catch(() => undefined);
         }
     }
 
@@ -131,9 +114,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         }
 
         if (options.deleteAssets) {
-            const root = await Rpc.getInstance().request('assetManager', 'queryPath', ['db://assets']) as string;
-            await remove(join(root, scene.name, 'lightmap'));
-            await Rpc.getInstance().request('assetManager', 'refreshAsset', [`db://assets/${scene.name}`]);
+            await lightFXCoordinator.removeLightmapAssets(scene.name);
         }
         return { clearedCount: bindings.length };
     }
@@ -149,22 +130,6 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         return sceneUrl;
     }
 
-    private async importOutputTextures(
-        output: LightFXBakeOutput,
-        assets: LightmapAssetTransaction,
-        targetDir: string,
-        targetUrl: string,
-    ): Promise<string[]> {
-        const files = (await readdir(output.outputDir)).filter((file) => file.toLowerCase().endsWith('.png'));
-        if (!files.length) throw new Error('LightFX did not produce any lightmap textures.');
-        for (const file of files) {
-            await copy(join(output.outputDir, file), join(targetDir, file), { overwrite: true });
-            await assets.preserveMeta(file);
-        }
-        await Rpc.getInstance().request('assetManager', 'refreshAsset', [targetUrl]);
-        return files.map((file) => `${targetUrl}/${file}`);
-    }
-
     private async loadOutputTextures(
         output: LightFXBakeOutput,
         targetUrl: string,
@@ -172,25 +137,26 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     ): Promise<Map<string, Texture2D>> {
         const textures = new Map<string, Texture2D>();
         for (const item of output.result.meshes) {
-            await this.loadIndexedTexture(textures, 'mesh', item.index, targetUrl, timeoutMs);
+            await this.loadIndexedTexture(textures, 'mesh', item.index, output.textureUrls, targetUrl, timeoutMs);
         }
         for (const item of output.result.terrains) {
-            await this.loadIndexedTexture(textures, 'terrain', item.index, targetUrl, timeoutMs);
+            await this.loadIndexedTexture(textures, 'terrain', item.index, output.textureUrls, targetUrl, timeoutMs);
         }
         return textures;
     }
 
     private async loadIndexedTexture(
         textures: Map<string, Texture2D>, kind: 'mesh' | 'terrain', index: number,
-        targetUrl: string, timeoutMs: number,
+        textureUrls: readonly string[], targetUrl: string, timeoutMs: number,
     ): Promise<void> {
         const key = `${kind}:${index}`;
         if (textures.has(key)) return;
         const prefix = kind === 'mesh' ? 'Mesh' : 'Terrain';
         const file = `LFX_${prefix}_${String(index).padStart(4, '0')}.png`;
-        const uuid = await this.waitForAsset(`${targetUrl}/${file}`, Math.min(timeoutMs, 60_000));
-        await this.disableAlphaFix(uuid);
-        textures.set(key, await this.loadTexture(`${uuid}@6c48a`));
+        const textureUrl = textureUrls.find((url) => url === `${targetUrl}/${file}` || url.endsWith(`/${file}`));
+        if (!textureUrl) throw new Error(`LightFX did not produce the expected lightmap texture: ${file}`);
+        const uuid = await this.waitForAsset(textureUrl, Math.min(timeoutMs, 60_000));
+        textures.set(key, await this.loadTexture(`${uuid}@6c48a`, timeoutMs));
     }
 
     private applyBakeResult(output: LightFXBakeOutput, textures: Map<string, Texture2D>): void {
@@ -287,19 +253,10 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         throw new Error(`Lightmap texture import timed out: ${url}`);
     }
 
-    private async disableAlphaFix(uuid: string): Promise<void> {
-        const rpc = Rpc.getInstance();
-        const meta = await rpc.request('assetManager', 'queryAssetMeta', [uuid]) as any;
-        if (meta?.userData?.fixAlphaTransparencyArtifacts === false) return;
-        if (!meta) throw new Error(`Lightmap texture metadata is unavailable: ${uuid}`);
-        meta.userData ??= {};
-        meta.userData.fixAlphaTransparencyArtifacts = false;
-        await rpc.request('assetManager', 'saveAssetMeta', [uuid, meta]);
-    }
-
-    private loadTexture(uuid: string): Promise<Texture2D> {
-        return new Promise((resolve, reject) => {
-            assetManager.loadAny(uuid, (error, asset: Texture2D) => error ? reject(error) : resolve(asset));
+    private loadTexture(uuid: string, timeoutMs: number): Promise<Texture2D> {
+        return loadPreviewAsset<Texture2D>(uuid, 'lightmap texture', {
+            reloadAsset: true,
+            timeoutMs,
         });
     }
 
