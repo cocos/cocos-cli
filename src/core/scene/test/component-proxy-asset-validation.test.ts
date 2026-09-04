@@ -135,4 +135,24 @@ describe('ComponentProxy Asset validation', () => {
 
         expect(setPropertyRequests()).toHaveLength(0);
     });
+
+    it('forwards PolygonCollider2D regeneration to the scene process', async () => {
+        const expected = {
+            path: '/Canvas/Polygon/cc.PolygonCollider2D',
+            changed: true,
+            pointCount: 8,
+            source: 'sprite-alpha',
+        };
+        mockRequest.mockResolvedValue(expected);
+
+        await expect(ComponentProxy.regeneratePolygon2DPoints({
+            path: '/Canvas/Polygon/cc.PolygonCollider2D',
+            record: false,
+        })).resolves.toEqual(expected);
+
+        expect(mockRequest).toHaveBeenCalledWith('Component', 'regeneratePolygon2DPoints', [{
+            path: '/Canvas/Polygon/cc.PolygonCollider2D',
+            record: false,
+        }]);
+    });
 });

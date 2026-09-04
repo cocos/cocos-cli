@@ -10,6 +10,15 @@ import { loadEngine } from '/static/web/engine-loader.js';
  * 运行启动场景，而不是加载场景编辑器 bundle。流程对齐编辑器 preview-app/src/main.ts。
  */
 export default async function gameBoot() {
+    // Creator 的带工具栏预览不是「游戏铺满浏览器窗口」：工具栏下的 GameDiv 是一个可独立
+    // 调整尺寸的模拟设备帧。仅由显式 URL 开启，普通浏览器预览与 Simple Browser 不受影响。
+    const previewToolbarEnabled = new URLSearchParams(window.location.search).get('previewToolbar') === '1';
+    if (previewToolbarEnabled) {
+        // 在引擎读取 GameDiv 尺寸前就建立 Creator 同款的 toolbar + content 布局，避免首帧按
+        // 浏览器全窗口初始化后再跳变。
+        document.body.classList.add('preview-toolbar-enabled');
+    }
+
     const showError = (e) => {
         const el = document.getElementById('error');
         if (el) {
@@ -65,8 +74,12 @@ export default async function gameBoot() {
         }
 
         // 构建引擎启动选项：以 settings 为基础，覆盖资源路径与启动场景（对齐编辑器 main.ts）
+        const toolbarOptions = previewToolbarEnabled ? window.__previewToolbarOptions : undefined;
+        // Creator 的公开模块 API 将 DebugMode 直接导出为 cc.DebugMode；cc.debug 是
+        // legacy/global 调试对象，不能作为启动配置的枚举来源。
+        const initialDebugMode = cc.DebugMode?.[toolbarOptions?.debugMode];
         const option = {
-            debugMode: (cc.debug && cc.debug.DebugMode && cc.debug.DebugMode.INFO) || 1,
+            debugMode: initialDebugMode ?? cc.DebugMode?.INFO ?? 1,
             overrideSettings: Object.assign({}, settings),
         };
         option.overrideSettings.assets = Object.assign({}, option.overrideSettings.assets, {
@@ -88,6 +101,17 @@ export default async function gameBoot() {
         option.overrideSettings.rendering = Object.assign({}, option.overrideSettings.rendering, {
             renderMode: 2,
         });
+        if (previewToolbarEnabled) {
+            // exactFitScreen=true 会让 Web screen adapter 将 GameDiv 认作浏览器窗口，故意拒绝
+            // cc.screen.windowSize。Creator 的设备模拟需要 SubFrame 模式，才能只改变 GameDiv，
+            // 而不把宿主窗口 resize 传给游戏。
+            option.overrideSettings.screen = Object.assign({}, option.overrideSettings.screen, {
+                exactFitScreen: false,
+            });
+            option.overrideSettings.profiling = Object.assign({}, option.overrideSettings.profiling, {
+                showFPS: !!toolbarOptions?.showFps,
+            });
+        }
 
         // 物理后端选择：预览用完整引擎（box2d / box2d-wasm / builtin 等所有后端都会在
         // EVENT_PRE_SUBSYSTEM_INIT 时各自 register），默认后端只是「最后注册的那个」，未必等于项目实际

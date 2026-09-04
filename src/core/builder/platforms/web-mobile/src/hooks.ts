@@ -8,6 +8,7 @@ import { relativeUrl, transformCode } from '../../../worker/builder/utils';
 import { IBuildResult } from './type';
 import * as commonUtils from '../../web-common/utils';
 import * as webUpload from '../../web-common/upload';
+import * as webPublish from '../../web-common/publish';
 export const throwError = true;
 
 export async function onAfterInit(options: IInterBuildTaskOption<'web-mobile'>, result: InternalBuildResult, cache: BuilderCache) {
@@ -136,4 +137,8 @@ export async function upload(this: IBuildStageTask, root: string, options: IInte
 
 export async function onAfterUpload(this: IBuildStageTask) {
     await webUpload.onAfterUpload(this);
+}
+
+export async function publish(this: IBuildStageTask, root: string, options: IInterBuildTaskOption<'web-mobile'>) {
+    await webPublish.publish(this, 'web-mobile', root, options);
 }

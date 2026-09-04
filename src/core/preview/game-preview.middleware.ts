@@ -7,6 +7,8 @@ import { GlobalPaths } from '../../global';
 import { scriptingRoutes } from './scripting-routes';
 import { getCachedPreviewSettings, PreviewNotReadyError } from './preview-settings';
 import { notePreviewNotReady } from './live-reload';
+import { getPreviewToolbarOptions, setPreviewToolbarOption } from './preview-toolbar-options';
+import i18n from '../base/i18n';
 
 /**
  * 各资源数据库的 library（已导入数据）目录缓存。
@@ -195,6 +197,17 @@ export default {
                         serverURL: serverBaseUrl,
                         settingsJs: `/preview/settings.js${sceneQuery}`,
                         sceneQuery,
+                        previewToolbarOptions: getPreviewToolbarOptions(),
+                        // Keep the preview page aligned with Creator: localize device-mode names on the
+                        // server, then inject the resolved values into the browser page. The toolbar
+                        // itself does not need a second client-side i18n runtime.
+                        previewToolbarI18n: {
+                            device: {
+                                designResolution: i18n.t('common.preview.device.design_resolution'),
+                                fullScreen: i18n.t('common.preview.device.full_screen'),
+                                webpageFullScreen: i18n.t('common.preview.device.webpage_full_screen'),
+                            },
+                        },
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'game.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);
@@ -214,7 +227,13 @@ export default {
     post: [],
     staticFiles: [],
     socket: {
-        connection: (_socket: any) => { },
+        connection: (socket: any) => {
+            // 对齐 Creator preview-app：工具栏通过同一个 socket 上报 changeOption，
+            // 服务端保存会话状态，下一次页面渲染时重新注入。
+            socket.on?.('changeOption', (name: unknown, value: unknown) => {
+                setPreviewToolbarOption(name, value);
+            });
+        },
         disconnect: (_socket: any) => { },
     },
 } as IMiddlewareContribution;

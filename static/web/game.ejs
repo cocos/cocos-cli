@@ -14,6 +14,7 @@
     <meta name="full-screen" content="yes"/>
     <meta name="x5-fullscreen" content="true"/>
     <meta name="360-fullscreen" content="true"/>
+    <link rel="stylesheet" type="text/css" href="/static/web/game-preview.css"/>
     <style>
         html, body {
             margin: 0;
@@ -45,9 +46,49 @@
     </style>
 </head>
 <body>
-    <div id="GameDiv" class="wrapper">
-        <div id="Cocos3dGameContainer">
-            <canvas id="GameCanvas" tabindex="-1"></canvas>
+    <div id="preview-toolbar" class="toolbar disabled" aria-label="Game preview controls">
+        <div class="item">
+            <div id="preview-device" class="view-select-container" value="design" tabindex="-1" aria-label="Device">
+                <div class="view-select">
+                    <div class="label"><span id="preview-device-name"></span></div>
+                    <i class="arrow-triangle"></i>
+                </div>
+                <div id="preview-device-options" class="options"><ul></ul></div>
+            </div>
+        </div>
+        <div class="item"><button id="preview-rotate" type="button">Rotate</button></div>
+        <span class="item toolbar-label">Debug Mode:</span>
+        <div class="item">
+            <select id="preview-debug-mode">
+                <option value="NONE">None</option>
+                <option value="VERBOSE">Verbose</option>
+                <option value="INFO">Info</option>
+                <option value="WARN">Warn</option>
+                <option value="ERROR">Error</option>
+                <option value="INFO_FOR_WEB_PAGE">Info For Web Page</option>
+                <option value="WARN_FOR_WEB_PAGE">Warn For Web Page</option>
+                <option value="ERROR_FOR_WEB_PAGE">Error For Web Page</option>
+            </select>
+        </div>
+        <div class="item"><button id="preview-show-fps" type="button">Show FPS</button></div>
+        <div class="item">
+            <label for="preview-frame-rate">FPS:</label>
+            <input id="preview-frame-rate" type="number" min="1" value="60" />
+        </div>
+        <div class="item controls">
+            <button id="preview-pause" type="button">Pause</button><button id="preview-step" type="button">Step</button>
+        </div>
+        <div id="preview-step-length" class="item">
+            <label for="preview-frame-time">Step Length:</label>
+            <input id="preview-frame-time" type="text" value="1" />
+            <span>ms</span>
+        </div>
+    </div>
+    <div id="preview-content">
+        <div id="GameDiv" class="wrapper">
+            <div id="Cocos3dGameContainer">
+                <canvas id="GameCanvas" tabindex="-1"></canvas>
+            </div>
         </div>
     </div>
     <div id="error"></div>
@@ -55,6 +96,8 @@
     <script>
         window.WebEnv = { serverURL: '<%= serverURL %>' };
         window.__launchSceneQuery = '<%= sceneQuery %>';
+        window.__previewToolbarOptions = <%- JSON.stringify(previewToolbarOptions) %>;
+        window.__previewToolbarI18n = <%- JSON.stringify(previewToolbarI18n) %>;
         // 构建标记：确认浏览器拿到的是「早注册 / 自愈」版本的 game.ejs（而非旧缓存或旧构建）。
         console.log('[Game Preview] page build marker: EARLY-ROUTE-FIX v6 (served from static/web/game.ejs)');
     </script>
@@ -116,6 +159,10 @@
         } else {
             const { default: gameBoot } = await import('/static/web/game-boot.js');
             await gameBoot();
+            if (new URLSearchParams(window.location.search).get('previewToolbar') === '1') {
+                const { default: initializePreviewToolbar } = await import('/static/web/game-preview-ui.js');
+                initializePreviewToolbar();
+            }
         }
     </script>
 </body>

@@ -1,4 +1,4 @@
-import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas, Scene } from 'cc';
+import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas, Scene, PolygonCollider2D } from 'cc';
 import { Rpc } from '../rpc';
 import { register, Service, BaseService } from './core';
 import {
@@ -19,6 +19,8 @@ import {
     IEraseLODOptions,
     IQueryLODGroupRelativeHeightOptions,
     ILODGroupLevelsResult,
+    IRegeneratePolygon2DPointsOptions,
+    IRegeneratePolygon2DPointsResult,
 } from '../../common';
 import dumpUtil from './dump';
 import compMgr from './component/index';
@@ -43,6 +45,14 @@ import {
     validateLODErase,
     validateLODInsert,
 } from './component/lod-group';
+import {
+    arePolygonPointsEqual,
+    createPolygonPointsPropertyDump,
+    generatePolygonPoints,
+    initializePolygonCollider2DPoints,
+    requirePolygonCollider2D,
+    validatePolygonPoints,
+} from './component/polygon-collider-2d';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -277,6 +287,9 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             this.checkDynamicBodyShape(node);
 
             compMgr.onComponentAddedFromEditor(comp);
+            if (comp instanceof PolygonCollider2D) {
+                await initializePolygonCollider2DPoints(comp);
+            }
             this.emit('node:change', node, { type: NodeEventType.CREATE_COMPONENT });
 
             const dump = dumpUtil.dumpComponent(comp as Component) as IComponent;
@@ -394,6 +407,69 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
             return this.queryImpl({ path: params });
         } else {
             return this.queryImpl(params);
+        }
+    }
+
+    async regeneratePolygon2DPoints(
+        options: IRegeneratePolygon2DPointsOptions,
+    ): Promise<IRegeneratePolygon2DPointsResult> {
+        const path = options.path;
+
+        try {
+            await Service.Editor.lock();
+
+            const component = await this.findComponent(path);
+            const collider = requirePolygonCollider2D(component, path);
+            const generated = await generatePolygonPoints(collider);
+            validatePolygonPoints(generated.points);
+
+            if (arePolygonPointsEqual(collider.points, generated.points)) {
+                return {
+                    path,
+                    changed: false,
+                    pointCount: generated.points.length,
+                    source: generated.source,
+                };
+            }
+
+            const componentIndex = collider.node.components.indexOf(collider);
+            if (componentIndex < 0) {
+                throw new Error('PolygonCollider2D is no longer attached to its node.');
+            }
+
+            const componentDump = dumpUtil.dumpComponent(collider) as IComponent;
+            const pointsDump = createPolygonPointsPropertyDump(
+                componentDump.value?.points,
+                generated.points,
+            );
+            if (!pointsDump) {
+                throw new Error('Unable to encode PolygonCollider2D.points from the component dump.');
+            }
+
+            const nodePath = NodeMgr.getNodePath(collider.node)
+                || (collider.node === Service.Editor.getRootNode() ? '/' : '');
+            if (!nodePath) {
+                throw new Error('Unable to resolve the PolygonCollider2D node path.');
+            }
+
+            const committed = await this.setProperty({
+                nodePath,
+                path: `__comps__.${componentIndex}.points`,
+                dump: pointsDump,
+                record: options.record,
+            });
+            if (!committed) {
+                throw new Error('Failed to commit PolygonCollider2D.points through ComponentService.setProperty().');
+            }
+
+            return {
+                path,
+                changed: true,
+                pointCount: generated.points.length,
+                source: generated.source,
+            };
+        } finally {
+            Service.Editor.unlock();
         }
     }
 

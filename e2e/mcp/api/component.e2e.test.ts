@@ -342,4 +342,55 @@ describe('MCP Component API', () => {
             expect(eraseResult.data).toEqual(insertResult.data);
         });
     });
+
+    describe('PolygonCollider2D 专用操作', () => {
+        it('should regenerate rectangle fallback points through MCP', async () => {
+            const addResult = await mcpClient.callTool('scene-add-component', {
+                addComponentInfo: {
+                    nodePath: testNodePath,
+                    component: 'cc.PolygonCollider2D',
+                },
+            });
+            expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
+
+            const regenerateResult = await mcpClient.callTool('scene-regenerate-polygon-2d-points', {
+                options: {
+                    path: addResult.data.path,
+                    record: false,
+                },
+            });
+
+            expect(regenerateResult.code).toBe(200);
+            expect(regenerateResult.data).toEqual({
+                path: addResult.data.path,
+                changed: false,
+                pointCount: 4,
+                source: 'rect-fallback',
+            });
+        });
+
+        it('should reject a non-PolygonCollider2D component', async () => {
+            const addResult = await mcpClient.callTool('scene-add-component', {
+                addComponentInfo: {
+                    nodePath: testNodePath,
+                    component: 'cc.Label',
+                },
+            });
+            expect(addResult.code).toBe(200);
+            expect(addResult.data).toBeDefined();
+            if (!addResult.data) return;
+
+            const regenerateResult = await mcpClient.callTool('scene-regenerate-polygon-2d-points', {
+                options: {
+                    path: addResult.data.path,
+                    record: false,
+                },
+            });
+
+            expect(regenerateResult.code).toBe(400);
+            expect(regenerateResult.reason).toContain('component is not cc.PolygonCollider2D');
+        });
+    });
 });

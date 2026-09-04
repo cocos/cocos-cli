@@ -71,15 +71,15 @@ jobs:
             local diff_output="$1"
             local noise_filter='grep -v "^exports\[" | grep -v "^$" | grep -v "^[[:space:]]*$" | grep -v "^\`;" | grep -v "^[[:space:]]*}[;,]\?$" | grep -v "^export { }$" | grep -v "^[[:space:]]*static readonly version" | grep -v "^export { .*_[0-9]\+ as "'
 
-            # Extract deleted lines (strip leading -, normalize quotes and Object casing)
+            # Extract deleted lines (strip leading -, normalize non-semantic syntax differences)
             local deleted
             deleted=$(echo "$diff_output" | grep '^-' | grep -v '^---' | sed 's/^-//' \
-              | eval "$noise_filter" | sed "s/\"/'/g; s/\bObject\b/object/g" | sort -u || true)
+              | eval "$noise_filter" | sed "s/\"/'/g; s/\bObject\b/object/g; s/,[[:space:]]*$//" | sort -u || true)
 
-            # Extract added lines (strip leading +, normalize quotes and Object casing)
+            # Extract added lines (strip leading +, normalize non-semantic syntax differences)
             local added
             added=$(echo "$diff_output" | grep '^+' | grep -v '^+++' | sed 's/^+//' \
-              | eval "$noise_filter" | sed "s/\"/'/g; s/\bObject\b/object/g" | sort -u || true)
+              | eval "$noise_filter" | sed "s/\"/'/g; s/\bObject\b/object/g; s/,[[:space:]]*$//" | sort -u || true)
 
             # Lines in deleted but NOT in added = truly removed
             if [ -n "$deleted" ]; then
