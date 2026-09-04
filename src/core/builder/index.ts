@@ -200,14 +200,15 @@ async function createBuildStageTaskWithBuildOptions(taskId: string, stageName: s
 }
 
 function readBuildOptionsForBuildStage(options: IBuildStageOptions) {
+    options.dest = utils.Path.resolveToRaw(options.dest);   // 顺便补回这行
     let buildOptions;
-    if (!options.platform.startsWith('web')) {
+    if (options.platform.startsWith('web')) {
+        buildOptions = { platform: options.platform, packages: {} } as any;
+    } else {
         buildOptions = readBuildTaskOptions(options.dest);
-        if (!buildOptions) {
-            throw new Error('Build options is not exist!');
-        }
-        mergeBuildStageRuntimeOptions(buildOptions, options);
+        if (!buildOptions) { throw new Error('Build options is not exist!'); }
     }
+    mergeBuildStageRuntimeOptions(buildOptions, options);
     return buildOptions;
 }
 
