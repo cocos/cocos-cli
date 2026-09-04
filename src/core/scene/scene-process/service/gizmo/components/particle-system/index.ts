@@ -1,8 +1,6 @@
 'use strict';
 
 import { Color, geometry, js, Node, ParticleSystem, Quat, Vec3 } from 'cc';
-import GizmoBase from '../../base/gizmo-base';
-import IconGizmoBase from '../../base/gizmo-icon';
 import { registerGizmo } from '../../gizmo-defines';
 import { create3DNode } from '../../utils/engine-utils';
 
@@ -11,6 +9,11 @@ import CircleController from '../../controller/circle';
 import HemisphereController from '../../controller/hemisphere';
 import SphereController from '../../controller/sphere';
 import ParticleSystemConeController from './controller-cone';
+
+declare const require: any;
+
+const GizmoBase = require('../../base/gizmo-base').default;
+const IconGizmoBase = require('../../base/gizmo-icon').default;
 
 const D2R = Math.PI / 180;
 const R2D = 180 / Math.PI;
