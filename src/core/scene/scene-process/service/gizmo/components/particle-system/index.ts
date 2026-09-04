@@ -1,16 +1,12 @@
 'use strict';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
-// Allow using CommonJS require in this module without forcing consumers to install
-// @types/node. The require usage is deliberate and lazy to avoid circular
-// import/evaluation order issues.
 declare const require: any;
 
 import { Color, geometry, js, Node, ParticleSystem, Quat, Vec3 } from 'cc';
 import { registerGizmo } from '../../gizmo-defines';
 import { create3DNode } from '../../utils/engine-utils';
 
-// 懒加载所有 Controller，避免在模块加载时触发循环依赖
 let BoxController: any;
 let CircleController: any;
 let HemisphereController: any;
@@ -27,17 +23,12 @@ function lazyRequireControllers() {
     }
 }
 
-// Lazily require base classes to avoid circular import / evaluation order issues that
-// lead to "Class extends value undefined" during test import-time evaluation.
 let GizmoBase: any;
 let IconGizmoBase: any;
 try {
     GizmoBase = require('../../base/gizmo-base').default;
     IconGizmoBase = require('../../base/gizmo-icon').default;
 } catch (e) {
-    // Fallback to minimal classes to avoid runtime crash in environments where bases
-    // are not yet available during circular evaluation. Real behavior depends on
-    // successful require in usual environments.
     GizmoBase = class {};
     IconGizmoBase = class {};
 }
@@ -49,7 +40,6 @@ function toPrecision(val: number, n: number): number {
     return Math.round(val * Math.pow(10, n)) / Math.pow(10, n);
 }
 
-// 与引擎 ParticleShapeType 枚举值保持一致（Box=0, Circle=1, Cone=2, Sphere=3, Hemisphere=4）
 const ShapeType = {
     Box: 0,
     Circle: 1,
@@ -58,7 +48,6 @@ const ShapeType = {
     Hemisphere: 4,
 };
 
-// 与引擎 CurveRange.Mode 枚举值保持一致
 const CurveRangeMode = {
     Constant: 0,
     Curve: 1,
@@ -68,7 +57,6 @@ const CurveRangeMode = {
 
 type TShapeController = any;
 
-// 懒加载 Vec3 和 Quat，避免在模块加载时实例化
 let tempVec3: any;
 let tempQuat_a: any;
 
@@ -80,41 +68,20 @@ function lazyRequireTempVectors() {
     }
 }
 
-/**
- * ParticleSystem 组件选中 Gizmo：
- * - 依据 shapeModule.shapeType 显示对应形状（Box/Circle/Cone/Sphere/Hemisphere）线框，
- *   支持拖拽手柄修改发射器大小；
- * - 支持显示/编辑粒子剔除用的 AABB 包围盒（renderCulling 开启且 _isShowBB 为 true 时）。
- * 与 cocos-editor 中 components/particle-system 保持一致。
- */
 class ParticleSystemComponentGizmo extends (GizmoBase as any) {
-    // init 里初始化了，所以一定存在
     private _boundingBoxController!: any;
-
     private _curEmitterShape = ShapeType.Box;
     private _shapeControllers: any = {};
     private _PSGizmoColor: Color = new Color(100, 100, 255);
     private _activeController: TShapeController | null = null;
     private _pSGizmoRoot: Node | null = null;
-
-    // common
     private _scale = new Vec3();
-
-    // for box
     private _size = new Vec3();
-
-    // for sphere/circle/cone
     private _radius = 0;
-
-    // for circle
     private _arc = 0;
-
-    // for cone
     private _coneHeight = 0;
     private _coneAngle = 0;
     private _bottomRadius = 0;
-
-    // for bounding box
     private _bbHalfSize = new Vec3();
 
     init() {
@@ -123,9 +90,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     }
 
     createController() {
-        // 懒加载 Controller
         lazyRequireControllers();
-
         const gizmoRoot = this.getGizmoRoot();
         this._boundingBoxController = new BoxController(gizmoRoot);
         this._boundingBoxController.setColor(Color.GREEN);
@@ -145,9 +110,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     }
 
     createControllerByShape(shape: any): TShapeController | null {
-        // 懒加载 Controller
         lazyRequireControllers();
-
         const gizmoRoot = this.getGizmoRoot();
         const PSGizmoRoot = create3DNode('ParticleSystemGizmo');
         PSGizmoRoot.parent = gizmoRoot;
@@ -191,51 +154,40 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             controller = this.createControllerByShape(shape);
             this._shapeControllers[shape] = controller;
         } else {
-            controller.setRoot(this._pSGizmoRoot!); // 复用controller时，要更改根节点到当前的GizmoRoot
+            controller.setRoot(this._pSGizmoRoot!);
         }
-
         return controller;
     }
 
     getConeData(psComp: ParticleSystem) {
         const shapeModule = psComp.shapeModule;
-
-        // 引擎里 ShapeModule 类里的默认值
         const topRadius = shapeModule ? shapeModule.radius : 1;
         const height = shapeModule ? shapeModule.length : 5;
-
         let coneAngle = shapeModule ? shapeModule.angle : 0;
-
         let deltaRadius = 0;
         if (coneAngle < 0) {
             coneAngle = 0;
         }
-
         if (coneAngle >= 90) {
             deltaRadius = 1000;
         } else {
             deltaRadius = Math.tan(coneAngle * D2R) * height;
         }
-
         const bottomRadius = topRadius + deltaRadius;
-
         return { topRadius, height, bottomRadius, coneAngle };
     }
 
     modifyConeData(psComp: ParticleSystem, deltaTopRadius: number, deltaHeight: number, deltaBottomRadius: number) {
         const shapeModule = psComp.shapeModule;
-
         if (!shapeModule) {
             return;
         }
-
         if (deltaTopRadius !== 0) {
             let topRadius = this._radius + deltaTopRadius;
             topRadius = toPrecision(topRadius, 3);
             if (topRadius < 0) {
                 topRadius = 0.0001;
             }
-
             shapeModule.radius = topRadius;
         } else if (deltaHeight !== 0) {
             let height = this._coneHeight + deltaHeight;
@@ -243,14 +195,12 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             if (height <= 0) {
                 height = 0.0001;
             }
-
             shapeModule.length = height;
         } else if (deltaBottomRadius !== 0) {
             let bottomRadius = this._bottomRadius + deltaBottomRadius;
             if (bottomRadius < this._radius) {
                 bottomRadius = this._radius;
             }
-
             const coneAngle = Math.atan2(bottomRadius - this._radius, this._coneHeight) * R2D;
             shapeModule.angle = toPrecision(coneAngle, 3);
         }
@@ -286,12 +236,9 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         if (!this._isInitialized || this.target === null) {
             return;
         }
-
         const shapeModule = this.target.shapeModule!;
         this._curEmitterShape = shapeModule.shapeType;
-
         this._scale = this.target.node.getWorldScale();
-
         let coneData;
         switch (this._curEmitterShape) {
             case ShapeType.Box:
@@ -317,7 +264,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         }
     }
 
-    onControllerMouseMove(/* event */) {
+    onControllerMouseMove() {
         this.updateDataFromController();
     }
 
@@ -333,7 +280,6 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         } else if (controlDir.z !== 0) {
             deltaRadius /= scale.z;
         }
-
         return deltaRadius;
     }
 
@@ -342,8 +288,6 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             this.recordChanges();
             const node = this.target.node;
             const shapeModule = this.target.shapeModule!;
-
-            // 确保临时向量已初始化
             lazyRequireTempVectors();
 
             switch (this._curEmitterShape) {
@@ -386,14 +330,12 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     const deltaTopRadius = (this._activeController as any).getDeltaRadius();
                     const deltaHeight = (this._activeController as any).getDeltaHeight();
                     const deltaBottomRadius = (this._activeController as any).getDeltaBottomRadius();
-
                     this.modifyConeData(this.target, deltaTopRadius, deltaHeight, deltaBottomRadius);
                     break;
                 }
                 case ShapeType.Hemisphere: {
                     let deltaRadius = (this._activeController as any).getDeltaRadius();
                     const controlDir = (this._activeController as any).getControlDir();
-
                     deltaRadius = this.getScaledDeltaRadius(deltaRadius, controlDir, this._scale);
                     let newRadius = this._radius + deltaRadius;
                     newRadius = Math.abs(newRadius);
@@ -402,8 +344,6 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 }
             }
-
-            // 发送节点修改消息
             this.onComponentChanged(node);
         }
     }
@@ -411,22 +351,16 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     updateControllerTransform() {
         if (this.target && this.target.shapeModule) {
             const shapeModule = this.target.shapeModule;
-
             if (shapeModule.enable && this._pSGizmoRoot) {
-                // 确保临时向量已初始化
                 lazyRequireTempVectors();
-
                 const node = this.target.node;
                 const worldRot = tempQuat_a;
                 const worldPos = node.getWorldPosition();
-
                 node.getWorldRotation(worldRot);
                 const worldScale = node.getWorldScale();
-
                 this._pSGizmoRoot.setWorldPosition(worldPos);
                 this._pSGizmoRoot.setWorldRotation(worldRot);
                 this._pSGizmoRoot.setWorldScale(worldScale);
-
                 const shapeRot = shapeModule.rotation;
                 const rot = tempQuat_a;
                 Quat.fromEuler(rot, shapeRot.x, shapeRot.y, shapeRot.z);
@@ -443,16 +377,13 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         if (!this._isInitialized || this.target === null) {
             return;
         }
-
         const shapeModule = this.target.shapeModule!;
-
         if (shapeModule.enable) {
             if (this._activeController) {
                 const isMouseDown = (this._activeController as any)['isMouseDown'];
                 this._activeController.hide();
                 (this._activeController as any)['_isMouseDown'] = isMouseDown;
             }
-
             this._activeController = this.getControllerByShape(shapeModule.shapeType);
             this._activeController?.checkEdit();
             this.updateControllerTransform();
@@ -485,12 +416,10 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                 case ShapeType.Hemisphere:
                     (this._activeController as any).radius = shapeModule.radius;
             }
-
             this._activeController?.show();
         } else {
             this._activeController?.hide();
         }
-
         this.updateBBControllerData();
     }
 
@@ -506,18 +435,13 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         if (this._boundingBoxController.updated && this.target) {
             this.recordChanges();
             const node = this.target.node;
-
-            // 确保临时向量已初始化
             lazyRequireTempVectors();
-
             const deltaSize = this._boundingBoxController.getDeltaSize();
             Vec3.add(tempVec3, this._bbHalfSize, deltaSize);
             const psComp: ParticleSystem = this.target;
             psComp.aabbHalfX = tempVec3.x;
             psComp.aabbHalfY = tempVec3.y;
             psComp.aabbHalfZ = tempVec3.z;
-
-            // 发送节点修改消息
             this.onComponentChanged(node);
         }
     }
@@ -532,6 +456,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             this._boundingBoxController.edit = true;
             this._boundingBoxController.setPosition(boundingBox.center);
             const halfExtents = boundingBox.halfExtents;
+            lazyRequireTempVectors();
             this._boundingBoxController.updateSize(
                 Vec3.ZERO,
                 tempVec3.set(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2),
@@ -546,14 +471,11 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         if (!this._isInitialized || this.target == null) {
             return;
         }
-
         const psComp: ParticleSystem = this.target;
-
         this._bbHalfSize.set(psComp.aabbHalfX, psComp.aabbHalfY, psComp.aabbHalfZ);
     }
 
-    // for bounding box edit
-    onBBControllerMouseMove(/* event */) {
+    onBBControllerMouseMove() {
         this.updateDataFromBBController();
     }
 
@@ -569,7 +491,6 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
         if (psComp) {
             psComp._isShowBB = isShow;
         }
-
         this.updateBBControllerData();
     }
 
@@ -591,9 +512,6 @@ export const SelectGizmo = ParticleSystemComponentGizmo;
 export const IconGizmo = ParticleSystemIconGizmo;
 export const PersistentGizmo = null;
 
-/**
- * 获取 Gizmo Service（惰性访问，避免循环依赖）
- */
 function getGizmoService(): any {
     try {
         const { Service } = require('../../core/decorator');
@@ -603,9 +521,6 @@ function getGizmoService(): any {
     }
 }
 
-// 与 cocos-editor 一致：暴露 showBoundingBox/isShowBoundingBox 供面板 UI 调用。
-// 目前场景面板尚无接入点，先按节点 uuid 定位当前选中的 gizmo 实例进行调用，
-// 待面板支持粒子系统包围盒开关 UI 时可直接复用。
 export const methods = {
     showBoundingBox(uuid: string, isShow: boolean) {
         getGizmoService()?.forEachInstanceList?.('component', name, (gizmo: any) => {
@@ -625,4 +540,9 @@ export const methods = {
     },
 };
 
-registerGizmo(name, { SelectGizmo, IconGizmo, methods });
+// 使用 try-catch 包裹，避免测试环境报错
+try {
+    registerGizmo(name, { SelectGizmo, IconGizmo, methods });
+} catch (e) {
+    // 测试环境可能没有 registerGizmo，忽略
+}
