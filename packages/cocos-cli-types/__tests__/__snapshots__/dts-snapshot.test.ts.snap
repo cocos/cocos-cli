@@ -5251,7 +5251,6 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	setMaxListeners(n: number): this;
 }
 export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
-export declare type UploadEnv = 'dev' | 'fat' | 'prod';
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
@@ -5355,15 +5354,6 @@ export declare interface WatcherOptions {
 }
 export declare type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;
 export declare interface webDesktopOptions {
-    appid?: string;
-    versionName?: string;
-    uploadEnv?: UploadEnv;
-    accessToken?: string;
-    codeVersion?: string | number | null;
-    bridgeLink?: string;
-    bridgeBuildToken?: string;
-    entryPath?: string;
-    encryptKey?: string;
     useWebGPU: boolean;
     resolution: {
         designHeight: number;

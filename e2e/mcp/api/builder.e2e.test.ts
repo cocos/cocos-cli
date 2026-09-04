@@ -29,11 +29,6 @@ describe('MCP Builder API', () => {
                         engine: false,
                     },
                     startScene: 'db://assets/atlas/altas.scene',
-                    packages: {
-                        'web-desktop': {
-                            bridgeLink: 'https://example.com/bridge.js',
-                        },
-                    },
                 },
             }, E2E_TIMEOUTS.BUILD_OPERATION);
 
@@ -61,12 +56,7 @@ describe('MCP Builder API', () => {
                         autoAtlas: false,
                         textureCompress: false,
                         serializeData: false,
-                    },
-                    packages: {
-                        'web-mobile': {
-                            bridgeLink: 'https://example.com/bridge.js',
-                        },
-                    },
+                    }
                 },
             });
 
