@@ -10,11 +10,22 @@ import { Color, geometry, js, Node, ParticleSystem, Quat, Vec3 } from 'cc';
 import { registerGizmo } from '../../gizmo-defines';
 import { create3DNode } from '../../utils/engine-utils';
 
-import BoxController from '../../controller/box';
-import CircleController from '../../controller/circle';
-import HemisphereController from '../../controller/hemisphere';
-import SphereController from '../../controller/sphere';
-import ParticleSystemConeController from './controller-cone';
+// 懒加载所有 Controller，避免在模块加载时触发循环依赖
+let BoxController: any;
+let CircleController: any;
+let HemisphereController: any;
+let SphereController: any;
+let ParticleSystemConeController: any;
+
+function lazyRequireControllers() {
+    if (!BoxController) {
+        BoxController = require('../../controller/box').default;
+        CircleController = require('../../controller/circle').default;
+        HemisphereController = require('../../controller/hemisphere').default;
+        SphereController = require('../../controller/sphere').default;
+        ParticleSystemConeController = require('./controller-cone').default;
+    }
+}
 
 // Lazily require base classes to avoid circular import / evaluation order issues that
 // lead to "Class extends value undefined" during test import-time evaluation.
@@ -58,12 +69,7 @@ const CurveRangeMode = {
 const tempVec3 = new Vec3();
 const tempQuat_a = new Quat();
 
-type TShapeController =
-    | BoxController
-    | SphereController
-    | CircleController
-    | ParticleSystemConeController
-    | HemisphereController;
+type TShapeController = any;
 
 /**
  * ParticleSystem 组件选中 Gizmo：
@@ -74,7 +80,7 @@ type TShapeController =
  */
 class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     // init 里初始化了，所以一定存在
-    private _boundingBoxController!: BoxController;
+    private _boundingBoxController!: any;
 
     private _curEmitterShape = ShapeType.Box;
     private _shapeControllers: any = {};
@@ -108,6 +114,9 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     }
 
     createController() {
+        // 懒加载 Controller
+        lazyRequireControllers();
+
         const gizmoRoot = this.getGizmoRoot();
         this._boundingBoxController = new BoxController(gizmoRoot);
         this._boundingBoxController.setColor(Color.GREEN);
@@ -127,6 +136,9 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
     }
 
     createControllerByShape(shape: any): TShapeController | null {
+        // 懒加载 Controller
+        lazyRequireControllers();
+
         const gizmoRoot = this.getGizmoRoot();
         const PSGizmoRoot = create3DNode('ParticleSystemGizmo');
         PSGizmoRoot.parent = gizmoRoot;
@@ -324,7 +336,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
 
             switch (this._curEmitterShape) {
                 case ShapeType.Box: {
-                    const deltaSize = (this._activeController as BoxController).getDeltaSize();
+                    const deltaSize = (this._activeController as any).getDeltaSize();
                     Vec3.divide(deltaSize, deltaSize, this._scale);
                     Vec3.multiplyScalar(deltaSize, deltaSize, 2);
                     const newSize = Vec3.add(tempVec3, this._size, deltaSize);
@@ -335,8 +347,8 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 }
                 case ShapeType.Sphere: {
-                    let deltaRadius = (this._activeController as SphereController).getDeltaRadius();
-                    const controlDir = (this._activeController as SphereController).getControlDir();
+                    let deltaRadius = (this._activeController as any).getDeltaRadius();
+                    const controlDir = (this._activeController as any).getControlDir();
                     deltaRadius = this.getScaledDeltaRadius(deltaRadius, controlDir, this._scale);
                     let newRadius = this._radius + deltaRadius;
                     newRadius = Math.abs(newRadius);
@@ -345,8 +357,8 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 }
                 case ShapeType.Circle: {
-                    let deltaRadius = (this._activeController as CircleController).getDeltaRadius();
-                    const controlDir = (this._activeController as CircleController).getControlDir();
+                    let deltaRadius = (this._activeController as any).getDeltaRadius();
+                    const controlDir = (this._activeController as any).getControlDir();
                     if (controlDir.x !== 0) {
                         deltaRadius /= this._scale.x;
                     } else if (controlDir.y !== 0) {
@@ -359,16 +371,16 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 }
                 case ShapeType.Cone: {
-                    const deltaTopRadius = (this._activeController as ParticleSystemConeController).getDeltaRadius();
-                    const deltaHeight = (this._activeController as ParticleSystemConeController).getDeltaHeight();
-                    const deltaBottomRadius = (this._activeController as ParticleSystemConeController).getDeltaBottomRadius();
+                    const deltaTopRadius = (this._activeController as any).getDeltaRadius();
+                    const deltaHeight = (this._activeController as any).getDeltaHeight();
+                    const deltaBottomRadius = (this._activeController as any).getDeltaBottomRadius();
 
                     this.modifyConeData(this.target, deltaTopRadius, deltaHeight, deltaBottomRadius);
                     break;
                 }
                 case ShapeType.Hemisphere: {
-                    let deltaRadius = (this._activeController as HemisphereController).getDeltaRadius();
-                    const controlDir = (this._activeController as HemisphereController).getControlDir();
+                    let deltaRadius = (this._activeController as any).getDeltaRadius();
+                    const controlDir = (this._activeController as any).getControlDir();
 
                     deltaRadius = this.getScaledDeltaRadius(deltaRadius, controlDir, this._scale);
                     let newRadius = this._radius + deltaRadius;
@@ -431,7 +443,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             this.updateControllerTransform();
             switch (shapeModule.shapeType) {
                 case ShapeType.Box: {
-                    const boxController = this._activeController as BoxController;
+                    const boxController = this._activeController as any;
                     if (boxController.edit) {
                         boxController.updateEditHandles();
                     }
@@ -439,15 +451,15 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 }
                 case ShapeType.Sphere:
-                    (this._activeController as SphereController).radius = shapeModule.radius;
+                    (this._activeController as any).radius = shapeModule.radius;
                     break;
                 case ShapeType.Circle:
-                    (this._activeController as CircleController).updateSize(Vec3.ZERO, shapeModule.radius, shapeModule.arc);
+                    (this._activeController as any).updateSize(Vec3.ZERO, shapeModule.radius, shapeModule.arc);
                     break;
                 case ShapeType.Cone: {
                     const coneData = this.getConeData(this.target);
                     coneData &&
-                        (this._activeController as ParticleSystemConeController).updateSize(
+                        (this._activeController as any).updateSize(
                             Vec3.ZERO,
                             coneData.topRadius,
                             coneData.height,
@@ -456,7 +468,7 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 }
                 case ShapeType.Hemisphere:
-                    (this._activeController as HemisphereController).radius = shapeModule.radius;
+                    (this._activeController as any).radius = shapeModule.radius;
             }
 
             this._activeController?.show();
